@@ -9,13 +9,9 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
-  ChartColumn,
-  Clock3,
   ContactRound,
   ListFilter,
-  PieChart,
   ShieldCheck,
-  TrendingUp,
   UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -42,97 +38,46 @@ type FlatClient = { created_at: string; gorusme: string | null };
 
 function calcDemoStats(clients: FlatClient[]): string[] {
   const now = new Date();
-
-  // Ay sınırları
-  const startOfMonth    = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfMonth     = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  // Hafta sınırları (Pzt–Paz)
-  const dow = now.getDay();
-  const diffMon = dow === 0 ? -6 : 1 - dow;
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() + diffMon);
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 7);
-
-  // Yıl sınırları
-  const startOfYear    = new Date(now.getFullYear(), 0, 1);
-  const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1);
-
-  // Son 3 ay (bu ay hariç)
-  const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
   // 1 — Toplam Danışan
   const total = clients.length;
 
-  // 2 — Son Kayıt (en yeni created_at)
+  // 2 — Bu Ay Yeni (created_at bu ay)
+  const thisMonthNew = clients.filter((c) => {
+    const d = new Date(c.created_at);
+    return d >= startOfMonth && d < startOfNextMonth;
+  }).length;
+
+  // 3 — Son Kayıt (en yeni created_at)
   const lastCreated = clients
     .map((c) => c.created_at)
     .filter(Boolean)
     .sort()
     .at(-1) ?? null;
 
-  // 3 — Bu Ay Yeni (created_at bu ay)
-  const thisMonthNew = clients.filter((c) => {
-    const d = new Date(c.created_at);
-    return d >= startOfMonth && d < startOfNextMonth;
-  }).length;
-
-  // 4 — Son 3 Ay Ort. (bu aydan önceki 3 aylık yeni danışan / 3)
-  const last3mTotal = clients.filter((c) => {
-    const d = new Date(c.created_at);
-    return d >= start3MonthsAgo && d < startOfMonth;
-  }).length;
-  const avg3m = Math.round(last3mTotal / 3);
-
-  // 5 — Bu Ay Randevu (gorusme bu ay içinde)
+  // 4 — Bu Ay Randevu (demo: gorusme bu ay içinde)
   const thisMonthAppts = clients.filter((c) => {
     if (!c.gorusme) return false;
     const d = new Date(c.gorusme);
     return d >= startOfMonth && d < startOfNextMonth;
   }).length;
 
-  // 6 — En Yakın Randevu (demo-0 profilindeki ilk yaklaşan randevu)
-  const nextAppt = "03.07.2026";
-
-  // 7 — Bu Hafta (created_at bu hafta)
-  const thisWeek = clients.filter((c) => {
-    const d = new Date(c.created_at);
-    return d >= startOfWeek && d < endOfWeek;
-  }).length;
-
-  // 8 — Bu Ay Tamamlanan (geçmişteki gorusme tarihleri bu ay)
+  // 5 — Bu Ay Tamamlanan (demo: gorusme bu ay ve geçmiş)
   const thisMonthCompleted = clients.filter((c) => {
     if (!c.gorusme) return false;
     const d = new Date(c.gorusme);
     return d >= startOfMonth && d < now;
   }).length;
 
-  // 9 — Bu Yıl Toplam (gorusme bu yıl içinde)
-  const thisYearTotal = clients.filter((c) => {
-    if (!c.gorusme) return false;
-    const d = new Date(c.gorusme);
-    return d >= startOfYear && d < startOfNextYear;
-  }).length;
-
-  // 10 — Bu Yıl Danışan (created_at bu yıl)
-  const thisYearClients = clients.filter((c) => {
-    const d = new Date(c.created_at);
-    return d >= startOfYear && d < startOfNextYear;
-  }).length;
-
   return [
-    fmtCount(total),             // 1
-    isoToTR(lastCreated),        // 2
-    fmtCount(thisMonthNew),      // 3
-    fmtCount(avg3m),             // 4
-    fmtCount(thisMonthAppts),    // 5
-    nextAppt,                    // 6
-    fmtCount(thisWeek),          // 7
-    fmtCount(thisMonthCompleted),// 8
-    fmtCount(thisYearTotal),     // 9
-    fmtCount(thisYearClients),   // 10
+    fmtCount(total),              // 1 Toplam Danışan
+    fmtCount(thisMonthNew),       // 2 Bu Ay Yeni
+    isoToTR(lastCreated),         // 3 Son Kayıt
+    fmtCount(thisMonthAppts),     // 4 Bu Ay Randevu
+    "—",                          // 5 En Yakın Randevu (demo'da randevu verisi yok)
+    fmtCount(thisMonthCompleted), // 6 Bu Ay Tamamlanan
   ];
 }
 
@@ -145,76 +90,26 @@ type StatCardDef = {
   iconBox: string;
 };
 
+// Sade, premium palet: tek marka vurgusu (indigo). Renk yalnızca anlam taşıyorsa
+// kullanılır — "Bu Ay Tamamlanan" olumlu/tamamlanmış anlamıyla emerald.
+const ACCENT = {
+  cardBg: "bg-white",
+  border: "border-slate-200/80",
+  iconBox: "bg-indigo-500 text-white",
+} as const;
+
 const STAT_CARD_DEFS: StatCardDef[] = [
-  {
-    label: "Toplam Danışan",
-    Icon: UsersRound,
-    cardBg: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
-    border: "border-violet-300/70",
-    iconBox: "bg-violet-500 text-white",
-  },
-  {
-    label: "Son Kayıt",
-    Icon: CalendarDays,
-    cardBg: "bg-gradient-to-br from-sky-100 via-white to-blue-100",
-    border: "border-sky-300/70",
-    iconBox: "bg-sky-500 text-white",
-  },
-  {
-    label: "Bu Ay Yeni",
-    Icon: Clock3,
-    cardBg: "bg-gradient-to-br from-teal-100 via-white to-emerald-100",
-    border: "border-teal-300/70",
-    iconBox: "bg-teal-500 text-white",
-  },
-  {
-    label: "Son 3 Ay Ort.",
-    Icon: ChartColumn,
-    cardBg: "bg-gradient-to-br from-amber-100 via-white to-orange-100",
-    border: "border-amber-300/70",
-    iconBox: "bg-orange-500 text-white",
-  },
-  {
-    label: "Bu Ay Randevu",
-    Icon: Activity,
-    cardBg: "bg-gradient-to-br from-pink-100 via-white to-rose-100",
-    border: "border-pink-300/70",
-    iconBox: "bg-pink-500 text-white",
-  },
-  {
-    label: "En Yakın Randevu",
-    Icon: CalendarClock,
-    cardBg: "bg-gradient-to-br from-cyan-100 via-white to-sky-100",
-    border: "border-cyan-300/70",
-    iconBox: "bg-cyan-500 text-white",
-  },
-  {
-    label: "Bu Hafta",
-    Icon: CalendarRange,
-    cardBg: "bg-gradient-to-br from-yellow-100 via-white to-amber-100",
-    border: "border-yellow-300/70",
-    iconBox: "bg-yellow-500 text-white",
-  },
+  { label: "Toplam Danışan",   Icon: UsersRound,    ...ACCENT },
+  { label: "Bu Ay Yeni",       Icon: UserPlus,      ...ACCENT },
+  { label: "Son Kayıt",        Icon: CalendarDays,  ...ACCENT },
+  { label: "Bu Ay Randevu",    Icon: CalendarClock, ...ACCENT },
+  { label: "En Yakın Randevu", Icon: Activity,      ...ACCENT },
   {
     label: "Bu Ay Tamamlanan",
     Icon: CalendarCheck,
-    cardBg: "bg-gradient-to-br from-rose-100 via-white to-pink-100",
-    border: "border-rose-300/70",
-    iconBox: "bg-rose-500 text-white",
-  },
-  {
-    label: "Bu Yıl Toplam",
-    Icon: PieChart,
-    cardBg: "bg-gradient-to-br from-purple-100 via-white to-violet-100",
-    border: "border-purple-300/70",
-    iconBox: "bg-purple-500 text-white",
-  },
-  {
-    label: "Bu Yıl Danışan",
-    Icon: TrendingUp,
-    cardBg: "bg-gradient-to-br from-green-100 via-white to-emerald-100",
-    border: "border-green-300/70",
-    iconBox: "bg-green-500 text-white",
+    cardBg: "bg-white",
+    border: "border-slate-200/80",
+    iconBox: "bg-emerald-500 text-white",
   },
 ];
 
@@ -308,8 +203,8 @@ function SummaryStatCard({
 
 // ─── Ana Sayfa ────────────────────────────────────────────────────────────────
 export default function DanisanYolculuguPage() {
-  // 10 stat değeri — yükleme öncesi "—"
-  const [stats, setStats] = useState<string[]>(Array(10).fill("—"));
+  // 6 stat değeri — yükleme öncesi "—"
+  const [stats, setStats] = useState<string[]>(Array(6).fill("—"));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -347,22 +242,6 @@ export default function DanisanYolculuguPage() {
       // Ay sınırları
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      // Hafta sınırları (Pazartesi–Pazar)
-      const dayOfWeek = now.getDay(); // 0=Pazar
-      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() + diffToMonday);
-      startOfWeek.setHours(0, 0, 0, 0);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 7);
-
-      // Yıl sınırları
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1);
-
-      // Son 3 ay (bu ay hariç)
-      const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
       // Tüm veri güvenli service_role API'lerinden alınır; metrikler client-side hesaplanır.
       const [clientsRes, apptsRes] = await Promise.all([
@@ -409,13 +288,6 @@ export default function DanisanYolculuguPage() {
       const thisMonthClients = clients.filter((c) =>
         inRange(c.created_at, startOfMonth, startOfNextMonth),
       ).length;
-      const last3mTotal = clients.filter((c) =>
-        inRange(c.created_at, start3MonthsAgo, startOfMonth),
-      ).length;
-      const avg3m = Math.round(last3mTotal / 3);
-      const thisYearClients = clients.filter((c) =>
-        inRange(c.created_at, startOfYear, startOfNextYear),
-      ).length;
 
       // Randevu metrikleri
       const thisMonthAppts = appts.filter((a) =>
@@ -429,29 +301,19 @@ export default function DanisanYolculuguPage() {
           .map((a) => a.appointment_date)
           .filter((d): d is string => !!d)
           .sort((a, b) => ts(a) - ts(b))[0] ?? null;
-      const thisWeekAppts = appts.filter((a) =>
-        inRange(a.appointment_date, startOfWeek, endOfWeek),
-      ).length;
       const thisMonthCompleted = appts.filter(
         (a) =>
           a.status === "tamamlandi" &&
           inRange(a.appointment_date, startOfMonth, startOfNextMonth),
       ).length;
-      const thisYearAppts = appts.filter((a) =>
-        inRange(a.appointment_date, startOfYear, startOfNextYear),
-      ).length;
 
       setStats([
         fmtCount(totalClients),          // 1 Toplam Danışan
-        isoToTR(lastClientDate),         // 2 Son Kayıt
-        fmtCount(thisMonthClients),      // 3 Bu Ay Yeni
-        fmtCount(avg3m),                 // 4 Son 3 Ay Ort.
-        fmtCount(thisMonthAppts),        // 5 Bu Ay Randevu
-        isoToTR(nextApptDate),           // 6 En Yakın Randevu
-        fmtCount(thisWeekAppts),         // 7 Bu Hafta
-        fmtCount(thisMonthCompleted),    // 8 Bu Ay Tamamlanan
-        fmtCount(thisYearAppts),         // 9 Bu Yıl Toplam
-        fmtCount(thisYearClients),       // 10 Bu Yıl Danışan
+        fmtCount(thisMonthClients),      // 2 Bu Ay Yeni
+        isoToTR(lastClientDate),         // 3 Son Kayıt
+        fmtCount(thisMonthAppts),        // 4 Bu Ay Randevu
+        isoToTR(nextApptDate),           // 5 En Yakın Randevu
+        fmtCount(thisMonthCompleted),    // 6 Bu Ay Tamamlanan
       ]);
       setLoading(false);
     }

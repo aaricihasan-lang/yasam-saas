@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
+import { containsTr } from "@/lib/text/turkishSearch";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -42,7 +43,7 @@ type SortKey =
   | "gorusme-new"
   | "gorusme-old";
 
-type AktifDurum = "aktif" | "takip" | "pasif" | "notr";
+type AktifDurum = "aktif" | "takip" | "pasif" | "yeni";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function formatDateTR(date: string | null) {
@@ -62,8 +63,10 @@ function goreleSure(date: string | null): string {
   return `${Math.floor(diff / 365)} yıl önce`;
 }
 
+// Durum, danışanın son (tamamlanmış) görüşme tarihine göre belirlenir.
+// `gorusme` yoksa danışan henüz görülmemiştir → yanıltıcı "Aktif" yerine "Yeni Kayıt".
 function calcAktifDurum(gorusme: string | null): AktifDurum {
-  if (!gorusme) return "notr";
+  if (!gorusme) return "yeni";
   const diff = Math.floor((Date.now() - new Date(gorusme).getTime()) / 86400000);
   if (diff <= 30)  return "aktif";
   if (diff <= 90)  return "takip";
@@ -71,10 +74,10 @@ function calcAktifDurum(gorusme: string | null): AktifDurum {
 }
 
 const DURUM_META: Record<AktifDurum, { label: string; cls: string }> = {
-  aktif: { label: "Aktif", cls: "bg-emerald-100 text-emerald-700" },
-  takip: { label: "Takip", cls: "bg-amber-100 text-amber-700" },
-  pasif: { label: "Pasif", cls: "bg-red-100 text-red-600" },
-  notr:  { label: "",      cls: "" },
+  aktif: { label: "Aktif",      cls: "bg-emerald-100 text-emerald-700" },
+  takip: { label: "Takip",      cls: "bg-amber-100 text-amber-700" },
+  pasif: { label: "Pasif",      cls: "bg-red-100 text-red-600" },
+  yeni:  { label: "Yeni Kayıt", cls: "bg-slate-100 text-slate-600" },
 };
 
 function clientInitials(ad: string | null, soyad: string | null): string {
@@ -127,11 +130,11 @@ export default function DanisanListePage() {
   );
 
   const filteredClients = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     const filtered = clients.filter((c) => {
-      const fullName = `${c.ad || ""} ${c.soyad || ""}`.toLowerCase();
-      const phone = (c.telefon || "").toLowerCase();
-      const searchOk = !q || fullName.includes(q) || phone.includes(q);
+      const fullName = `${c.ad || ""} ${c.soyad || ""}`;
+      const searchOk =
+        !q || containsTr(fullName, q) || containsTr(c.telefon, q);
       const burcOk = !filterBurc || c.burc === filterBurc;
       const kanOk = !filterKan || c.kan === filterKan;
       const mizacOk = !filterMizac || c.mizac === filterMizac;

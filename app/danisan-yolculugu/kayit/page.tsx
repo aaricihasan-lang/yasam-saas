@@ -256,7 +256,9 @@ export default function DanisanKayitPage() {
   const [soyad, setSoyad] = useState("");
   const [telefon, setTelefon] = useState("");
   const [dogum, setDogum] = useState("");
-  const [gorusme, setGorusme] = useState(todayForInput());
+  // Görüşme tarihi bilinçli olarak boş başlar: yeni danışan otomatik "Aktif"
+  // görünmesin. Uzman ilk/son görüşme tarihini varsa kendisi seçer.
+  const [gorusme, setGorusme] = useState("");
   const [kan, setKan] = useState("");
   const [mizac, setMizac] = useState("");
 
@@ -350,8 +352,8 @@ export default function DanisanKayitPage() {
         ad: ad.trim(),
         soyad: soyad.trim(),
         telefon: telefon.trim(),
-        dogum,
-        gorusme,
+        dogum: dogum || null,
+        gorusme: gorusme || null,
         burc,
         kan,
         mizac,
