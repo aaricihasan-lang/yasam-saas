@@ -36,9 +36,11 @@ const CENTER_FILL: Record<CenterName, string> = {
 const RED = "#dc2626";
 const BLACK = "#111827";
 
-// FAZ 10F-1 — pasif gate numarası (yalnız text; merkez durumuna göre kontrast). circle/bg YOK.
-const GATE_PASSIVE_LIGHT = "#cbd5e1"; // tanımlı (renkli) merkez → açık numara
-const GATE_PASSIVE_DARK = "#64748b";  // tanımsız (beyaz) merkez → koyu numara
+// FAZ 10F-2 — pasif gate: iki-ton fill + zıt-ton outline (paint-order) → her zeminde okunur. circle/bg YOK.
+const GATE_PASSIVE_FILL_LIGHT = "#f8fafc";   // renkli(tanımlı) merkez → açık numara
+const GATE_PASSIVE_FILL_DARK = "#334155";    // beyaz(tanımsız) merkez → koyu numara
+const GATE_PASSIVE_STROKE_LIGHT = "#ffffff"; // koyu numara outline (beyaz merkez)
+const GATE_PASSIVE_STROKE_DARK = "#0f172a";  // açık numara outline (renkli merkez)
 
 // FAZ 7B — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji sabit).
 const TRACK = "#e5e7eb";   // tanımsız kanal + tanımlı kanal casing (groove) tonu
@@ -124,6 +126,10 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
         {/* Yumuşak derinlik gölgesi — tek circle'a uygulanır, eleman eklemez */}
         <filter id="hd-gate-shadow" x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow dx="0" dy="0.5" stdDeviation="0.7" floodColor="#0f172a" floodOpacity="0.38" />
+        </filter>
+        {/* FAZ 10F-2 — aktif badge premium halo (tek circle'a uygulanır; ikinci circle YOK) */}
+        <filter id="hd-gate-badge" x="-70%" y="-70%" width="240%" height="240%">
+          <feDropShadow dx="0" dy="0.6" stdDeviation="1.3" floodColor="#0b1220" floodOpacity="0.5" />
         </filter>
         {/* Personality (siyah) küresel highlight */}
         <radialGradient id="hd-gate-black" cx="35%" cy="28%" r="80%">
@@ -238,7 +244,7 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
       <g fontFamily="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
         {Object.values(GATE_ANCHORS).map((a) => {
           if (gateMap[a.gate]) return null; // aktif → aktif katmanda çizilir
-          const light = definedCenterSet.has(a.center);
+          const coloredBg = definedCenterSet.has(a.center); // tanımlı merkez = renkli zemin
           return (
             <text
               key={a.gate}
@@ -246,11 +252,14 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
               y={a.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={5.2}
-              fontWeight={600}
+              fontSize={5.6}
+              fontWeight={700}
               letterSpacing={-0.2}
-              fill={light ? GATE_PASSIVE_LIGHT : GATE_PASSIVE_DARK}
-              fillOpacity={0.85}
+              fill={coloredBg ? GATE_PASSIVE_FILL_LIGHT : GATE_PASSIVE_FILL_DARK}
+              stroke={coloredBg ? GATE_PASSIVE_STROKE_DARK : GATE_PASSIVE_STROKE_LIGHT}
+              strokeWidth={0.45}
+              strokeLinejoin="round"
+              paintOrder="stroke"
             >
               {a.gate}
             </text>
@@ -271,20 +280,20 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
               <circle
                 cx={a.x}
                 cy={a.y}
-                r={5.8}
+                r={7.2}
                 fill={fillUrl}
                 stroke="#ffffff"
-                strokeWidth={0.9}
-                strokeOpacity={0.92}
-                filter="url(#hd-gate-shadow)"
+                strokeWidth={1.0}
+                strokeOpacity={0.95}
+                filter="url(#hd-gate-badge)"
               />
               <text
                 x={a.x}
                 y={a.y}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={6.2}
-                fontWeight={700}
+                fontSize={7}
+                fontWeight={800}
                 letterSpacing={-0.2}
                 fill="#ffffff"
               >
