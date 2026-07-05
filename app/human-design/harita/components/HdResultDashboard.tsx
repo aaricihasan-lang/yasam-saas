@@ -8,7 +8,7 @@
 // ve zengin ikon-kart/%bar/cross-figürü (10D) sonraki fazlarda.
 // Motor/compute/contract'a dokunmaz; yalnız hesaplanmış result'ı sunar.
 
-import { BodyGraph } from "./BodyGraph";
+import { BodyGraphSwitch } from "./BodyGraphSwitch";
 import { PlanetColumns } from "./PlanetColumns";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 
@@ -174,7 +174,7 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
                 <PlanetColumns result={result} side="design" />
               </div>
               <div className="order-1 flex w-full justify-center xl:order-2 xl:h-full xl:w-auto xl:flex-none">
-                <BodyGraph result={result} />
+                <BodyGraphSwitch result={result} />
               </div>
               <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[96px] xl:shrink-0">
                 <PlanetColumns result={result} side="personality" />
