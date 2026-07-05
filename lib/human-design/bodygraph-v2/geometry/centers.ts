@@ -23,60 +23,60 @@ export type CenterGeometry = {
 };
 
 export const CENTER_GEOMETRY: Record<CenterName, CenterGeometry> = {
+  // V2-6D: cesur ama çakışmasız ölçekleme + omurga sıkıştırma (9 merkez yeniden konum/boyut).
+  // Topoloji sabit; yalnız koordinat. Tüm komşu boşlukları pozitif (bkz. plan §9). viewBox 460×600 SABİT.
   Head: {
     name: "Head",
     kind: "triangle-up",
-    points: [{ x: 230, y: 46 }, { x: 185, y: 100 }, { x: 275, y: 100 }],
-    centroid: { x: 230, y: 82 },
+    points: [{ x: 230, y: 28 }, { x: 180, y: 90 }, { x: 280, y: 90 }],
+    centroid: { x: 230, y: 69 },
   },
   Ajna: {
     name: "Ajna",
     kind: "triangle-down",
-    points: [{ x: 185, y: 112 }, { x: 275, y: 112 }, { x: 230, y: 166 }],
-    centroid: { x: 230, y: 130 },
+    points: [{ x: 182, y: 96 }, { x: 278, y: 96 }, { x: 230, y: 148 }],
+    centroid: { x: 230, y: 113 },
   },
   Throat: {
     name: "Throat",
     kind: "rect",
-    points: [{ x: 188, y: 182 }, { x: 272, y: 182 }, { x: 272, y: 264 }, { x: 188, y: 264 }],
-    centroid: { x: 230, y: 223 },
+    points: [{ x: 186, y: 154 }, { x: 274, y: 154 }, { x: 274, y: 234 }, { x: 186, y: 234 }],
+    centroid: { x: 230, y: 194 },
   },
-  // V2-6B: G/Heart/Spleen/SolarPlexus/Sacral/Root kontrollü büyütüldü (estetik ölçekleme).
-  // Topoloji sabit; yalnız koordinat. Boşluklar pozitif (bkz. plan §1).
   G: {
     name: "G",
     kind: "diamond",
-    points: [{ x: 226, y: 274 }, { x: 296, y: 340 }, { x: 226, y: 406 }, { x: 156, y: 340 }],
-    centroid: { x: 226, y: 340 },
+    points: [{ x: 226, y: 244 }, { x: 306, y: 319 }, { x: 226, y: 394 }, { x: 146, y: 319 }],
+    centroid: { x: 226, y: 319 },
   },
   Heart: {
     name: "Heart",
     kind: "triangle-left",
-    points: [{ x: 306, y: 340 }, { x: 358, y: 314 }, { x: 358, y: 366 }],
-    centroid: { x: 341, y: 340 },
+    points: [{ x: 316, y: 319 }, { x: 384, y: 290 }, { x: 384, y: 348 }],
+    centroid: { x: 361, y: 319 },
   },
   Spleen: {
     name: "Spleen",
     kind: "triangle-right",
-    points: [{ x: 52, y: 400 }, { x: 52, y: 498 }, { x: 138, y: 449 }],
-    centroid: { x: 81, y: 449 },
+    points: [{ x: 28, y: 394 }, { x: 28, y: 494 }, { x: 128, y: 444 }],
+    centroid: { x: 61, y: 444 },
   },
   SolarPlexus: {
     name: "SolarPlexus",
     kind: "triangle-left",
-    points: [{ x: 408, y: 400 }, { x: 408, y: 498 }, { x: 322, y: 449 }],
-    centroid: { x: 379, y: 449 },
+    points: [{ x: 432, y: 394 }, { x: 432, y: 494 }, { x: 332, y: 444 }],
+    centroid: { x: 399, y: 444 },
   },
   Sacral: {
     name: "Sacral",
     kind: "rect",
-    points: [{ x: 185, y: 414 }, { x: 275, y: 414 }, { x: 275, y: 502 }, { x: 185, y: 502 }],
-    centroid: { x: 230, y: 458 },
+    points: [{ x: 178, y: 400 }, { x: 282, y: 400 }, { x: 282, y: 488 }, { x: 178, y: 488 }],
+    centroid: { x: 230, y: 444 },
   },
   Root: {
     name: "Root",
     kind: "rect",
-    points: [{ x: 182, y: 510 }, { x: 278, y: 510 }, { x: 278, y: 596 }, { x: 182, y: 596 }],
-    centroid: { x: 230, y: 553 },
+    points: [{ x: 176, y: 494 }, { x: 284, y: 494 }, { x: 284, y: 586 }, { x: 176, y: 586 }],
+    centroid: { x: 230, y: 540 },
   },
 };
