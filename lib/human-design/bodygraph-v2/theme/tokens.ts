@@ -42,6 +42,13 @@ export const GATE = {
   badgeStrokeW: 1.0,
   activeFont: 7,
   passiveFont: 6,
+  // Merkez stroke (tanımlı/açık) + pasif gate iki-ton kontrast (V2-2).
+  centerStrokeOn: "#1e293b",
+  centerStrokeOff: "#d5dce6",
+  passiveFillLight: "#f8fafc", // renkli(tanımlı) merkez → açık numara
+  passiveFillDark: "#334155", // beyaz(tanımsız) merkez → koyu numara
+  passiveStrokeLight: "#ffffff", // koyu numara outline (beyaz merkez)
+  passiveStrokeDark: "#0f172a", // açık numara outline (renkli merkez)
 } as const;
 
 // Aura yüzey (V2-4'te gerçek silüet path'i ile — placeholder).

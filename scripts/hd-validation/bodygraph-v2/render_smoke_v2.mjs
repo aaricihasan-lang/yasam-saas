@@ -1,9 +1,8 @@
-// Premium BodyGraph V2 — V2-0 render smoke.
+// Premium BodyGraph V2 — render smoke (V2-2: invariant aktif).
 //
 // 7 golden chart için:
 //   1) <PremiumBodyGraph> renderToStaticMarkup ile HATASIZ render
-//   2) V2-0'da henüz merkez/gate YOK → polygon === 0 && circle === 0
-//      (polygon=9 / circle=N invariant'ı V2-2'de merkez/gate eklenince aktifleşir)
+//   2) polygon === 9 (merkez) && circle === aktif gate sayısı (badge)
 //   3) a11y desc'te doğru meta (N tanımlı merkez / M kanal / K kapı)
 // Çalıştırma:  npx tsx scripts/hd-validation/bodygraph-v2/render_smoke_v2.mjs
 
@@ -39,8 +38,8 @@ for (const id of IDS) {
   }
   const polys = (html.match(/<polygon/g) || []).length;
   const circles = (html.match(/<circle/g) || []).length;
-  if (polys !== 0) checks.push(`polygons ${polys}!=0`);
-  if (circles !== 0) checks.push(`circles ${circles}!=0`);
+  if (polys !== 9) checks.push(`polygons ${polys}!=9`);
+  if (circles !== uniqGates.length) checks.push(`gate-circles ${circles}!=${uniqGates.length}`);
   // a11y meta doğru mu (VM == engine türetimi)
   if (!html.includes(`${d.definedCenters.length} tanımlı merkez`)) checks.push("desc-centers");
   if (!html.includes(`${d.definedChannels.length} tanımlı kanal`)) checks.push("desc-channels");
@@ -58,4 +57,4 @@ if (errors.length > 0) {
   for (const e of errors) console.error("  - " + e);
   process.exit(1);
 }
-console.log(`\nCHECK: ${IDS.length}/${IDS.length} golden — PremiumBodyGraph V2-0 render OK (iskele: polygon=0, circle=0, meta doğru).`);
+console.log(`\nCHECK: ${IDS.length}/${IDS.length} golden — PremiumBodyGraph V2 render OK (polygon=9, circle=N, meta doğru).`);

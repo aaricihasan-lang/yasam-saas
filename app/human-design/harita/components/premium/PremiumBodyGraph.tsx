@@ -2,13 +2,16 @@
 
 // Premium BodyGraph V2 — sıfırdan render katmanı.
 //
-// V2-0 (iskele): yalnız <svg> + viewBox + a11y + aura PLACEHOLDER.
-// Merkez/gate/kanal/aura geometrisi V2-1+ eklenecek. Eski BodyGraph ile AYNI imza
-// ({ result }) → geçiş tek satır import. Motor/compute/API'ye VM üzerinden bağlı.
+// V2-2: PremiumDefs + CenterLayer (9 polygon) + GateLayer (pasif text + aktif circle).
+// Kanal render V2-3, gerçek aura V2-4. Eski BodyGraph ile AYNI imza ({ result }) →
+// geçiş tek satır import. Motor/compute/API'ye yalnız VM üzerinden bağlı.
 
 import { useMemo } from "react";
 import { buildViewModel, VIEWBOX_V2 } from "@/lib/human-design/bodygraph-v2";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
+import { PremiumDefs } from "./defs/PremiumDefs";
+import { CenterLayer } from "./layers/CenterLayer";
+import { GateLayer } from "./layers/GateLayer";
 
 export function PremiumBodyGraph({ result }: { result: HdChartResult }) {
   const vm = useMemo(() => buildViewModel(result), [result]);
@@ -27,8 +30,11 @@ export function PremiumBodyGraph({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* V2-0 TEMP placeholder — tuval sınırı. V2-4'te gerçek aura path'i ile değişecek.
-          <rect>: polygon/circle DEĞİL → render_validation invariant'ını etkilemez. */}
+      {/* Katman sırası (arka→ön): defs → aura(placeholder) → [kanal V2-3] → merkez → gate */}
+      <PremiumDefs />
+
+      {/* Aura placeholder — V2-4'te gerçek silüet path'i ile değişecek.
+          <rect>: polygon/circle DEĞİL → invariant'ı etkilemez. */}
       <rect
         x={1}
         y={1}
@@ -41,6 +47,9 @@ export function PremiumBodyGraph({ result }: { result: HdChartResult }) {
         strokeDasharray="4 6"
         aria-hidden="true"
       />
+
+      <CenterLayer centers={vm.centers} />
+      <GateLayer vm={vm} />
     </svg>
   );
 }
