@@ -1,9 +1,54 @@
-// Premium BodyGraph V3 — iskelet kaynağı (skeleton-driven mimari).
+// Premium BodyGraph V3 — iskelet kaynağı (skeleton-driven mimari, TEK parametrik kaynak).
 //
-// V3-0: yalnız viewBox (480×800, H:W≈1.67 — referans tall/slim figür).
-// Omurga ritmi + orbital bantlar + silüet profili knob'ları V3-1'de eklenecek;
-// merkez/anchor/kanal/aura hepsi buradan türeyecek (tek oransal kaynak).
+// BODY_PROPORTIONS = tasarımın tek kontrol paneli. Merkez/anchor/kanal/aura hepsi buradan
+// türer (V3-2..5). Kompozisyonu ayarlamak = bu ~12 knob'u ayarlamak; 200 koordinat değil.
+// viewBox 480×800 SABİT (H:W≈1.67 — referans tall/slim figür).
+
+import type { CenterName } from "@/lib/human-design/engine/channels";
 
 export const VIEWBOX_V3 = { width: 480, height: 800 } as const;
 
 export type PointV3 = { x: number; y: number };
+
+export type CentralName = "Head" | "Ajna" | "Throat" | "G" | "Sacral" | "Root";
+export type SideName = "Spleen" | "SolarPlexus" | "Heart";
+
+export const BODY_PROPORTIONS = {
+  viewBox: VIEWBOX_V3,
+  axisX: 240,
+  // Dikey omurga ritmi (uzun beden, uzun boyun Ajna→Throat).
+  spineY: { Head: 100, Ajna: 180, Throat: 330, G: 475, Sacral: 610, Root: 720 } as Record<
+    CentralName,
+    number
+  >,
+  // Merkez zonu (node etrafı halfW/halfH). İnce kolon; G orta; Heart küçük; Root kompakt.
+  centerZone: {
+    Head: { hw: 54, hh: 34 },
+    Ajna: { hw: 52, hh: 30 },
+    Throat: { hw: 50, hh: 46 },
+    G: { hw: 56, hh: 62 },
+    Heart: { hw: 28, hh: 24 },
+    Spleen: { hw: 44, hh: 50 },
+    SolarPlexus: { hw: 44, hh: 50 },
+    Sacral: { hw: 48, hh: 44 },
+    Root: { hw: 46, hh: 40 },
+  } as Record<CenterName, { hw: number; hh: number }>,
+  // Yan merkez slotları (torso yanları).
+  sideSlot: {
+    Spleen: { x: 92, y: 600 },
+    SolarPlexus: { x: 388, y: 600 },
+    Heart: { x: 330, y: 500 },
+  } as Record<SideName, PointV3>,
+  // Orbital kaburga bantları (konsantrik; geniş sweep).
+  orbital: { center: { x: 240, y: 560 }, radii: [150, 195, 235] as number[] },
+  // Silüet knob'ları (aura V3-2 kullanacak).
+  silhouette: {
+    crownY: 30,
+    headHalfW: 36,
+    neck: { y: 250, halfW: 22 },
+    shoulder: { y: 320, halfW: 145 },
+    waist: { y: 470, halfW: 95 },
+    hip: { y: 610, halfW: 150 },
+    taperY: 780,
+  },
+};

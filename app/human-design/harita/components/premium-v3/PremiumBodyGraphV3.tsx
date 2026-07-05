@@ -2,16 +2,21 @@
 
 // Premium BodyGraph V3 — skeleton-driven render (sıfırdan; V2'den bağımsız).
 //
-// V3-0 (iskele): yalnız <svg 480×800> + a11y + placeholder. Skeleton/aura/kanal/merkez
-// V3-1+ eklenecek. Eski BodyGraph / V2 ile AYNI imza ({ result }) → geçiş tek satır.
+// V3-1: skeleton-driven iskelet + DEBUG görsel. Aura/kanal/merkez/gate V3-2+ skeleton'dan
+// türeyecek. Eski BodyGraph / V2 ile AYNI imza ({ result }) → geçiş tek satır.
 // Sayfaya yalnız BodyGraphSwitch üzerinden ?bg=v3 ile bağlanır (varsayılan V1).
 
 import { useMemo } from "react";
-import { buildViewModelV3, VIEWBOX_V3 } from "@/lib/human-design/bodygraph-v3";
+import { buildViewModelV3, buildSkeleton, VIEWBOX_V3 } from "@/lib/human-design/bodygraph-v3";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
+import { SkeletonDebug } from "./debug/SkeletonDebug";
+
+// V3-1: iskelet debug görünür. V3-2'de false (aura başlayınca). Prod finalde kaldırılır.
+const DEBUG_SKELETON = true;
 
 export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
   const vm = useMemo(() => buildViewModelV3(result), [result]);
+  const skeleton = useMemo(() => buildSkeleton(), []);
 
   return (
     <svg
@@ -27,20 +32,9 @@ export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* V3-0 TEMP placeholder — tuval sınırı (480×800). V3-2'de gerçek aura silüeti ile değişecek.
-          <rect>: polygon/circle DEĞİL → invariant'ı etkilemez. */}
-      <rect
-        x={1}
-        y={1}
-        width={VIEWBOX_V3.width - 2}
-        height={VIEWBOX_V3.height - 2}
-        rx={18}
-        fill="none"
-        stroke="#334155"
-        strokeOpacity={0.35}
-        strokeDasharray="4 6"
-        aria-hidden="true"
-      />
+      {/* V3-1 iskelet debug (yalnız line/rect/path → polygon=0/circle=0 korunur).
+          Gerçek aura/kanal/merkez/gate V3-2+ skeleton'dan türeyecek. */}
+      {DEBUG_SKELETON && <SkeletonDebug s={skeleton} />}
     </svg>
   );
 }
