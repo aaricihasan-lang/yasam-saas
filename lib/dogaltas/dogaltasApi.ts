@@ -128,3 +128,12 @@ export async function getMineral(
     `/api/dogaltas/minerals/${encodeURIComponent(id)}`);
   return { ok: r.ok, row: r.data?.row, error: r.error };
 }
+
+export async function updateMineral(
+  id: string,
+  fields: Record<string, unknown>,
+): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
+  const r = await dogaltasApiSend(
+    `/api/dogaltas/minerals/${encodeURIComponent(id)}`, "PATCH", fields);
+  return { ok: r.ok, error: r.error, demo: r.demo };
+}

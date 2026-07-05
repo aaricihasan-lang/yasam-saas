@@ -57,6 +57,12 @@ export async function PATCH(
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
+  // Ad gönderildiyse boş/yalnız-boşluk olamaz (POST ile aynı kural).
+  if ("name" in fields) {
+    const nm = String(fields.name ?? "").trim();
+    if (!nm) return NextResponse.json({ ok: false, error: "Mineral adı zorunludur." }, { status: 400 });
+    fields.name = nm;
+  }
 
   const { data, error } = await db
     .from("minerals").update(fields)
