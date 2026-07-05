@@ -25,34 +25,35 @@ export const COLORS = {
 
 // Kanal katman kalınlıkları/renkleri/opasiteleri (V2-4'te 460×600'e kalibre — 10H kilitli
 // değerleri başlangıç). Tanımlı = gölge/casing/gövde[glow]/sheen; tanımsız = knockout/edge/core.
-// V2-4B kalibrasyon: 460×600 kompakt ölçeğe ölçülü küçültme (yapı/renk/opasite sabit).
+// V2-6A token polish: kanal ayrımı (madde 4: kalınlık AZALT → aralar açılır) + kesişim
+// (madde 5: shadowOpacity↑ net dış hat) + glow/cam (madde 7). Yapı/renk sabit.
 export const CHANNEL = {
-  bodyW: 5.0,
-  shadowW: 8.0,
-  shadowOpacity: 0.85,
+  bodyW: 4.6,
+  shadowW: 7.4,
+  shadowOpacity: 0.92,
   shadowColor: "#0b1220",
-  casingW: 6.2,
+  casingW: 5.6,
   casingColor: "#dbe2ee",
-  sheenW: 1.5,
-  sheenOpacity: 0.5,
+  sheenW: 1.4,
+  sheenOpacity: 0.55,
   sheenColors: { red: "#fecaca", black: "#cbd5e1" } as Record<"red" | "black", string>,
-  glowStd: 0.9,
-  glowOpacity: 0.55,
-  undefinedEdgeW: 5.8,
-  undefinedCoreW: 4.1,
+  glowStd: 0.85,
+  glowOpacity: 0.5,
+  undefinedEdgeW: 5.2,
+  undefinedCoreW: 3.6,
   undefinedOpacity: 0.8,
   undefinedEdge: "#c3ccda",
   undefinedCore: "#f6f8fc",
-  knockoutW: 6.6,
+  knockoutW: 6.2,
   knockoutColor: "#0b1220",
 } as const;
 
 // Gate rozet/etiket (V2-4'te kalibre — placeholder).
 export const GATE = {
-  badgeR: 6.4,
+  badgeR: 7.0, // V2-6A: büyük rakamı taşır
   badgeStrokeW: 1.0,
-  activeFont: 6.4,
-  passiveFont: 5.6,
+  activeFont: 8.0, // V2-6A: +%25 okunabilirlik (madde 1)
+  passiveFont: 6.4, // V2-6A: ölçülü (+%14); V2-6B'de merkez büyüyünce tekrar değerlendirilecek
   // Merkez stroke (tanımlı/açık) + pasif gate iki-ton kontrast (V2-2).
   centerStrokeOn: "#1e293b",
   centerStrokeOff: "#d5dce6",

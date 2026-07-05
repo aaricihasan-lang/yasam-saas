@@ -38,16 +38,16 @@ export function PremiumDefs() {
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
-      {/* Merkez derinlik gölgesi (tanımlı merkeze uygulanır) */}
+      {/* Merkez derinlik gölgesi (V2-6A: ölçülü derinlik artışı — Apple-cam) */}
       <filter id="hd-v2-center-shadow" x="-40%" y="-40%" width="180%" height="180%">
-        <feDropShadow dx="0" dy="0.7" stdDeviation="1.1" floodColor="#0f172a" floodOpacity="0.30" />
+        <feDropShadow dx="0" dy="0.8" stdDeviation="1.3" floodColor="#0f172a" floodOpacity="0.34" />
       </filter>
 
-      {/* Tanımlı merkez: hue-korumalı üst-sol iç parlaklık (küresel cam) */}
+      {/* Tanımlı merkez: hue-korumalı üst-sol iç parlaklık (V2-6A: güçlü cam highlight) */}
       {CENTERS.map((c) => (
         <radialGradient key={c} id={`hd-v2-center-${c}`} cx="34%" cy="26%" r="86%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.55} />
-          <stop offset="30%" stopColor={COLORS.centerFill[c]} stopOpacity={1} />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.62} />
+          <stop offset="34%" stopColor={COLORS.centerFill[c]} stopOpacity={1} />
           <stop offset="100%" stopColor={COLORS.centerFill[c]} stopOpacity={1} />
         </radialGradient>
       ))}
@@ -77,9 +77,9 @@ export function PremiumDefs() {
         <stop offset="50%" stopColor={RED} />
         <stop offset="100%" stopColor="#991b1b" />
       </linearGradient>
-      {/* Aktif badge premium halo */}
+      {/* Aktif badge premium halo (V2-6A: biraz daha oturmuş derinlik) */}
       <filter id="hd-v2-gate-badge" x="-70%" y="-70%" width="240%" height="240%">
-        <feDropShadow dx="0" dy="0.6" stdDeviation="1.3" floodColor="#0b1220" floodOpacity="0.5" />
+        <feDropShadow dx="0" dy="0.7" stdDeviation="1.5" floodColor="#0b1220" floodOpacity="0.52" />
       </filter>
     </defs>
   );
