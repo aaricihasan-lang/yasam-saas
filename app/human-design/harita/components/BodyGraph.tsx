@@ -49,15 +49,24 @@ const GATE_PASSIVE_STROKE_DARK = "#0f172a";  // açık numara outline (renkli me
 // FAZ 7B → FAZ 10H-3 — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji SABİT).
 // Tanımlı kanal = 3 katman: (1) koyu hacim/gölge kenarı → (2) renkli ana gövde → (3) camsı sheen.
 // Amaç: "kalın çizgi" değil "premium kanal gövdesi". Koordinat/topoloji DEĞİŞMEZ.
-const CH_BODY_W = 5.6;       // tanımlı kanal renkli ana gövde (eski 3.2 → tok premium tüp)
-const CH_SHADOW_W = 9.0;     // koyu hacim/oluk kenarı (gövdeden geniş → dış hat + derinlik)
+const CH_BODY_W = 5.6;       // tanımlı kanal renkli ana gövde (10H-3 SABİT — inceltilmez)
+const CH_SHADOW_W = 9.0;     // koyu hacim/oluk kenarı (10H-3 SABİT — inceltilmez)
 const CH_SHADOW_COL = "#0b1220"; // koyu kasa/gölge tabanı
+const CH_SHADOW_OPACITY = 0.85; // 10H-3A: 0.92→0.85, komşu kanal gölgeleri ağır kütlede birleşmesin
+// 10H-3A — gölge ile gövde arasına ince AÇIK ayrım halkası (casing): kesişen/komşu tüpleri
+// görsel olarak ayırır → "daha temiz" algı. Kalınlık DEĞİL, ayrım eklenir.
+const CH_CASING_W = 7.0;     // gölge (9.0) ile gövde (5.6) arası → her yanda ~0.7 açık rim
+const CH_CASING_COL = "#dbe2ee"; // soğuk açık rim — tüpler arası nefes
 // Açık (tanımsız) kanal = tok beyaz tüp + ince slate kenar (belirgin ama tanımlının önüne GEÇMEZ).
-const CH_UNDEF_EDGE_W = 6.6; // beyaz tüp dış kenarı (10H-3 ince ayar: 7.0 → 6.6, geri plana it)
-const CH_UNDEF_CORE_W = 4.6; // beyaz tüp gövdesi (10H-3 ince ayar: 5.0 → 4.6)
+const CH_UNDEF_EDGE_W = 6.6; // beyaz tüp dış kenarı (10H-3 SABİT — değişmez)
+const CH_UNDEF_CORE_W = 4.6; // beyaz tüp gövdesi (10H-3 SABİT — değişmez)
 const CH_UNDEF_EDGE = "#c3ccda";
 const CH_UNDEF_CORE = "#f6f8fc";
-const CH_UNDEF_OPACITY = 0.8; // hiyerarşi: tanımlı kırmızı/siyah kanalın altında kalır (10H-3: 0.9 → 0.8)
+const CH_UNDEF_OPACITY = 0.8; // hiyerarşi: tanımlı kırmızı/siyah kanalın altında kalır (10H-3 SABİT)
+// 10H-3A — tanımsız kanal knockout: edge'ten (6.6) ~0.5 geniş, arka plan tonunda. Grubun 0.80
+// opaklığını miras alır → KOYU ZEMİNDE GÖRÜNMEZ, yalnız iki beyaz tüp kesiştiğinde ayrım yapar.
+const CH_UNDEF_KNOCKOUT_W = 7.6;
+const CH_UNDEF_KNOCKOUT = "#0b1220";
 
 // FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; gölge/casing hariç).
 // Kanalın kendi renginde yumuşak halo; neon değil. Koordinat/topoloji sabit.
@@ -227,6 +236,8 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             // FAZ 10H-3 — tanımsız: tok beyaz tüp (kenar + gövde). Belirgin ama tanımlının altında.
             return (
               <g key={seg.id} strokeOpacity={CH_UNDEF_OPACITY}>
+                {/* 10H-3A — knockout: koyu zeminde görünmez, yalnız kesişimde iki beyaz tüpü ayırır */}
+                <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_UNDEF_KNOCKOUT} strokeWidth={CH_UNDEF_KNOCKOUT_W} />
                 <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_UNDEF_EDGE} strokeWidth={CH_UNDEF_EDGE_W} />
                 <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_UNDEF_CORE} strokeWidth={CH_UNDEF_CORE_W} />
               </g>
@@ -238,7 +249,9 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           return (
             <g key={seg.id}>
               {/* FAZ 10H-3 — katman 1: koyu hacim/gölge kenarı (tam segment, tek parça) → dış hat + derinlik. glow ALMAZ */}
-              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_SHADOW_COL} strokeWidth={CH_SHADOW_W} strokeOpacity={0.92} />
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_SHADOW_COL} strokeWidth={CH_SHADOW_W} strokeOpacity={CH_SHADOW_OPACITY} />
+              {/* FAZ 10H-3A — katman 1.5: açık ayrım halkası (casing) → kesişen/komşu tüpleri görsel ayırır. glow ALMAZ */}
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_CASING_COL} strokeWidth={CH_CASING_W} />
               {/* FAZ 10H-3 — katman 2: renkli ana gövde (her yarı kendi rengi) + ölçülü glow */}
               <g filter="url(#hd-channel-glow)">
                 <ChannelHalf from={seg.a} to={mid} color={colA} />
