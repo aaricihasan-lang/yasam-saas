@@ -1,4 +1,14 @@
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+
+function authHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
+}
 
 // -------------------------------------------------------
 // Yağ Tipleri
@@ -139,73 +149,117 @@ export type OilListRow = Pick<
   | "updated_at"
 >;
 
-const LIST_SELECT =
-  "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
-  "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +
-  "spiritual_benefits,diffuser_usage,massage_usage,usage_methods,safety_notes," +
-  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
-  "created_at,updated_at";
-
 // -------------------------------------------------------
-// Sorgular
+// Sorgular / Yazma — hepsi güvenli server API üzerinden (service_role).
+// Tarayıcı aromatherapy_oils tablosuna DOĞRUDAN erişmez (RLS-kilitli).
+// Windowing (1000 tavanı) sunucu tarafında yapılır.
 // -------------------------------------------------------
 
-// PostgREST tek istekte en fazla ~1000 satır döndürür (varsayılan max-rows).
-// Kütüphane 1000 kaydı geçtiğinde kayıtların sessizce kaybolmaması için
-// tüm sayfalar .range() ile döngüyle çekilir. Böylece sayaç, arama ve filtre
-// TÜM kayıtlar üzerinde doğru çalışır.
-const OIL_PAGE_SIZE = 1000;
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
 
+// İmza korunur: tenantId parametresi geriye dönük uyumluluk için durur; gerçek
+// tenant server tarafında oturumdan belirlenir (istemci değeri güvenilmez).
 export async function fetchOilList(
-  tenantId: string,
+  _tenantId: string,
   oilType?: string,
 ): Promise<{ rows: OilListRow[]; error: string | null }> {
-  const all: OilListRow[] = [];
-
-  for (let from = 0; ; from += OIL_PAGE_SIZE) {
-    let query = supabase
-      .from("aromatherapy_oils")
-      .select(LIST_SELECT)
-      .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-      .eq("is_active", true);
-
-    if (oilType) query = query.eq("oil_type", oilType);
-
-    // İkincil "id" sıralaması, aynı ada sahip kayıtlarda sayfa sınırında
-    // atlama/tekrarı önleyen kararlı bir sıralama sağlar.
-    const { data, error } = await query
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, from + OIL_PAGE_SIZE - 1);
-
-    if (error) return { rows: [], error: error.message };
-
-    const page = (data ?? []) as unknown as OilListRow[];
-    all.push(...page);
-
-    // Tam sayfadan az geldiyse son sayfadayız; döngüyü bitir.
-    if (page.length < OIL_PAGE_SIZE) break;
-  }
-
-  return { rows: all, error: null };
+  const qs = oilType ? `?type=${encodeURIComponent(oilType)}` : "";
+  const res = await fetch(`/api/aromaterapi/oils${qs}`, { headers: authHeaders() });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { rows: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  return { rows: (j.rows as OilListRow[]) ?? [], error: null };
 }
 
 export async function fetchOilDetail(
-  tenantId: string,
+  _tenantId: string,
   id: string,
 ): Promise<{ oil: AromatherapyOil | null; error: string | null; notFound: boolean }> {
-  const { data, error } = await supabase
-    .from("aromatherapy_oils")
-    .select("*")
-    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-    .eq("id", id)
-    .single();
+  const res = await fetch(`/api/aromaterapi/oils/${id}`, { headers: authHeaders() });
+  const j = await readJson(res);
+  if (res.status === 404) return { oil: null, error: null, notFound: true };
+  if (!res.ok || j.ok !== true)
+    return { oil: null, error: String(j.error ?? `HTTP ${res.status}`), notFound: false };
+  return { oil: (j.oil as AromatherapyOil) ?? null, error: null, notFound: false };
+}
 
-  if (error) {
-    if (error.code === "PGRST116") return { oil: null, error: null, notFound: true };
-    return { oil: null, error: error.message, notFound: false };
-  }
-  return { oil: data as AromatherapyOil, error: null, notFound: false };
+// Hub sayaçları — tek çağrıda toplam/uçucu/sabit/maserasyon.
+export async function fetchOilCounts(): Promise<{
+  counts: { total: number; essential: number; carrier: number; maceration: number } | null;
+  error: string | null;
+}> {
+  const res = await fetch(`/api/aromaterapi/oils?count=1`, { headers: authHeaders() });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { counts: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  return {
+    counts: j.counts as { total: number; essential: number; carrier: number; maceration: number },
+    error: null,
+  };
+}
+
+// Yağ detayında blend eşleştirmesi için id,name haritası.
+export async function fetchOilNameMap(): Promise<{
+  names: { id: string; name: string }[];
+  error: string | null;
+}> {
+  const res = await fetch(`/api/aromaterapi/oils?names=1`, { headers: authHeaders() });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { names: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  return { names: (j.names as { id: string; name: string }[]) ?? [], error: null };
+}
+
+// -------------------------------------------------------
+// Yazma işlemleri — server API (tenant_id oturumdan zorlanır).
+// -------------------------------------------------------
+
+export async function createOil(
+  fields: Record<string, unknown>,
+): Promise<{ id: string | null; error: string | null }> {
+  const res = await fetch(`/api/aromaterapi/oils`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(fields),
+  });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { id: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  return { id: (j.id as string) ?? null, error: null };
+}
+
+export async function updateOil(
+  id: string,
+  fields: Record<string, unknown>,
+): Promise<{ error: string | null }> {
+  const res = await fetch(`/api/aromaterapi/oils/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(fields),
+  });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  return { error: null };
+}
+
+export async function deleteOil(id: string): Promise<{ error: string | null }> {
+  const res = await fetch(`/api/aromaterapi/oils/${id}`, { method: "DELETE", headers: authHeaders() });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  return { error: null };
+}
+
+export async function deleteOils(
+  ids: string[],
+): Promise<{ deletedIds: string[]; error: string | null }> {
+  const clean = ids.filter((x) => typeof x === "string" && x.trim().length > 0);
+  if (clean.length === 0) return { deletedIds: [], error: null };
+  const res = await fetch(`/api/aromaterapi/oils`, {
+    method: "DELETE",
+    headers: authHeaders(),
+    body: JSON.stringify({ ids: clean }),
+  });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { deletedIds: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  return { deletedIds: (j.deletedIds as string[]) ?? [], error: null };
 }
 
 // -------------------------------------------------------

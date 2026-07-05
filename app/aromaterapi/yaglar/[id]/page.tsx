@@ -8,7 +8,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
+  createOil,
+  deleteOil,
   fetchOilDetail,
+  fetchOilNameMap,
+  updateOil,
   oilTypeBadgeClass,
   oilTypeLabel,
   oilToFormData,
@@ -18,7 +22,6 @@ import {
   type AromatherapyOil,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
-import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -320,11 +323,7 @@ export default function OilDetailPage() {
     // Yağ detayı + blend haritası paralel çekilir
     const [oilResult, namesResult] = await Promise.all([
       fetchOilDetail(tid, id),
-      supabase
-        .from("aromatherapy_oils")
-        .select("id, name")
-        .eq("is_active", true)
-        .or(`tenant_id.is.null,tenant_id.eq.${tid}`),
+      fetchOilNameMap(),
     ]);
 
     setLoading(false);
@@ -333,8 +332,8 @@ export default function OilDetailPage() {
     setOil(oilResult.oil);
     setDraft(oilToFormData(oilResult.oil));
 
-    if (!namesResult.error && namesResult.data) {
-      setBlendMap(buildBlendMap(namesResult.data as BlendEntry[]));
+    if (!namesResult.error && namesResult.names) {
+      setBlendMap(buildBlendMap(namesResult.names as BlendEntry[]));
     }
   }, [id]);
 
@@ -360,7 +359,7 @@ export default function OilDetailPage() {
     if (!nameTrim) { setErrorMessage("Yağ adı zorunludur."); return; }
     setSaving(true); setErrorMessage("");
     const t = (v: string) => v.trim() || "";
-    const { data: updatedRows, error } = await supabase.from("aromatherapy_oils").update({
+    const { error } = await updateOil(id, {
       name: nameTrim, latin_name: t(draft.latin_name), english_name: t(draft.english_name),
       oil_type: draft.oil_type || "essential", category: t(draft.category),
       extraction_method: t(draft.extraction_method), plant_part: t(draft.plant_part),
@@ -376,10 +375,9 @@ export default function OilDetailPage() {
       chakra_connection: t(draft.chakra_connection), element_connection: t(draft.element_connection),
       safety_notes: t(draft.safety_notes), contraindications: t(draft.contraindications),
       images: parseImageUrls(draft.images_raw), notes: t(draft.notes), source: t(draft.source),
-    }).eq("tenant_id", tenantId).eq("id", id).select("id");
+    });
     setSaving(false);
-    if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error.message}`); return; }
-    if (!updatedRows || updatedRows.length === 0) { setErrorMessage("Güncelleme başarısız — erişim izniniz yok."); return; }
+    if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error}`); return; }
     setEditEnabled(false);
     showToast({ title: "Başarılı", message: "Kayıt güncellendi.", type: "success" });
     await loadOil();
@@ -388,9 +386,9 @@ export default function OilDetailPage() {
   async function handleDelete() {
     if (!id || !tenantId) return;
     setDeleting(true); setErrorMessage("");
-    const { error } = await supabase.from("aromatherapy_oils").delete().eq("tenant_id", tenantId).eq("id", id);
+    const { error } = await deleteOil(id);
     setDeleting(false);
-    if (error) { setErrorMessage(`Silinemedi: ${error.message}`); return; }
+    if (error) { setErrorMessage(`Silinemedi: ${error}`); return; }
     setDeleteConfirmOpen(false); router.push("/aromaterapi/yaglar?view=list");
   }
 
@@ -398,8 +396,8 @@ export default function OilDetailPage() {
     if (!oil || !tenantId) return;
     setCopying(true); setErrorMessage("");
     const t = (v: string) => v || "";
-    const { data, error } = await supabase.from("aromatherapy_oils").insert({
-      tenant_id: tenantId, name: `${oil.name} (Kopya)`,
+    const { id: newId, error } = await createOil({
+      name: `${oil.name} (Kopya)`,
       latin_name: t(oil.latin_name), english_name: t(oil.english_name), oil_type: oil.oil_type,
       category: t(oil.category), extraction_method: t(oil.extraction_method), plant_part: t(oil.plant_part),
       origin: t(oil.origin), shelf_life: t(oil.shelf_life), aroma_profile: t(oil.aroma_profile),
@@ -414,10 +412,10 @@ export default function OilDetailPage() {
       chakra_connection: t(oil.chakra_connection), element_connection: t(oil.element_connection),
       safety_notes: t(oil.safety_notes), contraindications: t(oil.contraindications),
       images: oil.images ?? [], notes: t(oil.notes), source: t(oil.source),
-    }).select("id").single();
+    });
     setCopying(false);
-    if (error || !data) { setErrorMessage("Kopyalama başarısız."); return; }
-    router.push(`/aromaterapi/yaglar/${data.id}`);
+    if (error || !newId) { setErrorMessage("Kopyalama başarısız."); return; }
+    router.push(`/aromaterapi/yaglar/${newId}`);
   }
 
   // -------------------------------------------------------

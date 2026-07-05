@@ -14,6 +14,8 @@ import {
 } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
+  createOil,
+  deleteOils,
   fetchOilList,
   matchesOilSearch,
   oilListRowPreview,
@@ -26,7 +28,6 @@ import {
   type OilListRow,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
-import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -315,8 +316,7 @@ function NewOilForm({
 
     const t = (v: string) => v.trim() || "";
 
-    const { error: insertError } = await supabase.from("aromatherapy_oils").insert({
-      tenant_id: tenantId,
+    const { error: insertError } = await createOil({
       name: nameTrim,
       latin_name: t(form.latin_name),
       english_name: t(form.english_name),
@@ -356,7 +356,7 @@ function NewOilForm({
     setSaving(false);
 
     if (insertError) {
-      setError(`Kayıt eklenemedi: ${insertError.message}`);
+      setError(`Kayıt eklenemedi: ${insertError}`);
       submittingRef.current = false;
       return;
     }
@@ -750,27 +750,22 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
     setDeleteLoading(true);
 
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("aromatherapy_oils")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ids)
-      .select("id");
+    const { deletedIds, error: deleteError } = await deleteOils(ids);
 
     setDeleteLoading(false);
 
     if (deleteError) {
-      setErrorMessage(`Seçili kayıtlar silinemedi: ${deleteError.message}`);
+      setErrorMessage(`Seçili kayıtlar silinemedi: ${deleteError}`);
       return;
     }
 
-    const deletedCount = deletedRows?.length ?? 0;
+    const deletedCount = deletedIds.length;
     if (deletedCount === 0) {
       setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
       return;
     }
 
-    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    const deletedIdSet = new Set(deletedIds);
     setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
     setSelectedIds(new Set());
     showToast({ title: "Başarılı", message: `${deletedCount} yağ kaydı başarıyla silindi.`, type: "success" });

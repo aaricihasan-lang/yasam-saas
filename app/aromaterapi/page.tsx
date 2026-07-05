@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { supabase } from "@/lib/supabase";
+import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { getDemoOilStats } from "@/lib/demo/demoAromaterapi";
@@ -80,38 +80,19 @@ export default function AromaTerapiHubPage() {
         const tenantId = await getSyncedTenantId();
         if (!tenantId) { setLoading(false); setErrorMsg("Oturum açmanız gerekiyor. Lütfen sayfayı yenileyin."); return; }
 
-        // Satırları çekip uzunluk saymak yerine `count` sorgusu kullanılır:
-        // PostgREST 1000 satır tavanından bağımsız olarak GERÇEK toplamı verir.
-        const countOils = async (oilType?: string) => {
-          let q = supabase
-            .from("aromatherapy_oils")
-            .select("id", { count: "exact", head: true })
-            .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-            .eq("is_active", true);
-          if (oilType) q = q.eq("oil_type", oilType);
-          return q;
-        };
-
-        const [totalRes, essRes, carRes, macRes] = await Promise.all([
-          countOils(),
-          countOils("essential"),
-          countOils("carrier"),
-          countOils("maceration"),
-        ]);
+        // Sayaçlar güvenli server API'den tek çağrıda gelir (service_role;
+        // PostgREST 1000 tavanından bağımsız gerçek toplam).
+        const { counts, error } = await fetchOilCounts();
 
         setLoading(false);
 
-        if (totalRes.error || essRes.error || carRes.error || macRes.error) {
+        if (error || !counts) {
           setErrorMsg("İstatistikler yüklenemedi.");
           return;
         }
 
-        const total      = totalRes.count ?? 0;
-        const essential  = essRes.count ?? 0;
-        const carrier    = carRes.count ?? 0;
-        const maceration = macRes.count ?? 0;
-        const other      = Math.max(0, total - essential - carrier - maceration);
-        setStats({ total, essential, carrier, maceration, other });
+        const other = Math.max(0, counts.total - counts.essential - counts.carrier - counts.maceration);
+        setStats({ ...counts, other });
       })();
     });
   }, [isDemo]);
