@@ -10,6 +10,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
 import NotesTab from "./components/NotesTab";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
@@ -140,6 +141,7 @@ export default function ClientDetailPage() {
   const [deletingClient, setDeletingClient] = useState(false);
 
   const [noteId, setNoteId] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(false);
   const [saglikNotu, setSaglikNotu] = useState("");
   const [adres, setAdres] = useState("");
   const [oneriler, setOneriler] = useState("");
@@ -175,17 +177,23 @@ export default function ClientDetailPage() {
   useEffect(() => {
     if (!tenantId) return;
 
+    let cancelled = false;
+
+    // Kritik yol: yalnızca TEMEL danışan bilgisi. Notlar (saglik/adres/oneriler/
+    // notlar) ilk boyamayı bekletmeden ARKA PLANDA çekilir → detay anında açılır.
     async function fetchClient() {
       setLoading(true);
 
       const detailToken = readSessionToken();
+      const uid = readYasamUser()?.id ?? "";
       const clientRes = await fetch(`/api/clients/${clientId}`, {
         headers: {
-          "x-user-id": readYasamUser()?.id ?? "",
+          "x-user-id": uid,
           ...(detailToken ? { "x-session-token": detailToken } : {}),
         },
       });
 
+      if (cancelled) return;
       if (!clientRes.ok) {
         console.error("Danışan detay hatası");
         setClient(null);
@@ -194,6 +202,7 @@ export default function ClientDetailPage() {
       }
 
       const data = ((await clientRes.json()) as { client?: Client }).client;
+      if (cancelled) return;
       if (!data) {
         setClient(null);
         setLoading(false);
@@ -207,35 +216,39 @@ export default function ClientDetailPage() {
       setEditDogum(data.dogum || "");
       setEditKan(data.kan || "");
       setEditMizac(data.mizac || "");
+      setLoading(false); // temel bilgi geldi → hemen render
 
-      // client_notes artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
-      const userId = readYasamUser()?.id;
-      const sessionToken = readSessionToken();
-      const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
+      // ── Notlar arka planda (kritik yolu bloklamaz) ──
+      setNotesLoading(true);
+      fetch(`/api/clients/${clientId}/notes`, {
         headers: {
-          "x-user-id": userId ?? "",
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+          "x-user-id": uid,
+          ...(detailToken ? { "x-session-token": detailToken } : {}),
         },
-      });
-
-      if (!notesRes.ok) {
-        console.error("Genel bilgiler okuma hatası:", notesRes.status);
-      } else {
-        const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: ClientNote | null };
-        const note = notesJson.note;
-        if (note) {
-          setNoteId(note.id || null);
-          setSaglikNotu(note.saglik_notu || "");
-          setAdres(note.adres || "");
-          setOneriler(note.oneriler || "");
-          setNoteText(note.notlar || "");
-        }
-      }
-
-      setLoading(false);
+      })
+        .then(async (notesRes) => {
+          if (cancelled) return;
+          if (!notesRes.ok) {
+            console.error("Genel bilgiler okuma hatası:", notesRes.status);
+            return;
+          }
+          const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: ClientNote | null };
+          if (cancelled) return;
+          const note = notesJson.note;
+          if (note) {
+            setNoteId(note.id || null);
+            setSaglikNotu(note.saglik_notu || "");
+            setAdres(note.adres || "");
+            setOneriler(note.oneriler || "");
+            setNoteText(note.notlar || "");
+          }
+        })
+        .catch((err) => { if (!cancelled) console.error("Notlar okuma hatası:", err); })
+        .finally(() => { if (!cancelled) setNotesLoading(false); });
     }
 
     if (clientId) fetchClient();
+    return () => { cancelled = true; };
   }, [clientId, tenantId]);
 
   async function saveAllGeneralInfo() {
@@ -281,6 +294,7 @@ export default function ClientDetailPage() {
     }
 
     if (notesJson.note?.id) setNoteId(notesJson.note.id);
+    invalidateDanisanListCache(); // ad/telefon vb. değişti → liste bayat
     showToast({ title: "Başarılı", message: "Değişiklikler kaydedildi.", type: "success" });
     setSavingAll(false);
     setIsEditingGeneral(false);
@@ -462,6 +476,7 @@ export default function ClientDetailPage() {
     }
 
     setDeletingClient(false);
+    invalidateDanisanListCache(); // danışan silindi → liste bayat
     router.push("/danisan-yolculugu/liste");
   }
 
@@ -650,7 +665,9 @@ export default function ClientDetailPage() {
                       {!isEditingGeneral ? (
                         <button
                           onClick={enterGeneralEdit}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100"
+                          disabled={notesLoading}
+                          title={notesLoading ? "Notlar yükleniyor…" : undefined}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
                         >
                           ✎ Bilgileri Güncelle
                         </button>
@@ -706,6 +723,9 @@ export default function ClientDetailPage() {
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3.5">
+                    {notesLoading && (
+                      <p className="text-[11px] font-bold text-slate-400">Notlar yükleniyor…</p>
+                    )}
                     <div>
                       <label className={labelCls}>Sağlık Notu</label>
                       <textarea readOnly={!isEditingGeneral} value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={areaCls} placeholder="Danışanın sağlık notları..." />
@@ -965,6 +985,7 @@ function AppointmentsTab({
             },
             body: JSON.stringify({ gorusme: aptDate }),
           });
+          invalidateDanisanListCache(); // gorusme güncellendi → liste durum rozeti bayat
         }
       }
     }

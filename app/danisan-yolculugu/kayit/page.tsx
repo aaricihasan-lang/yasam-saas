@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
+import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
 import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
 
 function todayForInput() {
@@ -368,6 +369,7 @@ export default function DanisanKayitPage() {
       return;
     }
 
+    invalidateDanisanListCache(); // liste önbelleği bayat → yeni danışan görünür
     showToast({ title: "Başarılı", message: "Danışan kaydedildi.", type: "success" });
     router.push("/danisan-yolculugu/liste");
   }

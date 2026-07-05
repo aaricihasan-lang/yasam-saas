@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -16,6 +16,10 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { containsTr } from "@/lib/text/turkishSearch";
+import {
+  getDanisanListCache,
+  setDanisanListCache,
+} from "@/lib/danisan/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -217,6 +221,13 @@ export default function DanisanListePage() {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Sunucu tarafı sayfalama: ilk açılışta yalnızca ilk sayfa (30) gelir.
+  // Arama/filtre/varsayılan-dışı sıralama gerekince tüm veri bir kez çekilir
+  // (Türkçe-duyarlı client-side arama tam veriyle korunur).
+  const [total, setTotal] = useState<number | null>(null);
+  const [fullLoaded, setFullLoaded] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [search, setSearch] = useState("");
   const [filterBurc, setFilterBurc] = useState("");
   const [filterKan, setFilterKan] = useState("");
@@ -268,15 +279,24 @@ export default function DanisanListePage() {
   }, [clients, search, filterBurc, filterKan, filterMizac, sortBy]);
 
   const hasActiveFilter = Boolean(search.trim() || filterBurc || filterKan || filterMizac);
+  // Arama/filtre veya varsayılan-dışı sıralama → doğru sonuç için tüm veri gerekir.
+  const needsFullData = hasActiveFilter || sortBy !== "newest";
+  // Gözat modu: filtre yok + varsayılan sıralama + tüm veri henüz çekilmedi →
+  // sunucu-sayfalı kayıtları göster, "Daha fazla yükle" ile devam et.
+  const browseMode = !isDemo && !fullLoaded && !needsFullData;
 
-  // Performans/okunabilirlik: ilk 20 kayıt gösterilir; "Tümünü göster" ile tamamı açılır.
   const LIST_INITIAL_COUNT = 20;
-  const visibleClients = showAllClients
-    ? filteredClients
-    : filteredClients.slice(0, LIST_INITIAL_COUNT);
-  const hiddenClientCount = filteredClients.length - visibleClients.length;
+  const visibleClients = browseMode
+    ? filteredClients // sunucu tarafı sayfalanmış set — tümü gösterilir
+    : showAllClients
+      ? filteredClients
+      : filteredClients.slice(0, LIST_INITIAL_COUNT);
+  const hiddenClientCount = browseMode ? 0 : filteredClients.length - visibleClients.length;
+  const canLoadMore = browseMode && total !== null && clients.length < total;
+  // Başlık sayacı: gözat modunda toplam kayıt; filtre/tam modda filtrelenmiş sonuç.
+  const displayCount = browseMode ? (total ?? clients.length) : filteredClients.length;
 
-  // Filtre / arama / sıralama değişince listeyi başa sar (yeniden ilk 20).
+  // Filtre / arama / sıralama değişince windowing'i başa sar (yeniden ilk 20).
   useEffect(() => {
     setShowAllClients(false);
   }, [search, filterBurc, filterKan, filterMizac, sortBy]);
@@ -317,15 +337,125 @@ export default function DanisanListePage() {
     setSessionChecked(true);
   }, []);
 
+  const PAGE_SIZE = 30;
+  const fullReqRef = useRef(false);
+
+  function authHeaders(): Record<string, string> {
+    const user = readYasamUser();
+    const token = readSessionToken();
+    return { "x-user-id": user?.id ?? "", ...(token ? { "x-session-token": token } : {}) };
+  }
+
+  async function fetchClientsPage(
+    offset: number,
+    limit: number,
+  ): Promise<{ clients: Client[]; count: number | null }> {
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), count: "1" });
+    const res = await fetch(`/api/clients?${qs.toString()}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Listeleme hatası");
+    const json = (await res.json()) as { clients?: Client[]; count?: number };
+    return { clients: json.clients ?? [], count: typeof json.count === "number" ? json.count : null };
+  }
+
+  async function fetchAlerts(): Promise<Record<string, number>> {
+    const res = await fetch("/api/clients/homeworks-alerts", { headers: authHeaders() });
+    if (!res.ok) { console.error("Ödev uyarıları yüklenemedi:", res.status); return {}; }
+    const j = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number> };
+    return j.alerts ?? {};
+  }
+
+  // İlk açılış: önbellek varsa anında boya; yoksa YALNIZCA ilk sayfayı (30) + uyarıları çek.
+  async function loadInitial(tid: string) {
+    const cached = getDanisanListCache(tid);
+    if (cached) {
+      setClients(cached.clients as Client[]);
+      setTotal(cached.total);
+      setFullLoaded(cached.fullLoaded);
+      setHomeworkAlerts(cached.alerts);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [page, alerts] = await Promise.all([fetchClientsPage(0, PAGE_SIZE), fetchAlerts()]);
+      const full = page.count !== null && page.clients.length >= page.count;
+      setClients(page.clients);
+      setTotal(page.count);
+      setFullLoaded(full);
+      setHomeworkAlerts(alerts);
+      setDanisanListCache(tid, {
+        clients: page.clients,
+        total: page.count ?? page.clients.length,
+        fullLoaded: full,
+        alerts,
+      });
+    } catch {
+      showToast({ title: "İşlem başarısız", message: "Listeleme hatası", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // "Daha fazla yükle" — sonraki sayfayı ekler (gözat modu).
+  async function loadMore() {
+    if (!tenantId || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchClientsPage(clients.length, PAGE_SIZE);
+      const merged = [...clients, ...page.clients];
+      const newTotal = page.count ?? total ?? merged.length;
+      const full = merged.length >= newTotal;
+      setClients(merged);
+      setTotal(newTotal);
+      setFullLoaded(full);
+      setDanisanListCache(tenantId, { clients: merged, total: newTotal, fullLoaded: full, alerts: homeworkAlerts });
+    } catch {
+      showToast({ title: "Hata", message: "Daha fazla kayıt yüklenemedi.", type: "error" });
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // Arama/filtre/sıralama gerekince: tüm veriyi bir kez çek (Türkçe arama tam veriyle).
+  async function loadFull(tid: string) {
+    setLoadingMore(true);
+    try {
+      const all: Client[] = [];
+      let offset = 0;
+      let grand: number | null = total;
+      for (;;) {
+        const qs = new URLSearchParams({ limit: "1000", offset: String(offset), count: "1" });
+        const res = await fetch(`/api/clients?${qs.toString()}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error("full");
+        const json = (await res.json()) as { clients?: Client[]; count?: number };
+        const chunk = json.clients ?? [];
+        if (typeof json.count === "number") grand = json.count;
+        all.push(...chunk);
+        offset += chunk.length;
+        if (chunk.length < 1000 || (grand !== null && all.length >= grand)) break;
+      }
+      setClients(all);
+      setTotal(grand ?? all.length);
+      setFullLoaded(true);
+      setDanisanListCache(tid, { clients: all, total: grand ?? all.length, fullLoaded: true, alerts: homeworkAlerts });
+    } catch {
+      showToast({ title: "Hata", message: "Kayıtlar yüklenemedi.", type: "error" });
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   useEffect(() => {
     if (!sessionChecked) return;
-    // Demo hesap: gerçek DB sorgusu yerine session + fixture veri kullan
+    // Demo hesap: gerçek DB sorgusu yerine session + fixture veri kullan (tümü)
     if (isDemo) {
       initDemoSession();
       const sessionClients = readDemoClients() as DemoClient[] as Client[];
       const fixtureClients = DEMO_CLIENTS as DemoListClient[] as Client[];
-      // Session clients en üstte (daha yeni created_at)
-      setClients([...sessionClients, ...fixtureClients]);
+      const all = [...sessionClients, ...fixtureClients];
+      setClients(all);
+      setTotal(all.length);
+      setFullLoaded(true);
       setHomeworkAlerts({});
       setLoading(false);
       return;
@@ -343,46 +473,19 @@ export default function DanisanListePage() {
       });
       return;
     }
-    loadClients();
+    void loadInitial(tenantId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionChecked, tenantId, isDemo]);
 
-  async function loadClients() {
-    const user = readYasamUser();
-    const activeTenantId = user?.tenant_id?.trim();
-    if (!user || !activeTenantId) { setLoading(false); return; }
-
-    setLoading(true);
-    const token = readSessionToken();
-    const headers = {
-      "x-user-id": user.id ?? "",
-      ...(token ? { "x-session-token": token } : {}),
-    };
-
-    // Danışan listesi ve ödev uyarıları bağımsız → paralel çek (sıralı bekleme yok).
-    const [res, alertsRes] = await Promise.all([
-      fetch("/api/clients", { headers }),
-      fetch("/api/clients/homeworks-alerts", { headers }),
-    ]);
-
-    if (!res.ok) {
-      showToast({ title: "İşlem başarısız", message: "Listeleme hatası", type: "error" });
-      setLoading(false);
-      return;
+  // Arama/filtre/sıralama gerekiyorsa ve tüm veri henüz yoksa → tümünü çek.
+  useEffect(() => {
+    if (isDemo || !tenantId || fullLoaded) return;
+    if (needsFullData && !fullReqRef.current) {
+      fullReqRef.current = true;
+      void loadFull(tenantId).finally(() => { fullReqRef.current = false; });
     }
-
-    const json = (await res.json()) as { clients?: Client[] };
-    setClients(json.clients ?? []);
-
-    if (alertsRes.ok) {
-      const aj = (await alertsRes.json().catch(() => ({}))) as { alerts?: Record<string, number> };
-      setHomeworkAlerts(aj.alerts ?? {});
-    } else {
-      console.error("Ödev uyarıları yüklenemedi:", alertsRes.status);
-      setHomeworkAlerts({});
-    }
-    setLoading(false);
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsFullData, fullLoaded, tenantId, isDemo]);
 
   async function handleBulkDeleteClients() {
     const ids = Array.from(selectedClientIds);
@@ -425,8 +528,20 @@ export default function DanisanListePage() {
     }
 
     const deletedIdSet = new Set(deletedIds);
-    setClients((prev) => prev.filter((c) => !deletedIdSet.has(c.id)));
+    const remaining = clients.filter((c) => !deletedIdSet.has(c.id));
+    const newTotal = total !== null ? Math.max(0, total - deletedIds.length) : null;
+    setClients(remaining);
+    setTotal(newTotal);
     setSelectedClientIds(new Set());
+    // Önbelleği güncel tut → geri dönüşte doğru (silinmiş) liste anında görünür.
+    if (tenantId) {
+      setDanisanListCache(tenantId, {
+        clients: remaining,
+        total: newTotal ?? remaining.length,
+        fullLoaded,
+        alerts: homeworkAlerts,
+      });
+    }
     showToast({ title: "Başarılı", message: `${deletedIds.length} danışan başarıyla silindi.`, type: "success" });
   }
 
@@ -500,7 +615,7 @@ export default function DanisanListePage() {
 
           <div className="flex flex-wrap gap-3 sm:flex-nowrap sm:items-start">
             <div className="min-w-[110px] rounded-2xl border border-white/80 bg-white/85 px-5 py-4 text-center shadow-md backdrop-blur-sm">
-              <strong className="block text-3xl font-black text-slate-950">{clients.length}</strong>
+              <strong className="block text-3xl font-black text-slate-950">{loading ? "—" : (total ?? clients.length)}</strong>
               <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Danışan</span>
             </div>
             <div className={`min-w-[110px] rounded-2xl border px-5 py-4 text-center shadow-md backdrop-blur-sm ${
@@ -602,7 +717,7 @@ export default function DanisanListePage() {
             <h2 className="text-xl font-black text-slate-950">
               Kayıtlı Danışanlar
               {!loading && (
-                <span className="ml-2 text-base font-bold text-slate-400">({filteredClients.length})</span>
+                <span className="ml-2 text-base font-bold text-slate-400">({displayCount})</span>
               )}
             </h2>
 
@@ -629,7 +744,7 @@ export default function DanisanListePage() {
             <div className="mb-5">
               <BulkExportBar
                 selectedCount={selectedClientIds.size}
-                totalCount={clients.length}
+                totalCount={total ?? clients.length}
                 filteredCount={filteredClients.length}
                 hasActiveFilter={hasActiveFilter}
                 onSelectAll={selectAllFiltered}
@@ -694,6 +809,22 @@ export default function DanisanListePage() {
                 />
               ))}
             </div>
+            {/* Gözat modu: sonraki sayfayı sunucudan yükle */}
+            {canLoadMore && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadMore()}
+                  disabled={loadingMore}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow disabled:opacity-60"
+                >
+                  {loadingMore
+                    ? "Yükleniyor…"
+                    : `Daha fazla yükle (${(total ?? 0) - clients.length} kayıt daha)`}
+                </button>
+              </div>
+            )}
+            {/* Filtre/tam mod: client-side windowing */}
             {hiddenClientCount > 0 && (
               <div className="mt-4 flex justify-center">
                 <button

@@ -38,27 +38,41 @@ export async function GET(req: NextRequest): Promise<Response> {
   const limitRaw = Number(url.searchParams.get("limit"));
   const limit =
     Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 1000) : null;
+
+  // Sunucu tarafı sayfalama: offset verilirse range() ile pencere alınır.
+  const offsetRaw = Number(url.searchParams.get("offset"));
+  const offset =
+    Number.isFinite(offsetRaw) && offsetRaw >= 0 ? Math.floor(offsetRaw) : null;
+
+  // count=1 → toplam kayıt sayısı da döner (sayfalama "daha var mı" için).
+  const withCount = url.searchParams.get("count") === "1";
   const ascending = url.searchParams.get("order") === "asc";
 
   let query = db
     .from("clients")
-    .select("*")
+    .select("*", withCount ? { count: "exact" } : undefined)
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending });
 
   if (search) {
     query = query.or(`ad.ilike.%${search}%,soyad.ilike.%${search}%`);
   }
-  if (limit) {
+  if (offset !== null && limit) {
+    query = query.range(offset, offset + limit - 1);
+  } else if (limit) {
     query = query.limit(limit);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, clients: data ?? [] });
+  return NextResponse.json({
+    ok: true,
+    clients: data ?? [],
+    ...(withCount ? { count: count ?? 0 } : {}),
+  });
 }
 
 // ─── POST /api/clients ─────────────────────────────────────────────────────────

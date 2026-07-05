@@ -75,8 +75,23 @@ export default function DashboardNotifications() {
   }
 
   useEffect(() => {
-    backgroundSyncYasamUserFromDb();
-    void loadAppointments();
+    // Bildirim ilk çekimini ertele: aktif sayfanın (ör. Danışan Listesi/Detay)
+    // kendi verisi önce yüklensin, bu arka-plan isteği açılışı bekletmesin.
+    // requestIdleCallback varsa boşta, yoksa kısa gecikmeyle çalışır.
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const kickoff = () => {
+      backgroundSyncYasamUserFromDb();
+      void loadAppointments();
+    };
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    if (typeof ric === "function") {
+      idleId = ric(kickoff, { timeout: 3000 });
+    } else {
+      timeoutId = setTimeout(kickoff, 2000);
+    }
 
     const refreshInterval = setInterval(() => {
       void loadAppointments();
@@ -87,6 +102,11 @@ export default function DashboardNotifications() {
     }, 60 * 1000);
 
     return () => {
+      if (idleId !== null) {
+        const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+        if (typeof cic === "function") cic(idleId);
+      }
+      if (timeoutId !== null) clearTimeout(timeoutId);
       clearInterval(refreshInterval);
       clearInterval(warningInterval);
     };
