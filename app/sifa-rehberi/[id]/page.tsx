@@ -649,6 +649,12 @@ export default function SifaRehberiDetailPage() {
 
   async function handleSaveFields() {
     if (!draft || !id) return;
+    // Savunma guard'ı: içe aktarılmış (section'lı) kayıt düzenlemesi legacy kolonlara
+    // yazılıp section görünümünde kaybolmasın — düzenleme zaten toggleEditOrSave'de engelli.
+    if (sections.length > 0) {
+      setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
+      return;
+    }
     const nameTrim = draft.name.trim();
     if (!nameTrim) {
       setErrorMessage("Rahatsızlık adı zorunludur.");
@@ -745,6 +751,13 @@ export default function SifaRehberiDetailPage() {
     if (editEnabled) {
       void handleSaveFields();
     } else {
+      // İçe aktarılmış (section'lı) kayıtlarda içerik healing_guide_sections'ta durur;
+      // düzenleme yalnız legacy kolonlara yazıp section görünümünde kaybolacağı için
+      // (sessiz veri kaybı) düzenleme moduna girilmesi engellenir.
+      if (sections.length > 0) {
+        setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
+        return;
+      }
       setDraft(recordToDraft(record));
       setEditEnabled(true);
       setErrorMessage("");
