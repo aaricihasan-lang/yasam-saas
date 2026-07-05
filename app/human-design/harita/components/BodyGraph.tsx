@@ -36,6 +36,11 @@ const CENTER_FILL: Record<CenterName, string> = {
 const RED = "#dc2626";
 const BLACK = "#111827";
 
+// FAZ 10H-1 — Aura Base: en arka foundation kütlesi. Özgün insan formu (referanstan alınmadı).
+// Soğuk/doygunsuz TEK renk + çok düşük opacity. Gradient/blur/glow/neon YOK. circle/polygon KULLANMAZ.
+const AURA_FILL = "#aeb8d8";   // soğuk slate-lavanta (neon değil)
+const AURA_OPACITY = 0.07;     // çok düşük — BodyGraph'ı ezmez (tunable: az görünürse 0.09, fazlaysa 0.05)
+
 // FAZ 10F-2 — pasif gate: iki-ton fill + zıt-ton outline (paint-order) → her zeminde okunur. circle/bg YOK.
 const GATE_PASSIVE_FILL_LIGHT = "#f8fafc";   // renkli(tanımlı) merkez → açık numara
 const GATE_PASSIVE_FILL_DARK = "#334155";    // beyaz(tanımsız) merkez → koyu numara
@@ -178,6 +183,23 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           </feMerge>
         </filter>
       </defs>
+
+      {/* FAZ 10H-1 — AURA (en arka foundation kütlesi). Özgün insan formu; TEK renk, düşük opacity.
+          Baş/boyun küçük → omuz genişliğini abartır; omuzlar kanal yapısını aşar (yatay kütle);
+          gövde merkezleri kapsar (containment). Gradient/blur/glow YOK. circle/polygon KULLANMAZ. */}
+      <path
+        d="M170 28 C189 28 197 48 196 70 C195 90 187 100 184 114
+           C214 118 254 122 298 148 C314 157 306 172 284 186
+           C258 206 250 300 240 398 C236 458 230 512 210 550
+           C197 568 184 570 170 570 C156 570 143 568 130 550
+           C110 512 104 458 100 398 C90 300 82 206 56 186
+           C34 172 26 157 42 148 C86 122 126 118 156 114
+           C153 100 145 90 144 70 C143 48 151 28 170 28 Z"
+        fill={AURA_FILL}
+        fillOpacity={AURA_OPACITY}
+        stroke="none"
+        aria-hidden="true"
+      />
 
       {/* Kanallar (arka planda) — round cap/join tüm çizgilere miras kalır */}
       <g strokeLinecap="round" strokeLinejoin="round">
