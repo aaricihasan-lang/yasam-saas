@@ -1,6 +1,4 @@
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
-import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 export type StoneWarningResult = {
   /** Veritabanındaki stones.id — detay linki için */
@@ -30,54 +28,53 @@ export function parseStoneNames(input: string): string[] {
 }
 
 /**
- * Verilen taş adlarını `stones` tablosunda arar.
- * Kullanıcı tenant'ı ve Doğaltaş kütüphanesi (ADMIN_LIBRARY_TENANT_ID) birlikte taranır.
- * Türkçe normalize eşleşme kullanılır: gümüş / gumus / GÜMÜŞ aynı taşı bulur.
- * Eşleşen taşlardan yalnızca uyarısı olanları (warning_text veya warning_tags) döndürür.
+ * Verilen taş adlarını, uyarısı olanlar için GÜVENLİ server API'sinden sorgular.
  *
- * Eşleşmeyen taş adları sessizce atlanır; hata fırlatılmaz.
+ * Eskiden bu kontrol client/anon Supabase ile `stones` tablosunu tarıyordu; RLS
+ * güvenlik kilidi sonrası anon erişim 401 alıp uyarılar sessizce kaybolduğu için
+ * (K-1) artık `/api/dogaltas/stone-warnings` (service_role + oturum doğrulaması)
+ * üzerinden çalışır. Tenant izolasyonu ve library dahil-etme kararı SUNUCUDA verilir.
+ *
+ * Hata durumunda uyarı akışı danışan kaydını BLOKLAMAZ: uyarı bulunamamış gibi []
+ * döner ama sessiz kalmaz — konsola uyarı (warn) bırakılır ki regresyon fark edilsin.
  */
 export async function checkStoneWarnings(
   stoneNames: string[],
-  tenantId: string
 ): Promise<StoneWarningResult[]> {
-  if (stoneNames.length === 0 || !tenantId) return [];
+  if (!stoneNames || stoneNames.length === 0) return [];
 
-  const tenantIds = tenantId === ADMIN_LIBRARY_TENANT_ID
-    ? [tenantId]
-    : [tenantId, ADMIN_LIBRARY_TENANT_ID];
-
-  const { data, error } = await supabase
-    .from("stones")
-    .select("id, stone_name, warning_text, warning_tags")
-    .in("tenant_id", tenantIds);
-
-  if (error || !data || data.length === 0) return [];
-
-  const results: StoneWarningResult[] = [];
-
-  for (const inputName of stoneNames) {
-    const normalizedInput = normalizeTr(inputName.trim());
-
-    const match = data.find(
-      (row) => normalizeTr((row.stone_name ?? "").trim()) === normalizedInput
-    );
-
-    if (!match) continue;
-
-    const hasText = (match.warning_text ?? "").trim().length > 0;
-    const hasTags =
-      Array.isArray(match.warning_tags) && match.warning_tags.length > 0;
-
-    if (!hasText && !hasTags) continue;
-
-    results.push({
-      stoneId: match.id as string,
-      stoneName: match.stone_name as string,
-      warningText: hasText ? (match.warning_text as string) : null,
-      warningTags: hasTags ? (match.warning_tags as string[]) : null,
-    });
+  const userId = readYasamUser()?.id;
+  const sessionToken = readSessionToken();
+  if (!userId || !sessionToken) {
+    console.warn("[stoneWarnings] Oturum bilgisi yok; taş uyarı kontrolü atlandı.");
+    return [];
   }
 
-  return results;
+  try {
+    const res = await fetch("/api/dogaltas/stone-warnings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId,
+        "x-session-token": sessionToken,
+      },
+      body: JSON.stringify({ stoneNames }),
+    });
+
+    if (!res.ok) {
+      console.warn(`[stoneWarnings] Uyarı API'si başarısız (HTTP ${res.status}); uyarı gösterilemedi.`);
+      return [];
+    }
+
+    const json = (await res.json()) as { ok?: boolean; warnings?: unknown };
+    if (!json?.ok || !Array.isArray(json.warnings)) {
+      console.warn("[stoneWarnings] Uyarı API'sinden beklenmeyen yanıt; uyarı gösterilemedi.");
+      return [];
+    }
+
+    return json.warnings as StoneWarningResult[];
+  } catch (err) {
+    console.warn("[stoneWarnings] Taş uyarı kontrolü sırasında hata:", err);
+    return [];
+  }
 }

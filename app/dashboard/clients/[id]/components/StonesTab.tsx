@@ -796,7 +796,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (tenantId && form.stoneName.trim()) {
       const names = parseStoneNames(form.stoneName);
       if (names.length > 0) {
-        const warnings = await checkStoneWarnings(names, tenantId);
+        const warnings = await checkStoneWarnings(names);
         if (warnings.length > 0) {
           setWarningCheckState({ warnings, proceed: doAddStone });
           return;
@@ -878,7 +878,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (tenantId && editForm.stoneName.trim()) {
       const names = parseStoneNames(editForm.stoneName);
       if (names.length > 0) {
-        const warnings = await checkStoneWarnings(names, tenantId);
+        const warnings = await checkStoneWarnings(names);
         if (warnings.length > 0) {
           setWarningCheckState({ warnings, proceed: () => doUpdateStone(id) });
           return;
