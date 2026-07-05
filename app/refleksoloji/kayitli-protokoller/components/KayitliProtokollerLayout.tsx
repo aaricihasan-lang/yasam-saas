@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { getSyncedYasamUser } from "@/lib/auth/sessionTenant";
+import { readSessionToken } from "@/lib/auth/yasamUser";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -57,7 +58,11 @@ export function KayitliProtokollerLayout() {
       }
       const res = await fetch("/api/refleksoloji/protocol-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+          "x-session-token": readSessionToken() ?? "",
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

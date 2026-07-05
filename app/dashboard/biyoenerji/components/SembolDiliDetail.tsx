@@ -22,7 +22,7 @@ import {
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -132,7 +132,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     try {
       const res = await fetch("/api/biyoenerji/symbol-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;

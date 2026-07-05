@@ -19,6 +19,50 @@ export const runtime = "nodejs";
 
 const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "client_id"]);
 
+// Taş fotoğraflarının saklandığı storage bucket'ı (StonesTab ile aynı).
+const STONE_PHOTO_BUCKET = "stone-photos";
+
+/**
+ * O-6: Bir taş (veya danışanın tüm taşları) silinmeden ÖNCE, o taş(lar)a bağlı
+ * client_stone_photos DB satırlarını ve storage dosyalarını temizler. Aksi halde
+ * tekil taş silmede yetim fotoğraf kaydı kalıyordu (cascade-delete siliyor, tekil
+ * silme silmiyordu). service_role ile çalışır; tenant + client ile sınırlıdır.
+ * Foto önce silinir: taş silme başarısız olsa bile yetim foto kalmaz.
+ */
+async function deleteStonePhotos(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  stoneId: string | null,
+): Promise<{ error: string | null }> {
+  let sel = db
+    .from("client_stone_photos")
+    .select("file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (stoneId) sel = sel.eq("stone_id", stoneId);
+  const { data: rows, error: selError } = await sel;
+  if (selError) return { error: selError.message };
+
+  const paths = (rows ?? [])
+    .map((r) => (r as { file_path?: unknown }).file_path)
+    .filter((p): p is string => typeof p === "string" && p.length > 0);
+  if (paths.length > 0) {
+    const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
+    // Storage hatası veri bütünlüğünü bozmaz (DB satırı yine silinir) — sadece loglanır.
+    if (storageError) console.error("O-6 storage foto silme:", storageError.message);
+  }
+
+  let del = db
+    .from("client_stone_photos")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (stoneId) del = del.eq("stone_id", stoneId);
+  const { error: delError } = await del;
+  return { error: delError?.message ?? null };
+}
+
 function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body ?? {})) {
@@ -198,6 +242,15 @@ export async function DELETE(
     } catch {
       /* gövde yoksa: tümünü sil */
     }
+  }
+
+  // O-6: taş(lar)ı silmeden ÖNCE bağlı fotoğrafları (DB satırı + storage) temizle
+  // → tekil silmede yetim client_stone_photos kaydı kalmaz. rowId yoksa danışanın
+  // tüm taş fotoğrafları silinir (tümünü-sil yolu). Foto silme hatasında dur (taşı
+  // silme) ki tutarsızlık oluşmasın.
+  const photoResult = await deleteStonePhotos(db, tenantId, clientId, rowId || null);
+  if (photoResult.error) {
+    return NextResponse.json({ ok: false, error: photoResult.error }, { status: 500 });
   }
 
   let query = db

@@ -1,6 +1,7 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   arraySection,
   bodyText,
@@ -59,23 +60,26 @@ function slugify(t: string): string {
     .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
+  // (verifyUserRequest) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
+  const { tenantId } = guard;
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (guard.is_demo_account)
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", protocolIds, protocolId } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { exportMode = "all", protocolIds, protocolId } = body as {
     exportMode?: ExportMode;
     protocolIds?: string[];
     protocolId?: string;
   };
-
-  // NOT: Bu proje sunucu taraflı oturum (cookie/JWT) kullanmaz; auth localStorage tabanlıdır.
-  // API katmanında sahiplik doğrulaması users tablosundan userId+tenantId eşleşmesiyle yapılır.
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   if (exportMode === "single" && !protocolId)
     return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
@@ -89,20 +93,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
-
-  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let query = db.from("reflexology_protocols").select("*").eq("tenant_id", tenantId);
 

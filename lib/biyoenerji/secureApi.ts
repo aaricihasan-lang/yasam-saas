@@ -9,7 +9,7 @@ export type BioRow = Record<string, unknown>;
 
 const BASE = "/api/biyoenerji";
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
   return {

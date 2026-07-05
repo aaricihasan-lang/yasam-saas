@@ -18,6 +18,7 @@ import {
 } from "@/lib/bioenergy/subconsciousCausesListFetch";
 import { subconsciousCauseDetailHref } from "@/lib/bioenergy/subconsciousCausesRoutes";
 import {
+  authHeaders,
   bioApiCategories,
   bioApiCreate,
   bioApiDeleteAll,
@@ -52,7 +53,7 @@ async function exportSubconsciousWord(
     }
     const res = await fetch("/api/biyoenerji/subconscious-report", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }

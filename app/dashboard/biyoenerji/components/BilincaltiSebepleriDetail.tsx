@@ -16,7 +16,7 @@ import {
 import { SUBCONSCIOUS_CAUSES_LIST_PATH } from "@/lib/bioenergy/subconsciousCausesListFetch";
 import { useSubconsciousCausesFontSize } from "@/lib/bioenergy/useSubconsciousCausesFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -147,7 +147,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     try {
       const res = await fetch("/api/biyoenerji/subconscious-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;

@@ -18,6 +18,7 @@ import {
 } from "@/lib/bioenergy/imaginationsListFetch";
 import { imaginationDetailHref } from "@/lib/bioenergy/imaginationsRoutes";
 import {
+  authHeaders,
   bioApiCategories,
   bioApiCreate,
   bioApiDeleteAll,
@@ -52,7 +53,7 @@ async function exportImaginationsWord(
     }
     const res = await fetch("/api/biyoenerji/imagination-report", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }

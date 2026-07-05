@@ -24,7 +24,7 @@ import {
 } from "@/lib/bioenergy/chakrasListFetch";
 import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -216,7 +216,7 @@ export default function CakralarDetail({ id }: { id: string }) {
     try {
       const res = await fetch("/api/biyoenerji/chakra-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
       });
       if (!res.ok) return;

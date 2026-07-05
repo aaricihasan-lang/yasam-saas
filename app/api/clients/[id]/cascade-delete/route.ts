@@ -21,6 +21,9 @@ export const runtime = "nodejs";
  *      Tekil ve toplu danışan silme bu route üzerinden yürütülür.
  */
 
+// Taş fotoğrafları storage bucket'ı (StonesTab / stones route ile aynı).
+const STONE_PHOTO_BUCKET = "stone-photos";
+
 // Silinecek alt tablolar — fotoğraflar taş kayıtlarından önce silinir (FK güvenliği).
 const CHILD_TABLES = [
   "client_stone_photos",
@@ -64,9 +67,29 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
+  const warnings: string[] = [];
+
+  // O-6: taş fotoğraflarının storage dosyalarını, DB satırları silinmeden ÖNCE temizle
+  // → danışan silmede de yetim storage dosyası kalmaz (tekil taş silmeyle tutarlı).
+  const { data: photoRows, error: photoSelErr } = await db
+    .from("client_stone_photos")
+    .select("file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (photoSelErr) {
+    warnings.push(`client_stone_photos(select): ${photoSelErr.message}`);
+  } else {
+    const paths = (photoRows ?? [])
+      .map((r) => (r as { file_path?: unknown }).file_path)
+      .filter((p): p is string => typeof p === "string" && p.length > 0);
+    if (paths.length > 0) {
+      const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
+      if (storageError) warnings.push(`storage(stone-photos): ${storageError.message}`);
+    }
+  }
+
   // Alt kayıtları sil. Tek tablonun hatası tümünü bozmasın (orijinal davranışla uyumlu),
   // ama hangilerinin başarısız olduğunu raporla.
-  const warnings: string[] = [];
   for (const table of CHILD_TABLES) {
     const { error } = await db
       .from(table)

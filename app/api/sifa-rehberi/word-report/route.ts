@@ -1,6 +1,7 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   bodyText,
   buildFooter,
@@ -323,30 +324,27 @@ function buildGuideContent(guide: GuideRaw, index: number, isSingle: boolean): R
 }
 
 // ── POST handler ──────────────────────────────────────────────────────────────
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
+  // (verifyUserRequest) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
+  // Export sorgularında body tenantId değil, oturumdan doğrulanmış tenant kullanılır.
+  const verifiedTenantId = guard.tenantId;
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (guard.is_demo_account)
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", ids, id, userId } = body as {
-    tenantId?: string;
+  const { exportMode = "all", ids, id } = body as {
     exportMode?: ExportMode;
     ids?: string[];
     id?: string;
-    userId?: string;
   };
-
-  if (!tenantId || typeof tenantId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  if (!userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kullanıcı kimliği eksik." }, { status: 401 });
-
-  // UUID format zorunluluğu — malformed ID'lerin DB'ye ulaşmasını engeller
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(userId.trim()) || !UUID_RE.test(tenantId.trim())) {
-    return Response.json({ ok: false, error: "Geçersiz kimlik formatı." }, { status: 400 });
-  }
 
   if (exportMode === "single" && !id)
     return Response.json({ ok: false, error: "Tek kayıt için id zorunludur." }, { status: 400 });
@@ -360,30 +358,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
-
-  // userId ile DB'den gerçek tenant_id'yi çek — body tenantId'sini doğrudan
-  // güvenilir kaynak olarak kullanma. Bu mimari (custom RPC + localStorage auth)
-  // server-side session okumasına izin vermediğinden ulaşılabilecek en sıkı
-  // doğrulama budur.
-  const { data: userRow, error: userVerifyError } = await db
-    .from("users")
-    .select("id, tenant_id")
-    .eq("id", userId.trim())
-    .maybeSingle();
-
-  if (userVerifyError || !userRow) {
-    return Response.json({ ok: false, error: "Kullanıcı bulunamadı." }, { status: 403 });
-  }
-
-  // DB'den gelen tenant_id ile body'deki karşılaştır
-  const verifiedTenantId = String(userRow.tenant_id ?? "").trim();
-  if (!verifiedTenantId || verifiedTenantId !== tenantId.trim()) {
-    return Response.json({ ok: false, error: "Erişim reddedildi." }, { status: 403 });
-  }
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId.trim(), db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // Hem legacy kolonlar hem sections join — hangi veri yapısı olursa olsun çalışır
   const SELECT = `

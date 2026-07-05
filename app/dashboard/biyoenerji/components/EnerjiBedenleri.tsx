@@ -7,6 +7,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   bioApiCount,
+  authHeaders,
   bioApiCreate,
   bioApiDelete,
   bioApiDeleteAll,
@@ -56,7 +57,7 @@ async function exportEnergyBodiesWord(
     }
     const res = await fetch("/api/biyoenerji/energy-body-report", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }

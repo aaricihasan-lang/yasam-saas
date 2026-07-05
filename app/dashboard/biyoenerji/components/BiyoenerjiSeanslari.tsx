@@ -9,6 +9,7 @@ import {
   bioApiCategories,
   bioApiCount,
   bioApiCreate,
+  authHeaders,
   bioApiDelete,
   bioApiDeleteAll,
   bioApiDeleteMany,
@@ -295,7 +296,7 @@ export default function BiyoenerjiSeanslari() {
       }
       const res = await fetch("/api/biyoenerji/session-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify(body),
       });
       if (!res.ok) { showSoft("err", "Rapor oluşturulamadı."); return; }

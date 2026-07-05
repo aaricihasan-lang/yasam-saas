@@ -17,7 +17,7 @@ import {
 import { IMAGINATIONS_LIST_PATH } from "@/lib/bioenergy/imaginationsListFetch";
 import { useImaginationsFontSize } from "@/lib/bioenergy/useImaginationsFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -143,7 +143,7 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     try {
       const res = await fetch("/api/biyoenerji/imagination-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;

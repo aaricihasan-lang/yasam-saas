@@ -19,6 +19,7 @@ import {
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { symbolLanguageDetailHref } from "@/lib/bioenergy/symbolLanguageRoutes";
 import {
+  authHeaders,
   bioApiCategories,
   bioApiCreate,
   bioApiDeleteAll,
@@ -53,7 +54,7 @@ async function exportSymbolsWord(
     }
     const res = await fetch("/api/biyoenerji/symbol-report", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }

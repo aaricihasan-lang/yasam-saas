@@ -7,7 +7,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   deleteHealingGuide,
   fetchHealingGuideDetail,
@@ -716,7 +716,11 @@ export default function SifaRehberiDetailPage() {
     try {
       const res = await fetch("/api/sifa-rehberi/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          "x-session-token": readSessionToken() ?? "",
+        },
         body: JSON.stringify({ tenantId, userId, exportMode: "single", id: record.id }),
       });
       if (!res.ok) {

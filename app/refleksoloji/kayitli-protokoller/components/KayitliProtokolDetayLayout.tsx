@@ -177,7 +177,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     try {
       const res = await fetch("/api/refleksoloji/protocol-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": readYasamUser()?.id ?? "",
+          "x-session-token": readSessionToken() ?? "",
+        },
         body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id }),
       });
       if (!res.ok) return;

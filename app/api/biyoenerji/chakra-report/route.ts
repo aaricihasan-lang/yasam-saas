@@ -1,6 +1,7 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   bodyText,
   buildFooter,
@@ -56,21 +57,26 @@ function slugify(t: string): string {
     .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
+  // (verifyUserRequest) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
+  const { tenantId } = guard;
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (guard.is_demo_account)
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", chakraIds, chakraId } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { exportMode = "all", chakraIds, chakraId } = body as {
     exportMode?: ExportMode;
     chakraIds?: string[];
     chakraId?: string;
   };
-
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -78,20 +84,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
-
-  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // All bioenergy_chakras columns
   const SELECT = "id,tenant_id,source_uid,name,organs,glands,color,stones,causes,physical,mental,notes,created_at";

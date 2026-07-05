@@ -24,6 +24,7 @@ import {
 } from "@/lib/bioenergy/chakrasListFetch";
 import { chakraDetailHref } from "@/lib/bioenergy/chakrasRoutes";
 import {
+  authHeaders,
   bioApiCreate,
   bioApiDeleteAll,
   bioApiDeleteMany,
@@ -85,7 +86,7 @@ async function exportChakrasWord(
     }
     const res = await fetch("/api/biyoenerji/chakra-report", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }

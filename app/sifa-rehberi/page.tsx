@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   countListFilledSections,
   createHealingGuide,
@@ -650,7 +650,11 @@ function SifaRehberiContent() {
       }
       const res = await fetch("/api/sifa-rehberi/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": readYasamUser()?.id ?? "",
+          "x-session-token": readSessionToken() ?? "",
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
