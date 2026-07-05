@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import {
   STONES_LIST_SELECT,
   STONES_LIST_EXTENDED_SELECT,
@@ -136,6 +137,14 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const payload = pick(body, STONE_WRITABLE);
   payload.stone_name = name;
+
+  // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
+  if ("assignments" in payload) {
+    const check = validateMineralAssignments(payload.assignments);
+    if (!check.ok) return NextResponse.json({ ok: false, error: check.error }, { status: 400 });
+    payload.assignments = check.value;
+  }
+
   payload.tenant_id = tenantId;              // SUNUCUDAN — body'deki tenant_id yok sayılır
   payload.updated_at = new Date().toISOString();
   if (!("images" in payload)) payload.images = [];

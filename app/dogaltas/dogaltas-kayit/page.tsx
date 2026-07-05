@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { createStone } from "@/lib/dogaltas/dogaltasApi";
+import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import {
@@ -346,9 +347,20 @@ export default function DogaltasKayitPage() {
 
     if (!hasValue) return;
 
+    // Mineraller: oran (2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
+    let rowToStore = values;
+    if (sectionTitle === "Mineraller") {
+      const parsed = parseMineralPercent(values[1]);
+      if (!parsed.ok) {
+        showError(parsed.error ?? MINERAL_PERCENT_ERROR);
+        return;
+      }
+      rowToStore = values.map((value, index) => (index === 1 ? parsed.value : value));
+    }
+
     setAssignmentRows((prev) => ({
       ...prev,
-      [sectionTitle]: [...(prev[sectionTitle] || []), values],
+      [sectionTitle]: [...(prev[sectionTitle] || []), rowToStore],
     }));
 
     setAssignmentInputs((prev) => ({

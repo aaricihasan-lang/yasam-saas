@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 
 export const runtime = "nodejs";
 
@@ -66,6 +67,14 @@ export async function PATCH(
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
+
+  // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
+  if ("assignments" in fields) {
+    const check = validateMineralAssignments(fields.assignments);
+    if (!check.ok) return NextResponse.json({ ok: false, error: check.error }, { status: 400 });
+    fields.assignments = check.value;
+  }
+
   fields.updated_at = new Date().toISOString();
 
   const { data, error } = await db

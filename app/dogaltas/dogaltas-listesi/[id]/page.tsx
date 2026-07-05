@@ -26,6 +26,7 @@ import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
+import { validateMineralAssignments, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import {
   mergeMatchCardClass,
   renderHighlightedText,
@@ -757,7 +758,15 @@ function StoneDetailPage() {
     }
 
     if (activeEditor.mode === "assignments") {
-      payload.assignments = valuesToAssignments(activeEditor.values);
+      const nextAssignments = valuesToAssignments(activeEditor.values);
+      // Mineral oranı (Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
+      const check = validateMineralAssignments(nextAssignments);
+      if (!check.ok) {
+        setSaving(false);
+        setErrorMessage(check.error ?? MINERAL_PERCENT_ERROR);
+        return;
+      }
+      payload.assignments = check.value;
     }
 
     const { ok, row: data, error } = await updateStone(stone.id, payload);
@@ -1760,6 +1769,15 @@ function StoneDetailPage() {
                 </button>
               </div>
             </header>
+
+            {errorMessage ? (
+              <div
+                className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700"
+                role="alert"
+              >
+                {errorMessage}
+              </div>
+            ) : null}
 
             {activeEditor.mode === "checkbox" && (
               <div className="grid max-h-[56vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
