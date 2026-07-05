@@ -46,24 +46,28 @@ const GATE_PASSIVE_FILL_DARK = "#334155";    // beyaz(tanımsız) merkez → koy
 const GATE_PASSIVE_STROKE_LIGHT = "#ffffff"; // koyu numara outline (beyaz merkez)
 const GATE_PASSIVE_STROKE_DARK = "#0f172a";  // açık numara outline (renkli merkez)
 
-// FAZ 7B — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji sabit).
-const TRACK = "#e5e7eb";   // tanımsız kanal + tanımlı kanal casing (groove) tonu
-const TRACK_EDGE = "#cbd5e1"; // FAZ 10C-3 casing oluk KENARI (TRACK'ten koyu) — derinlik
-const CH_DEFINED = 3.2;    // tanımlı kanal renkli stroke
-const CH_CASING_EDGE = 5.4; // FAZ 10C-3 casing OLUK KENARI (koyu, geniş) — derinlik alt
-const CH_CASING_CORE = 4.0; // FAZ 10C-3 casing OLUK ÇEKİRDEĞİ (açık, dar) — oluk tabanı
-const CH_UNDEFINED = 2;    // tanımsız kanal
-const CH_UNDEFINED_OPACITY = 0.5; // FAZ 10C-4 tanımsız kanal opaklık (hiyerarşi: geri çekilir)
+// FAZ 7B → FAZ 10H-3 — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji SABİT).
+// Tanımlı kanal = 3 katman: (1) koyu hacim/gölge kenarı → (2) renkli ana gövde → (3) camsı sheen.
+// Amaç: "kalın çizgi" değil "premium kanal gövdesi". Koordinat/topoloji DEĞİŞMEZ.
+const CH_BODY_W = 5.6;       // tanımlı kanal renkli ana gövde (eski 3.2 → tok premium tüp)
+const CH_SHADOW_W = 9.0;     // koyu hacim/oluk kenarı (gövdeden geniş → dış hat + derinlik)
+const CH_SHADOW_COL = "#0b1220"; // koyu kasa/gölge tabanı
+// Açık (tanımsız) kanal = tok beyaz tüp + ince slate kenar (belirgin ama tanımlının önüne GEÇMEZ).
+const CH_UNDEF_EDGE_W = 6.6; // beyaz tüp dış kenarı (10H-3 ince ayar: 7.0 → 6.6, geri plana it)
+const CH_UNDEF_CORE_W = 4.6; // beyaz tüp gövdesi (10H-3 ince ayar: 5.0 → 4.6)
+const CH_UNDEF_EDGE = "#c3ccda";
+const CH_UNDEF_CORE = "#f6f8fc";
+const CH_UNDEF_OPACITY = 0.8; // hiyerarşi: tanımlı kırmızı/siyah kanalın altında kalır (10H-3: 0.9 → 0.8)
 
-// FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; casing hariç).
+// FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; gölge/casing hariç).
 // Kanalın kendi renginde yumuşak halo; neon değil. Koordinat/topoloji sabit.
 const CH_GLOW_STD = 0.9;      // feGaussianBlur yarıçapı (küçük = kontrollü)
 const CH_GLOW_OPACITY = 0.55; // halo alfa çarpanı (ölçülü)
 
-// FAZ 10C-2 — sheen highlight (glow DIŞINDA, keskin; camsı tüp hissi). both atlanır.
-const CH_SHEEN_WIDTH = 1.1;    // ince parlak çekirdek
-const CH_SHEEN_OPACITY = 0.45; // ölçülü — yıkamaz
-const SHEEN: Record<"red" | "black", string> = { red: "#fecaca", black: "#9ca3af" };
+// FAZ 10C-2 → 10H-3 — sheen highlight (glow DIŞINDA, keskin; camsı tüp hissi). both atlanır.
+const CH_SHEEN_WIDTH = 1.8;    // parlak çekirdek (kalın gövdeye orantılı büyütüldü)
+const CH_SHEEN_OPACITY = 0.5;  // ölçülü — yıkamaz
+const SHEEN: Record<"red" | "black", string> = { red: "#fecaca", black: "#cbd5e1" };
 
 function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "black" | "red" | "both" | null }) {
   if (!color) return null;
@@ -72,7 +76,7 @@ function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "blac
     y1: from.y,
     x2: to.x,
     y2: to.y,
-    strokeWidth: CH_DEFINED,
+    strokeWidth: CH_BODY_W,
     strokeLinecap: "round" as const,
   };
   if (color === "both") {
@@ -158,16 +162,21 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
         {/* FAZ 7D — tanımlı merkez premium katmanı (ek <polygon> YOK; sadece filter/gradient) */}
         {/* Yumuşak, ölçülü derinlik gölgesi — tanımlı polygon'a uygulanır, eleman eklemez */}
         <filter id="hd-center-shadow" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="0.6" stdDeviation="0.9" floodColor="#0f172a" floodOpacity="0.22" />
+          <feDropShadow dx="0" dy="0.7" stdDeviation="1.1" floodColor="#0f172a" floodOpacity="0.30" />
         </filter>
-        {/* Her tanımlı merkez için hue-korumalı üst-sol highlight (küresel cam hissi) */}
+        {/* FAZ 10H-3 — tanımlı merkez: daha güçlü üst-sol iç parlaklık + tok gövde (hue korunur) */}
         {CENTERS.map((c) => (
-          <radialGradient key={c} id={`hd-center-${c}`} cx="34%" cy="26%" r="82%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.5} />
-            <stop offset="36%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
+          <radialGradient key={c} id={`hd-center-${c}`} cx="34%" cy="26%" r="86%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.55} />
+            <stop offset="30%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
             <stop offset="100%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
           </radialGradient>
         ))}
+        {/* FAZ 10H-3 — açık (tanımsız) merkez: ortak hafif beyaz gradyan (düz görünmesin; yeni polygon YOK) */}
+        <radialGradient id="hd-center-open" cx="34%" cy="26%" r="86%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={1} />
+          <stop offset="100%" stopColor="#eef2f8" stopOpacity={1} />
+        </radialGradient>
 
         {/* FAZ 10C-1 — kanal glow: renkli yarımın kendi rengini bulanıklaştırıp altına serer;
             keskin kanal üstte kalır. Ek polygon/circle YOK; yalnız filter. */}
@@ -215,18 +224,12 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
       <g strokeLinecap="round" strokeLinejoin="round">
         {CHANNEL_SEGMENTS.map((seg) => {
           if (!definedChannelIds.has(seg.id)) {
-            // Tanımsız: zarif, yumuşak track — round cap + hafif opaklık.
+            // FAZ 10H-3 — tanımsız: tok beyaz tüp (kenar + gövde). Belirgin ama tanımlının altında.
             return (
-              <line
-                key={seg.id}
-                x1={seg.a.x}
-                y1={seg.a.y}
-                x2={seg.b.x}
-                y2={seg.b.y}
-                stroke={TRACK}
-                strokeWidth={CH_UNDEFINED}
-                strokeOpacity={CH_UNDEFINED_OPACITY}
-              />
+              <g key={seg.id} strokeOpacity={CH_UNDEF_OPACITY}>
+                <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_UNDEF_EDGE} strokeWidth={CH_UNDEF_EDGE_W} />
+                <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_UNDEF_CORE} strokeWidth={CH_UNDEF_CORE_W} />
+              </g>
             );
           }
           const mid: Point = { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 };
@@ -234,15 +237,14 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           const colB = gateColor(seg.gateB, gateMap);
           return (
             <g key={seg.id}>
-              {/* FAZ 10C-3 — iki-katmanlı casing: koyu geniş KENAR + açık dar ÇEKİRDEK = oluk derinliği. glow ALMAZ */}
-              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK_EDGE} strokeWidth={CH_CASING_EDGE} />
-              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING_CORE} />
-              {/* FAZ 10C-1 — yalnız renkli yarımlar ölçülü glow alır */}
+              {/* FAZ 10H-3 — katman 1: koyu hacim/gölge kenarı (tam segment, tek parça) → dış hat + derinlik. glow ALMAZ */}
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={CH_SHADOW_COL} strokeWidth={CH_SHADOW_W} strokeOpacity={0.92} />
+              {/* FAZ 10H-3 — katman 2: renkli ana gövde (her yarı kendi rengi) + ölçülü glow */}
               <g filter="url(#hd-channel-glow)">
                 <ChannelHalf from={seg.a} to={mid} color={colA} />
                 <ChannelHalf from={seg.b} to={mid} color={colB} />
               </g>
-              {/* FAZ 10C-2 — sheen: glow DIŞINDA keskin highlight, en üstte; both atlanır */}
+              {/* FAZ 10H-3 — katman 3: sheen keskin highlight, en üstte; both atlanır */}
               <ChannelSheen from={seg.a} to={mid} color={colA} />
               <ChannelSheen from={seg.b} to={mid} color={colB} />
             </g>
@@ -260,10 +262,10 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             <polygon
               key={c}
               points={pts}
-              fill={on ? `url(#hd-center-${c})` : "#fbfcfe"}
+              fill={on ? `url(#hd-center-${c})` : "url(#hd-center-open)"}
               fillOpacity={1}
               stroke={on ? "#1e293b" : "#d5dce6"}
-              strokeWidth={on ? 1.6 : 1.3}
+              strokeWidth={on ? 1.7 : 1.3}
               strokeOpacity={on ? 0.9 : 1}
               filter={on ? "url(#hd-center-shadow)" : undefined}
             />
@@ -284,7 +286,7 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
               y={a.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={5.6}
+              fontSize={6.0}
               fontWeight={700}
               letterSpacing={-0.2}
               fill={coloredBg ? GATE_PASSIVE_FILL_LIGHT : GATE_PASSIVE_FILL_DARK}
