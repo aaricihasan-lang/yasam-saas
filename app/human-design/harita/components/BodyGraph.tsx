@@ -36,10 +36,9 @@ const CENTER_FILL: Record<CenterName, string> = {
 const RED = "#dc2626";
 const BLACK = "#111827";
 
-// FAZ 10H-1 — Aura Base: en arka foundation kütlesi. Özgün insan formu (referanstan alınmadı).
-// Soğuk/doygunsuz TEK renk + çok düşük opacity. Gradient/blur/glow/neon YOK. circle/polygon KULLANMAZ.
+// FAZ 10H — Aura foundation kütlesi. Özgün insan formu (referanstan alınmadı). Soğuk/doygunsuz;
+// circle/polygon KULLANMAZ. 10H-2: opacity gradient stop'larında (hd-aura-grad), düz artırma YOK.
 const AURA_FILL = "#aeb8d8";   // soğuk slate-lavanta (neon değil)
-const AURA_OPACITY = 0.07;     // çok düşük — BodyGraph'ı ezmez (tunable: az görünürse 0.09, fazlaysa 0.05)
 
 // FAZ 10F-2 — pasif gate: iki-ton fill + zıt-ton outline (paint-order) → her zeminde okunur. circle/bg YOK.
 const GATE_PASSIVE_FILL_LIGHT = "#f8fafc";   // renkli(tanımlı) merkez → açık numara
@@ -182,21 +181,32 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        {/* FAZ 10H-2 — Aura yüzey: çok hafif derinlik gradyanı (opacity ARTIRMAZ, yeniden dağıtır) */}
+        <radialGradient id="hd-aura-grad" cx="50%" cy="42%" r="62%">
+          <stop offset="0%" stopColor={AURA_FILL} stopOpacity="0.085" />
+          <stop offset="55%" stopColor={AURA_FILL} stopOpacity="0.055" />
+          <stop offset="100%" stopColor={AURA_FILL} stopOpacity="0.025" />
+        </radialGradient>
+        {/* FAZ 10H-2 — yalnız kenar yumuşatma (glow DEĞİL; ayrı ışık katmanı/merge yok) */}
+        <filter id="hd-aura-soft" x="-12%" y="-12%" width="124%" height="124%">
+          <feGaussianBlur stdDeviation="1.6" />
+        </filter>
       </defs>
 
       {/* FAZ 10H-1 — AURA (en arka foundation kütlesi). Özgün insan formu; TEK renk, düşük opacity.
           Baş/boyun küçük → omuz genişliğini abartır; omuzlar kanal yapısını aşar (yatay kütle);
           gövde merkezleri kapsar (containment). Gradient/blur/glow YOK. circle/polygon KULLANMAZ. */}
       <path
-        d="M170 28 C189 28 197 48 196 70 C195 90 187 100 184 114
-           C214 118 254 122 298 148 C314 157 306 172 284 186
-           C258 206 250 300 240 398 C236 458 230 512 210 550
-           C197 568 184 570 170 570 C156 570 143 568 130 550
-           C110 512 104 458 100 398 C90 300 82 206 56 186
-           C34 172 26 157 42 148 C86 122 126 118 156 114
-           C153 100 145 90 144 70 C143 48 151 28 170 28 Z"
-        fill={AURA_FILL}
-        fillOpacity={AURA_OPACITY}
+        d="M170 26 C186 26 195 42 196 64 C197 82 192 92 190 104
+           C210 106 240 110 286 140 C306 152 312 168 300 184
+           C280 196 262 214 254 250 C248 300 244 356 238 402
+           C233 460 226 512 206 548 C194 566 182 568 170 568
+           C158 568 146 566 134 548 C114 512 107 460 102 402
+           C96 356 92 300 86 250 C78 214 60 196 40 184
+           C28 168 34 152 54 140 C100 110 130 106 150 104
+           C148 92 143 82 144 64 C145 42 154 26 170 26 Z"
+        fill="url(#hd-aura-grad)"
+        filter="url(#hd-aura-soft)"
         stroke="none"
         aria-hidden="true"
       />
