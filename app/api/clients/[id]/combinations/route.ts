@@ -33,6 +33,15 @@ function str(v: unknown, max: number): string | null {
   return s.length > max ? s.slice(0, max) : s;
 }
 
+/**
+ * O-7: Kombinasyon adı benzersizlik karşılaştırması için normalize.
+ * Büyük/küçük harf (Türkçe-duyarlı) + baş/son + iç boşluk sadeleştirilir.
+ * Diyakritikler KORUNUR (ör. "Şifa" ≠ "Sifa") — yalnız case + boşluk normalize edilir.
+ */
+function normComboName(s: string): string {
+  return s.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+}
+
 async function clientBelongsToTenant(
   db: SupabaseClient,
   clientId: string,
@@ -139,6 +148,31 @@ export async function POST(
   // Demo hesap: gerçek yazma yapılmaz; başarılı gibi dönülür.
   if (is_demo_account) {
     return NextResponse.json({ ok: true, demo: true });
+  }
+
+  // O-7: Aynı danışanda aynı isimde kombinasyon tekrarını engelle (case + boşluk
+  // normalize; Türkçe-duyarlı). Aynı ad FARKLI danışanda serbesttir (client_id filtresi).
+  const { data: existing, error: existErr } = await db
+    .from("client_combinations")
+    .select("name")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (existErr) {
+    return NextResponse.json({ ok: false, error: existErr.message }, { status: 500 });
+  }
+  const targetNorm = normComboName(name);
+  const isDuplicate = (existing ?? []).some(
+    (r) => normComboName(String((r as { name?: unknown }).name ?? "")) === targetNorm,
+  );
+  if (isDuplicate) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "DUPLICATE_NAME",
+        error: `Bu danışanda "${name}" adlı bir kombinasyon zaten kayıtlı. Farklı bir ad kullanın.`,
+      },
+      { status: 409 },
+    );
   }
 
   const stonesCsv = stoneNames.join(", ").slice(0, MAX_TEXT);
