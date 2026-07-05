@@ -43,14 +43,14 @@ export function NumerolojiListeKarti({
     <li className="relative">
       {onToggleSelect !== undefined && (
         <label
-          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-5 w-5 cursor-pointer items-center justify-center"
+          className="absolute right-1.5 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 cursor-pointer items-center justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           <input
             type="checkbox"
             checked={Boolean(isSelected)}
             onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
-            className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
+            className="h-5 w-5 rounded border-violet-300 accent-violet-600"
           />
         </label>
       )}

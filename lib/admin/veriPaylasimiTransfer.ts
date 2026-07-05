@@ -3,6 +3,7 @@ import {
   resolveSourceAdminTenantId,
 } from "@/lib/admin/adminSourceTenant";
 import { supabase } from "@/lib/supabase";
+import { adminTransferNumerology } from "@/lib/admin/adminNumerologyApi";
 
 export { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 
@@ -312,6 +313,17 @@ export async function copyLibraryTableToTenant(
       count: stonesResult.count,
       error: stonesResult.error,
     };
+  }
+
+  // Numeroloji tabloları RLS ile korunur → service-role admin API üzerinden kopyalanır.
+  if (table === "numerology_knowledge_records" || table === "numerology_stone_assignments") {
+    const { inserted, error } = await adminTransferNumerology(
+      table,
+      sourceAdminTenantId,
+      targetUserTenantId,
+      filterIds,
+    );
+    return { count: inserted, error: error ?? undefined };
   }
 
   const tableQuery = supabase

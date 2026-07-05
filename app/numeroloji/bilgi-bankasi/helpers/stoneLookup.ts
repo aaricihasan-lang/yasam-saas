@@ -1,19 +1,21 @@
-import { supabase } from "@/lib/supabase";
 import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
-import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
+import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import { analizTuruLabel } from "./bilgiBankaLabels";
-import { buildChakraLookupValues } from "./knowledgeLookup";
+import { buildChakraLookupValues, valueCandidatesFromResult } from "./knowledgeLookup";
 import type { StoneAssignmentRow } from "./bilgiBankaKayit";
 
-const STONE_TABLE = "numerology_stone_assignments";
+const STONE_API = "/api/numeroloji/stones";
 
+// Taş ataması TÜM analiz türlerini destekler (Doğaltaş Ata formundaki dropdown ile bire bir).
 const STONE_ANALYSIS_TYPES = {
+  anaKulvar: "ana-kulvar",
+  yanKulvar: "yan-kulvar",
+  ifadeSayisi: "ifade-sayisi",
+  hayatYolu: "hayat-yolu",
   cakraOmurga: "cakra-omurga",
   element: "element",
 } as const;
-
-const LOOKUP_STONE_TYPES = Object.values(STONE_ANALYSIS_TYPES);
 
 export type StoneAssignmentForAnalysis = {
   type: string;
@@ -54,14 +56,12 @@ export function buildElementStoneLookupValues(out: NumerolojiMotorOut): string[]
 
 export function buildStoneLookupPlan(out: NumerolojiMotorOut): { analysisType: string; values: string[] }[] {
   return [
-    {
-      analysisType: STONE_ANALYSIS_TYPES.cakraOmurga,
-      values: buildChakraLookupValues(out),
-    },
-    {
-      analysisType: STONE_ANALYSIS_TYPES.element,
-      values: buildElementStoneLookupValues(out),
-    },
+    { analysisType: STONE_ANALYSIS_TYPES.anaKulvar, values: valueCandidatesFromResult(out.anaKulvar) },
+    { analysisType: STONE_ANALYSIS_TYPES.yanKulvar, values: valueCandidatesFromResult(out.yanKulvar) },
+    { analysisType: STONE_ANALYSIS_TYPES.ifadeSayisi, values: valueCandidatesFromResult(out.ifadeSayisi) },
+    { analysisType: STONE_ANALYSIS_TYPES.hayatYolu, values: valueCandidatesFromResult(out.hayatYolu) },
+    { analysisType: STONE_ANALYSIS_TYPES.cakraOmurga, values: buildChakraLookupValues(out) },
+    { analysisType: STONE_ANALYSIS_TYPES.element, values: buildElementStoneLookupValues(out) },
   ];
 }
 
@@ -117,33 +117,29 @@ function pickStoneAssignments(
 
 export async function getStoneAssignmentsForAnalysis(
   out: NumerolojiMotorOut,
-  tenantId?: string,
+  _tenantId?: string,
 ): Promise<StoneAssignmentForAnalysis[]> {
-  const tid = tenantId ?? (await resolveNumerolojiTenantId());
+  void _tenantId;
   const plan = buildStoneLookupPlan(out);
   const hasAnyValue = plan.some((p) => p.values.length > 0);
   if (!hasAnyValue) return [];
-  if (!tid) return [];
 
   try {
-    const { data, error } = await supabase
-      .from(STONE_TABLE)
-      .select("*")
-      .eq("tenant_id", tid)
-      .in("analysis_type", LOOKUP_STONE_TYPES);
-
-    if (error) {
-      console.error("Doğaltaş atamaları okunamadı:", error.message);
+    const res = await numApi(STONE_API);
+    const err = numApiError(res);
+    if (err) {
+      console.error("Doğaltaş atamaları okunamadı:", err);
       return [];
     }
 
-    const rows = (data ?? []) as StoneAssignmentRow[];
+    const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as StoneAssignmentRow[];
     const seenIds = new Set<string>();
 
-    return [
-      ...pickStoneAssignments(rows, STONE_ANALYSIS_TYPES.cakraOmurga, plan[0].values, seenIds),
-      ...pickStoneAssignments(rows, STONE_ANALYSIS_TYPES.element, plan[1].values, seenIds),
-    ];
+    const result: StoneAssignmentForAnalysis[] = [];
+    for (const p of plan) {
+      result.push(...pickStoneAssignments(rows, p.analysisType, p.values, seenIds));
+    }
+    return result;
   } catch (err) {
     console.error("Doğaltaş atamaları beklenmeyen hata:", err);
     return [];

@@ -7,6 +7,9 @@ export type NumerolojiResult = {
 // 19, bu sistemde karma borç sayısı olarak master sayı setine dahil edilmiştir.
 export const SPECIAL_NUMBERS = new Set([11, 19, 22, 33]);
 
+// Hayat Yolu gibi klasik master-sayı kuralı: yalnız 11/22/33 korunur (19 hariç).
+export const MASTER_NUMBERS = new Set([11, 22, 33]);
+
 export const CHAKRA_LETTER_MAP: Record<string, number> = {
   A: 1, J: 1, S: 1, Ş: 1,
   B: 2, K: 2, T: 2,
@@ -50,6 +53,19 @@ export function reduceToDigit(n: number): number {
   return current;
 }
 
+/**
+ * Tam indirger ama zincir 11/22/33'ten geçerse master olarak durur (Hayat Yolu kuralı).
+ * Örn: 39 → 3, 38 → 11, 29 → 11, 5 → 5.
+ */
+export function reduceKeepMaster(n: number): number {
+  let current = Math.abs(n);
+  while (current > 9) {
+    if (MASTER_NUMBERS.has(current)) return current;
+    current = sumDigits(current);
+  }
+  return current;
+}
+
 export function reduce1To9(n: number): number {
   const reduced = reduceToDigit(Math.abs(n));
   return reduced === 0 ? 9 : reduced;
@@ -76,20 +92,56 @@ export type BirthDateParts = {
 };
 
 export function parseBirthDate(birthDate: string): BirthDateParts | null {
-  const parts = (birthDate || "").trim().replace(/-/g, ".").split(".");
+  // GG.AA.YYYY, GG-AA-YYYY ve GG/AA/YYYY biçimlerinin hepsini kabul et.
+  const parts = (birthDate || "").trim().replace(/[-/]/g, ".").split(".");
   if (parts.length !== 3) return null;
 
   const [dayText, monthText, yearText] = parts.map((p) => p.trim());
   if (!/^\d+$/.test(dayText) || !/^\d+$/.test(monthText) || !/^\d+$/.test(yearText)) return null;
 
+  const day = Number(dayText);
+  const month = Number(monthText);
+  const year = Number(yearText);
+
+  // Gerçek takvim doğrulaması — 32/13/2000 veya 30/02 gibi imkânsız tarihler reddedilir.
+  if (!isValidCalendarDate(day, month, year)) return null;
+
   return {
-    day: Number(dayText),
-    month: Number(monthText),
-    year: Number(yearText),
+    day,
+    month,
+    year,
     dayText,
     monthText,
     yearText,
   };
+}
+
+/** Artık yıl mı? (Gregoryen kural) */
+export function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+/** Belirli ay/yıldaki gün sayısı. */
+export function daysInMonth(month: number, year: number): number {
+  const table = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return table[month - 1] ?? 0;
+}
+
+/**
+ * Gerçek takvim kontrolü: gün 1..(aydaki gün), ay 1..12, makul yıl aralığı.
+ * `YYYY-MM-DD` / `DD.MM.YYYY` biçim doğrulaması ÖNCEDEN yapılmış olmalı.
+ */
+export function isValidCalendarDate(day: number, month: number, year: number): boolean {
+  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) return false;
+  if (year < 1000 || year > 3000) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > daysInMonth(month, year)) return false;
+  return true;
+}
+
+/** Ekran biçimi "GG/AA/YYYY" veya "GG.AA.YYYY" için tam geçerlilik (biçim + takvim). */
+export function isValidBirthDateDisplay(display: string): boolean {
+  return parseBirthDate(display) !== null;
 }
 
 export function repeatX(count: number): string {

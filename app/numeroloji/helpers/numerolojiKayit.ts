@@ -1,5 +1,5 @@
 import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { numApi, numApiError } from "./numApiClient";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
   mergeGorselIntoAnalysisData,
@@ -9,8 +9,6 @@ import {
 
 /** Diğer modüllerle aynı demo tenant — yasam_user yoksa kullanılır. */
 export const NUMEROLOJI_TENANT_ID = "11111111-1111-1111-1111-111111111111";
-
-const TABLE = "numerology_records";
 
 export type NumerologyRecordRow = {
   id: string;
@@ -67,84 +65,75 @@ export async function saveNumerologyAnalysis(input: {
   birthDate: string;
   motor: NumerolojiMotorOut;
 }): Promise<{ error: string | null; id?: string }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) {
-    return { error: "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın." };
-  }
   const analysis_data: AnalysisDataPayload = {
     version: 1,
     motor: input.motor,
     summary: buildAnalizOzeti(input.motor),
   };
 
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({
-      tenant_id: tenantId,
+  // tenant_id SUNUCUDA session'dan alınır; istemciden gönderilmez.
+  const res = await numApi("/api/numeroloji/analyses", {
+    method: "POST",
+    body: JSON.stringify({
       name: input.name.trim(),
       surname: input.surname.trim(),
       birth_date: input.birthDate.trim(),
       analysis_data,
-    })
-    .select("id")
-    .single();
-
-  if (error) return { error: error.message };
-  const id = typeof data?.id === "string" ? data.id : undefined;
+    }),
+  });
+  const err = numApiError(res);
+  if (err) return { error: err };
+  const id = typeof res.json.id === "string" ? res.json.id : undefined;
   return { error: null, id };
 }
 
-export async function listNumerologyAnalyses(tenantId: string): Promise<{
+// NOT: `tenantId` parametresi geriye dönük uyumluluk için korunur; tenant artık
+// SUNUCUDA session'dan alınır. Admin (çapraz-tenant) için lib/admin/adminNumerologyApi kullanılır.
+export async function listNumerologyAnalyses(_tenantId?: string): Promise<{
   data: NumerologyRecordListItem[] | null;
   error: string | null;
 }> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("name", { ascending: true });
-
-  if (error) return { data: null, error: error.message };
-  const rows = (data ?? []) as NumerologyRecordListItem[];
+  void _tenantId;
+  const res = await numApi("/api/numeroloji/analyses");
+  const err = numApiError(res);
+  if (err) return { data: null, error: err };
+  const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as NumerologyRecordListItem[];
   return { data: sortRecordsByNameTurkish(rows), error: null };
 }
 
 export async function getNumerologyAnalysisById(
   id: string,
-  tenantId: string,
+  _tenantId?: string,
 ): Promise<{ data: NumerologyRecordRow | null; error: string | null }> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("id", id)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-
-  if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: "Kayıt bulunamadı." };
-
-  return { data: data as NumerologyRecordRow, error: null };
+  void _tenantId;
+  const res = await numApi(`/api/numeroloji/analyses?id=${encodeURIComponent(id)}`);
+  if (res.status === 404) return { data: null, error: "Kayıt bulunamadı." };
+  const err = numApiError(res);
+  if (err) return { data: null, error: err };
+  const row = res.json.row;
+  if (!row) return { data: null, error: "Kayıt bulunamadı." };
+  return { data: row as NumerologyRecordRow, error: null };
 }
 
 /** Kayıtlı analizin yalnızca `analysis_data.gorsel` alanını günceller. */
 export async function updateNumerologyAnalysisGorsel(
   id: string,
-  tenantId: string,
+  _tenantId: string,
   gorselData: AnalysisGorselData,
   currentAnalysisData: unknown,
 ): Promise<{ error: string | null; analysis_data?: AnalysisDataPayload }> {
+  void _tenantId;
   const merged = mergeGorselIntoAnalysisData(currentAnalysisData, gorselData);
   if (!merged) {
     return { error: "Kayıt verisi güncellenemedi." };
   }
 
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ analysis_data: merged })
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  if (error) return { error: error.message };
+  const res = await numApi("/api/numeroloji/analyses", {
+    method: "PATCH",
+    body: JSON.stringify({ id, analysis_data: merged }),
+  });
+  const err = numApiError(res);
+  if (err) return { error: err };
   return { error: null, analysis_data: merged };
 }
 

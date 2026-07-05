@@ -9,8 +9,9 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUserAndTenant } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
+import { RowErrorBoundary } from "../components/RowErrorBoundary";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { supabase } from "@/lib/supabase";
+import { numApi, numApiError } from "../helpers/numApiClient";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
@@ -118,27 +119,28 @@ export default function NumerolojiListePage() {
 
     setDeleteLoading(true);
 
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("numerology_records")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ids)
-      .select("id");
+    // tenant_id SUNUCUDA session'dan alınır; çapraz-tenant silme engellidir.
+    const res = await numApi("/api/numeroloji/analyses", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
+    });
 
     setDeleteLoading(false);
 
-    if (deleteError) {
-      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${deleteError.message}`, type: "error" });
+    const err = numApiError(res);
+    if (err) {
+      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${err}`, type: "error" });
       return;
     }
 
-    const deletedCount = deletedRows?.length ?? 0;
+    const deletedIds = Array.isArray(res.json.ids) ? (res.json.ids as string[]) : ids;
+    const deletedCount = typeof res.json.deleted === "number" ? res.json.deleted : deletedIds.length;
     if (deletedCount === 0) {
       showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
       return;
     }
 
-    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    const deletedIdSet = new Set(deletedIds);
     setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
     setSelectedIds(new Set());
     showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
@@ -292,12 +294,13 @@ export default function NumerolojiListePage() {
         {!loading && !error && displayRows.length > 0 ? (
           <ul className="mt-2.5 w-full space-y-1.5">
             {displayRows.map((r) => (
-              <NumerolojiListeKarti
-                key={r.id}
-                row={r}
-                isSelected={selectedIds.has(r.id)}
-                onToggleSelect={isDemo ? undefined : () => toggleSelection(r.id)}
-              />
+              <RowErrorBoundary key={r.id}>
+                <NumerolojiListeKarti
+                  row={r}
+                  isSelected={selectedIds.has(r.id)}
+                  onToggleSelect={isDemo ? undefined : () => toggleSelection(r.id)}
+                />
+              </RowErrorBoundary>
             ))}
           </ul>
         ) : null}

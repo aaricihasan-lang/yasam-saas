@@ -12,7 +12,7 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { listNumerologyAnalyses } from "@/app/numeroloji/helpers/numerolojiKayit";
+import { adminListNumerologyAnalyses } from "@/lib/admin/adminNumerologyApi";
 import { extractMotorFromAnalysisJson } from "@/app/numeroloji/utils/analysisJson";
 import { nrDisplay } from "@/app/numeroloji/utils/numerolojiPlainMetin";
 
@@ -153,7 +153,7 @@ export default function AdminWorkspaceNumerologyPage() {
       return;
     }
 
-    const { data, error } = await listNumerologyAnalyses(activeTenantId);
+    const { data, error } = await adminListNumerologyAnalyses(activeTenantId);
 
     if (error) {
       console.error("Numeroloji listesi hatası:", error);

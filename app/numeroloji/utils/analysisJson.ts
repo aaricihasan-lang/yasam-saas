@@ -33,7 +33,31 @@ function asRecord(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-/** Supabase `analysis_data` alanından motor çıktısını okur. */
+/** Bir NumerolojiResult benzeri alanın en az `display` içerip içermediğini doğrular. */
+function hasResultShape(v: unknown): boolean {
+  return !!v && typeof v === "object" && !Array.isArray(v) && "display" in (v as Record<string, unknown>);
+}
+
+/**
+ * Motor nesnesinin çekirdek alanlarının (anaKulvar/yanKulvar/ifadeSayisi/hayatYolu)
+ * beklenen şekilde olup olmadığını kontrol eder. Eksik/bozuk kayıtlar UI'ı çökertmesin.
+ */
+export function isValidMotorShape(motor: unknown): boolean {
+  const m = asRecord(motor);
+  if (!m) return false;
+  return (
+    hasResultShape(m.anaKulvar) &&
+    hasResultShape(m.yanKulvar) &&
+    hasResultShape(m.ifadeSayisi) &&
+    hasResultShape(m.hayatYolu)
+  );
+}
+
+/**
+ * Supabase `analysis_data` alanından motor çıktısını okur.
+ * Şekli doğrulanamayan (eski/bozuk) kayıtlarda null döner — çağıran taraf
+ * "kayıt okunamadı" durumunu gösterir; asla çökmez.
+ */
 export function extractMotorFromAnalysisJson(raw: unknown): NumerolojiMotorOut | null {
   const o = asRecord(raw);
   if (!o) return null;
@@ -41,6 +65,7 @@ export function extractMotorFromAnalysisJson(raw: unknown): NumerolojiMotorOut |
   if (!motor || typeof motor !== "object" || Array.isArray(motor)) return null;
   const ver = o.version;
   if (ver !== undefined && ver !== 1) return null;
+  if (!isValidMotorShape(motor)) return null;
   return motor as NumerolojiMotorOut;
 }
 

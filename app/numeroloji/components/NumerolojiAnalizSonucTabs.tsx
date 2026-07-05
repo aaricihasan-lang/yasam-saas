@@ -16,6 +16,16 @@ import {
 
 const STONE_TYPE_CAKRA = "cakra-omurga";
 const STONE_TYPE_ELEMENT = "element";
+
+// "Taş Notlarım" sekmesinde gösterilecek tüm taş bölümleri (Doğaltaş Ata türleriyle bire bir).
+const STONE_SECTION_ORDER: { key: string; title: string }[] = [
+  { key: "ana-kulvar", title: "Ana Kulvar Taş Destekleri" },
+  { key: "yan-kulvar", title: "Yan Kulvar Taş Destekleri" },
+  { key: "ifade-sayisi", title: "İfade Sayısı Taş Destekleri" },
+  { key: "hayat-yolu", title: "Hayat Yolu Taş Destekleri" },
+  { key: STONE_TYPE_CAKRA, title: "Çakra Omurgası Taş Destekleri" },
+  { key: STONE_TYPE_ELEMENT, title: "Element Taş Destekleri" },
+];
 import {
   buildPlainAnalizFull,
   harfSegmentsToText,
@@ -601,6 +611,10 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
     .filter((b) => b.title);
 
   return (
+    <>
+    <p className="mb-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-1.5 text-[11px] font-medium text-violet-800">
+      💡 Bilgi bankası yorumlarınız ve doğaltaş önerileriniz <span className="font-black">Sayısal Hesaplama</span> sekmesinde her sayının altında görünür.
+    </p>
     <div className="overflow-hidden rounded-[12px] border border-violet-200/70 bg-white/90 shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       {blocks.map((blok, i) => (
         <div
@@ -620,6 +634,7 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
         </div>
       ))}
     </div>
+    </>
   );
 }
 
@@ -641,10 +656,13 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
     };
   }, [out]);
 
-  const cakraItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_CAKRA);
-  const elementItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
+  // Taş atamaları TÜM analiz türlerini kapsar (Doğaltaş Ata formundaki dropdown ile bire bir).
+  const stoneSections = STONE_SECTION_ORDER.map((sec) => ({
+    ...sec,
+    items: stoneAssignments.filter((s) => s.typeKey === sec.key),
+  })).filter((sec) => sec.items.length > 0);
 
-  if (!cakraItems.length && !elementItems.length) {
+  if (!stoneAssignments.length) {
     if (!loaded) {
       return (
         <div className="py-12 text-center text-sm font-medium text-slate-400">Taş notlarınız yükleniyor…</div>
@@ -673,8 +691,9 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
-      <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraItems} />
-      <TasDestekSectionBlock title="Element Taş Destekleri" items={elementItems} />
+      {stoneSections.map((sec) => (
+        <TasDestekSectionBlock key={sec.key} title={sec.title} items={sec.items} />
+      ))}
     </div>
   );
 }

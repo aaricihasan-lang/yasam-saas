@@ -12,7 +12,7 @@ import {
   saveDemoNumerolojiAnaliz,
 } from "@/lib/demo/demoNumerolojiAnaliz";
 import Link from "next/link";
-import { hesaplaNumeroloji } from "@/lib/numeroloji";
+import { hesaplaNumeroloji, isValidBirthDateDisplay } from "@/lib/numeroloji";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
 import { SaveAnalysisButton } from "../components/SaveAnalysisButton";
 import {
@@ -27,7 +27,8 @@ import {
   type ContentFontSize,
 } from "../components/numerolojiContentTypography";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
-import { GorselRaporInfografik, type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
+import { type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
+import { GorselScaleFit } from "../components/GorselScaleFit";
 import {
   GorselRaporKontrolCubugu,
   GorselRaporKontrolYanPanel,
@@ -321,6 +322,10 @@ export default function NumerolojiAnalizPage() {
       setError("Doğum tarihini GG/AA/YYYY formatında tamamlayın.");
       return;
     }
+    if (!isValidBirthDateDisplay(bd)) {
+      setError("Geçerli bir doğum tarihi girin (gün 1–31, ay 1–12; örn. 30/02 gibi tarihler geçersizdir).");
+      return;
+    }
 
     const fn = formatFirstNameTurkish(fnRaw);
     const ln = formatLastNameTurkish(lnRaw);
@@ -585,8 +590,8 @@ export default function NumerolojiAnalizPage() {
                         gorselTamEkran={gorselTamEkran}
                         setGorselTamEkran={setGorselTamEkran}
                       />
-                      <div className="flex justify-center pt-14 sm:pt-[4.5rem]">
-                        <GorselRaporInfografik
+                      <div className="pt-14 sm:pt-[4.5rem]">
+                        <GorselScaleFit
                           ref={gorselTamEkran ? null : gorselRaporRef}
                           out={out}
                           isimGoster={isimGoster}
@@ -618,7 +623,7 @@ export default function NumerolojiAnalizPage() {
                             </p>
                             <div className="flex min-h-full justify-center px-4 py-10 sm:px-6 sm:py-12">
                               <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-8">
-                                <GorselRaporInfografik
+                                <GorselScaleFit
                                   key={gorselTema}
                                   ref={gorselTamEkran ? gorselRaporRef : null}
                                   out={out}

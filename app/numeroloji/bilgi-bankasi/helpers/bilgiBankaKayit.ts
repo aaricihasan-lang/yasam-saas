@@ -1,9 +1,8 @@
-import { supabase } from "@/lib/supabase";
-import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
+import { numApi, numApiError } from "../../helpers/numApiClient";
 import { analizTuruLabel } from "./bilgiBankaLabels";
 
-const KNOWLEDGE_TABLE = "numerology_knowledge_records";
-const STONE_TABLE = "numerology_stone_assignments";
+const KNOWLEDGE_API = "/api/numeroloji/knowledge";
+const STONE_API = "/api/numeroloji/stones";
 
 export type KnowledgeRecordRow = {
   id: string;
@@ -63,24 +62,28 @@ function parseStones(raw: unknown): string[] {
   return raw.map((s) => String(s)).filter(Boolean);
 }
 
+async function fetchKnowledgeRows(): Promise<{ rows: KnowledgeRecordRow[]; error: string | null }> {
+  const res = await numApi(KNOWLEDGE_API);
+  const err = numApiError(res);
+  if (err) return { rows: [], error: err };
+  return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as KnowledgeRecordRow[], error: null };
+}
+
+async function fetchStoneRows(): Promise<{ rows: StoneAssignmentRow[]; error: string | null }> {
+  const res = await numApi(STONE_API);
+  const err = numApiError(res);
+  if (err) return { rows: [], error: err };
+  return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as StoneAssignmentRow[], error: null };
+}
+
 export async function getKnowledgeRecord(
   analysisType: string,
   value: string,
 ): Promise<{ data: KnowledgeRecordRow | null; error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) {
-    return { data: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
-  }
-  const { data, error } = await supabase
-    .from(KNOWLEDGE_TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("analysis_type", analysisType)
-    .eq("value", value)
-    .maybeSingle();
-
-  if (error) return { data: null, error: error.message };
-  return { data: data as KnowledgeRecordRow | null, error: null };
+  const { rows, error } = await fetchKnowledgeRows();
+  if (error) return { data: null, error };
+  const match = rows.find((r) => r.analysis_type === analysisType && r.value === value) ?? null;
+  return { data: match, error: null };
 }
 
 export async function saveKnowledgeRecord(input: {
@@ -89,57 +92,26 @@ export async function saveKnowledgeRecord(input: {
   source: string;
   description: string;
 }): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-  const value = input.value.trim();
-  const payload = {
-    tenant_id: tenantId,
-    analysis_type: input.analysisType,
-    value,
-    source: input.source.trim(),
-    description: input.description.trim(),
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data: existing, error: findError } = await supabase
-    .from(KNOWLEDGE_TABLE)
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("analysis_type", input.analysisType)
-    .eq("value", value)
-    .maybeSingle();
-
-  if (findError) return { error: findError.message };
-
-  if (existing?.id) {
-    const { error } = await supabase.from(KNOWLEDGE_TABLE).update(payload).eq("id", existing.id);
-    return { error: error?.message ?? null };
-  }
-
-  const { error } = await supabase.from(KNOWLEDGE_TABLE).insert(payload);
-  return { error: error?.message ?? null };
+  const res = await numApi(KNOWLEDGE_API, {
+    method: "POST",
+    body: JSON.stringify({
+      analysis_type: input.analysisType,
+      value: input.value.trim(),
+      source: input.source.trim(),
+      description: input.description.trim(),
+    }),
+  });
+  return { error: numApiError(res) };
 }
 
 export async function getStoneAssignment(
   analysisType: string,
   value: string,
 ): Promise<{ data: { reason: string; stones: string[]; updated_at: string } | null; error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) {
-    return { data: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
-  }
-  const { data, error } = await supabase
-    .from(STONE_TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("analysis_type", analysisType)
-    .eq("value", value)
-    .maybeSingle();
-
-  if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: null };
-
-  const row = data as StoneAssignmentRow;
+  const { rows, error } = await fetchStoneRows();
+  if (error) return { data: null, error };
+  const row = rows.find((r) => r.analysis_type === analysisType && r.value === value);
+  if (!row) return { data: null, error: null };
   return {
     data: {
       reason: row.reason ?? "",
@@ -156,64 +128,27 @@ export async function saveStoneAssignment(input: {
   reason: string;
   stones: string[];
 }): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-  const value = input.value.trim();
-  const payload = {
-    tenant_id: tenantId,
-    analysis_type: input.analysisType,
-    value,
-    reason: input.reason.trim(),
-    stones: input.stones,
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data: existing, error: findError } = await supabase
-    .from(STONE_TABLE)
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("analysis_type", input.analysisType)
-    .eq("value", value)
-    .maybeSingle();
-
-  if (findError) return { error: findError.message };
-
-  if (existing?.id) {
-    const { error } = await supabase.from(STONE_TABLE).update(payload).eq("id", existing.id);
-    return { error: error?.message ?? null };
-  }
-
-  const { error } = await supabase.from(STONE_TABLE).insert(payload);
-  return { error: error?.message ?? null };
+  const res = await numApi(STONE_API, {
+    method: "POST",
+    body: JSON.stringify({
+      analysis_type: input.analysisType,
+      value: input.value.trim(),
+      reason: input.reason.trim(),
+      stones: input.stones,
+    }),
+  });
+  return { error: numApiError(res) };
 }
 
 export async function listBilgiBankaKayitlari(): Promise<{
   rows: BilgiBankaListeSatir[];
   error: string | null;
 }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) {
-    return { rows: [], error: "Aktif kullanıcı tenant_id bulunamadı." };
-  }
+  const [knowledgeRes, stoneRes] = await Promise.all([fetchKnowledgeRows(), fetchStoneRows()]);
+  if (knowledgeRes.error) return { rows: [], error: knowledgeRes.error };
+  if (stoneRes.error) return { rows: [], error: stoneRes.error };
 
-  const [knowledgeRes, stoneRes] = await Promise.all([
-    supabase
-      .from(KNOWLEDGE_TABLE)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from(STONE_TABLE)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("updated_at", { ascending: false }),
-  ]);
-
-  if (knowledgeRes.error) return { rows: [], error: knowledgeRes.error.message };
-  if (stoneRes.error) return { rows: [], error: stoneRes.error.message };
-
-  const aciklama = (knowledgeRes.data ?? []).map((raw): BilgiBankaListeSatir => {
-    const row = raw as KnowledgeRecordRow;
+  const aciklama = knowledgeRes.rows.map((row): BilgiBankaListeSatir => {
     const analiz = analizTuruLabel(row.analysis_type);
     const bilgi = [row.source, row.description].filter(Boolean).join(" — ");
     return {
@@ -234,8 +169,7 @@ export async function listBilgiBankaKayitlari(): Promise<{
     };
   });
 
-  const dogaltas = (stoneRes.data ?? []).map((raw): BilgiBankaListeSatir => {
-    const row = raw as StoneAssignmentRow;
+  const dogaltas = stoneRes.rows.map((row): BilgiBankaListeSatir => {
     const analiz = analizTuruLabel(row.analysis_type);
     const taslar = parseStones(row.stones);
     const tasMetin = taslar.join(", ");
@@ -274,21 +208,17 @@ export async function updateKnowledgeRecordById(
     description: string;
   },
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-  const { error } = await supabase
-    .from(KNOWLEDGE_TABLE)
-    .update({
+  const res = await numApi(KNOWLEDGE_API, {
+    method: "PATCH",
+    body: JSON.stringify({
+      id: recordId,
       analysis_type: input.analysisType,
       value: input.value.trim(),
       source: input.source.trim(),
       description: input.description.trim(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", recordId)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+    }),
+  });
+  return { error: numApiError(res) };
 }
 
 export async function updateStoneAssignmentById(
@@ -300,63 +230,41 @@ export async function updateStoneAssignmentById(
     stones: string[];
   },
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-  const { error } = await supabase
-    .from(STONE_TABLE)
-    .update({
+  const res = await numApi(STONE_API, {
+    method: "PATCH",
+    body: JSON.stringify({
+      id: recordId,
       analysis_type: input.analysisType,
       value: input.value.trim(),
       reason: input.reason.trim(),
       stones: input.stones,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", recordId)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+    }),
+  });
+  return { error: numApiError(res) };
 }
 
 export async function deleteBilgiBankaKayit(
   kayitTuru: "aciklama" | "dogaltas",
   recordId: string,
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-  const table = kayitTuru === "aciklama" ? KNOWLEDGE_TABLE : STONE_TABLE;
-  const { error } = await supabase
-    .from(table)
-    .delete()
-    .eq("id", recordId)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  const api = kayitTuru === "aciklama" ? KNOWLEDGE_API : STONE_API;
+  const res = await numApi(api, { method: "DELETE", body: JSON.stringify({ id: recordId }) });
+  return { error: numApiError(res) };
 }
 
 export async function deleteBilgiBankaKayitlari(
   knowledgeIds: string[],
   stoneIds: string[],
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
   if (knowledgeIds.length > 0) {
-    const { error } = await supabase
-      .from(KNOWLEDGE_TABLE)
-      .delete()
-      .in("id", knowledgeIds)
-      .eq("tenant_id", tenantId);
-    if (error) return { error: error.message };
+    const res = await numApi(KNOWLEDGE_API, { method: "DELETE", body: JSON.stringify({ ids: knowledgeIds }) });
+    const err = numApiError(res);
+    if (err) return { error: err };
   }
-
   if (stoneIds.length > 0) {
-    const { error } = await supabase
-      .from(STONE_TABLE)
-      .delete()
-      .in("id", stoneIds)
-      .eq("tenant_id", tenantId);
-    if (error) return { error: error.message };
+    const res = await numApi(STONE_API, { method: "DELETE", body: JSON.stringify({ ids: stoneIds }) });
+    const err = numApiError(res);
+    if (err) return { error: err };
   }
-
   return { error: null };
 }

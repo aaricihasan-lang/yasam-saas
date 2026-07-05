@@ -11,7 +11,7 @@ import {
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { extractMotorFromAnalysisJson } from "@/app/numeroloji/utils/analysisJson";
-import { supabase } from "@/lib/supabase";
+import { adminGetNumerologyRecordById } from "@/lib/admin/adminNumerologyApi";
 import { AdminNumerologyReadonlyDetay } from "../AdminNumerologyReadonlyDetay";
 
 const panelClass =
@@ -97,12 +97,10 @@ export default function AdminWorkspaceNumerologyDetailPage() {
       return;
     }
 
-    const { data: recordRow, error: recordError } = await supabase
-      .from("numerology_records")
-      .select("*")
-      .eq("id", recordId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+    const { data: recordRow, error: recordError } = await adminGetNumerologyRecordById(
+      recordId,
+      tenantId,
+    );
 
     if (recordError || !recordRow) {
       setNotFound(true);

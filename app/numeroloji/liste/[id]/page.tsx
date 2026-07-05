@@ -13,6 +13,7 @@ import {
   type NumerologyRecordRow,
 } from "../../helpers/numerolojiKayit";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
+import { RowErrorBoundary } from "../../components/RowErrorBoundary";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -197,15 +198,23 @@ export default function NumerolojiKayitDetayPage() {
                 isProtected={gateActive}
                 message="Bu analiz içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm detaylar ve tablolar açık olarak kullanılabilir."
               >
-                <NumerolojiKayitDetayPanel
-                  out={motor}
-                  name={row.name}
-                  surname={row.surname}
-                  birthDate={row.birth_date}
-                  analysisData={row.analysis_data}
-                  recordId={row.id}
-                  onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
-                />
+                <RowErrorBoundary
+                  fallback={
+                    <p className="rounded-xl border border-amber-300/50 bg-amber-50/90 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm">
+                      ⚠️ Bu kaydın analiz verisi okunamadı (eski veya bozuk format).
+                    </p>
+                  }
+                >
+                  <NumerolojiKayitDetayPanel
+                    out={motor}
+                    name={row.name}
+                    surname={row.surname}
+                    birthDate={row.birth_date}
+                    analysisData={row.analysis_data}
+                    recordId={row.id}
+                    onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
+                  />
+                </RowErrorBoundary>
               </DemoGate>
             ) : (
               <p className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_24px_rgba(139,92,246,0.1)] backdrop-blur-xl">

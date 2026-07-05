@@ -98,7 +98,7 @@ export function NumerolojiFontSizeControl({
         type="button"
         onClick={decrease}
         disabled={value === "normal"}
-        className="flex h-6 w-6 items-center justify-center rounded text-[11px] font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
+        className="flex h-9 w-9 items-center justify-center rounded text-sm font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
         aria-label="Yazıyı küçült"
       >
         A−
@@ -108,7 +108,7 @@ export function NumerolojiFontSizeControl({
         type="button"
         onClick={increase}
         disabled={value === "xlarge"}
-        className="flex h-6 w-6 items-center justify-center rounded text-[11px] font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
+        className="flex h-9 w-9 items-center justify-center rounded text-sm font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
         aria-label="Yazıyı büyüt"
       >
         A+

@@ -1,10 +1,9 @@
-import { supabase } from "@/lib/supabase";
 import type { NumerolojiResult } from "@/lib/numeroloji";
-import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
+import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
 
-const KNOWLEDGE_TABLE = "numerology_knowledge_records";
+const KNOWLEDGE_API = "/api/numeroloji/knowledge";
 
 const NUMERO_ANALYSIS_TYPES = {
   anaKulvar: "ana-kulvar",
@@ -14,8 +13,6 @@ const NUMERO_ANALYSIS_TYPES = {
   cakraOmurga: "cakra-omurga",
   element: "element",
 } as const;
-
-const LOOKUP_ANALYSIS_TYPES = Object.values(NUMERO_ANALYSIS_TYPES);
 
 export type KnowledgeNote = {
   id: string;
@@ -91,7 +88,7 @@ export function valueCandidatesFromDisplay(display: string): string[] {
   return ordered;
 }
 
-function valueCandidatesFromResult(r: NumerolojiResult): string[] {
+export function valueCandidatesFromResult(r: NumerolojiResult): string[] {
   const fromDisplay = valueCandidatesFromDisplay(r.display);
   const seen = new Set(fromDisplay);
   const ordered = [...fromDisplay];
@@ -200,27 +197,22 @@ export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): {
 
 export async function getKnowledgeNotesForAnalysis(
   out: NumerolojiMotorOut,
-  tenantId?: string,
+  _tenantId?: string,
 ): Promise<KnowledgeNotesForAnalysis> {
-  const tid = tenantId ?? (await resolveNumerolojiTenantId());
+  void _tenantId;
   const plan = buildKnowledgeLookupPlan(out);
   const hasAnyValue = plan.some((p) => p.values.length > 0);
   if (!hasAnyValue) return { ...EMPTY_NOTES };
-  if (!tid) return { ...EMPTY_NOTES };
 
   try {
-    const { data, error } = await supabase
-      .from(KNOWLEDGE_TABLE)
-      .select("*")
-      .eq("tenant_id", tid)
-      .in("analysis_type", LOOKUP_ANALYSIS_TYPES);
-
-    if (error) {
-      console.error("Bilgi Bankası notları okunamadı:", error.message);
+    const res = await numApi(KNOWLEDGE_API);
+    const err = numApiError(res);
+    if (err) {
+      console.error("Bilgi Bankası notları okunamadı:", err);
       return { ...EMPTY_NOTES };
     }
 
-    const rows = (data ?? []) as KnowledgeRecordRow[];
+    const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as KnowledgeRecordRow[];
     const seenIds = new Set<string>();
 
     return {

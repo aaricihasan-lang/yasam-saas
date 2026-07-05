@@ -4,7 +4,7 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 export const runtime = "nodejs";
 
 /**
- * /api/numeroloji/analyses — numerology_analyses tablosunun güvenli sunucu kapısı.
+ * /api/numeroloji/analyses — numerology_records tablosunun güvenli sunucu kapısı.
  *
  * Güvenlik:
  *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
@@ -34,10 +34,24 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
+  // Tekil kayıt (detay sayfası)
+  const idParam = req.nextUrl.searchParams.get("id")?.trim();
+  if (idParam) {
+    const { data, error } = await db
+      .from("numerology_records")
+      .select("*")
+      .eq("id", idParam)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: true, row: data });
+  }
+
   const wantCount = req.nextUrl.searchParams.get("count") === "1";
   if (wantCount) {
     const { count, error } = await db
-      .from("numerology_analyses")
+      .from("numerology_records")
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", tenantId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -48,8 +62,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (recentRaw != null) {
     const limit = Math.min(Math.max(Number.parseInt(recentRaw, 10) || 0, 1), 50);
     const { data, error } = await db
-      .from("numerology_analyses")
-      .select("full_name, created_at")
+      .from("numerology_records")
+      .select("name, surname, created_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -58,7 +72,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await db
-    .from("numerology_analyses")
+    .from("numerology_records")
     .select("*")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false, nullsFirst: false });
@@ -81,7 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const payload = { ...sanitize(body), tenant_id: tenantId };
   const { data, error } = await db
-    .from("numerology_analyses")
+    .from("numerology_records")
     .insert(payload)
     .select("id")
     .single();
@@ -106,7 +120,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const { data, error } = await db
-    .from("numerology_analyses")
+    .from("numerology_records")
     .update(sanitize(body))
     .eq("id", id)
     .eq("tenant_id", tenantId)
@@ -126,25 +140,33 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   const fromQuery = req.nextUrl.searchParams.get("id")?.trim() ?? "";
-  let id = fromQuery;
-  if (!id) {
-    try { const b = (await req.json()) as { id?: unknown }; id = String(b.id ?? "").trim(); }
-    catch { /* gövde yoksa query'e güven */ }
+  let ids: string[] = fromQuery ? [fromQuery] : [];
+  if (ids.length === 0) {
+    try {
+      const b = (await req.json()) as { id?: unknown; ids?: unknown };
+      if (Array.isArray(b.ids)) {
+        ids = b.ids.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 1000);
+      } else if (b.id != null) {
+        const single = String(b.id).trim();
+        if (single) ids = [single];
+      }
+    } catch { /* gövde yoksa query'e güven */ }
   }
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
 
   const { data, error } = await db
-    .from("numerology_analyses")
+    .from("numerology_records")
     .delete()
-    .eq("id", id)
     .eq("tenant_id", tenantId)
+    .in("id", ids)
     .select("id");
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  if (!data || data.length === 0) {
+  const deleted = data?.length ?? 0;
+  if (deleted === 0) {
     return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, id });
+  return NextResponse.json({ ok: true, deleted, ids: (data ?? []).map((r) => (r as { id: string }).id) });
 }

@@ -11,8 +11,10 @@ import {
 
 export type NumerolojiMotorOut = ReturnType<typeof hesaplaNumeroloji>;
 
-export function nrDisplay(r: NumerolojiResult): string {
-  return (r.display || "—").trim() || "—";
+export function nrDisplay(r: NumerolojiResult | null | undefined): string {
+  // Bozuk/eksik kayıtlarda r veya r.display undefined olabilir → çökmemeli.
+  const d = r && typeof r.display === "string" ? r.display : "";
+  return d.trim() || "—";
 }
 
 export function pinOneLine(pin: PinKoduBoxes): string {
