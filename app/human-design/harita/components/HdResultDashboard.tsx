@@ -75,13 +75,13 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
   const saving = saveState.status === "saving";
 
   return (
-    <section className={`${dashCls} xl:flex xl:flex-col xl:h-[calc(100dvh-3rem)] xl:overflow-hidden`} aria-label="Human Design premium harita paneli">
+    <section className={`${dashCls} xl:flex xl:flex-col xl:h-[calc(100dvh-1.5rem)] xl:overflow-hidden`} aria-label="Human Design premium harita paneli">
       {/* Dekoratif ışıklar */}
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-amber-400/10 blur-[110px]" />
       <div aria-hidden className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-indigo-500/10 blur-[120px]" />
 
       {/* Üst şerit */}
-      <header className="relative mb-4 flex flex-wrap items-center justify-between gap-3 xl:flex-none">
+      <header className="relative mb-4 flex flex-wrap items-center justify-between gap-3 xl:mb-2 xl:flex-none">
         <div className="inline-flex items-center gap-2">
           <span className="text-amber-300">✦</span>
           <h2 className="text-sm font-black uppercase tracking-[0.16em] text-slate-100">Human Design Haritası</h2>
@@ -95,7 +95,7 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
       </header>
 
       {/* 3 sütun — mobilde sahne önce (order-1) */}
-      <div className="relative grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[220px_minmax(0,1fr)_240px] xl:grid-rows-[minmax(0,1fr)]">
+      <div className="relative grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[200px_minmax(0,1fr)_216px] xl:grid-rows-[minmax(0,1fr)]">
 
         {/* SOL — bilgi paneli */}
         <div className="order-2 space-y-4 xl:order-none xl:h-full xl:min-h-0 xl:overflow-y-auto xl:pr-1">
@@ -165,7 +165,7 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
 
         {/* ORTA — BodyGraph sahnesi (mobilde önce) */}
         <div className="order-1 xl:order-none xl:h-full xl:min-h-0">
-          <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(232,200,116,0.07),transparent_70%)] p-3 sm:p-5 xl:h-full xl:min-h-0">
+          <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(232,200,116,0.07),transparent_70%)] p-3 sm:p-5 xl:h-full xl:min-h-0 xl:p-3">
             {/* FAZ 10B — tek DOM (flex-wrap + order): mobilde BodyGraph üstte, altında
                 Design | Personality iki kolon; xl'de [Design] [BodyGraph] [Personality].
                 BodyGraph SVG'ye dokunulmaz (yalnız wrapper'a class verilir). */}
