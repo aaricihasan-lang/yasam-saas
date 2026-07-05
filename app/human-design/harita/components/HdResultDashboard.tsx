@@ -169,11 +169,11 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
             {/* FAZ 10B — tek DOM (flex-wrap + order): mobilde BodyGraph üstte, altında
                 Design | Personality iki kolon; xl'de [Design] [BodyGraph] [Personality].
                 BodyGraph SVG'ye dokunulmaz (yalnız wrapper'a class verilir). */}
-            <div className="flex w-full flex-wrap items-start justify-center gap-4 xl:h-full xl:flex-nowrap">
+            <div className="flex w-full flex-wrap items-start justify-center gap-4 xl:gap-2 xl:h-full xl:flex-nowrap">
               <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[96px] xl:shrink-0">
                 <PlanetColumns result={result} side="design" />
               </div>
-              <div className="order-1 flex w-full justify-center xl:order-2 xl:h-full xl:w-auto xl:max-w-[560px] 2xl:max-w-[620px] xl:flex-1">
+              <div className="order-1 flex w-full justify-center xl:order-2 xl:h-full xl:w-auto xl:flex-none">
                 <BodyGraph result={result} />
               </div>
               <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[96px] xl:shrink-0">
