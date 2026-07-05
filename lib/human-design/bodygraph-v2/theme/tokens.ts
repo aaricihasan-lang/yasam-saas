@@ -70,7 +70,7 @@ export const AURA = {
   peak: 0.14,
   mid: 0.09,
   edge: 0.04,
-  blur: 2.2,
+  blur: 2.4, // V2-6C: daha yumuşak organik kenar
   rimColor: "#c7cfe8",
   rimW: 1.7,
   rimOpacity: 0.42, // belirgin ışıyan kenar (yüz profili okunsun) — dolgu düşük kalır
