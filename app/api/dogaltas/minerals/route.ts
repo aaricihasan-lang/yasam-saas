@@ -124,8 +124,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const name = String(body.name ?? "").trim();
-  if (!name) return NextResponse.json({ ok: false, error: "Mineral adı zorunludur." }, { status: 400 });
+  // O-5: Kanonik alan `name` (DB kolonu da `name`; UI bunu gönderir). Uyum için
+  // `mineral_name` alias'ı da güvenle kabul edilir — `stones` tablosu `stone_name`
+  // kullandığından yaygın karışıklık. `name` öncelikli; ikisi de yoksa net 400.
+  const name = String(body.name ?? body.mineral_name ?? "").trim();
+  if (!name) {
+    return NextResponse.json(
+      { ok: false, error: "Mineral adı zorunludur ('name' veya 'mineral_name' alanı)." },
+      { status: 400 },
+    );
+  }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
