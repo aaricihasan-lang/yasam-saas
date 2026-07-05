@@ -207,6 +207,90 @@ const ClientCard = memo(function ClientCard({
   );
 });
 
+// ─── Sayfalama çubuğu ──────────────────────────────────────────────────────────
+// DOM'u tek sayfayla sınırlar. Aktif sayfa etrafında pencere gösterir; ilk/son
+// sayfaya kısayol + « ‹ › ». Dokunma hedefleri mobilde ≥40px.
+const PaginationBar = memo(function PaginationBar({
+  page,
+  pageCount,
+  total,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  onChange: (p: number) => void;
+}) {
+  const win = 1;
+  const start = Math.max(1, page - win);
+  const end = Math.min(pageCount, page + win);
+  const pages: number[] = [];
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  const base =
+    "inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl border px-3 text-[13px] font-black transition-all";
+  const normal = `${base} border-slate-200 bg-white text-slate-600 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50`;
+  const active = `${base} border-blue-500 bg-blue-600 text-white shadow`;
+  const nav = `${normal} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0`;
+
+  return (
+    <nav className="mt-6 flex flex-col items-center gap-2.5" aria-label="Sayfalama">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChange(page - 1)}
+          disabled={page <= 1}
+          className={nav}
+          aria-label="Önceki sayfa"
+        >
+          ‹
+        </button>
+
+        {start > 1 && (
+          <>
+            <button type="button" onClick={() => onChange(1)} className={normal}>1</button>
+            {start > 2 && <span className="px-0.5 text-slate-400">…</span>}
+          </>
+        )}
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={p === page ? active : normal}
+          >
+            {p}
+          </button>
+        ))}
+
+        {end < pageCount && (
+          <>
+            {end < pageCount - 1 && <span className="px-0.5 text-slate-400">…</span>}
+            <button type="button" onClick={() => onChange(pageCount)} className={normal}>
+              {pageCount}
+            </button>
+          </>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onChange(page + 1)}
+          disabled={page >= pageCount}
+          className={nav}
+          aria-label="Sonraki sayfa"
+        >
+          ›
+        </button>
+      </div>
+      <p className="text-[12px] font-bold text-slate-400">
+        Sayfa {page} / {pageCount} · {total} danışan
+      </p>
+    </nav>
+  );
+});
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DanisanListePage() {
   const router = useRouter();
@@ -233,7 +317,7 @@ export default function DanisanListePage() {
   const [filterKan, setFilterKan] = useState("");
   const [filterMizac, setFilterMizac] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
-  const [showAllClients, setShowAllClients] = useState(false);
+  const [page, setPage] = useState(1);
 
   // Toplu seçim ve Word export
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
@@ -285,20 +369,23 @@ export default function DanisanListePage() {
   // sunucu-sayfalı kayıtları göster, "Daha fazla yükle" ile devam et.
   const browseMode = !isDemo && !fullLoaded && !needsFullData;
 
-  const LIST_INITIAL_COUNT = 20;
-  const visibleClients = browseMode
-    ? filteredClients // sunucu tarafı sayfalanmış set — tümü gösterilir
-    : showAllClients
-      ? filteredClients
-      : filteredClients.slice(0, LIST_INITIAL_COUNT);
-  const hiddenClientCount = browseMode ? 0 : filteredClients.length - visibleClients.length;
-  const canLoadMore = browseMode && total !== null && clients.length < total;
+  // ─── Sayfalama ───────────────────────────────────────────────────────────────
+  // DOM'da her zaman EN ÇOK PER_PAGE kart render edilir → liste ne kadar büyürse
+  // büyüsün mobil/masaüstünde aşırı uzamaz, performans sabit kalır.
+  const PER_PAGE = 24;
   // Başlık sayacı: gözat modunda toplam kayıt; filtre/tam modda filtrelenmiş sonuç.
   const displayCount = browseMode ? (total ?? clients.length) : filteredClients.length;
+  const pageCount = Math.max(1, Math.ceil(displayCount / PER_PAGE));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const pageStart = (safePage - 1) * PER_PAGE;
+  const pagedClients = filteredClients.slice(pageStart, pageStart + PER_PAGE);
+  // Gözat modunda seçili sayfanın kayıtları sunucudan henüz çekilmemiş olabilir.
+  const pageNeedsMore =
+    browseMode && total !== null && clients.length < Math.min(safePage * PER_PAGE, total);
 
-  // Filtre / arama / sıralama değişince windowing'i başa sar (yeniden ilk 20).
+  // Filtre / arama / sıralama değişince sayfayı başa sar.
   useEffect(() => {
-    setShowAllClients(false);
+    setPage(1);
   }, [search, filterBurc, filterKan, filterMizac, sortBy]);
 
   const toggleClientSelection = useCallback((id: string) => {
@@ -331,6 +418,12 @@ export default function DanisanListePage() {
     },
     [router, isDemo],
   );
+
+  // Sayfa değişiminde listenin başına kaydır → yeni sayfa hep en üstten görünür.
+  const goToPage = useCallback((p: number) => {
+    setPage(p);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     setSessionUser(readYasamUser());
@@ -486,6 +579,15 @@ export default function DanisanListePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsFullData, fullLoaded, tenantId, isDemo]);
+
+  // Gözat modunda seçili sayfanın kayıtları henüz yüklenmediyse sonraki sunucu
+  // sayfasını çek (chunk'lar birikerek istenen sayfayı kapsar).
+  useEffect(() => {
+    if (pageNeedsMore && !loadingMore) {
+      void loadMore();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNeedsMore, loadingMore]);
 
   async function handleBulkDeleteClients() {
     const ids = Array.from(selectedClientIds);
@@ -796,7 +898,7 @@ export default function DanisanListePage() {
           ) : (
             <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleClients.map((client) => (
+              {pagedClients.map((client) => (
                 <ClientCard
                   key={client.id}
                   client={client}
@@ -809,32 +911,19 @@ export default function DanisanListePage() {
                 />
               ))}
             </div>
-            {/* Gözat modu: sonraki sayfayı sunucudan yükle */}
-            {canLoadMore && (
+            {/* Gözat modunda seçili sayfa yüklenirken kısa bilgi */}
+            {pageNeedsMore && (
               <div className="mt-4 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => void loadMore()}
-                  disabled={loadingMore}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow disabled:opacity-60"
-                >
-                  {loadingMore
-                    ? "Yükleniyor…"
-                    : `Daha fazla yükle (${(total ?? 0) - clients.length} kayıt daha)`}
-                </button>
+                <span className="text-[13px] font-bold text-slate-400">Yükleniyor…</span>
               </div>
             )}
-            {/* Filtre/tam mod: client-side windowing */}
-            {hiddenClientCount > 0 && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setShowAllClients(true)}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow"
-                >
-                  Tümünü göster ({hiddenClientCount} kayıt daha)
-                </button>
-              </div>
+            {pageCount > 1 && (
+              <PaginationBar
+                page={safePage}
+                pageCount={pageCount}
+                total={displayCount}
+                onChange={goToPage}
+              />
             )}
             </>
           )}
