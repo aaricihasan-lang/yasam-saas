@@ -199,15 +199,16 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        {/* FAZ 10H-2 — Aura yüzey: çok hafif derinlik gradyanı (opacity ARTIRMAZ, yeniden dağıtır) */}
-        <radialGradient id="hd-aura-grad" cx="50%" cy="42%" r="62%">
-          <stop offset="0%" stopColor={AURA_FILL} stopOpacity="0.085" />
-          <stop offset="55%" stopColor={AURA_FILL} stopOpacity="0.055" />
-          <stop offset="100%" stopColor={AURA_FILL} stopOpacity="0.025" />
+        {/* FAZ 10H-2 → 10H-4 — Aura yüzey: kontrollü derinlik gradyanı. 10H-4: gövdeyi biraz daha
+            taşısın (peak 0.085→0.10, cy 42→45%, r 62→70%) ama BodyGraph önüne GEÇMEZ. */}
+        <radialGradient id="hd-aura-grad" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stopColor={AURA_FILL} stopOpacity="0.10" />
+          <stop offset="55%" stopColor={AURA_FILL} stopOpacity="0.068" />
+          <stop offset="100%" stopColor={AURA_FILL} stopOpacity="0.032" />
         </radialGradient>
-        {/* FAZ 10H-2 — yalnız kenar yumuşatma (glow DEĞİL; ayrı ışık katmanı/merge yok) */}
-        <filter id="hd-aura-soft" x="-12%" y="-12%" width="124%" height="124%">
-          <feGaussianBlur stdDeviation="1.6" />
+        {/* FAZ 10H-2 → 10H-4 — yalnız kenar yumuşatma (glow DEĞİL; blur 1.6→2.0, sahneyle organik erime) */}
+        <filter id="hd-aura-soft" x="-14%" y="-14%" width="128%" height="128%">
+          <feGaussianBlur stdDeviation="2.0" />
         </filter>
       </defs>
 
