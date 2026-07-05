@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { useToast } from "@/components/ui/ToastProvider";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
@@ -168,11 +169,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
   const [wordBusy, setWordBusy] = useState(false);
+  const { showToast } = useToast();
 
   const downloadWord = useCallback(async () => {
     if (!protocol || isDemo) return;
     const tid = await getSyncedTenantId();
-    if (!tid) return;
+    if (!tid) {
+      showToast({ title: "Hata", message: "Oturum bulunamadı. Lütfen sayfayı yenileyin.", type: "error" });
+      return;
+    }
     setWordBusy(true);
     try {
       const res = await fetch("/api/refleksoloji/protocol-report", {
@@ -184,7 +189,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         },
         body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errJson = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast({ title: "Hata", message: errJson.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -196,10 +205,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
       a.download = `refleksoloji-protokol-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz */ } finally {
+    } catch {
+      showToast({ title: "Hata", message: "Rapor oluşturulamadı. Lütfen tekrar deneyin.", type: "error" });
+    } finally {
       setWordBusy(false);
     }
-  }, [protocol, isDemo]);
+  }, [protocol, isDemo, showToast]);
 
   useEffect(() => {
     let cancelled = false;
