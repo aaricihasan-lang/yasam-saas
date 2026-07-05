@@ -23,17 +23,27 @@ export const COLORS = {
   auraFill: "#aeb8d8",
 } as const;
 
-// Kanal katman kalınlıkları/opasiteleri (V2-3'te kalibre — placeholder).
+// Kanal katman kalınlıkları/renkleri/opasiteleri (V2-4'te 460×600'e kalibre — 10H kilitli
+// değerleri başlangıç). Tanımlı = gölge/casing/gövde[glow]/sheen; tanımsız = knockout/edge/core.
 export const CHANNEL = {
   bodyW: 5.6,
   shadowW: 9.0,
   shadowOpacity: 0.85,
+  shadowColor: "#0b1220",
   casingW: 7.0,
+  casingColor: "#dbe2ee",
   sheenW: 1.8,
   sheenOpacity: 0.5,
+  sheenColors: { red: "#fecaca", black: "#cbd5e1" } as Record<"red" | "black", string>,
+  glowStd: 0.9,
+  glowOpacity: 0.55,
   undefinedEdgeW: 6.6,
   undefinedCoreW: 4.6,
   undefinedOpacity: 0.8,
+  undefinedEdge: "#c3ccda",
+  undefinedCore: "#f6f8fc",
+  knockoutW: 7.6,
+  knockoutColor: "#0b1220",
 } as const;
 
 // Gate rozet/etiket (V2-4'te kalibre — placeholder).

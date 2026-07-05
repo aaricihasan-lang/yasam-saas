@@ -4,7 +4,7 @@
 // V2-2: merkez yüzey gradyanları + gate badge gradyan/halo. (Kanal/aura defs'i V2-3/V2-4.)
 
 import { CENTERS } from "@/lib/human-design/engine/channels";
-import { COLORS } from "@/lib/human-design/bodygraph-v2";
+import { COLORS, CHANNEL } from "@/lib/human-design/bodygraph-v2";
 
 const RED = COLORS.red;
 const BLACK = COLORS.black;
@@ -12,6 +12,17 @@ const BLACK = COLORS.black;
 export function PremiumDefs() {
   return (
     <defs>
+      {/* Kanal glow — renkli yarımın kendi rengini bulanıklaştırıp altına serer; keskin üstte kalır */}
+      <filter id="hd-v2-channel-glow" x="-75%" y="-75%" width="250%" height="250%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation={CHANNEL.glowStd} result="blur" />
+        <feComponentTransfer in="blur" result="soft">
+          <feFuncA type="linear" slope={CHANNEL.glowOpacity} />
+        </feComponentTransfer>
+        <feMerge>
+          <feMergeNode in="soft" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
       {/* Merkez derinlik gölgesi (tanımlı merkeze uygulanır) */}
       <filter id="hd-v2-center-shadow" x="-40%" y="-40%" width="180%" height="180%">
         <feDropShadow dx="0" dy="0.7" stdDeviation="1.1" floodColor="#0f172a" floodOpacity="0.30" />

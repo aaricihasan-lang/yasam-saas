@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import { buildViewModel, VIEWBOX_V2 } from "@/lib/human-design/bodygraph-v2";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 import { PremiumDefs } from "./defs/PremiumDefs";
+import { ChannelLayer } from "./layers/ChannelLayer";
 import { CenterLayer } from "./layers/CenterLayer";
 import { GateLayer } from "./layers/GateLayer";
 
@@ -30,7 +31,7 @@ export function PremiumBodyGraph({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* Katman sırası (arka→ön): defs → aura(placeholder) → [kanal V2-3] → merkez → gate */}
+      {/* Katman sırası (arka→ön): defs → aura(placeholder) → kanal → merkez → gate */}
       <PremiumDefs />
 
       {/* Aura placeholder — V2-4'te gerçek silüet path'i ile değişecek.
@@ -48,6 +49,7 @@ export function PremiumBodyGraph({ result }: { result: HdChartResult }) {
         aria-hidden="true"
       />
 
+      <ChannelLayer channels={vm.channels} />
       <CenterLayer centers={vm.centers} />
       <GateLayer vm={vm} />
     </svg>
