@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -16,7 +18,7 @@ import {
   getFirstStoneImageUrl,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
-import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
+import { dogaltasApiGet, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import {
@@ -150,6 +152,10 @@ export default function KombinasyonOlusturPage() {
   const [saveNote, setSaveNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedInfo, setSavedInfo] = useState<{ name: string } | null>(null);
+  const router = useRouter();
+  // Modül-bazlı çift kayıt uyarısı (DT-P1-1) — issue (ad) bazlı
+  const [dupModal, setDupModal] = useState<{ label: string } | null>(null);
+  const [dupChecking, setDupChecking] = useState(false);
 
   function resetSaveForm() {
     setSaveName("");
@@ -316,9 +322,22 @@ export default function KombinasyonOlusturPage() {
     ].join("\n");
   }
 
-  async function saveCombination() {
+  async function saveCombination(forceCreate = false) {
     const name = saveName.trim();
     if (!name || cart.length === 0) return;
+
+    // Modül-bazlı çift kayıt kontrolü (yalnız genel kayıt; ilk denemede; çift-tık koruması).
+    if (!forceCreate) {
+      if (dupChecking || dupModal || saving) return;
+      setDupChecking(true);
+      const dup = await checkDuplicate("combination", name);
+      setDupChecking(false);
+      if (dup.ok && dup.exists && dup.match) {
+        setSaveModalOpen(false);
+        setDupModal({ label: dup.match.label });
+        return;
+      }
+    }
 
     setSaving(true);
     const userId = readYasamUser()?.id;
@@ -1034,6 +1053,20 @@ export default function KombinasyonOlusturPage() {
         onClose={() => setSaveModalOpen(false)}
         onSaveGeneral={handleSaveGeneral}
         onSaveToClient={(client) => void saveCombinationToClient(client)}
+      />
+
+      <DuplicateWarningModal
+        open={!!dupModal}
+        label={dupModal?.label ?? ""}
+        busy={saving}
+        onOpenExisting={() => {
+          if (dupModal) router.push(`/dogaltas/kombinasyonlar/${encodeURIComponent(dupModal.label)}`);
+        }}
+        onCreateAnyway={() => {
+          setDupModal(null);
+          void saveCombination(true);
+        }}
+        onCancel={() => setDupModal(null)}
       />
     </DogaltasSectionShell>
   );

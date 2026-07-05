@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { createMineral } from "@/lib/dogaltas/dogaltasApi";
+import { createMineral, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
+import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 
@@ -132,6 +134,10 @@ export default function MineralBankasiPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const { showToast } = useToast();
+  const router = useRouter();
+  // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
+  const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
+  const [dupChecking, setDupChecking] = useState(false);
 
   const activeSectionInfo = useMemo(
     () => mineralSections.find((section) => section.key === activeSection)!,
@@ -159,7 +165,7 @@ export default function MineralBankasiPage() {
     setErrorMessage("");
   }
 
-  async function saveMineral() {
+  async function saveMineral(forceCreate = false) {
     setMessage("");
     setErrorMessage("");
 
@@ -167,6 +173,18 @@ export default function MineralBankasiPage() {
     if (!nameTrim) {
       setErrorMessage("Mineral adı boş bırakılamaz.");
       return;
+    }
+
+    // Modül-bazlı çift kayıt kontrolü (yalnız ilk denemede; çift-tık koruması).
+    if (!forceCreate) {
+      if (dupChecking || dupModal || saving) return;
+      setDupChecking(true);
+      const dup = await checkDuplicate("mineral", nameTrim);
+      setDupChecking(false);
+      if (dup.ok && dup.exists && dup.match) {
+        setDupModal({ label: dup.match.label, id: dup.match.id });
+        return;
+      }
     }
 
     const tenantId = await getSyncedTenantId();
@@ -247,11 +265,11 @@ export default function MineralBankasiPage() {
               </button>
               <button
                 type="button"
-                onClick={saveMineral}
-                disabled={saving}
+                onClick={() => void saveMineral()}
+                disabled={saving || dupChecking}
                 className="btn-primary"
               >
-                {saving ? "Kaydediliyor..." : "Kaydet"}
+                {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </>
           ) : (
@@ -439,6 +457,20 @@ export default function MineralBankasiPage() {
           </div>
         </div>
       ) : null}
+
+      <DuplicateWarningModal
+        open={!!dupModal}
+        label={dupModal?.label ?? ""}
+        busy={saving}
+        onOpenExisting={() => {
+          if (dupModal) router.push(`/dogaltas/mineral-listesi/${dupModal.id}`);
+        }}
+        onCreateAnyway={() => {
+          setDupModal(null);
+          void saveMineral(true);
+        }}
+        onCancel={() => setDupModal(null)}
+      />
     </DogaltasSectionShell>
   );
 }

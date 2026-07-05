@@ -13,6 +13,8 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
+import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -270,6 +272,9 @@ export default function TasBilgiKutuphanesiPage() {
   const [form, setForm] = useState<NewArticleForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
+  const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
+  const [dupChecking, setDupChecking] = useState(false);
   // Kategori state
   const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [showCatForm, setShowCatForm] = useState(false);
@@ -546,7 +551,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   // ─── Yeni kayıt kaydetme ────────────────────────────────────────────────────
 
-  async function saveArticle() {
+  async function saveArticle(forceCreate = false) {
     if (!form.title.trim()) {
       setSaveError("Başlık zorunludur.");
       return;
@@ -558,6 +563,17 @@ export default function TasBilgiKutuphanesiPage() {
     if (!form.content.trim()) {
       setSaveError("İçerik zorunludur.");
       return;
+    }
+    // Modül-bazlı çift kayıt kontrolü (yalnız ilk denemede; çift-tık koruması).
+    if (!forceCreate) {
+      if (dupChecking || dupModal || saving) return;
+      setDupChecking(true);
+      const dup = await checkDuplicate("knowledge", form.title);
+      setDupChecking(false);
+      if (dup.ok && dup.exists && dup.match) {
+        setDupModal({ label: dup.match.label, id: dup.match.id });
+        return;
+      }
     }
     if (!tenantId) {
       setSaveError("Oturum bulunamadı. Lütfen sayfayı yenileyin.");
@@ -963,11 +979,11 @@ export default function TasBilgiKutuphanesiPage() {
               </button>
               <button
                 type="button"
-                onClick={saveArticle}
-                disabled={saving}
+                onClick={() => void saveArticle()}
+                disabled={saving || dupChecking}
                 className="btn-primary"
               >
-                {saving ? "Kaydediliyor..." : "Kaydet"}
+                {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
           </div>
@@ -1655,6 +1671,24 @@ export default function TasBilgiKutuphanesiPage() {
           </div>
         </div>
       )}
+
+      <DuplicateWarningModal
+        open={!!dupModal}
+        label={dupModal?.label ?? ""}
+        busy={saving}
+        onOpenExisting={() => {
+          if (dupModal) {
+            setShowForm(false);
+            setDupModal(null);
+            selectArticle(dupModal.id);
+          }
+        }}
+        onCreateAnyway={() => {
+          setDupModal(null);
+          void saveArticle(true);
+        }}
+        onCancel={() => setDupModal(null)}
+      />
     </main>
   );
 }

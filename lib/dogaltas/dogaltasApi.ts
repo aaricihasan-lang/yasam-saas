@@ -138,6 +138,17 @@ export async function updateMineral(
   return { ok: r.ok, error: r.error, demo: r.demo };
 }
 
+// ─── Modül-bazlı çift kayıt kontrolü (DT-P1-1) ───────────────────────────────
+export async function checkDuplicate(
+  type: "stone" | "mineral" | "knowledge" | "combination",
+  name: string,
+): Promise<{ ok: boolean; exists: boolean; match?: { id: string; label: string }; error?: string }> {
+  const r = await dogaltasApiGet<{ exists?: boolean; match?: { id: string; label: string } }>(
+    `/api/dogaltas/duplicate-check?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`,
+  );
+  return { ok: r.ok, exists: Boolean(r.data?.exists), match: r.data?.match, error: r.error };
+}
+
 // ─── Kombinasyon mutasyonları ────────────────────────────────────────────────
 export async function updateCombination(
   id: string,

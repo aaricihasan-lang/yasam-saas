@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChangeEvent, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-import { createStone } from "@/lib/dogaltas/dogaltasApi";
+import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
@@ -275,6 +277,10 @@ export default function DogaltasKayitPage() {
   const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const router = useRouter();
+  // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
+  const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
+  const [dupChecking, setDupChecking] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
@@ -439,10 +445,22 @@ export default function DogaltasKayitPage() {
     setImages((prev) => prev.filter((image) => image.id !== id));
   }
 
-  async function handleSave() {
+  async function handleSave(forceCreate = false) {
     if (!formData.stone_name.trim()) {
       showError("Taş adı zorunlu hocam.");
       return;
+    }
+
+    // Modül-bazlı çift kayıt kontrolü (yalnız ilk denemede; çift-tık koruması).
+    if (!forceCreate) {
+      if (dupChecking || dupModal || isSaving) return;
+      setDupChecking(true);
+      const dup = await checkDuplicate("stone", formData.stone_name);
+      setDupChecking(false);
+      if (dup.ok && dup.exists && dup.match) {
+        setDupModal({ label: dup.match.label, id: dup.match.id });
+        return;
+      }
     }
 
     const tenantId = await getSyncedTenantId();
@@ -925,15 +943,29 @@ export default function DogaltasKayitPage() {
 
             <button
               type="button"
-              onClick={handleSave}
-              disabled={isSaving}
+              onClick={() => void handleSave()}
+              disabled={isSaving || dupChecking}
               className="btn-primary"
             >
-              {isSaving ? "Kaydediliyor..." : "Kaydet"}
+              {dupChecking ? "Kontrol ediliyor..." : isSaving ? "Kaydediliyor..." : "Kaydet"}
             </button>
           </div>
         </div>
       </div>}
+
+      <DuplicateWarningModal
+        open={!!dupModal}
+        label={dupModal?.label ?? ""}
+        busy={isSaving}
+        onOpenExisting={() => {
+          if (dupModal) router.push(`/dogaltas/dogaltas-listesi/${dupModal.id}`);
+        }}
+        onCreateAnyway={() => {
+          setDupModal(null);
+          void handleSave(true);
+        }}
+        onCancel={() => setDupModal(null)}
+      />
 
       {largeEditorTitle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-6 backdrop-blur-sm">
