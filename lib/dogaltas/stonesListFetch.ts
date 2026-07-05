@@ -243,11 +243,12 @@ export function getStoneImageUrls(
 
 function buildStonesQuery(
   mode: string,
-  opts: { offset?: number; limit?: number; search?: string; searchMode?: SearchMode } = {},
+  opts: { offset?: number; limit?: number; search?: string; searchMode?: SearchMode; withCount?: boolean } = {},
 ): string {
   const p = new URLSearchParams({ mode });
   if (opts.offset != null) p.set("offset", String(opts.offset));
   if (opts.limit != null) p.set("limit", String(opts.limit));
+  if (opts.withCount) p.set("withCount", "1");
   const q = opts.search?.trim();
   if (q) { p.set("q", q); p.set("searchMode", opts.searchMode ?? "name"); }
   return `/api/dogaltas/stones?${p.toString()}`;
@@ -271,13 +272,19 @@ export async function fetchStonesListPage(
     search?: string;
     limit?: number;
     searchMode?: SearchMode;
+    /** O-3: true → liste ile birlikte toplam sayı (count) TEK çağrıda döner. */
+    withCount?: boolean;
   } = {},
-): Promise<{ rows: StoneListItem[]; error: string | null }> {
-  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
+): Promise<{ rows: StoneListItem[]; count?: number; error: string | null }> {
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[]; count?: number }>(
     buildStonesQuery("list", options));
   if (!r.ok) return { rows: [], error: r.error ?? "Okuma hatası" };
   const rows = (r.data?.rows ?? []).map(mapStoneListRow);
-  return { rows: sortStonesByNameTr(rows), error: null };
+  return {
+    rows: sortStonesByNameTr(rows),
+    count: typeof r.data?.count === "number" ? r.data.count : undefined,
+    error: null,
+  };
 }
 
 /**

@@ -26,7 +26,6 @@ import {
   excludeStonesForTenant,
   fetchAllStonesExtended,
   fetchStoneExclusions,
-  fetchStonesListCount,
   fetchStonesListPage,
   getFirstStoneImageUrl,
   stoneListImageCount,
@@ -662,7 +661,6 @@ function DogaltasListesiPageContent() {
   const [listLoading, setListLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const [totalAllStones, setTotalAllStones] = useState(0);
 
   // Detay filtreler için genişletilmiş veri (pagination yok, tüm taşlar)
   const [detailData, setDetailData] = useState<StoneListItemExtended[] | null>(null);
@@ -708,12 +706,15 @@ function DogaltasListesiPageContent() {
       const offset = opts.offset ?? 0;
       const search = debouncedSearch.trim() || undefined;
 
-      const [pageRes, countRes] = await Promise.all([
-        fetchStonesListPage(tenantId, { offset, search, searchMode }),
-        opts.reset
-          ? fetchStonesListCount(tenantId, search, searchMode)
-          : Promise.resolve({ count: totalCount, error: null }),
-      ]);
+      // O-3: reset'te liste + toplam sayı TEK çağrıda (withCount) → önceki 2-3
+      // ayrı istek yerine 1; sunucu verifyUserRequest + exclusion'ı bir kez yapar.
+      // Append (daha fazla yükle) count istemez; mevcut totalCount korunur.
+      const pageRes = await fetchStonesListPage(tenantId, {
+        offset,
+        search,
+        searchMode,
+        withCount: opts.reset,
+      });
 
       if (opts.reset) setListLoading(false);
       setLoadingMore(false);
@@ -724,18 +725,15 @@ function DogaltasListesiPageContent() {
         return;
       }
 
-      if (countRes.error) {
-        setErrorMessage(`Kayıt sayısı alınamadı: ${countRes.error}`);
-      } else if (opts.reset) {
-        setTotalCount(countRes.count);
+      if (opts.reset && typeof pageRes.count === "number") {
+        setTotalCount(pageRes.count);
       }
 
       setStones((current) =>
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
-
     },
-    [debouncedSearch, searchMode, queryTenantId, totalCount],
+    [debouncedSearch, searchMode, queryTenantId],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -861,14 +859,6 @@ function DogaltasListesiPageContent() {
   useEffect(() => {
     void resolveTenant();
   }, [resolveTenant]);
-
-  // Gerçek toplam kayıt sayısını bir kez çek — count kartı için (filtre/arama etkilemez)
-  useEffect(() => {
-    if (!queryTenantId) return;
-    void fetchStonesListCount(queryTenantId).then(({ count }) => {
-      setTotalAllStones(count);
-    });
-  }, [queryTenantId]);
 
   // Normal liste: detay filtreler kapalıyken server-side arama
   const isDetailFilterActive = Boolean(
@@ -1197,7 +1187,7 @@ function DogaltasListesiPageContent() {
         <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
           <div className={uiStatCard}>
             <div className="text-lg font-black text-slate-950">
-              {totalAllStones || totalCount}
+              {totalCount}
             </div>
             <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
           </div>
@@ -1421,7 +1411,7 @@ function DogaltasListesiPageContent() {
               <BulkExportBar
                 compact
                 selectedCount={selectedCount}
-                totalCount={totalAllStones || totalCount}
+                totalCount={totalCount}
                 filteredCount={filteredStones.length}
                 hasActiveFilter={isSearchActive || isDetailFilterActive}
                 selectAllLabel="Görünenleri Seç"

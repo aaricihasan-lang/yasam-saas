@@ -104,6 +104,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     // list (varsayılan) — pagination + arama + exclusion
     const offset = Number.parseInt(sp.get("offset") ?? "0", 10) || 0;
     const limit = Number.parseInt(sp.get("limit") ?? String(STONES_LIST_PAGE_SIZE), 10) || STONES_LIST_PAGE_SIZE;
+    // O-3: withCount → liste + toplam sayı TEK istekte döner (exclusion + auth
+    // bir kez yapılır, count parallel çalışır). İlk yükleme 3 istek → 1'e iner.
+    const withCount = sp.get("withCount") === "1";
+
     let query = db
       .from("stones").select(STONES_LIST_SELECT)
       .in("tenant_id", ids)
@@ -111,9 +115,24 @@ export async function GET(req: NextRequest): Promise<Response> {
       .range(offset, offset + limit - 1);
     if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
     if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, rows: sortTr((data ?? []) as Record<string, unknown>[]) });
+
+    let countQuery = withCount
+      ? db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids)
+      : null;
+    if (countQuery && excluded.length) countQuery = countQuery.not("id", "in", `(${excluded.join(",")})`);
+    if (countQuery && q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) countQuery = countQuery.or(or); }
+
+    const [listRes, countRes] = await Promise.all([
+      query,
+      countQuery ?? Promise.resolve({ count: null as number | null, error: null }),
+    ]);
+    if (listRes.error) return NextResponse.json({ ok: false, error: listRes.error.message }, { status: 500 });
+    if (withCount && countRes.error) return NextResponse.json({ ok: false, error: countRes.error.message }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      rows: sortTr((listRes.data ?? []) as Record<string, unknown>[]),
+      ...(withCount ? { count: countRes.count ?? 0 } : {}),
+    });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sunucu hatası" }, { status: 500 });
   }
