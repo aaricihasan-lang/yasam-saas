@@ -4,7 +4,7 @@
 // V2-2: merkez yüzey gradyanları + gate badge gradyan/halo. (Kanal/aura defs'i V2-3/V2-4.)
 
 import { CENTERS } from "@/lib/human-design/engine/channels";
-import { COLORS, CHANNEL } from "@/lib/human-design/bodygraph-v2";
+import { COLORS, CHANNEL, AURA } from "@/lib/human-design/bodygraph-v2";
 
 const RED = COLORS.red;
 const BLACK = COLORS.black;
@@ -12,6 +12,21 @@ const BLACK = COLORS.black;
 export function PremiumDefs() {
   return (
     <defs>
+      {/* Aura yüzey gradyanı (soğuk lavanta, düşük opacity) */}
+      <radialGradient id="hd-v2-aura-grad" cx="50%" cy="40%" r="70%">
+        <stop offset="0%" stopColor={AURA.fill} stopOpacity={AURA.peak} />
+        <stop offset="55%" stopColor={AURA.fill} stopOpacity={AURA.mid} />
+        <stop offset="100%" stopColor={AURA.fill} stopOpacity={AURA.edge} />
+      </radialGradient>
+      {/* Aura dolgu kenar yumuşatma */}
+      <filter id="hd-v2-aura-soft" x="-14%" y="-14%" width="128%" height="128%">
+        <feGaussianBlur stdDeviation={AURA.blur} />
+      </filter>
+      {/* Aura rim ışığı için ayrı blur (kenar okunur kalsın diye ölçülü) */}
+      <filter id="hd-v2-aura-rim" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.0" />
+      </filter>
+
       {/* Kanal glow — renkli yarımın kendi rengini bulanıklaştırıp altına serer; keskin üstte kalır */}
       <filter id="hd-v2-channel-glow" x="-75%" y="-75%" width="250%" height="250%">
         <feGaussianBlur in="SourceGraphic" stdDeviation={CHANNEL.glowStd} result="blur" />

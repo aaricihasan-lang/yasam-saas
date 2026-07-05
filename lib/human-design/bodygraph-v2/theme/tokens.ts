@@ -61,12 +61,17 @@ export const GATE = {
   passiveStrokeDark: "#0f172a", // açık numara outline (renkli merkez)
 } as const;
 
-// Aura yüzey (V2-4'te gerçek silüet path'i ile — placeholder).
+// Aura yüzey + rim (V2-4A: gerçek silüet). Figür artık silüeti tanımlıyor → biraz daha var,
+// ama destekleyici (BodyGraph yıldız). Ton soğuk lavanta; rim = ışıyan beden kenarı.
 export const AURA = {
-  peak: 0.1,
-  mid: 0.068,
-  edge: 0.032,
-  blur: 2.0,
+  fill: "#aeb8d8",
+  peak: 0.14,
+  mid: 0.09,
+  edge: 0.04,
+  blur: 2.2,
+  rimColor: "#c7cfe8",
+  rimW: 1.7,
+  rimOpacity: 0.42, // belirgin ışıyan kenar (yüz profili okunsun) — dolgu düşük kalır
 } as const;
 
 export const TYPO = {
