@@ -1,5 +1,6 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
+import { scheduleAtlasSync } from "@/lib/refleksolojiAtlasSync";
 
 export const ATLAS_STORAGE_KEY = "yasam-refleksoloji-atlas-v1";
 export const ORGAN_LIST_STORAGE_KEY = "yasam-refleksoloji-organs-v1";
@@ -149,7 +150,10 @@ export function loadOrganList(): string[] {
 
 export function saveOrganList(organs: string[]): boolean {
   if (typeof window === "undefined") return false;
-  return safeLocalStorageSetItem(ORGAN_LIST_STORAGE_KEY, JSON.stringify(organs));
+  const ok = safeLocalStorageSetItem(ORGAN_LIST_STORAGE_KEY, JSON.stringify(organs));
+  // P1-1: organ listesi değişince tam atlas belgesini sunucuya senkronla.
+  if (ok) scheduleAtlasSync(loadAtlas(), organs);
+  return ok;
 }
 
 export function loadAtlas(): AtlasDocument {
@@ -176,7 +180,10 @@ export function saveAtlas(atlas: AtlasDocument): boolean {
       updated_at: new Date().toISOString(),
     },
   };
-  return safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(next));
+  const ok = safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(next));
+  // P1-1: atlas değişince tam belgeyi + organ listesini sunucuya senkronla.
+  if (ok) scheduleAtlasSync(next, loadOrganList());
+  return ok;
 }
 
 export function getRegionsForOrgan(

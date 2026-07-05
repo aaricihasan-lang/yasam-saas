@@ -26,6 +26,19 @@ function userHeaders(): Record<string, string> {
 // GÜVENLİK (anon kilidi): reflexology_protocols artık tarayıcıdan doğrudan
 // supabase ile yazılmaz. Yazma güvenli /api/refleksoloji/protocols POST üzerinden
 // gider; tenant_id sunucuda oturumdan belirlenir.
+const SYNC_ERR = "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+
+// SavedProtocol → server satır alanları (id/tenant hariç; sunucu üretir/zorlar).
+function protocolFields(saved: SavedProtocol): Record<string, unknown> {
+  return {
+    title: saved.title,
+    target_problem: saved.description || null,
+    organs: saved.organs.length > 0 ? saved.organs.join(" | ") : null,
+    application_notes: saved.notes || null,
+    raw_json: saved as Record<string, unknown>,
+  };
+}
+
 async function syncProtocolToSupabase(saved: SavedProtocol): Promise<string | null> {
   try {
     const res = await fetch("/api/refleksoloji/protocols", {
@@ -34,20 +47,52 @@ async function syncProtocolToSupabase(saved: SavedProtocol): Promise<string | nu
       body: JSON.stringify({
         id: crypto.randomUUID(),
         source_uid: saved.id,
-        title: saved.title,
-        target_problem: saved.description || null,
-        organs: saved.organs.length > 0 ? saved.organs.join(" | ") : null,
-        application_notes: saved.notes || null,
-        raw_json: saved as Record<string, unknown>,
+        ...protocolFields(saved),
         created_at: saved.createdAt,
       }),
     });
-    if (!res.ok) return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+    if (!res.ok) return SYNC_ERR;
     const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
-    if (!json?.ok) return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+    if (!json?.ok) return SYNC_ERR;
     return null;
   } catch {
-    return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+    return SYNC_ERR;
+  }
+}
+
+// P1-2: düzenleme → source_uid ile server satırını güncelle (yoksa oluştur).
+async function syncProtocolUpdate(saved: SavedProtocol): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `/api/refleksoloji/protocols/by-uid/${encodeURIComponent(saved.id)}`,
+      {
+        method: "PUT",
+        headers: { ...userHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(protocolFields(saved)),
+      },
+    );
+    if (!res.ok) return SYNC_ERR;
+    const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+    if (!json?.ok) return SYNC_ERR;
+    return null;
+  } catch {
+    return SYNC_ERR;
+  }
+}
+
+// P1-2: silme → source_uid ile server satırını sil (zombie protokol engellenir).
+async function syncProtocolDelete(sourceUid: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `/api/refleksoloji/protocols/by-uid/${encodeURIComponent(sourceUid)}`,
+      { method: "DELETE", headers: userHeaders() },
+    );
+    if (!res.ok) return SYNC_ERR;
+    const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+    if (!json?.ok) return SYNC_ERR;
+    return null;
+  } catch {
+    return SYNC_ERR;
   }
 }
 
@@ -86,9 +131,11 @@ export function useProtocolRegistry() {
 
       const storageOk = persist(nextList);
 
-      if (!editId && !isDemo) {
-        // Fire-and-forget Supabase sync for new protocols (demo'da atlanır)
-        void syncProtocolToSupabase(saved).then((errMsg) => {
+      if (!isDemo) {
+        // Fire-and-forget Supabase sync (demo'da atlanır).
+        // Yeni kayıt → POST; düzenleme → PUT by-uid (P1-2, artık local kalmıyor).
+        const sync = editId ? syncProtocolUpdate(saved) : syncProtocolToSupabase(saved);
+        void sync.then((errMsg) => {
           if (errMsg) setSyncErrorMessage(errMsg);
         });
       }
@@ -102,9 +149,15 @@ export function useProtocolRegistry() {
     (id: string): boolean => {
       if (!protocols.some((p) => p.id === id)) return false;
       persist(protocols.filter((p) => p.id !== id));
+      // P1-2: server'dan da sil (fire-and-forget) → zombie protokol engellenir.
+      if (!isDemo) {
+        void syncProtocolDelete(id).then((errMsg) => {
+          if (errMsg) setSyncErrorMessage(errMsg);
+        });
+      }
       return true;
     },
-    [protocols, persist],
+    [protocols, persist, isDemo],
   );
 
   const clearSyncError = useCallback(() => setSyncErrorMessage(null), []);

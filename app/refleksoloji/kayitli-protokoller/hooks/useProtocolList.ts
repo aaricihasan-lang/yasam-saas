@@ -110,13 +110,21 @@ export function useProtocolList() {
         if (!res.ok) return false;
         const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
         if (!json?.ok) return false;
+        // P1-2: ters yön — server'dan silinen kayıt Protokol Haritası'nın
+        // localStorage kopyasında zombie kalmasın (source_uid = local id).
+        const sourceUid = protocols.find((p) => p.id === id)?.source_uid;
+        if (sourceUid) {
+          const local = loadProtocolsFromStorage();
+          const next = local.filter((p) => p.id !== sourceUid);
+          if (next.length !== local.length) saveProtocolsToStorage(next);
+        }
         await refresh();
         return true;
       } catch {
         return false;
       }
     },
-    [isDemo, refresh],
+    [isDemo, refresh, protocols],
   );
 
   return { protocols, loading, loadErrorMessage, refresh, deleteProtocol, isDemo };

@@ -1,7 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { loadAtlas } from "@/lib/atlasStorage";
+import {
+  listOrganNamesFromAtlas,
+  loadAtlas,
+  loadOrganList,
+  saveAtlas,
+  saveOrganList,
+  type AtlasDocument,
+} from "@/lib/atlasStorage";
+import {
+  hydrateAtlasFromServer,
+  scheduleAtlasSync,
+  setAtlasSyncSuspended,
+} from "@/lib/refleksolojiAtlasSync";
 import {
   deleteOrganFromStorage,
   deleteRegionFromStorage,
@@ -28,6 +40,31 @@ export function useSavedAtlas() {
   useEffect(() => {
     refresh();
     setHydrated(true);
+
+    // P1-1: sunucudan atlas hydrate → salt-okuma görünüm de cihazlar arası güncel.
+    let cancelled = false;
+    void hydrateAtlasFromServer().then((server) => {
+      if (cancelled || !server) return;
+      const serverDoc = server.document;
+      const hasServerData =
+        !!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0;
+      if (hasServerData) {
+        setAtlasSyncSuspended(true);
+        saveAtlas(serverDoc as AtlasDocument);
+        if (server.organ_list.length > 0) saveOrganList(server.organ_list);
+        setAtlasSyncSuspended(false);
+        refresh();
+      } else {
+        const localDoc = loadAtlas();
+        if (listOrganNamesFromAtlas(localDoc).length > 0 || loadOrganList().length > 0) {
+          scheduleAtlasSync(localDoc, loadOrganList());
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   const deleteOrgan = useCallback(

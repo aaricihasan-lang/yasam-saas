@@ -7,6 +7,11 @@ import {
   loadNotesFromStorage,
   saveNotesToStorage,
 } from "../lib/noteStorage";
+import {
+  hydrateNotesFromServer,
+  scheduleNotesSync,
+  setNotesSyncSuspended,
+} from "../lib/notesSync";
 
 export type SaveNoteResult =
   | { saved: SavedClinicalNote; storageOk: boolean }
@@ -25,9 +30,30 @@ export function useClinicalNotes() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    // Önce yerel (anında render), sonra sunucudan hydrate (P1-1 cihazlar arası senkron).
+    const local = loadNotesFromStorage();
+    setNotes(local);
     setHydrated(true);
-  }, [refresh]);
+
+    let cancelled = false;
+    void hydrateNotesFromServer().then((serverNotes) => {
+      if (cancelled || serverNotes === null) return; // demo/oturumsuz/erişilemez → yereli koru
+      if (serverNotes.length > 0) {
+        // Sunucu gerçeği → yerel kopyayı güncelle (geri-yankı PUT'unu engelle).
+        setNotesSyncSuspended(true);
+        saveNotesToStorage(serverNotes);
+        setNotesSyncSuspended(false);
+        setNotes(loadNotesFromStorage());
+      } else if (local.length > 0) {
+        // Sunucu boş ama yerelde veri var → ilk açılışta sunucuya taşı (migrate).
+        scheduleNotesSync(local);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persist = useCallback(
     (next: SavedClinicalNote[]): boolean => {

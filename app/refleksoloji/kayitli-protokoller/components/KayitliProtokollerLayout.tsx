@@ -15,6 +15,9 @@ import {
 import { useProtocolList } from "../hooks/useProtocolList";
 import { ProtocolListCard } from "./ProtocolListCard";
 
+// P1-3: ilk yüklemede tüm listeyi basma — son N kaydı göster, "Daha fazla yükle" ile aç.
+const PAGE_SIZE = 10;
+
 export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
@@ -22,6 +25,7 @@ export function KayitliProtokollerLayout() {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -31,10 +35,11 @@ export function KayitliProtokollerLayout() {
     });
   }, []);
 
-  const selectAllFiltered = useCallback(() => {
-    setSelectedIds(new Set(filtered.map((p) => p.id)));
+  // P1-3: "Tümünü Seç" yanıltıcı olmasın — yalnızca ekranda görünen kayıtları seçer.
+  const selectVisible = useCallback(() => {
+    setSelectedIds(new Set(visible.map((p) => p.id)));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [protocols]);
+  }, [protocols, search, visibleCount]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
@@ -80,6 +85,10 @@ export function KayitliProtokollerLayout() {
     if (!q) return protocols;
     return protocols.filter((p) => protocolMatchesSearch(p, q));
   }, [protocols, search]);
+
+  // P1-3: ekranda gösterilen dilim + kalan sayısı.
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const remaining = filtered.length - visible.length;
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
@@ -147,7 +156,10 @@ export function KayitliProtokollerLayout() {
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setVisibleCount(PAGE_SIZE);
+              }}
               placeholder="Başlık, hedef, organ veya nota göre ara..."
               className="h-9 w-full rounded-lg border border-violet-200/80 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2"
             />
@@ -179,16 +191,18 @@ export function KayitliProtokollerLayout() {
                 <BulkExportBar
                   selectedCount={selectedIds.size}
                   totalCount={protocols.length}
-                  onSelectAll={selectAllFiltered}
+                  onSelectAll={selectVisible}
                   onClearSelection={clearSelection}
                   onExportSelected={() => void exportProtocolsWord("selected")}
                   onExportAll={() => void exportProtocolsWord("all")}
                   isExporting={wordBusy}
+                  selectAllLabel="Görünenleri Seç"
+                  selectAllCount={visible.length}
                 />
               </div>
             )}
-            <section className="mt-3 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((protocol) => (
+            <section className="mt-3 grid grid-cols-1 gap-3 pb-3 md:grid-cols-2 xl:grid-cols-3">
+              {visible.map((protocol) => (
                 <ProtocolListCard
                   key={protocol.id}
                   protocol={protocol}
@@ -200,6 +214,25 @@ export function KayitliProtokollerLayout() {
                 />
               ))}
             </section>
+
+            {remaining > 0 ? (
+              <div className="mb-6 flex flex-col items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="rounded-xl border border-violet-300/80 bg-white/90 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm transition hover:bg-violet-50"
+                >
+                  Daha fazla yükle ({Math.min(PAGE_SIZE, remaining)})
+                </button>
+                <p className="text-xs font-medium text-slate-500">
+                  {visible.length} / {filtered.length} kayıt gösteriliyor
+                </p>
+              </div>
+            ) : filtered.length > PAGE_SIZE ? (
+              <p className="mb-6 text-center text-xs font-medium text-slate-500">
+                Tüm kayıtlar gösteriliyor ({filtered.length})
+              </p>
+            ) : null}
           </>
         ) : null}
       </div>

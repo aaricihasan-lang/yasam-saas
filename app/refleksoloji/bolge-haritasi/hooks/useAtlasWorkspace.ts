@@ -11,6 +11,12 @@ import {
   saveAtlas,
   saveOrganList,
 } from "@/lib/atlasStorage";
+import type { AtlasDocument } from "@/lib/atlasStorage";
+import {
+  hydrateAtlasFromServer,
+  scheduleAtlasSync,
+  setAtlasSyncSuspended,
+} from "@/lib/refleksolojiAtlasSync";
 import type { FootSide, FootView, Region } from "../types";
 import { isDuplicateOrgan } from "../utils/organUtils";
 
@@ -51,6 +57,32 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     }
 
     setHydrated(true);
+
+    // P1-1: sunucudan atlas hydrate (cihazlar arası senkron). Çizim yokken güvenli;
+    // sunucu boşsa yereldeki atlas taşınır, erişilemezse yerel korunur.
+    let cancelled = false;
+    void hydrateAtlasFromServer().then((server) => {
+      if (cancelled || !server) return;
+      const serverDoc = server.document;
+      const hasServerData =
+        !!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0;
+      if (hasServerData) {
+        setAtlasSyncSuspended(true);
+        saveAtlas(serverDoc as AtlasDocument);
+        if (server.organ_list.length > 0) saveOrganList(server.organ_list);
+        setAtlasSyncSuspended(false);
+        const merged = loadAtlas();
+        setAtlas(merged);
+        setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), server.organ_list));
+      } else if (listOrganNamesFromAtlas(doc).length > 0 || sessionOrgans.length > 0) {
+        // Sunucu boş ama yerelde veri var → ilk açılışta sunucuya taşı (migrate).
+        scheduleAtlasSync(doc, sessionOrgans);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrgan]);
 
   useEffect(() => {

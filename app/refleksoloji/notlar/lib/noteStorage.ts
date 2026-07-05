@@ -1,5 +1,6 @@
 import type { ClinicalNoteFormDraft, NoteAttachment, SavedClinicalNote } from "../types";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
+import { scheduleNotesSync } from "./notesSync";
 
 export const CLINICAL_NOTES_STORAGE_KEY = "yasam-refleksoloji-notlar-v1";
 
@@ -111,7 +112,10 @@ export function loadNotesFromStorage(): SavedClinicalNote[] {
 
 export function saveNotesToStorage(notes: SavedClinicalNote[]): boolean {
   if (typeof window === "undefined") return false;
-  return safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(notes));
+  const ok = safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(notes));
+  // P1-1: yerel kayıt sonrası sunucuya senkronla (demo/oturumsuz/hydrate'te no-op).
+  if (ok) scheduleNotesSync(notes);
+  return ok;
 }
 
 export function draftToSavedNote(
