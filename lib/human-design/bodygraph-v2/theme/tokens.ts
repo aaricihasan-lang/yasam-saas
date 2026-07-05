@@ -25,33 +25,34 @@ export const COLORS = {
 
 // Kanal katman kalınlıkları/renkleri/opasiteleri (V2-4'te 460×600'e kalibre — 10H kilitli
 // değerleri başlangıç). Tanımlı = gölge/casing/gövde[glow]/sheen; tanımsız = knockout/edge/core.
+// V2-4B kalibrasyon: 460×600 kompakt ölçeğe ölçülü küçültme (yapı/renk/opasite sabit).
 export const CHANNEL = {
-  bodyW: 5.6,
-  shadowW: 9.0,
+  bodyW: 5.0,
+  shadowW: 8.0,
   shadowOpacity: 0.85,
   shadowColor: "#0b1220",
-  casingW: 7.0,
+  casingW: 6.2,
   casingColor: "#dbe2ee",
-  sheenW: 1.8,
+  sheenW: 1.5,
   sheenOpacity: 0.5,
   sheenColors: { red: "#fecaca", black: "#cbd5e1" } as Record<"red" | "black", string>,
   glowStd: 0.9,
   glowOpacity: 0.55,
-  undefinedEdgeW: 6.6,
-  undefinedCoreW: 4.6,
+  undefinedEdgeW: 5.8,
+  undefinedCoreW: 4.1,
   undefinedOpacity: 0.8,
   undefinedEdge: "#c3ccda",
   undefinedCore: "#f6f8fc",
-  knockoutW: 7.6,
+  knockoutW: 6.6,
   knockoutColor: "#0b1220",
 } as const;
 
 // Gate rozet/etiket (V2-4'te kalibre — placeholder).
 export const GATE = {
-  badgeR: 7.2,
+  badgeR: 6.4,
   badgeStrokeW: 1.0,
-  activeFont: 7,
-  passiveFont: 6,
+  activeFont: 6.4,
+  passiveFont: 5.6,
   // Merkez stroke (tanımlı/açık) + pasif gate iki-ton kontrast (V2-2).
   centerStrokeOn: "#1e293b",
   centerStrokeOff: "#d5dce6",
