@@ -11,16 +11,16 @@ export const AURA_PATH = [
   "M 232 16",
   "C 254 16 268 34 267 62", // sağ kafatası (KORUNUR)
   "C 266 90 258 106 252 122", // sağ çene → boyun (KORUNUR)
-  "C 306 130 386 152 424 198", // sağ yuvarlak omuz (V2-6D: daha geniş beden)
-  "C 442 242 436 322 416 374", // sağ yan → bel daralması
-  "C 410 400 428 432 432 468", // bel → kalça flare (SP x432 hizası)
-  "C 438 516 414 556 362 584", // kalça → uyluk sönüm
-  "C 320 598 250 600 230 600", // uyluk → alt orta (geniş taban, Root kapsar)
-  "C 210 600 140 598 98 584", // sol simetrik sönüm
-  "C 46 556 22 516 28 468", // sol kalça flare (Spleen x28 hizası)
-  "C 32 432 50 400 44 374", // sol bel
-  "C 24 322 18 242 36 198", // sol yuvarlak omuz
-  "C 74 152 154 130 208 122", // sol omuz → boyun
+  "C 296 132 350 156 378 200", // sağ orta-boy omuz (V2-7: slim/tall figür)
+  "C 392 250 384 305 362 344", // sağ omuz → BEL daralması (hourglass)
+  "C 388 378 410 410 412 452", // bel → ölçülü kalça (yan merkez hizası)
+  "C 412 500 388 542 344 576", // kalça → uyluk sönüm
+  "C 306 594 250 598 230 598", // uyluk → alt orta
+  "C 210 598 154 594 116 576", // sol uyluk
+  "C 72 542 48 500 48 452", // sol ölçülü kalça
+  "C 50 410 76 378 98 344", // sol BEL daralması
+  "C 76 305 68 250 82 200", // sol orta-boy omuz
+  "C 110 156 164 132 208 122", // sol omuz → boyun
   // sol YÜZ PROFİLİ (çene → dudak → burun → alın) — HEPSİ KORUNUR:
   "C 214 118 214 116 212 112", // boyun → çene
   "C 205 110 202 106 205 101", // çene → alt dudak

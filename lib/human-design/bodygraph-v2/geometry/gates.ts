@@ -12,44 +12,43 @@ export type GateAnchorV2 = { gate: number; center: CenterName; x: number; y: num
 
 // Merkez içi yerleşim (merkez bounds'una göre elle konumlanmış sabitler).
 const GATES_BY_CENTER_V2: Record<CenterName, Array<{ gate: number } & PointV2>> = {
-  // V2-6D: 9 merkezin de anchor'ları yeni (cesur) bounds'a göre yeniden konumlandı + padding.
+  // V2-7: 64 anchor yeni (dengeli) bounds'a dağıtıldı. Kanallar anchor'dan türer → otomatik takip.
   Head: [
-    { gate: 64, x: 210, y: 78 }, { gate: 61, x: 230, y: 76 }, { gate: 63, x: 250, y: 78 },
+    { gate: 64, x: 210, y: 80 }, { gate: 61, x: 230, y: 78 }, { gate: 63, x: 250, y: 80 },
   ],
   Ajna: [
-    { gate: 47, x: 202, y: 108 }, { gate: 24, x: 230, y: 106 }, { gate: 4, x: 258, y: 108 },
-    { gate: 17, x: 212, y: 127 }, { gate: 43, x: 230, y: 133 }, { gate: 11, x: 248, y: 127 },
+    { gate: 47, x: 202, y: 110 }, { gate: 24, x: 230, y: 108 }, { gate: 4, x: 258, y: 110 },
+    { gate: 17, x: 212, y: 132 }, { gate: 43, x: 230, y: 138 }, { gate: 11, x: 248, y: 132 },
   ],
   Throat: [
-    { gate: 62, x: 206, y: 172 }, { gate: 23, x: 230, y: 170 }, { gate: 56, x: 254, y: 172 },
-    { gate: 16, x: 200, y: 194 }, { gate: 20, x: 220, y: 194 }, { gate: 35, x: 240, y: 194 }, { gate: 12, x: 260, y: 194 },
-    { gate: 31, x: 200, y: 216 }, { gate: 8, x: 220, y: 214 }, { gate: 33, x: 240, y: 216 }, { gate: 45, x: 260, y: 216 },
+    { gate: 62, x: 205, y: 202 }, { gate: 23, x: 230, y: 200 }, { gate: 56, x: 255, y: 202 },
+    { gate: 16, x: 200, y: 226 }, { gate: 20, x: 220, y: 226 }, { gate: 35, x: 240, y: 226 }, { gate: 12, x: 260, y: 226 },
+    { gate: 31, x: 200, y: 250 }, { gate: 8, x: 220, y: 248 }, { gate: 33, x: 240, y: 250 }, { gate: 45, x: 260, y: 250 },
   ],
-  // Kanallar anchor'dan türer → anchor taşınınca otomatik takip (kopma yok).
   G: [
-    { gate: 1, x: 226, y: 268 }, { gate: 13, x: 270, y: 292 }, { gate: 25, x: 290, y: 319 }, { gate: 46, x: 270, y: 346 },
-    { gate: 2, x: 226, y: 370 }, { gate: 15, x: 182, y: 346 }, { gate: 10, x: 162, y: 319 }, { gate: 7, x: 182, y: 292 },
+    { gate: 1, x: 226, y: 304 }, { gate: 13, x: 262, y: 328 }, { gate: 25, x: 284, y: 351 }, { gate: 46, x: 262, y: 374 },
+    { gate: 2, x: 226, y: 398 }, { gate: 15, x: 190, y: 374 }, { gate: 10, x: 168, y: 351 }, { gate: 7, x: 190, y: 328 },
   ],
   Heart: [
-    { gate: 21, x: 360, y: 301 }, { gate: 40, x: 368, y: 319 }, { gate: 26, x: 360, y: 337 }, { gate: 51, x: 334, y: 319 },
+    { gate: 21, x: 336, y: 335 }, { gate: 40, x: 340, y: 351 }, { gate: 26, x: 336, y: 367 }, { gate: 51, x: 316, y: 351 },
   ],
   Spleen: [
-    { gate: 48, x: 46, y: 406 }, { gate: 57, x: 62, y: 418 }, { gate: 44, x: 78, y: 430 }, { gate: 50, x: 102, y: 444 },
-    { gate: 32, x: 78, y: 458 }, { gate: 28, x: 62, y: 470 }, { gate: 18, x: 46, y: 482 },
+    { gate: 48, x: 74, y: 378 }, { gate: 57, x: 88, y: 388 }, { gate: 44, x: 102, y: 400 }, { gate: 50, x: 122, y: 411 },
+    { gate: 32, x: 102, y: 422 }, { gate: 28, x: 88, y: 434 }, { gate: 18, x: 74, y: 444 },
   ],
   SolarPlexus: [
-    { gate: 36, x: 414, y: 406 }, { gate: 22, x: 398, y: 418 }, { gate: 37, x: 382, y: 430 }, { gate: 6, x: 358, y: 444 },
-    { gate: 49, x: 382, y: 458 }, { gate: 55, x: 398, y: 470 }, { gate: 30, x: 414, y: 482 },
+    { gate: 36, x: 386, y: 378 }, { gate: 22, x: 372, y: 388 }, { gate: 37, x: 358, y: 400 }, { gate: 6, x: 338, y: 411 },
+    { gate: 49, x: 358, y: 422 }, { gate: 55, x: 372, y: 434 }, { gate: 30, x: 386, y: 444 },
   ],
   Sacral: [
-    { gate: 5, x: 202, y: 420 }, { gate: 14, x: 230, y: 420 }, { gate: 29, x: 258, y: 420 },
-    { gate: 34, x: 202, y: 444 }, { gate: 42, x: 230, y: 444 }, { gate: 59, x: 258, y: 444 },
-    { gate: 27, x: 202, y: 468 }, { gate: 3, x: 230, y: 468 }, { gate: 9, x: 258, y: 468 },
+    { gate: 5, x: 204, y: 452 }, { gate: 14, x: 230, y: 452 }, { gate: 29, x: 256, y: 452 },
+    { gate: 34, x: 204, y: 472 }, { gate: 42, x: 230, y: 472 }, { gate: 59, x: 256, y: 472 },
+    { gate: 27, x: 204, y: 492 }, { gate: 3, x: 230, y: 492 }, { gate: 9, x: 256, y: 492 },
   ],
   Root: [
-    { gate: 53, x: 202, y: 512 }, { gate: 60, x: 230, y: 512 }, { gate: 52, x: 258, y: 512 },
-    { gate: 54, x: 202, y: 540 }, { gate: 41, x: 230, y: 540 }, { gate: 19, x: 258, y: 540 },
-    { gate: 58, x: 202, y: 568 }, { gate: 38, x: 230, y: 568 }, { gate: 39, x: 258, y: 568 },
+    { gate: 53, x: 204, y: 538 }, { gate: 60, x: 230, y: 538 }, { gate: 52, x: 256, y: 538 },
+    { gate: 54, x: 204, y: 559 }, { gate: 41, x: 230, y: 559 }, { gate: 19, x: 256, y: 559 },
+    { gate: 58, x: 204, y: 580 }, { gate: 38, x: 230, y: 580 }, { gate: 39, x: 256, y: 580 },
   ],
 };
 
