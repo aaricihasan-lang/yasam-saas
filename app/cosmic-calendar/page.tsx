@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import Link from "next/link";
@@ -822,15 +822,27 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
 // FAZ 1A/1B/1C sonrası gezegen konumları, retro ve burç geçişleri astronomy-engine ile
 // hesaplandığından destek ufku AE pencerelerinin bittiği 2050'ye taşındı.
 const SUPPORT_END_YEAR = 2050;
+// Alt sınır: doğrulanmış veri aralığının başlangıcı (20.06.2026). Bu tarihten önce retro/tutulma/
+// burç geçişi motorları veri döndürmeyebilir → kullanıcıya "aralık dışı" uyarısı gösterilir.
+const SUPPORT_START = new Date(2026, 5, 20);
+
+// #418 hydration fix: statik prerender build-zamanını, client hydrate runtime saatini kullandığından
+// "şu an" metinleri (gezegen saati, geri sayımlar, güncel burç) sunucu↔client farklı olup React #418
+// (text-content mismatch) fırlatıyordu. Çözüm: ilk render'da HER İKİ tarafta AYNI mutlak referans anı
+// (Date.UTC → tz-bağımsız getTime) kullan → hidrasyon birebir eşleşir; gerçek "şimdi" paint ÖNCESİ
+// layout-effect ile yazılır → görünür flaş yok. Hesaplama motoru/algoritması DEĞİŞMEZ; yalnız ilk
+// render'ın referans anı deterministik hale gelir.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function CosmicCalendarPage() {
   const isDemo = readYasamUser()?.is_demo_account === true;
-  const [realNow] = useState(() => new Date());
+  const [realNow, setRealNow] = useState<Date>(HYDRATION_SAFE_NOW);
   const todayYear = realNow.getFullYear(), todayMonth = realNow.getMonth(), todayDay = realNow.getDate();
 
-  const [selectedDate,     setSelectedDate]     = useState<Date>(() => new Date(todayYear, todayMonth, todayDay));
+  const [selectedDate,     setSelectedDate]     = useState<Date>(HYDRATION_SAFE_NOW);
   const [viewYear,         setViewYear]         = useState(todayYear);
   const [viewMonth,        setViewMonth]        = useState(todayMonth);
   const [showMoonPhases,   setShowMoonPhases]   = useState(true);
@@ -864,6 +876,16 @@ export default function CosmicCalendarPage() {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
+  // #418 fix: ilk render sabit tohumla (server↔client birebir); mount'ta (paint öncesi) gerçek
+  // "şimdi"ye geç. selectedDate/viewYear/viewMonth de gerçek bugüne çekilir. Motor DEĞİŞMEZ.
+  useIsomorphicLayoutEffect(() => {
+    const n = new Date();
+    setRealNow(n);
+    setSelectedDate(new Date(n.getFullYear(), n.getMonth(), n.getDate()));
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+  }, []);
+
   // ── Takvim hesapları ──────────────────────────────────────────────────────
   const cells           = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
   const moonMarkers     = useMemo(() => getMonthMoonMarkers(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -895,6 +917,11 @@ export default function CosmicCalendarPage() {
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const isAfterSupportEnd = useMemo(
     () => selectedDate.getFullYear() > SUPPORT_END_YEAR,
+    [selectedDate],
+  );
+  // Y-1: alt sınır — 20.06.2026 öncesi tarihlerde retro/tutulma/burç-geçişi motorları boş dönebilir.
+  const isBeforeSupportStart = useMemo(
+    () => selectedDate < SUPPORT_START,
     [selectedDate],
   );
 
@@ -1766,12 +1793,15 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
-            {/* Veri aralığı dışı uyarısı */}
-            {isAfterSupportEnd && (
+            {/* Veri aralığı dışı uyarısı (üst + alt sınır) */}
+            {(isAfterSupportEnd || isBeforeSupportStart) && (
               <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
                 <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
                 <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
-                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050). Gezegen konumları ve diğer veriler yaklaşık olabilir.
+                  Bu tarih doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050).{" "}
+                  {isBeforeSupportStart
+                    ? "Bu tarihten önceki retro, tutulma ve burç geçişi verileri eksik veya hesaplanamaz olabilir."
+                    : "Gezegen konumları ve diğer veriler yaklaşık olabilir."}
                 </p>
               </div>
             )}

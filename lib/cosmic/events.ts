@@ -5,7 +5,8 @@
  * Veri kaynakları:
  *   - Yeni Ay / Dolunay → astronomy-engine SearchMoonPhase (kesin saat, UTC+3), fallback: getMoonPhase taraması
  *   - Retrogradlar      → retro.ts RETRO_PERIODS (start/end string tarihler)
- *   - Burç değişimi     → hardcoded liste (2025-2030)
+ *   - Burç değişimi     → astronomy-engine ingress taraması (SC_FROM_YEAR..SC_TO_YEAR = 2024–2050);
+ *                          eski hardcoded 2025-2030 listesi kaldırıldı (AE-hesaplı, deterministik)
  */
 
 import * as AE from "astronomy-engine";

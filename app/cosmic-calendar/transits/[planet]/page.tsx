@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams }  from "next/navigation";
-import { useState }   from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import Link            from "next/link";
 import { getMoonSign, getMoonSignPeriod } from "@/lib/cosmic/moon";
 import { getPlanetSigns, getPlanetSignPeriod, type PlanetKey } from "@/lib/cosmic/planets";
@@ -19,13 +19,19 @@ function fmtDateObj(date: Date): string {
   return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 }
 
+// #418 hydration fix: ilk render'da sabit mutlak referans anı (Date.UTC → tz-bağımsız getTime) →
+// server↔client birebir; gerçek "bugün" paint öncesi layout-effect ile yazılır. Motor DEĞİŞMEZ.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
+
 // ─── Sayfa ────────────────────────────────────────────────────────────────────
 
 export default function TransitDetailPage() {
   const params = useParams();
   const slug   = typeof params.planet === "string" ? params.planet : "";
 
-  const [today] = useState(() => new Date());
+  const [today, setToday] = useState<Date>(HYDRATION_SAFE_NOW);
+  useIsomorphicLayoutEffect(() => { setToday(new Date()); }, []);
 
   const meta = getPlanetBySlug(slug);
 
@@ -121,11 +127,11 @@ export default function TransitDetailPage() {
                 </div>
                 <p className="mb-2 text-sm leading-relaxed text-amber-900">
                   <span className="font-semibold">{meta.key}</span> için gezegen konumu verisi{" "}
-                  <span className="font-semibold">2030-12-31</span> tarihine kadar doğrulanmıştır.
+                  <span className="font-semibold">31.12.2050</span> tarihine kadar doğrulanmıştır.
                   Bu tarih için güvenilir burç konumu bilgisi sistemde bulunmamaktadır.
                 </p>
                 <p className="text-sm leading-relaxed text-amber-800">
-                  2030 sonrası için profesyonel bir efemeris kaynağı (Swiss Ephemeris, Astro.com,
+                  31.12.2050 sonrası için profesyonel bir efemeris kaynağı (Swiss Ephemeris, Astro.com,
                   NASA JPL Horizons) kullanmanız önerilir.
                 </p>
                 <div className="mt-4 rounded-xl border border-amber-200 bg-white/60 px-3 py-2">
@@ -172,7 +178,7 @@ export default function TransitDetailPage() {
                   <p className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">📐 Veri &amp; Doğrulama</p>
                   <p className="text-xs leading-relaxed text-slate-600">
                     Burç konumu, o tarihteki (of-date) ekliptik boylamdan astronomy-engine ile hesaplanır.
-                    Gezegen konum verisi <span className="font-semibold text-slate-700">2030-12-31</span> tarihine kadar doğrulanmıştır.
+                    Gezegen konum verisi <span className="font-semibold text-slate-700">31.12.2050</span> tarihine kadar doğrulanmıştır.
                     Bu sayfa yalnız doğrulanmış astronomik konumu gösterir; yorum, öneri veya kişisel tavsiye içermez.
                   </p>
                 </div>
