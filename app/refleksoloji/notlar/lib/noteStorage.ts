@@ -118,6 +118,28 @@ export function saveNotesToStorage(notes: SavedClinicalNote[]): boolean {
   return ok;
 }
 
+/**
+ * P1-1: hydrate birleştirme — yerel ve sunucu notlarını id ile birleştirir; aynı id
+ * için updatedAt daha yeni olan kazanır. Böylece sunucuda olmayan yerel not
+ * hydrate'te KAYBOLMAZ (veri kaybı yok).
+ */
+export function mergeNotesById(
+  a: SavedClinicalNote[],
+  b: SavedClinicalNote[],
+): SavedClinicalNote[] {
+  const map = new Map<string, SavedClinicalNote>();
+  for (const n of [...a, ...b]) {
+    if (!n || typeof n.id !== "string" || !n.id) continue;
+    const existing = map.get(n.id);
+    if (!existing || String(n.updatedAt ?? "") > String(existing.updatedAt ?? "")) {
+      map.set(n.id, n);
+    }
+  }
+  return [...map.values()].sort((x, y) =>
+    String(y.updatedAt ?? "").localeCompare(String(x.updatedAt ?? "")),
+  );
+}
+
 export function draftToSavedNote(
   draft: ClinicalNoteFormDraft,
   options: { id?: string; previous?: SavedClinicalNote; existingIds: Set<string> },

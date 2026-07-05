@@ -5,8 +5,10 @@ import {
   listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
+  mergeAtlasDocuments,
   saveAtlas,
   saveOrganList,
+  unionOrganLists,
   type AtlasDocument,
 } from "@/lib/atlasStorage";
 import {
@@ -46,13 +48,22 @@ export function useSavedAtlas() {
     void hydrateAtlasFromServer().then((server) => {
       if (cancelled || !server) return;
       const serverDoc = server.document;
+      // Sunucuda veri var mı: belge organları VEYA organ listesi.
       const hasServerData =
-        !!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0;
+        (!!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0) ||
+        server.organ_list.length > 0;
       if (hasServerData) {
+        // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
+        const localDoc = loadAtlas();
+        const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
+        const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
         setAtlasSyncSuspended(true);
-        saveAtlas(serverDoc as AtlasDocument);
-        if (server.organ_list.length > 0) saveOrganList(server.organ_list);
+        saveAtlas(mergedDoc);
+        saveOrganList(mergedOrgans);
         setAtlasSyncSuspended(false);
+        if (listOrganNamesFromAtlas(mergedDoc).length > listOrganNamesFromAtlas(serverDoc as AtlasDocument).length) {
+          scheduleAtlasSync(mergedDoc, mergedOrgans);
+        }
         refresh();
       } else {
         const localDoc = loadAtlas();

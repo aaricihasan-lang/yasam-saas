@@ -135,6 +135,41 @@ export function listOrganNamesFromAtlas(atlas: AtlasDocument): string[] {
     .sort((a, b) => a.localeCompare(b, "tr"));
 }
 
+/**
+ * P1-1: hydrate birleştirme — sunucu ve yerel atlas belgelerini organ bazında
+ * birleştirir. Ortak organda sunucu kazanır; yalnız yerelde olan organlar KORUNUR
+ * (hydrate'te yerel-özel organ kaybolmaz → veri kaybı yok).
+ */
+export function mergeAtlasDocuments(
+  server: AtlasDocument,
+  local: AtlasDocument,
+): AtlasDocument {
+  const out = structuredClone(server) as AtlasDocument;
+  for (const key of Object.keys(local)) {
+    if (key === "_meta") continue;
+    if (!isOrganEntry(local[key])) continue;
+    if (!(key in out) || !isOrganEntry(out[key])) {
+      out[key] = local[key]; // yalnız yerelde olan organ → koru
+    }
+  }
+  return out;
+}
+
+/** İki organ listesini birleştirir (Türkçe-duyarsız, tekilleştirilmiş). */
+export function unionOrganLists(a: string[], b: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of [...a, ...b]) {
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLocaleLowerCase("tr");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out.sort((x, y) => x.localeCompare(y, "tr"));
+}
+
 export function loadOrganList(): string[] {
   if (typeof window === "undefined") return [];
   try {

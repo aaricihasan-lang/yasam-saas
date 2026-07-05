@@ -5,6 +5,7 @@ import type { ClinicalNoteFormDraft, SavedClinicalNote } from "../types";
 import {
   draftToSavedNote,
   loadNotesFromStorage,
+  mergeNotesById,
   saveNotesToStorage,
 } from "../lib/noteStorage";
 import {
@@ -38,15 +39,28 @@ export function useClinicalNotes() {
     let cancelled = false;
     void hydrateNotesFromServer().then((serverNotes) => {
       if (cancelled || serverNotes === null) return; // demo/oturumsuz/erişilemez → yereli koru
-      if (serverNotes.length > 0) {
-        // Sunucu gerçeği → yerel kopyayı güncelle (geri-yankı PUT'unu engelle).
-        setNotesSyncSuspended(true);
-        saveNotesToStorage(serverNotes);
-        setNotesSyncSuspended(false);
-        setNotes(loadNotesFromStorage());
-      } else if (local.length > 0) {
-        // Sunucu boş ama yerelde veri var → ilk açılışta sunucuya taşı (migrate).
-        scheduleNotesSync(local);
+      if (serverNotes.length === 0 && local.length === 0) return;
+
+      // Birleştir (union, id çakışmasında en yeni updatedAt kazanır) → veri kaybı yok.
+      const merged = mergeNotesById(local, serverNotes);
+      const changedLocally =
+        merged.length !== serverNotes.length ||
+        JSON.stringify(merged) !== JSON.stringify(loadNotesFromStorage());
+
+      setNotesSyncSuspended(true);
+      saveNotesToStorage(merged);
+      setNotesSyncSuspended(false);
+      setNotes(loadNotesFromStorage());
+
+      // Yerelde sunucuda olmayan/daha yeni not varsa birleşik listeyi sunucuya yaz (migrate).
+      const serverKey = JSON.stringify(
+        [...serverNotes].sort((x, y) => x.id.localeCompare(y.id)),
+      );
+      const mergedKey = JSON.stringify(
+        [...merged].sort((x, y) => x.id.localeCompare(y.id)),
+      );
+      if (changedLocally && mergedKey !== serverKey) {
+        scheduleNotesSync(merged);
       }
     });
     return () => {

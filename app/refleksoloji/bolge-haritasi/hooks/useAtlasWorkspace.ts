@@ -7,9 +7,11 @@ import {
   listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
+  mergeAtlasDocuments,
   mergeDraftIntoAtlas,
   saveAtlas,
   saveOrganList,
+  unionOrganLists,
 } from "@/lib/atlasStorage";
 import type { AtlasDocument } from "@/lib/atlasStorage";
 import {
@@ -64,16 +66,27 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     void hydrateAtlasFromServer().then((server) => {
       if (cancelled || !server) return;
       const serverDoc = server.document;
+      // Sunucuda veri var mı: belge organları VEYA organ listesi (bölgesiz organ
+      // yalnız organ_list'te yaşar — bu durumu da hydrate et).
       const hasServerData =
-        !!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0;
+        (!!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0) ||
+        server.organ_list.length > 0;
       if (hasServerData) {
+        // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
+        const localDoc = loadAtlas();
+        const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
+        const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
         setAtlasSyncSuspended(true);
-        saveAtlas(serverDoc as AtlasDocument);
-        if (server.organ_list.length > 0) saveOrganList(server.organ_list);
+        saveAtlas(mergedDoc);
+        saveOrganList(mergedOrgans);
         setAtlasSyncSuspended(false);
         const merged = loadAtlas();
         setAtlas(merged);
-        setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), server.organ_list));
+        setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), mergedOrgans));
+        // Yerelde sunucuda olmayan organ varsa birleşik belgeyi sunucuya yaz.
+        if (listOrganNamesFromAtlas(mergedDoc).length > listOrganNamesFromAtlas(serverDoc as AtlasDocument).length) {
+          scheduleAtlasSync(mergedDoc, mergedOrgans);
+        }
       } else if (listOrganNamesFromAtlas(doc).length > 0 || sessionOrgans.length > 0) {
         // Sunucu boş ama yerelde veri var → ilk açılışta sunucuya taşı (migrate).
         scheduleAtlasSync(doc, sessionOrgans);
