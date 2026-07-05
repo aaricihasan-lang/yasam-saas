@@ -1811,6 +1811,30 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
+        {/* ── Kozmik Merkezler (Takvim'in hemen altında — yardımcı bağlantılar) ── */}
+        <section className="mt-6 border-t border-slate-200/70 pt-4">
+          <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+            {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
+              <Link
+                key={title}
+                href={href}
+                className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xl leading-none">{emoji}</span>
+                  <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
+                </div>
+                <div>
+                  <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
+                  <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
+                  <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* ── Gezegenlerin Güncel Burç Konumları ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
 
@@ -2493,30 +2517,6 @@ export default function CosmicCalendarPage() {
           </p>
 
           {lunarDetail && <LunarDetail item={lunarDetail} onClose={() => setLunarDetail(null)} />}
-        </section>
-
-        {/* ── Kozmik Merkezler (kapanış, en alt — yardımcı bağlantılar) ── */}
-        <section className="mt-6 border-t border-slate-200/70 pt-4">
-          <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
-          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
-            {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
-              <Link
-                key={title}
-                href={href}
-                className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xl leading-none">{emoji}</span>
-                  <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
-                </div>
-                <div>
-                  <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
-                  <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
-                  <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
         </section>
 
       </div>
