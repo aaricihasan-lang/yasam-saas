@@ -137,3 +137,13 @@ export async function updateMineral(
     `/api/dogaltas/minerals/${encodeURIComponent(id)}`, "PATCH", fields);
   return { ok: r.ok, error: r.error, demo: r.demo };
 }
+
+// ─── Kombinasyon mutasyonları ────────────────────────────────────────────────
+export async function updateCombination(
+  id: string,
+  fields: Record<string, unknown>,
+): Promise<{ ok: boolean; issue?: string; error?: string; demo?: boolean }> {
+  const r = await dogaltasApiSend<{ issue?: string }>(
+    `/api/dogaltas/combinations/${encodeURIComponent(id)}`, "PATCH", fields);
+  return { ok: r.ok, issue: r.data?.issue, error: r.error, demo: r.demo };
+}

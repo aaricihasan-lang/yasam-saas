@@ -10,10 +10,11 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -856,6 +857,7 @@ function VariantCard({
   onToggleCalc,
   applicabilityPct,
   isDemo = false,
+  onSaved,
 }: {
   row: CombinationRecord;
   index: number;
@@ -874,8 +876,73 @@ function VariantCard({
   onToggleCalc: () => void;
   applicabilityPct?: number;
   isDemo?: boolean;
+  onSaved?: (newIssue: string) => void;
 }) {
   const calcOpen = isCalcOpen;
+
+  // ─── Düzenleme durumu (yalnız kendi tenant kombinasyonu) ───
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editIssue, setEditIssue] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editStones, setEditStones] = useState<string[]>([]);
+  const [newStone, setNewStone] = useState("");
+
+  function startEdit() {
+    setEditIssue(row.issue ?? "");
+    setEditDesc(row.description ?? "");
+    setEditNote(row.notes_text_3 ?? "");
+    setEditStones(
+      row.stones_text?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+    );
+    setNewStone("");
+    setEditError("");
+    setIsEditing(true);
+  }
+  function cancelEdit() {
+    setIsEditing(false);
+    setEditError("");
+  }
+  function addStone() {
+    const s = newStone.trim();
+    if (!s) return;
+    // Aynı taş iki kez eklenmesin (oluşturma davranışıyla uyumlu).
+    const exists = editStones.some((x) => normalizeForMatch(x) === normalizeForMatch(s));
+    if (!exists) setEditStones((prev) => [...prev, s]);
+    setNewStone("");
+  }
+  function removeStone(idx: number) {
+    setEditStones((prev) => prev.filter((_, i) => i !== idx));
+  }
+  async function saveEdit() {
+    const issue = editIssue.trim();
+    if (!issue) {
+      setEditError("Kombinasyon adı boş bırakılamaz.");
+      return;
+    }
+    const stones = editStones.map((s) => s.trim()).filter(Boolean);
+    if (stones.length === 0) {
+      setEditError("En az bir taş bulunmalıdır.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    const res = await updateCombination(row.id, {
+      issue,
+      description: editDesc.trim() || null,
+      stones_text: stones.join(", "),
+      notes_text_3: editNote.trim() || null,
+    });
+    setEditSaving(false);
+    if (!res.ok) {
+      setEditError(res.error || "Kombinasyon güncellenemedi. Lütfen tekrar deneyin.");
+      return;
+    }
+    setIsEditing(false);
+    onSaved?.(res.issue ?? issue);
+  }
 
   const hasVariantMatch =
     fieldMatches.source ||
@@ -905,17 +972,172 @@ function VariantCard({
           <span>Kombinasyon</span>
           <span>{index + 1} / {total}</span>
         </span>
-        {!isDemo && applicabilityPct !== undefined && !stockLoading ? (
+        {!isDemo && applicabilityPct !== undefined && !stockLoading && !isEditing ? (
           <ApplicabilityBadge pct={applicabilityPct} />
         ) : null}
-        {showMatchBadge ? <SearchMatchBadge /> : null}
-        {!isDemo && (
-          <span className="ml-auto text-[9px] font-medium tabular-nums text-slate-300">
-            {formatDate(row.created_at)}
-          </span>
-        )}
+        {!isEditing && showMatchBadge ? <SearchMatchBadge /> : null}
+        <div className="ml-auto flex items-center gap-2">
+          {!isDemo && !isEditing ? (
+            <>
+              <span className="text-[9px] font-medium tabular-nums text-slate-300">
+                {formatDate(row.created_at)}
+              </span>
+              <button
+                type="button"
+                onClick={startEdit}
+                className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
+              >
+                ✏️ Düzenle
+              </button>
+            </>
+          ) : null}
+          {!isDemo && isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={editSaving}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveEdit()}
+                disabled={editSaving}
+                className="rounded-lg border border-emerald-500 bg-emerald-600 px-3 py-1 text-[11px] font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {editSaving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
 
+      {isEditing ? (
+        <div className="space-y-2.5">
+          {editError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700" role="alert">
+              {editError}
+            </div>
+          ) : null}
+          <div>
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
+              Kombinasyon Adı
+            </label>
+            <input
+              value={editIssue}
+              onChange={(e) => setEditIssue(e.target.value)}
+              placeholder="Kombinasyon adı"
+              aria-label="Kombinasyon adı"
+              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
+              Açıklama / Amaç
+            </label>
+            <input
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="Açıklama / amaç (opsiyonel)"
+              aria-label="Açıklama"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-500">
+              <span>Taşlar</span>
+              <span className="font-medium normal-case tracking-normal text-slate-400">
+                {editStones.length} taş · ✓ stokta · × ile çıkar
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-2">
+              {editStones.length === 0 ? (
+                <span className="px-1 text-xs italic text-slate-400">En az bir taş ekleyin</span>
+              ) : (
+                editStones.map((stone, idx) => {
+                  const inStock = !stockLoading && resolveStockKey(stone, stockMap) !== null;
+                  return (
+                    <span
+                      key={`${stone}-${idx}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        inStock
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {inStock ? <span className="text-[10px] font-black text-emerald-600">✓</span> : null}
+                      {stone}
+                      <button
+                        type="button"
+                        onClick={() => removeStone(idx)}
+                        aria-label={`${stone} taşını çıkar`}
+                        className="ml-0.5 rounded-full px-1 text-sm font-black leading-none text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+            <div className="mt-1.5 flex gap-2">
+              <input
+                value={newStone}
+                onChange={(e) => setNewStone(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addStone();
+                  }
+                }}
+                placeholder="Taş adı ekle..."
+                aria-label="Taş adı ekle"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+              <button
+                type="button"
+                onClick={addStone}
+                className="shrink-0 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
+              >
+                + Ekle
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
+              Not
+            </label>
+            <textarea
+              value={editNote}
+              onChange={(e) => setEditNote(e.target.value)}
+              rows={2}
+              placeholder="Serbest not (opsiyonel)"
+              aria-label="Not"
+              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={cancelEdit}
+              disabled={editSaving}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveEdit()}
+              disabled={editSaving}
+              className="rounded-lg border border-emerald-500 bg-emerald-600 px-4 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {editSaving ? "Kaydediliyor..." : "Kaydet"}
+            </button>
+          </div>
+        </div>
+      ) : (
       <DemoBlur isProtected={isDemo}>
       <div className="space-y-2">
         <FieldBlock
@@ -1000,6 +1222,7 @@ function VariantCard({
         ) : null}
       </div>
       </DemoBlur>
+      )}
     </article>
   );
 }
@@ -1034,6 +1257,7 @@ function KombinasyonDetayPageContent() {
   const [stockLoading, setStockLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
+  const router = useRouter();
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1329,6 +1553,14 @@ function KombinasyonDetayPageContent() {
                 applicabilityPct={variantSummaries?.[index]?.applicabilityPct}
                 isCalcOpen={openCalcIds.has(row.id)}
                 isDemo={isDemo}
+                onSaved={(newIssue) => {
+                  if (newIssue && newIssue !== decodedIssue) {
+                    const q = highlightQuery ? `?q=${encodeURIComponent(highlightQuery)}` : "";
+                    router.push(`/dogaltas/kombinasyonlar/${encodeURIComponent(newIssue)}${q}`);
+                  } else {
+                    void handleRefresh();
+                  }
+                }}
                 onToggleCalc={() =>
                   setOpenCalcIds((prev) => {
                     const next = new Set(prev);
