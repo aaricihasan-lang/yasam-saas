@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 
@@ -42,8 +43,9 @@ function normalizeTurkishText(text: string): string {
   return text.replace(TURKISH_CHAR_REGEX, (ch) => TURKISH_CHAR_MAP[ch] ?? ch);
 }
 
-export async function POST(request: Request) {
-  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
+export async function POST(request: NextRequest) {
+  const auth = await requireDigitalContentUser(request);
+  if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();
     const file = formData.get("file");

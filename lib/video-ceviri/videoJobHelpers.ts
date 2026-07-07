@@ -216,13 +216,20 @@ export async function saveTranscriptOriginal(
   }
 }
 
-export async function fetchVideoJobs(tenantId: string): Promise<VideoJobRow[]> {
+export async function fetchVideoJobs(
+  tenantId: string,
+  userId: string,
+): Promise<VideoJobRow[]> {
+  // Güvenlik: liste tenant + KULLANICI ile sınırlı — aynı tenant'taki başka
+  // kullanıcının video kayıtları listelenmez (tenant-içi IDOR kapatıldı).
+  if (!userId) return [];
   const { data, error } = await supabase
     .from("video_transcription_jobs")
     .select(
       "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, transcript_tr, summary_text, headings_text, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
     )
     .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
 

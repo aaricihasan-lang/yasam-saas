@@ -100,7 +100,8 @@ export default function VideoCeviriPage() {
 
   const loadJobs = useCallback(async (tid: string) => {
     setJobsLoading(true);
-    const rows = await fetchVideoJobs(tid);
+    const uid = readYasamUser()?.id ?? "";
+    const rows = uid ? await fetchVideoJobs(tid, uid) : [];
     setJobs(rows);
     setJobsLoading(false);
   }, []);

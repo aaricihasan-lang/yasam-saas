@@ -4,7 +4,7 @@ import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useEffect, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
@@ -128,6 +128,15 @@ const ENDPOINT: Partial<Record<CardId, string>> = {
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;   // 50 MB — sunucu limiti (client ile eşleşmeli)
 const LARGE_FILE_BYTES = 3 * 1024 * 1024;  // ~50+ sayfa heuristic — çeviri süre uyarısı
+
+/** Güvenli API çağrıları için kimlik başlıkları — x-user-id + x-session-token.
+ *  FormData POST'larda Content-Type EKLENMEZ (tarayıcı multipart boundary ayarlar). */
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
+  const token = readSessionToken();
+  if (token) h["x-session-token"] = token;
+  return h;
+}
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
@@ -276,7 +285,7 @@ export default function BelgeCeviriPage() {
     try {
       const form = new FormData();
       form.append("text", text);
-      const res = await fetch("/api/belge-ceviri/ocr-to-word", { method: "POST", body: form });
+      const res = await fetch("/api/belge-ceviri/ocr-to-word", { method: "POST", body: form, headers: authHeaders() });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { message?: string };
         showToast({ title: "Hata", message: data.message ?? "Word dosyası oluşturulamadı.", type: "error" });
@@ -329,7 +338,7 @@ export default function BelgeCeviriPage() {
         form.append("tenantId", tenantId!);
       }
 
-      const res = await fetch(endpoint, { method: "POST", body: form });
+      const res = await fetch(endpoint, { method: "POST", body: form, headers: authHeaders() });
 
       if (!res.ok) {
         let errorMsg = `Sunucu hatası (HTTP ${res.status})`;

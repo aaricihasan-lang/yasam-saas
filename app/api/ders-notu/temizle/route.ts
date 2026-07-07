@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import OpenAI from "openai";
 import { DERS_NOTU_SYSTEM_PROMPT } from "@/lib/prompts/ders-notu-final-rules";
+import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -192,8 +193,10 @@ function postProcess(raw: string): string {
   return result.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export async function POST(request: Request) {
-  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
+export async function POST(request: NextRequest) {
+  // Güvenlik: kimlik + demo engeli (gpt-4o harcaması — kimliksiz erişim kapatıldı).
+  const auth = await requireDigitalContentUser(request);
+  if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();
     const rawText = formData.get("text");

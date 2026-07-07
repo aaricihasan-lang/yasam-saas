@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { createClient } from "@supabase/supabase-js";
 import { inngest } from "@/lib/inngest/client";
-import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
+import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,16 +33,21 @@ function getDb() {
 }
 
 // ── Route handler ──────────────────────────────────────────────────────────────
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   console.log("[pdf-to-turkce-word] istek alındı");
+
+  // Güvenlik: kimlik + demo engeli. tenant_id artık SUNUCUDAN (oturumdan) alınır;
+  // body'deki tenantId'ye güvenilmez (spoof edilemez) — [[project-digital-content-qa-final]].
+  const auth = await requireDigitalContentUser(request);
+  if (!auth.ok) return auth.response;
+  const tenantId = auth.user.tenantId;
+  const userId = auth.user.userId;
 
   try {
     const formData = await request.formData();
     const file = formData.get("file");
     const rawMode = formData.get("mode");
     const mode: TranslationMode = rawMode === "academic" ? "academic" : "standard";
-    const rawTenantId = formData.get("tenantId");
-    const tenantId = typeof rawTenantId === "string" ? rawTenantId.trim() : "";
 
     // ── Validasyon ─────────────────────────────────────────────────────────────
     if (!file || !(file instanceof File)) {
@@ -64,21 +69,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, message: `Geçersiz dosya tipi (${file.type}).` },
         { status: 400 },
-      );
-    }
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { success: false, message: "Oturum bilgisi eksik. Sayfayı yenileyip tekrar deneyin." },
-        { status: 400 },
-      );
-    }
-
-    // Demo tenant gerçek çeviri işlemi başlatamaz (form yalnızca tenantId taşır)
-    if (await isDemoTenantId(tenantId)) {
-      return NextResponse.json(
-        { success: false, message: "Demo hesabında bu işlem kullanılamaz." },
-        { status: 403 },
       );
     }
 
@@ -140,6 +130,7 @@ export async function POST(request: Request) {
     const { error: dbError } = await db.from("belge_ceviri_jobs").insert({
       id: jobId,
       tenant_id: tenantId,
+      user_id: userId,
       status: "pending",
       job_type: "pdf-to-turkce-word",
       file_name: file.name,

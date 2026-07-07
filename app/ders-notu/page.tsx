@@ -6,7 +6,7 @@ import {
   DIGITAL_CONTENT_DEMO_BANNER,
   notifyDigitalContentDemo,
 } from "@/lib/demo/digitalContentDemo";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -31,6 +31,15 @@ function charCountColor(len: number): string {
   if (len > MAX_CHARS) return "text-red-600 font-bold";
   if (len > WARN_CHARS) return "text-amber-600 font-bold";
   return "text-slate-400";
+}
+
+/** Güvenli API çağrıları için kimlik başlıkları — x-user-id + x-session-token.
+ *  FormData POST'larda Content-Type EKLENMEZ (tarayıcı multipart boundary ayarlar). */
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
+  const token = readSessionToken();
+  if (token) h["x-session-token"] = token;
+  return h;
 }
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
@@ -81,7 +90,7 @@ export default function DersNotuPage() {
     try {
       const form = new FormData();
       form.append("text", result);
-      const res = await fetch("/api/ders-notu/to-word", { method: "POST", body: form });
+      const res = await fetch("/api/ders-notu/to-word", { method: "POST", body: form, headers: authHeaders() });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { message?: string };
         showToast({ title: "Hata", message: data.message ?? "Word dosyası oluşturulamadı.", type: "error" });
@@ -125,7 +134,7 @@ export default function DersNotuPage() {
     try {
       const form = new FormData();
       form.append("text", trimmed);
-      const res = await fetch("/api/ders-notu/temizle", { method: "POST", body: form });
+      const res = await fetch("/api/ders-notu/temizle", { method: "POST", body: form, headers: authHeaders() });
 
       if (!res.ok) {
         let errorMsg = `Sunucu hatası (HTTP ${res.status})`;

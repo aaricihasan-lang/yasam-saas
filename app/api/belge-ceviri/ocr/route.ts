@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import OpenAI from "openai";
+import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -20,8 +21,10 @@ function getExt(name: string): string {
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
 }
 
-export async function POST(request: Request) {
-  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
+export async function POST(request: NextRequest) {
+  // Güvenlik: kimlik + demo engeli (vision OCR harcaması — kimliksiz erişim kapatıldı).
+  const auth = await requireDigitalContentUser(request);
+  if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();
     const file = formData.get("file");

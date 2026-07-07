@@ -102,6 +102,7 @@ export async function GET(request: Request) {
     )
     .eq("id", jobId)
     .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
     .single();
 
   if (jobErr || !jobData) {

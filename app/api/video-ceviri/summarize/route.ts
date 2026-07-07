@@ -87,6 +87,7 @@ export async function POST(request: Request) {
       .select("id, tenant_id, status, transcript_tr")
       .eq("id", jobId)
       .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
       .single();
 
     if (jobErr || !jobData) {

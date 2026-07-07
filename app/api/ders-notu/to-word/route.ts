@@ -1,4 +1,6 @@
+import type { NextRequest } from "next/server";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -73,8 +75,9 @@ function buildParagraphs(text: string): Paragraph[] {
   return children;
 }
 
-export async function POST(request: Request) {
-  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
+export async function POST(request: NextRequest) {
+  const auth = await requireDigitalContentUser(request);
+  if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();
     const text = formData.get("text");
