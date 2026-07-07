@@ -34,6 +34,13 @@ export const AURA_V3 = {
   rimOpacity: 0.4,
 } as const;
 
+// Kanal (V3-3) — SADE track (renk/casing/yarım-renk YOK; routing anatomisi). Premium sonra.
+export const CHANNEL_V3 = {
+  track: "#94a3b8",
+  trackW: 2.5,
+  trackOpacity: 0.55,
+} as const;
+
 export const TYPO_V3 = {
   family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
 } as const;

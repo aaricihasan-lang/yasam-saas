@@ -11,6 +11,7 @@ import { buildViewModelV3, buildSkeleton, VIEWBOX_V3 } from "@/lib/human-design/
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 import { PremiumDefsV3 } from "./defs/PremiumDefsV3";
 import { AuraLayerV3 } from "./layers/AuraLayerV3";
+import { ChannelLayerV3 } from "./layers/ChannelLayerV3";
 import { SkeletonDebug } from "./debug/SkeletonDebug";
 
 // Geliştirme flag'i: iskelet debug (V3-1). V3-2'de kapalı. Prod finalde kaldırılır.
@@ -34,9 +35,10 @@ export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* V3-2: mor tall aura silüeti (skeleton'dan türer). Kanal/merkez/gate V3-3+. */}
+      {/* Katman sırası: aura → kanal → [merkez V3-4] → [gate]. Hepsi skeleton'dan türer. */}
       <PremiumDefsV3 />
       <AuraLayerV3 skeleton={skeleton} />
+      <ChannelLayerV3 skeleton={skeleton} />
 
       {/* Geliştirme: iskelet debug (line/rect/path → polygon=0/circle=0). Prod'da yok. */}
       {DEBUG_SKELETON && <SkeletonDebug s={skeleton} />}

@@ -10,9 +10,10 @@
 //   - silüet knob'ları viewBox içinde
 // Çalıştırma: npx tsx scripts/hd-validation/bodygraph-v3/geometry_selftest_v3.mjs
 
-import { CENTERS } from "../../../lib/human-design/engine/channels";
+import { CENTERS, CHANNELS } from "../../../lib/human-design/engine/channels";
 import { VIEWBOX_V3, BODY_PROPORTIONS } from "../../../lib/human-design/bodygraph-v3/skeleton/proportions";
 import { buildSkeleton } from "../../../lib/human-design/bodygraph-v3/skeleton/skeleton";
+import { deriveChannels } from "../../../lib/human-design/bodygraph-v3/derive/channels";
 
 const W = VIEWBOX_V3.width;
 const H = VIEWBOX_V3.height;
@@ -75,6 +76,20 @@ for (const [name, y] of [["crownY", sil.crownY], ["shoulderY", sil.shoulder.y], 
   if (y < 0 || y > H) errors.push(`silüet ${name}=${y} viewBox dışı`);
 }
 console.log(`  6-7) yan slot + silüet: OK-check`);
+
+// 8) kanallar (V3-3): 36, her path çözünür (boş değil), engine CHANNELS ile birebir
+const chs = deriveChannels(s);
+if (chs.length !== 36) errors.push(`channel ${chs.length}!=36`);
+const engineIds = new Set(CHANNELS.map((c) => c.id));
+const v3Ids = new Set(chs.map((c) => c.id));
+for (const ch of chs) {
+  if (!ch.d || ch.d.length < 6) errors.push(`kanal ${ch.id}: boş path`);
+  if (ch.kind !== "spine" && ch.kind !== "orbital") errors.push(`kanal ${ch.id}: geçersiz kind`);
+  if (!engineIds.has(ch.id)) errors.push(`V3 kanalı engine'de yok: ${ch.id}`);
+}
+for (const id of engineIds) if (!v3Ids.has(id)) errors.push(`engine kanalı V3'te yok: ${id}`);
+const spineN = chs.filter((c) => c.kind === "spine").length;
+console.log(`  8) kanal: ${chs.length}/36 (spine ${spineN}, orbital ${chs.length - spineN}), engine birebir`);
 
 if (errors.length > 0) {
   console.error("\nCHECK BAŞARISIZ:");
