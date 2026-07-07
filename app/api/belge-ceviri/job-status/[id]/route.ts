@@ -61,6 +61,7 @@ export async function GET(
       .select("status, done_chunks, total_chunks, result_path, error_message")
       .eq("id", id)
       .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
       .single();
 
     if (error || !job) {

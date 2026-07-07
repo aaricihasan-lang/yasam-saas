@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         "id, file_name, status, job_type, total_pages, done_chunks, total_chunks, result_path, error_message, created_at",
       )
       .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
 
