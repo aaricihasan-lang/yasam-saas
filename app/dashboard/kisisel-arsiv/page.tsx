@@ -723,13 +723,15 @@ export default function KisiselArsivPage() {
       const CHUNK = 100;
       for (let i = 0; i < archiveIds.length; i += CHUNK) {
         const slice = archiveIds.slice(i, i + CHUNK);
-        const { data: filesRaw, error: filesErr } = await supabase
-          .from("personal_archive_files")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .in("archive_id", slice);
-
-        if (filesErr) {
+        try {
+          const res = await fetch(
+            `/api/kisisel-arsiv/files?archiveIds=${encodeURIComponent(slice.join(","))}`,
+            { headers: userHeaders() },
+          );
+          const json = (await res.json().catch(() => ({}))) as { ok?: boolean; rows?: ArchiveFileRow[] };
+          if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+          allFiles.push(...((json.rows ?? []) as ArchiveFileRow[]));
+        } catch (filesErr) {
           console.error("[kisisel-arsiv] personal_archive_files list", filesErr);
           setLoadingList(false);
           setInfo({
@@ -738,7 +740,6 @@ export default function KisiselArsivPage() {
           });
           return;
         }
-        allFiles.push(...((filesRaw ?? []) as ArchiveFileRow[]));
       }
     }
 
@@ -876,16 +877,18 @@ export default function KisiselArsivPage() {
           continue;
         }
 
-        const { error: metaErr } = await supabase.from("personal_archive_files").insert({
-          tenant_id: tenantId,
-          archive_id: archiveId,
-          file_name: file.name,
-          file_path: path,
-          file_type: file.type || null,
-          file_size: file.size,
-        });
-
-        if (metaErr) {
+        try {
+          const res = await fetch("/api/kisisel-arsiv/files", {
+            method: "POST",
+            headers: userHeaders(true),
+            body: JSON.stringify({
+              archiveId,
+              files: [{ file_name: file.name, file_path: path, file_type: file.type || null, file_size: file.size }],
+            }),
+          });
+          const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
+          if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+        } catch (metaErr) {
           console.error("[kisisel-arsiv] detail extra file row", metaErr);
           void supabase.storage.from("personal-archive").remove([path]);
         }
@@ -926,13 +929,14 @@ export default function KisiselArsivPage() {
         }
       }
 
-      const { error: delFilesErr } = await supabase
-        .from("personal_archive_files")
-        .delete()
-        .eq("archive_id", row.id)
-        .eq("tenant_id", tenantId);
-
-      if (delFilesErr) {
+      try {
+        const res = await fetch(
+          `/api/kisisel-arsiv/files?archiveId=${encodeURIComponent(row.id)}`,
+          { method: "DELETE", headers: userHeaders() },
+        );
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
+        if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (delFilesErr) {
         console.error("[kisisel-arsiv] personal_archive_files delete", delFilesErr);
         throw delFilesErr;
       }
@@ -1025,16 +1029,18 @@ export default function KisiselArsivPage() {
         continue;
       }
 
-      const { error: metaErr } = await supabase.from("personal_archive_files").insert({
-        tenant_id: tenantId,
-        archive_id: archiveId,
-        file_name: file.name,
-        file_path: path,
-        file_type: file.type || null,
-        file_size: file.size,
-      });
-
-      if (metaErr) {
+      try {
+        const res = await fetch("/api/kisisel-arsiv/files", {
+          method: "POST",
+          headers: userHeaders(true),
+          body: JSON.stringify({
+            archiveId,
+            files: [{ file_name: file.name, file_path: path, file_type: file.type || null, file_size: file.size }],
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
+        if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (metaErr) {
         console.error("Dosya tablo kayıt hatası:", metaErr);
         void supabase.storage.from("personal-archive").remove([path]);
       }
