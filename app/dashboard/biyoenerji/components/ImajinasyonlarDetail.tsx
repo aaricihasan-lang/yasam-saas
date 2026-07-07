@@ -14,7 +14,8 @@ import {
   imaginationsTypography,
   type ImaginationsTypography,
 } from "@/lib/bioenergy/imaginationsFontSize";
-import { IMAGINATIONS_LIST_PATH } from "@/lib/bioenergy/imaginationsListFetch";
+import { IMAGINATIONS_LIST_PATH, mapImaginationListRow } from "@/lib/bioenergy/imaginationsListFetch";
+import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 import { useImaginationsFontSize } from "@/lib/bioenergy/useImaginationsFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { authHeaders, bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
@@ -198,7 +199,24 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
       return;
     }
 
-    setLoading(true);
+    // Listeden gelen taze veriyle ANINDA içerik göster; tam kaydı arka planda çek
+    // (stale-while-revalidate). Cache'te yoksa normal spinner gösterilir.
+    let seeded = false;
+    const seed = bioListFindRow("imaginations", recordId);
+    if (seed) {
+      const row = mapImaginationListRow(seed) as BioenergyImaginationRecord;
+      setRecord(row);
+      setForm({
+        title: row.title ?? "",
+        category: row.category ?? "",
+        text: row.text ?? "",
+        notes: row.notes ?? "",
+        source: row.source ?? "",
+      });
+      seeded = true;
+    }
+
+    setLoading(!seeded);
     setErrorMessage("");
 
     const tenantId = await getSyncedTenantId();
@@ -214,13 +232,14 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
 
     if (error) {
       setErrorMessage(`Kayıt okunamadı: ${error}`);
-      setRecord(null);
+      // Seed'lenmiş içerik varsa koru (arka plan hatasında ekranı boşaltma).
+      setRecord((prev) => prev);
       return;
     }
 
     if (!data) {
       setErrorMessage("Kayıt bulunamadı.");
-      setRecord(null);
+      setRecord((prev) => prev);
       return;
     }
 

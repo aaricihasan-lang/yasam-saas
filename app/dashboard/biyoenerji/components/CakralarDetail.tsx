@@ -19,6 +19,7 @@ import {
   chakraDisplayName,
   chakraCardBadge,
   fetchChakraRecordById,
+  mapChakraDetailRow,
   CHAKRAS_LIST_PATH,
   type ChakraDetailItem,
 } from "@/lib/bioenergy/chakrasListFetch";
@@ -40,6 +41,7 @@ import {
   getCachedDogaltasStones,
   setCachedDogaltasStones,
 } from "@/lib/biyoenerji/dogaltasStoneCache";
+import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 
 type ChakraForm = {
   name: string;
@@ -280,7 +282,19 @@ export default function CakralarDetail({ id }: { id: string }) {
       return;
     }
 
-    setLoading(true);
+    // Listeden gelen taze veriyle ANINDA içerik göster; tam kaydı arka planda çek
+    // (stale-while-revalidate). Cache'te yoksa normal spinner gösterilir.
+    let seeded = false;
+    const seed = bioListFindRow("chakras", recordId);
+    if (seed) {
+      const mapped = mapChakraDetailRow(seed);
+      lastGoodRecordRef.current = mapped;
+      setRecord(mapped);
+      setForm(recordToForm(mapped));
+      seeded = true;
+    }
+
+    setLoading(!seeded);
     setErrorMessage("");
 
     const tenantId = await getSyncedTenantId();

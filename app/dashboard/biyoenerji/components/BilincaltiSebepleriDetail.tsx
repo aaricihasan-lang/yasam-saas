@@ -13,7 +13,11 @@ import {
   subconsciousCausesTypography,
   type SubconsciousCausesTypography,
 } from "@/lib/bioenergy/subconsciousCausesFontSize";
-import { SUBCONSCIOUS_CAUSES_LIST_PATH } from "@/lib/bioenergy/subconsciousCausesListFetch";
+import {
+  SUBCONSCIOUS_CAUSES_LIST_PATH,
+  mapSubconsciousCauseListRow,
+} from "@/lib/bioenergy/subconsciousCausesListFetch";
+import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 import { useSubconsciousCausesFontSize } from "@/lib/bioenergy/useSubconsciousCausesFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { authHeaders, bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
@@ -202,7 +206,24 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       return;
     }
 
-    setLoading(true);
+    // Listeden gelen taze veriyle ANINDA içerik göster; tam kaydı arka planda çek
+    // (stale-while-revalidate). Cache'te yoksa normal spinner gösterilir.
+    let seeded = false;
+    const seed = bioListFindRow("subconscious-causes", recordId);
+    if (seed) {
+      const row = mapSubconsciousCauseListRow(seed) as BioenergySubconsciousRecord;
+      setRecord(row);
+      setForm({
+        source_uid: row.source_uid ?? "",
+        title: row.title ?? "",
+        category: row.category ?? "",
+        content: row.content ?? "",
+        note_text: row.note_text ?? "",
+      });
+      seeded = true;
+    }
+
+    setLoading(!seeded);
     setErrorMessage("");
 
     const tenantId = await getSyncedTenantId();
@@ -218,13 +239,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
     if (error) {
       setErrorMessage(`Kayıt okunamadı: ${error}`);
-      setRecord(null);
+      // Seed'lenmiş içerik varsa koru (arka plan hatasında ekranı boşaltma).
+      setRecord((prev) => prev);
       return;
     }
 
     if (!data) {
       setErrorMessage("Kayıt bulunamadı.");
-      setRecord(null);
+      setRecord((prev) => prev);
       return;
     }
 

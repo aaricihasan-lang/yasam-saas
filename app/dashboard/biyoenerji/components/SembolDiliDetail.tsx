@@ -16,10 +16,12 @@ import {
 } from "@/lib/bioenergy/symbolLanguageFontSize";
 import {
   fetchSymbolLanguageRecordById,
+  mapSymbolLanguageListRow,
   SYMBOL_LANGUAGE_LIST_PATH,
   symbolDisplayName,
   type SymbolLanguageListItem,
 } from "@/lib/bioenergy/symbolLanguageListFetch";
+import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
@@ -186,7 +188,25 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       return;
     }
 
-    setLoading(true);
+    // Listeden gelen taze veriyle ANINDA içerik göster; tam kaydı arka planda çek
+    // (stale-while-revalidate). Cache'te yoksa normal spinner gösterilir.
+    let seeded = false;
+    const seed = bioListFindRow("symbols", recordId);
+    if (seed) {
+      const mapped = mapSymbolLanguageListRow(seed);
+      lastGoodRecordRef.current = mapped;
+      setRecord(mapped);
+      const seedName = symbolDisplayName(mapped);
+      setForm({
+        symbol_name: seedName === "İsimsiz sembol" ? "" : seedName,
+        category: mapped.category ?? "",
+        meaning: mapped.meaning ?? "",
+        source: mapped.source ?? "",
+      });
+      seeded = true;
+    }
+
+    setLoading(!seeded);
     setErrorMessage("");
 
     const tenantId = await getSyncedTenantId();
