@@ -1,4 +1,13 @@
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+
+/** Güvenli /api/video-ceviri/job çağrıları için kimlik başlıkları. */
+function authHeaders(json = false): Record<string, string> {
+  const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
+  const t = readSessionToken();
+  if (t) h["x-session-token"] = t;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 
 export const ALLOWED_VIDEO_MIME_TYPES = new Set([
   // Video
@@ -142,100 +151,80 @@ export function formatJobDateTr(iso: string): string {
   }
 }
 
+// K-3: iş kaydı yazmaları/listesi artık SUNUCU route'undan (service_role) geçer;
+// tarayıcıdan anon key ile video_transcription_jobs'a yazma KALDIRILDI.
+// tenantId/userId parametreleri imza uyumu için korunur; sunucu oturumdan alır.
+
 export async function insertVideoJob(
   params: InsertVideoJobParams,
 ): Promise<InsertVideoJobResult> {
-  const { data, error } = await supabase
-    .from("video_transcription_jobs")
-    .insert({
-      tenant_id: params.tenantId,
-      user_id: params.userId,
-      status: "uploaded",
-      original_filename: params.originalFilename,
-      file_size_bytes: params.fileSizeBytes,
-      source_language: params.sourceLanguage ?? "auto",
-    })
-    .select("id")
-    .single();
-
-  if (error || !data?.id) {
-    return { jobId: null, error: error?.message ?? "Kayıt oluşturulamadı." };
+  try {
+    const res = await fetch("/api/video-ceviri/job", {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify({
+        originalFilename: params.originalFilename,
+        fileSizeBytes: params.fileSizeBytes,
+        sourceLanguage: params.sourceLanguage ?? "auto",
+      }),
+    });
+    const j = (await res.json().catch(() => ({}))) as { ok?: boolean; jobId?: string; error?: string };
+    if (!res.ok || !j.ok || !j.jobId) {
+      return { jobId: null, error: j.error ?? "Kayıt oluşturulamadı." };
+    }
+    return { jobId: String(j.jobId), error: null };
+  } catch (e) {
+    return { jobId: null, error: e instanceof Error ? e.message : "Bağlantı hatası." };
   }
-  return { jobId: String(data.id), error: null };
+}
+
+async function patchVideoJob(payload: Record<string, unknown>, label: string): Promise<void> {
+  try {
+    const res = await fetch("/api/video-ceviri/job", {
+      method: "PATCH",
+      headers: authHeaders(true),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.error(`[videoJobHelpers] ${label}: HTTP ${res.status}`);
+  } catch (e) {
+    console.error(`[videoJobHelpers] ${label}:`, e);
+  }
 }
 
 export async function updateVideoJobTempPath(
   jobId: string,
   videoTempPath: string,
-  tenantId: string,
+  _tenantId?: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("video_transcription_jobs")
-    .update({ video_temp_path: videoTempPath })
-    .eq("id", jobId)
-    .eq("tenant_id", tenantId);
-  if (error) {
-    console.error("[videoJobHelpers] updateVideoJobTempPath:", error);
-  }
+  await patchVideoJob({ jobId, videoTempPath }, "updateVideoJobTempPath");
 }
 
 export async function updateVideoJobStatus(
   jobId: string,
   status: string,
   errorMessage?: string,
-  tenantId?: string,
+  _tenantId?: string,
 ): Promise<void> {
-  let query = supabase
-    .from("video_transcription_jobs")
-    .update({
-      status,
-      ...(errorMessage !== undefined ? { error_message: errorMessage } : {}),
-    })
-    .eq("id", jobId);
-  if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { error } = await query;
-  if (error) {
-    console.error("[videoJobHelpers] updateVideoJobStatus:", error);
-  }
-}
-
-export async function saveTranscriptOriginal(
-  jobId: string,
-  transcript: string,
-): Promise<void> {
-  const { error } = await supabase
-    .from("video_transcription_jobs")
-    .update({
-      transcript_original: transcript,
-      status: "completed",
-      processing_completed_at: new Date().toISOString(),
-    })
-    .eq("id", jobId);
-  if (error) {
-    console.error("[videoJobHelpers] saveTranscriptOriginal:", error);
-  }
+  await patchVideoJob(
+    { jobId, status, ...(errorMessage !== undefined ? { errorMessage } : {}) },
+    "updateVideoJobStatus",
+  );
 }
 
 export async function fetchVideoJobs(
   tenantId: string,
   userId: string,
 ): Promise<VideoJobRow[]> {
-  // Güvenlik: liste tenant + KULLANICI ile sınırlı — aynı tenant'taki başka
-  // kullanıcının video kayıtları listelenmez (tenant-içi IDOR kapatıldı).
+  // Güvenlik: liste tenant + KULLANICI ile sınırlı (sunucuda) — aynı tenant'taki
+  // başka kullanıcının video kayıtları listelenmez (tenant-içi IDOR).
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from("video_transcription_jobs")
-    .select(
-      "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, transcript_tr, summary_text, headings_text, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
-    )
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (error) {
-    console.error("[videoJobHelpers] fetchVideoJobs:", error);
+  try {
+    const res = await fetch("/api/video-ceviri/job", { headers: authHeaders() });
+    const j = (await res.json().catch(() => ({}))) as { ok?: boolean; rows?: VideoJobRow[] };
+    if (!res.ok || !j.ok) return [];
+    return (j.rows ?? []) as VideoJobRow[];
+  } catch (e) {
+    console.error("[videoJobHelpers] fetchVideoJobs:", e);
     return [];
   }
-  return (data ?? []) as VideoJobRow[];
 }
