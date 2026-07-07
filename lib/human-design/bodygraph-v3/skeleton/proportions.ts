@@ -41,14 +41,23 @@ export const BODY_PROPORTIONS = {
   } as Record<SideName, PointV3>,
   // Orbital kaburga bantları (konsantrik; geniş sweep).
   orbital: { center: { x: 240, y: 560 }, radii: [150, 195, 235] as number[] },
-  // Silüet knob'ları (aura V3-2 kullanacak).
+  // Silüet knob'ları — aura (V3-2) tamamen buradan türer. Baş + YÜZ PROFİLİ (sola bakan) +
+  // gövde (omuz/bel/kalça/taper). Yüz profili sol tarafta: çene→dudak→burun(dışa)→alın.
   silhouette: {
-    crownY: 30,
-    headHalfW: 36,
-    neck: { y: 250, halfW: 22 },
-    shoulder: { y: 320, halfW: 145 },
-    waist: { y: 470, halfW: 95 },
-    hip: { y: 610, halfW: 150 },
-    taperY: 780,
+    crownY: 58,
+    headCenterY: 116,
+    headHalfW: 46,
+    brow: { y: 150, project: 33 },
+    nose: { y: 176, project: 44 }, // burun dışa çıkar (sol) — belirgin ama zarif
+    lip: { y: 194, project: 35 },
+    chin: { y: 212, project: 29 },
+    neck: { y: 250, halfW: 26 }, // zarif boyun (omuz geçişi yumuşasın)
+    shoulder: { y: 322, halfW: 128 }, // güçlü ama yumuşak omuz
+    waist: { y: 466, halfW: 104 }, // ince ama abartısız bel
+    hip: { y: 604, halfW: 146 }, // doğal kalça (yan merkez hizası)
+    taperY: 772,
+    footHalfW: 40,
+    bottomY: 790,
+    tension: 0.7, // daha az overshoot → pürüzsüz omuz/tepe
   },
 };

@@ -22,6 +22,18 @@ export const COLORS_V3 = {
   auraFill: "#aeb8d8",
 } as const;
 
+// Aura (V3-2) — referans mor/lavanta ışıyan beden. Ağır premium glow/rim sonraki fazlara.
+export const AURA_V3 = {
+  fill: "#a78bfa",
+  peak: 0.16,
+  mid: 0.1,
+  edge: 0.045,
+  blur: 3.0,
+  rimColor: "#c4b5fd",
+  rimW: 1.8,
+  rimOpacity: 0.4,
+} as const;
+
 export const TYPO_V3 = {
   family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
 } as const;

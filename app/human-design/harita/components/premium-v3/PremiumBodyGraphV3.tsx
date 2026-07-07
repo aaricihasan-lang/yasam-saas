@@ -2,17 +2,19 @@
 
 // Premium BodyGraph V3 — skeleton-driven render (sıfırdan; V2'den bağımsız).
 //
-// V3-1: skeleton-driven iskelet + DEBUG görsel. Aura/kanal/merkez/gate V3-2+ skeleton'dan
-// türeyecek. Eski BodyGraph / V2 ile AYNI imza ({ result }) → geçiş tek satır.
+// V3-2: skeleton'dan türeyen mor tall aura silüeti. Kanal/merkez/gate V3-3+ (yine skeleton'dan).
+// Eski BodyGraph / V2 ile AYNI imza ({ result }) → geçiş tek satır.
 // Sayfaya yalnız BodyGraphSwitch üzerinden ?bg=v3 ile bağlanır (varsayılan V1).
 
 import { useMemo } from "react";
 import { buildViewModelV3, buildSkeleton, VIEWBOX_V3 } from "@/lib/human-design/bodygraph-v3";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
+import { PremiumDefsV3 } from "./defs/PremiumDefsV3";
+import { AuraLayerV3 } from "./layers/AuraLayerV3";
 import { SkeletonDebug } from "./debug/SkeletonDebug";
 
-// V3-1: iskelet debug görünür. V3-2'de false (aura başlayınca). Prod finalde kaldırılır.
-const DEBUG_SKELETON = true;
+// Geliştirme flag'i: iskelet debug (V3-1). V3-2'de kapalı. Prod finalde kaldırılır.
+const DEBUG_SKELETON = false;
 
 export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
   const vm = useMemo(() => buildViewModelV3(result), [result]);
@@ -32,8 +34,11 @@ export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* V3-1 iskelet debug (yalnız line/rect/path → polygon=0/circle=0 korunur).
-          Gerçek aura/kanal/merkez/gate V3-2+ skeleton'dan türeyecek. */}
+      {/* V3-2: mor tall aura silüeti (skeleton'dan türer). Kanal/merkez/gate V3-3+. */}
+      <PremiumDefsV3 />
+      <AuraLayerV3 skeleton={skeleton} />
+
+      {/* Geliştirme: iskelet debug (line/rect/path → polygon=0/circle=0). Prod'da yok. */}
       {DEBUG_SKELETON && <SkeletonDebug s={skeleton} />}
     </svg>
   );
