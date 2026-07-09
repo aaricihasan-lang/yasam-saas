@@ -135,3 +135,201 @@ export async function deleteComputedChart(
   }
   return { ok: true, error: null };
 }
+
+// =========================================================================
+// Sprint-3 Aşama 2 — MANUEL/legacy harita (source IS NULL | 'manual') erişimi.
+//
+// Yukarıdaki computed akışı (saveComputedChart/list/get/deleteComputedChart)
+// DEĞİŞMEZ. Buradaki fonksiyonlar yalnız manuel satırlarla ilgilenir ve
+// mevcut anon helper'ların (hdCharts.ts / hdKayitliHaritalar.ts) davranışını
+// birebir yansıtır — yalnız erişim service_role'a taşınır.
+// Engine/compute/BodyGraph/SVG matematiğine DOKUNMAZ — saf veri CRUD.
+// =========================================================================
+
+// Manuel listede yalnız hesaplanmamış satırlar: source null VEYA 'manual'.
+const MANUAL_FILTER = "source.is.null,source.eq.manual";
+
+export type ManualChartValues = {
+  type_code: string | null;
+  authority_code: string | null;
+  profile_code: string | null;
+  definition_code: string | null;
+  active_centers: string[];
+  open_centers: string[];
+  gates: number[];
+  channels: string[];
+  notes: string | null;
+};
+
+// client'tan kabul edilen alanlar (tenant_id/client_id/id/source/zaman override edilemez).
+const MANUAL_VALUE_KEYS: (keyof ManualChartValues)[] = [
+  "type_code",
+  "authority_code",
+  "profile_code",
+  "definition_code",
+  "active_centers",
+  "open_centers",
+  "gates",
+  "channels",
+  "notes",
+];
+
+function pickManual(input: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of MANUAL_VALUE_KEYS) if (k in input) out[k] = input[k];
+  return out;
+}
+
+async function clientInTenant(
+  db: SupabaseClient,
+  clientId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("human_design_clients")
+    .select("id")
+    .eq("id", clientId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !error && !!data;
+}
+
+export type ManualChartWithClient = Record<string, unknown> & {
+  client: Record<string, unknown> | null;
+};
+
+/** Kayıtlı Haritalar listesi (manuel/legacy) + danışan join — listChartsWithClients aynısı. */
+export async function listManualChartsWithClients(
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<{ rows: ManualChartWithClient[]; error: string | null }> {
+  const [chartsRes, clientsRes] = await Promise.all([
+    db
+      .from(TABLE)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .or(MANUAL_FILTER)
+      .order("created_at", { ascending: false }),
+    db
+      .from("human_design_clients")
+      .select("id, name, birth_date, birth_time, birth_place, external_chart_url")
+      .eq("tenant_id", tenantId),
+  ]);
+  if (chartsRes.error) return { rows: [], error: chartsRes.error.message };
+  if (clientsRes.error) return { rows: [], error: clientsRes.error.message };
+
+  const map = new Map(
+    (clientsRes.data ?? []).map((c) => [(c as { id: string }).id, c as Record<string, unknown>]),
+  );
+  const rows: ManualChartWithClient[] = (chartsRes.data ?? []).map((ch) => {
+    const chart = ch as Record<string, unknown>;
+    const cid = chart.client_id as string | null;
+    return { ...chart, client: cid ? map.get(cid) ?? null : null };
+  });
+  return { rows, error: null };
+}
+
+/** Bir danışanın manuel haritasını getir — loadClientChart aynısı (tenant+client_id). */
+export async function getManualChartByClient(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
+  const { data, error } = await db
+    .from(TABLE)
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+  if (error) return { row: null, error: error.message };
+  return { row: (data as Record<string, unknown> | null) ?? null, error: null };
+}
+
+/** Manuel harita upsert (client başına tek satır) — saveClientChart aynısı + IDOR guard. */
+export async function saveManualChart(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  values: Record<string, unknown>,
+): Promise<{ ok: boolean; error: string | null }> {
+  if (!clientId) return { ok: false, error: "client_id gerekli." };
+  if (!(await clientInTenant(db, clientId, tenantId))) {
+    return { ok: false, error: "Danışan bu hesaba ait değil." };
+  }
+
+  const { data: existing } = await db
+    .from(TABLE)
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  const payload = {
+    tenant_id: tenantId,
+    client_id: clientId,
+    ...pickManual(values),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (existing && (existing as { id?: string }).id) {
+    const { error } = await db
+      .from(TABLE)
+      .update(payload)
+      .eq("id", (existing as { id: string }).id)
+      .eq("tenant_id", tenantId);
+    return { ok: !error, error: error?.message ?? null };
+  }
+  const { error } = await db.from(TABLE).insert(payload);
+  return { ok: !error, error: error?.message ?? null };
+}
+
+/** Manuel harita güncelle (id ile) — additif PATCH desteği. */
+export async function updateManualChartById(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+  values: Record<string, unknown>,
+): Promise<{ ok: boolean; error: string | null }> {
+  const fields = { ...pickManual(values), updated_at: new Date().toISOString() };
+  const { data, error } = await db
+    .from(TABLE)
+    .update(fields)
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .or(MANUAL_FILTER)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+  }
+  return { ok: true, error: null };
+}
+
+/** Manuel harita sil (id ile) — deleteHdChart aynısı (tenant-scoped). */
+export async function deleteManualChart(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ ok: boolean; error: string | null }> {
+  const { error } = await db
+    .from(TABLE)
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+  return { ok: !error, error: error?.message ?? null };
+}
+
+/** Bir danışanın manuel haritalarını sil (tenant-scoped, yalnız manuel satırlar). */
+export async function deleteManualChartsByClient(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<{ ok: boolean; error: string | null }> {
+  const { error } = await db
+    .from(TABLE)
+    .delete()
+    .eq("client_id", clientId)
+    .eq("tenant_id", tenantId)
+    .or(MANUAL_FILTER);
+  return { ok: !error, error: error?.message ?? null };
+}
