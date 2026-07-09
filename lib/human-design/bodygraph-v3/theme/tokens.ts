@@ -39,6 +39,13 @@ export const CHANNEL_V3 = {
   trackOpacity: 0.55,
 } as const;
 
+// Merkez (V3-4) — SADE gri sekil (ici bos). Renk/defined/gate/numara YOK; yalniz dogru sekil+konum.
+export const CENTER_V3 = {
+  fill: "none",
+  stroke: "#94a3b8",
+  strokeW: 1.6,
+} as const;
+
 export const TYPO_V3 = {
   family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
 } as const;
