@@ -15,6 +15,7 @@ import { VIEWBOX_V3, BODY_PROPORTIONS } from "../../../lib/human-design/bodygrap
 import { buildSkeleton } from "../../../lib/human-design/bodygraph-v3/skeleton/skeleton";
 import { deriveChannels } from "../../../lib/human-design/bodygraph-v3/derive/channels";
 import { deriveCenters } from "../../../lib/human-design/bodygraph-v3/derive/centers";
+import { deriveRoutes } from "../../../lib/human-design/bodygraph-v3/derive/routes";
 
 const W = VIEWBOX_V3.width;
 const H = VIEWBOX_V3.height;
@@ -91,6 +92,28 @@ for (const ch of chs) {
 for (const id of engineIds) if (!v3Ids.has(id)) errors.push(`engine kanalı V3'te yok: ${id}`);
 const spineN = chs.filter((c) => c.kind === "spine").length;
 console.log(`  8) kanal: ${chs.length}/36 (spine ${spineN}, orbital ${chs.length - spineN}), engine birebir`);
+
+// 8b) routing refactor: paylasilan ray sistemi. Ray sayisi <=7, her kanal routeId'li,
+//     AYNI merkez-cifti kanallari AYNI path'i paylasir (paylasilan rib/omurga segmenti).
+const routes = deriveRoutes(s);
+if (routes.length > 7) errors.push(`ray ${routes.length}>7 (paylasim beklenenden fazla)`);
+for (const rt of routes) if (!rt.d || rt.d.length < 6) errors.push(`ray ${rt.id}: bos path`);
+const idPair = new Map(CHANNELS.map((c) => [c.id, [c.centerA, c.centerB].sort().join("|")]));
+const byPair = new Map();
+for (const ch of chs) {
+  if (!ch.routeId) errors.push(`kanal ${ch.id}: routeId yok`);
+  const pk = idPair.get(ch.id);
+  if (!byPair.has(pk)) byPair.set(pk, []);
+  byPair.get(pk).push(ch);
+}
+let sharedGroups = 0;
+for (const [pk, list] of byPair) {
+  if (list.length > 1) sharedGroups++;
+  const d0 = list[0].d;
+  for (const ch of list) if (ch.d !== d0) errors.push(`paylasim bozuk: ${pk} kanallari ayni path degil (${ch.id})`);
+}
+const uniquePaths = new Set(chs.map((c) => c.d)).size;
+console.log(`  8b) routing: ${routes.length} paylasilan ray, ${uniquePaths} benzersiz path (36 kanal), ${sharedGroups} cok-kanalli paylasim grubu — tumu routeId'li`);
 
 // 9) merkez sekilleri (V3-4): 9 polygon, her nokta KENDI zone bbox'i icinde (zone disina tasmaz)
 const shapes = deriveCenters(s);

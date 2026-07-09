@@ -1,40 +1,77 @@
-// Premium BodyGraph V3 — kanal geometrisi (TAMAMEN skeleton'dan türer; V2 koordinat tablosu YOK).
+// Premium BodyGraph V3 — kanal geometrisi (Channel Routing Refactor · iterasyon-2). Kanallar BAGIMSIZ
+// bezier URETMEZ; paylasilan RAY (routes.ts) sistemine oturur. Ayni merkez-cifti -> AYNI path.
 //
-// deriveChannels(skeleton) → 36 kanal path'i. Engine CHANNELS topolojiyi verir; geometri
-// centerZones (port) + orbitalBands (dışa bow) + axisX'ten türer. Kanal uçları merkez-zon
-// kenarındaki portlara oturur → V3-4 gate anchor bu portlarla hizalanacak (çift sistem yok).
-//
-// V3-3: routing anatomisi. Renk/casing/yarım-renk YOK (VM id ile ileride join edilebilir).
+// Orbital kanal = atanan band yaricapinda GERCEK dairesel yay (merkez-tabanli), oc'den DISA bombeli.
+//   · Yatay kordlarda bile dik kavis uretir (stray/duz cizgi yok, minimum kavis garanti).
+//   · Ayni band -> ayni yaricap -> ayni egrilik (paralel rib akisi).
+//   · Band secimi KORD UZUNLUGUNA gore: kisa->ic, orta->orta, uzun->dis (dis banda yigilma yok).
+// Spine kanal = dikey omurga segmenti. Fan YOK. Topoloji engine CHANNELS'ten (36, birebir).
 
 import { CHANNELS, type CenterName } from "@/lib/human-design/engine/channels";
 import { buildSkeleton, type Skeleton, type CenterZone } from "../skeleton/skeleton";
 import type { PointV3 } from "../skeleton/proportions";
+import { catmullRomOpen } from "./routes";
 
-export type ChannelGeoV3 = { id: string; kind: "spine" | "orbital"; d: string };
+export type ChannelGeoV3 = { id: string; kind: "spine" | "orbital"; routeId: string; d: string };
 
-// Komşu merkezî çiftler (dikey omurga). pairKey alfabetik sıralı.
+// Komsu merkezî ciftler (dikey omurga). pairKey alfabetik sirali.
 const SPINE_ADJ = new Set(["Ajna|Head", "Ajna|Throat", "G|Throat", "G|Sacral", "Root|Sacral"]);
 const pairKey = (a: CenterName, b: CenterName): string => [a, b].sort().join("|");
 
 const f = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(2));
 
-/** Zonun, hedefe bakan kenarındaki port + dik fan ofseti (kardeş kanalları ayırır). */
-function zonePort(z: CenterZone, toward: PointV3, fan: number): PointV3 {
+// Band secim esikleri (port-tabanli kord uzunlugu). Kisa->band0(ic), orta->band1, uzun->band2(dis).
+const LEN_INNER = 135;
+const LEN_MID = 210;
+const ARC_SAMPLES = 16;
+
+/** Zonun, hedefe bakan kenarindaki port (fan YOK -> cift bazli deterministik, paylasim icin). */
+function zonePort(z: CenterZone, toward: PointV3): PointV3 {
   const dx = toward.x - z.cx;
   const dy = toward.y - z.cy;
   const sx = dx !== 0 ? z.halfW / Math.abs(dx) : Infinity;
   const sy = dy !== 0 ? z.halfH / Math.abs(dy) : Infinity;
   const s = Math.min(sx, sy);
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = -dy / len; // dik birim
-  const ny = dx / len;
-  return { x: z.cx + dx * s + nx * fan, y: z.cy + dy * s + ny * fan };
+  return { x: z.cx + dx * s, y: z.cy + dy * s };
 }
 
-/** Konsantrik band'in verilen y'deki yatay kenarı (axisX'ten uzaklık). */
-function bandEdgeX(r: number, y: number, cy: number): number {
-  const t = r * r - (y - cy) * (y - cy);
-  return t > 0 ? Math.sqrt(t) : 0;
+/**
+ * pA->pB arasi, yaricapi R (band) olan dairesel yay; oc'den DISA bombeli (minor arc).
+ * Merkez-tabanli: yatay kord dahil her durumda pürüzsüz yay (t-parametrizasyon, y-lerp DEGIL).
+ */
+function orbitalArc(R: number, pA: PointV3, pB: PointV3, oc: PointV3): string {
+  const mx = (pA.x + pB.x) / 2;
+  const my = (pA.y + pB.y) / 2;
+  const dx = pB.x - pA.x;
+  const dy = pB.y - pA.y;
+  const chord = Math.hypot(dx, dy) || 1;
+  const r = Math.max(R, chord / 2 + 1); // gecerli yay (R >= yarim kord)
+  const half = chord / 2;
+  const apo = Math.sqrt(Math.max(0, r * r - half * half)); // merkez-kord uzakligi
+  // birim dik
+  let nx = -dy / chord;
+  let ny = dx / chord;
+  // DISA yon = oc'den uzaklasan taraf
+  const ox = mx - oc.x;
+  const oy = my - oc.y;
+  if (nx * ox + ny * oy < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  // cember merkezi bombenin KARSI tarafinda -> yay disa (oc'den uzaga) bomber
+  const cx = mx - nx * apo;
+  const cy = my - ny * apo;
+  const aA = Math.atan2(pA.y - cy, pA.x - cx);
+  const aB = Math.atan2(pB.y - cy, pB.x - cx);
+  let da = aB - aA;
+  while (da > Math.PI) da -= 2 * Math.PI;
+  while (da < -Math.PI) da += 2 * Math.PI; // minor arc (kisa yon)
+  const pts: PointV3[] = [];
+  for (let i = 0; i <= ARC_SAMPLES; i++) {
+    const a = aA + (da * i) / ARC_SAMPLES;
+    pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  }
+  return catmullRomOpen(pts);
 }
 
 export function deriveChannels(sk: Skeleton = buildSkeleton()): ChannelGeoV3[] {
@@ -43,46 +80,29 @@ export function deriveChannels(sk: Skeleton = buildSkeleton()): ChannelGeoV3[] {
   const radii = sk.orbitalBands.radii;
   const A = sk.axisX;
 
-  // Çift bazlı toplam + fan sırası.
-  const pairTotal = new Map<string, number>();
-  for (const c of CHANNELS) {
-    const k = pairKey(c.centerA, c.centerB);
-    pairTotal.set(k, (pairTotal.get(k) ?? 0) + 1);
-  }
-  const seen = new Map<string, number>();
-
   return CHANNELS.map((c) => {
     const k = pairKey(c.centerA, c.centerB);
-    const n = pairTotal.get(k) ?? 1;
-    const idx = seen.get(k) ?? 0;
-    seen.set(k, idx + 1);
-
-    const zA = zones[c.centerA];
-    const zB = zones[c.centerB];
-    // De-tangle: fan yayılımını kıs (yıldız patlaması yok; kontrollü paralel akış).
-    const spread = Math.min(zA.halfW, zB.halfW) * 0.55; // (1.2 → 0.55)
-    const fan = n > 1 ? ((idx - (n - 1) / 2) / Math.max(1, n - 1)) * spread : 0;
-
+    // Kanonik (alfabetik) yon: gate sirasindan bagimsiz -> ayni cift kanallari AYNI path (paylasim).
+    const [c1, c2] = [c.centerA, c.centerB].sort() as CenterName[];
+    const zA = zones[c1];
+    const zB = zones[c2];
     const nodeA: PointV3 = { x: zA.cx, y: zA.cy };
     const nodeB: PointV3 = { x: zB.cx, y: zB.cy };
-    const pA = zonePort(zA, nodeB, fan);
-    const pB = zonePort(zB, nodeA, fan);
+    const pA = zonePort(zA, nodeB);
+    const pB = zonePort(zB, nodeA);
 
     if (SPINE_ADJ.has(k)) {
-      // Dikey omurga → düz (fan ile paralel kolon çizgileri).
-      return { id: c.id, kind: "spine", d: `M ${f(pA.x)} ${f(pA.y)} L ${f(pB.x)} ${f(pB.y)}` };
+      // Dikey omurga rayi → duz segment (ayni cift kanallari ayni kolon path'ini paylasir).
+      return { id: c.id, kind: "spine", routeId: "spine", d: `M ${f(pA.x)} ${f(pA.y)} L ${f(pB.x)} ${f(pB.y)}` };
     }
 
-    // Orbital → band-türevli dışa bow (konsantrik kaburga). De-tangle: band = reach'ı saran EN DAR
-    // band (kısa kanal iç band / uzun kanal dış band → doğal iç içe geçiş, kesişim azalır).
-    // Kardeş cycling KALDIRILDI (band scramble yapıyordu); kardeşler port fan'ıyla ayrılır.
-    const mid: PointV3 = { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 };
-    const outSign = Math.sign(mid.x - A) || 1;
-    const reach = Math.max(Math.abs(pA.x - A), Math.abs(pB.x - A));
-    let bi = radii.findIndex((r) => bandEdgeX(r, mid.y, oc.y) >= reach + 6);
-    if (bi < 0) bi = radii.length - 1;
-    const bx = bandEdgeX(radii[bi], mid.y, oc.y);
-    const ctrl: PointV3 = { x: A + outSign * bx, y: mid.y };
-    return { id: c.id, kind: "orbital", d: `M ${f(pA.x)} ${f(pA.y)} Q ${f(ctrl.x)} ${f(ctrl.y)} ${f(pB.x)} ${f(pB.y)}` };
+    // Orbital → kord uzunluguna gore band; band yaricapinda dairesel yay (oc'den disa bombeli).
+    const len = Math.hypot(pB.x - pA.x, pB.y - pA.y);
+    let bi = len < LEN_INNER ? 0 : len < LEN_MID ? 1 : 2;
+    bi = Math.min(bi, radii.length - 1);
+    const side = Math.sign((pA.x + pB.x) / 2 - A) || 1;
+    const routeId = `arc:${side < 0 ? "L" : "R"}:${bi}`;
+    const d = orbitalArc(radii[bi], pA, pB, oc);
+    return { id: c.id, kind: "orbital", routeId, d };
   });
 }
