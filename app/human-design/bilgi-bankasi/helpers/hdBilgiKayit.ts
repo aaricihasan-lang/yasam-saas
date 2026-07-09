@@ -1,99 +1,114 @@
-import { supabase } from "@/lib/supabase";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+// Sprint-4 Aşama-1 — human_design_knowledge_records CRUD artık /api/hd/knowledge
+// server route'u (service_role) üzerinden. Tarayıcıdaki anon Supabase erişimi
+// KALDIRILDI (kimliksiz cross-tenant read/write/delete riski). Auth deseni
+// chartsClient.ts'i yansıtır. Fonksiyon imzaları DEĞİŞMEDİ → Bilgi Bankası
+// bileşenleri/UI dokunulmadan çalışır. HD engine/BodyGraph'a dokunmaz.
+
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type {
   HumanDesignKnowledgeRecord,
   HumanDesignKnowledgeRecordInsert,
 } from "@/lib/human-design/types";
 
-const TABLE = "human_design_knowledge_records";
-
 export type HdKnowledgeRow = HumanDesignKnowledgeRecord;
 
-async function resolveTenantId(): Promise<string | null> {
-  return getSyncedTenantId();
+function authHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
 }
 
 export async function listHdKnowledgeRecords(): Promise<{
   rows: HdKnowledgeRow[];
   error: string | null;
 }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { rows: [], error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("sort_order", { ascending: true })
-    .order("updated_at", { ascending: false });
-
-  if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as HdKnowledgeRow[], error: null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/knowledge", { method: "GET", headers: authHeaders() });
+  } catch {
+    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && Array.isArray(j.rows)) {
+    return { rows: j.rows as HdKnowledgeRow[], error: null };
+  }
+  return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function insertHdKnowledgeRecord(
   input: Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id">,
 ): Promise<{ id: string | null; error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { id: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({
-      ...input,
-      tenant_id: tenantId,
-      updated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (error) return { id: null, error: error.message };
-  return { id: (data as { id: string }).id, error: null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/knowledge", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && typeof j.id === "string") {
+    return { id: j.id, error: null };
+  }
+  return { id: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function updateHdKnowledgeRecord(
   id: string,
   input: Partial<Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id">>,
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ ...input, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/knowledge", {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ ...input, id }),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function deleteHdKnowledgeRecord(
   id: string,
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { error } = await supabase
-    .from(TABLE)
-    .delete()
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/knowledge?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function deleteHdKnowledgeRecords(
   ids: string[],
 ): Promise<{ error: string | null }> {
   if (ids.length === 0) return { error: null };
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { error } = await supabase
-    .from(TABLE)
-    .delete()
-    .in("id", ids)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/knowledge?ids=${encodeURIComponent(ids.join(","))}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }

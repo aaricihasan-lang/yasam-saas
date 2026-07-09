@@ -100,21 +100,26 @@ export async function loadKnowledgeForCodes(codes: string[]): Promise<{
 }> {
   if (codes.length === 0) return { groups: [], matchedCodes: [], error: null };
 
-  const tenantId = await getSyncedTenantId();
-  if (!tenantId) return { groups: [], matchedCodes: [], error: "Aktif kullanıcı bulunamadı." };
+  // Sprint-4 Aşama-1: knowledge_records okuması /api/hd/knowledge server route'undan.
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/hd/knowledge?codes=${encodeURIComponent(codes.join(","))}`,
+      { method: "GET", headers: authHeaders() },
+    );
+  } catch {
+    return { groups: [], matchedCodes: [], error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || j.ok !== true || !Array.isArray(j.rows)) {
+    return {
+      groups: [],
+      matchedCodes: [],
+      error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
+    };
+  }
 
-  const { data, error } = await supabase
-    .from("human_design_knowledge_records")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true)
-    .in("code", codes)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (error) return { groups: [], matchedCodes: [], error: error.message };
-
-  const records = (data ?? []) as HumanDesignKnowledgeRecord[];
+  const records = j.rows as HumanDesignKnowledgeRecord[];
   const matchedCodes = records.map((r) => r.code);
 
   // Kategoriye göre grupla, belirlenen sıraya göre
