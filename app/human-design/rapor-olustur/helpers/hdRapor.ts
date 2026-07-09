@@ -1,11 +1,10 @@
-import { supabase } from "@/lib/supabase";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HumanDesignChart, HumanDesignKnowledgeRecord } from "@/lib/human-design/types";
 
-// Sprint-3 Aşama 3: human_design_charts okuması artık /api/hd/charts server route'undan
-// (service_role). Anon Supabase erişimi KALDIRILDI. knowledge_records + reports (kapsam
-// dışı tablolar) hâlâ supabase üzerinden. Rapor içerik üretimine dokunulmadı.
+// Sprint-3/4: human_design_charts + knowledge_records + reports okuma/yazma tamamen
+// server route'ları (/api/hd/charts, /api/hd/knowledge, /api/hd/reports — service_role)
+// üzerinden. Tarayıcıdaki anon Supabase erişimi KALDIRILDI. Rapor içerik üretimi
+// (buildCodesFromChart / buildReportText) saf fonksiyon; dokunulmadı.
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
@@ -171,41 +170,40 @@ type SaveReportInput = {
 export async function saveReport(
   input: SaveReportInput,
 ): Promise<{ id: string | null; error: string | null }> {
-  const tenantId = await getSyncedTenantId();
-  if (!tenantId) return { id: null, error: "Aktif kullanıcı bulunamadı." };
-
-  const { data, error } = await supabase
-    .from("human_design_reports")
-    .insert({
-      tenant_id: tenantId,
-      client_id: input.clientId,
-      chart_id: input.chartId,
-      title: input.title,
-      selected_codes: input.selectedCodes,
-      generated_content: input.generatedContent,
-      edited_content: input.editedContent,
-      updated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (error) return { id: null, error: error.message };
-  return { id: (data as { id: string }).id, error: null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/reports", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && typeof j.id === "string") {
+    return { id: j.id, error: null };
+  }
+  return { id: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function getClientReportCount(
   clientId: string,
 ): Promise<{ count: number; error: string | null }> {
-  const tenantId = await getSyncedTenantId();
-  if (!tenantId) return { count: 0, error: "Aktif kullanıcı bulunamadı." };
-
-  const { count, error } = await supabase
-    .from("human_design_reports")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-
-  return { count: count ?? 0, error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/hd/reports?countForClient=${encodeURIComponent(clientId)}`,
+      { method: "GET", headers: authHeaders() },
+    );
+  } catch {
+    return { count: 0, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && typeof j.count === "number") {
+    return { count: j.count, error: null };
+  }
+  return { count: 0, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 type UpdateReportInput = {
@@ -217,18 +215,17 @@ type UpdateReportInput = {
 export async function updateReport(
   input: UpdateReportInput,
 ): Promise<{ error: string | null }> {
-  const tenantId = await getSyncedTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı bulunamadı." };
-
-  const { error } = await supabase
-    .from("human_design_reports")
-    .update({
-      title: input.title,
-      edited_content: input.editedContent,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.id)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/reports", {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
