@@ -2,7 +2,7 @@
 
 // Premium BodyGraph V3 — skeleton-driven render (sıfırdan; V2'den bağımsız).
 //
-// V3-2: skeleton'dan türeyen mor tall aura silüeti. Kanal/merkez/gate V3-3+ (yine skeleton'dan).
+// V3-2 (yeniden): insan silüeti YOK — aura yalnız hafif ambient glow (arka derinlik). Kanal/merkez/gate skeleton'dan.
 // Eski BodyGraph / V2 ile AYNI imza ({ result }) → geçiş tek satır.
 // Sayfaya yalnız BodyGraphSwitch üzerinden ?bg=v3 ile bağlanır (varsayılan V1).
 
@@ -35,9 +35,9 @@ export function PremiumBodyGraphV3({ result }: { result: HdChartResult }) {
         {`${vm.meta.definedCenters} tanımlı merkez, ${vm.meta.definedChannels} tanımlı kanal, ${vm.meta.activeGates} aktif kapı.`}
       </desc>
 
-      {/* Katman sırası: aura → kanal → [merkez V3-4] → [gate]. Hepsi skeleton'dan türer. */}
+      {/* Katman sırası: ambient glow → kanal → [merkez V3-4] → [gate]. Kanal/merkez skeleton'dan türer. */}
       <PremiumDefsV3 />
-      <AuraLayerV3 skeleton={skeleton} />
+      <AuraLayerV3 />
       <ChannelLayerV3 skeleton={skeleton} />
 
       {/* Geliştirme: iskelet debug (line/rect/path → polygon=0/circle=0). Prod'da yok. */}

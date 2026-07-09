@@ -22,16 +22,14 @@ export const COLORS_V3 = {
   auraFill: "#aeb8d8",
 } as const;
 
-// Aura (V3-2) — referans mor/lavanta ışıyan beden. Ağır premium glow/rim sonraki fazlara.
+// Ambient derinlik glow (V3-2 yeniden) — insan silueti KALDIRILDI (tasarim karari). Yalniz hafif
+// radial isik -> BodyGraph'in arkasinda premium derinlik. Dikkat cekmemeli; kanallar/merkezler her
+// zaman ustte. Notr-soguk indigo, edge tam seffaf. (deriveAura/silhouette lib'de kalir, render kullanmaz.)
 export const AURA_V3 = {
-  fill: "#a78bfa",
-  peak: 0.16,
-  mid: 0.1,
-  edge: 0.045,
-  blur: 3.0,
-  rimColor: "#c4b5fd",
-  rimW: 1.8,
-  rimOpacity: 0.4,
+  glow: "#6366f1", // nötr-soğuk indigo
+  peak: 0.1,
+  mid: 0.05,
+  edge: 0.0, // kenarlarda tamamen kaybolur
 } as const;
 
 // Kanal (V3-3) — SADE track (renk/casing/yarım-renk YOK; routing anatomisi). Premium sonra.

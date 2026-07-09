@@ -1,24 +1,14 @@
-// Premium BodyGraph V3 — aura katmanı. Path skeleton'dan türer (deriveAura); iki path:
-// dolgu (mor gradyan + blur) + rim (ışıyan kenar). polygon/circle KULLANMAZ.
+// Premium BodyGraph V3 — ambient katmani. Insan silueti YOK (tasarim karari).
+// Yalniz cok hafif radial glow -> BodyGraph'in arkasinda derinlik. polygon/circle KULLANMAZ.
+// (deriveAura/silhouette lib'de durur ama render artik onlari cizmez; skeleton prop'una gerek yok.)
 
-import { deriveAura, AURA_V3 } from "@/lib/human-design/bodygraph-v3";
-import type { Skeleton } from "@/lib/human-design/bodygraph-v3";
+import { VIEWBOX_V3 } from "@/lib/human-design/bodygraph-v3";
 
-export function AuraLayerV3({ skeleton }: { skeleton: Skeleton }) {
-  const d = deriveAura(skeleton);
+export function AuraLayerV3() {
   return (
     <g aria-hidden="true">
-      {/* dolgu — mor arka premium hacim */}
-      <path d={d} fill="url(#hd-v3-aura-grad)" filter="url(#hd-v3-aura-soft)" stroke="none" />
-      {/* rim/edge — ışıyan mor beden kenarı */}
-      <path
-        d={d}
-        fill="none"
-        stroke={AURA_V3.rimColor}
-        strokeWidth={AURA_V3.rimW}
-        strokeOpacity={AURA_V3.rimOpacity}
-        filter="url(#hd-v3-aura-rim)"
-      />
+      {/* ambient derinlik — sahneyi kaplayan cok hafif radial glow (dikkat cekmez, edge seffaf) */}
+      <rect x={0} y={0} width={VIEWBOX_V3.width} height={VIEWBOX_V3.height} fill="url(#hd-v3-ambient-grad)" />
     </g>
   );
 }
