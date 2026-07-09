@@ -23,8 +23,8 @@ export const BODY_PROPORTIONS = {
   >,
   // Merkez zonu (node etrafı halfW/halfH). İnce kolon; G orta; Heart küçük; Root kompakt.
   centerZone: {
-    Head: { hw: 54, hh: 34 },
-    Ajna: { hw: 52, hh: 30 },
+    Head: { hw: 44, hh: 30 }, // V3-2C it-2: küçük/zarif baş için zon küçültüldü
+    Ajna: { hw: 42, hh: 26 }, // (silüet başı da küçülüp yuvarlanabilir)
     Throat: { hw: 50, hh: 46 },
     G: { hw: 56, hh: 62 },
     Heart: { hw: 28, hh: 24 },
@@ -44,20 +44,22 @@ export const BODY_PROPORTIONS = {
   // Silüet knob'ları — aura (V3-2) tamamen buradan türer. Baş + YÜZ PROFİLİ (sola bakan) +
   // gövde (omuz/bel/kalça/taper). Yüz profili sol tarafta: çene→dudak→burun(dışa)→alın.
   silhouette: {
-    crownY: 58,
-    headCenterY: 116,
-    headHalfW: 46,
-    brow: { y: 150, project: 33 },
-    nose: { y: 176, project: 44 }, // burun dışa çıkar (sol) — belirgin ama zarif
-    lip: { y: 194, project: 35 },
-    chin: { y: 212, project: 29 },
-    neck: { y: 250, halfW: 26 }, // zarif boyun (omuz geçişi yumuşasın)
-    shoulder: { y: 322, halfW: 128 }, // güçlü ama yumuşak omuz
-    waist: { y: 466, halfW: 104 }, // ince ama abartısız bel
-    hip: { y: 604, halfW: 146 }, // doğal kalça (yan merkez hizası)
-    taperY: 772,
-    footHalfW: 40,
-    bottomY: 790,
-    tension: 0.7, // daha az overshoot → pürüzsüz omuz/tepe
+    // V3-2C iterasyon-3 (2'nin üstüne): omuz üst köşe yuvarlandı · boyun→omuz geçişi daha doğal ·
+    // alt taper'da küçük anatomik rötuş. (baş/yüz/columnar torso it-2'den değişmedi.)
+    crownY: 62,
+    headCenterY: 135, // widest Head–Ajna arasında → ikisini de kapsar, baş küçük/yuvarlak
+    headHalfW: 50,
+    brow: { y: 158, project: 36 },
+    nose: { y: 182, project: 46 }, // burun dışa (sol) — belirgin ama zarif
+    lip: { y: 198, project: 38 },
+    chin: { y: 214, project: 30 },
+    neck: { y: 256, halfW: 33 }, // it-3: hafif kalınlaştı → boyun→omuz geçişi daha yumuşak/doğal + trap dolgunlaştı
+    shoulder: { y: 316, halfW: 148 }, // it-3: aşırı tepe köşesi yumuşatıldı (yuvarlak omuz kepi), hâlâ EN GENİŞ, Throat'ı kapsar
+    waist: { y: 462, halfW: 110 }, // columnar (G'yi kapsar)
+    hip: { y: 590, halfW: 118 }, // omuzdan dar (Sacral'ı kapsar)
+    taperY: 770,
+    footHalfW: 46, // it-3: bilek/ayak hafif daraldı → alt taper daha doğal
+    bottomY: 800, // insan taper'ı → Root içeride, abartısız taban, sivri uç yok
+    tension: 0.7,
   },
 };
