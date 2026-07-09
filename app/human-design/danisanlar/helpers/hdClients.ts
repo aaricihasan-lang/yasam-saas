@@ -1,112 +1,116 @@
-import { supabase } from "@/lib/supabase";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+// Sprint-3 — human_design_clients CRUD artık /api/hd/clients server route'u (service_role)
+// üzerinden yapılır. Tarayıcıdaki anon Supabase erişimi KALDIRILDI (kimliksiz cross-tenant
+// PII read/write riski). Auth deseni chartsClient.ts'i yansıtır (x-user-id + x-session-token).
+//
+// Dışa açık fonksiyon imzaları ve dönüş şekilleri DEĞİŞMEDİ → tüm Danışanlar/Harita/Rapor
+// ekran bileşenleri dokunulmadan çalışmaya devam eder. HD engine/BodyGraph'a dokunmaz.
+
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type {
   HumanDesignClient,
   HumanDesignClientInsert,
 } from "@/lib/human-design/types";
 
-const TABLE = "human_design_clients";
-
 export type HdClientRow = HumanDesignClient;
 
-async function resolveTenantId(): Promise<string | null> {
-  return getSyncedTenantId();
+function authHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
 }
 
 export async function listHdClients(): Promise<{
   rows: HdClientRow[];
   error: string | null;
 }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { rows: [], error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
-
-  if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as HdClientRow[], error: null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/clients", { method: "GET", headers: authHeaders() });
+  } catch {
+    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && Array.isArray(j.rows)) {
+    return { rows: j.rows as HdClientRow[], error: null };
+  }
+  return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function insertHdClient(
   input: Omit<HumanDesignClientInsert, "tenant_id" | "user_id">,
 ): Promise<{ id: string | null; error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { id: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({ ...input, tenant_id: tenantId, updated_at: new Date().toISOString() })
-    .select("id")
-    .single();
-
-  if (error) return { id: null, error: error.message };
-  return { id: (data as { id: string }).id, error: null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/clients", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && typeof j.id === "string") {
+    return { id: j.id, error: null };
+  }
+  return { id: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function updateHdClient(
   id: string,
   input: Partial<Omit<HumanDesignClientInsert, "tenant_id" | "user_id">>,
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ ...input, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/clients", {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ ...input, id }),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function getHdClient(
   id: string,
 ): Promise<{ row: HdClientRow | null; error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { row: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("id", id)
-    .eq("tenant_id", tenantId)
-    .single();
-
-  if (error) return { row: null, error: error.message };
-  return { row: data as HdClientRow, error: null };
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/clients?id=${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { row: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && j.row && typeof j.row === "object") {
+    return { row: j.row as HdClientRow, error: null };
+  }
+  return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function deleteHdClient(
   id: string,
 ): Promise<{ error: string | null }> {
-  const tenantId = await resolveTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
-
-  // 1. Bağlı raporları sil
-  const { error: reportsErr } = await supabase
-    .from("human_design_reports")
-    .delete()
-    .eq("client_id", id)
-    .eq("tenant_id", tenantId);
-  if (reportsErr) return { error: `Raporlar silinemedi: ${reportsErr.message}` };
-
-  // 2. Bağlı haritayı sil
-  const { error: chartsErr } = await supabase
-    .from("human_design_charts")
-    .delete()
-    .eq("client_id", id)
-    .eq("tenant_id", tenantId);
-  if (chartsErr) return { error: `Harita silinemedi: ${chartsErr.message}` };
-
-  // 3. Danışanı sil
-  const { error } = await supabase
-    .from(TABLE)
-    .delete()
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  return { error: error?.message ?? null };
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/clients?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) return { error: null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
