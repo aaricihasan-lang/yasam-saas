@@ -1,27 +1,43 @@
 import { supabase } from "@/lib/supabase";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HumanDesignChart, HumanDesignKnowledgeRecord } from "@/lib/human-design/types";
 
+// Sprint-3 Aşama 3: human_design_charts okuması artık /api/hd/charts server route'undan
+// (service_role). Anon Supabase erişimi KALDIRILDI. knowledge_records + reports (kapsam
+// dışı tablolar) hâlâ supabase üzerinden. Rapor içerik üretimine dokunulmadı.
+function authHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
+}
+
 // -------------------------------------------------------
-// Chart yükle (client_id'ye göre — aynı upsert mantığı)
+// Chart yükle (client_id'ye göre) — manuel harita server route'undan okunur
 // -------------------------------------------------------
 
 export async function loadChartForReport(clientId: string): Promise<{
   row: HumanDesignChart | null;
   error: string | null;
 }> {
-  const tenantId = await getSyncedTenantId();
-  if (!tenantId) return { row: null, error: "Aktif kullanıcı bulunamadı." };
-
-  const { data, error } = await supabase
-    .from("human_design_charts")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .maybeSingle();
-
-  if (error) return { row: null, error: error.message };
-  return { row: data as HumanDesignChart | null, error: null };
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/hd/charts?scope=manual&client_id=${encodeURIComponent(clientId)}`,
+      { method: "GET", headers: authHeaders() },
+    );
+  } catch {
+    return { row: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) {
+    return { row: (j.row as HumanDesignChart | null) ?? null, error: null };
+  }
+  return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 // -------------------------------------------------------
