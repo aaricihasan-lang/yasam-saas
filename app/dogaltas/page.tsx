@@ -302,6 +302,8 @@ function DogaltasPageContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(urlQuery);
   const [activeQuery, setActiveQuery] = useState(urlQuery);
+  // Mobilde daha kısa placeholder göstermek için (masaüstü metni değişmez).
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [stonesForSearch, setStonesForSearch] = useState<StoneSearchRecord[] | null>(
@@ -424,6 +426,14 @@ function DogaltasPageContent() {
     refreshViewed();
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsNarrowViewport(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   const ensureStonesForSearch = useCallback(async () => {
@@ -613,7 +623,7 @@ function DogaltasPageContent() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex w-full cursor-pointer items-center gap-3 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-emerald-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(16,185,129,0.16)] lg:h-[64px] lg:shrink-0 lg:px-4 ${
+                  className={`group flex w-full cursor-pointer items-center gap-2 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-emerald-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(16,185,129,0.16)] sm:gap-3 lg:h-[64px] lg:shrink-0 lg:px-4 ${
                     isFeatured
                       ? "border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-amber-50 shadow-[0_10px_28px_rgba(16,185,129,0.16)]"
                       : "border-white/80 bg-white/70"
@@ -628,7 +638,7 @@ function DogaltasPageContent() {
                   </span>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12px] font-black leading-tight text-slate-950 lg:text-[13px]">
+                    <span className="block break-words text-[12px] font-black leading-tight text-slate-950 lg:truncate lg:text-[13px]">
                       {item.title}
                     </span>
                     <span className="mt-0.5 hidden truncate text-[11px] font-semibold leading-snug text-slate-500 sm:block">
@@ -636,7 +646,7 @@ function DogaltasPageContent() {
                     </span>
                   </span>
 
-                  <span className="ml-auto shrink-0 text-base font-black opacity-60 transition-transform duration-300 group-hover:translate-x-1">
+                  <span className="ml-auto hidden shrink-0 text-base font-black opacity-60 transition-transform duration-300 group-hover:translate-x-1 sm:block">
                     ›
                   </span>
                 </Link>
@@ -653,7 +663,7 @@ function DogaltasPageContent() {
           </div>
 
           <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-2.5 lg:h-full lg:overflow-y-auto">
-            <header className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/80 bg-white/65 px-5 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl">
+            <header className="flex shrink-0 flex-wrap items-center gap-3 rounded-2xl border border-white/80 bg-white/65 px-5 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center text-xl leading-none">
                 💎
               </div>
@@ -671,7 +681,7 @@ function DogaltasPageContent() {
               <button
                 type="button"
                 onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
-                className="btn-soft ml-auto shrink-0 !px-4 !py-2"
+                className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
               >
                 📄 Profesyonel Rapor
               </button>
@@ -690,7 +700,11 @@ function DogaltasPageContent() {
                     type="search"
                     value={searchInput}
                     onChange={(event) => handleSearchInputChange(event.target.value)}
-                    placeholder="Taş adı veya içerikte ara (ör. mide, şifa)..."
+                    placeholder={
+                      isNarrowViewport
+                        ? "Taş ara..."
+                        : "Taş adı veya içerikte ara (ör. mide, şifa)..."
+                    }
                     className="h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
@@ -818,8 +832,8 @@ function DogaltasPageContent() {
                 </p>
               ) : null}
 
-              <div className="grid shrink-0 grid-cols-3 gap-2.5">
-                <div className="flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
+              <div className="grid shrink-0 grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
                   <p className="text-sm font-black text-slate-800">Stok Değeri</p>
                   <p className="text-[11px] text-slate-500">Stones tablosu fiyat × stok</p>
                   <h3
@@ -831,7 +845,7 @@ function DogaltasPageContent() {
                   </h3>
                 </div>
 
-                <div className="flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
+                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
                   <p className="text-sm font-black text-slate-800">Aylık Kayıt Trendi</p>
                   <p className="text-[11px] text-slate-500">Son 6 ay · stones.created_at</p>
                   {loading ? (
@@ -864,7 +878,7 @@ function DogaltasPageContent() {
                   )}
                 </div>
 
-                <div className="flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
+                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
                   <p className="text-sm font-black text-slate-800">En Çok Satılan Taşlar</p>
                   <p className="text-[11px] text-slate-500">Satış hareket tablosu</p>
                   <p className="mt-auto text-sm font-semibold leading-relaxed text-slate-600">

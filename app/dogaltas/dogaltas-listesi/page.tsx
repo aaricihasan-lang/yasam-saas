@@ -323,7 +323,7 @@ const StoneListRow = memo(function StoneListRow({
             }}
             aria-label={`${displayName} sil`}
             title="Sil"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100"
           >
             <svg
               viewBox="0 0 24 24"
@@ -332,7 +332,7 @@ const StoneListRow = memo(function StoneListRow({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-4 w-4"
+              className="h-[18px] w-[18px]"
               aria-hidden
             >
               <path d="M3 6h18" />
