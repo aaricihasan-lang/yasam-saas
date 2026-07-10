@@ -285,7 +285,7 @@ const StoneListRow = memo(function StoneListRow({
           onClick={() => {
             onNavigate(stone.id);
           }}
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 active:bg-emerald-50"
         >
           <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
             {coverImageUrl ? (
@@ -302,20 +302,16 @@ const StoneListRow = memo(function StoneListRow({
               </span>
             )}
           </div>
-          <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
-            {isSearchActive
-              ? renderHighlightedText(displayName, activeSearch)
-              : displayName}
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className="min-w-0 truncate text-sm font-black text-slate-900">
+              {isSearchActive
+                ? renderHighlightedText(displayName, activeSearch)
+                : displayName}
+            </span>
+            <span className="text-[11px] font-bold text-emerald-600">
+              Detay →
+            </span>
           </span>
-        </Link>
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className="shrink-0 text-xs font-bold text-emerald-600 hover:text-violet-700"
-        >
-          Detay→
         </Link>
         {!isDemo && (
           <button
@@ -325,9 +321,24 @@ const StoneListRow = memo(function StoneListRow({
               event.stopPropagation();
               onDelete(stone);
             }}
-            className="btn-danger shrink-0 !min-h-[44px] !rounded-lg !px-2.5 !text-xs"
+            aria-label={`${displayName} sil`}
+            title="Sil"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100"
           >
-            Sil
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
           </button>
         )}
       </div>
