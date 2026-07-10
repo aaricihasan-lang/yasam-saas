@@ -12,7 +12,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -216,25 +215,29 @@ export default function AdminWorkspaceArchivePage() {
     const allFiles: ArchiveFileRow[] = [];
 
     if (archiveIds.length > 0) {
+      const adminId = readYasamUser()?.id;
       const CHUNK = 100;
       for (let i = 0; i < archiveIds.length; i += CHUNK) {
         const slice = archiveIds.slice(i, i + CHUNK);
-        const { data: filesRaw, error: filesErr } = await supabase
-          .from("personal_archive_files")
-          .select("id, archive_id, file_name")
-          .eq("tenant_id", activeTenantId)
-          .in("archive_id", slice);
-
-        if (filesErr) {
-          console.error("Kişisel arşiv dosya listesi hatası:", filesErr);
+        const res = await fetch(
+          `/api/admin/users/${userId}/archive?files=1&archiveIds=${encodeURIComponent(slice.join(","))}`,
+          { headers: adminHeaders(adminId) },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: Record<string, unknown>[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          console.error("Kişisel arşiv dosya listesi hatası:", json.error ?? `HTTP ${res.status}`);
           setArchives([]);
-          setArchivesError(filesErr.message);
+          setArchivesError(json.error ?? "Arşiv dosyaları yüklenemedi.");
           setLoading(false);
           return;
         }
 
         allFiles.push(
-          ...((filesRaw ?? []) as ArchiveFileRow[]).map((f) => ({
+          ...((json.rows ?? []) as Record<string, unknown>[]).map((f) => ({
             id: String(f.id),
             archive_id: String(f.archive_id),
             file_name: String(f.file_name ?? ""),

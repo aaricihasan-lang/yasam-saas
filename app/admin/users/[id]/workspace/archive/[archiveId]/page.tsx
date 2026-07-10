@@ -12,7 +12,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -39,7 +38,7 @@ const downloadLinkClass =
 
 type ArchiveFileRow = {
   id: string;
-  tenant_id: string;
+  tenant_id?: string;
   archive_id: string;
   file_name: string;
   file_path: string;
@@ -374,17 +373,23 @@ export default function AdminWorkspaceArchiveDetailPage() {
       return;
     }
 
-    const { data: filesRaw, error: filesError } = await supabase
-      .from("personal_archive_files")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("archive_id", archiveId)
-      .order("created_at", { ascending: true });
-
-    if (filesError) {
-      setNotFound(true);
-      setLoading(false);
-      return;
+    let filesRaw: Record<string, unknown>[] = [];
+    {
+      const adminId = readYasamUser()?.id;
+      const res = await fetch(
+        `/api/admin/users/${expertUserId}/archive?files=1&archiveId=${encodeURIComponent(archiveId)}`,
+        { headers: adminHeaders(adminId) },
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        rows?: Record<string, unknown>[];
+      };
+      if (!res.ok || !json.ok) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      filesRaw = json.rows ?? [];
     }
 
     const row = archiveRow as Record<string, unknown>;
@@ -398,7 +403,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
       created_at: row.created_at != null ? String(row.created_at) : "",
       updated_at: row.updated_at != null ? String(row.updated_at) : null,
     });
-    setFiles((filesRaw ?? []) as ArchiveFileRow[]);
+    setFiles(filesRaw as unknown as ArchiveFileRow[]);
     setModuleDisabled(false);
     setNotFound(false);
     setLoading(false);
