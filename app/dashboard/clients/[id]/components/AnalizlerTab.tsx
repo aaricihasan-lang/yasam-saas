@@ -247,35 +247,86 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     setNote("");
   }
 
+  // Tek bir DOM elemanını, overflow kırpması olmadan yüksek çözünürlüklü görüntüye çevirir.
+  // Ekran DOM'una dokunmaz; kırpma yalnızca html2canvas klonunda (onclone) nötrlenir.
+  async function captureAnalysisNode(node: HTMLElement) {
+    const style = getComputedStyle(node);
+    const scroller =
+      node.scrollWidth > node.clientWidth + 1 ||
+      style.overflowX === "auto" ||
+      style.overflowX === "scroll";
+    const canvas = await html2canvas(node, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      // Yatay taşan içeriğin (planet paneli) tamamını yakalamak için tam içerik genişliği.
+      width: node.scrollWidth,
+      windowWidth: Math.max(node.scrollWidth, document.documentElement.clientWidth),
+      ignoreElements: (n) => n instanceof HTMLElement && n.classList.contains("no-pdf"),
+      onclone: (_doc, cloned) => {
+        cloned.style.overflow = "visible";
+        cloned.style.overflowX = "visible";
+        if (scroller) {
+          // Örn. Çakra-Gezegen panelinde tüm gezegen sütunlarının (GÜNEŞ…VENÜS) gelmesi için
+          // kutuyu içeriğe göre genişlet.
+          cloned.style.width = "max-content";
+          cloned.style.maxWidth = "none";
+        }
+      },
+    });
+    return { dataUrl: canvas.toDataURL("image/png"), w: canvas.width, h: canvas.height };
+  }
+
   async function printPdf() {
     const element = document.getElementById("analysis-print-area");
     if (!element) { showToast({ title: "İşlem başarısız", message: "PDF alanı bulunamadı.", type: "error" }); return; }
     try {
       setCreatingPdf(true);
       await new Promise((resolve) => setTimeout(resolve, 300));
-      const canvas = await html2canvas(element, {
-        scale: 2, useCORS: true, backgroundColor: "#ffffff",
-        ignoreElements: (node) => node instanceof HTMLElement && node.classList.contains("no-pdf"),
-      });
-      const imageData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 6;
+
+      // Yakalama birimleri: başlık + her analiz bölümü (+ varsa not).
+      // Tek dev görüntü yerine bölüm bölüm yakalanır; her bölüm sayfaya bütün olarak
+      // yerleşir (satır/bölüm ikiye bölünmez), dar bölümler sayfa genişliğine büyütülür (okunur yazı).
+      const header = element.firstElementChild as HTMLElement | null;
+      const sectionNodes = Array.from(element.querySelectorAll("section")) as HTMLElement[];
+      const noteNode = note.trim() ? (element.querySelector(".bg-amber-50") as HTMLElement | null) : null;
+      const units: HTMLElement[] = [
+        ...(header ? [header] : []),
+        ...sectionNodes,
+        ...(noteNode ? [noteNode] : []),
+      ];
+      if (units.length === 0) throw new Error("PDF içeriği bulunamadı.");
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();   // 210
+      const pageHeight = pdf.internal.pageSize.getHeight();  // 297
+      const margin = 10;
       const usableWidth = pageWidth - margin * 2;
       const usableHeight = pageHeight - margin * 2;
-      const imageWidth = usableWidth;
-      const imageHeight = (canvas.height * imageWidth) / canvas.width;
-      let heightLeft = imageHeight;
-      let position = margin;
-      pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
-      heightLeft -= usableHeight;
-      while (heightLeft > 0) {
-        position = margin + heightLeft - imageHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
-        heightLeft -= usableHeight;
+      const gap = 4;
+      let cursorY = margin;
+      let placed = 0;
+
+      for (const node of units) {
+        const img = await captureAnalysisNode(node);
+        let drawW = usableWidth;
+        let drawH = (img.h * drawW) / img.w;
+        // Bir bölüm tek sayfaya sığmayacak kadar uzunsa orantılı küçült (bölünmeyi önler).
+        if (drawH > usableHeight) {
+          drawH = usableHeight;
+          drawW = (img.w * drawH) / img.h;
+        }
+        // Bölüm kalan alana sığmıyorsa önce yeni sayfa aç (satır/bölüm ortadan kesilmez).
+        if (placed > 0 && cursorY + drawH > pageHeight - margin) {
+          pdf.addPage();
+          cursorY = margin;
+        }
+        const x = margin + (usableWidth - drawW) / 2; // dar bölümü yatayda ortala
+        pdf.addImage(img.dataUrl, "PNG", x, cursorY, drawW, drawH);
+        cursorY += drawH + gap;
+        placed++;
       }
+
       pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`);
       showToast({ title: "Başarılı", message: "PDF dosyası indirildi.", type: "success" });
     } catch (error) {
