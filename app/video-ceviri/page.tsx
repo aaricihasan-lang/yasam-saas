@@ -32,6 +32,7 @@ import {
 } from "@/lib/demo/digitalContentDemo";
 import VideoUploadZone from "./components/VideoUploadZone";
 import {
+  authHeaders,
   fetchVideoJobs,
   formatFileSizeTr,
   formatJobDateTr,
@@ -127,17 +128,40 @@ export default function VideoCeviriPage() {
 
   // ── API handler'ları — DEĞIŞMEDI ────────────────────────────────────────────
 
-  function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
+  async function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
     if (isDemo) { notifyDigitalContentDemo(showToast); return; }
-    if (!tenantId || !userId || !job.transcript_original) return;
+    if (!job.transcript_original) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
-    const url =
-      `/api/video-ceviri/export-word` +
-      `?jobId=${encodeURIComponent(job.id)}` +
-      `&tenantId=${encodeURIComponent(tenantId)}` +
-      `&userId=${encodeURIComponent(userId)}` +
-      `&mode=${mode}`;
-    window.open(url, "_blank");
+    // window.open header gönderemez; verifyUserRequest için fetch+blob indirme.
+    try {
+      const res = await fetch(
+        `/api/video-ceviri/export-word` +
+          `?jobId=${encodeURIComponent(job.id)}` +
+          `&mode=${mode}`,
+        { headers: authHeaders() },
+      );
+      if (!res.ok) {
+        showToast({ title: "Word oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
+        return;
+      }
+      const blob = await res.blob();
+      const safeName = job.original_filename
+        .replace(/\.[^.]+$/, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .slice(0, 60);
+      const suffix =
+        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = `${safeName}_${suffix}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    }
   }
 
   async function handleDownloadPdf(job: VideoJobRow, mode: ExportMode) {
@@ -172,8 +196,8 @@ export default function VideoCeviriPage() {
     try {
       const res = await fetch("/api/video-ceviri/translate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
+        headers: authHeaders(true),
+        body: JSON.stringify({ jobId: job.id }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string; alreadyTurkish?: boolean };
       if (!data.ok) {
@@ -196,8 +220,8 @@ export default function VideoCeviriPage() {
     try {
       const res = await fetch("/api/video-ceviri/summarize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
+        headers: authHeaders(true),
+        body: JSON.stringify({ jobId: job.id }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
@@ -218,8 +242,8 @@ export default function VideoCeviriPage() {
     try {
       const res = await fetch("/api/video-ceviri/headings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
+        headers: authHeaders(true),
+        body: JSON.stringify({ jobId: job.id }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
@@ -240,8 +264,8 @@ export default function VideoCeviriPage() {
     try {
       const res = await fetch("/api/video-ceviri/transcribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
+        headers: authHeaders(true),
+        body: JSON.stringify({ jobId: job.id }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {

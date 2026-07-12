@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
 import {
@@ -99,62 +99,35 @@ async function convertToWav(
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      jobId?: unknown;
-      tenantId?: unknown;
-      userId?: unknown;
-    };
-    const jobId    = String(body.jobId    ?? "").trim();
-    const tenantId = String(body.tenantId ?? "").trim();
-    const userId   = String(body.userId   ?? "").trim();
+    // Kimlik yalnız oturumdan: tenant/user body'den ALINMAZ (spoof engellenir).
+    const guard = await verifyUserRequest(request);
+    if (!guard.ok) return guard.response;
+    const { db, tenantId, userId, is_demo_account } = guard;
 
-    if (!userId || !tenantId) {
+    // Demo hesap: video işleme engellenir.
+    if (is_demo_account) {
       return NextResponse.json(
-        { ok: false, error: "Oturum bilgisi eksik." },
-        { status: 401 },
+        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+        { status: 403 },
       );
     }
+
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "Geçersiz istek gövdesi." },
+        { status: 400 },
+      );
+    }
+    const jobId = String(body.jobId ?? "").trim();
     if (!jobId) {
       return NextResponse.json(
         { ok: false, error: "jobId gerekli." },
         { status: 400 },
-      );
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { ok: false, error: "Sunucu yapılandırması eksik." },
-        { status: 500 },
-      );
-    }
-
-    const db = createClient(supabaseUrl, supabaseKey);
-
-    const { data: userRow, error: userErr } = await db
-      .from("users")
-      .select("id, is_demo_account")
-      .eq("id", userId)
-      .eq("tenant_id", tenantId)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (userErr || !userRow) {
-      return NextResponse.json(
-        { ok: false, error: "Oturum doğrulanamadı." },
-        { status: 403 },
-      );
-    }
-
-    // Demo hesap: video işleme engellenir.
-    if (userRow.is_demo_account === true) {
-      return NextResponse.json(
-        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
-        { status: 403 },
       );
     }
 
@@ -195,7 +168,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: "Video depolama yolu eksik." })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json(
         { ok: false, error: "Video dosya yolu eksik." },
         { status: 422 },
@@ -208,7 +183,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: msg })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json({ ok: false, error: msg }, { status: 422 });
     }
 
@@ -218,7 +195,9 @@ export async function POST(request: Request) {
         status: "transcribing",
         processing_started_at: new Date().toISOString(),
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId);
 
     const { data: blob, error: dlErr } = await db.storage
       .from("video-temp")
@@ -229,7 +208,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: msg })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
 
@@ -239,7 +220,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: msg })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json({ ok: false, error: msg }, { status: 422 });
     }
 
@@ -271,7 +254,9 @@ export async function POST(request: Request) {
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
-          .eq("id", jobId);
+          .eq("id", jobId)
+          .eq("tenant_id", tenantId)
+          .eq("user_id", userId);
         return NextResponse.json({ ok: false, error: msg }, { status: 500 });
       }
       whisperFile = await toFile(wavBuffer, "audio.wav", { type: "audio/wav" });
@@ -289,7 +274,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: msg })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
 
@@ -320,7 +307,9 @@ export async function POST(request: Request) {
       await db
         .from(TABLE)
         .update({ status: "failed", error_message: msg })
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
 
@@ -333,7 +322,9 @@ export async function POST(request: Request) {
         processing_completed_at: new Date().toISOString(),
         error_message: null,
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId);
 
     return NextResponse.json({ ok: true, jobId });
   } catch (err) {

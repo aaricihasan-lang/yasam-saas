@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -16,23 +16,31 @@ const SYSTEM_PROMPT =
 
 const MAX_CHARS = 24_000; // gpt-4o-mini için güvenli üst limit
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      jobId?: unknown;
-      tenantId?: unknown;
-      userId?: unknown;
-    };
-    const jobId    = String(body.jobId    ?? "").trim();
-    const tenantId = String(body.tenantId ?? "").trim();
-    const userId   = String(body.userId   ?? "").trim();
+    // Kimlik yalnız oturumdan: tenant/user body'den ALINMAZ (spoof engellenir).
+    const guard = await verifyUserRequest(request);
+    if (!guard.ok) return guard.response;
+    const { db, tenantId, userId, is_demo_account } = guard;
 
-    if (!userId || !tenantId) {
+    // Demo hesap: özet üretimi engellenir.
+    if (is_demo_account) {
       return NextResponse.json(
-        { ok: false, error: "Oturum bilgisi eksik." },
-        { status: 401 },
+        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+        { status: 403 },
       );
     }
+
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "Geçersiz istek gövdesi." },
+        { status: 400 },
+      );
+    }
+    const jobId = String(body.jobId ?? "").trim();
     if (!jobId) {
       return NextResponse.json(
         { ok: false, error: "jobId gerekli." },
@@ -40,45 +48,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { ok: false, error: "Sunucu yapılandırması eksik." },
-        { status: 500 },
-      );
-    }
-
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { ok: false, error: "OpenAI API anahtarı yapılandırılmamış." },
         { status: 500 },
-      );
-    }
-
-    const db = createClient(supabaseUrl, supabaseKey);
-
-    const { data: userRow, error: userErr } = await db
-      .from("users")
-      .select("id, is_demo_account")
-      .eq("id", userId)
-      .eq("tenant_id", tenantId)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (userErr || !userRow) {
-      return NextResponse.json(
-        { ok: false, error: "Oturum doğrulanamadı." },
-        { status: 403 },
-      );
-    }
-
-    // Demo hesap: özet üretimi engellenir.
-    if (userRow.is_demo_account === true) {
-      return NextResponse.json(
-        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
-        { status: 403 },
       );
     }
 
@@ -129,7 +102,9 @@ export async function POST(request: Request) {
     await db
       .from(TABLE)
       .update({ summary_text: summary })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId);
 
     return NextResponse.json({ ok: true, jobId });
   } catch (err) {

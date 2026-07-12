@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   Document,
   HeadingLevel,
@@ -38,60 +38,31 @@ function sectionHeading(text: string, spaceBefore = 0): Paragraph {
   });
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  // Kimlik yalnız oturumdan (x-user-id + x-session-token); tenant/user
+  // query'den ALINMAZ. jobId + mode query'den okunur.
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
+  const { db, tenantId, userId, is_demo_account } = guard;
+
+  // Demo hesap: Word dışa aktarımı engellenir.
+  if (is_demo_account) {
+    return NextResponse.json(
+      { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+      { status: 403 },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
-  const jobId    = searchParams.get("jobId")?.trim()    ?? "";
-  const tenantId = searchParams.get("tenantId")?.trim() ?? "";
-  const userId   = searchParams.get("userId")?.trim()   ?? "";
-  const rawMode  = searchParams.get("mode")?.trim()     ?? "original";
+  const jobId   = searchParams.get("jobId")?.trim() ?? "";
+  const rawMode = searchParams.get("mode")?.trim()  ?? "original";
   const mode: ExportMode =
     rawMode === "turkish" || rawMode === "comparison" ? rawMode : "original";
 
-  if (!userId || !tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "Oturum bilgisi eksik." },
-      { status: 401 },
-    );
-  }
   if (!jobId) {
     return NextResponse.json(
       { ok: false, error: "jobId gerekli." },
       { status: 400 },
-    );
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { ok: false, error: "Sunucu yapılandırması eksik." },
-      { status: 500 },
-    );
-  }
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  const { data: userRow, error: userErr } = await db
-    .from("users")
-    .select("id, is_demo_account")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (userErr || !userRow) {
-    return NextResponse.json(
-      { ok: false, error: "Oturum doğrulanamadı." },
-      { status: 403 },
-    );
-  }
-
-  // Demo hesap: Word dışa aktarımı engellenir.
-  if (userRow.is_demo_account === true) {
-    return NextResponse.json(
-      { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
-      { status: 403 },
     );
   }
 

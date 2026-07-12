@@ -1,7 +1,8 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
-/** Güvenli /api/video-ceviri/job çağrıları için kimlik başlıkları. */
-function authHeaders(json = false): Record<string, string> {
+/** Güvenli /api/video-ceviri/* çağrıları için oturum kimlik başlıkları
+ *  (x-user-id + x-session-token). Sunucu tarafı verifyUserRequest bunları okur. */
+export function authHeaders(json = false): Record<string, string> {
   const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
   const t = readSessionToken();
   if (t) h["x-session-token"] = t;

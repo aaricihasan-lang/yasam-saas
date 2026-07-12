@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
+  authHeaders,
   buildVideoTempPath,
   insertVideoJob,
   updateVideoJobStatus,
@@ -237,8 +238,8 @@ export default function VideoUploadZone({ onSuccess }: Props) {
       try {
         const tokenRes = await fetch("/api/video-ceviri/get-upload-url", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ storagePath, jobId, tenantId }),
+          headers: authHeaders(true),
+          body: JSON.stringify({ storagePath, jobId }),
         });
         const tokenData = (await tokenRes.json()) as { ok: boolean; token?: string; error?: string };
         if (!tokenData.ok || !tokenData.token) {
