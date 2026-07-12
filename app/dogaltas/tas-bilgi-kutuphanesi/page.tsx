@@ -10,8 +10,7 @@ import {
 } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
@@ -255,6 +254,16 @@ function userHeaders(json = false): Record<string, string> {
   };
 }
 
+// Admin-yetkili yazma için (kategori oluşturma) — x-admin-id başlığı.
+function adminHeaders(json = false): Record<string, string> {
+  const token = readSessionToken();
+  return {
+    ...(json ? { "Content-Type": "application/json" } : {}),
+    "x-admin-id": readYasamUser()?.id ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+  };
+}
+
 // ─── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function TasBilgiKutuphanesiPage() {
@@ -281,6 +290,10 @@ export default function TasBilgiKutuphanesiPage() {
   const [catForm, setCatForm] = useState<NewCategoryForm>(EMPTY_CAT_FORM);
   const [savingCat, setSavingCat] = useState(false);
   const [catError, setCatError] = useState("");
+  // Global kategori oluşturma yalnız admin'e açık (POST route verifyAdminRequest ile
+  // ayrıca korunur; bu bayrak yalnız UI görünürlüğü içindir, tek güvenlik katmanı değil).
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { setIsAdmin(isAdminUser(readYasamUser())); }, []);
   const contentRef = useRef<HTMLDivElement>(null);
   // Word raporu modal
   const [showWordModal, setShowWordModal] = useState(false);
@@ -369,12 +382,18 @@ export default function TasBilgiKutuphanesiPage() {
   }
 
   async function loadCategories() {
-    const { data } = await supabase
-      .from("stone_knowledge_categories")
-      .select("id, name, slug, icon, color, sort_order")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
-    if (data) setCategoryList(data as Category[]);
+    // Güvenli sunucu API (service_role). Başarısızsa sessiz — makale tabanlı
+    // fallback (dropdownCategories/categories useMemo) devreye girer, ekran çökmez.
+    try {
+      const res = await fetch("/api/dogaltas/knowledge/categories", {
+        headers: userHeaders(),
+        cache: "no-store",
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; categories?: Category[] };
+      if (res.ok && json.ok && json.categories) setCategoryList(json.categories);
+    } catch {
+      /* sessiz — fallback devreye girer */
+    }
   }
 
   async function saveCategory() {
@@ -382,20 +401,28 @@ export default function TasBilgiKutuphanesiPage() {
     if (!name) { setCatError("Kategori adı zorunludur."); return; }
     setSavingCat(true);
     setCatError("");
-    const slug = normalizeTr(name)
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "kategori";
-    const maxOrder = Math.max(0, ...categoryList.map((c) => c.sort_order));
-    const { error } = await supabase.from("stone_knowledge_categories").insert({
-      name,
-      slug,
-      icon:       catForm.icon.trim() || "📖",
-      color:      catForm.color || "slate",
-      sort_order: maxOrder + 1,
-    });
-    setSavingCat(false);
-    if (error) {
-      setCatError(error.message.includes("unique") ? "Bu isimde kategori zaten var." : "Hata: " + error.message);
+    // slug/sort_order/is_active SUNUCUDA belirlenir; yazma yetkisi verifyAdminRequest ile.
+    try {
+      const res = await fetch("/api/dogaltas/knowledge/categories", {
+        method: "POST",
+        headers: adminHeaders(true),
+        body: JSON.stringify({
+          name,
+          icon:  catForm.icon.trim() || "📖",
+          color: catForm.color || "slate",
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      setSavingCat(false);
+      if (!res.ok || !json.ok) {
+        if (res.status === 409) { setCatError("Bu isimde kategori zaten var."); return; }
+        if (res.status === 401 || res.status === 403) { setCatError("Bu işlem için admin yetkisi gerekli."); return; }
+        setCatError(json.error ? "Hata: " + json.error : "Kategori kaydedilemedi.");
+        return;
+      }
+    } catch {
+      setSavingCat(false);
+      setCatError("Sunucuya ulaşılamadı.");
       return;
     }
     setCatForm(EMPTY_CAT_FORM);
@@ -886,13 +913,15 @@ export default function TasBilgiKutuphanesiPage() {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
-                    className="btn-soft !px-3 !py-2 !text-xs shrink-0"
-                  >
-                    {showCatForm ? "Vazgeç" : "+ Yeni Kategori"}
-                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
+                      className="btn-soft !px-3 !py-2 !text-xs shrink-0"
+                    >
+                      {showCatForm ? "Vazgeç" : "+ Yeni Kategori"}
+                    </button>
+                  )}
                 </div>
 
                 {/* Inline kategori formu */}
