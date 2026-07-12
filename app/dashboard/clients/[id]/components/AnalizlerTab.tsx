@@ -8,6 +8,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnalizlerTabProps = {
@@ -117,9 +118,9 @@ function formatDateTimeTR(value: string) {
   });
 }
 
+// Merkezi etiket helper'ına delege eder (tek doğruluk kaynağı).
 function getAnalysisLabel(type: string | null | undefined) {
-  if (type === "planet") return "Ç.Gezegen Analizi";
-  return "Çakra Analizi";
+  return analysisTypeLabel(type);
 }
 
 // ─── Shared input class strings ───────────────────────────────────────────────
@@ -146,8 +147,12 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   const [savingAnalysis, setSavingAnalysis] = useState(false);
   const [loadingSaved, setLoadingSaved]     = useState(false);
   const [savedAnalyses, setSavedAnalyses]   = useState<SavedAnalysis[]>([]);
+  // Modalde açık olan kayıtlı analizin id'si — "Word Al" yalnız bu kaydı verir.
+  // Yeni (henüz kaydedilmemiş) analizde null kalır.
+  const [openedAnalysisId, setOpenedAnalysisId] = useState<string | null>(null);
+  const [exportingWord, setExportingWord]   = useState(false);
 
-  const activeTitle = activeAnalysis === "planet" ? "Ç.Gezegen Analizi" : "Çakra Analizi";
+  const activeTitle = analysisTypeLabel(activeAnalysis);
 
   const todayText = useMemo(() => new Date().toLocaleDateString("tr-TR"), []);
 
@@ -183,6 +188,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   function openNewAnalysis(type: AnalysisType) {
     setActiveAnalysis(type);
+    setOpenedAnalysisId(null);
     if (type === "planet") setPlanetValues(makePlanetInitialValues());
     else setChakraValues(makeChakraInitialValues());
     setNote("");
@@ -191,6 +197,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   function openSavedAnalysis(item: SavedAnalysis) {
     const type = item.analysis_type === "planet" ? "planet" : "chakra";
     setActiveAnalysis(type);
+    setOpenedAnalysisId(item.id);
     setNote(item.note || "");
     if (type === "planet") {
       const data = item.analysis_data as { values?: Record<string, string> } | null | undefined;
@@ -299,6 +306,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       return;
     }
     const newId = json.id ?? undefined;
+    // Yeni kaydedilen analiz artık modalde "açık kayıt" olur; Word Al hemen çalışır.
+    if (newId) setOpenedAnalysisId(newId);
     await loadSavedAnalyses();
     showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
     setSavingAnalysis(false);
@@ -339,8 +348,58 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     }
   }
 
-  function exportWord() {
-    showToast({ title: "Bilgi", message: "Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.", type: "info" });
+  async function exportWord() {
+    if (exportingWord) return;
+    // Word çıktısı yalnız KAYITLI analiz için üretilir (tek kayıt).
+    if (!openedAnalysisId) {
+      showToast({ title: "Bilgi", message: "Word çıktısı için önce analizi kaydedin.", type: "info" });
+      return;
+    }
+    if (!tenantId) {
+      showToast({ title: "İşlem başarısız", message: "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.", type: "error" });
+      return;
+    }
+    const userId = readYasamUser()?.id;
+    if (!userId) {
+      showToast({ title: "İşlem başarısız", message: "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.", type: "error" });
+      return;
+    }
+    try {
+      setExportingWord(true);
+      const res = await fetch(`/api/clients/${clientId}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId,
+          userId,
+          exportMode: "single-analysis",
+          analysisId: openedAnalysisId,
+        }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast({ title: "İşlem başarısız", message: json.error || "Word oluşturulamadı.", type: "error" });
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.docx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Word dosyası indirildi.", type: "success" });
+    } catch (error) {
+      console.error("Analiz Word hatası:", error);
+      showToast({ title: "İşlem başarısız", message: "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.", type: "error" });
+    } finally {
+      setExportingWord(false);
+    }
   }
 
   return (
@@ -482,9 +541,9 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
                 {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
               </button>
-              <button type="button" onClick={exportWord}
-                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700`}>
-                Word Al
+              <button type="button" onClick={exportWord} disabled={exportingWord}
+                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
+                {exportingWord ? "Word Hazırlanıyor..." : "Word Al"}
               </button>
               <button type="button" onClick={saveAnalysis} disabled={savingAnalysis}
                 className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>

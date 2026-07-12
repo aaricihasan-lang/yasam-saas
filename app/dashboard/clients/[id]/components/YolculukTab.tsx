@@ -11,6 +11,7 @@ import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
 import { odevDurumLabel, odevDurumColor } from "@/lib/odevStatus";
+import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -207,8 +208,15 @@ function buildAlerts({
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki >= 30)
     alerts.push({ id: "seans-30", message: `${sessionProcess.gunFarki} gündür seans yok`, category: "kritik" });
 
-  if (extraAlertData.lastPastRandevuDaysAgo != null && extraAlertData.lastPastRandevuDaysAgo >= 60)
-    alerts.push({ id: "randevu-60", message: `${extraAlertData.lastPastRandevuDaysAgo} gündür randevu yok`, category: "kritik" });
+  // Yaklaşan aktif (iptal olmayan) randevu VARSA "randevu yok" kritik uyarısı çıkmaz;
+  // bunun yerine aşağıdaki "Yaklaşan randevu" olumlu bilgisi korunur. Uyarı yalnızca
+  // gelecekte planlı randevu yokken ve son geçmiş randevu 60+ gün önceyse anlamlıdır.
+  if (
+    !sessionProcess.yaklasanRandevu &&
+    extraAlertData.lastPastRandevuDaysAgo != null &&
+    extraAlertData.lastPastRandevuDaysAgo >= 60
+  )
+    alerts.push({ id: "randevu-60", message: `Son randevudan ${extraAlertData.lastPastRandevuDaysAgo} gün geçti — yaklaşan randevu yok`, category: "kritik" });
 
   if (counts.analizler === 0)
     alerts.push({ id: "no-analiz", message: "Hiç analiz yapılmamış", category: "kritik" });
@@ -232,7 +240,7 @@ function buildAlerts({
     alerts.push({ id: "no-seans", message: "Henüz seans yapılmamış", category: "takip" });
 
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki >= 14 && sessionProcess.gunFarki < 30)
-    alerts.push({ id: "seans-14", message: `Son görüşmeden ${sessionProcess.gunFarki} gün geçti`, category: "bilgi" });
+    alerts.push({ id: "seans-14", message: `Son seanstan ${sessionProcess.gunFarki} gün geçti`, category: "bilgi" });
 
   if (extraAlertData.lastAnalizDaysAgo != null && extraAlertData.lastAnalizDaysAgo >= 60)
     alerts.push({ id: "analiz-old", message: `Son analizden ${extraAlertData.lastAnalizDaysAgo} gün geçti`, category: "bilgi" });
@@ -250,7 +258,7 @@ function buildAlerts({
     alerts.push({ id: "numeroloji-ok", message: "Numeroloji özeti otomatik hesaplandı", category: "bilgi" });
 
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki < 14)
-    alerts.push({ id: "seans-fresh", message: `Son görüşmeden ${sessionProcess.gunFarki} gün geçti — süreç aktif`, category: "olumlu" });
+    alerts.push({ id: "seans-fresh", message: `Son seanstan ${sessionProcess.gunFarki} gün geçti — süreç aktif`, category: "olumlu" });
 
   if (sessionProcess.yaklasanRandevu)
     alerts.push({ id: "upcoming-ok", message: `Yaklaşan randevu: ${sessionProcess.yaklasanRandevu}`, category: "olumlu" });
@@ -842,7 +850,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNod
   if (entry.type === "analiz") {
     return (
       <div className={`flex flex-col gap-2 ${textSize}`}>
-        <ModalRow label="Analiz Tipi"   value={d?.analysis_type || entry.title} />
+        <ModalRow label="Analiz Tipi"   value={d?.analysis_type ? analysisTypeLabel(d.analysis_type) : entry.title} />
         <ModalRow label="Tarih"         value={entry.date} />
         {d?.note && <ModalRow label="Sonuç / Özet" value={d.note} />}
         {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
@@ -1299,7 +1307,7 @@ export default function YolculukTab({
           normalized.push({
             id: `analiz-${an.id}`,
             type: "analiz",
-            title: an.analysis_type || "Analiz",
+            title: analysisTypeLabel(an.analysis_type),
             description: an.note || "",
             date: isoToTR(an.created_at),
             dateRaw: an.created_at || "",
