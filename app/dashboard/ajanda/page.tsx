@@ -100,6 +100,15 @@ const FILTER_OPTIONS: { key: AppointmentFilter; label: string }[] = [
   { key: "cancelled", label: "İptal" },
 ];
 
+// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
+function isPastCalendarDay(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const n = new Date();
+  const p = (x: number) => String(x).padStart(2, "0");
+  const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  return dateStr.slice(0, 10) < todayStr;
+}
+
 export default function AjandaPage() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
@@ -119,6 +128,7 @@ export default function AjandaPage() {
   const [formNotes, setFormNotes] = useState("");
   const [formStatus, setFormStatus] = useState<AppointmentStatus>("bekliyor");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedApptIds, setSelectedApptIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
   const [singleWordBusy, setSingleWordBusy] = useState(false);
@@ -449,6 +459,59 @@ export default function AjandaPage() {
     });
   }
 
+  function resetApptForm() {
+    setFormTitle("");
+    setFormDate("");
+    setFormTime("");
+    setFormNotes("");
+    setFormStatus("bekliyor");
+    setFormClientId("");
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  // "İptal Et" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
+  async function requestCancelAppointment(id: string) {
+    const ok = await confirm({
+      title: "Randevu iptal edilsin mi?",
+      message: 'Bu randevunun durumu "İptal" olarak değiştirilecek.',
+      confirmText: "Randevuyu İptal Et",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!ok) return;
+    await updateAppointmentStatus(id, "iptal");
+  }
+
+  // "Tamamlandı" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
+  async function requestCompleteAppointment(id: string) {
+    const ok = await confirm({
+      title: "Randevu tamamlandı olarak işaretlensin mi?",
+      message: 'Bu randevunun durumu "Tamamlandı" olarak değiştirilecek.',
+      confirmText: "Tamamlandı Yap",
+      cancelText: "Vazgeç",
+      tone: "success",
+    });
+    if (!ok) return;
+    await updateAppointmentStatus(id, "tamamlandi");
+  }
+
+  // Yalnız "bekliyor" randevular düzenlenir. Mevcut form edit modunda kullanılır;
+  // danışan sabit, durum değişmez; yalnız title/notes/appointment_date PATCH edilir.
+  function openEditAppointment(appt: Appointment) {
+    const d = new Date(appt.appointment_date);
+    const p = (x: number) => String(x).padStart(2, "0");
+    setEditingId(appt.id);
+    setAppointmentType(appt.client_id ? "kayitli" : "genel");
+    setFormClientId(appt.client_id ?? "");
+    setFormTitle(appt.title ?? "");
+    setFormNotes(appt.notes ?? "");
+    setFormDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+    setFormTime(`${p(d.getHours())}:${p(d.getMinutes())}`);
+    setSelectedAppointment(null);
+    setShowForm(true);
+  }
+
   async function createAppointment() {
     if (!tenantId) return;
 
@@ -467,9 +530,46 @@ export default function AjandaPage() {
       return;
     }
 
+    // Geçmiş takvim günü (dün ve öncesi) → uyarı + açık onay; form verisi korunur.
+    if (isPastCalendarDay(formDate)) {
+      const ok = await confirm({
+        title: "Geçmiş tarihli randevu",
+        message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
+        confirmText: "Yine de Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!ok) return;
+    }
+
     const appointmentDate = new Date(`${formDate}T${formTime}`).toISOString();
 
     setSaving(true);
+
+    // EDIT modu: yalnız title/notes/appointment_date PATCH (status/client_id/tenant_id gönderilmez).
+    if (editingId) {
+      const res = await fetch(`/api/appointments/${editingId}`, {
+        method: "PATCH",
+        headers: userHeaders(true),
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          notes: formNotes.trim() || null,
+          appointment_date: appointmentDate,
+        }),
+      });
+
+      if (!res.ok) {
+        showToast({ title: "Güncelleme hatası", message: "Randevu güncellenemedi.", type: "error" });
+        setSaving(false);
+        return; // form ve edit bilgileri korunur
+      }
+
+      resetApptForm();
+      setSaving(false);
+      await loadAppointments();
+      showToast({ title: "Başarılı", message: "Randevu güncellendi.", type: "success" });
+      return;
+    }
 
     const res = await fetch("/api/appointments", {
       method: "POST",
@@ -489,13 +589,7 @@ export default function AjandaPage() {
       return;
     }
 
-    setFormTitle("");
-    setFormDate("");
-    setFormTime("");
-    setFormNotes("");
-    setFormStatus("bekliyor");
-    setFormClientId("");
-    setShowForm(false);
+    resetApptForm();
     setSaving(false);
 
     await loadAppointments();
@@ -535,7 +629,7 @@ export default function AjandaPage() {
 
             <button
               type="button"
-              onClick={() => setShowForm((v) => !v)}
+              onClick={() => { if (showForm) resetApptForm(); else setShowForm(true); }}
               className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black shadow-md transition hover:-translate-y-0.5 ${
                 showForm
                   ? "border border-slate-200 bg-white text-slate-700"
@@ -550,12 +644,12 @@ export default function AjandaPage() {
             <div className="mt-4 overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-5 py-3">
                 <div>
-                  <h3 className="text-base font-black text-slate-950">Yeni Randevu Oluştur</h3>
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">Danışana bağlı veya genel randevu ekleyebilirsin.</p>
+                  <h3 className="text-base font-black text-slate-950">{editingId ? "Randevu Düzenle" : "Yeni Randevu Oluştur"}</h3>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">{editingId ? "Yalnız başlık, tarih/saat ve notu güncelleyebilirsin." : "Danışana bağlı veya genel randevu ekleyebilirsin."}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={resetApptForm}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
                 >
                   Vazgeç
@@ -563,7 +657,8 @@ export default function AjandaPage() {
               </div>
 
               <div className="p-5">
-                {/* Randevu tipi */}
+                {/* Randevu tipi — edit modunda gizli (danışan sabit) */}
+                {!editingId && (
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -588,17 +683,19 @@ export default function AjandaPage() {
                     🗓️ Genel Randevu
                   </button>
                 </div>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* Sol kolon */}
                   <div className="space-y-3">
                     {appointmentType === "kayitli" && (
                       <div>
-                        <label className="mb-1.5 block text-xs font-black text-slate-700">Danışan Seç</label>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">Danışan Seç{editingId ? " (değiştirilemez)" : ""}</label>
                         <select
                           value={formClientId}
                           onChange={(e) => setFormClientId(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                          disabled={!!editingId}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         >
                           <option value="">-- Danışan seçin --</option>
                           {sortedClients.map((c) => (
@@ -644,6 +741,8 @@ export default function AjandaPage() {
 
                   {/* Sağ kolon */}
                   <div className="space-y-3">
+                    {/* Durum — edit modunda gizli (durum yalnız Tamamlandı/İptal butonlarından değişir) */}
+                    {!editingId && (
                     <div>
                       <label className="mb-1.5 block text-xs font-black text-slate-700">Durum</label>
                       <select
@@ -656,6 +755,7 @@ export default function AjandaPage() {
                         <option value="iptal">İptal</option>
                       </select>
                     </div>
+                    )}
 
                     <div>
                       <label className="mb-1.5 block text-xs font-black text-slate-700">Açıklama / Not</label>
@@ -673,7 +773,7 @@ export default function AjandaPage() {
                 <div className="mt-4 flex justify-end gap-3 border-t border-slate-100 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowForm(false)}
+                    onClick={resetApptForm}
                     className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
                   >
                     Vazgeç
@@ -684,7 +784,7 @@ export default function AjandaPage() {
                     disabled={saving}
                     className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-70"
                   >
-                    {saving ? "Kaydediliyor..." : "Randevu Kaydet"}
+                    {saving ? "Kaydediliyor..." : editingId ? "Güncelle" : "Randevu Kaydet"}
                   </button>
                 </div>
               </div>
@@ -1061,15 +1161,20 @@ export default function AjandaPage() {
                   {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                 </button>
 
+                {(selectedAppointment.status ?? "bekliyor") === "bekliyor" && (
+                  <button
+                    type="button"
+                    onClick={() => openEditAppointment(selectedAppointment)}
+                    className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
+                  >
+                    Düzenle
+                  </button>
+                )}
+
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      updateAppointmentStatus(
-                        selectedAppointment.id,
-                        "tamamlandi"
-                      )
-                    }
+                    onClick={() => void requestCompleteAppointment(selectedAppointment.id)}
                     className="rounded-xl bg-emerald-600 p-2.5 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
                   >
                     Tamamlandı
@@ -1077,9 +1182,7 @@ export default function AjandaPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      updateAppointmentStatus(selectedAppointment.id, "iptal")
-                    }
+                    onClick={() => void requestCancelAppointment(selectedAppointment.id)}
                     className="rounded-xl bg-rose-600 p-2.5 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
                   >
                     İptal Et
