@@ -133,6 +133,11 @@ const planetInputBase =
 const toolbarBtnBase =
   "rounded-xl px-[13px] py-2 font-black text-[12px] cursor-pointer transition-colors";
 
+// PDF Export ürün kararıyla bu sürümde kullanıcıya gösterilmez (WEB-2 kapanış).
+// printPdf()/captureAnalysisNode() kodu tabanda pasif kalır; ileride bu flag
+// true yapılınca PDF Al butonu ve export tekrar açılır. Word export etkilenmez.
+const PDF_EXPORT_ENABLED = false;
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const [tenantId, setTenantId]     = useState<string | null>(null);
@@ -588,10 +593,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
                 Tümünü Temizle
               </button>
-              <button type="button" onClick={printPdf} disabled={creatingPdf}
-                className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
-                {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
-              </button>
+              {/* PDF Al: ürün kararıyla gizlendi (flag false). printPdf/creatingPdf
+                  referansları burada korunur ki kod pasif ama derli toplu kalsın. */}
+              {PDF_EXPORT_ENABLED && (
+                <button type="button" onClick={printPdf} disabled={creatingPdf}
+                  className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
+                  {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
+                </button>
+              )}
               <button type="button" onClick={exportWord} disabled={exportingWord}
                 className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
                 {exportingWord ? "Word Hazırlanıyor..." : "Word Al"}
