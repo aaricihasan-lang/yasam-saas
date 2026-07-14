@@ -1,4 +1,10 @@
 import { dogaltasApiGet, dogaltasApiSend } from "@/lib/dogaltas/dogaltasApi";
+import {
+  fetchStoneExclusionsDeduped,
+  invalidateStoneExclusions,
+  invalidateStonesList,
+  readStoneExclusions,
+} from "@/lib/dogaltas/stonesListCache";
 
 // NOT (Faz 1-B): Bu modül artık tarayıcıdan doğrudan supabase.from("stones")
 // ÇAĞIRMAZ. Tüm liste/sayım/arama/exclusion erişimi /api/dogaltas/* güvenli
@@ -254,6 +260,17 @@ function buildStonesQuery(
   return `/api/dogaltas/stones?${p.toString()}`;
 }
 
+/**
+ * PERF-2: Taş liste cache anahtarı = normal liste GET'inin request'ini birebir
+ * ayıran URL (mode/offset/limit/q/searchMode/withCount). Tenant/user/session
+ * ayrımı cache modülünde (kimlik guard'ı) yapılır; bu anahtar yalnız sorguyu ayırır.
+ */
+export function stonesListCacheKey(
+  options: { offset?: number; limit?: number; search?: string; searchMode?: SearchMode; withCount?: boolean } = {},
+): string {
+  return buildStonesQuery("list", options);
+}
+
 export async function fetchStonesListCount(
   _tenantId: string,
   search?: string,
@@ -308,9 +325,19 @@ export async function fetchAllStonesExtended(
  * Kütüphane taşı "soft-delete" mantığı için kullanılır.
  */
 export async function fetchStoneExclusions(_tenantId: string): Promise<Set<string>> {
-  const r = await dogaltasApiGet<{ stoneIds?: string[] }>("/api/dogaltas/stone-exclusions");
-  if (!r.ok) return new Set();
-  return new Set((r.data?.stoneIds ?? []).map((s) => String(s)));
+  // PERF-2: fresh cache → 0 GET. Stale/miss → deduped fetch + cache. Auth yoksa
+  // cache modülü düz fetch'e düşer. Yalnız başarılı sonuç cache'lenir.
+  const cached = readStoneExclusions();
+  if (cached.state === "fresh" && cached.value) return cached.value;
+
+  const fresh = await fetchStoneExclusionsDeduped(async () => {
+    const r = await dogaltasApiGet<{ stoneIds?: string[] }>("/api/dogaltas/stone-exclusions");
+    if (!r.ok) return null; // 401/403/hata → cache'lenmez
+    return new Set((r.data?.stoneIds ?? []).map((s) => String(s)));
+  });
+
+  // Revalidate başarısızsa mevcut (stale) cache'i koru; o da yoksa boş küme.
+  return fresh ?? cached.value ?? new Set();
 }
 
 /**
@@ -337,5 +364,10 @@ export async function excludeStonesForTenant(
 ): Promise<{ error: string | null }> {
   if (stoneIds.length === 0) return { error: null };
   const r = await dogaltasApiSend("/api/dogaltas/stone-exclusions", "POST", { stoneIds });
+  if (r.ok) {
+    // PERF-2: gizleme başarılı → liste + exclusions cache'i geçersiz kıl.
+    invalidateStonesList();
+    invalidateStoneExclusions();
+  }
   return { error: r.ok ? null : (r.error ?? "Gizlenemedi") };
 }

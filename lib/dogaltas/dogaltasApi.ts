@@ -7,6 +7,7 @@
  * Auth: combinationsApi.ts deseni — x-user-id + x-session-token.
  */
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { invalidateStonesList } from "@/lib/dogaltas/stonesListCache";
 
 export const DOGALTAS_API_MISSING_AUTH =
   "Oturum bulunamadı. Lütfen tekrar giriş yapın.";
@@ -62,6 +63,7 @@ export async function createStone(
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; id?: string; error?: string; demo?: boolean }> {
   const r = await dogaltasApiSend<{ id?: string }>("/api/dogaltas/stones", "POST", payload);
+  if (r.ok) invalidateStonesList(); // PERF-2: yeni taş → liste cache'i geçersiz
   return { ok: r.ok, id: r.data?.id, error: r.error, demo: r.demo };
 }
 
@@ -71,6 +73,7 @@ export async function updateStone(
 ): Promise<{ ok: boolean; row?: Record<string, unknown>; error?: string; demo?: boolean }> {
   const r = await dogaltasApiSend<{ row?: Record<string, unknown> }>(
     `/api/dogaltas/stones/${encodeURIComponent(id)}`, "PATCH", fields);
+  if (r.ok) invalidateStonesList(); // PERF-2: düzenleme → liste cache'i geçersiz
   return { ok: r.ok, row: r.data?.row, error: r.error, demo: r.demo };
 }
 
@@ -78,6 +81,7 @@ export async function deleteStone(
   id: string,
 ): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
   const r = await dogaltasApiSend(`/api/dogaltas/stones/${encodeURIComponent(id)}`, "DELETE");
+  if (r.ok) invalidateStonesList(); // PERF-2: silme → liste cache'i geçersiz
   return { ok: r.ok, error: r.error, demo: r.demo };
 }
 
@@ -93,6 +97,7 @@ export async function deleteStones(
   const r = await dogaltasApiSend<{ deletedIds?: string[] }>(
     "/api/dogaltas/stones/bulk-delete", "POST", { ids });
   if (!r.ok) return { deletedIds: [], error: r.error ?? "Silinemedi" };
+  invalidateStonesList(); // PERF-2: toplu silme → liste cache'i geçersiz
   // Demo hesapta server deletedIds:[] döner; gerçek silme yapılmaz.
   return { deletedIds: r.data?.deletedIds ?? [], error: null };
 }

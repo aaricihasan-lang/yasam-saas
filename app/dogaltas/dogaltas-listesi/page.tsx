@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -29,10 +30,15 @@ import {
   fetchStonesListPage,
   getFirstStoneImageUrl,
   stoneListImageCount,
+  stonesListCacheKey,
   type SearchMode,
   type StoneListItem,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import {
+  fetchStonesListDeduped,
+  readStonesList,
+} from "@/lib/dogaltas/stonesListCache";
 import {
   containsTr,
   stoneHasWarning,
@@ -696,6 +702,15 @@ function DogaltasListesiPageContent() {
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
 
+  // PERF-2: unmount sonrası setState'i engelle (revalidate geç dönebilir).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
       const tenantId = queryTenantId ?? getSessionTenantId();
@@ -707,42 +722,70 @@ function DogaltasListesiPageContent() {
         return;
       }
 
-      if (opts.reset) {
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+
+      // PERF-2: cache yalnız normal (aramasız) liste sayfası için — return-to-list
+      // senaryosu. Arama/append kapsam dışı (mevcut davranış korunur).
+      const cacheKey =
+        opts.reset && !opts.append && !search
+          ? stonesListCacheKey({ offset, search, searchMode, withCount: opts.reset })
+          : null;
+
+      const applyResult = (rows: StoneListItem[], count: number | undefined) => {
+        if (!mountedRef.current) return;
+        if (typeof count === "number") setTotalCount(count);
+        setStones((current) => (opts.append ? [...current, ...rows] : rows));
+      };
+
+      // SWR: fresh → anında göster + 0 GET; stale → anında göster + arka plan revalidate.
+      let shownFromCache = false;
+      if (cacheKey) {
+        const cached = readStonesList<{ rows: StoneListItem[]; count?: number }>(cacheKey);
+        if (cached.state === "fresh" && cached.value) {
+          applyResult(cached.value.rows, cached.value.count);
+          setListLoading(false);
+          setErrorMessage("");
+          return; // 0 ağ çağrısı, skeleton yok
+        }
+        if (cached.state === "stale" && cached.value) {
+          applyResult(cached.value.rows, cached.value.count);
+          shownFromCache = true;
+          setListLoading(false);
+          setErrorMessage("");
+          // skeleton gösterme; aşağıdaki fetch sessiz revalidate'tir
+        } else {
+          setListLoading(true);
+          setErrorMessage("");
+        }
+      } else if (opts.reset) {
         setListLoading(true);
         setErrorMessage("");
       } else {
         setLoadingMore(true);
       }
 
-      const offset = opts.offset ?? 0;
-      const search = debouncedSearch.trim() || undefined;
+      // O-3: reset'te liste + toplam sayı TEK çağrıda (withCount).
+      const runFetch = () =>
+        fetchStonesListPage(tenantId, { offset, search, searchMode, withCount: opts.reset });
 
-      // O-3: reset'te liste + toplam sayı TEK çağrıda (withCount) → önceki 2-3
-      // ayrı istek yerine 1; sunucu verifyUserRequest + exclusion'ı bir kez yapar.
-      // Append (daha fazla yükle) count istemez; mevcut totalCount korunur.
-      const pageRes = await fetchStonesListPage(tenantId, {
-        offset,
-        search,
-        searchMode,
-        withCount: opts.reset,
-      });
+      // Cacheable ise dedupe + başarıda cache-write; değilse düz fetch.
+      const pageRes = cacheKey
+        ? await fetchStonesListDeduped(cacheKey, runFetch, (r) => !r.error)
+        : await runFetch();
 
+      if (!mountedRef.current) return;
       if (opts.reset) setListLoading(false);
       setLoadingMore(false);
 
       if (pageRes.error) {
         setErrorMessage(`Kayıtlar alınamadı: ${pageRes.error}`);
-        if (opts.reset) setStones([]);
+        // stale cache gösterildiyse listeyi boşaltma; yalnız hiç veri yoksa boşalt.
+        if (opts.reset && !shownFromCache) setStones([]);
         return;
       }
 
-      if (opts.reset && typeof pageRes.count === "number") {
-        setTotalCount(pageRes.count);
-      }
-
-      setStones((current) =>
-        opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
-      );
+      applyResult(pageRes.rows, opts.reset ? pageRes.count : undefined);
     },
     [debouncedSearch, searchMode, queryTenantId],
   );
