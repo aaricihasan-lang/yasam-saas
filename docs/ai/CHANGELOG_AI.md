@@ -44,6 +44,55 @@
 
 ---
 
+## 2026-07-14 — S2.05 (JSONB Alan Çıkarımı) Tamamlandı
+
+### Tarih
+2026-07-14
+
+### Karar
+Yaşam Hafızası **S2.05 — JSONB Alan Çıkarımı** tamamlandı ve `work/yh-s2-05`
+branch'inde commit `b5d726f` ("feat(yasam-hafizasi): add S2.05 field extraction")
+olarak kaydedildi. Saf builder `extractFields(config, row)` üretir:
+`row → EvidenceField[] / topicTags: string[] / ExpertRelation[]`.
+
+Uygulanan ilkeler: JSONB/çok-değerli çıkarım kuralları tamamen `extractFields.ts`
+içinde (K1→A; `sources.ts` değişmedi, AD-004 korundu, `search/types.ts` değişmedi);
+fail-safe (bozuk/bilinmeyen şekiller atlanır, crash yok, coercion yok); evidence
+text ham/orijinal; tag/relation trim + exact dedupe; note/paragraph sınıflandırması
+**kaynak-bağlamlı** (`NOTE_SOURCES` = refleksoloji:notes + kisisel_arsiv:archives);
+reference-rows cells `sectionRef` undefined.
+
+### Neden
+S2.03 (`sources.ts`) JSONB kolonları AD-004 gereği yalnız kolon adıyla listeler;
+ayrıştırma bilinçli olarak builder'a ertelenmişti. S2.05 bu boşluğu Kanıt Kapısı'nın
+(INV-1) tarayacağı evidence/tag/relation yapıları için doldurur. Determinizm ve
+saflık (IO/DB yok) korunarak halüsinasyon/yan-etki yüzeyi minimize edildi.
+
+### Etkilenen Dosyalar
+- `lib/yasam-hafizasi/indexer/extractFields.ts` (yeni, saf builder)
+- `scripts/yh-extract-fields-harness.ts` (yeni, izole harness)
+
+### Kabul Kriterleri (geçti)
+- İzole harness `npx tsx` → EXIT 0 (22 matris + 6 kanonik + R1–R9 regresyon).
+- Kapsam-izole `tsc --noEmit` → EXIT 0.
+- Tüm-proje `tsc --noEmit -p tsconfig.json` → EXIT 0 (yabancı hata yok).
+
+### Breaking Change (Evet/Hayır)
+Hayır. Yeni, izole altyapı; mevcut modüller etkilenmedi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. SQL/DDL yok.
+
+### Geriye Dönük Uyumluluk
+İlgili değil; additif yeni katman.
+
+### Notlar
+Push: **henüz yapılmadı** (uzak `origin/work/yh-s2-05` yok). Main entegrasyonu:
+**henüz yapılmadı**. Kapsam dışı bırakılanlar (`Candidate` / `snippet` /
+`content_hash` / `group_key`) → **S2.07**. ROADMAP'te S2.06 yok; sıradaki S2.07.
+
+---
+
 ## 2026-07-13 — S2.04 origin/main'de Tamamlandı; S2.05 (JSONB Alan Çıkarımı) Açıldı
 
 ### Tarih

@@ -37,22 +37,23 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 tamam (S2.04 `6578ec5` origin/main); **S2.05 (JSONB alan çıkarımı) aktif görev** — bkz. `CURRENT_TASK.md`.
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 origin/main'de; **S2.05 (JSONB alan çıkarımı) tamamlandı** — `work/yh-s2-05` branch'inde commit `b5d726f` (henüz push/main entegrasyonu yok). Sıradaki: **S2.07 (Evidence builder) — analiz bekliyor**.
 
 ## Son Tamamlanan Aşama
 
-- Yaşam Hafızası **S2.04 — Tenant Resolver** (saf fonksiyon, fail-closed, column/join mode) **tamamlandı ve `origin/main`'e alındı** (commit `6578ec5`).
-- *(Bu worktree oturumunda git ile **doğrulandı**: `6578ec5` origin/main geçmişinde; içeriği `A tenantResolve.ts` + `M sources.ts`.)*
+- Yaşam Hafızası **S2.05 — JSONB Alan Çıkarımı** (saf builder, fail-safe) **tamamlandı**; `work/yh-s2-05` branch'inde commit `b5d726f`. Çıktı: `row → EvidenceField[] / topicTags string[] / ExpertRelation[]`.
+- **Kabul kriterleri geçti:** izole harness `npx tsx` EXIT 0 (22 matris + 6 kanonik + R1–R9 regresyon); kapsam-izole tsc EXIT 0; tüm-proje `tsc --noEmit` EXIT 0.
+- Not: S2.05 henüz `origin/main`'de **değil** (yalnız `work/yh-s2-05`). S2.04 (`6578ec5`) origin/main'de.
 
 ## Son Commit
 
-- `6578ec5` — Yaşam Hafızası **S2.04 (Tenant Resolver)** — `origin/main`. Bu, aktif S2.05 görevinin dayandığı temeldir.
-- *(Worktree oturumunda git ile doğrulandı. `work/yh-s2-05` bu commit'i içeren `origin/main` tabanından açıldı.)*
-- İlgili yakın Yaşam Hafızası commit'leri: `b3396d9` feat(yasam-hafizasi): add index source configuration (S2.03) · `0882fa4` feat(yasam-hafizasi): add lexical search infrastructure (S2.01).
+- `b5d726f` — Yaşam Hafızası **S2.05 (field extraction)** — `work/yh-s2-05` (henüz push edilmedi).
+- Doküman altyapısı: `65258bf` (docs/ai, aynı branch). S2.05 tabanı: `6578ec5` (S2.04) → `origin/main` (`6dd3805`).
+- İlgili yakın Yaşam Hafızası commit'leri: `b3396d9` (S2.03) · `0882fa4` (S2.01).
 
 ## Son Push
 
-- `6578ec5` (S2.04) `origin/main`'de mevcut → **push edilmiş**. `origin/main` HEAD = `6dd3805` (worktree tabanı; `git fetch` ile doğrulandı).
+- S2.05 (`b5d726f`) ve doküman (`65258bf`) **henüz push edilmedi** (uzak `origin/work/yh-s2-05` yok). S2.04'e kadarki çekirdek `origin/main`'de (`6dd3805`, `git fetch` ile doğrulandı).
 
 ## Son Doğrulanan Production Commit
 
@@ -68,12 +69,13 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **Aktif:** Yaşam Hafızası **S2.05 — JSONB alan çıkarımı** (`row → EvidenceField[]/TopicTags[]/ExpertRelations[]`) — bkz. `CURRENT_TASK.md`. Kararlar: K1→A (çıkarım kuralları yalnız builder içinde, `sources.ts` değişmez, AD-004 korunur) · K2 yeni dosya `lib/yasam-hafizasi/indexer/extractFields.ts` (`search/types.ts` değişmez) · K3 Candidate/content_hash/group_key S2.07'de · K4 fail-safe (bilinmeyen JSONB şekli → alan atlanır, crash yok) · K6 tenantResolve benzeri izole harness.
-- **Temel:** S2.04 (`6578ec5`) origin/main; S2.05 bunun üstüne inşa edilir.
+- **Aktif kodlama görevi YOK — S2.05 tamamlandı.** Sıradaki aşama: **S2.07 (Evidence builder: Candidate + content_hash + group_key)** — **analiz bekliyor** (henüz başlanmadı/kodlanmadı). Not: ROADMAP Sprint 2 tablosunda **S2.06 yoktur**; S2.05'ten sonra doğrudan S2.07 gelir.
+- **Onay bekleyen:** `work/yh-s2-05`'in push'u + main entegrasyonu (kullanıcı henüz onaylamadı).
 
 ## Bekleyen İşler
 
-- Yaşam Hafızası **S2.07** (Evidence builder: Candidate + content_hash + group_key) → S2.08 (Runner + ParentTenantLookup) → S2.13 (görünürlük) → Kanıt Kapısı/derece/"Neden?"/INV harness (Sprint 2 kalan).
+- Yaşam Hafızası **S2.07** (Evidence builder) → S2.08 (Runner + ParentTenantLookup) → S2.13 (görünürlük) → Kanıt Kapısı/derece/"Neden?"/INV harness (Sprint 2 kalan).
+- S2.05 branch'i (`work/yh-s2-05`) için push + main entegrasyonu.
 - Human Design **FAZ 5/2** (API route).
 - Numeroloji QA düzeltmeleri (kritik RLS + hesap/görsel bulguları).
 - Dijital İçerik Blok-2/3 + kimliksiz AI uç güvenliği.
