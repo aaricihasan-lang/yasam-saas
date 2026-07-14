@@ -10,7 +10,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
+import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import NotesTab from "./components/NotesTab";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
@@ -486,7 +486,9 @@ export default function ClientDetailPage() {
     }
 
     setDeletingClient(false);
-    invalidateDanisanListCache(); // danışan silindi → liste bayat
+    // Cold refetch/skeleton yerine: silinen danışanı liste cache'inden in-place çıkar
+    // (toplu silmeyle aynı davranış) → listeye dönünce güncel liste anında görünür.
+    removeClientFromDanisanListCache(tenantId, clientId);
     router.push("/danisan-yolculugu/liste");
   }
 
