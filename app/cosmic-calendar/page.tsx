@@ -28,7 +28,7 @@ import {
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
-import { getUserLocationPref } from "@/lib/location/userLocationPref";
+import { getUserLocationPref, saveUserLocationPref } from "@/lib/location/userLocationPref";
 import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
@@ -858,7 +858,10 @@ export default function CosmicCalendarPage() {
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
-  const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // seçili konum (id-tabanlı; aynı-isim ayrımı)
+  const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // GEÇİCİ görüntülenen konum (id-tabanlı; aynı-isim ayrımı)
+  const [savedLocId,       setSavedLocId]       = useState<string | null>(null);   // KAYITLI varsayılan konumun id'si (null = kayıtlı yok → Ankara varsayılan)
+  const [locSaving,        setLocSaving]        = useState(false);                 // "Varsayılan yap" isteği sürüyor
+  const [locSaveMsg,       setLocSaveMsg]       = useState<{ ok: boolean; text: string } | null>(null); // kaydet geri bildirimi
   const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
   const [eclipseCityOpen,  setEclipseCityOpen]  = useState(false);    // typeahead açık mı
   const [eclipseCityActive, setEclipseCityActive] = useState(-1);     // klavye ile vurgulanan sonuç (aria-activedescendant)
@@ -1061,13 +1064,38 @@ export default function CosmicCalendarPage() {
   const eclipseActiveId = eclipseCityActive >= 0 && eclipseCityActive < eclipseCityResults.length
     ? `eclipse-opt-${eclipseCityResults[eclipseCityActive].id}` : undefined;
 
-  // Seçim uygula — loc'u cache'e yazar (global gn-* dahil → çözülebilir), yalnız local state; DB'ye YAZMAZ.
+  // Seçim uygula — loc'u cache'e yazar (global gn-* dahil → çözülebilir), yalnız GEÇİCİ local
+  // state; DB'ye YAZMAZ (kalıcı kayıt yalnız "Varsayılan yap" ile). Yeni seçimde eski kaydet
+  // geri bildirimi temizlenir.
   const selectEclipseLoc = (loc: Location) => {
     locCache.set(loc.id, loc);
     setEclipseLocId(loc.id);
     setEclipseCityQuery(loc.name);
     setEclipseCityOpen(false);
     setEclipseCityActive(-1);
+    setLocSaveMsg(null);
+  };
+
+  // KAYITLI varsayılan konum nesnesi (sunum için). null = kayıtlı yok (Ankara varsayılan).
+  // Ucuz türev (Map.get) → useMemo gerekmez; locCache-deps lint uyarısından da kaçınır.
+  const savedLoc = savedLocId ? (locCache.get(savedLocId) ?? ECLIPSE_LOCATIONS.find(l => l.id === savedLocId)) : undefined;
+  const isViewingSaved = savedLocId !== null && eclipseLocId === savedLocId;
+
+  // "Varsayılan yap" — o an görüntülenen konumu güvenli server API üzerinden kalıcı kaydeder
+  // (user_id/tenant_id sunucu guard'ından; istemciden gelmez). Başarıda kayıtlı konum güncellenir
+  // ve anlaşılır geri bildirim verilir; başarısızlıkta eski kayıt korunur ve hata gösterilir.
+  const saveDefaultLocation = async () => {
+    if (!selEclipseLoc || locSaving) return;
+    setLocSaving(true);
+    setLocSaveMsg(null);
+    const res = await saveUserLocationPref(selEclipseLoc);
+    setLocSaving(false);
+    if (res.ok) {
+      setSavedLocId(selEclipseLoc.id);
+      setLocSaveMsg({ ok: true, text: `Varsayılan konum ${selEclipseLoc.name} olarak kaydedildi.` });
+    } else {
+      setLocSaveMsg({ ok: false, text: res.error || "Konum kaydedilemedi. Kayıtlı konum korundu." });
+    }
   };
 
   // Async arama: TR daima client-side (TR_LOCATIONS, authoritative, anında); global ≥2 karakterde
@@ -1167,6 +1195,7 @@ export default function CosmicCalendarPage() {
       }
       locCache.set(loc.id, loc);
       setEclipseLocId(loc.id);
+      setSavedLocId(loc.id);      // kayıtlı varsayılan = bu (geçici≠kayıtlı ayrımı için)
       setEclipseCityQuery(loc.name);
     })();
     return () => { alive = false; };
@@ -2321,6 +2350,35 @@ export default function CosmicCalendarPage() {
                     )}
                   </div>
                   <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span>{selEclipseLoc && locSubLabel(selEclipseLoc) ? <span className="text-slate-400"> — {locSubLabel(selEclipseLoc)}</span> : null} <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
+                </div>
+                {/* Kayıtlı (kalıcı) vs geçici (görüntülenen) konum ayrımı + varsayılan kaydet */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
+                  <span className="min-w-0 text-slate-500">
+                    📍 Kayıtlı konum:{" "}
+                    <span className="font-bold text-slate-700">{savedLoc?.name ?? "kayıtlı değil (Ankara varsayılan)"}</span>
+                  </span>
+                  {!isViewingSaved && selEclipseLoc && (
+                    <>
+                      {savedLocId !== null && (
+                        <span className="max-w-full truncate rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
+                          {eclipseCity} geçici görüntüleniyor
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={saveDefaultLocation}
+                        disabled={locSaving}
+                        className="shrink-0 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        {locSaving ? "Kaydediliyor…" : "Bu konumu varsayılan yap"}
+                      </button>
+                    </>
+                  )}
+                  {locSaveMsg && (
+                    <span role="status" aria-live="polite" className={`font-semibold ${locSaveMsg.ok ? "text-emerald-600" : "text-rose-600"}`}>
+                      {locSaveMsg.text}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
