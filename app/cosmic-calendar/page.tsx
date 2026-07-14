@@ -860,6 +860,7 @@ export default function CosmicCalendarPage() {
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
   const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // GEÇİCİ görüntülenen konum (id-tabanlı; aynı-isim ayrımı)
   const [savedLocId,       setSavedLocId]       = useState<string | null>(null);   // KAYITLI varsayılan konumun id'si (null = kayıtlı yok → Ankara varsayılan)
+  const [locPrefLoaded,    setLocPrefLoaded]    = useState(false);                 // kayıtlı tercih fetch'i çözüldü mü (çözülene kadar "yükleniyor…" placeholder)
   const [locSaving,        setLocSaving]        = useState(false);                 // "Varsayılan yap" isteği sürüyor
   const [locSaveMsg,       setLocSaveMsg]       = useState<{ ok: boolean; text: string } | null>(null); // kaydet geri bildirimi
   const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
@@ -1177,26 +1178,31 @@ export default function CosmicCalendarPage() {
     let alive = true;
     void (async () => {
       const pref = await getUserLocationPref();
-      if (!alive || !pref) return;
-      // Önce cache/statik dataset; yoksa pref alanlarından DOĞRUDAN Location kur (dataset lookup'a
-      // bağımlı değil → pilotta olmayan global kayıtlı konum da yansır, Ankara'ya DÜŞMEZ).
-      let loc = locCache.get(pref.location_id) ?? ECLIPSE_LOCATIONS.find(l => l.name === pref.name);
-      if (!loc) {
-        if (!pref.tz || !Number.isFinite(pref.lat) || !Number.isFinite(pref.lon)) return; // geçersiz pref → Ankara'da kal
-        const src: Location["source"] =
-          pref.source === "geonames" || pref.source === "manual" || pref.source === "geolocation" || pref.source === "nominatim"
-            ? pref.source : "manual"; // yanlış "geonames"/"bundled" yazma → doğru kaynak/köken
-        loc = {
-          id: pref.location_id, name: pref.name,
-          country: "", countryCode: (pref.country_code ?? "").toUpperCase(), adminRegion: "",
-          lat: pref.lat, lon: pref.lon, elev: Number.isFinite(pref.elev) ? pref.elev : 0,
-          tz: pref.tz, source: src, verified: true, origin: "user-added",
-        };
+      if (!alive) return;
+      if (pref) {
+        // Önce cache/statik dataset; yoksa pref alanlarından DOĞRUDAN Location kur (dataset lookup'a
+        // bağımlı değil → pilotta olmayan global kayıtlı konum da yansır, Ankara'ya DÜŞMEZ).
+        let loc = locCache.get(pref.location_id) ?? ECLIPSE_LOCATIONS.find(l => l.name === pref.name);
+        if (!loc && pref.tz && Number.isFinite(pref.lat) && Number.isFinite(pref.lon)) {
+          const src: Location["source"] =
+            pref.source === "geonames" || pref.source === "manual" || pref.source === "geolocation" || pref.source === "nominatim"
+              ? pref.source : "manual"; // yanlış "geonames"/"bundled" yazma → doğru kaynak/köken
+          loc = {
+            id: pref.location_id, name: pref.name,
+            country: "", countryCode: (pref.country_code ?? "").toUpperCase(), adminRegion: "",
+            lat: pref.lat, lon: pref.lon, elev: Number.isFinite(pref.elev) ? pref.elev : 0,
+            tz: pref.tz, source: src, verified: true, origin: "user-added",
+          };
+        }
+        if (loc) {
+          locCache.set(loc.id, loc);
+          setEclipseLocId(loc.id);
+          setSavedLocId(loc.id);      // kayıtlı varsayılan = bu (geçici≠kayıtlı ayrımı için)
+          setEclipseCityQuery(loc.name);
+        }
+        // geçersiz pref (loc kurulamadı) → Ankara'da kalınır (davranış korunur)
       }
-      locCache.set(loc.id, loc);
-      setEclipseLocId(loc.id);
-      setSavedLocId(loc.id);      // kayıtlı varsayılan = bu (geçici≠kayıtlı ayrımı için)
-      setEclipseCityQuery(loc.name);
+      setLocPrefLoaded(true);   // kayıt olsun/olmasın: tercih çözüldü → "yükleniyor…" placeholder biter
     })();
     return () => { alive = false; };
   }, [locCache]);
@@ -2355,9 +2361,11 @@ export default function CosmicCalendarPage() {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
                   <span className="min-w-0 text-slate-500">
                     📍 Kayıtlı konum:{" "}
-                    <span className="font-bold text-slate-700">{savedLoc?.name ?? "kayıtlı değil (Ankara varsayılan)"}</span>
+                    <span className="font-bold text-slate-700">
+                      {!locPrefLoaded ? "yükleniyor…" : (savedLoc?.name ?? "kayıtlı değil (Ankara varsayılan)")}
+                    </span>
                   </span>
-                  {!isViewingSaved && selEclipseLoc && (
+                  {locPrefLoaded && !isViewingSaved && selEclipseLoc && (
                     <>
                       {savedLocId !== null && (
                         <span className="max-w-full truncate rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">

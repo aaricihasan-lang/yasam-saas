@@ -29,7 +29,7 @@ type PowerDay = {
   reasons:      StrongDayReason[];
 };
 
-type PowerFilter = "all" | "min3" | "min4" | "thisMonth" | "days90";
+type PowerFilter = "all" | "min3" | "min4" | "thisMonth";
 
 // ─── Hesaplama ─────────────────────────────────────────────────────────────────
 
@@ -141,12 +141,14 @@ export default function PowerDaysPage() {
   const todayYear  = now.getFullYear();
   const todayMonth = now.getMonth();
 
+  // Etiketler gerçek davranışla eşleşir: taban ufuk zaten 90 gün → "Tümü" = önümüzdeki 90 gün
+  // (ayrı "90 Gün" filtresi aynı sonucu verdiği için kaldırıldı). "thisMonth" upcoming30 döndürür
+  // → takvim ayı değil, önümüzdeki 30 gündür; etiket buna göre düzeltildi.
   const FILTERS: { key: PowerFilter; label: string }[] = [
-    { key: "all",       label: "Tümü"              },
+    { key: "all",       label: "Tümü (90 gün)"     },
     { key: "min3",      label: "3+ Puan"            },
     { key: "min4",      label: "4+ Puan"            },
-    { key: "thisMonth", label: "Bu Ay"              },
-    { key: "days90",    label: "Önümüzdeki 90 Gün"  },
+    { key: "thisMonth", label: "Önümüzdeki 30 Gün"  },
   ];
 
   return (
@@ -162,7 +164,10 @@ export default function PowerDaysPage() {
         <div className="mb-4 flex items-center gap-3">
           <div>
             <h1 className="text-lg font-black text-slate-800">⭐ Güçlü Günler</h1>
-            <p className="text-[11px] text-slate-400">Numeroloji + Ay fazı etkisinin en yüksek olduğu günler</p>
+            <p className="text-[11px] text-slate-400">Ay fazı ve numeroloji katkısının en yüksek olduğu günler</p>
+            <p className="mt-0.5 text-[10px] leading-snug text-slate-400">
+              Puan = <span className="font-semibold text-slate-500">Ay fazı (astronomik veri)</span> + <span className="font-semibold text-slate-500">numeroloji</span>. Numeroloji astronomik veri değildir; yorum veya tavsiye içermez.
+            </p>
           </div>
         </div>
 
