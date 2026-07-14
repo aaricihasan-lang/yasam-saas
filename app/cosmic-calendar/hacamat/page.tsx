@@ -44,7 +44,7 @@ const STATUS_STYLES: Record<HacamatStatus, {
   altin:   { row: "bg-amber-50 border-amber-300",     badge: "bg-amber-400",   badgeText: "text-amber-900",  label: "ALTIN GÜN",   stars: "⭐⭐⭐⭐⭐", calBg: "bg-amber-200/80",    calBorder: "border-2 border-amber-400",  calText: "text-amber-900",  descColor: "text-amber-700"   },
   sunnet:  { row: "bg-emerald-50 border-emerald-300",  badge: "bg-emerald-600", badgeText: "text-white",      label: "SÜNNET GÜN",  stars: "⭐⭐⭐",     calBg: "bg-emerald-200/70",  calBorder: "border border-emerald-400", calText: "text-emerald-900", descColor: "text-emerald-700" },
   uygun:   { row: "bg-yellow-50 border-yellow-300",    badge: "bg-yellow-400",  badgeText: "text-slate-900",  label: "UYGUN GÜN",   stars: "⭐",         calBg: "bg-yellow-200/70",   calBorder: "border border-yellow-400",  calText: "text-yellow-900", descColor: "text-yellow-700"  },
-  yasakli: { row: "bg-red-100 border-red-400",         badge: "bg-red-600",     badgeText: "text-white",      label: "TERCİH EDİLMEYEN GÜN", stars: "⚠️",         calBg: "bg-red-200/70",      calBorder: "border border-red-400",     calText: "text-red-900",    descColor: "text-red-700"     },
+  yasakli: { row: "bg-red-100 border-red-400",         badge: "bg-red-600",     badgeText: "text-white",      label: "YASAKLI GÜN", stars: "⛔",         calBg: "bg-red-200/70",      calBorder: "border border-red-400",     calText: "text-red-900",    descColor: "text-red-700"     },
   normal:  { row: "bg-white border-slate-200",         badge: "bg-slate-100",   badgeText: "text-slate-500",  label: "",            stars: "",           calBg: "bg-white/30",        calBorder: "border-transparent",        calText: "text-slate-700",  descColor: "text-slate-500"   },
 };
 
@@ -67,7 +67,7 @@ function SummaryChips({ data }: { data: HacamatMonthData }) {
     { count: data.altin.length,          label: "Altın Gün",       cls: "bg-amber-100 text-amber-700 border-amber-200" },
     { count: data.sunnet.length,         label: "Sünnet Gün",      cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
     { count: data.uygun.length,          label: "Uygun Gün",       cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-    { count: data.yasakliNotable.length, label: "Tercih edilmeyen (17-24)", cls: "bg-red-100 text-red-700 border-red-200" },
+    { count: data.yasakliNotable.length, label: "Yasaklı (17-24)", cls: "bg-red-100 text-red-700 border-red-200" },
   ];
   return (
     <div className="flex flex-wrap gap-2">
@@ -106,7 +106,7 @@ function MonthContent({
               { color: "bg-amber-200",   label: "Altın" },
               { color: "bg-emerald-200", label: "Sünnet" },
               { color: "bg-yellow-200",  label: "Uygun" },
-              { color: "bg-red-200",     label: "Tercih edilmeyen (17-24)" },
+              { color: "bg-red-200",     label: "Yasaklı (17-24)" },
               { color: "bg-red-50",      label: "Çar/Cum/Cmt" },
             ].map(({ color, label }) => (
               <span key={label} className="flex items-center gap-1.5 text-[9px] text-slate-500">
@@ -493,7 +493,7 @@ export default function HacamatPage() {
             { count: buAyData.altin.length,          label: "Altın Gün",       bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   num: "text-amber-500"   },
             { count: buAyData.sunnet.length,         label: "Sünnet Gün",      bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", num: "text-emerald-500" },
             { count: buAyData.uygun.length,          label: "Uygun Gün",       bg: "bg-yellow-50",  border: "border-yellow-200",  text: "text-yellow-700",  num: "text-yellow-500"  },
-            { count: buAyData.yasakliNotable.length, label: "Tercih edilmeyen (17-24)", bg: "bg-red-50",     border: "border-red-200",     text: "text-red-700",     num: "text-red-400"     },
+            { count: buAyData.yasakliNotable.length, label: "Yasaklı (17-24)", bg: "bg-red-50",     border: "border-red-200",     text: "text-red-700",     num: "text-red-400"     },
           ].map(({ count, label, bg, border, text, num }) => (
             <div key={label} className={`rounded-[14px] border ${bg} ${border} px-3 py-2 shadow-sm backdrop-blur-md`}>
               <p className={`text-xl font-black ${num}`}>{count}</p>
