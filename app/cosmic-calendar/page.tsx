@@ -886,6 +886,32 @@ export default function CosmicCalendarPage() {
     setViewMonth(n.getMonth());
   }, []);
 
+  // Gece yarısı güncellemesi — realNow yerel gece yarısında tazelenir; böylece üstteki
+  // anlık Ay burcu/gökyüzü sayfa uzun süre açık kalsa da eski günde donmaz. Sık interval
+  // YOK: bir sonraki yerel gece yarısına setTimeout kurulur, her tetiklemede yeniden zamanlanır.
+  // selectedDate yalnız "bugün" (biten gün) görünümündeyse yeni güne ilerletilir; kullanıcı
+  // başka bir tarih seçtiyse zorla değiştirilmez. Motor/algoritma DEĞİŞMEZ.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5, 0);
+      timer = setTimeout(() => {
+        const n = new Date();
+        setRealNow(n);
+        // Seçili gün, yeni güne göre "biten gün" (dün) ise bugüne taşı; kullanıcı başka bir
+        // tarih seçtiyse (isSameDay false) dokunma. realNow'a bağımlı değil → ref gerekmez.
+        const endedDay = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1);
+        setSelectedDate(prev => isSameDay(prev, endedDay)
+          ? new Date(n.getFullYear(), n.getMonth(), n.getDate())
+          : prev);
+        schedule();
+      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, []);
+
   // ── Takvim hesapları ──────────────────────────────────────────────────────
   const cells           = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
   const moonMarkers     = useMemo(() => getMonthMoonMarkers(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -908,7 +934,6 @@ export default function CosmicCalendarPage() {
   }, [selectedDate]);
   // Gün kartı/özet için görüntülenecek faz: ana faz günüyse ayrık ad, değilse sürekli faz.
   const displayPhase = selectedMainPhase ?? moonPhase;
-  const moonSign    = useMemo(() => getMoonSign(selectedDate),           [selectedDate]);
   const lunarSnap   = useMemo(() => getLunarDistanceSnapshot(selectedDate), [selectedDate]); // factual hero (doğrulanmış mesafe)
   const hijriDate   = useMemo(() => getHijriDate(selectedDate),          [selectedDate]);
   const miladiDate  = useMemo(() => formatMiladiDate(selectedDate),      [selectedDate]);
@@ -1755,12 +1780,11 @@ export default function CosmicCalendarPage() {
                   {isSelectedToday && <span className="text-[10px] font-semibold text-emerald-600">● Bugün</span>}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
+              <div className="grid grid-cols-3 gap-1 sm:grid-cols-5">
                 {[
                   { icon: "📅",            label: "Miladi",     value: miladiDate,                               color: "text-slate-800" },
                   { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
                   { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
-                  { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
                   { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
                   { icon: "📏",            label: "Ay Mesafesi", value: fmtKm(lunarSnap.distanceKm),             color: "text-cyan-700" },
                 ].map(({ icon, label, value, color }) => (
