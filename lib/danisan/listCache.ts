@@ -39,3 +39,33 @@ export function setDanisanListCache(
 export function invalidateDanisanListCache(): void {
   mutatedAt = Date.now();
 }
+
+/**
+ * Tekli danışan silme sonrası: cache'deki listeden yalnız bu danışanı id ile çıkar,
+ * toplamı bir azalt; diğer alanlar (fullLoaded, alerts, kalan danışanlar ve sıralama)
+ * korunur. Böylece detaydan silip listeye dönünce cold refetch/skeleton olmadan
+ * güncel liste anında görünür — toplu silmedeki setDanisanListCache davranışıyla aynı.
+ *
+ * Fail-safe: cache girişi yoksa no-op → liste sunucudan taze (silinmiş danışan
+ * içermeyen) yüklenir; hiçbir durumda silinmiş danışan gösterilmez.
+ * (Detay sayfası liste state'ini tutmadığı için in-place güncelleme yapılır.)
+ */
+export function removeClientFromDanisanListCache(
+  tenantId: string,
+  clientId: string,
+): void {
+  const entry = cache.get(tenantId);
+  if (!entry) return;
+  const clients = entry.clients.filter(
+    (c) => (c as { id?: string } | null | undefined)?.id !== clientId,
+  );
+  // clientId cache'de yoksa (uzunluk değişmedi) → hiçbir şey yazma, total'e dokunma.
+  // total yalnızca gerçekten bir danışan çıkarıldığında bir azaltılır.
+  if (clients.length === entry.clients.length) return;
+  cache.set(tenantId, {
+    ...entry,
+    clients,
+    total: Math.max(0, entry.total - 1),
+    ts: Date.now(),
+  });
+}

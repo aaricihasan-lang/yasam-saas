@@ -10,7 +10,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
+import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import NotesTab from "./components/NotesTab";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
@@ -91,6 +91,16 @@ function formatDateTimeTR(value: string) {
 
 function isPastDate(value: string) {
   return new Date(value).getTime() < new Date().getTime();
+}
+
+// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
+// dateStr: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm" (datetime-local) — ilk 10 karakter kullanılır.
+function isPastCalendarDay(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const n = new Date();
+  const p = (x: number) => String(x).padStart(2, "0");
+  const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  return dateStr.slice(0, 10) < todayStr;
 }
 
 function getLeftBorderClass(status: string | null | undefined, appointmentDate: string) {
@@ -476,7 +486,9 @@ export default function ClientDetailPage() {
     }
 
     setDeletingClient(false);
-    invalidateDanisanListCache(); // danışan silindi → liste bayat
+    // Cold refetch/skeleton yerine: silinen danışanı liste cache'inden in-place çıkar
+    // (toplu silmeyle aynı davranış) → listeye dönünce güncel liste anında görünür.
+    removeClientFromDanisanListCache(tenantId, clientId);
     router.push("/danisan-yolculugu/liste");
   }
 
@@ -870,6 +882,7 @@ function AppointmentsTab({
   const [date, setDate] = useState("");
   const [dayInterval, setDayInterval] = useState(1);
   const [manualDates, setManualDates] = useState<string[]>([""]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -903,8 +916,96 @@ function AppointmentsTab({
     setManualDates((old) => { const next = [...old]; next[index] = value; return next; });
   }
 
+  function resetForm() {
+    setTitle("Seans");
+    setNotes("");
+    setSessionCount(1);
+    setPlanningMode("auto");
+    setDate("");
+    setDayInterval(1);
+    setManualDates([""]);
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  // "İptal Et" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
+  async function requestCancelAppointment(id: string) {
+    const ok = await confirm({
+      title: "Randevu iptal edilsin mi?",
+      message: 'Bu randevunun durumu "İptal" olarak değiştirilecek.',
+      confirmText: "Randevuyu İptal Et",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!ok) return;
+    await updateAppointmentStatus(id, "iptal");
+  }
+
+  // "Tamamlandı" → önce global confirm, sonra durum PATCH. (Danışanın son görüşme tarihi de güncellenir.)
+  async function requestCompleteAppointment(id: string) {
+    const ok = await confirm({
+      title: "Randevu tamamlandı olarak işaretlensin mi?",
+      message: 'Bu randevunun durumu "Tamamlandı" olarak değiştirilecek ve danışanın son görüşme tarihi güncellenecek.',
+      confirmText: "Tamamlandı Yap",
+      cancelText: "Vazgeç",
+      tone: "success",
+    });
+    if (!ok) return;
+    await updateAppointmentStatus(id, "tamamlandi");
+  }
+
+  // Yalnız "bekliyor" randevu düzenlenir. Mevcut form edit modunda TEK kaydı günceller;
+  // danışan sabit, durum değişmez, seri/tekrar kontrolleri gizlenir.
+  function openEditAppointment(appt: Appointment) {
+    const d = new Date(appt.appointment_date);
+    const p = (x: number) => String(x).padStart(2, "0");
+    setEditingId(appt.id);
+    setTitle(appt.title ?? "");
+    setNotes(appt.notes ?? "");
+    setSessionCount(1);
+    setPlanningMode("auto");
+    setDayInterval(1);
+    setManualDates([""]);
+    setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`);
+    setSelectedAppointment(null);
+    setShowForm(true);
+  }
+
   async function createAppointments() {
     if (!tenantId) return;
+
+    // ── EDIT modu: yalnız seçili TEK randevu güncellenir (title/notes/appointment_date) ──
+    if (editingId) {
+      if (!date) { showToast({ title: "Eksik bilgi", message: "Tarih seçmelisiniz", type: "warning" }); return; }
+      if (isPastCalendarDay(date)) {
+        const ok = await confirm({
+          title: "Geçmiş tarihli randevu",
+          message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
+          confirmText: "Yine de Kaydet",
+          cancelText: "Vazgeç",
+          tone: "warning",
+        });
+        if (!ok) return;
+      }
+      setSaving(true);
+      const editToken = readSessionToken();
+      const res = await fetch(`/api/appointments/${editingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": readYasamUser()?.id ?? "",
+          ...(editToken ? { "x-session-token": editToken } : {}),
+        },
+        body: JSON.stringify({ title: title || "Seans", notes: notes || null, appointment_date: new Date(date).toISOString() }),
+      });
+      if (!res.ok) { showToast({ title: "İşlem başarısız", message: "Randevu güncellenemedi", type: "error" }); setSaving(false); return; }
+      resetForm();
+      await loadAppointments();
+      setSaving(false);
+      showToast({ title: "Başarılı", message: "Randevu güncellendi", type: "success" });
+      return;
+    }
+
     const count = Math.max(1, Number(sessionCount));
     let rows: { tenant_id: string; client_id: string; title: string; notes: string | null; appointment_date: string; status: AppointmentStatus }[] = [];
 
@@ -924,6 +1025,21 @@ function AppointmentsTab({
       rows = filled.map((d, i) => ({ tenant_id: tenantId, client_id: clientId, title: count > 1 ? `${title || "Seans"} ${i + 1}/${count}` : title || "Seans", notes: notes || null, appointment_date: new Date(d).toISOString(), status: "bekliyor" }));
     }
 
+    // Geçmiş takvim günü (dün ve öncesi) seçilmişse → uyarı + açık onay; form verisi korunur.
+    const anyPast = planningMode === "auto"
+      ? isPastCalendarDay(date)
+      : manualDates.slice(0, count).some((d) => isPastCalendarDay(d));
+    if (anyPast) {
+      const ok = await confirm({
+        title: "Geçmiş tarihli randevu",
+        message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
+        confirmText: "Yine de Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!ok) return;
+    }
+
     setSaving(true);
     const apptToken = readSessionToken();
     const apptHeaders = {
@@ -941,7 +1057,7 @@ function AppointmentsTab({
       if (!res.ok) { apptErr = true; break; }
     }
     if (apptErr) { showToast({ title: "İşlem başarısız", message: "Randevu kayıt hatası", type: "error" }); setSaving(false); return; }
-    setTitle("Seans"); setNotes(""); setSessionCount(1); setPlanningMode("auto"); setDate(""); setDayInterval(1); setManualDates([""]); setShowForm(false);
+    resetForm();
     await loadAppointments();
     setSaving(false);
   }
@@ -1032,7 +1148,7 @@ function AppointmentsTab({
           </div>
           <button
             type="button"
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
             className={`rounded-xl px-3.5 py-2.5 text-[13px] font-extrabold transition-all ${showForm ? "border border-slate-200 bg-slate-50 text-slate-700" : "border-0 bg-gradient-to-br from-indigo-600 to-pink-600 text-white shadow-md hover:-translate-y-0.5 hover:shadow-lg"}`}
           >
             {showForm ? "Formu Kapat" : "+ Yeni Randevu Ekle"}
@@ -1045,10 +1161,10 @@ function AppointmentsTab({
         <div className="mb-3.5 rounded-[18px] border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-3.5 shadow-sm">
           <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <span className="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1.5 text-[11px] font-black text-pink-700">Yeni Randevu</span>
-              <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Yeni Randevu Ekle</h3>
+              <span className="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{editingId ? "Randevu Düzenle" : "Yeni Randevu"}</span>
+              <h3 className="mt-1.5 text-[18px] font-black text-slate-950">{editingId ? "Randevu Düzenle" : "Yeni Randevu Ekle"}</h3>
             </div>
-            <button type="button" onClick={() => setShowForm(false)}
+            <button type="button" onClick={resetForm}
               className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-extrabold text-slate-700 hover:bg-slate-50">
               Vazgeç
             </button>
@@ -1063,6 +1179,9 @@ function AppointmentsTab({
               <label className={labelCls}>Not</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={`${textareaCls} min-h-[90px]`} placeholder="Randevu notu..." />
             </div>
+            {/* Seri/tekrar kontrolleri — edit modunda gizli (tek kayıt) */}
+            {!editingId && (
+            <>
             <div>
               <label className={labelCls}>Seans Sayısı</label>
               <input type="number" min={1} value={sessionCount} onChange={(e) => handleSessionCountChange(Number(e.target.value))} className={inputCls} />
@@ -1081,21 +1200,25 @@ function AppointmentsTab({
                 </button>
               </div>
             </div>
+            </>
+            )}
 
-            {planningMode === "auto" && (
+            {(editingId || planningMode === "auto") && (
               <>
                 <div>
-                  <label className={labelCls}>Başlangıç Tarihi</label>
+                  <label className={labelCls}>{editingId ? "Tarih / Saat" : "Başlangıç Tarihi"}</label>
                   <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
                 </div>
+                {!editingId && (
                 <div>
                   <label className={labelCls}>Kaç Günde Bir?</label>
                   <input type="number" min={1} value={dayInterval} onChange={(e) => setDayInterval(Number(e.target.value))} className={inputCls} />
                 </div>
+                )}
               </>
             )}
 
-            {planningMode === "manual" && (
+            {!editingId && planningMode === "manual" && (
               <div className="rounded-[15px] border border-pink-200 bg-pink-50 p-2.5">
                 <strong className="text-[13px] font-black text-pink-700">Randevu Tarihleri</strong>
                 {Array.from({ length: sessionCount }).map((_, i) => (
@@ -1108,7 +1231,7 @@ function AppointmentsTab({
             )}
 
             <button onClick={createAppointments} disabled={saving} className="btn-secondary w-full justify-center disabled:opacity-60">
-              {saving ? "Kaydediliyor..." : "Randevu Oluştur"}
+              {saving ? "Kaydediliyor..." : editingId ? "Güncelle" : "Randevu Oluştur"}
             </button>
           </div>
         </div>
@@ -1207,9 +1330,16 @@ function AppointmentsTab({
                 <p className="text-[13px] text-slate-700">{selectedAppointment.notes || "Not girilmemiş."}</p>
               </div>
 
+              {(selectedAppointment.status ?? "bekliyor") === "bekliyor" && (
+                <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
+                  className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
+                  Düzenle
+                </button>
+              )}
+
               <div className="grid grid-cols-3 gap-2.5">
-                <button type="button" onClick={() => updateAppointmentStatus(selectedAppointment.id, "tamamlandi")} className="btn-success justify-center">Tamamlandı</button>
-                <button type="button" onClick={() => updateAppointmentStatus(selectedAppointment.id, "iptal")} className="btn-danger justify-center">İptal Et</button>
+                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">Tamamlandı</button>
+                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">İptal Et</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
                   className="btn-danger justify-center" style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}>
                   Sil

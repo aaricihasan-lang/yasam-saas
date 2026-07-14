@@ -35,6 +35,7 @@ export type TenantResolution =
       readonly fkColumn: string;
       readonly parentTable: string;
       readonly parentTenantColumn: string;
+      readonly allowSharedNull?: boolean;
     };
 
 /** Tek bir kaynak tablonun bildirimsel indeks konfigürasyonu. */
@@ -386,6 +387,7 @@ export const YH_INDEX_SOURCES = [
       fkColumn: "sheet_id",
       parentTable: "aromatherapy_reference_sheets",
       parentTenantColumn: "tenant_id",
+      allowSharedNull: true, // parent sheet tenant NULL ise shared miras alınır
     },
     titleColumns: [], // başlık cells JSONB'den türetilir → builder
     searchTextColumns: ["cells"], // jsonb; hücre metni çıkarımı builder'da
