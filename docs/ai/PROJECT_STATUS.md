@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-14
+**Son güncelleme:** 2026-07-16
 
 ---
 
@@ -37,24 +37,25 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 origin/main'de; **S2.05 tamamlandı** — `work/yh-s2-05` (`b5d726f`), push edildi ve **PR #1 açık** (base `main` ← compare `integration/yh-s2-05`, merge commit `d57657f`; henüz merge edilmedi). Aktif: **S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`, taban `67fa6fb`; henüz commit yok).
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 + **S2.05** + **S2.07 origin/main'de** (`2b19743`). S2.05 **PR #1 merge edildi** (merge commit `cd9c77c`); S2.07 **PR #2 merge edildi** (merge commit `2b19743`). Aktif: **S2.08 (Runner + ParentTenantLookup) — AÇILDI, kod henüz yok** (`work/yh-s2-08`, taban `2b19743`).
 
 ## Son Tamamlanan Aşama
 
-- Yaşam Hafızası **S2.05 — JSONB Alan Çıkarımı** (saf builder, fail-safe) **tamamlandı**; `work/yh-s2-05` branch'inde commit `b5d726f`. Çıktı: `row → EvidenceField[] / topicTags string[] / ExpertRelation[]`.
-- **Kabul kriterleri geçti:** izole harness `npx tsx` EXIT 0 (22 matris + 6 kanonik + R1–R9 regresyon); kapsam-izole tsc EXIT 0; tüm-proje `tsc --noEmit` EXIT 0.
-- Not: S2.05 henüz `origin/main`'de **değil** (yalnız `work/yh-s2-05`). S2.04 (`6578ec5`) origin/main'de.
+- Yaşam Hafızası **S2.07 — İndeks-Birimi Builder** (saf + deterministik + fail-safe) **tamamlandı ve main'e merge edildi**. Kod commit'i `380e44f` + docs commit'i `c213b68`; integration `f79ead6`; **PR #2** (`integration/yh-s2-07` → `main`) merge edildi (`merged_at 2026-07-16T18:07:30Z`, merge commit `2b19743`). Yeni dosyalar: `lib/yasam-hafizasi/indexer/buildCandidate.ts` (`BuiltIndexUnit`/`buildIndexUnit`, `node:crypto` SHA-256 content_hash, `${config.sourceKey}:${groupId}` group_key) + `scripts/yh-build-candidate-harness.ts`.
+- **Kabul kriterleri geçti (merge sonrası main üzerinde doğrulandı):** S2.07 harness **EXIT 0 (28/28)**; S2.05 regresyon harness **EXIT 0**; tüm-proje `tsc --noEmit -p tsconfig.json` **EXIT 0**; `git diff --check` CLEAN. **AD-004 korundu** — korunan 7 dosya değişmedi.
+- Önceki aşama: **S2.05 — JSONB Alan Çıkarımı** (`b5d726f`) main'de (PR #1 merge, `cd9c77c`).
 
 ## Son Commit
 
-- `b5d726f` — Yaşam Hafızası **S2.05 (field extraction)** — `work/yh-s2-05` (henüz push edilmedi).
-- Doküman altyapısı: `65258bf` (docs/ai, aynı branch). S2.05 tabanı: `6578ec5` (S2.04) → `origin/main` (`6dd3805`).
-- İlgili yakın Yaşam Hafızası commit'leri: `b3396d9` (S2.03) · `0882fa4` (S2.01).
+- `380e44f` — Yaşam Hafızası **S2.07 (index-unit builder)**; docs `c213b68`. Integration merge `f79ead6`; main merge `2b19743`.
+- Önceki: `b5d726f` — S2.05 (field extraction); docs altyapısı `65258bf`.
 
 ## Son Push
 
-- S2.05 (`b5d726f`) + doküman (`65258bf`) `origin/work/yh-s2-05`'e **push edildi**; ayrıca `origin/integration/yh-s2-05` (`d57657f`, S2.05'in güncel main tabanına merge'ü) push edildi ve **PR #1** açıldı (açık, merge edilmedi). `origin/main` = `eb08ae1` (Danışan Performansı `perf(clients)`; YH'ye dokunmuyor).
-- S2.07 (`work/yh-s2-07`) **henüz push edilmedi** (kod/docs commit edilmedi).
+- **S2.07:** `origin/work/yh-s2-07` (`380e44f`) + `origin/integration/yh-s2-07` (`f79ead6`) push edildi; **PR #2 merge edildi** → `origin/main` = **`2b19743`**.
+- **S2.05:** `origin/work/yh-s2-05` (`67fa6fb`) + `origin/integration/yh-s2-05` (`d57657f`); **PR #1 merge edildi** → `cd9c77c`.
+- **S2.08:** `work/yh-s2-08` yalnız bu docs kapanış/açılış commit'iyle açıldı (kod yok).
+- Not: main bu süreçte paralel Danışan Performansı oturumuyla da ilerledi (`8f7d8a1 merge(perf)`, `fc078eb`); YH dosyalarına dokunmadı, korundu.
 
 ## Son Doğrulanan Production Commit
 
@@ -70,13 +71,12 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **Aktif: S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`). `buildCandidate.ts` (`BuiltIndexUnit`/`buildIndexUnit`, saf + fail-safe, `node:crypto` SHA-256 content_hash) + izole harness yazılıyor. Doğrulamalar (yeni harness + S2.05 regresyon + izole/tam TSC) koşulmadan **tamamlandı/PASS denmeyecek**; henüz commit yok. Not: ROADMAP'te **S2.06 yoktur**; S2.05'ten doğrudan S2.07.
-- **Onay bekleyen:** S2.07 iki path-scoped commit (docs + kod) + push; S2.05 için **PR #1 merge** (açık).
+- **Aktif: S2.08 (Runner + ParentTenantLookup) — AÇILDI** (`work/yh-s2-08`, taban `2b19743`). Bu aşamada yalnız docs kapanış/açılış yapıldı; **kod henüz yazılmadı**. S2.08 kapsamı: indexer runner + join-mode tenant için `ParentTenantLookup` enjeksiyonu (backfill; DB erişimi enjekte, çekirdek saf kalır). Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08.
+- **Onay bekleyen:** S2.08 tasarım kararlarının kilitlenmesi (kod öncesi).
 
 ## Bekleyen İşler
 
-- Yaşam Hafızası **S2.07** (Evidence builder) → S2.08 (Runner + ParentTenantLookup) → S2.13 (görünürlük) → Kanıt Kapısı/derece/"Neden?"/INV harness (Sprint 2 kalan).
-- S2.05 branch'i (`work/yh-s2-05`) için push + main entegrasyonu.
+- Yaşam Hafızası **S2.08** (Runner + ParentTenantLookup) → S2.13 (görünürlük) → Kanıt Kapısı/derece/"Neden?"/INV harness (Sprint 2 kalan).
 - Human Design **FAZ 5/2** (API route).
 - Numeroloji QA düzeltmeleri (kritik RLS + hesap/görsel bulguları).
 - Dijital İçerik Blok-2/3 + kimliksiz AI uç güvenliği.

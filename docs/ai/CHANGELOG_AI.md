@@ -44,6 +44,56 @@
 
 ---
 
+## 2026-07-16 — S2.07 Tamamlandı ve main'e merge edildi; S2.08 Açıldı
+
+### Tarih
+2026-07-16
+
+### Karar
+Yaşam Hafızası **S2.07 — İndeks-Birimi Builder tamamlandı ve `origin/main`'e merge
+edildi**. `buildCandidate.ts` (`buildIndexUnit`/`BuiltIndexUnit`) + izole harness
+`yh-build-candidate-harness.ts` teslim edildi. Git akışı: kod `380e44f` + docs
+`c213b68` (`work/yh-s2-07`) → integration `f79ead6` (`integration/yh-s2-07`,
+güncel main'e merge) → **PR #2** (`integration/yh-s2-07` → `main`) **merge edildi**
+(`merged_at 2026-07-16T18:07:30Z`, merge commit **`2b19743`**, ebeveynler
+`8f7d8a1` + `f79ead6`).
+
+Ayrıca aktif görev **S2.08 (Runner + ParentTenantLookup)** açıldı: yeni izole
+worktree `work/yh-s2-08` (taban `2b19743`). Bu kayıt yalnız docs kapanış/açılış
+commit'iyle (`docs(ai): close S2.07 and open S2.08`) gelir; **S2.08 kodu henüz yok**.
+
+### Neden
+S2.07 index-unit builder, Runner (S2.08) DB'ye yazmadan önce satırın deterministik,
+provenance'lı, kanıt taşıyan biçimini üretir. Tamamlanıp main'e alınarak S2.08'in
+saf zincir (S2.04 tenant → S2.05 alan → S2.07 birim) üstüne inşa edilmesi sağlandı.
+Docs, sonraki oturumların tek doğru kaynağı olduğundan gerçek Git durumuyla
+senkronlandı (S2.05 + S2.07 main'de; PR #1/#2 merge; S2.08 aktif).
+
+### Etkilenen Dosyalar
+- `docs/ai/PROJECT_STATUS.md`, `docs/ai/CURRENT_TASK.md`, `docs/ai/ROADMAP.md`, `docs/ai/CHANGELOG_AI.md` (durum senkronizasyonu; kod dosyasına dokunulmadı)
+
+### Doğrulama (merge sonrası main üzerinde)
+- S2.07 harness → **EXIT 0 (28/28)**; S2.05 regresyon harness → **EXIT 0**.
+- Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0**; `git diff --check` → CLEAN.
+- **AD-004 korundu:** korunan 7 dosya (`sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json`) merge öncesi main ile bit-bit özdeş.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Additif; S2.07 yalnız yeni builder + harness ekledi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. SQL/DDL yok; DB yazımı S2.08'e ait.
+
+### Geriye Dönük Uyumluluk
+Tam uyumlu; additif katman. Paralel Danışan Performansı çalışması (`8f7d8a1`,
+`fc078eb`) main'de korundu, YH ile örtüşme yok.
+
+### Notlar
+S2.05 de bu döngüde main'e alınmıştı (PR #1 merge `cd9c77c`). Head branch'ler
+(`integration/yh-s2-07`, `work/yh-s2-07`) silinmedi. S2.08 kodu kilitleme + onay
+sonrası yazılacak.
+
+---
+
 ## 2026-07-14 — S2.07 (İndeks-Birimi Builder) Başladı
 
 ### Tarih

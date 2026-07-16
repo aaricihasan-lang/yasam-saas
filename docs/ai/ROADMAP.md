@@ -60,13 +60,13 @@ Derin Analiz → Admin → Test → Deploy`
 | **S2.02** | Küratörlü eş-anlam/kavram sözlüğü DDL (`yh_topic_dictionary`) | ✅ | `config.ts` (YH_TABLES.topicDictionary); DDL Dashboard'dan |
 | **S2.03** | İndeks kaynak config (17 kaynak, kolon-rol eşleme, deklaratif) | ✅ | `indexer/sources.ts` |
 | **S2.04** | Tenant Resolver (saf fonksiyon, fail-closed, column/join mode) | ✅ | `indexer/tenantResolve.ts` |
-| **S2.05** | JSONB alan çıkarımı (metin/tag/relation ayrıştırma) | ✅ | `indexer/extractFields.ts` + `scripts/yh-extract-fields-harness.ts` (`b5d726f`, PR #1 açık) |
-| **S2.07** | İndeks-birimi builder (yazma-yanı `BuiltIndexUnit`: group_key + content_hash + title/snippet) | 🟡 | `indexer/buildCandidate.ts` + harness (`work/yh-s2-07`, uygulanıyor) |
-| **S2.08** | Runner + `ParentTenantLookup` enjeksiyonu (backfill, join tenant DB erişimi) | ⬜ | — |
+| **S2.05** | JSONB alan çıkarımı (metin/tag/relation ayrıştırma) | ✅ | `indexer/extractFields.ts` + `scripts/yh-extract-fields-harness.ts` (`b5d726f`, PR #1 merge `cd9c77c`) |
+| **S2.07** | İndeks-birimi builder (yazma-yanı `BuiltIndexUnit`: group_key + content_hash + title/snippet) | ✅ | `indexer/buildCandidate.ts` + `scripts/yh-build-candidate-harness.ts` (`380e44f`, PR #2 merge `2b19743`; harness 28/28) |
+| **S2.08** | Runner + `ParentTenantLookup` enjeksiyonu (backfill, join tenant DB erişimi) | 🟡 | `work/yh-s2-08` açıldı (docs); kod yok |
 | **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre) | ⬜ | — |
 | S2.x | normalize · sözlük genişletme · `search_tsv` sorgu · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` |
 
-> **S2.05 tamamlandı** (PR #1 açık). Aktif iş: **S2.07 (İndeks-birimi builder)** — `work/yh-s2-07`'de uygulanıyor. Sonrası: S2.08 (Runner) → S2.13 (görünürlük). ROADMAP'te **S2.06 yoktur**.
+> **S2.05 ve S2.07 tamamlandı ve main'de** (PR #1 merge `cd9c77c`, PR #2 merge `2b19743`). Aktif iş: **S2.08 (Runner + ParentTenantLookup)** — `work/yh-s2-08` açıldı (docs; kod yok). Sonrası: S2.13 (görünürlük). ROADMAP'te **S2.06 yoktur**.
 
 ### Sprint 3 — UI (Hızlı Tarama) ⬜
 Ana modül ekranı · sonuç kartı · derece görsel dili · "Neden?" · modül filtresi · a11y · responsive.

@@ -10,74 +10,66 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-14
+**Son güncelleme:** 2026-07-16
 
 ---
 
 ## Durum
 
-**Aktif görev: S2.07 — İndeks-Birimi Builder — UYGULAMA SÜRÜYOR** (implementation in
-progress). İzole worktree `work/yh-s2-07` (taban `origin/work/yh-s2-05` = `67fa6fb`).
-Tasarım kilidi onaylandı; docs + üretim kodu + izole harness yazılıyor. **Henüz
-tamamlanmadı, commit/push yok, harness/TSC "PASS" olarak işaretlenmedi.** Önceki
-görev **S2.05 tamamlandı** ve `b5d726f` ile korunmaktadır (aşağıda).
+**Aktif görev: S2.08 — Runner + ParentTenantLookup — AÇILDI** (tasarım aşaması; **kod
+henüz yok**). İzole worktree `work/yh-s2-08` (taban `origin/main` = `2b19743`). Bu
+aşamada yalnız docs kapanış/açılış senkronizasyonu yapıldı. Önceki görev **S2.07
+tamamlandı ve main'e merge edildi** (`2b19743`); aşağıda özetlenmiştir. Kod, tasarım
+kararları kilitlenip kullanıcı onayı alındıktan sonra yazılacaktır.
 
 ---
 
-## Tamamlanan Görev — S2.05 (JSONB Alan Çıkarımı) ✅
-
-Bir kaynak satırından (`row`) indekslenebilir kanıt alanlarını **saf + deterministik**
-üreten builder. `work/yh-s2-05` branch'inde commit `b5d726f`.
-
-**Çıktı:** `row → EvidenceField[] / topicTags: string[] / ExpertRelation[]`.
-
-**Teslim edilen dosyalar:**
-- `lib/yasam-hafizasi/indexer/extractFields.ts` (saf builder)
-- `scripts/yh-extract-fields-harness.ts` (izole harness)
-
-**Uygulanan ilkeler (kanonik):**
-- JSONB/çok-değerli çıkarım kuralları **tamamen `extractFields.ts` içinde** (K1→A); `sources.ts` değişmedi; **AD-004 korundu**; `search/types.ts` değişmedi.
-- **Fail-safe:** bozuk/bilinmeyen şekiller atlandı, crash yok, coercion (`String()`/`JSON.stringify()`) yok.
-- **Evidence text ham/orijinal** korundu (trim/normalize yok).
-- tag/relation **trim + exact dedupe** (relation dedup `Map<kind,Set<label>>` ile, ayıraçsız/çakışmasız).
-- **note/paragraph sınıflandırması kaynak-bağlamlı** (`NOTE_SOURCES` = refleksoloji:notes, kisisel_arsiv:archives → note; diğer tüm makale/rehber/tarif/kütüphane → paragraph).
-- **reference-rows cells** → `sectionRef` undefined (header eşlemesi yapılmaz).
-- `Candidate` / `snippet` / `content_hash` / `group_key` **S2.07 kapsamında** (bilinçli dışarıda).
-
-**Kabul kriterleri — GEÇTİ:**
-- İzole harness `npx tsx scripts/yh-extract-fields-harness.ts` → **EXIT 0** (22 matris senaryosu + 6 kanonik kontrol + R1–R9 regresyon).
-- Kapsam-izole `tsc --noEmit` (2 dosya + import zinciri) → **EXIT 0**.
-- Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0** (yabancı hata yok).
-- Kaynak dosyalarda NUL byte = 0 (git metin olarak görüyor).
-
-## Aktif Görev — S2.07 (İndeks-Birimi Builder) — UYGULANIYOR
+## Tamamlanan Görev — S2.07 (İndeks-Birimi Builder) ✅ (main'de)
 
 Bir kaynak satırından **yazma-yanı** indeks birimini **saf + deterministik + fail-safe**
 üreten builder. S2.05 çıktısı (`ExtractedFields`) + S2.04 tenant sonucu üstüne kompoze eder.
+Kod `380e44f`, docs `c213b68`, integration `f79ead6`; **PR #2 merge edildi** → main `2b19743`.
 
-**Yeni dosyalar (yalnız bunlar):**
+**Teslim edilen dosyalar:**
 - `lib/yasam-hafizasi/indexer/buildCandidate.ts` (tip `BuiltIndexUnit` + fn `buildIndexUnit` + lokal guard/canonical/SHA-256)
 - `scripts/yh-build-candidate-harness.ts` (izole harness)
 
-**Onaylanan tasarım kararları (kesin):**
-- **İmza:** `buildIndexUnit(config: SourceConfig, row, tenant: TenantResolveResult, extracted: ExtractedFields): BuiltIndexUnit | null`.
-- **Çıktı alanları (16):** tenantId, sourceModule, sourceTable, sourceId, unitType, sectionRef, groupKey, title, titleSource, snippet, snippetOrigin, topicTags, expertRelations, evidenceFields, sourceUpdatedAt, contentHash. *(id/isShared/searchText/searchTsv/lang/isClientPii/embedModel/indexedAt/reviewedAt/version/tsRank — bu aşamada EKLENMEZ.)*
-- **groupKey:** `` `${config.sourceKey}:${groupId}` `` — record→primaryKey; section/row + join→parent FK; güvenilir kimlik yoksa `null` (parent yoksa primaryKey'e sessiz fallback YOK). record ile section/row bu aşamada aynı prefix altında birleştirilmez.
-- **Birim genişletmesi S2.08'e ait:** bir çağrı ≤1 birim; `sectionRef` S2.07'de daima `null`.
-- **title/snippet:** ilk geçerli boş-olmayan string; yoksa `null` (+ source/origin `null`); fallback/first-sentence/uydurma yok.
-- **Tenant:** `ok:false`→`null`; `ok:true`→tenantId aynen (shared için `null`); `isShared` çıktıya girmez; tenantId hash'e girmez.
-- **Sıfır-kanıt politikası (onaylı):** evidenceFields + topicTags + expertRelations **üçü de boş → `null`** (INV-1).
-- **contentHash:** `node:crypto` SHA-256 (harici paket yok). Girdi: title, snippet, evidenceFields(origin,kind,text,sectionRef), topicTags, expertRelations(kind,targetLabel). Hariç: tenantId, sourceId, sourceTable/Module, groupKey, unitType, sectionRef, titleSource, snippetOrigin, sourceUpdatedAt. Lokal canonical: sabit alan sırası + uzunluk-önekli kodlama + null sabit işareti; key-sırasına bağımlılık yok.
-- **S2.05 çıktısı** yeniden ayrıştırılmadan/normalize edilmeden/sıralanmadan taşınır; girdi dizileri mutate edilmez (güvenli shallow copy serbest, eleman içeriği değişmez).
-- **Korunan (değişmez):** `sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json` — **AD-004 korunur**.
+**Uygulanan tasarım (kanonik):**
+- **İmza:** `buildIndexUnit(config, row, tenant: TenantResolveResult, extracted: ExtractedFields): BuiltIndexUnit | null`.
+- **BuiltIndexUnit (16 alan):** tenantId, sourceModule, sourceTable, sourceId, unitType, sectionRef, groupKey, title, titleSource, snippet, snippetOrigin, topicTags, expertRelations, evidenceFields, sourceUpdatedAt, contentHash.
+- **groupKey:** `` `${config.sourceKey}:${groupId}` `` — record→primaryKey; section/row+join→parent FK; kimlik yoksa `null` (sessiz fallback yok).
+- **title/snippet:** ilk geçerli boş-olmayan kolon; yoksa `null`; uydurma/first-sentence/label fallback yok.
+- **Tenant:** ok:false→null; ok:true→tenantId (shared→null); isShared çıktıda yok; tenantId hash'e girmez.
+- **Sıfır-kanıt (evidenceFields+topicTags+expertRelations üçü boş) → `null`** (INV-1).
+- **contentHash:** `node:crypto` SHA-256; girdi yalnız içerik (title, snippet, evidenceFields[origin,kind,text,sectionRef], topicTags, expertRelations[kind,targetLabel]); lokal canonical (sabit sıra + uzunluk-önekli + null sabiti). Provenance/kimlik/tenant/updatedAt hariç.
+- **Korunan (değişmez):** `sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json` — **AD-004 korundu**.
 
-**Durum:** Kod + izole harness yazılıyor; doğrulamalar (yeni harness + S2.05 regresyon + izole/tam TSC) koşulmadan **tamamlandı/PASS denmeyecek**. İzolasyon: PR #1 (açık) ve paralel Danışan Performansı worktree/branch'ine **dokunulmadı**.
+**Kabul kriterleri — GEÇTİ (merge sonrası main üzerinde doğrulandı):**
+- S2.07 harness `npx tsx scripts/yh-build-candidate-harness.ts` → **EXIT 0 (28/28)**.
+- S2.05 regresyon harness `npx tsx scripts/yh-extract-fields-harness.ts` → **EXIT 0**.
+- Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0**.
+- `git diff --check` → CLEAN; working tree temiz. Merge çakışmasız (`2b19743`, ebeveynler `8f7d8a1` + `f79ead6`).
+
+> Önceki tamamlanan görev — **S2.05 (JSONB Alan Çıkarımı)** (`b5d726f`, PR #1 merge `cd9c77c`): `row → EvidenceField[]/topicTags/ExpertRelation[]`. Ayrıntı `CHANGELOG_AI.md`'de.
+
+## Aktif Görev — S2.08 (Runner + ParentTenantLookup) — AÇILDI (kod yok)
+
+İndeksleyici runner: kaynak satırlarını S2.04 tenant çözümü → S2.05 alan çıkarımı →
+S2.07 birim builder zincirinden geçirir; join-mode tenant için `ParentTenantLookup`
+DB erişimini **enjekte eder** (çekirdek saf kalır, IO enjekte edilir; tenantResolve
+deseni). Backfill/write-side orkestrasyon.
+
+**Durum:** Yalnız docs açılışı yapıldı; tasarım kararları henüz **kilitlenmedi**, kod
+yok. Kilitleme + kullanıcı onayı sonrası uygulanacak.
+
+**Not:** Birim genişletmesi (bir satır → çok birim) ve `sectionRef` üretimi S2.08
+kapsamına aittir (S2.07'de `sectionRef` daima `null`, çağrı başına ≤1 birimdi).
 
 ## Bekleyen Onaylar
 
-- S2.05 (`work/yh-s2-05`): **PR #1 açık** (base `main` ← compare `integration/yh-s2-05`, merge commit `d57657f`); merge kullanıcı onayı bekliyor.
-- S2.07: iki path-scoped commit (docs + kod) — doğrulama sonrası kullanıcı onayı bekliyor.
+- **S2.08:** tasarım kararlarının kilitlenmesi + kod öncesi kullanıcı onayı.
 
 ## Sonuç
 
-- S2.05 tamamlandı (`b5d726f`); S2.07 aynı çekirdek disipliniyle **uygulanıyor** (henüz commit/push yok).
+- S2.05 (`cd9c77c`) ve S2.07 (`2b19743`) main'de; tümü doğrulandı, AD-004 korundu.
+  S2.08 açıldı (docs); kod, onay sonrası aynı çekirdek disipliniyle yazılacaktır.
