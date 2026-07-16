@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   backgroundSyncYasamUserFromDb,
@@ -24,6 +25,13 @@ type Appointment = {
 };
 
 export default function DashboardNotifications() {
+  const pathname = usePathname();
+  // PERF-1: Doğaltaş modülü randevu verisi kullanmaz. Bu route'larda /api/appointments
+  // fetch'i ve polling interval'ları hiç oluşturulmaz (cross-modül kuplajı kaldırılır).
+  // Boolean bağımlılık → effect yalnız /dogaltas sınırı geçilince yeniden kurulur;
+  // diğer sayfalar arası gezinmede tek-fetch davranışı korunur.
+  const skipAppointments =
+    pathname === "/dogaltas" || (pathname ?? "").startsWith("/dogaltas/");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [open, setOpen] = useState(false);
   const warnedIdsRef = useRef<Set<string>>(new Set());
@@ -75,6 +83,9 @@ export default function DashboardNotifications() {
   }
 
   useEffect(() => {
+    // PERF-1: Doğaltaş route'larında hiç fetch/polling kurma.
+    if (skipAppointments) return;
+
     // Bildirim ilk çekimini ertele: aktif sayfanın (ör. Danışan Listesi/Detay)
     // kendi verisi önce yüklensin, bu arka-plan isteği açılışı bekletmesin.
     // requestIdleCallback varsa boşta, yoksa kısa gecikmeyle çalışır.
@@ -110,7 +121,7 @@ export default function DashboardNotifications() {
       clearInterval(refreshInterval);
       clearInterval(warningInterval);
     };
-  }, []);
+  }, [skipAppointments]);
 
   const todayCount = useMemo(() => appointments.length, [appointments]);
 

@@ -52,10 +52,17 @@ const SESSION_TOKEN_KEY = "yasam_session_token";
 const USER_SYNC_TTL_MS = 90_000;
 
 let lastUserSyncAt = 0;
+// PERF-1: TTL/dedupe yalnız AYNI kimlik+oturum için geçerli olmalı. Cache anahtarı
+// userId + session token'a bağlanır; kullanıcı/oturum/tenant değişince (farklı token
+// veya id) anahtar değişir ve cache otomatik geçersiz olur (eski profil dönmez).
+let lastSyncKey = "";
+let inFlightKey = "";
 let syncInFlight: Promise<YasamUser | null> | null = null;
 
 export function invalidateYasamUserSyncCache(): void {
   lastUserSyncAt = 0;
+  lastSyncKey = "";
+  inFlightKey = "";
   syncInFlight = null;
 }
 
@@ -374,25 +381,34 @@ export async function syncYasamUserFromDb(
 
   const force = options?.force === true;
   const now = Date.now();
+  // Kimlik+oturum bağlamı: bunlardan biri değişirse cache/dedupe geçersiz sayılır.
+  const key = `${current.id}::${readSessionToken() ?? ""}`;
 
-  if (!force && now - lastUserSyncAt < USER_SYNC_TTL_MS) {
+  // TTL yalnız aynı kimlik+oturum için geçerli.
+  if (!force && key === lastSyncKey && now - lastUserSyncAt < USER_SYNC_TTL_MS) {
     return readYasamUser() ?? current;
   }
 
-  if (syncInFlight && !force) {
+  // In-flight dedupe yalnız aynı kimlik+oturum isteği için.
+  if (syncInFlight && !force && key === inFlightKey) {
     return syncInFlight;
   }
 
   const run = async (): Promise<YasamUser | null> => {
     const fresh = await refreshYasamUserFromDb(current);
+    // 401/403 veya boş sonuç (fresh=null) → TTL/anahtar güncellenmez; bir sonraki
+    // çağrı yeniden dener, hatalı/oturumsuz durum cache'lenmez.
     if (!fresh) return null;
     saveYasamUser(fresh);
     lastUserSyncAt = Date.now();
+    lastSyncKey = key;
     return fresh;
   };
 
+  inFlightKey = key;
   syncInFlight = run().finally(() => {
     syncInFlight = null;
+    inFlightKey = "";
   });
 
   return syncInFlight;
