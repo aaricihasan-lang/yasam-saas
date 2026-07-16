@@ -19,22 +19,25 @@ export const runtime = "nodejs";
  * NOT: Bu route artık TAM silme yapar — tüm alt kayıtlar + client_stones + ana
  *      `clients` kaydı silinir (C2-B1b: tarayıcı tarafı supabase silmeleri kaldırıldı).
  *      Tekil ve toplu danışan silme bu route üzerinden yürütülür.
+ *
+ * PERF-3: Alt tabloların çoğu clients'a ON DELETE CASCADE ile bağlı (production FK
+ *      metadata ile doğrulandı). Bu tablolar için manuel DELETE kaldırıldı; tek ana
+ *      `clients` DELETE'i DB içinde otomatik cascade tetikler:
+ *        client_stones · client_stone_photos(→stones) · client_notes ·
+ *        client_sessions · appointments · client_combinations.
+ *      Yalnız clients'a FK'siz iki tablo (client_homeworks, client_analyses) manuel
+ *      silinir; ayrıca storage dosyaları (DB cascade storage'a dokunmaz) manuel
+ *      temizlenir. Bu üç bağımsız iş tek Promise.all'da paralel çalışır.
  */
 
 // Taş fotoğrafları storage bucket'ı (StonesTab / stones route ile aynı).
 const STONE_PHOTO_BUCKET = "stone-photos";
 
-// Silinecek alt tablolar — fotoğraflar taş kayıtlarından önce silinir (FK güvenliği).
-const CHILD_TABLES = [
-  "client_stone_photos",
-  "client_stones",
-  "client_notes",
-  "client_sessions",
-  "client_homeworks",
-  "appointments",
-  "client_analyses",
-  "client_combinations",
-] as const;
+// clients'a FK'si BULUNMAYAN alt tablolar — ON DELETE CASCADE çalışmayacağından
+// ana clients DELETE'inden önce manuel silinir (yetim kayıt bırakmamak için).
+// Diğer alt tablolar (client_stones→client_stone_photos, client_notes, client_sessions,
+// appointments, client_combinations) clients DELETE ile DB-içi CASCADE üzerinden silinir.
+const MANUAL_DELETE_TABLES = ["client_homeworks", "client_analyses"] as const;
 
 export async function DELETE(
   req: NextRequest,
@@ -69,8 +72,10 @@ export async function DELETE(
 
   const warnings: string[] = [];
 
-  // O-6: taş fotoğraflarının storage dosyalarını, DB satırları silinmeden ÖNCE temizle
-  // → danışan silmede de yetim storage dosyası kalmaz (tekil taş silmeyle tutarlı).
+  // O-6: taş fotoğraflarının storage dosya yollarını, DB satırları (clients CASCADE ile)
+  // silinmeden ÖNCE topla → danışan silmede yetim storage dosyası kalmaz (tekil taş
+  // silmeyle tutarlı). NOT: DB cascade yalnız satırları siler; storage'a dokunmaz.
+  let photoPaths: string[] = [];
   const { data: photoRows, error: photoSelErr } = await db
     .from("client_stone_photos")
     .select("file_path")
@@ -79,27 +84,40 @@ export async function DELETE(
   if (photoSelErr) {
     warnings.push(`client_stone_photos(select): ${photoSelErr.message}`);
   } else {
-    const paths = (photoRows ?? [])
+    photoPaths = (photoRows ?? [])
       .map((r) => (r as { file_path?: unknown }).file_path)
       .filter((p): p is string => typeof p === "string" && p.length > 0);
-    if (paths.length > 0) {
-      const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
-      if (storageError) warnings.push(`storage(stone-photos): ${storageError.message}`);
-    }
   }
 
-  // Alt kayıtları sil. Tek tablonun hatası tümünü bozmasın (orijinal davranışla uyumlu),
-  // ama hangilerinin başarısız olduğunu raporla.
-  for (const table of CHILD_TABLES) {
-    const { error } = await db
-      .from(table)
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
-    if (error) warnings.push(`${table}: ${error.message}`);
+  // Bağımsız temizlik işleri paralel: FK'siz alt tablo DELETE'leri + storage remove.
+  // Tek işin hatası tümünü bozmasın (orijinal davranışla uyumlu); hangisinin başarısız
+  // olduğunu warnings ile raporla. Promise.all yalnız gerçek exception'da reject olur;
+  // Supabase error nesnesi rejection değildir → her sonucun .error'ı ayrı kontrol edilir.
+  const parallelOps: Array<PromiseLike<{ label: string; error: { message: string } | null }>> =
+    MANUAL_DELETE_TABLES.map((table) =>
+      db
+        .from(table)
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("client_id", clientId)
+        .then(({ error }) => ({ label: table, error })),
+    );
+  if (photoPaths.length > 0) {
+    parallelOps.push(
+      db.storage
+        .from(STONE_PHOTO_BUCKET)
+        .remove(photoPaths)
+        .then(({ error }) => ({ label: `storage(${STONE_PHOTO_BUCKET})`, error })),
+    );
+  }
+  const results = await Promise.all(parallelOps);
+  for (const r of results) {
+    if (r.error) warnings.push(`${r.label}: ${r.error.message}`);
   }
 
-  // Ana danışan kaydını sil (tam silme — tenant + id kapsamlı).
+  // Ana danışan kaydını sil (tam silme — tenant + id kapsamlı). Bu tek DELETE, CASCADE'li
+  // alt tabloları (stones→photos satırları, notes, sessions, appointments, combinations)
+  // DB içinde otomatik siler.
   const { error: clientDelErr } = await db
     .from("clients")
     .delete()
