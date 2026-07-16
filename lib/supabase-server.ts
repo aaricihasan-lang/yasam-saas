@@ -3,8 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 /**
  * Service-role Supabase client — yalnızca server-side (API route) kullanımı içindir.
  * Bu client RLS'yi bypass eder; browser koduna asla gönderilmemeli.
+ *
+ * PERF-2A: Client stateless'tir (sabit URL + service_role key, persistSession:false,
+ * kullanıcı/tenant/session bilgisi taşımaz). Bu nedenle modül seviyesinde lazy
+ * singleton olarak paylaşılır — her çağrıda yeni createClient nesnesi tahsis edilmez.
+ * Kimliğe bağlı hiçbir durum bu nesnede tutulmaz; sorgu kapsamı (tenant/user) her
+ * zaman çağıran route tarafından belirlenir.
  */
-export function getServerDb() {
+function createServerDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
@@ -13,6 +19,12 @@ export function getServerDb() {
   return createClient(url, key, {
     auth: { persistSession: false },
   });
+}
+
+let serverDb: ReturnType<typeof createServerDb> | null = null;
+
+export function getServerDb() {
+  return (serverDb ??= createServerDb());
 }
 
 /**
