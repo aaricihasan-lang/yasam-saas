@@ -10,6 +10,13 @@ export type UserGuardOk = {
   email: string;
   is_demo_account: boolean;
   db: SupabaseClient;
+  /**
+   * PERF-2C/2D: Yalnızca `verifyUserRequest(req, { includeProfile: true })` ile
+   * çağrıldığında dolar. Güvenli whitelist (PROFILE_USER_SELECT) kolonlarını içerir;
+   * password/password_hash gibi hassas alanlar ASLA bulunmaz. Diğer çağrılarda
+   * undefined kalır → mevcut ~181 route ek kolon çekmez.
+   */
+  profile?: Record<string, unknown>;
 };
 
 export type UserGuardFail = {
@@ -18,6 +25,21 @@ export type UserGuardFail = {
 };
 
 export type UserGuardResult = UserGuardOk | UserGuardFail;
+
+export type VerifyUserOptions = {
+  /** true → users SELECT tek seferde profil whitelist kolonlarını da alır (PERF-2C/2D). */
+  includeProfile?: boolean;
+};
+
+// Varsayılan (auth) kolonları — mevcut davranış. Literal tip: supabase-js sorgu
+// sonucunu doğru çıkarabilsin (birleştirilmiş string `string`'e genişler ve tipi bozar).
+const DEFAULT_USER_SELECT = "id, tenant_id, email, active, is_demo_account" as const;
+
+// Profil route'u için genişletilmiş GÜVENLİ whitelist. password/password_hash YOK.
+// (app/api/auth/profile/route.ts eski PROFILE_SELECT sözleşmesiyle birebir aynı.)
+// Tek-satır literal — `as const` ile tip korunur (ternary'de GenericStringError'ı önler).
+const PROFILE_USER_SELECT =
+  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account" as const;
 
 /**
  * Kullanıcı kimlik doğrulaması — settings API route'ları için.
@@ -29,7 +51,11 @@ export type UserGuardResult = UserGuardOk | UserGuardFail;
  *   4. Token'ın sahibi x-user-id ile aynı olmalı (binding) — başkasının
  *      geçerli token'ı kendi x-user-id'siyle birlikte kullanılamaz.
  */
-export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResult> {
+export async function verifyUserRequest(
+  req: NextRequest,
+  options?: VerifyUserOptions,
+): Promise<UserGuardResult> {
+  const includeProfile = options?.includeProfile === true;
   const userId = req.headers.get("x-user-id")?.trim() ?? "";
   const sessionToken = req.headers.get("x-session-token")?.trim() ?? "";
 
@@ -78,12 +104,21 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
     };
   }
 
-  const { data, error } = await db
-    .from("users")
-    .select("id, tenant_id, email, active, is_demo_account")
-    .eq("id", userId)
-    .eq("active", true)
-    .maybeSingle();
+  // Kolon seçimi opt-in'e göre: her dal LİTERAL select kullanır (supabase-js sonuç
+  // tipini derleme-zamanı parse eder; ternary-içi select union'ı parser'ı bozar).
+  const { data, error } = includeProfile
+    ? await db
+        .from("users")
+        .select(PROFILE_USER_SELECT)
+        .eq("id", userId)
+        .eq("active", true)
+        .maybeSingle()
+    : await db
+        .from("users")
+        .select(DEFAULT_USER_SELECT)
+        .eq("id", userId)
+        .eq("active", true)
+        .maybeSingle();
 
   if (error || !data || !data.tenant_id) {
     return {
@@ -99,5 +134,7 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
     email: String(data.email ?? ""),
     is_demo_account: data.is_demo_account === true,
     db,
+    // includeProfile=false ise undefined → diğer route'lar ek kolon/veri taşımaz.
+    profile: includeProfile ? (data as Record<string, unknown>) : undefined,
   };
 }
