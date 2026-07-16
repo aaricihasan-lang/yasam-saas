@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -14,6 +14,13 @@ import {
   getUpcomingPhaseEvents,
   type MonthPhaseEvent,
 } from "@/lib/cosmic/moon";
+
+// #418 hydration fix: ilk render'da sabit mutlak referans anı (Date.UTC → tz-bağımsız) → server↔client
+// birebir; gerçek "bugün" paint öncesi layout-effect ile yazılır. Kardeş sayfalarla (page.tsx,
+// transits) aynı desen; yeni tarih altyapısı YOK. Ay yaşı/aydınlanma gibi sürekli değişen değerlerin
+// SSR↔hidrasyon metin uyuşmazlığını (React #418) ortadan kaldırır.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -145,7 +152,8 @@ function getPhaseTime(t: PhaseTransition): string | undefined {
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function MoonPhasesPage() {
-  const today      = useMemo(() => new Date(), []);
+  // #418 fix: ilk render sabit tohumla (server↔client birebir); mount'ta (paint öncesi) gerçek "bugün".
+  const [today, setToday] = useState<Date>(HYDRATION_SAFE_NOW);
   const todayYear  = today.getFullYear();
   const todayMonth = today.getMonth();
   const todayDay   = today.getDate();
@@ -153,6 +161,13 @@ export default function MoonPhasesPage() {
   const [viewYear,  setViewYear]  = useState(todayYear);
   const [viewMonth, setViewMonth] = useState(todayMonth);
   const [upcomingFilter, setUpcomingFilter] = useState<UpcomingFilter>("all");
+
+  useIsomorphicLayoutEffect(() => {
+    const n = new Date();
+    setToday(n);
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+  }, []);
 
   // Bugünün ay verileri
   const todayPhase       = useMemo(() => getMoonPhase(today),       [today]);
