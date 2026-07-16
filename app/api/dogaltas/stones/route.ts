@@ -62,8 +62,26 @@ function pick(body: Record<string, unknown>, keys: readonly string[]): Record<st
 
 // ─── GET: list | count | extended | raw ──────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
+  // PERF-3 (yalnız TEŞHİS): endpoint alt-adım süreleri yalnızca standart
+  // `Server-Timing` response header'ı ile sunulur. Auth/tenant/sorgu davranışı ve
+  // JSON sözleşmesi DEĞİŞMEZ. Header yalnız süre + sabit ASCII metrik adı içerir;
+  // hiçbir kullanıcı/tenant/token/sorgu içeriği ölçülmez, loglanmaz veya sunulmaz.
+  // `performance.now()` monotonic saat kullanılır (Node global; yeni bağımlılık yok).
+  const t0 = performance.now();
+  const timings: string[] = [];
+  const mark = (name: string, ms: number) => {
+    timings.push(`${name};dur=${ms.toFixed(1)}`);
+  };
+  const send = (res: Response): Response => {
+    mark("total", performance.now() - t0);
+    res.headers.set("Server-Timing", timings.join(", "));
+    return res;
+  };
+
+  const tAuth = performance.now();
   const guard = await verifyUserRequest(req);
-  if (!guard.ok) return guard.response;
+  mark("auth", performance.now() - tAuth);
+  if (!guard.ok) return send(guard.response);
   const { db, tenantId, is_demo_account } = guard;
 
   const sp = req.nextUrl.searchParams;
@@ -75,30 +93,47 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     // raw: dashboard trend/stok ham satır — yalnız kendi tenant (library DAHİL DEĞİL)
     if (mode === "raw") {
+      const tQ = performance.now();
       const { data, error } = await db.from("stones").select("*").eq("tenant_id", tenantId);
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, rows: data ?? [] });
+      mark("stones", performance.now() - tQ);
+      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      const tR = performance.now();
+      const res = NextResponse.json({ ok: true, rows: data ?? [] });
+      mark("response", performance.now() - tR);
+      return send(res);
     }
 
     // extended: tüm satırlar geniş select (kombinasyon havuzu + detay-filtre arama)
     if (mode === "extended") {
+      const tQ = performance.now();
       const { data, error } = await db
         .from("stones").select(STONES_LIST_EXTENDED_SELECT)
         .in("tenant_id", ids)
         .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS);
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, rows: sortTr((data ?? []) as Record<string, unknown>[]) });
+      mark("stones", performance.now() - tQ);
+      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      const tR = performance.now();
+      const res = NextResponse.json({ ok: true, rows: sortTr((data ?? []) as Record<string, unknown>[]) });
+      mark("response", performance.now() - tR);
+      return send(res);
     }
 
+    const tExcl = performance.now();
     const excluded = await exclusionIds(db, tenantId);
+    mark("exclusions", performance.now() - tExcl);
 
     if (mode === "count") {
       let query = db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids);
       if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
       if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
+      const tC = performance.now();
       const { count, error } = await query;
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, count: count ?? 0 });
+      mark("count", performance.now() - tC);
+      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      const tR = performance.now();
+      const res = NextResponse.json({ ok: true, count: count ?? 0 });
+      mark("response", performance.now() - tR);
+      return send(res);
     }
 
     // list (varsayılan) — pagination + arama + exclusion
@@ -122,19 +157,26 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (countQuery && excluded.length) countQuery = countQuery.not("id", "in", `(${excluded.join(",")})`);
     if (countQuery && q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) countQuery = countQuery.or(or); }
 
+    // stones_count: liste + count TEK dalgada (Promise.all). Ayrı ölçüm uğruna SERİ
+    // hale getirilmez — paralel davranış korunur; bu yüzden birleşik süre ölçülür.
+    const tSC = performance.now();
     const [listRes, countRes] = await Promise.all([
       query,
       countQuery ?? Promise.resolve({ count: null as number | null, error: null }),
     ]);
-    if (listRes.error) return NextResponse.json({ ok: false, error: listRes.error.message }, { status: 500 });
-    if (withCount && countRes.error) return NextResponse.json({ ok: false, error: countRes.error.message }, { status: 500 });
-    return NextResponse.json({
+    mark("stones_count", performance.now() - tSC);
+    if (listRes.error) return send(NextResponse.json({ ok: false, error: listRes.error.message }, { status: 500 }));
+    if (withCount && countRes.error) return send(NextResponse.json({ ok: false, error: countRes.error.message }, { status: 500 }));
+    const tR = performance.now();
+    const res = NextResponse.json({
       ok: true,
       rows: sortTr((listRes.data ?? []) as Record<string, unknown>[]),
       ...(withCount ? { count: countRes.count ?? 0 } : {}),
     });
+    mark("response", performance.now() - tR);
+    return send(res);
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sunucu hatası" }, { status: 500 });
+    return send(NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sunucu hatası" }, { status: 500 }));
   }
 }
 
