@@ -139,39 +139,32 @@ export async function GET(req: NextRequest): Promise<Response> {
     // list (varsayılan) — pagination + arama + exclusion
     const offset = Number.parseInt(sp.get("offset") ?? "0", 10) || 0;
     const limit = Number.parseInt(sp.get("limit") ?? String(STONES_LIST_PAGE_SIZE), 10) || STONES_LIST_PAGE_SIZE;
-    // O-3: withCount → liste + toplam sayı TEK istekte döner (exclusion + auth
-    // bir kez yapılır, count parallel çalışır). İlk yükleme 3 istek → 1'e iner.
+    // PERF-5: withCount istendiğinde toplam sayı AYRI bir count sorgusuyla değil,
+    // ranged liste sorgusunun kendisiyle TEK PostgREST çağrısında alınır
+    // ({ count: "exact" } → Content-Range). Toplam sayı range/order'dan bağımsızdır ve
+    // aynı tenant+exclusion+arama filtrelerine tabidir → sonuç (rows + count) birebir
+    // aynı; ama wave-4'teki 2 paralel PostgREST çağrısı 1'e iner (round-trip azaltımı).
     const withCount = sp.get("withCount") === "1";
 
     let query = db
-      .from("stones").select(STONES_LIST_SELECT)
+      .from("stones")
+      .select(STONES_LIST_SELECT, withCount ? { count: "exact" as const } : undefined)
       .in("tenant_id", ids)
       .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
       .range(offset, offset + limit - 1);
     if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
     if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
 
-    let countQuery = withCount
-      ? db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids)
-      : null;
-    if (countQuery && excluded.length) countQuery = countQuery.not("id", "in", `(${excluded.join(",")})`);
-    if (countQuery && q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) countQuery = countQuery.or(or); }
-
-    // stones_count: liste + count TEK dalgada (Promise.all). Ayrı ölçüm uğruna SERİ
-    // hale getirilmez — paralel davranış korunur; bu yüzden birleşik süre ölçülür.
+    // stones_count: liste + (withCount ise) toplam sayı TEK sorguda (Content-Range).
     const tSC = performance.now();
-    const [listRes, countRes] = await Promise.all([
-      query,
-      countQuery ?? Promise.resolve({ count: null as number | null, error: null }),
-    ]);
+    const listRes = await query;
     mark("stones_count", performance.now() - tSC);
     if (listRes.error) return send(NextResponse.json({ ok: false, error: listRes.error.message }, { status: 500 }));
-    if (withCount && countRes.error) return send(NextResponse.json({ ok: false, error: countRes.error.message }, { status: 500 }));
     const tR = performance.now();
     const res = NextResponse.json({
       ok: true,
       rows: sortTr((listRes.data ?? []) as Record<string, unknown>[]),
-      ...(withCount ? { count: countRes.count ?? 0 } : {}),
+      ...(withCount ? { count: listRes.count ?? 0 } : {}),
     });
     mark("response", performance.now() - tR);
     return send(res);
