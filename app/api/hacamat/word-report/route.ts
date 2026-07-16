@@ -2,6 +2,9 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  ExternalHyperlink,
+  Footer,
+  PageNumber,
   Packer,
   Paragraph,
   ShadingType,
@@ -11,10 +14,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
-import {
-  buildFooter,
-  type ReportChild,
-} from "@/lib/docx/reportHelpers";
+import { type ReportChild } from "@/lib/docx/reportHelpers";
 import {
   getHacamatMonthData,
   MONTH_NAMES_TR,
@@ -123,6 +123,63 @@ function noteItem(num: number, text: string): Paragraph {
 
 function gap(size = 80): Paragraph {
   return new Paragraph({ spacing: { after: size } });
+}
+
+// ─── Kurumsal footer — Hacamat'a özel, yerel (paylaşımlı helper'a dokunulmaz) ──
+
+const RULE_GRAY = "CBD5E1";
+
+/** İnce gri ayırıcı çizgi (alt kenarlıklı boş paragraf) */
+function footerRule(before = 0, after = 0): Paragraph {
+  return new Paragraph({
+    border:  { bottom: { style: BorderStyle.SINGLE, size: 4, color: RULE_GRAY } },
+    spacing: { before, after },
+  });
+}
+
+/**
+ * Her sayfada tekrarlayan kurumsal footer:
+ *   ────────────────
+ *   Yaşam Sistemi™
+ *   www.yasamsistemi.com   (tıklanabilir)
+ *   ────────────────
+ *   Hacamat Takvimi • <ay> • Sayfa X / Y   (dinamik)
+ */
+function buildHacamatFooter(pageName: string, monthLabel: string): Footer {
+  return new Footer({
+    children: [
+      footerRule(0, 50),
+      // Marka adı — belirgin ama sade
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children:  [new TextRun({ text: "Yaşam Sistemi™", bold: true, size: 17, font: FONT, color: C_DARK })],
+        spacing:   { before: 0, after: 30 },
+      }),
+      // Tıklanabilir web sitesi — ↗ ikonuyla
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ExternalHyperlink({
+            link:     "https://www.yasamsistemi.com",
+            children: [new TextRun({ text: "↗ www.yasamsistemi.com", size: 15, font: FONT, color: C_TEAL })],
+          }),
+        ],
+        spacing: { before: 0, after: 45 },
+      }),
+      footerRule(0, 55),
+      // Meta satırı — sayfa adı • ay • Sayfa X / Y
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: `${pageName}  •  ${monthLabel}  •  Sayfa `, size: 15, font: FONT, color: C_LIGHT }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 15, font: FONT, color: C_LIGHT }),
+          new TextRun({ text: " / ", size: 15, font: FONT, color: C_LIGHT }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, font: FONT, color: C_LIGHT }),
+        ],
+        spacing: { before: 0, after: 0 },
+      }),
+    ],
+  });
 }
 
 // ─── Ay Özeti kutusu ─────────────────────────────────────────────────────────
@@ -300,7 +357,7 @@ async function buildWordBuffer(params: {
       spacing:   { before: 0, after: 40 },
     }));
   }
-  all.push(gap(35));
+  all.push(gap(25));
 
   all.push(buildSummaryBox([
     { label: "Altın Gün",   value: `${data.altin.length} gün`,          fill: "FEF3C7", color: "B45309" },
@@ -308,11 +365,11 @@ async function buildWordBuffer(params: {
     { label: "Uygun Gün",   value: `${data.uygun.length} gün`,          fill: "FEF9C3", color: "A16207" },
     { label: "Yasaklı Gün", value: `${data.yasakliNotable.length} gün`, fill: "FEE2E2", color: "B91C1C" },
   ]));
-  all.push(gap(50));
+  all.push(gap(30));
 
   all.push(secH1("Aylık Hacamat Takvimi"));
   all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${tableRows.length} gün`));
-  all.push(gap(25));
+  all.push(gap(20));
   if (tableRows.length > 0) {
     all.push(buildTable(tableRows));
   } else {
@@ -322,14 +379,14 @@ async function buildWordBuffer(params: {
       indent:  { left: 160 },
     }));
   }
-  all.push(gap(50));
+  all.push(gap(30));
 
   if (data.notes.length > 0) {
     all.push(secH1("Dinamik Hicri Gün Notları"));
     all.push(caption("Hicri günlerin akşamdan başlaması kuralına göre otomatik üretilmiştir."));
-    all.push(gap(20));
+    all.push(gap(15));
     data.notes.forEach((note, i) => all.push(noteItem(i + 1, note)));
-    all.push(gap(40));
+    all.push(gap(28));
   }
 
   if (inc.kurallar) {
@@ -354,10 +411,12 @@ async function buildWordBuffer(params: {
     sections: [{
       properties: {
         page: {
-          margin: { top: 480, bottom: 380, left: 600, right: 600, header: 240, footer: 240 },
+          // Alt kenar, kurumsal footer'ın (2 çizgi + marka + www + meta) ferah
+          // yüksekliğine göre genişletildi; gövde metni footer'a taşmaz.
+          margin: { top: 480, bottom: 1120, left: 600, right: 600, header: 240, footer: 320 },
         },
       },
-      footers: { default: buildFooter(`Hacamat Takvimi · ${monthLabel}`) },
+      footers: { default: buildHacamatFooter("Hacamat Takvimi", monthLabel) },
       children: all,
     }],
   });

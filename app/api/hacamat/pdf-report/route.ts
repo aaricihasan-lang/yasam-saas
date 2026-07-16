@@ -34,10 +34,10 @@ const STATUS_TEXT: Record<HacamatStatus, [number, number, number]> = {
 };
 
 const STATUS_LABEL: Record<HacamatStatus, string> = {
-  altin:   "ALTIN GUN",
-  sunnet:  "SUNNET GUN",
-  uygun:   "UYGUN GUN",
-  yasakli: "YASAKLI GUN",
+  altin:   "ALTIN GÜN",
+  sunnet:  "SÜNNET GÜN",
+  uygun:   "UYGUN GÜN",
+  yasakli: "YASAKLI GÜN",
   normal:  "—",
 };
 
@@ -49,7 +49,16 @@ const TM = 14;   // top margin mm
 const W  = 210;  // A4 width mm
 const H  = 297;  // A4 height mm
 const CW = W - LM - RM;  // content width = 182 mm
-const PB = H - 14;       // page bottom safe line
+
+// Kurumsal footer alanı: iki ince çizgi + marka + www + meta satırı.
+// İçerik bu sınırın üstünde durur; footer'a çarpmaz.
+const FOOTER_RESERVE = 23;         // footer için ayrılan alt alan (mm) — ferah düzen
+const PB = H - FOOTER_RESERVE;     // içerik alt güvenli sınırı (274 mm)
+
+// ─── Marka ────────────────────────────────────────────────────────────────────
+
+const BRAND     = "Yaşam Sistemi™";
+const BRAND_URL = "www.yasamsistemi.com";
 
 // ─── PDF helper sınıfı ────────────────────────────────────────────────────────
 
@@ -57,13 +66,15 @@ class PdfDoc {
   doc: jsPDF;
   y: number;
   pageNum: number;
-  footerText: string;
+  pageName: string;
+  monthLabel: string;
 
-  constructor(footerText: string) {
-    this.doc       = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    this.y         = TM;
-    this.pageNum   = 1;
-    this.footerText = footerText;
+  constructor(pageName: string, monthLabel: string) {
+    this.doc        = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    this.y          = TM;
+    this.pageNum    = 1;
+    this.pageName   = pageName;
+    this.monthLabel = monthLabel;
 
     // Geist fontu yükle
     const fontPath = path.join(process.cwd(), "public", "fonts", "Geist-Regular.ttf");
@@ -74,21 +85,53 @@ class PdfDoc {
     this.doc.setFont("Geist", "normal");
   }
 
-  // Yeni sayfaya geç
+  // Yeni sayfaya geç — footer akış sırasında değil, sonda tek geçişte damgalanır
   newPage() {
-    this.drawFooter();
     this.doc.addPage();
     this.pageNum++;
     this.y = TM;
     this.doc.setFont("Geist", "normal");
   }
 
-  // Sayfa alt footer
-  drawFooter() {
-    this.doc.setFontSize(7);
-    this.doc.setTextColor(...LIGHT);
-    this.doc.text(this.footerText, LM, H - 7);
-    this.doc.text(`${this.pageNum}`, W - RM, H - 7, { align: "right" });
+  // Kurumsal footer'ı TÜM sayfalara ikinci geçişte damgala.
+  // Toplam sayfa sayısı (Y) ancak tüm içerik yerleştikten sonra bilinir.
+  stampFooters() {
+    const total = this.doc.getNumberOfPages();
+    for (let p = 1; p <= total; p++) {
+      this.doc.setPage(p);
+      this.drawCorporateFooter(p, total);
+    }
+  }
+
+  // Tek bir sayfanın kurumsal footer'ı — ferah, kurumsal düzen
+  drawCorporateFooter(page: number, total: number) {
+    const d = this.doc;
+    d.setFont("Geist", "normal");
+
+    // Üst ince gri çizgi
+    d.setDrawColor(...LIGHT);
+    d.setLineWidth(0.3);
+    d.line(LM, H - 22, W - RM, H - 22);
+
+    // Marka adı — belirgin ama sade
+    d.setFontSize(8.5);
+    d.setTextColor(...DARK);
+    d.text(BRAND, W / 2, H - 17.5, { align: "center" });
+
+    // Tıklanabilir web sitesi bağlantısı — ↗ ikonuyla, ortalı
+    d.setFontSize(7.5);
+    d.setTextColor(...TEAL);
+    const urlLabel = `↗ ${BRAND_URL}`;
+    const urlW = d.getTextWidth(urlLabel);
+    d.textWithLink(urlLabel, W / 2 - urlW / 2, H - 13.5, { url: `https://${BRAND_URL}` });
+
+    // (küçük boşluk) → alt ince gri çizgi
+    d.line(LM, H - 10, W - RM, H - 10);
+
+    // Meta satırı — sayfa adı • ay • Sayfa X / Y (dinamik)
+    d.setFontSize(7);
+    d.setTextColor(...LIGHT);
+    d.text(`${this.pageName}  •  ${this.monthLabel}  •  Sayfa ${page} / ${total}`, W / 2, H - 6, { align: "center" });
   }
 
   // Sayfa sonu kontrolü
@@ -110,12 +153,12 @@ class PdfDoc {
 
   // Başlık (H1 karşılığı)
   h1(text: string) {
-    this.ensureSpace(12);
+    this.ensureSpace(11);
     this.doc.setFontSize(13);
     this.color(TEAL);
-    this.doc.text(text, LM, this.y + 5);
-    this.line(this.y + 7);
-    this.y += 12;
+    this.doc.text(text, LM, this.y + 4.5);
+    this.line(this.y + 6.5);
+    this.y += 10.5;
   }
 
   // Alt başlık (H2 karşılığı)
@@ -195,7 +238,7 @@ async function buildPdfBuffer(params: {
   const beforeRules = rules.filter(r => r.category === "before");
   const afterRules  = rules.filter(r => r.category === "after");
 
-  const pdf = new PdfDoc(`Hacamat Takvimi  ·  ${monthLabel}`);
+  const pdf = new PdfDoc("Hacamat Takvimi", monthLabel);
   const doc = pdf.doc;
 
   doc.setFontSize(17);
@@ -218,10 +261,10 @@ async function buildPdfBuffer(params: {
   pdf.gap(3);
 
   const stats = [
-    { label: "Altin Gun",   val: `${data.altin.length}`,          bg: [254,243,199] as [number,number,number], fg: [180,83,9]   as [number,number,number] },
-    { label: "Sunnet Gun",  val: `${data.sunnet.length}`,         bg: [209,250,229] as [number,number,number], fg: [4,120,87]   as [number,number,number] },
-    { label: "Uygun Gun",   val: `${data.uygun.length}`,          bg: [254,249,195] as [number,number,number], fg: [161,98,7]   as [number,number,number] },
-    { label: "Yasakli Gun", val: `${data.yasakliNotable.length}`, bg: [254,226,226] as [number,number,number], fg: [185,28,28]  as [number,number,number] },
+    { label: "Altın Gün",   val: `${data.altin.length}`,          bg: [254,243,199] as [number,number,number], fg: [180,83,9]   as [number,number,number] },
+    { label: "Sünnet Gün",  val: `${data.sunnet.length}`,         bg: [209,250,229] as [number,number,number], fg: [4,120,87]   as [number,number,number] },
+    { label: "Uygun Gün",   val: `${data.uygun.length}`,          bg: [254,249,195] as [number,number,number], fg: [161,98,7]   as [number,number,number] },
+    { label: "Yasaklı Gün", val: `${data.yasakliNotable.length}`, bg: [254,226,226] as [number,number,number], fg: [185,28,28]  as [number,number,number] },
   ];
   const boxW = CW / 4;
   const boxH = 12;
@@ -237,16 +280,16 @@ async function buildPdfBuffer(params: {
   });
   pdf.y += boxH + 4;
 
-  pdf.h1("Aylik Hacamat Takvimi");
+  pdf.h1("Aylık Hacamat Takvimi");
   doc.setFontSize(7.5);
   pdf.color(LIGHT);
-  doc.text(`${monthLabel} — Hicri 17-24 araligi · ${tableRows.length} gun`, LM, pdf.y);
+  doc.text(`${monthLabel} — Hicri 17–24 aralığı · ${tableRows.length} gün`, LM, pdf.y);
   pdf.y += 4;
 
   if (tableRows.length > 0) {
     const cols = [34, 20, 34, 38, 56] as const;
-    const headers = ["Miladi Tarih", "Gun", "Hicri Tarih", "Durum", "Aciklama"];
-    const rowH = 6.5;
+    const headers = ["Miladi Tarih", "Gün", "Hicri Tarih", "Durum", "Açıklama"];
+    const rowH = 6.0;
 
     pdf.ensureSpace(rowH + 2);
     let cx = LM;
@@ -288,10 +331,10 @@ async function buildPdfBuffer(params: {
       pdf.y += rowH;
     }
   }
-  pdf.gap(5);
+  pdf.gap(3);
 
   if (data.notes.length > 0) {
-    pdf.h1("Dinamik Hicri Gun Notlari");
+    pdf.h1("Dinamik Hicri Gün Notları");
     data.notes.forEach((note, i) => {
       pdf.ensureSpace(8);
       doc.setFontSize(8.5);
@@ -309,53 +352,69 @@ async function buildPdfBuffer(params: {
     pdf.gap(3);
   }
 
+  // Numaralı kural listesini çiz
+  const renderRules = (list: { rule_text: string }[]) => {
+    list.forEach((rule, i) => {
+      pdf.ensureSpace(8);
+      doc.setFontSize(8.5);
+      pdf.color(TEAL);
+      doc.text(`${i + 1})`, LM, pdf.y);
+      pdf.color(DARK);
+      const lines = doc.splitTextToSize(rule.rule_text, CW - 7);
+      lines.forEach((line: string, li: number) => {
+        if (li > 0) pdf.ensureSpace(5);
+        doc.text(line, LM + 7, pdf.y);
+        pdf.y += 4.5;
+      });
+      pdf.y += 1.5;
+    });
+  };
+
+  // Kural listesinin gerektireceği dikey yüksekliği ölç (sayfa kararı için)
+  const measureRules = (list: { rule_text: string }[]) => {
+    doc.setFontSize(8.5);
+    return list.reduce((h, rule) => {
+      const lines = doc.splitTextToSize(rule.rule_text, CW - 7);
+      return h + lines.length * 4.5 + 1.5;
+    }, 0);
+  };
+
   if (inc.kurallar) {
     if (beforeRules.length > 0) {
-      pdf.h2("Hacamat Oncesi Kurallar");
-      beforeRules.forEach((rule, i) => {
-        pdf.ensureSpace(8);
-        doc.setFontSize(8.5);
-        pdf.color(TEAL);
-        doc.text(`${i + 1})`, LM, pdf.y);
-        pdf.color(DARK);
-        const lines = doc.splitTextToSize(rule.rule_text, CW - 7);
-        lines.forEach((line: string, li: number) => {
-          if (li > 0) pdf.ensureSpace(5);
-          doc.text(line, LM + 7, pdf.y);
-          pdf.y += 4.5;
-        });
-        pdf.y += 1.5;
-      });
+      pdf.h2("Hacamat Öncesi Kurallar");
+      renderRules(beforeRules);
       pdf.gap(2);
     }
     if (afterRules.length > 0) {
-      pdf.h2("Hacamat Sonrasi Kurallar");
-      afterRules.forEach((rule, i) => {
-        pdf.ensureSpace(8);
+      // Kontrollü sayfa yönetimi: "Hacamat Sonrası Kurallar" bloğu mevcut
+      // sayfaya sığmıyorsa rastgele taşma yerine bilinçli olarak 2. sayfaya böl.
+      const H2_H   = 9;
+      const needed = H2_H + measureRules(afterRules);
+      const fits   = pdf.y + needed <= PB;
+
+      if (!fits && pdf.pageNum === 1) {
+        pdf.ensureSpace(6);
         doc.setFontSize(8.5);
         pdf.color(TEAL);
-        doc.text(`${i + 1})`, LM, pdf.y);
-        pdf.color(DARK);
-        const lines = doc.splitTextToSize(rule.rule_text, CW - 7);
-        lines.forEach((line: string, li: number) => {
-          if (li > 0) pdf.ensureSpace(5);
-          doc.text(line, LM + 7, pdf.y);
-          pdf.y += 4.5;
-        });
-        pdf.y += 1.5;
-      });
+        doc.text("Hacamat Sonrası Kurallar 2. sayfada devam etmektedir →", LM, pdf.y + 3);
+        pdf.newPage();
+        pdf.h2("Hacamat Sonrası Kurallar (Devam)");
+      } else {
+        pdf.h2("Hacamat Sonrası Kurallar");
+      }
+      renderRules(afterRules);
       pdf.gap(2);
     }
   }
 
   if (inc.uzmanNotu && expertNotes.trim()) {
-    pdf.h2("Uzman Notlari");
+    pdf.h2("Uzman Notları");
     expertNotes.split("\n").filter(l => l.trim()).forEach(line => {
       pdf.p(line.trim(), 0, 9, MID);
     });
   }
 
-  pdf.drawFooter();
+  pdf.stampFooters();
   return Buffer.from(doc.output("arraybuffer"));
 }
 
