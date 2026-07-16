@@ -791,17 +791,21 @@ function DogaltasListesiPageContent() {
   );
 
   const resolveTenant = useCallback(async () => {
+    // PERF-4: Normal ilk açılışta `/stone-exclusions` çekilmez. Normal liste zaten
+    // SUNUCUDA exclusion-filtreli döner (route: .not(id in excluded)); istemci
+    // excludedStoneIds filtresi yalnız arama/detay (extended, sunucuda filtrelenmeyen)
+    // yolunda gereklidir. Bu yüzden exclusions o yola ertelenir (aşağıdaki
+    // needsFullLoad effect'i içinde extended veriyle birlikte çekilir) → cold-open
+    // kritik yolundan bir tam auth+sorgu çağrısı (+olası 2. cold-start) kalkar.
     const cached = getSessionTenantId();
     if (cached) {
       setQueryTenantId(cached);
       backgroundSyncYasamUserFromDb();
-      void fetchStoneExclusions(cached).then(setExcludedStoneIds);
       return cached;
     }
     const synced = await getSyncedTenantId();
     if (synced) {
       setQueryTenantId(synced);
-      void fetchStoneExclusions(synced).then(setExcludedStoneIds);
     }
     return synced;
   }, []);
@@ -940,7 +944,14 @@ function DogaltasListesiPageContent() {
     if (detailData) return;
     void (async () => {
       setDetailLoading(true);
-      const { rows } = await fetchAllStonesExtended(queryTenantId);
+      // PERF-4: extended veri exclusion uygulanmadan geldiği için, gizlenen taşların
+      // bir an görünmesini önlemek adına exclusions'ı PARALEL çekip birlikte set et
+      // (React aynı tick'te batch'ler → aradaki flash yok). Cache fresh ise 0 GET.
+      const [{ rows }, exclusions] = await Promise.all([
+        fetchAllStonesExtended(queryTenantId),
+        fetchStoneExclusions(queryTenantId),
+      ]);
+      setExcludedStoneIds(exclusions);
       setDetailData(rows);
       setDetailLoading(false);
     })();
