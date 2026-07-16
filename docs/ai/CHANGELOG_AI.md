@@ -44,6 +44,58 @@
 
 ---
 
+## 2026-07-14 — S2.07 (İndeks-Birimi Builder) Başladı
+
+### Tarih
+2026-07-14
+
+### Karar
+Yaşam Hafızası **S2.07 — İndeks-Birimi Builder** izole worktree `work/yh-s2-07`
+(taban `origin/work/yh-s2-05` = `67fa6fb`) içinde **uygulanmaya başlandı** (henüz
+commit/push yok). Bir kaynak satırından **yazma-yanı** indeks birimini saf +
+deterministik + fail-safe üreten builder; S2.05 çıktısı + S2.04 tenant sonucu üstüne
+kompoze eder.
+
+Onaylanan tasarım (kesin):
+- **İmza:** `buildIndexUnit(config, row, tenant: TenantResolveResult, extracted: ExtractedFields): BuiltIndexUnit | null` — yeni dosya `lib/yasam-hafizasi/indexer/buildCandidate.ts`.
+- **BuiltIndexUnit (16 alan):** tenantId, sourceModule, sourceTable, sourceId, unitType, sectionRef, groupKey, title, titleSource, snippet, snippetOrigin, topicTags, expertRelations, evidenceFields, sourceUpdatedAt, contentHash. id/isShared/searchText/searchTsv/lang/isClientPii/embedModel/indexedAt/reviewedAt/version/tsRank bu aşamada YOK.
+- **groupKey** = `${config.sourceKey}:${groupId}` (record→primaryKey; section/row+join→parent FK; kimlik yoksa `null`, sessiz primaryKey fallback yok).
+- **Birim genişletme S2.08'e ait:** çağrı başına ≤1 birim; `sectionRef` daima `null`.
+- **title/snippet:** ilk geçerli boş-olmayan kolon; yoksa `null`; uydurma/first-sentence/label fallback yok.
+- **Tenant:** ok:false→null; ok:true→tenantId (shared→null); isShared çıktıda yok; tenantId hash'e girmez.
+- **Sıfır-kanıt (evidenceFields+topicTags+expertRelations üçü boş) → `null`** (INV-1).
+- **contentHash:** `node:crypto` SHA-256; girdi yalnız içerik (title, snippet, evidenceFields[origin,kind,text,sectionRef], topicTags, expertRelations[kind,targetLabel]); lokal canonical (sabit sıra + uzunluk-önekli + null sabiti). Provenance/kimlik/tenant/updatedAt hariç.
+
+### Neden
+S2.05 evidence/tag/relation çıkardı ama `Candidate`/`content_hash`/`group_key` bilinçle
+ertelendi (bkz. `2026-07-14 — S2.05` kaydı). S2.07 bu boşluğu **yazma-yanı** indeks
+birimi olarak doldurur: Runner (S2.08) DB'ye yazmadan önce satırın deterministik,
+provenance'lı, kanıt taşıyan biçimini üretir. Determinizm + saflık (IO/DB yok) +
+fail-safe disiplini S2.05 ile aynıdır. `content_hash`, incremental re-index için
+tenant/kimlikten bağımsız yalnız içerik değişimini yakalar.
+
+### Etkilenen Dosyalar
+- `lib/yasam-hafizasi/indexer/buildCandidate.ts` (yeni)
+- `scripts/yh-build-candidate-harness.ts` (yeni)
+- `docs/ai/CURRENT_TASK.md`, `docs/ai/PROJECT_STATUS.md`, `docs/ai/ROADMAP.md`, `docs/ai/CHANGELOG_AI.md` (durum senkronizasyonu)
+
+### Breaking Change (Evet/Hayır)
+Hayır. Yeni, izole additif katman; mevcut modüller ve S2.01–S2.05 dosyaları etkilenmez.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. SQL/DDL yok; `search_text`/`search_tsv` ve DB yazımı S2.08'e ait.
+
+### Geriye Dönük Uyumluluk
+İlgili değil; additif yeni katman. `sources.ts`/`tenantResolve.ts`/`extractFields.ts`/`search/types.ts`/`config.ts` değişmez (AD-004 korunur).
+
+### Notlar
+Kod/docs **commit edilmedi** (kullanıcı onayı bekliyor). Kapsam dışı bırakılan
+`search_text`/`is_client_pii`(F5)/`lang`/`embed_model`(F3) ve birim genişletmesi →
+S2.08+. PR #1 (S2.05, açık) ve paralel Danışan Performansı worktree/branch'ine
+dokunulmadı.
+
+---
+
 ## 2026-07-14 — S2.05 (JSONB Alan Çıkarımı) Tamamlandı
 
 ### Tarih

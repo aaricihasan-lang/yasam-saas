@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-13
+**Son güncelleme:** 2026-07-14
 
 ---
 
@@ -37,7 +37,7 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 origin/main'de; **S2.05 (JSONB alan çıkarımı) tamamlandı** — `work/yh-s2-05` branch'inde commit `b5d726f` (henüz push/main entegrasyonu yok). Sıradaki: **S2.07 (Evidence builder) — analiz bekliyor**.
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 origin/main'de; **S2.05 tamamlandı** — `work/yh-s2-05` (`b5d726f`), push edildi ve **PR #1 açık** (base `main` ← compare `integration/yh-s2-05`, merge commit `d57657f`; henüz merge edilmedi). Aktif: **S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`, taban `67fa6fb`; henüz commit yok).
 
 ## Son Tamamlanan Aşama
 
@@ -53,7 +53,8 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Son Push
 
-- S2.05 (`b5d726f`) ve doküman (`65258bf`) **henüz push edilmedi** (uzak `origin/work/yh-s2-05` yok). S2.04'e kadarki çekirdek `origin/main`'de (`6dd3805`, `git fetch` ile doğrulandı).
+- S2.05 (`b5d726f`) + doküman (`65258bf`) `origin/work/yh-s2-05`'e **push edildi**; ayrıca `origin/integration/yh-s2-05` (`d57657f`, S2.05'in güncel main tabanına merge'ü) push edildi ve **PR #1** açıldı (açık, merge edilmedi). `origin/main` = `eb08ae1` (Danışan Performansı `perf(clients)`; YH'ye dokunmuyor).
+- S2.07 (`work/yh-s2-07`) **henüz push edilmedi** (kod/docs commit edilmedi).
 
 ## Son Doğrulanan Production Commit
 
@@ -69,8 +70,8 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **Aktif kodlama görevi YOK — S2.05 tamamlandı.** Sıradaki aşama: **S2.07 (Evidence builder: Candidate + content_hash + group_key)** — **analiz bekliyor** (henüz başlanmadı/kodlanmadı). Not: ROADMAP Sprint 2 tablosunda **S2.06 yoktur**; S2.05'ten sonra doğrudan S2.07 gelir.
-- **Onay bekleyen:** `work/yh-s2-05`'in push'u + main entegrasyonu (kullanıcı henüz onaylamadı).
+- **Aktif: S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`). `buildCandidate.ts` (`BuiltIndexUnit`/`buildIndexUnit`, saf + fail-safe, `node:crypto` SHA-256 content_hash) + izole harness yazılıyor. Doğrulamalar (yeni harness + S2.05 regresyon + izole/tam TSC) koşulmadan **tamamlandı/PASS denmeyecek**; henüz commit yok. Not: ROADMAP'te **S2.06 yoktur**; S2.05'ten doğrudan S2.07.
+- **Onay bekleyen:** S2.07 iki path-scoped commit (docs + kod) + push; S2.05 için **PR #1 merge** (açık).
 
 ## Bekleyen İşler
 

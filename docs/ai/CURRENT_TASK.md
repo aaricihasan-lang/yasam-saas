@@ -16,9 +16,11 @@
 
 ## Durum
 
-**Aktif kodlama görevi YOK.** Son görev **S2.05 — JSONB Alan Çıkarımı tamamlandı**
-(`work/yh-s2-05`, commit `b5d726f`). Sıradaki aşama **S2.07 (Evidence builder)**
-henüz başlamadı; **analiz bekliyor** (kod yazılmadı, karar/onay alınmadı).
+**Aktif görev: S2.07 — İndeks-Birimi Builder — UYGULAMA SÜRÜYOR** (implementation in
+progress). İzole worktree `work/yh-s2-07` (taban `origin/work/yh-s2-05` = `67fa6fb`).
+Tasarım kilidi onaylandı; docs + üretim kodu + izole harness yazılıyor. **Henüz
+tamamlanmadı, commit/push yok, harness/TSC "PASS" olarak işaretlenmedi.** Önceki
+görev **S2.05 tamamlandı** ve `b5d726f` ile korunmaktadır (aşağıda).
 
 ---
 
@@ -48,18 +50,34 @@ Bir kaynak satırından (`row`) indekslenebilir kanıt alanlarını **saf + dete
 - Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0** (yabancı hata yok).
 - Kaynak dosyalarda NUL byte = 0 (git metin olarak görüyor).
 
-## Sıradaki Görev (henüz başlamadı) — S2.07 Evidence Builder
+## Aktif Görev — S2.07 (İndeks-Birimi Builder) — UYGULANIYOR
 
-- **Kapsam (ROADMAP):** aday oluşturma için `Candidate` inşası + `content_hash` + `group_key` (JSONB parse'ı S2.05 çıktısı üstüne).
-- **Durum:** **Analiz bekliyor.** Kod yazılmadı; kapsam/karar analizi ve kullanıcı onayı öncesinde başlanmayacak.
-- **Not:** ROADMAP Sprint 2 tablosunda **S2.06 yoktur**; S2.05'ten sonra doğrudan **S2.07** gelir.
+Bir kaynak satırından **yazma-yanı** indeks birimini **saf + deterministik + fail-safe**
+üreten builder. S2.05 çıktısı (`ExtractedFields`) + S2.04 tenant sonucu üstüne kompoze eder.
+
+**Yeni dosyalar (yalnız bunlar):**
+- `lib/yasam-hafizasi/indexer/buildCandidate.ts` (tip `BuiltIndexUnit` + fn `buildIndexUnit` + lokal guard/canonical/SHA-256)
+- `scripts/yh-build-candidate-harness.ts` (izole harness)
+
+**Onaylanan tasarım kararları (kesin):**
+- **İmza:** `buildIndexUnit(config: SourceConfig, row, tenant: TenantResolveResult, extracted: ExtractedFields): BuiltIndexUnit | null`.
+- **Çıktı alanları (16):** tenantId, sourceModule, sourceTable, sourceId, unitType, sectionRef, groupKey, title, titleSource, snippet, snippetOrigin, topicTags, expertRelations, evidenceFields, sourceUpdatedAt, contentHash. *(id/isShared/searchText/searchTsv/lang/isClientPii/embedModel/indexedAt/reviewedAt/version/tsRank — bu aşamada EKLENMEZ.)*
+- **groupKey:** `` `${config.sourceKey}:${groupId}` `` — record→primaryKey; section/row + join→parent FK; güvenilir kimlik yoksa `null` (parent yoksa primaryKey'e sessiz fallback YOK). record ile section/row bu aşamada aynı prefix altında birleştirilmez.
+- **Birim genişletmesi S2.08'e ait:** bir çağrı ≤1 birim; `sectionRef` S2.07'de daima `null`.
+- **title/snippet:** ilk geçerli boş-olmayan string; yoksa `null` (+ source/origin `null`); fallback/first-sentence/uydurma yok.
+- **Tenant:** `ok:false`→`null`; `ok:true`→tenantId aynen (shared için `null`); `isShared` çıktıya girmez; tenantId hash'e girmez.
+- **Sıfır-kanıt politikası (onaylı):** evidenceFields + topicTags + expertRelations **üçü de boş → `null`** (INV-1).
+- **contentHash:** `node:crypto` SHA-256 (harici paket yok). Girdi: title, snippet, evidenceFields(origin,kind,text,sectionRef), topicTags, expertRelations(kind,targetLabel). Hariç: tenantId, sourceId, sourceTable/Module, groupKey, unitType, sectionRef, titleSource, snippetOrigin, sourceUpdatedAt. Lokal canonical: sabit alan sırası + uzunluk-önekli kodlama + null sabit işareti; key-sırasına bağımlılık yok.
+- **S2.05 çıktısı** yeniden ayrıştırılmadan/normalize edilmeden/sıralanmadan taşınır; girdi dizileri mutate edilmez (güvenli shallow copy serbest, eleman içeriği değişmez).
+- **Korunan (değişmez):** `sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json` — **AD-004 korunur**.
+
+**Durum:** Kod + izole harness yazılıyor; doğrulamalar (yeni harness + S2.05 regresyon + izole/tam TSC) koşulmadan **tamamlandı/PASS denmeyecek**. İzolasyon: PR #1 (açık) ve paralel Danışan Performansı worktree/branch'ine **dokunulmadı**.
 
 ## Bekleyen Onaylar
 
-- `work/yh-s2-05` branch'inin **push**'u — kullanıcı onayı bekliyor (henüz yapılmadı).
-- **Main entegrasyonu** — kullanıcı onayı bekliyor (henüz yapılmadı).
+- S2.05 (`work/yh-s2-05`): **PR #1 açık** (base `main` ← compare `integration/yh-s2-05`, merge commit `d57657f`); merge kullanıcı onayı bekliyor.
+- S2.07: iki path-scoped commit (docs + kod) — doğrulama sonrası kullanıcı onayı bekliyor.
 
 ## Sonuç
 
-- S2.05 tamamlandı ve `b5d726f` ile commit'lendi; kabul kriterleri geçti.
-- Push / main entegrasyonu / S2.07 **henüz yapılmadı**; sıradaki iş analiz bekliyor.
+- S2.05 tamamlandı (`b5d726f`); S2.07 aynı çekirdek disipliniyle **uygulanıyor** (henüz commit/push yok).
