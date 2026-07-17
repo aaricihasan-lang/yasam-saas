@@ -58,8 +58,20 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
     };
   }
 
+  // Token doğrulaması ve kullanıcı kaydı bağımsız girdilere (sessionToken / userId
+  // header'ları) dayanır → paralel çalıştırılır. Güvenlik kontrolleri aşağıda aynı
+  // sırayla, aynı status ve gövdeyle değerlendirilir (davranış korunur).
+  const [tokenUserId, userRes] = await Promise.all([
+    getActiveSessionUserId(db, sessionToken),
+    db
+      .from("users")
+      .select("id, tenant_id, email, active, is_demo_account")
+      .eq("id", userId)
+      .eq("active", true)
+      .maybeSingle(),
+  ]);
+
   // Token aktif mi + hangi kullanıcıya ait?
-  const tokenUserId = await getActiveSessionUserId(db, sessionToken);
   if (!tokenUserId) {
     return {
       ok: false,
@@ -78,12 +90,7 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
     };
   }
 
-  const { data, error } = await db
-    .from("users")
-    .select("id, tenant_id, email, active, is_demo_account")
-    .eq("id", userId)
-    .eq("active", true)
-    .maybeSingle();
+  const { data, error } = userRes;
 
   if (error || !data || !data.tenant_id) {
     return {
