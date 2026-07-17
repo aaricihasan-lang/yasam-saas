@@ -16,30 +16,17 @@ export const runtime = "nodejs";
  *   - password / password_hash KESİNLİKLE seçilmez/dönmez.
  */
 
-// Güvenli profil kolonları — password / password_hash YOK.
-const PROFILE_SELECT =
-  "id, email, full_name, name, role, active, approval_status, module_permissions, " +
-  "package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, " +
-  "membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account";
-
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  // PERF-2C/2D: Profil kolonları guard'ın TEK users SELECT'inde (opt-in whitelist)
+  // alınır; eskiden burada yapılan ikinci `.from("users").select(PROFILE_SELECT)`
+  // sorgusu kaldırıldı → /api/auth/profile kritik DB round-trip 3 → 2. Güvenli
+  // whitelist ve response sözleşmesi ({ ok, profile }) birebir korunur.
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
 
-  const { db, userId } = guard;
-
-  const { data, error } = await db
-    .from("users")
-    .select(PROFILE_SELECT)
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-  if (!data) {
+  if (!guard.profile) {
     return NextResponse.json({ ok: false, error: "Kullanıcı bulunamadı." }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, profile: data });
+  return NextResponse.json({ ok: true, profile: guard.profile });
 }
