@@ -145,8 +145,6 @@ export type OilListRow = Pick<
   | "therapeutic_properties"
   | "is_photosensitive"
   | "target_systems"
-  | "created_at"
-  | "updated_at"
 >;
 
 // -------------------------------------------------------
@@ -281,10 +279,11 @@ export function foldForSearch(value: string): string {
     .join(""); // olası birleşik nokta (U+0307) temizlenir
 }
 
-export function matchesOilSearch(row: OilListRow, search: string): boolean {
-  if (!search.trim()) return true;
-  const q = foldForSearch(search.trim());
-  const fields = [
+// Arama alanları — TEK ortak kaynak. matchesOilSearch (blend araması) ve
+// buildOilSearchBlob (OilsPage indeksi) aynı listeyi kullanır → alan listesi drift etmez.
+// Dizi alanları (therapeutic_properties, target_systems) düz string'lere açılır.
+function oilSearchStrings(row: OilListRow): string[] {
+  return [
     row.name,
     row.latin_name,
     row.english_name,
@@ -304,12 +303,27 @@ export function matchesOilSearch(row: OilListRow, search: string): boolean {
     row.safety_notes,
     row.chakra_connection,
     row.element_connection,
+    ...(row.therapeutic_properties ?? []),
+    ...(row.target_systems ?? []),
   ];
-  return (
-    fields.some((f) => (f ? foldForSearch(f).includes(q) : false)) ||
-    (row.therapeutic_properties ?? []).some((p) => foldForSearch(p).includes(q)) ||
-    (row.target_systems ?? []).some((s) => foldForSearch(s).includes(q))
-  );
+}
+
+export function matchesOilSearch(row: OilListRow, search: string): boolean {
+  if (!search.trim()) return true;
+  const q = foldForSearch(search.trim());
+  return oilSearchStrings(row).some((f) => (f ? foldForSearch(f).includes(q) : false));
+}
+
+// PERF-2B: satır başına fold'lanmış arama blob'u — rows yüklenince BİR KEZ üretilir.
+// Alanlar "\n" ile birleşir: tek-satır arama sorgusu "\n" içeremeyeceğinden, sorgu
+// yalnız tek bir alan segmentinin içinde eşleşebilir → alanlar-arası false-positive
+// imkânsızdır ve mevcut per-field .includes semantiği birebir korunur. foldForSearch
+// aynen uygulandığı için Türkçe İ/ı normalizasyonu byte-eş kalır.
+// Arama tarafı: foldForSearch(query) sonucunu blob.includes(...) ile karşılaştırın.
+export function buildOilSearchBlob(row: OilListRow): string {
+  return oilSearchStrings(row)
+    .map((f) => (f ? foldForSearch(f) : ""))
+    .join("\n");
 }
 
 export function oilListRowPreview(row: OilListRow, max = 120): string {

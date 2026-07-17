@@ -17,7 +17,8 @@ import {
   createOil,
   deleteOils,
   fetchOilList,
-  matchesOilSearch,
+  buildOilSearchBlob,
+  foldForSearch,
   oilListRowPreview,
   oilTypeBadgeClass,
   oilTypeLabel,
@@ -674,12 +675,30 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   useBfcacheRefresh();
 
+  // PERF-2C: sıralama yalnız `rows` değiştiğinde çalışır (localeCompare arama/tip
+  // filtresi değişince yeniden koşmaz). Önce sırala → sonra filtrele; filtre sırayı
+  // koruduğu için çıktı, route'un name,id sırasıyla birebir aynı kalır.
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => a.name.localeCompare(b.name, "tr-TR")),
+    [rows],
+  );
+
+  // PERF-2B: satır başına fold'lanmış arama blob'u yalnız `rows` değiştiğinde üretilir.
+  // Her tuş vuruşunda yalnız sorgu bir kez fold'lanır + kayıt başına tek `includes`.
+  const searchIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of rows) map.set(r.id, buildOilSearchBlob(r));
+    return map;
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
-    return rows
-      .filter((r) => typeFilter === "all" || r.oil_type === typeFilter)
-      .filter((r) => matchesOilSearch(r, search))
-      .sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
-  }, [rows, search, typeFilter]);
+    const q = foldForSearch(search.trim());
+    return sortedRows.filter(
+      (r) =>
+        (typeFilter === "all" || r.oil_type === typeFilter) &&
+        (q === "" || (searchIndex.get(r.id) ?? "").includes(q)),
+    );
+  }, [sortedRows, searchIndex, search, typeFilter]);
 
   // Görünen (DOM'a basılan) alt küme. filteredRows.length her zaman gerçek toplamı verir.
   const visibleRows = useMemo(
