@@ -887,10 +887,12 @@ function AppointmentsTab({
 
   const [title, setTitle] = useState("Seans");
   const [notes, setNotes] = useState("");
-  const [sessionCount, setSessionCount] = useState(1);
+  // MOBİL-01/02: seans sayısı ve "kaç günde bir" ham string tutulur ki alan
+  // boşaltılabilsin/çok haneli yazılabilsin; geçerli tam sayı blur + submit'te netleşir.
+  const [sessionCount, setSessionCount] = useState("1");
   const [planningMode, setPlanningMode] = useState<PlanningMode>("auto");
   const [date, setDate] = useState("");
-  const [dayInterval, setDayInterval] = useState(1);
+  const [dayInterval, setDayInterval] = useState("1");
   const [manualDates, setManualDates] = useState<string[]>([""]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -916,10 +918,19 @@ function AppointmentsTab({
     setLoading(false);
   }
 
-  function handleSessionCountChange(value: number) {
-    const safeCount = Math.max(1, value || 1);
-    setSessionCount(safeCount);
-    setManualDates((old) => { const next = [...old]; while (next.length < safeCount) next.push(""); return next.slice(0, safeCount); });
+  // Ham string saklanır (boş/ara değerlere izin verilir). manualDates yalnız değer
+  // geçerli pozitif tam sayıya çözüldüğünde yeniden boyutlanır → boşaltınca veri kaybı olmaz.
+  function handleSessionCountChange(raw: string) {
+    setSessionCount(raw);
+    const n = Math.floor(Number(raw));
+    if (Number.isFinite(n) && n >= 1) {
+      setManualDates((old) => { const next = [...old]; while (next.length < n) next.push(""); return next.slice(0, n); });
+    }
+  }
+
+  // Sayı inputu boş/geçersiz/<1 bırakılırsa blur'da 1'e normalize edilir.
+  function normalizeCountInput(setter: (v: string) => void) {
+    return (raw: string) => setter(String(Math.max(1, Math.floor(Number(raw)) || 1)));
   }
 
   function updateManualDate(index: number, value: string) {
@@ -929,10 +940,10 @@ function AppointmentsTab({
   function resetForm() {
     setTitle("Seans");
     setNotes("");
-    setSessionCount(1);
+    setSessionCount("1");
     setPlanningMode("auto");
     setDate("");
-    setDayInterval(1);
+    setDayInterval("1");
     setManualDates([""]);
     setEditingId(null);
     setShowForm(false);
@@ -972,9 +983,9 @@ function AppointmentsTab({
     setEditingId(appt.id);
     setTitle(appt.title ?? "");
     setNotes(appt.notes ?? "");
-    setSessionCount(1);
+    setSessionCount("1");
     setPlanningMode("auto");
-    setDayInterval(1);
+    setDayInterval("1");
     setManualDates([""]);
     setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`);
     setSelectedAppointment(null);
@@ -1016,12 +1027,12 @@ function AppointmentsTab({
       return;
     }
 
-    const count = Math.max(1, Number(sessionCount));
+    const count = Math.max(1, Math.floor(Number(sessionCount)) || 1);
     let rows: { tenant_id: string; client_id: string; title: string; notes: string | null; appointment_date: string; status: AppointmentStatus }[] = [];
 
     if (planningMode === "auto") {
       if (!date) { showToast({ title: "Eksik bilgi", message: "Başlangıç tarihi seçmelisiniz", type: "warning" }); return; }
-      const interval = Math.max(1, Number(dayInterval));
+      const interval = Math.max(1, Math.floor(Number(dayInterval)) || 1);
       const startDate = new Date(date);
       rows = Array.from({ length: count }).map((_, i) => {
         const d = new Date(startDate);
@@ -1194,7 +1205,7 @@ function AppointmentsTab({
             <>
             <div>
               <label className={labelCls}>Seans Sayısı</label>
-              <input type="number" min={1} value={sessionCount} onChange={(e) => handleSessionCountChange(Number(e.target.value))} className={inputCls} />
+              <input type="number" min={1} step={1} value={sessionCount} onChange={(e) => handleSessionCountChange(e.target.value)} onBlur={(e) => normalizeCountInput(setSessionCount)(e.target.value)} className={inputCls} />
             </div>
 
             <div className="rounded-[15px] border border-indigo-200 bg-indigo-50 p-2.5">
@@ -1222,7 +1233,7 @@ function AppointmentsTab({
                 {!editingId && (
                 <div>
                   <label className={labelCls}>Kaç Günde Bir?</label>
-                  <input type="number" min={1} value={dayInterval} onChange={(e) => setDayInterval(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={1} step={1} value={dayInterval} onChange={(e) => setDayInterval(e.target.value)} onBlur={(e) => normalizeCountInput(setDayInterval)(e.target.value)} className={inputCls} />
                 </div>
                 )}
               </>
@@ -1231,7 +1242,7 @@ function AppointmentsTab({
             {!editingId && planningMode === "manual" && (
               <div className="rounded-[15px] border border-pink-200 bg-pink-50 p-2.5">
                 <strong className="text-[13px] font-black text-pink-700">Randevu Tarihleri</strong>
-                {Array.from({ length: sessionCount }).map((_, i) => (
+                {Array.from({ length: Math.max(1, Math.floor(Number(sessionCount)) || 1) }).map((_, i) => (
                   <div key={i} className="mt-2.5">
                     <label className={labelCls}>{i + 1}. Randevu</label>
                     <input type="datetime-local" value={manualDates[i] || ""} onChange={(e) => updateManualDate(i, e.target.value)} className={inputCls} />
