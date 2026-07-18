@@ -865,14 +865,30 @@ function DogaltasListesiPageContent() {
 
   const selectedCount = selectedIds.size;
 
+  // FAZ-1: toggleStoneSelection, StoneListRow/StoneCard React.memo'ya doğrudan
+  // geçtiği için STABİL kalmalı (re-render fırtınası koruması). En güncel değerler
+  // ref üzerinden okunur; refler efekt içinde senkronlanır (render'da mutasyon yok).
+  const isMobileRef = useRef(isMobile);
+  const selectedIdsRef = useRef(selectedIds);
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+    selectedIdsRef.current = selectedIds;
+    showToastRef.current = showToast;
+  });
+
   const toggleStoneSelection = useCallback((stoneId: string) => {
+    // Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir (yanlış toplu silme koruması).
+    const cur = selectedIdsRef.current;
+    if (isMobileRef.current && !cur.has(stoneId) && cur.size >= 2) {
+      showToastRef.current({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(stoneId)) {
-        next.delete(stoneId);
-      } else {
-        next.add(stoneId);
-      }
+      if (next.has(stoneId)) next.delete(stoneId);
+      else if (isMobileRef.current && next.size >= 2) return current; // state seviyesinde sınır
+      else next.add(stoneId);
       return next;
     });
   }, []);
@@ -1097,8 +1113,13 @@ function DogaltasListesiPageContent() {
     (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
   const selectAllFiltered = useCallback(() => {
+    // FAZ-1: Mobilde "Tümünü Seç" sınırsız seçim yaptırmaz (max 2 kuralı).
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
-  }, [filteredStones]);
+  }, [filteredStones, isMobile, showToast]);
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || listLoading || !hasMore) return;
@@ -1482,6 +1503,7 @@ function DogaltasListesiPageContent() {
                 selectAllLabel="Görünenleri Seç"
                 selectAllCount={filteredStones.length}
                 onSelectAll={selectAllFiltered}
+                hideSelectAll={isMobile}
                 onClearSelection={clearSelection}
                 onExportSelected={() => void exportStonesWord("selected")}
                 onExportFiltered={() => void exportStonesWord("filtered")}

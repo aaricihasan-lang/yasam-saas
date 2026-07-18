@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   ADMIN_LIBRARY_TENANT_ID,
@@ -527,7 +526,6 @@ function StoneDetailPage() {
     const s = p.toString();
     return s ? `/dogaltas/dogaltas-listesi?${s}` : "/dogaltas/dogaltas-listesi";
   })();
-  const { confirm } = useConfirm();
   const deleteConfirm = useDeleteConfirm();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -922,12 +920,11 @@ function StoneDetailPage() {
     const currentStone = stoneRef.current;
     if (!currentStone) return;
 
-    const confirmed = await confirm({
+    // FAZ-1: Resim silme ortak güvenli onaya bağlandı (masaüstü tek onay, mobil/PWA 2 adım).
+    const confirmed = await deleteConfirm({
       title: "Fotoğrafı sil",
-      message: `${image.name} silinsin mi? Bu işlem geri alınamaz.`,
-      tone: "danger",
-      confirmText: "Evet, sil",
-      cancelText: "Vazgeç",
+      message: `"${image.name}" fotoğrafını silmek istiyor musunuz? Bu işlem geri alınamaz.`,
+      secondMessage: `"${image.name}" fotoğrafı kalıcı olarak silinecek. Emin misiniz?`,
     });
     if (!confirmed) return;
 

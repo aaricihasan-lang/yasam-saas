@@ -25,6 +25,7 @@ import {
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -147,6 +148,7 @@ function MineralListesiPageContent() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const isMobile = useIsMobileOrPwa();
   const { isDemo } = useDemoGuard();
 
   const applySearchUrl = useCallback(
@@ -296,16 +298,27 @@ function MineralListesiPageContent() {
   }, []);
 
   const toggleMineralSelection = useCallback((id: string) => {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedMineralIds.has(id) && selectedMineralIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedMineralIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else if (isMobile && next.size >= 2) return prev; // state seviyesinde sınır
+      else next.add(id);
       return next;
     });
-  }, []);
+  }, [isMobile, selectedMineralIds, showToast]);
 
   const selectAllMinerals = useCallback(() => {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
-  }, [minerals]);
+  }, [minerals, isMobile, showToast]);
 
   const clearMineralSelection = useCallback(() => {
     setSelectedMineralIds(new Set());
@@ -539,6 +552,7 @@ function MineralListesiPageContent() {
               selectAllLabel="Görünenleri Seç"
               selectAllCount={minerals.length}
               onSelectAll={selectAllMinerals}
+              hideSelectAll={isMobile}
               onClearSelection={clearMineralSelection}
               onExportSelected={() => void exportSelectedMineralsWord()}
               onDeleteSelected={() => void handleBulkDelete()}

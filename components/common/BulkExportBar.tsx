@@ -20,6 +20,8 @@ export type BulkExportBarProps = {
   selectAllLabel?: string;
   /** Seç butonunda gösterilecek sayı (varsayılan totalCount). Örn. görünen kayıt sayısı */
   selectAllCount?: number;
+  /** true → "Tümünü Seç" butonu hiç render edilmez (ör. mobilde 2 kayıt seçim sınırı). Varsayılan false. */
+  hideSelectAll?: boolean;
 };
 
 export function BulkExportBar({
@@ -39,6 +41,7 @@ export function BulkExportBar({
   onDeleteAll,
   selectAllLabel = "Tümünü Seç",
   selectAllCount,
+  hideSelectAll,
 }: BulkExportBarProps) {
   const busy = Boolean(isExporting) || Boolean(isDeleting);
   const hasExport = Boolean(onExportSelected || onExportAll);
@@ -51,14 +54,16 @@ export function BulkExportBar({
           {selectedCount > 0 ? `✓ ${selectedCount} seçili` : "Seçim yok"}
         </span>
 
-        <button
-          type="button"
-          onClick={onSelectAll}
-          disabled={busy}
-          className="rounded-lg border border-slate-200 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          {selectAllLabel} ({selectCountDisplay})
-        </button>
+        {!hideSelectAll && (
+          <button
+            type="button"
+            onClick={onSelectAll}
+            disabled={busy}
+            className="rounded-lg border border-slate-200 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            {selectAllLabel} ({selectCountDisplay})
+          </button>
+        )}
 
         {selectedCount > 0 && (
           <button
@@ -146,14 +151,16 @@ export function BulkExportBar({
       </span>
 
       {/* Seçim kontrolleri */}
-      <button
-        type="button"
-        onClick={onSelectAll}
-        disabled={busy}
-        className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-      >
-        {selectAllLabel} ({selectCountDisplay})
-      </button>
+      {!hideSelectAll && (
+        <button
+          type="button"
+          onClick={onSelectAll}
+          disabled={busy}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          {selectAllLabel} ({selectCountDisplay})
+        </button>
+      )}
 
       {selectedCount > 0 && (
         <button

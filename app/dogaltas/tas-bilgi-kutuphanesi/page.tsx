@@ -15,6 +15,7 @@ import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -319,6 +320,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const isMobile = useIsMobileOrPwa();
   const { isDemo } = useDemoGuard();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
@@ -678,14 +680,25 @@ export default function TasBilgiKutuphanesiPage() {
   // ─── Toplu seçim ────────────────────────────────────────────────────────────
 
   function toggleSelection(id: string) {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedIds.has(id) && selectedIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else if (isMobile && next.size >= 2) return prev; // state seviyesinde sınır
+      else next.add(id);
       return next;
     });
   }
 
   function selectAll() {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds(new Set(filtered.map((r) => r.id)));
   }
 
@@ -1094,16 +1107,20 @@ export default function TasBilgiKutuphanesiPage() {
                   {selectedIds.size > 0 ? `✓ ${selectedIds.size} seçili` : "Seçim yok"}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
-                  disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
-                  className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
-                >
-                  {selectedIds.size > 0 && selectedIds.size >= filtered.length
-                    ? "Tümünün Seçimini Kaldır"
-                    : `Tümünü Seç (${filtered.length})`}
-                </button>
+                {/* FAZ-1: Mobil/PWA'da "Tümünü Seç" gizlenir (max 2 kayıt kuralı);
+                    seçimi temizleme ayrı "Seçimi Kaldır" butonuyla korunur. */}
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
+                    disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
+                    className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
+                  >
+                    {selectedIds.size > 0 && selectedIds.size >= filtered.length
+                      ? "Tümünün Seçimini Kaldır"
+                      : `Tümünü Seç (${filtered.length})`}
+                  </button>
+                )}
 
                 {selectedIds.size > 0 && (
                   <button

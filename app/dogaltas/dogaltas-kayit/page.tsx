@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import {
   DOGALTAS_INPUT_CLASS,
@@ -276,6 +277,7 @@ export default function DogaltasKayitPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
   const [showForm, setShowForm] = useState(false);
   const router = useRouter();
   // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
@@ -375,7 +377,18 @@ export default function DogaltasKayitPage() {
     }));
   }
 
-  function deleteAssignmentRow(sectionTitle: string, index: number) {
+  async function deleteAssignmentRow(sectionTitle: string, index: number) {
+    // FAZ-1: Form satırı (organ/mineral vb.) silmede yanlışlıkla kayıp koruması.
+    // Ortak useDeleteConfirm: masaüstü tek açıklayıcı onay, mobil/PWA 2 aşamalı onay.
+    // Silinecek satır değeri (organ/mineral adı) onay metninde açıkça gösterilir.
+    const row = (assignmentRows[sectionTitle] || [])[index] || [];
+    const label = row.filter((v) => v && v.trim()).join(" • ") || `${sectionTitle} satırı`;
+    const confirmed = await deleteConfirm({
+      title: `${sectionTitle} satırını sil`,
+      message: `"${label}" satırını kaldırmak istiyor musunuz?`,
+      secondMessage: `"${label}" satırı kaldırılacak. Emin misiniz?`,
+    });
+    if (!confirmed) return;
     setAssignmentRows((prev) => ({
       ...prev,
       [sectionTitle]: (prev[sectionTitle] || []).filter((_, rowIndex) => rowIndex !== index),
@@ -1063,7 +1076,7 @@ export default function DogaltasKayitPage() {
                     >
                       <span>{row[0]}</span>
                       {activeAssignment.fields.length === 2 && <span>{row[1]}</span>}
-                      <button type="button" onClick={() => deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
+                      <button type="button" onClick={() => void deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
                         Sil
                       </button>
                     </div>

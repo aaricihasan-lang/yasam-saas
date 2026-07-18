@@ -397,19 +397,29 @@ export default function KombinasyonlarPage() {
   const selectedCount = selectedIds.size;
 
   const toggleGroupSelection = useCallback((issue: string) => {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedIds.has(issue) && selectedIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(issue)) next.delete(issue);
+      else if (isMobile && next.size >= 2) return current; // state seviyesinde sınır
       else next.add(issue);
       return next;
     });
-  }, []);
+  }, [isMobile, selectedIds, showToast]);
 
   const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
 
   const selectAllFiltered = useCallback(() => {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds(new Set(groups.map((g) => g.issue)));
-  }, [groups]);
+  }, [groups, isMobile, showToast]);
 
   const deleteSelectedCombinations = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -622,6 +632,7 @@ export default function KombinasyonlarPage() {
                 selectAllLabel="Tümünü Seç"
                 selectAllCount={groups.length}
                 onSelectAll={selectAllFiltered}
+                hideSelectAll={isMobile}
                 onClearSelection={clearSelection}
                 onExportSelected={() => void exportCombosWord("selected")}
                 onExportFiltered={() => void exportCombosWord("filtered")}
