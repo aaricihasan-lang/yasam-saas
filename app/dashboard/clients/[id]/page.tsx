@@ -142,6 +142,12 @@ const labelCls = "block mb-1 font-extrabold text-[12px] text-slate-700";
 const wordBtnCls =
   "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
+// Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
+// Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
+function normalizeSurname(value: string) {
+  return value.trim().toLocaleUpperCase("tr-TR");
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
   const { confirm } = useConfirm();
@@ -283,7 +289,7 @@ export default function ClientDetailPage() {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(saveToken ? { "x-session-token": saveToken } : {}),
       },
-      body: JSON.stringify({ ad: editAd.trim() || null, soyad: editSoyad.trim() || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
+      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
     });
 
     if (!clientRes.ok) {
@@ -292,7 +298,7 @@ export default function ClientDetailPage() {
       return;
     }
 
-    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: editSoyad.trim() || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
+    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -712,7 +718,7 @@ export default function ClientDetailPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Soyad</label>
-                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value)} className={fldCls} placeholder="Soyad" />
+                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={fldCls} placeholder="Soyad" />
                     </div>
                     <div>
                       <label className={labelCls}>Telefon</label>

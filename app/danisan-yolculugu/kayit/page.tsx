@@ -21,6 +21,12 @@ function formatDateTR(date: string | null) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
+// Soyad her zaman Türkçe locale ile BÜYÜK harf saklanır (i→İ, ı→I).
+// Trim yalnız kayıt anında; yazım sırasında boşluk korunur (çift soyadlar için).
+function normalizeSurname(value: string) {
+  return value.trim().toLocaleUpperCase("tr-TR");
+}
+
 function burcHesapla(date: string) {
   if (!date) return "";
   const parts = date.split("-");
@@ -292,7 +298,7 @@ export default function DanisanKayitPage() {
       initDemoSession();
       addDemoClient({
         ad: ad.trim(),
-        soyad: soyad.trim(),
+        soyad: normalizeSurname(soyad),
         telefon: telefon.trim(),
         dogum,
         gorusme,
@@ -353,7 +359,7 @@ export default function DanisanKayitPage() {
       },
       body: JSON.stringify({
         ad: ad.trim(),
-        soyad: soyad.trim(),
+        soyad: normalizeSurname(soyad),
         telefon: telefon.trim(),
         dogum: dogum || null,
         gorusme: gorusme || null,
@@ -426,7 +432,7 @@ export default function DanisanKayitPage() {
               <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder="Ad" />
             </Field>
             <Field label="Soyad">
-              <input value={soyad} onChange={(e) => setSoyad(e.target.value)} className={inputClassName} placeholder="Soyad" />
+              <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder="Soyad" />
             </Field>
             <Field label="Telefon">
               <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder="05xx xxx xx xx" />
