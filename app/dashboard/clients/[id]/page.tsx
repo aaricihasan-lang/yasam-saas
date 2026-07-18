@@ -964,7 +964,7 @@ function AppointmentsTab({
     await updateAppointmentStatus(id, "tamamlandi");
   }
 
-  // Yalnız "bekliyor" randevu düzenlenir. Mevcut form edit modunda TEK kaydı günceller;
+  // WEB-07: Randevu her statüde düzenlenebilir. Mevcut form edit modunda TEK kaydı günceller;
   // danışan sabit, durum değişmez, seri/tekrar kontrolleri gizlenir.
   function openEditAppointment(appt: Appointment) {
     const d = new Date(appt.appointment_date);
@@ -1340,12 +1340,11 @@ function AppointmentsTab({
                 <p className="text-[13px] text-slate-700">{selectedAppointment.notes || "Not girilmemiş."}</p>
               </div>
 
-              {(selectedAppointment.status ?? "bekliyor") === "bekliyor" && (
-                <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
-                  className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
-                  Düzenle
-                </button>
-              )}
+              {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
+              <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
+                className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
+                Düzenle
+              </button>
 
               <div className="grid grid-cols-3 gap-2.5">
                 <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">Tamamlandı</button>
