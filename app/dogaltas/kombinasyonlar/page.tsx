@@ -488,7 +488,9 @@ export default function KombinasyonlarPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        setErrorMessage(data.error ?? "Rapor oluşturulamadı.");
+        // FAZ-4B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[kombinasyonlar] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
         return;
       }
       const blob = await res.blob();
@@ -499,10 +501,19 @@ export default function KombinasyonlarPage() {
       a.download = `kombinasyon-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { setErrorMessage("Rapor oluşturulamadı."); } finally {
+      // FAZ-4B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek konumunu/
+      // tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
+      showToast({
+        type: "success",
+        message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+      });
+    } catch (err) {
+      console.error("[kombinasyonlar] Word raporu hatası:", err);
+      setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+    } finally {
       setWordBusy(false);
     }
-  }, [selectedIds, groups]);
+  }, [selectedIds, groups, showToast]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
     const firstConfirmed = await confirm({
@@ -634,6 +645,7 @@ export default function KombinasyonlarPage() {
                 onSelectAll={selectAllFiltered}
                 hideSelectAll={isMobile}
                 onClearSelection={clearSelection}
+                exportSelectedLabel="Seçilenleri Word'e Aktar"
                 onExportSelected={() => void exportCombosWord("selected")}
                 onExportFiltered={() => void exportCombosWord("filtered")}
                 onExportAll={() => void exportCombosWord("all")}
