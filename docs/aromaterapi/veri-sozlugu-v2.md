@@ -1,7 +1,7 @@
 # Aromaterapi Bilgi Sistemi V2 — Nihai Veri Sözlüğü & Enum Sözleşmeleri
 
 - **Belge:** Aromaterapi V2 — Veri Sözlüğü ve Enum Sözleşmeleri
-- **Sürüm:** v1.1 (C1 düzeltmeleri: provenance_type ayrımı, güvenli "not_classified" anahtarı, ortak source_locator, V2 product kilidi)
+- **Sürüm:** v1.2 (C2A uyumu: source_kind→source_type, source status draft/verified/archived, C2A çekirdek alan kilidi, unique/dedup ertelendi) · v1.1 (provenance_type, güvenli "not_classified", ortak source_locator, V2 product kilidi)
 - **Durum:** Mimari sözleşme / FAZ C — C1
 - **Son güncelleme:** 2026-07-18
 - **Kapsam:** Aromaterapi Bilgi Sistemi V2 için kavramsal/mantıksal veri sözleşmesi; varlıklar, alanlar, provenans, enum'lar, yaşam döngüsü, C2A migration kapsamı önerisi.
@@ -77,10 +77,16 @@ Her varlık için: Amaç · Kapsam / Kapsam dışı · Üst varlık · Alt kayı
 - **Kapsam:** bibliyografik kimlik + doğrulama boyutları. **Kapsam dışı:** belge içi konum (bu `source_locator` işi), iddia içeriği.
 - **Üst varlık:** yok. **Alt:** source_locator; claim/method/recipe junction'ları.
 - **Tenant:** tenant-scoped (Faz C; gelecekte paylaşımlı promotion additif — §18).
-- **Zorunlu:** `source_kind`, `institution_or_author`, `title`, `primary_or_secondary`. **Opsiyonel:** `year`, `pmid`, `doi`, `document_no`, `standard_no`, `isbn`, `edition_or_version`, `url`, `independent_group`, `bibliographic_verified`, `full_text_accessed`, `official_url_verified`, `accessed_at`.
-- **Dedup anahtarı (tenant içi):** DOI > PMID > standard_no > (ISBN+edition) > (url+version) > document_no. **Yalnız güçlü kimlikle**; başlık benzerliğiyle **asla**.
-- **Fiziksel biçim:** çekirdek kolonlar (PMID/DOI ile sorgulanabilir).
-- **C2:** **C2A — evet (temel).**
+- **Belge türü alanı:** **`source_type`** (C1'de `source_kind` idi → C2A'da `source_type` olarak standartlaştırıldı; bkz. §22). Değerler §6-O. `source_type` ≠ `evidence_layer` (biri belge biçimi, diğeri kaynağın bilgi/kanıt katmanı — karıştırılmaz).
+- **C2A çekirdek alanları (KİLİTLİ):**
+  - **Zorunlu (7):** `id`, `tenant_id` (**NOT NULL, FK yok** — proje standardı app-layer izolasyon; kanonik `tenants` tablosu yok), `source_type`, `title`, `status`, `created_at`, `updated_at`.
+  - **İlk migration'da nullable-dahil (9):** `authors`, `organization`, `publication_year`, `doi`, `pmid`, `isbn`, `url`, `document_no`, `notes`.
+  - **Ertelenen (additif):** `publication_title`, `publisher`, `publication_date`, `edition`, `volume`, `issue`, `pages`, `language_code`, `citation_text`, `accessed_at`, `created_by`, `updated_by`, `primary_or_secondary`, `independent_group`, `bibliographic_verified`, `full_text_accessed`, `official_url_verified`.
+- **Status (source'a özel — tam `content_status` DEĞİL):** `draft · verified · archived` (§6-P). `rejected`, `public_visible`, `calculation_enabled` **source'ta kullanılmaz**.
+- **Tekilleştirme (dedup):** C2A'da **DOI/ISBN/PMID için unique constraint kararı verilmedi.** DOI (`https://doi.org/…`/`doi:…`/yalın) ve ISBN (ISBN-10/13/tire) güvenli normalizasyon gerektirdiğinden, naif unique yanlış-güven yaratır → **sonraki API/normalizasyon turuna ertelendi.** C2A'da yalnız **UUID PK + `(tenant_id)` index.**
+- **source_locator C2A DIŞINDA** (§3.4): source tablosuna `locator`/`original_excerpt`/`url_fragment` kolonu **eklenmez**; source **belge-düzeyi künye** kalır.
+- **Legacy `aromatherapy_oils` ile fiziksel bağ yok** (§14).
+- **C2:** **C2A — evet (temel; doğuştan-kilitli, tek migration).** *Migration henüz yazılmadı.*
 
 ### 3.4 source_locator (ORTAK provenans sözleşmesi)
 - **Amaç:** bir kaynağın **içindeki** konumu (`§4.2`, `Table 1`, `s.219`). **Claim'e özgü DEĞİLDİR** — ortak provenans sözleşmesidir.
@@ -254,12 +260,26 @@ Her enum: anahtar · Türkçe anlam · kullanım yeri · fark · yasak yanlış 
 ### F) relation_type
 `complementary · alternative · partially_overlapping · conflicting · context_specific`
 
-### G) content_status
+### G) content_status (İÇERİK varlıkları — claim/method/recipe/guide)
 `draft · under_review · needs_verification · verified · approved · published · archived · rejected`
+- **Kapsam:** bu tam sözlük **içerik/yayın** varlıkları içindir (claim, method_variant, method_guide, recipe). **`source` bu tam sözlüğü KULLANMAZ** → source'a özel alt-küme §6-P.
 - **verified:** içerik **kaynağa karşı doğruluğu** denetlendi (doğruluk kapısı).
 - **approved:** bir yetkili/inceleyen **kullanım için onayladı** (yönetişim kapısı).
 - **published:** ürün yüzeyinde **erişime açıldı** (görünürlük yaşam döngüsü).
 - Sıra: verified (doğruluk) → approved (yönetişim) → published (yayın). Bir içerik verified olup henüz approved/published olmayabilir.
+
+### O) source_type (source belge türü — C2A KİLİTLİ)
+`book · journal_article · regulatory_document · monograph · standard · database_record · website · other`
+- **Kullanım:** yalnız `source.source_type` (belge biçimi). text + CHECK.
+- **`source_type` ≠ `evidence_layer`:** biri belgenin **türünü/biçimini**, diğeri kaynağın **bilgi/kanıt katmanını** taşır — karıştırılmaz.
+- **Genişletme:** yeni gerçek belge türü çıkınca additif eklenir (`guideline`→regulatory_document; `manufacturer_document/thesis/conference_paper` = ileriki sürüm adayı, aktif C2A sözleşmesine dahil değil).
+
+### P) source status (source kayıt yaşam döngüsü — C2A KİLİTLİ; content_status DEĞİL)
+`draft · verified · archived` (default `draft`)
+- **draft:** künye girişi veya bibliyografik doğrulaması tamamlanmamıştır.
+- **verified:** kaynağın **bibliyografik kimliği, künye bilgileri ve mümkünse erişim bilgisi** doğrulanmıştır. **Kaynağın içindeki iddiaların bilimsel doğruluğu ANLAMINA GELMEZ.**
+- **archived:** kaynak aktif seçim ve yeni ilişkilendirmelerde kullanılmaz; geçmiş ilişkiler ve provenans korunur.
+- **Açık sınırlar:** source status **claim evidence değerlendirmesi değildir**; `verified` **bilimsel doğruluk onayı değildir**; source için **`public_visible`/`calculation_enabled` kullanılmaz**; **`rejected`**, C2A iş akışında archived'dan farklı bir süreç kanıtlanamadığı için **kullanılmaz** (gerekirse ileride additif).
 
 ### H) translation_status
 `original_language · faithful_translation · close_paraphrase · structured_extraction · editorial_paraphrase · machine_assisted_pending_review`
@@ -503,3 +523,16 @@ Gerekçe: `source` **bağımsızdır** (hiçbir üst varlığa ihtiyaç duymaz),
 - `source_locator`'ın nihai fiziksel biçimi (junction alanı / ortak child / kaynak-junction) — C2/C3'te seçilecek; model **ortak** tasarlanacak.
 
 > **Not:** V2 ürün varlığının legacy'den bağımsız yeni model olması artık **açık konu değil, KİLİTLİ karardır** (§14).
+
+---
+
+## 22. C2A Uyum Kararları (Reconciliation — kaynak: C2A uygulama-öncesi son karar turu)
+
+C2A fiziksel migration sözleşmesinin **kaynağı** bu bölümdür. Kilitli kararlar:
+
+- **`source_kind` → `source_type`:** C1 kavramsal tasarımındaki `source_kind` adı, C2A öncesi son karar turunda **`source_type`** olarak standartlaştırıldı. **Bu bir anlam değişikliği değil, yalnız isim standardizasyonudur.** `source_type` belgenin **biçim/türünü** tanımlar (§6-O); kaynağın bilimsel/geleneksel/düzenleyici/enerjetik ağırlığı **`evidence_layer`** ile taşınır ve **karıştırılmaz**.
+- **Source yaşam döngüsü** `draft / verified / archived` alt-kümesiyle sınırlandı (§6-P); tam `content_status` (rejected/published vb.) **source'a uygulanmaz**. `verified` = **bibliyografik doğrulama**, bilimsel doğruluk değil.
+- **C2A çekirdeği** (§3.3): 7 zorunlu + 9 nullable-dahil kolon; kalanı **ertelendi**. `publication_title`/`publisher` C2A kesin alanı **değildir** (ertelendi).
+- **Dedup/unique:** DOI/ISBN/PMID için **C2A'da unique constraint yok**; güvenli normalizasyon **API/normalizasyon turuna** ertelendi.
+- **`source_locator`** C2A dışında (§3.4); **legacy `aromatherapy_oils`** ile fiziksel bağ yok (§14); **`tenant_id` NOT NULL, FK yok** (kanonik tenants tablosu yok).
+- **Migration henüz yazılmadı;** C2A tek dosya, doğuştan-kilitli (RLS enable + anon/authenticated/PUBLIC revoke, policy yok), deterministik ve fail-fast (`IF NOT EXISTS` yok).
