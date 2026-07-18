@@ -69,7 +69,7 @@ function todayISO() {
 }
 
 function formatDate(date: string | null) {
-  if (!date) return "-";
+  if (!date) return "Tarih belirtilmedi";
 
   return new Date(date).toLocaleDateString("tr-TR", {
     day: "2-digit",
