@@ -24,6 +24,15 @@ const FRESH_THRESHOLD_MS     = 15 * 60 * 1000;    // 15 dakika (strict / normal)
 const FLEXIBLE_THRESHOLD_MS  = 60 * 60 * 1000;    // 60 dakika (flexible)
 const HIGH_RISK_THRESHOLD_MS = 6 * 60 * 60 * 1000; // 6 saat
 
+/**
+ * last_seen_at throttle penceresi = FRESH_THRESHOLD_MS (15 dk) / 10 = 90 sn.
+ * Aktif bir oturumun last_seen_at'i gerçek aktiviteden en fazla bu kadar geri kalır;
+ * bağlayıcı freshness eşiği olan 15 dk'ya %90 marj bırakır (admin aktif-oturum sayımı
+ * ve login'de stale kapatma da aynı eşiği kullanır). Per-request UPDATE amplifikasyonunu
+ * düşürmek için getActiveSessionUserId içinde kullanılır.
+ */
+const LAST_SEEN_THROTTLE_MS = 90 * 1000; // 90 sn (FRESH_THRESHOLD_MS / 10)
+
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type SecurityRiskLevel = "low" | "suspicious" | "high_risk";
@@ -53,6 +62,18 @@ function normalizeStr(s: string | null | undefined): string {
 
 function msElapsed(isoDate: string): number {
   return Date.now() - new Date(isoDate).getTime();
+}
+
+/**
+ * last_seen_at yazımı throttle kararı. Değer yoksa/parse edilemezse güvenli tarafta
+ * kalıp yazar (mevcut "her zaman yaz" davranışı korunur); aksi halde yalnız kayıt
+ * LAST_SEEN_THROTTLE_MS'den eskiyse yazar.
+ */
+function shouldRefreshLastSeen(lastSeenAt: unknown): boolean {
+  if (typeof lastSeenAt !== "string" || !lastSeenAt) return true;
+  const t = Date.parse(lastSeenAt);
+  if (Number.isNaN(t)) return true;
+  return Date.now() - t >= LAST_SEEN_THROTTLE_MS;
 }
 
 function isFreshWith(session: ActiveSession, thresholdMs: number): boolean {
@@ -428,12 +449,17 @@ export async function getActiveSessionUserId(
 ): Promise<string | null> {
   const { data } = await db
     .from("user_sessions")
-    .select("user_id")
+    .select("user_id, last_seen_at")
     .eq("session_token", sessionToken)
     .eq("is_active", true)
     .maybeSingle();
 
-  if (data) {
+  if (data && shouldRefreshLastSeen(data.last_seen_at)) {
+    // Throttle: yalnız kayıt LAST_SEEN_THROTTLE_MS'den eskiyse yaz. Bu read-then-update
+    // atomik DEĞİLDİR — eşzamanlı bir istek dalgasında aynı eski değeri okuyup birden
+    // fazla UPDATE oluşabilir; bu kabul edilebilir (tek-yazma garantisi atomik koşullu
+    // update/RPC gerektirir, PERF-1 kapsamı dışı). Token doğrulaması (is_active) bundan
+    // etkilenmez; freshness eşiğine geniş marj korunur.
     void db
       .from("user_sessions")
       .update({ last_seen_at: new Date().toISOString() })

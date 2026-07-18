@@ -65,8 +65,19 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
     };
   }
 
+  // Token doğrulaması ve admin kaydı bağımsız girdilere (sessionToken / adminId
+  // header'ları) dayanır → paralel çalıştırılır. Güvenlik kontrolleri aşağıda aynı
+  // sırayla, aynı status ve gövdeyle değerlendirilir (davranış korunur).
+  const [tokenUserId, userRes] = await Promise.all([
+    getActiveSessionUserId(db, sessionToken),
+    db
+      .from("users")
+      .select("id, role, active")
+      .eq("id", adminId)
+      .maybeSingle(),
+  ]);
+
   // Token aktif mi + hangi kullanıcıya ait?
-  const tokenUserId = await getActiveSessionUserId(db, sessionToken);
   if (!tokenUserId) {
     return {
       ok: false,
@@ -88,11 +99,7 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
     };
   }
 
-  const { data, error } = await db
-    .from("users")
-    .select("id, role, active")
-    .eq("id", adminId)
-    .maybeSingle();
+  const { data, error } = userRes;
 
   if (error || !data || data.role !== "admin" || data.active !== true) {
     return {

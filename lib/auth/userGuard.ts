@@ -84,8 +84,34 @@ export async function verifyUserRequest(
     };
   }
 
+  // Kolon seçimi opt-in'e göre: her dal LİTERAL select kullanır (supabase-js sonuç
+  // tipini derleme-zamanı parse eder; ternary-içi select union'ı parser'ı bozar →
+  // her dal ayrı literal select ile kurulur). PERF-2C/2D: includeProfile ile aynı
+  // users lookup'ı genişletilmiş güvenli whitelist kolonlarını da alır.
+  const usersQuery = includeProfile
+    ? db
+        .from("users")
+        .select(PROFILE_USER_SELECT)
+        .eq("id", userId)
+        .eq("active", true)
+        .maybeSingle()
+    : db
+        .from("users")
+        .select(DEFAULT_USER_SELECT)
+        .eq("id", userId)
+        .eq("active", true)
+        .maybeSingle();
+
+  // Token doğrulaması (user_sessions) ve kullanıcı kaydı (users) BAĞIMSIZ girdilere
+  // (sessionToken / userId header'ları) dayanır ve ayrı tablolara vurur → paralel
+  // çalıştırılır. Güvenlik kontrolleri aşağıda aynı sırayla, aynı status ve gövdeyle
+  // değerlendirilir (davranış korunur; users satırı yalnız binding geçerse döner).
+  const [tokenUserId, userRes] = await Promise.all([
+    getActiveSessionUserId(db, sessionToken),
+    usersQuery,
+  ]);
+
   // Token aktif mi + hangi kullanıcıya ait?
-  const tokenUserId = await getActiveSessionUserId(db, sessionToken);
   if (!tokenUserId) {
     return {
       ok: false,
@@ -104,21 +130,7 @@ export async function verifyUserRequest(
     };
   }
 
-  // Kolon seçimi opt-in'e göre: her dal LİTERAL select kullanır (supabase-js sonuç
-  // tipini derleme-zamanı parse eder; ternary-içi select union'ı parser'ı bozar).
-  const { data, error } = includeProfile
-    ? await db
-        .from("users")
-        .select(PROFILE_USER_SELECT)
-        .eq("id", userId)
-        .eq("active", true)
-        .maybeSingle()
-    : await db
-        .from("users")
-        .select(DEFAULT_USER_SELECT)
-        .eq("id", userId)
-        .eq("active", true)
-        .maybeSingle();
+  const { data, error } = userRes;
 
   if (error || !data || !data.tenant_id) {
     return {

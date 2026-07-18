@@ -11,8 +11,7 @@ export const OIL_LIST_SELECT =
   "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
   "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +
   "spiritual_benefits,diffuser_usage,massage_usage,usage_methods,safety_notes," +
-  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
-  "created_at,updated_at";
+  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems";
 
 const OIL_STRING_FIELDS = [
   "name", "latin_name", "english_name", "oil_type", "category",
