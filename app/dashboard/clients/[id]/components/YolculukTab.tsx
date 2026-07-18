@@ -85,6 +85,64 @@ function statusLabel(status: string | null | undefined): string {
   return "Bekliyor";
 }
 
+// ─── WEB-16: Randevu zaman/gün yardımcıları (Europe/Istanbul otoriter) ───────────
+// appointment_date leksikal string karşılaştırılmaz — parse edilip mutlak zamana
+// çevrilir (DB "+00:00" offset'li gelebilir; "Z" ile string-compare kırılgandır).
+// Tarih-only ("YYYY-MM-DD") değerler gün-bazlı, datetime değerler mutlak-zaman bazlı
+// işlenir. Geçersiz tarih → güvenli (yaklaşan/geçmiş sayılmaz).
+const IST_TZ = "Europe/Istanbul";
+
+function isDateOnlyAppt(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+}
+
+// Bir randevu değerinin İstanbul takvim günü (YYYY-MM-DD). Geçersiz → "".
+function istanbulDay(dateStr: string): string {
+  const s = dateStr.trim();
+  if (isDateOnlyAppt(s)) return s; // saatsiz değer literal günüdür
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: IST_TZ }).format(d);
+}
+
+function istanbulToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: IST_TZ }).format(new Date());
+}
+
+// Randevu şu andan sonra mı? (iptal filtresini çağıran uygular.)
+// Datetime: mutlak zaman > now. Tarih-only: İstanbul günü >= bugün.
+function isUpcomingAppt(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false;
+  const s = String(dateStr).trim();
+  if (isDateOnlyAppt(s)) return istanbulDay(s) >= istanbulToday();
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t > Date.now();
+}
+
+// Randevu geçmişte mi gerçekleşti? (iptal filtresini çağıran uygular.)
+function isPastAppt(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false;
+  const s = String(dateStr).trim();
+  if (isDateOnlyAppt(s)) return istanbulDay(s) < istanbulToday();
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t <= Date.now();
+}
+
+// İki İstanbul günü ("YYYY-MM-DD") arasındaki tam gün farkı (to - from).
+// UTC-öğle referansı DST/gün kaymasını önler.
+function istanbulDayDiff(fromDay: string, toDay: string): number {
+  if (!fromDay || !toDay) return 0;
+  const f = new Date(fromDay + "T12:00:00Z").getTime();
+  const t = new Date(toDay + "T12:00:00Z").getTime();
+  return Math.round((t - f) / 86400000);
+}
+
+// Sıralama için güvenli mutlak-ms (geçersiz → Infinity, sona atılır).
+function apptMs(dateStr: string | null | undefined): number {
+  const t = new Date(String(dateStr ?? "")).getTime();
+  return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+}
+
 
 function calcAge(dogum: string): number | null {
   try {
@@ -1441,10 +1499,10 @@ export default function YolculukTab({
           newProcess.durum = diffDays <= 14 ? "aktif" : diffDays <= 30 ? "takip" : "pasif";
         }
 
-        const nowIso = new Date().toISOString();
+        // WEB-16: iptal hariç, gerçekten yaklaşan (aynı gün ileri saat dâhil) randevular.
         const upcoming = appointmentList
-          .filter((a) => a.appointment_date > nowIso && a.status !== "iptal")
-          .sort((a, b) => (a.appointment_date < b.appointment_date ? -1 : 1));
+          .filter((a) => a.status !== "iptal" && isUpcomingAppt(a.appointment_date))
+          .sort((a, b) => apptMs(a.appointment_date) - apptMs(b.appointment_date));
         if (upcoming.length > 0) {
           newProcess.yaklasanRandevu = isoToTR(upcoming[0].appointment_date);
         }
@@ -1521,11 +1579,13 @@ export default function YolculukTab({
         });
 
         // ── Uyarı sistemi ek verileri ──────────────────────────────────────
+        // WEB-16: iptal randevular son-randevu hesabına KATILMAZ; gün farkı İstanbul
+        // takvim günüyle. Hiç geçmiş randevu yoksa null (uydurma gün sayısı üretilmez).
         const pastRandevular = appointmentList
-          .filter((a) => a.appointment_date && a.appointment_date < nowIso)
-          .sort((a, b) => (b.appointment_date > a.appointment_date ? 1 : -1));
+          .filter((a) => a.status !== "iptal" && isPastAppt(a.appointment_date))
+          .sort((a, b) => apptMs(b.appointment_date) - apptMs(a.appointment_date));
         const lastPastRandevuDaysAgo = pastRandevular[0]?.appointment_date
-          ? Math.floor((Date.now() - new Date(pastRandevular[0].appointment_date).getTime()) / 86400000)
+          ? Math.max(0, istanbulDayDiff(istanbulDay(String(pastRandevular[0].appointment_date)), istanbulToday()))
           : null;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
