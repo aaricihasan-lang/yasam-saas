@@ -485,44 +485,48 @@ function MineralListesiPageContent() {
       <div className="relative z-10 w-full">
 
         <section className={`${uiFilterCard} mb-3`}>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          {/* FAZ-3A: Arama alanı öncelikli — kendi satırında tam genişlik; kategori/Word/Yeni
+              ikincil satırda ve aramayı daraltmaz. Responsive: mobilde hepsi alt alta. */}
+          <div className="flex flex-col gap-3">
             <input
               type="search"
               value={searchTerm}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
-              className={`${uiField} flex-1 text-sm text-slate-700`}
+              className={`${uiField} w-full text-sm text-slate-700`}
             />
-            <select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              className={`${uiField} text-sm font-black text-slate-700 xl:w-[260px]`}
-              aria-label="Kategori filtresi"
-            >
-              <option value="">Tüm kategoriler</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            {!isDemo && (
-              <button
-                type="button"
-                onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="btn-soft"
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className={`${uiField} text-sm font-black text-slate-700 sm:w-[260px]`}
+                aria-label="Kategori filtresi"
               >
-                📄 Word Raporu
-              </button>
-            )}
-            {!isDemo && (
-              <Link
-                href="/dogaltas/mineral-bankasi"
-                className="btn-primary"
-              >
-                + Yeni Mineral
-              </Link>
-            )}
+                <option value="">Tüm kategoriler</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {!isDemo && (
+                <button
+                  type="button"
+                  onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+                  className="btn-soft"
+                >
+                  📄 Word Raporu
+                </button>
+              )}
+              {!isDemo && (
+                <Link
+                  href="/dogaltas/mineral-bankasi"
+                  className="btn-primary"
+                >
+                  + Yeni Mineral
+                </Link>
+              )}
+            </div>
           </div>
           {isSearchActive || listBusy ? (
             <p className="mt-3 text-sm font-bold text-emerald-800">
