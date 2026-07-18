@@ -245,6 +245,7 @@ export default function MineralBankasiPage() {
       title="Mineral Kayıt Ekranı"
       subtitle="Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır."
       icon="⚗️"
+      contentClassName="pb-40 sm:pb-24"
       actions={
         <>
           <Link
@@ -254,31 +255,15 @@ export default function MineralBankasiPage() {
             Mineral Listesi
           </Link>
 
-          {showForm ? (
-            <>
-              <button
-                type="button"
-                onClick={() => { resetForm(); setShowForm(false); }}
-                className="btn-soft"
-              >
-                Formu Kapat
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveMineral()}
-                disabled={saving || dupChecking}
-                className="btn-primary"
-              >
-                {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
-              </button>
-            </>
-          ) : (
+          {/* FAZ-3A(2A): Form kapalıyken tek giriş noktası intro CTA'dır; header'da ikinci
+              "+ Yeni Kayıt" gösterilmez. Kaydet header'dan alt işlem çubuğuna taşındı (2D). */}
+          {showForm && (
             <button
               type="button"
-              onClick={() => setShowForm(true)}
-              className="btn-primary"
+              onClick={() => { resetForm(); setShowForm(false); }}
+              className="btn-soft"
             >
-              + Yeni Kayıt
+              Formu Kapat
             </button>
           )}
         </>
@@ -471,6 +456,29 @@ export default function MineralBankasiPage() {
         }}
         onCancel={() => setDupModal(null)}
       />
+
+      {/* FAZ-3A(2D): Kaydet alt işlem çubuğuna taşındı. Mobilde birincil Kaydet tam
+          genişlik ve belirgin; Temizle ikincil. Masaüstünde tek satır. Safe-area padding. */}
+      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="hidden text-sm font-semibold text-slate-500 sm:block">
+            Kaydedilmeden ayrılırsanız girdiğiniz bilgiler kaybolabilir.
+          </p>
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <button type="button" onClick={resetForm} className="btn-soft w-full sm:w-auto">
+              Temizle
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveMineral()}
+              disabled={saving || dupChecking}
+              className="btn-primary w-full sm:w-auto"
+            >
+              {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
+            </button>
+          </div>
+        </div>
+      </div>}
     </DogaltasSectionShell>
   );
 }
