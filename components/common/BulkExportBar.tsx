@@ -22,6 +22,9 @@ export type BulkExportBarProps = {
   selectAllCount?: number;
   /** true → "Tümünü Seç" butonu hiç render edilmez (ör. mobilde 2 kayıt seçim sınırı). Varsayılan false. */
   hideSelectAll?: boolean;
+  /** "Seçilenleri…" export butonunun etiketi (📄 ikonu ve "(N)" sayısı korunur).
+   *  Verilmezse mevcut varsayılan metin kullanılır → diğer ekranlar etkilenmez. */
+  exportSelectedLabel?: string;
 };
 
 export function BulkExportBar({
@@ -42,6 +45,7 @@ export function BulkExportBar({
   selectAllLabel = "Tümünü Seç",
   selectAllCount,
   hideSelectAll,
+  exportSelectedLabel,
 }: BulkExportBarProps) {
   const busy = Boolean(isExporting) || Boolean(isDeleting);
   const hasExport = Boolean(onExportSelected || onExportAll);
@@ -87,7 +91,7 @@ export function BulkExportBar({
                 disabled={selectedCount === 0 || busy}
                 className="rounded-lg border border-blue-400 bg-blue-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri (${selectedCount})`}
+                {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri"} (${selectedCount})`}
               </button>
             )}
 
@@ -184,7 +188,7 @@ export function BulkExportBar({
               disabled={selectedCount === 0 || busy}
               className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri Word (${selectedCount})`}
+              {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri Word"} (${selectedCount})`}
             </button>
           )}
 
