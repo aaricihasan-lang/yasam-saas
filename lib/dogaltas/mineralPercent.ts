@@ -26,7 +26,24 @@ export function parseMineralPercent(raw: unknown): MineralPercentResult {
   const s = String(raw).trim();
   if (s === "") return { ok: true, value: "" };
 
-  const normalized = s.replace(",", ".");
+  // FAZ-3A: Yüzde işareti KONTROLLÜ tolerans. Kullanıcı "20", "%20", "20%",
+  // "% 20", "20 %" yazabilir. Kurallar:
+  //   - En fazla BİR "%"; yalnız sayının BAŞINDA ya da SONUNDA (arada boşluk serbest).
+  //   - Sayının rakamları arasında boşluk veya "%" bulunamaz.
+  // Böylece "2%0", "2 0", "1%%0", "%20%" gibi hatalı girdiler SESSİZCE düzeltilmez → reddedilir.
+  const pctCount = (s.match(/%/g) ?? []).length;
+  if (pctCount > 1) return { ok: false, value: s, error: MINERAL_PERCENT_ERROR };
+
+  let core = s;
+  if (pctCount === 1) {
+    if (/^%\s*/.test(core)) core = core.replace(/^%\s*/, "");
+    else if (/\s*%$/.test(core)) core = core.replace(/\s*%$/, "");
+    else return { ok: false, value: s, error: MINERAL_PERCENT_ERROR }; // % ortada
+  }
+  core = core.trim();
+  if (core === "") return { ok: false, value: s, error: MINERAL_PERCENT_ERROR }; // yalnız "%"
+
+  const normalized = core.replace(",", ".");
   // Yalnız sayı formatı: opsiyonel işaret + (12 | 12.5 | .5 | 12.). Harf/boşluk/çift-nokta reddedilir.
   if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(normalized)) {
     return { ok: false, value: s, error: MINERAL_PERCENT_ERROR };

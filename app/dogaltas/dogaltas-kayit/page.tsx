@@ -1092,9 +1092,12 @@ export default function DogaltasKayitPage() {
             </div>
 
             <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border-2 border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4">
-              <div className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500" : "grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500"}>
-                <span>{activeAssignment.fields[0]}</span>
-                {activeAssignment.fields.length === 2 && <span>{activeAssignment.fields[1]}</span>}
+              {/* FAZ-3A: İsim ve oran tek içerik sütununda (görsel ayrım rows'da "•" / mobilde alt satır). */}
+              <div className="grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500">
+                <span>
+                  {activeAssignment.fields[0]}
+                  {activeAssignment.fields.length === 2 ? ` • ${activeAssignment.fields[1]}` : ""}
+                </span>
                 <span className="text-right">İşlem</span>
               </div>
 
@@ -1107,10 +1110,18 @@ export default function DogaltasKayitPage() {
                   (assignmentRows[activeAssignment.title] || []).map((row, rowIndex) => (
                     <div
                       key={`${activeAssignment.title}-${rowIndex}`}
-                      className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60" : "grid grid-cols-[1fr_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60"}
+                      className="grid grid-cols-[1fr_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60"
                     >
-                      <span>{row[0]}</span>
-                      {activeAssignment.fields.length === 2 && <span>{row[1]}</span>}
+                      {/* FAZ-3A: "İsim • %Oran" (masaüstü tek satır, dar mobilde alt satır). Veri değişmez; % yalnız görüntü. */}
+                      <div className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                        <span className="truncate">{row[0]}</span>
+                        {activeAssignment.fields.length === 2 && row[1] ? (
+                          <span className="text-emerald-700">
+                            <span className="hidden sm:inline"> • </span>
+                            {activeAssignment.title === "Mineraller" ? `%${row[1]}` : row[1]}
+                          </span>
+                        ) : null}
+                      </div>
                       <button type="button" onClick={() => void deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
                         Sil
                       </button>
