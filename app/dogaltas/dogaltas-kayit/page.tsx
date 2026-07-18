@@ -219,6 +219,20 @@ function safeFileName(fileName: string) {
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
+
+/**
+ * FAZ-2C: Kabul edilebilir görsel dosyası mı?
+ * - MIME tipi varsa `image/` ile başlamalı.
+ * - MIME tipi BOŞSA (bazı Android picker'ları geçerli görsel için boş `type` döner)
+ *   dosya uzantısına bakılır → geçerli görseller sessizce elenmez.
+ * - MIME ve uzantı ikisi de görsel değilse reddedilir.
+ */
+function isAcceptableImageFile(file: File): boolean {
+  if (file.type) return file.type.startsWith("image/");
+  return IMAGE_EXTENSION_RE.test(file.name);
+}
+
 const COMPRESS_MAX_W = 1200;
 const COMPRESS_MAX_H = 1200;
 const COMPRESS_WEBP_QUALITY = 0.75;
@@ -408,11 +422,17 @@ export default function DogaltasKayitPage() {
   }
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).filter((file) =>
-      file.type.startsWith("image/")
-    );
-    event.target.value = "";
-    if (files.length === 0) return;
+    // FAZ-2C: input referansı async işlemlerden ÖNCE yerel değişkene alınır ve hemen
+    // sıfırlanır (aynı dosya tekrar seçilebilsin; event güvenli kullanılsın).
+    const input = event.target;
+    const selected = Array.from(input.files || []);
+    input.value = "";
+    // Boş MIME'li (Android) geçerli görseller elenmesin; görsel olmayanlar reddedilsin.
+    const files = selected.filter(isAcceptableImageFile);
+    if (files.length === 0) {
+      if (selected.length > 0) showError("Yalnızca görsel dosyaları eklenebilir.");
+      return;
+    }
 
     const uploaded: UploadedImage[] = [];
 
@@ -692,7 +712,10 @@ export default function DogaltasKayitPage() {
 
                     <label className={`${uiBtn} mt-3 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
                       Resim Seç
-                      <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+                      {/* FAZ-2C: display:none yerine sr-only — görsel gizli ama tarayıcı
+                          erişimli kalır; bazı Android Chrome/PWA'da picker güvenilir açılır.
+                          Input label içinde (implicit bağlama); capture EKLENMEDİ. */}
+                      <input type="file" accept="image/*" multiple onChange={handleImageUpload} aria-label="Resim seç" className="sr-only" />
                     </label>
                   </div>
 
