@@ -100,13 +100,20 @@ const FILTER_OPTIONS: { key: AppointmentFilter; label: string }[] = [
   { key: "cancelled", label: "İptal" },
 ];
 
-// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
+// Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
+// Geçmiş gün → geçmiş; bugün geçmiş SAAT → geçmiş (WEB-06); bugün ileri saat/saatsiz → değil.
 function isPastCalendarDay(dateStr: string): boolean {
   if (!dateStr) return false;
+  const s = dateStr.trim();
+  const dayPart = s.slice(0, 10);
   const n = new Date();
   const p = (x: number) => String(x).padStart(2, "0");
   const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-  return dateStr.slice(0, 10) < todayStr;
+  if (dayPart < todayStr) return true;
+  if (dayPart > todayStr) return false;
+  if (s.length <= 10) return false;
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t < n.getTime();
 }
 
 export default function AjandaPage() {

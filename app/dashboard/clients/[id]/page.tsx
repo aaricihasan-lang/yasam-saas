@@ -93,14 +93,24 @@ function isPastDate(value: string) {
   return new Date(value).getTime() < new Date().getTime();
 }
 
-// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
-// dateStr: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm" (datetime-local) — ilk 10 karakter kullanılır.
+// Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
+// - Geçmiş takvim günü → geçmiş.
+// - Bugün: geçmiş SAAT → geçmiş (WEB-06); ileri saat → geçmiş değil.
+// - Saatsiz bugün ("YYYY-MM-DD") → geçmiş değil.
+// dateStr: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm" (datetime-local).
 function isPastCalendarDay(dateStr: string): boolean {
   if (!dateStr) return false;
+  const s = dateStr.trim();
+  const dayPart = s.slice(0, 10);
   const n = new Date();
   const p = (x: number) => String(x).padStart(2, "0");
   const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-  return dateStr.slice(0, 10) < todayStr;
+  if (dayPart < todayStr) return true;   // geçmiş gün
+  if (dayPart > todayStr) return false;  // gelecek gün
+  // Aynı gün: saat bileşeni varsa geçmiş saati kontrol et; yoksa geçmiş sayma.
+  if (s.length <= 10) return false;
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t < n.getTime();
 }
 
 function getLeftBorderClass(status: string | null | undefined, appointmentDate: string) {
