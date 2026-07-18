@@ -369,7 +369,7 @@ function MineralListesiPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: "selected", mineralIds: ids }),
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -377,7 +377,17 @@ function MineralListesiPageContent() {
       a.download = `mineral-secili-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz hata */ } finally {
+      // FAZ-3B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek
+      // konumunu/tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
+      showToast({
+        type: "success",
+        message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+      });
+    } catch (err) {
+      // FAZ-3B: ham hata kullanıcıya gösterilmez; yalnız geliştirici logunda.
+      console.error("[mineral-listesi] seçili Word export hatası:", err);
+      showToast({ type: "error", message: "Word raporu oluşturulamadı. Lütfen tekrar deneyin." });
+    } finally {
       setMineralWordBusy(false);
     }
   }
@@ -443,8 +453,10 @@ function MineralListesiPageContent() {
         body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        // FAZ-3B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[mineral-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        throw new Error("report-failed");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -453,9 +465,11 @@ function MineralListesiPageContent() {
       a.download = `mineral-bankasi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setWordReportSuccess("Mineral raporu başarıyla oluşturuldu.");
+      // FAZ-3B: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
+      setWordReportSuccess("Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.");
     } catch (err) {
-      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+      console.error("[mineral-listesi] Word raporu hatası:", err);
+      setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
     } finally {
       setWordReportLoading(false);
     }
@@ -558,6 +572,7 @@ function MineralListesiPageContent() {
               onSelectAll={selectAllMinerals}
               hideSelectAll={isMobile}
               onClearSelection={clearMineralSelection}
+              exportSelectedLabel="Seçilenleri Word'e Aktar"
               onExportSelected={() => void exportSelectedMineralsWord()}
               onDeleteSelected={() => void handleBulkDelete()}
               isExporting={mineralWordBusy}
