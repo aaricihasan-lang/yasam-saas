@@ -3,7 +3,6 @@
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
-  Fragment,
   Suspense,
   memo,
   useCallback,
@@ -173,27 +172,32 @@ function listSummaryLabel(stone: StoneListItem): string {
   return stone.short_description?.trim() ? "Özet var" : "—";
 }
 
-function ListSkeletonRows({ count = 6 }: { count?: number }) {
+// FAZ-4A: Yükleme iskeleti de kart görünümüyle uyumlu — StoneCard grid ile aynı
+// responsive kolon düzeni (1 / md:2 / xl:3). Liste/7-kolon hissi yok, yatay taşma yok.
+function CardSkeletonGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="divide-y divide-emerald-100">
+    <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: count }, (_, i) => (
         <div
           key={`sk-${i}`}
-          className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-4 py-3"
+          className="rounded-[18px] border-[3px] border-emerald-300/40 bg-white/85 p-4"
         >
-          <div className="h-5 w-5 animate-pulse rounded-md bg-slate-200" />
-          <div className="flex gap-3">
-            <div className="h-10 w-10 shrink-0 animate-pulse rounded-2xl bg-slate-200" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
+          <div className="flex items-start gap-3">
+            <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-slate-200" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
             </div>
+            <div className="h-5 w-5 shrink-0 animate-pulse rounded-md bg-slate-200" />
           </div>
-          <div className="h-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
-          <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
-          <div className="h-4 w-14 animate-pulse rounded bg-slate-100" />
-          <div className="h-9 w-14 animate-pulse rounded-xl bg-slate-100" />
+          <div className="mt-3 space-y-2">
+            <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-5/6 animate-pulse rounded bg-slate-100" />
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+            <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
+          </div>
         </div>
       ))}
     </div>
@@ -239,274 +243,6 @@ type StoneRowSharedProps = {
   onNavigate: (id: string) => void;
   onDelete: (stone: StoneListItem) => void;
 };
-
-const StoneListRow = memo(function StoneListRow({
-  stone,
-  isSelected,
-  isViewedInSearch,
-  isLastViewed,
-  isSearchActive,
-  activeSearch,
-  filterQueryString,
-  isDemo,
-  onToggleSelect,
-  onNavigate,
-  onDelete,
-}: StoneRowSharedProps) {
-  const imageCount = stoneListImageCount(stone.images);
-  const coverImageUrl = getFirstStoneImageUrl(stone.images);
-  const detailHref = stoneDetailHref(stone.id, filterQueryString);
-  const displayName = stone.stone_name || "İsimsiz taş";
-  const displayDescription = safeText(stone.short_description);
-
-  return (
-    <Fragment>
-      {/* Mobile row: slim list style */}
-      <div
-        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-emerald-50/50 md:hidden ${
-          isSelected ? "bg-violet-50/40" : isLastViewed ? "bg-rose-50/60" : ""
-        } ${
-          isViewedInSearch
-            ? "border-l-4 border-rose-500"
-            : isSearchActive
-              ? "border-l-4 border-amber-400"
-              : ""
-        }`}
-      >
-        {isViewedInSearch ? (
-          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
-        ) : null}
-        {!isDemo && (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect(stone.id)}
-            onClick={(event) => event.stopPropagation()}
-            aria-label={`${displayName} seç`}
-            className={uiRowCheckbox}
-          />
-        )}
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 active:bg-emerald-50"
-        >
-          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
-            {coverImageUrl ? (
-              <img
-                src={coverImageUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-base">
-                💎
-              </span>
-            )}
-          </div>
-          <span className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className="min-w-0 truncate text-sm font-black text-slate-900">
-              {isSearchActive
-                ? renderHighlightedText(displayName, activeSearch)
-                : displayName}
-            </span>
-            <span className="text-[11px] font-bold text-emerald-600">
-              Detay →
-            </span>
-          </span>
-        </Link>
-        {!isDemo && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onDelete(stone);
-            }}
-            aria-label={`${displayName} sil`}
-            title="Sil"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[18px] w-[18px]"
-              aria-hidden
-            >
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {/* Desktop row: all 7 columns */}
-      <div
-        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-emerald-100 px-4 py-3 transition-colors hover:bg-emerald-50/70 md:grid ${
-          isSelected ? "bg-violet-50/60" : isLastViewed ? "bg-rose-50/50" : ""
-        } ${
-          isViewedInSearch
-            ? "border-l-4 border-rose-600"
-            : isSearchActive
-              ? "border-l-4 border-amber-400"
-              : ""
-        }`}
-      >
-        {isViewedInSearch ? (
-          <span
-            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-            aria-hidden
-          />
-        ) : null}
-        <div className="flex items-center">
-          {!isDemo && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect(stone.id)}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-              className={uiRowCheckbox}
-            />
-          )}
-        </div>
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
-        >
-          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-emerald-50 ring-1 ring-emerald-100">
-            {coverImageUrl ? (
-              <img
-                src={coverImageUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-[20px]">
-                💎
-              </span>
-            )}
-          </div>
-
-          <div className="min-w-0">
-            {isSearchActive ? (
-              <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                {isViewedInSearch ? (
-                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                    Bakıldı
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="truncate text-sm font-black text-slate-950 xl:text-base">
-              {isSearchActive
-                ? renderHighlightedText(displayName, activeSearch)
-                : displayName}
-            </div>
-
-            <div className="mt-0.5 text-xs font-bold text-emerald-700 hover:text-violet-700 xl:text-sm">
-              Detayı aç →
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-        >
-          {isSearchActive
-            ? renderHighlightedText(displayDescription, activeSearch)
-            : displayDescription}
-        </Link>
-
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
-        >
-          <div className="flex flex-wrap gap-1.5">
-            {(stone.chakras || []).slice(0, 2).map((chakra) => (
-              <span
-                key={chakra}
-                className={uiBadgeChakra}
-              >
-                {chakra}
-              </span>
-            ))}
-
-            {(stone.chakras || []).length === 0 && (
-              <span className="text-[11px] font-bold text-slate-300">
-                -
-              </span>
-            )}
-          </div>
-        </Link>
-
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
-        >
-          <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
-
-          {imageCount > 0 && (
-            <span className={uiBadgeImage}>
-              {imageCount} görsel
-            </span>
-          )}
-        </Link>
-
-        <Link
-          href={detailHref}
-          onClick={() => {
-            onNavigate(stone.id);
-          }}
-          className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-        >
-          {formatDate(stone.updated_at)}
-        </Link>
-
-        <div className="flex flex-col items-end justify-center">
-          {!isDemo && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onDelete(stone);
-              }}
-              className="btn-danger !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
-            >
-              Sil
-            </button>
-          )}
-        </div>
-      </div>
-    </Fragment>
-  );
-});
 
 const StoneCard = memo(function StoneCard({
   stone,
@@ -693,7 +429,6 @@ function DogaltasListesiPageContent() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [lastViewedStoneId, setLastViewedStoneId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneListItem | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
@@ -1245,7 +980,9 @@ function DogaltasListesiPageContent() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        // FAZ-4A: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[dogaltas-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        throw new Error("report-failed");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -1255,9 +992,11 @@ function DogaltasListesiPageContent() {
       a.download = `dogaltas-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      showToast({ type: "success", message: "Taş raporu indirildi." });
+      // FAZ-4A: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
+      showToast({ type: "success", message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz." });
     } catch (err) {
-      showToast({ type: "error", message: err instanceof Error ? err.message : "Rapor oluşturulamadı." });
+      console.error("[dogaltas-listesi] Word raporu hatası:", err);
+      showToast({ type: "error", message: "Word raporu oluşturulamadı. Lütfen tekrar deneyin." });
     } finally {
       setWordBusy(false);
     }
@@ -1437,30 +1176,7 @@ function DogaltasListesiPageContent() {
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`${uiViewBtn} ${
-                  viewMode === "list"
-                    ? "bg-slate-950 text-white"
-                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                Liste
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("card")}
-                className={`${uiViewBtn} ${
-                  viewMode === "card"
-                    ? "bg-slate-950 text-white"
-                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                Kart
-              </button>
-
+              {/* FAZ-4A: Liste/Kart görünüm toggle'ı kaldırıldı — ekran yalnız kart grid. */}
               {!isDemo && (
                 <Link
                   href="/dogaltas/dogaltas-kayit"
@@ -1504,6 +1220,7 @@ function DogaltasListesiPageContent() {
                 selectAllCount={filteredStones.length}
                 onSelectAll={selectAllFiltered}
                 hideSelectAll={isMobile}
+                exportSelectedLabel="Seçilenleri Word'e Aktar"
                 onClearSelection={clearSelection}
                 onExportSelected={() => void exportStonesWord("selected")}
                 onExportFiltered={() => void exportStonesWord("filtered")}
@@ -1526,7 +1243,7 @@ function DogaltasListesiPageContent() {
           {listLoading && filteredStones.length === 0 ? (
             <div className="overflow-x-auto">
               <div className="min-w-[700px]">
-                <ListSkeletonRows count={8} />
+                <CardSkeletonGrid count={8} />
               </div>
             </div>
           ) : filteredStones.length === 0 ? (
@@ -1586,38 +1303,6 @@ function DogaltasListesiPageContent() {
                   </Link>
                 </>
               )}
-            </div>
-          ) : viewMode === "list" ? (
-            <div>
-              {/* Column headers — desktop only */}
-              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-violet-50 to-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
-                <div className="w-8" aria-hidden />
-                <div>Taş</div>
-                <div>Açıklama</div>
-                <div>Etiketler</div>
-                <div>İçerik</div>
-                <div>Tarih</div>
-                <div className="text-right">İşlem</div>
-              </div>
-
-              <div>
-                {filteredStones.map((stone) => (
-                  <StoneListRow
-                    key={stone.id}
-                    stone={stone}
-                    isSelected={selectedIds.has(stone.id)}
-                    isViewedInSearch={isSearchActive && viewedStoneIds.has(stone.id)}
-                    isLastViewed={stone.id === lastViewedStoneId}
-                    isSearchActive={isSearchActive}
-                    activeSearch={activeSearch}
-                    filterQueryString={filterQueryString}
-                    isDemo={isDemo}
-                    onToggleSelect={toggleStoneSelection}
-                    onNavigate={handleStoneNavigate}
-                    onDelete={setStoneToDelete}
-                  />
-                ))}
-              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1908,7 +1593,7 @@ function DogaltasListesiPageFallback() {
     <main className={pageBg}>
       <div className={pageContent}>
         <div className={`${uiTableCard} p-0`}>
-          <ListSkeletonRows count={8} />
+          <CardSkeletonGrid count={8} />
         </div>
       </div>
     </main>
