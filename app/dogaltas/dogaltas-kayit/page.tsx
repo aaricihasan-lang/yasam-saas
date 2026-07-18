@@ -434,7 +434,9 @@ export default function DogaltasKayitPage() {
         });
 
       if (uploadError) {
-        showError("Görsel yüklenemedi: " + uploadError.message);
+        // FAZ-2B: Ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[dogaltas-kayit] görsel yükleme hatası:", uploadError);
+        showError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
         return;
       }
 
@@ -516,12 +518,13 @@ export default function DogaltasKayitPage() {
     setIsSaving(false);
 
     if (!ok) {
-      // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      showError(`Kayıt yapılamadı: ${error ?? "Bilinmeyen hata"}`);
+      // FAZ-2B: Ham backend/API hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+      console.error("[dogaltas-kayit] kayıt hatası:", error);
+      showError("Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.");
       showToast({
         type: "error",
         title: "Kayıt başarısız",
-        message: "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+        message: "Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.",
       });
       return;
     }
@@ -563,7 +566,7 @@ export default function DogaltasKayitPage() {
       title="Doğaltaş Kayıt"
       subtitle="Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin."
       icon="💎"
-      contentClassName="mt-4 pb-20"
+      contentClassName="mt-4 pb-40 sm:pb-24"
       actions={
         <>
           {(savedMessage || errorMessage) && (
@@ -577,13 +580,17 @@ export default function DogaltasKayitPage() {
               {errorMessage || savedMessage}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className={showForm ? "btn-soft" : "btn-primary"}
-          >
-            {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
-          </button>
+          {/* FAZ-2A: Form kapalıyken tek giriş noktası intro CTA'dır; header butonu
+              yalnızca form açıkken "Formu Kapat" olarak görünür (kapatmak veriyi silmez). */}
+          {showForm && (
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="btn-soft"
+            >
+              Formu Kapat
+            </button>
+          )}
         </>
       }
     >
@@ -680,7 +687,7 @@ export default function DogaltasKayitPage() {
                       Birden fazla taş görseli ekle
                     </p>
                     <p className="mt-1 max-w-[260px] text-sm leading-relaxed text-slate-500">
-                      Dosya adı Supabase’e kaydolur.
+                      Seçtiğiniz görseller bu kayda eklenir.
                     </p>
 
                     <label className={`${uiBtn} mt-3 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
@@ -939,26 +946,31 @@ export default function DogaltasKayitPage() {
         </section>}
       </div>
 
-      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 py-2.5 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
-        <div className="flex w-full items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-500">
+      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
+        {/* FAZ-2D: Mobilde birincil Kaydet tam genişlik ve belirgin; Temizle/İptal ikincil
+            alt satırda. Masaüstünde mevcut tek satır düzen (Temizle · İptal · Kaydet) korunur.
+            Safe-area alt boşluğu eklendi; dar ekranda yatay taşma/sıkışma yok. */}
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="hidden text-sm font-semibold text-slate-500 sm:block">
             Kaydedilmeden ayrılırsanız taslak kaybolabilir.
           </p>
 
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={handleClear} className="btn-soft">
-              Temizle
-            </button>
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex gap-2 sm:gap-3">
+              <button type="button" onClick={handleClear} className="btn-soft flex-1 sm:flex-none">
+                Temizle
+              </button>
 
-            <button type="button" onClick={handleCancel} className="btn-soft">
-              İptal
-            </button>
+              <button type="button" onClick={handleCancel} className="btn-soft flex-1 sm:flex-none">
+                İptal
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => void handleSave()}
               disabled={isSaving || dupChecking}
-              className="btn-primary"
+              className="btn-primary w-full sm:w-auto"
             >
               {dupChecking ? "Kontrol ediliyor..." : isSaving ? "Kaydediliyor..." : "Kaydet"}
             </button>
