@@ -1084,11 +1084,12 @@ function VariantCard({
                     >
                       {inStock ? <span className="text-[10px] font-black text-emerald-600">✓</span> : null}
                       {stone}
+                      {/* FAZ-5J: mobilde en az 44x44 dokunma hedefi; masaüstünde kompakt kalır. */}
                       <button
                         type="button"
                         onClick={() => void removeStone(idx)}
                         aria-label={`${stone} taşını çıkar`}
-                        className="ml-0.5 rounded-full px-1 text-sm font-black leading-none text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
+                        className="ml-0.5 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full px-1 text-sm font-black leading-none text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 sm:min-h-0 sm:min-w-0"
                       >
                         ×
                       </button>
