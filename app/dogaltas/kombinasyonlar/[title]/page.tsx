@@ -17,6 +17,7 @@ import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import {
   mergeMatchCardClass,
@@ -889,6 +890,8 @@ function VariantCard({
   const [editNote, setEditNote] = useState("");
   const [editStones, setEditStones] = useState<string[]>([]);
   const [newStone, setNewStone] = useState("");
+  // FAZ-5D: taş kaldırma yanlış-dokunuş koruması (masaüstü tek onay / mobil çift onay).
+  const deleteConfirm = useDeleteConfirm();
 
   function startEdit() {
     setEditIssue(row.issue ?? "");
@@ -913,7 +916,15 @@ function VariantCard({
     if (!exists) setEditStones((prev) => [...prev, s]);
     setNewStone("");
   }
-  function removeStone(idx: number) {
+  async function removeStone(idx: number) {
+    // FAZ-5D: onaydan önce state DEĞİŞMEZ; save ile kalıcılaşacağı için çift koruma.
+    const stoneName = editStones[idx]?.trim() || "Taş";
+    const confirmed = await deleteConfirm({
+      title: "Taşı kombinasyondan kaldır",
+      message: `"${stoneName}" bu kombinasyondan kaldırılacak. Devam etmek istiyor musunuz?`,
+      secondMessage: `"${stoneName}" bu kombinasyondan kaldırılacak. Emin misiniz?`,
+    });
+    if (!confirmed) return;
     setEditStones((prev) => prev.filter((_, i) => i !== idx));
   }
   async function saveEdit() {
@@ -1071,7 +1082,7 @@ function VariantCard({
                       {stone}
                       <button
                         type="button"
-                        onClick={() => removeStone(idx)}
+                        onClick={() => void removeStone(idx)}
                         aria-label={`${stone} taşını çıkar`}
                         className="ml-0.5 rounded-full px-1 text-sm font-black leading-none text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
                       >
