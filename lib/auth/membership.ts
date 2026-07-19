@@ -1,5 +1,5 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
-import { isAdminUser, isExpertAccountReady } from "@/lib/auth/yasamUser";
+import { isAdminUser, normalizeApprovalStatus } from "@/lib/auth/yasamUser";
 
 export type PackageType = "trial" | "pro" | "premium";
 
@@ -284,26 +284,21 @@ export function filterMembershipPayloadForRow(
   return Object.keys(filtered).length > 0 ? filtered : payload;
 }
 
-/** Uzman modül erişimi: onay+aktif ve üyelik süresi dolmamış */
+/**
+ * Uzman erişimi — tek üyelik modeli: active + approved + premium.
+ *
+ * Premium için hiçbir tarih/süre alanı erişim kararına GİRMEZ
+ * (trial_ends_at, membership_ends_at, subscription tarihleri,
+ *  expired/suspended üyelik statüsü vb. yok sayılır).
+ * Erişimin kapatılması yalnız admin'in manuel `active=false` kararıyla olur.
+ * Admin her zaman erişebilir.
+ */
 export function hasExpertMembershipAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
   if (isAdminUser(user)) return true;
-  if (!isExpertAccountReady(user)) return false;
-
-  const snapshot = parseMembershipFromUser(user);
-  if (snapshot.effectiveStatus === "expired") return false;
-  if (snapshot.effectiveStatus === "suspended") return false;
-  if (snapshot.packageType === "trial" && snapshot.isTrialExpired) return false;
-
-  if (snapshot.packageType === "pro" || snapshot.packageType === "premium") {
-    return snapshot.effectiveStatus === "active" || snapshot.effectiveStatus === "trial";
-  }
-
-  if (snapshot.packageType === "trial") {
-    return !snapshot.isTrialExpired;
-  }
-
-  return true;
+  if (user.active !== true) return false;
+  if (normalizeApprovalStatus(user.approval_status) !== "approved") return false;
+  return parseMembershipFromUser(user).packageType === "premium";
 }
 
 export function inferPackagePlanFromSnapshot(
