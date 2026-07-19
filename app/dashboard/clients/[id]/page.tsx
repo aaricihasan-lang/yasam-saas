@@ -1363,7 +1363,7 @@ function AppointmentsTab({
                 Düzenle
               </button>
 
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">Tamamlandı</button>
                 <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">İptal Et</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
