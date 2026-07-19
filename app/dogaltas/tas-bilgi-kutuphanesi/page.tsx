@@ -560,8 +560,11 @@ export default function TasBilgiKutuphanesiPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        // FAZ-4C: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+        return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -570,9 +573,11 @@ export default function TasBilgiKutuphanesiPage() {
       a.download = `tas-bilgi-kutuphanesi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setWordReportSuccess("Bilgi Kütüphanesi raporu başarıyla oluşturuldu.");
+      // FAZ-4C: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
+      setWordReportSuccess("Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.");
     } catch (err) {
-      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+      console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", err);
+      setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
     } finally {
       setWordReportLoading(false);
     }
