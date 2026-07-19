@@ -1241,11 +1241,7 @@ function DogaltasListesiPageContent() {
 
         <section className={uiTableCard}>
           {listLoading && filteredStones.length === 0 ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[700px]">
-                <CardSkeletonGrid count={8} />
-              </div>
-            </div>
+            <CardSkeletonGrid count={8} />
           ) : filteredStones.length === 0 ? (
             <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
               {/* İkon */}
