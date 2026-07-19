@@ -59,6 +59,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     payload.module_permissions = buildPremiumModulePermissionsPayload();
   }
 
+  // Tek üyelik modeli: "Premium Olarak Kaydet" tek atomik UPDATE içinde
+  // erişim için gereken active + approved'ı da yazar (yöneticinin bilinçli kararı;
+  // rejected kullanıcı dahil yeniden erişime alınır). Kapatma yalnız manuel Pasif ile.
+  if (packagePlan === "premium") {
+    payload.active = true;
+    payload.approval_status = "approved";
+    payload.approved_at = new Date().toISOString();
+  }
+
   const { error } = await db.from("users").update(payload).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
