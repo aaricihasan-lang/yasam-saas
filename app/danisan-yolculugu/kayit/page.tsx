@@ -197,10 +197,10 @@ function PremiumDatePicker({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="text-lg text-indigo-500"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg text-indigo-500 transition-colors hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-400"
           aria-expanded={open}
           aria-haspopup="dialog"
-          aria-label="Takvimi aç"
+          aria-label="Takvimden tarih seç"
         >📅</button>
       </div>
 
