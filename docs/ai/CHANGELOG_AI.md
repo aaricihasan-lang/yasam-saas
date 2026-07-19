@@ -44,6 +44,125 @@
 
 ---
 
+## 2026-07-19 — S2.13 (Retrieval Görünürlük Kararı) Tamamlandı ve remote branch'e push edildi
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı tamamlandı** ve
+`origin/work/yh-s2-13` çalışma branch'ine push edildi. Bir retrieval adayının
+güvenilir server-side session scope altında görünür olup olmadığını **saf +
+deterministik + DB'siz + dependency-injection + fail-closed** biçimde belirleyen
+görünürlük karar birimi. Kod commit **`e3b4e73f2c82b6eb10b9c5e630370b652e29adb8`**
+(`feat(yasam-hafizasi): add S2.13 retrieval visibility scope`; parent `fec4c69`).
+
+### Teslim edilen dosyalar
+- `lib/yasam-hafizasi/search/visibilityScope.ts` — `evaluateVisibility` + tipler
+  (`VisibilityCandidate`/`VisibilityContext`/`StoneExclusionPort`/`VisibilityDecision`/
+  `VisibilityReasonCode`); kapalı reason-code union.
+- `scripts/yh-visibility-scope-harness.ts` — izole, DB'siz harness.
+
+### Görünürlük kuralları (uygulanan öncelik)
+session tenant geçerliliği → candidate tenant biçim geçerliliği → PII dışlama
+(`is_client_pii` yalnız kesin false) → demo tenant/source dışlama → tenant/shared
+görünürlüğü (`tenant_id = session` VEYA `null` + kesin `allowShared === true`) →
+stone exclusion → görünür. Stone exclusion **enjekte port** ile; YALNIZ doğal taş
+(`dogaltas`) adayında ve tenant/PII/demo geçildikten sonra çağrılır; farklı tenant /
+PII / demo / eksik stabil kimlikte çağrılmaz; **port throw/reject/non-boolean →
+fail-closed**. Tenant yalnız server-side session'dan; birim HTTP/body/query/cookie/
+header/env OKUMAZ. Reason-code kapalı union; ham tenant/stone kimliği veya hata
+mesajı içermez. Deterministik; girdi mutasyonu ve global durum yok.
+
+### Mimari
+Saf + DI tabanlı. **Gerçek Supabase / DB implementasyonu YOK** — `StoneExclusionPort`
+yalnız sözleşme; gerçek adapter sonraki S2.x'e aittir. `tenantScope.ts` / `config.ts` /
+`search/types.ts` **değiştirilmedi** (yalnız 2 yeni dosya).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Migration/SQL/DDL yok. DB erişimi yok.
+
+### Doğrulamalar
+- `yh-visibility-scope-harness` → **EXIT 0, 49/49**.
+- Sekiz regresyon harness → **EXIT 0** (dahil `yh-index-smoke` **41/41**).
+- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.13 dosyası) → **0 error, 0 warning**.
+- Güvenlik grep'leri temiz; `git diff --check` temiz.
+
+### Push / durum
+- `origin/work/yh-s2-13` = `e3b4e73` (fast-forward `fec4c69..e3b4e73`); local/remote **0/0**.
+- `origin/main` (`e4580eb`) **değişmedi**; **PR açılmadı**.
+
+### Kapsam dışı (sonraki S2.x — korunur)
+Gerçek Supabase stone-exclusion adapter'ı · `search_tsv` sorgu · retrieval adapter ·
+ranking · Kanıt Kapısı · derece · "Neden gösterildi?" · gerçek DB smoke · indeks DDL ·
+SQL/migration · Admin UI · production write · PII indeks. Sonraki S2.x aşaması ayrı
+analiz ve kullanıcı onayıyla belirlenecektir.
+
+### Notlar
+Bu kayıt, S2.13 KODUNUN tamamlanmasını belgeler; aynı tarihli aşağıdaki
+"S2.13 Açıldı" kaydı, S2.13'ün AÇILDIĞI ana ait tarihsel kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.08–S2.12 Tamamlandı ve PR #3 ile main'e merge edildi; S2.13 Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.08–S2.12 — İndeksleyici write-side tamamlandı ve `origin/main`'e
+merge edildi**. Aşamalar: S2.08 `runIndexUnit`+`makeParentTenantLookup` (`dd7a022`) ·
+S2.09 `runSource` (`172aa91`) · S2.10 `indexWritePlan`+`supabaseIndexAdapters`
+(`b8ffc67`) · S2.11 admin index-page route (`e171fa1`) · S2.12A index smoke
+(`2dc44d3`) · S2.12C exact-owned-record smoke dry-run (`93ae185`). Git akışı: 7 kaynak
+commit (`8cf503d`→`93ae185`, `work/yh-s2-12`) → entegrasyon merge `fa9adbd`
+(`work/yh-s2-integration`, güncel main'e fast-forward + `--no-ff` merge) → **PR #3**
+(`work/yh-s2-integration` → `main`) **"Create a merge commit" ile merge edildi**
+(merge commit **`555030a`**, ebeveynler `0a3e8a4` + `fa9adbd`). **20 YH dosyası,
++3580/−67; package/lock/migration/SQL yok; YH-dışı değişiklik yok.**
+
+Ayrıca **S2.13 — Retrieval Görünürlük Kararı** aktif aşama olarak **açıldı**
+(`work/yh-s2-13`, taban `555030a`). Bu docs turunda **kod yazılmadı**.
+
+### Neden
+S2.08–S2.12 indeksleyici write-side'ı tamamlar; docs (PROJECT_STATUS/CURRENT_TASK/
+ROADMAP) daha önce yalnız "S2.08 açıldı, kod yok" durumunu yansıtıyordu ve gerçek kod
+durumuyla çelişiyordu. Bu kayıt + docs uzlaştırma, protokolün "PROJECT_STATUS ↔
+CURRENT_TASK tutarlılığı" ön koşulunu geri sağlar (koda geçmeden önce zorunlu).
+
+### Etkilenen Dosyalar
+- Kod (PR #3'te, bu turda değil): `lib/yasam-hafizasi/indexer/{runIndexUnit,parentTenantLookup,runSource,indexSourcePage,indexWritePlan,supabaseIndexAdapters,adminIndexRequest,indexSmokePlan}.ts` + `app/api/admin/yasam-hafizasi/index-page/route.ts` + `scripts/yh-*` (7 harness/araç).
+- Docs (bu tur): `docs/ai/{PROJECT_STATUS,CURRENT_TASK,ROADMAP,CHANGELOG_AI}.md`.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Yalnız yeni dosyalar; korunan sözleşme dosyaları (AD-004) değişmedi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Migration/SQL yok. İndeks tabloları DDL'i hâlâ Sprint 1 backlog'unda (Dashboard).
+
+### Geriye Dönük Uyumluluk
+Tam. Indexer write-side saf/enjekte; gerçek write ve smoke cleanup her ortamda
+fail-closed. Retrieval henüz devrede değil.
+
+### Doğrulamalar
+- 8 harness **EXIT 0** (S2.05 · S2.07 · S2.08 · S2.09 42 · S2.10 plan 23 · S2.10 adapter 37 · S2.11 65 · **S2.12 smoke 41/41**).
+- Tüm-proje `tsc --noEmit` **EXIT 0**. ESLint YH kapsamı **0 error** (1 eskiden-var warning: `yh-run-index-unit-harness.ts` kullanılmayan `ParentTenantLookup` type import'u).
+- Güvenlik grep'leri temiz: exact-owned-record pk+tenant tek sorgu; smoke'ta insert/update/upsert/delete yok; admin auth + demo fail-closed; browser-direct Supabase yok.
+- Production build: derleme + TypeScript aşamaları **geçti**; `Collecting page data` aşaması **ortam değişkeni eksikliği** (`supabaseUrl is required`, YH-dışı hacamat route) nedeniyle durdu — kod hatası değil, credential sağlanmadı.
+
+### S2.13 kilitli kararlar (kod öncesi)
+- **K1** — Kapsam: retrieval görünürlük yüklemi (session + isteğe bağlı shared + PII dışlama + demo dışlama + tenant stone exclusion dışlama; tenant yalnız server-side session; boş/geçersiz tenant fail-closed; deterministik).
+- **K2** — Stone exclusions: config sabiti DEĞİL; saf **enjekte port**; DB erişimi S2.13 içinde yok.
+- **K3** — Dosya: yeni `lib/yasam-hafizasi/search/visibilityScope.ts`; mevcut `tenantScope.ts` mümkün olduğunca değiştirilmeden yeniden kullanılır.
+- **K4** — DB sınırı: S2.13 tamamen saf/DB'siz (Supabase sorgusu/retrieval yürütme/`search_tsv`/ranking/Kanıt Kapısı/derece/"Neden?"/production write/SQL/migration/Admin UI **kapsam dışı**).
+- **K5** — Faz sırası: `search_tsv` sorgusu sonraki ayrı S2.x aşamasında.
+
+### Notlar
+- Gerçek DB smoke ve production write hâlâ **açık backlog** (bu turlarda çalıştırılmadı).
+- Bu docs turunda kod yazılmadı; push yapılmadı; commit yalnız 4 docs dosyası.
+
+---
+
 ## 2026-07-16 — S2.07 Tamamlandı ve main'e merge edildi; S2.08 Açıldı
 
 ### Tarih

@@ -62,11 +62,16 @@ Derin Analiz → Admin → Test → Deploy`
 | **S2.04** | Tenant Resolver (saf fonksiyon, fail-closed, column/join mode) | ✅ | `indexer/tenantResolve.ts` |
 | **S2.05** | JSONB alan çıkarımı (metin/tag/relation ayrıştırma) | ✅ | `indexer/extractFields.ts` + `scripts/yh-extract-fields-harness.ts` (`b5d726f`, PR #1 merge `cd9c77c`) |
 | **S2.07** | İndeks-birimi builder (yazma-yanı `BuiltIndexUnit`: group_key + content_hash + title/snippet) | ✅ | `indexer/buildCandidate.ts` + `scripts/yh-build-candidate-harness.ts` (`380e44f`, PR #2 merge `2b19743`; harness 28/28) |
-| **S2.08** | Runner + `ParentTenantLookup` enjeksiyonu (backfill, join tenant DB erişimi) | 🟡 | `work/yh-s2-08` açıldı (docs); kod yok |
-| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre) | ⬜ | — |
-| S2.x | normalize · sözlük genişletme · `search_tsv` sorgu · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` |
+| **S2.08** | Index-unit runner + `ParentTenantLookup` enjeksiyonu | ✅ | `indexer/runIndexUnit.ts` + `parentTenantLookup.ts` (`dd7a022`, PR #3 merge `555030a`) |
+| **S2.09** | Source runner (keyset cursor sayfalama, join parent preload, hata izolasyonu) | ✅ | `indexer/runSource.ts` + `indexSourcePage.ts` (`172aa91`, PR #3) |
+| **S2.10** | Index write plan + Supabase adapters (search_text, hash-aware upsert plan, fail-fast writer) | ✅ | `indexer/indexWritePlan.ts` + `supabaseIndexAdapters.ts` (`b8ffc67`, PR #3) |
+| **S2.11** | Admin index-page route (admin auth + demo fail-closed + dry-run/write ayrımı) | ✅ | `indexer/adminIndexRequest.ts` + `app/api/admin/yasam-hafizasi/index-page/route.ts` (`e171fa1`, PR #3) |
+| **S2.12A** | Index smoke aracı (plan-only) | ✅ | `indexer/indexSmokePlan.ts` + `scripts/yh-index-smoke.ts` (`2dc44d3`, PR #3) |
+| **S2.12C** | Exact-owned-record smoke dry-run (pk+tenant tek sorgu; write/delete yok) | ✅ | `indexSmokePlan.ts` + `scripts/yh-index-smoke-harness.ts` (`93ae185`, PR #3; smoke 41/41) |
+| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre; saf/DB'siz, stone exclusions enjekte port) | ✅ | `search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts` (`e3b4e73`, `origin/work/yh-s2-13`; harness **49/49**; PR bekliyor) |
+| S2.x | gerçek Supabase stone-exclusion adapter · `search_tsv` sorgu · normalize · sözlük genişletme · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` (numaralandırma S2.13 sonrası ayrı analiz/onay) |
 
-> **S2.05 ve S2.07 tamamlandı ve main'de** (PR #1 merge `cd9c77c`, PR #2 merge `2b19743`). Aktif iş: **S2.08 (Runner + ParentTenantLookup)** — `work/yh-s2-08` açıldı (docs; kod yok). Sonrası: S2.13 (görünürlük). ROADMAP'te **S2.06 yoktur**.
+> **S2.05, S2.07, S2.08–S2.12 tamamlandı ve main'de** (PR #1 `cd9c77c`, PR #2 `2b19743`, **PR #3 `555030a`**). **S2.13 (Retrieval Görünürlük Kararı) tamamlandı** — `work/yh-s2-13` @ `e3b4e73`, `origin/work/yh-s2-13`'e push edildi; saf görünürlük karar birimi (gerçek Supabase adapter/`search_tsv` YOK); **PR bekliyor**. Sonrası: kalan S2.x işleri (numaralandırma ayrı analiz/onayla). ROADMAP'te **S2.06 yoktur**.
 
 ### Sprint 3 — UI (Hızlı Tarama) ⬜
 Ana modül ekranı · sonuç kartı · derece görsel dili · "Neden?" · modül filtresi · a11y · responsive.

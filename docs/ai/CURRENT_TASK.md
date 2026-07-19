@@ -10,66 +10,97 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-16
+**Son güncelleme:** 2026-07-19
 
 ---
 
 ## Durum
 
-**Aktif görev: S2.08 — Runner + ParentTenantLookup — AÇILDI** (tasarım aşaması; **kod
-henüz yok**). İzole worktree `work/yh-s2-08` (taban `origin/main` = `2b19743`). Bu
-aşamada yalnız docs kapanış/açılış senkronizasyonu yapıldı. Önceki görev **S2.07
-tamamlandı ve main'e merge edildi** (`2b19743`); aşağıda özetlenmiştir. Kod, tasarım
-kararları kilitlenip kullanıcı onayı alındıktan sonra yazılacaktır.
+**Aktif görev: S2.13 — Retrieval Görünürlük Kararı — TAMAMLANDI** (kod commit `e3b4e73`;
+`origin/work/yh-s2-13`'e push edildi; **PR bekliyor**). İzole worktree `work/yh-s2-13`
+(taban güncel `origin/main` = `e4580eb`). Önceki blok **S2.08–S2.12 tamamlandı ve
+main'e merge edildi** (PR #3, merge commit `555030a`); aşağıda özetlenmiştir. S2.13 kodu
+tasarım kararları (K1–K6) + kullanıcı onayı sonrası yazıldı ve doğrulandı; kapanış docs
+commit'i ardından `main` PR'ı hazırlanacaktır. `origin/main` değişmedi; PR açılmadı.
 
 ---
 
-## Tamamlanan Görev — S2.07 (İndeks-Birimi Builder) ✅ (main'de)
+## Tamamlanan Blok — S2.08–S2.12 (İndeksleyici write-side) ✅ (main'de)
 
-Bir kaynak satırından **yazma-yanı** indeks birimini **saf + deterministik + fail-safe**
-üreten builder. S2.05 çıktısı (`ExtractedFields`) + S2.04 tenant sonucu üstüne kompoze eder.
-Kod `380e44f`, docs `c213b68`, integration `f79ead6`; **PR #2 merge edildi** → main `2b19743`.
+Kaynak satırlarını tenant çözümü → alan çıkarımı → birim builder zincirinden geçiren
+**indeksleyici write-side** tamamlandı ve **PR #3** ile main'e merge edildi.
+
+**Git akışı:** 7 kaynak commit (`8cf503d` docs → `dd7a022` S2.08 → `172aa91` S2.09
+→ `b8ffc67` S2.10 → `e171fa1` S2.11 → `2dc44d3` S2.12A → `93ae185` S2.12C) →
+entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s2-integration`
+→ `main`) **"Create a merge commit" ile merge edildi** → main `555030a` (ebeveynler
+`0a3e8a4` + `fa9adbd`). **20 YH dosyası, +3580/−67; package/lock/migration/SQL yok.**
+
+**Teslim edilen aşamalar:**
+- **S2.08** — `runIndexUnit` + `makeParentTenantLookup` (`runIndexUnit.ts`, `parentTenantLookup.ts`): tenant çözümü → alan çıkarımı → birim builder orkestrasyonu; join-mode tenant için `ParentTenantLookup` **enjekte** edilir (çekirdek saf).
+- **S2.09** — `runSource` (`runSource.ts`, `indexSourcePage.ts`): keyset cursor sayfalama, join parent preload, satır-bazlı hata izolasyonu.
+- **S2.10** — `indexWritePlan` + `supabaseIndexAdapters` (`indexWritePlan.ts`, `supabaseIndexAdapters.ts`): `search_text` üretimi + camel→snake DB eşleme + hash-aware insert/update/unchanged plan; gerçek reader/parent/writer adapter'ları (fail-fast, chunk 200, `onConflict` upsert).
+- **S2.11** — Admin index-page route (`adminIndexRequest.ts`, `app/api/admin/yasam-hafizasi/index-page/route.ts`): admin auth fail-closed + fail-closed demo kontrolü + dry-run/write ayrımı.
+- **S2.12A/S2.12C** — Index smoke aracı (`indexSmokePlan.ts`, `scripts/yh-index-smoke.ts`): plan-only + **exact-owned-record dry-run** (pk+tenant tek sorgu; page/cursor/write/delete yok; allowlist `biyoenerji:symbols`).
+
+**Kabul kriterleri — GEÇTİ (merge sonrası entegrasyon worktree'sinde doğrulandı):**
+- 8 harness → **EXIT 0** (S2.05 · S2.07 · S2.08 · S2.09 42 · S2.10 plan 23 · S2.10 adapter 37 · S2.11 65 · **S2.12 smoke 41/41**).
+- Tüm-proje `tsc --noEmit` → **EXIT 0**.
+- ESLint (YH kapsamı) → **0 error** (1 eskiden-var warning: `yh-run-index-unit-harness.ts` kullanılmayan `ParentTenantLookup` type import'u; merge regresyonu değil).
+- Production build: derleme + TypeScript aşamaları **geçti**; `Collecting page data` aşaması **ortam değişkeni eksikliği** (`supabaseUrl is required`, YH-dışı hacamat route) nedeniyle durdu — kod hatası değil, credential sağlanmadı.
+- Güvenlik grep'leri: exact-owned-record pk+tenant tek sorgu; smoke'ta insert/update/upsert/delete yok; admin auth + demo fail-closed; browser-direct Supabase yok.
+
+> Önceki tamamlanan görevler: **S2.07** (`2b19743`, PR #2) ve **S2.05** (`cd9c77c`, PR #1) — ayrıntı `CHANGELOG_AI.md`'de.
+
+---
+
+## Aktif Görev — S2.13 (Retrieval Görünürlük Kararı) — TAMAMLANDI (`e3b4e73`)
+
+**Başlık:** S2.13 — Retrieval Görünürlük Kararı (session + shared birleşik görünürlük filtresi).
+
+**Tek amaç:** Retrieval adaylarının yalnız şu görünürlük kurallarına göre kapsamlanması
+(kaynak: `docs/yasam-hafizasi/04-phase-2-fast-search.md` §9 "Tenant / Shared Değişmezi"):
+- `tenant_id = session tenant`
+- **VEYA** `tenant_id IS NULL` **VE** `allowShared = true` (isteğe bağlı shared referans)
+- `is_client_pii = false` (PII fiziksel ayrı — INV-PII)
+- demo tenant/source dışlama
+- tenant'a özgü **stone exclusions** dışlama
+- tenant yalnız **server-side session/auth** bağlamından; body/query'den asla
+- boş/geçersiz tenant → **fail-closed** (throw)
+- aynı girdi → **deterministik** aynı sonuç
+
+**Mimari (kilitli kararlar):**
+- **Saf** ve **deterministik** — DB'siz.
+- **Dependency injection** — stone exclusions saf enjekte port (config sabiti DEĞİL).
+- **Fail-closed** — tenant zorunlu; shared yalnız açıkça izinliyse.
+- **Harness** ile doğrulanacak (izole, DB'siz).
 
 **Teslim edilen dosyalar:**
-- `lib/yasam-hafizasi/indexer/buildCandidate.ts` (tip `BuiltIndexUnit` + fn `buildIndexUnit` + lokal guard/canonical/SHA-256)
-- `scripts/yh-build-candidate-harness.ts` (izole harness)
+- `lib/yasam-hafizasi/search/visibilityScope.ts` (`evaluateVisibility` + `VisibilityCandidate`/`VisibilityContext`/`StoneExclusionPort`/`VisibilityDecision`/`VisibilityReasonCode`; kapalı reason-code union; deterministik + mutasyonsuz + fail-closed).
+- `scripts/yh-visibility-scope-harness.ts` (izole, DB'siz harness).
 
-**Uygulanan tasarım (kanonik):**
-- **İmza:** `buildIndexUnit(config, row, tenant: TenantResolveResult, extracted: ExtractedFields): BuiltIndexUnit | null`.
-- **BuiltIndexUnit (16 alan):** tenantId, sourceModule, sourceTable, sourceId, unitType, sectionRef, groupKey, title, titleSource, snippet, snippetOrigin, topicTags, expertRelations, evidenceFields, sourceUpdatedAt, contentHash.
-- **groupKey:** `` `${config.sourceKey}:${groupId}` `` — record→primaryKey; section/row+join→parent FK; kimlik yoksa `null` (sessiz fallback yok).
-- **title/snippet:** ilk geçerli boş-olmayan kolon; yoksa `null`; uydurma/first-sentence/label fallback yok.
-- **Tenant:** ok:false→null; ok:true→tenantId (shared→null); isShared çıktıda yok; tenantId hash'e girmez.
-- **Sıfır-kanıt (evidenceFields+topicTags+expertRelations üçü boş) → `null`** (INV-1).
-- **contentHash:** `node:crypto` SHA-256; girdi yalnız içerik (title, snippet, evidenceFields[origin,kind,text,sectionRef], topicTags, expertRelations[kind,targetLabel]); lokal canonical (sabit sıra + uzunluk-önekli + null sabiti). Provenance/kimlik/tenant/updatedAt hariç.
-- **Korunan (değişmez):** `sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json` — **AD-004 korundu**.
+**Yeniden kullanılan çekirdek (değiştirilmedi):**
+- `lib/yasam-hafizasi/tenantScope.ts` (session+shared+PII yüklemi deseni referans alındı; dosya değişmedi). `config.ts` / `search/types.ts` da değişmedi.
 
-**Kabul kriterleri — GEÇTİ (merge sonrası main üzerinde doğrulandı):**
-- S2.07 harness `npx tsx scripts/yh-build-candidate-harness.ts` → **EXIT 0 (28/28)**.
-- S2.05 regresyon harness `npx tsx scripts/yh-extract-fields-harness.ts` → **EXIT 0**.
-- Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0**.
-- `git diff --check` → CLEAN; working tree temiz. Merge çakışmasız (`2b19743`, ebeveynler `8f7d8a1` + `f79ead6`).
+**Karar önceliği (uygulanan):** session tenant → candidate tenant → PII → demo → tenant/shared → stone-exclusion → görünür. Stone port YALNIZ doğal taş adayında ve tenant/PII/demo geçildikten sonra çağrılır; farklı tenant/PII/demo/eksik-kimlikte çağrılmaz; throw/reject/non-boolean → fail-closed.
 
-> Önceki tamamlanan görev — **S2.05 (JSONB Alan Çıkarımı)** (`b5d726f`, PR #1 merge `cd9c77c`): `row → EvidenceField[]/topicTags/ExpertRelation[]`. Ayrıntı `CHANGELOG_AI.md`'de.
+**Kapsam dışı (sonraki S2.x):**
+- Gerçek Supabase stone-exclusion adapter'ı · `search_tsv` sorgusu · retrieval adapter · ranking · Kanıt Kapısı · derece · "Neden gösterildi?" · gerçek DB smoke · indeks DDL · SQL/migration · Admin UI · production write · PII indeks. Sonraki S2.x aşaması ayrı analiz ve kullanıcı onayıyla belirlenecektir.
 
-## Aktif Görev — S2.08 (Runner + ParentTenantLookup) — AÇILDI (kod yok)
+**Doğrulamalar (GEÇTİ):**
+- `npx tsx scripts/yh-visibility-scope-harness.ts` → **EXIT 0, 49/49**.
+- Sekiz regresyon harness → **EXIT 0** (dahil `yh-index-smoke` **41/41**).
+- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.13 dosyası) → **0 error, 0 warning**.
+- Güvenlik grep'leri temiz (Supabase/DB/fetch/env/SQL/search_tsv/console/global-state yok; reasonCode'a ham tenant/stone id / hata mesajı sızmıyor). `git diff --check` temiz.
 
-İndeksleyici runner: kaynak satırlarını S2.04 tenant çözümü → S2.05 alan çıkarımı →
-S2.07 birim builder zincirinden geçirir; join-mode tenant için `ParentTenantLookup`
-DB erişimini **enjekte eder** (çekirdek saf kalır, IO enjekte edilir; tenantResolve
-deseni). Backfill/write-side orkestrasyon.
-
-**Durum:** Yalnız docs açılışı yapıldı; tasarım kararları henüz **kilitlenmedi**, kod
-yok. Kilitleme + kullanıcı onayı sonrası uygulanacak.
-
-**Not:** Birim genişletmesi (bir satır → çok birim) ve `sectionRef` üretimi S2.08
-kapsamına aittir (S2.07'de `sectionRef` daima `null`, çağrı başına ≤1 birimdi).
+**Push durumu:** Kod commit `e3b4e73` `origin/work/yh-s2-13`'e push edildi (`fec4c69..e3b4e73`); local/remote **0/0**; `origin/main` (`e4580eb`) **değişmedi**; **PR açılmadı**.
 
 ## Bekleyen Onaylar
 
-- **S2.08:** tasarım kararlarının kilitlenmesi + kod öncesi kullanıcı onayı.
+- **S2.13:** bu kapanış docs commit'inin push'u → ardından `work/yh-s2-13` → `main` PR (Create a merge commit).
 
 ## Sonuç
 
-- S2.05 (`cd9c77c`) ve S2.07 (`2b19743`) main'de; tümü doğrulandı, AD-004 korundu.
-  S2.08 açıldı (docs); kod, onay sonrası aynı çekirdek disipliniyle yazılacaktır.
+- S2.05 (`cd9c77c`), S2.07 (`2b19743`), **S2.08–S2.12 (`555030a`, PR #3)** main'de;
+  tümü doğrulandı. **S2.13 tamamlandı** (`e3b4e73`, `origin/work/yh-s2-13`'te); doğrulandı,
+  main'e karşı çakışmasız. Sıradaki: kapanış docs commit push'u → `main` PR.
