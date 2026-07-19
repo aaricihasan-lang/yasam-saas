@@ -44,6 +44,131 @@
 
 ---
 
+## 2026-07-19 — S2.14 (Retrieval Türkçe Metin Normalizasyonu) Tamamlandı; lexical sözleşme canlı DB SELECT ile doğrulandı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.14 — Retrieval Türkçe Metin Normalizasyonu tamamlandı** ve
+`origin/work/yh-s2-14`'e push edildi. Sorgu ve indeks metnine SİMETRİK uygulanan saf,
+deterministik, fail-safe, locale-bağımsız, mutasyonsuz Türkçe normalize + tokenizasyon
+birimi. Kod commit **`dd29167`** (`feat(yasam-hafizasi): add S2.14 retrieval text
+normalize`; parent `596d21e`); branch güncel `origin/main` (`91bcbab`) ile senkron
+(sync merge `ad03579`).
+
+### Teslim edilen dosyalar
+- `lib/yasam-hafizasi/search/normalize.ts` — `normalizeSearchText(input: unknown):
+  NormalizedSearchText`; çıktı `{ normalizedText, tokens }`. **Tam saf (hiç import yok)**;
+  `toLocaleLowerCase` KULLANILMAZ (locale-bağımsız); string-olmayan/boş/işaret-only girdi
+  → `{ "", [] }` (fail-safe, hiçbir girdide throw yok); `Object.freeze` ile mutasyonsuz;
+  deterministik.
+- `scripts/yh-normalize-harness.ts` — izole, DB'siz harness (83 assertion; production DB
+  simetri fixture regression guard).
+
+### Normalize sözleşmesi (kilitli)
+NFD → Türkçe/Latin fold (I/İ/ı/i→i · Ç/ç→c · Ğ/ğ→g · Ö/ö→o · Ş/ş→s · Ü/ü→u · Â/â→a ·
+Î/î→i · Û/û→u) → combining-mark strip → generic `toLowerCase()` → noktalama/tire/
+altçizgi/sembol→boşluk → çoklu whitespace→tek → trim → whitespace tokenize. **Stop-list /
+stemmer / concept-set / dictionary / dedupe / sort YOK** (bunlar sonraki S2.x). DB/IO/
+AI/fetch/env/SQL YOK.
+
+### Lexical sözleşme — canlı production Supabase salt-okunur SELECT ile DOĞRULANDI
+İndeks tarafı `to_tsvector('simple', yh_immutable_unaccent(text))` (unaccent → generic
+lowercase). Teyit edilen query–index simetrisi: `IŞIK/Işık/ışık → isik` · `İĞNE/İğne/igne
+→ igne` · `ŞİFA → sifa` · `ÇAKRA → cakra` · `GÖĞÜS → gogus` · `BÜTÜN → butun`. **Kritik
+açık nokta kapandı: `ı → i`, `ışık → isik`.** App normalize DB ile birebir aynı nihai
+token'ı üretir. Bu eşleşmeler harness'te production-teyitli regression fixture olarak
+sabitlendi.
+
+### Neden
+Retrieval boru hattının ([1] normalize) ilk halkası; [2] sözlük, [3] tsquery ve [4]
+Kanıt Kapısı'nın ortak ön koşulu. Türkçe I/İ/ı/i belirsizliği (JS `İ.toLowerCase()` →
+`i` + U+0307 combining-dot; tr-locale bağımlılığı) fold-önce-generic-lowercase (DB-ayna)
+stratejisiyle çözüldü; combining-dot ve locale bağımlılığı elendi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration/DDL yok. `package.json`/lockfile değişmedi.
+
+### Doğrulamalar
+- `yh-normalize-harness` → **EXIT 0, 83/83**.
+- 9 regresyon harness → **EXIT 0** (extract-fields · build-candidate · run-index-unit ·
+  run-source · index-write-plan · **supabase-adapters 37** · admin-route 65 ·
+  **index-smoke 41** · **visibility 49**).
+- `npx tsc --noEmit` → **EXIT 0** (harness'te ES2020-altı BigInt-literal → `BigInt()`
+  ile düzeltildi). Hedefli ESLint (2 S2.14 dosyası) → **0 error, 0 warning**. Güvenlik
+  grep temiz. `git diff --check` temiz.
+
+### Push / durum
+`origin/work/yh-s2-14` = `ad03579` (kod `dd29167` + sync merge); local/remote **0/0**;
+`origin/main` (`91bcbab`) **değişmedi**; **PR açılmadı**. Sonraki S2.x **otomatik açılmaz**
+(yeni salt-okunur analiz turu + kullanıcı onayı gerekir).
+
+### Notlar
+Bu kayıt S2.14 kodunun TAMAMLANMASINI belgeler; aynı tarihli aşağıdaki "S2.14 ... Açıldı"
+kaydı, S2.14'ün AÇILDIĞI ana ait tarihsel kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.13 PR #4 ile main'e merge edildi; S2.14 (Retrieval Türkçe Metin Normalizasyonu) Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı, PR #4 ile `origin/main`'e merge
+edildi** ("Create a merge commit"; merge commit **`4c672e9`**, ebeveynler `c412334`
+[alakasız paralel REPORT-ALL-WORD-C1 oturumu] + `608f576` [S2.13 kapanış docs]). Kaynak
+zincir korundu (`03112f3` · `fec4c69` · `e3b4e73` · `608f576`); PR #4 net katkısı 6 YH
+dosyası (+751/−59); package/lock/migration/SQL yok.
+
+Ayrıca **S2.14 — Retrieval Türkçe Metin Normalizasyonu** aktif aşama olarak **açıldı**
+(`work/yh-s2-14`, taban güncel `origin/main` = `4c672e9`). Bu docs turunda **kod
+yazılmadı**; `normalize.ts` ve harness henüz oluşturulmadı.
+
+### Neden
+S2.13 [3]'ün görünürlük yüklemini tamamladı; retrieval boru hattının (`04-phase-2-fast-search.md`)
+**[1] Türkçe Normalize** adımı henüz yok. Normalize, [2] sözlük genişletme, [3] tsquery
+ve [4] Kanıt Kapısı'nın ortak ön koşuludur; saf/deterministik/DB'siz olduğundan mevcut
+test-ortamı engelini (non-prod Supabase yok) aşarak güvenle ilerletilebilir.
+
+### S2.14 kilitli kararlar (kod öncesi)
+- **A1** — Kapsam: saf/deterministik Türkçe retrieval metin normalizasyonu.
+- **A2** — Stop-list/gürültü elemesi **kapsam dışı** (sonraki sözlük/concept-set aşamasına).
+- **A3** — Çıktı: `{ normalizedText: string; tokens: string[] }`.
+- **A4** — Tipler `normalize.ts` içinde lokal/exported; **`search/types.ts` değişmez**.
+- **A5** — SQL/migration/Supabase adapter/API/retrieval wiring/Kanıt Kapısı/concept-set/derece/"Neden?" **kapsam dışı**.
+- **A6** — `package.json`/lockfile değişmez. **A7** — AI yok. **A8** — IO/DB/fetch/env/service_role yok. **A9** — saf/mutasyonsuz/deterministik. **A10** — boş/whitespace/yalnız-işaret girdi → fail-safe `{ "", [] }`.
+- **A11** — I/İ/ı/i + diyakritik dönüşümü **tahminle belirlenmez**; kod-öncesi lexical sözleşme (`§1` + `20260712…_lexical_infra.sql` + canlı `unaccent`/text-search config) salt-okunur doğrulanır; çelişkide DUR.
+
+### Lexical sözleşme ön-doğrulaması (bu turda salt-okunur)
+DB tarafı `to_tsvector('simple', yh_immutable_unaccent(text))`. Migration notu: "App
+normalize ASIL kaynaktır; DB unaccent DESTEKLEYİCİ/yedek (simetri)." Örnek:
+`yh_immutable_unaccent('İğne Şifa Çakra') → 'Igne Sifa Cakra'` → `simple` küçük harf →
+`igne sifa cakra`. Doküman §1 iki-adımlı sözleşmesi izlendiğinde dört i-varyantı (I, İ,
+ı, i) her iki tarafta **`i`**'ye yakınsıyor → **bloklayıcı çelişki YOK**. Açık: DB
+`unaccent`'in lowercase `ı` çıktısı örnekte gösterilmedi → kod turundan önce canlı
+PostgREST ile teyit edilecek (tahminle kodlanmayacak).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. S2.14 saf/DB'siz; migration/SQL/DDL yok.
+
+### Doğrulamalar
+Bu docs turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only). Kod turu doğrulama
+planı: yeni `yh-normalize-harness` + 9 regresyon harness + `tsc --noEmit` + hedefli
+ESLint + güvenlik grep.
+
+### Push / durum
+`origin/main` (`4c672e9`) değişmedi; bu S2.14 açılış commit'i yerel (`work/yh-s2-14`);
+push yapılmadı; PR açılmadı.
+
+### Notlar
+Bu kayıt hem S2.13'ün main'e MERGE'ini hem S2.14'ün AÇILIŞINI belgeler; aynı tarihli
+aşağıdaki "S2.13 Tamamlandı ve remote branch'e push edildi" kaydı, S2.13 kodunun
+tamamlanma anına ait tarihsel kayıttır (silinmedi).
+
+---
+
 ## 2026-07-19 — S2.13 (Retrieval Görünürlük Kararı) Tamamlandı ve remote branch'e push edildi
 
 ### Tarih
