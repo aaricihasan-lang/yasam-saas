@@ -44,6 +44,66 @@
 
 ---
 
+## 2026-07-19 — S2.13 (Retrieval Görünürlük Kararı) Tamamlandı ve remote branch'e push edildi
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı tamamlandı** ve
+`origin/work/yh-s2-13` çalışma branch'ine push edildi. Bir retrieval adayının
+güvenilir server-side session scope altında görünür olup olmadığını **saf +
+deterministik + DB'siz + dependency-injection + fail-closed** biçimde belirleyen
+görünürlük karar birimi. Kod commit **`e3b4e73f2c82b6eb10b9c5e630370b652e29adb8`**
+(`feat(yasam-hafizasi): add S2.13 retrieval visibility scope`; parent `fec4c69`).
+
+### Teslim edilen dosyalar
+- `lib/yasam-hafizasi/search/visibilityScope.ts` — `evaluateVisibility` + tipler
+  (`VisibilityCandidate`/`VisibilityContext`/`StoneExclusionPort`/`VisibilityDecision`/
+  `VisibilityReasonCode`); kapalı reason-code union.
+- `scripts/yh-visibility-scope-harness.ts` — izole, DB'siz harness.
+
+### Görünürlük kuralları (uygulanan öncelik)
+session tenant geçerliliği → candidate tenant biçim geçerliliği → PII dışlama
+(`is_client_pii` yalnız kesin false) → demo tenant/source dışlama → tenant/shared
+görünürlüğü (`tenant_id = session` VEYA `null` + kesin `allowShared === true`) →
+stone exclusion → görünür. Stone exclusion **enjekte port** ile; YALNIZ doğal taş
+(`dogaltas`) adayında ve tenant/PII/demo geçildikten sonra çağrılır; farklı tenant /
+PII / demo / eksik stabil kimlikte çağrılmaz; **port throw/reject/non-boolean →
+fail-closed**. Tenant yalnız server-side session'dan; birim HTTP/body/query/cookie/
+header/env OKUMAZ. Reason-code kapalı union; ham tenant/stone kimliği veya hata
+mesajı içermez. Deterministik; girdi mutasyonu ve global durum yok.
+
+### Mimari
+Saf + DI tabanlı. **Gerçek Supabase / DB implementasyonu YOK** — `StoneExclusionPort`
+yalnız sözleşme; gerçek adapter sonraki S2.x'e aittir. `tenantScope.ts` / `config.ts` /
+`search/types.ts` **değiştirilmedi** (yalnız 2 yeni dosya).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Migration/SQL/DDL yok. DB erişimi yok.
+
+### Doğrulamalar
+- `yh-visibility-scope-harness` → **EXIT 0, 49/49**.
+- Sekiz regresyon harness → **EXIT 0** (dahil `yh-index-smoke` **41/41**).
+- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.13 dosyası) → **0 error, 0 warning**.
+- Güvenlik grep'leri temiz; `git diff --check` temiz.
+
+### Push / durum
+- `origin/work/yh-s2-13` = `e3b4e73` (fast-forward `fec4c69..e3b4e73`); local/remote **0/0**.
+- `origin/main` (`e4580eb`) **değişmedi**; **PR açılmadı**.
+
+### Kapsam dışı (sonraki S2.x — korunur)
+Gerçek Supabase stone-exclusion adapter'ı · `search_tsv` sorgu · retrieval adapter ·
+ranking · Kanıt Kapısı · derece · "Neden gösterildi?" · gerçek DB smoke · indeks DDL ·
+SQL/migration · Admin UI · production write · PII indeks. Sonraki S2.x aşaması ayrı
+analiz ve kullanıcı onayıyla belirlenecektir.
+
+### Notlar
+Bu kayıt, S2.13 KODUNUN tamamlanmasını belgeler; aynı tarihli aşağıdaki
+"S2.13 Açıldı" kaydı, S2.13'ün AÇILDIĞI ana ait tarihsel kayıttır (silinmedi).
+
+---
+
 ## 2026-07-19 — S2.08–S2.12 Tamamlandı ve PR #3 ile main'e merge edildi; S2.13 Açıldı
 
 ### Tarih

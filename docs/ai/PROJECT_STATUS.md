@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-19
+**Son güncelleme:** 2026-07-19 (S2.13 kapanış)
 
 ---
 
@@ -37,25 +37,26 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 origin/main'de** (`555030a`). S2.05 **PR #1** (`cd9c77c`); S2.07 **PR #2** (`2b19743`); **S2.08–S2.12 PR #3** (`555030a`). Aktif: **S2.13 (Retrieval Görünürlük Kararı) — AÇILDI, kod henüz yok** (`work/yh-s2-13`, taban `555030a`).
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 origin/main'de** (`555030a`). S2.05 **PR #1** (`cd9c77c`); S2.07 **PR #2** (`2b19743`); **S2.08–S2.12 PR #3** (`555030a`). **S2.13 (Retrieval Görünürlük Kararı) TAMAMLANDI** — kod commit `e3b4e73`, `origin/work/yh-s2-13`'e push edildi, **PR bekliyor** (`origin/main` değişmedi).
 
 ## Son Tamamlanan Aşama
 
-- Yaşam Hafızası **S2.08–S2.12 — İndeksleyici write-side** (runner + source + write plan/adapter + admin route + smoke) **tamamlandı ve main'e merge edildi**. Git akışı: 7 kaynak commit (`8cf503d`→`93ae185`) → entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s2-integration` → `main`, "Create a merge commit") → main **`555030a`** (ebeveynler `0a3e8a4` + `fa9adbd`). **20 YH dosyası, +3580/−67; package/lock/migration/SQL yok; YH-dışı değişiklik yok.**
+- Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı** (saf + deterministik + DB'siz + DI + fail-closed görünürlük karar birimi) **tamamlandı ve `origin/work/yh-s2-13`'e push edildi** (kod commit `e3b4e73`, parent `fec4c69`; PR bekliyor). Teslim: `lib/yasam-hafizasi/search/visibilityScope.ts` (`evaluateVisibility` + kapalı reason-code union) + `scripts/yh-visibility-scope-harness.ts`. Kurallar: tenant görünürlüğü · açık `allowShared` ile shared · PII dışlama · demo tenant/source dışlama · enjekte stone-exclusion port + port hatasında fail-closed. **Gerçek Supabase/DB implementasyonu YOK** (sonraki S2.x). Doğrulamalar: yeni harness **49/49**, 8 regresyon harness EXIT 0 (`yh-index-smoke` **41/41**), `tsc --noEmit` EXIT 0, hedefli ESLint **0 error/0 warning**, güvenlik grep'leri temiz, `git diff --check` temiz.
+- Önceki aşama: Yaşam Hafızası **S2.08–S2.12 — İndeksleyici write-side** (runner + source + write plan/adapter + admin route + smoke) **tamamlandı ve main'e merge edildi**. Git akışı: 7 kaynak commit (`8cf503d`→`93ae185`) → entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s2-integration` → `main`, "Create a merge commit") → main **`555030a`** (ebeveynler `0a3e8a4` + `fa9adbd`). **20 YH dosyası, +3580/−67; package/lock/migration/SQL yok; YH-dışı değişiklik yok.**
 - **Aşamalar:** S2.08 `runIndexUnit`+`makeParentTenantLookup` (`dd7a022`) · S2.09 `runSource` (`172aa91`) · S2.10 `indexWritePlan`+`supabaseIndexAdapters` (`b8ffc67`) · S2.11 admin index-page route (`e171fa1`) · S2.12A index smoke (`2dc44d3`) · S2.12C exact-owned-record dry-run (`93ae185`).
 - **Kabul kriterleri geçti (entegrasyon worktree'sinde doğrulandı):** 8 harness **EXIT 0** (**S2.12 smoke 41/41**); tüm-proje `tsc --noEmit` **EXIT 0**; ESLint YH kapsamı **0 error** (1 eskiden-var warning); güvenlik grep'leri temiz. Production build: derleme + TypeScript **geçti**, `Collecting page data` **ortam değişkeni eksikliği** (`supabaseUrl is required`, YH-dışı hacamat route) nedeniyle durdu — kod hatası değil.
 - Önceki aşamalar: **S2.07** (`2b19743`, PR #2) · **S2.05** (`cd9c77c`, PR #1).
 
 ## Son Commit
 
-- `555030a` — **PR #3 merge** (S2.08–S2.12 → main; ebeveynler `0a3e8a4` + `fa9adbd`). Entegrasyon commit `fa9adbd`; S2.12 kaynak HEAD `93ae185`.
-- Önceki: `2b19743` — S2.07 (index-unit builder) main merge; `cd9c77c` — S2.05 main merge.
+- `e3b4e73` — **S2.13 kod** (`feat(yasam-hafizasi): add S2.13 retrieval visibility scope`; parent `fec4c69`; 2 dosya, +536). `origin/work/yh-s2-13`'te; henüz main'de değil (PR bekliyor). Bu kapanış docs commit'i onun üstüne eklenir.
+- Önceki: `555030a` — **PR #3 merge** (S2.08–S2.12 → main; ebeveynler `0a3e8a4` + `fa9adbd`); `2b19743` — S2.07 main merge; `cd9c77c` — S2.05 main merge.
 
 ## Son Push
 
-- **S2.08–S2.12:** `origin/work/yh-s2-integration` (`fa9adbd`) + `origin/work/yh-s2-12` (`93ae185`) push edildi; **PR #3 merge edildi** → `origin/main` = **`555030a`**.
+- **S2.13:** kod commit `e3b4e73` `origin/work/yh-s2-13`'e push edildi (`fec4c69..e3b4e73`, fast-forward); local/remote **0/0**; `origin/main` (`e4580eb`) değişmedi; **PR açılmadı**.
+- **S2.08–S2.12:** `origin/work/yh-s2-integration` (`fa9adbd`) + `origin/work/yh-s2-12` (`93ae185`) push edildi; **PR #3 merge edildi** → `origin/main` = **`555030a`** (sonraki adımda S2.13 branch tabanı güncel main `e4580eb`'ye senkronlandı: `fec4c69`).
 - **S2.07:** `origin/work/yh-s2-07` (`380e44f`); **PR #2** → `2b19743`. **S2.05:** `origin/work/yh-s2-05` (`67fa6fb`); **PR #1** → `cd9c77c`.
-- **S2.13:** `work/yh-s2-13` yalnız bu docs uzlaştırma/açılış commit'iyle açıldı (kod yok); **push yapılmadı**.
 
 ## Son Doğrulanan Production Commit
 
@@ -71,12 +72,12 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **Aktif: S2.13 (Retrieval Görünürlük Kararı) — AÇILDI** (`work/yh-s2-13`, taban `555030a`). Bu turda yalnız docs uzlaştırma/açılış yapıldı; **kod henüz yazılmadı**. S2.13 kapsamı: retrieval adaylarının görünürlük filtresi — session tenant + isteğe bağlı shared + PII dışlama + demo dışlama + tenant'a özgü stone exclusion dışlama; **saf/deterministik/DB'siz**, stone exclusions **enjekte port** (config sabiti değil), fail-closed, harness ile doğrulanacak. Planlanan: `lib/yasam-hafizasi/search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts`; yeniden kullanım `tenantScope.ts`. Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08–S2.12 → S2.13.
-- **Onay bekleyen:** S2.13 kod öncesi kullanıcı onayı (kararlar kilitli).
+- **S2.13 (Retrieval Görünürlük Kararı) TAMAMLANDI** (`work/yh-s2-13` @ `e3b4e73`, `origin/work/yh-s2-13`'e push edildi). Saf/deterministik/DB'siz görünürlük karar birimi; stone exclusions **enjekte port** (config sabiti değil); teslim `lib/yasam-hafizasi/search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts`; `tenantScope.ts`/`config.ts`/`search/types.ts` değişmedi. Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08–S2.12 → S2.13.
+- **Aktif adım:** bu kapanış docs commit'i (yerel) → push → `work/yh-s2-13` → `main` PR (Create a merge commit). `origin/main` değişmedi; PR açılmadı.
 
 ## Bekleyen İşler
 
-- Yaşam Hafızası **S2.13** (Retrieval Görünürlük Kararı) → sonraki S2.x: `search_tsv` sorgu · normalize/sözlük · Kanıt Kapısı · derece · "Neden?" · INV harness (Sprint 2 kalan).
+- Yaşam Hafızası **S2.13** kapanış docs push'u + `main` PR'ı → **sonraki S2.x** (gerçek Supabase stone-exclusion adapter · `search_tsv` sorgu · normalize/sözlük · Kanıt Kapısı · derece · "Neden?" · INV harness). Sonraki S2.x aşaması ayrı analiz ve kullanıcı onayıyla belirlenecektir.
 - Human Design **FAZ 5/2** (API route).
 - Numeroloji QA düzeltmeleri (kritik RLS + hesap/görsel bulguları).
 - Dijital İçerik Blok-2/3 + kimliksiz AI uç güvenliği.

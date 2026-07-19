@@ -16,11 +16,12 @@
 
 ## Durum
 
-**Aktif görev: S2.13 — Retrieval Görünürlük Kararı — AÇILDI** (tasarım aşaması;
-**kod henüz yok**). İzole worktree `work/yh-s2-13` (taban `origin/main` = `555030a`).
-Bu turda yalnız docs uzlaştırma/açılış yapıldı. Önceki blok **S2.08–S2.12 tamamlandı
-ve main'e merge edildi** (PR #3, merge commit `555030a`); aşağıda özetlenmiştir. Kod,
-tasarım kararları (K1–K5, aşağıda kilitli) + kullanıcı onayı sonrası yazılacaktır.
+**Aktif görev: S2.13 — Retrieval Görünürlük Kararı — TAMAMLANDI** (kod commit `e3b4e73`;
+`origin/work/yh-s2-13`'e push edildi; **PR bekliyor**). İzole worktree `work/yh-s2-13`
+(taban güncel `origin/main` = `e4580eb`). Önceki blok **S2.08–S2.12 tamamlandı ve
+main'e merge edildi** (PR #3, merge commit `555030a`); aşağıda özetlenmiştir. S2.13 kodu
+tasarım kararları (K1–K6) + kullanıcı onayı sonrası yazıldı ve doğrulandı; kapanış docs
+commit'i ardından `main` PR'ı hazırlanacaktır. `origin/main` değişmedi; PR açılmadı.
 
 ---
 
@@ -53,7 +54,7 @@ entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s
 
 ---
 
-## Aktif Görev — S2.13 (Retrieval Görünürlük Kararı) — AÇILDI (kod yok)
+## Aktif Görev — S2.13 (Retrieval Görünürlük Kararı) — TAMAMLANDI (`e3b4e73`)
 
 **Başlık:** S2.13 — Retrieval Görünürlük Kararı (session + shared birleşik görünürlük filtresi).
 
@@ -74,26 +75,32 @@ entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s
 - **Fail-closed** — tenant zorunlu; shared yalnız açıkça izinliyse.
 - **Harness** ile doğrulanacak (izole, DB'siz).
 
-**Planlanan yeni dosyalar:**
-- `lib/yasam-hafizasi/search/visibilityScope.ts`
-- `scripts/yh-visibility-scope-harness.ts`
+**Teslim edilen dosyalar:**
+- `lib/yasam-hafizasi/search/visibilityScope.ts` (`evaluateVisibility` + `VisibilityCandidate`/`VisibilityContext`/`StoneExclusionPort`/`VisibilityDecision`/`VisibilityReasonCode`; kapalı reason-code union; deterministik + mutasyonsuz + fail-closed).
+- `scripts/yh-visibility-scope-harness.ts` (izole, DB'siz harness).
 
-**Muhtemel yeniden kullanım (mümkün olduğunca değiştirmeden):**
-- `lib/yasam-hafizasi/tenantScope.ts` (`TenantScope`, `buildTenantScope`, `applyMainIndexScope` — session+shared+PII yüklemi çekirdeği zaten burada).
+**Yeniden kullanılan çekirdek (değiştirilmedi):**
+- `lib/yasam-hafizasi/tenantScope.ts` (session+shared+PII yüklemi deseni referans alındı; dosya değişmedi). `config.ts` / `search/types.ts` da değişmedi.
 
-**Kapsam dışı (S2.14+ / sonraki S2.x):**
-- `search_tsv` sorgusu · DB adapter · gerçek retrieval query · ranking · Kanıt Kapısı
-  · derece · "Neden gösterildi?" · production write · SQL/migration · Admin UI.
+**Karar önceliği (uygulanan):** session tenant → candidate tenant → PII → demo → tenant/shared → stone-exclusion → görünür. Stone port YALNIZ doğal taş adayında ve tenant/PII/demo geçildikten sonra çağrılır; farklı tenant/PII/demo/eksik-kimlikte çağrılmaz; throw/reject/non-boolean → fail-closed.
 
-**Durum:** Yalnız docs açılışı + karar kilidi yapıldı; **kod bu turda yazılmadı**.
-Kod, kullanıcı onayı sonrası aynı çekirdek disipliniyle (saf + DI + fail-closed +
-harness) yazılacaktır.
+**Kapsam dışı (sonraki S2.x):**
+- Gerçek Supabase stone-exclusion adapter'ı · `search_tsv` sorgusu · retrieval adapter · ranking · Kanıt Kapısı · derece · "Neden gösterildi?" · gerçek DB smoke · indeks DDL · SQL/migration · Admin UI · production write · PII indeks. Sonraki S2.x aşaması ayrı analiz ve kullanıcı onayıyla belirlenecektir.
+
+**Doğrulamalar (GEÇTİ):**
+- `npx tsx scripts/yh-visibility-scope-harness.ts` → **EXIT 0, 49/49**.
+- Sekiz regresyon harness → **EXIT 0** (dahil `yh-index-smoke` **41/41**).
+- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.13 dosyası) → **0 error, 0 warning**.
+- Güvenlik grep'leri temiz (Supabase/DB/fetch/env/SQL/search_tsv/console/global-state yok; reasonCode'a ham tenant/stone id / hata mesajı sızmıyor). `git diff --check` temiz.
+
+**Push durumu:** Kod commit `e3b4e73` `origin/work/yh-s2-13`'e push edildi (`fec4c69..e3b4e73`); local/remote **0/0**; `origin/main` (`e4580eb`) **değişmedi**; **PR açılmadı**.
 
 ## Bekleyen Onaylar
 
-- **S2.13:** kod öncesi kullanıcı onayı (worktree hazır, kararlar kilitli).
+- **S2.13:** bu kapanış docs commit'inin push'u → ardından `work/yh-s2-13` → `main` PR (Create a merge commit).
 
 ## Sonuç
 
 - S2.05 (`cd9c77c`), S2.07 (`2b19743`), **S2.08–S2.12 (`555030a`, PR #3)** main'de;
-  tümü doğrulandı. S2.13 açıldı (docs); kod, onay sonrası yazılacaktır.
+  tümü doğrulandı. **S2.13 tamamlandı** (`e3b4e73`, `origin/work/yh-s2-13`'te); doğrulandı,
+  main'e karşı çakışmasız. Sıradaki: kapanış docs commit push'u → `main` PR.

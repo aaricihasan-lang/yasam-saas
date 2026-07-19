@@ -68,10 +68,10 @@ Derin Analiz → Admin → Test → Deploy`
 | **S2.11** | Admin index-page route (admin auth + demo fail-closed + dry-run/write ayrımı) | ✅ | `indexer/adminIndexRequest.ts` + `app/api/admin/yasam-hafizasi/index-page/route.ts` (`e171fa1`, PR #3) |
 | **S2.12A** | Index smoke aracı (plan-only) | ✅ | `indexer/indexSmokePlan.ts` + `scripts/yh-index-smoke.ts` (`2dc44d3`, PR #3) |
 | **S2.12C** | Exact-owned-record smoke dry-run (pk+tenant tek sorgu; write/delete yok) | ✅ | `indexSmokePlan.ts` + `scripts/yh-index-smoke-harness.ts` (`93ae185`, PR #3; smoke 41/41) |
-| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre; saf/DB'siz, stone exclusions enjekte port) | 🟡 | `work/yh-s2-13` açıldı (docs); kod yok. Plan: `search/visibilityScope.ts` + harness |
-| S2.x | `search_tsv` sorgu · normalize · sözlük genişletme · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` (numaralandırma S2.13 sonrası ayrı karar) |
+| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre; saf/DB'siz, stone exclusions enjekte port) | ✅ | `search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts` (`e3b4e73`, `origin/work/yh-s2-13`; harness **49/49**; PR bekliyor) |
+| S2.x | gerçek Supabase stone-exclusion adapter · `search_tsv` sorgu · normalize · sözlük genişletme · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` (numaralandırma S2.13 sonrası ayrı analiz/onay) |
 
-> **S2.05, S2.07 ve S2.08–S2.12 tamamlandı ve main'de** (PR #1 `cd9c77c`, PR #2 `2b19743`, **PR #3 `555030a`**). Aktif iş: **S2.13 (Retrieval Görünürlük Kararı)** — `work/yh-s2-13` açıldı (docs; kod yok). Sonrası: `search_tsv` sorgu ve kalan S2.x işleri (numaralandırma ayrı karar). ROADMAP'te **S2.06 yoktur**.
+> **S2.05, S2.07, S2.08–S2.12 tamamlandı ve main'de** (PR #1 `cd9c77c`, PR #2 `2b19743`, **PR #3 `555030a`**). **S2.13 (Retrieval Görünürlük Kararı) tamamlandı** — `work/yh-s2-13` @ `e3b4e73`, `origin/work/yh-s2-13`'e push edildi; saf görünürlük karar birimi (gerçek Supabase adapter/`search_tsv` YOK); **PR bekliyor**. Sonrası: kalan S2.x işleri (numaralandırma ayrı analiz/onayla). ROADMAP'te **S2.06 yoktur**.
 
 ### Sprint 3 — UI (Hızlı Tarama) ⬜
 Ana modül ekranı · sonuç kartı · derece görsel dili · "Neden?" · modül filtresi · a11y · responsive.
