@@ -10,6 +10,7 @@ import {
   hasFullPanelAccess,
   isAdminUser,
   LOCKED_SUBSCRIPTION_TOAST,
+  normalizeApprovalStatus,
   parseLoginUserRecord,
   readYasamUser,
   readSessionToken,
@@ -660,45 +661,52 @@ export default function Home() {
 
   useEffect(() => {
     const stored = readYasamUser();
-    if (stored) {
-      setUser(stored);
+    if (!stored) {
+      setUser(null);
       setAuthLoading(false);
-      // Warm cache: localStorage zaten yetkili profil alanlarını (package_type) içeriyorsa
-      // skeleton göstermeden hemen render et. package_type yalnızca /api/auth/profile
-      // sync'inden sonra var olur — RPC kaydında asla bulunmaz.
-      if (isAdminUser(stored) || stored.package_type) {
-        setProfileSynced(true);
-      }
-      // Cookie refresh DB sync'ten önce (paralel) başlatılıyor; tıklama anında
-      // Promise zaten resolved olacak → sıfır bekleme.
-      if (isAdminUser(stored)) {
-        adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: stored.id }),
-        }).then(() => {}).catch(() => {});
-      }
+      return;
+    }
+
+    setUser(stored);
+    setAuthLoading(false);
+
+    // ── ADMIN ── gating'e tabi değil; hızlı render + arka planda tazele.
+    if (isAdminUser(stored)) {
+      setProfileSynced(true);
+      // Cookie refresh DB sync'ten önce (paralel) başlatılıyor.
+      adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: stored.id }),
+      }).then(() => {}).catch(() => {});
       void syncYasamUserFromDb(stored).then((fresh) => {
-        if (!fresh) {
-          clearYasamUser();
-          setUser(null);
-          return;
-        }
-        setUser(fresh);
-        setProfileSynced(true);
-        // Admin olup localStorage'da admin değilse (nadir durum) cookie set et.
-        if (isAdminUser(fresh) && !adminCookiePromiseRef.current) {
-          adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: fresh.id }),
-          }).then(() => {}).catch(() => {});
-        }
+        if (fresh) setUser(fresh);
       });
       return;
     }
-    setUser(null);
-    setAuthLoading(false);
+
+    // ── EXPERT ── Erişim kararı yalnızca geçerli oturum token'ıyla
+    // /api/auth/profile üzerinden alınmış GÜNCEL profile dayanmalı.
+    // Bayat localStorage kaydı tek başına "doğrulanmış" sayılmaz:
+    // profileSynced yalnız gerçek fetch başarılıysa true olur.
+    const token = readSessionToken();
+    if (!token) {
+      // Token yok → eski kullanıcı verisi doğrulanmış kabul edilemez.
+      // Erişim reddi (eski membership snapshot'ı) ÜRETME; güvenli
+      // "yeniden dene" ekranını göster. Logout/yönlendirme döngüsü yok.
+      setProfileError(true);
+      return;
+    }
+    void syncYasamUserFromDb(stored, { force: true }).then((fresh) => {
+      if (fresh) {
+        setUser(fresh);
+        setProfileSynced(true);
+      } else {
+        // Profil doğrulanamadı (fetch başarısız / oturum geçersiz).
+        // Eski veriyle erişim kararı verme; güvenli hata/yeniden-dene ekranı.
+        setProfileError(true);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -1146,12 +1154,18 @@ export default function Home() {
     }
     const firstName = displayName ? displayName.split(" ")[0] : "";
     const panelAccess = hasFullPanelAccess(user);
-    // Modül kartları yalnızca yetkili profil verisi (package_type / module_permissions)
-    // /api/auth/profile'dan geldikten sonra deterministik. Admin gating'e tabi değil.
-    const permissionsReady =
-      isAdminUser(user) || profileSynced || Boolean(user.package_type);
+    // Modül kartları + erişim kararı yalnızca token'lı /api/auth/profile sync'i
+    // (profileSynced) sonrası deterministik. localStorage package_type'ına GÜVENİLMEZ
+    // — bayat kayıt yanlış erişim kararı üretmesin. Admin gating'e tabi değil.
+    const permissionsReady = isAdminUser(user) || profileSynced;
     const visibleDashboardModules = getVisibleDashboardModules(user);
     const membershipExpired = isExpertMembershipExpired(user);
+    // Erişim yoksa doğru sebep: onay bekliyor mu, yoksa (genel) aktif değil mi?
+    const membershipDenyReason: "pending" | "inactive" =
+      !isAdminUser(user) &&
+      normalizeApprovalStatus(user.approval_status) === "pending"
+        ? "pending"
+        : "inactive";
     const expertModulesEmpty =
       !isAdminUser(user) &&
       !membershipExpired &&
@@ -1180,6 +1194,11 @@ export default function Home() {
     async function retryProfileSync() {
       if (!user) return;
       setProfileError(false);
+      // Token yoksa canlı doğrulama yapılamaz — bayat kaydı "synced" sayma.
+      if (!readSessionToken()) {
+        setProfileError(true);
+        return;
+      }
       const fresh = await syncYasamUserFromDb(user, { force: true });
       if (fresh) {
         setUser(fresh);
@@ -1379,10 +1398,20 @@ export default function Home() {
                 )
               ) : membershipExpired ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
-                  <p className="text-base font-black text-rose-700">Üyelik süreniz doldu</p>
-                  <p className="mt-2 max-w-md text-sm text-rose-500">
-                    Modüllere erişim için yönetici ile iletişime geçin.
-                  </p>
+                  {membershipDenyReason === "pending" ? (
+                    <p className="text-base font-black text-rose-700">
+                      Hesabınız yönetici onayı bekliyor.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-base font-black text-rose-700">
+                        Hesabınız şu anda aktif değil.
+                      </p>
+                      <p className="mt-2 max-w-md text-sm text-rose-500">
+                        Sisteme erişim için yönetici ile iletişime geçin.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : expertModulesEmpty ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-white/60 px-6 py-8 text-center backdrop-blur-sm">
