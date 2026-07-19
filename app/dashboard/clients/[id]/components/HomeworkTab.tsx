@@ -770,8 +770,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               </p>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
-              <div className="grid grid-cols-5 gap-3">
+            <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
+              <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
                   <div className="text-lg font-black text-amber-700">
                     {activeCount}
@@ -964,7 +964,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2.5">
                           {isExpired && !isAlertDismissed && (
                             <button
                               onClick={() => dismissHomeworkAlert(item.id)}
@@ -997,7 +997,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
                           <button
                             onClick={() => deleteHomework(item.id)}
-                            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                            className="ml-1 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                           >
                             Sil
                           </button>
@@ -1030,8 +1030,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     </div>
                   ) : (
                     <div className="border-l-4 border-emerald-500 bg-emerald-50/50 p-5">
-                      <div className="mb-4 flex items-center justify-between gap-3">
-                        <div>
+                      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
                           <h4 className="text-xl font-black text-slate-950">
                             Ödevi Düzenle
                           </h4>
@@ -1042,7 +1042,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
                         <button
                           onClick={cancelEdit}
-                          className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                          className="self-start rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                         >
                           İptal
                         </button>

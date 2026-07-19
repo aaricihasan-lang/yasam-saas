@@ -516,7 +516,7 @@ function PhotoGallery({
                 type="button"
                 onClick={() => onDeletePhoto(photo)}
                 disabled={deletingPhotoId === photo.id}
-                className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2 py-1 text-[10px] font-black text-white opacity-0 shadow-sm transition group-hover:opacity-100 disabled:opacity-50"
+                className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2.5 py-1.5 text-xs font-black text-white opacity-100 shadow-sm transition group-hover:opacity-100 disabled:opacity-50 md:opacity-0"
               >
                 {deletingPhotoId === photo.id ? "..." : "Sil"}
               </button>
@@ -1285,8 +1285,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                              <label className="cursor-pointer rounded-xl border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
+                            <div className="flex flex-wrap gap-2.5">
+                              <label className="cursor-pointer rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
                                 {uploadingStoneId === stone.id
                                   ? "Yükleniyor..."
                                   : "Fotoğraf Ekle"}
@@ -1304,14 +1304,14 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
                               <button
                                 onClick={() => startEdit(stone)}
-                                className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                               >
                                 Düzenle
                               </button>
 
                               <button
                                 onClick={() => deleteStone(stone.id)}
-                                className="rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                                className="ml-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                               >
                                 Sil
                               </button>
@@ -1374,8 +1374,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                     </div>
                   ) : (
                     <div className="border-l-4 border-emerald-500 bg-emerald-50/50 p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div>
+                      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
                           <h4 className="text-base font-black text-slate-950">
                             Taş Kaydını Düzenle
                           </h4>
@@ -1388,7 +1388,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
                         <button
                           onClick={cancelEdit}
-                          className="rounded-xl bg-white px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                          className="self-start rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                         >
                           İptal
                         </button>
