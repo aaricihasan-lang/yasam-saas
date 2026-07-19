@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import {
@@ -299,6 +299,9 @@ export default function DogaltasKayitPage() {
   const [dupChecking, setDupChecking] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
+  // FAZ-5B: explicit tetikleme — implicit label yerine ref.click() (mobil picker güvenilirliği).
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -710,13 +713,43 @@ export default function DogaltasKayitPage() {
                       Seçtiğiniz görseller bu kayda eklenir.
                     </p>
 
-                    <label className={`${uiBtn} mt-3 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
-                      Resim Seç
-                      {/* FAZ-2C: display:none yerine sr-only — görsel gizli ama tarayıcı
-                          erişimli kalır; bazı Android Chrome/PWA'da picker güvenilir açılır.
-                          Input label içinde (implicit bağlama); capture EKLENMEDİ. */}
-                      <input type="file" accept="image/*" multiple onChange={handleImageUpload} aria-label="Resim seç" className="sr-only" />
-                    </label>
+                    {/* FAZ-5B: explicit ref.click() ile iki açık seçenek — implicit label kaldırıldı.
+                        Galeri (multiple, capture yok) ve Kamera (capture=environment, multiple yok)
+                        aynı handleImageUpload'ı kullanır. */}
+                    <div className="mt-3 flex w-full max-w-[320px] flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
+                      >
+                        Galeriden Seç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
+                      >
+                        Fotoğraf Çek
+                      </button>
+                    </div>
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      aria-label="Galeriden seç"
+                      className="sr-only"
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImageUpload}
+                      aria-label="Fotoğraf çek"
+                      className="sr-only"
+                    />
                   </div>
 
                   {images.length > 0 && (
