@@ -803,7 +803,9 @@ export default function TasBilgiKutuphanesiPage() {
       };
 
       if (!res.ok || !json.ok) {
-        setBulkUpdateError("Güncelleme hatası: " + (json.error ?? "Bilinmeyen hata"));
+        // FAZ-4E: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", json.error ?? `HTTP ${res.status}`);
+        setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
         return;
       }
 
@@ -832,6 +834,10 @@ export default function TasBilgiKutuphanesiPage() {
       setBulkUpdateForm({ category: "", sub_category: "", title: "", content: "" });
       setBulkUpdateTextEdit(false);
       showToast({ type: "success", message: `${updated?.length ?? 0} kayıt güncellendi.` });
+    } catch (err) {
+      // FAZ-4E: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
+      console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", err);
+      setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
     } finally {
       setBulkUpdateBusy(false);
     }
