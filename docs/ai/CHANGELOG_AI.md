@@ -44,6 +44,65 @@
 
 ---
 
+## 2026-07-19 — S2.13 PR #4 ile main'e merge edildi; S2.14 (Retrieval Türkçe Metin Normalizasyonu) Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı, PR #4 ile `origin/main`'e merge
+edildi** ("Create a merge commit"; merge commit **`4c672e9`**, ebeveynler `c412334`
+[alakasız paralel REPORT-ALL-WORD-C1 oturumu] + `608f576` [S2.13 kapanış docs]). Kaynak
+zincir korundu (`03112f3` · `fec4c69` · `e3b4e73` · `608f576`); PR #4 net katkısı 6 YH
+dosyası (+751/−59); package/lock/migration/SQL yok.
+
+Ayrıca **S2.14 — Retrieval Türkçe Metin Normalizasyonu** aktif aşama olarak **açıldı**
+(`work/yh-s2-14`, taban güncel `origin/main` = `4c672e9`). Bu docs turunda **kod
+yazılmadı**; `normalize.ts` ve harness henüz oluşturulmadı.
+
+### Neden
+S2.13 [3]'ün görünürlük yüklemini tamamladı; retrieval boru hattının (`04-phase-2-fast-search.md`)
+**[1] Türkçe Normalize** adımı henüz yok. Normalize, [2] sözlük genişletme, [3] tsquery
+ve [4] Kanıt Kapısı'nın ortak ön koşuludur; saf/deterministik/DB'siz olduğundan mevcut
+test-ortamı engelini (non-prod Supabase yok) aşarak güvenle ilerletilebilir.
+
+### S2.14 kilitli kararlar (kod öncesi)
+- **A1** — Kapsam: saf/deterministik Türkçe retrieval metin normalizasyonu.
+- **A2** — Stop-list/gürültü elemesi **kapsam dışı** (sonraki sözlük/concept-set aşamasına).
+- **A3** — Çıktı: `{ normalizedText: string; tokens: string[] }`.
+- **A4** — Tipler `normalize.ts` içinde lokal/exported; **`search/types.ts` değişmez**.
+- **A5** — SQL/migration/Supabase adapter/API/retrieval wiring/Kanıt Kapısı/concept-set/derece/"Neden?" **kapsam dışı**.
+- **A6** — `package.json`/lockfile değişmez. **A7** — AI yok. **A8** — IO/DB/fetch/env/service_role yok. **A9** — saf/mutasyonsuz/deterministik. **A10** — boş/whitespace/yalnız-işaret girdi → fail-safe `{ "", [] }`.
+- **A11** — I/İ/ı/i + diyakritik dönüşümü **tahminle belirlenmez**; kod-öncesi lexical sözleşme (`§1` + `20260712…_lexical_infra.sql` + canlı `unaccent`/text-search config) salt-okunur doğrulanır; çelişkide DUR.
+
+### Lexical sözleşme ön-doğrulaması (bu turda salt-okunur)
+DB tarafı `to_tsvector('simple', yh_immutable_unaccent(text))`. Migration notu: "App
+normalize ASIL kaynaktır; DB unaccent DESTEKLEYİCİ/yedek (simetri)." Örnek:
+`yh_immutable_unaccent('İğne Şifa Çakra') → 'Igne Sifa Cakra'` → `simple` küçük harf →
+`igne sifa cakra`. Doküman §1 iki-adımlı sözleşmesi izlendiğinde dört i-varyantı (I, İ,
+ı, i) her iki tarafta **`i`**'ye yakınsıyor → **bloklayıcı çelişki YOK**. Açık: DB
+`unaccent`'in lowercase `ı` çıktısı örnekte gösterilmedi → kod turundan önce canlı
+PostgREST ile teyit edilecek (tahminle kodlanmayacak).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. S2.14 saf/DB'siz; migration/SQL/DDL yok.
+
+### Doğrulamalar
+Bu docs turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only). Kod turu doğrulama
+planı: yeni `yh-normalize-harness` + 9 regresyon harness + `tsc --noEmit` + hedefli
+ESLint + güvenlik grep.
+
+### Push / durum
+`origin/main` (`4c672e9`) değişmedi; bu S2.14 açılış commit'i yerel (`work/yh-s2-14`);
+push yapılmadı; PR açılmadı.
+
+### Notlar
+Bu kayıt hem S2.13'ün main'e MERGE'ini hem S2.14'ün AÇILIŞINI belgeler; aynı tarihli
+aşağıdaki "S2.13 Tamamlandı ve remote branch'e push edildi" kaydı, S2.13 kodunun
+tamamlanma anına ait tarihsel kayıttır (silinmedi).
+
+---
+
 ## 2026-07-19 — S2.13 (Retrieval Görünürlük Kararı) Tamamlandı ve remote branch'e push edildi
 
 ### Tarih
