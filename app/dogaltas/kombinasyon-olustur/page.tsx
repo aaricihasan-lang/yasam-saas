@@ -576,7 +576,7 @@ export default function KombinasyonOlusturPage() {
                     type="button"
                     onClick={() => removeCondition(cond.id)}
                     aria-label="Koşulu kaldır"
-                    className="btn-danger h-10 shrink-0 !px-3"
+                    className="btn-danger h-11 shrink-0 !px-3"
                   >
                     Sil
                   </button>
@@ -796,7 +796,7 @@ export default function KombinasyonOlusturPage() {
                           type="button"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`${item.name} sepetten çıkar`}
-                          className="btn-danger shrink-0 !rounded-lg !px-2 !py-0.5 !text-[11px]"
+                          className="btn-danger inline-flex min-h-[44px] items-center justify-center shrink-0 !rounded-lg !px-2 !py-0.5 !text-[11px] sm:min-h-0"
                         >
                           Çıkar
                         </button>
@@ -811,7 +811,7 @@ export default function KombinasyonOlusturPage() {
                     <button
                       type="button"
                       onClick={clearCart}
-                      className="btn-soft !rounded-lg !px-2 !py-0.5 !text-[11px]"
+                      className="btn-soft inline-flex min-h-[44px] items-center justify-center !rounded-lg !px-2 !py-0.5 !text-[11px] sm:min-h-0"
                     >
                       Temizle
                     </button>
