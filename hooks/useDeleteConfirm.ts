@@ -9,6 +9,12 @@ export type DeleteConfirmOptions = {
   message: string;
   /** Mobilde gösterilen ikinci dialog mesajı */
   secondMessage?: string;
+  /** İlk onay onay-butonu metni (varsayılan "Evet") — "kaldırma" gibi silme-dışı işlemler için */
+  confirmText?: string;
+  /** Her iki onayda iptal-butonu metni (varsayılan "Vazgeç") */
+  cancelText?: string;
+  /** Mobil/PWA ikinci onay onay-butonu metni (varsayılan "Kalıcı Olarak Sil") */
+  secondConfirmText?: string;
 };
 
 /**
@@ -27,8 +33,8 @@ export function useDeleteConfirm() {
       title: opts.title ?? "Silmek istediğinizden emin misiniz?",
       message: opts.message,
       tone: "danger",
-      confirmText: "Evet",
-      cancelText: "Vazgeç",
+      confirmText: opts.confirmText ?? "Evet",
+      cancelText: opts.cancelText ?? "Vazgeç",
     });
     if (!ok1) return false;
 
@@ -40,8 +46,8 @@ export function useDeleteConfirm() {
           opts.secondMessage ??
           "Bu işlem kalıcıdır. Yanlışlıkla silmediğinizden emin olun.",
         tone: "danger",
-        confirmText: "Kalıcı Olarak Sil",
-        cancelText: "Vazgeç",
+        confirmText: opts.secondConfirmText ?? "Kalıcı Olarak Sil",
+        cancelText: opts.cancelText ?? "Vazgeç",
       });
       if (!ok2) return false;
     }
