@@ -299,6 +299,8 @@ export default function DogaltasKayitPage() {
   const [dupChecking, setDupChecking] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
+  // FAZ-5H: tek aktif fotoğraf kaldırma; çift istek/çift dokunuş engeli + buton busy görünümü.
+  const [removingImageId, setRemovingImageId] = useState<string | null>(null);
   // FAZ-5B: explicit tetikleme — implicit label yerine ref.click() (mobil picker güvenilirliği).
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -479,8 +481,44 @@ export default function DogaltasKayitPage() {
     showMessage(`${uploaded.length} resim yüklendi.`);
   }
 
-  function removeImage(id: string) {
-    setImages((prev) => prev.filter((image) => image.id !== id));
+  async function removeImage(id: string) {
+    // FAZ-5H: tek aktif kaldırma — devam eden işlem varken yeni istek başlatma.
+    if (removingImageId) return;
+    const image = images.find((img) => img.id === id);
+    if (!image) return;
+
+    // Onaydan ÖNCE Storage çağrısı ve state değişikliği yok.
+    const confirmed = await deleteConfirm({
+      title: "Fotoğrafı kaldır",
+      message: "Bu fotoğraf kalıcı olarak kaldırılacak ve geri alınamayacak. Devam etmek istiyor musunuz?",
+      secondMessage: "Bu fotoğraf kalıcı olarak kaldırılacak. Emin misiniz?",
+      confirmText: "Kaldır",
+      cancelText: "Vazgeç",
+      secondConfirmText: "Kaldır",
+    });
+    if (!confirmed) return;
+
+    // Path elle türetilmez; yalnız state'teki file_path kullanılır. Yoksa Storage'a dokunma.
+    if (!image.file_path) {
+      console.error("[dogaltas-kayit] fotoğraf kaldırma: file_path yok", image.id);
+      showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+      return;
+    }
+
+    setRemovingImageId(id);
+    try {
+      const { error } = await supabase.storage.from(STONE_BUCKET).remove([image.file_path]);
+      if (error) {
+        // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
+        console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", error);
+        showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+        return;
+      }
+      setImages((prev) => prev.filter((img) => img.id !== id));
+      showMessage("Fotoğraf kaldırıldı.");
+    } finally {
+      setRemovingImageId(null);
+    }
   }
 
   async function handleSave(forceCreate = false) {
@@ -762,10 +800,12 @@ export default function DogaltasKayitPage() {
 
                           <button
                             type="button"
-                            onClick={() => removeImage(image.id)}
-                            className="absolute right-1.5 top-1.5 hidden h-7 w-7 items-center justify-center rounded-full bg-slate-950/80 text-xs font-black text-white group-hover:flex"
+                            onClick={() => void removeImage(image.id)}
+                            disabled={removingImageId === image.id}
+                            aria-label="Fotoğrafı kaldır"
+                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                           >
-                            ×
+                            {removingImageId === image.id ? "⋯" : "×"}
                           </button>
                         </div>
                       ))}
