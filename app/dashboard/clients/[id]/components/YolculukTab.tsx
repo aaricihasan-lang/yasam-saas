@@ -187,19 +187,21 @@ const menuItems: MenuItem[] = [
 ];
 
 // ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
-const TYPE_META: Record<string, { color: string; accent: string; icon: string }> = {
-  numeroloji:   { color: "#7c3aed", accent: "#ede9fe", icon: "∞" },
-  dogaltas:     { color: "#0891b2", accent: "#e0f2fe", icon: "◆" },
-  refleksoloji: { color: "#db2777", accent: "#fce7f3", icon: "◎" },
-  biyoenerji:   { color: "#ea580c", accent: "#fff7ed", icon: "⚡" },
-  not:          { color: "#6d28d9", accent: "#ede9fe", icon: "✎" },
-  seans:        { color: "#16a34a", accent: "#dcfce7", icon: "◈" },
-  randevu:      { color: "#9333ea", accent: "#f3e8ff", icon: "◷" },
-  analiz:       { color: "#8b5cf6", accent: "#f5f3ff", icon: "◎" },
-  odev:         { color: "#ef4444", accent: "#fee2e2", icon: "✏" },
+// label = timeline türünün kullanıcıya gösterilen tekil Türkçe adı (tek kaynak).
+// Rozet ve filtre metinleri getMeta(type).label üzerinden çözer; ham enum sızmaz.
+const TYPE_META: Record<string, { color: string; accent: string; icon: string; label: string }> = {
+  numeroloji:   { color: "#7c3aed", accent: "#ede9fe", icon: "∞", label: "Numeroloji" },
+  dogaltas:     { color: "#0891b2", accent: "#e0f2fe", icon: "◆", label: "Doğaltaş" },
+  refleksoloji: { color: "#db2777", accent: "#fce7f3", icon: "◎", label: "Refleksoloji" },
+  biyoenerji:   { color: "#ea580c", accent: "#fff7ed", icon: "⚡", label: "Biyoenerji" },
+  not:          { color: "#6d28d9", accent: "#ede9fe", icon: "✎", label: "Not" },
+  seans:        { color: "#16a34a", accent: "#dcfce7", icon: "◈", label: "Seans" },
+  randevu:      { color: "#9333ea", accent: "#f3e8ff", icon: "◷", label: "Randevu" },
+  analiz:       { color: "#8b5cf6", accent: "#f5f3ff", icon: "◎", label: "Analiz" },
+  odev:         { color: "#ef4444", accent: "#fee2e2", icon: "✏", label: "Ödev" },
 };
 
-const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈" };
+const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈", label: "Diğer" };
 
 function getMeta(type: string) {
   return TYPE_META[type] ?? DEFAULT_META;
@@ -1154,10 +1156,10 @@ function TimelineCard({
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
               <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black capitalize tracking-wide"
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide"
                 style={{ background: meta.accent, color: meta.color }}
               >
-                {entry.type}
+                {meta.label}
               </span>
               {entry.badge && (
                 <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
@@ -1791,7 +1793,7 @@ export default function YolculukTab({
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black"
                   style={{ background: `${getMeta(activeFilter).color}15`, color: getMeta(activeFilter).color }}
                 >
-                  {getMeta(activeFilter).icon} {activeFilter} filtresi
+                  {getMeta(activeFilter).icon} {getMeta(activeFilter).label} filtresi
                   <button
                     onClick={() => { setActiveFilter(null); setActiveMenu("genel"); setDisplayCount(INITIAL_COUNT); }}
                     className="ml-1 opacity-60 hover:opacity-100"
@@ -1802,7 +1804,7 @@ export default function YolculukTab({
             <h2 className="mb-1 text-[20px] font-black tracking-tight text-slate-950">Son Çalışmalar</h2>
             <p className="text-[12px] font-bold text-slate-500">
               {activeFilter
-                ? `${filteredEntries.length} kayıt · ${activeFilter} filtresi aktif`
+                ? `${filteredEntries.length} kayıt · ${getMeta(activeFilter).label} filtresi aktif`
                 : "Danışana ait tüm modül çalışmalarının kronolojik özeti"}
             </p>
           </div>
