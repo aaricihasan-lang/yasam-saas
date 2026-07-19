@@ -10,84 +10,83 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-19 (S2.14 kapanış)
+**Son güncelleme:** 2026-07-19 (S2.15 açılış)
 
 ---
 
 ## Durum
 
-**Aktif görev: S2.14 — Retrieval Türkçe Metin Normalizasyonu — TAMAMLANDI** (kod commit
-`dd29167`; `origin/work/yh-s2-14`'e push edildi; **PR bekliyor**). İzole worktree
-`work/yh-s2-14` (güncel `origin/main` = `91bcbab` ile senkron; branch HEAD sync merge
-`ad03579`). Türkçe retrieval normalize birimi lexical sözleşme **canlı Supabase SELECT
-ile doğrulandıktan** sonra yazıldı ve doğrulandı; kapanış docs commit'i ardından `main`
-PR'ı hazırlanacaktır. `origin/main`'e push YOK; PR açılmadı. Önceki görev **S2.13
-tamamlandı ve main'e merge edildi** (PR #4, `4c672e9`); aşağıda özetlenmiştir.
+**Aktif görev: S2.15 — Kavram Kümesi (Concept Set) — AÇILDI** (kod henüz YOK). İzole
+worktree `work/yh-s2-15` (taban güncel `origin/main` = `f72b01b`). Bu turda yalnız
+worktree + açılış karar kilidi hazırlandı; **kod yazılmadı, commit/push yapılmadı**.
+Önceki görev **S2.14 tamamlandı ve main'e merge edildi** (PR #6; kod `dd29167`); aşağıda
+özetlenmiştir. Kod, kilitli sözleşme (aşağıda) + kullanıcı onayı sonrası yazılacaktır.
 
 ---
 
 ## Tamamlanan (main'de) — özet
 
-- **S2.13 — Retrieval Görünürlük Kararı** ✅ (**PR #4**, main `4c672e9`). Saf/deterministik/DB'siz görünürlük karar birimi (`lib/yasam-hafizasi/search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts`); kod commit `e3b4e73`. Kurallar: tenant · shared (`allowShared` kesin true) · PII dışlama · demo dışlama · enjekte stone-exclusion port + port hatasında fail-closed. Doğrulamalar: yeni harness **49/49**, 8 regresyon EXIT 0 (`yh-index-smoke` **41/41**), `tsc` EXIT 0, ESLint 0/0, güvenlik grep temiz.
-- **S2.08–S2.12 — İndeksleyici write-side** ✅ (**PR #3**, main `555030a`): `runIndexUnit`/`parentTenantLookup` · `runSource`/`indexSourcePage` · `indexWritePlan`/`supabaseIndexAdapters` · admin index-page route · index smoke (exact-owned-record dry-run). Ayrıntı `CHANGELOG_AI.md`'de.
-- **S2.04–S2.07** ✅: `tenantResolve` (S2.04) · `extractFields` (S2.05, PR #1 `cd9c77c`) · `buildCandidate` (S2.07, PR #2 `2b19743`).
-- **S2.01–S2.03** ✅: retrieval tipleri (`search/types.ts`) · topic-dictionary DDL · indeks kaynak config (`sources.ts`).
+- **S2.14 — Retrieval Türkçe Metin Normalizasyonu** ✅ (**PR #6**). Saf/deterministik/
+  fail-safe/locale-bağımsız/mutasyonsuz normalize birimi (`lib/yasam-hafizasi/search/normalize.ts`
+  + `scripts/yh-normalize-harness.ts`); kod commit `dd29167`. Query–index simetrisi
+  production Supabase SELECT ile doğrulandı (`ışık→isik`). Harness **83/83**.
+- **S2.13 — Retrieval Görünürlük Kararı** ✅ (**PR #4**): `search/visibilityScope.ts` +
+  harness (`e3b4e73`; 49/49). Enjekte stone-exclusion port + fail-closed.
+- **S2.08–S2.12 — İndeksleyici write-side** ✅ (**PR #3**, `555030a`).
+- **S2.04–S2.07** ✅: `tenantResolve` · `extractFields` (PR #1) · `buildCandidate` (PR #2).
+- **S2.01–S2.03** ✅: retrieval tipleri (`search/types.ts`) · topic-dictionary DDL · `sources.ts`.
 
-Retrieval read-side boru hattı (`04-phase-2-fast-search.md`): **[1] normalize → [2] sözlük → [3] search_tsv → [4] Kanıt Kapısı → [5] derece → [6] Neden**. S2.13 [3]'ün görünürlük yükleminı tamamladı; **[1] normalize henüz yok** → S2.14.
+Retrieval read-side boru hattı (`04-phase-2-fast-search.md`): **[1] normalize ✅ →
+[2] sözlük/concept → [3] search_tsv → [4] Kanıt Kapısı → [5] derece → [6] Neden**.
+Kilitli backlog: **Concept Set → Dictionary Expansion → search_tsv → Stone Exclusion
+Adapter → Evidence Gate → Ranking → Retrieval Pipeline → Search UI**. S2.15 = **Concept
+Set** ([2]'nin taban/query kısmı; Dictionary Expansion ayrı S2.16).
 
 ---
 
-## Aktif Görev — S2.14 (Retrieval Türkçe Metin Normalizasyonu) — TAMAMLANDI (`dd29167`)
+## Aktif Görev — S2.15 (Kavram Kümesi / Concept Set) — AÇILDI (kod yok)
 
-**Başlık:** S2.14 — Retrieval Türkçe Metin Normalizasyonu.
+**Başlık:** S2.15 — Kavram Kümesi (Concept Set), yalnız query-origin.
 
-**Tek amaç:** Sorgu ve indeks metnine **simetrik** uygulanan saf, deterministik Türkçe
-metin normalizasyonu + tokenizasyon (kaynak: `docs/yasam-hafizasi/04-phase-2-fast-search.md`
-§1 "Türkçe Normalize"): Türkçe-duyarlı küçük harf → diyakritik katlama → noktalama/
-tire/alt-çizgi → boşluk → boşluk sadeleştirme → tokenizasyon. **Stemmer YOK.**
+**Tek amaç:** Ham kullanıcı sorgusunu `normalizeSearchText` (S2.14) üzerinden geçirip
+**yalnız query-origin `Concept[]`** üretmek (kaynak: `04-phase-2-fast-search.md` §2:
+`C = { normalize(sorgu) token'ları }`). Saf/deterministik/DB'siz.
 
-**Kilitli kararlar (A1–A11):**
-- **A1** — Kapsam yalnız saf/deterministik Türkçe retrieval metin normalizasyonu.
-- **A2** — **Stop-list / gürültü kelime elemesi kapsam DIŞI** (sonraki sözlük/concept-set aşamasına bırakıldı).
-- **A3** — Çıktı şekli: `{ normalizedText: string; tokens: string[] }`.
-- **A4** — Tipler `normalize.ts` içinde lokal/exported; **`search/types.ts` bu fazda DEĞİŞMEZ**.
-- **A5** — SQL/migration/Supabase adapter/API route/retrieval wiring/Kanıt Kapısı/concept-set/derece/"Neden?" **kapsam DIŞI**.
-- **A6** — `package.json` / lockfile **değişmez**.
-- **A7** — **AI kullanılmaz.**
-- **A8** — IO/DB/fetch/env/service_role **kullanılmaz**.
-- **A9** — Fonksiyon **saf, mutasyonsuz, deterministik**.
-- **A10** — Boş/whitespace-only/yalnız-işaret girdi → **fail-safe** `{ normalizedText: ""; tokens: [] }`; crash yok.
-- **A11** — I/İ/ı/i ve diyakritik dönüşümleri **tahminle belirlenmez**; kod-öncesi salt-okunur doğrulanır: retrieval normalizasyon sözleşmesi (`04-phase-2-fast-search.md` §1) + lexical infra migration (`20260712…_lexical_infra.sql`) + PostgreSQL text-search/`unaccent` config. Query-tarafı normalize, mevcut `search_tsv` (`to_tsvector('simple', yh_immutable_unaccent(...))`) davranışıyla **anlamsal uyumlu** olmalı. Doküman ile gerçek lexical altyapı çelişirse: kod yazma / tahmin yürütme / migration değiştirme YOK → yalnız çelişki raporlanır ve DUR.
+**Kilitli sözleşme (kullanıcı onaylı):**
+- **Fonksiyon:** `buildConceptSet(input: unknown): readonly Concept[]` (yeni `lib/yasam-hafizasi/search/conceptSet.ts`).
+- **Model:** `normalizeSearchText(input).tokens` → her token bir `Concept{ term: token, origin: "query" }`.
+- **Phrase Concept YOK** (tokens-only; çok-kelime/phrase kavramları Dictionary Expansion / S2.16).
+- **Dictionary seam YOK** (Seçenek A — Dictionary Expansion ayrı S2.16; synonym üretimi yok).
+- **Dedup:** anahtar `term`; **ilk-görülme sırası korunur**; **sort YOK**.
+- **Alan sözleşmesi:** `term` = normalize edilmiş token (ham/yeniden-normalize YOK); `origin` = `"query"`; `canonical` **omit** (undefined).
+- **Fail-safe:** non-string / boş / yalnız-işaret girdi → **boş dizi**; **asla throw**. Çıktı dizisi **ve her Concept** `Object.freeze` (mutasyonsuz). Girdi mutasyonu imkânsız.
+- **Filtre YOK:** stop-word / kısa token / rakam filtresi S2.15 kapsamı dışında; normalize'ın ürettiği token'lar korunur (ör. "ve" bir Concept olur). Eleme, ileriki gate/tsquery işi.
+- **Kapsam dışı:** Dictionary Expansion · search_tsv · Evidence Gate · Ranking · retrieval wiring · DB/SQL/API/AI.
 
-**Teslim edilen dosyalar:**
-- `lib/yasam-hafizasi/search/normalize.ts` — `normalizeSearchText(input: unknown): NormalizedSearchText`; çıktı `{ normalizedText, tokens }`. Tam saf (hiç import yok); locale-bağımsız (`toLocaleLowerCase` YOK); fail-safe (string-olmayan/boş/işaret-only → `{ "", [] }`; hiçbir girdide throw yok); `Object.freeze` ile mutasyonsuz; deterministik. Türkçe fold: I/İ/ı/i→i · ç→c · ğ→g · ö→o · ş→s · ü→u · â→a · î→i · û→u; NFD + combining-mark strip → generic lowercase → noktalama/tire/altçizgi/sembol→boşluk → sadeleştir → whitespace tokenize. Stop-list/stemmer/concept-set/dedupe/sort YOK.
-- `scripts/yh-normalize-harness.ts` — izole, DB'siz harness (83 assertion; production DB simetri fixture regression guard).
+**Yeniden kullanılan/dokunulmayan:** `search/types.ts` (`Concept` type-only import) ·
+`config.ts` · `normalize.ts` · `visibilityScope.ts` · indexer/* · migration'lar ·
+`package.json` · lockfile — **değişmez**.
 
-**Yeniden kullanılan/dokunulmayan:** `search/types.ts` · `visibilityScope.ts` · `tenantScope.ts` · `config.ts` · indexer/* · migration'lar · `package.json` · lockfile — **değişmedi** (A4/A6 korundu).
+**Planlanan yeni dosyalar (bu turda OLUŞTURULMADI):**
+- `lib/yasam-hafizasi/search/conceptSet.ts`
+- `scripts/yh-concept-set-harness.ts`
 
-**Lexical sözleşme — canlı production Supabase salt-okunur SELECT ile DOĞRULANDI:**
-index tarafı `to_tsvector('simple', yh_immutable_unaccent(text))` (unaccent → generic
-lowercase). Teyit edilen query–index simetrisi: `IŞIK/Işık/ışık → isik` · `İĞNE/İğne/igne
-→ igne` · `ŞİFA → sifa` · `ÇAKRA → cakra` · `GÖĞÜS → gogus` · `BÜTÜN → butun`. **Kritik
-açık nokta kapandı: `ı → i`, `ışık → isik`.** App normalize (fold→generic-lowercase) DB
-ile birebir aynı nihai token'ı üretir; `toLocaleLowerCase` gereksizdir.
+**Örnek çıktı sözleşmesi (edge-case, kod turunda harness'te doğrulanacak):**
+`""`/`"   "`/yalnız-işaret → `[]` · `"IŞIK"` → `[{term:"isik",origin:"query"}]` ·
+`"ışık ışık"` → `[{term:"isik",…}]` (dedup) · `"anne sütü"`/`"anne-sütü"` →
+`[{term:"anne",…},{term:"sutu",…}]` · `"çakra, ışık ve göğüs"` →
+`[{cakra},{isik},{ve},{gogus}]` ("ve" korunur; stop-list yok).
 
-**Doğrulamalar (GEÇTİ):**
-- `npx tsx scripts/yh-normalize-harness.ts` → **EXIT 0, 83/83**.
-- 9 regresyon harness → **EXIT 0** (extract-fields · build-candidate · run-index-unit · run-source · index-write-plan · **supabase-adapters 37** · admin-route 65 · **index-smoke 41** · **visibility 49**).
-- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.14 dosyası) → **0 error, 0 warning**. Güvenlik grep temiz (`normalize.ts` hiç import yok; supabase/DB/fetch/env/SQL/console/global-state yok). `git diff --check` temiz.
-
-**Push durumu:** Kod commit `dd29167` (parent `596d21e`) + güncel main senkron merge
-`ad03579` `origin/work/yh-s2-14`'e push edildi (`596d21e..ad03579`); local/remote **0/0**;
-`origin/main` (`91bcbab`) **değişmedi**; **PR açılmadı**.
+**Durum:** Yalnız worktree + açılış karar kilidi hazırlandı; **kod bu turda yazılmadı**;
+**commit/push yapılmadı**. Kod, kullanıcı onayı sonrası aynı çekirdek disipliniyle
+(saf + deterministik + fail-safe + harness) yazılacaktır.
 
 ## Bekleyen Onaylar
 
-- **S2.14:** bu kapanış docs commit'inin push'u → ardından `work/yh-s2-14` → `main` PR (Create a merge commit).
+- **S2.15:** açılış docs commit'i (bu tur commit edilmedi) + kod turu onayı.
 
 ## Sonuç
 
-- S2.01–S2.13 main'de (S2.13 = PR #4 `4c672e9`). **S2.14 tamamlandı** (`dd29167`,
-  `origin/work/yh-s2-14`'te); production-teyitli query–index simetrisiyle doğrulandı;
-  main'e karşı çakışmasız. S2.14 artık aktif değil, **tamamlanmış iş**. Sonraki S2.x
-  aşaması **otomatik açılmaz**; yeni bir salt-okunur analiz turu + kullanıcı onayı gerektirir.
+- S2.01–S2.14 main'de. **S2.15 açıldı** (worktree + karar kilidi; kod yok). Kapsam:
+  retrieval Kavram Kümesi ([2] taban/query). Kod, onay sonrası yazılacaktır. `origin/main`
+  değişmedi; commit/push yapılmadı.

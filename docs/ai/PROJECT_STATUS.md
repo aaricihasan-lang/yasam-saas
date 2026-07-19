@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-19 (S2.14 kapanış)
+**Son güncelleme:** 2026-07-19 (S2.15 açılış)
 
 ---
 
@@ -37,7 +37,7 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 (PR #3, `555030a`)** + **S2.13 (PR #4, `4c672e9`)** origin/main'de. **S2.14 (Retrieval Türkçe Metin Normalizasyonu) TAMAMLANDI** — kod commit `dd29167`, `origin/work/yh-s2-14`'e push edildi (sync merge `ad03579`), **PR bekliyor**. `origin/main` değişmedi; PR açılmadı.
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 (PR #3, `555030a`)** + **S2.13 (PR #4, `4c672e9`)** + **S2.14 (PR #6)** origin/main'de. **S2.15 (Kavram Kümesi / Concept Set) AÇILDI** — `work/yh-s2-15` (taban `f72b01b`); **kod henüz YOK**, yalnız worktree + açılış karar kilidi. Kilitli backlog: Concept Set → Dictionary Expansion → search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking → Retrieval Pipeline → Search UI.
 
 ## Son Tamamlanan Aşama
 
@@ -74,13 +74,12 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **S2.14 (Retrieval Türkçe Metin Normalizasyonu) TAMAMLANDI** (`work/yh-s2-14` @ `ad03579`, kod commit `dd29167`, `origin/work/yh-s2-14`'e push edildi). Saf/deterministik/fail-safe/locale-bağımsız/mutasyonsuz normalize birimi; çıktı `{ normalizedText, tokens }`; teslim `lib/yasam-hafizasi/search/normalize.ts` + `scripts/yh-normalize-harness.ts`; `search/types.ts`/`config.ts` değişmedi; SQL/migration/package yok. Query–index simetrisi **production Supabase SELECT ile doğrulandı** (`ışık→isik`). Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08–S2.12 → S2.13 → S2.14.
-- **Aktif adım:** bu kapanış docs commit'i (yerel) → push → `work/yh-s2-14` → `main` PR (Create a merge commit). `origin/main` değişmedi; PR açılmadı. Sonraki S2.x **otomatik açılmaz** (yeni salt-okunur analiz + onay gerekir).
-- **Onay bekleyen:** kod-öncesi kesin lexical sözleşme doğrulaması (canlı `unaccent` `ı`/`İ`/`I`/`i` teyidi) + kod turu onayı.
+- **S2.15 (Kavram Kümesi / Concept Set) AÇILDI** (`work/yh-s2-15`, taban `f72b01b`). Bu turda yalnız worktree + açılış karar kilidi hazırlandı; **kod yazılmadı, commit/push yapılmadı**. Kilitli sözleşme: `buildConceptSet(input: unknown): readonly Concept[]` — `normalizeSearchText(input).tokens` → her token `{ term, origin: "query" }`; **phrase yok · dictionary seam yok (S2.16) · dedup=term/ilk-sıra · canonical omit · fail-safe boş dizi · Object.freeze**. Planlanan: `lib/yasam-hafizasi/search/conceptSet.ts` + `scripts/yh-concept-set-harness.ts`; `types.ts`/`config.ts`/`normalize.ts` **değişmez**. Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08–S2.12 → S2.13 → S2.14 → S2.15.
+- **Onay bekleyen:** S2.15 açılış docs commit'i (bu tur commit edilmedi) + kod turu onayı. Sonraki S2.16 (Dictionary Expansion) **otomatik açılmaz**.
 
 ## Bekleyen İşler
 
-- Yaşam Hafızası **S2.14** kapanış docs push'u + `main` PR'ı → **sonraki S2.x** (otomatik açılmaz): [2] sözlük/concept-set · [3] `search_tsv` sorgu · gerçek Supabase stone-exclusion adapter · [4] Kanıt Kapısı · [5] derece · [6] "Neden?" · INV harness. Sonraki aşama **yeni salt-okunur analiz turu + kullanıcı onayıyla** belirlenecektir.
+- Yaşam Hafızası **S2.15** (Concept Set) kod turu → **S2.16 Dictionary Expansion** → sonraki S2.x (otomatik açılmaz): [3] `search_tsv` sorgu · gerçek Supabase stone-exclusion adapter · [4] Kanıt Kapısı · [5] derece · [6] "Neden?" · INV harness. Her aşama ayrı salt-okunur analiz + kullanıcı onayıyla.
 - Human Design **FAZ 5/2** (API route).
 - Numeroloji QA düzeltmeleri (kritik RLS + hesap/görsel bulguları).
 - Dijital İçerik Blok-2/3 + kimliksiz AI uç güvenliği.

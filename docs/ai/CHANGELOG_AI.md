@@ -44,6 +44,55 @@
 
 ---
 
+## 2026-07-19 — S2.14 PR #6 ile main'e merge edildi; S2.15 (Kavram Kümesi / Concept Set) Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.14 — Retrieval Türkçe Metin Normalizasyonu, PR #6 ile `origin/main`'e
+merge edildi** (kod `dd29167` production'da). Ayrıca **S2.15 — Kavram Kümesi (Concept Set)**
+aktif aşama olarak **açıldı** (`work/yh-s2-15`, taban güncel `origin/main` = `f72b01b`).
+Bu turda yalnız izole worktree + açılış karar kilidi hazırlandı; **kod yazılmadı**,
+`conceptSet.ts`/harness **oluşturulmadı**, **commit/push yapılmadı** (açılış docs yerelde,
+uncommitted).
+
+### Neden
+Retrieval boru hattının [2] adımının **taban/query kısmı**. Kilitli backlog: Concept Set →
+Dictionary Expansion → search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking →
+Retrieval Pipeline → Search UI. Evidence Gate'in Concept Set'ten önce yapılması
+(erken-sözleşme/rework riski) değerlendirildi ve **reddedildi**; backlog sırası korundu
+(Concept Set önce → Concept sözleşmesini kilitler).
+
+### S2.15 kilitli sözleşme (kod öncesi, kullanıcı onaylı)
+- **Fonksiyon:** `buildConceptSet(input: unknown): readonly Concept[]` (yeni `lib/yasam-hafizasi/search/conceptSet.ts`).
+- **Model:** `normalizeSearchText(input).tokens` → her token `{ term, origin: "query" }`.
+- **Phrase Concept YOK** (tokens-only; çok-kelime kavramları Dictionary Expansion/S2.16).
+- **Dictionary seam YOK** (Seçenek A — S2.16'da additif; synonym üretimi yok).
+- **Dedup** anahtar `term`, ilk-görülme sırası korunur, sort yok. **canonical** omit. **origin** daima `"query"`.
+- **Fail-safe:** non-string/boş/yalnız-işaret → boş dizi; asla throw. Çıktı dizisi + her Concept `Object.freeze`.
+- **Filtre YOK:** stop-word/kısa-token/rakam elemesi kapsam dışı (gate/tsquery işi).
+- **Kapsam dışı:** Dictionary Expansion · search_tsv · Evidence Gate · Ranking · retrieval wiring · DB/SQL/API/AI. `types.ts`/`config.ts`/`normalize.ts` değişmez.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration yok. `package.json`/lockfile değişmez.
+
+### Doğrulamalar
+Bu açılış turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only, commit yok). Kod turu
+doğrulama planı: yeni `yh-concept-set-harness` + 10 regresyon harness + `tsc --noEmit` +
+hedefli ESLint + güvenlik grep.
+
+### Push / durum
+`origin/main` (`f72b01b`) değişmedi; açılış docs yerelde (`work/yh-s2-15`), **uncommitted**;
+push yapılmadı; PR açılmadı. Sonraki S2.16 (Dictionary Expansion) **otomatik açılmaz**.
+
+### Notlar
+Bu kayıt hem S2.14'ün main'e MERGE'ini (PR #6) hem S2.15'in AÇILIŞINI belgeler; aynı
+tarihli aşağıdaki "S2.14 … Tamamlandı" kaydı, S2.14 kodunun tamamlanma anına ait tarihsel
+kayıttır (silinmedi).
+
+---
+
 ## 2026-07-19 — S2.14 (Retrieval Türkçe Metin Normalizasyonu) Tamamlandı; lexical sözleşme canlı DB SELECT ile doğrulandı
 
 ### Tarih
