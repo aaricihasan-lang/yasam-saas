@@ -135,10 +135,10 @@ function getAppointmentStatusInfo(item: Appointment) {
 
 // ─── Shared style strings ─────────────────────────────────────────────────────
 const inputCls =
-  "w-full px-3 py-2.5 rounded-xl border border-slate-300 text-[13px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+  "w-full px-3 py-2.5 rounded-xl border border-slate-300 text-[14px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const textareaCls =
-  "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[12px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
-const labelCls = "block mb-1 font-extrabold text-[12px] text-slate-700";
+  "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
 const wordBtnCls =
   "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
@@ -637,7 +637,7 @@ export default function ClientDetailPage() {
             className={`flex w-full items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-[12px] font-extrabold text-slate-700 transition-colors ${drOpen ? "bg-slate-100" : "bg-white hover:bg-slate-50"}`}
           >
             <span>📅 Tarih Aralığı Raporu</span>
-            <span className="ml-auto text-[11px] text-slate-400">{drOpen ? "▲ Kapat" : "▼ Aç"}</span>
+            <span className="ml-auto text-[12px] text-slate-400">{drOpen ? "▲ Kapat" : "▼ Aç"}</span>
           </button>
           {drOpen && (
             <div className="mt-1.5 flex flex-wrap items-end gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -669,8 +669,8 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-genel" aria-labelledby="tab-genel" hidden={activeTab !== "genel"}>
           {(() => {
               // Salt okunur mod sınıfları
-              const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 text-slate-800 cursor-default select-text";
-              const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[12px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
+              const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[14px] bg-slate-50 text-slate-800 cursor-default select-text";
+              const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[14px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
               const fldCls   = isEditingGeneral ? inputCls    : roCls;
               const areaCls  = isEditingGeneral ? textareaCls : roAreaCls;
               return (
@@ -1336,16 +1336,16 @@ function AppointmentsTab({
             <div className="grid gap-3 p-[18px]">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[11px] font-bold text-slate-500">Danışan</span>
+                  <span className="text-[12px] font-bold text-slate-500">Danışan</span>
                   <strong className="text-[14px] text-slate-950">{clientName}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[11px] font-bold text-slate-500">Tarih / Saat</span>
+                  <span className="text-[12px] font-bold text-slate-500">Tarih / Saat</span>
                   <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment).border, background: getAppointmentStatusInfo(selectedAppointment).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment).border}` }}>
-                  <span className="text-[11px] font-bold text-slate-500">Durum</span>
+                  <span className="text-[12px] font-bold text-slate-500">Durum</span>
                   <strong className="text-[14px]" style={{ color: getAppointmentStatusInfo(selectedAppointment).color }}>
                     {getAppointmentStatusInfo(selectedAppointment).label}
                   </strong>
@@ -1353,7 +1353,7 @@ function AppointmentsTab({
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                <span className="block mb-1.5 text-[11px] font-bold text-slate-500">Not</span>
+                <span className="block mb-1.5 text-[12px] font-bold text-slate-500">Not</span>
                 <p className="text-[13px] text-slate-700">{selectedAppointment.notes || "Not girilmemiş."}</p>
               </div>
 
@@ -1383,8 +1383,8 @@ function AppointmentsTab({
 function Info({ label, value, color }: { label: string; value?: string; color: string }) {
   return (
     <div className="rounded-[13px] border bg-white/82 p-2 shadow-sm" style={{ borderColor: `${color}35` }}>
-      <span className="mb-0.5 block text-[11px] font-black" style={{ color }}>{label}</span>
-      <strong className="text-[13px] text-slate-900">{value || "-"}</strong>
+      <span className="mb-0.5 block text-[12px] font-black" style={{ color }}>{label}</span>
+      <strong className="text-[14px] text-slate-900">{value || "-"}</strong>
     </div>
   );
 }
@@ -1519,11 +1519,11 @@ function NumerolojikOzetKart({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-base text-violet-500">∞</span>
         <span className="text-[13px] font-black text-violet-900">Numeroloji Özeti</span>
-        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-600">
+        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[12px] font-black text-violet-600">
           Salt Okunur · Otomatik
         </span>
         {!hasName && (
-          <span className="text-[10px] font-bold text-slate-400">
+          <span className="text-[12px] font-bold text-slate-400">
             Ad/soyad girilince tamamlanır
           </span>
         )}
@@ -1539,7 +1539,7 @@ function NumerolojikOzetKart({
             <span className="text-[22px] font-black leading-none" style={{ color }}>
               {value}
             </span>
-            <span className="mt-1.5 text-center text-[10px] font-extrabold leading-tight text-slate-500">
+            <span className="mt-1.5 text-center text-[12px] font-extrabold leading-tight text-slate-500">
               {label}
             </span>
           </div>
@@ -1549,13 +1549,13 @@ function NumerolojikOzetKart({
       {/* Element dağılımı */}
       {hasElements && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[10px] font-black text-slate-500">Element:</span>
+          <span className="text-[12px] font-black text-slate-500">Element:</span>
           {ELEMENT_ORDER.map((name) => {
             const meta = ELEMENT_META[name];
             return (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold"
                 style={{ background: meta.bg, color: meta.color }}
               >
                 {name} <strong>{elementCounts[name] ?? 0}</strong>
@@ -1563,7 +1563,7 @@ function NumerolojikOzetKart({
             );
           })}
           {dominantElement && (
-            <span className="ml-auto text-[10px] font-bold text-slate-400">
+            <span className="ml-auto text-[12px] font-bold text-slate-400">
               baskın: {dominantElement}
             </span>
           )}
@@ -1573,8 +1573,8 @@ function NumerolojikOzetKart({
       {/* En yakın zirve */}
       {nearestPeakLabel && (
         <div className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[10px] font-black text-slate-500">Zirve:</span>
-          <span className="text-[11px] font-black text-indigo-700">{nearestPeakLabel}</span>
+          <span className="text-[12px] font-black text-slate-500">Zirve:</span>
+          <span className="text-[12px] font-black text-indigo-700">{nearestPeakLabel}</span>
         </div>
       )}
 
