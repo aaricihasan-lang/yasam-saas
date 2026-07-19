@@ -923,6 +923,10 @@ function VariantCard({
       title: "Taşı kombinasyondan kaldır",
       message: `"${stoneName}" bu kombinasyondan kaldırılacak. Devam etmek istiyor musunuz?`,
       secondMessage: `"${stoneName}" bu kombinasyondan kaldırılacak. Emin misiniz?`,
+      // FAZ-5G: taş sistemden silinmiyor, yalnız kombinasyondan kaldırılıyor.
+      confirmText: "Kaldır",
+      cancelText: "Vazgeç",
+      secondConfirmText: "Kaldır",
     });
     if (!confirmed) return;
     setEditStones((prev) => prev.filter((_, i) => i !== idx));
