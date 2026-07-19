@@ -511,8 +511,8 @@ export default function ClientDetailPage() {
   // ── Loading / not-found states ──────────────────────────────────────────────
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-        <div className="mx-auto w-full max-w-[1280px] animate-pulse" aria-busy="true">
+      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
+        <div className="mx-auto w-full max-w-[1600px] animate-pulse" aria-busy="true">
           {/* Hero iskeleti */}
           <div className="mb-3 flex items-center gap-3.5 rounded-[22px] border border-white/80 bg-white/80 p-3.5 shadow-lg">
             <div className="h-[68px] w-[68px] flex-shrink-0 rounded-[20px] bg-slate-200" />
@@ -538,7 +538,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
+      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
         <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
           Danışan bulunamadı
         </div>
@@ -549,8 +549,8 @@ export default function ClientDetailPage() {
   const fullName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-      <div className="mx-auto w-full max-w-[1280px]">
+    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
+      <div className="mx-auto w-full max-w-[1600px]">
 
       {/* Top bar */}
       <div className="mb-3 flex flex-wrap items-center justify-end gap-2.5">
