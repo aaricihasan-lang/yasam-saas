@@ -536,3 +536,36 @@ C2A fiziksel migration sözleşmesinin **kaynağı** bu bölümdür. Kilitli kar
 - **Dedup/unique:** DOI/ISBN/PMID için **C2A'da unique constraint yok**; güvenli normalizasyon **API/normalizasyon turuna** ertelendi.
 - **`source_locator`** C2A dışında (§3.4); **legacy `aromatherapy_oils`** ile fiziksel bağ yok (§14); **`tenant_id` NOT NULL, FK yok** (kanonik tenants tablosu yok).
 - **Migration henüz yazılmadı;** C2A tek dosya, doğuştan-kilitli (RLS enable + anon/authenticated/PUBLIC revoke, policy yok), deterministik ve fail-fast (`IF NOT EXISTS` yok).
+
+---
+
+## 23. C2A Kapanış Durumu
+
+**Durum:** FAZ C / C2A **tamamlandı** (2026-07-19).
+
+**Kayıt (kanıt):**
+- Tablo: `public.aromatherapy_sources`
+- Migration: `supabase/migrations/20260719000000_aromatherapy_sources.sql`
+- Migration commit: `1a2485fa7986e7246113a29c8660b8860178495a` — `feat(aromaterapi-v2): add C2A sources table`
+- Migration blob hash: `15abc023c1e47224392e1b37ac47a34f3e62327c`
+- Remote feature branch'e **fast-forward push** edildi (`origin/work/aromaterapi-bilgi-bankasi`).
+- Production'a **başarıyla uygulandı** — sonuç: `Success. No rows returned.`
+- Kapanış doğrulaması: **31 kontrol + 1 genel sonuç = 32 satır**, tüm `passed` değerleri **true**, `overall_result = PASS`.
+
+**Production'da doğrulanan yapı:**
+- `public.aromatherapy_sources` mevcut; **16 kolon**.
+- Primary key yalnız `id`; **4 CHECK constraint**.
+- Tek secondary index: `aromatherapy_sources_tenant_idx` (yalnız `tenant_id`, `unique=false`).
+- Tek kullanıcı trigger'ı: `trg_aromatherapy_sources_updated_at` — `BEFORE UPDATE`, `FOR EACH ROW`, `public.set_updated_at()`, **enabled**.
+- `relrowsecurity=true`; `relforcerowsecurity=false`; `policy_count=0`.
+- `anon` SELECT/INSERT/UPDATE/DELETE = **false**; `authenticated` SELECT/INSERT/UPDATE/DELETE = **false**; `service_role` SELECT/INSERT/UPDATE/DELETE = **true**.
+- FK sayısı **0**; PK dışı unique constraint sayısı **0**; PK dışı unique secondary index sayısı **0**; `row_count=0`.
+
+**Açık sınırlar (yapılmayanlar):**
+- Canlı test verisi **eklenmedi**.
+- Production'da **INSERT/UPDATE/DELETE davranış testi yapılmadı.**
+- DML constraint/trigger davranış testi, **staging veya ayrı onaylı transaction+rollback** olmadan yapılmayacak.
+- `origin/main`'e **merge/push yapılmadı** (yalnız feature branch).
+- **C2B kodu veya migration'ı başlamadı.**
+
+**Sonraki adım:** yalnız **C2B kapsam analizi → plan → kullanıcı onayı** (kod/migration yok). *(C2B içeriği bu belgede tanımlanmadı; ayrıca analiz edilip onaya sunulacaktır.)*
