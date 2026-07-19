@@ -731,7 +731,9 @@ export default function TasBilgiKutuphanesiPage() {
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; rows?: { id: string }[] };
 
       if (!res.ok || !json.ok) {
-        showToast({ type: "error", message: `Silme başarısız: ${json.error ?? "Bilinmeyen hata"}` });
+        // FAZ-4D: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", json.error ?? `HTTP ${res.status}`);
+        showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
         return;
       }
 
@@ -747,6 +749,10 @@ export default function TasBilgiKutuphanesiPage() {
           ? `${count} kayıt silindi. ${skipped} kütüphane kaydı atlandı.`
           : `${count} kayıt başarıyla silindi.`,
       });
+    } catch (err) {
+      // FAZ-4D: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
+      console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", err);
+      showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
     } finally {
       setBulkDeleteBusy(false);
     }
