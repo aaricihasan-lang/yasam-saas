@@ -93,14 +93,24 @@ function isPastDate(value: string) {
   return new Date(value).getTime() < new Date().getTime();
 }
 
-// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
-// dateStr: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm" (datetime-local) — ilk 10 karakter kullanılır.
+// Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
+// - Geçmiş takvim günü → geçmiş.
+// - Bugün: geçmiş SAAT → geçmiş (WEB-06); ileri saat → geçmiş değil.
+// - Saatsiz bugün ("YYYY-MM-DD") → geçmiş değil.
+// dateStr: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm" (datetime-local).
 function isPastCalendarDay(dateStr: string): boolean {
   if (!dateStr) return false;
+  const s = dateStr.trim();
+  const dayPart = s.slice(0, 10);
   const n = new Date();
   const p = (x: number) => String(x).padStart(2, "0");
   const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-  return dateStr.slice(0, 10) < todayStr;
+  if (dayPart < todayStr) return true;   // geçmiş gün
+  if (dayPart > todayStr) return false;  // gelecek gün
+  // Aynı gün: saat bileşeni varsa geçmiş saati kontrol et; yoksa geçmiş sayma.
+  if (s.length <= 10) return false;
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t < n.getTime();
 }
 
 function getLeftBorderClass(status: string | null | undefined, appointmentDate: string) {
@@ -125,12 +135,18 @@ function getAppointmentStatusInfo(item: Appointment) {
 
 // ─── Shared style strings ─────────────────────────────────────────────────────
 const inputCls =
-  "w-full px-3 py-2.5 rounded-xl border border-slate-300 text-[13px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+  "w-full px-3 py-2.5 rounded-xl border border-slate-300 text-[14px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const textareaCls =
-  "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[12px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
-const labelCls = "block mb-1 font-extrabold text-[12px] text-slate-700";
+  "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
 const wordBtnCls =
   "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
+
+// Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
+// Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
+function normalizeSurname(value: string) {
+  return value.trim().toLocaleUpperCase("tr-TR");
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
@@ -273,7 +289,7 @@ export default function ClientDetailPage() {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(saveToken ? { "x-session-token": saveToken } : {}),
       },
-      body: JSON.stringify({ ad: editAd.trim() || null, soyad: editSoyad.trim() || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
+      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
     });
 
     if (!clientRes.ok) {
@@ -282,7 +298,7 @@ export default function ClientDetailPage() {
       return;
     }
 
-    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: editSoyad.trim() || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
+    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -495,8 +511,8 @@ export default function ClientDetailPage() {
   // ── Loading / not-found states ──────────────────────────────────────────────
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-        <div className="mx-auto w-full max-w-[1280px] animate-pulse" aria-busy="true">
+      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
+        <div className="mx-auto w-full max-w-[1600px] animate-pulse" aria-busy="true">
           {/* Hero iskeleti */}
           <div className="mb-3 flex items-center gap-3.5 rounded-[22px] border border-white/80 bg-white/80 p-3.5 shadow-lg">
             <div className="h-[68px] w-[68px] flex-shrink-0 rounded-[20px] bg-slate-200" />
@@ -522,7 +538,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
+      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
         <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
           Danışan bulunamadı
         </div>
@@ -533,8 +549,8 @@ export default function ClientDetailPage() {
   const fullName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-      <div className="mx-auto w-full max-w-[1280px]">
+    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
+      <div className="mx-auto w-full max-w-[1600px]">
 
       {/* Top bar */}
       <div className="mb-3 flex flex-wrap items-center justify-end gap-2.5">
@@ -621,7 +637,7 @@ export default function ClientDetailPage() {
             className={`flex w-full items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-[12px] font-extrabold text-slate-700 transition-colors ${drOpen ? "bg-slate-100" : "bg-white hover:bg-slate-50"}`}
           >
             <span>📅 Tarih Aralığı Raporu</span>
-            <span className="ml-auto text-[11px] text-slate-400">{drOpen ? "▲ Kapat" : "▼ Aç"}</span>
+            <span className="ml-auto text-[12px] text-slate-400">{drOpen ? "▲ Kapat" : "▼ Aç"}</span>
           </button>
           {drOpen && (
             <div className="mt-1.5 flex flex-wrap items-end gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -653,8 +669,8 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-genel" aria-labelledby="tab-genel" hidden={activeTab !== "genel"}>
           {(() => {
               // Salt okunur mod sınıfları
-              const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 text-slate-800 cursor-default select-text";
-              const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[12px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
+              const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[14px] bg-slate-50 text-slate-800 cursor-default select-text";
+              const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[14px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
               const fldCls   = isEditingGeneral ? inputCls    : roCls;
               const areaCls  = isEditingGeneral ? textareaCls : roAreaCls;
               return (
@@ -702,7 +718,7 @@ export default function ClientDetailPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Soyad</label>
-                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value)} className={fldCls} placeholder="Soyad" />
+                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={fldCls} placeholder="Soyad" />
                     </div>
                     <div>
                       <label className={labelCls}>Telefon</label>
@@ -877,10 +893,12 @@ function AppointmentsTab({
 
   const [title, setTitle] = useState("Seans");
   const [notes, setNotes] = useState("");
-  const [sessionCount, setSessionCount] = useState(1);
+  // MOBİL-01/02: seans sayısı ve "kaç günde bir" ham string tutulur ki alan
+  // boşaltılabilsin/çok haneli yazılabilsin; geçerli tam sayı blur + submit'te netleşir.
+  const [sessionCount, setSessionCount] = useState("1");
   const [planningMode, setPlanningMode] = useState<PlanningMode>("auto");
   const [date, setDate] = useState("");
-  const [dayInterval, setDayInterval] = useState(1);
+  const [dayInterval, setDayInterval] = useState("1");
   const [manualDates, setManualDates] = useState<string[]>([""]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -906,10 +924,19 @@ function AppointmentsTab({
     setLoading(false);
   }
 
-  function handleSessionCountChange(value: number) {
-    const safeCount = Math.max(1, value || 1);
-    setSessionCount(safeCount);
-    setManualDates((old) => { const next = [...old]; while (next.length < safeCount) next.push(""); return next.slice(0, safeCount); });
+  // Ham string saklanır (boş/ara değerlere izin verilir). manualDates yalnız değer
+  // geçerli pozitif tam sayıya çözüldüğünde yeniden boyutlanır → boşaltınca veri kaybı olmaz.
+  function handleSessionCountChange(raw: string) {
+    setSessionCount(raw);
+    const n = Math.floor(Number(raw));
+    if (Number.isFinite(n) && n >= 1) {
+      setManualDates((old) => { const next = [...old]; while (next.length < n) next.push(""); return next.slice(0, n); });
+    }
+  }
+
+  // Sayı inputu boş/geçersiz/<1 bırakılırsa blur'da 1'e normalize edilir.
+  function normalizeCountInput(setter: (v: string) => void) {
+    return (raw: string) => setter(String(Math.max(1, Math.floor(Number(raw)) || 1)));
   }
 
   function updateManualDate(index: number, value: string) {
@@ -919,10 +946,10 @@ function AppointmentsTab({
   function resetForm() {
     setTitle("Seans");
     setNotes("");
-    setSessionCount(1);
+    setSessionCount("1");
     setPlanningMode("auto");
     setDate("");
-    setDayInterval(1);
+    setDayInterval("1");
     setManualDates([""]);
     setEditingId(null);
     setShowForm(false);
@@ -954,7 +981,7 @@ function AppointmentsTab({
     await updateAppointmentStatus(id, "tamamlandi");
   }
 
-  // Yalnız "bekliyor" randevu düzenlenir. Mevcut form edit modunda TEK kaydı günceller;
+  // WEB-07: Randevu her statüde düzenlenebilir. Mevcut form edit modunda TEK kaydı günceller;
   // danışan sabit, durum değişmez, seri/tekrar kontrolleri gizlenir.
   function openEditAppointment(appt: Appointment) {
     const d = new Date(appt.appointment_date);
@@ -962,9 +989,9 @@ function AppointmentsTab({
     setEditingId(appt.id);
     setTitle(appt.title ?? "");
     setNotes(appt.notes ?? "");
-    setSessionCount(1);
+    setSessionCount("1");
     setPlanningMode("auto");
-    setDayInterval(1);
+    setDayInterval("1");
     setManualDates([""]);
     setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`);
     setSelectedAppointment(null);
@@ -1006,12 +1033,12 @@ function AppointmentsTab({
       return;
     }
 
-    const count = Math.max(1, Number(sessionCount));
+    const count = Math.max(1, Math.floor(Number(sessionCount)) || 1);
     let rows: { tenant_id: string; client_id: string; title: string; notes: string | null; appointment_date: string; status: AppointmentStatus }[] = [];
 
     if (planningMode === "auto") {
       if (!date) { showToast({ title: "Eksik bilgi", message: "Başlangıç tarihi seçmelisiniz", type: "warning" }); return; }
-      const interval = Math.max(1, Number(dayInterval));
+      const interval = Math.max(1, Math.floor(Number(dayInterval)) || 1);
       const startDate = new Date(date);
       rows = Array.from({ length: count }).map((_, i) => {
         const d = new Date(startDate);
@@ -1184,7 +1211,7 @@ function AppointmentsTab({
             <>
             <div>
               <label className={labelCls}>Seans Sayısı</label>
-              <input type="number" min={1} value={sessionCount} onChange={(e) => handleSessionCountChange(Number(e.target.value))} className={inputCls} />
+              <input type="number" min={1} step={1} value={sessionCount} onChange={(e) => handleSessionCountChange(e.target.value)} onBlur={(e) => normalizeCountInput(setSessionCount)(e.target.value)} className={inputCls} />
             </div>
 
             <div className="rounded-[15px] border border-indigo-200 bg-indigo-50 p-2.5">
@@ -1212,7 +1239,7 @@ function AppointmentsTab({
                 {!editingId && (
                 <div>
                   <label className={labelCls}>Kaç Günde Bir?</label>
-                  <input type="number" min={1} value={dayInterval} onChange={(e) => setDayInterval(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={1} step={1} value={dayInterval} onChange={(e) => setDayInterval(e.target.value)} onBlur={(e) => normalizeCountInput(setDayInterval)(e.target.value)} className={inputCls} />
                 </div>
                 )}
               </>
@@ -1221,7 +1248,7 @@ function AppointmentsTab({
             {!editingId && planningMode === "manual" && (
               <div className="rounded-[15px] border border-pink-200 bg-pink-50 p-2.5">
                 <strong className="text-[13px] font-black text-pink-700">Randevu Tarihleri</strong>
-                {Array.from({ length: sessionCount }).map((_, i) => (
+                {Array.from({ length: Math.max(1, Math.floor(Number(sessionCount)) || 1) }).map((_, i) => (
                   <div key={i} className="mt-2.5">
                     <label className={labelCls}>{i + 1}. Randevu</label>
                     <input type="datetime-local" value={manualDates[i] || ""} onChange={(e) => updateManualDate(i, e.target.value)} className={inputCls} />
@@ -1309,16 +1336,16 @@ function AppointmentsTab({
             <div className="grid gap-3 p-[18px]">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[11px] font-bold text-slate-500">Danışan</span>
+                  <span className="text-[12px] font-bold text-slate-500">Danışan</span>
                   <strong className="text-[14px] text-slate-950">{clientName}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[11px] font-bold text-slate-500">Tarih / Saat</span>
+                  <span className="text-[12px] font-bold text-slate-500">Tarih / Saat</span>
                   <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment).border, background: getAppointmentStatusInfo(selectedAppointment).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment).border}` }}>
-                  <span className="text-[11px] font-bold text-slate-500">Durum</span>
+                  <span className="text-[12px] font-bold text-slate-500">Durum</span>
                   <strong className="text-[14px]" style={{ color: getAppointmentStatusInfo(selectedAppointment).color }}>
                     {getAppointmentStatusInfo(selectedAppointment).label}
                   </strong>
@@ -1326,18 +1353,17 @@ function AppointmentsTab({
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                <span className="block mb-1.5 text-[11px] font-bold text-slate-500">Not</span>
+                <span className="block mb-1.5 text-[12px] font-bold text-slate-500">Not</span>
                 <p className="text-[13px] text-slate-700">{selectedAppointment.notes || "Not girilmemiş."}</p>
               </div>
 
-              {(selectedAppointment.status ?? "bekliyor") === "bekliyor" && (
-                <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
-                  className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
-                  Düzenle
-                </button>
-              )}
+              {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
+              <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
+                className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
+                Düzenle
+              </button>
 
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">Tamamlandı</button>
                 <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">İptal Et</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
@@ -1357,8 +1383,8 @@ function AppointmentsTab({
 function Info({ label, value, color }: { label: string; value?: string; color: string }) {
   return (
     <div className="rounded-[13px] border bg-white/82 p-2 shadow-sm" style={{ borderColor: `${color}35` }}>
-      <span className="mb-0.5 block text-[11px] font-black" style={{ color }}>{label}</span>
-      <strong className="text-[13px] text-slate-900">{value || "-"}</strong>
+      <span className="mb-0.5 block text-[12px] font-black" style={{ color }}>{label}</span>
+      <strong className="text-[14px] text-slate-900">{value || "-"}</strong>
     </div>
   );
 }
@@ -1493,11 +1519,11 @@ function NumerolojikOzetKart({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-base text-violet-500">∞</span>
         <span className="text-[13px] font-black text-violet-900">Numeroloji Özeti</span>
-        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-600">
+        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[12px] font-black text-violet-600">
           Salt Okunur · Otomatik
         </span>
         {!hasName && (
-          <span className="text-[10px] font-bold text-slate-400">
+          <span className="text-[12px] font-bold text-slate-400">
             Ad/soyad girilince tamamlanır
           </span>
         )}
@@ -1513,7 +1539,7 @@ function NumerolojikOzetKart({
             <span className="text-[22px] font-black leading-none" style={{ color }}>
               {value}
             </span>
-            <span className="mt-1.5 text-center text-[10px] font-extrabold leading-tight text-slate-500">
+            <span className="mt-1.5 text-center text-[12px] font-extrabold leading-tight text-slate-500">
               {label}
             </span>
           </div>
@@ -1523,13 +1549,13 @@ function NumerolojikOzetKart({
       {/* Element dağılımı */}
       {hasElements && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[10px] font-black text-slate-500">Element:</span>
+          <span className="text-[12px] font-black text-slate-500">Element:</span>
           {ELEMENT_ORDER.map((name) => {
             const meta = ELEMENT_META[name];
             return (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold"
                 style={{ background: meta.bg, color: meta.color }}
               >
                 {name} <strong>{elementCounts[name] ?? 0}</strong>
@@ -1537,7 +1563,7 @@ function NumerolojikOzetKart({
             );
           })}
           {dominantElement && (
-            <span className="ml-auto text-[10px] font-bold text-slate-400">
+            <span className="ml-auto text-[12px] font-bold text-slate-400">
               baskın: {dominantElement}
             </span>
           )}
@@ -1547,8 +1573,8 @@ function NumerolojikOzetKart({
       {/* En yakın zirve */}
       {nearestPeakLabel && (
         <div className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[10px] font-black text-slate-500">Zirve:</span>
-          <span className="text-[11px] font-black text-indigo-700">{nearestPeakLabel}</span>
+          <span className="text-[12px] font-black text-slate-500">Zirve:</span>
+          <span className="text-[12px] font-black text-indigo-700">{nearestPeakLabel}</span>
         </div>
       )}
 

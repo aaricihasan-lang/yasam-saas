@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-14
+**Son güncelleme:** 2026-07-19 (S2.15 açılış)
 
 ---
 
@@ -37,24 +37,28 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.04 origin/main'de; **S2.05 tamamlandı** — `work/yh-s2-05` (`b5d726f`), push edildi ve **PR #1 açık** (base `main` ← compare `integration/yh-s2-05`, merge commit `d57657f`; henüz merge edilmedi). Aktif: **S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`, taban `67fa6fb`; henüz commit yok).
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 (PR #3, `555030a`)** + **S2.13 (PR #4, `4c672e9`)** + **S2.14 (PR #6)** origin/main'de. **S2.15 (Kavram Kümesi / Concept Set) AÇILDI** — `work/yh-s2-15` (taban `f72b01b`); **kod henüz YOK**, yalnız worktree + açılış karar kilidi. Kilitli backlog: Concept Set → Dictionary Expansion → search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking → Retrieval Pipeline → Search UI.
 
 ## Son Tamamlanan Aşama
 
-- Yaşam Hafızası **S2.05 — JSONB Alan Çıkarımı** (saf builder, fail-safe) **tamamlandı**; `work/yh-s2-05` branch'inde commit `b5d726f`. Çıktı: `row → EvidenceField[] / topicTags string[] / ExpertRelation[]`.
-- **Kabul kriterleri geçti:** izole harness `npx tsx` EXIT 0 (22 matris + 6 kanonik + R1–R9 regresyon); kapsam-izole tsc EXIT 0; tüm-proje `tsc --noEmit` EXIT 0.
-- Not: S2.05 henüz `origin/main`'de **değil** (yalnız `work/yh-s2-05`). S2.04 (`6578ec5`) origin/main'de.
+- Yaşam Hafızası **S2.14 — Retrieval Türkçe Metin Normalizasyonu** (saf + deterministik + fail-safe + locale-bağımsız + mutasyonsuz normalize birimi) **tamamlandı ve main'e merge edildi** (**PR #6**; kod commit `dd29167`). Teslim: `lib/yasam-hafizasi/search/normalize.ts` (`normalizeSearchText` → `{ normalizedText, tokens }`; tam saf, hiç import yok) + `scripts/yh-normalize-harness.ts`. Türkçe fold I/İ/ı/i→i · ç→c · ğ→g · ö→o · ş→s · ü→u · â/î/û→a/i/u; NFD+combining-strip→generic lowercase; stop-list/stemmer/concept-set YOK. **Query–index simetrisi production Supabase salt-okunur SELECT ile doğrulandı** (`ışık→isik`, `İğne→igne`, `Göğüs→gogus`, `Bütün→butun`). Doğrulamalar: yeni harness **83/83**, 9 regresyon harness EXIT 0 (`yh-index-smoke` **41/41**, `visibility` **49/49**, `supabase-adapters` **37**), `tsc --noEmit` EXIT 0, hedefli ESLint **0 error/0 warning**, güvenlik grep temiz. SQL/migration/package/lock yok.
+- Önceki aşama: Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı** (saf + deterministik + DB'siz + DI + fail-closed görünürlük karar birimi) **tamamlandı ve main'e merge edildi** (**PR #4**, merge commit `4c672e9`, ebeveynler `c412334` + `608f576`; kod commit `e3b4e73`). Teslim: `lib/yasam-hafizasi/search/visibilityScope.ts` (`evaluateVisibility` + kapalı reason-code union) + `scripts/yh-visibility-scope-harness.ts`. Kurallar: tenant görünürlüğü · açık `allowShared` ile shared · PII dışlama · demo tenant/source dışlama · enjekte stone-exclusion port + port hatasında fail-closed. **Gerçek Supabase/DB implementasyonu YOK** (sonraki S2.x). Doğrulamalar: yeni harness **49/49**, 8 regresyon harness EXIT 0 (`yh-index-smoke` **41/41**), `tsc --noEmit` EXIT 0, hedefli ESLint **0 error/0 warning**, güvenlik grep'leri temiz. PR #4 net katkısı 6 YH dosyası (+751/−59); package/lock/migration/SQL yok.
+- Önceki aşama: Yaşam Hafızası **S2.08–S2.12 — İndeksleyici write-side** (runner + source + write plan/adapter + admin route + smoke) **tamamlandı ve main'e merge edildi**. Git akışı: 7 kaynak commit (`8cf503d`→`93ae185`) → entegrasyon merge `fa9adbd` (`work/yh-s2-integration`) → **PR #3** (`work/yh-s2-integration` → `main`, "Create a merge commit") → main **`555030a`** (ebeveynler `0a3e8a4` + `fa9adbd`). **20 YH dosyası, +3580/−67; package/lock/migration/SQL yok; YH-dışı değişiklik yok.**
+- **Aşamalar:** S2.08 `runIndexUnit`+`makeParentTenantLookup` (`dd7a022`) · S2.09 `runSource` (`172aa91`) · S2.10 `indexWritePlan`+`supabaseIndexAdapters` (`b8ffc67`) · S2.11 admin index-page route (`e171fa1`) · S2.12A index smoke (`2dc44d3`) · S2.12C exact-owned-record dry-run (`93ae185`).
+- **Kabul kriterleri geçti (entegrasyon worktree'sinde doğrulandı):** 8 harness **EXIT 0** (**S2.12 smoke 41/41**); tüm-proje `tsc --noEmit` **EXIT 0**; ESLint YH kapsamı **0 error** (1 eskiden-var warning); güvenlik grep'leri temiz. Production build: derleme + TypeScript **geçti**, `Collecting page data` **ortam değişkeni eksikliği** (`supabaseUrl is required`, YH-dışı hacamat route) nedeniyle durdu — kod hatası değil.
+- Önceki aşamalar: **S2.07** (`2b19743`, PR #2) · **S2.05** (`cd9c77c`, PR #1).
 
 ## Son Commit
 
-- `b5d726f` — Yaşam Hafızası **S2.05 (field extraction)** — `work/yh-s2-05` (henüz push edilmedi).
-- Doküman altyapısı: `65258bf` (docs/ai, aynı branch). S2.05 tabanı: `6578ec5` (S2.04) → `origin/main` (`6dd3805`).
-- İlgili yakın Yaşam Hafızası commit'leri: `b3396d9` (S2.03) · `0882fa4` (S2.01).
+- **PR #6 merge** — S2.14 (`dd29167` `feat(yasam-hafizasi): add S2.14 retrieval text normalize`) → main. Kod normalize.ts + harness main'de.
+- Önceki: `4c672e9` — **PR #4 merge** (S2.13 → main); `555030a` — **PR #3 merge** (S2.08–S2.12); `2b19743` — S2.07; `cd9c77c` — S2.05.
 
 ## Son Push
 
-- S2.05 (`b5d726f`) + doküman (`65258bf`) `origin/work/yh-s2-05`'e **push edildi**; ayrıca `origin/integration/yh-s2-05` (`d57657f`, S2.05'in güncel main tabanına merge'ü) push edildi ve **PR #1** açıldı (açık, merge edilmedi). `origin/main` = `eb08ae1` (Danışan Performansı `perf(clients)`; YH'ye dokunmuyor).
-- S2.07 (`work/yh-s2-07`) **henüz push edilmedi** (kod/docs commit edilmedi).
+- **S2.14:** kod commit `dd29167` + kapanış docs + sync merge'ler `origin/work/yh-s2-14`'e push edildi; **PR #6 merge edildi** → `origin/main`. Normalize birimi main'de.
+- **S2.13:** kod `e3b4e73` + kapanış docs `608f576` `origin/work/yh-s2-13`'e push; **PR #4 merge** → `origin/main` = **`4c672e9`**.
+- **S2.08–S2.12:** `origin/work/yh-s2-integration` (`fa9adbd`) + `origin/work/yh-s2-12` (`93ae185`); **PR #3 merge** → `555030a`.
+- **S2.07:** `origin/work/yh-s2-07` (`380e44f`); **PR #2** → `2b19743`. **S2.05:** `origin/work/yh-s2-05` (`67fa6fb`); **PR #1** → `cd9c77c`.
 
 ## Son Doğrulanan Production Commit
 
@@ -70,13 +74,12 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **Aktif: S2.07 (İndeks-Birimi Builder) — UYGULANIYOR** (`work/yh-s2-07`). `buildCandidate.ts` (`BuiltIndexUnit`/`buildIndexUnit`, saf + fail-safe, `node:crypto` SHA-256 content_hash) + izole harness yazılıyor. Doğrulamalar (yeni harness + S2.05 regresyon + izole/tam TSC) koşulmadan **tamamlandı/PASS denmeyecek**; henüz commit yok. Not: ROADMAP'te **S2.06 yoktur**; S2.05'ten doğrudan S2.07.
-- **Onay bekleyen:** S2.07 iki path-scoped commit (docs + kod) + push; S2.05 için **PR #1 merge** (açık).
+- **S2.15 (Kavram Kümesi / Concept Set) AÇILDI** (`work/yh-s2-15`, taban `f72b01b`). Bu turda yalnız worktree + açılış karar kilidi hazırlandı; **kod yazılmadı, commit/push yapılmadı**. Kilitli sözleşme: `buildConceptSet(input: unknown): readonly Concept[]` — `normalizeSearchText(input).tokens` → her token `{ term, origin: "query" }`; **phrase yok · dictionary seam yok (S2.16) · dedup=term/ilk-sıra · canonical omit · fail-safe boş dizi · Object.freeze**. Planlanan: `lib/yasam-hafizasi/search/conceptSet.ts` + `scripts/yh-concept-set-harness.ts`; `types.ts`/`config.ts`/`normalize.ts` **değişmez**. Not: ROADMAP'te **S2.06 yoktur**; S2.05 → S2.07 → S2.08–S2.12 → S2.13 → S2.14 → S2.15.
+- **Onay bekleyen:** S2.15 açılış docs commit'i (bu tur commit edilmedi) + kod turu onayı. Sonraki S2.16 (Dictionary Expansion) **otomatik açılmaz**.
 
 ## Bekleyen İşler
 
-- Yaşam Hafızası **S2.07** (Evidence builder) → S2.08 (Runner + ParentTenantLookup) → S2.13 (görünürlük) → Kanıt Kapısı/derece/"Neden?"/INV harness (Sprint 2 kalan).
-- S2.05 branch'i (`work/yh-s2-05`) için push + main entegrasyonu.
+- Yaşam Hafızası **S2.15** (Concept Set) kod turu → **S2.16 Dictionary Expansion** → sonraki S2.x (otomatik açılmaz): [3] `search_tsv` sorgu · gerçek Supabase stone-exclusion adapter · [4] Kanıt Kapısı · [5] derece · [6] "Neden?" · INV harness. Her aşama ayrı salt-okunur analiz + kullanıcı onayıyla.
 - Human Design **FAZ 5/2** (API route).
 - Numeroloji QA düzeltmeleri (kritik RLS + hesap/görsel bulguları).
 - Dijital İçerik Blok-2/3 + kimliksiz AI uç güvenliği.

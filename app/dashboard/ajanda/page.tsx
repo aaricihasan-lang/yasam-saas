@@ -100,13 +100,20 @@ const FILTER_OPTIONS: { key: AppointmentFilter; label: string }[] = [
   { key: "cancelled", label: "İptal" },
 ];
 
-// Takvim günü bazında geçmiş kontrolü (YEREL; UTC kayması yok). Bugün geçmiş SAYILMAZ.
+// Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
+// Geçmiş gün → geçmiş; bugün geçmiş SAAT → geçmiş (WEB-06); bugün ileri saat/saatsiz → değil.
 function isPastCalendarDay(dateStr: string): boolean {
   if (!dateStr) return false;
+  const s = dateStr.trim();
+  const dayPart = s.slice(0, 10);
   const n = new Date();
   const p = (x: number) => String(x).padStart(2, "0");
   const todayStr = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-  return dateStr.slice(0, 10) < todayStr;
+  if (dayPart < todayStr) return true;
+  if (dayPart > todayStr) return false;
+  if (s.length <= 10) return false;
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t < n.getTime();
 }
 
 export default function AjandaPage() {
@@ -496,7 +503,7 @@ export default function AjandaPage() {
     await updateAppointmentStatus(id, "tamamlandi");
   }
 
-  // Yalnız "bekliyor" randevular düzenlenir. Mevcut form edit modunda kullanılır;
+  // WEB-07: Randevu her statüde düzenlenebilir. Mevcut form edit modunda kullanılır;
   // danışan sabit, durum değişmez; yalnız title/notes/appointment_date PATCH edilir.
   function openEditAppointment(appt: Appointment) {
     const d = new Date(appt.appointment_date);
@@ -1161,15 +1168,14 @@ export default function AjandaPage() {
                   {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                 </button>
 
-                {(selectedAppointment.status ?? "bekliyor") === "bekliyor" && (
-                  <button
-                    type="button"
-                    onClick={() => openEditAppointment(selectedAppointment)}
-                    className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
-                  >
-                    Düzenle
-                  </button>
-                )}
+                {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
+                <button
+                  type="button"
+                  onClick={() => openEditAppointment(selectedAppointment)}
+                  className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
+                >
+                  Düzenle
+                </button>
 
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   <button

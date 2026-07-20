@@ -44,6 +44,349 @@
 
 ---
 
+## 2026-07-19 — S2.14 PR #6 ile main'e merge edildi; S2.15 (Kavram Kümesi / Concept Set) Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.14 — Retrieval Türkçe Metin Normalizasyonu, PR #6 ile `origin/main`'e
+merge edildi** (kod `dd29167` production'da). Ayrıca **S2.15 — Kavram Kümesi (Concept Set)**
+aktif aşama olarak **açıldı** (`work/yh-s2-15`, taban güncel `origin/main` = `f72b01b`).
+Bu turda yalnız izole worktree + açılış karar kilidi hazırlandı; **kod yazılmadı**,
+`conceptSet.ts`/harness **oluşturulmadı**, **commit/push yapılmadı** (açılış docs yerelde,
+uncommitted).
+
+### Neden
+Retrieval boru hattının [2] adımının **taban/query kısmı**. Kilitli backlog: Concept Set →
+Dictionary Expansion → search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking →
+Retrieval Pipeline → Search UI. Evidence Gate'in Concept Set'ten önce yapılması
+(erken-sözleşme/rework riski) değerlendirildi ve **reddedildi**; backlog sırası korundu
+(Concept Set önce → Concept sözleşmesini kilitler).
+
+### S2.15 kilitli sözleşme (kod öncesi, kullanıcı onaylı)
+- **Fonksiyon:** `buildConceptSet(input: unknown): readonly Concept[]` (yeni `lib/yasam-hafizasi/search/conceptSet.ts`).
+- **Model:** `normalizeSearchText(input).tokens` → her token `{ term, origin: "query" }`.
+- **Phrase Concept YOK** (tokens-only; çok-kelime kavramları Dictionary Expansion/S2.16).
+- **Dictionary seam YOK** (Seçenek A — S2.16'da additif; synonym üretimi yok).
+- **Dedup** anahtar `term`, ilk-görülme sırası korunur, sort yok. **canonical** omit. **origin** daima `"query"`.
+- **Fail-safe:** non-string/boş/yalnız-işaret → boş dizi; asla throw. Çıktı dizisi + her Concept `Object.freeze`.
+- **Filtre YOK:** stop-word/kısa-token/rakam elemesi kapsam dışı (gate/tsquery işi).
+- **Kapsam dışı:** Dictionary Expansion · search_tsv · Evidence Gate · Ranking · retrieval wiring · DB/SQL/API/AI. `types.ts`/`config.ts`/`normalize.ts` değişmez.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration yok. `package.json`/lockfile değişmez.
+
+### Doğrulamalar
+Bu açılış turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only, commit yok). Kod turu
+doğrulama planı: yeni `yh-concept-set-harness` + 10 regresyon harness + `tsc --noEmit` +
+hedefli ESLint + güvenlik grep.
+
+### Push / durum
+`origin/main` (`f72b01b`) değişmedi; açılış docs yerelde (`work/yh-s2-15`), **uncommitted**;
+push yapılmadı; PR açılmadı. Sonraki S2.16 (Dictionary Expansion) **otomatik açılmaz**.
+
+### Notlar
+Bu kayıt hem S2.14'ün main'e MERGE'ini (PR #6) hem S2.15'in AÇILIŞINI belgeler; aynı
+tarihli aşağıdaki "S2.14 … Tamamlandı" kaydı, S2.14 kodunun tamamlanma anına ait tarihsel
+kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.14 (Retrieval Türkçe Metin Normalizasyonu) Tamamlandı; lexical sözleşme canlı DB SELECT ile doğrulandı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.14 — Retrieval Türkçe Metin Normalizasyonu tamamlandı** ve
+`origin/work/yh-s2-14`'e push edildi. Sorgu ve indeks metnine SİMETRİK uygulanan saf,
+deterministik, fail-safe, locale-bağımsız, mutasyonsuz Türkçe normalize + tokenizasyon
+birimi. Kod commit **`dd29167`** (`feat(yasam-hafizasi): add S2.14 retrieval text
+normalize`; parent `596d21e`); branch güncel `origin/main` (`91bcbab`) ile senkron
+(sync merge `ad03579`).
+
+### Teslim edilen dosyalar
+- `lib/yasam-hafizasi/search/normalize.ts` — `normalizeSearchText(input: unknown):
+  NormalizedSearchText`; çıktı `{ normalizedText, tokens }`. **Tam saf (hiç import yok)**;
+  `toLocaleLowerCase` KULLANILMAZ (locale-bağımsız); string-olmayan/boş/işaret-only girdi
+  → `{ "", [] }` (fail-safe, hiçbir girdide throw yok); `Object.freeze` ile mutasyonsuz;
+  deterministik.
+- `scripts/yh-normalize-harness.ts` — izole, DB'siz harness (83 assertion; production DB
+  simetri fixture regression guard).
+
+### Normalize sözleşmesi (kilitli)
+NFD → Türkçe/Latin fold (I/İ/ı/i→i · Ç/ç→c · Ğ/ğ→g · Ö/ö→o · Ş/ş→s · Ü/ü→u · Â/â→a ·
+Î/î→i · Û/û→u) → combining-mark strip → generic `toLowerCase()` → noktalama/tire/
+altçizgi/sembol→boşluk → çoklu whitespace→tek → trim → whitespace tokenize. **Stop-list /
+stemmer / concept-set / dictionary / dedupe / sort YOK** (bunlar sonraki S2.x). DB/IO/
+AI/fetch/env/SQL YOK.
+
+### Lexical sözleşme — canlı production Supabase salt-okunur SELECT ile DOĞRULANDI
+İndeks tarafı `to_tsvector('simple', yh_immutable_unaccent(text))` (unaccent → generic
+lowercase). Teyit edilen query–index simetrisi: `IŞIK/Işık/ışık → isik` · `İĞNE/İğne/igne
+→ igne` · `ŞİFA → sifa` · `ÇAKRA → cakra` · `GÖĞÜS → gogus` · `BÜTÜN → butun`. **Kritik
+açık nokta kapandı: `ı → i`, `ışık → isik`.** App normalize DB ile birebir aynı nihai
+token'ı üretir. Bu eşleşmeler harness'te production-teyitli regression fixture olarak
+sabitlendi.
+
+### Neden
+Retrieval boru hattının ([1] normalize) ilk halkası; [2] sözlük, [3] tsquery ve [4]
+Kanıt Kapısı'nın ortak ön koşulu. Türkçe I/İ/ı/i belirsizliği (JS `İ.toLowerCase()` →
+`i` + U+0307 combining-dot; tr-locale bağımlılığı) fold-önce-generic-lowercase (DB-ayna)
+stratejisiyle çözüldü; combining-dot ve locale bağımlılığı elendi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration/DDL yok. `package.json`/lockfile değişmedi.
+
+### Doğrulamalar
+- `yh-normalize-harness` → **EXIT 0, 83/83**.
+- 9 regresyon harness → **EXIT 0** (extract-fields · build-candidate · run-index-unit ·
+  run-source · index-write-plan · **supabase-adapters 37** · admin-route 65 ·
+  **index-smoke 41** · **visibility 49**).
+- `npx tsc --noEmit` → **EXIT 0** (harness'te ES2020-altı BigInt-literal → `BigInt()`
+  ile düzeltildi). Hedefli ESLint (2 S2.14 dosyası) → **0 error, 0 warning**. Güvenlik
+  grep temiz. `git diff --check` temiz.
+
+### Push / durum
+`origin/work/yh-s2-14` = `ad03579` (kod `dd29167` + sync merge); local/remote **0/0**;
+`origin/main` (`91bcbab`) **değişmedi**; **PR açılmadı**. Sonraki S2.x **otomatik açılmaz**
+(yeni salt-okunur analiz turu + kullanıcı onayı gerekir).
+
+### Notlar
+Bu kayıt S2.14 kodunun TAMAMLANMASINI belgeler; aynı tarihli aşağıdaki "S2.14 ... Açıldı"
+kaydı, S2.14'ün AÇILDIĞI ana ait tarihsel kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.13 PR #4 ile main'e merge edildi; S2.14 (Retrieval Türkçe Metin Normalizasyonu) Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı, PR #4 ile `origin/main`'e merge
+edildi** ("Create a merge commit"; merge commit **`4c672e9`**, ebeveynler `c412334`
+[alakasız paralel REPORT-ALL-WORD-C1 oturumu] + `608f576` [S2.13 kapanış docs]). Kaynak
+zincir korundu (`03112f3` · `fec4c69` · `e3b4e73` · `608f576`); PR #4 net katkısı 6 YH
+dosyası (+751/−59); package/lock/migration/SQL yok.
+
+Ayrıca **S2.14 — Retrieval Türkçe Metin Normalizasyonu** aktif aşama olarak **açıldı**
+(`work/yh-s2-14`, taban güncel `origin/main` = `4c672e9`). Bu docs turunda **kod
+yazılmadı**; `normalize.ts` ve harness henüz oluşturulmadı.
+
+### Neden
+S2.13 [3]'ün görünürlük yüklemini tamamladı; retrieval boru hattının (`04-phase-2-fast-search.md`)
+**[1] Türkçe Normalize** adımı henüz yok. Normalize, [2] sözlük genişletme, [3] tsquery
+ve [4] Kanıt Kapısı'nın ortak ön koşuludur; saf/deterministik/DB'siz olduğundan mevcut
+test-ortamı engelini (non-prod Supabase yok) aşarak güvenle ilerletilebilir.
+
+### S2.14 kilitli kararlar (kod öncesi)
+- **A1** — Kapsam: saf/deterministik Türkçe retrieval metin normalizasyonu.
+- **A2** — Stop-list/gürültü elemesi **kapsam dışı** (sonraki sözlük/concept-set aşamasına).
+- **A3** — Çıktı: `{ normalizedText: string; tokens: string[] }`.
+- **A4** — Tipler `normalize.ts` içinde lokal/exported; **`search/types.ts` değişmez**.
+- **A5** — SQL/migration/Supabase adapter/API/retrieval wiring/Kanıt Kapısı/concept-set/derece/"Neden?" **kapsam dışı**.
+- **A6** — `package.json`/lockfile değişmez. **A7** — AI yok. **A8** — IO/DB/fetch/env/service_role yok. **A9** — saf/mutasyonsuz/deterministik. **A10** — boş/whitespace/yalnız-işaret girdi → fail-safe `{ "", [] }`.
+- **A11** — I/İ/ı/i + diyakritik dönüşümü **tahminle belirlenmez**; kod-öncesi lexical sözleşme (`§1` + `20260712…_lexical_infra.sql` + canlı `unaccent`/text-search config) salt-okunur doğrulanır; çelişkide DUR.
+
+### Lexical sözleşme ön-doğrulaması (bu turda salt-okunur)
+DB tarafı `to_tsvector('simple', yh_immutable_unaccent(text))`. Migration notu: "App
+normalize ASIL kaynaktır; DB unaccent DESTEKLEYİCİ/yedek (simetri)." Örnek:
+`yh_immutable_unaccent('İğne Şifa Çakra') → 'Igne Sifa Cakra'` → `simple` küçük harf →
+`igne sifa cakra`. Doküman §1 iki-adımlı sözleşmesi izlendiğinde dört i-varyantı (I, İ,
+ı, i) her iki tarafta **`i`**'ye yakınsıyor → **bloklayıcı çelişki YOK**. Açık: DB
+`unaccent`'in lowercase `ı` çıktısı örnekte gösterilmedi → kod turundan önce canlı
+PostgREST ile teyit edilecek (tahminle kodlanmayacak).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. S2.14 saf/DB'siz; migration/SQL/DDL yok.
+
+### Doğrulamalar
+Bu docs turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only). Kod turu doğrulama
+planı: yeni `yh-normalize-harness` + 9 regresyon harness + `tsc --noEmit` + hedefli
+ESLint + güvenlik grep.
+
+### Push / durum
+`origin/main` (`4c672e9`) değişmedi; bu S2.14 açılış commit'i yerel (`work/yh-s2-14`);
+push yapılmadı; PR açılmadı.
+
+### Notlar
+Bu kayıt hem S2.13'ün main'e MERGE'ini hem S2.14'ün AÇILIŞINI belgeler; aynı tarihli
+aşağıdaki "S2.13 Tamamlandı ve remote branch'e push edildi" kaydı, S2.13 kodunun
+tamamlanma anına ait tarihsel kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.13 (Retrieval Görünürlük Kararı) Tamamlandı ve remote branch'e push edildi
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.13 — Retrieval Görünürlük Kararı tamamlandı** ve
+`origin/work/yh-s2-13` çalışma branch'ine push edildi. Bir retrieval adayının
+güvenilir server-side session scope altında görünür olup olmadığını **saf +
+deterministik + DB'siz + dependency-injection + fail-closed** biçimde belirleyen
+görünürlük karar birimi. Kod commit **`e3b4e73f2c82b6eb10b9c5e630370b652e29adb8`**
+(`feat(yasam-hafizasi): add S2.13 retrieval visibility scope`; parent `fec4c69`).
+
+### Teslim edilen dosyalar
+- `lib/yasam-hafizasi/search/visibilityScope.ts` — `evaluateVisibility` + tipler
+  (`VisibilityCandidate`/`VisibilityContext`/`StoneExclusionPort`/`VisibilityDecision`/
+  `VisibilityReasonCode`); kapalı reason-code union.
+- `scripts/yh-visibility-scope-harness.ts` — izole, DB'siz harness.
+
+### Görünürlük kuralları (uygulanan öncelik)
+session tenant geçerliliği → candidate tenant biçim geçerliliği → PII dışlama
+(`is_client_pii` yalnız kesin false) → demo tenant/source dışlama → tenant/shared
+görünürlüğü (`tenant_id = session` VEYA `null` + kesin `allowShared === true`) →
+stone exclusion → görünür. Stone exclusion **enjekte port** ile; YALNIZ doğal taş
+(`dogaltas`) adayında ve tenant/PII/demo geçildikten sonra çağrılır; farklı tenant /
+PII / demo / eksik stabil kimlikte çağrılmaz; **port throw/reject/non-boolean →
+fail-closed**. Tenant yalnız server-side session'dan; birim HTTP/body/query/cookie/
+header/env OKUMAZ. Reason-code kapalı union; ham tenant/stone kimliği veya hata
+mesajı içermez. Deterministik; girdi mutasyonu ve global durum yok.
+
+### Mimari
+Saf + DI tabanlı. **Gerçek Supabase / DB implementasyonu YOK** — `StoneExclusionPort`
+yalnız sözleşme; gerçek adapter sonraki S2.x'e aittir. `tenantScope.ts` / `config.ts` /
+`search/types.ts` **değiştirilmedi** (yalnız 2 yeni dosya).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Migration/SQL/DDL yok. DB erişimi yok.
+
+### Doğrulamalar
+- `yh-visibility-scope-harness` → **EXIT 0, 49/49**.
+- Sekiz regresyon harness → **EXIT 0** (dahil `yh-index-smoke` **41/41**).
+- `npx tsc --noEmit` → **EXIT 0**. Hedefli ESLint (2 S2.13 dosyası) → **0 error, 0 warning**.
+- Güvenlik grep'leri temiz; `git diff --check` temiz.
+
+### Push / durum
+- `origin/work/yh-s2-13` = `e3b4e73` (fast-forward `fec4c69..e3b4e73`); local/remote **0/0**.
+- `origin/main` (`e4580eb`) **değişmedi**; **PR açılmadı**.
+
+### Kapsam dışı (sonraki S2.x — korunur)
+Gerçek Supabase stone-exclusion adapter'ı · `search_tsv` sorgu · retrieval adapter ·
+ranking · Kanıt Kapısı · derece · "Neden gösterildi?" · gerçek DB smoke · indeks DDL ·
+SQL/migration · Admin UI · production write · PII indeks. Sonraki S2.x aşaması ayrı
+analiz ve kullanıcı onayıyla belirlenecektir.
+
+### Notlar
+Bu kayıt, S2.13 KODUNUN tamamlanmasını belgeler; aynı tarihli aşağıdaki
+"S2.13 Açıldı" kaydı, S2.13'ün AÇILDIĞI ana ait tarihsel kayıttır (silinmedi).
+
+---
+
+## 2026-07-19 — S2.08–S2.12 Tamamlandı ve PR #3 ile main'e merge edildi; S2.13 Açıldı
+
+### Tarih
+2026-07-19
+
+### Karar
+Yaşam Hafızası **S2.08–S2.12 — İndeksleyici write-side tamamlandı ve `origin/main`'e
+merge edildi**. Aşamalar: S2.08 `runIndexUnit`+`makeParentTenantLookup` (`dd7a022`) ·
+S2.09 `runSource` (`172aa91`) · S2.10 `indexWritePlan`+`supabaseIndexAdapters`
+(`b8ffc67`) · S2.11 admin index-page route (`e171fa1`) · S2.12A index smoke
+(`2dc44d3`) · S2.12C exact-owned-record smoke dry-run (`93ae185`). Git akışı: 7 kaynak
+commit (`8cf503d`→`93ae185`, `work/yh-s2-12`) → entegrasyon merge `fa9adbd`
+(`work/yh-s2-integration`, güncel main'e fast-forward + `--no-ff` merge) → **PR #3**
+(`work/yh-s2-integration` → `main`) **"Create a merge commit" ile merge edildi**
+(merge commit **`555030a`**, ebeveynler `0a3e8a4` + `fa9adbd`). **20 YH dosyası,
++3580/−67; package/lock/migration/SQL yok; YH-dışı değişiklik yok.**
+
+Ayrıca **S2.13 — Retrieval Görünürlük Kararı** aktif aşama olarak **açıldı**
+(`work/yh-s2-13`, taban `555030a`). Bu docs turunda **kod yazılmadı**.
+
+### Neden
+S2.08–S2.12 indeksleyici write-side'ı tamamlar; docs (PROJECT_STATUS/CURRENT_TASK/
+ROADMAP) daha önce yalnız "S2.08 açıldı, kod yok" durumunu yansıtıyordu ve gerçek kod
+durumuyla çelişiyordu. Bu kayıt + docs uzlaştırma, protokolün "PROJECT_STATUS ↔
+CURRENT_TASK tutarlılığı" ön koşulunu geri sağlar (koda geçmeden önce zorunlu).
+
+### Etkilenen Dosyalar
+- Kod (PR #3'te, bu turda değil): `lib/yasam-hafizasi/indexer/{runIndexUnit,parentTenantLookup,runSource,indexSourcePage,indexWritePlan,supabaseIndexAdapters,adminIndexRequest,indexSmokePlan}.ts` + `app/api/admin/yasam-hafizasi/index-page/route.ts` + `scripts/yh-*` (7 harness/araç).
+- Docs (bu tur): `docs/ai/{PROJECT_STATUS,CURRENT_TASK,ROADMAP,CHANGELOG_AI}.md`.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Yalnız yeni dosyalar; korunan sözleşme dosyaları (AD-004) değişmedi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Migration/SQL yok. İndeks tabloları DDL'i hâlâ Sprint 1 backlog'unda (Dashboard).
+
+### Geriye Dönük Uyumluluk
+Tam. Indexer write-side saf/enjekte; gerçek write ve smoke cleanup her ortamda
+fail-closed. Retrieval henüz devrede değil.
+
+### Doğrulamalar
+- 8 harness **EXIT 0** (S2.05 · S2.07 · S2.08 · S2.09 42 · S2.10 plan 23 · S2.10 adapter 37 · S2.11 65 · **S2.12 smoke 41/41**).
+- Tüm-proje `tsc --noEmit` **EXIT 0**. ESLint YH kapsamı **0 error** (1 eskiden-var warning: `yh-run-index-unit-harness.ts` kullanılmayan `ParentTenantLookup` type import'u).
+- Güvenlik grep'leri temiz: exact-owned-record pk+tenant tek sorgu; smoke'ta insert/update/upsert/delete yok; admin auth + demo fail-closed; browser-direct Supabase yok.
+- Production build: derleme + TypeScript aşamaları **geçti**; `Collecting page data` aşaması **ortam değişkeni eksikliği** (`supabaseUrl is required`, YH-dışı hacamat route) nedeniyle durdu — kod hatası değil, credential sağlanmadı.
+
+### S2.13 kilitli kararlar (kod öncesi)
+- **K1** — Kapsam: retrieval görünürlük yüklemi (session + isteğe bağlı shared + PII dışlama + demo dışlama + tenant stone exclusion dışlama; tenant yalnız server-side session; boş/geçersiz tenant fail-closed; deterministik).
+- **K2** — Stone exclusions: config sabiti DEĞİL; saf **enjekte port**; DB erişimi S2.13 içinde yok.
+- **K3** — Dosya: yeni `lib/yasam-hafizasi/search/visibilityScope.ts`; mevcut `tenantScope.ts` mümkün olduğunca değiştirilmeden yeniden kullanılır.
+- **K4** — DB sınırı: S2.13 tamamen saf/DB'siz (Supabase sorgusu/retrieval yürütme/`search_tsv`/ranking/Kanıt Kapısı/derece/"Neden?"/production write/SQL/migration/Admin UI **kapsam dışı**).
+- **K5** — Faz sırası: `search_tsv` sorgusu sonraki ayrı S2.x aşamasında.
+
+### Notlar
+- Gerçek DB smoke ve production write hâlâ **açık backlog** (bu turlarda çalıştırılmadı).
+- Bu docs turunda kod yazılmadı; push yapılmadı; commit yalnız 4 docs dosyası.
+
+---
+
+## 2026-07-16 — S2.07 Tamamlandı ve main'e merge edildi; S2.08 Açıldı
+
+### Tarih
+2026-07-16
+
+### Karar
+Yaşam Hafızası **S2.07 — İndeks-Birimi Builder tamamlandı ve `origin/main`'e merge
+edildi**. `buildCandidate.ts` (`buildIndexUnit`/`BuiltIndexUnit`) + izole harness
+`yh-build-candidate-harness.ts` teslim edildi. Git akışı: kod `380e44f` + docs
+`c213b68` (`work/yh-s2-07`) → integration `f79ead6` (`integration/yh-s2-07`,
+güncel main'e merge) → **PR #2** (`integration/yh-s2-07` → `main`) **merge edildi**
+(`merged_at 2026-07-16T18:07:30Z`, merge commit **`2b19743`**, ebeveynler
+`8f7d8a1` + `f79ead6`).
+
+Ayrıca aktif görev **S2.08 (Runner + ParentTenantLookup)** açıldı: yeni izole
+worktree `work/yh-s2-08` (taban `2b19743`). Bu kayıt yalnız docs kapanış/açılış
+commit'iyle (`docs(ai): close S2.07 and open S2.08`) gelir; **S2.08 kodu henüz yok**.
+
+### Neden
+S2.07 index-unit builder, Runner (S2.08) DB'ye yazmadan önce satırın deterministik,
+provenance'lı, kanıt taşıyan biçimini üretir. Tamamlanıp main'e alınarak S2.08'in
+saf zincir (S2.04 tenant → S2.05 alan → S2.07 birim) üstüne inşa edilmesi sağlandı.
+Docs, sonraki oturumların tek doğru kaynağı olduğundan gerçek Git durumuyla
+senkronlandı (S2.05 + S2.07 main'de; PR #1/#2 merge; S2.08 aktif).
+
+### Etkilenen Dosyalar
+- `docs/ai/PROJECT_STATUS.md`, `docs/ai/CURRENT_TASK.md`, `docs/ai/ROADMAP.md`, `docs/ai/CHANGELOG_AI.md` (durum senkronizasyonu; kod dosyasına dokunulmadı)
+
+### Doğrulama (merge sonrası main üzerinde)
+- S2.07 harness → **EXIT 0 (28/28)**; S2.05 regresyon harness → **EXIT 0**.
+- Tüm-proje `tsc --noEmit -p tsconfig.json` → **EXIT 0**; `git diff --check` → CLEAN.
+- **AD-004 korundu:** korunan 7 dosya (`sources.ts`, `tenantResolve.ts`, `extractFields.ts`, `config.ts`, `search/types.ts`, `package.json`, `package-lock.json`) merge öncesi main ile bit-bit özdeş.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Additif; S2.07 yalnız yeni builder + harness ekledi.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. SQL/DDL yok; DB yazımı S2.08'e ait.
+
+### Geriye Dönük Uyumluluk
+Tam uyumlu; additif katman. Paralel Danışan Performansı çalışması (`8f7d8a1`,
+`fc078eb`) main'de korundu, YH ile örtüşme yok.
+
+### Notlar
+S2.05 de bu döngüde main'e alınmıştı (PR #1 merge `cd9c77c`). Head branch'ler
+(`integration/yh-s2-07`, `work/yh-s2-07`) silinmedi. S2.08 kodu kilitleme + onay
+sonrası yazılacak.
+
+---
+
 ## 2026-07-14 — S2.07 (İndeks-Birimi Builder) Başladı
 
 ### Tarih

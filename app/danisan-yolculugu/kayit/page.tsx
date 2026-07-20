@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -19,6 +19,12 @@ function formatDateTR(date: string | null) {
   const parts = date.split("-");
   if (parts.length !== 3) return date;
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
+}
+
+// Soyad her zaman Türkçe locale ile BÜYÜK harf saklanır (i→İ, ı→I).
+// Trim yalnız kayıt anında; yazım sırasında boşluk korunur (çift soyadlar için).
+function normalizeSurname(value: string) {
+  return value.trim().toLocaleUpperCase("tr-TR");
 }
 
 function burcHesapla(date: string) {
@@ -72,16 +78,26 @@ function mondayFirstOffset(year: number, month: number) {
   return (day + 6) % 7;
 }
 
+// Gerçek takvim tarihi mi? 31.02.2026 gibi var olmayan günleri eler; makul yıl aralığı.
+function isRealDate(y: number, m: number, d: number) {
+  if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
 function PremiumDatePicker({
   value,
   onChange,
   inputClassName,
   alignRight = false,
+  onInvalidChange,
 }: {
   value: string;
   onChange: (next: string) => void;
   inputClassName: string;
   alignRight?: boolean;
+  // Manuel metin boş değil ama geçerli tam tarihe çözülmüyorsa true (kayıt anında engel için).
+  onInvalidChange?: (invalid: boolean) => void;
 }) {
   const today = todayForInput();
   const parsedToday = parseInputDate(today);
@@ -94,6 +110,37 @@ function PremiumDatePicker({
   const [viewYear, setViewYear] = useState(initialYear);
   const [viewMonth, setViewMonth] = useState(initialMonth);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // Manuel giriş metni (GG.AA.YYYY). Yalnız takvim/temizle/bugün dışarıdan setText yapar;
+  // yazım sırasında metin ezilmez → yarım tarih zorla başka değere atılmaz.
+  const [text, setText] = useState(() => (value ? formatDateTR(value) : ""));
+
+  function handleManualChange(e: ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+    let formatted = "";
+    if (raw.length <= 2) formatted = raw;
+    else if (raw.length <= 4) formatted = `${raw.slice(0, 2)}.${raw.slice(2)}`;
+    else formatted = `${raw.slice(0, 2)}.${raw.slice(2, 4)}.${raw.slice(4)}`;
+    setText(formatted);
+
+    if (raw.length === 8) {
+      const d = Number(raw.slice(0, 2));
+      const m = Number(raw.slice(2, 4));
+      const y = Number(raw.slice(4, 8));
+      if (isRealDate(y, m, d)) {
+        onChange(toInputDate(y, m, d)); // geçerli tam tarih → state güncelle + takvim senkron
+        setViewYear(y);
+        setViewMonth(m);
+        onInvalidChange?.(false);
+      } else {
+        onChange("");                   // 31.02.2026 gibi gerçek olmayan tarih → kabul etme
+        onInvalidChange?.(true);
+      }
+    } else {
+      onChange("");                     // eksik giriş → değer yok
+      onInvalidChange?.(raw.length > 0); // boş → geçerli (opsiyonel); yarım → geçersiz
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -137,18 +184,25 @@ function PremiumDatePicker({
 
   return (
     <div ref={rootRef} className="relative min-w-0 w-full">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={`${inputClassName} flex items-center justify-between text-left`}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-      >
-        <span className={value ? "text-slate-900" : "text-slate-400"}>
-          {value ? formatDateTR(value) : "Tarih seçin"}
-        </span>
-        <span className="text-lg text-indigo-500" aria-hidden>📅</span>
-      </button>
+      <div className={`${inputClassName} flex items-center justify-between gap-2`}>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={text}
+          onChange={handleManualChange}
+          placeholder="GG.AA.YYYY"
+          maxLength={10}
+          className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg text-indigo-500 transition-colors hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-400"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-label="Takvimden tarih seç"
+        >📅</button>
+      </div>
 
       {open && (
         <div
@@ -192,7 +246,7 @@ function PremiumDatePicker({
                 <button
                   key={cellValue}
                   type="button"
-                  onClick={() => { onChange(cellValue); setOpen(false); }}
+                  onClick={() => { onChange(cellValue); setText(formatDateTR(cellValue)); onInvalidChange?.(false); setOpen(false); }}
                   className={`flex h-10 w-10 items-center justify-center rounded-xl font-semibold transition-all hover:scale-110 hover:bg-indigo-100 ${
                     isSelected
                       ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg hover:from-indigo-500 hover:to-violet-500"
@@ -208,13 +262,15 @@ function PremiumDatePicker({
           <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
             <button
               type="button"
-              onClick={() => { onChange(""); setOpen(false); }}
+              onClick={() => { onChange(""); setText(""); onInvalidChange?.(false); setOpen(false); }}
               className="rounded-xl px-3 py-2 font-bold text-slate-600 transition-all hover:scale-110 hover:bg-indigo-100"
             >Temizle</button>
             <button
               type="button"
               onClick={() => {
                 onChange(today);
+                setText(formatDateTR(today));
+                onInvalidChange?.(false);
                 if (parsedToday) { setViewYear(parsedToday.y); setViewMonth(parsedToday.m); }
                 setOpen(false);
               }}
@@ -260,6 +316,8 @@ export default function DanisanKayitPage() {
   // Görüşme tarihi bilinçli olarak boş başlar: yeni danışan otomatik "Aktif"
   // görünmesin. Uzman ilk/son görüşme tarihini varsa kendisi seçer.
   const [gorusme, setGorusme] = useState("");
+  // Manuel görüşme tarihi metni geçerli tam tarihe çözülmüyorsa true → kayıt engellenir.
+  const [gorusmeInvalid, setGorusmeInvalid] = useState(false);
   const [kan, setKan] = useState("");
   const [mizac, setMizac] = useState("");
 
@@ -286,13 +344,20 @@ export default function DanisanKayitPage() {
       return;
     }
 
+    // Görüşme tarihi opsiyoneldir; ama yazılmış ve geçerli bir tam tarihe çözülmüyorsa
+    // (yarım giriş veya 31.02.2026 gibi olmayan gün) kayıt kabul edilmez.
+    if (gorusmeInvalid) {
+      showToast({ title: "Geçersiz tarih", message: "Görüşme tarihini GG.AA.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.", type: "error" });
+      return;
+    }
+
     // Demo hesap: DB yerine localStorage'a kaydet
     if (isDemo) {
       setSaving(true);
       initDemoSession();
       addDemoClient({
         ad: ad.trim(),
-        soyad: soyad.trim(),
+        soyad: normalizeSurname(soyad),
         telefon: telefon.trim(),
         dogum,
         gorusme,
@@ -353,7 +418,7 @@ export default function DanisanKayitPage() {
       },
       body: JSON.stringify({
         ad: ad.trim(),
-        soyad: soyad.trim(),
+        soyad: normalizeSurname(soyad),
         telefon: telefon.trim(),
         dogum: dogum || null,
         gorusme: gorusme || null,
@@ -426,7 +491,7 @@ export default function DanisanKayitPage() {
               <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder="Ad" />
             </Field>
             <Field label="Soyad">
-              <input value={soyad} onChange={(e) => setSoyad(e.target.value)} className={inputClassName} placeholder="Soyad" />
+              <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder="Soyad" />
             </Field>
             <Field label="Telefon">
               <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder="05xx xxx xx xx" />
@@ -435,7 +500,12 @@ export default function DanisanKayitPage() {
               <BirthDateInput value={dogum} onChange={setDogum} className={inputClassName} />
             </Field>
             <Field label="Görüşme Tarihi">
-              <PremiumDatePicker value={gorusme} onChange={setGorusme} inputClassName={inputClassName} />
+              <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />
+              {gorusmeInvalid && (
+                <p className="text-[11px] font-bold leading-snug text-rose-500">
+                  Geçerli bir tarih girin (GG.AA.YYYY) veya alanı boş bırakın.
+                </p>
+              )}
               <p className="text-[11px] font-medium leading-snug text-slate-400">
                 Danışanın ilk/son görüşme tarihi. Planlı seanslar için{" "}
                 <span className="font-bold text-slate-500">Ajanda &amp; Randevu</span>’yu kullanın.

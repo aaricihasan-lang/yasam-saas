@@ -38,7 +38,6 @@ import {
   LICENSE_TYPE_OPTIONS,
   mapDbUser,
   mapPaymentHistoryRow,
-  PACKAGE_PLAN_OPTIONS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_SELECT_OPTIONS,
   paymentSnapshotToEditDraft,
@@ -54,10 +53,6 @@ import {
   type PaymentHistoryEntry,
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
-import {
-  inferPackagePlanFromSnapshot,
-  type PackagePlanUi,
-} from "@/lib/auth/membership";
 import {
   clearYasamUser,
   isAdminUser,
@@ -313,6 +308,20 @@ function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
   );
 }
 
+/** Tek üyelik modeli: erişim durumu yalnız active + approval_status'tan türer. */
+function membershipAccessState(user: ManagedUser): { label: string; cls: string } {
+  if (user.approvalStatus === "rejected") {
+    return { label: "Reddedildi", cls: "border-rose-300 bg-rose-50 text-rose-700" };
+  }
+  if (!user.active) {
+    return { label: "Erişim kapalı", cls: "border-slate-300 bg-slate-100 text-slate-700" };
+  }
+  if (user.approvalStatus === "pending") {
+    return { label: "Onay bekliyor", cls: "border-amber-300 bg-amber-50 text-amber-800" };
+  }
+  return { label: "Premium · Aktif · Onaylı", cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
+}
+
 function PremiumModuleNotice() {
   return (
     <div className="rounded-2xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 via-teal-50/80 to-white p-4 md:p-5">
@@ -337,7 +346,7 @@ function ModulePermissionSwitches({
     <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
       <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
       <p className="mt-1 text-xs font-medium text-slate-600">
-        Deneme ve Pro paketlerde açık modüller uzman panelinde görünür.
+        Premium kullanıcılar tüm uzman modüllerine otomatik erişir. Özel modül izinleri ayrıca yönetilebilir.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {ADMIN_MODULE_UI_KEYS.map((key) => {
@@ -459,7 +468,6 @@ export default function AdminUserDetailPage() {
   const [newPassword, setNewPassword] = useState("");
   const [editForm, setEditForm] = useState<EditForm | null>(null);
 
-  const [packagePlan, setPackagePlan] = useState<PackagePlanUi | "">("");
   const [canPersistModulePermissions, setCanPersistModulePermissions] =
     useState(true);
   const [canPersistMembership, setCanPersistMembership] = useState(true);
@@ -633,7 +641,6 @@ export default function AdminUserDetailPage() {
     const mapped = mapDbUser(row);
     setUser(mapped);
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
-    setPackagePlan(inferPackagePlanFromSnapshot(mapped.membership));
     setLicenseDraft({ ...mapped.licenseSettings });
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
     setNotFound(false);
@@ -868,17 +875,19 @@ export default function AdminUserDetailPage() {
   }
 
   async function savePackageMembership() {
-    if (!user || !packagePlan) return;
+    if (!user) return;
     if (!canPersistMembership) {
       showToast({ title: "Kayıt yapılamadı", message: "Veritabanında paket kolonları bulunamadı.", type: "error" });
       return;
     }
 
     setSavingPackage(true);
+    // Tek üyelik modeli: her zaman "premium". Route atomik olarak
+    // package_type=premium + active=true + approval_status=approved + approved_at yazar.
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/package`, {
       method: "POST",
       headers: adminHeaders(currentAdminId, true),
-      body: JSON.stringify({ packagePlan }),
+      body: JSON.stringify({ packagePlan: "premium" }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setSavingPackage(false);
@@ -888,7 +897,7 @@ export default function AdminUserDetailPage() {
       return;
     }
 
-    showToast({ title: "Başarılı", message: "Paket güncellendi.", type: "success" });
+    showToast({ title: "Başarılı", message: "Kullanıcı Premium olarak kaydedildi (aktif + onaylı).", type: "success" });
     await loadUser(currentAdminId);
   }
 
@@ -1631,65 +1640,43 @@ export default function AdminUserDetailPage() {
                       Paket / Üyelik Yönetimi
                     </h2>
                     <p className="mt-1 text-xs font-medium text-amber-900/85">
-                      Deneme: 3 gün · Pro: admin pasife alana kadar · Premium: tüm
-                      uzman modülleri otomatik
+                      Tek Paket: Premium · Erişim, yönetici kullanıcıyı pasife alana
+                      kadar aktiftir.
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
                     <p className="text-[11px] font-black uppercase text-slate-500">Paket</p>
-                    <p className="mt-1 font-black">{user.membershipDisplay.packageLabel}</p>
-                  </div>
-                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Durum</p>
-                    <p className="mt-1 font-black">{user.membershipDisplay.statusLabel}</p>
+                    <p className="mt-1 font-black">Premium</p>
                   </div>
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
                     <p className="text-[11px] font-black uppercase text-slate-500">
-                      Deneme bitiş
+                      Erişim durumu
                     </p>
-                    <p className="mt-1 font-black">
-                      {user.membershipDisplay.trialEndLabel}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Kalan gün</p>
-                    <p className="mt-1 font-black">
-                      {user.membershipDisplay.remainingDaysLabel}
-                    </p>
+                    {(() => {
+                      const st = membershipAccessState(user);
+                      return (
+                        <span
+                          className={`mt-1 inline-block rounded-full border px-3 py-1 text-xs font-black ${st.cls}`}
+                        >
+                          {st.label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
-                {user.membershipDisplay.durationNote &&
-                user.membershipDisplay.durationNote !== "—" ? (
-                  <p className="mt-3 rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 text-xs font-bold text-amber-950">
-                    {user.membershipDisplay.durationNote}
-                  </p>
-                ) : null}
 
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <label className="block flex-1">
-                    <span className={labelClass}>Paket seç</span>
-                    <select
-                      className={inputClass}
-                      value={packagePlan}
-                      onChange={(e) =>
-                        setPackagePlan(e.target.value as PackagePlanUi | "")
-                      }
-                    >
-                      <option value="">Seçiniz</option>
-                      {PACKAGE_PLAN_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="max-w-md text-xs font-bold text-amber-900/85">
+                    “Premium Olarak Kaydet” kullanıcıyı Premium · Aktif · Onaylı yapar.
+                    Erişimi kapatmak için “Pasif Yap” işlemini kullanın.
+                  </p>
                   <button
                     type="button"
                     onClick={savePackageMembership}
-                    disabled={savingPackage || !packagePlan || !canPersistMembership}
+                    disabled={savingPackage || !canPersistMembership}
                     className={`${saveBtnClass} sm:shrink-0 sm:px-10`}
                   >
                     {savingPackage ? (
@@ -1698,7 +1685,7 @@ export default function AdminUserDetailPage() {
                         Kaydediliyor…
                       </span>
                     ) : (
-                      "Paketi Kaydet"
+                      "Premium Olarak Kaydet"
                     )}
                   </button>
                 </div>

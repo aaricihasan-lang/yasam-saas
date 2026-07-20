@@ -60,13 +60,20 @@ Derin Analiz → Admin → Test → Deploy`
 | **S2.02** | Küratörlü eş-anlam/kavram sözlüğü DDL (`yh_topic_dictionary`) | ✅ | `config.ts` (YH_TABLES.topicDictionary); DDL Dashboard'dan |
 | **S2.03** | İndeks kaynak config (17 kaynak, kolon-rol eşleme, deklaratif) | ✅ | `indexer/sources.ts` |
 | **S2.04** | Tenant Resolver (saf fonksiyon, fail-closed, column/join mode) | ✅ | `indexer/tenantResolve.ts` |
-| **S2.05** | JSONB alan çıkarımı (metin/tag/relation ayrıştırma) | ✅ | `indexer/extractFields.ts` + `scripts/yh-extract-fields-harness.ts` (`b5d726f`, PR #1 açık) |
-| **S2.07** | İndeks-birimi builder (yazma-yanı `BuiltIndexUnit`: group_key + content_hash + title/snippet) | 🟡 | `indexer/buildCandidate.ts` + harness (`work/yh-s2-07`, uygulanıyor) |
-| **S2.08** | Runner + `ParentTenantLookup` enjeksiyonu (backfill, join tenant DB erişimi) | ⬜ | — |
-| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre) | ⬜ | — |
-| S2.x | normalize · sözlük genişletme · `search_tsv` sorgu · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` |
+| **S2.05** | JSONB alan çıkarımı (metin/tag/relation ayrıştırma) | ✅ | `indexer/extractFields.ts` + `scripts/yh-extract-fields-harness.ts` (`b5d726f`, PR #1 merge `cd9c77c`) |
+| **S2.07** | İndeks-birimi builder (yazma-yanı `BuiltIndexUnit`: group_key + content_hash + title/snippet) | ✅ | `indexer/buildCandidate.ts` + `scripts/yh-build-candidate-harness.ts` (`380e44f`, PR #2 merge `2b19743`; harness 28/28) |
+| **S2.08** | Index-unit runner + `ParentTenantLookup` enjeksiyonu | ✅ | `indexer/runIndexUnit.ts` + `parentTenantLookup.ts` (`dd7a022`, PR #3 merge `555030a`) |
+| **S2.09** | Source runner (keyset cursor sayfalama, join parent preload, hata izolasyonu) | ✅ | `indexer/runSource.ts` + `indexSourcePage.ts` (`172aa91`, PR #3) |
+| **S2.10** | Index write plan + Supabase adapters (search_text, hash-aware upsert plan, fail-fast writer) | ✅ | `indexer/indexWritePlan.ts` + `supabaseIndexAdapters.ts` (`b8ffc67`, PR #3) |
+| **S2.11** | Admin index-page route (admin auth + demo fail-closed + dry-run/write ayrımı) | ✅ | `indexer/adminIndexRequest.ts` + `app/api/admin/yasam-hafizasi/index-page/route.ts` (`e171fa1`, PR #3) |
+| **S2.12A** | Index smoke aracı (plan-only) | ✅ | `indexer/indexSmokePlan.ts` + `scripts/yh-index-smoke.ts` (`2dc44d3`, PR #3) |
+| **S2.12C** | Exact-owned-record smoke dry-run (pk+tenant tek sorgu; write/delete yok) | ✅ | `indexSmokePlan.ts` + `scripts/yh-index-smoke-harness.ts` (`93ae185`, PR #3; smoke 41/41) |
+| **S2.13** | Retrieval görünürlük kararı (session + shared birlikte filtre; saf/DB'siz, stone exclusions enjekte port) | ✅ | `search/visibilityScope.ts` + `scripts/yh-visibility-scope-harness.ts` (`e3b4e73`, **PR #4 merge `4c672e9`**; harness **49/49**) |
+| **S2.14** | Retrieval Türkçe metin normalizasyonu (saf/DB'siz; §1 simetrik normalize + tokenizasyon; stemmer/stop-list YOK) | ✅ | `search/normalize.ts` + `scripts/yh-normalize-harness.ts` (`dd29167`, **PR #6**; harness **83/83**; query–index simetrisi production SELECT ile doğrulandı) |
+| **S2.15** | Kavram Kümesi / Concept Set (saf/DB'siz; query → normalize token → query-origin `Concept[]`; phrase/dictionary/synonym YOK) | 🟡 | `work/yh-s2-15` açıldı (docs; kod yok). Plan: `search/conceptSet.ts` + harness; `buildConceptSet(input): readonly Concept[]` |
+| S2.x | [2b] Dictionary Expansion (S2.16) · [3] `search_tsv` sorgu · gerçek Supabase stone-exclusion adapter · **Kanıt Kapısı** · derece · deterministik "Neden?" · INV-1/INV-2 harness | ⬜ | `10-roadmap.md` (S2.15 sonrası ayrı analiz/onay; **otomatik açılmaz**) |
 
-> **S2.05 tamamlandı** (PR #1 açık). Aktif iş: **S2.07 (İndeks-birimi builder)** — `work/yh-s2-07`'de uygulanıyor. Sonrası: S2.08 (Runner) → S2.13 (görünürlük). ROADMAP'te **S2.06 yoktur**.
+> **S2.05, S2.07, S2.08–S2.12, S2.13, S2.14 tamamlandı ve main'de** (PR #1 `cd9c77c`, PR #2 `2b19743`, PR #3 `555030a`, PR #4 `4c672e9`, **PR #6**). **S2.15 (Kavram Kümesi / Concept Set) açıldı** — `work/yh-s2-15` (taban `f72b01b`); saf query-origin Concept Set ([2] taban); kod yok, worktree + karar kilidi. Kilitli backlog: Concept Set → Dictionary Expansion → search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking → Retrieval Pipeline → Search UI. Sonrası ayrı analiz/onayla; **otomatik açılmaz**. ROADMAP'te **S2.06 yoktur**.
 
 ### Sprint 3 — UI (Hızlı Tarama) ⬜
 Ana modül ekranı · sonuç kartı · derece görsel dili · "Neden?" · modül filtresi · a11y · responsive.

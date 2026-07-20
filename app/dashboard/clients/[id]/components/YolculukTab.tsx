@@ -85,6 +85,64 @@ function statusLabel(status: string | null | undefined): string {
   return "Bekliyor";
 }
 
+// ─── WEB-16: Randevu zaman/gün yardımcıları (Europe/Istanbul otoriter) ───────────
+// appointment_date leksikal string karşılaştırılmaz — parse edilip mutlak zamana
+// çevrilir (DB "+00:00" offset'li gelebilir; "Z" ile string-compare kırılgandır).
+// Tarih-only ("YYYY-MM-DD") değerler gün-bazlı, datetime değerler mutlak-zaman bazlı
+// işlenir. Geçersiz tarih → güvenli (yaklaşan/geçmiş sayılmaz).
+const IST_TZ = "Europe/Istanbul";
+
+function isDateOnlyAppt(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+}
+
+// Bir randevu değerinin İstanbul takvim günü (YYYY-MM-DD). Geçersiz → "".
+function istanbulDay(dateStr: string): string {
+  const s = dateStr.trim();
+  if (isDateOnlyAppt(s)) return s; // saatsiz değer literal günüdür
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: IST_TZ }).format(d);
+}
+
+function istanbulToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: IST_TZ }).format(new Date());
+}
+
+// Randevu şu andan sonra mı? (iptal filtresini çağıran uygular.)
+// Datetime: mutlak zaman > now. Tarih-only: İstanbul günü >= bugün.
+function isUpcomingAppt(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false;
+  const s = String(dateStr).trim();
+  if (isDateOnlyAppt(s)) return istanbulDay(s) >= istanbulToday();
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t > Date.now();
+}
+
+// Randevu geçmişte mi gerçekleşti? (iptal filtresini çağıran uygular.)
+function isPastAppt(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false;
+  const s = String(dateStr).trim();
+  if (isDateOnlyAppt(s)) return istanbulDay(s) < istanbulToday();
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) && t <= Date.now();
+}
+
+// İki İstanbul günü ("YYYY-MM-DD") arasındaki tam gün farkı (to - from).
+// UTC-öğle referansı DST/gün kaymasını önler.
+function istanbulDayDiff(fromDay: string, toDay: string): number {
+  if (!fromDay || !toDay) return 0;
+  const f = new Date(fromDay + "T12:00:00Z").getTime();
+  const t = new Date(toDay + "T12:00:00Z").getTime();
+  return Math.round((t - f) / 86400000);
+}
+
+// Sıralama için güvenli mutlak-ms (geçersiz → Infinity, sona atılır).
+function apptMs(dateStr: string | null | undefined): number {
+  const t = new Date(String(dateStr ?? "")).getTime();
+  return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+}
+
 
 function calcAge(dogum: string): number | null {
   try {
@@ -129,19 +187,21 @@ const menuItems: MenuItem[] = [
 ];
 
 // ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
-const TYPE_META: Record<string, { color: string; accent: string; icon: string }> = {
-  numeroloji:   { color: "#7c3aed", accent: "#ede9fe", icon: "∞" },
-  dogaltas:     { color: "#0891b2", accent: "#e0f2fe", icon: "◆" },
-  refleksoloji: { color: "#db2777", accent: "#fce7f3", icon: "◎" },
-  biyoenerji:   { color: "#ea580c", accent: "#fff7ed", icon: "⚡" },
-  not:          { color: "#6d28d9", accent: "#ede9fe", icon: "✎" },
-  seans:        { color: "#16a34a", accent: "#dcfce7", icon: "◈" },
-  randevu:      { color: "#9333ea", accent: "#f3e8ff", icon: "◷" },
-  analiz:       { color: "#8b5cf6", accent: "#f5f3ff", icon: "◎" },
-  odev:         { color: "#ef4444", accent: "#fee2e2", icon: "✏" },
+// label = timeline türünün kullanıcıya gösterilen tekil Türkçe adı (tek kaynak).
+// Rozet ve filtre metinleri getMeta(type).label üzerinden çözer; ham enum sızmaz.
+const TYPE_META: Record<string, { color: string; accent: string; icon: string; label: string }> = {
+  numeroloji:   { color: "#7c3aed", accent: "#ede9fe", icon: "∞", label: "Numeroloji" },
+  dogaltas:     { color: "#0891b2", accent: "#e0f2fe", icon: "◆", label: "Doğaltaş" },
+  refleksoloji: { color: "#db2777", accent: "#fce7f3", icon: "◎", label: "Refleksoloji" },
+  biyoenerji:   { color: "#ea580c", accent: "#fff7ed", icon: "⚡", label: "Biyoenerji" },
+  not:          { color: "#6d28d9", accent: "#ede9fe", icon: "✎", label: "Not" },
+  seans:        { color: "#16a34a", accent: "#dcfce7", icon: "◈", label: "Seans" },
+  randevu:      { color: "#9333ea", accent: "#f3e8ff", icon: "◷", label: "Randevu" },
+  analiz:       { color: "#8b5cf6", accent: "#f5f3ff", icon: "◎", label: "Analiz" },
+  odev:         { color: "#ef4444", accent: "#fee2e2", icon: "✏", label: "Ödev" },
 };
 
-const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈" };
+const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈", label: "Diğer" };
 
 function getMeta(type: string) {
   return TYPE_META[type] ?? DEFAULT_META;
@@ -482,13 +542,13 @@ function SeansStat({
 }) {
   return (
     <div
-      className="rounded-xl border border-slate-100 p-2.5"
+      className="min-w-0 rounded-xl border border-slate-100 p-2.5"
       style={{ background: accent }}
     >
       <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
         {label}
       </div>
-      <div className="text-[17px] font-black leading-none" style={{ color }}>
+      <div className="break-words text-[17px] font-black leading-tight" style={{ color }}>
         {value}
       </div>
     </div>
@@ -768,11 +828,11 @@ const ELEMENT_BG:    Record<string, string> = { Hava: "#e0f2fe", Su: "#dbeafe", 
 function ModalRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-      <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">
+    <div className="flex flex-col gap-1 rounded-xl bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3">
+      <span className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:min-w-[130px] sm:flex-shrink-0">
         {label}
       </span>
-      <span className="flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
+      <span className="min-w-0 flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
     </div>
   );
 }
@@ -1000,7 +1060,7 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
       >
         {/* Header */}
         <div
-          className="flex flex-shrink-0 items-start gap-3 px-5 py-4"
+          className="flex flex-shrink-0 flex-wrap items-start gap-3 px-5 py-4"
           style={{
             background: `linear-gradient(135deg, ${meta.accent}, #ffffff)`,
             borderBottom: `1px solid ${meta.color}22`,
@@ -1024,12 +1084,12 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
             </div>
           </div>
           {/* Yazı boyutu + kapat */}
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
             {(["sm", "md", "lg"] as FontSize[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setFontSize(s)}
-                className="flex h-[26px] w-[28px] items-center justify-center rounded-lg border text-[10px] font-black transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-black transition-colors"
                 style={{
                   background:   fontSize === s ? meta.color : "white",
                   color:        fontSize === s ? "white"    : meta.color,
@@ -1041,7 +1101,7 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
             ))}
             <button
               onClick={onClose}
-              className="ml-1.5 flex h-[30px] w-[30px] items-center justify-center rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
+              className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[15px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
             >
               ✕
             </button>
@@ -1092,14 +1152,14 @@ function TimelineCard({
         style={{ borderColor: `${meta.color}22`, cursor: "pointer" }}
         onClick={() => onOpen(entry)}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
               <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black capitalize tracking-wide"
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide"
                 style={{ background: meta.accent, color: meta.color }}
               >
-                {entry.type}
+                {meta.label}
               </span>
               {entry.badge && (
                 <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
@@ -1112,7 +1172,7 @@ function TimelineCard({
               <div className="line-clamp-2 text-[11px] font-bold leading-snug text-slate-400">{entry.description}</div>
             )}
           </div>
-          <div className="ml-2 flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold" style={{ color: `${meta.color}cc` }}>
+          <div className="flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold sm:ml-2" style={{ color: `${meta.color}cc` }}>
             {entry.date}
           </div>
         </div>
@@ -1441,10 +1501,10 @@ export default function YolculukTab({
           newProcess.durum = diffDays <= 14 ? "aktif" : diffDays <= 30 ? "takip" : "pasif";
         }
 
-        const nowIso = new Date().toISOString();
+        // WEB-16: iptal hariç, gerçekten yaklaşan (aynı gün ileri saat dâhil) randevular.
         const upcoming = appointmentList
-          .filter((a) => a.appointment_date > nowIso && a.status !== "iptal")
-          .sort((a, b) => (a.appointment_date < b.appointment_date ? -1 : 1));
+          .filter((a) => a.status !== "iptal" && isUpcomingAppt(a.appointment_date))
+          .sort((a, b) => apptMs(a.appointment_date) - apptMs(b.appointment_date));
         if (upcoming.length > 0) {
           newProcess.yaklasanRandevu = isoToTR(upcoming[0].appointment_date);
         }
@@ -1521,11 +1581,13 @@ export default function YolculukTab({
         });
 
         // ── Uyarı sistemi ek verileri ──────────────────────────────────────
+        // WEB-16: iptal randevular son-randevu hesabına KATILMAZ; gün farkı İstanbul
+        // takvim günüyle. Hiç geçmiş randevu yoksa null (uydurma gün sayısı üretilmez).
         const pastRandevular = appointmentList
-          .filter((a) => a.appointment_date && a.appointment_date < nowIso)
-          .sort((a, b) => (b.appointment_date > a.appointment_date ? 1 : -1));
+          .filter((a) => a.status !== "iptal" && isPastAppt(a.appointment_date))
+          .sort((a, b) => apptMs(b.appointment_date) - apptMs(a.appointment_date));
         const lastPastRandevuDaysAgo = pastRandevular[0]?.appointment_date
-          ? Math.floor((Date.now() - new Date(pastRandevular[0].appointment_date).getTime()) / 86400000)
+          ? Math.max(0, istanbulDayDiff(istanbulDay(String(pastRandevular[0].appointment_date)), istanbulToday()))
           : null;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1731,7 +1793,7 @@ export default function YolculukTab({
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black"
                   style={{ background: `${getMeta(activeFilter).color}15`, color: getMeta(activeFilter).color }}
                 >
-                  {getMeta(activeFilter).icon} {activeFilter} filtresi
+                  {getMeta(activeFilter).icon} {getMeta(activeFilter).label} filtresi
                   <button
                     onClick={() => { setActiveFilter(null); setActiveMenu("genel"); setDisplayCount(INITIAL_COUNT); }}
                     className="ml-1 opacity-60 hover:opacity-100"
@@ -1742,7 +1804,7 @@ export default function YolculukTab({
             <h2 className="mb-1 text-[20px] font-black tracking-tight text-slate-950">Son Çalışmalar</h2>
             <p className="text-[12px] font-bold text-slate-500">
               {activeFilter
-                ? `${filteredEntries.length} kayıt · ${activeFilter} filtresi aktif`
+                ? `${filteredEntries.length} kayıt · ${getMeta(activeFilter).label} filtresi aktif`
                 : "Danışana ait tüm modül çalışmalarının kronolojik özeti"}
             </p>
           </div>

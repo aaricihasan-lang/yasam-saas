@@ -254,13 +254,6 @@ function thickRule(color: string): Paragraph {
   });
 }
 
-function thinRule(): Paragraph {
-  return new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-    spacing: { before: 200, after: 200 },
-  });
-}
-
 function gap(twips = 240): Paragraph {
   return new Paragraph({ spacing: { after: twips } });
 }
@@ -335,7 +328,6 @@ function buildCoverV3(fullName: string, today: string): ReportChild[] {
 
 function buildClientProfilePage(
   fullName: string,
-  client: ClientRow,
   counts: { randevular: number; taslar: number; seanslar: number; odevler: number; analizler: number },
   profileImgBuf: Buffer | null,
 ): ReportChild[] {
@@ -366,23 +358,8 @@ function buildClientProfilePage(
   out.push(centeredItalic("Bireysel Danışan Dosyası", 22, C_LIGHT));
   out.push(gap(480));
 
-  // Kimlik bilgileri tablosu
-  out.push(new Paragraph({
-    children: [new TextRun({ text: "KİMLİK BİLGİLERİ", bold: true, size: 22, font: REPORT_FONT, color: C.danisan, allCaps: true })],
-    spacing: { before: 0, after: 240 },
-  }));
-  out.push(twoColTable([
-    ["Ad Soyad",       titleCaseTR(fullName)],
-    ["Telefon",        v(client.telefon)],
-    ["Doğum Tarihi",   formatDateTR(client.dogum)],
-    ["Görüşme Tarihi", formatDateTR(client.gorusme)],
-    ["Burç",           v(client.burc)],
-    ["Kan Grubu",      v(client.kan)],
-    ["Mizaç",          v(client.mizac)],
-  ]));
-
-  out.push(gap(480));
-  out.push(thinRule());
+  // Kimlik bilgileri tablosu, mükerrer olmaması için yalnız "1. Danışan Temel
+  // Bilgileri" bölümünde gösterilir; profil sayfası ad + fotoğraf + sistem özeti taşır.
 
   // İstatistik kartları
   out.push(new Paragraph({
@@ -1648,10 +1625,7 @@ export async function POST(
   all.push(...buildCoverV3(fullName, today));
 
   // ── Danışan profil sayfası
-  all.push(...buildClientProfilePage(fullName, client, counts, profileImgBuf));
-
-  // ── TOC
-  all.push(...buildTOCPage());
+  all.push(...buildClientProfilePage(fullName, counts, profileImgBuf));
 
   // ── 1. Danışan Temel Bilgileri
   all.push(h1Colored("1. Danışan Temel Bilgileri", C.danisan, true));
