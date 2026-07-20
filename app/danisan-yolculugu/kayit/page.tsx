@@ -9,6 +9,7 @@ import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
 import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
+import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 
 function todayForInput() {
   return new Date().toISOString().slice(0, 10);
@@ -443,7 +444,7 @@ export default function DanisanKayitPage() {
     "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(52,211,153,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(99,102,241,0.10),transparent_30%),linear-gradient(135deg,#edf5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-4 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
+    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(52,211,153,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(99,102,241,0.10),transparent_30%),linear-gradient(135deg,#edf5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-emerald-400/14 blur-[160px]" />
         <div className="absolute -right-20 top-0 h-[440px] w-[440px] rounded-full bg-indigo-400/10 blur-[160px]" />
@@ -475,7 +476,10 @@ export default function DanisanKayitPage() {
         )}
 
         {/* Form */}
-        <section className="overflow-visible rounded-2xl border border-emerald-200/80 bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8">
+        <DanisanSectionShell
+          className="overflow-visible"
+          desktopClassName="sm:rounded-2xl sm:border sm:border-emerald-200/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm"
+        >
           <div className="mb-6">
             <span className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-black ${
               isDemo ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
@@ -572,7 +576,7 @@ export default function DanisanKayitPage() {
               Listeye Dön
             </Link>
           </div>
-        </section>
+        </DanisanSectionShell>
 
       </div>
     </main>
