@@ -542,13 +542,13 @@ function SeansStat({
 }) {
   return (
     <div
-      className="rounded-xl border border-slate-100 p-2.5"
+      className="min-w-0 rounded-xl border border-slate-100 p-2.5"
       style={{ background: accent }}
     >
       <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
         {label}
       </div>
-      <div className="text-[17px] font-black leading-none" style={{ color }}>
+      <div className="break-words text-[17px] font-black leading-tight" style={{ color }}>
         {value}
       </div>
     </div>
@@ -828,11 +828,11 @@ const ELEMENT_BG:    Record<string, string> = { Hava: "#e0f2fe", Su: "#dbeafe", 
 function ModalRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-      <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">
+    <div className="flex flex-col gap-1 rounded-xl bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3">
+      <span className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:min-w-[130px] sm:flex-shrink-0">
         {label}
       </span>
-      <span className="flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
+      <span className="min-w-0 flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
     </div>
   );
 }
@@ -1060,7 +1060,7 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
       >
         {/* Header */}
         <div
-          className="flex flex-shrink-0 items-start gap-3 px-5 py-4"
+          className="flex flex-shrink-0 flex-wrap items-start gap-3 px-5 py-4"
           style={{
             background: `linear-gradient(135deg, ${meta.accent}, #ffffff)`,
             borderBottom: `1px solid ${meta.color}22`,
@@ -1084,12 +1084,12 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
             </div>
           </div>
           {/* Yazı boyutu + kapat */}
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
             {(["sm", "md", "lg"] as FontSize[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setFontSize(s)}
-                className="flex h-[26px] w-[28px] items-center justify-center rounded-lg border text-[10px] font-black transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-black transition-colors"
                 style={{
                   background:   fontSize === s ? meta.color : "white",
                   color:        fontSize === s ? "white"    : meta.color,
@@ -1101,7 +1101,7 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
             ))}
             <button
               onClick={onClose}
-              className="ml-1.5 flex h-[30px] w-[30px] items-center justify-center rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
+              className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[15px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
             >
               ✕
             </button>
@@ -1152,7 +1152,7 @@ function TimelineCard({
         style={{ borderColor: `${meta.color}22`, cursor: "pointer" }}
         onClick={() => onOpen(entry)}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
               <span
@@ -1172,7 +1172,7 @@ function TimelineCard({
               <div className="line-clamp-2 text-[11px] font-bold leading-snug text-slate-400">{entry.description}</div>
             )}
           </div>
-          <div className="ml-2 flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold" style={{ color: `${meta.color}cc` }}>
+          <div className="flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold sm:ml-2" style={{ color: `${meta.color}cc` }}>
             {entry.date}
           </div>
         </div>
