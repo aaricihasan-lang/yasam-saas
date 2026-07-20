@@ -136,6 +136,9 @@ export default function KombinasyonOlusturPage() {
   const [cart, setCart] = useState<CartStone[]>([]);
   const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
 
+  // Sepete arama dışı, elle/otomatik-tamamlamalı taş ekleme girişi (DT-MUX-KOMBO-1).
+  const [manualName, setManualName] = useState("");
+
   function addToCart(item: CartStone) {
     setCart((prev) => (prev.some((c) => c.id === item.id) ? prev : [...prev, item]));
   }
@@ -227,6 +230,38 @@ export default function KombinasyonOlusturPage() {
   );
 
   const stockMatcher = useMemo(() => makeStockMatcher(inStockNames), [inStockNames]);
+
+  // Sepete arama sonucundan bağımsız taş ekle (DT-MUX-KOMBO-1):
+  //   • Kütüphanedeki bir taşla TAM eşleşiyorsa (Türkçe-duyarsız) o taşı gerçek
+  //     id'siyle kullan → mevcut analiz/uyarı akışı aynen çalışır (Kural 1).
+  //   • Eşleşme yoksa serbest ad olarak, mevcut güvenli newId() ile eklenir (Kural 2).
+  //   • İsim bazlı tekrar koruması (aynı taş iki kez eklenmez).
+  function addManualStone() {
+    const name = manualName.trim();
+    if (!name) return;
+    const norm = normalizeTr(name);
+    if (cart.some((c) => normalizeTr(c.name) === norm)) {
+      setManualName("");
+      return;
+    }
+    const match = stones.find((s) => normalizeTr(s.stone_name || "") === norm);
+    if (match) {
+      addToCart({
+        id: match.id,
+        name: match.stone_name || "İsimsiz taş",
+        inStock: stockMatcher(match.stone_name),
+      });
+    } else {
+      addToCart({ id: newId(), name, inStock: stockMatcher(name) });
+    }
+    setManualName("");
+  }
+
+  // Elle eklenen (kütüphanede bulunmayan) taş sayısı — analize dahil edilemez (Kural 3).
+  const manualOnlyCount = useMemo(
+    () => cart.filter((c) => !stones.some((s) => s.id === c.id)).length,
+    [cart, stones],
+  );
 
   // Mineral → kaç taşta bulunduğu (bir kez hesaplanır; dropdown rozeti için).
   const mineralCounts = useMemo(
@@ -769,6 +804,38 @@ export default function KombinasyonOlusturPage() {
                 </span>
               </div>
 
+              {/* ── Arama dışı taş ekle (autocomplete + serbest ad) ─────────── */}
+              <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5">
+                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-700">
+                  Taş adıyla ekle
+                </label>
+                <div className="flex items-stretch gap-2">
+                  <div className="min-w-0 flex-1">
+                    <MineralCombobox
+                      value={manualName}
+                      onChange={setManualName}
+                      options={optionsByType.stone_name.options}
+                      counts={optionsByType.stone_name.counts}
+                      icon={SEARCH_TYPE_META.stone_name.icon}
+                      placeholder="Örn. Ametist — aramadan doğrudan ekle"
+                      className={uiInput}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addManualStone}
+                    disabled={manualName.trim() === ""}
+                    className="btn-primary shrink-0 !px-3"
+                  >
+                    + Ekle
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] font-medium leading-snug text-slate-500">
+                  Kütüphanedeki taşla eşleşirse otomatik kullanılır; eşleşmezse serbest
+                  ad olarak eklenir. Denenmiş bir kombinasyonu aramadan kaydedebilirsiniz.
+                </p>
+              </div>
+
               {cart.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs font-semibold text-slate-500">
                   Sepet boş. Sonuç listesinden "Kombinasyona Ekle" ile taş ekleyin.
@@ -906,6 +973,12 @@ export default function KombinasyonOlusturPage() {
 
                   {/* ── Sepet Durumu Özeti ─────────────────────────────── */}
                   <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                    {manualOnlyCount > 0 && (
+                      <p className="rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                        ℹ️ {manualOnlyCount} taş elle eklendi. Bunlar kaydedilir; ancak
+                        kütüphanede bulunmadığından mineral/uyarı analizine dahil edilemez.
+                      </p>
+                    )}
                     {activeConditions.length > 0 &&
                       (cartAnalysis.missingMinerals.length === 0 ? (
                         <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
