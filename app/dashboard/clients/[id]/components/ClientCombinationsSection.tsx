@@ -11,6 +11,7 @@ import {
   parseStonesText,
   type ClientCombinationRow,
 } from "@/lib/dogaltas/clientCombinationsApi";
+import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 
 type ClientCombinationsSectionProps = {
   clientId: string;
@@ -129,7 +130,7 @@ export default function ClientCombinationsSection({
   }
 
   return (
-    <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-md shadow-slate-200/50">
+    <DanisanSectionShell desktopClassName="sm:rounded-2xl sm:border sm:border-violet-200 sm:bg-white sm:p-4 sm:shadow-md sm:shadow-slate-200/50">
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-base font-black tracking-tight text-slate-950">
@@ -346,6 +347,6 @@ export default function ClientCombinationsSection({
           })}
         </div>
       )}
-    </div>
+    </DanisanSectionShell>
   );
 }
