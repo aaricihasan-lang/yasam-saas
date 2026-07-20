@@ -18,6 +18,7 @@ import {
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { readDemoClients } from "@/lib/demo/demoSession";
+import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 
 // ─── Yardımcı: ISO tarihi → DD.MM.YYYY ──────────────────────────────────────
 function isoToTR(iso: string | null | undefined): string {
@@ -290,7 +291,7 @@ export default function DanisanYolculuguPage() {
   }, []);
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.13),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-4 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
+    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.13),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -bottom-24 -left-24 h-[480px] w-[480px] rounded-full bg-blue-400/14 blur-[160px]" />
         <div className="absolute -right-24 -top-16 h-[420px] w-[420px] rounded-full bg-pink-300/12 blur-[150px]" />
@@ -302,7 +303,7 @@ export default function DanisanYolculuguPage() {
           {/* SOL KOLON */}
           <div className="flex flex-col gap-5 2xl:gap-6">
             {/* Hero Header */}
-            <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
+            <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-5 shadow-lg sm:px-8">
               <CalendarCheck
                 className="pointer-events-none absolute right-6 top-1/2 h-24 w-24 -translate-y-1/2 text-indigo-400 opacity-10"
                 strokeWidth={1.25}
@@ -375,7 +376,10 @@ export default function DanisanYolculuguPage() {
 
           {/* SAĞ KOLON */}
           <aside>
-            <div className="rounded-2xl border border-white/80 bg-white/90 p-6 shadow-lg">
+            <DanisanSectionShell
+              as="div"
+              desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/90 sm:p-6 sm:shadow-lg"
+            >
               <div>
                 <h2 className="text-2xl font-black text-slate-950">Genel Özet</h2>
                 <p className="mt-1 text-sm font-medium leading-snug text-slate-600">
@@ -405,7 +409,7 @@ export default function DanisanYolculuguPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </DanisanSectionShell>
           </aside>
         </div>
       </div>

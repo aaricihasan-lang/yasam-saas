@@ -12,6 +12,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import NotesTab from "./components/NotesTab";
+import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
@@ -594,7 +595,7 @@ export default function ClientDetailPage() {
       </section>
 
       {/* Tabs section */}
-      <section className="rounded-[20px] border border-white/78 bg-white/92 px-3.5 pb-[18px] pt-3.5 shadow-lg">
+      <DanisanSectionShell desktopClassName="sm:rounded-[20px] sm:border sm:border-white/78 sm:bg-white/92 sm:px-3.5 sm:pb-[18px] sm:pt-3.5 sm:shadow-lg">
 
         {/* Tab bar — mobilde yatay scroll, masaüstünde wrap */}
         <div className="relative mb-4">
@@ -663,7 +664,11 @@ export default function ClientDetailPage() {
         {/* Tab content area — açılan sekme DOM'da kalır (tekrar fetch yok),
             aktif olmayan `hidden` ile gizlenir → sekme geçişi anında; ağır
             sekmeler (Taşlar/Seanslar/Ödevler/Analizler/Yolculuk) lazy yüklenir. */}
-        <div className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
+        <DanisanSectionShell
+          as="div"
+          className="min-h-[240px]"
+          desktopClassName="sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-gradient-to-br sm:from-white sm:to-slate-50 sm:p-5"
+        >
 
           {openedTabs.has("genel") && (
           <div role="tabpanel" id="tabpanel-genel" aria-labelledby="tab-genel" hidden={activeTab !== "genel"}>
@@ -866,8 +871,8 @@ export default function ClientDetailPage() {
             />
           </div>
           )}
-        </div>
-      </section>
+        </DanisanSectionShell>
+      </DanisanSectionShell>
       </div>
 
     </main>

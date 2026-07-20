@@ -21,6 +21,7 @@ import {
   setDanisanListCache,
 } from "@/lib/danisan/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { initDemoSession, readDemoClients, type DemoClient } from "@/lib/demo/demoSession";
@@ -690,7 +691,7 @@ export default function DanisanListePage() {
     "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-4 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
+    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-blue-400/14 blur-[160px]" />
         <div className="absolute -right-20 top-0 h-[440px] w-[440px] rounded-full bg-violet-400/10 blur-[160px]" />
@@ -700,7 +701,7 @@ export default function DanisanListePage() {
       <div className="relative z-10 mx-auto w-full max-w-[1600px]">
         {/* Header */}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
+          <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-5 shadow-lg sm:px-8">
             <UsersRound
               className="pointer-events-none absolute right-6 top-1/2 h-24 w-24 -translate-y-1/2 text-blue-400 opacity-10"
               strokeWidth={1.25}
@@ -764,7 +765,10 @@ export default function DanisanListePage() {
         )}
 
         {/* Filter Panel */}
-        <section className="mb-5 rounded-2xl border border-white/80 bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8">
+        <DanisanSectionShell
+          className="mb-5"
+          desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm"
+        >
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 shadow-sm">
               <ListFilter className="h-4 w-4 text-blue-700" />
@@ -811,10 +815,10 @@ export default function DanisanListePage() {
               </select>
             </Field>
           </div>
-        </section>
+        </DanisanSectionShell>
 
         {/* Client List */}
-        <section className="rounded-2xl border border-white/80 bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8">
+        <DanisanSectionShell desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-black text-slate-950">
               Kayıtlı Danışanlar
@@ -927,7 +931,7 @@ export default function DanisanListePage() {
             )}
             </>
           )}
-        </section>
+        </DanisanSectionShell>
       </div>
     </main>
   );
