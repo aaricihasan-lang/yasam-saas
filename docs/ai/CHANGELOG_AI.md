@@ -44,6 +44,69 @@
 
 ---
 
+## 2026-07-20 — S2.15 PR #8 ile main'e merge edildi; S2.16 (Dictionary Expansion) Açıldı
+
+### Tarih
+2026-07-20
+
+### Karar
+Yaşam Hafızası **S2.15 — Kavram Kümesi (Concept Set), PR #8 ile `origin/main`'e merge edildi**
+(kod `f56ec60` `feat(yasam-hafizasi): add S2.15 concept set`; PR #8 merge `404841b`; güncel
+`origin/main` = `77aa824` bu kodu içerir). Ayrıca **S2.16 — Dictionary Expansion (Sözlük /
+Eş-Anlam Genişletme)** aktif aşama olarak **açıldı** (`work/yh-s2-16`, taban güncel
+`origin/main` = `77aa824`). Bu turda yalnız izole worktree + açılış karar kilidi hazırlandı;
+**kod yazılmadı**, `dictionaryExpansion.ts`/harness **oluşturulmadı**; yalnız açılış docs
+commit'i yapıldı (push/PR yok).
+
+> **Not (doküman gecikmesi düzeltmesi):** S2.15 kodu main'e merge edilmiş olmasına rağmen
+> S2.15 turunda ayrı bir "close S2.15" docs commit'i yazılmamıştı; bu S2.16 açılış kaydı,
+> S2.15'i **tamamlanmış-main** gerçeğiyle (PR #8 / `f56ec60` / `404841b`) kayda alır.
+
+### Neden
+Retrieval boru hattının [2] adımının **sözlük/synonym kısmı** (S2.15 Concept Set = [2] taban/
+query kısmıydı). Kilitli backlog: Dictionary Expansion → search_tsv → Stone Exclusion Adapter →
+Evidence Gate → Ranking → Retrieval Pipeline → Search UI. S2.16, S2.15 çıktısını **additif**
+genişletir (Additivite değişmezi: sözlük yoksa S2.15 çıktısı tek başına çalışır).
+
+### S2.16 kilitli sözleşme (kod öncesi, kullanıcı onaylı)
+- **Fonksiyon:** `expandConcepts(base: readonly Concept[], normalizedText: string, entries: readonly DictionaryEntry[]): readonly Concept[]` (yeni `lib/yasam-hafizasi/search/dictionaryExpansion.ts`).
+- **Giriş modeli:** `interface DictionaryEntry { canonical: string; synonyms: readonly string[] }` (minimal; `is_active`/`tenant_id`/`lang` YOK → adapter/S2.17 işi).
+- **Saf/deterministik/DB'siz/fail-safe;** `buildConceptSet` (S2.15) **değişmez**.
+- **Sıra:** `[değişmez query prefix]` + `[synonym suffix]`; sort YOK; entries verilen sırayla; entry içinde canonical → `synonyms[]` sırası.
+- **Dedup** yalnız normalize `term`; ilk-görülen korunur; query synonym'i bastırır. Genişletici **yalnız `origin:"synonym"`** üretir; `canonical` = normalize entry canonical (yeni canonical'da `canonical=self`).
+- **Çok kelime:** substring DEĞİL → normalize token dizisinde **bitişik alt-dizi** eşleşmesi (`"anne" ⊄ "anneanne"`; `"anne sutu"` tek phrase Concept).
+- **Tek-sıçrama:** yalnız base/query tetikler; eklenen synonym yeniden lookup edilmez; **transitif yok** (A→B→A döngüsü tasarım gereği yok).
+- **Immutability:** çıktı + yeni Concept `Object.freeze`; base/entries mutasyonsuz.
+- **Tavan YOK:** kavram/synonym tavanı S2.16'da yok. `YH_CANDIDATE_LIMIT=150` yalnız **aday kayıt** limitidir; Concept/tsquery boyutu limiti **değildir** (tsquery-boyut korkuluğu S2.17).
+- **Kapsam dışı:** `DictionaryPort` · gerçek Supabase adapter · tenant/global merge · `lang`/`is_active` filtreleri · snapshot DB sıralaması · `search_tsv`/tsquery · Evidence Gate · Ranking · retrieval wiring · Search UI. `types.ts`/`config.ts`/`normalize.ts`/`conceptSet.ts` **değişmez** (yeni config sabiti yok).
+
+### Etkilenen Dosyalar (bu açılış turu — yalnız docs)
+- `docs/ai/CURRENT_TASK.md` · `docs/ai/PROJECT_STATUS.md` · `docs/ai/CHANGELOG_AI.md` · `docs/ai/ROADMAP.md`
+- Planlanan (kod turu, bu turda OLUŞTURULMADI): `lib/yasam-hafizasi/search/dictionaryExpansion.ts` · `scripts/yh-dictionary-expansion-harness.ts`.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Additif genişletme; `Concept` tipi (S2.01) `origin` union + opsiyonel `canonical` ile bunu zaten öngörüyor (tip değişmez).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration yok. `package.json`/lockfile değişmez.
+
+### Doğrulamalar
+Bu açılış turunda kod/harness/tsc/eslint çalıştırılmadı (docs-only). Kod turu doğrulama planı:
+yeni `yh-dictionary-expansion-harness` + S2.15/S2.14 regresyon harness'leri + `tsc --noEmit` +
+hedefli ESLint + güvenlik/kapsam grep + `git diff --check`.
+
+### Push / durum
+`origin/main` (`77aa824`) değişmedi; açılış docs `work/yh-s2-16`'da **commit edildi** (push/PR
+yok). Sonraki S2.17 (tsquery / dictionary adapter / tenant-global merge) **otomatik açılmaz**.
+
+### Notlar
+S2.16 çekirdeği bir lookup fonksiyonu **invoke etmez** (`entries` verisini doğrudan alır);
+bu yüzden S2.13'teki `StoneExclusionPort` desenine karşılık **`DictionaryPort` eklenmez** (YAGNI).
+Gerçek veri erişimi (service_role query + tenant/global merge + `is_active`/`lang` filtresi +
+deterministik snapshot sıralaması) S2.17'ye aittir.
+
+---
+
 ## 2026-07-19 — S2.14 PR #6 ile main'e merge edildi; S2.15 (Kavram Kümesi / Concept Set) Açıldı
 
 ### Tarih
