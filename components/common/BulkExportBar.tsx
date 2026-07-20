@@ -25,6 +25,9 @@ export type BulkExportBarProps = {
   /** "Seçilenleri…" export butonunun etiketi (📄 ikonu ve "(N)" sayısı korunur).
    *  Verilmezse mevcut varsayılan metin kullanılır → diğer ekranlar etkilenmez. */
   exportSelectedLabel?: string;
+  /** true → Word export butonları yalnız md+ görünür (mobilde tamamen gizli, yer kaplamaz).
+   *  Word dışı seçim/silme kontrolleri etkilenmez. Varsayılan false → mevcut davranış. */
+  hideWordOnMobile?: boolean;
 };
 
 export function BulkExportBar({
@@ -46,10 +49,14 @@ export function BulkExportBar({
   selectAllCount,
   hideSelectAll,
   exportSelectedLabel,
+  hideWordOnMobile,
 }: BulkExportBarProps) {
   const busy = Boolean(isExporting) || Boolean(isDeleting);
   const hasExport = Boolean(onExportSelected || onExportAll);
   const selectCountDisplay = selectAllCount ?? totalCount;
+  // Word export butonlarını mobilde gizle (opt-in). Boşsa mevcut davranış korunur.
+  const wordHideCls = hideWordOnMobile ? " hidden md:inline-block" : "";
+  const wordDividerCls = hideWordOnMobile ? "hidden md:block" : "hidden sm:block";
 
   if (compact) {
     return (
@@ -82,14 +89,14 @@ export function BulkExportBar({
 
         {hasExport && (
           <>
-            <div className="hidden h-3 w-px bg-blue-200 sm:block" aria-hidden />
+            <div className={`${wordDividerCls} h-3 w-px bg-blue-200`} aria-hidden />
 
             {onExportSelected && (
               <button
                 type="button"
                 onClick={onExportSelected}
                 disabled={selectedCount === 0 || busy}
-                className="rounded-lg border border-blue-400 bg-blue-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`rounded-lg border border-blue-400 bg-blue-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
               >
                 {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri"} (${selectedCount})`}
               </button>
@@ -100,7 +107,7 @@ export function BulkExportBar({
                 type="button"
                 onClick={onExportFiltered}
                 disabled={busy || filteredCount === 0}
-                className="rounded-lg border border-violet-400 bg-violet-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`rounded-lg border border-violet-400 bg-violet-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
               >
                 {busy ? "⏳..." : `📄 Filtreli (${filteredCount})`}
               </button>
@@ -111,7 +118,7 @@ export function BulkExportBar({
                 type="button"
                 onClick={onExportAll}
                 disabled={busy}
-                className="rounded-lg border border-slate-400 bg-slate-700 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
+                className={`rounded-lg border border-slate-400 bg-slate-700 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40${wordHideCls}`}
               >
                 {busy ? "⏳..." : `📄 Tümü (${totalCount})`}
               </button>
@@ -179,14 +186,14 @@ export function BulkExportBar({
 
       {hasExport && (
         <>
-          <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
+          <div className={`${wordDividerCls} h-4 w-px bg-blue-200`} aria-hidden />
 
           {onExportSelected && (
             <button
               type="button"
               onClick={onExportSelected}
               disabled={selectedCount === 0 || busy}
-              className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
             >
               {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri Word"} (${selectedCount})`}
             </button>
@@ -197,7 +204,7 @@ export function BulkExportBar({
               type="button"
               onClick={onExportFiltered}
               disabled={busy || filteredCount === 0}
-              className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`rounded-lg border border-violet-400 bg-violet-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
             >
               {busy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredCount})`}
             </button>
@@ -208,7 +215,7 @@ export function BulkExportBar({
               type="button"
               onClick={onExportAll}
               disabled={busy}
-              className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
+              className={`rounded-lg border border-slate-400 bg-slate-700 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40${wordHideCls}`}
             >
               {busy ? "⏳..." : `📄 Tümünü Word (${totalCount})`}
             </button>
