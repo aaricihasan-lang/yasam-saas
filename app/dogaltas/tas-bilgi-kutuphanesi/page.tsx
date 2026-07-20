@@ -15,6 +15,7 @@ import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -319,6 +320,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const isMobile = useIsMobileOrPwa();
   const { isDemo } = useDemoGuard();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
@@ -558,8 +560,11 @@ export default function TasBilgiKutuphanesiPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        // FAZ-4C: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+        return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -568,9 +573,11 @@ export default function TasBilgiKutuphanesiPage() {
       a.download = `tas-bilgi-kutuphanesi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setWordReportSuccess("Bilgi Kütüphanesi raporu başarıyla oluşturuldu.");
+      // FAZ-4C: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
+      setWordReportSuccess("Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.");
     } catch (err) {
-      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+      console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", err);
+      setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
     } finally {
       setWordReportLoading(false);
     }
@@ -678,14 +685,25 @@ export default function TasBilgiKutuphanesiPage() {
   // ─── Toplu seçim ────────────────────────────────────────────────────────────
 
   function toggleSelection(id: string) {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedIds.has(id) && selectedIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else if (isMobile && next.size >= 2) return prev; // state seviyesinde sınır
+      else next.add(id);
       return next;
     });
   }
 
   function selectAll() {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds(new Set(filtered.map((r) => r.id)));
   }
 
@@ -713,7 +731,9 @@ export default function TasBilgiKutuphanesiPage() {
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; rows?: { id: string }[] };
 
       if (!res.ok || !json.ok) {
-        showToast({ type: "error", message: `Silme başarısız: ${json.error ?? "Bilinmeyen hata"}` });
+        // FAZ-4D: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", json.error ?? `HTTP ${res.status}`);
+        showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
         return;
       }
 
@@ -729,6 +749,10 @@ export default function TasBilgiKutuphanesiPage() {
           ? `${count} kayıt silindi. ${skipped} kütüphane kaydı atlandı.`
           : `${count} kayıt başarıyla silindi.`,
       });
+    } catch (err) {
+      // FAZ-4D: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
+      console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", err);
+      showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
     } finally {
       setBulkDeleteBusy(false);
     }
@@ -779,7 +803,9 @@ export default function TasBilgiKutuphanesiPage() {
       };
 
       if (!res.ok || !json.ok) {
-        setBulkUpdateError("Güncelleme hatası: " + (json.error ?? "Bilinmeyen hata"));
+        // FAZ-4E: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", json.error ?? `HTTP ${res.status}`);
+        setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
         return;
       }
 
@@ -808,6 +834,10 @@ export default function TasBilgiKutuphanesiPage() {
       setBulkUpdateForm({ category: "", sub_category: "", title: "", content: "" });
       setBulkUpdateTextEdit(false);
       showToast({ type: "success", message: `${updated?.length ?? 0} kayıt güncellendi.` });
+    } catch (err) {
+      // FAZ-4E: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
+      console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", err);
+      setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
     } finally {
       setBulkUpdateBusy(false);
     }
@@ -1094,16 +1124,20 @@ export default function TasBilgiKutuphanesiPage() {
                   {selectedIds.size > 0 ? `✓ ${selectedIds.size} seçili` : "Seçim yok"}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
-                  disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
-                  className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
-                >
-                  {selectedIds.size > 0 && selectedIds.size >= filtered.length
-                    ? "Tümünün Seçimini Kaldır"
-                    : `Tümünü Seç (${filtered.length})`}
-                </button>
+                {/* FAZ-1: Mobil/PWA'da "Tümünü Seç" gizlenir (max 2 kayıt kuralı);
+                    seçimi temizleme ayrı "Seçimi Kaldır" butonuyla korunur. */}
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
+                    disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
+                    className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
+                  >
+                    {selectedIds.size > 0 && selectedIds.size >= filtered.length
+                      ? "Tümünün Seçimini Kaldır"
+                      : `Tümünü Seç (${filtered.length})`}
+                  </button>
+                )}
 
                 {selectedIds.size > 0 && (
                   <button

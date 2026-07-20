@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import {
@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import {
   DOGALTAS_INPUT_CLASS,
@@ -218,6 +219,20 @@ function safeFileName(fileName: string) {
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
+
+/**
+ * FAZ-2C: Kabul edilebilir görsel dosyası mı?
+ * - MIME tipi varsa `image/` ile başlamalı.
+ * - MIME tipi BOŞSA (bazı Android picker'ları geçerli görsel için boş `type` döner)
+ *   dosya uzantısına bakılır → geçerli görseller sessizce elenmez.
+ * - MIME ve uzantı ikisi de görsel değilse reddedilir.
+ */
+function isAcceptableImageFile(file: File): boolean {
+  if (file.type) return file.type.startsWith("image/");
+  return IMAGE_EXTENSION_RE.test(file.name);
+}
+
 const COMPRESS_MAX_W = 1200;
 const COMPRESS_MAX_H = 1200;
 const COMPRESS_WEBP_QUALITY = 0.75;
@@ -276,6 +291,7 @@ export default function DogaltasKayitPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
   const [showForm, setShowForm] = useState(false);
   const router = useRouter();
   // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
@@ -283,6 +299,11 @@ export default function DogaltasKayitPage() {
   const [dupChecking, setDupChecking] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
+  // FAZ-5H: tek aktif fotoğraf kaldırma; çift istek/çift dokunuş engeli + buton busy görünümü.
+  const [removingImageId, setRemovingImageId] = useState<string | null>(null);
+  // FAZ-5B: explicit tetikleme — implicit label yerine ref.click() (mobil picker güvenilirliği).
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -375,7 +396,18 @@ export default function DogaltasKayitPage() {
     }));
   }
 
-  function deleteAssignmentRow(sectionTitle: string, index: number) {
+  async function deleteAssignmentRow(sectionTitle: string, index: number) {
+    // FAZ-1: Form satırı (organ/mineral vb.) silmede yanlışlıkla kayıp koruması.
+    // Ortak useDeleteConfirm: masaüstü tek açıklayıcı onay, mobil/PWA 2 aşamalı onay.
+    // Silinecek satır değeri (organ/mineral adı) onay metninde açıkça gösterilir.
+    const row = (assignmentRows[sectionTitle] || [])[index] || [];
+    const label = row.filter((v) => v && v.trim()).join(" • ") || `${sectionTitle} satırı`;
+    const confirmed = await deleteConfirm({
+      title: `${sectionTitle} satırını sil`,
+      message: `"${label}" satırını kaldırmak istiyor musunuz?`,
+      secondMessage: `"${label}" satırı kaldırılacak. Emin misiniz?`,
+    });
+    if (!confirmed) return;
     setAssignmentRows((prev) => ({
       ...prev,
       [sectionTitle]: (prev[sectionTitle] || []).filter((_, rowIndex) => rowIndex !== index),
@@ -395,11 +427,17 @@ export default function DogaltasKayitPage() {
   }
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).filter((file) =>
-      file.type.startsWith("image/")
-    );
-    event.target.value = "";
-    if (files.length === 0) return;
+    // FAZ-2C: input referansı async işlemlerden ÖNCE yerel değişkene alınır ve hemen
+    // sıfırlanır (aynı dosya tekrar seçilebilsin; event güvenli kullanılsın).
+    const input = event.target;
+    const selected = Array.from(input.files || []);
+    input.value = "";
+    // Boş MIME'li (Android) geçerli görseller elenmesin; görsel olmayanlar reddedilsin.
+    const files = selected.filter(isAcceptableImageFile);
+    if (files.length === 0) {
+      if (selected.length > 0) showError("Yalnızca görsel dosyaları eklenebilir.");
+      return;
+    }
 
     const uploaded: UploadedImage[] = [];
 
@@ -421,7 +459,9 @@ export default function DogaltasKayitPage() {
         });
 
       if (uploadError) {
-        showError("Görsel yüklenemedi: " + uploadError.message);
+        // FAZ-2B: Ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[dogaltas-kayit] görsel yükleme hatası:", uploadError);
+        showError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
         return;
       }
 
@@ -441,8 +481,44 @@ export default function DogaltasKayitPage() {
     showMessage(`${uploaded.length} resim yüklendi.`);
   }
 
-  function removeImage(id: string) {
-    setImages((prev) => prev.filter((image) => image.id !== id));
+  async function removeImage(id: string) {
+    // FAZ-5H: tek aktif kaldırma — devam eden işlem varken yeni istek başlatma.
+    if (removingImageId) return;
+    const image = images.find((img) => img.id === id);
+    if (!image) return;
+
+    // Onaydan ÖNCE Storage çağrısı ve state değişikliği yok.
+    const confirmed = await deleteConfirm({
+      title: "Fotoğrafı kaldır",
+      message: "Bu fotoğraf kalıcı olarak kaldırılacak ve geri alınamayacak. Devam etmek istiyor musunuz?",
+      secondMessage: "Bu fotoğraf kalıcı olarak kaldırılacak. Emin misiniz?",
+      confirmText: "Kaldır",
+      cancelText: "Vazgeç",
+      secondConfirmText: "Kaldır",
+    });
+    if (!confirmed) return;
+
+    // Path elle türetilmez; yalnız state'teki file_path kullanılır. Yoksa Storage'a dokunma.
+    if (!image.file_path) {
+      console.error("[dogaltas-kayit] fotoğraf kaldırma: file_path yok", image.id);
+      showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+      return;
+    }
+
+    setRemovingImageId(id);
+    try {
+      const { error } = await supabase.storage.from(STONE_BUCKET).remove([image.file_path]);
+      if (error) {
+        // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
+        console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", error);
+        showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+        return;
+      }
+      setImages((prev) => prev.filter((img) => img.id !== id));
+      showMessage("Fotoğraf kaldırıldı.");
+    } finally {
+      setRemovingImageId(null);
+    }
   }
 
   async function handleSave(forceCreate = false) {
@@ -503,12 +579,13 @@ export default function DogaltasKayitPage() {
     setIsSaving(false);
 
     if (!ok) {
-      // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      showError(`Kayıt yapılamadı: ${error ?? "Bilinmeyen hata"}`);
+      // FAZ-2B: Ham backend/API hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+      console.error("[dogaltas-kayit] kayıt hatası:", error);
+      showError("Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.");
       showToast({
         type: "error",
         title: "Kayıt başarısız",
-        message: "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+        message: "Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.",
       });
       return;
     }
@@ -550,7 +627,7 @@ export default function DogaltasKayitPage() {
       title="Doğaltaş Kayıt"
       subtitle="Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin."
       icon="💎"
-      contentClassName="mt-4 pb-20"
+      contentClassName="mt-4 pb-40 sm:pb-24"
       actions={
         <>
           {(savedMessage || errorMessage) && (
@@ -564,13 +641,17 @@ export default function DogaltasKayitPage() {
               {errorMessage || savedMessage}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className={showForm ? "btn-soft" : "btn-primary"}
-          >
-            {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
-          </button>
+          {/* FAZ-2A: Form kapalıyken tek giriş noktası intro CTA'dır; header butonu
+              yalnızca form açıkken "Formu Kapat" olarak görünür (kapatmak veriyi silmez). */}
+          {showForm && (
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="btn-soft"
+            >
+              Formu Kapat
+            </button>
+          )}
         </>
       }
     >
@@ -667,13 +748,46 @@ export default function DogaltasKayitPage() {
                       Birden fazla taş görseli ekle
                     </p>
                     <p className="mt-1 max-w-[260px] text-sm leading-relaxed text-slate-500">
-                      Dosya adı Supabase’e kaydolur.
+                      Seçtiğiniz görseller bu kayda eklenir.
                     </p>
 
-                    <label className={`${uiBtn} mt-3 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
-                      Resim Seç
-                      <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-                    </label>
+                    {/* FAZ-5B: explicit ref.click() ile iki açık seçenek — implicit label kaldırıldı.
+                        Galeri (multiple, capture yok) ve Kamera (capture=environment, multiple yok)
+                        aynı handleImageUpload'ı kullanır. */}
+                    <div className="mt-3 flex w-full max-w-[320px] flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
+                      >
+                        Galeriden Seç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
+                      >
+                        Fotoğraf Çek
+                      </button>
+                    </div>
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      aria-label="Galeriden seç"
+                      className="sr-only"
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImageUpload}
+                      aria-label="Fotoğraf çek"
+                      className="sr-only"
+                    />
                   </div>
 
                   {images.length > 0 && (
@@ -686,10 +800,12 @@ export default function DogaltasKayitPage() {
 
                           <button
                             type="button"
-                            onClick={() => removeImage(image.id)}
-                            className="absolute right-1.5 top-1.5 hidden h-7 w-7 items-center justify-center rounded-full bg-slate-950/80 text-xs font-black text-white group-hover:flex"
+                            onClick={() => void removeImage(image.id)}
+                            disabled={removingImageId === image.id}
+                            aria-label="Fotoğrafı kaldır"
+                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                           >
-                            ×
+                            {removingImageId === image.id ? "⋯" : "×"}
                           </button>
                         </div>
                       ))}
@@ -926,26 +1042,31 @@ export default function DogaltasKayitPage() {
         </section>}
       </div>
 
-      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 py-2.5 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
-        <div className="flex w-full items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-500">
+      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
+        {/* FAZ-2D: Mobilde birincil Kaydet tam genişlik ve belirgin; Temizle/İptal ikincil
+            alt satırda. Masaüstünde mevcut tek satır düzen (Temizle · İptal · Kaydet) korunur.
+            Safe-area alt boşluğu eklendi; dar ekranda yatay taşma/sıkışma yok. */}
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="hidden text-sm font-semibold text-slate-500 sm:block">
             Kaydedilmeden ayrılırsanız taslak kaybolabilir.
           </p>
 
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={handleClear} className="btn-soft">
-              Temizle
-            </button>
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex gap-2 sm:gap-3">
+              <button type="button" onClick={handleClear} className="btn-soft flex-1 sm:flex-none">
+                Temizle
+              </button>
 
-            <button type="button" onClick={handleCancel} className="btn-soft">
-              İptal
-            </button>
+              <button type="button" onClick={handleCancel} className="btn-soft flex-1 sm:flex-none">
+                İptal
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => void handleSave()}
               disabled={isSaving || dupChecking}
-              className="btn-primary"
+              className="btn-primary w-full sm:w-auto"
             >
               {dupChecking ? "Kontrol ediliyor..." : isSaving ? "Kaydediliyor..." : "Kaydet"}
             </button>
@@ -1044,9 +1165,12 @@ export default function DogaltasKayitPage() {
             </div>
 
             <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border-2 border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4">
-              <div className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500" : "grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500"}>
-                <span>{activeAssignment.fields[0]}</span>
-                {activeAssignment.fields.length === 2 && <span>{activeAssignment.fields[1]}</span>}
+              {/* FAZ-3A: İsim ve oran tek içerik sütununda (görsel ayrım rows'da "•" / mobilde alt satır). */}
+              <div className="grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500">
+                <span>
+                  {activeAssignment.fields[0]}
+                  {activeAssignment.fields.length === 2 ? ` • ${activeAssignment.fields[1]}` : ""}
+                </span>
                 <span className="text-right">İşlem</span>
               </div>
 
@@ -1059,11 +1183,19 @@ export default function DogaltasKayitPage() {
                   (assignmentRows[activeAssignment.title] || []).map((row, rowIndex) => (
                     <div
                       key={`${activeAssignment.title}-${rowIndex}`}
-                      className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60" : "grid grid-cols-[1fr_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60"}
+                      className="grid grid-cols-[1fr_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-emerald-200/60"
                     >
-                      <span>{row[0]}</span>
-                      {activeAssignment.fields.length === 2 && <span>{row[1]}</span>}
-                      <button type="button" onClick={() => deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
+                      {/* FAZ-3A: "İsim • %Oran" (masaüstü tek satır, dar mobilde alt satır). Veri değişmez; % yalnız görüntü. */}
+                      <div className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                        <span className="truncate">{row[0]}</span>
+                        {activeAssignment.fields.length === 2 && row[1] ? (
+                          <span className="text-emerald-700">
+                            <span className="hidden sm:inline"> • </span>
+                            {activeAssignment.title === "Mineraller" ? `%${row[1]}` : row[1]}
+                          </span>
+                        ) : null}
+                      </div>
+                      <button type="button" onClick={() => void deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
                         Sil
                       </button>
                     </div>

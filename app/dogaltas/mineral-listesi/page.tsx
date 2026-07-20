@@ -25,6 +25,7 @@ import {
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -147,6 +148,7 @@ function MineralListesiPageContent() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const isMobile = useIsMobileOrPwa();
   const { isDemo } = useDemoGuard();
 
   const applySearchUrl = useCallback(
@@ -296,16 +298,27 @@ function MineralListesiPageContent() {
   }, []);
 
   const toggleMineralSelection = useCallback((id: string) => {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedMineralIds.has(id) && selectedMineralIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedMineralIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else if (isMobile && next.size >= 2) return prev; // state seviyesinde sınır
+      else next.add(id);
       return next;
     });
-  }, []);
+  }, [isMobile, selectedMineralIds, showToast]);
 
   const selectAllMinerals = useCallback(() => {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
-  }, [minerals]);
+  }, [minerals, isMobile, showToast]);
 
   const clearMineralSelection = useCallback(() => {
     setSelectedMineralIds(new Set());
@@ -356,7 +369,7 @@ function MineralListesiPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: "selected", mineralIds: ids }),
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -364,7 +377,17 @@ function MineralListesiPageContent() {
       a.download = `mineral-secili-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz hata */ } finally {
+      // FAZ-3B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek
+      // konumunu/tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
+      showToast({
+        type: "success",
+        message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+      });
+    } catch (err) {
+      // FAZ-3B: ham hata kullanıcıya gösterilmez; yalnız geliştirici logunda.
+      console.error("[mineral-listesi] seçili Word export hatası:", err);
+      showToast({ type: "error", message: "Word raporu oluşturulamadı. Lütfen tekrar deneyin." });
+    } finally {
       setMineralWordBusy(false);
     }
   }
@@ -430,8 +453,10 @@ function MineralListesiPageContent() {
         body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        // FAZ-3B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[mineral-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        throw new Error("report-failed");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -440,9 +465,11 @@ function MineralListesiPageContent() {
       a.download = `mineral-bankasi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setWordReportSuccess("Mineral raporu başarıyla oluşturuldu.");
+      // FAZ-3B: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
+      setWordReportSuccess("Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.");
     } catch (err) {
-      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+      console.error("[mineral-listesi] Word raporu hatası:", err);
+      setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
     } finally {
       setWordReportLoading(false);
     }
@@ -472,44 +499,48 @@ function MineralListesiPageContent() {
       <div className="relative z-10 w-full">
 
         <section className={`${uiFilterCard} mb-3`}>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          {/* FAZ-3A: Arama alanı öncelikli — kendi satırında tam genişlik; kategori/Word/Yeni
+              ikincil satırda ve aramayı daraltmaz. Responsive: mobilde hepsi alt alta. */}
+          <div className="flex flex-col gap-3">
             <input
               type="search"
               value={searchTerm}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
-              className={`${uiField} flex-1 text-sm text-slate-700`}
+              className={`${uiField} w-full text-sm text-slate-700`}
             />
-            <select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              className={`${uiField} text-sm font-black text-slate-700 xl:w-[260px]`}
-              aria-label="Kategori filtresi"
-            >
-              <option value="">Tüm kategoriler</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            {!isDemo && (
-              <button
-                type="button"
-                onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="btn-soft"
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className={`${uiField} text-sm font-black text-slate-700 sm:w-[260px]`}
+                aria-label="Kategori filtresi"
               >
-                📄 Word Raporu
-              </button>
-            )}
-            {!isDemo && (
-              <Link
-                href="/dogaltas/mineral-bankasi"
-                className="btn-primary"
-              >
-                + Yeni Mineral
-              </Link>
-            )}
+                <option value="">Tüm kategoriler</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {!isDemo && (
+                <button
+                  type="button"
+                  onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+                  className="btn-soft"
+                >
+                  📄 Word Raporu
+                </button>
+              )}
+              {!isDemo && (
+                <Link
+                  href="/dogaltas/mineral-bankasi"
+                  className="btn-primary"
+                >
+                  + Yeni Mineral
+                </Link>
+              )}
+            </div>
           </div>
           {isSearchActive || listBusy ? (
             <p className="mt-3 text-sm font-bold text-emerald-800">
@@ -539,7 +570,9 @@ function MineralListesiPageContent() {
               selectAllLabel="Görünenleri Seç"
               selectAllCount={minerals.length}
               onSelectAll={selectAllMinerals}
+              hideSelectAll={isMobile}
               onClearSelection={clearMineralSelection}
+              exportSelectedLabel="Seçilenleri Word'e Aktar"
               onExportSelected={() => void exportSelectedMineralsWord()}
               onDeleteSelected={() => void handleBulkDelete()}
               isExporting={mineralWordBusy}

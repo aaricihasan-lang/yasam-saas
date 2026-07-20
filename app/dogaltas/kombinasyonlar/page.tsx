@@ -3,7 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -228,12 +228,6 @@ const uiSearchInput =
   "h-9 w-full rounded-lg border border-slate-200 bg-white/90 px-3 pl-9 text-sm font-semibold shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
 const uiCategorySelect =
   "h-9 min-w-[140px] rounded-lg border border-slate-200 bg-white/90 px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
-const uiViewBtn = (active: boolean) =>
-  `rounded-lg px-3 py-1.5 text-xs font-black transition ${
-    active
-      ? "bg-slate-950 text-white shadow-sm"
-      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-  }`;
 const uiComboCard =
   "rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-200 hover:bg-white";
 const uiComboBadge =
@@ -265,7 +259,6 @@ export default function KombinasyonlarPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [viewedIssueKeys, setViewedIssueKeys] = useState<Set<string>>(() => new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [isMobile, setIsMobile] = useState(false);
   const [visibleCount, setVisibleCount] = useState(GROUPS_PAGE_SIZE);
   const { isDemo } = useDemoGuard();
@@ -397,19 +390,29 @@ export default function KombinasyonlarPage() {
   const selectedCount = selectedIds.size;
 
   const toggleGroupSelection = useCallback((issue: string) => {
+    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
+    if (isMobile && !selectedIds.has(issue) && selectedIds.size >= 2) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(issue)) next.delete(issue);
+      else if (isMobile && next.size >= 2) return current; // state seviyesinde sınır
       else next.add(issue);
       return next;
     });
-  }, []);
+  }, [isMobile, selectedIds, showToast]);
 
   const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
 
   const selectAllFiltered = useCallback(() => {
+    if (isMobile) {
+      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      return;
+    }
     setSelectedIds(new Set(groups.map((g) => g.issue)));
-  }, [groups]);
+  }, [groups, isMobile, showToast]);
 
   const deleteSelectedCombinations = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -478,7 +481,9 @@ export default function KombinasyonlarPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        setErrorMessage(data.error ?? "Rapor oluşturulamadı.");
+        // FAZ-4B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+        console.error("[kombinasyonlar] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
         return;
       }
       const blob = await res.blob();
@@ -489,10 +494,19 @@ export default function KombinasyonlarPage() {
       a.download = `kombinasyon-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { setErrorMessage("Rapor oluşturulamadı."); } finally {
+      // FAZ-4B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek konumunu/
+      // tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
+      showToast({
+        type: "success",
+        message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+      });
+    } catch (err) {
+      console.error("[kombinasyonlar] Word raporu hatası:", err);
+      setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+    } finally {
       setWordBusy(false);
     }
-  }, [selectedIds, groups]);
+  }, [selectedIds, groups, showToast]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
     const firstConfirmed = await confirm({
@@ -595,11 +609,6 @@ export default function KombinasyonlarPage() {
                 ))}
               </select>
             )}
-
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button type="button" onClick={() => setViewMode("list")} className={uiViewBtn(viewMode === "list")}>Liste</button>
-              <button type="button" onClick={() => setViewMode("card")} className={uiViewBtn(viewMode === "card")}>Kart</button>
-            </div>
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
@@ -622,7 +631,9 @@ export default function KombinasyonlarPage() {
                 selectAllLabel="Tümünü Seç"
                 selectAllCount={groups.length}
                 onSelectAll={selectAllFiltered}
+                hideSelectAll={isMobile}
                 onClearSelection={clearSelection}
+                exportSelectedLabel="Seçilenleri Word'e Aktar"
                 onExportSelected={() => void exportCombosWord("selected")}
                 onExportFiltered={() => void exportCombosWord("filtered")}
                 onExportAll={() => void exportCombosWord("all")}
@@ -666,135 +677,6 @@ export default function KombinasyonlarPage() {
             <p className="mt-2 text-base font-black text-slate-800">Sonuç bulunamadı</p>
             <p className="mt-1 text-sm font-medium text-slate-500">Arama veya kategori filtresini değiştirin.</p>
           </div>
-        ) : viewMode === "list" ? (
-
-          /* ── List view ── */
-          <div className="overflow-hidden rounded-xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur-xl">
-            {/* Column headers — desktop */}
-            <div className="hidden grid-cols-[auto_1.4fr_0.8fr_0.4fr_1fr_0.7fr_0.5fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid">
-              <div className="w-5" aria-hidden />
-              <div>Başlık</div>
-              <div>Kategori</div>
-              <div>Variant</div>
-              <div>Kaynak</div>
-              <div>Tarih</div>
-              <div className="text-right">İşlem</div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {visibleGroups.map(({ issue, rows: groupRows }) => {
-                const sourceLine = firstSourceInGroup(groupRows);
-                const category = groupDescription(groupRows);
-                const ts = latestDisplayTimestamp(groupRows);
-                const count = groupRows.length;
-                const isViewedInSearch = isSearchActive && viewedIssueKeys.has(issue);
-                const detailHref = combinationDetailHref(issue, activeSearch, isSearchActive);
-                const isSelected = selectedIds.has(issue);
-
-                return (
-                  <Fragment key={issue}>
-                    {/* Mobile */}
-                    <div
-                      className={`relative flex items-center gap-2 px-3 py-2.5 transition hover:bg-violet-50/30 md:hidden ${
-                        isSelected ? "bg-violet-50/40" : ""
-                      } ${isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleGroupSelection(issue)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`${issue} seç`}
-                        className={uiRowCheckbox}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
-                        {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
-                      </span>
-                      <Link
-                        href={detailHref}
-                        onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
-                        className="shrink-0 text-xs font-bold text-violet-600 hover:text-violet-800"
-                      >
-                        Detay →
-                      </Link>
-                      {!isDemo && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleMobileDeleteGroup(issue); }}
-                          className="btn-danger shrink-0 !px-2 !py-1 !text-xs !rounded-lg min-h-[36px]"
-                        >
-                          Sil
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Desktop */}
-                    <div
-                      className={`relative hidden grid-cols-[auto_1.4fr_0.8fr_0.4fr_1fr_0.7fr_0.5fr] gap-3 px-4 py-2.5 text-[12px] transition hover:bg-violet-50/20 md:grid ${
-                        isSelected ? "bg-violet-50/30" : ""
-                      } ${isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""}`}
-                    >
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleGroupSelection(issue)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`${issue} seç`}
-                          className={uiRowCheckbox}
-                        />
-                      </div>
-                      <div className="min-w-0 font-black text-slate-900">
-                        {isSearchActive ? (
-                          <div className="mb-0.5 flex flex-wrap items-center gap-1">
-                            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
-                            {isViewedInSearch && (
-                              <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">
-                                Bakıldı
-                              </span>
-                            )}
-                          </div>
-                        ) : null}
-                        <span className="block truncate">
-                          {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
-                        </span>
-                      </div>
-                      <div className="min-w-0 truncate font-semibold text-violet-700">
-                        {isSearchActive && category
-                          ? renderHighlightedText(category, activeSearch)
-                          : category || <span className="text-slate-400">—</span>}
-                      </div>
-                      <div className="font-black text-slate-700">{count}</div>
-                      <div className="min-w-0 truncate font-medium text-slate-600">
-                        <DemoBlur isProtected={isDemo}>
-                          {sourceLine ? (
-                            isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </DemoBlur>
-                      </div>
-                      <div className="whitespace-nowrap font-medium text-slate-500">
-                        <DemoBlur isProtected={isDemo}>
-                          {ts ? formatListCardDate(ts) : "—"}
-                        </DemoBlur>
-                      </div>
-                      <div className="flex justify-end">
-                        <Link
-                          href={detailHref}
-                          onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50"
-                        >
-                          Detay →
-                        </Link>
-                      </div>
-                    </div>
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-
         ) : (
 
           /* ── Card view ── */
