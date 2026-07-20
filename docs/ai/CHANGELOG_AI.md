@@ -44,6 +44,139 @@
 
 ---
 
+## 2026-07-20 — S2.17 (search_tsv Query / tsquery Plan) feature branch'te tamamlandı (push/PR bekliyor)
+
+### Tarih
+2026-07-20
+
+### Karar
+Yaşam Hafızası **S2.17 — search_tsv Query (tsquery Plan)** geliştirme ve doğrulama olarak
+**tamamlandı**; **feature branch commit'i hazır**. Feature kod commit **`1ab8601`**
+(`feat(yasam-hafizasi): add S2.17 search_tsv query plan`). Güncel origin/main (`95efcab`) feature
+branch'e normal merge ile alındı (son main sync merge **`46fd460`**; parent'lar `1ab8601` + `95efcab`;
+conflict yok — gelen değişiklik yalnız aromaterapi migration'ı). **Durum ayrımı:** kod tamamlandı ✅ ·
+feature branch'e commit edildi ✅ · **main/production'a merge EDİLMEDİ ❌**. **Push ve PR henüz YOK.**
+Sıradaki **S2.18** ayrı mimari analiz + onayla açılacak (henüz açılmadı, kod yok).
+
+### Neden
+Retrieval boru hattının [3] adımı: Concept Set (S2.15) + Dictionary Expansion (S2.16) çıktısını
+PostgreSQL full-text search için güvenli/deterministik tsquery planına çevirmek. DB çalıştırma
+bilinçli olarak sonraki faza (S2.18) bırakıldı (saf-birim disiplini).
+
+### Oluşturulan dosyalar (feature kod `1ab8601`)
+- `lib/yasam-hafizasi/search/tsQueryPlan.ts` — `buildTsQueryPlan(concepts: readonly Concept[]): TsQueryPlan` + `TsQueryClause`/`TsQueryPlan`/`TsQueryClauseKind`.
+- `scripts/yh-tsquery-plan-harness.ts` — izole harness (20 test grubu / 57 assertion).
+
+### Temel davranış / kararlar
+- **Tek kelime concept → prefix `term:*`.** **Çok kelime concept → exact phrase `(t1 <-> t2)`;
+  phrase-prefix YOK** (KARAR 1: §3 prefix'i yalnız tek kelime için tanımlar; icat yok).
+- Clause'lar giriş sırasıyla **`|` (OR)**; config **`simple`**; kolon **`search_tsv`**.
+- **Güvenlik allowlist'i:** ham girdi doğrudan eklenmez; her lexeme `^[a-z0-9]+$` yeniden doğrulanır;
+  tek geçersiz lexeme → o concept clause'u tamamen atlanır; operatörler (`:*`, `<->`, `|`, `(`, `)`)
+  yalnız koddan; SQL interpolation/DB çağrısı yok.
+- **Serializer dedup:** aynı güvenli fragment tekrarında ilk görünüm + ilk `origin` korunur (S2.15/
+  S2.16 semantik dedup'ı yeniden uygulanmaz).
+- **Immutability:** plan + clauses + her clause `Object.freeze`; her çağrı taze; girdi mutasyonsuz.
+- **Boş/geçersiz:** hepsi elenirse `clauses:[]`, `tsquery:""`, `isEmpty:true`; asla throw etmez.
+- İmza `readonly Concept[]` (`unknown` değil; yalnız dizi-içi bozuk öğeye küçük guard; `any` yok).
+
+### Kapsam dışı (S2.17 DEĞİL)
+`candidateLimit`/`YH_CANDIDATE_LIMIT` · `ts_rank`/weights · DB execution · Supabase client ·
+`textSearch` çağrısı · RPC · tenant/visibility filtresi · Stone Exclusion · Evidence Gate ·
+Ranking · Retrieval Pipeline · UI · migration. (Hepsi S2.18+.)
+
+### Doğrulamalar
+S2.17 harness **57/57** · S2.16 regresyon **42/42** · S2.15 regresyon **42/42** · S2.14 regresyon
+**83/83** · `tsc --noEmit` **PASS** · hedefli ESLint (2 yeni dosya) **PASS** · `git diff --check`
+**PASS** · yasaklı kapsam grep temiz (candidateLimit/ts_rank/supabase/textSearch/rpc/tenant/… yalnız
+JSDoc "Kapsam dışı" yorumunda; `any`/`as any` yok).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration yok. `package.json`/lockfile değişmez.
+
+### Push / durum
+`origin/main` (`95efcab`) değişmedi. Feature branch `work/yh-s2-17` yalnız yerelde: kapanış docs
+commit'i (bu tur) + feature kod `1ab8601` + sync merge'ler (`4f743c1`, `46fd460`) + açılış docs
+`1b8a147`. **Push YAPILMADI; PR AÇILMADI; main'e merge EDİLMEDİ.** Push/PR ayrı onayla yapılacak.
+
+### Notlar
+Supabase execution çağrısı (S2.18) `.textSearch("search_tsv", plan.tsquery, { config: "simple" })`
+olacak — `type` **verilmez** (kurulu `postgrest-js@2.105.3`'te `type` omit → `fts` = `to_tsquery`;
+`type:'tsquery'` literali yok). S2.17 yalnız `plan.tsquery` string'ini üretir.
+
+---
+
+## 2026-07-20 — S2.16 PR #11 ile main'e merge edildi; S2.17 (search_tsv Query / tsquery Plan) Açıldı
+
+### Tarih
+2026-07-20
+
+### Karar
+Yaşam Hafızası **S2.16 — Dictionary Expansion, PR #11 ile `origin/main`'e merge edildi** (kod
+`2192f74` `feat(yasam-hafizasi): add S2.16 dictionary expansion`; PR #11 merge `dc94b98`; güncel
+`origin/main` = `dc94b98` bu kodu içerir). Ayrıca **S2.17 — search_tsv Query (tsquery Plan)**
+aktif aşama olarak **açıldı** (`work/yh-s2-17`, taban güncel `origin/main` = `dc94b98`). Bu turda
+yalnız izole worktree + açılış karar kilidi + yerel Supabase API doğrulaması hazırlandı; **kod
+yazılmadı**, `tsQueryPlan.ts`/harness **oluşturulmadı**; yalnız açılış docs commit'i yapıldı (push/PR yok).
+
+> **Not (doküman gecikmesi düzeltmesi):** S2.16 kodu main'e merge edilmiş olmasına rağmen S2.16
+> turunda ayrı "close S2.16" docs commit'i yazılmamıştı; bu S2.17 açılış kaydı S2.16'yı
+> **tamamlanmış-main** gerçeğiyle (PR #11 / `2192f74` / `dc94b98`) kayda alır.
+
+### Neden
+Retrieval boru hattının [3] adımı: Concept Set (S2.15) + Dictionary Expansion (S2.16) çıktısını
+(`readonly Concept[]`) PostgreSQL full-text search için **güvenli, deterministik tsquery planına**
+çevirmek (kaynak `04-phase-2-fast-search.md` §3). DB çalıştırma bilinçli olarak **sonraki faza**
+bırakıldı (saf-birim disiplini, S2.14/15/16 ile aynı).
+
+### S2.17 kilitli sözleşme (kod öncesi, kullanıcı onaylı)
+- **Fonksiyon:** `buildTsQueryPlan(concepts: readonly Concept[]): TsQueryPlan` (yeni `lib/yasam-hafizasi/search/tsQueryPlan.ts`). İmza küçük; parametre `unknown` **yapılmaz** (`any`/TS-bypass yok); yalnız dizi-içi bozuk öğeye karşı fail-safe.
+- **Tipler:** `TsQueryClause { term; origin; kind: "prefix"|"phrase"; fragment }` · `TsQueryPlan { config:"simple"; column:"search_tsv"; clauses; tsquery; isEmpty }`.
+- **KARAR 1 — phrase prefix:** Tek kelime → `term:*`; çok kelime → exact phrase `(t1 <-> t2)`, **phrase'e prefix UYGULANMAZ** (§3 prefix'i yalnız tek kelime için tanımlar; icat yok).
+- **KARAR 2 — candidate limit:** `YH_CANDIDATE_LIMIT` plana **dahil değildir**; `buildTsQueryPlan` okumaz, `config.ts` bu amaçla import edilmez, harness'te test edilmez. Yalnız DB sorgusu sonrası aday sayısını sınırlar → execution/adapter katmanı.
+- **Clause'lar `|` (OR) ile birleşir; config `simple`** (DB trigger `to_tsvector('simple', unaccent)` ile simetrik).
+- **Query güvenliği:** Ham girdi doğrudan eklenmez; her lexeme S2.17'de `^[a-z0-9]+$` allowlist'inden yeniden geçer; yalnız doğrulanmış lexeme'ler kod-sabit operatörlerle (`:* <-> | ( )`) serialize edilir; operatörler kullanıcıdan gelmez; geçersiz lexeme/clause fail-safe atlanır; tsquery string'i SQL metnine **interpolate edilmez** (PostgREST param değeri).
+- **Boş:** geçerli clause yok → `isEmpty:true`, `tsquery:""`; boş/geçersiz tsquery DB'ye gönderilmez (kararı pipeline verir).
+- **`ts_rank` plana dahil değil** (sıralama execution/S2.20).
+- **Dedup:** yeni semantik dedup icat edilmez (S2.15/S2.16 term-dedup garantisi); yalnız serializer düzeyinde aynı güvenli fragment tekrarı önlenir (ilk görünüm/giriş sırası/`origin` korunur; query/synonym önceliği yeniden uygulanmaz).
+- **Immutability:** plan + clauses + her clause `Object.freeze`; her çağrı taze.
+- **Kapsam dışı:** DB execution/adapter · RPC · `ts_rank`/aday tavan · tenant/visibility · Stone Exclusion · Evidence Gate · Ranking · Retrieval Pipeline · Search UI · migration/config değişikliği. `types.ts`/`config.ts`/`normalize.ts`/`conceptSet.ts`/`dictionaryExpansion.ts` **değişmez**.
+
+### Supabase textSearch API doğrulaması (yerel kurulu paket tipiyle KANITLANDI)
+Kurulu `@supabase/postgrest-js@2.105.3` (`@supabase/supabase-js@2.105.3`; lockfile eşleşti) kaynak
+tipi `src/PostgrestFilterBuilder.ts`:
+`textSearch(column, query, { config?: string; type?: 'plain' | 'phrase' | 'websearch' })`.
+Implementasyon: `type` omit → `typePart=''` → operatör **`fts` = `to_tsquery`** (OR/prefix/phrase
+tam desteği); `config` → `fts(<config>).<query>`. **`type: 'tsquery'` literali YOKTUR** (bu sürümde
+geçersiz). → Execution fazı `.textSearch("search_tsv", plan.tsquery, { config: "simple" })` (type
+**verilmeden**) kullanır. Bu, ilk analizdeki `type:'tsquery'` önerisini **düzeltir**.
+
+### Etkilenen Dosyalar (bu açılış turu — yalnız docs)
+- `docs/ai/CURRENT_TASK.md` · `docs/ai/PROJECT_STATUS.md` · `docs/ai/CHANGELOG_AI.md` · `docs/ai/ROADMAP.md`
+- Planlanan (kod turu, bu turda OLUŞTURULMADI): `lib/yasam-hafizasi/search/tsQueryPlan.ts` · `scripts/yh-tsquery-plan-harness.ts`.
+
+### Breaking Change (Evet/Hayır)
+Hayır. Saf/additif yeni birim; mevcut tipler/dosyalar değişmez.
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Hayır. Saf/DB'siz; SQL/migration yok. `package.json`/lockfile değişmez.
+
+### Doğrulamalar
+Bu açılış turunda kod/harness/tsc/eslint çalıştırılmadı (docs + salt-okunur API doğrulaması). Kod
+turu planı: yeni `yh-tsquery-plan-harness` + S2.16/15/14 regresyon + `tsc --noEmit` + hedefli ESLint
++ güvenlik/kapsam grep + `git diff --check`.
+
+### Push / durum
+`origin/main` (`dc94b98`) değişmedi; açılış docs `work/yh-s2-17`'de **commit edildi** (push/PR yok).
+Sonraki faz (DB execution/adapter + `ts_rank`/aday tavan) **otomatik açılmaz**.
+
+### Notlar
+Supabase `type:'tsquery'` literali kurulu sürümde bulunmadığı için doğru çağrı `type`'ı omit
+etmektir (→ `fts` → `to_tsquery`). Güvenlik tümüyle S2.14 normalize garantisi + S2.17 per-lexeme
+re-assert'e dayanır (upstream'e körü körüne güven yok).
+
+---
+
 ## 2026-07-20 — S2.15 PR #8 ile main'e merge edildi; S2.16 (Dictionary Expansion) Açıldı
 
 ### Tarih

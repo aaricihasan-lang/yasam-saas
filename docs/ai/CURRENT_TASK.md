@@ -10,139 +10,87 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-20 (S2.16 açılış)
+**Son güncelleme:** 2026-07-20 (S2.17 kapanış)
 
 ---
 
 ## Durum
 
-**Aktif görev: S2.16 — Dictionary Expansion (Sözlük / Eş-Anlam Genişletme) — AÇILDI**
-(kod henüz YOK). İzole worktree `work/yh-s2-16` (taban güncel `origin/main` = `77aa824`).
-Bu turda yalnız worktree + açılış karar kilidi hazırlandı; **kod yazılmadı**,
-`dictionaryExpansion.ts`/harness **oluşturulmadı**, yalnız açılış docs commit'i yapıldı.
-Önceki görev **S2.15 tamamlandı ve main'e merge edildi** (**PR #8**; kod `f56ec60`, merge
-`404841b`); aşağıda özetlenmiştir. Kod, kilitli sözleşme (aşağıda) + kullanıcı onayı sonrası
-yazılacaktır.
+**Aktif geliştirme YOK.** En son görev **S2.17 — search_tsv Query (tsquery Plan)**
+geliştirme ve doğrulama olarak **tamamlandı**; **feature branch commit'i hazır**
+(`work/yh-s2-17` @ `46fd460`; feature kod `1ab8601`). **Push ve PR bekliyor;
+main/production'a MERGE EDİLMEDİ.** Sıradaki sprint **S2.18** olarak planlanıyor;
+**henüz açılmadı, kod yazılmadı** (mimari analiz bekliyor).
+
+> **Durum ayrımı (önemli):** S2.17 için (1) kod tamamlandı ✅ · (2) feature branch'e
+> commit edildi ✅ · (3) main/production'a merge edildi ❌. Yalnız ilk iki durum gerçekleşti.
 
 ---
 
-## Tamamlanan (main'de) — özet
+## Son Tamamlanan Görev — S2.17 (search_tsv Query / tsquery Plan) — feature branch'te tamamlandı
 
-- **S2.15 — Kavram Kümesi (Concept Set)** ✅ (**PR #8**; kod `f56ec60` `feat(yasam-hafizasi):
-  add S2.15 concept set`, merge `404841b`). Saf/deterministik/DB'siz, yalnız query-origin
-  `Concept[]` üreten `buildConceptSet(input: unknown): readonly Concept[]`
-  (`lib/yasam-hafizasi/search/conceptSet.ts` + `scripts/yh-concept-set-harness.ts`).
-  `normalizeSearchText(input).tokens` → her benzersiz token `{ term, origin:"query" }`;
-  dedup=term/ilk-sıra; canonical omit; `Object.freeze`; fail-safe. Phrase/dictionary/synonym
-  YOK (S2.16'ya bırakıldı). *(Kapanış docs'u S2.15 turunda yazılmamıştı; bu S2.16 açılışı
-  S2.15'i tamamlanmış-main gerçeğiyle kayda alır.)*
-- **S2.14 — Retrieval Türkçe Metin Normalizasyonu** ✅ (**PR #6**; kod `dd29167`).
-  `search/normalize.ts` + harness (83/83); query–index simetrisi production SELECT ile
-  doğrulandı (`ışık→isik`).
-- **S2.13 — Retrieval Görünürlük Kararı** ✅ (**PR #4**, `4c672e9`): `search/visibilityScope.ts`
-  + harness (49/49). Enjekte stone-exclusion port + fail-closed.
-- **S2.08–S2.12 — İndeksleyici write-side** ✅ (**PR #3**, `555030a`).
-- **S2.04–S2.07** ✅: `tenantResolve` · `extractFields` (PR #1) · `buildCandidate` (PR #2).
-- **S2.01–S2.03** ✅: retrieval tipleri (`search/types.ts`) · topic-dictionary DDL · `sources.ts`.
+**Başlık:** S2.17 — search_tsv Query (deterministik, güvenli tsquery planı üreticisi).
 
-Retrieval read-side boru hattı (`04-phase-2-fast-search.md`): **[1] normalize ✅ →
-[2a] Concept Set ✅ → [2b] Dictionary Expansion (BU GÖREV) → [3] search_tsv →
-[4] Kanıt Kapısı → [5] derece → [6] Neden**. Kilitli backlog: **Dictionary Expansion →
-search_tsv → Stone Exclusion Adapter → Evidence Gate → Ranking → Retrieval Pipeline →
-Search UI**. S2.16 = **Dictionary Expansion** ([2]'nin sözlük/synonym kısmı; S2.15 Concept
-Set çıktısını additif genişletir).
+**Amaç:** S2.15 Concept Set + S2.16 Dictionary Expansion çıktısı (`readonly Concept[]`)
+kullanılarak PostgreSQL full-text search için **güvenli, deterministik, DB'siz bir tsquery
+planı** üretmek (kaynak: `04-phase-2-fast-search.md` §3). **S2.17 DB çalıştırmaz** — yalnız
+`plan.tsquery` string'ini ve yapısal plan'ı üretir.
+
+**Teslim edilen dosyalar (feature kod `1ab8601`):**
+- `lib/yasam-hafizasi/search/tsQueryPlan.ts` — `buildTsQueryPlan(concepts: readonly Concept[]): TsQueryPlan`
+  + `TsQueryClause`/`TsQueryPlan`/`TsQueryClauseKind` tipleri.
+- `scripts/yh-tsquery-plan-harness.ts` — izole harness (20 test grubu / 57 assertion).
+
+**Uygulanan sözleşme (kilitli, doğrulandı):**
+- Saf · deterministik · immutable · fail-safe · **DB'siz** · yan-etkisiz; **asla throw etmez**.
+- Girdi `readonly Concept[]` (imza `unknown` **değil**; yalnız dizi-içi bozuk öğeye küçük guard; `any` yok).
+- **Tek kelime concept → prefix `term:*`.** **Çok kelimeli concept → exact phrase `(t1 <-> t2)`;
+  phrase'e prefix UYGULANMAZ** (KARAR 1).
+- Clause'lar giriş sırasıyla **`|` (OR)** ile birleşir. PostgreSQL text-search **config = `simple`**;
+  hedef kolon **`search_tsv`** (DB trigger `to_tsvector('simple', unaccent(...))` ile simetrik).
+- **Query güvenliği:** ham girdi doğrudan eklenmez; her lexeme **`^[a-z0-9]+$` allowlist**'ten
+  yeniden geçer; tek geçersiz lexeme → o concept clause'u **tamamen atlanır**; operatörler
+  (`:*`, `<->`, `|`, `(`, `)`) yalnız koddan; SQL interpolation/DB çağrısı yok.
+- **Serializer düzeyinde fragment dedup:** aynı güvenli fragment tekrarında ilk görünüm + ilk
+  `origin` korunur (S2.15/S2.16 semantik dedup'ı yeniden uygulanmaz).
+- **Boş/geçersiz:** hepsi elenirse `clauses:[]`, `tsquery:""`, `isEmpty:true`.
+- **Immutability:** plan + `clauses` + her `TsQueryClause` `Object.freeze`; her çağrı taze; girdi mutasyonsuz.
+
+**Kapsam dışı (S2.17 DEĞİL):** `candidateLimit`/`YH_CANDIDATE_LIMIT` · `ts_rank`/weights ·
+DB execution · Supabase client · `textSearch` çağrısı · RPC · tenant/visibility filtresi ·
+Stone Exclusion · Evidence Gate · Ranking · Retrieval Pipeline · UI · migration.
+
+**Supabase textSearch API kanıtı (yerel kurulu paket tipiyle):** `@supabase/supabase-js` &
+`@supabase/postgrest-js` **2.105.3**. `textSearch(column, query, { config?; type?: 'plain'|'phrase'|'websearch' })`.
+**`type` omit → `fts` = `to_tsquery`** (OR/prefix/phrase); **`type:'tsquery'` literali YOK**.
+Execution fazı (S2.18+) `.textSearch("search_tsv", plan.tsquery, { config: "simple" })` (type verilmeden) kullanacak.
+
+**Doğrulamalar (feature kod turunda, `1ab8601` sonrası koşuldu):**
+- S2.17 harness **57/57** · S2.16 regresyon **42/42** · S2.15 regresyon **42/42** · S2.14 regresyon **83/83**.
+- `tsc --noEmit` **PASS** · hedefli ESLint **PASS** · `git diff --check` **PASS** · yasaklı kapsam grep temiz.
+
+**Git durumu:** `work/yh-s2-17` commit zinciri — `1b8a147` (açılış docs) → `4f743c1` (ilk main sync) →
+`1ab8601` (feature kod) → `46fd460` (son main sync) → kapanış docs (bu tur). ahead 4/behind 0
+vs origin/main (`95efcab`); working tree temiz. **Push/PR yok; main/production'a merge edilmedi.**
 
 ---
 
-## Aktif Görev — S2.16 (Dictionary Expansion) — AÇILDI (kod yok)
+## Sıradaki Sprint — S2.18 (henüz açılmadı, kod yok)
 
-**Başlık:** S2.16 — Dictionary Expansion (Sözlük / Eş-Anlam Genişletme).
-
-**Tek amaç:** S2.15'in ürettiği **query-origin `Concept[]`** çıktısını, küratörlü dictionary
-snapshot'ı üzerinden **synonym-origin `Concept`'lerle additif** biçimde genişletmek (kaynak:
-`04-phase-2-fast-search.md` §2). Saf/deterministik/DB'siz/fail-safe.
-
-**Nihai fonksiyon (kullanıcı onaylı):**
-```ts
-expandConcepts(
-  base: readonly Concept[],
-  normalizedText: string,
-  entries: readonly DictionaryEntry[],
-): readonly Concept[]
-```
-
-**Nihai giriş modeli (yeni, `dictionaryExpansion.ts` içinde co-located, minimal):**
-```ts
-interface DictionaryEntry {
-  canonical: string;              // HAM metin (genişletici normalize eder)
-  synonyms: readonly string[];    // HAM metin
-}
-// is_active / tenant_id / lang YOK → adapter (S2.17) sorumluluğu.
-```
-
-**Kilitli sözleşme (kod öncesi, kullanıcı onaylı):**
-- **Saf, deterministik, DB'siz ve fail-safe** (asla throw). **S2.15 `buildConceptSet` değişmez.**
-- **Çıktı sırası:** `[değişmeyen query prefix]` + `[synonym suffix]`. Query çıktısı sonucun
-  **değişmeyen prefix**'idir. **Sort YOK.**
-- **Entries** kendisine **verilen sırayla** işlenir; entry içinde **canonical önce, sonra
-  `synonyms[]` sırası**.
-- **Dedup** yalnız **normalize edilmiş `term`** üzerinden; **ilk görülen korunur**; query
-  aynı term'de synonym'i **bastırır** (`seen` başlangıçta base term'leriyle dolu).
-- **Provenance:** genişletici **yalnız `origin:"synonym"` üretir** (`origin:"query"` tek
-  kaynağı `base`). Synonym Concept'in `canonical` alanı = **normalize edilmiş entry
-  canonical** değeri. Canonical yeni ekleniyorsa `origin:"synonym"` ve `canonical=self` olabilir.
-- **Çok kelimeli terimler:** substring/`includes` **DEĞİL**; `normalizeSearchText` ile
-  normalize edilip **sorgu token dizisinde bitişik alt-dizi (contiguous subsequence)**
-  eşleşmesiyle bulunur. `"anne"` → `"anneanne"` içinde **eşleşmez**; `"anne sutu"` tek
-  phrase Concept olarak üretilebilir.
-- **Tek-sıçrama:** yalnız `base`/query eşleşmeleri genişlemeyi tetikler; eklenen synonym'ler
-  **yeniden lookup edilmez**; **transitif genişleme yoktur** (A→B→A döngüsü tasarım gereği yok).
-- **Immutability:** çıktı dizisi **ve yeni oluşturulan Concept nesneleri** `Object.freeze`;
-  `base` ve `entries` **mutasyona uğratılmaz**.
-- **Tavan YOK:** S2.16'da kavram/synonym tavanı yoktur. `YH_CANDIDATE_LIMIT=150` yalnız
-  **aday kayıt** sayısı limitidir; Concept veya tsquery boyutu limiti **değildir**.
-
-**Kapsam dışı (S2.16 DEĞİL):**
-- Gerçek Supabase dictionary adapter · **`DictionaryPort`** (YAGNI — çekirdek `entries`'i
-  doğrudan parametre alır, seam invoke etmez).
-- `tenant_id` / `lang` / `is_active` filtreleri · tenant/global merge politikası · snapshot
-  DB sıralaması → **S2.17** kapsamı.
-- `search_tsv` / tsquery · Evidence Gate · Ranking · Retrieval Pipeline orkestrasyonu · Search UI.
-- **S2.15 `buildConceptSet` değişikliği** · **`config.ts` değişikliği** (yeni sabit YOK).
-
-**Yeniden kullanılan/dokunulmayan:** `search/types.ts` (`Concept` type-only import — `origin`
-union + opsiyonel `canonical` **zaten mevcut**, tip değişmez) · `config.ts` · `normalize.ts` ·
-`conceptSet.ts` · `visibilityScope.ts` · indexer/* · migration'lar · `package.json` ·
-lockfile — **değişmez**.
-
-**Planlanan yeni dosyalar (bu turda OLUŞTURULMADI):**
-- `lib/yasam-hafizasi/search/dictionaryExpansion.ts` (`DictionaryEntry` tipi + `expandConcepts`)
-- `scripts/yh-dictionary-expansion-harness.ts`
-
-**Örnek çıktı sözleşmesi (edge-case, kod turunda harness'te doğrulanacak):**
-`entries=[]` / `normalizedText=""` → çıktı = `base` (taze frozen) · query "kalp" + entry
-{canonical:"kalp",synonyms:["yurek"]} → `[{kalp,query},{yurek,synonym,canonical:"kalp"}]` ·
-çift yönlü: query "yurek" aynı entry → `[{yurek,query},{kalp,synonym,canonical:"kalp"}]` ·
-`"anne sutu"` bitişik → tek phrase Concept (`origin:"synonym"`); `"anne" ⊄ "anneanne"`.
-
-**Durum:** Yalnız worktree + açılış karar kilidi hazırlandı; **kod bu turda yazılmadı**;
-yalnız açılış docs commit'i yapıldı (push/PR yok). Kod, kullanıcı onayı sonrası aynı çekirdek
-disipliniyle (saf + deterministik + fail-safe + harness) yazılacaktır.
-
-## Doğrulama planı (kod turu)
-
-- Yeni **`yh-dictionary-expansion-harness`** (determinizm · döngü · çok-kelime · bozuk-kayıt ·
-  immutability · Türkçe İ/ı simetri).
-- **S2.15** Concept Set regresyon harness'i · **S2.14** normalize regresyon harness'i.
-- `tsc --noEmit` · hedefli ESLint · güvenlik/kapsam grep · `git diff --check` + path-kapsam doğrulaması.
+**Beklenen kapsam (S2.18'e ait — S2.17'ye karıştırılmaz):** DB Execution/Adapter
+(`.textSearch("search_tsv", tsquery, { config:"simple" })`, type omit → `to_tsquery`) +
+`ts_rank`/aday tavan (`YH_CANDIDATE_LIMIT`) · gerçek Supabase dictionary/stone-exclusion adapter ·
+tenant/visibility filtresi · [4] Kanıt Kapısı · [5] derece · [6] "Neden?" · Retrieval Pipeline ·
+INV-1/INV-2 harness. **Her aşama ayrı salt-okunur mimari analiz + kullanıcı onayıyla açılır;
+otomatik açılmaz.**
 
 ## Bekleyen Onaylar
 
-- **S2.16:** açılış docs commit'i (bu tur) + **kod turu onayı**. Sonraki **S2.17** (tsquery /
-  dictionary adapter / tenant-global merge / tsquery-boyut korkuluğu) **otomatik açılmaz**.
+- **S2.17:** feature branch **push** + **PR** onayı (henüz yapılmadı).
+- **S2.18:** mimari analiz turu onayı (sprint henüz açılmadı).
 
 ## Sonuç
 
-- S2.01–S2.15 main'de. **S2.16 açıldı** (worktree + karar kilidi + açılış docs; kod yok).
-  Kapsam: retrieval Dictionary Expansion ([2] sözlük/synonym). Kod, onay sonrası yazılacaktır.
-  `origin/main` (`77aa824`) değişmedi; push/PR yapılmadı.
+- S2.01–S2.16 main'de. **S2.17 geliştirme + doğrulama tamamlandı; feature branch (`work/yh-s2-17`)
+  commit'i hazır; push/PR bekliyor; main/production DEĞİL.** origin/main (`95efcab`) değişmedi.
+  Sıradaki S2.18 ayrı analiz/onayla açılacak.
