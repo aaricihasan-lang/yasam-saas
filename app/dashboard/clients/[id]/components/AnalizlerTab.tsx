@@ -125,13 +125,13 @@ function getAnalysisLabel(type: string | null | undefined) {
 
 // ─── Shared input class strings ───────────────────────────────────────────────
 const schemaInputBase =
-  "w-full min-h-[31px] rounded-[9px] border border-blue-200 bg-white px-2 py-[5px] text-[12px] font-extrabold outline-none box-border";
+  "w-full min-h-[44px] md:min-h-[31px] rounded-[9px] border border-blue-200 bg-white px-2 py-[5px] text-[12px] font-extrabold outline-none box-border";
 
 const planetInputBase =
-  "min-h-[30px] rounded-[9px] border border-blue-200 bg-white px-[7px] py-[5px] text-[11px] font-extrabold outline-none w-full box-border";
+  "min-h-[44px] md:min-h-[30px] rounded-[9px] border border-blue-200 bg-white px-[7px] py-[5px] text-[11px] font-extrabold outline-none w-full box-border";
 
 const toolbarBtnBase =
-  "rounded-xl px-[13px] py-2 font-black text-[12px] cursor-pointer transition-colors";
+  "rounded-xl px-[13px] py-2 font-black text-[12px] cursor-pointer transition-colors inline-flex items-center justify-center min-h-[44px] md:min-h-0";
 
 // PDF Export ürün kararıyla bu sürümde kullanıcıya gösterilmez (WEB-2 kapanış).
 // printPdf()/captureAnalysisNode() kodu tabanda pasif kalır; ileride bu flag
@@ -540,19 +540,19 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       {/* Analysis modal */}
       {activeAnalysis && (
-        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2.5">
-          <div className="w-[min(98vw,1780px)] h-[94vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
+        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
+          <div className="w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
 
             {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}
             <div id="analysis-print-area" className="bg-white">
               {/* Modal header */}
-              <div className="bg-gradient-to-r from-[#111827] via-[#4c1d95] to-[#be185d] text-white p-3.5 flex justify-between gap-2.5 items-start">
-                <div>
+              <div className="bg-gradient-to-r from-[#111827] via-[#4c1d95] to-[#be185d] text-white p-3 sm:p-3.5 flex justify-between gap-2.5 items-start">
+                <div className="min-w-0">
                   <span className="inline-flex bg-white/16 text-white px-2 py-[3px] rounded-full text-[10px] font-black">
                     Analiz Formu
                   </span>
-                  <h3 className="mt-1.5 text-[22px] font-black">{activeTitle}</h3>
-                  <p className="mt-[5px] text-[12px] opacity-[0.92]">
+                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitle}</h3>
+                  <p className="mt-[5px] text-[12px] opacity-[0.92] break-words">
                     Danışan: <strong>{clientName}</strong> · Tarih: <strong>{todayText}</strong>
                   </p>
                 </div>
@@ -560,14 +560,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 <button
                   type="button"
                   onClick={() => setActiveAnalysis(null)}
-                  className="no-pdf w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
+                  className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×
                 </button>
               </div>
 
               {/* Modal body */}
-              <div className="p-3 grid gap-[9px] pb-[18px]">
+              <div className="p-3 grid gap-[9px] pb-24 md:pb-[18px]">
                 {activeAnalysis === "chakra" ? (
                   <ChakraAnalysis values={chakraValues} updateValue={updateChakraValue} />
                 ) : (
@@ -588,7 +588,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
             </div>
 
             {/* Sticky action bar — no-pdf: excluded from html2canvas capture */}
-            <div className="no-pdf sticky bottom-0 z-[3] flex justify-end gap-2 flex-wrap bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] backdrop-blur-[10px]">
+            <div className="no-pdf sticky bottom-0 z-[3] grid grid-cols-2 md:flex md:justify-end md:flex-wrap gap-2 bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] pb-[max(9px,env(safe-area-inset-bottom))] backdrop-blur-[10px]">
               <button type="button" onClick={clearAll}
                 className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
                 Tümünü Temizle
@@ -602,7 +602,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 </button>
               )}
               <button type="button" onClick={exportWord} disabled={exportingWord}
-                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
+                className={`${toolbarBtnBase} !hidden md:!inline-flex bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
                 {exportingWord ? "Word Hazırlanıyor..." : "Word Al"}
               </button>
               <button type="button" onClick={saveAnalysis} disabled={savingAnalysis}
@@ -625,7 +625,7 @@ function ChakraAnalysis({
   updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-[9px]">
+    <div className="grid grid-cols-1 gap-[9px] xl:grid-cols-2">
       <ChakraSection title="Seans Öncesi — Enerji Bedenleri" scope="before_energy" rows={energyBodies} values={values} updateValue={updateValue} />
       <ChakraSection title="Seans Sonrası — Enerji Bedenleri" scope="after_energy"  rows={energyBodies} values={values} updateValue={updateValue} />
       <ChakraSection title="Çakralar — Seans Öncesi"          scope="before_chakra" rows={chakras}       values={values} updateValue={updateValue} />
@@ -650,8 +650,8 @@ function ChakraSection({
         {title}
       </div>
 
-      {/* Header row */}
-      <div className="grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-blue-600 text-[10px]">
+      {/* Header row — mobilde gizli (dar ekranda input placeholder'ları etiket görevi görür) */}
+      <div className="hidden md:grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-blue-600 text-[10px]">
         <div />
         <strong>İŞARET +/- · SAYI %</strong>
         <strong>ERİL ENERJİ</strong>
@@ -662,7 +662,7 @@ function ChakraSection({
         const key = `${scope}_${row.key}`;
         const rowValue = values[key] || { mark: "", male: "", female: "" };
         return (
-          <div key={key} className="grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] items-center">
+          <div key={key} className="grid grid-cols-1 gap-[7px] mb-[7px] md:grid-cols-[1fr_132px_132px_132px] md:items-center">
             {/* Color label — background is a runtime data value, must stay inline */}
             <div
               className="min-h-[31px] rounded-none text-white flex items-center px-[11px] text-[11px] font-black"
@@ -671,24 +671,27 @@ function ChakraSection({
               {row.label}
             </div>
 
-            <input
-              value={rowValue.mark}
-              onChange={(e) => updateValue(key, "mark", e.target.value)}
-              placeholder="+10 / -20"
-              className={`${schemaInputBase} ${valueClass(rowValue.mark)}`}
-            />
-            <input
-              value={rowValue.male}
-              onChange={(e) => updateValue(key, "male", e.target.value)}
-              placeholder="Eril"
-              className={`${schemaInputBase} ${valueClass(rowValue.male)}`}
-            />
-            <input
-              value={rowValue.female}
-              onChange={(e) => updateValue(key, "female", e.target.value)}
-              placeholder="Dişil"
-              className={`${schemaInputBase} ${valueClass(rowValue.female)}`}
-            />
+            {/* Değer alanları: mobilde 3 dar kolon, md+ ana ızgaranın parçası (contents) */}
+            <div className="grid grid-cols-3 gap-[7px] md:contents">
+              <input
+                value={rowValue.mark}
+                onChange={(e) => updateValue(key, "mark", e.target.value)}
+                placeholder="+10 / -20"
+                className={`${schemaInputBase} ${valueClass(rowValue.mark)}`}
+              />
+              <input
+                value={rowValue.male}
+                onChange={(e) => updateValue(key, "male", e.target.value)}
+                placeholder="Eril"
+                className={`${schemaInputBase} ${valueClass(rowValue.male)}`}
+              />
+              <input
+                value={rowValue.female}
+                onChange={(e) => updateValue(key, "female", e.target.value)}
+                placeholder="Dişil"
+                className={`${schemaInputBase} ${valueClass(rowValue.female)}`}
+              />
+            </div>
           </div>
         );
       })}
@@ -704,7 +707,7 @@ function PlanetAnalysis({
   updateValue: (key: string, value: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
       <PlanetPanel title="Seans Öncesi"  scope="before" values={values} updateValue={updateValue} />
       <PlanetPanel title="Seans Sonrası" scope="after"  values={values} updateValue={updateValue} />
     </div>
@@ -721,7 +724,7 @@ function PlanetPanel({
   updateValue: (key: string, value: string) => void;
 }) {
   return (
-    <section className="bg-white border border-blue-200 rounded-[13px] p-2 shadow-sm overflow-x-auto">
+    <section className="min-w-0 bg-white border border-blue-200 rounded-[13px] p-2 shadow-sm overflow-x-auto">
       <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
         {title}
       </div>

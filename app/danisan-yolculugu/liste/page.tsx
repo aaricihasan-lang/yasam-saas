@@ -861,6 +861,7 @@ export default function DanisanListePage() {
                 isExporting={wordBusy}
                 onDeleteSelected={() => void handleBulkDeleteClients()}
                 isDeleting={deleteLoading}
+                hideWordOnMobile
               />
             </div>
           )}

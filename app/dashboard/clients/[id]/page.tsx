@@ -141,7 +141,7 @@ const textareaCls =
   "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
 const wordBtnCls =
-  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
+  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer hidden md:inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
@@ -623,15 +623,15 @@ export default function ClientDetailPage() {
               onClick={generateWordReport}
               disabled={generatingReport}
               aria-label="Tam Word raporu oluştur"
-              className="min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
+              className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60 md:inline-flex md:items-center"
             >
               {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
             </button>
           </div>
         </div>
 
-        {/* Date-range report — collapsible */}
-        <div className="mb-2.5">
+        {/* Date-range report — collapsible (Word özelliği: mobilde gizli, md+ görünür) */}
+        <div className="mb-2.5 hidden md:block">
           <button
             type="button"
             onClick={() => setDrOpen((v) => !v)}
