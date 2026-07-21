@@ -29,8 +29,21 @@ import type { ParentPreloadStats } from "./runSource";
 import { runSource } from "./runSource";
 import type { RunSummary } from "./runIndexUnit";
 import type { SourceConfig } from "./sources";
+import { isIndexableSource } from "./sourceGuard";
 
 export type IndexSourcePageMode = "dry-run" | "write";
+
+/**
+ * BF-0 son savunma hatası (INV-PII): route dışından doğrudan çağrılıp `safe-non-pii`
+ * OLMAYAN veya disabled kaynak verilirse, reader/writer'dan ÖNCE fırlatılır. Route/handler
+ * katmanı bunu güvenli `source-not-indexable` (403) yanıtına çevirir. Ham detay taşımaz.
+ */
+export class SourceNotIndexableError extends Error {
+  constructor() {
+    super("source-not-indexable");
+    this.name = "SourceNotIndexableError";
+  }
+}
 
 /**
  * Girdi. `config` statik allowlist'ten (`YH_INDEX_SOURCES`) gelmelidir; mevcut
@@ -64,6 +77,14 @@ export async function indexSourcePage(
   input: IndexSourcePageInput,
 ): Promise<IndexSourcePageResult> {
   const { config, mode } = input;
+
+  // BF-0 SON SAVUNMA (INV-PII): yalnız safe-non-pii + enabled kaynak indekslenebilir.
+  // Reader çağrılmadan, kaynak satırları belleğe alınmadan, writer'a ulaşmadan reddet.
+  // (Route yolunda validateAdminIndexRequest zaten engeller; bu doğrudan çağrıya karşı.)
+  if (!isIndexableSource(config)) {
+    throw new SourceNotIndexableError();
+  }
+
   const db: IndexDbClient = input.db ?? (getServerDb() as unknown as IndexDbClient);
 
   const reader = createSupabaseSourceReader(db);

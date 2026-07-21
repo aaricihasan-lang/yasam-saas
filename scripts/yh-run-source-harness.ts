@@ -39,6 +39,7 @@ const SID3 = "88888888-8888-8888-8888-888888888888";
 // ── Fixture config'ler ───────────────────────────────────────────────────────
 const colCfg: SourceConfig = {
   sourceKey: "test:col",
+  classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
   sourceFamily: "kisisel_arsiv",
   tableName: "test_col",
   primaryKey: "id",
@@ -55,6 +56,7 @@ const colCfg: SourceConfig = {
 };
 const joinCfg: SourceConfig = {
   sourceKey: "test:join",
+  classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
   sourceFamily: "aromaterapi",
   tableName: "test_join",
   primaryKey: "id",
