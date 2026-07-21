@@ -1233,7 +1233,7 @@ function StoneDetailPage() {
                           event.stopPropagation();
                           void handleDeleteImage(imagesWithUrl[0]);
                         }}
-                        className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg"
+                        className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
                       >
                         Sil
                       </button>
@@ -1271,7 +1271,7 @@ function StoneDetailPage() {
                                 event.stopPropagation();
                                 void handleDeleteImage(img);
                               }}
-                              className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md"
+                              className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md hidden md:inline-flex"
                             >
                               Sil
                             </button>
@@ -1318,7 +1318,7 @@ function StoneDetailPage() {
                             event.stopPropagation();
                             void handleDeleteImage(image);
                           }}
-                          className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg"
+                          className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
                         >
                           Sil
                         </button>
@@ -1329,7 +1329,7 @@ function StoneDetailPage() {
               )}
 
               {editEnabled && (
-                <div className="mt-4">
+                <div className="mt-4 hidden md:block">
                   <input
                     ref={photoInputRef}
                     type="file"
