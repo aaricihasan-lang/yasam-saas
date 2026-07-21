@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-21 (S2.19A KOD-TAM — kod+migration+harness commit; production DDL/backfill/canlı YOK)
+**Son güncelleme:** 2026-07-22 (S2.19-BF/BF-0 AÇILIŞ — kaynak PII sınıflandırma guard'ı; S2.19A merge PR #17, S2.19B RPC production'da)
 
 ---
 
@@ -84,8 +84,9 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **S2.19A — Retrieval Executor + Supabase Adapter + ts_rank RPC: KOD-TAM** (`work/yh-s2-19`; docs açılış `75976f5` + migration `cbbbf4a` + kod `d9ebdd5`; push/PR YOK). Mimari **Alternatif A** uygulandı; **SECURITY INVOKER** + **p_weights fail-loud** kilitli. Mock harness 49/49 + 5 regresyon + TS/ESLint/diff-check PASS. **⚠️ production DDL/backfill/canlı retrieval YOK.** Bkz. `CURRENT_TASK.md`.
-- **Onay bekleyen:** **S2.19B** (production Dashboard DDL uygulaması + salt-okunur doğrulama SQL) → **S2.19C** (canlı smoke + INV harness). **Otomatik başlamaz. "Tam güvenli canlı retrieval" S2.19B/C tamamlanmadan ilan edilmez.** Not: ROADMAP'te **S2.06 yoktur**.
+- **AKTİF: S2.19-BF / BF-0 — Kaynak PII Sınıflandırma Guard'ı** (`work/yh-bf0` @ `f67afb5`). 17 indeks kaynağına zorunlu `classification` (**safe-non-pii 15 / pii 1 / unclassified 1 / deferred 0**) + yalnız `safe-non-pii && enabled` indekslemeye izin veren fail-closed guard (dry-run + write). **pii=refleksoloji:notes, unclassified=kisisel_arsiv:archives** reddedilir. INV-PII: ana index CHECK değişmez; PII/belirsiz kaynak zorla yazılamaz. Kapsam: `sources.ts` (classification alanı) + `sourceGuard.ts`(yeni) + `adminIndexRequest.ts` (403 `source-not-indexable`) + `indexSourcePage.ts` (son savunma) + harness. **Backfill driver/dry-run/write/S2.19C DIŞI.** Bkz. `CURRENT_TASK.md`.
+- **Tamamlanan (production):** **S2.19A merge** (PR #17, `0a1348d`) + **S2.19B** RPC `yh_search_candidates` Dashboard'dan uygulandı + doğrulama PASS (INVOKER/STABLE/service_role-only/trigger/GIN). **`yasam_hafizasi_index` BOŞ** → S2.19C beklemede.
+- **Onay bekleyen:** **BF-1** (pilot `aromaterapi:oils` + local Node driver → admin route) → **S2.19C** (canlı smoke). **Otomatik başlamaz.** Not: ROADMAP'te **S2.06 yoktur**.
 
 ## Bekleyen İşler
 
