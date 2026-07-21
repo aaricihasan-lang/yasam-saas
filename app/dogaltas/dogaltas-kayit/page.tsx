@@ -754,6 +754,8 @@ export default function DogaltasKayitPage() {
                     {/* FAZ-5B: explicit ref.click() ile iki açık seçenek — implicit label kaldırıldı.
                         Galeri (multiple, capture yok) ve Kamera (capture=environment, multiple yok)
                         aynı handleImageUpload'ı kullanır. */}
+                    {/* Bakım kararı: mobilde (<768px) fotoğraf ekleme/çekme gizli; masaüstünde korunur. */}
+                    <div className="hidden md:contents">
                     <div className="mt-3 flex w-full max-w-[320px] flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
@@ -788,6 +790,7 @@ export default function DogaltasKayitPage() {
                       aria-label="Fotoğraf çek"
                       className="sr-only"
                     />
+                    </div>
                   </div>
 
                   {images.length > 0 && (
@@ -803,7 +806,7 @@ export default function DogaltasKayitPage() {
                             onClick={() => void removeImage(image.id)}
                             disabled={removingImageId === image.id}
                             aria-label="Fotoğrafı kaldır"
-                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                            className="absolute right-1.5 top-1.5 hidden h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 md:flex"
                           >
                             {removingImageId === image.id ? "⋯" : "×"}
                           </button>
