@@ -10,16 +10,31 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-0 AÇILIŞ — kaynak PII sınıflandırma guard'ı)
+**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-0 KOD-TAM — sınıflandırma guard'ı yazıldı+commit; production'a dokunulmadı)
 
 ---
 
 ## Durum
 
-**S2.19-BF / BF-0 AÇILDI — İndeks Kaynağı PII Sınıflandırması + Guard.** Production backfill
-öncesi zorunlu hazırlık: 17 indeks kaynağının **PII sınıflandırması** + yalnız `safe-non-pii &&
-enabled` kaynağın indekslenmesine izin veren **fail-closed guard**. Backfill driver / dry-run /
-write / S2.19C **bu kapsamda DEĞİL.**
+**S2.19-BF / BF-0 KOD-TAM — İndeks Kaynağı PII Sınıflandırması + Guard.** 17 kaynağa zorunlu
+`classification` (15 safe-non-pii / 1 pii / 1 unclassified / 0 deferred) + yalnız `safe-non-pii &&
+enabled` indekslemeye izin veren fail-closed guard yazıldı, doğrulandı, commit edildi. Backfill
+driver / dry-run / write / S2.19C **bu kapsamda DEĞİL.**
+
+**Commit zinciri (`work/yh-bf0`):** `f67afb5` (taban=güncel origin/main) → **`761bfd7`**
+(`docs(ai): open BF-0 …`) → **`b69942f`** (`feat(yasam-hafizasi): guard index sources by PII
+classification`) → doküman kapanışı (bu adım). **Push/PR/main-merge YOK; production/SQL/API/backfill YOK.**
+
+**Doğrulama (GEÇTİ):** yeni guard harness **39/39** · indexer regresyon (build-candidate/extract-fields/
+run-index-unit/run-source/index-write-plan/supabase-index-adapters **37/37**/admin-index-route **65/65**/
+index-smoke **41/41**) tümü PASS · retrieval regresyon S2.13 **49** / S2.14 **83** / S2.15 **42** / S2.16
+**42** / S2.17 **57** / S2.18 **52** PASS · `tsc --noEmit` **PASS** · ESLint **0 error** (1 pre-existing
+warning `ParentTenantLookup`, BF-0 dışı; origin/main'de de var) · `git diff --check` PASS.
+
+**Zorunlu-alan ripple'ı (kayıt):** `classification` `SourceConfig`'te zorunlu olduğundan, mevcut 5 test
+harness'inin sentetik `SourceConfig` literalleri (`supabase-index-adapters`, `build-candidate`,
+`extract-fields`, `run-index-unit`, `run-source`) `classification: "safe-non-pii"` ile güncellendi
+(tsc + happy-path korunması için; davranış değişmedi).
 
 **Önceki durum (kayda alındı):** S2.19A (Retrieval Executor + Adapter + ts_rank RPC) **main'e MERGE
 EDİLDİ** (PR #17, merge `0a1348d`; kod `d9ebdd5`). **S2.19B** production'da: RPC `yh_search_candidates`
@@ -116,7 +131,17 @@ Regresyon: mevcut indexer + S2.13–S2.19 harness'leri + tsc + ESLint + diff-che
 
 - **Bu görevde push/PR/main-merge YOK · production/SQL/API/backfill YOK · S2.19C YOK.**
 
+## Bilinen riskler / açık
+
+- **Pre-existing ESLint warning:** `yh-run-index-unit-harness.ts` `ParentTenantLookup` unused import —
+  origin/main'de mevcut; BF-0 kapsamı dışı (minimal-değişiklik disiplini) → dokunulmadı.
+- **indexSourcePage son-savunma:** route yolunda validation zaten engeller → guard throw'u
+  defense-in-depth (doğrudan çağrıya karşı); harness bunu doğrular.
+- Backfill/dry-run/write/S2.19C hâlâ açık; INV-PII yalnız guard ile korunur (F5 PII-index ayrı).
+
 ## Sonuç
 
-- *(BF-0 açıldı — kaynak PII sınıflandırma guard'ı. Sıradaki: sources.ts classification → sourceGuard →
-  entegrasyon → harness → docs kapanış. Kod/commit onaylı; production'a dokunulmaz.)*
+- *(BF-0 KOD-TAM — kaynak PII sınıflandırma guard'ı. Migration/schema/CHECK YOK; yalnız uygulama-katmanı
+  guard. Guard harness 39/39 + tüm indexer/retrieval regresyon + tsc/ESLint(0 error)/diff-check PASS.
+  Retrieval katmanı + migration + index CHECK değişmedi (git-kanıtlı). **Push/PR/production/backfill YOK;
+  S2.19C'ye geçilmedi.** Sıradaki: BF-1 pilot `aromaterapi:oils` + local Node driver.)*

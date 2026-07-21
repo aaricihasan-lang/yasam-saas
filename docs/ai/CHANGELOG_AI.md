@@ -44,6 +44,45 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-0 kod-tam: İndeks Kaynağı PII Sınıflandırma Guard'ı
+
+### Tarih
+2026-07-22
+
+### Karar
+**BF-0 KOD-TAM ve commit edildi** (`work/yh-bf0`; docs açılış `761bfd7` + kod `b69942f`; **push/PR
+YOK; production/SQL/API/backfill YOK**). `SourceConfig`'e **zorunlu `classification`** eklendi + 17
+kaynak sınıflandırıldı (safe-non-pii 15 / pii 1 / unclassified 1 / deferred 0); saf `sourceGuard`
+yalnız `safe-non-pii && enabled=true` kaynağa izin verir; guard (a) request validation'da (dry-run +
+write, 403 `source-not-indexable`) ve (b) `indexSourcePage` başında (son savunma, reader/writer'dan
+önce throw) uygulanır. **Ana index `CHECK(is_client_pii=false)` DEĞİŞMEDİ; migration/schema YOK.**
+
+**Zorunlu-alan ripple'ı:** `classification` zorunlu olduğundan 5 mevcut test harness'inin sentetik
+`SourceConfig` literalleri `safe-non-pii` ile güncellendi (tsc + happy-path korunması; davranış
+değişmedi): `supabase-index-adapters`, `build-candidate`, `extract-fields`, `run-index-unit`, `run-source`.
+
+### Doğrulama
+Yeni guard harness **39/39**; indexer regresyon (run-source 42 / index-write-plan 23 / adapters **37** /
+admin-route **65** / index-smoke **41** / build-candidate + extract-fields + run-index-unit PASS);
+retrieval regresyon S2.13 **49** / S2.14 **83** / S2.15 **42** / S2.16 **42** / S2.17 **57** / S2.18
+**52**; `tsc --noEmit` PASS; ESLint **0 error** (1 pre-existing warning, BF-0 dışı); `git diff --check`
+PASS. Değişmezlik git-kanıtlı: retrieval katmanı (descriptor/executor/adapter/RPC/visibilityScope/
+tsQueryPlan/types), index migration'ları + CHECK, config — **dokunulmadı**.
+
+### Sınıflandırma (kullanıcı onaylı)
+safe-non-pii (15): refleksoloji:protocols · sifa_rehberi:{guides,guide-sections} · biyoenerji:{4} ·
+dogaltas:{stones,minerals,knowledge,combinations} · aromaterapi:{oils,reference-sheets,reference-rows,
+blends}. pii (1): refleksoloji:notes. unclassified (1): kisisel_arsiv:archives. deferred (0).
+
+### Breaking Change / Migration
+Hayır / Hayır — uygulama-katmanı guard; DDL/schema yok.
+
+### Sonraki (BF-0 DIŞI)
+BF-1: pilot `aromaterapi:oils` + local Node driver → mevcut admin route (dry-run zorunlu, cursor,
+resumable) → S2.19C canlı smoke. Otomatik başlamaz.
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-0 açıldı: İndeks Kaynağı PII Sınıflandırma Guard'ı
 
 ### Tarih
