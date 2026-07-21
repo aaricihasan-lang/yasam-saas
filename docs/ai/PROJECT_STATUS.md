@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-21 (S2.18 KAPANIŞ — kod tamamlandı + doküman kapanışı; push YOK)
+**Son güncelleme:** 2026-07-21 (S2.19A AÇILIŞ — kod fazı; S2.18 PR #15 merge edildi `89815ef`)
 
 ---
 
@@ -37,7 +37,7 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Sprint
 
-- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 (PR #3, `555030a`)** + **S2.13 (PR #4, `4c672e9`)** + **S2.14 (PR #6)** + **S2.15 (PR #8, `f56ec60`)** + **S2.16 (PR #11, `dc94b98`)** + **S2.17 (search_tsv tsquery Plan): main'e MERGE EDİLDİ — PR #13, merge `7344b6d`** origin/main'de. `origin/main` sonrasında **`9bbe5da`**'ya ilerledi (yalnız Danışan Yolculuğu/clients mobil+Word UX; **YH-dışı drift**). **S2.18 — Saf Retrieval Query Descriptor / Execution Contract (EX-D): kod TAMAMLANDI** (`work/yh-s2-18`; kod commit **`ab1d5f5`**; henüz push/PR YOK). Kilitli backlog (S2.19+): DB Execution/Adapter (`.textSearch`/`.rpc` + ts_rank/aday tavan) + PostgreSQL RPC/DDL → Evidence Gate → Ranking → Retrieval Pipeline → Search UI.
+- **Yaşam Hafızası™ — Sprint 2 (Retrieval / Hızlı Tarama):** S2.01–S2.05 + S2.07 + **S2.08–S2.12 (PR #3, `555030a`)** + **S2.13 (PR #4, `4c672e9`)** + **S2.14 (PR #6)** + **S2.15 (PR #8, `f56ec60`)** + **S2.16 (PR #11, `dc94b98`)** + **S2.17 (search_tsv tsquery Plan): main'e MERGE EDİLDİ — PR #13, merge `7344b6d`** origin/main'de. `origin/main` sonrasında **`9bbe5da`**'ya ilerledi (yalnız Danışan Yolculuğu/clients mobil+Word UX; **YH-dışı drift**). **S2.18 (Retrieval Query Descriptor / EX-D): main'e MERGE EDİLDİ — PR #15, merge `89815ef`** (kod `ab1d5f5`). `origin/main` sonrasında **PR #16 `2c1d728`** (aromaterapi bilgi bankası; YH-dışı drift). **AKTİF: S2.19A — Retrieval Executor + Supabase Adapter + ts_rank RPC (kod fazı)** açıldı — `work/yh-s2-19` @ `2c1d728`. Fazlı: **S2.19A** kod+migration+mock harness (canlı DB YOK) → **S2.19B** production Dashboard DDL+doğrulama → **S2.19C** canlı smoke+INV. Kilitli backlog (S2.20+): Evidence Gate → Ranking → Retrieval Pipeline → Search UI.
 
 ## Son Tamamlanan Aşama
 
@@ -83,8 +83,8 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **S2.18 — Saf Retrieval Query Descriptor / Execution Contract (EX-D): kod TAMAMLANDI** (`work/yh-s2-18`; kod `ab1d5f5` + doküman kapanışı). Kararlar K1–K7 nihai kodda uygulandı: K1 visibility yeniden uygulanmaz (S2.13 `VisibilityContext` taşınır; `invariantFilters`/PII/demo alanı YOK) · K2 fail-closed discriminated union `kind:'noop'|'query'` (adapter yalnız `query` çalıştırır) · K3 string SQL üretilmez · K4 ranking intent taşınır fakat ts_rank yürütülmez · K5 config/SQL drift borcu S2.19'a · K6 immutability (freeze + 4 garanti) · K7 module facet kapsam dışı. Bkz. `CURRENT_TASK.md`.
-- **Onay bekleyen:** **S2.18 push + PR** (doküman kapanışından ve origin/main drift raporundan sonra ayrı onayla) → ardından **S2.19** (gerçek DB execution/RPC/DDL + Evidence Gate). **Otomatik başlamaz.** Not: ROADMAP'te **S2.06 yoktur**.
+- **AKTİF: S2.19A — Retrieval Executor + Supabase Adapter + ts_rank RPC (kod fazı)** (`work/yh-s2-19` @ `2c1d728`). Mimari **Alternatif A**: S2.18 descriptor → `public.yh_search_candidates` RPC → `Candidate[]`; weighted ts_rank DB'de; §9 görünürlük + stone exclusion **ORDER BY/LIMIT'ten ÖNCE**; `evaluateVisibility` post-fetch savunma. Son güvenlik kararı: **SECURITY INVOKER** (service_role RLS bypass; REVOKE PUBLIC/anon/auth + GRANT service_role; pinned search_path) + **p_weights fail-loud** (geçersiz weights `RAISE EXCEPTION`, sessiz varsayılan YOK; descriptor S2.18 üretir). Teslim: RPC migration (Dashboard-uygulanır) + `retrievalExecutor.ts` + `supabaseRetrievalAdapter.ts` + mock harness. **Canlı DB YOK.** Bkz. `CURRENT_TASK.md`.
+- **Onay bekleyen:** **S2.19B** (production Dashboard DDL uygulaması + salt-okunur doğrulama SQL) → **S2.19C** (canlı smoke + INV harness). **Otomatik başlamaz. "Tam güvenli canlı retrieval" S2.19B/C tamamlanmadan ilan edilmez.** Not: ROADMAP'te **S2.06 yoktur**.
 
 ## Bekleyen İşler
 

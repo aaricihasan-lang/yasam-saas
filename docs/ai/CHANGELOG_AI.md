@@ -44,6 +44,68 @@
 
 ---
 
+## 2026-07-21 — S2.19A açıldı: Retrieval Executor + Supabase Adapter + ts_rank RPC (kod fazı)
+
+### Tarih
+2026-07-21
+
+### Karar
+**S2.19 fazlı ilerleyecek; S2.19A kod fazı açıldı.** S2.18 `RetrievalQueryDescriptor`'ı gerçek DB'ye
+bağlayan impure execution katmanı. **Mimari = Alternatif A** (onaylı): descriptor → PostgreSQL RPC
+`public.yh_search_candidates` → `Candidate[]`; **weighted ts_rank DB tarafında**; §9 görünürlük
+(tenant/shared + is_client_pii=false + demo hariç + stone `NOT EXISTS`) **ORDER BY/LIMIT'ten ÖNCE**;
+`evaluateVisibility` (S2.13) **post-fetch defence-in-depth**. Worktree tabanı `2c1d728` (güncel
+origin/main; S2.18 = PR #15 `89815ef` main'de), branch `work/yh-s2-19`.
+
+**Fazlar:** S2.19A (kod + RPC migration dosyası + mock harness; **canlı DB YOK**) · S2.19B (production
+Dashboard DDL uygulaması + salt-okunur doğrulama SQL) · S2.19C (canlı smoke + INV harness). **"Tam
+güvenli canlı retrieval" S2.19B/C tamamlanmadan İLAN EDİLMEZ.**
+
+### İki son güvenlik kararı (kilitli)
+1. **RPC SECURITY INVOKER (DEFINER değil):** yalnız service_role çağıracak; service_role zaten RLS
+   bypass (FORCE RLS yok) → DEFINER gereksiz + ayrıcalık-yükseltme riski. `REVOKE ALL FROM PUBLIC,
+   anon, authenticated` + `GRANT EXECUTE TO service_role` + `SET search_path = public, pg_catalog` +
+   şema-nitelikli adlar → yanlış çağrıda fail-closed; search_path ele geçirme engellenir.
+2. **p_weights fail-loud (sessiz varsayılana DÖNMEZ):** descriptor S2.18 üretir → geçersiz weights =
+   sözleşme/programlama hatası. `NULL` / `array_length != 4` / NULL eleman / negatif / non-finite →
+   `RAISE EXCEPTION`. Adapter ham DB mesajını sızdırmadan `{ kind:'error', code:
+   'retrieval-execution-failed' }` üretir. **Blanket try/catch YOK** — yalnız impure DB sınırında
+   beklenen RPC/transport hatası kontrollü şekilde sonuç tipine çevrilir. (p_limit ise iş değeri değil
+   DoS-korkuluğudur → clamp/fail-safe; iş limiti 150 descriptor'dan.)
+
+### Neden
+- **Weighted ts_rank PostgREST `.textSearch()` ile yapılamaz** → RPC/PostgreSQL fonksiyonu zorunlu.
+- **service_role RLS'i bypass eder** → WHERE tek tenant sınırıdır; §9 WHERE + post-fetch savunma
+  (aynı S2.13 politikası **iki kez yeniden icat edilmez**; DB WHERE onun materyalizasyonu).
+- **Görünürlük + stone LIMIT'ten önce** → görünmeyen kayıtlar top-150 slotunu kaplayıp eksik/yanlış
+  top-N üretmesin (S2.18'de kilitlenen sıra).
+- **Tek config kaynak:** weights/limit descriptor'dan RPC parametresi → SQL'de ikinci sabit yok (K5).
+
+### Etkilenen Dosyalar (S2.19A — yeni)
+- `supabase/migrations/20260724000000_yh_search_candidates_rpc.sql` (Dashboard-uygulanır; idempotent)
+- `lib/yasam-hafizasi/search/retrievalExecutor.ts` (saf: union + mapper + savunma orkestrasyonu)
+- `lib/yasam-hafizasi/search/supabaseRetrievalAdapter.ts` (impure: dar client + RPC + stone port)
+- `scripts/yh-retrieval-executor-harness.ts` (mock DB client)
+- `docs/ai/*` (açılış + kapanış)
+
+### Breaking Change (Evet/Hayır)
+Hayır — yeni üniteler; mevcut YH dosyaları değişmez (yalnız import: `retrievalQuery`, `visibilityScope`,
+`types`, `config`).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Evet — yeni RPC fonksiyonu (`yh_search_candidates`). **Dashboard'dan uygulanır (S2.19B)**; migration
+runner değil (`DATABASE_URL=localhost` çalışmaz). S2.19A'da yalnız dosya teslim edilir; uygulanmaz.
+
+### Notlar
+- Şema uzlaştırması kanıtlı: `yasam_hafizasi_index` (2 migration, ALTER yok; RLS service_role-only),
+  `stone_exclusions(tenant_id text, stone_id uuid, PK)` gerçek; eşleşme `stone_id = source_id` WHERE
+  `source_module='dogaltas'`. Demo = `tenant_id = YH_DEMO_TENANT_ID` (kolon değil). Ana indekste
+  `is_client_pii` CHECK ile daima false.
+- **Kapsam dışı (S2.20+):** Evidence Gate · derece · "Neden?" · Retrieval Pipeline · UI · semantic ·
+  PII indeksi · AI · module facet.
+
+---
+
 ## 2026-07-21 — S2.18 kapandı: Saf Retrieval Query Descriptor / Execution Contract (EX-D)
 
 ### Tarih
