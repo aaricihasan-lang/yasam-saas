@@ -10,22 +10,31 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-21 (S2.19A AÇILIŞ — kod fazı başlıyor; production DDL/backfill/smoke S2.19B/C)
+**Son güncelleme:** 2026-07-21 (S2.19A KOD-TAM — kod+migration+harness commit; canlı DB YOK)
 
 ---
 
 ## Durum
 
-**S2.19A AÇILDI — Retrieval Executor + Supabase Adapter + ts_rank RPC (kod fazı).**
-S2.18 `RetrievalQueryDescriptor`'ı gerçek DB'ye bağlayan **impure execution katmanı**. Mimari:
-**Alternatif A** (descriptor → PostgreSQL RPC → `Candidate[]`; weighted ranking DB'de; visibility +
-stone exclusion **ORDER BY/LIMIT'ten ÖNCE**; `evaluateVisibility` post-fetch savunma).
+**S2.19A KOD-TAM — Retrieval Executor + Supabase Adapter + ts_rank RPC.**
+S2.18 `RetrievalQueryDescriptor`'ı gerçek DB'ye bağlayan **impure execution katmanı** yazıldı,
+doğrulandı ve commit edildi. Mimari **Alternatif A** (descriptor → PostgreSQL RPC → `Candidate[]`;
+weighted ranking DB'de; visibility + stone exclusion **ORDER BY/LIMIT'ten ÖNCE**; `evaluateVisibility`
+post-fetch savunma).
+
+**⚠️ production DDL UYGULANMADI · backfill TEYİT EDİLMEDİ · canlı retrieval DOĞRULANMADI.**
+**"Tam güvenli canlı retrieval" İLAN EDİLMEDİ** — S2.19B/C hâlâ açık.
+
+**Commit zinciri (`work/yh-s2-19`):** `2c1d728` (taban=güncel origin/main) → **`75976f5`**
+(`docs(ai): open S2.19 retrieval executor`) → **`cbbbf4a`** (`feat: add S2.19 retrieval RPC` —
+migration) → **`d9ebdd5`** (`feat: add S2.19 retrieval executor and adapter` — 3 dosya) → doküman
+kapanışı (bu adım). **Push/PR/main-merge YOK.**
 
 **Fazlı teslim (kilitli):**
-- **S2.19A (bu görev):** RPC migration dosyası (Dashboard-uygulanır) + `retrievalExecutor.ts` +
+- **S2.19A ✅ (bu görev):** RPC migration dosyası (Dashboard-uygulanır) + `retrievalExecutor.ts` +
   `supabaseRetrievalAdapter.ts` + mock harness. **Canlı DB YOK.**
-- **S2.19B (sonraki, ayrı onay):** production Dashboard DDL uygulaması + salt-okunur doğrulama SQL.
-- **S2.19C (sonraki, ayrı onay):** canlı smoke + INV harness.
+- **S2.19B ⬜ (sonraki, ayrı onay):** production Dashboard DDL uygulaması + salt-okunur doğrulama SQL.
+- **S2.19C ⬜ (sonraki, ayrı onay):** canlı smoke + INV harness.
 
 **Önceki durum (kayda alındı):** S2.18 (Retrieval Query Descriptor) **main/production'a MERGE
 EDİLDİ** — **PR #15**, merge commit **`89815ef`** (kod `ab1d5f5`). `origin/main` sonrasında **PR #16**
@@ -118,7 +127,25 @@ Evidence Gate **[4] downstream** (`Candidate[]` tüketir), **S2.20 kapsamı**.
 - **Bu görevde push/PR/main-merge YOK.** Dashboard DDL **S2.19B'de** kullanıcıya verilir. **"Tam
   güvenli canlı retrieval" S2.19B/C tamamlanmadan İLAN EDİLMEZ.**
 
+## Doğrulama sonuçları (S2.19A — GEÇTİ)
+
+- Yeni mock harness **49/49 PASS** · S2.13 **49/49** · S2.14 **83/83** · S2.15 **42/42** ·
+  S2.16 **42/42** · S2.17 **57/57** · S2.18 **52/52** · `tsc --noEmit` **PASS** · hedefli ESLint
+  **0 error/0 warning** · `git diff --check` **PASS** · yasaklı-kapsam grep temiz (executable `.rpc()`
+  yalnız adapter; SQL string interpolation yok; `retrievalExecutor` saf).
+
+## S2.19B'ye geçmeden açık riskler
+
+- **R1 — DDL/backfill teyitsiz:** `yh_search_candidates` + index migration'ları + backfill
+  production'da uygulanmadan **uçtan-uca canlı çalışma imkânsız** (Dashboard-only; `localhost` yok).
+- **R2 — ts_rank ağırlık sırası:** RPC `[A,B,C,D]`→`{D,C,B,A}` ters çevirmesi **yalnız canlı SWE ile**
+  nihai doğrulanır (mock harness ters-çevirme SQL'ini çalıştırmaz).
+- **R3 — text/uuid cast:** `stone_exclusions.tenant_id` (text) vs `p_session_tenant::text` canlı veride
+  doğrulanmalı.
+
 ## Sonuç
 
-- *(S2.19A açıldı — kod fazı. RPC/adapter/executor/harness yazılacak; canlı DB yok. Onaylandı:
-  Alternatif A + INVOKER + p_weights fail-loud. Sonraki: docs açılış → migration → kod → docs kapanış.)*
+- *(S2.19A KOD-TAM — Alternatif A + INVOKER + p_weights fail-loud. Migration `cbbbf4a` (Dashboard-
+  uygulanır), kod `d9ebdd5` (executor+adapter+harness). Mock harness 49/49 + 5 regresyon + TS/ESLint/
+  diff-check PASS. **Production DDL/backfill/canlı retrieval YOK; S2.19B/C açık; "tam güvenli canlı
+  retrieval" ilan edilmedi.** Push/PR yok.)*

@@ -44,6 +44,59 @@
 
 ---
 
+## 2026-07-21 — S2.19A kod-tam: Retrieval Executor + Supabase Adapter + ts_rank RPC
+
+### Tarih
+2026-07-21
+
+### Karar
+**S2.19A kod fazı TAMAMLANDI ve commit edildi** (`work/yh-s2-19`; docs açılış `75976f5` + migration
+`cbbbf4a` + kod `d9ebdd5`; **push/PR YOK**). S2.18 descriptor'ı gerçek DB'ye bağlayan impure katman
+(Alternatif A) yazıldı: RPC `public.yh_search_candidates` (Dashboard-uygulanır migration dosyası),
+saf `retrievalExecutor.ts`, impure `supabaseRetrievalAdapter.ts`, mock harness.
+
+**⚠️ NET DURUM — production DDL UYGULANMADI · backfill TEYİT EDİLMEDİ · canlı retrieval
+DOĞRULANMADI · "tam güvenli canlı retrieval" İLAN EDİLMEDİ.** S2.19B (Dashboard DDL + doğrulama SQL)
+ve S2.19C (canlı smoke + INV harness) **hâlâ açık** ve ayrı onaya tabi.
+
+### ts_rank ağırlık sırası (kritik uzlaştırma)
+PostgreSQL `ts_rank(weights, tsv, query)` diziyi **`{D,C,B,A}`** sırasında bekler; descriptor/adapter
+doğal **`[A,B,C,D]`** (YH_TSV_WEIGHTS) gönderir. Bu PG-özel ters çevirme **yalnız RPC içinde**
+(`ARRAY[p_weights[4],p_weights[3],p_weights[2],p_weights[1]]`) yapılır → TS tarafı doğal sırada kalır,
+tek config kaynak korunur. **Ters çevirme yalnız canlı SWE (S2.19C) ile nihai doğrulanır** (mock
+harness SQL'i çalıştırmaz).
+
+### Uygulanan güvenlik kararları
+- **RPC SECURITY INVOKER** + REVOKE PUBLIC/anon/authenticated + GRANT service_role + `SET search_path
+  = public, pg_catalog` + şema-nitelikli adlar (migration doğrulama yorumunda `has_function_privilege`
+  beklentileri belgeli).
+- **p_weights fail-loud:** NULL / `array_length != 4` / NULL eleman / negatif / NaN / ±Infinity →
+  `RAISE EXCEPTION`; adapter ham mesaj sızdırmadan `{kind:'error', code:'retrieval-execution-failed'}`.
+- **p_limit** DoS-korkuluğu clamp `least(greatest(coalesce(p_limit,150),1), 500)` (iş limiti 150
+  descriptor'dan; 500 sanity rail iş değerinin kopyası değil).
+- **Görünürlük + stone `NOT EXISTS` ORDER BY/LIMIT'ten ÖNCE** (görünmez kayıt top-N slotunu kaplayamaz).
+- Adapter: dar `RetrievalDbClient` (`any` yok); `getServerDb` service_role; ham DB mesajı sızmaz;
+  **blanket try/catch YOK** (yalnız `{data,error}` sınırı sonuç tipine çevrilir).
+
+### Etkilenen Dosyalar (yeni)
+- `supabase/migrations/20260724000000_yh_search_candidates_rpc.sql` (Dashboard-uygulanır; **timestamp
+  `20260724` seçildi çünkü `20260723` origin/main'de aromatherapy_glossary_terms tarafından alınmış**)
+- `lib/yasam-hafizasi/search/retrievalExecutor.ts` · `lib/yasam-hafizasi/search/supabaseRetrievalAdapter.ts`
+- `scripts/yh-retrieval-executor-harness.ts`
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Evet — `yh_search_candidates` RPC. **Dashboard'dan uygulanır (S2.19B)**; runner değil. S2.19A'da
+yalnız dosya teslim edildi, uygulanmadı.
+
+### Notlar
+- Doğrulama: yeni harness **49/49**; regresyon S2.13 **49** · S2.14 **83** · S2.15 **42** · S2.16
+  **42** · S2.17 **57** · S2.18 **52**; `tsc --noEmit` PASS; hedefli ESLint 0/0; `git diff --check`
+  PASS; executable `.rpc()` yalnız adapter; SQL string interpolation yok.
+- **Kapsam dışı (S2.20+):** Evidence Gate · derece · "Neden?" · Retrieval Pipeline · UI · semantic ·
+  PII indeksi · AI · module facet.
+
+---
+
 ## 2026-07-21 — S2.19A açıldı: Retrieval Executor + Supabase Adapter + ts_rank RPC (kod fazı)
 
 ### Tarih
