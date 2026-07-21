@@ -10,22 +10,34 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-20 (S2.18 açılış — yalnız doküman; kod YOK)
+**Son güncelleme:** 2026-07-21 (S2.18 KAPANIŞ — kod tamamlandı; doküman kapanışı)
 
 ---
 
 ## Durum
 
-**S2.18 AÇILDI — yalnız mimari sözleşme + doküman.** Henüz **kod/harness/migration YOK**.
-Bu commit yalnızca S2.18'i tanımlayan doküman açılışıdır; `retrievalQuery.ts` ve harness
-**ayrı, sonraki onaylı adımda** yazılacaktır.
+**S2.18 TAMAMLANDI — Saf Retrieval Query Descriptor / Execution Contract (EX-D).**
+Kod + harness yazıldı, doğrulandı ve commit edildi; bu doküman kapanışıdır. **Push YOK,
+PR YOK, origin/main merge YOK, S2.19 BAŞLAMADI.**
+
+**Commit zinciri (`work/yh-s2-18`):** `9bbe5da` (worktree tabanı = güncel origin/main
+snapshot) → **`d00fe3d`** (`docs(ai): open S2.18 retrieval query descriptor`) →
+**`ab1d5f5`** (`feat(yasam-hafizasi): add S2.18 retrieval query contract` — kod) →
+**doküman kapanış commit'i** (bu adım; yalnız `docs/ai/`).
+
+**Kod teslimi (`ab1d5f56cb6bd6ca53916b4e1c65b46bed295a57`, yalnız 2 dosya):**
+- `lib/yasam-hafizasi/search/retrievalQuery.ts`
+- `scripts/yh-retrieval-query-harness.ts`
+
+`buildRetrievalQuery(plan: TsQueryPlan, visibility: VisibilityContext): RetrievalQueryDescriptor`
+saf/deterministik/immutable/DB'siz üretildi. **DB execution S2.18'de YOK** — gerçek DB
+adapter/RPC/DDL **S2.19 kapsamıdır**.
 
 **Önceki durum (kayda alındı):** S2.17 (search_tsv tsquery Plan) **main/production'a merge
 EDİLDİ** — **PR #13**, merge commit **`7344b6d`**. `origin/main` bu tarihten sonra
 **`9bbe5da`**'ya ilerledi (yalnız **Danışan Yolculuğu / clients** mobil analiz + Word UX
 düzeltmeleri — YH yüzeyine dokunmayan drift). **S2.18 worktree tabanı = `9bbe5da`**
-(güncel origin/main; sabit SHA `9bbe5da82a2f9f5ccc4525b01a18141cf7ee77a3`), branch
-`work/yh-s2-18`.
+(sabit SHA `9bbe5da82a2f9f5ccc4525b01a18141cf7ee77a3`), branch `work/yh-s2-18`.
 
 ---
 
@@ -59,13 +71,25 @@ Tek saf fonksiyon, `TsQueryPlan` (S2.17) + `VisibilityContext` (S2.13) alıp bir
 - **`kind:'noop'`** → DB execution **YASAK**; `reason` sınırlı union.
 - **`kind:'query'`** → güvenli descriptor; S2.19 adapter'ı **yalnız bunu** çalıştırabilir.
 
-`kind:'query'` taşıdıkları (hepsi typed veri, **SQL string YOK**):
-- `config: 'simple'` + `column: 'search_tsv'` + `tsquery` (S2.17 plan'ından).
-- **Visibility sözleşmesi** — S2.13 `VisibilityContext` **taşınır** (yeniden hesaplanmaz).
-- **Invariant filtre niyeti** — `is_client_pii = false` + demo-skip, §9 aynası, typed bayrak
-  (ikinci karar motoru DEĞİL; materyalizasyon S2.19 SQL + satır-bazı yetki `evaluateVisibility`).
-- **Ranking niyeti** — `requiresWeightedTsRank: true`, `YH_TSV_WEIGHTS` (değer + kaynak adı),
-  `direction: 'desc'`, `limit` (`YH_CANDIDATE_LIMIT` değer + kaynak adı). **ts_rank hesaplanmaz.**
+`kind:'query'` taşıdıkları (hepsi typed veri, **SQL string YOK** — nihai kod ile teyitli):
+- `config: 'simple'` + `column: 'search_tsv'` + `tsquery` (S2.17 plan'ından **birebir**).
+- **Visibility sözleşmesi** — S2.13 `VisibilityContext` **taşınır** (yeniden hesaplanmaz);
+  yalnız `sessionTenantId` + `allowShared` (taze frozen kopya).
+- **Ranking niyeti** — `requiresWeightedTsRank: true`, `weightsSource: 'YH_TSV_WEIGHTS'` +
+  `weights` (değerin taze frozen kopyası: `A=1.0, B=0.6, C=0.35, D=0.15`),
+  `direction: 'desc'`. **ts_rank hesaplanmaz.**
+- **Limit niyeti** — `source: 'YH_CANDIDATE_LIMIT'` + `value: 150`. **Kesme yapılmaz.**
+
+> **⚠️ invariantFilters UZLAŞTIRMASI (açılış önerisi ↔ nihai kod):** Açılış dokümanında
+> geçen "**Invariant filtre niyeti** (`is_client_pii = false` + demo-skip typed bayrak)"
+> önerisi **nihai kodda UYGULANMADI**. Nihai descriptor şunları **TAŞIMAZ:**
+> `invariantFilters` · `requireNonPii` · `excludeDemo` · SQL WHERE · SQL fragment ·
+> güvenlik filtresi string'i. **Bilinçli gerekçe:** `VisibilityContext` yalnız güvenilir
+> session-tabanlı context'tir; S2.18 visibility politikasını **yeniden uygulamaz** ve
+> ikinci bir tenant/shared/PII/demo karar motoru **oluşturmaz**. Yetkili aday görünürlük
+> kararı **S2.13 `evaluateVisibility`** katmanında kalır; PostgreSQL WHERE/RPC
+> materyalizasyonu **S2.19** kapsamıdır. (PII/demo `VisibilityContext`'te yok → descriptor'a
+> ikinci kopya olarak da eklenmez; sahibi S2.13 + ana-indeks kısıtlarıdır.)
 
 ## Kararlar (K1–K7, onaylı — 7 mimari düzeltme)
 
@@ -134,48 +158,73 @@ Tek saf fonksiyon, `TsQueryPlan` (S2.17) + `VisibilityContext` (S2.13) alıp bir
 - **R4 — Kapsam kayması:** Evidence Gate/ranking/facet S2.18'e sızarsa → kapsam dışı kilitlendi.
 - **R5 — Çoklu oturum / paylaşımlı index:** izole worktree + yalnız yeni dosya + path-scoped commit.
 
-## Beklenen Çıktılar (KOD AŞAMASI — bu commit'te DEĞİL)
+## Teslim Edilen Çıktılar (KOD AŞAMASI — TAMAMLANDI, `ab1d5f5`)
 
-- `lib/yasam-hafizasi/search/retrievalQuery.ts` — saf, fail-safe, deterministik, DB'siz.
+- ✅ `lib/yasam-hafizasi/search/retrievalQuery.ts` — saf, fail-safe, deterministik, DB'siz.
   - `buildRetrievalQuery(plan: TsQueryPlan, visibility: VisibilityContext): RetrievalQueryDescriptor`
   - Yeni tipler **bu dosyada** (`RetrievalQueryDescriptor` discriminated union +
-    `RetrievalQueryNoopReason`); `types.ts` değişmez (S2.17 deseni).
-- `scripts/yh-retrieval-query-harness.ts` — izole harness (`tsx`).
+    `RetrievalQueryNoopReason` + `RetrievalTsvWeights`/`RetrievalRankingIntent`/`RetrievalLimitIntent`);
+    `types.ts` değişmedi (S2.17 deseni).
+- ✅ `scripts/yh-retrieval-query-harness.ts` — izole harness (`tsx`).
 
-## Doğrulama (KOD AŞAMASINDA)
+## Doğrulama (KOD AŞAMASINDA — GEÇTİ)
 
 - Adım-0 salt-okuma: `TsQueryPlan`/`VisibilityContext`/`YH_TSV_WEIGHTS`/`YH_CANDIDATE_LIMIT`
   tip ve şekilleri (yapıldı).
-- Harness matrisi: boş plan → `kind:'noop'`/`empty-tsquery` · geçersiz session tenant →
+- Harness matrisi (geçti): boş plan → `kind:'noop'`/`empty-tsquery` · geçersiz session tenant →
   `kind:'noop'`/`invalid-visibility-context` · geçerli → `kind:'query'` (config/column/tsquery/
   visibility taşındı) · weights == `YH_TSV_WEIGHTS` · limit == `YH_CANDIDATE_LIMIT` · direction='desc' ·
   immutability (freeze + input mutasyon yok + fresh output + ref sızıntısı yok) · determinizm ·
   **SQL string üretilmediği** grep-assert.
-- Kapsam-izole `tsc --noEmit` + hedefli ESLint + `git diff --check`; S2.14/15/16/17 + visibility regresyon.
+- **Sonuçlar:** yeni harness **52/52 PASS** · S2.13 **49/49** · S2.14 **83/83** · S2.15 **42/42** ·
+  S2.16 **42/42** · S2.17 **57/57** · TypeScript PASS · hedefli ESLint PASS · `git diff --check` PASS.
+
+## S2.19 MİMARİ ZORUNLULUĞU — Görünürlük ↔ LIMIT 150 sırası (S2.18'de UYGULANMAZ)
+
+> **Bu kural yalnız dokümana yazılır; S2.18 kodunda UYGULANMAZ, S2.19 henüz BAŞLAMAZ.**
+> Kullanıcı ayrıca SQL çalıştırmayacaktır. `YH_CANDIDATE_LIMIT = 150` aday tavanı S2.19
+> DB execution'ında materyalize edilirken **kabul edilen tek mantıksal sıra** şudur:
+
+1. **tenant/shared görünürlük sınırı**
+2. **PII/demo güvenlik şartları**
+3. **`search_tsv` eşleşmesi**
+4. **weighted PostgreSQL `ts_rank`**
+5. **rank DESC**
+6. **`YH_CANDIDATE_LIMIT = 150`**
+7. sonuçlar üzerinde **S2.13 `evaluateVisibility` savunma katmanı**
+
+**Yanlış ve KABUL EDİLMEYEN sıra:** önce rank + `LIMIT 150` → sonra görünmeyen adayları ele.
+**Sebep:** görünmeyen kayıtlar ilk 150 adayın içinde yer kaplayabilir; sonradan elenseler bile
+görünür kayıtların aday havuzuna girmesini engelleyebilir. Bu, **veri sızıntısı olmasa bile**
+eksik ve yanlış top-N sonucu üretir. Görünürlük sınırı **LIMIT'ten ÖNCE** uygulanmalıdır.
 
 ## Commit
 
-- **Bu görev iki ayrı, izole commit'tir (path-scoped):**
-  1. **Doküman açılışı (bu adım):** yalnız `docs/ai/CURRENT_TASK.md`, `PROJECT_STATUS.md`,
-     `ROADMAP.md`, `CHANGELOG_AI.md`.
-  2. **S2.18 kod (sonraki onaylı adım):** `lib/yasam-hafizasi/search/retrievalQuery.ts`,
+- **Bu görev üç ayrı, izole commit'tir (path-scoped):**
+  1. ✅ **Doküman açılışı** (`d00fe3d`): yalnız `docs/ai/`.
+  2. ✅ **S2.18 kod** (`ab1d5f5`): `lib/yasam-hafizasi/search/retrievalQuery.ts`,
      `scripts/yh-retrieval-query-harness.ts`.
+  3. **Doküman kapanışı** (bu adım): yalnız `docs/ai/CURRENT_TASK.md`, `PROJECT_STATUS.md`,
+     `ROADMAP.md`, `CHANGELOG_AI.md`.
 - `git add .` / `git add -A` / `git commit -a` **YASAK**; yalnız ilgili path'ler stage edilir.
-- **Kullanıcı onayı olmadan kod/commit/push yok.**
 
-### Beklenen Commit Mesajları
+### Commit Mesajları
 
 ```
-docs(ai): open S2.18 retrieval query descriptor
-
-feat(yasam-hafizasi): S2.18 retrieval query descriptor (pure, DB-less, fail-closed)
+docs(ai): open S2.18 retrieval query descriptor        (d00fe3d) ✅
+feat(yasam-hafizasi): add S2.18 retrieval query contract  (ab1d5f5) ✅
+docs(ai): close S2.18 retrieval query contract         (bu adım)
 ```
 
 ## Push
 
 - **Yalnızca ayrı kullanıcı onayıyla.** Push öncesi `git fetch` + ahead/behind kontrolü.
+  **Bu adımda push YOK, PR YOK, origin/main merge YOK.**
 
 ## Sonuç
 
-- *(S2.18 açıldı — yalnız doküman. Kod aşaması onay bekliyor. `retrievalQuery.ts`/harness YAZILMADI;
-  migration/DDL/RPC YOK; push YOK.)*
+- *(S2.18 TAMAMLANDI — saf Retrieval Query Descriptor / Execution Contract. Kod `ab1d5f5`
+  (2 dosya) yazıldı ve doğrulandı: yeni harness 52/52, 5 regresyon PASS, TS/ESLint/diff-check
+  PASS. Nihai descriptor `invariantFilters`/`requireNonPii`/`excludeDemo`/SQL taşımaz — visibility
+  kararı S2.13'te, WHERE/RPC materyalizasyonu S2.19'da. DB execution/RPC/DDL + Evidence Gate
+  **S2.19+ (kapsam dışı, otomatik başlamaz)**. Bu adım doküman kapanışı; push/PR/merge YOK.)*
