@@ -10,221 +10,142 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-21 (S2.18 KAPANIŞ — kod tamamlandı; doküman kapanışı)
+**Son güncelleme:** 2026-07-21 (S2.19A KOD-TAM — kod+migration+harness commit; canlı DB YOK)
 
 ---
 
 ## Durum
 
-**S2.18 TAMAMLANDI — Saf Retrieval Query Descriptor / Execution Contract (EX-D).**
-Kod + harness yazıldı, doğrulandı ve commit edildi; bu doküman kapanışıdır. **Push YOK,
-PR YOK, origin/main merge YOK, S2.19 BAŞLAMADI.**
+**S2.19A KOD-TAM — Retrieval Executor + Supabase Adapter + ts_rank RPC.**
+S2.18 `RetrievalQueryDescriptor`'ı gerçek DB'ye bağlayan **impure execution katmanı** yazıldı,
+doğrulandı ve commit edildi. Mimari **Alternatif A** (descriptor → PostgreSQL RPC → `Candidate[]`;
+weighted ranking DB'de; visibility + stone exclusion **ORDER BY/LIMIT'ten ÖNCE**; `evaluateVisibility`
+post-fetch savunma).
 
-**Commit zinciri (`work/yh-s2-18`):** `9bbe5da` (worktree tabanı = güncel origin/main
-snapshot) → **`d00fe3d`** (`docs(ai): open S2.18 retrieval query descriptor`) →
-**`ab1d5f5`** (`feat(yasam-hafizasi): add S2.18 retrieval query contract` — kod) →
-**doküman kapanış commit'i** (bu adım; yalnız `docs/ai/`).
+**⚠️ production DDL UYGULANMADI · backfill TEYİT EDİLMEDİ · canlı retrieval DOĞRULANMADI.**
+**"Tam güvenli canlı retrieval" İLAN EDİLMEDİ** — S2.19B/C hâlâ açık.
 
-**Kod teslimi (`ab1d5f56cb6bd6ca53916b4e1c65b46bed295a57`, yalnız 2 dosya):**
-- `lib/yasam-hafizasi/search/retrievalQuery.ts`
-- `scripts/yh-retrieval-query-harness.ts`
+**Commit zinciri (`work/yh-s2-19`):** `2c1d728` (taban=güncel origin/main) → **`75976f5`**
+(`docs(ai): open S2.19 retrieval executor`) → **`cbbbf4a`** (`feat: add S2.19 retrieval RPC` —
+migration) → **`d9ebdd5`** (`feat: add S2.19 retrieval executor and adapter` — 3 dosya) → doküman
+kapanışı (bu adım). **Push/PR/main-merge YOK.**
 
-`buildRetrievalQuery(plan: TsQueryPlan, visibility: VisibilityContext): RetrievalQueryDescriptor`
-saf/deterministik/immutable/DB'siz üretildi. **DB execution S2.18'de YOK** — gerçek DB
-adapter/RPC/DDL **S2.19 kapsamıdır**.
+**Fazlı teslim (kilitli):**
+- **S2.19A ✅ (bu görev):** RPC migration dosyası (Dashboard-uygulanır) + `retrievalExecutor.ts` +
+  `supabaseRetrievalAdapter.ts` + mock harness. **Canlı DB YOK.**
+- **S2.19B ⬜ (sonraki, ayrı onay):** production Dashboard DDL uygulaması + salt-okunur doğrulama SQL.
+- **S2.19C ⬜ (sonraki, ayrı onay):** canlı smoke + INV harness.
 
-**Önceki durum (kayda alındı):** S2.17 (search_tsv tsquery Plan) **main/production'a merge
-EDİLDİ** — **PR #13**, merge commit **`7344b6d`**. `origin/main` bu tarihten sonra
-**`9bbe5da`**'ya ilerledi (yalnız **Danışan Yolculuğu / clients** mobil analiz + Word UX
-düzeltmeleri — YH yüzeyine dokunmayan drift). **S2.18 worktree tabanı = `9bbe5da`**
-(sabit SHA `9bbe5da82a2f9f5ccc4525b01a18141cf7ee77a3`), branch `work/yh-s2-18`.
+**Önceki durum (kayda alındı):** S2.18 (Retrieval Query Descriptor) **main/production'a MERGE
+EDİLDİ** — **PR #15**, merge commit **`89815ef`** (kod `ab1d5f5`). `origin/main` sonrasında **PR #16**
+(`2c1d728`, aromaterapi bilgi bankası; YH-dışı drift) ilerledi. **S2.19 worktree tabanı = `2c1d728`**
+(güncel origin/main), branch `work/yh-s2-19`.
 
 ---
 
 ## Görev
 
-Yaşam Hafızası™ **Sprint 2 / S2.18 — Saf Retrieval Query Descriptor / Execution Contract
-(EX-D)**. S2.17 `TsQueryPlan` çıktısını tüketen; **DB'siz, saf, deterministik** biçimde
-retrieval sorgusunun **execution niyetini typed veri olarak** üreten bir builder.
+Yaşam Hafızası™ **Sprint 2 / S2.19A — Retrieval Execution (Candidate Adapter)**. S2.18
+`RetrievalQueryDescriptor` (kind=`query`) çıktısını tüketip, `yasam_hafizasi_index` üzerinde
+**gerçek DB execution** ile §9 görünürlük + tsquery eşleşme + ağırlıklı ts_rank + LIMIT uygulayıp
+**`Candidate[]`** üreten impure adapter + bunu mümkün kılan PostgreSQL RPC.
 
-**Temel:** S2.17 (`tsQueryPlan.ts`) **main'de** (PR #13, `7344b6d`). S2.18 bunun üstüne
-inşa edilir; S2.17'ye dönülmez, değiştirilmez (yalnız import + tüketim).
+**Temel:** S2.18 (`retrievalQuery.ts`) **main'de** (PR #15, `89815ef`). S2.19 bunun üstüne inşa
+edilir; S2.18/S2.17/S2.13 **değişmez** (yalnız import + tüketim).
 
 ## Amaç
 
-Faz-2 boru hattının [3] adımının **saf yarısını** tamamlamak: `TsQueryPlan`'ı alıp,
-gerçek DB yürütmesi için gereken **tüm kararları typed bir descriptor olarak** paketlemek —
-**ama DB'ye gitmeden, SQL üretmeden, ts_rank hesaplamadan.** Gerçek `.textSearch`/`.rpc()`
-yürütmesi + PostgreSQL fonksiyonu + DDL, **S2.19'a** (ayrı onay) bırakılır.
+Faz-2 boru hattının **[3] adımının impure yarısını** tamamlamak: descriptor → RPC → `Candidate[]`.
+Evidence Gate **[4] downstream** (`Candidate[]` tüketir), **S2.20 kapsamı**.
 
-**Doğrulanmış sprint amacı (kanıtlı):** Sıradaki anayasal ünite `TsQueryPlan`'ı tüketen
-**execution bağlantısıdır** (boru hattı §Boru Hattı: `[3] search_tsv SORGUSU`). **Evidence
-Gate [4] DEĞİLDİR** — o downstream'dir ve `Candidate[]`'ı tüketir, `TsQueryPlan`'ı değil.
-`04-phase-2-fast-search.md` §Boru Hattı + §3 + §9; `tsQueryPlan.ts` "Kapsam dışı" notu;
-`search/types.ts` `Candidate` tipi bu sırayı doğrular.
+## Kapsam (S2.19A — kod)
 
-## Kapsam (plan → typed execution descriptor)
+1. **RPC migration** `20260724000000_yh_search_candidates_rpc.sql` (Dashboard-uygulanır; idempotent):
+   `public.yh_search_candidates(p_tsquery text, p_session_tenant uuid, p_allow_shared boolean,
+   p_weights float4[], p_limit integer) RETURNS TABLE(...16 kolon...)`; plpgsql; STABLE; SECURITY
+   INVOKER; pinned search_path; §9 WHERE (tenant/shared + is_client_pii=false + demo hariç + stone
+   NOT EXISTS) **ranking/LIMIT'ten önce**; weighted `ts_rank(p_weights, search_tsv, to_tsquery)`;
+   tie-breaker `ts_rank DESC, source_updated_at DESC NULLS LAST, id ASC`; REVOKE PUBLIC/anon/auth +
+   GRANT service_role.
+2. **`retrievalExecutor.ts`** (saf): `RetrievalExecutionResult` union + RPC satır tipi + saf
+   `mapRowToCandidate` (kritik alan bozuk → satır düş; koleksiyon bozuk → boş) + `Candidate →
+   VisibilityCandidate` + mevcut `evaluateVisibility` savunma geçişi (yeniden yazılmaz).
+3. **`supabaseRetrievalAdapter.ts`** (impure): dar `RetrievalDbClient`; `getServerDb` (service_role);
+   `createSupabaseRetrievalExecutor` + `createSupabaseStoneExclusionPort`; weights → `[A,B,C,D]`;
+   limit → descriptor'dan; ham DB hata metni **sızmaz** → fail-closed `{kind:'error'}`.
+4. **`yh-retrieval-executor-harness.ts`** (mock DB client).
 
-Tek saf fonksiyon, `TsQueryPlan` (S2.17) + `VisibilityContext` (S2.13) alıp bir
-**discriminated union** descriptor üretir:
+## Son güvenlik kararı (S2.19A, kilitli)
 
-- **`kind:'noop'`** → DB execution **YASAK**; `reason` sınırlı union.
-- **`kind:'query'`** → güvenli descriptor; S2.19 adapter'ı **yalnız bunu** çalıştırabilir.
+- **SECURITY INVOKER:** service_role zaten RLS bypass → DEFINER gereksiz + ayrıcalık-yükseltme riski
+  taşır. INVOKER + `REVOKE ALL FROM PUBLIC, anon, authenticated` + `GRANT EXECUTE TO service_role` +
+  pinned `search_path` + şema-nitelikli adlar → yanlış çağrıda fail-closed, escalation yok.
+- **p_weights fail-loud (sessiz varsayılan YOK):** descriptor S2.18 üretir → geçersiz weights =
+  sözleşme hatası. NULL / `array_length != 4` / NULL eleman / negatif / non-finite → `RAISE
+  EXCEPTION`; adapter ham mesajı sızdırmadan `{kind:'error', code:'retrieval-execution-failed'}`.
+- **p_limit:** iş değeri değil DoS-korkuluğu → clamp (fail-safe); iş limiti 150 descriptor'dan.
 
-`kind:'query'` taşıdıkları (hepsi typed veri, **SQL string YOK** — nihai kod ile teyitli):
-- `config: 'simple'` + `column: 'search_tsv'` + `tsquery` (S2.17 plan'ından **birebir**).
-- **Visibility sözleşmesi** — S2.13 `VisibilityContext` **taşınır** (yeniden hesaplanmaz);
-  yalnız `sessionTenantId` + `allowShared` (taze frozen kopya).
-- **Ranking niyeti** — `requiresWeightedTsRank: true`, `weightsSource: 'YH_TSV_WEIGHTS'` +
-  `weights` (değerin taze frozen kopyası: `A=1.0, B=0.6, C=0.35, D=0.15`),
-  `direction: 'desc'`. **ts_rank hesaplanmaz.**
-- **Limit niyeti** — `source: 'YH_CANDIDATE_LIMIT'` + `value: 150`. **Kesme yapılmaz.**
+## Kapsam DIŞI (S2.19A DEĞİL)
 
-> **⚠️ invariantFilters UZLAŞTIRMASI (açılış önerisi ↔ nihai kod):** Açılış dokümanında
-> geçen "**Invariant filtre niyeti** (`is_client_pii = false` + demo-skip typed bayrak)"
-> önerisi **nihai kodda UYGULANMADI**. Nihai descriptor şunları **TAŞIMAZ:**
-> `invariantFilters` · `requireNonPii` · `excludeDemo` · SQL WHERE · SQL fragment ·
-> güvenlik filtresi string'i. **Bilinçli gerekçe:** `VisibilityContext` yalnız güvenilir
-> session-tabanlı context'tir; S2.18 visibility politikasını **yeniden uygulamaz** ve
-> ikinci bir tenant/shared/PII/demo karar motoru **oluşturmaz**. Yetkili aday görünürlük
-> kararı **S2.13 `evaluateVisibility`** katmanında kalır; PostgreSQL WHERE/RPC
-> materyalizasyonu **S2.19** kapsamıdır. (PII/demo `VisibilityContext`'te yok → descriptor'a
-> ikinci kopya olarak da eklenmez; sahibi S2.13 + ana-indeks kısıtlarıdır.)
-
-## Kararlar (K1–K7, onaylı — 7 mimari düzeltme)
-
-- **K1 (Visibility yeniden üretme YOK):** S2.18, `sessionTenantId + allowShared` alıp S2.13
-  kurallarını **yeniden hesaplamaz**. Mevcut **`VisibilityContext`** tipini (`search/visibilityScope.ts`)
-  import edip **taşır**; tenant/shared/PII/demo'nun **ikinci bağımsız implementasyonu OLUŞTURULMAZ**.
-  Satır-bazı yetkili karar `evaluateVisibility` (S2.13); WHERE materyalizasyonu S2.19. Yeni isim icat
-  edilmez (mevcut tip/fonksiyon adları esas).
-- **K2 (Fail-closed sonuç sözleşmesi):** Sonuç **discriminated union**: `kind:'noop'` (execution yasak)
-  | `kind:'query'` (güvenli descriptor). `RetrievalQueryNoopReason` **sınırlı union**:
-  `'empty-tsquery'` (plan boş/`isEmpty`) | `'invalid-visibility-context'` (session tenant boş/geçersiz →
-  fail-closed). Adapter (S2.19) sözleşmesi: **yalnız `kind:'query'` çalıştırılabilir.**
-- **K3 (String SQL YOK):** Descriptor içinde **SQL WHERE metni / fragment / birleştirilmiş
-  güvenlik filtresi ÜRETİLMEZ.** Visibility/ranking/limit **typed veri**. SQL/RPC parametre dönüşümü
-  **S2.19** sorumluluğu.
-- **K4 (Ranking sınırı):** S2.18 **ts_rank hesaplamaz, DB'ye gitmez.** Descriptor yalnız execution
-  niyetini taşır: weighted ts_rank gereksinimi + `YH_TSV_WEIGHTS` kaynağı/değeri + descending +
-  `YH_CANDIDATE_LIMIT` kaynağı/değeri. **SQL ifadesi oluşturulmaz.**
-- **K5 (Tek config kaynağı — drift borcu):** TypeScript config ile gelecekteki PostgreSQL RPC
-  sabitlerinin **ayrışma (drift) riski** dokümante edilir. **S2.19 zorunluluğu:** ağırlık + limit ya
-  descriptor'dan **RPC parametresi** olarak geçirilecek, ya SQL'de sabitlenirse **TS config ile
-  senkronizasyonu doğrulayan harness** bulunacak. **S2.18'de DDL kararı verilmez.**
-- **K6 (Immutability):** Saflık + immutability zorunlu. `Object.freeze` **kullanılır** (mevcut proje
-  deseni — `tsQueryPlan.ts`/`visibilityScope.ts` bunu destekler). Asıl garantiler: (a) input mutasyonu
-  yok, (b) yeni çıktı nesneleri, (c) input referanslarının kontrolsüz sızdırılmaması, (d) deterministik
-  eşit çıktı. **Harness dördünü de doğrular.**
-- **K7 (Module facet — kapsam dışı):** Boru hattı §8'e göre module facet **sunum-katmanı** işidir
-  (tek retrieval tüm izinli modülleri kapsar; faset sayaçları fetch-sonrası). En dar kapsam adına
-  **S2.18'e EKLENMEZ.** Sunucu-tarafı modül daraltma ileride gerekirse **ayrı karar** (yalnız
-  `YhSourceModule` allowlist ile; serbest string kabul edilmez).
-
-## Kapsama Dahil Değil (S2.18 DEĞİL)
-
-- Gerçek DB execution: `.textSearch(...)` / `.rpc()` / Supabase client çağrısı → **S2.19**.
-- PostgreSQL fonksiyonu / RPC / DDL / production SQL / migration → **S2.19** (ayrı onay + Dashboard).
-- `ts_rank` hesaplama, aday satır getirme, gerçek dictionary/stone-exclusion Supabase adapter'ı.
-- **[4] Kanıt Kapısı (Evidence Gate)** — **downstream, kapsam dışı.** `Candidate[]` tüketir; ayrı ünite.
-- [5] derece · [6] "Neden?" · Retrieval Pipeline orkestrasyonu · module facet (K7).
-- UI / route / semantic / PII / AI.
+- Production Dashboard DDL uygulaması / backfill / canlı retrieval → **S2.19B/C**.
+- **[4] Kanıt Kapısı (Evidence Gate)** — downstream, `Candidate[]` tüketir → **S2.20**.
+- [5] derece · [6] "Neden?" · Retrieval Pipeline · module facet · UI · semantic · PII indeksi · AI.
+- ts_rank'in TS'te hesaplanması (DB'de kalır); SQL string interpolation; dynamic SQL.
 
 ## Dokunulmayacak Dosyalar
 
-- `lib/yasam-hafizasi/search/tsQueryPlan.ts` (S2.17), `visibilityScope.ts` (S2.13),
-  `normalize.ts` (S2.14), `conceptSet.ts` (S2.15), `dictionaryExpansion.ts` (S2.16),
-  `types.ts` (S2.01), `config.ts`, `flags.ts` — **değişmez; yalnız import.**
-- `docs/yasam-hafizasi/` (salt-okunur tasarım kaynağı).
-- Tüm uygulama kodu (`app/`, `components/`, diğer `lib/`) ve diğer oturumların working-tree
-  değişiklikleri — **dokunulmaz** (bkz. paralel-oturum izolasyonu + commit-scope).
+- `retrievalQuery.ts` (S2.18), `tsQueryPlan.ts` (S2.17), `visibilityScope.ts` (S2.13 — yalnız import),
+  `normalize.ts`/`conceptSet.ts`/`dictionaryExpansion.ts`, `config.ts`, `types.ts`, `flags.ts`,
+  `indexer/*` (write-side), mevcut migration'lar, diğer tüm modüller.
 
-## Yapılmayacaklar
+## Değişmezler (INV)
 
-- Saflık ihlali: Supabase/fetch/env/DB/IO/`Date`/`Math.random`/global mutable state — **yasak.**
-- String SQL / WHERE metni / birleştirilmiş filtre üretimi (K3).
-- Visibility kurallarının ikinci implementasyonu (K1).
-- ts_rank hesaplama veya DB çağrısı (K4). DDL kararı (K5).
-- Git işlemi (stage/commit/push), SQL, migration, API değişikliği — **onaysız.**
+- **INV-TENANT:** service_role RLS bypass → WHERE tek tenant sınırı; §9 WHERE + post-fetch
+  `evaluateVisibility` savunma. Cross-tenant/PII/demo/stone **LIMIT'ten önce** dışlanır.
+- **INV-FAIL-CLOSED:** beklenen DB/RPC hatası kontrollü `{kind:'error'}`; blanket try/catch YOK;
+  bozuk satır düşer (görünmez), sorgu çökmez; noop descriptor → DB çağrısı YOK.
+- **INV-SINGLE-SOURCE:** weights/limit descriptor'dan (config tek kaynak); SQL'de ikinci sabit YOK.
 
-## Riskler
+## Doğrulama (S2.19A)
 
-- **R1 — Visibility çift-implementasyon:** tenant/shared/PII/demo mantığı S2.18'de yeniden yazılırsa
-  S2.13 ile ayrışır → K1: yalnız `VisibilityContext` taşınır, karar motoru yazılmaz.
-- **R2 — Config/SQL drift:** weights/limit ileride SQL'de sabitlenip TS config'ten ayrışabilir →
-  K5: S2.19 için RPC-parametre VEYA sync-harness zorunluluğu kaydedildi.
-- **R3 — Sızıntı/execution:** boş/bozuk plan yürütülebilir descriptor üretirse INV-TENANT riski →
-  K2: fail-closed `kind:'noop'`; adapter yalnız `kind:'query'` çalıştırır.
-- **R4 — Kapsam kayması:** Evidence Gate/ranking/facet S2.18'e sızarsa → kapsam dışı kilitlendi.
-- **R5 — Çoklu oturum / paylaşımlı index:** izole worktree + yalnız yeni dosya + path-scoped commit.
+- Yeni mock harness (≥26 kontrol): noop→DB-çağrısı-yok · query→RPC adı/param (tsquery/tenant/
+  allowShared/weights=[A,B,C,D]/limit) · RPC-hata→fail-closed · ham-mesaj-sızmaz · bozuk-satır-düş ·
+  cross-tenant/shared(±allowShared)/PII/demo/stone dışlama · stone-port-hata→fail-closed ·
+  diğer-modülde-stone-çağrılmaz · evidence/topic/relation/tsRank mapping · determinizm · SQL-yok.
+- Regresyon: S2.13 **49** · S2.14 **83** · S2.15 **42** · S2.16 **42** · S2.17 **57** · S2.18 **52**.
+- `tsc --noEmit` · hedefli ESLint · `git diff --check` · yasaklı-kapsam grep.
 
-## Teslim Edilen Çıktılar (KOD AŞAMASI — TAMAMLANDI, `ab1d5f5`)
+## Commit (path-scoped, ayrı; `git add -A` YASAK)
 
-- ✅ `lib/yasam-hafizasi/search/retrievalQuery.ts` — saf, fail-safe, deterministik, DB'siz.
-  - `buildRetrievalQuery(plan: TsQueryPlan, visibility: VisibilityContext): RetrievalQueryDescriptor`
-  - Yeni tipler **bu dosyada** (`RetrievalQueryDescriptor` discriminated union +
-    `RetrievalQueryNoopReason` + `RetrievalTsvWeights`/`RetrievalRankingIntent`/`RetrievalLimitIntent`);
-    `types.ts` değişmedi (S2.17 deseni).
-- ✅ `scripts/yh-retrieval-query-harness.ts` — izole harness (`tsx`).
+1. `docs(ai): open S2.19 retrieval executor` → yalnız `docs/ai/`
+2. `feat(yasam-hafizasi): add S2.19 retrieval RPC` → yalnız `supabase/migrations/2026…_yh_search_candidates_rpc.sql`
+3. `feat(yasam-hafizasi): add S2.19 retrieval executor and adapter` → yalnız 2 lib + 1 harness
+4. `docs(ai): close S2.19 retrieval executor` → yalnız `docs/ai/`
 
-## Doğrulama (KOD AŞAMASINDA — GEÇTİ)
+## Push / Production
 
-- Adım-0 salt-okuma: `TsQueryPlan`/`VisibilityContext`/`YH_TSV_WEIGHTS`/`YH_CANDIDATE_LIMIT`
-  tip ve şekilleri (yapıldı).
-- Harness matrisi (geçti): boş plan → `kind:'noop'`/`empty-tsquery` · geçersiz session tenant →
-  `kind:'noop'`/`invalid-visibility-context` · geçerli → `kind:'query'` (config/column/tsquery/
-  visibility taşındı) · weights == `YH_TSV_WEIGHTS` · limit == `YH_CANDIDATE_LIMIT` · direction='desc' ·
-  immutability (freeze + input mutasyon yok + fresh output + ref sızıntısı yok) · determinizm ·
-  **SQL string üretilmediği** grep-assert.
-- **Sonuçlar:** yeni harness **52/52 PASS** · S2.13 **49/49** · S2.14 **83/83** · S2.15 **42/42** ·
-  S2.16 **42/42** · S2.17 **57/57** · TypeScript PASS · hedefli ESLint PASS · `git diff --check` PASS.
+- **Bu görevde push/PR/main-merge YOK.** Dashboard DDL **S2.19B'de** kullanıcıya verilir. **"Tam
+  güvenli canlı retrieval" S2.19B/C tamamlanmadan İLAN EDİLMEZ.**
 
-## S2.19 MİMARİ ZORUNLULUĞU — Görünürlük ↔ LIMIT 150 sırası (S2.18'de UYGULANMAZ)
+## Doğrulama sonuçları (S2.19A — GEÇTİ)
 
-> **Bu kural yalnız dokümana yazılır; S2.18 kodunda UYGULANMAZ, S2.19 henüz BAŞLAMAZ.**
-> Kullanıcı ayrıca SQL çalıştırmayacaktır. `YH_CANDIDATE_LIMIT = 150` aday tavanı S2.19
-> DB execution'ında materyalize edilirken **kabul edilen tek mantıksal sıra** şudur:
+- Yeni mock harness **49/49 PASS** · S2.13 **49/49** · S2.14 **83/83** · S2.15 **42/42** ·
+  S2.16 **42/42** · S2.17 **57/57** · S2.18 **52/52** · `tsc --noEmit` **PASS** · hedefli ESLint
+  **0 error/0 warning** · `git diff --check` **PASS** · yasaklı-kapsam grep temiz (executable `.rpc()`
+  yalnız adapter; SQL string interpolation yok; `retrievalExecutor` saf).
 
-1. **tenant/shared görünürlük sınırı**
-2. **PII/demo güvenlik şartları**
-3. **`search_tsv` eşleşmesi**
-4. **weighted PostgreSQL `ts_rank`**
-5. **rank DESC**
-6. **`YH_CANDIDATE_LIMIT = 150`**
-7. sonuçlar üzerinde **S2.13 `evaluateVisibility` savunma katmanı**
+## S2.19B'ye geçmeden açık riskler
 
-**Yanlış ve KABUL EDİLMEYEN sıra:** önce rank + `LIMIT 150` → sonra görünmeyen adayları ele.
-**Sebep:** görünmeyen kayıtlar ilk 150 adayın içinde yer kaplayabilir; sonradan elenseler bile
-görünür kayıtların aday havuzuna girmesini engelleyebilir. Bu, **veri sızıntısı olmasa bile**
-eksik ve yanlış top-N sonucu üretir. Görünürlük sınırı **LIMIT'ten ÖNCE** uygulanmalıdır.
-
-## Commit
-
-- **Bu görev üç ayrı, izole commit'tir (path-scoped):**
-  1. ✅ **Doküman açılışı** (`d00fe3d`): yalnız `docs/ai/`.
-  2. ✅ **S2.18 kod** (`ab1d5f5`): `lib/yasam-hafizasi/search/retrievalQuery.ts`,
-     `scripts/yh-retrieval-query-harness.ts`.
-  3. **Doküman kapanışı** (bu adım): yalnız `docs/ai/CURRENT_TASK.md`, `PROJECT_STATUS.md`,
-     `ROADMAP.md`, `CHANGELOG_AI.md`.
-- `git add .` / `git add -A` / `git commit -a` **YASAK**; yalnız ilgili path'ler stage edilir.
-
-### Commit Mesajları
-
-```
-docs(ai): open S2.18 retrieval query descriptor        (d00fe3d) ✅
-feat(yasam-hafizasi): add S2.18 retrieval query contract  (ab1d5f5) ✅
-docs(ai): close S2.18 retrieval query contract         (bu adım)
-```
-
-## Push
-
-- **Yalnızca ayrı kullanıcı onayıyla.** Push öncesi `git fetch` + ahead/behind kontrolü.
-  **Bu adımda push YOK, PR YOK, origin/main merge YOK.**
+- **R1 — DDL/backfill teyitsiz:** `yh_search_candidates` + index migration'ları + backfill
+  production'da uygulanmadan **uçtan-uca canlı çalışma imkânsız** (Dashboard-only; `localhost` yok).
+- **R2 — ts_rank ağırlık sırası:** RPC `[A,B,C,D]`→`{D,C,B,A}` ters çevirmesi **yalnız canlı SWE ile**
+  nihai doğrulanır (mock harness ters-çevirme SQL'ini çalıştırmaz).
+- **R3 — text/uuid cast:** `stone_exclusions.tenant_id` (text) vs `p_session_tenant::text` canlı veride
+  doğrulanmalı.
 
 ## Sonuç
 
-- *(S2.18 TAMAMLANDI — saf Retrieval Query Descriptor / Execution Contract. Kod `ab1d5f5`
-  (2 dosya) yazıldı ve doğrulandı: yeni harness 52/52, 5 regresyon PASS, TS/ESLint/diff-check
-  PASS. Nihai descriptor `invariantFilters`/`requireNonPii`/`excludeDemo`/SQL taşımaz — visibility
-  kararı S2.13'te, WHERE/RPC materyalizasyonu S2.19'da. DB execution/RPC/DDL + Evidence Gate
-  **S2.19+ (kapsam dışı, otomatik başlamaz)**. Bu adım doküman kapanışı; push/PR/merge YOK.)*
+- *(S2.19A KOD-TAM — Alternatif A + INVOKER + p_weights fail-loud. Migration `cbbbf4a` (Dashboard-
+  uygulanır), kod `d9ebdd5` (executor+adapter+harness). Mock harness 49/49 + 5 regresyon + TS/ESLint/
+  diff-check PASS. **Production DDL/backfill/canlı retrieval YOK; S2.19B/C açık; "tam güvenli canlı
+  retrieval" ilan edilmedi.** Push/PR yok.)*
