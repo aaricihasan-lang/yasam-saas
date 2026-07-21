@@ -564,7 +564,9 @@ function DogaltasListesiPageContent() {
     }
 
     const stoneId = stoneToDelete.id;
-    const isLibrary = stoneToDelete.tenant_id === ADMIN_LIBRARY_TENANT_ID;
+    // Silme kararı oturum sahipliğine göre: kendi tenant'ı → gerçek DELETE,
+    // başka tenant (paylaşılan kütüphane) → kullanıcı bazında gizle.
+    const isLibrary = stoneToDelete.tenant_id !== tenantId;
 
     if (isLibrary) {
       // Kütüphane taşı → kullanıcı bazında gizle (soft-delete)
@@ -890,7 +892,8 @@ function DogaltasListesiPageContent() {
     const libraryIds: string[] = [];
     for (const id of selectedIds) {
       const stone = stoneById.get(id);
-      if (stone?.tenant_id === ADMIN_LIBRARY_TENANT_ID) {
+      // Oturum sahipliği: kendi tenant'ı → gerçek DELETE, başka tenant → gizle.
+      if (stone && stone.tenant_id !== tenantId) {
         libraryIds.push(id);
       } else {
         ownIds.push(id);
