@@ -68,6 +68,18 @@ check("   %100 ve Ekrana Sığdır ayrı butonlar", /%100/.test(vw) && /Ekrana S
 check("   görsele tıkla/klavye ile açılır (button semantiği)", /aria-label="Harita görselini büyüt"/.test(up) && /onClick=\{openViewer\}/.test(upCode));
 check("   ipucu metinleri (tıkla/dokun)", /Büyütmek için görsele tıklayın/.test(up) && /Büyütmek için görsele dokunun/.test(up));
 
+console.log("── VIEWER: PORTAL / STACKING (toolbar görünürlük fix) ──");
+check("23. createPortal ile document.body altına render", /import \{ createPortal \} from "react-dom"/.test(vw) && /createPortal\(/.test(vw) && /document\.body,\s*\n\s*\);/.test(vw));
+check("24. SSR-safe portal (mounted gate + null)", /const \[mounted, setMounted\]/.test(vw) && /if \(!mounted\) return null/.test(vw) && /runInEffect\(\(\) => setMounted\(true\)\)/.test(vwCode));
+check("25. overlay fixed inset-0", /className="fixed inset-0 z-\[10000\] flex flex-col/.test(vw));
+check("26. overlay header'dan yüksek z-index (z-[10000] > header z-50)", /z-\[10000\]/.test(vw));
+check("27. toolbar safe-area (env(safe-area-inset-top))", /env\(safe-area-inset-top\)/.test(vw));
+check("28. toolbar her zaman görünür (shrink-0) + dar ekranda sarar (flex-wrap)", /flex shrink-0 flex-wrap items-center justify-between/.test(vw));
+check("29. Kapat düğmesi mevcut (aria-label)", /aria-label="Görüntüleyiciyi kapat"/.test(vw));
+check("30. görsel alanı ayrı (flex-1) → toolbar için boşluk, üstünü kapatmaz", /className="relative flex-1 touch-none overflow-hidden"/.test(vw));
+check("31. pan/wheel yalnız görsel alanında (toolbar butonlarını engellemez)", /onPointerDown=\{onPointerDown\}/.test(vw) && !/onPointerDown=\{onPointerDown\}[\s\S]{0,200}shrink-0 flex-wrap/.test(vw));
+check("32. DOM-bağımlı effect'ler mounted sonrası (portal DOM'da)", /\}, \[mounted\]\)/.test(vwCode));
+
 console.log("── PAKET / KAPSAM ──");
 const badImportUp = [...upCode.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]).filter((s) => !/^(react|@\/|\.\/|\.\.\/)/.test(s));
 const badImportVw = [...vwCode.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]).filter((s) => !/^(react|@\/|\.\/|\.\.\/)/.test(s));

@@ -1,12 +1,17 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { runInEffect } from "@/lib/runInEffect";
 
 /**
  * HD harita görseli tam ekran görüntüleyici (HD-0 görsel UX).
  *
  * - YALNIZ verilen signedUrl'yi kullanır; public URL / storage path üretmez,
  *   kullanıcıya metin olarak göstermez.
+ * - Stacking-context bağımsızlığı: overlay createPortal ile doğrudan document.body
+ *   altına render edilir (sabit uygulama header'ının ardında kalmaz). SSR-safe:
+ *   client mount'una kadar (mounted) null döner (proje ImageLightbox deseni).
  * - Zoom: fare tekerleği (imleç-merkezli) + / − / %100 / Ekrana Sığdır butonları.
  *   Sınır: %50–%500 (doğal piksele göre; %100 = 1:1). İlk açılış: Ekrana Sığdır.
  * - Pan: pointer (fare + dokunma) ile sürükleme; iki parmak pinch zoom.
@@ -68,6 +73,11 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
   const [view, setView] = useState<View>({ scale: 1, tx: 0, ty: 0 });
   const natRef = useRef<Size | null>(null);
   const [errored, setErrored] = useState(false);
+  // SSR-safe portal: yalnız client mount'undan sonra render (proje deseni).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    runInEffect(() => setMounted(true));
+  }, []);
 
   // Aktif pointer'lar (pan + pinch) + pinch baz mesafesi
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -134,7 +144,8 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
     }
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+    // mounted: portal DOM'a girdikten sonra containerRef'e bağlan.
+  }, [mounted]);
 
   // Body scroll kilidi + geri alma
   useEffect(() => {
@@ -145,14 +156,16 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
     };
   }, []);
 
-  // Focus: aç → kapat butonuna odaklan; kapanınca açan elemana geri dön
+  // Focus: aç → kapat butonuna odaklan; kapanınca açan elemana geri dön.
+  // mounted: portal render edildikten sonra closeBtnRef mevcut olur.
   useEffect(() => {
+    if (!mounted) return;
     const opener = document.activeElement as HTMLElement | null;
     closeBtnRef.current?.focus();
     return () => {
       opener?.focus?.();
     };
-  }, []);
+  }, [mounted]);
 
   // Escape + Tab focus trap
   useEffect(() => {
@@ -232,7 +245,13 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
   const ctrlBtn =
     "flex h-11 min-w-[44px] items-center justify-center rounded-lg border border-white/25 bg-white/10 px-3 text-sm font-bold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
 
-  return (
+  // SSR-safe: client mount'una kadar portal render edilmez.
+  if (!mounted) return null;
+
+  // createPortal → doğrudan document.body altına; tüm ata stacking-context'lerden
+  // kurtularak sabit uygulama header'ının (z-50) ÜSTÜNDE, en üst modal katmanında
+  // (z-[10000], toast/ImageLightbox ile aynı düzey) render edilir.
+  return createPortal(
     <div
       ref={dialogRef}
       role="dialog"
@@ -240,8 +259,13 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
       aria-label="Human Design harita görseli görüntüleyici"
       className="fixed inset-0 z-[10000] flex flex-col bg-black/90"
     >
-      {/* Kontrol çubuğu */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2">
+      {/* Kontrol çubuğu — her zaman görünür (shrink-0), dar ekranda sarar (flex-wrap),
+          notch/status alanından korunur (safe-area). Görsel alanının üstünde ayrı
+          satırda; görsel çalışma alanını kapatmaz. */}
+      <div
+        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => zoomButton(1 / BTN_STEP)} className={ctrlBtn} aria-label="Uzaklaştır">−</button>
           <span className="min-w-[64px] text-center text-sm font-bold text-white" aria-live="polite">
@@ -296,6 +320,7 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
