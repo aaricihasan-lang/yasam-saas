@@ -68,17 +68,21 @@ check("   %100 ve Ekrana Sığdır ayrı butonlar", /%100/.test(vw) && /Ekrana S
 check("   görsele tıkla/klavye ile açılır (button semantiği)", /aria-label="Harita görselini büyüt"/.test(up) && /onClick=\{openViewer\}/.test(upCode));
 check("   ipucu metinleri (tıkla/dokun)", /Büyütmek için görsele tıklayın/.test(up) && /Büyütmek için görsele dokunun/.test(up));
 
-console.log("── VIEWER: PORTAL / STACKING (toolbar görünürlük fix) ──");
+console.log("── VIEWER: PORTAL / STACKING (toolbar görünürlük fix — inline z-index) ──");
 check("23. createPortal ile document.body altına render", /import \{ createPortal \} from "react-dom"/.test(vw) && /createPortal\(/.test(vw) && /document\.body,\s*\n\s*\);/.test(vw));
 check("24. SSR-safe portal (mounted gate + null)", /const \[mounted, setMounted\]/.test(vw) && /if \(!mounted\) return null/.test(vw) && /runInEffect\(\(\) => setMounted\(true\)\)/.test(vwCode));
-check("25. overlay fixed inset-0", /className="fixed inset-0 z-\[10000\] flex flex-col/.test(vw));
-check("26. overlay header'dan yüksek z-index (z-[10000] > header z-50)", /z-\[10000\]/.test(vw));
-check("27. toolbar safe-area (env(safe-area-inset-top))", /env\(safe-area-inset-top\)/.test(vw));
-check("28. toolbar her zaman görünür (shrink-0) + dar ekranda sarar (flex-wrap)", /flex shrink-0 flex-wrap items-center justify-between/.test(vw));
-check("29. Kapat düğmesi mevcut (aria-label)", /aria-label="Görüntüleyiciyi kapat"/.test(vw));
-check("30. görsel alanı ayrı (flex-1) → toolbar için boşluk, üstünü kapatmaz", /className="relative flex-1 touch-none overflow-hidden"/.test(vw));
-check("31. pan/wheel yalnız görsel alanında (toolbar butonlarını engellemez)", /onPointerDown=\{onPointerDown\}/.test(vw) && !/onPointerDown=\{onPointerDown\}[\s\S]{0,200}shrink-0 flex-wrap/.test(vw));
-check("32. DOM-bağımlı effect'ler mounted sonrası (portal DOM'da)", /\}, \[mounted\]\)/.test(vwCode));
+check("25. overlay INLINE position:fixed + inset:0 (Tailwind'e güvenmez)", /position: "fixed"/.test(vw) && /inset: 0/.test(vw));
+check("26. overlay INLINE width:100vw + height:100dvh", /width: "100vw"/.test(vw) && /height: "100dvh"/.test(vw));
+check("27. overlay INLINE near-max zIndex (header dahil her katmanın üstünde)", /zIndex: 2147483000/.test(vw));
+check("28. overlay INLINE isolation:isolate (kendi stacking context'i)", /isolation: "isolate"/.test(vw));
+check("29. overlay ARTIK z-[10000] Tailwind arbitrary sınıfına DAYANMAZ", !/className="fixed inset-0 z-\[10000\]/.test(vw));
+check("30. toolbar INLINE flexShrink:0 + overflow:visible (kırpılmaz/kaybolmaz)", /flexShrink: 0/.test(vw) && /overflow: "visible"/.test(vw));
+check("31. toolbar zIndex:2 (görsel alanının üstünde); görsel alanı zIndex:1 + flex:1 + minHeight:0", /zIndex: 2/.test(vw) && /zIndex: 1/.test(vw) && /flex: 1/.test(vw) && /minHeight: 0/.test(vw));
+check("32. toolbar safe-area (viewport dışına itmeyen max())", /max\(0\.5rem, env\(safe-area-inset-top\)\)/.test(vw));
+check("33b. header offset/top-margin KULLANILMAZ (viewer header altından başlamaz)", !/marginTop|top:\s*["']?6[0-9]|paddingTop:\s*["']?64|header.*height/i.test(vw));
+check("34b. Kapat düğmesi mevcut + dar ekranda sarma (flex-wrap)", /aria-label="Görüntüleyiciyi kapat"/.test(vw) && /flex flex-wrap items-center justify-between/.test(vw));
+check("35b. pan/wheel yalnız görsel alanında (toolbar butonlarını engellemez)", /onPointerDown=\{onPointerDown\}/.test(vwCode) && /ref=\{containerRef\}/.test(vw));
+check("36b. DOM-bağımlı effect'ler mounted sonrası (portal DOM'da)", /\}, \[mounted\]\)/.test(vwCode));
 
 console.log("── PAKET / KAPSAM ──");
 const badImportUp = [...upCode.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]).filter((s) => !/^(react|@\/|\.\/|\.\.\/)/.test(s));

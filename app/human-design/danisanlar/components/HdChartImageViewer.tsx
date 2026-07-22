@@ -257,14 +257,32 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="Human Design harita görseli görüntüleyici"
-      className="fixed inset-0 z-[10000] flex flex-col bg-black/90"
+      className="flex flex-col bg-black/90"
+      // Katman kritik özellikleri Tailwind arbitrary z-index'e (z-[10000]) GÜVENMEDEN
+      // inline uygulanır: Preview production CSS'inde arbitrary sınıfın üretilmemesi
+      // riskini ortadan kaldırır. isolation:isolate + near-max zIndex → uygulama
+      // header'ı (z-50) dahil hiçbir katman overlay'in üstünde kalamaz.
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        zIndex: 2147483000,
+        isolation: "isolate",
+      }}
     >
-      {/* Kontrol çubuğu — her zaman görünür (shrink-0), dar ekranda sarar (flex-wrap),
-          notch/status alanından korunur (safe-area). Görsel alanının üstünde ayrı
-          satırda; görsel çalışma alanını kapatmaz. */}
+      {/* Kontrol çubuğu — her zaman görünür (flexShrink:0, overflow:visible), dar ekranda
+          sarar (flex-wrap), notch/status alanından korunur (safe-area). Görsel alanının
+          ÜSTÜNDE ayrı satırda (zIndex:2); görsel çalışma alanını kapatmaz. */}
       <div
-        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2"
-        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+        className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2"
+        style={{
+          position: "relative",
+          zIndex: 2,
+          flexShrink: 0,
+          overflow: "visible",
+          paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        }}
       >
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => zoomButton(1 / BTN_STEP)} className={ctrlBtn} aria-label="Uzaklaştır">−</button>
@@ -286,15 +304,22 @@ export function HdChartImageViewer({ signedUrl, onClose }: Props) {
         </button>
       </div>
 
-      {/* Görsel alanı */}
+      {/* Görsel alanı — toolbar'ın ALTINDA (zIndex:1), flex:1 + minHeight:0 ile kalan
+          yüksekliği kaplar; pan/wheel yalnız burada (toolbar butonlarını engellemez). */}
       <div
         ref={containerRef}
-        className="relative flex-1 touch-none overflow-hidden"
+        className="relative touch-none overflow-hidden"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        style={{ cursor: view.scale > 1 ? "grab" : "default" }}
+        style={{
+          position: "relative",
+          zIndex: 1,
+          flex: 1,
+          minHeight: 0,
+          cursor: view.scale > 1 ? "grab" : "default",
+        }}
       >
         {errored ? (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-white/80">
