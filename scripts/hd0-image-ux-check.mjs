@@ -26,6 +26,18 @@ const vw = read("app/human-design/danisanlar/components/HdChartImageViewer.tsx")
 const stripJs = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const upCode = stripJs(up);
 const vwCode = stripJs(vw);
+const layout = read("app/layout.tsx");
+
+console.log("── KÖK NEDEN: VIEWPORT (mobil detection) ──");
+check("0a. viewport width=device-width (mobil innerWidth<768 → useIsMobileOrPwa doğru)", /width:\s*["']device-width["']/.test(layout));
+check("0b. viewport initialScale:1 + viewportFit korunur", /initialScale:\s*1/.test(layout) && /viewportFit:\s*["']cover["']/.test(layout));
+check("0c. maximumScale set EDİLMEZ (pinch-zoom a11y korunur)", !/maximumScale\s*:/.test(layout));
+
+console.log("── MERKEZİ SİLME (requestDelete) ──");
+check("R1. TEK merkezi silme fonksiyonu: requestDelete", /async function requestDelete\(\)/.test(upCode));
+check("R2. Sil butonu YALNIZ requestDelete çağırır (handleDelete/performDelete/fetch DELETE değil)", /onClick=\{requestDelete\}/.test(upCode) && !/onClick=\{handleDelete\}/.test(upCode) && !/onClick=\{performDelete\}/.test(upCode));
+check("R3. JSX'te hiçbir buton doğrudan delete API çağırmaz", !/onClick=\{\(\) => fetch\([^)]*delete-chart-image/.test(upCode));
+check("R4. delete API çağrısı requestDelete içinde, confirmed sonrası", upCode.indexOf("async function requestDelete") < upCode.indexOf("/api/hd/delete-chart-image") && /if \(!confirmed\) return;[\s\S]*?delete-chart-image/.test(upCode));
 
 console.log("── SİLME ONAYI (masaüstü) ──");
 check("1. Sil butonu doğrudan delete çağırmaz (confirmDeletion önce)", /const confirmed = await confirmDeletion\(\)/.test(upCode) && /if \(!confirmed\) return/.test(upCode));
@@ -35,7 +47,7 @@ check("   masaüstü onay başlığı", /Harita görselini silmek istiyor musunu
 
 console.log("── SİLME ONAYI (mobil iki aşama) ──");
 check("3-4. iki aşama: Devam Et → (bekleme) → Evet, Kalıcı Olarak Sil", /confirmText: "Devam Et"/.test(up) && /confirmText: "Evet, Kalıcı Olarak Sil"/.test(up));
-check("   aşamalar arası bekleme (tap-through önleme)", /setTimeout\(r, 220\)/.test(upCode) && upCode.indexOf('"Devam Et"') < upCode.indexOf("setTimeout(r, 220)") && upCode.indexOf("setTimeout(r, 220)") < upCode.indexOf('"Evet, Kalıcı Olarak Sil"'));
+check("   aşamalar arası çift-rAF bekleme (unmount+paint garantili, tap-through önleme)", /requestAnimationFrame\(\(\) => requestAnimationFrame/.test(upCode) && upCode.indexOf('"Devam Et"') < upCode.indexOf("requestAnimationFrame") && upCode.indexOf("requestAnimationFrame") < upCode.indexOf('"Evet, Kalıcı Olarak Sil"'));
 check("   aşama-1 iptal → delete yok (ok1 guard)", /if \(!ok1\) return false/.test(upCode));
 check("5. delete yalnız confirmed=true sonrası", /if \(!confirmed\) return;[\s\S]*?delete-chart-image/.test(upCode));
 check("6. çift silme/onay engeli (deleteGuard ref)", /deleteGuard = useRef\(false\)/.test(up) && /if \(deleteGuard\.current \|\| deleting\) return/.test(upCode));

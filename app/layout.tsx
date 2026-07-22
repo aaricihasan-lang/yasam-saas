@@ -25,7 +25,15 @@ export const metadata: Metadata = {
   description: "Yaşam Sistemi Yönetim Paneli",
 };
 
+// KÖK NEDEN (HD-0 image UX mobil bug'ları): width=device-width olmadan Next.js
+// App Router kısmi viewport export'u <meta viewport>'a device-width EKLEMEZ →
+// mobil tarayıcı ~980px layout viewport kullanır → window.innerWidth ≥ 768 →
+// useIsMobileOrPwa telefonda false döner → mobil UI dalları (Değiştir gizleme,
+// iki aşamalı silme) aktifleşmez. width=device-width + initialScale bunu düzeltir.
+// (maximumScale bilinçli olarak set EDİLMEZ → sayfa pinch-zoom a11y'si korunur.)
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   viewportFit: "cover",
 };
 

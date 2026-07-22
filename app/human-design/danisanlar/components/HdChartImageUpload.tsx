@@ -158,9 +158,12 @@ export function HdChartImageUpload({ clientId }: Props) {
         cancelText: "Vazgeç",
       });
       if (!ok1) return false;
-      // İlk modal tamamen kapansın; dokunuşun ikinci modalın destructive butonuna
-      // taşmasını önlemek için kısa boşluk.
-      await new Promise((r) => setTimeout(r, 220));
+      // İlk modal DOM'dan tamamen kalkıp boyanana kadar bekle (ConfirmProvider
+      // senkron unmount eder; çift rAF unmount+paint'i garantiler) → dokunuşun
+      // ikinci modalın destructive butonuna taşması yapısal olarak imkânsızlaşır.
+      await new Promise<void>((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => r())),
+      );
       // Aşama 2
       const ok2 = await confirm({
         title: "Son silme onayı",
@@ -181,7 +184,10 @@ export function HdChartImageUpload({ clientId }: Props) {
     });
   }
 
-  async function handleDelete() {
+  // TEK merkezi silme akışı — masaüstü ve mobildeki "Sil" butonlarının çağırdığı
+  // yegâne fonksiyon. Delete API YALNIZ buradaki confirmDeletion olumlu döndükten
+  // sonra çağrılır (hiçbir buton doğrudan fetch/delete çağırmaz).
+  async function requestDelete() {
     if (status !== "ready") return;
     if (deleteGuard.current || deleting) return; // çift onay/çağrı engeli
     if (!hasSession()) {
@@ -267,7 +273,7 @@ export function HdChartImageUpload({ clientId }: Props) {
               )}
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={requestDelete}
                 disabled={busy}
                 className="h-7 rounded-lg border border-red-200 bg-white px-3 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
