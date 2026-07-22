@@ -4,7 +4,7 @@
 -- C2J doğrulama harness'i — iki tablo:
 --   public.aromatherapy_passage_editorial_note_series  (seri kimliği; append-only)
 --   public.aromatherapy_passage_editorial_notes         (revision metinleri)
--- (migration: supabase/migrations/20260726000000_aromatherapy_passage_editorial_notes.sql)
+-- (migration: supabase/migrations/20260726020000_aromatherapy_passage_editorial_notes.sql)
 --
 -- KULLANIM: Supabase Dashboard → SQL Editor. Bölüm A/B SALT-OKUNURDUR. Bölüm C tek
 --   BEGIN…ROLLBACK'tir (kalıcı yazma YOK). Harness migration'ı KENDİSİ OLUŞTURMAZ;
