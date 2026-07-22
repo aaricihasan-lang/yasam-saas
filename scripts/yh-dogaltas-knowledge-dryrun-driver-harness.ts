@@ -33,7 +33,7 @@ const uuidN = (n: number): string => `00000000-0000-4000-8000-${n.toString().pad
 const U1 = uuidN(1), U2 = uuidN(2), U3 = uuidN(3);
 
 function pg(over: Partial<SafePage> = {}): SafePage {
-  return { fetched: 10, produced: 10, skipped: 0, eligibleUnits: 10, excludedDemo: 0, nextCursor: null, hasMore: false, ...over };
+  return { fetched: 10, produced: 10, skipped: 0, eligibleUnits: 10, excludedDemo: 0, excludedSynthetic: 0, nextCursor: null, hasMore: false, ...over };
 }
 function ok(page: SafePage): RequestResult { return { ok: true, page }; }
 function err(code: string): RequestResult { return { ok: false, code }; }
@@ -80,7 +80,8 @@ function makeState(over: Partial<DriverState> = {}): DriverState {
   return {
     version: STATE_VERSION, sourceKey: SOURCE_KEY, mode: MODE, lastCursor: null,
     pagesProcessed: 0, totalFetched: 0, totalProduced: 0, totalSkipped: 0,
-    totalEligibleUnits: 0, totalExcludedDemo: 0, completed: false, updatedAt: "2026-07-22T00:00:00.000Z",
+    totalEligibleUnits: 0, totalExcludedDemo: 0, totalExcludedSynthetic: 0,
+    completed: false, updatedAt: "2026-07-22T00:00:00.000Z",
     ...over,
   };
 }
@@ -143,6 +144,22 @@ async function main2(): Promise<void> {
   check("35 negatif metrik → page-field-invalid", (() => { const r = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: { ...pg(), fetched: -1 } })); return !r.ok && r.code === "page-field-invalid"; })());
   check("36 kesirli metrik → page-field-invalid", (() => { const r = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: { ...pg(), produced: 1.5 } })); return !r.ok && r.code === "page-field-invalid"; })());
   check("resp hasMore non-bool → page-field-invalid", (() => { const r = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: { ...pg(), hasMore: "yes" } })); return !r.ok && r.code === "page-field-invalid"; })());
+  // ─── BF-1B-FIX: excludedSynthetic zorunlu response alanı ─────────────────
+  check("55 excludedSynthetic parse edilir", (() => {
+    const r = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: pg({ excludedSynthetic: 7 }) }));
+    return r.ok === true && r.page.excludedSynthetic === 7;
+  })());
+  check("56 excludedSynthetic EKSİK → page-field-invalid (fail-closed)", (() => {
+    const { excludedSynthetic: _drop, ...eksik } = pg();
+    void _drop;
+    const r = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: eksik }));
+    return !r.ok && r.code === "page-field-invalid";
+  })());
+  check("57 excludedSynthetic negatif/string → page-field-invalid", (() => {
+    const neg = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: { ...pg(), excludedSynthetic: -1 } }));
+    const str = validateDryRunResponse(200, JSON.stringify({ ok: true, mode: "dry-run", sourceKey: SOURCE_KEY, write: null, page: { ...pg(), excludedSynthetic: "3" } }));
+    return !neg.ok && neg.code === "page-field-invalid" && !str.ok && str.code === "page-field-invalid";
+  })());
 
   // ═══ Orkestrasyon (loop) ════════════════════════════════════════════════
   {
@@ -201,6 +218,36 @@ async function main2(): Promise<void> {
   check("validateState geçerli", validateState(makeState()) !== null);
   check("48 bozuk state → null", validateState({ version: 1 }) === null);
   check("49 farklı source/mode/version state → null", validateState(makeState({ sourceKey: "x" as string })) === null && validateState({ ...makeState(), version: 99 }) === null);
+  // ─── BF-1B-FIX: STATE_VERSION=2 + totalExcludedSynthetic zorunlu ─────────
+  check("58 STATE_VERSION 2", STATE_VERSION === 2);
+  check("59 v1 checkpoint resume EDİLMEZ (fail-closed)", (() => {
+    const { totalExcludedSynthetic: _drop, ...v1 } = makeState();
+    void _drop;
+    return validateState({ ...v1, version: 1 }) === null && validateState({ ...makeState(), version: 1 }) === null;
+  })());
+  check("60 totalExcludedSynthetic EKSİK → state reddedilir (0 sayılmaz)", (() => {
+    const { totalExcludedSynthetic: _drop, ...eksik } = makeState();
+    void _drop;
+    return validateState(eksik) === null;
+  })());
+  check("61 totalExcludedSynthetic negatif/kesirli → null", validateState(makeState({ totalExcludedSynthetic: -1 })) === null && validateState(makeState({ totalExcludedSynthetic: 1.5 })) === null);
+  {
+    const { result, writes } = await run([
+      ok(pg({ hasMore: true, nextCursor: U2, eligibleUnits: 0, excludedSynthetic: 10 })),
+      ok(pg({ hasMore: false, eligibleUnits: 0, excludedSynthetic: 3 })),
+    ]);
+    check("62 totalExcludedSynthetic doğru toplanır", result.totalExcludedSynthetic === 13 && result.totalEligibleUnits === 0);
+    check("63 checkpoint totalExcludedSynthetic taşır", writes[1] !== undefined && writes[1].totalExcludedSynthetic === 13 && writes[1].version === 2);
+  }
+  {
+    const { result } = await run([ok(pg({ hasMore: false, excludedSynthetic: 2 }))], { resume: true, initialState: makeState({ lastCursor: U2, totalExcludedSynthetic: 5 }) });
+    check("64 resume totalExcludedSynthetic devam ettirir", result.totalExcludedSynthetic === 7);
+  }
+  {
+    // mixed sayfa: demo ve sentetik sayaçları ayrı toplanır, karışmaz.
+    const { result } = await run([ok(pg({ hasMore: false, fetched: 6, produced: 6, eligibleUnits: 3, excludedDemo: 1, excludedSynthetic: 2 }))]);
+    check("65 demo/sentetik sayaçları karışmaz", result.totalExcludedDemo === 1 && result.totalExcludedSynthetic === 2 && result.totalEligibleUnits === 3);
+  }
 
   // ═══ Resume ═════════════════════════════════════════════════════════════
   {
@@ -260,11 +307,12 @@ async function main2(): Promise<void> {
   check("isUuid doğru", isUuid(U1) && !isUuid("x") && !isUuid(null));
 
   console.log("");
-  console.log("S2.19-BF/BF-1A dogaltas:knowledge dry-run driver harness — saf/mock; GERÇEK AĞ/SQL/production YOK.");
+  console.log("S2.19-BF/BF-1A+BF-1B-FIX dogaltas:knowledge dry-run driver harness — saf/mock; GERÇEK AĞ/SQL/production YOK.");
   console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
   console.log("- CLI kapısı (--execute/--resume; no-op no-network); body sabit 3/4 alan; exact response validation");
   console.log("- cursor monotonluk/tekrar/geri/null/invalid; maxPages/maxRows; tüm HTTP/redirect/timeout/network DUR");
   console.log("- checkpoint atomik+secret-yok; resume kuralları; secret redaction; gerçek fetch=0");
+  console.log("- BF-1B-FIX: excludedSynthetic zorunlu response alanı (eksik/geçersiz fail-closed); STATE_VERSION=2; v1/eksik-metrik state reddedilir; totalExcludedSynthetic toplanır/resume edilir; demo'dan ayrı");
   if (failed > 0) process.exitCode = 1;
 }
 

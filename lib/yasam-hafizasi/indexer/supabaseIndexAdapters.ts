@@ -19,6 +19,7 @@
  *   - Ham Supabase/DB mesajı DIŞARI TAŞINMAZ; yalnız sabit kod + güvenli sayısal meta.
  */
 
+import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
 import { YH_TABLES } from "../config";
 import type { BuiltIndexUnit } from "./buildCandidate";
 import {
@@ -201,6 +202,14 @@ async function prefetchExistingHashes(
 export function createSupabaseIndexWriter(db: IndexDbClient): IndexWriter {
   return {
     write: async ({ config, units }) => {
+      // BF-1B-FIX SAVUNMA DERİNLİĞİ: sentetik tenant unit'i writer'a ULAŞAMAZ.
+      // Sessiz filtre YOK — orkestrasyon hatasını gizlemek yerine fail-fast durdur
+      // (sabit kod; ham tenant/unit içeriği taşınmaz). Gerçek tenant ve NULL/shared
+      // unit davranışı ile chunk/upsert/idempotency sözleşmesi DEĞİŞMEZ.
+      if (units.some((u) => isSyntheticTenantId(u.tenantId))) {
+        throw new Error("synthetic-tenant-unit");
+      }
+
       // Boş units → prefetch/upsert yok.
       if (units.length === 0) {
         return emptyWrite({ plannedInsert: 0, plannedUpdate: 0, unchanged: 0 });

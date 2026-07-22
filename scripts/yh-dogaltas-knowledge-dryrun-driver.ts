@@ -28,7 +28,9 @@ export const MAX_ROWS = 5000 as const;
 export const PAGE_DELAY_MS = 500 as const;
 export const REQUEST_TIMEOUT_MS = 120000 as const;
 export const ENDPOINT_PATH = "/api/admin/yasam-hafizasi/index-page" as const;
-export const STATE_VERSION = 1 as const;
+// BF-1B-FIX: excludedSynthetic/totalExcludedSynthetic zorunlu alan oldu → v2.
+// v1 checkpoint resume EDİLMEZ (eksik metrik 0 SAYILMAZ; fail-closed resume-no-state).
+export const STATE_VERSION = 2 as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,6 +60,7 @@ export interface SafePage {
   readonly skipped: number;
   readonly eligibleUnits: number;
   readonly excludedDemo: number;
+  readonly excludedSynthetic: number; // BF-1B-FIX: zorunlu; eksik/geçersiz → fail-closed
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
 }
@@ -84,6 +87,7 @@ export interface DriverState {
   readonly totalSkipped: number;
   readonly totalEligibleUnits: number;
   readonly totalExcludedDemo: number;
+  readonly totalExcludedSynthetic: number; // BF-1B-FIX (STATE_VERSION=2): zorunlu
   readonly completed: boolean;
   readonly updatedAt: string;
 }
@@ -118,6 +122,7 @@ export interface PagingResult {
   readonly totalSkipped: number;
   readonly totalEligibleUnits: number;
   readonly totalExcludedDemo: number;
+  readonly totalExcludedSynthetic: number;
 }
 
 // ─── Saf yardımcılar ─────────────────────────────────────────────────────────
@@ -209,13 +214,14 @@ export function validateDryRunResponse(status: number, bodyText: string): Respon
   if (parsed.write !== null) return { ok: false, code: "write-not-null" };
   const page = parsed.page;
   if (!isRecord(page)) return { ok: false, code: "page-missing" };
-  const { fetched, produced, skipped, eligibleUnits, excludedDemo, nextCursor, hasMore } = page;
+  const { fetched, produced, skipped, eligibleUnits, excludedDemo, excludedSynthetic, nextCursor, hasMore } = page;
   if (
     !isNonNegInt(fetched) ||
     !isNonNegInt(produced) ||
     !isNonNegInt(skipped) ||
     !isNonNegInt(eligibleUnits) ||
-    !isNonNegInt(excludedDemo)
+    !isNonNegInt(excludedDemo) ||
+    !isNonNegInt(excludedSynthetic) // BF-1B-FIX: eksik/negatif/NaN/string → fail-closed
   ) {
     return { ok: false, code: "page-field-invalid" };
   }
@@ -232,6 +238,7 @@ export function validateDryRunResponse(status: number, bodyText: string): Respon
     skipped: skipped as number,
     eligibleUnits: eligibleUnits as number,
     excludedDemo: excludedDemo as number,
+    excludedSynthetic: excludedSynthetic as number,
     nextCursor: nextCursor as string | null,
     hasMore: hasMore as boolean,
   };
@@ -252,6 +259,7 @@ export function validateState(raw: unknown): DriverState | null {
     !isNonNegInt(raw.totalSkipped) ||
     !isNonNegInt(raw.totalEligibleUnits) ||
     !isNonNegInt(raw.totalExcludedDemo) ||
+    !isNonNegInt(raw.totalExcludedSynthetic) || // v2: eksikse 0 SAYILMAZ → state reddedilir
     typeof raw.completed !== "boolean" ||
     typeof raw.updatedAt !== "string"
   ) {
@@ -268,6 +276,7 @@ export function validateState(raw: unknown): DriverState | null {
     totalSkipped: raw.totalSkipped as number,
     totalEligibleUnits: raw.totalEligibleUnits as number,
     totalExcludedDemo: raw.totalExcludedDemo as number,
+    totalExcludedSynthetic: raw.totalExcludedSynthetic as number,
     completed: raw.completed as boolean,
     updatedAt: raw.updatedAt as string,
   };
@@ -282,6 +291,7 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
   let totalSkipped = 0;
   let totalEligibleUnits = 0;
   let totalExcludedDemo = 0;
+  let totalExcludedSynthetic = 0;
   const seen = new Set<string>();
 
   const finish = (stopCode: string | null, completed: boolean): PagingResult => ({
@@ -294,6 +304,7 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
     totalSkipped,
     totalEligibleUnits,
     totalExcludedDemo,
+    totalExcludedSynthetic,
   });
 
   // Resume kuralları (fail-closed).
@@ -314,6 +325,7 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
     totalSkipped = st.totalSkipped;
     totalEligibleUnits = st.totalEligibleUnits;
     totalExcludedDemo = st.totalExcludedDemo;
+    totalExcludedSynthetic = st.totalExcludedSynthetic;
     if (afterId !== null) seen.add(afterId.toLowerCase());
   }
 
@@ -330,6 +342,7 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
     totalSkipped += page.skipped;
     totalEligibleUnits += page.eligibleUnits;
     totalExcludedDemo += page.excludedDemo;
+    totalExcludedSynthetic += page.excludedSynthetic;
 
     deps.logger.page(pagesProcessed, 200, page);
 
@@ -345,6 +358,7 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
       totalSkipped,
       totalEligibleUnits,
       totalExcludedDemo,
+      totalExcludedSynthetic,
       completed: !page.hasMore,
       updatedAt: deps.now(),
     });
@@ -398,6 +412,7 @@ export function createConsoleLogger(): SafeLogger {
       console.log(
         `[dogaltas-knowledge-dryrun] page=${pageNo} status=${status} fetched=${page.fetched} produced=${page.produced} ` +
           `skipped=${page.skipped} eligibleUnits=${page.eligibleUnits} excludedDemo=${page.excludedDemo} ` +
+          `excludedSynthetic=${page.excludedSynthetic} ` +
           `hasMore=${page.hasMore} nextCursorPresent=${page.nextCursor !== null}`,
       ),
     stop: (code) => console.error(`[dogaltas-knowledge-dryrun] STOP code=${code}`),
@@ -525,6 +540,7 @@ export async function main(argv: readonly string[], env: Readonly<Record<string,
     totalSkipped: result.totalSkipped,
     totalEligibleUnits: result.totalEligibleUnits,
     totalExcludedDemo: result.totalExcludedDemo,
+    totalExcludedSynthetic: result.totalExcludedSynthetic,
   });
   return result.stopped ? 1 : 0;
 }

@@ -9,6 +9,11 @@
  *   - Demo tenant (`YH_DEMO_TENANT_ID`, config'ten import; config DEĞİŞMEZ) unit'leri
  *     writer'a ULAŞMAZ; write planına girmez (K-L). Reader seviyesinde filtrelenmez
  *     (join child'da tenant_id yok → aynı garanti verilemez); orkestrasyonda düşülür.
+ *   - BF-1B-FIX GLOBAL İNVARYANT: sentetik tenant (`isSyntheticTenantId`, tek kaynak
+ *     `lib/tenancy/syntheticTenants`) unit'leri kaynak/modül fark etmeksizin writer'a
+ *     ULAŞMAZ, eligible OLAMAZ, shared/null'a ÇEVRİLMEZ; `excludedSynthetic` ile
+ *     demo'dan AYRI sayılır (bir unit iki sayaca girmez). Dry-run ve write aynı filtreyi
+ *     paylaşır. NULL/shared ve gerçek tenant davranışı DEĞİŞMEZ.
  *   - Sonuç yalnız GÜVENLİ sayı/özet taşır; ham `units` / demo içeriği DIŞARI SIZMAZ.
  *   - Dry-run modunda writer çağrılmaz.
  *   - Kaynak/parent okuma hatası fatal propagate; write hatası kontrollü sonuç.
@@ -17,7 +22,9 @@
  */
 
 import { getServerDb } from "../../supabase-server";
+import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID } from "../config";
+import type { BuiltIndexUnit } from "./buildCandidate";
 import {
   createSupabaseIndexWriter,
   createSupabaseParentTenantReader,
@@ -64,8 +71,9 @@ export interface IndexSourcePageResult {
   readonly sourceKey: string;
   readonly mode: IndexSourcePageMode;
   readonly fetched: number;
-  readonly eligibleUnits: number; // demo düşüldükten sonra writer'a giden
+  readonly eligibleUnits: number; // demo + sentetik düşüldükten sonra writer'a giden
   readonly excludedDemo: number;
+  readonly excludedSynthetic: number; // BF-1B-FIX: sentetik tenant unit'leri (demo'dan ayrı)
   readonly summary: RunSummary;
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
@@ -100,9 +108,21 @@ export async function indexSourcePage(
     limit: input.limit,
   });
 
-  // Demo tenant unit'lerini writer ÖNCESİ zorunlu düş (mode-agnostik; ham içerik sızmaz).
-  const eligible = page.units.filter((u) => u.tenantId !== YH_DEMO_TENANT_ID);
-  const excludedDemo = page.units.length - eligible.length;
+  // Demo + sentetik tenant unit'lerini writer ÖNCESİ zorunlu düş (mode-agnostik;
+  // ham içerik sızmaz). Sınıflandırma tek ve açık: önce demo, sonra sentetik, kalan
+  // eligible — bir unit YALNIZ bir sayaca girer; sentetik shared/null'a ÇEVRİLMEZ.
+  const eligible: BuiltIndexUnit[] = [];
+  let excludedDemo = 0;
+  let excludedSynthetic = 0;
+  for (const u of page.units) {
+    if (u.tenantId === YH_DEMO_TENANT_ID) {
+      excludedDemo += 1;
+    } else if (isSyntheticTenantId(u.tenantId)) {
+      excludedSynthetic += 1;
+    } else {
+      eligible.push(u);
+    }
+  }
 
   let write: WriteIndexUnitsResult | null = null;
   if (mode === "write") {
@@ -116,6 +136,7 @@ export async function indexSourcePage(
     fetched: page.fetched,
     eligibleUnits: eligible.length,
     excludedDemo,
+    excludedSynthetic,
     summary: page.summary,
     nextCursor: page.nextCursor,
     hasMore: page.hasMore,
