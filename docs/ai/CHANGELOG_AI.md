@@ -44,6 +44,46 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-1A açıldı: oils Dry-Run Pilot Driver
+
+### Tarih
+2026-07-22
+
+### Karar
+**Production backfill pilotu için `aromaterapi:oils` dry-run driver'ı fazı BF-1A açıldı** (`work/yh-bf1a`
+@ `8a9eb2c`; BF-0 PR #20 production'da). Yalnız **dry-run** yapabilen, fail-closed, cursor-bazlı,
+resumable **local Node driver** + **mock harness** geliştirilir. **BF-1A'da gerçek production API çağrısı /
+dry-run / SQL / write / backfill YAPILMAZ.**
+
+### Auth sözleşmesi (kod DEĞİŞMEZ)
+Route `verifyAdminRequest` (`adminGuard.ts:30-114`) iki header ister: `x-admin-id` + `x-session-token`
+(`user_sessions.session_token`+`is_active`; binding + `role='admin'`). **Cookie/CSRF/origin/middleware YOK.**
+Session token bearer-eşdeğeri → yalnız **env-var** (`YH_BASE_URL`/`YH_ADMIN_ID`/`YH_SESSION_TOKEN`); CLI arg
+değil, loglanmaz, state/body'ye yazılmaz, commit edilmez.
+
+### ⚠️ Response sözleşmesi düzeltmesi
+Gerçek dry-run response yalnız `{ok, mode, sourceKey, page: SafePageSummary, write:null}` döner; **driver
+`plannedInsert`/`plannedUpdate`/`unchanged`/`processed` BEKLEMEZ** (bunlar write-tarafı; dry-run'da yok).
+Driver yalnız SafePageSummary alanlarını (`fetched/produced/skipped/eligibleUnits/excludedDemo/nextCursor/
+hasMore`) doğrular ve toplar.
+
+### Kilitli sabitler / kapılar
+- Compile-time sabit (CLI/env/config ile değişmez): `SOURCE_KEY='aromaterapi:oils'`, `MODE='dry-run'`,
+  `LIMIT=100`, `MAX_PAGES=50`, `MAX_ROWS=5000`, `PAGE_DELAY_MS=500`, `REQUEST_TIMEOUT_MS=120000`. Driver'da
+  `'write'` mode kod yolu **yok** (BF-2 ayrı hard gate).
+- CLI: yalnız `--execute`/`--resume`; argümansız/`--resume`-tek → no-op (ağ çağrısı yok); bilinmeyen/tekrar
+  arg → red. `redirect:'error'`.
+- Checkpoint `os.tmpdir()/yasam-hafizasi/yh-oils-dryrun-state.json` (repo-dışı; atomik; secret/içerik yok).
+
+### Etkilenen Dosyalar (BF-1A)
+- `scripts/yh-oils-dryrun-driver.ts` (yeni) · `scripts/yh-oils-dryrun-driver-harness.ts` (yeni; mock ağ) ·
+  `docs/ai/*`. **Route/adapter/migration/BF-0 guard/retrieval/package.json/.gitignore DEĞİŞMEZ.**
+
+### Sonraki (BF-1A DIŞI)
+BF-1B production ön kontrol SQL → BF-1C canlı dry-run → BF-1D doğrulama → BF-2 write (ayrı hard gate). Ayrı onay.
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-0 kod-tam: İndeks Kaynağı PII Sınıflandırma Guard'ı
 
 ### Tarih

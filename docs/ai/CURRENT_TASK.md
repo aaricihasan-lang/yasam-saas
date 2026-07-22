@@ -10,138 +10,92 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-0 KOD-TAM — sınıflandırma guard'ı yazıldı+commit; production'a dokunulmadı)
+**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-1A AÇILIŞ — oils dry-run pilot driver'ı; production çağrısı YOK)
 
 ---
 
 ## Durum
 
-**S2.19-BF / BF-0 KOD-TAM — İndeks Kaynağı PII Sınıflandırması + Guard.** 17 kaynağa zorunlu
-`classification` (15 safe-non-pii / 1 pii / 1 unclassified / 0 deferred) + yalnız `safe-non-pii &&
-enabled` indekslemeye izin veren fail-closed guard yazıldı, doğrulandı, commit edildi. Backfill
-driver / dry-run / write / S2.19C **bu kapsamda DEĞİL.**
+**S2.19-BF / BF-1A AÇILDI — `aromaterapi:oils` Dry-Run Pilot Driver.** Production'da **ileride**
+çalıştırılacak, yalnız **dry-run** yapabilen, fail-closed, cursor-bazlı, resumable local Node driver
++ mock harness geliştirmesi. **Bu fazda gerçek production API çağrısı / dry-run / SQL / write / backfill
+YAPILMAZ.**
 
-**Commit zinciri (`work/yh-bf0`):** `f67afb5` (taban=güncel origin/main) → **`761bfd7`**
-(`docs(ai): open BF-0 …`) → **`b69942f`** (`feat(yasam-hafizasi): guard index sources by PII
-classification`) → doküman kapanışı (bu adım). **Push/PR/main-merge YOK; production/SQL/API/backfill YOK.**
-
-**Doğrulama (GEÇTİ):** yeni guard harness **39/39** · indexer regresyon (build-candidate/extract-fields/
-run-index-unit/run-source/index-write-plan/supabase-index-adapters **37/37**/admin-index-route **65/65**/
-index-smoke **41/41**) tümü PASS · retrieval regresyon S2.13 **49** / S2.14 **83** / S2.15 **42** / S2.16
-**42** / S2.17 **57** / S2.18 **52** PASS · `tsc --noEmit` **PASS** · ESLint **0 error** (1 pre-existing
-warning `ParentTenantLookup`, BF-0 dışı; origin/main'de de var) · `git diff --check` PASS.
-
-**Zorunlu-alan ripple'ı (kayıt):** `classification` `SourceConfig`'te zorunlu olduğundan, mevcut 5 test
-harness'inin sentetik `SourceConfig` literalleri (`supabase-index-adapters`, `build-candidate`,
-`extract-fields`, `run-index-unit`, `run-source`) `classification: "safe-non-pii"` ile güncellendi
-(tsc + happy-path korunması için; davranış değişmedi).
-
-**Önceki durum (kayda alındı):** S2.19A (Retrieval Executor + Adapter + ts_rank RPC) **main'e MERGE
-EDİLDİ** (PR #17, merge `0a1348d`; kod `d9ebdd5`). **S2.19B** production'da: RPC `yh_search_candidates`
-Dashboard'dan uygulandı + salt-okunur doğrulama **PASS** (fonksiyon/INVOKER/STABLE/service_role-only/
-trigger/GIN teyitli). **`yasam_hafizasi_index` BOŞ (backfill yok)** → S2.19C canlı smoke'a
-geçilemedi; sıradaki gerçek faz **S2.19-BF**. Worktree tabanı = güncel origin/main `f67afb5`,
-branch `work/yh-bf0`.
-
----
+**Önceki durum (kayda alındı):** BF-0 (kaynak PII sınıflandırma guard'ı) **production main'de kapalı**
+(PR #20, merge `8a9eb2c`; classification zorunlu + fail-closed guard; ana index CHECK değişmedi). S2.19A
+merge + S2.19B RPC production'da; `yasam_hafizasi_index` **BOŞ** → backfill gerekli. Worktree tabanı =
+güncel origin/main `8a9eb2c`, branch `work/yh-bf1a`.
 
 ## Görev
 
-Yaşam Hafızası™ **Sprint 2 / S2.19-BF / BF-0 — Kaynak PII Sınıflandırma Guard'ı**. `YH_INDEX_SOURCES`
-registry'sindeki 17 kaynağa **zorunlu `classification` alanı** ekleyip, indekslemeyi (dry-run + write)
-**yalnız `safe-non-pii && enabled=true`** kaynaklarla sınırlayan saf, fail-closed guard.
+`scripts/yh-oils-dryrun-driver.ts` (dry-run-only) + `scripts/yh-oils-dryrun-driver-harness.ts` (mock).
+Driver, mevcut admin route'u (`POST /api/admin/yasam-hafizasi/index-page`) header-bazlı auth ile çağırıp
+sayfa sayfa dry-run yapacak — **BF-1C'de**. BF-1A yalnız kodu ve mock harness'i teslim eder.
 
-## Amaç
+## Auth sözleşmesi (kanıtlı — kod DEĞİŞMEZ)
 
-Backfill'in **INV-PII**'yi ihlal etmesini yapısal olarak imkânsız kılmak: danışan/PII-riskli veya
-sınıflandırılmamış kaynaklar ana PII-DIŞI index'e (`CHECK(is_client_pii=false)`) **zorla yazılamaz.**
+Route auth = `verifyAdminRequest` (`lib/auth/adminGuard.ts:30-114`): iki header `x-admin-id` +
+`x-session-token`; token→userId (`getActiveSessionUserId`, `user_sessions.session_token`+`is_active`),
+binding `tokenUserId===adminId`, `role='admin' && active=true`. **Cookie/CSRF/origin/middleware YOK;
+nodejs runtime.** Session token = **bearer-eşdeğeri gizli** → yalnız env-var.
 
-## Nihai sınıflandırma (kullanıcı onaylı)
+## Kilitli kararlar (kullanıcı onaylı)
 
-**safe-non-pii (15):** refleksoloji:protocols · sifa_rehberi:guides · sifa_rehberi:guide-sections ·
-biyoenerji:subconscious-causes · biyoenerji:symbols · biyoenerji:chakras · biyoenerji:imaginations ·
-dogaltas:stones · dogaltas:minerals · dogaltas:knowledge · dogaltas:combinations · aromaterapi:oils ·
-aromaterapi:reference-sheets · aromaterapi:reference-rows · aromaterapi:blends
-**pii (1):** refleksoloji:notes (config-flagged; serbest-metin seans notu)
-**unclassified (1):** kisisel_arsiv:archives (serbest-form kişisel; F5'e ertelenecek)
-**deferred (0):** registry'de yok (union'da korunur). Registry-dışı `bioenergy_sessions` vb. **eklenmez.**
+- **Response sözleşmesi (DÜZELTİLDİ):** dry-run yalnız `{ok:true, mode:'dry-run', sourceKey, page:
+  {fetched, produced, skipped, eligibleUnits, excludedDemo, nextCursor, hasMore}, write:null}` döner.
+  **`plannedInsert`/`plannedUpdate`/`unchanged`/`processed` YOK** — driver bunları beklemez/toplamaz.
+- **Sabitler (compile-time; CLI/env/config ile DEĞİŞTİRİLEMEZ):** `SOURCE_KEY='aromaterapi:oils'` ·
+  `MODE='dry-run'` · `LIMIT=100` · `MAX_PAGES=50` · `MAX_ROWS=5000` · `PAGE_DELAY_MS=500` ·
+  `REQUEST_TIMEOUT_MS=120000`. **Driver'da `'write'` request mode HİÇ kullanılmaz.**
+- **Auth env-only:** `YH_BASE_URL` (https origin), `YH_ADMIN_ID` (uuid), `YH_SESSION_TOKEN`. CLI arg
+  DEĞİL; loglanmaz; hata mesajına/state'e/body'ye yazılmaz; `.env` oluşturulmaz; commit edilmez;
+  fixture'da gerçek değer yok.
+- **CLI kapısı:** yalnız `--execute` ve `--resume`. Argümansız → no-op (ağ çağrısı YOK). `--resume`
+  tek başına → ağ çağrısı YOK. Bilinmeyen/tekrar arg → fail-closed red. Gerçek çalışma: `--execute`
+  veya `--execute --resume`.
+- **Checkpoint repo-DIŞI:** `os.tmpdir()/yasam-hafizasi/yh-oils-dryrun-state.json` (atomik yaz;
+  secret/içerik/URL/id/token/response YOK). `.gitignore` değişmez.
+- **redirect: 'error'** (yönlendirme takip edilmez); endpoint path hard-coded eklenir.
 
-> Kanıt: 17 kaynağın **hiçbirinde `client_id`/danışan FK yok**; PII riski yalnız serbest-metin.
-> refleksoloji:notes + personal_archives serbest-form → fail-closed reddedilir.
+## Kapsam DIŞI (BF-1A DEĞİL)
 
-## INV-PII (anayasal — DEĞİŞMEZ)
+- Gerçek production API çağrısı / dry-run çalıştırma → **BF-1C** (kullanıcı onayı olmadan başlamaz).
+- Production ön kontrol SQL → **BF-1B**. Write kapısı → **BF-2 (ayrı hard gate)**. S2.19C.
+- Production route/adapter/migration/BF-0 guard/retrieval pipeline değişikliği. package.json/.gitignore/
+  dependency/dotenv.
 
-- `public.yasam_hafizasi_index` yalnız **PII-DIŞI** içindir; `CHECK(is_client_pii=false)` **değişmez.**
-- pii/unclassified/deferred/disabled kaynak **hiçbir koşulda** (dry-run VEYA write) indekslenmez.
-- İzin **yalnız** `classification==='safe-non-pii' && enabled===true` → aksi **fail-closed reddedilir**.
-- enabled ile classification **bağımsız**; enabled=true classification'ı geçersiz kılamaz.
+## Dokunulmayacak (git ile kanıtlanacak)
 
-## Kapsam (BF-0 — kod)
+`app/api/admin/yasam-hafizasi/index-page/route.ts` · `adminGuard.ts` · `adminIndexRequest.ts` ·
+`indexSourcePage.ts` · `sources.ts` · `sourceGuard.ts` · Supabase adapter'ları · retrieval pipeline +
+RPC · migration/schema · `CHECK(is_client_pii=false)` · `package.json` · `.gitignore`.
 
-1. `sources.ts`: `SourceClassification` union + `SourceConfig`'e **zorunlu `classification`** + 17 girişe
-   nihai değer (varsayılan YOK, cast YOK, optional YOK).
-2. `sourceGuard.ts` (yeni, saf): `enabled!==true`→red · `classification!=='safe-non-pii'`→red · yalnız
-   ikisi de → kabul; ayrıştırılmış sonuç (indexable/disabled/pii/unclassified/deferred). DB/env/side-effect YOK.
-3. `adminIndexRequest.ts`: `validateAdminIndexRequest`'te guard; bilinen-ama-bloklu → internal
-   `source-not-indexable`, HTTP **403**, response `{ok:false, error:{code:'source-not-indexable'}}`
-   (classification sızmaz). `unknown-source` (400) korunur.
-4. `indexSourcePage.ts`: başlangıçta **son savunma** — reader/writer'dan ÖNCE non-indexable reddi.
-5. `scripts/yh-source-classification-guard-harness.ts` (yeni; gerçek API/DB YOK).
+## Fail-closed DUR koşulları (driver)
 
-## Kapsam DIŞI (BF-0 DEĞİL)
+HTTP ≠200 (401/403/429/5xx) · retry YOK · schema/`ok`/`mode`/`sourceKey`/`write`/`page` ihlali · negatif/
+kesirli metrik · cursor tekrar/geri · `hasMore=true`+null/invalid-uuid cursor · maxPages/maxRows aşımı ·
+redirect · timeout/network · bozuk JSON · env geçersiz (ağdan önce çık) · bozuk/uyumsuz state.
 
-- Backfill driver (BF-1) · dry-run/write/backfill çalıştırma · S2.19C canlı smoke.
-- Retrieval katmanı (S2.13–S2.19: descriptor/executor/RPC/visibilityScope/Candidate/tsQueryPlan) — dokunulmaz.
-- `yasam_hafizasi_index` migration/CHECK · production schema/SQL/API.
+## Test planı (harness ≥50; gerçek ağ YOK)
 
-## Dokunulmayacak (değişmezlik — git ile kanıtlanacak)
-
-`retrievalQuery.ts` · `retrievalExecutor.ts` · `supabaseRetrievalAdapter.ts` ·
-`20260724…_yh_search_candidates_rpc.sql` · `visibilityScope.ts` · `tsQueryPlan.ts` · `types.ts` ·
-`config.ts` · index migration'ları · demo tenant guard · adapter read/write/cursor sözleşmeleri.
-
-## Guard katmanları (savunma derinliği; en küçük güvenli kapsam)
-
-1. **Compile-time:** `classification` zorunlu alan → sınıflandırmasız kaynak eklenemez.
-2. **Request validation (birincil runtime):** dry-run + write aynı chokepoint'ten geçer.
-3. **indexSourcePage başlangıcı (son savunma):** doğrudan çağrıya karşı.
-
-## Test planı (harness ≥28 + regresyon)
-
-safe+enabled kabul · safe+disabled red · pii±enabled red · unclassified red · deferred red · unknown
-red · dry-run/write pii+unclassified red · non-indexable'da reader/writer çağrılmaz · pilot
-aromaterapi:oils kabul · sınıf sayıları 15/1/1/0 · 17 kaynak · her kaynak classification taşır · demo
-guard regresyonu · safe kaynak dry-run/write yolu değişmez · classification response'a sızmaz.
-Regresyon: mevcut indexer + S2.13–S2.19 harness'leri + tsc + ESLint + diff-check.
+Mock fetch/sleep/time/state; CLI kapısı · body builder (4 alan, afterId ilk istekte yok) · exact response
+validation · cursor monotonluk/tekrar/geri/null/invalid · maxPages/maxRows · tüm HTTP hata kodları · redirect/
+timeout/network · secret redaction (token/adminId/body/içerik loglanmaz) · checkpoint atomik+secret-yok ·
+resume kuralları · sleep 500ms/son-sayfada yok · harness gerçek URL'ye çağrı yapmaz.
 
 ## Commit (path-scoped, ayrı; `git add -A` YASAK)
 
-1. `docs(ai): open BF-0 source classification guard` → yalnız `docs/ai/`
-2. `feat(yasam-hafizasi): guard index sources by PII classification` → sources.ts + sourceGuard.ts +
-   adminIndexRequest.ts + indexSourcePage.ts + harness (+ gerekirse route minimal hata-eşleme)
-3. `docs(ai): close BF-0 source classification guard` → yalnız `docs/ai/`
-
-## Pilot & Driver (kayıt — BF-0 DEĞİL)
-
-- **BF-1 pilot kaynağı:** `aromaterapi:oils` (en zengin çok-alan içerik; safe-non-pii; shared destekli).
-- **BF-1 driver:** local Node → mevcut admin route (service_role sunucuda kalır; cursor loop; dry-run
-  zorunlu; resumable). **BF-0'da yazılmaz.**
+1. `docs(ai): open BF-1A oils dry-run driver` → yalnız `docs/ai/`
+2. `feat(yasam-hafizasi): add oils dry-run pilot driver` → yalnız `scripts/yh-oils-dryrun-driver.ts` +
+   `scripts/yh-oils-dryrun-driver-harness.ts`
+3. `docs(ai): close BF-1A oils dry-run driver` → yalnız `docs/ai/`
 
 ## Push / Production
 
-- **Bu görevde push/PR/main-merge YOK · production/SQL/API/backfill YOK · S2.19C YOK.**
-
-## Bilinen riskler / açık
-
-- **Pre-existing ESLint warning:** `yh-run-index-unit-harness.ts` `ParentTenantLookup` unused import —
-  origin/main'de mevcut; BF-0 kapsamı dışı (minimal-değişiklik disiplini) → dokunulmadı.
-- **indexSourcePage son-savunma:** route yolunda validation zaten engeller → guard throw'u
-  defense-in-depth (doğrudan çağrıya karşı); harness bunu doğrular.
-- Backfill/dry-run/write/S2.19C hâlâ açık; INV-PII yalnız guard ile korunur (F5 PII-index ayrı).
+- **Bu görevde push/PR/main-merge YOK · production/API/SQL/dry-run/write/backfill YOK · BF-1B/1C/BF-2/
+  S2.19C YOK.**
 
 ## Sonuç
 
-- *(BF-0 KOD-TAM — kaynak PII sınıflandırma guard'ı. Migration/schema/CHECK YOK; yalnız uygulama-katmanı
-  guard. Guard harness 39/39 + tüm indexer/retrieval regresyon + tsc/ESLint(0 error)/diff-check PASS.
-  Retrieval katmanı + migration + index CHECK değişmedi (git-kanıtlı). **Push/PR/production/backfill YOK;
-  S2.19C'ye geçilmedi.** Sıradaki: BF-1 pilot `aromaterapi:oils` + local Node driver.)*
+- *(BF-1A açıldı — dry-run-only pilot driver + mock harness. Gerçek çağrı yok. Sıradaki: driver → harness →
+  docs kapanış. Sonra BF-1B ön kontrol SQL, BF-1C canlı dry-run — ayrı onay.)*
