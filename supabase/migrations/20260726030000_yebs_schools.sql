@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260725000000_yebs_schools.sql
+-- 20260726030000_yebs_schools.sql
 --
 -- Yaşam Enerjisi Bilgi Sistemi (YEBS) — FAZ D / D2
 -- Tablo: public.yebs_schools (bir geleneğe bağlı ekol/yöntem/soy kanonik kimliği)
