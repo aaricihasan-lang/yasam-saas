@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
 
@@ -118,10 +119,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // DB başarıyla güncellendikten SONRA eski dosyayı temizlemeyi dene (best-effort).
   // Temizlik hatası yeni yüklemeyi veri kaybına uğratmaz; yalnız maskeli loglanır.
+  // Yalnız bu tenant/client'a ait path silinir (legacy URL/başka path atlanır).
   if (
-    previousPath &&
     previousPath !== storagePath &&
-    previousPath.startsWith(`${guard.tenantId}/${clientId}/`)
+    isOwnedChartImagePath(previousPath, guard.tenantId, clientId)
   ) {
     const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([previousPath]);
     if (removeErr) {
@@ -130,6 +131,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Kısa ömürlü signed URL (yalnız önizleme için) — DB'ye YAZILMAZ.
+  // storagePath yanıta KOYULMAZ: istemci path değerine ihtiyaç duymaz (görsel yalnız
+  // clientId → signed-URL route ile çözülür; kalıcı path DB'de tutulur).
   let signedUrl: string | null = null;
   const { data: signed, error: signErr } = await guard.db.storage
     .from(BUCKET)
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   return NextResponse.json(
-    { ok: true, storagePath, signedUrl },
+    { ok: true, hasImage: true, signedUrl },
     { status: 200, headers: NO_STORE },
   );
 }

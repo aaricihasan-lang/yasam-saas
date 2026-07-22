@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
 
@@ -75,11 +76,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     return fail(500, "Görsel kaydı temizlenemedi.");
   }
 
-  // Yalnız bu tenant/client prefix'ine ait geçerli path silinir (legacy public URL/boş → atlanır).
-  if (currentPath && currentPath.startsWith(`${guard.tenantId}/${clientId}/`)) {
+  // Yalnız bu tenant/client'a ait geçerli path silinir (legacy public URL/boş/başka
+  // tenant path'i → atlanır). DB alanı yukarıda zaten temizlendi.
+  if (isOwnedChartImagePath(currentPath, guard.tenantId, clientId)) {
     const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([currentPath]);
     if (removeErr) {
-      // DB alanı zaten temizlendi; dosya temizliği best-effort, maskeli loglanır.
+      // Dosya temizliği best-effort; başarısızlık yalnız maskeli loglanır.
       console.error("[hd/delete-chart-image] dosya silinemedi:", removeErr.message);
     }
   }

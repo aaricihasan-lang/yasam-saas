@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
 
@@ -61,9 +62,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
   }
 
-  // Yalnız beklenen tenant/client prefix'ine ait path imzalanır.
-  // (Legacy public URL veya beklenmeyen değer → imzalanmaz, güvenli boş sonuç.)
-  if (!path.startsWith(`${guard.tenantId}/${clientId}/`)) {
+  // Yalnız beklenen tenant/client path'i imzalanır.
+  // (Legacy public URL veya beklenmeyen değer → imzalanmaz, güvenli "legacy" sonucu;
+  //  istemci bunu "eski format, yeniden yükleyin" olarak gösterir, URL'yi YÜKLEMEZ.)
+  if (!isOwnedChartImagePath(path, guard.tenantId, clientId)) {
     return NextResponse.json(
       { ok: true, signedUrl: null, hasImage: false, legacy: true },
       { status: 200, headers: NO_STORE },
