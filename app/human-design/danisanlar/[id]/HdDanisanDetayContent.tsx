@@ -6,18 +6,21 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getHdClient, updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
+import { runInEffect } from "@/lib/runInEffect";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
 const labelCls = "mb-1.5 block text-xs font-bold text-slate-700";
 const sectionCls = "mb-3 text-xs font-black uppercase tracking-widest text-indigo-700";
 
+// NOT: chart_image_url bu formda TUTULMAZ/kaydedilmez — görsel yalnız
+// /api/hd/upload|delete|chart-image-url route'larıyla (HdChartImageUpload) yönetilir.
+// Böylece "Güncelle" profil kaydı, görselin storage path'ini asla ezmez.
 type FormState = {
   name: string;
   birth_date: string;
   birth_time: string;
   birth_place: string;
-  chart_image_url: string;
   external_chart_url: string;
   notes: string;
 };
@@ -28,7 +31,6 @@ function rowToForm(row: HdClientRow): FormState {
     birth_date: row.birth_date ?? "",
     birth_time: row.birth_time ?? "",
     birth_place: row.birth_place ?? "",
-    chart_image_url: row.chart_image_url ?? "",
     external_chart_url: row.external_chart_url ?? "",
     notes: row.notes ?? "",
   };
@@ -59,7 +61,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   }, [clientId, showToast]);
 
   useEffect(() => {
-    loadClient();
+    runInEffect(loadClient);
   }, [loadClient]);
 
   function set(field: keyof FormState) {
@@ -74,12 +76,13 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       return;
     }
     setSaving(true);
+    // chart_image_url GÖNDERİLMEZ — görsel yönetimi HdChartImageUpload'a aittir
+    // (profil güncellemesi görselin storage path'ini ezmemelidir).
     const { error } = await updateHdClient(clientId, {
       name: form.name.trim(),
       birth_date: form.birth_date || null,
       birth_time: form.birth_time || null,
       birth_place: form.birth_place.trim() || null,
-      chart_image_url: form.chart_image_url.trim() || null,
       external_chart_url: form.external_chart_url.trim() || null,
       notes: form.notes.trim() || null,
     });
@@ -137,13 +140,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
           {/* Harita Görseli */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
             <p className={sectionCls}>Harita Görseli</p>
-            <HdChartImageUpload
-              clientId={clientId}
-              currentImageUrl={form.chart_image_url || null}
-              onUrlChange={(url) =>
-                setForm((p) => (p ? { ...p, chart_image_url: url ?? "" } : p))
-              }
-            />
+            <HdChartImageUpload clientId={clientId} />
           </div>
 
           {/* Hızlı Erişim */}
