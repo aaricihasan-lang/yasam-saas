@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-22 (S2.19-BF/BF-0 KOD-TAM — sınıflandırma guard'ı commit; production/backfill YOK)
+**Son güncelleme:** 2026-07-22 (S2.19-BF/BF-1A — pilot `dogaltas:knowledge`'e değiştirildi; production çağrısı YOK)
 
 ---
 
@@ -84,9 +84,10 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **S2.19-BF / BF-0 — Kaynak PII Sınıflandırma Guard'ı: KOD-TAM** (`work/yh-bf0`; docs açılış `761bfd7` + kod `b69942f`; push/PR YOK). 17 kaynağa zorunlu `classification` (**safe-non-pii 15 / pii 1 / unclassified 1 / deferred 0**) + yalnız `safe-non-pii && enabled` indekslemeye izin veren fail-closed guard (dry-run + write; **pii=refleksoloji:notes, unclassified=kisisel_arsiv:archives** reddedilir). INV-PII: ana index CHECK değişmez. `sources.ts`(classification) + `sourceGuard.ts`(yeni) + `adminIndexRequest.ts`(403 `source-not-indexable`) + `indexSourcePage.ts`(son savunma) + harness (**39/39**). Guard harness + tüm indexer/retrieval regresyon + tsc/ESLint(0 error)/diff-check PASS; retrieval/migration/CHECK **değişmedi** (git-kanıtlı). **Backfill/dry-run/write/S2.19C DIŞI; production'a dokunulmadı.** Bkz. `CURRENT_TASK.md`.
+- **S2.19-BF / BF-1A — `dogaltas:knowledge` Dry-Run Pilot Driver: KOD-TAM** (`work/yh-bf1a`; driver `ba43d4a` + pilot-switch `c706ea2`/`75391a7`; push/PR YOK). **Pilot kaynak `aromaterapi:oils`→`dogaltas:knowledge`'e değiştirildi** (aromaterapi aktif geliştirmede; pilot stabil/PII-dışı bilgi-makalesi kaynağa taşındı; YH kapsamı değişmedi, aromaterapi verisine dokunulmadı). Yalnız **dry-run** fail-closed/cursor-bazlı/resumable local Node driver + mock harness (**78/78**; `aromaterapi:oils` üretilemez testleri dahil). Sabitler compile-time; `'write'` mode kod yolu yok; auth env-only; checkpoint `os.tmpdir()/…/yh-dogaltas-knowledge-dryrun-state.json` (repo-dışı); response `plannedInsert/update/unchanged` **taşımaz**. Pilot harness + BF-0/indexer/retrieval regresyon + tsc/ESLint(0/0)/diff-check PASS; route/adapter/migration/BF-0 guard/package.json/.gitignore **değişmedi** (git-kanıtlı). **Gerçek API/SQL/dry-run/write YAPILMADI.** Bkz. `CURRENT_TASK.md`.
+- **Tamamlanan (production):** **BF-0** (kaynak PII sınıflandırma guard'ı) **PR #20 merge `8a9eb2c`** — main'de; ana index CHECK değişmedi. + **S2.19A** (PR #17) + **S2.19B** RPC production'da.
 - **Tamamlanan (production):** **S2.19A merge** (PR #17, `0a1348d`) + **S2.19B** RPC `yh_search_candidates` Dashboard'dan uygulandı + doğrulama PASS (INVOKER/STABLE/service_role-only/trigger/GIN). **`yasam_hafizasi_index` BOŞ** → S2.19C beklemede.
-- **Onay bekleyen:** **BF-1** (pilot `aromaterapi:oils` + local Node driver → admin route) → **S2.19C** (canlı smoke). **Otomatik başlamaz.** Not: ROADMAP'te **S2.06 yoktur**.
+- **Onay bekleyen:** **BF-1B** (production ön kontrol SQL — `stone_knowledge_articles`) → **BF-1C** (canlı dry-run, pilot `dogaltas:knowledge`) → **BF-1D** doğrulama → **BF-2** write (ayrı hard gate) → **S2.19C** canlı smoke. **Otomatik başlamaz.** Not: ROADMAP'te **S2.06 yoktur**.
 
 ## Bekleyen İşler
 

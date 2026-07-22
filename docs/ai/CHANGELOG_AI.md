@@ -44,6 +44,117 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-1A pilot kaynağı değişti: `aromaterapi:oils` → `dogaltas:knowledge`
+
+### Tarih
+2026-07-22
+
+### Karar
+**BF-1A dry-run pilot kaynağı `aromaterapi:oils`'ten `dogaltas:knowledge`'e (tablo
+`stone_knowledge_articles`) taşındı.** Driver + harness bu kaynağa göre güncellendi; güvenlik
+sözleşmesi (dry-run-only, env-only auth, write-yolu-yok, exact SafePageSummary) **değişmedi**. Yeni
+dosya adları: `scripts/yh-dogaltas-knowledge-dryrun-driver.ts` + `…-harness.ts`; checkpoint
+`os.tmpdir()/…/yh-dogaltas-knowledge-dryrun-state.json`; `SOURCE_KEY='dogaltas:knowledge'` (compile-time).
+Eski `yh-oils-dryrun-*` dosyaları **kaldırıldı** (git rename).
+
+### Neden
+- **Aromaterapi modülü başka bir akışta aktif geliştirme altında** (hareketli şema/içerik; C2I passage
+  translations vb.). Yaşam Hafızası pilotunun **hareketli bir şemaya bağlanması istenmiyor.**
+- `dogaltas:knowledge` daha **stabil, PII-dışı, bilgi-makalesi** niteliğinde ve retrieval dry-run için
+  yeterince zengin (title/content/keyword/notes/tags/category). `safe-non-pii` (BF-0); client_id/PII
+  kolonu yok; response sözleşmesi source-agnostik → değişmedi.
+- **Bu değişiklik aromaterapi modülüyle ilgili değildir**; yalnız YH backfill pilot kaynağı seçimidir.
+  **Aromaterapi verisine dokunulmadı; production dry-run yapılmadı.**
+
+### Uygulama (git)
+`reset/rebase/amend` YASAK → geçmiş commit'ler yeniden yazılmadı. Pilot değişikliği yeni commit'lerle:
+`c706ea2` (`switch … to stone knowledge` — rename) + `75391a7` (`set stone knowledge pilot source and
+checkpoint` — içerik). *(Ara: `40d0069` origin/main merge — YH-dışı aromaterapi PR#21.)* Tarihsel `ba43d4a`
+"oils" adını taşır (geçmiş kayıt; içerik artık dogaltas:knowledge).
+
+### Doğrulama
+Pilot harness **78/78** (gerçek fetch=0; `aromaterapi:oils` üretilemez testleri dahil); BF-0 guard 39 ·
+admin-route 65 · run-source 42 · adapters 37 · retrieval-executor 49 · visibility 49; `tsc` 0; ESLint 0/0;
+`git diff --check` PASS. Değişmezlik git-kanıtlı: route/adminGuard/adminIndexRequest/indexSourcePage/
+sources/sourceGuard/RPC/package.json/.gitignore **UNCHANGED**. Feature diff'inde oils dosyası yok; secret yok.
+
+### Sonraki (BF-1A DIŞI)
+BF-1B production ön kontrol SQL (`stone_knowledge_articles`) → BF-1C canlı dry-run → BF-1D → BF-2 write. Ayrı onay.
+
+---
+
+## 2026-07-22 — S2.19-BF / BF-1A kod-tam: oils Dry-Run Pilot Driver
+
+### Tarih
+2026-07-22
+
+### Karar
+**BF-1A KOD-TAM ve commit edildi** (`work/yh-bf1a`; docs açılış `40a1a97` + kod `ba43d4a`; **push/PR YOK;
+gerçek production API/SQL/dry-run/write YOK**). `aromaterapi:oils` için yalnız **dry-run** yapabilen
+fail-closed/cursor-bazlı/resumable local Node driver (`scripts/yh-oils-dryrun-driver.ts`) + mock harness
+(`scripts/yh-oils-dryrun-driver-harness.ts`, **76/76**, gerçek fetch=0 tripwire ile kanıtlı).
+
+**Kilitli:** sabitler compile-time (source/mode/limit 100/maxPages 50/maxRows 5000/delay 500/timeout 120s;
+CLI/env/config ile değişmez); `'write'` request mode kod yolu **yok** (BF-2 ayrı gate); auth env-only
+(`YH_BASE_URL`/`YH_ADMIN_ID`/`YH_SESSION_TOKEN`; loglanmaz/state'e yazılmaz); CLI yalnız `--execute`/
+`--resume` (no-op no-network); checkpoint `os.tmpdir()` (repo-dışı, atomik, secret-yok); `redirect:'error'`.
+Response yalnız SafePageSummary doğrulanır (**`plannedInsert/update/unchanged` yok**).
+
+### Doğrulama
+Driver harness **76/76**; regresyon BF-0 guard **39** · admin-route **65** · run-source **42** · adapters
+**37** · retrieval-executor **49** · visibility **49**; `tsc --noEmit` PASS; ESLint 0/0 (yeni dosyalar);
+`git diff --check` PASS. **Değişmezlik git-kanıtlı:** route/adminGuard/adminIndexRequest/indexSourcePage/
+sources/sourceGuard/RPC/package.json/.gitignore **UNCHANGED**. Secret taraması: gerçek URL/uuid/token/bearer/
+.env **yok**.
+
+### Breaking Change / Migration
+Hayır / Hayır — yalnız `scripts/` script; production kod/DB dokunulmadı.
+
+### Sonraki (BF-1A DIŞI)
+BF-1B production ön kontrol SQL → BF-1C canlı dry-run → BF-1D doğrulama → BF-2 write (ayrı hard gate). Ayrı onay.
+
+---
+
+## 2026-07-22 — S2.19-BF / BF-1A açıldı: oils Dry-Run Pilot Driver
+
+### Tarih
+2026-07-22
+
+### Karar
+**Production backfill pilotu için `aromaterapi:oils` dry-run driver'ı fazı BF-1A açıldı** (`work/yh-bf1a`
+@ `8a9eb2c`; BF-0 PR #20 production'da). Yalnız **dry-run** yapabilen, fail-closed, cursor-bazlı,
+resumable **local Node driver** + **mock harness** geliştirilir. **BF-1A'da gerçek production API çağrısı /
+dry-run / SQL / write / backfill YAPILMAZ.**
+
+### Auth sözleşmesi (kod DEĞİŞMEZ)
+Route `verifyAdminRequest` (`adminGuard.ts:30-114`) iki header ister: `x-admin-id` + `x-session-token`
+(`user_sessions.session_token`+`is_active`; binding + `role='admin'`). **Cookie/CSRF/origin/middleware YOK.**
+Session token bearer-eşdeğeri → yalnız **env-var** (`YH_BASE_URL`/`YH_ADMIN_ID`/`YH_SESSION_TOKEN`); CLI arg
+değil, loglanmaz, state/body'ye yazılmaz, commit edilmez.
+
+### ⚠️ Response sözleşmesi düzeltmesi
+Gerçek dry-run response yalnız `{ok, mode, sourceKey, page: SafePageSummary, write:null}` döner; **driver
+`plannedInsert`/`plannedUpdate`/`unchanged`/`processed` BEKLEMEZ** (bunlar write-tarafı; dry-run'da yok).
+Driver yalnız SafePageSummary alanlarını (`fetched/produced/skipped/eligibleUnits/excludedDemo/nextCursor/
+hasMore`) doğrular ve toplar.
+
+### Kilitli sabitler / kapılar
+- Compile-time sabit (CLI/env/config ile değişmez): `SOURCE_KEY='aromaterapi:oils'`, `MODE='dry-run'`,
+  `LIMIT=100`, `MAX_PAGES=50`, `MAX_ROWS=5000`, `PAGE_DELAY_MS=500`, `REQUEST_TIMEOUT_MS=120000`. Driver'da
+  `'write'` mode kod yolu **yok** (BF-2 ayrı hard gate).
+- CLI: yalnız `--execute`/`--resume`; argümansız/`--resume`-tek → no-op (ağ çağrısı yok); bilinmeyen/tekrar
+  arg → red. `redirect:'error'`.
+- Checkpoint `os.tmpdir()/yasam-hafizasi/yh-oils-dryrun-state.json` (repo-dışı; atomik; secret/içerik yok).
+
+### Etkilenen Dosyalar (BF-1A)
+- `scripts/yh-oils-dryrun-driver.ts` (yeni) · `scripts/yh-oils-dryrun-driver-harness.ts` (yeni; mock ağ) ·
+  `docs/ai/*`. **Route/adapter/migration/BF-0 guard/retrieval/package.json/.gitignore DEĞİŞMEZ.**
+
+### Sonraki (BF-1A DIŞI)
+BF-1B production ön kontrol SQL → BF-1C canlı dry-run → BF-1D doğrulama → BF-2 write (ayrı hard gate). Ayrı onay.
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-0 kod-tam: İndeks Kaynağı PII Sınıflandırma Guard'ı
 
 ### Tarih
