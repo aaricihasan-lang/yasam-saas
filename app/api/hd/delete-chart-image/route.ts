@@ -1,70 +1,88 @@
-import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
+/**
+ * POST /api/hd/delete-chart-image — Human Design harita görseli silme (HD-0 güvenlik).
+ *
+ * Güvenlik modeli:
+ *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - tenantId YALNIZ guard'dan; istekten GÜVENİLMEZ.
+ *   - İstemciden KEYFİ storage path KABUL EDİLMEZ; path DB'den server-side okunur.
+ *   - Danışan sahipliği tenant-scoped doğrulanır; başka tenant'ın path'i silinemez.
+ *   - Yalnız görsel dosyası + chart_image_url alanı temizlenir; danışan/rapor SİLİNMEZ.
+ *   - Dosya yoksa idempotent/güvenli davranış.
+ *   - Ham Supabase/PostgreSQL hata metni kullanıcıya SIZDIRILMAZ; yanıt no-store.
+ */
+
 const BUCKET = "hd-chart-images";
+const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as {
-      clientId?: unknown;
-      tenantId?: unknown;
-      storagePath?: unknown;
-    };
+function fail(status: number, error: string): Response {
+  return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE });
+}
 
-    const clientId = String(body.clientId ?? "").trim();
-    const tenantId = String(body.tenantId ?? "").trim();
-    const storagePath = String(body.storagePath ?? "").trim();
-
-    if (!clientId || !tenantId) {
-      return NextResponse.json(
-        { ok: false, error: "clientId ve tenantId gerekli." },
-        { status: 400 },
-      );
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { ok: false, error: "Supabase yapılandırması eksik." },
-        { status: 500 },
-      );
-    }
-
-    const db = createClient(supabaseUrl, supabaseKey);
-
-    const { data: client, error: clientErr } = await db
-      .from("human_design_clients")
-      .select("id")
-      .eq("id", clientId)
-      .eq("tenant_id", tenantId)
-      .single();
-
-    if (clientErr || !client) {
-      return NextResponse.json(
-        { ok: false, error: "Danışan doğrulanamadı." },
-        { status: 403 },
-      );
-    }
-
-    // Clear DB field
-    await db
-      .from("human_design_clients")
-      .update({ chart_image_url: null, updated_at: new Date().toISOString() })
-      .eq("id", clientId)
-      .eq("tenant_id", tenantId);
-
-    // Best-effort storage deletion (only for paths belonging to this tenant)
-    if (storagePath && storagePath.startsWith(`${tenantId}/`)) {
-      await db.storage.from(BUCKET).remove([storagePath]);
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+export async function POST(req: NextRequest): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+  if (guard.is_demo_account) {
+    return fail(403, "Demo hesabında bu işlem kullanılamaz.");
   }
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return fail(400, "Geçerli JSON gövdesi gerekli.");
+  }
+  const clientId =
+    raw && typeof raw === "object"
+      ? String((raw as Record<string, unknown>).clientId ?? "").trim()
+      : "";
+  if (!clientId) {
+    return fail(400, "clientId gerekli.");
+  }
+
+  // Danışan sahipliği + mevcut path server-side okunur (istemciden path alınmaz).
+  const { data: client, error: clientErr } = await guard.db
+    .from("human_design_clients")
+    .select("id, chart_image_url")
+    .eq("id", clientId)
+    .eq("tenant_id", guard.tenantId)
+    .maybeSingle();
+
+  if (clientErr) {
+    console.error("[hd/delete-chart-image] client lookup:", clientErr.message);
+    return fail(500, "Danışan doğrulanamadı.");
+  }
+  if (!client) {
+    return fail(403, "Danışan doğrulanamadı.");
+  }
+
+  const currentPath =
+    typeof client.chart_image_url === "string" ? client.chart_image_url.trim() : "";
+
+  // DB alanını null yap (görsel yoksa da idempotent — güvenli).
+  const { error: updateError } = await guard.db
+    .from("human_design_clients")
+    .update({ chart_image_url: null, updated_at: new Date().toISOString() })
+    .eq("id", clientId)
+    .eq("tenant_id", guard.tenantId);
+
+  if (updateError) {
+    console.error("[hd/delete-chart-image] db update:", updateError.message);
+    return fail(500, "Görsel kaydı temizlenemedi.");
+  }
+
+  // Yalnız bu tenant/client prefix'ine ait geçerli path silinir (legacy public URL/boş → atlanır).
+  if (currentPath && currentPath.startsWith(`${guard.tenantId}/${clientId}/`)) {
+    const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([currentPath]);
+    if (removeErr) {
+      // DB alanı zaten temizlendi; dosya temizliği best-effort, maskeli loglanır.
+      console.error("[hd/delete-chart-image] dosya silinemedi:", removeErr.message);
+    }
+  }
+
+  return NextResponse.json({ ok: true }, { status: 200, headers: NO_STORE });
 }
