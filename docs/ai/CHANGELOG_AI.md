@@ -44,6 +44,38 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-1A kod-tam: oils Dry-Run Pilot Driver
+
+### Tarih
+2026-07-22
+
+### Karar
+**BF-1A KOD-TAM ve commit edildi** (`work/yh-bf1a`; docs açılış `40a1a97` + kod `ba43d4a`; **push/PR YOK;
+gerçek production API/SQL/dry-run/write YOK**). `aromaterapi:oils` için yalnız **dry-run** yapabilen
+fail-closed/cursor-bazlı/resumable local Node driver (`scripts/yh-oils-dryrun-driver.ts`) + mock harness
+(`scripts/yh-oils-dryrun-driver-harness.ts`, **76/76**, gerçek fetch=0 tripwire ile kanıtlı).
+
+**Kilitli:** sabitler compile-time (source/mode/limit 100/maxPages 50/maxRows 5000/delay 500/timeout 120s;
+CLI/env/config ile değişmez); `'write'` request mode kod yolu **yok** (BF-2 ayrı gate); auth env-only
+(`YH_BASE_URL`/`YH_ADMIN_ID`/`YH_SESSION_TOKEN`; loglanmaz/state'e yazılmaz); CLI yalnız `--execute`/
+`--resume` (no-op no-network); checkpoint `os.tmpdir()` (repo-dışı, atomik, secret-yok); `redirect:'error'`.
+Response yalnız SafePageSummary doğrulanır (**`plannedInsert/update/unchanged` yok**).
+
+### Doğrulama
+Driver harness **76/76**; regresyon BF-0 guard **39** · admin-route **65** · run-source **42** · adapters
+**37** · retrieval-executor **49** · visibility **49**; `tsc --noEmit` PASS; ESLint 0/0 (yeni dosyalar);
+`git diff --check` PASS. **Değişmezlik git-kanıtlı:** route/adminGuard/adminIndexRequest/indexSourcePage/
+sources/sourceGuard/RPC/package.json/.gitignore **UNCHANGED**. Secret taraması: gerçek URL/uuid/token/bearer/
+.env **yok**.
+
+### Breaking Change / Migration
+Hayır / Hayır — yalnız `scripts/` script; production kod/DB dokunulmadı.
+
+### Sonraki (BF-1A DIŞI)
+BF-1B production ön kontrol SQL → BF-1C canlı dry-run → BF-1D doğrulama → BF-2 write (ayrı hard gate). Ayrı onay.
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-1A açıldı: oils Dry-Run Pilot Driver
 
 ### Tarih

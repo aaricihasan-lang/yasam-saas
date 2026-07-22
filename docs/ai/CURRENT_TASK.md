@@ -10,16 +10,25 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-1A AÇILIŞ — oils dry-run pilot driver'ı; production çağrısı YOK)
+**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-1A KOD-TAM — oils dry-run driver+harness commit; production çağrısı YOK)
 
 ---
 
 ## Durum
 
-**S2.19-BF / BF-1A AÇILDI — `aromaterapi:oils` Dry-Run Pilot Driver.** Production'da **ileride**
-çalıştırılacak, yalnız **dry-run** yapabilen, fail-closed, cursor-bazlı, resumable local Node driver
-+ mock harness geliştirmesi. **Bu fazda gerçek production API çağrısı / dry-run / SQL / write / backfill
-YAPILMAZ.**
+**S2.19-BF / BF-1A KOD-TAM — `aromaterapi:oils` Dry-Run Pilot Driver.** Yalnız **dry-run** yapabilen,
+fail-closed, cursor-bazlı, resumable local Node driver + mock harness yazıldı, doğrulandı, commit edildi.
+**Bu fazda gerçek production API çağrısı / dry-run / SQL / write / backfill YAPILMADI.**
+
+**Commit zinciri (`work/yh-bf1a`):** `8a9eb2c` (taban=BF-0 merge) → **`40a1a97`** (`docs(ai): open BF-1A
+…`) → **`ba43d4a`** (`feat: add oils dry-run pilot driver` — 2 dosya) → doküman kapanışı (bu adım).
+**Push/PR/main-merge YOK.**
+
+**Doğrulama (GEÇTİ):** yeni driver harness **76/76** (gerçek fetch=0, tripwire ile kanıtlı) · BF-0 guard
+**39/39** · admin-route **65/65** · run-source **42/42** · adapters **37/37** · retrieval-executor **49/49** ·
+visibility **49/49** · `tsc --noEmit` **PASS** · ESLint **0/0** (yeni dosyalar) · `git diff --check` PASS.
+Değişmezlik git-kanıtlı: route/adminGuard/adminIndexRequest/indexSourcePage/sources/sourceGuard/RPC/
+package.json/.gitignore **UNCHANGED**. Secret taraması: gerçek URL/uuid/token/bearer/.env **YOK**.
 
 **Önceki durum (kayda alındı):** BF-0 (kaynak PII sınıflandırma guard'ı) **production main'de kapalı**
 (PR #20, merge `8a9eb2c`; classification zorunlu + fail-closed guard; ana index CHECK değişmedi). S2.19A
@@ -97,5 +106,8 @@ resume kuralları · sleep 500ms/son-sayfada yok · harness gerçek URL'ye çağ
 
 ## Sonuç
 
-- *(BF-1A açıldı — dry-run-only pilot driver + mock harness. Gerçek çağrı yok. Sıradaki: driver → harness →
-  docs kapanış. Sonra BF-1B ön kontrol SQL, BF-1C canlı dry-run — ayrı onay.)*
+- *(BF-1A KOD-TAM — dry-run-only pilot driver (`ba43d4a`) + mock harness 76/76. Sabitler compile-time;
+  `'write'` mode kod yolu yok; auth env-only; checkpoint repo-dışı; response `plannedInsert/update/
+  unchanged` taşımaz. Route/adapter/migration/BF-0 guard değişmedi (git-kanıtlı). **Gerçek API/SQL/dry-run/
+  write/backfill YOK; push/PR YOK.** Sıradaki: BF-1B production ön kontrol SQL → BF-1C canlı dry-run —
+  ayrı onay, otomatik başlamaz.)*

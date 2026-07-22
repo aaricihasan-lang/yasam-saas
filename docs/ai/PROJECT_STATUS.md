@@ -12,7 +12,7 @@
 > Doğrulanamayan alanlar açıkça **"Doğrulanmadı"** olarak işaretlenmiştir; tahmin
 > yazılmamıştır.
 
-**Son güncelleme:** 2026-07-22 (S2.19-BF/BF-1A AÇILIŞ — oils dry-run driver'ı; BF-0 PR #20 merge `8a9eb2c`; production çağrısı YOK)
+**Son güncelleme:** 2026-07-22 (S2.19-BF/BF-1A KOD-TAM — oils dry-run driver+harness commit; production çağrısı YOK)
 
 ---
 
@@ -84,7 +84,7 @@ Dijital İçerik ve merkezi zeka katmanı **Yaşam Hafızası™**.
 
 ## Devam Eden İş
 
-- **AKTİF: S2.19-BF / BF-1A — `aromaterapi:oils` Dry-Run Pilot Driver** (`work/yh-bf1a` @ `8a9eb2c`). Production'da ileride çalıştırılacak, yalnız **dry-run** yapabilen fail-closed/cursor-bazlı/resumable local Node driver + mock harness. Auth header-bazlı (`x-admin-id`+`x-session-token`, env-only); sabitler compile-time (source=`aromaterapi:oils`, mode=`dry-run`, limit 100, maxPages 50, maxRows 5000, delay 500ms, timeout 120s); CLI yalnız `--execute`/`--resume`; checkpoint `os.tmpdir()` (repo-dışı); response `plannedInsert/update/unchanged` **taşımaz** (yalnız SafePageSummary). **Gerçek API/SQL/dry-run/write BF-1A'da YOK.** Kapsam: yalnız `scripts/` + `docs/ai/`; route/adapter/migration/BF-0 guard **değişmez**. Bkz. `CURRENT_TASK.md`.
+- **S2.19-BF / BF-1A — `aromaterapi:oils` Dry-Run Pilot Driver: KOD-TAM** (`work/yh-bf1a`; docs açılış `40a1a97` + kod `ba43d4a`; push/PR YOK). Yalnız **dry-run** yapabilen fail-closed/cursor-bazlı/resumable local Node driver + mock harness (**76/76**). Auth header-bazlı env-only; sabitler compile-time (source/mode/limit 100/maxPages 50/maxRows 5000/delay 500/timeout 120s); CLI yalnız `--execute`/`--resume`; checkpoint `os.tmpdir()` (repo-dışı); response `plannedInsert/update/unchanged` **taşımaz**. `'write'` mode kod yolu yok. Driver harness + BF-0/indexer/retrieval regresyon + tsc/ESLint(0/0)/diff-check PASS; route/adapter/migration/BF-0 guard/package.json/.gitignore **değişmedi** (git-kanıtlı); secret sızıntısı yok. **Gerçek API/SQL/dry-run/write BF-1A'da YAPILMADI.** Bkz. `CURRENT_TASK.md`.
 - **Tamamlanan (production):** **BF-0** (kaynak PII sınıflandırma guard'ı) **PR #20 merge `8a9eb2c`** — main'de; ana index CHECK değişmedi. + **S2.19A** (PR #17) + **S2.19B** RPC production'da.
 - **Tamamlanan (production):** **S2.19A merge** (PR #17, `0a1348d`) + **S2.19B** RPC `yh_search_candidates` Dashboard'dan uygulandı + doğrulama PASS (INVOKER/STABLE/service_role-only/trigger/GIN). **`yasam_hafizasi_index` BOŞ** → S2.19C beklemede.
 - **Onay bekleyen:** **BF-1** (pilot `aromaterapi:oils` + local Node driver → admin route) → **S2.19C** (canlı smoke). **Otomatik başlamaz.** Not: ROADMAP'te **S2.06 yoktur**.
