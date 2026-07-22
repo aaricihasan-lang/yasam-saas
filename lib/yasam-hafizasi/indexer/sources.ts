@@ -38,8 +38,29 @@ export type TenantResolution =
       readonly allowSharedNull?: boolean;
     };
 
+/**
+ * Kaynak PII sınıflandırması (S2.19-BF / BF-0). Ana index yalnız PII-DIŞI içindir
+ * (CHECK is_client_pii=false). İndeksleme YALNIZ `safe-non-pii` + `enabled=true`
+ * kaynağa izin verir; `pii` / `unclassified` / `deferred` fail-closed reddedilir.
+ * Guard mantığı `sourceGuard.ts`'te (bu dosya bildirimsel; mantık İÇERMEZ).
+ *   - safe-non-pii  → danışan-bağımsız bilgi/kütüphane/katalog; ana index'e girebilir.
+ *   - pii           → danışan/serbest-form PII riski; ana index'e ASLA girmez (F5/PII index).
+ *   - unclassified  → henüz sınıflandırılmadı; fail-closed reddedilir.
+ *   - deferred      → bilinçli ertelendi; fail-closed reddedilir.
+ */
+export type SourceClassification =
+  | "safe-non-pii"
+  | "pii"
+  | "unclassified"
+  | "deferred";
+
 /** Tek bir kaynak tablonun bildirimsel indeks konfigürasyonu. */
 export interface SourceConfig {
+  /**
+   * PII sınıflandırması (ZORUNLU; varsayılan/optional YOK). Yalnız `safe-non-pii`
+   * indekslenebilir (bkz. `sourceGuard.ts`). Yeni kaynak eklemek için açıkça sınıflandırılmalı.
+   */
+  readonly classification: SourceClassification;
   /** Benzersiz kaynak anahtarı (ör. 'refleksoloji:protocols'). */
   readonly sourceKey: string;
   /** Kaynak modül ailesi (config.YH_SOURCE_MODULES üyesi). */
@@ -79,6 +100,8 @@ export const YH_INDEX_SOURCES = [
   // ── Refleksoloji ──────────────────────────────────────────────────────────
   {
     sourceKey: "refleksoloji:protocols",
+    classification: "safe-non-pii", // uzman protokol kütüphanesi; client_id yok
+
     sourceFamily: "refleksoloji",
     tableName: "reflexology_protocols",
     primaryKey: "id",
@@ -95,6 +118,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "refleksoloji:notes",
+    classification: "pii", // serbest-metin seans notu (config-flagged); ana index'e GİRMEZ
+
     sourceFamily: "refleksoloji",
     tableName: "reflexology_notes",
     primaryKey: "id",
@@ -113,6 +138,8 @@ export const YH_INDEX_SOURCES = [
   // ── Şifa Rehberi ──────────────────────────────────────────────────────────
   {
     sourceKey: "sifa_rehberi:guides",
+    classification: "safe-non-pii", // hastalık bilgi kataloğu; danışan-bağımsız
+
     sourceFamily: "sifa_rehberi",
     tableName: "healing_guides",
     primaryKey: "id",
@@ -152,6 +179,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "sifa_rehberi:guide-sections",
+    classification: "safe-non-pii", // bilgi alt-tablosu; danışan-bağımsız
+
     sourceFamily: "sifa_rehberi",
     tableName: "healing_guide_sections",
     primaryKey: "id",
@@ -175,6 +204,8 @@ export const YH_INDEX_SOURCES = [
   // ── Biyoenerji (hepsi tenant_id; updated_at/active yok → null) ─────────────
   {
     sourceKey: "biyoenerji:subconscious-causes",
+    classification: "safe-non-pii", // bilinçaltı sebep kataloğu; danışan-bağımsız
+
     sourceFamily: "biyoenerji",
     tableName: "bioenergy_subconscious_causes",
     primaryKey: "id",
@@ -191,6 +222,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "biyoenerji:symbols",
+    classification: "safe-non-pii", // sembol sözlüğü; danışan-bağımsız
+
     sourceFamily: "biyoenerji",
     tableName: "bioenergy_symbols",
     primaryKey: "id",
@@ -207,6 +240,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "biyoenerji:chakras",
+    classification: "safe-non-pii", // çakra kataloğu; danışan-bağımsız
+
     sourceFamily: "biyoenerji",
     tableName: "bioenergy_chakras",
     primaryKey: "id",
@@ -223,6 +258,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "biyoenerji:imaginations",
+    classification: "safe-non-pii", // imgeleme kataloğu; danışan-bağımsız
+
     sourceFamily: "biyoenerji",
     tableName: "bioenergy_imaginations",
     primaryKey: "id",
@@ -241,6 +278,8 @@ export const YH_INDEX_SOURCES = [
   // ── Doğaltaş ──────────────────────────────────────────────────────────────
   {
     sourceKey: "dogaltas:stones",
+    classification: "safe-non-pii", // taş kataloğu; danışan-bağımsız
+
     sourceFamily: "dogaltas",
     tableName: "stones",
     primaryKey: "id",
@@ -269,6 +308,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "dogaltas:minerals",
+    classification: "safe-non-pii", // mineral kataloğu; danışan-bağımsız
+
     sourceFamily: "dogaltas",
     tableName: "minerals",
     primaryKey: "id",
@@ -293,6 +334,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "dogaltas:knowledge",
+    classification: "safe-non-pii", // taş bilgi makaleleri; danışan-bağımsız
+
     sourceFamily: "dogaltas",
     tableName: "stone_knowledge_articles",
     primaryKey: "id",
@@ -309,6 +352,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "dogaltas:combinations",
+    classification: "safe-non-pii", // kombinasyon kütüphanesi; danışan-bağımsız
+
     sourceFamily: "dogaltas",
     tableName: "combinations",
     primaryKey: "id",
@@ -327,6 +372,8 @@ export const YH_INDEX_SOURCES = [
   // ── Aromaterapi ───────────────────────────────────────────────────────────
   {
     sourceKey: "aromaterapi:oils",
+    classification: "safe-non-pii", // yağ kataloğu; danışan-bağımsız (BF-1 pilot)
+
     sourceFamily: "aromaterapi",
     tableName: "aromatherapy_oils",
     primaryKey: "id",
@@ -362,6 +409,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "aromaterapi:reference-sheets",
+    classification: "safe-non-pii", // referans meta; danışan-bağımsız
+
     sourceFamily: "aromaterapi",
     tableName: "aromatherapy_reference_sheets",
     primaryKey: "id",
@@ -378,6 +427,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "aromaterapi:reference-rows",
+    classification: "safe-non-pii", // referans satırlar (cells); danışan-bağımsız
+
     sourceFamily: "aromaterapi",
     tableName: "aromatherapy_reference_rows",
     primaryKey: "id",
@@ -400,6 +451,8 @@ export const YH_INDEX_SOURCES = [
   },
   {
     sourceKey: "aromaterapi:blends",
+    classification: "safe-non-pii", // uzman blend reçetesi; client_id yok
+
     sourceFamily: "aromaterapi",
     tableName: "aromatherapy_blends",
     primaryKey: "id",
@@ -418,6 +471,8 @@ export const YH_INDEX_SOURCES = [
   // ── Kişisel Arşiv ─────────────────────────────────────────────────────────
   {
     sourceKey: "kisisel_arsiv:archives",
+    classification: "unclassified", // serbest-form kişisel arşiv; F5'e ertelendi; reddedilir
+
     sourceFamily: "kisisel_arsiv",
     tableName: "personal_archives",
     primaryKey: "id",

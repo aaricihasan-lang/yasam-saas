@@ -42,6 +42,7 @@ const HEX64 = /^[0-9a-f]{64}$/;
 // ── Fixture config'ler (kontrollü; gerçek SourceConfig şekli) ─────────────────
 const colCfg: SourceConfig = {
   sourceKey: "test:col",
+  classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
   sourceFamily: "kisisel_arsiv",
   tableName: "test_col",
   primaryKey: "id",
@@ -68,6 +69,7 @@ const sectionColCfg: SourceConfig = {
 };
 const joinCfg: SourceConfig = {
   sourceKey: "test:join",
+  classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
   sourceFamily: "aromaterapi",
   tableName: "test_join",
   primaryKey: "id",

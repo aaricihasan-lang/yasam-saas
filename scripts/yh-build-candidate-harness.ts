@@ -63,6 +63,7 @@ const fakeRecord: SourceConfig = {
   relationColumns: ["rel"],
   updatedAtColumn: "updated_at",
   activeColumn: null,
+  classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
   enabled: true,
 };
 

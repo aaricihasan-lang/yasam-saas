@@ -24,7 +24,8 @@
 
 import { YH_INDEX_SOURCES } from "./sources";
 import type { SourceConfig } from "./sources";
-import type { IndexSourcePageResult } from "./indexSourcePage";
+import { isIndexableSource } from "./sourceGuard";
+import { SourceNotIndexableError, type IndexSourcePageResult } from "./indexSourcePage";
 import type { WriteIndexUnitsResult } from "./supabaseIndexAdapters";
 
 // ─── Source resolver (saf; statik allowlist) ─────────────────────────────────
@@ -62,6 +63,7 @@ export type AdminIndexErrorCode =
   | "unexpected-field"
   | "missing-source-key"
   | "unknown-source"
+  | "source-not-indexable"
   | "invalid-mode"
   | "invalid-cursor"
   | "invalid-limit"
@@ -237,6 +239,10 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
   const config = resolveYhSourceConfig(sk);
   if (config === null) return fail(400, "unknown-source");
 
+  // PII sınıflandırma guard'ı (BF-0; INV-PII). Bilinen ama safe-non-pii+enabled OLMAYAN kaynak
+  // → 403 fail-closed. dry-run ve write AYNI kapıdan geçer; classification detayı sızmaz.
+  if (!isIndexableSource(config)) return fail(403, "source-not-indexable");
+
   return { ok: true, value: { sourceKey: config.sourceKey, config, mode, afterId, limit } };
 }
 
@@ -313,7 +319,13 @@ export async function handleAdminIndexRequest(
   let result: IndexSourcePageResult;
   try {
     result = await deps.runIndexSourcePage(v.value);
-  } catch {
+  } catch (err) {
+    // BF-0 son savunma: indexSourcePage non-indexable kaynak fırlatırsa → 403 (validation
+    // zaten engeller; bu defense-in-depth). Diğer IO fatal → 500 index-failed.
+    if (err instanceof SourceNotIndexableError) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "source-not-indexable" });
+      return { status: 403, body: { ok: false, error: { code: "source-not-indexable" } } };
+    }
     await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "index-failed" });
     return { status: 500, body: { ok: false, error: { code: "index-failed" } } };
   }

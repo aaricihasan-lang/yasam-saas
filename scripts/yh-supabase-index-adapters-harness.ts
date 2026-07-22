@@ -90,7 +90,9 @@ const colCfg: SourceConfig = {
   sourceKey: "test:col", sourceFamily: "kisisel_arsiv", tableName: "test_col", primaryKey: "id",
   unit: "record", tenant: { mode: "column", column: "tenant_id" }, titleColumns: ["title"],
   searchTextColumns: ["content"], snippetColumns: ["content"], topicTagsColumns: ["tags"],
-  relationColumns: [], updatedAtColumn: null, activeColumn: "is_active", enabled: true,
+  relationColumns: [], updatedAtColumn: null, activeColumn: "is_active",
+  classification: "safe-non-pii", // BF-0: indexSourcePage guard'ından geçmek için (zorunlu alan)
+  enabled: true,
 };
 
 function unit(sourceId: string, hash: string): BuiltIndexUnit {

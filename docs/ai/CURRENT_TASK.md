@@ -10,142 +10,138 @@
 > **⚠️ Ön koşul — Tutarlılık:** Bu dosya, `PROJECT_STATUS.md` ile **çelişmemelidir**.
 > İkisi çelişiyorsa **geliştirmeye başlanmaz**; önce kullanıcıdan doğrulama istenir.
 
-**Son güncelleme:** 2026-07-21 (S2.19A KOD-TAM — kod+migration+harness commit; canlı DB YOK)
+**Son güncelleme:** 2026-07-22 (S2.19-BF / BF-0 KOD-TAM — sınıflandırma guard'ı yazıldı+commit; production'a dokunulmadı)
 
 ---
 
 ## Durum
 
-**S2.19A KOD-TAM — Retrieval Executor + Supabase Adapter + ts_rank RPC.**
-S2.18 `RetrievalQueryDescriptor`'ı gerçek DB'ye bağlayan **impure execution katmanı** yazıldı,
-doğrulandı ve commit edildi. Mimari **Alternatif A** (descriptor → PostgreSQL RPC → `Candidate[]`;
-weighted ranking DB'de; visibility + stone exclusion **ORDER BY/LIMIT'ten ÖNCE**; `evaluateVisibility`
-post-fetch savunma).
+**S2.19-BF / BF-0 KOD-TAM — İndeks Kaynağı PII Sınıflandırması + Guard.** 17 kaynağa zorunlu
+`classification` (15 safe-non-pii / 1 pii / 1 unclassified / 0 deferred) + yalnız `safe-non-pii &&
+enabled` indekslemeye izin veren fail-closed guard yazıldı, doğrulandı, commit edildi. Backfill
+driver / dry-run / write / S2.19C **bu kapsamda DEĞİL.**
 
-**⚠️ production DDL UYGULANMADI · backfill TEYİT EDİLMEDİ · canlı retrieval DOĞRULANMADI.**
-**"Tam güvenli canlı retrieval" İLAN EDİLMEDİ** — S2.19B/C hâlâ açık.
+**Commit zinciri (`work/yh-bf0`):** `f67afb5` (taban=güncel origin/main) → **`761bfd7`**
+(`docs(ai): open BF-0 …`) → **`b69942f`** (`feat(yasam-hafizasi): guard index sources by PII
+classification`) → doküman kapanışı (bu adım). **Push/PR/main-merge YOK; production/SQL/API/backfill YOK.**
 
-**Commit zinciri (`work/yh-s2-19`):** `2c1d728` (taban=güncel origin/main) → **`75976f5`**
-(`docs(ai): open S2.19 retrieval executor`) → **`cbbbf4a`** (`feat: add S2.19 retrieval RPC` —
-migration) → **`d9ebdd5`** (`feat: add S2.19 retrieval executor and adapter` — 3 dosya) → doküman
-kapanışı (bu adım). **Push/PR/main-merge YOK.**
+**Doğrulama (GEÇTİ):** yeni guard harness **39/39** · indexer regresyon (build-candidate/extract-fields/
+run-index-unit/run-source/index-write-plan/supabase-index-adapters **37/37**/admin-index-route **65/65**/
+index-smoke **41/41**) tümü PASS · retrieval regresyon S2.13 **49** / S2.14 **83** / S2.15 **42** / S2.16
+**42** / S2.17 **57** / S2.18 **52** PASS · `tsc --noEmit` **PASS** · ESLint **0 error** (1 pre-existing
+warning `ParentTenantLookup`, BF-0 dışı; origin/main'de de var) · `git diff --check` PASS.
 
-**Fazlı teslim (kilitli):**
-- **S2.19A ✅ (bu görev):** RPC migration dosyası (Dashboard-uygulanır) + `retrievalExecutor.ts` +
-  `supabaseRetrievalAdapter.ts` + mock harness. **Canlı DB YOK.**
-- **S2.19B ⬜ (sonraki, ayrı onay):** production Dashboard DDL uygulaması + salt-okunur doğrulama SQL.
-- **S2.19C ⬜ (sonraki, ayrı onay):** canlı smoke + INV harness.
+**Zorunlu-alan ripple'ı (kayıt):** `classification` `SourceConfig`'te zorunlu olduğundan, mevcut 5 test
+harness'inin sentetik `SourceConfig` literalleri (`supabase-index-adapters`, `build-candidate`,
+`extract-fields`, `run-index-unit`, `run-source`) `classification: "safe-non-pii"` ile güncellendi
+(tsc + happy-path korunması için; davranış değişmedi).
 
-**Önceki durum (kayda alındı):** S2.18 (Retrieval Query Descriptor) **main/production'a MERGE
-EDİLDİ** — **PR #15**, merge commit **`89815ef`** (kod `ab1d5f5`). `origin/main` sonrasında **PR #16**
-(`2c1d728`, aromaterapi bilgi bankası; YH-dışı drift) ilerledi. **S2.19 worktree tabanı = `2c1d728`**
-(güncel origin/main), branch `work/yh-s2-19`.
+**Önceki durum (kayda alındı):** S2.19A (Retrieval Executor + Adapter + ts_rank RPC) **main'e MERGE
+EDİLDİ** (PR #17, merge `0a1348d`; kod `d9ebdd5`). **S2.19B** production'da: RPC `yh_search_candidates`
+Dashboard'dan uygulandı + salt-okunur doğrulama **PASS** (fonksiyon/INVOKER/STABLE/service_role-only/
+trigger/GIN teyitli). **`yasam_hafizasi_index` BOŞ (backfill yok)** → S2.19C canlı smoke'a
+geçilemedi; sıradaki gerçek faz **S2.19-BF**. Worktree tabanı = güncel origin/main `f67afb5`,
+branch `work/yh-bf0`.
 
 ---
 
 ## Görev
 
-Yaşam Hafızası™ **Sprint 2 / S2.19A — Retrieval Execution (Candidate Adapter)**. S2.18
-`RetrievalQueryDescriptor` (kind=`query`) çıktısını tüketip, `yasam_hafizasi_index` üzerinde
-**gerçek DB execution** ile §9 görünürlük + tsquery eşleşme + ağırlıklı ts_rank + LIMIT uygulayıp
-**`Candidate[]`** üreten impure adapter + bunu mümkün kılan PostgreSQL RPC.
-
-**Temel:** S2.18 (`retrievalQuery.ts`) **main'de** (PR #15, `89815ef`). S2.19 bunun üstüne inşa
-edilir; S2.18/S2.17/S2.13 **değişmez** (yalnız import + tüketim).
+Yaşam Hafızası™ **Sprint 2 / S2.19-BF / BF-0 — Kaynak PII Sınıflandırma Guard'ı**. `YH_INDEX_SOURCES`
+registry'sindeki 17 kaynağa **zorunlu `classification` alanı** ekleyip, indekslemeyi (dry-run + write)
+**yalnız `safe-non-pii && enabled=true`** kaynaklarla sınırlayan saf, fail-closed guard.
 
 ## Amaç
 
-Faz-2 boru hattının **[3] adımının impure yarısını** tamamlamak: descriptor → RPC → `Candidate[]`.
-Evidence Gate **[4] downstream** (`Candidate[]` tüketir), **S2.20 kapsamı**.
+Backfill'in **INV-PII**'yi ihlal etmesini yapısal olarak imkânsız kılmak: danışan/PII-riskli veya
+sınıflandırılmamış kaynaklar ana PII-DIŞI index'e (`CHECK(is_client_pii=false)`) **zorla yazılamaz.**
 
-## Kapsam (S2.19A — kod)
+## Nihai sınıflandırma (kullanıcı onaylı)
 
-1. **RPC migration** `20260724000000_yh_search_candidates_rpc.sql` (Dashboard-uygulanır; idempotent):
-   `public.yh_search_candidates(p_tsquery text, p_session_tenant uuid, p_allow_shared boolean,
-   p_weights float4[], p_limit integer) RETURNS TABLE(...16 kolon...)`; plpgsql; STABLE; SECURITY
-   INVOKER; pinned search_path; §9 WHERE (tenant/shared + is_client_pii=false + demo hariç + stone
-   NOT EXISTS) **ranking/LIMIT'ten önce**; weighted `ts_rank(p_weights, search_tsv, to_tsquery)`;
-   tie-breaker `ts_rank DESC, source_updated_at DESC NULLS LAST, id ASC`; REVOKE PUBLIC/anon/auth +
-   GRANT service_role.
-2. **`retrievalExecutor.ts`** (saf): `RetrievalExecutionResult` union + RPC satır tipi + saf
-   `mapRowToCandidate` (kritik alan bozuk → satır düş; koleksiyon bozuk → boş) + `Candidate →
-   VisibilityCandidate` + mevcut `evaluateVisibility` savunma geçişi (yeniden yazılmaz).
-3. **`supabaseRetrievalAdapter.ts`** (impure): dar `RetrievalDbClient`; `getServerDb` (service_role);
-   `createSupabaseRetrievalExecutor` + `createSupabaseStoneExclusionPort`; weights → `[A,B,C,D]`;
-   limit → descriptor'dan; ham DB hata metni **sızmaz** → fail-closed `{kind:'error'}`.
-4. **`yh-retrieval-executor-harness.ts`** (mock DB client).
+**safe-non-pii (15):** refleksoloji:protocols · sifa_rehberi:guides · sifa_rehberi:guide-sections ·
+biyoenerji:subconscious-causes · biyoenerji:symbols · biyoenerji:chakras · biyoenerji:imaginations ·
+dogaltas:stones · dogaltas:minerals · dogaltas:knowledge · dogaltas:combinations · aromaterapi:oils ·
+aromaterapi:reference-sheets · aromaterapi:reference-rows · aromaterapi:blends
+**pii (1):** refleksoloji:notes (config-flagged; serbest-metin seans notu)
+**unclassified (1):** kisisel_arsiv:archives (serbest-form kişisel; F5'e ertelenecek)
+**deferred (0):** registry'de yok (union'da korunur). Registry-dışı `bioenergy_sessions` vb. **eklenmez.**
 
-## Son güvenlik kararı (S2.19A, kilitli)
+> Kanıt: 17 kaynağın **hiçbirinde `client_id`/danışan FK yok**; PII riski yalnız serbest-metin.
+> refleksoloji:notes + personal_archives serbest-form → fail-closed reddedilir.
 
-- **SECURITY INVOKER:** service_role zaten RLS bypass → DEFINER gereksiz + ayrıcalık-yükseltme riski
-  taşır. INVOKER + `REVOKE ALL FROM PUBLIC, anon, authenticated` + `GRANT EXECUTE TO service_role` +
-  pinned `search_path` + şema-nitelikli adlar → yanlış çağrıda fail-closed, escalation yok.
-- **p_weights fail-loud (sessiz varsayılan YOK):** descriptor S2.18 üretir → geçersiz weights =
-  sözleşme hatası. NULL / `array_length != 4` / NULL eleman / negatif / non-finite → `RAISE
-  EXCEPTION`; adapter ham mesajı sızdırmadan `{kind:'error', code:'retrieval-execution-failed'}`.
-- **p_limit:** iş değeri değil DoS-korkuluğu → clamp (fail-safe); iş limiti 150 descriptor'dan.
+## INV-PII (anayasal — DEĞİŞMEZ)
 
-## Kapsam DIŞI (S2.19A DEĞİL)
+- `public.yasam_hafizasi_index` yalnız **PII-DIŞI** içindir; `CHECK(is_client_pii=false)` **değişmez.**
+- pii/unclassified/deferred/disabled kaynak **hiçbir koşulda** (dry-run VEYA write) indekslenmez.
+- İzin **yalnız** `classification==='safe-non-pii' && enabled===true` → aksi **fail-closed reddedilir**.
+- enabled ile classification **bağımsız**; enabled=true classification'ı geçersiz kılamaz.
 
-- Production Dashboard DDL uygulaması / backfill / canlı retrieval → **S2.19B/C**.
-- **[4] Kanıt Kapısı (Evidence Gate)** — downstream, `Candidate[]` tüketir → **S2.20**.
-- [5] derece · [6] "Neden?" · Retrieval Pipeline · module facet · UI · semantic · PII indeksi · AI.
-- ts_rank'in TS'te hesaplanması (DB'de kalır); SQL string interpolation; dynamic SQL.
+## Kapsam (BF-0 — kod)
 
-## Dokunulmayacak Dosyalar
+1. `sources.ts`: `SourceClassification` union + `SourceConfig`'e **zorunlu `classification`** + 17 girişe
+   nihai değer (varsayılan YOK, cast YOK, optional YOK).
+2. `sourceGuard.ts` (yeni, saf): `enabled!==true`→red · `classification!=='safe-non-pii'`→red · yalnız
+   ikisi de → kabul; ayrıştırılmış sonuç (indexable/disabled/pii/unclassified/deferred). DB/env/side-effect YOK.
+3. `adminIndexRequest.ts`: `validateAdminIndexRequest`'te guard; bilinen-ama-bloklu → internal
+   `source-not-indexable`, HTTP **403**, response `{ok:false, error:{code:'source-not-indexable'}}`
+   (classification sızmaz). `unknown-source` (400) korunur.
+4. `indexSourcePage.ts`: başlangıçta **son savunma** — reader/writer'dan ÖNCE non-indexable reddi.
+5. `scripts/yh-source-classification-guard-harness.ts` (yeni; gerçek API/DB YOK).
 
-- `retrievalQuery.ts` (S2.18), `tsQueryPlan.ts` (S2.17), `visibilityScope.ts` (S2.13 — yalnız import),
-  `normalize.ts`/`conceptSet.ts`/`dictionaryExpansion.ts`, `config.ts`, `types.ts`, `flags.ts`,
-  `indexer/*` (write-side), mevcut migration'lar, diğer tüm modüller.
+## Kapsam DIŞI (BF-0 DEĞİL)
 
-## Değişmezler (INV)
+- Backfill driver (BF-1) · dry-run/write/backfill çalıştırma · S2.19C canlı smoke.
+- Retrieval katmanı (S2.13–S2.19: descriptor/executor/RPC/visibilityScope/Candidate/tsQueryPlan) — dokunulmaz.
+- `yasam_hafizasi_index` migration/CHECK · production schema/SQL/API.
 
-- **INV-TENANT:** service_role RLS bypass → WHERE tek tenant sınırı; §9 WHERE + post-fetch
-  `evaluateVisibility` savunma. Cross-tenant/PII/demo/stone **LIMIT'ten önce** dışlanır.
-- **INV-FAIL-CLOSED:** beklenen DB/RPC hatası kontrollü `{kind:'error'}`; blanket try/catch YOK;
-  bozuk satır düşer (görünmez), sorgu çökmez; noop descriptor → DB çağrısı YOK.
-- **INV-SINGLE-SOURCE:** weights/limit descriptor'dan (config tek kaynak); SQL'de ikinci sabit YOK.
+## Dokunulmayacak (değişmezlik — git ile kanıtlanacak)
 
-## Doğrulama (S2.19A)
+`retrievalQuery.ts` · `retrievalExecutor.ts` · `supabaseRetrievalAdapter.ts` ·
+`20260724…_yh_search_candidates_rpc.sql` · `visibilityScope.ts` · `tsQueryPlan.ts` · `types.ts` ·
+`config.ts` · index migration'ları · demo tenant guard · adapter read/write/cursor sözleşmeleri.
 
-- Yeni mock harness (≥26 kontrol): noop→DB-çağrısı-yok · query→RPC adı/param (tsquery/tenant/
-  allowShared/weights=[A,B,C,D]/limit) · RPC-hata→fail-closed · ham-mesaj-sızmaz · bozuk-satır-düş ·
-  cross-tenant/shared(±allowShared)/PII/demo/stone dışlama · stone-port-hata→fail-closed ·
-  diğer-modülde-stone-çağrılmaz · evidence/topic/relation/tsRank mapping · determinizm · SQL-yok.
-- Regresyon: S2.13 **49** · S2.14 **83** · S2.15 **42** · S2.16 **42** · S2.17 **57** · S2.18 **52**.
-- `tsc --noEmit` · hedefli ESLint · `git diff --check` · yasaklı-kapsam grep.
+## Guard katmanları (savunma derinliği; en küçük güvenli kapsam)
+
+1. **Compile-time:** `classification` zorunlu alan → sınıflandırmasız kaynak eklenemez.
+2. **Request validation (birincil runtime):** dry-run + write aynı chokepoint'ten geçer.
+3. **indexSourcePage başlangıcı (son savunma):** doğrudan çağrıya karşı.
+
+## Test planı (harness ≥28 + regresyon)
+
+safe+enabled kabul · safe+disabled red · pii±enabled red · unclassified red · deferred red · unknown
+red · dry-run/write pii+unclassified red · non-indexable'da reader/writer çağrılmaz · pilot
+aromaterapi:oils kabul · sınıf sayıları 15/1/1/0 · 17 kaynak · her kaynak classification taşır · demo
+guard regresyonu · safe kaynak dry-run/write yolu değişmez · classification response'a sızmaz.
+Regresyon: mevcut indexer + S2.13–S2.19 harness'leri + tsc + ESLint + diff-check.
 
 ## Commit (path-scoped, ayrı; `git add -A` YASAK)
 
-1. `docs(ai): open S2.19 retrieval executor` → yalnız `docs/ai/`
-2. `feat(yasam-hafizasi): add S2.19 retrieval RPC` → yalnız `supabase/migrations/2026…_yh_search_candidates_rpc.sql`
-3. `feat(yasam-hafizasi): add S2.19 retrieval executor and adapter` → yalnız 2 lib + 1 harness
-4. `docs(ai): close S2.19 retrieval executor` → yalnız `docs/ai/`
+1. `docs(ai): open BF-0 source classification guard` → yalnız `docs/ai/`
+2. `feat(yasam-hafizasi): guard index sources by PII classification` → sources.ts + sourceGuard.ts +
+   adminIndexRequest.ts + indexSourcePage.ts + harness (+ gerekirse route minimal hata-eşleme)
+3. `docs(ai): close BF-0 source classification guard` → yalnız `docs/ai/`
+
+## Pilot & Driver (kayıt — BF-0 DEĞİL)
+
+- **BF-1 pilot kaynağı:** `aromaterapi:oils` (en zengin çok-alan içerik; safe-non-pii; shared destekli).
+- **BF-1 driver:** local Node → mevcut admin route (service_role sunucuda kalır; cursor loop; dry-run
+  zorunlu; resumable). **BF-0'da yazılmaz.**
 
 ## Push / Production
 
-- **Bu görevde push/PR/main-merge YOK.** Dashboard DDL **S2.19B'de** kullanıcıya verilir. **"Tam
-  güvenli canlı retrieval" S2.19B/C tamamlanmadan İLAN EDİLMEZ.**
+- **Bu görevde push/PR/main-merge YOK · production/SQL/API/backfill YOK · S2.19C YOK.**
 
-## Doğrulama sonuçları (S2.19A — GEÇTİ)
+## Bilinen riskler / açık
 
-- Yeni mock harness **49/49 PASS** · S2.13 **49/49** · S2.14 **83/83** · S2.15 **42/42** ·
-  S2.16 **42/42** · S2.17 **57/57** · S2.18 **52/52** · `tsc --noEmit` **PASS** · hedefli ESLint
-  **0 error/0 warning** · `git diff --check` **PASS** · yasaklı-kapsam grep temiz (executable `.rpc()`
-  yalnız adapter; SQL string interpolation yok; `retrievalExecutor` saf).
-
-## S2.19B'ye geçmeden açık riskler
-
-- **R1 — DDL/backfill teyitsiz:** `yh_search_candidates` + index migration'ları + backfill
-  production'da uygulanmadan **uçtan-uca canlı çalışma imkânsız** (Dashboard-only; `localhost` yok).
-- **R2 — ts_rank ağırlık sırası:** RPC `[A,B,C,D]`→`{D,C,B,A}` ters çevirmesi **yalnız canlı SWE ile**
-  nihai doğrulanır (mock harness ters-çevirme SQL'ini çalıştırmaz).
-- **R3 — text/uuid cast:** `stone_exclusions.tenant_id` (text) vs `p_session_tenant::text` canlı veride
-  doğrulanmalı.
+- **Pre-existing ESLint warning:** `yh-run-index-unit-harness.ts` `ParentTenantLookup` unused import —
+  origin/main'de mevcut; BF-0 kapsamı dışı (minimal-değişiklik disiplini) → dokunulmadı.
+- **indexSourcePage son-savunma:** route yolunda validation zaten engeller → guard throw'u
+  defense-in-depth (doğrudan çağrıya karşı); harness bunu doğrular.
+- Backfill/dry-run/write/S2.19C hâlâ açık; INV-PII yalnız guard ile korunur (F5 PII-index ayrı).
 
 ## Sonuç
 
-- *(S2.19A KOD-TAM — Alternatif A + INVOKER + p_weights fail-loud. Migration `cbbbf4a` (Dashboard-
-  uygulanır), kod `d9ebdd5` (executor+adapter+harness). Mock harness 49/49 + 5 regresyon + TS/ESLint/
-  diff-check PASS. **Production DDL/backfill/canlı retrieval YOK; S2.19B/C açık; "tam güvenli canlı
-  retrieval" ilan edilmedi.** Push/PR yok.)*
+- *(BF-0 KOD-TAM — kaynak PII sınıflandırma guard'ı. Migration/schema/CHECK YOK; yalnız uygulama-katmanı
+  guard. Guard harness 39/39 + tüm indexer/retrieval regresyon + tsc/ESLint(0 error)/diff-check PASS.
+  Retrieval katmanı + migration + index CHECK değişmedi (git-kanıtlı). **Push/PR/production/backfill YOK;
+  S2.19C'ye geçilmedi.** Sıradaki: BF-1 pilot `aromaterapi:oils` + local Node driver.)*

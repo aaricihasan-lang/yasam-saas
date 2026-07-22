@@ -313,6 +313,7 @@ function main(): void {
       relationColumns: ["rel"],
       updatedAtColumn: null,
       activeColumn: null,
+      classification: "safe-non-pii", // BF-0 zorunlu alan (test config)
       enabled: true,
     };
     const r = extractFields(fakeConfig, {

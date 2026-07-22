@@ -44,6 +44,104 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-0 kod-tam: İndeks Kaynağı PII Sınıflandırma Guard'ı
+
+### Tarih
+2026-07-22
+
+### Karar
+**BF-0 KOD-TAM ve commit edildi** (`work/yh-bf0`; docs açılış `761bfd7` + kod `b69942f`; **push/PR
+YOK; production/SQL/API/backfill YOK**). `SourceConfig`'e **zorunlu `classification`** eklendi + 17
+kaynak sınıflandırıldı (safe-non-pii 15 / pii 1 / unclassified 1 / deferred 0); saf `sourceGuard`
+yalnız `safe-non-pii && enabled=true` kaynağa izin verir; guard (a) request validation'da (dry-run +
+write, 403 `source-not-indexable`) ve (b) `indexSourcePage` başında (son savunma, reader/writer'dan
+önce throw) uygulanır. **Ana index `CHECK(is_client_pii=false)` DEĞİŞMEDİ; migration/schema YOK.**
+
+**Zorunlu-alan ripple'ı:** `classification` zorunlu olduğundan 5 mevcut test harness'inin sentetik
+`SourceConfig` literalleri `safe-non-pii` ile güncellendi (tsc + happy-path korunması; davranış
+değişmedi): `supabase-index-adapters`, `build-candidate`, `extract-fields`, `run-index-unit`, `run-source`.
+
+### Doğrulama
+Yeni guard harness **39/39**; indexer regresyon (run-source 42 / index-write-plan 23 / adapters **37** /
+admin-route **65** / index-smoke **41** / build-candidate + extract-fields + run-index-unit PASS);
+retrieval regresyon S2.13 **49** / S2.14 **83** / S2.15 **42** / S2.16 **42** / S2.17 **57** / S2.18
+**52**; `tsc --noEmit` PASS; ESLint **0 error** (1 pre-existing warning, BF-0 dışı); `git diff --check`
+PASS. Değişmezlik git-kanıtlı: retrieval katmanı (descriptor/executor/adapter/RPC/visibilityScope/
+tsQueryPlan/types), index migration'ları + CHECK, config — **dokunulmadı**.
+
+### Sınıflandırma (kullanıcı onaylı)
+safe-non-pii (15): refleksoloji:protocols · sifa_rehberi:{guides,guide-sections} · biyoenerji:{4} ·
+dogaltas:{stones,minerals,knowledge,combinations} · aromaterapi:{oils,reference-sheets,reference-rows,
+blends}. pii (1): refleksoloji:notes. unclassified (1): kisisel_arsiv:archives. deferred (0).
+
+### Breaking Change / Migration
+Hayır / Hayır — uygulama-katmanı guard; DDL/schema yok.
+
+### Sonraki (BF-0 DIŞI)
+BF-1: pilot `aromaterapi:oils` + local Node driver → mevcut admin route (dry-run zorunlu, cursor,
+resumable) → S2.19C canlı smoke. Otomatik başlamaz.
+
+---
+
+## 2026-07-22 — S2.19-BF / BF-0 açıldı: İndeks Kaynağı PII Sınıflandırma Guard'ı
+
+### Tarih
+2026-07-22
+
+### Karar
+**Production backfill öncesi zorunlu hazırlık fazı S2.19-BF / BF-0 açıldı.** `YH_INDEX_SOURCES`
+registry'sindeki **17 kaynağa zorunlu `classification` alanı** eklenir ve indeksleme (dry-run + write)
+**yalnız `classification==='safe-non-pii' && enabled===true`** kaynaklarla sınırlanır (fail-closed).
+Worktree tabanı güncel origin/main `f67afb5`, branch `work/yh-bf0`.
+
+**Bağlam:** S2.19A main'e merge (PR #17, `0a1348d`); S2.19B RPC `yh_search_candidates` production'a
+Dashboard'dan uygulandı + doğrulama PASS. `yasam_hafizasi_index` **BOŞ** → S2.19C canlı smoke
+backfill'e bağlı → önce backfill'in INV-PII güvenliği garanti edilmeli.
+
+### Nihai sınıflandırma (kullanıcı onaylı)
+- **safe-non-pii (15):** refleksoloji:protocols · sifa_rehberi:guides · sifa_rehberi:guide-sections ·
+  biyoenerji:{subconscious-causes,symbols,chakras,imaginations} · dogaltas:{stones,minerals,knowledge,
+  combinations} · aromaterapi:{oils,reference-sheets,reference-rows,blends}
+- **pii (1):** refleksoloji:notes (config-flagged; serbest-metin seans notu → reddedilir)
+- **unclassified (1):** kisisel_arsiv:archives (serbest-form kişisel → reddedilir; F5'e ertelendi)
+- **deferred (0):** registry'de yok (union'da korunur). Registry-dışı `bioenergy_sessions`/`energy_bodies`
+  **eklenmez** (zaten hariç).
+
+### Neden
+- **INV-PII (anayasal):** `yasam_hafizasi_index` yalnız PII-DIŞI; `CHECK(is_client_pii=false)` değişmez.
+  17 kaynağın **hiçbirinde `client_id`/danışan FK yok**; PII riski yalnız serbest-metin (uzmanın danışan
+  adı yazabileceği alanlar). serbest-form not/arşiv tabloları (refleksoloji:notes, personal_archives)
+  fail-closed reddedilir → PII ana index'e **zorla yazılamaz** (false etiketle bile).
+- **enabled ≠ classification:** enabled=true classification'ı geçersiz kılamaz; pii/unclassified/
+  deferred/disabled her durumda (dry-run VEYA write) reddedilir.
+
+### Guard katmanları (savunma derinliği)
+1. Compile-time: `classification` **zorunlu alan** (`SourceConfig`) → sınıflandırmasız kaynak eklenemez.
+2. Request validation (birincil runtime chokepoint): dry-run + write aynı guard'dan geçer.
+3. `indexSourcePage` başlangıcı (son savunma): reader/writer'dan ÖNCE red.
+
+Hata sözleşmesi: internal `source-not-indexable` · HTTP **403** · response `{ok:false,error:{code:
+'source-not-indexable'}}` (classification/tablo detayı sızmaz). `unknown-source` (400) korunur.
+
+### Etkilenen Dosyalar (BF-0 — yeni/değişen)
+- `lib/yasam-hafizasi/indexer/sources.ts` (classification tipi + zorunlu alan + 17 değer) — ⚠️ "korunan"
+  declarative dosya; yalnız veri + gerekli type (onaylı)
+- `lib/yasam-hafizasi/indexer/sourceGuard.ts` (yeni, saf guard)
+- `lib/yasam-hafizasi/indexer/adminIndexRequest.ts` (guard entegrasyonu + 403 kodu)
+- `lib/yasam-hafizasi/indexer/indexSourcePage.ts` (son savunma)
+- `scripts/yh-source-classification-guard-harness.ts` (yeni; gerçek API/DB YOK)
+- `docs/ai/*`
+
+### Breaking Change / Migration
+Hayır / Hayır — SQL/DDL/schema değişikliği YOK; `yasam_hafizasi_index` CHECK dokunulmaz. Yalnız
+uygulama-katmanı guard.
+
+### Kapsam dışı (BF-0 DEĞİL)
+Backfill driver (BF-1) · dry-run/write/backfill çalıştırma · S2.19C · retrieval katmanı (S2.13–S2.19).
+**BF-1 pilot = `aromaterapi:oils`; driver = local Node → mevcut admin route** (kayıt; BF-0'da yazılmaz).
+
+---
+
 ## 2026-07-21 — S2.19A kod-tam: Retrieval Executor + Supabase Adapter + ts_rank RPC
 
 ### Tarih
