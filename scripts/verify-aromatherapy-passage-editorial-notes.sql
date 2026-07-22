@@ -156,8 +156,8 @@ INSERT INTO public.aromatherapy_source_passages (id, tenant_id, source_id, locat
   ('aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','s.2','zh-Hans','reference_only','unknown');
 INSERT INTO public.aromatherapy_passage_translations (id,tenant_id,passage_id,source_lang,target_lang,translated_text,translation_hash,source_passage_content_hash,translation_method,translation_source,fidelity,translation_rights_status) VALUES
   ('ddddddd1-dddd-dddd-dddd-dddddddddddd','22222222-2222-2222-2222-222222222222','aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa','zh-Hans','tr','t1', repeat('f',64), repeat('a',64),'human','internal','faithful','public_domain'),
-  ('ddddddd2-dddd-dddd-dddd-dddddddddddd','22222222-2222-2222-2222-222222222222','aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa','zh-Hans','tr','t2', repeat('g',64), repeat('c',64),'human','internal','faithful','public_domain'),
-  ('eeeeeee1-eeee-eeee-eeee-eeeeeeeeeeee','44444444-4444-4444-4444-444444444444','bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb','zh-Hans','tr','tb', repeat('h',64), repeat('e',64),'human','internal','faithful','public_domain');
+  ('ddddddd2-dddd-dddd-dddd-dddddddddddd','22222222-2222-2222-2222-222222222222','aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa','zh-Hans','tr','t2', repeat('b',64), repeat('c',64),'human','internal','faithful','public_domain'),
+  ('eeeeeee1-eeee-eeee-eeee-eeeeeeeeeeee','44444444-4444-4444-4444-444444444444','bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb','zh-Hans','tr','tb', repeat('d',64), repeat('e',64),'human','internal','faithful','public_domain');
 
 DO $$
 DECLARE
