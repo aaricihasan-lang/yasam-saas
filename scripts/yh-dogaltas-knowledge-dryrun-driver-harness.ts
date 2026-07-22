@@ -1,15 +1,15 @@
-// Yaşam Hafızası™ — S2.19-BF/BF-1A oils dry-run driver harness (saf/mock; GERÇEK AĞ YOK).
+// Yaşam Hafızası™ — S2.19-BF/BF-1A dogaltas:knowledge dry-run driver harness (saf/mock; GERÇEK AĞ YOK).
 //
-// yh-oils-dryrun-driver.ts PUBLIC sözleşmesini GERÇEK import ile doğrular. fetch/sleep/time/state
-// mock/inject edilir; global fetch tripwire ile gerçek ağ çağrısı yapılmadığı KANITLANIR.
-// Çalıştırma:  npx tsx scripts/yh-oils-dryrun-driver-harness.ts
+// yh-dogaltas-knowledge-dryrun-driver.ts PUBLIC sözleşmesini GERÇEK import ile doğrular.
+// fetch/sleep/time/state mock/inject edilir; global fetch tripwire ile gerçek ağ çağrısı yapılmadığı KANITLANIR.
+// Çalıştırma:  npx tsx scripts/yh-dogaltas-knowledge-dryrun-driver-harness.ts
 
 import {
   SOURCE_KEY, MODE, LIMIT, MAX_PAGES, MAX_ROWS, PAGE_DELAY_MS, REQUEST_TIMEOUT_MS, STATE_VERSION,
   parseCliArgs, validateEnv, buildRequestBody, validateDryRunResponse, validateState,
   runDryRunPaging, isUuid, main,
   type RequestResult, type SafePage, type DriverState, type StateStore, type SafeLogger,
-} from "./yh-oils-dryrun-driver";
+} from "./yh-dogaltas-knowledge-dryrun-driver";
 
 // ─── GERÇEK AĞ TRİPWİRE: herhangi bir gerçek fetch harness'i patlatır ─────────
 let realFetchCalls = 0;
@@ -101,8 +101,11 @@ function run(queue: readonly RequestResult[], opts: { resume?: boolean; initialS
 
 async function main2(): Promise<void> {
   // ═══ Sabitler ═══════════════════════════════════════════════════════════
-  check("sabit source/mode/limit", SOURCE_KEY === "aromaterapi:oils" && MODE === "dry-run" && LIMIT === 100);
+  check("sabit source/mode/limit", SOURCE_KEY === "dogaltas:knowledge" && MODE === "dry-run" && LIMIT === 100);
   check("sabit sınırlar", MAX_PAGES === 50 && MAX_ROWS === 5000 && PAGE_DELAY_MS === 500 && REQUEST_TIMEOUT_MS === 120000);
+  // Pilot kaynak KESİN dogaltas:knowledge; eski aromaterapi:oils ASLA üretilmez.
+  check("pilot dogaltas:knowledge (aromaterapi:oils DEĞİL)", SOURCE_KEY === "dogaltas:knowledge" && (SOURCE_KEY as string) !== "aromaterapi:oils");
+  check("body source dogaltas:knowledge; oils üretilemez", buildRequestBody(null).sourceKey === "dogaltas:knowledge" && buildRequestBody(U2).sourceKey !== "aromaterapi:oils");
 
   // ═══ CLI kapısı ═════════════════════════════════════════════════════════
   check("1 argümansız → execute=false (no-op)", (() => { const c = parseCliArgs([]); return c.ok && !c.execute && !c.resume; })());
@@ -257,7 +260,7 @@ async function main2(): Promise<void> {
   check("isUuid doğru", isUuid(U1) && !isUuid("x") && !isUuid(null));
 
   console.log("");
-  console.log("S2.19-BF/BF-1A oils dry-run driver harness — saf/mock; GERÇEK AĞ/SQL/production YOK.");
+  console.log("S2.19-BF/BF-1A dogaltas:knowledge dry-run driver harness — saf/mock; GERÇEK AĞ/SQL/production YOK.");
   console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
   console.log("- CLI kapısı (--execute/--resume; no-op no-network); body sabit 3/4 alan; exact response validation");
   console.log("- cursor monotonluk/tekrar/geri/null/invalid; maxPages/maxRows; tüm HTTP/redirect/timeout/network DUR");

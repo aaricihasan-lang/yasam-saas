@@ -1,4 +1,4 @@
-// Yaşam Hafızası™ — S2.19-BF/BF-1A: `aromaterapi:oils` DRY-RUN pilot driver (fail-closed, cursor-bazlı).
+// Yaşam Hafızası™ — S2.19-BF/BF-1A: `dogaltas:knowledge` DRY-RUN pilot driver (fail-closed, cursor-bazlı).
 //
 // Mevcut admin route'u (POST /api/admin/yasam-hafizasi/index-page) header-bazlı auth ile YALNIZ
 // dry-run modunda, sayfa sayfa çağırır. Production route/adapter/migration DEĞİŞMEZ. Bu dosya
@@ -13,14 +13,14 @@
 //   - Checkpoint os.tmpdir() altında (repo-dışı); secret/içerik/response taşımaz; atomik yazılır.
 //   - Yalnız güvenli sayısal özet + cursor + status + kod loglanır.
 //
-// Çalıştırma (BF-1C; BF-1A'da DEĞİL):  npx tsx scripts/yh-oils-dryrun-driver.ts --execute
+// Çalıştırma (BF-1C; BF-1A'da DEĞİL):  npx tsx scripts/yh-dogaltas-knowledge-dryrun-driver.ts --execute
 
 import { promises as fs } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
 // ─── Compile-time sabitler (değiştirilemez) ───────────────────────────────────
-export const SOURCE_KEY = "aromaterapi:oils" as const;
+export const SOURCE_KEY = "dogaltas:knowledge" as const;
 export const MODE = "dry-run" as const;
 export const LIMIT = 100 as const;
 export const MAX_PAGES = 50 as const;
@@ -393,15 +393,15 @@ export async function runDryRunPaging(deps: PagingDeps): Promise<PagingResult> {
 // ─── 7) Güvenli logger (gerçek) ──────────────────────────────────────────────
 export function createConsoleLogger(): SafeLogger {
   return {
-    info: (stage) => console.log(`[oils-dryrun] ${stage}`),
+    info: (stage) => console.log(`[dogaltas-knowledge-dryrun] ${stage}`),
     page: (pageNo, status, page) =>
       console.log(
-        `[oils-dryrun] page=${pageNo} status=${status} fetched=${page.fetched} produced=${page.produced} ` +
+        `[dogaltas-knowledge-dryrun] page=${pageNo} status=${status} fetched=${page.fetched} produced=${page.produced} ` +
           `skipped=${page.skipped} eligibleUnits=${page.eligibleUnits} excludedDemo=${page.excludedDemo} ` +
           `hasMore=${page.hasMore} nextCursorPresent=${page.nextCursor !== null}`,
       ),
-    stop: (code) => console.error(`[oils-dryrun] STOP code=${code}`),
-    done: (summary) => console.log(`[oils-dryrun] done ${JSON.stringify(summary)}`),
+    stop: (code) => console.error(`[dogaltas-knowledge-dryrun] STOP code=${code}`),
+    done: (summary) => console.log(`[dogaltas-knowledge-dryrun] done ${JSON.stringify(summary)}`),
   };
 }
 
@@ -443,7 +443,7 @@ export function createHttpRequestPage(config: DriverConfig): (afterId: string | 
 
 export function createFsStateStore(): StateStore {
   const dir = path.join(os.tmpdir(), "yasam-hafizasi");
-  const file = path.join(dir, "yh-oils-dryrun-state.json");
+  const file = path.join(dir, "yh-dogaltas-knowledge-dryrun-state.json");
   return {
     path: file,
     read: async () => {
@@ -472,10 +472,10 @@ export function createFsStateStore(): StateStore {
 function usage(): void {
   console.log(
     [
-      "Yaşam Hafızası™ oils dry-run pilot driver (yalnız dry-run).",
+      "Yaşam Hafızası™ dogaltas:knowledge dry-run pilot driver (yalnız dry-run).",
       "Kullanım:",
-      "  npx tsx scripts/yh-oils-dryrun-driver.ts --execute",
-      "  npx tsx scripts/yh-oils-dryrun-driver.ts --execute --resume",
+      "  npx tsx scripts/yh-dogaltas-knowledge-dryrun-driver.ts --execute",
+      "  npx tsx scripts/yh-dogaltas-knowledge-dryrun-driver.ts --execute --resume",
       "Zorunlu env (değer GÖSTERİLMEZ): YH_BASE_URL, YH_ADMIN_ID, YH_SESSION_TOKEN",
       "Argümansız çalıştırma ağ çağrısı YAPMAZ.",
     ].join("\n"),
@@ -485,7 +485,7 @@ function usage(): void {
 export async function main(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): Promise<number> {
   const cli = parseCliArgs(argv);
   if (!cli.ok) {
-    console.error(`[oils-dryrun] arg hatası: ${cli.code}`);
+    console.error(`[dogaltas-knowledge-dryrun] arg hatası: ${cli.code}`);
     usage();
     return 2;
   }
@@ -498,7 +498,7 @@ export async function main(argv: readonly string[], env: Readonly<Record<string,
   const envRes = validateEnv(env);
   if (!envRes.ok) {
     // Secret DEĞER yazılmaz; yalnız kod.
-    console.error(`[oils-dryrun] env hatası: ${envRes.code}`);
+    console.error(`[dogaltas-knowledge-dryrun] env hatası: ${envRes.code}`);
     return 2;
   }
 
@@ -531,7 +531,7 @@ export async function main(argv: readonly string[], env: Readonly<Record<string,
 
 // Yalnız doğrudan çalıştırıldığında main koşar (import edildiğinde DEĞİL → harness tetiklemez).
 const entry = process.argv[1]?.replace(/\\/g, "/") ?? "";
-if (/yh-oils-dryrun-driver(\.(ts|mjs|js))?$/.test(entry)) {
+if (/yh-dogaltas-knowledge-dryrun-driver(\.(ts|mjs|js))?$/.test(entry)) {
   void main(process.argv.slice(2), process.env).then((code) => {
     process.exitCode = code;
   });
