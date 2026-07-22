@@ -5,6 +5,7 @@
 // Gerçek DB / network / service-role env YOK.
 // Çalıştırma:  npx tsx scripts/yh-supabase-index-adapters-harness.ts
 
+import { ADMIN_LIBRARY_TENANT_ID } from "../lib/tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID, YH_TABLES } from "../lib/yasam-hafizasi/config";
 import type { BuiltIndexUnit } from "../lib/yasam-hafizasi/indexer/buildCandidate";
 import { indexSourcePage } from "../lib/yasam-hafizasi/indexer/indexSourcePage";
@@ -102,6 +103,9 @@ function unit(sourceId: string, hash: string): BuiltIndexUnit {
     snippet: "S", snippetOrigin: "content", topicTags: [], expertRelations: [], evidenceFields: [{ origin: "content", kind: "paragraph", text: "e" }],
     sourceUpdatedAt: null, contentHash: hash,
   };
+}
+function unitWithTenant(sourceId: string, hash: string, tenantId: string | null): BuiltIndexUnit {
+  return { ...unit(sourceId, hash), tenantId };
 }
 function manyUnits(n: number, hash: string): BuiltIndexUnit[] {
   const out: BuiltIndexUnit[] = [];
@@ -295,13 +299,90 @@ async function main(): Promise<void> {
     const fake = makeFake({ select: orchSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
     const keys = Object.keys(r).sort().join(",");
-    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,excludedDemo,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok (${keys})`);
+    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,excludedDemo,excludedSynthetic,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok (${keys})`);
   }
   {
     // db injection çalışır: fake kullanıldı (gerçek getServerDb çağrılmadı → env gerekmez)
     const fake = makeFake({ select: orchSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
     check(r.sourceKey === "test:col" && fake.froms.length > 0, `D6 db injection çalışır`);
+  }
+
+  // ═══ E — BF-1B-FIX Global Sentetik Tenant Guard (11) ═══════════════════════
+  // real + demo + sentetik karışık sayfa (sınıflandırma: demo → excludedDemo,
+  // sentetik → excludedSynthetic, kalan → eligible; bir unit tek sayaçta).
+  const mixedSelect = (table: string): DbQueryResult => {
+    if (table === "test_col") {
+      return { data: [
+        { id: "r1", tenant_id: TENANT_A, content: "abc", is_active: true },
+        { id: "r2", tenant_id: YH_DEMO_TENANT_ID, content: "demo", is_active: true },
+        { id: "r3", tenant_id: ADMIN_LIBRARY_TENANT_ID, content: "tpl", is_active: true },
+        { id: "r4", tenant_id: null, content: "shr", is_active: true }, // colCfg allowSharedNull yok → skip (sözleşme değişmez)
+      ], error: null };
+    }
+    return { data: [], error: null };
+  };
+  const allSyntheticSelect = (table: string): DbQueryResult => {
+    if (table === "test_col") {
+      return { data: [
+        { id: "s1", tenant_id: ADMIN_LIBRARY_TENANT_ID, content: "t1", is_active: true },
+        { id: "s2", tenant_id: ADMIN_LIBRARY_TENANT_ID, content: "t2", is_active: true },
+      ], error: null };
+    }
+    return { data: [], error: null };
+  };
+  {
+    const fake = makeFake({ select: mixedSelect });
+    const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
+    check(r.excludedSynthetic === 1, `E1 sentetik → excludedSynthetic=1 (${r.excludedSynthetic})`);
+    check(r.excludedDemo === 1, `E2 demo sayacı sentetikten ayrı (${r.excludedDemo})`);
+    check(r.eligibleUnits === 1, `E3 mixed page → yalnız gerçek tenant eligible (${r.eligibleUnits})`);
+    check(r.fetched === 4 && r.summary.skipped === 1, `E4 NULL/shared sözleşme değişmedi (skip; fetched=${r.fetched})`);
+  }
+  {
+    const fake = makeFake({ select: allSyntheticSelect });
+    const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
+    check(r.eligibleUnits === 0 && r.excludedSynthetic === 2 && r.excludedDemo === 0 && r.write === null,
+      `E5 tümü sentetik → eligible=0, kontrollü başarı (${r.eligibleUnits}/${r.excludedSynthetic})`);
+  }
+  {
+    const fake = makeFake({ select: allSyntheticSelect });
+    const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    // eligible=0 → writer boş-units yolu; upsert YOK, hata YOK.
+    check(fake.upserts.length === 0 && r.write !== null && r.write.attempted === 0,
+      `E6 write modunda sentetik writer'a ULAŞMAZ (upsert=${fake.upserts.length})`);
+  }
+  {
+    const fake = makeFake({ select: mixedSelect });
+    await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    const rows = fake.upserts.flatMap((u) => u.rows);
+    check(rows.length === 1 && rows[0].source_id === "r1" && rows[0].tenant_id === TENANT_A,
+      `E7 mixed write → yalnız gerçek tenant yazılır (${rows.length})`);
+  }
+  {
+    // Savunma derinliği: writer'a DOĞRUDAN sentetik unit verilirse fail-fast.
+    const fake = makeFake({ select: selPrefetchEmpty });
+    let code = "";
+    try {
+      await createSupabaseIndexWriter(fake.db).write({
+        config: colCfg,
+        units: [unit("w1", HASH), unitWithTenant("w2", HASH, ADMIN_LIBRARY_TENANT_ID)],
+      });
+    } catch (e) {
+      code = e instanceof Error ? e.message : "?";
+    }
+    check(code === "synthetic-tenant-unit", `E8 writer guard fail-fast (${code})`);
+    check(fake.upserts.length === 0, `E9 guard sonrası hiçbir upsert denenmez`);
+  }
+  {
+    // Gerçek tenant + NULL/shared unit writer davranışı DEĞİŞMEZ (guard dokunmaz).
+    const fake = makeFake({ select: selPrefetchEmpty });
+    const r = await createSupabaseIndexWriter(fake.db).write({
+      config: colCfg,
+      units: [unit("w3", HASH), unitWithTenant("w4", HASH, null)],
+    });
+    check(r.written === 2 && r.failed === 0, `E10 gerçek+shared writer davranışı değişmedi (${r.written})`);
+    check(fake.upserts.flatMap((u) => u.rows).length === 2, `E11 iki satır upsert edildi`);
   }
 
   // ── Sonuç ─────────────────────────────────────────────────────────────────
@@ -312,11 +393,12 @@ async function main(): Promise<void> {
   }
   console.log("S2.10 supabaseIndexAdapters harness — fake-Supabase; DB'siz.");
   console.log("");
-  console.log(`CHECK: ${total} kontrol OK (A reader 9 + B parent 8 + C writer 12 + D orkestrasyon 6).`);
+  console.log(`CHECK: ${total} kontrol OK (A reader 9 + B parent 8 + C writer 12 + D orkestrasyon 6 + E sentetik guard 11).`);
   console.log("- reader: doğru table, minimal select, active .eq, cursor .gt (yoksa yok), order/limit, shallow clone, error→sabit kod");
   console.log("- parent: 200 chunk, id+tenant select, .in, map key reuse, null/missing, chunk error fatal");
   console.log("- writer: prefetch(source_table+source_id), onConflict, unchanged→upsert yok, chunk 200, FAIL-FAST, prefetch/upsert error sabit kod, mutation yok");
   console.log("- orkestrasyon: dry-run writer yok, write writer var, demo writer'a ulaşmaz, excludedDemo, ham units sızmaz, db injection");
+  console.log("- BF-1B-FIX sentetik guard: excludedSynthetic demo'dan ayrı, mixed/all-synthetic sayfalar, sentetik writer'a ulaşmaz, writer fail-fast synthetic-tenant-unit, gerçek/shared davranış değişmedi");
 }
 
 main().catch((e) => {

@@ -5,8 +5,12 @@ import {
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 
-/** Admin kütüphane / toplu import varsayılan tenant (yalnızca admin aktarım kaynağı) */
-export const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
+/**
+ * Admin kütüphane / toplu import varsayılan tenant (yalnızca admin aktarım kaynağı).
+ * BF-1B-FIX: UUID tek kaynağı `lib/tenancy/syntheticTenants.ts`'tir; mevcut
+ * importer'lar kırılmasın diye buradan re-export edilir (davranış birebir aynı).
+ */
+export { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 
 export const MISSING_SESSION_TENANT_MESSAGE =
   "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.";

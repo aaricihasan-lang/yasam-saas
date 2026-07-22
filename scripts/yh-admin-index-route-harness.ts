@@ -39,6 +39,7 @@ function writeResult(over: Partial<WriteIndexUnitsResult> = {}): WriteIndexUnits
 function pageResult(mode: "dry-run" | "write", write: WriteIndexUnitsResult | null, extra: Record<string, unknown> = {}): IndexSourcePageResult {
   return {
     sourceKey: VALID_KEY, mode, fetched: 3, eligibleUnits: 2, excludedDemo: 1,
+    excludedSynthetic: 4, // BF-1B-FIX: response passthrough testi için ayırt edici değer
     summary: { units: 2, skipped: 1, byReason: { "tenant:invalid-tenant": 1 } },
     nextCursor: "cur-9", hasMore: true, parentStats: { requested: 0, found: 0, missing: 0 },
     write,
@@ -123,7 +124,7 @@ async function main(): Promise<void> {
   bad(vbody({ afterId: "a" + String.fromCharCode(127) + "b" }), "invalid-cursor"); // DEL
   { const r = validateAdminIndexRequest(vbody({ afterId: "66666666-6666-6666-6666-666666666666" })); check(r.ok && r.value.afterId === "66666666-6666-6666-6666-666666666666", "A valid cursor"); }
 
-  // ═══ B — HANDLER (24) ══════════════════════════════════════════════════════
+  // ═══ B — HANDLER (25) ══════════════════════════════════════════════════════
   // dry-run demo çağırmaz, writer null, güvenli map
   {
     const { deps, c } = makeDeps({ result: pageResult("dry-run", null) });
@@ -132,6 +133,9 @@ async function main(): Promise<void> {
     check(c.demoCalls === 0, "B2 dry-run demo çağırmaz");
     check(c.runCalls === 1, "B3 dry-run tek indeks çağrısı");
     check(body.ok === true && body.page.produced === 2 && body.page.excludedDemo === 1, "B4 dry-run güvenli page map");
+    // BF-1B-FIX: excludedSynthetic response'a güvenli sayı olarak geçer; demo'dan ayrı.
+    check(body.ok === true && body.page.excludedSynthetic === 4 && typeof body.page.excludedSynthetic === "number",
+      "B4b excludedSynthetic response passthrough");
   }
   // write başarılı → 200 completed:true
   {
@@ -202,11 +206,12 @@ async function main(): Promise<void> {
     check(s.indexOf("units") === -1 && s.indexOf("rawRows") === -1, "B24 yabancı alanlar map edilmez");
   }
 
-  // ═══ C — AUDIT (6) ═════════════════════════════════════════════════════════
+  // ═══ C — AUDIT (7) ═════════════════════════════════════════════════════════
   {
     const { deps, c } = makeDeps({ result: pageResult("dry-run", null) });
     await handleAdminIndexRequest(vbody({ mode: "dry-run", afterId: "66666666-6666-6666-6666-666666666666" }), deps);
     check(c.audits.length === 1 && c.audits[0].outcome === "dry-run-ok", "C1 dry-run audit");
+    check(c.audits[0].excludedSynthetic === 4, "C1b audit excludedSynthetic taşır");
     check(c.audits[0].cursorPresent === true, "C2 cursorPresent bool");
     check(J(c.audits[0]).indexOf("66666666-6666") === -1, "C3 audit cursor DEĞERİ içermez");
   }
@@ -236,7 +241,7 @@ async function main(): Promise<void> {
   }
   console.log("S2.11 adminIndexRequest harness — saf/fake-deps; DB'siz.");
   console.log("");
-  console.log(`CHECK: ${total} kontrol OK (A validation 33 + B handler 24 + C audit 6).`);
+  console.log(`CHECK: ${total} kontrol OK (A validation 33 + B handler 25 + C audit 7).`);
   console.log("- validation: body/sourceKey/mode/afterId(kontrol-char red)/limit(1..500 açık ret); unexpected-field red");
   console.log("- handler: dry-run demo çağırmaz+writer null; write demo-gate fail-closed (403/503); fatal 500; partial 503+ok:false+completed:false");
   console.log("- ok:true+completed:false imkânsız; sourceKey yankı; registry listesi yok; ham row/unit/PII/DB-mesaj sızmaz");

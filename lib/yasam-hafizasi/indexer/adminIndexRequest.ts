@@ -79,6 +79,7 @@ export interface SafePageSummary {
   readonly skipped: number;
   readonly eligibleUnits: number;
   readonly excludedDemo: number;
+  readonly excludedSynthetic: number; // BF-1B-FIX: sentetik tenant dışlaması (demo'dan ayrı)
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
 }
@@ -141,6 +142,7 @@ export interface SafeAdminIndexAuditEvent {
   readonly skipped?: number;
   readonly eligibleUnits?: number;
   readonly excludedDemo?: number;
+  readonly excludedSynthetic?: number;
   readonly plannedInsert?: number;
   readonly plannedUpdate?: number;
   readonly unchanged?: number;
@@ -255,6 +257,7 @@ function toSafePage(result: IndexSourcePageResult): SafePageSummary {
     skipped: result.summary.skipped,
     eligibleUnits: result.eligibleUnits,
     excludedDemo: result.excludedDemo,
+    excludedSynthetic: result.excludedSynthetic,
     nextCursor: result.nextCursor,
     hasMore: result.hasMore,
   };
@@ -335,6 +338,7 @@ export async function handleAdminIndexRequest(
     adminId: deps.adminId, sourceKey, mode, limit, cursorPresent,
     fetched: page.fetched, produced: page.produced, skipped: page.skipped,
     eligibleUnits: page.eligibleUnits, excludedDemo: page.excludedDemo,
+    excludedSynthetic: page.excludedSynthetic,
   };
 
   if (mode === "dry-run") {

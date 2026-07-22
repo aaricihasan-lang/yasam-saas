@@ -44,6 +44,38 @@
 
 ---
 
+## 2026-07-22 — S2.19-BF / BF-1B-FIX: Global sentetik tenant guard (ADMIN_LIBRARY_TENANT_ID indexlenemez)
+
+### Tarih
+2026-07-22
+
+### Karar
+**Global tenant izolasyonu invariant'ı:** `ADMIN_LIBRARY_TENANT_ID` (`aa8b960b-…`) **gerçek kullanıcı /
+gerçek tenant DEĞİLDİR** — yalnız seed/import/template namespace'idir (`public.users` satırı olmaması
+tasarım gereği; BF-1B production kontrolüyle kanıtlı). Bu kimliğe bağlı kayıtlar Yaşam Hafızası'nda
+**indexlenemez, shared/null'a ÇEVRİLEMEZ, eligible olamaz, writer'a ulaşamaz, hiçbir kullanıcı
+retrieval'ında görünemez**. Kural kaynak-bazlı config DEĞİL, **YH geneli invariant** (kaynak-bazlı
+`excludedTenantIds` önerisi bu gerekçeyle REDDEDİLDİ). **Global/shared admin kütüphanesi ürün modeli
+YOKTUR**; yalnız gerçek tenant kayıtları ve (ileride) alıcı tenant'ında oluşmuş bağımsız snapshot'lar
+indexlenebilir.
+
+### Uygulama
+İki savunma katmanı: (1) `indexSourcePage` mode-agnostik sınıflandırma — demo→`excludedDemo`,
+sentetik→`excludedSynthetic` (ayrı sayaçlar), kalan→eligible; (2) writer fail-fast
+**`synthetic-tenant-unit`** (sessiz filtre yok). UUID tek kaynağı **`lib/tenancy/syntheticTenants.ts`**
+(saf/dependency-free; `sessionTenant.ts` re-export). `SafePageSummary`/driver `SafePage`'e zorunlu
+`excludedSynthetic`; driver **STATE_VERSION=2** + zorunlu `totalExcludedSynthetic` (v1/eksik-metrik
+checkpoint fail-closed; 0 sayılmaz; production'da hiç checkpoint üretilmediği için geriye uyum maliyeti yok).
+tenantResolve/NULL-shared anlamı, retrieval RPC, visibilityScope, Doğaltaş API/UI **DEĞİŞMEDİ**; migration YOK.
+
+### Sonuç
+`dogaltas:knowledge` (239/239 sentetik) **gerçek backfill pilotu DEĞİL**; BF-1C **"sentetik exclusion
+production smoke"** olarak yeniden sınıflandırıldı (beklenen: fetched=239, excludedSynthetic=239,
+eligible=0, write=null). Gerçek write pilotu, gerçek tenant verisi olan safe-non-pii kaynaklardan ayrı
+onayla seçilecek. **Production verisi değişmedi; write/backfill yapılmadı.**
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-1A pilot kaynağı değişti: `aromaterapi:oils` → `dogaltas:knowledge`
 
 ### Tarih
