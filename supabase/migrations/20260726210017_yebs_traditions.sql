@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260726020000_yebs_traditions.sql
+-- 20260726210017_yebs_traditions.sql
 --
 -- Yaşam Enerjisi Bilgi Sistemi (YEBS) — FAZ D / D1
 -- Tablo: public.yebs_traditions (kanonik gelenek/kültürel-tarihsel kimlik)
