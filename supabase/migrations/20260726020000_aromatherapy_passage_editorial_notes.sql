@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260726000000_aromatherapy_passage_editorial_notes.sql
+-- 20260726020000_aromatherapy_passage_editorial_notes.sql
 --
 -- Aromaterapi Bilgi Sistemi V2 — FAZ C / C2J
 -- İKİ TABLO: editöryal not SERİSİ (değişmez kimlik) + REVISION kayıtları (değişebilir metin)
