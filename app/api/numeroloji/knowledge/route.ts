@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import {
+  validateContentSectionsForType,
+  decideCreateConflict,
+  safeDbError,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/sourcesValidation";
 
 export const runtime = "nodejs";
 
@@ -12,9 +17,17 @@ export const runtime = "nodejs";
  *   - Tüm sorgu/yazma .eq("tenant_id", tenantId) ile bağlanır (çapraz-tenant engellenir).
  *   - Demo hesap: yazma yapılmaz.
  *
+ * NKB-V2-C:
+ *   - content_sections yalnız ana-kulvar/yan-kulvar için doğrulanır (validateContentSectionsForType).
+ *     Diğer türlerde non-null content_sections REDDEDİLİR; description/source davranışı değişmez.
+ *   - POST artık CREATE-ONLY: mevcut (tenant, type, value) kaydı SESSİZCE EZMEZ.
+ *     Varsa 409 Conflict; overwrite yalnız açık `overwrite:true` ile mümkün.
+ *     Bilinçli düzenleme yolu PATCH (id ile, aynı tenant) olarak korunur.
+ *
  * GET               → { ok, rows }              (tenant'ın tüm bilgi kayıtları)
- * POST { analysis_type, value, source, description } → upsert (tenant+type+value) → { ok, id }
- * PATCH { id, ...fields }                       → { ok, id }
+ * POST { analysis_type, value, source?, description?, content_sections?, overwrite? }
+ *                   → create-only; varsa 409 → { ok, id } | { ok:false, conflict:true }
+ * PATCH { id, ...fields, content_sections? }    → { ok, id }
  * DELETE { id } | { ids: [] }                   → { ok, deleted }
  */
 
@@ -53,18 +66,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!analysis_type || !value) {
     return NextResponse.json({ ok: false, error: "analysis_type ve value zorunludur." }, { status: 400 });
   }
+
+  // content_sections: yalnız ana-kulvar/yan-kulvar için doğrulanır; diğerlerinde non-null reddedilir.
+  const csRes = validateContentSectionsForType(analysis_type, body.content_sections);
+  if (!csRes.ok) return NextResponse.json({ ok: false, error: csRes.error }, { status: csRes.status });
+
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const payload = {
-    tenant_id: tenantId,
-    analysis_type,
-    value,
-    source: str(body.source),
-    description: str(body.description),
-    updated_at: new Date().toISOString(),
-  };
+  const overwrite = body.overwrite === true;
 
-  // Upsert: (tenant, analysis_type, value) tekilliği
+  // Mevcut (tenant, analysis_type, value) kaydı var mı?
   const { data: existing, error: findErr } = await db
     .from(TABLE)
     .select("id")
@@ -72,16 +83,51 @@ export async function POST(req: NextRequest): Promise<Response> {
     .eq("analysis_type", analysis_type)
     .eq("value", value)
     .maybeSingle();
-  if (findErr) return NextResponse.json({ ok: false, error: findErr.message }, { status: 500 });
+  if (findErr) {
+    const e = safeDbError(findErr);
+    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+  }
 
-  if (existing?.id) {
-    const { error } = await db.from(TABLE).update(payload).eq("id", existing.id).eq("tenant_id", tenantId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, id: existing.id });
+  const decision = decideCreateConflict(Boolean(existing?.id), overwrite);
+  if (decision === "conflict") {
+    // Sessiz ezme YOK: açık 409. Güncelleme için PATCH veya açık overwrite:true.
+    return NextResponse.json(
+      {
+        ok: false,
+        conflict: true,
+        existingId: (existing as { id: string }).id,
+        error:
+          "Bu (analysis_type, value) için kayıt zaten mevcut. Güncellemek için düzenleyin (PATCH) ya da overwrite:true gönderin.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const payload: Record<string, unknown> = {
+    tenant_id: tenantId,
+    analysis_type,
+    value,
+    source: str(body.source),
+    description: str(body.description),
+    updated_at: new Date().toISOString(),
+  };
+  // content_sections yalnız gönderildiyse yazılır (undefined → dokunma; null → NULL; array → değer).
+  if (csRes.value !== undefined) payload.content_sections = csRes.value;
+
+  if (decision === "overwrite") {
+    const { error } = await db.from(TABLE).update(payload).eq("id", (existing as { id: string }).id).eq("tenant_id", tenantId);
+    if (error) {
+      const e = safeDbError(error);
+      return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    }
+    return NextResponse.json({ ok: true, id: (existing as { id: string }).id, overwritten: true });
   }
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    const e = safeDbError(error);
+    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+  }
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -96,7 +142,6 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   const id = str(body.id);
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.analysis_type !== undefined) update.analysis_type = str(body.analysis_type);
@@ -104,13 +149,42 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (body.source !== undefined) update.source = str(body.source);
   if (body.description !== undefined) update.description = str(body.description);
 
+  // content_sections: etkin analysis_type'a göre doğrula (body'de yoksa mevcut kaydın türü).
+  if (body.content_sections !== undefined) {
+    let effectiveType = body.analysis_type !== undefined ? str(body.analysis_type) : "";
+    if (!effectiveType) {
+      const { data: rec, error: recErr } = await db
+        .from(TABLE)
+        .select("analysis_type")
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (recErr) {
+        const e = safeDbError(recErr);
+        return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+      }
+      if (!rec) {
+        return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+      }
+      effectiveType = String((rec as { analysis_type: string }).analysis_type);
+    }
+    const csRes = validateContentSectionsForType(effectiveType, body.content_sections);
+    if (!csRes.ok) return NextResponse.json({ ok: false, error: csRes.error }, { status: csRes.status });
+    update.content_sections = csRes.value ?? null;
+  }
+
+  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+
   const { data, error } = await db
     .from(TABLE)
     .update(update)
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    const e = safeDbError(error);
+    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }

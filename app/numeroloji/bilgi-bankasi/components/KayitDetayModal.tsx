@@ -12,6 +12,12 @@ import {
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { KULVAR_SECTION_TEMPLATE, isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
+import { EMPTY_KULVAR_BODIES, bodiesFromRecord, sectionsFromBodies, type KulvarBodies } from "../helpers/kulvarFormLogic";
+import { useKulvarSources } from "../helpers/useKulvarSources";
+import { KulvarSectionEditor } from "./KulvarSectionEditor";
+import { KulvarSourceManager } from "./KulvarSourceManager";
+import { KulvarSourceReadonlyList } from "./KulvarSourceReadonlyList";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -42,6 +48,10 @@ const modalReadonlyClass =
 const modalReadonlyAciklamaClass =
   "mt-2 min-h-[220px] whitespace-pre-wrap rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 p-6 text-lg font-medium leading-9 text-slate-700 xl:text-xl";
 
+// Kulvar bölüm görünümü: min-height YOK → boş bölümlerde dev boş kutu oluşmaz.
+const modalSectionViewClass =
+  "mt-2 whitespace-pre-wrap rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 p-6 text-lg font-medium leading-9 text-slate-700 xl:text-xl";
+
 const modalPrimaryBtn =
   "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-black text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 xl:text-lg";
 
@@ -56,6 +66,7 @@ type ModalFormState = {
   deger: string;
   source: string;
   description: string;
+  kulvarBodies: KulvarBodies;
   reason: string;
   stonesText: string;
 };
@@ -72,11 +83,16 @@ function kayitTuruLabel(tur: KayitTuru) {
 }
 
 function rowToForm(row: BilgiBankaListeSatir): ModalFormState {
+  // Kulvar kaydında bölümler content_sections'tan (yoksa legacy description → overview) gelir.
+  const kulvarBodies = isKulvarAnalysisType(row.analizTuruKey)
+    ? bodiesFromRecord({ content_sections: row.content_sections, description: row.description ?? null })
+    : { ...EMPTY_KULVAR_BODIES };
   return {
     analizTuruKey: row.analizTuruKey,
     deger: row.deger,
     source: row.source ?? "",
     description: row.description ?? "",
+    kulvarBodies,
     reason: row.reason ?? "",
     stonesText: stonesToTextarea(row.stones ?? []),
   };
@@ -84,6 +100,15 @@ function rowToForm(row: BilgiBankaListeSatir): ModalFormState {
 
 function formSnapshot(row: BilgiBankaListeSatir, form: ModalFormState): string {
   if (row.kayitTuru === "aciklama") {
+    // Kulvar ise dirty-tespiti bölümler üzerinden; değilse description üzerinden.
+    if (isKulvarAnalysisType(form.analizTuruKey)) {
+      return JSON.stringify({
+        analizTuruKey: form.analizTuruKey,
+        deger: form.deger.trim(),
+        source: form.source.trim(),
+        kulvarBodies: form.kulvarBodies,
+      });
+    }
     return JSON.stringify({
       analizTuruKey: form.analizTuruKey,
       deger: form.deger.trim(),
@@ -122,6 +147,10 @@ export function KayitDetayModal({
   const [form, setForm] = useState<ModalFormState>(() => rowToForm(row));
   const [baseline, setBaseline] = useState(() => formSnapshot(row, rowToForm(row)));
   const [kaydediliyor, setKaydediliyor] = useState(false);
+
+  // Kaynaklar yalnız Ana/Yan Kulvar açıklama kaydında ve modal açıkken yüklenir.
+  const isKulvarRecord = row.kayitTuru === "aciklama" && isKulvarAnalysisType(row.analizTuruKey);
+  const { sources, links, loading, reload } = useKulvarSources(row.recordId, isKulvarRecord);
 
   useEffect(() => {
     const next = rowToForm(row);
@@ -218,12 +247,20 @@ export function KayitDetayModal({
     let error: string | null = null;
 
     if (row.kayitTuru === "aciklama") {
-      const res = await updateKnowledgeRecordById(row.recordId, {
-        analysisType: form.analizTuruKey,
-        value: form.deger,
-        source: form.source,
-        description: form.description,
-      });
+      const res = isKulvarAnalysisType(form.analizTuruKey)
+        ? // Kulvar: content_sections canonical; description GÖNDERİLMEZ (eski korunur).
+          await updateKnowledgeRecordById(row.recordId, {
+            analysisType: form.analizTuruKey,
+            value: form.deger,
+            source: form.source,
+            content_sections: sectionsFromBodies(form.kulvarBodies),
+          })
+        : await updateKnowledgeRecordById(row.recordId, {
+            analysisType: form.analizTuruKey,
+            value: form.deger,
+            source: form.source,
+            description: form.description,
+          });
       error = res.error;
     } else {
       const res = await updateStoneAssignmentById(row.recordId, {
@@ -341,25 +378,69 @@ export function KayitDetayModal({
                     </div>
                   )}
                 </div>
-                <div className="lg:col-span-2">
-                  <label htmlFor="detay-aciklama" className={modalLabelClass}>
-                    Açıklama metni
-                  </label>
-                  {editMode ? (
-                    <textarea
-                      id="detay-aciklama"
-                      value={form.description}
-                      onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                      rows={10}
-                      placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
-                      className={modalTextareaClass}
-                    />
-                  ) : (
-                    <div className={modalReadonlyAciklamaClass}>
-                      {form.description.trim() || "—"}
-                    </div>
-                  )}
-                </div>
+                {isKulvarAnalysisType(form.analizTuruKey) ? (
+                  <div className="lg:col-span-2">
+                    <label className={modalLabelClass}>Yapılandırılmış bölümler</label>
+                    {editMode ? (
+                      <KulvarSectionEditor
+                        bodies={form.kulvarBodies}
+                        onChange={(k: KulvarSectionKey, v: string) =>
+                          setForm((p) => ({ ...p, kulvarBodies: { ...p.kulvarBodies, [k]: v } }))
+                        }
+                        disabled={kaydediliyor}
+                        idPrefix="detay-kulvar"
+                      />
+                    ) : KULVAR_SECTION_TEMPLATE.some((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "") ? (
+                      <div className="grid gap-4">
+                        {KULVAR_SECTION_TEMPLATE.filter((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "").map((t) => (
+                          <div key={t.key} className="min-w-0">
+                            <p className="text-base font-black text-violet-800 xl:text-lg">{t.label}</p>
+                            <div className={modalSectionViewClass}>{form.kulvarBodies[t.key]}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={modalReadonlyClass}>—</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="lg:col-span-2">
+                    <label htmlFor="detay-aciklama" className={modalLabelClass}>
+                      Açıklama metni
+                    </label>
+                    {editMode ? (
+                      <textarea
+                        id="detay-aciklama"
+                        value={form.description}
+                        onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                        rows={10}
+                        placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
+                        className={modalTextareaClass}
+                      />
+                    ) : (
+                      <div className={modalReadonlyAciklamaClass}>
+                        {form.description.trim() || "—"}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isKulvarAnalysisType(form.analizTuruKey) ? (
+                  <div className="lg:col-span-2">
+                    <label className={modalLabelClass}>Kaynaklar</label>
+                    {editMode ? (
+                      <KulvarSourceManager
+                        recordId={row.recordId}
+                        recordAnalysisType={form.analizTuruKey}
+                        sources={sources}
+                        links={links}
+                        loading={loading}
+                        reload={reload}
+                      />
+                    ) : (
+                      <KulvarSourceReadonlyList links={links} sources={sources} />
+                    )}
+                  </div>
+                ) : null}
               </>
             ) : (
               <>

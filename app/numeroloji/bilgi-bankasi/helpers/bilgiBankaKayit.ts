@@ -1,5 +1,6 @@
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import { analizTuruLabel } from "./bilgiBankaLabels";
+import type { KnowledgeSection } from "./knowledgeSections";
 
 const KNOWLEDGE_API = "/api/numeroloji/knowledge";
 const STONE_API = "/api/numeroloji/stones";
@@ -12,6 +13,10 @@ export type KnowledgeRecordRow = {
   source: string | null;
   description: string | null;
   updated_at: string;
+  // NKB-V2-B: yalnız ana-kulvar/yan-kulvar için yapılandırılmış bölümler.
+  // Opsiyonel + nullable → eski kayıtlar (alan yok/NULL) geriye uyumlu kalır.
+  // Ham API JSON'ı doğrulanmamış olabilir; doğrulama knowledgeSections.ts katmanında.
+  content_sections?: KnowledgeSection[] | null;
 };
 
 export type StoneAssignmentRow = {
@@ -36,6 +41,8 @@ export type BilgiBankaListeSatir = {
   aramaMetni: string;
   source?: string;
   description?: string;
+  // NKB-V2-D1: yalnız ana-kulvar/yan-kulvar aciklama kayıtlarında dolu olabilir.
+  content_sections?: KnowledgeSection[] | null;
   reason?: string;
   stones?: string[];
 };
@@ -90,18 +97,21 @@ export async function saveKnowledgeRecord(input: {
   analysisType: string;
   value: string;
   source: string;
-  description: string;
-}): Promise<{ error: string | null }> {
-  const res = await numApi(KNOWLEDGE_API, {
-    method: "POST",
-    body: JSON.stringify({
-      analysis_type: input.analysisType,
-      value: input.value.trim(),
-      source: input.source.trim(),
-      description: input.description.trim(),
-    }),
-  });
-  return { error: numApiError(res) };
+  description?: string;
+  content_sections?: KnowledgeSection[] | null;
+}): Promise<{ error: string | null; conflict: boolean }> {
+  const body: Record<string, unknown> = {
+    analysis_type: input.analysisType,
+    value: input.value.trim(),
+    source: input.source.trim(),
+  };
+  // description yalnız verildiyse gönderilir (Kulvar create'te düzleştirilmiş kopya ÜRETİLMEZ).
+  if (input.description !== undefined) body.description = input.description.trim();
+  if (input.content_sections !== undefined) body.content_sections = input.content_sections;
+  // overwrite ASLA gönderilmez → create-only (mevcut kayıt sessizce ezilmez).
+  const res = await numApi(KNOWLEDGE_API, { method: "POST", body: JSON.stringify(body) });
+  const conflict = res.status === 409 || res.json.conflict === true;
+  return { error: numApiError(res), conflict };
 }
 
 export async function getStoneAssignment(
@@ -162,6 +172,7 @@ export async function listBilgiBankaKayitlari(): Promise<{
       guncellemeTarihi: row.updated_at,
       source: row.source ?? "",
       description: row.description ?? "",
+      content_sections: Array.isArray(row.content_sections) ? row.content_sections : null,
       aramaMetni: [analiz, row.value, row.source, row.description]
         .filter(Boolean)
         .join(" ")
@@ -205,19 +216,20 @@ export async function updateKnowledgeRecordById(
     analysisType: string;
     value: string;
     source: string;
-    description: string;
+    description?: string;
+    content_sections?: KnowledgeSection[] | null;
   },
 ): Promise<{ error: string | null }> {
-  const res = await numApi(KNOWLEDGE_API, {
-    method: "PATCH",
-    body: JSON.stringify({
-      id: recordId,
-      analysis_type: input.analysisType,
-      value: input.value.trim(),
-      source: input.source.trim(),
-      description: input.description.trim(),
-    }),
-  });
+  const body: Record<string, unknown> = {
+    id: recordId,
+    analysis_type: input.analysisType,
+    value: input.value.trim(),
+    source: input.source.trim(),
+  };
+  // Kulvar düzenlemede description GÖNDERİLMEZ → eski description olduğu gibi korunur.
+  if (input.description !== undefined) body.description = input.description.trim();
+  if (input.content_sections !== undefined) body.content_sections = input.content_sections;
+  const res = await numApi(KNOWLEDGE_API, { method: "PATCH", body: JSON.stringify(body) });
   return { error: numApiError(res) };
 }
 
