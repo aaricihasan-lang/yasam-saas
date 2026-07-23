@@ -62,6 +62,17 @@ export interface SourceReader {
     readonly afterId: string | null;
     readonly limit: number;
   }): Promise<SourceRowsPage>;
+  /**
+   * BF-2B exact-write gate — TEK kaydı primary key EŞİTLİĞİYLE okur (cursor/limit
+   * genişletme YOK). Opsiyonel port: yalnız exact-record write kapısında kullanılır;
+   * geniş sayfa (`readPage`) akışını DEĞİŞTİRMEZ. PK tekil olduğundan en fazla 1 satır
+   * beklenir; adapter savunma amacıyla en fazla 2 satır okuyup >1 sözleşme ihlalini
+   * çağırana bildirebilir.
+   */
+  readExactRecord?(input: {
+    readonly config: SourceConfig;
+    readonly sourceId: string;
+  }): Promise<SourceRowsPage>;
 }
 
 /** Parent tenant'ları toplu okuyan enjekte port (gerçek `.in()` chunk S2.10). */

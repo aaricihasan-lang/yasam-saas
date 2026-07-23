@@ -43,6 +43,7 @@ function pageResult(mode: "dry-run" | "write", write: WriteIndexUnitsResult | nu
     summary: { units: 2, skipped: 1, byReason: { "tenant:invalid-tenant": 1 } },
     nextCursor: "cur-9", hasMore: true, parentStats: { requested: 0, found: 0, missing: 0 },
     write,
+    exactMode: false, exactStatus: null, // BF-2B: broad (non-exact) fixture
     ...extra, // redaction testi için ekstra/yabancı alanlar (handler bunları OKUMAZ)
   } as IndexSourcePageResult;
 }

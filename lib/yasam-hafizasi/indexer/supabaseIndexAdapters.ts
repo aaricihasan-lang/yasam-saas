@@ -103,6 +103,24 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
       const rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
       return { rows };
     },
+
+    // BF-2B exact-write gate: primary key EŞİTLİĞİ (`.eq(pk, sourceId)`); cursor/limit
+    // genişletme YOK. PK tekil → en fazla 1 satır; savunma amaçlı limit(2) ile >1
+    // sözleşme ihlali çağırana taşınır (indexSourcePage exact-guard multiple-rows sayar).
+    readExactRecord: async ({ config, sourceId }) => {
+      const columns = sourceSelectColumns(config).join(",");
+      let q = db
+        .from(config.tableName)
+        .select(columns)
+        .eq(config.primaryKey, sourceId)
+        .limit(2);
+      if (config.activeColumn !== null) q = q.eq(config.activeColumn, true);
+
+      const { data, error } = await q;
+      if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
+      const rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
+      return { rows };
+    },
   };
 }
 
