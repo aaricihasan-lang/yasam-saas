@@ -121,8 +121,10 @@ export function HdRaporContent() {
       mode: "replace" | "keepEdited",
       opts?: { applyClientId?: boolean },
     ): Promise<boolean> => {
-      if (!id || buildGuard.current) return false;
-      buildGuard.current = true;
+      // Karşılıklı kilit: devam eden bir Kaydet (saveGuard) varken yeni build BAŞLAMAZ —
+      // aksi hâlde geç dönen bir save yanıtı yeni danışan ekranındaki kimliği/state'i bozardı.
+      if (!id || buildGuard.current || saveGuard.current) return false;
+      buildGuard.current = true; // senkron: ilk await'ten ÖNCE kilitlenir
       setLoading(true);
       try {
         const { row: chartRow, error: chartErr } = await loadChartForReport(id);
@@ -236,7 +238,8 @@ export function HdRaporContent() {
 
   // ── "Yenile": dirty ise üç seçenekli onay ──
   async function handleRefresh() {
-    if (!clientId || loading || buildGuard.current) return;
+    // Save (saveGuard) devam ederken Yenile build'i başlamaz (karşılıklı kilit).
+    if (!clientId || loading || buildGuard.current || saving || saveGuard.current) return;
     if (!dirty) {
       await runBuild(clientId, "replace");
       return;
@@ -265,7 +268,8 @@ export function HdRaporContent() {
 
   // ── Danışan değişimi: pendingClientId modeli — eski metin yeni danışana TAŞINMAZ ──
   async function handleClientChange(newId: string) {
-    if (newId === clientId || loading || buildGuard.current) return;
+    // Save (saveGuard) devam ederken danışan değişimi build'i başlamaz (karşılıklı kilit).
+    if (newId === clientId || loading || buildGuard.current || saving || saveGuard.current) return;
 
     if (!dirty) {
       if (!newId) {
@@ -317,7 +321,10 @@ export function HdRaporContent() {
   // ── Kaydet (yeniden-giriş guard'lı) ──
   // INSERT/UPDATE kararı YALNIZ activeReportIdRef.current üzerinden verilir (urlReportId/isEditMode DEĞİL).
   async function handleSave() {
-    if (saveGuard.current) return;
+    // Karşılıklı kilit: yeniden-giriş (saveGuard) VEYA devam eden build (buildGuard) varken
+    // Kaydet hiçbir validation/duplicate-count/INSERT/UPDATE başlatmadan çıkar. Bu kontrol
+    // saveGuard.current=true'dan ÖNCEdir → erken dönüşte guard sızıntısı olmaz.
+    if (saveGuard.current || buildGuard.current) return;
     if (!editedText.trim()) {
       showToast({ message: "Rapor içeriği boş.", type: "warning" });
       return;
@@ -442,7 +449,7 @@ export function HdRaporContent() {
           <select
             value={clientId}
             onChange={(e) => handleClientChange(e.target.value)}
-            disabled={loading}
+            disabled={loading || saving}
             className={`h-10 ${fieldBase} disabled:opacity-60`}
           >
             <option value="">— Danışan seçin —</option>
@@ -553,7 +560,7 @@ export function HdRaporContent() {
                 <button
                   type="button"
                   onClick={handleRefresh}
-                  disabled={!clientId || loading}
+                  disabled={!clientId || loading || saving}
                   className="mt-5 h-8 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-50"
                 >
                   Yenile
@@ -607,7 +614,7 @@ export function HdRaporContent() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !editedText.trim()}
+                disabled={saving || loading || !editedText.trim()}
                 className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving

@@ -32,6 +32,11 @@ const H = read("app/human-design/rapor-olustur/hooks/useUnsavedGuard.ts");
 const saveBody = (Ccode.match(/async function handleSave\(\)[\s\S]*?\n  \}/) || [""])[0];
 // runBuild success (applyClientId) bloğunu izole et.
 const buildBody = (Ccode.match(/const runBuild = useCallback\([\s\S]*?\n  \);/) || [""])[0];
+// Build-giriş handler gövdeleri (save devam ederken build başlatmama kontrolü için).
+const refreshBody = (Ccode.match(/async function handleRefresh\(\)[\s\S]*?\n  \}/) || [""])[0];
+const clientChangeBody = (Ccode.match(/async function handleClientChange\([\s\S]*?\n  \}/) || [""])[0];
+// runBuild guard satırı (ilk await ÖNCESİ senkron kilit).
+const runBuildGuardLine = (Ccode.match(/if \(!id \|\|[^\n]*\) return false;/) || [""])[0];
 
 console.log("── AKTİF RAPOR KİMLİĞİ (duplicate INSERT fix) ──");
 check("1. INSERT/UPDATE kararı urlReportId/isEditMode'a DAYANMAZ (handleSave içinde geçmez)",
@@ -119,13 +124,49 @@ check("26. Danışan değişimi iki seçenek; 'Mevcut Metni Koru' BULUNMAZ",
 
 console.log("── EŞZAMANLILIK / BEFOREUNLOAD ──");
 check("27. save yeniden-giriş guard (saveGuard ref) finally'de temizlenir",
-  /const saveGuard = useRef\(false\)/.test(Ccode) && /if \(saveGuard\.current\) return/.test(Ccode) &&
+  /const saveGuard = useRef\(false\)/.test(Ccode) && /if \(saveGuard\.current \|\| buildGuard\.current\) return;/.test(Ccode) &&
   /finally \{[\s\S]{0,120}saveGuard\.current = false/.test(Ccode));
 check("28. beforeunload YALNIZ dirty iken bağlı + cleanup",
   /useUnsavedGuard\(dirty\)/.test(Ccode) && /if \(!active\) return/.test(stripJs(H)) &&
   /addEventListener\("beforeunload"/.test(H) && /removeEventListener\("beforeunload"/.test(H));
 check("29. router/history monkey-patch YOK",
   !/history\.pushState|history\.replaceState|router\.push =|window\.history\s*=/.test(C + D + H));
+
+console.log("── BUILD↔SAVE KARŞILIKLI KİLİT (race fix) ──");
+check("R1. Build için senkron ref guard var (buildGuard = useRef)",
+  /const buildGuard = useRef\(false\)/.test(Ccode));
+check("R2. buildGuard ilk await'ten ÖNCE true yapılıyor (guard satırı → true → await sırası)",
+  /if \(!id \|\|[\s\S]*?buildGuard\.current = true;[\s\S]*?await loadChartForReport/.test(buildBody) &&
+  buildBody.indexOf("buildGuard.current = true") < buildBody.indexOf("await "));
+check("R3. buildGuard finally içinde false yapılıyor",
+  /finally \{[\s\S]{0,120}buildGuard\.current = false/.test(buildBody));
+check("R4. handleSave build guard aktifken BAŞLAMAZ (buildGuard.current kontrolü, saveGuard=true'dan ÖNCE)",
+  /if \(saveGuard\.current \|\| buildGuard\.current\) return;/.test(saveBody) &&
+  saveBody.indexOf("buildGuard.current) return;") < saveBody.indexOf("saveGuard.current = true"));
+check("R5. Build (runBuild) saveGuard aktifken BAŞLAMAZ (guard satırında saveGuard.current)",
+  /if \(!id \|\| buildGuard\.current \|\| saveGuard\.current\) return false;/.test(runBuildGuardLine));
+check("R6. Kaydet butonu build/loading sırasında disabled",
+  /onClick=\{handleSave\}\s*\n\s*disabled=\{saving \|\| loading \|\| !editedText\.trim\(\)\}/.test(C));
+check("R7. Danışan seçimi save sırasında disabled + handler saveGuard/saving kontrolü",
+  /onChange=\{\(e\) => handleClientChange\(e\.target\.value\)\}\s*\n\s*disabled=\{loading \|\| saving\}/.test(C) &&
+  /\|\| saving \|\| saveGuard\.current\) return;/.test(clientChangeBody));
+check("R8. Yenile save sırasında disabled + handler saveGuard/saving kontrolü",
+  /onClick=\{handleRefresh\}\s*\n\s*disabled=\{!clientId \|\| loading \|\| saving\}/.test(C) &&
+  /\|\| saving \|\| saveGuard\.current\) return;/.test(refreshBody));
+check("R9. Build sürerken INSERT/UPDATE yapılamaz (handleSave build guard'ı updateReport/saveReport'tan ÖNCE)",
+  saveBody.indexOf("buildGuard.current) return;") < saveBody.indexOf("updateReport(") &&
+  saveBody.indexOf("buildGuard.current) return;") < saveBody.indexOf("saveReport("));
+check("R10. Save sürerken danışan değişimi build'i başlamaz (guard kontrolü runBuild çağrısından ÖNCE)",
+  clientChangeBody.indexOf("saveGuard.current) return;") < clientChangeBody.indexOf("runBuild("));
+check("R11. Save sürerken Yenile build'i başlamaz (guard kontrolü runBuild çağrısından ÖNCE)",
+  refreshBody.indexOf("saveGuard.current) return;") < refreshBody.indexOf("runBuild("));
+check("R12. Build hata/exception sonrası guard temizli (guard sıfırlama try'ın finally'sinde)",
+  /\} finally \{\s*setLoading\(false\);\s*buildGuard\.current = false;\s*\}/.test(buildBody));
+check("R13. Save hata/exception sonrası saveGuard temizli (finally)",
+  /\} finally \{\s*setSaving\(false\);\s*saveGuard\.current = false;\s*\}/.test(saveBody));
+check("R14. Erken dönüşte guard sızıntısı yok (buildGuard/saveGuard kontrolleri kendi set'lerinden ÖNCE)",
+  runBuildGuardLine.indexOf("buildGuard.current") < (Ccode.indexOf("buildGuard.current = true")) &&
+  saveBody.indexOf("buildGuard.current) return;") < saveBody.indexOf("saveGuard.current = true"));
 
 console.log("── KAPSAM DEĞİŞMEZLİKLERİ ──");
 check("30. report route/persistence/helper/schema sözleşmesi bu bileşende değişmemiş",
@@ -140,8 +181,10 @@ check("32. Dialog a11y sözleşmesi korunur (dokunulmadı)",
 
 console.log("\n── RUNTIME-GEREKLİ (statik harness dışı) ──");
 console.log("  NOTE  Bu harness STATİKtir. Gerçek React render zamanlaması, gerçek hızlı çift-tıklama");
-console.log("        (double-submit) davranışı ve tarayıcı beforeunload tetiklenmesi DOM/runtime gerektirir;");
-console.log("        yalnız kod-şekli (kimlik modeli, karar sırası, güncelleme sırası) burada kanıtlanır.");
+console.log("        (double-submit) davranışı, gerçek build↔save YARIŞ zamanlaması ve tarayıcı");
+console.log("        beforeunload tetiklenmesi DOM/runtime gerektirir. Statik kontrol; senkron ref");
+console.log("        kilitlerinin (buildGuard/saveGuard) kod-şeklini ve konumsal sırasını kanıtlar,");
+console.log("        gerçek eşzamanlı olay zamanlamasını TEK BAŞINA kanıtlamaz.");
 
 console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) { console.log("FAILED:"); for (const f of fails) console.log("  - " + f); process.exit(1); }
