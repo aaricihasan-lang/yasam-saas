@@ -75,7 +75,7 @@ ORDER BY check_name;
 
 -- ═════════════════════════════════════════════════════════════════════════════
 -- BÖLÜM B — GÜVENLİK DOĞRULAMA (salt-okunur; yalnız junction)
---   service_role: yalnız SELECT/INSERT/UPDATE/DELETE; TRUNCATE/REFERENCES/TRIGGER YOK.
+--   service_role: yalnız SELECT/INSERT/UPDATE/DELETE; TRUNCATE/REFERENCES/TRIGGER/MAINTAIN YOK.
 -- ═════════════════════════════════════════════════════════════════════════════
 WITH sec AS (
   SELECT 'rls_enabled' AS check_name,
@@ -110,6 +110,8 @@ WITH sec AS (
          NOT has_table_privilege('service_role','public.aromatherapy_glossary_term_passages','REFERENCES')
   UNION ALL SELECT 'service_role_no_trigger',
          NOT has_table_privilege('service_role','public.aromatherapy_glossary_term_passages','TRIGGER')
+  UNION ALL SELECT 'service_role_no_maintain',
+         NOT has_table_privilege('service_role','public.aromatherapy_glossary_term_passages','MAINTAIN')
 )
 SELECT check_name, passed FROM sec
 UNION ALL SELECT 'B_OVERALL', bool_and(passed) FROM sec
