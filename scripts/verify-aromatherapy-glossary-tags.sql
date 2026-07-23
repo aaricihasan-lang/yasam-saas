@@ -3,7 +3,7 @@
 --
 -- C2M-B doğrulama harness'i — İKİ TABLO:
 --   public.aromatherapy_glossary_tags + public.aromatherapy_glossary_term_tags
--- (migration: supabase/migrations/20260805000000_aromatherapy_glossary_tags.sql)
+-- (migration: supabase/migrations/20260806000000_aromatherapy_glossary_tags.sql)
 --
 -- KULLANIM: Supabase Dashboard → SQL Editor. Bölüm A/B SALT-OKUNURDUR. Bölüm C tek
 --   BEGIN…ROLLBACK'tir (kalıcı yazma YOK). Bölüm C parent glossary_terms seed'lerini

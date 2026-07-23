@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260805000000_aromatherapy_glossary_tags.sql
+-- 20260806000000_aromatherapy_glossary_tags.sql
 --
 -- Aromaterapi Bilgi Sistemi V2 — FAZ C / C2M-B
 -- İKİ TABLO:
