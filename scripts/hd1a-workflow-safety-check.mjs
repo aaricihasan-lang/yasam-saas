@@ -84,8 +84,8 @@ check("14. Dirty: baseline varsa sapma, yoksa hasUnsavedDraft",
   /\}\s*return hasUnsavedDraft;/.test(Ccode));
 check("15. Henüz oluşturulmamış boş ekran dirty=false (hasUnsavedDraft başlangıçta false, savedSnapshot null)",
   /useState\(false\)/.test(Ccode) && /useState<SavedSnapshot \| null>\(null\)/.test(Ccode));
-check("16. Yeni rapor build (replace) sonrası dirty=true (hasUnsavedDraft=true)",
-  /mode === "replace"\)\s*\{\s*setEditedText\(text\);\s*setReportTitle\(newTitle\);\s*[\s\S]*?setHasUnsavedDraft\(true\);/.test(buildBody));
+check("16. Anlamlı rapor metni üreten build (replace) hasUnsavedDraft=true (taslak-varlık ayrımı)",
+  /mode === "replace"\)\s*\{\s*setEditedText\(text\);\s*setReportTitle\(newTitle\);\s*[\s\S]*?const didCreateDraft = text\.trim\(\)\.length > 0;\s*setHasUnsavedDraft\(didCreateDraft\);/.test(buildBody));
 check("17. Metin tamamen boşaltılsa da dirty=true (dirty metin uzunluğuna bakmaz; hasUnsavedDraft'a bakar)",
   !/editedText\.trim\(\)\.length/.test(Ccode) && /return hasUnsavedDraft;/.test(Ccode));
 check("18. Metin boş + başlık değişmiş olsa da dirty=true (aynı hasUnsavedDraft dalı; uzunluk yok)",
@@ -109,7 +109,7 @@ console.log("── KAYITLI RAPOR YENİLE (kimlik korunur) ──");
 check("23. Kayıtlı rapor Yenile sonrası activeReportId korunur (replace applyClientId'siz kimliğe dokunmaz)",
   // Kimlik sıfırlaması YALNIZ applyClientId bloğunda; sade replace (Yenile) dalı kimliği null'lamaz.
   /if \(opts\?\.applyClientId\)\s*\{[\s\S]*?activeReportIdRef\.current = null/.test(buildBody) &&
-  !/setEditedText\(text\);\s*setReportTitle\(newTitle\);\s*setHasUnsavedDraft\(true\);\s*\}\s*[\s\S]{0,40}activeReportIdRef\.current = null/.test(buildBody));
+  !/setEditedText\(text\);\s*setReportTitle\(newTitle\);[\s\S]*?setHasUnsavedDraft\(didCreateDraft\);\s*\}\s*[\s\S]{0,40}activeReportIdRef\.current = null/.test(buildBody));
 check("24. Yenilenen kayıtlı raporun sonraki save'i UPDATE yapar (kimlik varken UPDATE dalı)",
   /const currentReportId = activeReportIdRef\.current/.test(saveBody) && /if \(currentReportId\)[\s\S]*?updateReport\(/.test(saveBody));
 
@@ -167,6 +167,34 @@ check("R13. Save hata/exception sonrası saveGuard temizli (finally)",
 check("R14. Erken dönüşte guard sızıntısı yok (buildGuard/saveGuard kontrolleri kendi set'lerinden ÖNCE)",
   runBuildGuardLine.indexOf("buildGuard.current") < (Ccode.indexOf("buildGuard.current = true")) &&
   saveBody.indexOf("buildGuard.current) return;") < saveBody.indexOf("saveGuard.current = true"));
+
+console.log("── BOŞ / EŞLEŞMESİZ BUILD (empty-build fix) ──");
+// replace dalındaki taslak-varlık kararını izole et.
+const draftDecision = (buildBody.match(/const didCreateDraft = [^\n]*;\s*setHasUnsavedDraft\([^\n]*\);/) || [""])[0];
+check("E1. Eşleşme/çıktı olmayan build hasUnsavedDraft=true YAPMAZ (karar text çıktısına bağlı, sabit true değil)",
+  /const didCreateDraft = text\.trim\(\)\.length > 0;/.test(buildBody) &&
+  /setHasUnsavedDraft\(didCreateDraft\);/.test(buildBody) &&
+  // replace dalında sabit `setHasUnsavedDraft(true)` KALMAMIŞ olmalı.
+  !/setHasUnsavedDraft\(true\)/.test(buildBody));
+check("E2. Anlamlı rapor metni üreten build hasUnsavedDraft=true (didCreateDraft text'ten türetilir)",
+  draftDecision.length > 0 && /text\.trim\(\)\.length > 0/.test(draftDecision));
+check("E3. Boş ilk ekran dirty=false (hasUnsavedDraft başlangıç false + savedSnapshot null)",
+  /const \[hasUnsavedDraft, setHasUnsavedDraft\] = useState\(false\)/.test(Ccode) &&
+  /useState<SavedSnapshot \| null>\(null\)/.test(Ccode));
+check("E4. Eşleşme yokken dirty=false (dirty = savedSnapshot yoksa hasUnsavedDraft; boş build'de false)",
+  /return hasUnsavedDraft;/.test(Ccode) && !/editedText\.trim\(\)\.length/.test(Ccode));
+check("E5. Eşleşme yokken beforeunload etkinleşmez (guard yalnız dirty'ye bağlı)",
+  /useUnsavedGuard\(dirty\)/.test(Ccode) && /if \(!active\) return/.test(stripJs(H)));
+check("E6. Gerçek taslak sonrası textarea boşaltılırsa dirty=true KALIR (onChange yalnız setEditedText; işaret değişmez)",
+  // Textarea onChange yalnız setEditedText çağırır — hasUnsavedDraft'a DOKUNMAZ.
+  /onChange=\{\(e\) => setEditedText\(e\.target\.value\)\}/.test(C) &&
+  !/onChange=\{\(e\) => \{[\s\S]*?setHasUnsavedDraft/.test(C));
+check("E7. Gerçek taslak sonrası başlık değişse dirty=true (baseline yok → hasUnsavedDraft; başlık onChange işarete dokunmaz)",
+  /onChange=\{\(e\) => setReportTitle\(e\.target\.value\)\}/.test(C) &&
+  !/setReportTitle\(e\.target\.value\)[\s\S]{0,40}setHasUnsavedDraft/.test(C));
+check("E8. Eşleşmesiz danışan değişiminde active id/snapshot sıfırlanır, hasUnsavedDraft=didCreateDraft (boşsa false)",
+  /if \(opts\?\.applyClientId\)\s*\{[\s\S]*?activeReportIdRef\.current = null;[\s\S]*?setActiveReportId\(null\);[\s\S]*?setSavedSnapshot\(null\);/.test(buildBody) &&
+  /setHasUnsavedDraft\(didCreateDraft\);/.test(buildBody));
 
 console.log("── KAPSAM DEĞİŞMEZLİKLERİ ──");
 check("30. report route/persistence/helper/schema sözleşmesi bu bileşende değişmemiş",

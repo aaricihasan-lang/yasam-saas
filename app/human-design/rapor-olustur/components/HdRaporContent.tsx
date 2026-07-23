@@ -164,9 +164,13 @@ export function HdRaporContent() {
         if (mode === "replace") {
           setEditedText(text);
           setReportTitle(newTitle);
-          // Yeni üretilen içerik henüz kaydedilmedi → dirty=true. Baseline varsa (kayıtlı rapor
-          // Yenile) dirty zaten metin sapmasından gelir; bu işaret yeni/kaydedilmemiş dalını korur.
-          setHasUnsavedDraft(true);
+          // Taslak-varlık ayrımı: kaydedilmemiş-taslak işareti YALNIZ anlamlı bir rapor metni
+          // üretildiyse true olur. Bilgi Bankası eşleşmesi yoksa buildReportText boş string
+          // döndürür → gerçek taslak YOK → false (boş ilk ekran gereksiz ayrılma uyarısı üretmez).
+          // Bu, build'in yalnız ÇALIŞMIŞ olmasına değil, ÇIKTI üretmiş olmasına bağlanır.
+          // Kullanıcının SONRADAN textarea'yı boşaltması bu işareti DEĞİŞTİRMEZ (dirty korunur).
+          const didCreateDraft = text.trim().length > 0;
+          setHasUnsavedDraft(didCreateDraft);
         }
         return true;
       } catch {
