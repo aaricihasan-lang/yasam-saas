@@ -207,7 +207,7 @@ BEGIN
   EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'PASS: cross_tenant_passage reddedildi'; END;
 
   BEGIN INSERT INTO public.aromatherapy_glossary_term_passages (tenant_id,glossary_term_id,passage_id,passage_kind,relation_type)
-    VALUES (T,GT1,PEX,'full_text','defines');
+    VALUES (T,GT2,PEX,'full_text','supports_definition');
     RAISE EXCEPTION 'FAIL: passage_kind_snapshot_mismatch kabul';
   EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'PASS: passage_kind_snapshot_mismatch reddedildi'; END;
 
