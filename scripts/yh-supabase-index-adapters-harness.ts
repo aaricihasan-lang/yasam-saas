@@ -299,7 +299,9 @@ async function main(): Promise<void> {
     const fake = makeFake({ select: orchSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
     const keys = Object.keys(r).sort().join(",");
-    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,excludedDemo,excludedSynthetic,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok (${keys})`);
+    // BF-2B: exactMode/exactStatus güvenli skaler alanları eklendi (ham içerik değil);
+    // "units" (ham) sızmama garantisi KORUNUR.
+    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,exactMode,exactStatus,excludedDemo,excludedSynthetic,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok (${keys})`);
   }
   {
     // db injection çalışır: fake kullanıldı (gerçek getServerDb çağrılmadı → env gerekmez)

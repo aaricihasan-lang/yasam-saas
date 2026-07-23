@@ -66,6 +66,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         afterId: v.afterId,
         limit: v.limit,
         mode: v.mode,
+        // BF-2B exact-write gate: doğrulanmış exact hedef (broad modda ikisi de null).
+        exactSourceId: v.exactSourceId,
+        expectedTenantId: v.expectedTenantId,
         db: db as unknown as IndexDbClient,
       }),
 

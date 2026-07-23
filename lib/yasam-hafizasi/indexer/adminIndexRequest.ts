@@ -25,7 +25,11 @@
 import { YH_INDEX_SOURCES } from "./sources";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
-import { SourceNotIndexableError, type IndexSourcePageResult } from "./indexSourcePage";
+import {
+  SourceNotIndexableError,
+  type IndexSourcePageResult,
+  type ExactWriteStatus,
+} from "./indexSourcePage";
 import type { WriteIndexUnitsResult } from "./supabaseIndexAdapters";
 
 // ─── Source resolver (saf; statik allowlist) ─────────────────────────────────
@@ -47,6 +51,9 @@ export interface AdminIndexRequestBody {
   readonly mode: AdminIndexMode;
   readonly afterId?: string | null;
   readonly limit?: number;
+  // BF-2B exact-write gate (opsiyonel; ikisi birlikte verilir).
+  readonly exactSourceId?: string | null;
+  readonly expectedTenantId?: string | null;
 }
 
 export interface ValidatedAdminIndexRequest {
@@ -55,6 +62,9 @@ export interface ValidatedAdminIndexRequest {
   readonly mode: AdminIndexMode;
   readonly afterId: string | null;
   readonly limit: number;
+  // BF-2B: exact modda ikisi de dolu + geçerli UUID; broad modda ikisi de null.
+  readonly exactSourceId: string | null;
+  readonly expectedTenantId: string | null;
 }
 
 export type AdminIndexErrorCode =
@@ -70,7 +80,14 @@ export type AdminIndexErrorCode =
   | "demo-write-forbidden"
   | "demo-check-failed"
   | "index-failed"
-  | "partial-write";
+  | "partial-write"
+  // BF-2B exact-write gate hata kodları.
+  | "exact-fields-incomplete" // yalnız biri verildi (ikisi de zorunlu)
+  | "invalid-exact-source-id" // UUID değil
+  | "invalid-expected-tenant-id" // UUID değil
+  | "exact-cursor-conflict" // exact + afterId birlikte verilemez
+  | "exact-limit-conflict" // exact + limit≠1 verilemez
+  | "exact-not-eligible"; // exact write: eligible tam 1 değil / eşleşme yok → writer çağrılmadı
 
 /** Güvenli sayfa özeti (ham içerik yok). */
 export interface SafePageSummary {
@@ -82,6 +99,8 @@ export interface SafePageSummary {
   readonly excludedSynthetic: number; // BF-1B-FIX: sentetik tenant dışlaması (demo'dan ayrı)
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
+  readonly exactMode: boolean; // BF-2B: exact-record write gate aktif mi
+  readonly exactStatus: ExactWriteStatus | null; // yalnız exactMode'da doldurulur
 }
 
 /** Güvenli yazma özeti (ham içerik yok; yalnız sayaç + sabit chunk kodları). */
@@ -167,9 +186,20 @@ export type AdminIndexValidation =
   | { readonly ok: true; readonly value: ValidatedAdminIndexRequest }
   | { readonly ok: false; readonly status: number; readonly code: AdminIndexErrorCode };
 
-const ALLOWED_KEYS: ReadonlySet<string> = new Set(["sourceKey", "mode", "afterId", "limit"]);
+const ALLOWED_KEYS: ReadonlySet<string> = new Set([
+  "sourceKey",
+  "mode",
+  "afterId",
+  "limit",
+  // BF-2B exact-write gate (opsiyonel).
+  "exactSourceId",
+  "expectedTenantId",
+]);
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+
+/** Kanonik 8-4-4-4-12 hex UUID (coercion yok). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fail(status: number, code: AdminIndexErrorCode): AdminIndexValidation {
   return { ok: false, status, code };
@@ -211,30 +241,57 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
     return fail(400, "invalid-mode");
   }
 
-  // afterId: eksik/null → başlangıç; verilirse katı string.
-  let afterId: string | null = null;
-  if (body.afterId !== undefined && body.afterId !== null) {
-    const a = body.afterId;
-    if (
-      typeof a !== "string" ||
-      a.length === 0 ||
-      a.length > 128 ||
-      hasControlChar(a) ||
-      a !== a.trim() // baş/son whitespace → sessiz düzeltme YOK, reddet
-    ) {
-      return fail(400, "invalid-cursor");
-    }
-    afterId = a;
-  }
+  // BF-2B exact-write gate tespiti: exactSourceId VEYA expectedTenantId verildiyse
+  // exact mod aktiftir ve ikisi de zorunludur (fail-closed).
+  const hasExactSource = body.exactSourceId !== undefined && body.exactSourceId !== null;
+  const hasExactTenant = body.expectedTenantId !== undefined && body.expectedTenantId !== null;
+  const exactMode = hasExactSource || hasExactTenant;
 
-  // limit: eksikse 100; verilirse finite integer 1..500 (clamp yok, reddet).
+  let afterId: string | null = null;
   let limit = DEFAULT_LIMIT;
-  if (body.limit !== undefined) {
-    const l = body.limit;
-    if (typeof l !== "number" || !Number.isInteger(l) || l < 1 || l > MAX_LIMIT) {
-      return fail(400, "invalid-limit");
+  let exactSourceId: string | null = null;
+  let expectedTenantId: string | null = null;
+
+  if (exactMode) {
+    // İkisi birlikte zorunlu.
+    if (!hasExactSource || !hasExactTenant) return fail(400, "exact-fields-incomplete");
+
+    const es = body.exactSourceId;
+    if (typeof es !== "string" || !UUID_RE.test(es)) return fail(400, "invalid-exact-source-id");
+    const et = body.expectedTenantId;
+    if (typeof et !== "string" || !UUID_RE.test(et)) return fail(400, "invalid-expected-tenant-id");
+    exactSourceId = es;
+    expectedTenantId = et;
+
+    // Exact modda pagination cursor kullanılamaz.
+    if (body.afterId !== undefined && body.afterId !== null) return fail(400, "exact-cursor-conflict");
+    // Exact modda limit dışarıdan genişletilemez (yalnız 1 kayıt hedeflenir).
+    if (body.limit !== undefined && body.limit !== 1) return fail(400, "exact-limit-conflict");
+    limit = 1;
+  } else {
+    // afterId: eksik/null → başlangıç; verilirse katı string.
+    if (body.afterId !== undefined && body.afterId !== null) {
+      const a = body.afterId;
+      if (
+        typeof a !== "string" ||
+        a.length === 0 ||
+        a.length > 128 ||
+        hasControlChar(a) ||
+        a !== a.trim() // baş/son whitespace → sessiz düzeltme YOK, reddet
+      ) {
+        return fail(400, "invalid-cursor");
+      }
+      afterId = a;
     }
-    limit = l;
+
+    // limit: eksikse 100; verilirse finite integer 1..500 (clamp yok, reddet).
+    if (body.limit !== undefined) {
+      const l = body.limit;
+      if (typeof l !== "number" || !Number.isInteger(l) || l < 1 || l > MAX_LIMIT) {
+        return fail(400, "invalid-limit");
+      }
+      limit = l;
+    }
   }
 
   // sourceKey allowlist çözümü (ham değer; case-sensitive; trim/coercion yok).
@@ -245,7 +302,10 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
   // → 403 fail-closed. dry-run ve write AYNI kapıdan geçer; classification detayı sızmaz.
   if (!isIndexableSource(config)) return fail(403, "source-not-indexable");
 
-  return { ok: true, value: { sourceKey: config.sourceKey, config, mode, afterId, limit } };
+  return {
+    ok: true,
+    value: { sourceKey: config.sourceKey, config, mode, afterId, limit, exactSourceId, expectedTenantId },
+  };
 }
 
 // ─── Response map (saf; yalnız güvenli sayaçlar) ─────────────────────────────
@@ -260,6 +320,8 @@ function toSafePage(result: IndexSourcePageResult): SafePageSummary {
     excludedSynthetic: result.excludedSynthetic,
     nextCursor: result.nextCursor,
     hasMore: result.hasMore,
+    exactMode: result.exactMode,
+    exactStatus: result.exactStatus,
   };
 }
 
@@ -344,6 +406,14 @@ export async function handleAdminIndexRequest(
   if (mode === "dry-run") {
     await bestEffortAudit(deps, { ...auditBase, outcome: "dry-run-ok" });
     return { status: 200, body: { ok: true, mode: "dry-run", sourceKey, page, write: null } };
+  }
+
+  // BF-2B exact-write gate (defense-in-depth): write modunda exactStatus !== 'ok'
+  // ise writer indexSourcePage'de HİÇ çağrılmamıştır (write=null). Bunu fatal
+  // saymaz; güvenli fail-closed hata koduyla döner (eligible tam 1 değil / eşleşme yok).
+  if (result.exactMode && result.exactStatus !== "ok") {
+    await bestEffortAudit(deps, { ...auditBase, outcome: "fatal", errorCode: "exact-not-eligible" });
+    return { status: 409, body: { ok: false, error: { code: "exact-not-eligible" } } };
   }
 
   // Write modu: indexSourcePage write döndürmeliydi; yoksa fatal (savunmacı).

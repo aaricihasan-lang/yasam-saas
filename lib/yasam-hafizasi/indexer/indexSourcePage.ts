@@ -34,11 +34,28 @@ import {
 } from "./supabaseIndexAdapters";
 import type { ParentPreloadStats } from "./runSource";
 import { runSource } from "./runSource";
-import type { RunSummary } from "./runIndexUnit";
+import { runIndexUnit, summarizeRunResults, type RunSummary } from "./runIndexUnit";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
 
 export type IndexSourcePageMode = "dry-run" | "write";
+
+/**
+ * BF-2B exact-write gate durum kodu (kapalı union; ham içerik taşımaz). Yalnız
+ * exact modda (`exactSourceId` verildiğinde) doldurulur. `ok` DIŞINDAKİ her değer
+ * writer'ın ÇAĞRILMADIĞI (fail-closed) anlamına gelir.
+ */
+export type ExactWriteStatus =
+  | "ok"
+  | "tenant-model-unsupported" // join veya shared (allowSharedNull) kaynak → exact pilot dışı
+  | "not-found" // PK eşitliğiyle 0 satır
+  | "multiple-rows" // >1 satır (PK sözleşme ihlali; fail-closed)
+  | "skipped-build" // runIndexUnit unit üretemedi (tenant/kanıt/sourceId)
+  | "excluded-demo" // demo tenant
+  | "excluded-synthetic" // sentetik (ADMIN_LIBRARY) tenant
+  | "excluded-shared" // tenant_id NULL (shared) → exact pilotta reddedilir
+  | "source-id-mismatch" // üretilen unit.sourceId ≠ exactSourceId
+  | "tenant-mismatch"; // üretilen unit.tenantId ≠ expectedTenantId
 
 /**
  * BF-0 son savunma hatası (INV-PII): route dışından doğrudan çağrılıp `safe-non-pii`
@@ -64,6 +81,14 @@ export interface IndexSourcePageInput {
   readonly limit?: number;
   readonly mode: IndexSourcePageMode;
   readonly db?: IndexDbClient;
+  /**
+   * BF-2B exact-write gate. Verildiğinde geniş sayfa akışı yerine TEK kaydı primary
+   * key EŞİTLİĞİYLE hedefler (opsiyonel; verilmezse mevcut sayfa davranışı korunur).
+   * `exactSourceId` verilirse `expectedTenantId` de zorunludur (çağıran/validate katmanı
+   * garanti eder). Reader PK eşitliğiyle okur; eligible tam 1 olmadıkça writer çağrılmaz.
+   */
+  readonly exactSourceId?: string | null;
+  readonly expectedTenantId?: string | null;
 }
 
 /** Sonuç — yalnız güvenli sayılar/özet; ham unit veya demo içeriği taşımaz. */
@@ -79,6 +104,8 @@ export interface IndexSourcePageResult {
   readonly hasMore: boolean;
   readonly parentStats: ParentPreloadStats;
   readonly write: WriteIndexUnitsResult | null; // dry-run → null
+  readonly exactMode: boolean; // BF-2B: exact-record write gate aktif mi
+  readonly exactStatus: ExactWriteStatus | null; // yalnız exactMode'da doldurulur
 }
 
 export async function indexSourcePage(
@@ -94,6 +121,12 @@ export async function indexSourcePage(
   }
 
   const db: IndexDbClient = input.db ?? (getServerDb() as unknown as IndexDbClient);
+
+  // BF-2B EXACT-WRITE GATE: exactSourceId verildiğinde geniş sayfa akışı yerine
+  // TEK-kayıt PK-eşitliği kapısı çalışır (mevcut sayfa davranışı DEĞİŞMEZ).
+  if (input.exactSourceId != null) {
+    return runExactRecord(input, db);
+  }
 
   const reader = createSupabaseSourceReader(db);
   const parentReader =
@@ -142,5 +175,104 @@ export async function indexSourcePage(
     hasMore: page.hasMore,
     parentStats: page.parentStats,
     write,
+    exactMode: false,
+    exactStatus: null,
+  };
+}
+
+// ─── BF-2B EXACT-WRITE GATE (tek kayıt; PK eşitliği; fail-closed) ──────────────
+//
+// `exactSourceId` + `expectedTenantId` ile TAM BİR kaydı hedefler. Geniş sayfa
+// write davranışını KULLANMAZ (cursor/limit genişletme yok). Writer YALNIZ tüm
+// exact guard'lar geçtiğinde (eligible tam 1, sourceId + tenant birebir eşleşir,
+// demo/sentetik/shared değil) çağrılır. Aksi her durumda writer'a ulaşılmaz.
+async function runExactRecord(
+  input: IndexSourcePageInput,
+  db: IndexDbClient,
+): Promise<IndexSourcePageResult> {
+  const { config, mode } = input;
+  const exactSourceId = input.exactSourceId as string; // dispatch garantisi: != null
+  const expectedTenantId = input.expectedTenantId ?? null;
+
+  const ZERO_SUMMARY: RunSummary = { units: 0, skipped: 0, byReason: {} };
+  const ZERO_PARENT: ParentPreloadStats = { requested: 0, found: 0, missing: 0 };
+
+  const reject = (
+    status: ExactWriteStatus,
+    fetched: number,
+    summary: RunSummary,
+    excludedDemo: number,
+    excludedSynthetic: number,
+  ): IndexSourcePageResult => ({
+    sourceKey: config.sourceKey,
+    mode,
+    fetched,
+    eligibleUnits: 0,
+    excludedDemo,
+    excludedSynthetic,
+    summary,
+    nextCursor: null,
+    hasMore: false,
+    parentStats: ZERO_PARENT,
+    write: null, // fail-closed: writer çağrılmadı
+    exactMode: true,
+    exactStatus: status,
+  });
+
+  // Exact pilot YALNIZ column-mode + non-shared kaynak (join/shared fail-closed).
+  if (config.tenant.mode !== "column" || config.tenant.allowSharedNull === true) {
+    return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
+  }
+
+  const reader = createSupabaseSourceReader(db);
+  if (typeof reader.readExactRecord !== "function") {
+    // Reader exact desteklemiyor → fail-closed (writer'a ulaşılmaz).
+    return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
+  }
+
+  // PK eşitliğiyle oku (okuma hatası fatal propagate; IO sınırı çağırandadır).
+  const page = await reader.readExactRecord({ config, sourceId: exactSourceId });
+  const fetched = page.rows.length;
+  if (fetched === 0) return reject("not-found", 0, ZERO_SUMMARY, 0, 0);
+  if (fetched > 1) return reject("multiple-rows", fetched, ZERO_SUMMARY, 0, 0);
+
+  // Tek satır → saf çekirdek (S2.08). Column mode: parentLookup gerekmez.
+  const runRes = runIndexUnit({ config, row: page.rows[0] });
+  const summary = summarizeRunResults([runRes]);
+  if (runRes.status !== "unit") {
+    return reject("skipped-build", fetched, summary, 0, 0);
+  }
+  const unit = runRes.unit;
+
+  // Dışlama + exact eşleşme (fail-closed sıra: demo → sentetik → shared → id → tenant).
+  if (unit.tenantId === YH_DEMO_TENANT_ID) return reject("excluded-demo", fetched, summary, 1, 0);
+  if (isSyntheticTenantId(unit.tenantId)) return reject("excluded-synthetic", fetched, summary, 0, 1);
+  if (unit.tenantId === null) return reject("excluded-shared", fetched, summary, 0, 0);
+  if (unit.sourceId !== exactSourceId) return reject("source-id-mismatch", fetched, summary, 0, 0);
+  if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
+    return reject("tenant-mismatch", fetched, summary, 0, 0);
+  }
+
+  // Tüm exact guard'lar PASS → tam 1 eligible unit. Yalnız write modunda writer çağrılır.
+  let write: WriteIndexUnitsResult | null = null;
+  if (mode === "write") {
+    const writer = createSupabaseIndexWriter(db);
+    write = await writer.write({ config, units: [unit] });
+  }
+
+  return {
+    sourceKey: config.sourceKey,
+    mode,
+    fetched,
+    eligibleUnits: 1,
+    excludedDemo: 0,
+    excludedSynthetic: 0,
+    summary,
+    nextCursor: null,
+    hasMore: false,
+    parentStats: ZERO_PARENT,
+    write,
+    exactMode: true,
+    exactStatus: "ok",
   };
 }
