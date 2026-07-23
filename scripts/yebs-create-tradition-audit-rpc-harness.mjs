@@ -198,11 +198,27 @@ check("rejected audit YOK ('rejected' literali yok)", !/'rejected'/.test(sql));
 check("generic audit insert RPC YOK (tek fonksiyon, adı sabit)",
   createFns.length === 1 && !/yebs_(insert|create)_audit\b/i.test(sql));
 
-// --- Direct tradition write-gate (service_role) ---
-check("write-gate: service_role INSERT/UPDATE/DELETE/TRUNCATE REVOKE",
-  /REVOKE\s+INSERT,\s*UPDATE,\s*DELETE,\s*TRUNCATE\s+ON\s+TABLE\s+public\.yebs_traditions\s+FROM\s+service_role/i.test(sql));
-check("service_role tradition SELECT korunuyor (SELECT/ALL revoke edilmiyor)",
-  !/REVOKE\s+(ALL|SELECT)\b[^;]*ON\s+TABLE\s+public\.yebs_traditions\s+FROM\s+service_role/i.test(sql));
+// --- Direct tradition write-gate (service_role): REVOKE ALL PRIVILEGES + yalnız SELECT ---
+// Final service_role kapısı: SELECT=true; INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/
+// TRIGGER=false. Eski dar 4-DML revoke kalıbına GÜVENİLMEZ; yeni model açıkça denetlenir.
+const revokeAllPriv = /REVOKE\s+ALL\s+PRIVILEGES\s+ON\s+TABLE\s+public\.yebs_traditions\s+FROM\s+service_role/i;
+const grantSelectSr = /GRANT\s+SELECT\s+ON\s+TABLE\s+public\.yebs_traditions\s+TO\s+service_role/i;
+check("write-gate: REVOKE ALL PRIVILEGES service_role (tablo)", revokeAllPriv.test(sql));
+check("write-gate: ardından yalnız GRANT SELECT service_role", grantSelectSr.test(sql));
+const idxRevokeAll = sql.search(revokeAllPriv);
+const idxGrantSel = sql.search(grantSelectSr);
+check("write-gate: REVOKE ALL, GRANT SELECT'ten ÖNCE (final durum = SELECT)",
+  idxRevokeAll !== -1 && idxGrantSel !== -1 && idxRevokeAll < idxGrantSel);
+// service_role'a tablo üzerinde SELECT dışında hiçbir yetki GRANT edilmiyor.
+const srTableGrants = (sql.match(/GRANT\s+[^;]*\bON\s+TABLE\s+public\.yebs_traditions\s+TO\s+service_role/gi) || []);
+check("service_role tabloya yalnız 1 GRANT ve o SELECT",
+  srTableGrants.length === 1 && /GRANT\s+SELECT\b/i.test(srTableGrants[0] || ""), srTableGrants.join(" | "));
+check("service_role tabloya GRANT ALL YOK",
+  !/GRANT\s+ALL\b[^;]*ON\s+TABLE\s+public\.yebs_traditions\s+TO\s+service_role/i.test(sql));
+for (const priv of ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]) {
+  const leaked = new RegExp(`GRANT\\s+[^;]*\\b${priv}\\b[^;]*ON\\s+TABLE\\s+public\\.yebs_traditions\\s+TO\\s+service_role`, "i").test(sql);
+  check(`service_role tablo ${priv} yetkisi bırakılmıyor (final=false)`, !leaked);
+}
 check("PUBLIC/anon/authenticated tradition kilidi yeniden doğrulanıyor",
   /REVOKE\s+ALL\s+ON\s+TABLE\s+public\.yebs_traditions\s+FROM\s+PUBLIC/i.test(sql)
   && /FROM\s+anon/i.test(sql) && /FROM\s+authenticated/i.test(sql));

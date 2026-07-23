@@ -13,9 +13,11 @@
 --   - Tek dış giriş noktası: SECURITY DEFINER RPC
 --     public.yebs_create_tradition_with_audit(...). Fonksiyon owner (tablo sahibi)
 --     olarak çalışır; RLS'yi ve runtime GRANT sınırlarını owner ayrıcalığıyla aşar.
---   - Write-gate: service_role'ın public.yebs_traditions üzerindeki doğrudan
---     INSERT/UPDATE/DELETE/TRUNCATE yetkisi REVOKE edilir (SELECT korunur). Audit
---     zorunlu olduğundan RPC dışından doğrudan tradition mutation kabul edilemez.
+--   - Write-gate: service_role'ın public.yebs_traditions üzerindeki TÜM tablo
+--     ayrıcalıkları (INSERT/UPDATE/DELETE/TRUNCATE + REFERENCES + TRIGGER) REVOKE ALL
+--     PRIVILEGES ile kaldırılır, ardından yalnız SELECT yeniden GRANT edilir. Audit
+--     zorunlu olduğundan RPC dışından doğrudan tradition mutation kabul edilemez;
+--     REFERENCES/TRIGGER dahil hiçbir doğrudan-yazma yan yolu bırakılmaz.
 --     Bu privilege değişikliği tablo ŞEMASINI değiştirmez (ALTER TABLE yok).
 --   - Audit tablosuna INSERT yalnız bu fonksiyonun owner'ı tarafından yapılır;
 --     hiçbir runtime rolüne audit INSERT verilmez (AUD1 sözleşmesi korunur).
@@ -36,12 +38,17 @@ BEGIN;
 
 -- ------------------------------------------------------------
 -- 1) Write-gate: service_role doğrudan tradition mutation yapamaz.
---    D1 (20260726210017) service_role'e GRANT ALL vermişti; audit zorunluluğu
---    nedeniyle doğrudan yazma yollarını kapatıyoruz. SELECT korunur (okuma servisi
+--    D1 (20260726210017) service_role'e GRANT ALL vermişti (INSERT/UPDATE/DELETE/
+--    TRUNCATE + REFERENCES + TRIGGER dahil). Audit zorunluluğu nedeniyle doğrudan
+--    yazma ve yazma yan-yolları TAMAMEN kapatılır: önce REVOKE ALL PRIVILEGES,
+--    ardından yalnız gerekli SELECT yeniden GRANT edilir (okuma servisi
 --    lib/yebs/service/traditions.ts bozulmaz). Bu bir GRANT/REVOKE işlemidir;
---    tablo şeması (kolon/constraint/trigger) DEĞİŞMEZ.
+--    tablo şeması (kolon/constraint/trigger tanımı) DEĞİŞMEZ.
+--    Final service_role kapısı: SELECT=true; INSERT/UPDATE/DELETE/TRUNCATE/
+--    REFERENCES/TRIGGER=false. Canonical mutation yalnız SECURITY DEFINER RPC ile.
 -- ------------------------------------------------------------
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.yebs_traditions FROM service_role;
+REVOKE ALL PRIVILEGES ON TABLE public.yebs_traditions FROM service_role;
+GRANT SELECT ON TABLE public.yebs_traditions TO service_role;
 
 -- PUBLIC / anon / authenticated D1'de zaten tam REVOKE edilmişti; write-gate
 -- bağlamında bu kilitleri açıkça yeniden doğruluyoruz (idempotent, additif).
