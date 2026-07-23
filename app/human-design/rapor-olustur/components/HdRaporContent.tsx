@@ -26,6 +26,7 @@ import type { HumanDesignChart } from "@/lib/human-design/types";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { exportHdReportDocx } from "../helpers/exportHdReportDocx";
 import { HdUnsavedChangesDialog, type UnsavedAction } from "./HdUnsavedChangesDialog";
+import { HdMissingChartInfoBanner, detectMissingChartInfo } from "./HdMissingChartInfoBanner";
 import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
 import { runInEffect } from "@/lib/runInEffect";
 
@@ -92,6 +93,19 @@ export function HdRaporContent() {
 
   // Save butonu etiketi: aktif kimlik varsa (edit URL veya ilk INSERT sonrası) UPDATE göster.
   const isUpdateTarget = activeReportId !== null;
+
+  // HD-1B: eksik harita bilgisi uyarısı. Yalnız component yaşam döngüsü state'i —
+  // DB/kalıcı tercih YOK. "Mevcut Bilgilerle Devam Et" yalnız bu id'yi yazar; banner
+  // görünürlüğü clientId'ye bağlı olduğundan danışan değişince yeniden görünür.
+  const [dismissedMissingInfoClientId, setDismissedMissingInfoClientId] = useState<string | null>(null);
+  // Saf tespit — chart storage değerinden (null/[]) türetilir, "—" display'inden DEĞİL.
+  const missingChartInfo = useMemo(() => detectMissingChartInfo(chart), [chart]);
+  const showMissingBanner =
+    !!chart &&
+    !!clientId &&
+    !loading &&
+    missingChartInfo.length > 0 &&
+    dismissedMissingInfoClientId !== clientId;
 
   // Çıkış koruması — yalnız dirty iken beforeunload bağlı.
   useUnsavedGuard(dirty);
@@ -433,6 +447,38 @@ export function HdRaporContent() {
     }
   }
 
+  // ── HD-1B: "Eksikleri Tamamla" — dirty-farkında navigasyon (HD-1A korumasını ATLAMAZ) ──
+  // Mevcut harita-kaydi route'u + mevcut askUnsaved diyaloğu kullanılır. Router/history hack YOK,
+  // yeni route/returnTo YOK, save/snapshot/kimlik değişikliği YOK.
+  async function handleCompleteMissingInfo() {
+    if (!clientId) return;
+    const target = `/human-design/harita-kaydi?clientId=${encodeURIComponent(clientId)}`;
+    if (!dirty) {
+      router.push(target); // temiz rapor → doğrudan yönlendir
+      return;
+    }
+    // Dirty → HD-1A veri kaybı koruması: iki seçenekli onay.
+    const choice = await askUnsaved({
+      title: "Kaydedilmemiş rapor değişiklikleri",
+      message:
+        "Eksik harita bilgilerini tamamlamak için bu ekrandan ayrılırsanız kaydedilmemiş değişiklikler kaybolacaktır.",
+      actions: [
+        { key: "cancel", label: "Vazgeç", tone: "safe" },
+        { key: "discard", label: "Değişiklikleri At ve Eksikleri Tamamla", tone: "danger" },
+      ],
+    });
+    // Vazgeç/Escape/backdrop → sayfada kal; title/metin/id/baseline DEĞİŞMEZ.
+    if (choice !== "discard") return;
+    router.push(target);
+  }
+
+  // ── HD-1B: "Mevcut Bilgilerle Devam Et" — YALNIZ banner'ı bu danışan için kapatır ──
+  // runBuild/chart/generatedText/editedText/reportTitle/activeReportId/savedSnapshot/
+  // hasUnsavedDraft/save DEĞİŞMEZ; yalnız dismiss state yazılır (dirty'yi etkilemez).
+  function handleContinueWithCurrentInfo() {
+    setDismissedMissingInfoClientId(clientId);
+  }
+
   const autoTextEdited = editedText !== generatedText;
 
   return (
@@ -539,6 +585,15 @@ export function HdRaporContent() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* HD-1B: Eksik harita bilgisi uyarısı — engelleyici değil, editörün hemen üstünde */}
+      {showMissingBanner && (
+        <HdMissingChartInfoBanner
+          missing={missingChartInfo}
+          onComplete={handleCompleteMissingInfo}
+          onContinue={handleContinueWithCurrentInfo}
+        />
       )}
 
       {/* Rapor Düzenleyici */}
