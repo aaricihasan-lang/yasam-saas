@@ -1,9 +1,13 @@
 /**
  * HD-1A güvenlik harness — statik değişmez doğrulaması.
  *
- * Projede React test runner yoktur. Bu harness, rapor ekranı veri-kaybı
- * korumalarının kod-şeklini deterministik doğrular. GERÇEK dialog/beforeunload/
- * tarayıcı davranışı runtime gerektirir → statik olarak KANITLANMAZ (aşağıda not).
+ * Projede React test runner yoktur. Bu harness, rapor ekranı veri-kaybı ve
+ * duplicate-INSERT korumalarının kod-şeklini deterministik doğrular.
+ *
+ * ÖNEMLİ: Bu statik harness gerçek React render zamanlamasını, gerçek hızlı
+ * çift-tıklama (double-submit) davranışını ve tarayıcı beforeunload tetiklenmesini
+ * TEK BAŞINA KANITLAMAZ. Yalnız kod-şeklini (state/ref modeli, karar dalları,
+ * güncelleme sırası) doğrular. Gerçek etkileşim runtime/DOM gerektirir (aşağıda not).
  *
  * Çalıştır: node scripts/hd1a-workflow-safety-check.mjs   (repo kökünden)
  */
@@ -24,52 +28,120 @@ const Ccode = stripJs(C);
 const D = read("app/human-design/rapor-olustur/components/HdUnsavedChangesDialog.tsx");
 const H = read("app/human-design/rapor-olustur/hooks/useUnsavedGuard.ts");
 
-console.log("── DIRTY-STATE MODELİ ──");
-check("1. dirty generatedText karşılaştırmasına DAYANMAZ", /const dirty = useMemo/.test(Ccode) && /savedSnapshot/.test(Ccode) && !/dirty[\s\S]{0,120}generatedText/.test(Ccode));
-check("2. Son kaydedilen title+editedText baseline'ı (SavedSnapshot)", /type SavedSnapshot = \{ title: string; editedText: string; reportId/.test(C) && /setSavedSnapshot\(/.test(Ccode));
-check("3. Yeni & kaydedilmemiş rapor dirty=true", /if \(!savedSnapshot\) return editedText\.trim\(\)\.length > 0/.test(Ccode));
-check("   dirty = title VEYA editedText sapması", /reportTitle !== savedSnapshot\.title \|\| editedText !== savedSnapshot\.editedText/.test(Ccode));
-check("4. Başarılı save/update baseline'ı günceller", /setSavedSnapshot\(\{ title:[\s\S]*?reportId: id \}\)/.test(Ccode) && /setSavedSnapshot\(\{ title:[\s\S]*?reportId: urlReportId \}\)/.test(Ccode));
-check("5. Başarısız save baseline'ı DEĞİŞTİRMEZ (error → return, snapshot yok)", /kaydedilemedi[\s\S]{0,80}return;/.test(Ccode) && /güncellenemedi[\s\S]{0,80}return;/.test(Ccode));
+// handleSave gövdesini izole et (INSERT/UPDATE karar sırasını konumsal doğrulamak için).
+const saveBody = (Ccode.match(/async function handleSave\(\)[\s\S]*?\n  \}/) || [""])[0];
+// runBuild success (applyClientId) bloğunu izole et.
+const buildBody = (Ccode.match(/const runBuild = useCallback\([\s\S]*?\n  \);/) || [""])[0];
 
-console.log("── GÖRÜNÜR GÖSTERGE ──");
-check("6. Dirty/kaydedildi göstergeleri (otomatik-metin bilgisinden ayrı)", /Kaydedilmemiş değişiklikler var/.test(C) && /Değişiklikler kaydedildi/.test(C) && /Otomatik metin düzenlendi/.test(C));
+console.log("── AKTİF RAPOR KİMLİĞİ (duplicate INSERT fix) ──");
+check("1. INSERT/UPDATE kararı urlReportId/isEditMode'a DAYANMAZ (handleSave içinde geçmez)",
+  /async function handleSave/.test(Ccode) && !/isEditMode/.test(saveBody) && !/\burlReportId\b/.test(saveBody));
+check("2. activeReportId state bulunuyor",
+  /const \[activeReportId, setActiveReportId\] = useState<string \| null>\(urlReportId \|\| null\)/.test(Ccode));
+check("3. activeReportIdRef bulunuyor",
+  /const activeReportIdRef = useRef<string \| null>\(urlReportId \|\| null\)/.test(Ccode));
+check("4. Save kararı activeReportIdRef.current üzerinden veriliyor",
+  /const currentReportId = activeReportIdRef\.current/.test(saveBody) &&
+  /if \(currentReportId\)/.test(saveBody));
+check("5. Başarılı INSERT id'yi router.push ÖNCESİNDE ref'e yazıyor",
+  /activeReportIdRef\.current = id;[\s\S]*?router\.push/.test(saveBody) &&
+  // ref ataması, saveReport hata dönüşünden SONRA (başarı dalında)
+  /error \|\| !id[\s\S]*?activeReportIdRef\.current = id/.test(saveBody));
+check("6. Başarılı INSERT id'yi state'e de yazıyor",
+  /activeReportIdRef\.current = id;\s*\n\s*setActiveReportId\(id\);/.test(saveBody));
+check("7. İlk INSERT sonrası sonraki save UPDATE yoluna girer (kimlik→UPDATE dalı önce)",
+  /if \(currentReportId\)\s*\{[\s\S]*?updateReport\(/.test(saveBody) &&
+  // UPDATE dalı INSERT'ten (saveReport) ÖNCE gelir → kimlik varken INSERT'e ulaşılmaz.
+  saveBody.indexOf("if (currentReportId)") < saveBody.indexOf("saveReport("));
+check("8. Aktif id varken duplicate count/INSERT yolu çalışmaz (getClientReportCount UPDATE dalından sonra)",
+  saveBody.indexOf("updateReport(") < saveBody.indexOf("getClientReportCount(") &&
+  /if \(currentReportId\)[\s\S]*?return;\s*\n\s*\}/.test(saveBody) &&
+  saveBody.indexOf("getClientReportCount(") > saveBody.indexOf("return; // kimlik + baseline"));
 
-console.log("── YENİLE (üç seçenek) ──");
-check("7. Yenile dirty iken onay akışından geçer", /async function handleRefresh/.test(Ccode) && /if \(!dirty\)[\s\S]{0,120}runBuild\(clientId, "replace"\)/.test(Ccode) && /askUnsaved\(/.test(Ccode));
-check("   üç seçenek: Vazgeç / Mevcut Metni Koru / Değişiklikleri At ve Yeniden Oluştur", /Mevcut Metni Koru/.test(C) && /Değişiklikleri At ve Yeniden Oluştur/.test(C));
-check("8. 'Mevcut Metni Koru' editedText'i DEĞİŞTİRMEZ (keepEdited)", /choice === "keep"[\s\S]{0,120}runBuild\(clientId, "keepEdited"\)/.test(Ccode) && /mode === "replace"\)\s*\{\s*setEditedText/.test(Ccode));
-check("9. 'At ve Yeniden Oluştur' yalnız başarılı build sonrası state uygular (transactional)", /Tüm adımlar başarılı → state'e atomik uygula/.test(C) === false ? /return false; \/\/ mevcut state KORUNUR/.test(C) : true);
-check("   runBuild başarısızlıkta state KORUNUR (return false, state'e dokunmaz)", (C.match(/return false;/g) || []).length >= 3 && /setLoading\(false\);\s*\n\s*buildGuard\.current = false;/.test(Ccode));
+console.log("── DANIŞAN DEĞİŞİMİNDE KİMLİK ──");
+check("9. Başarılı danışan değişiminde active id + baseline sıfırlanır (applyClientId, başarılı build)",
+  /if \(opts\?\.applyClientId\)\s*\{[\s\S]*?activeReportIdRef\.current = null;[\s\S]*?setActiveReportId\(null\);[\s\S]*?setSavedSnapshot\(null\);/.test(buildBody));
+check("10. Başarısız danışan build'inde active id korunur (sıfırlama başarı bloğunun İÇİNDE)",
+  // Sıfırlama yalnız tüm adımlar başarılıysa ulaşılan blokta; erken `return false` dalları kimliğe dokunmaz.
+  buildBody.indexOf("return false; // mevcut state KORUNUR") < buildBody.indexOf("activeReportIdRef.current = null") &&
+  !/return false;[\s\S]{0,40}activeReportIdRef\.current = null/.test(buildBody));
+check("11. Danışan değişiminde eski report id yeni danışana TAŞINMAZ (kimlik null'lanır, applyClientId'den kopyalanmaz)",
+  !/activeReportIdRef\.current = id\b/.test(buildBody) &&
+  /if \(opts\?\.applyClientId\)\s*\{[\s\S]*?activeReportIdRef\.current = null/.test(buildBody));
 
-console.log("── DANIŞAN DEĞİŞİMİ (iki seçenek) ──");
-check("10. Danışan değişiminde 'Mevcut Metni Koru' BULUNMAZ", /async function handleClientChange/.test(Ccode) && !/handleClientChange[\s\S]*?Mevcut Metni Koru/.test(Ccode));
-check("    iki seçenek: Vazgeç / Değişiklikleri At ve Danışanı Değiştir", /Değişiklikleri At ve Danışanı Değiştir/.test(C));
-check("11-12. Yeni danışan BAŞARIYLA oluşmadan clientId/metin değişmez (applyClientId atomik)", /runBuild\(newId, "replace", \{ applyClientId: true \}\)/.test(Ccode) && /if \(opts\?\.applyClientId\) setClientId\(id\)/.test(Ccode));
-check("    select kontrollü (value=clientId) + loading'de disabled", /value=\{clientId\}/.test(C) && /onChange=\{\(e\) => handleClientChange\(e\.target\.value\)\}/.test(C) && /disabled=\{loading\}/.test(C));
+console.log("── DIRTY / YAŞAM DÖNGÜSÜ (veri kaybı fix) ──");
+check("12. Dirty editedText.trim().length > 0 modeline DAYANMAZ",
+  !/editedText\.trim\(\)\.length > 0/.test(Ccode));
+check("13. İçerikten bağımsız hasUnsavedDraft (veya eşdeğeri) bulunuyor",
+  /const \[hasUnsavedDraft, setHasUnsavedDraft\] = useState\(false\)/.test(Ccode));
+check("14. Dirty: baseline varsa sapma, yoksa hasUnsavedDraft",
+  /if \(savedSnapshot\)\s*\{\s*return reportTitle !== savedSnapshot\.title \|\| editedText !== savedSnapshot\.editedText;/.test(Ccode) &&
+  /\}\s*return hasUnsavedDraft;/.test(Ccode));
+check("15. Henüz oluşturulmamış boş ekran dirty=false (hasUnsavedDraft başlangıçta false, savedSnapshot null)",
+  /useState\(false\)/.test(Ccode) && /useState<SavedSnapshot \| null>\(null\)/.test(Ccode));
+check("16. Yeni rapor build (replace) sonrası dirty=true (hasUnsavedDraft=true)",
+  /mode === "replace"\)\s*\{\s*setEditedText\(text\);\s*setReportTitle\(newTitle\);\s*[\s\S]*?setHasUnsavedDraft\(true\);/.test(buildBody));
+check("17. Metin tamamen boşaltılsa da dirty=true (dirty metin uzunluğuna bakmaz; hasUnsavedDraft'a bakar)",
+  !/editedText\.trim\(\)\.length/.test(Ccode) && /return hasUnsavedDraft;/.test(Ccode));
+check("18. Metin boş + başlık değişmiş olsa da dirty=true (aynı hasUnsavedDraft dalı; uzunluk yok)",
+  /return hasUnsavedDraft;/.test(Ccode) && !/editedText\.trim\(\)\.length/.test(Ccode));
 
-console.log("── BEFOREUNLOAD ──");
-check("13. beforeunload YALNIZ dirty iken bağlı", /useUnsavedGuard\(dirty\)/.test(Ccode) && /if \(!active\) return/.test(stripJs(H)) && /addEventListener\("beforeunload"/.test(H));
-check("14. beforeunload cleanup (removeEventListener)", /removeEventListener\("beforeunload"/.test(H));
-check("15. router/history monkey-patch YOK", !/history\.pushState|history\.replaceState|router\.push =|window\.history\s*=/.test(C + D + H));
+console.log("── SAVE SONUÇ DAVRANIŞI ──");
+check("19. Başarılı INSERT sonrası dirty=false (setHasUnsavedDraft(false) + baseline=güncel)",
+  /activeReportIdRef\.current = id;[\s\S]*?setSavedSnapshot\(\{ title:[\s\S]*?reportId: id \}\);\s*setHasUnsavedDraft\(false\);/.test(saveBody));
+check("20. Başarısız INSERT sonrası dirty=true (error → return, baseline/kimlik/işaret DEĞİŞMEZ)",
+  /kaydedilemedi[\s\S]{0,120}return; \/\/ kimlik null kalır/.test(saveBody));
+// UPDATE dalı bölgesi: `if (currentReportId)` ile INSERT çağrısı `saveReport(` arası.
+const updateRegion = saveBody.slice(saveBody.indexOf("if (currentReportId)"), saveBody.indexOf("saveReport("));
+check("21. Başarılı UPDATE sonrası dirty=false (baseline=güncel + hasUnsavedDraft=false, active id korunur)",
+  /setSavedSnapshot\(\{ title:[\s\S]*?reportId: currentReportId \}\);\s*setHasUnsavedDraft\(false\);/.test(updateRegion) &&
+  // UPDATE dalında activeReportIdRef'e yeniden ATAMA YOK → aktif kimlik korunur.
+  !/activeReportIdRef\.current =/.test(updateRegion));
+check("22. Başarısız UPDATE sonrası dirty=true (error → return, baseline/kimlik DEĞİŞMEZ)",
+  /güncellenemedi[\s\S]{0,120}return; \/\/ kimlik \+ baseline/.test(saveBody));
 
-console.log("── KAYDET YENİDEN-GİRİŞ ──");
-check("16. save yeniden-giriş guard (saveGuard ref)", /const saveGuard = useRef\(false\)/.test(Ccode) && /if \(saveGuard\.current\) return/.test(Ccode) && /saveGuard\.current = true/.test(Ccode) && /saveGuard\.current = false/.test(Ccode));
-check("    guard finally'de temizlenir; confirm boyunca açık kalır", /finally \{[\s\S]{0,120}saveGuard\.current = false/.test(Ccode));
+console.log("── KAYITLI RAPOR YENİLE (kimlik korunur) ──");
+check("23. Kayıtlı rapor Yenile sonrası activeReportId korunur (replace applyClientId'siz kimliğe dokunmaz)",
+  // Kimlik sıfırlaması YALNIZ applyClientId bloğunda; sade replace (Yenile) dalı kimliği null'lamaz.
+  /if \(opts\?\.applyClientId\)\s*\{[\s\S]*?activeReportIdRef\.current = null/.test(buildBody) &&
+  !/setEditedText\(text\);\s*setReportTitle\(newTitle\);\s*setHasUnsavedDraft\(true\);\s*\}\s*[\s\S]{0,40}activeReportIdRef\.current = null/.test(buildBody));
+check("24. Yenilenen kayıtlı raporun sonraki save'i UPDATE yapar (kimlik varken UPDATE dalı)",
+  /const currentReportId = activeReportIdRef\.current/.test(saveBody) && /if \(currentReportId\)[\s\S]*?updateReport\(/.test(saveBody));
 
-console.log("── SNAPSHOT / KAPSAM ──");
-check("17. Snapshot metin alanları korunur (generatedContent+editedContent saveReport'a)", /generatedContent: generatedText/.test(Ccode) && /editedContent: editedText/.test(Ccode));
-check("    updateReport davranışı değişmez (title+editedContent)", /updateReport\(\{[\s\S]{0,120}editedContent: editedText/.test(Ccode));
-check("18. schema/migration/route sözleşmesi bu bileşende yok", !/storage\.buckets|ALTER TABLE|REVOKE|CREATE POLICY|migration/i.test(C + D + H));
-check("19. HD-0 image PR kodu taşınmamış (viewer/upload/layout viewport yok)", !/HdChartImageViewer|HdChartImageUpload|viewportFit|width: "device-width"/.test(C + D + H));
+console.log("── YENİLE (üç seçenek) + DANIŞAN (iki seçenek) korundu ──");
+check("25. Yenile üç seçenek korunur; keepEdited editedText'e dokunmaz",
+  /Mevcut Metni Koru/.test(C) && /Değişiklikleri At ve Yeniden Oluştur/.test(C) &&
+  /choice === "keep"[\s\S]{0,140}runBuild\(clientId, "keepEdited"\)/.test(Ccode) &&
+  /mode === "replace"\)\s*\{\s*setEditedText/.test(Ccode));
+check("26. Danışan değişimi iki seçenek; 'Mevcut Metni Koru' BULUNMAZ",
+  /Değişiklikleri At ve Danışanı Değiştir/.test(C) &&
+  !/handleClientChange[\s\S]*?Mevcut Metni Koru/.test(Ccode));
 
-console.log("── DIALOG A11Y ──");
-check("D1. HdUnsavedChangesDialog role/aria/Escape/backdrop", /role="dialog"/.test(D) && /aria-modal="true"/.test(D) && /e\.key === "Escape"/.test(D) && /onAction\("cancel"\)/.test(D));
-check("D2. güvenli aksiyona focus + focus return + focus trap", /safeBtnRef\.current\?\.focus\(\)/.test(D) && /opener\?\.focus\?\.\(\)/.test(D) && /e\.key === "Tab"/.test(D));
-check("D3. destructive aksiyona OTOFOKUS yok (safe idx'e ref)", /i === firstSafeIdx \? safeBtnRef : undefined/.test(D));
+console.log("── EŞZAMANLILIK / BEFOREUNLOAD ──");
+check("27. save yeniden-giriş guard (saveGuard ref) finally'de temizlenir",
+  /const saveGuard = useRef\(false\)/.test(Ccode) && /if \(saveGuard\.current\) return/.test(Ccode) &&
+  /finally \{[\s\S]{0,120}saveGuard\.current = false/.test(Ccode));
+check("28. beforeunload YALNIZ dirty iken bağlı + cleanup",
+  /useUnsavedGuard\(dirty\)/.test(Ccode) && /if \(!active\) return/.test(stripJs(H)) &&
+  /addEventListener\("beforeunload"/.test(H) && /removeEventListener\("beforeunload"/.test(H));
+check("29. router/history monkey-patch YOK",
+  !/history\.pushState|history\.replaceState|router\.push =|window\.history\s*=/.test(C + D + H));
+
+console.log("── KAPSAM DEĞİŞMEZLİKLERİ ──");
+check("30. report route/persistence/helper/schema sözleşmesi bu bileşende değişmemiş",
+  !/storage\.buckets|ALTER TABLE|REVOKE|CREATE POLICY|migration/i.test(C + D + H) &&
+  /generatedContent: generatedText/.test(Ccode) && /editedContent: editedText/.test(Ccode) &&
+  /updateReport\(\{[\s\S]{0,140}editedContent: editedText/.test(Ccode));
+check("31. PR #25 (HD-0 image) kodu taşınmamış",
+  !/HdChartImageViewer|HdChartImageUpload|viewportFit|width: "device-width"/.test(C + D + H));
+check("32. Dialog a11y sözleşmesi korunur (dokunulmadı)",
+  /role="dialog"/.test(D) && /aria-modal="true"/.test(D) && /e\.key === "Escape"/.test(D) &&
+  /safeBtnRef\.current\?\.focus\(\)/.test(D) && /i === firstSafeIdx \? safeBtnRef : undefined/.test(D));
 
 console.log("\n── RUNTIME-GEREKLİ (statik harness dışı) ──");
-console.log("  NOTE  Gerçek dialog etkileşimi, beforeunload tetiklenmesi, danışan-değişim atomikliği ve tarayıcı davranışı DOM gerektirir; kod-şekliyle kanıtlandı, tarayıcı testi ayrı.");
+console.log("  NOTE  Bu harness STATİKtir. Gerçek React render zamanlaması, gerçek hızlı çift-tıklama");
+console.log("        (double-submit) davranışı ve tarayıcı beforeunload tetiklenmesi DOM/runtime gerektirir;");
+console.log("        yalnız kod-şekli (kimlik modeli, karar sırası, güncelleme sırası) burada kanıtlanır.");
 
 console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) { console.log("FAILED:"); for (const f of fails) console.log("  - " + f); process.exit(1); }

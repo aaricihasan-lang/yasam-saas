@@ -69,16 +69,29 @@ export function HdRaporContent() {
 
   // HD-1A: kaydedilmemiş-değişiklik takibi + eşzamanlılık guard'ları.
   const [savedSnapshot, setSavedSnapshot] = useState<SavedSnapshot | null>(null);
+  // Aktif rapor kimliği — INSERT/UPDATE kararı YALNIZ buna dayanır (urlReportId/isEditMode DEĞİL).
+  // Ref senkron kaynaktır: ilk INSERT sonrası router.push'tan ÖNCE yazılır ki aynı ekranda
+  // tetiklenen ikinci Kaydet duplicate INSERT değil UPDATE yoluna girsin.
+  const [activeReportId, setActiveReportId] = useState<string | null>(urlReportId || null);
+  const activeReportIdRef = useRef<string | null>(urlReportId || null);
+  // İçerikten BAĞIMSIZ yaşam-döngüsü işareti: kaydedilmemiş yeni rapor (metin boş olsa da dirty kalır).
+  const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
   const [prompt, setPrompt] = useState<UnsavedPrompt | null>(null);
   const buildGuard = useRef(false); // eşzamanlı build engeli
   const saveGuard = useRef(false); // kaydet yeniden-giriş engeli
   const didInit = useRef(false); // ilk build/edit-load yalnız mount'ta
 
-  // Gerçek dirty: son kaydedilen referanstan sapma VEYA henüz kaydedilmemiş rapor.
+  // Gerçek dirty: kaydedilmiş baseline'dan sapma; baseline yoksa içerikten bağımsız yaşam-döngüsü işareti.
+  // ESKİ metin-uzunluğu modeli (editedText.trim().length) KULLANILMAZ — boş metin veri kaybına yol açardı.
   const dirty = useMemo(() => {
-    if (!savedSnapshot) return editedText.trim().length > 0; // yeni & kaydedilmemiş
-    return reportTitle !== savedSnapshot.title || editedText !== savedSnapshot.editedText;
-  }, [savedSnapshot, reportTitle, editedText]);
+    if (savedSnapshot) {
+      return reportTitle !== savedSnapshot.title || editedText !== savedSnapshot.editedText;
+    }
+    return hasUnsavedDraft;
+  }, [savedSnapshot, reportTitle, editedText, hasUnsavedDraft]);
+
+  // Save butonu etiketi: aktif kimlik varsa (edit URL veya ilk INSERT sonrası) UPDATE göster.
+  const isUpdateTarget = activeReportId !== null;
 
   // Çıkış koruması — yalnız dirty iken beforeunload bağlı.
   useUnsavedGuard(dirty);
@@ -134,7 +147,14 @@ export function HdRaporContent() {
         const client = clients.find((c) => c.id === id);
         const newTitle = `${client?.name ?? "Danışan"} — Human Design Raporu`;
 
-        if (opts?.applyClientId) setClientId(id);
+        if (opts?.applyClientId) {
+          // Danışan değişimi: yeni danışan = yeni, kaydedilmemiş rapor. Eski danışanın rapor
+          // kimliği/baseline'ı yeni danışana TAŞINMAZ — yalnız build BAŞARILI olunca sıfırlanır.
+          setClientId(id);
+          activeReportIdRef.current = null;
+          setActiveReportId(null);
+          setSavedSnapshot(null);
+        }
         setChart(chartRow);
         setGroups(g);
         setMatchedCodes(mc);
@@ -142,6 +162,9 @@ export function HdRaporContent() {
         if (mode === "replace") {
           setEditedText(text);
           setReportTitle(newTitle);
+          // Yeni üretilen içerik henüz kaydedilmedi → dirty=true. Baseline varsa (kayıtlı rapor
+          // Yenile) dirty zaten metin sapmasından gelir; bu işaret yeni/kaydedilmemiş dalını korur.
+          setHasUnsavedDraft(true);
         }
         return true;
       } catch {
@@ -171,8 +194,11 @@ export function HdRaporContent() {
         setEditingClientName(row.client?.name ?? null);
         setEditedText(content);
         setGeneratedText(row.generated_content ?? "");
-        // Baseline: ilk açılışta dirty=false.
+        // Baseline: ilk açılışta dirty=false. Aktif kimlik = yüklenen rapor id (save → UPDATE).
         setSavedSnapshot({ title: row.title, editedText: content, reportId: id });
+        activeReportIdRef.current = id;
+        setActiveReportId(id);
+        setHasUnsavedDraft(false);
 
         if (row.client_id) {
           setClientId(row.client_id);
@@ -249,6 +275,10 @@ export function HdRaporContent() {
         setMatchedCodes([]);
         setGeneratedText("");
         setEditedText("");
+        activeReportIdRef.current = null;
+        setActiveReportId(null);
+        setSavedSnapshot(null);
+        setHasUnsavedDraft(false);
         return;
       }
       await runBuild(newId, "replace", { applyClientId: true });
@@ -274,13 +304,18 @@ export function HdRaporContent() {
       setMatchedCodes([]);
       setGeneratedText("");
       setEditedText("");
+      activeReportIdRef.current = null;
+      setActiveReportId(null);
+      setSavedSnapshot(null);
+      setHasUnsavedDraft(false);
       return;
     }
-    // Yeni danışan verisi BAŞARIYLA oluşmadan clientId/metin değişmez (runBuild atomik).
+    // Yeni danışan verisi BAŞARIYLA oluşmadan clientId/metin/kimlik değişmez (runBuild atomik).
     await runBuild(newId, "replace", { applyClientId: true });
   }
 
   // ── Kaydet (yeniden-giriş guard'lı) ──
+  // INSERT/UPDATE kararı YALNIZ activeReportIdRef.current üzerinden verilir (urlReportId/isEditMode DEĞİL).
   async function handleSave() {
     if (saveGuard.current) return;
     if (!editedText.trim()) {
@@ -290,28 +325,34 @@ export function HdRaporContent() {
     saveGuard.current = true;
     setSaving(true);
     try {
-      if (isEditMode) {
+      const currentReportId = activeReportIdRef.current;
+
+      // Aktif kimlik VARSA → UPDATE. Duplicate count/confirm/INSERT yolu ÇALIŞMAZ.
+      if (currentReportId) {
         const { error } = await updateReport({
-          id: urlReportId,
+          id: currentReportId,
           title: reportTitle || "Human Design Raporu",
           editedContent: editedText,
         });
         if (error) {
           showToast({ message: "Rapor güncellenemedi. Lütfen tekrar deneyin.", type: "error" });
-          return; // metin/başlık KORUNUR, dirty kalır
+          return; // kimlik + baseline + metin/başlık KORUNUR, dirty kalır
         }
-        setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: urlReportId });
+        // active id DEĞİŞMEZ; yalnız baseline yenilenir.
+        setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: currentReportId });
+        setHasUnsavedDraft(false);
         showToast({ message: "Rapor güncellendi.", type: "success" });
         router.push("/human-design/kayitli-raporlar");
         return;
       }
 
+      // Aktif kimlik YOKSA → gerçek yeni INSERT yolu.
       if (!clientId) {
         showToast({ message: "Danışan seçin.", type: "warning" });
         return;
       }
 
-      // Aynı danışana ikinci rapor uyarısı (mevcut davranış korunur; guard confirm boyunca açık).
+      // Aynı danışana ikinci rapor uyarısı — YALNIZ gerçek yeni INSERT öncesi (guard confirm boyunca açık).
       const { count } = await getClientReportCount(clientId);
       if (count > 0) {
         const ok = await confirm({
@@ -337,9 +378,14 @@ export function HdRaporContent() {
       });
       if (error || !id) {
         showToast({ message: "Rapor kaydedilemedi. Lütfen tekrar deneyin.", type: "error" });
-        return; // metin/başlık KORUNUR, dirty kalır
+        return; // kimlik null kalır, metin/başlık KORUNUR, dirty kalır
       }
+      // Başarılı INSERT: router.push'tan ÖNCE aktif kimliği SENKRON ref'e yaz — aynı ekranda
+      // tetiklenebilecek ikinci Kaydet artık UPDATE yoluna girer (duplicate INSERT engellenir).
+      activeReportIdRef.current = id;
+      setActiveReportId(id);
       setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: id });
+      setHasUnsavedDraft(false);
       showToast({ message: "Rapor kaydedildi.", type: "success" });
       router.push("/human-design/kayitli-raporlar");
     } catch {
@@ -565,8 +611,8 @@ export function HdRaporContent() {
                 className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
-                  ? isEditMode ? "Güncelleniyor..." : "Kaydediliyor..."
-                  : isEditMode ? "Güncelle" : "Raporu Kaydet"}
+                  ? isUpdateTarget ? "Güncelleniyor..." : "Kaydediliyor..."
+                  : isUpdateTarget ? "Güncelle" : "Raporu Kaydet"}
               </button>
             </div>
           </div>
