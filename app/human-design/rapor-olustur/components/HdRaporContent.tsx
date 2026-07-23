@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -25,11 +25,24 @@ import { getReportById } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar"
 import type { HumanDesignChart } from "@/lib/human-design/types";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { exportHdReportDocx } from "../helpers/exportHdReportDocx";
+import { HdUnsavedChangesDialog, type UnsavedAction } from "./HdUnsavedChangesDialog";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
+import { runInEffect } from "@/lib/runInEffect";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
 const labelCls = "mb-1.5 block text-xs font-bold text-slate-700";
 const sectionCls = "mb-2 text-xs font-black uppercase tracking-widest text-indigo-700";
+
+// Son kaydedilen (veya edit'te yüklenen) hâlin referansı — dirty hesabı buna dayanır.
+type SavedSnapshot = { title: string; editedText: string; reportId: string | null };
+
+type UnsavedPrompt = {
+  title: string;
+  message: string;
+  actions: UnsavedAction[];
+  resolve: (key: string) => void;
+};
 
 export function HdRaporContent() {
   const { showToast } = useToast();
@@ -39,12 +52,10 @@ export function HdRaporContent() {
 
   const urlClientId = params.get("clientId") ?? "";
   const urlReportId = params.get("reportId") ?? "";
-  // reportId varsa düzenleme modu, yoksa yeni rapor modu
   const isEditMode = !!urlReportId;
 
   const [clients, setClients] = useState<HdClientRow[]>([]);
   const [clientId, setClientId] = useState(urlClientId);
-  // Düzenleme modunda kayıtlı raporun danışan adı
   const [editingClientName, setEditingClientName] = useState<string | null>(null);
   const [chart, setChart] = useState<HumanDesignChart | null>(null);
   const [groups, setGroups] = useState<KnowledgeGroup[]>([]);
@@ -56,184 +67,343 @@ export function HdRaporContent() {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Danışan listesi yalnızca yeni rapor modunda gerekli
+  // HD-1A: kaydedilmemiş-değişiklik takibi + eşzamanlılık guard'ları.
+  const [savedSnapshot, setSavedSnapshot] = useState<SavedSnapshot | null>(null);
+  // Aktif rapor kimliği — INSERT/UPDATE kararı YALNIZ buna dayanır (urlReportId/isEditMode DEĞİL).
+  // Ref senkron kaynaktır: ilk INSERT sonrası router.push'tan ÖNCE yazılır ki aynı ekranda
+  // tetiklenen ikinci Kaydet duplicate INSERT değil UPDATE yoluna girsin.
+  const [activeReportId, setActiveReportId] = useState<string | null>(urlReportId || null);
+  const activeReportIdRef = useRef<string | null>(urlReportId || null);
+  // İçerikten BAĞIMSIZ yaşam-döngüsü işareti: kaydedilmemiş yeni rapor (metin boş olsa da dirty kalır).
+  const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
+  const [prompt, setPrompt] = useState<UnsavedPrompt | null>(null);
+  const buildGuard = useRef(false); // eşzamanlı build engeli
+  const saveGuard = useRef(false); // kaydet yeniden-giriş engeli
+  const didInit = useRef(false); // ilk build/edit-load yalnız mount'ta
+
+  // Gerçek dirty: kaydedilmiş baseline'dan sapma; baseline yoksa içerikten bağımsız yaşam-döngüsü işareti.
+  // ESKİ metin-uzunluğu modeli (editedText.trim().length) KULLANILMAZ — boş metin veri kaybına yol açardı.
+  const dirty = useMemo(() => {
+    if (savedSnapshot) {
+      return reportTitle !== savedSnapshot.title || editedText !== savedSnapshot.editedText;
+    }
+    return hasUnsavedDraft;
+  }, [savedSnapshot, reportTitle, editedText, hasUnsavedDraft]);
+
+  // Save butonu etiketi: aktif kimlik varsa (edit URL veya ilk INSERT sonrası) UPDATE göster.
+  const isUpdateTarget = activeReportId !== null;
+
+  // Çıkış koruması — yalnız dirty iken beforeunload bağlı.
+  useUnsavedGuard(dirty);
+
+  // Promise-tabanlı çoklu-seçenek onay.
+  const askUnsaved = useCallback(
+    (cfg: Omit<UnsavedPrompt, "resolve">): Promise<string> =>
+      new Promise((resolve) => {
+        setPrompt({ ...cfg, resolve });
+      }),
+    [],
+  );
+
+  // Danışan listesi (yalnız yeni rapor modu)
   useEffect(() => {
     if (!isEditMode) {
       listHdClients().then(({ rows }) => setClients(rows));
     }
   }, [isEditMode]);
 
-  // ── Yeni rapor modu: chart'tan rapor üret ─────────────────────────────────
-  const buildReport = useCallback(
-    async (id: string) => {
-      if (!id) {
-        setChart(null);
-        setGroups([]);
-        setGeneratedText("");
-        setEditedText("");
-        setMatchedCodes([]);
-        return;
-      }
+  // ── Transactional build: tüm adımlar başarıyla tamamlanmadan state'e DOKUNULMAZ ──
+  // mode="replace": generated + edited + title yeni metinle değiştirilir.
+  // mode="keepEdited": yalnız generated + referans veriler güncellenir; edited/title KORUNUR.
+  const runBuild = useCallback(
+    async (
+      id: string,
+      mode: "replace" | "keepEdited",
+      opts?: { applyClientId?: boolean },
+    ): Promise<boolean> => {
+      // Karşılıklı kilit: devam eden bir Kaydet (saveGuard) varken yeni build BAŞLAMAZ —
+      // aksi hâlde geç dönen bir save yanıtı yeni danışan ekranındaki kimliği/state'i bozardı.
+      if (!id || buildGuard.current || saveGuard.current) return false;
+      buildGuard.current = true; // senkron: ilk await'ten ÖNCE kilitlenir
       setLoading(true);
+      try {
+        const { row: chartRow, error: chartErr } = await loadChartForReport(id);
+        if (chartErr || !chartRow) {
+          showToast({
+            message: chartErr
+              ? `Harita yüklenemedi: ${chartErr}`
+              : "Bu danışana ait harita kaydı bulunamadı. Önce Harita Kaydı ekranında değerleri girin.",
+            type: "warning",
+          });
+          return false; // mevcut state KORUNUR
+        }
+        const codes = buildCodesFromChart(chartRow);
+        const { groups: g, matchedCodes: mc, error: kErr } = await loadKnowledgeForCodes(codes);
+        if (kErr) {
+          showToast({ message: `Bilgi Bankası yüklenemedi: ${kErr}`, type: "error" });
+          return false; // mevcut state KORUNUR
+        }
 
-      const { row: chartRow, error: chartErr } = await loadChartForReport(id);
-      if (chartErr || !chartRow) {
+        // Tüm adımlar başarılı → state'e atomik uygula.
+        const text = buildReportText(g);
+        const client = clients.find((c) => c.id === id);
+        const newTitle = `${client?.name ?? "Danışan"} — Human Design Raporu`;
+
+        if (opts?.applyClientId) {
+          // Danışan değişimi: yeni danışan = yeni, kaydedilmemiş rapor. Eski danışanın rapor
+          // kimliği/baseline'ı yeni danışana TAŞINMAZ — yalnız build BAŞARILI olunca sıfırlanır.
+          setClientId(id);
+          activeReportIdRef.current = null;
+          setActiveReportId(null);
+          setSavedSnapshot(null);
+        }
+        setChart(chartRow);
+        setGroups(g);
+        setMatchedCodes(mc);
+        setGeneratedText(text);
+        if (mode === "replace") {
+          setEditedText(text);
+          setReportTitle(newTitle);
+          // Taslak-varlık ayrımı: kaydedilmemiş-taslak işareti YALNIZ anlamlı bir rapor metni
+          // üretildiyse true olur. Bilgi Bankası eşleşmesi yoksa buildReportText boş string
+          // döndürür → gerçek taslak YOK → false (boş ilk ekran gereksiz ayrılma uyarısı üretmez).
+          // Bu, build'in yalnız ÇALIŞMIŞ olmasına değil, ÇIKTI üretmiş olmasına bağlanır.
+          // Kullanıcının SONRADAN textarea'yı boşaltması bu işareti DEĞİŞTİRMEZ (dirty korunur).
+          const didCreateDraft = text.trim().length > 0;
+          setHasUnsavedDraft(didCreateDraft);
+        }
+        return true;
+      } catch {
+        showToast({ message: "Rapor oluşturulurken hata oluştu.", type: "error" });
+        return false; // mevcut state KORUNUR
+      } finally {
         setLoading(false);
-        showToast({
-          message: chartErr
-            ? `Harita yüklenemedi: ${chartErr}`
-            : "Bu danışana ait harita kaydı bulunamadı. Önce Harita Kaydı ekranında değerleri girin.",
-          type: "warning",
-        });
-        setChart(null);
-        setGroups([]);
-        setGeneratedText("");
-        setEditedText("");
-        return;
+        buildGuard.current = false;
       }
-      setChart(chartRow);
-
-      const codes = buildCodesFromChart(chartRow);
-      const { groups: g, matchedCodes: mc, error: kErr } = await loadKnowledgeForCodes(codes);
-      setLoading(false);
-
-      if (kErr) {
-        showToast({ message: `Bilgi Bankası yüklenemedi: ${kErr}`, type: "error" });
-        return;
-      }
-
-      setGroups(g);
-      setMatchedCodes(mc);
-
-      const text = buildReportText(g);
-      setGeneratedText(text);
-      setEditedText(text);
-
-      const client = clients.find((c) => c.id === id);
-      const clientName = client?.name ?? "Danışan";
-      setReportTitle(`${clientName} — Human Design Raporu`);
     },
     [showToast, clients],
   );
 
-  // ── Düzenleme modu: kayıtlı raporu yükle ─────────────────────────────────
+  // ── Edit modu: kayıtlı raporu yükle (baseline snapshot kurar) ──
   const loadExistingReport = useCallback(
     async (id: string) => {
       if (!id) return;
       setLoading(true);
-
-      const { row, error } = await getReportById(id);
-      if (error || !row) {
-        setLoading(false);
-        showToast({ message: error ?? "Rapor bulunamadı.", type: "error" });
-        return;
-      }
-
-      setReportTitle(row.title);
-      setEditingClientName(row.client?.name ?? null);
-
-      // edited_content varsa onu aç; yoksa generated_content
-      const content = row.edited_content ?? row.generated_content ?? "";
-      setEditedText(content);
-      setGeneratedText(row.generated_content ?? "");
-
-      // Harita özetini referans için yükle
-      if (row.client_id) {
-        setClientId(row.client_id);
-        const { row: chartRow } = await loadChartForReport(row.client_id);
-        if (chartRow) {
-          setChart(chartRow);
-          const codes = buildCodesFromChart(chartRow);
-          const { groups: g, matchedCodes: mc } = await loadKnowledgeForCodes(codes);
-          setGroups(g);
-          setMatchedCodes(mc);
+      try {
+        const { row, error } = await getReportById(id);
+        if (error || !row) {
+          showToast({ message: error ?? "Rapor bulunamadı.", type: "error" });
+          return; // mevcut state KORUNUR
         }
-      }
+        const content = row.edited_content ?? row.generated_content ?? "";
+        setReportTitle(row.title);
+        setEditingClientName(row.client?.name ?? null);
+        setEditedText(content);
+        setGeneratedText(row.generated_content ?? "");
+        // Baseline: ilk açılışta dirty=false. Aktif kimlik = yüklenen rapor id (save → UPDATE).
+        setSavedSnapshot({ title: row.title, editedText: content, reportId: id });
+        activeReportIdRef.current = id;
+        setActiveReportId(id);
+        setHasUnsavedDraft(false);
 
-      setLoading(false);
+        if (row.client_id) {
+          setClientId(row.client_id);
+          const { row: chartRow } = await loadChartForReport(row.client_id);
+          if (chartRow) {
+            setChart(chartRow);
+            const codes = buildCodesFromChart(chartRow);
+            const { groups: g, matchedCodes: mc } = await loadKnowledgeForCodes(codes);
+            setGroups(g);
+            setMatchedCodes(mc);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
     },
     [showToast],
   );
 
-  // Yeni rapor modu — clientId değişince yeniden üret
+  // Mount: edit → kayıtlı raporu yükle; yeni → url clientId için ilk build (bir kez).
   useEffect(() => {
-    if (!isEditMode) {
-      buildReport(clientId);
-    }
-  }, [clientId, buildReport, isEditMode]);
+    if (didInit.current) return;
+    didInit.current = true;
+    // runInEffect: setState effect gövdesinde senkron çağrılmasın (proje deseni).
+    runInEffect(() => {
+      if (isEditMode) {
+        loadExistingReport(urlReportId);
+      } else if (urlClientId) {
+        runBuild(urlClientId, "replace");
+      }
+    });
+    // Mount-only: sonraki danışan değişimleri handleClientChange üzerinden yürür.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Düzenleme modu — mount'ta kayıtlı raporu yükle
-  useEffect(() => {
-    if (isEditMode) {
-      loadExistingReport(urlReportId);
+  // ── "Yenile": dirty ise üç seçenekli onay ──
+  async function handleRefresh() {
+    // Save (saveGuard) devam ederken Yenile build'i başlamaz (karşılıklı kilit).
+    if (!clientId || loading || buildGuard.current || saving || saveGuard.current) return;
+    if (!dirty) {
+      await runBuild(clientId, "replace");
+      return;
     }
-  }, [urlReportId, isEditMode, loadExistingReport]);
+    const choice = await askUnsaved({
+      title: "Kaydedilmemiş değişiklikler var",
+      message:
+        "Rapor metninde henüz kaydedilmemiş değişiklikler bulunuyor. Bilgileri yeniden oluşturmak istediğinizden emin misiniz?",
+      actions: [
+        { key: "cancel", label: "Vazgeç", tone: "safe" },
+        { key: "keep", label: "Mevcut Metni Koru", tone: "primary" },
+        { key: "discard", label: "Değişiklikleri At ve Yeniden Oluştur", tone: "danger" },
+      ],
+    });
+    if (choice === "cancel") return;
+    if (choice === "keep") {
+      const ok = await runBuild(clientId, "keepEdited");
+      if (ok) {
+        showToast({ message: "Mevcut metniniz korundu; referans bilgiler güncellendi.", type: "info" });
+      }
+      return;
+    }
+    // discard → tam yeniden oluştur (başarısızsa eski metin korunur)
+    await runBuild(clientId, "replace");
+  }
 
-  // ── Kaydet ───────────────────────────────────────────────────────────────
+  // ── Danışan değişimi: pendingClientId modeli — eski metin yeni danışana TAŞINMAZ ──
+  async function handleClientChange(newId: string) {
+    // Save (saveGuard) devam ederken danışan değişimi build'i başlamaz (karşılıklı kilit).
+    if (newId === clientId || loading || buildGuard.current || saving || saveGuard.current) return;
+
+    if (!dirty) {
+      if (!newId) {
+        setClientId("");
+        setChart(null);
+        setGroups([]);
+        setMatchedCodes([]);
+        setGeneratedText("");
+        setEditedText("");
+        activeReportIdRef.current = null;
+        setActiveReportId(null);
+        setSavedSnapshot(null);
+        setHasUnsavedDraft(false);
+        return;
+      }
+      await runBuild(newId, "replace", { applyClientId: true });
+      return;
+    }
+
+    const choice = await askUnsaved({
+      title: "Kaydedilmemiş rapor değişiklikleri",
+      message:
+        "Başka bir danışana geçerseniz mevcut rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+      actions: [
+        { key: "cancel", label: "Vazgeç", tone: "safe" },
+        { key: "discard", label: "Değişiklikleri At ve Danışanı Değiştir", tone: "danger" },
+      ],
+    });
+    // Vazgeç → select kontrollü olduğundan eski danışanda kalır; metin korunur.
+    if (choice !== "discard") return;
+
+    if (!newId) {
+      setClientId("");
+      setChart(null);
+      setGroups([]);
+      setMatchedCodes([]);
+      setGeneratedText("");
+      setEditedText("");
+      activeReportIdRef.current = null;
+      setActiveReportId(null);
+      setSavedSnapshot(null);
+      setHasUnsavedDraft(false);
+      return;
+    }
+    // Yeni danışan verisi BAŞARIYLA oluşmadan clientId/metin/kimlik değişmez (runBuild atomik).
+    await runBuild(newId, "replace", { applyClientId: true });
+  }
+
+  // ── Kaydet (yeniden-giriş guard'lı) ──
+  // INSERT/UPDATE kararı YALNIZ activeReportIdRef.current üzerinden verilir (urlReportId/isEditMode DEĞİL).
   async function handleSave() {
+    // Karşılıklı kilit: yeniden-giriş (saveGuard) VEYA devam eden build (buildGuard) varken
+    // Kaydet hiçbir validation/duplicate-count/INSERT/UPDATE başlatmadan çıkar. Bu kontrol
+    // saveGuard.current=true'dan ÖNCEdir → erken dönüşte guard sızıntısı olmaz.
+    if (saveGuard.current || buildGuard.current) return;
     if (!editedText.trim()) {
       showToast({ message: "Rapor içeriği boş.", type: "warning" });
       return;
     }
-
+    saveGuard.current = true;
     setSaving(true);
+    try {
+      const currentReportId = activeReportIdRef.current;
 
-    if (isEditMode) {
-      // Mevcut raporu UPDATE et
-      const { error } = await updateReport({
-        id: urlReportId,
-        title: reportTitle || "Human Design Raporu",
-        editedContent: editedText,
-      });
-      setSaving(false);
-      if (error) {
-        showToast({ message: `Güncelleme hatası: ${error}`, type: "error" });
-      } else {
+      // Aktif kimlik VARSA → UPDATE. Duplicate count/confirm/INSERT yolu ÇALIŞMAZ.
+      if (currentReportId) {
+        const { error } = await updateReport({
+          id: currentReportId,
+          title: reportTitle || "Human Design Raporu",
+          editedContent: editedText,
+        });
+        if (error) {
+          showToast({ message: "Rapor güncellenemedi. Lütfen tekrar deneyin.", type: "error" });
+          return; // kimlik + baseline + metin/başlık KORUNUR, dirty kalır
+        }
+        // active id DEĞİŞMEZ; yalnız baseline yenilenir.
+        setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: currentReportId });
+        setHasUnsavedDraft(false);
         showToast({ message: "Rapor güncellendi.", type: "success" });
         router.push("/human-design/kayitli-raporlar");
+        return;
       }
-      return;
-    }
 
-    // Yeni rapor INSERT et
-    if (!clientId) {
-      setSaving(false);
-      showToast({ message: "Danışan seçin.", type: "warning" });
-      return;
-    }
+      // Aktif kimlik YOKSA → gerçek yeni INSERT yolu.
+      if (!clientId) {
+        showToast({ message: "Danışan seçin.", type: "warning" });
+        return;
+      }
 
-    // Aynı danışan için mevcut rapor kontrolü — çift kayıt önleme
-    setSaving(false); // confirm açılmadan önce butonu serbest bırak
-    const { count } = await getClientReportCount(clientId);
-    if (count > 0) {
-      const ok = await confirm({
-        title: "Bu danışanın raporu var",
-        message:
-          count === 1
-            ? "Bu danışanın 1 kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporu düzenleyebilirsiniz."
-            : `Bu danışanın ${count} kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporları düzenleyebilirsiniz.`,
-        confirmText: "Yine de Oluştur",
-        cancelText: "Vazgeç",
-        tone: "warning",
+      // Aynı danışana ikinci rapor uyarısı — YALNIZ gerçek yeni INSERT öncesi (guard confirm boyunca açık).
+      const { count } = await getClientReportCount(clientId);
+      if (count > 0) {
+        const ok = await confirm({
+          title: "Bu danışanın raporu var",
+          message:
+            count === 1
+              ? "Bu danışanın 1 kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporu düzenleyebilirsiniz."
+              : `Bu danışanın ${count} kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporları düzenleyebilirsiniz.`,
+          confirmText: "Yine de Oluştur",
+          cancelText: "Vazgeç",
+          tone: "warning",
+        });
+        if (!ok) return;
+      }
+
+      const { id, error } = await saveReport({
+        clientId,
+        chartId: chart?.id ?? null,
+        title: reportTitle || "Human Design Raporu",
+        selectedCodes: matchedCodes,
+        generatedContent: generatedText,
+        editedContent: editedText,
       });
-      if (!ok) return;
-    }
-
-    setSaving(true);
-    const { error } = await saveReport({
-      clientId,
-      chartId: chart?.id ?? null,
-      title: reportTitle || "Human Design Raporu",
-      selectedCodes: matchedCodes,
-      generatedContent: generatedText,
-      editedContent: editedText,
-    });
-    setSaving(false);
-    if (error) {
-      showToast({ message: `Kayıt hatası: ${error}`, type: "error" });
-    } else {
+      if (error || !id) {
+        showToast({ message: "Rapor kaydedilemedi. Lütfen tekrar deneyin.", type: "error" });
+        return; // kimlik null kalır, metin/başlık KORUNUR, dirty kalır
+      }
+      // Başarılı INSERT: router.push'tan ÖNCE aktif kimliği SENKRON ref'e yaz — aynı ekranda
+      // tetiklenebilecek ikinci Kaydet artık UPDATE yoluna girer (duplicate INSERT engellenir).
+      activeReportIdRef.current = id;
+      setActiveReportId(id);
+      setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: id });
+      setHasUnsavedDraft(false);
       showToast({ message: "Rapor kaydedildi.", type: "success" });
       router.push("/human-design/kayitli-raporlar");
+    } catch {
+      showToast({ message: "Kayıt sırasında hata oluştu.", type: "error" });
+    } finally {
+      setSaving(false);
+      saveGuard.current = false;
     }
   }
 
@@ -263,6 +433,8 @@ export function HdRaporContent() {
     }
   }
 
+  const autoTextEdited = editedText !== generatedText;
+
   return (
     <div className="space-y-4">
       {/* Mod başlığı / Danışan seçimi */}
@@ -280,8 +452,9 @@ export function HdRaporContent() {
           <label className={labelCls}>Danışan Seç *</label>
           <select
             value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className={`h-10 ${fieldBase}`}
+            onChange={(e) => handleClientChange(e.target.value)}
+            disabled={loading || saving}
+            className={`h-10 ${fieldBase} disabled:opacity-60`}
           >
             <option value="">— Danışan seçin —</option>
             {clients.map((c) => (
@@ -332,7 +505,7 @@ export function HdRaporContent() {
           )}
           {!loading && !isEditMode && groups.length === 0 && chart && (
             <p className="mt-2 text-xs text-amber-600">
-              Bu harita için Bilgi Bankası'nda eşleşen kayıt bulunamadı.
+              Bu harita için Bilgi Bankası&apos;nda eşleşen kayıt bulunamadı.
               Önce Bilgi Bankası ekranından yorum ekleyin.
             </p>
           )}
@@ -386,12 +559,12 @@ export function HdRaporContent() {
                   className="h-8 w-full rounded-lg border border-indigo-200/90 bg-white px-3 text-sm font-medium text-slate-900 outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
                 />
               </div>
-              {/* Yenile yalnızca yeni rapor modunda — edit modda raporu sıfırdan üretmez */}
+              {/* Yenile — dirty ise üç seçenekli onay akışından geçer */}
               {!isEditMode && (
                 <button
                   type="button"
-                  onClick={() => buildReport(clientId)}
-                  disabled={!clientId || loading}
+                  onClick={handleRefresh}
+                  disabled={!clientId || loading || saving}
                   className="mt-5 h-8 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-50"
                 >
                   Yenile
@@ -415,14 +588,24 @@ export function HdRaporContent() {
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-indigo-100/80 bg-slate-50/60 px-4 py-3">
-            <p className="text-xs text-slate-500">
-              {isEditMode
-                ? "Kayıtlı rapora yapılan düzenlemeler güncelleme ile korunur."
-                : editedText !== generatedText
-                ? "* Otomatik metinden farklı düzenlemeler yapıldı."
-                : ""}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-indigo-100/80 bg-slate-50/60 px-4 py-3">
+            {/* Kaydetme durumu göstergesi (dirty vs kaydedildi) — otomatik-metin bilgisinden ayrı */}
+            <div className="flex flex-col gap-0.5">
+              {dirty ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                  Kaydedilmemiş değişiklikler var
+                </span>
+              ) : savedSnapshot ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  Değişiklikler kaydedildi
+                </span>
+              ) : null}
+              {autoTextEdited && (
+                <span className="text-[11px] text-slate-400">Otomatik metin düzenlendi</span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -435,12 +618,12 @@ export function HdRaporContent() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !editedText.trim()}
+                disabled={saving || loading || !editedText.trim()}
                 className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
-                  ? isEditMode ? "Güncelleniyor..." : "Kaydediliyor..."
-                  : isEditMode ? "Güncelle" : "Raporu Kaydet"}
+                  ? isUpdateTarget ? "Güncelleniyor..." : "Kaydediliyor..."
+                  : isUpdateTarget ? "Güncelle" : "Raporu Kaydet"}
               </button>
             </div>
           </div>
@@ -452,6 +635,20 @@ export function HdRaporContent() {
         <div className="flex items-center justify-center rounded-2xl border border-dashed border-indigo-200/80 bg-indigo-50/30 py-16 text-sm text-slate-500">
           Yukarıdan bir danışan seçin.
         </div>
+      )}
+
+      {/* Kaydedilmemiş-değişiklik onay dialog'u */}
+      {prompt && (
+        <HdUnsavedChangesDialog
+          title={prompt.title}
+          message={prompt.message}
+          actions={prompt.actions}
+          onAction={(key) => {
+            const r = prompt.resolve;
+            setPrompt(null);
+            r(key);
+          }}
+        />
       )}
     </div>
   );
