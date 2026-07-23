@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getKnowledgeRecord, saveKnowledgeRecord } from "../helpers/bilgiBankaKayit";
+import { getKnowledgeRecord, saveKnowledgeRecord, updateKnowledgeRecordById } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
+import { EMPTY_KULVAR_BODIES, bodiesFromRecord, decideSaveMethod, sectionsFromBodies, type KulvarBodies } from "../helpers/kulvarFormLogic";
+import { MSG_NEEDS_SAVED_RECORD } from "../helpers/sourceUiLogic";
+import { useKulvarSources } from "../helpers/useKulvarSources";
+import { KulvarSectionEditor } from "./KulvarSectionEditor";
+import { KulvarSourceManager } from "./KulvarSourceManager";
 
 const fieldBase =
   "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
@@ -48,23 +54,39 @@ export function BilgiKayitEkleDuzenle() {
   const [deger, setDeger] = useState("");
   const [bilgiKaynagi, setBilgiKaynagi] = useState("");
   const [aciklamaMetni, setAciklamaMetni] = useState("");
+  const [kulvarBodies, setKulvarBodies] = useState<KulvarBodies>({ ...EMPTY_KULVAR_BODIES });
+  const [existingId, setExistingId] = useState<string | null>(null);
   const [kaydediliyor, setKaydediliyor] = useState(false);
+
+  const isKulvar = isKulvarAnalysisType(analizTuru);
+  // Kaynak yönetimi yalnız kaydedilmiş (existingId) Kulvar kaydında etkin.
+  const { sources: kSources, links: kLinks, loading: kLoading, reload: kReload } = useKulvarSources(
+    existingId,
+    isKulvar && Boolean(existingId),
+  );
+
+  function resetIcerik() {
+    setBilgiKaynagi("");
+    setAciklamaMetni("");
+    setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+    setExistingId(null);
+  }
 
   function handleAnalizTuruChange(value: string) {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
-    setBilgiKaynagi("");
-    setAciklamaMetni("");
+    resetIcerik();
   }
 
   function handleDegerChange(value: string) {
     setDeger(value);
   }
 
+  // Mevcut kaydı yükle: content_sections canonical, yoksa legacy description → overview fallback.
+  // Bu fallback yalnız ARAYÜZDE üretilir; DB'ye YAZILMAZ (kullanıcı Kaydet demeden dönüşüm yok).
   useEffect(() => {
     if (!analizTuru || !deger.trim()) {
-      setBilgiKaynagi("");
-      setAciklamaMetni("");
+      resetIcerik();
       return;
     }
     let cancelled = false;
@@ -73,11 +95,20 @@ export function BilgiKayitEkleDuzenle() {
       if (cancelled) return;
       if (error) return;
       if (data) {
+        setExistingId(data.id);
         setBilgiKaynagi(data.source ?? "");
-        setAciklamaMetni(data.description ?? "");
+        if (isKulvarAnalysisType(analizTuru)) {
+          setKulvarBodies(bodiesFromRecord(data));
+          setAciklamaMetni("");
+        } else {
+          setAciklamaMetni(data.description ?? "");
+          setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+        }
       } else {
+        setExistingId(null);
         setBilgiKaynagi("");
         setAciklamaMetni("");
+        setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
       }
     })();
     return () => {
@@ -88,8 +119,11 @@ export function BilgiKayitEkleDuzenle() {
   function handleYeni() {
     setAnalizTuru("");
     setDeger("");
-    setBilgiKaynagi("");
-    setAciklamaMetni("");
+    resetIcerik();
+  }
+
+  function handleKulvarBodyChange(key: KulvarSectionKey, value: string) {
+    setKulvarBodies((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleKaydet() {
@@ -101,32 +135,68 @@ export function BilgiKayitEkleDuzenle() {
       showToast({ message: "Değer alanını doldurun.", type: "warning" });
       return;
     }
-    const payload = {
-      analysisType: analizTuru,
-      value: deger.trim(),
-      source: bilgiKaynagi,
-      description: aciklamaMetni,
-    };
-    console.log("Kaydedilecek veri:", payload);
+
+    const method = decideSaveMethod(existingId);
     setKaydediliyor(true);
     try {
-      const { error } = await saveKnowledgeRecord(payload);
-      if (error) {
-        console.error("Bilgi Bankası kayıt hatası:", error);
+      let error: string | null = null;
+      let conflict = false;
+
+      if (isKulvar) {
+        // content_sections canonical; description düzleştirilmiş kopyası ÜRETİLMEZ.
+        const content_sections = sectionsFromBodies(kulvarBodies);
+        if (method === "PATCH" && existingId) {
+          ({ error } = await updateKnowledgeRecordById(existingId, {
+            analysisType: analizTuru,
+            value: deger.trim(),
+            source: bilgiKaynagi,
+            content_sections,
+          }));
+        } else {
+          ({ error, conflict } = await saveKnowledgeRecord({
+            analysisType: analizTuru,
+            value: deger.trim(),
+            source: bilgiKaynagi,
+            content_sections,
+          }));
+        }
+      } else {
+        if (method === "PATCH" && existingId) {
+          ({ error } = await updateKnowledgeRecordById(existingId, {
+            analysisType: analizTuru,
+            value: deger.trim(),
+            source: bilgiKaynagi,
+            description: aciklamaMetni,
+          }));
+        } else {
+          ({ error, conflict } = await saveKnowledgeRecord({
+            analysisType: analizTuru,
+            value: deger.trim(),
+            source: bilgiKaynagi,
+            description: aciklamaMetni,
+          }));
+        }
+      }
+
+      if (conflict) {
         showToast({
-          message: `Kayıt sırasında hata oluştu: ${error}`,
-          type: "error",
+          message: "Bu analiz türü ve değer için kayıt zaten mevcut. Düzenlemek için mevcut kaydı açın.",
+          type: "warning",
         });
         return;
       }
+      if (error) {
+        showToast({ message: `Kayıt sırasında hata oluştu: ${error}`, type: "error" });
+        return;
+      }
+
       showToast({ message: "Kayıt kaydedildi", type: "success" });
+      // Başarıdan sonra id'yi yakala → sonraki Kaydet bilinçli PATCH olur (tekrar create/409 önlenir).
+      const { data } = await getKnowledgeRecord(analizTuru, deger.trim());
+      if (data) setExistingId(data.id);
     } catch (err) {
-      console.error("Bilgi Bankası beklenmeyen hata:", err);
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({
-        message: `Kayıt sırasında hata oluştu: ${msg}`,
-        type: "error",
-      });
+      showToast({ message: `Kayıt sırasında hata oluştu: ${msg}`, type: "error" });
     } finally {
       setKaydediliyor(false);
     }
@@ -211,19 +281,45 @@ export function BilgiKayitEkleDuzenle() {
           />
         </div>
 
-        <div className="lg:col-span-2">
-          <label htmlFor="bilgi-aciklama" className={labelClass}>
-            Açıklama Metni
-          </label>
-          <textarea
-            id="bilgi-aciklama"
-            value={aciklamaMetni}
-            onChange={(e) => setAciklamaMetni(e.target.value)}
-            rows={6}
-            placeholder="Numeroloji açıklama ve yorum metnini buraya yazın..."
-            className={textareaClass}
-          />
-        </div>
+        {isKulvar ? (
+          <>
+            <div className="lg:col-span-2">
+              <p className="mb-2 text-xs font-bold text-violet-800">
+                {existingId ? "Kaydı düzenliyorsunuz — bölümleri güncelleyin" : "Yapılandırılmış bölümler"}
+              </p>
+              <KulvarSectionEditor bodies={kulvarBodies} onChange={handleKulvarBodyChange} disabled={kaydediliyor} />
+            </div>
+            <div className="lg:col-span-2">
+              <p className="mb-2 text-xs font-bold text-violet-800">Kaynaklar</p>
+              {existingId ? (
+                <KulvarSourceManager
+                  recordId={existingId}
+                  recordAnalysisType={analizTuru}
+                  sources={kSources}
+                  links={kLinks}
+                  loading={kLoading}
+                  reload={kReload}
+                />
+              ) : (
+                <p className="text-sm font-medium text-slate-500">{MSG_NEEDS_SAVED_RECORD}</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="lg:col-span-2">
+            <label htmlFor="bilgi-aciklama" className={labelClass}>
+              Açıklama Metni
+            </label>
+            <textarea
+              id="bilgi-aciklama"
+              value={aciklamaMetni}
+              onChange={(e) => setAciklamaMetni(e.target.value)}
+              rows={6}
+              placeholder="Numeroloji açıklama ve yorum metnini buraya yazın..."
+              className={textareaClass}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2.5 border-t border-violet-100/90 pt-4">

@@ -19,6 +19,15 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { isKulvarAnalysisType } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeSections";
+import {
+  bibliographyDetail,
+  buildBibliography,
+  kulvarSectionsForWord,
+  recordSourceMainLine,
+  recordSourceView,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/wordKulvarLogic";
+import type { NumerologySourceRow, RecordSourceRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourcesApi";
 
 export const runtime = "nodejs";
 
@@ -33,6 +42,7 @@ type KnowledgeRow = {
   value: string;
   source: string | null;
   description: string | null;
+  content_sections?: unknown;
   updated_at: string;
 };
 
@@ -135,6 +145,39 @@ export async function POST(request: Request): Promise<Response> {
   if (!knowledgeRows.length && !stoneRows.length)
     return Response.json({ ok: false, error: "Bu seçim için kayıt bulunamadı." }, { status: 404 });
 
+  // NKB-V2-E: Ana/Yan Kulvar kayıtları için yapılandırılmış kaynakları N+1'siz, tenant-scoped topla.
+  // Boş id listesinde `.in()` çalıştırılmaz. Hata → güvenli mesaj (başka tenant fallback YOK).
+  const kulvarIds = knowledgeRows.filter((r) => isKulvarAnalysisType(r.analysis_type)).map((r) => r.id);
+  let recordSources: RecordSourceRow[] = [];
+  const sourcesById = new Map<string, NumerologySourceRow>();
+  if (kulvarIds.length > 0) {
+    const { data: rsData, error: rsErr } = await db
+      .from("numerology_record_sources")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .in("knowledge_record_id", kulvarIds);
+    if (rsErr) return Response.json({ ok: false, error: "Kaynak bağlantıları okunamadı." }, { status: 500 });
+    recordSources = (rsData || []) as RecordSourceRow[];
+
+    const srcIds = Array.from(new Set(recordSources.map((l) => l.source_id)));
+    if (srcIds.length > 0) {
+      const { data: sData, error: sErr } = await db
+        .from("numerology_sources")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", srcIds);
+      if (sErr) return Response.json({ ok: false, error: "Kaynaklar okunamadı." }, { status: 500 });
+      for (const s of (sData || []) as NumerologySourceRow[]) sourcesById.set(s.id, s);
+    }
+  }
+  // record_id → bağlantılar (bellek map; N+1 yok).
+  const linksByRecord = new Map<string, RecordSourceRow[]>();
+  for (const l of recordSources) {
+    const arr = linksByRecord.get(l.knowledge_record_id) ?? [];
+    arr.push(l);
+    linksByRecord.set(l.knowledge_record_id, arr);
+  }
+
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
   const totalCount = knowledgeRows.length + stoneRows.length;
@@ -206,10 +249,33 @@ export async function POST(request: Request): Promise<Response> {
         itemN++;
         all.push(profileLabel(`KAYIT #${String(itemN).padStart(3, "0")}`, C_KNOWLEDGE));
         all.push(h3(k.value || "—"));
-        if (k.source?.trim()) all.push(fieldInline("Kaynak", k.source.trim()));
-        if (k.description?.trim()) {
-          all.push(bodyText(k.description.trim()));
+
+        if (isKulvarAnalysisType(k.analysis_type)) {
+          // Yapılandırılmış dört bölüm (KANONİK sıra) veya legacy overview fallback; boş bölüm atlanır.
+          for (const sec of kulvarSectionsForWord(k)) {
+            all.push(h3(sec.label));
+            all.push(bodyText(sec.body));
+          }
+          // Eski Kaynak Bilgisi (legacy source) — yapılandırılmış kaynaklardan AYRI.
+          if (k.source?.trim()) all.push(fieldInline("Eski Kaynak Bilgisi", k.source.trim()));
+          // Yapılandırılmış Kaynaklar (kayıt-altı, ikincil hiyerarşi). internal_note YOK.
+          const links = [...(linksByRecord.get(k.id) ?? [])].sort(
+            (a, b) => a.display_order - b.display_order || a.created_at.localeCompare(b.created_at),
+          );
+          if (links.length > 0) {
+            all.push(muted("Yapılandırılmış Kaynaklar"));
+            for (const l of links) {
+              const view = recordSourceView(l, sourcesById.get(l.source_id) ?? null);
+              all.push(bodyText(recordSourceMainLine(view), 20));
+              if (view.title) all.push(muted(view.title));
+            }
+          }
+        } else {
+          // Diğer analysis_type türleri: mevcut Word davranışı AYNEN.
+          if (k.source?.trim()) all.push(fieldInline("Kaynak", k.source.trim()));
+          if (k.description?.trim()) all.push(bodyText(k.description.trim()));
         }
+
         all.push(fieldInline("Güncelleme",
           new Date(k.updated_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })
         ));
@@ -237,6 +303,20 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     sectionN++;
+  }
+
+  // NKB-V2-E: Belge-sonu Kaynakça — yalnız dahil edilen Kulvar kayıtlarına bağlı yapılandırılmış
+  // numerology_sources kayıtları; her source_id BİR kez; deterministik sıra. Legacy source DAHİL DEĞİL.
+  const bibliography = buildBibliography(recordSources, Array.from(sourcesById.values()));
+  if (bibliography.length > 0) {
+    all.push(h1Colored(`${sectionN}. Kaynakça`, C_KNOWLEDGE, true));
+    all.push(muted(`${bibliography.length} kaynak`));
+    all.push(spacer());
+    for (const s of bibliography) {
+      all.push(h3(s.display_label));
+      const detail = bibliographyDetail(s);
+      if (detail) all.push(bodyText(detail, 20));
+    }
   }
 
   const doc = new Document({
