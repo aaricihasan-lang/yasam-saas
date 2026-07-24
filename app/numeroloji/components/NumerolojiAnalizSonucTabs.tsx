@@ -9,6 +9,7 @@ import {
   type KnowledgeNote,
   type KnowledgeNotesForAnalysis,
 } from "../bilgi-bankasi/helpers/knowledgeLookup";
+import { noteHeading, resolveNoteSectionsForView } from "../bilgi-bankasi/helpers/noteLogic";
 import {
   getStoneAssignmentsForAnalysis,
   type StoneAssignmentForAnalysis,
@@ -539,28 +540,37 @@ function TasDestekSectionBlock({
   );
 }
 
+// NKB-V2-H: content_sections canonical yorum kaynağı; her not için "Ana Kulvar — 19" başlığı +
+// yalnız DOLU bölümler (Genel Açıklama/Yapıcı/Olumsuz/Yıkıcı). Kulvar dışı türlerde legacy
+// description (etiketsiz). "Kaynak:" satırı KALDIRILDI (danışan gizlilik sınırı).
 function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
   const typo = useContentTypography();
   if (!notes.length) return null;
+
+  const kartlar = notes
+    .map((note) => ({ note, sections: resolveNoteSectionsForView(note) }))
+    .filter((x) => x.sections.length > 0);
+  if (!kartlar.length) return null;
 
   return (
     <div
       className={`mt-4 rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/95 ring-1 ring-violet-100/70 ${typo.infoBoxPadding}`}
     >
       <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
-      <div className="mt-3 space-y-4">
-        {notes.map((note) => (
-          <div
-            key={note.id}
-            className="border-t border-violet-100/90 pt-3 first:border-t-0 first:pt-0"
-          >
-            <p className={`${typo.body} font-bold text-violet-900`}>{note.value}</p>
-            {note.source?.trim() ? (
-              <p className={`mt-1 ${typo.caption} text-slate-500`}>Kaynak: {note.source.trim()}</p>
-            ) : null}
-            {note.description?.trim() ? (
-              <p className={`mt-2 whitespace-pre-wrap ${typo.body} text-slate-800`}>{note.description.trim()}</p>
-            ) : null}
+      <div className="mt-3 space-y-3">
+        {kartlar.map(({ note, sections }) => (
+          <div key={note.id} className="rounded-xl border border-violet-100 bg-white/85 p-3 shadow-sm ring-1 ring-violet-100/60">
+            <p className={`${typo.body} font-black text-violet-900`}>{noteHeading(note.analysisType, note.value)}</p>
+            <div className="mt-2 space-y-2.5">
+              {sections.map((s, i) => (
+                <div key={`${note.id}:${i}`}>
+                  {s.label ? (
+                    <p className={`${typo.caption} font-bold uppercase tracking-wide text-violet-700/90`}>{s.label}</p>
+                  ) : null}
+                  <p className={`${s.label ? "mt-1 " : ""}whitespace-pre-wrap ${typo.body} text-slate-800`}>{s.body.trim()}</p>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -570,11 +580,9 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
 
 function NumeroCardBody({
   r,
-  layout = "default",
   knowledgeNotes,
 }: {
   r: NumerolojiResult;
-  layout?: "default" | "detay";
   knowledgeNotes?: KnowledgeNote[];
 }) {
   const k = (r.key || "").trim();
@@ -584,12 +592,9 @@ function NumeroCardBody({
     <div className="space-y-1.5">
       <p className="text-3xl font-black text-violet-900">{nrDisplay(r)}</p>
       {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>Anahtar: {k}</p> : null}
+      {/* NKB-V2-H: iç scroll kaldırıldı → hesap dökümü normal document-scroll ile akar. */}
       {r.steps?.length ? (
-        <pre
-          className={
-            layout === "detay" ? stepsPre : `max-h-[min(45vh,20rem)] overflow-y-auto ${stepsPre}`
-          }
-        >
+        <pre className={stepsPre}>
           {r.steps.join("\n")}
         </pre>
       ) : null}
@@ -743,28 +748,24 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       <DetayCard title="Ana Kulvar">
         <NumeroCardBody
           r={out.anaKulvar}
-          layout={layout}
           knowledgeNotes={knowledgeNotes?.anaKulvar}
         />
       </DetayCard>
       <DetayCard title="Yan Kulvar">
         <NumeroCardBody
           r={out.yanKulvar}
-          layout={layout}
           knowledgeNotes={knowledgeNotes?.yanKulvar}
         />
       </DetayCard>
       <DetayCard title="İfade Sayısı">
         <NumeroCardBody
           r={out.ifadeSayisi}
-          layout={layout}
           knowledgeNotes={knowledgeNotes?.ifadeSayisi}
         />
       </DetayCard>
       <DetayCard title="Hayat Yolu">
         <NumeroCardBody
           r={out.hayatYolu}
-          layout={layout}
           knowledgeNotes={knowledgeNotes?.hayatYolu}
         />
       </DetayCard>

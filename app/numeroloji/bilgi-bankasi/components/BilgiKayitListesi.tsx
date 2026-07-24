@@ -20,39 +20,40 @@ const KAYIT_TURU_FILTRE = [
   { value: "dogaltas", label: "Doğaltaş Atama" },
 ] as const;
 
-const filterLabelClass = "mb-2.5 block text-base font-bold text-slate-800";
+// NKB-V2-H: premium-kompakt yoğunluk (dev padding/font/min-h/blur küçültüldü; butonlar ≥44px).
+const filterLabelClass = "mb-2 block text-sm font-bold text-slate-800";
 
 const filterFieldClass =
-  "h-14 w-full rounded-2xl border-2 border-violet-200/90 bg-white px-5 text-base font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+  "h-11 w-full rounded-xl border-2 border-violet-200/90 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
 
-const searchInputClass = `${filterFieldClass} min-w-0 placeholder:text-base placeholder:text-slate-400 xl:min-w-[420px]`;
+const searchInputClass = `${filterFieldClass} min-w-0 placeholder:text-sm placeholder:text-slate-400 xl:min-w-[380px]`;
 
 const refreshButtonClass =
-  "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-bold text-white shadow-lg ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
+  "inline-flex h-11 w-full items-center justify-center rounded-xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 text-sm font-bold text-white shadow-md ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
 
 const checkboxClass =
-  "h-6 w-6 cursor-pointer rounded-md border-2 border-violet-400/90 bg-white text-violet-600 shadow-sm ring-2 ring-violet-100/70 transition focus:ring-violet-500";
+  "h-5 w-5 cursor-pointer rounded-md border-2 border-violet-400/90 bg-white text-violet-600 shadow-sm ring-1 ring-violet-100/70 transition focus:ring-violet-500";
 
 const detayBtnClass =
-  "inline-flex items-center justify-center rounded-2xl border-2 border-violet-500/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-base font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md";
+  "inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-violet-500/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md";
 
 const silBtnClass =
-  "inline-flex items-center justify-center rounded-2xl border-2 border-rose-500/90 bg-gradient-to-r from-rose-600 to-red-600 px-6 py-3 text-base font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-rose-500/90 bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
 
 const tableThClass =
-  "border-y-2 border-violet-200/90 bg-violet-100/80 px-6 py-6 text-base font-black tracking-[0.12em] text-violet-800 xl:text-lg";
+  "border-b-2 border-violet-200/90 bg-violet-100/80 px-4 py-2.5 text-xs font-black tracking-[0.1em] text-violet-800";
 
 const tableTdClass =
-  "min-h-[86px] border-y-2 border-violet-200/90 px-6 py-6 text-base font-semibold leading-7 text-slate-700 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 xl:text-lg";
+  "border-b border-violet-200/70 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 transition group-hover:border-violet-300";
 
 const bilgiKolonMetinClass =
-  "line-clamp-3 text-base font-medium leading-8 text-slate-700 xl:text-lg";
+  "line-clamp-2 text-sm font-medium leading-6 text-slate-700";
 
 const kayitTuruRozetClass =
-  "inline-block rounded-full px-5 py-2 text-sm font-black shadow-sm ring-1 xl:text-base";
+  "inline-block rounded-full px-3 py-1 text-xs font-black shadow-sm ring-1";
 
 const secilileriSilBtnClass =
-  "inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-rose-400/90 bg-gradient-to-r from-rose-600 to-red-700 px-6 py-2 text-base font-bold text-white shadow-lg ring-2 ring-rose-200/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:border-slate-300 disabled:from-slate-400 disabled:to-slate-500 disabled:text-slate-100 disabled:opacity-60 disabled:shadow-none";
+  "inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-rose-400/90 bg-gradient-to-r from-rose-600 to-red-700 px-5 py-2 text-sm font-bold text-white shadow-md ring-2 ring-rose-200/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:border-slate-300 disabled:from-slate-400 disabled:to-slate-500 disabled:text-slate-100 disabled:opacity-60 disabled:shadow-none";
 
 function kayitTuruBadge(tur: KayitTuru) {
   if (tur === "aciklama") {
@@ -256,8 +257,8 @@ export function BilgiKayitListesi() {
 
   return (
     <div className="space-y-8">
-      <div className="min-h-[140px] rounded-[28px] border-2 border-violet-200/80 bg-white/95 p-8 shadow-xl ring-1 ring-purple-200 backdrop-blur-md md:p-10">
-        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-2 xl:items-end 2xl:grid-cols-[1.1fr_1.1fr_2fr_auto_1.3fr]">
+      <div className="rounded-2xl border-2 border-violet-200/80 bg-white/95 p-4 shadow-lg ring-1 ring-purple-200 backdrop-blur-md md:p-5">
+        <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2 xl:items-end 2xl:grid-cols-[1.1fr_1.1fr_2fr_auto_1.3fr]">
           <div className="min-w-0">
             <label htmlFor="liste-kayit-turu" className={filterLabelClass}>
               Kayıt türü
@@ -383,7 +384,7 @@ export function BilgiKayitListesi() {
           <p className="text-lg font-medium text-amber-950/85">Filtreye uygun kayıt bulunamadı.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white/95 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
+        <div className="overflow-hidden rounded-2xl border-2 border-violet-200/80 bg-white/95 shadow-lg ring-1 ring-purple-200 backdrop-blur-md">
           <div className="overflow-x-auto p-3 sm:p-4">
             <table className="w-full min-w-[960px] border-separate border-spacing-y-2 text-left">
               <thead>
@@ -413,7 +414,7 @@ export function BilgiKayitListesi() {
                   const secili = seciliIds.has(row.id);
                   return (
                   <tr key={row.id} className="group">
-                    <td className="min-h-[86px] rounded-l-2xl border-2 border-violet-200/90 bg-white/95 px-6 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 group-hover:bg-violet-50/90">
+                    <td className="rounded-l-xl border-b border-violet-200/70 bg-white/95 px-4 py-3 transition group-hover:border-violet-300 group-hover:bg-violet-50/90">
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
@@ -455,7 +456,7 @@ export function BilgiKayitListesi() {
                       <span className={bilgiKolonMetinClass}>{row.bilgiVeyaAciklama}</span>
                     </td>
                     <td
-                      className={`min-h-[86px] rounded-r-2xl border-2 border-violet-200/90 px-6 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 ${
+                      className={`rounded-r-xl border-b border-violet-200/70 px-4 py-3 transition group-hover:border-violet-300 ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
