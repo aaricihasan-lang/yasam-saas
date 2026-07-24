@@ -83,18 +83,23 @@ try {
 }
 
 if (list && detail && svc) {
-  // Yalnız GET export edilir; POST/PATCH/DELETE/PUT export EDİLMEZ
-  for (const [label, src] of [
-    ["list route", list],
-    ["detail route", detail],
-  ]) {
-    check(`${label}: GET export ediyor`, /export\s+async\s+function\s+GET\s*\(/.test(src));
-    for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
-      check(
-        `${label}: ${verb} export ETMİYOR`,
-        !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(src),
-      );
-    }
+  // Collection route: GET + POST meşru (API-A0W audit'li create). Detail route:
+  // yalnız GET. Diğer fiiller (PUT/PATCH/DELETE) her iki route'ta yasak; detail'de
+  // POST de yasak.
+  check("list route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(list));
+  check("list route: POST export ediyor (A0W create)", /export\s+async\s+function\s+POST\s*\(/.test(list));
+  check("detail route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(detail));
+  for (const verb of ["PUT", "PATCH", "DELETE"]) {
+    check(
+      `list route: ${verb} export ETMİYOR`,
+      !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(list),
+    );
+  }
+  for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
+    check(
+      `detail route: ${verb} export ETMİYOR`,
+      !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(detail),
+    );
   }
 
   // verifyAdminRequest kullanımı
