@@ -25,7 +25,9 @@ import * as path from "node:path";
 // ─── Compile-time sabitler ────────────────────────────────────────────────────
 export const DRIVER_NAME = "yh-tenant-scoped-page" as const;
 export const STATE_VERSION = 2 as const;
-export const LIMIT = 100 as const;
+// BF-4C-PRE: `--limit` ve `--max-pages` RUNTIME arg'dır; bunlar YALNIZ ÜST SINIR
+// sabitleridir (sabit request değeri DEĞİL). Request limit'i doğrulanmış CLI'dan gelir.
+export const MAX_LIMIT = 500 as const;
 export const MAX_PAGES = 500 as const;
 export const REQUEST_TIMEOUT_MS = 120000 as const;
 export const ENDPOINT_PATH = "/api/admin/yasam-hafizasi/index-page" as const;
@@ -39,6 +41,8 @@ export interface RunParams {
   readonly mode: DriverMode;
   readonly sourceKey: string;
   readonly scopedTenantId: string;
+  readonly limit: number; // BF-4C-PRE: doğrulanmış CLI --limit (1..MAX_LIMIT)
+  readonly maxPages: number; // BF-4C-PRE: doğrulanmış CLI --max-pages (1..MAX_PAGES); hard istek tavanı
   readonly statePath: string;
   readonly confirmWrite: boolean;
 }
@@ -56,6 +60,7 @@ export interface DriverState {
 export type CliErrorCode =
   | "unknown-arg" | "duplicate-arg" | "missing-value" | "invalid-mode"
   | "missing-source" | "missing-tenant" | "invalid-tenant" | "missing-state"
+  | "missing-limit" | "invalid-limit" | "missing-max-pages" | "invalid-max-pages"
   | "write-needs-confirm";
 export type CliParse =
   | { readonly ok: true; readonly params: RunParams }
@@ -114,12 +119,27 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 // ─── 1) CLI kapısı (saf) ──────────────────────────────────────────────────────
+
+/**
+ * Yalnız tam sayı, 1..max kabul eder (coercion YOK): boş / ondalık / negatif / işaretli /
+ * whitespace / NaN / > max reddedilir → null. `/^[0-9]+$/` yalnız salt rakam kabul ettiği
+ * için "10.5", "-1", "0x10", " 3", "" ve "1e2" reddedilir; "0" → 0 < 1 → null.
+ */
+function parseBoundedInt(val: string, max: number): number | null {
+  if (!/^[0-9]+$/.test(val)) return null;
+  const n = Number(val);
+  if (!Number.isInteger(n) || n < 1 || n > max) return null;
+  return n;
+}
+
 export function parseArgs(argv: readonly string[]): CliParse {
   let mode: DriverMode = "dry-run";
   let confirmWrite = false;
   let statePath: string | null = null;
   let sourceKey: string | null = null;
   let scopedTenantId: string | null = null;
+  let limit: number | null = null;
+  let maxPages: number | null = null;
   const seen = new Set<string>();
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -130,7 +150,10 @@ export function parseArgs(argv: readonly string[]): CliParse {
       confirmWrite = true;
       continue;
     }
-    if (a === "--mode" || a === "--state" || a === "--source" || a === "--tenant") {
+    if (
+      a === "--mode" || a === "--state" || a === "--source" ||
+      a === "--tenant" || a === "--limit" || a === "--max-pages"
+    ) {
       if (seen.has(a)) return { ok: false, code: "duplicate-arg" };
       seen.add(a);
       const val = argv[i + 1];
@@ -143,8 +166,16 @@ export function parseArgs(argv: readonly string[]): CliParse {
         statePath = val;
       } else if (a === "--source") {
         sourceKey = val;
-      } else {
+      } else if (a === "--tenant") {
         scopedTenantId = val;
+      } else if (a === "--limit") {
+        const n = parseBoundedInt(val, MAX_LIMIT);
+        if (n === null) return { ok: false, code: "invalid-limit" };
+        limit = n;
+      } else {
+        const n = parseBoundedInt(val, MAX_PAGES);
+        if (n === null) return { ok: false, code: "invalid-max-pages" };
+        maxPages = n;
       }
       continue;
     }
@@ -155,10 +186,13 @@ export function parseArgs(argv: readonly string[]): CliParse {
   if (scopedTenantId === null) return { ok: false, code: "missing-tenant" };
   if (!isUuid(scopedTenantId)) return { ok: false, code: "invalid-tenant" };
   if (statePath === null || statePath.length === 0) return { ok: false, code: "missing-state" };
+  // BF-4C-PRE: --limit ve --max-pages AÇIKÇA verilmek zorundadır (fail-closed).
+  if (limit === null) return { ok: false, code: "missing-limit" };
+  if (maxPages === null) return { ok: false, code: "missing-max-pages" };
   // write İÇİN çift onay zorunlu (mode write + confirm-write).
   if (mode === "write" && !confirmWrite) return { ok: false, code: "write-needs-confirm" };
 
-  return { ok: true, params: { mode, sourceKey, scopedTenantId, statePath, confirmWrite } };
+  return { ok: true, params: { mode, sourceKey, scopedTenantId, limit, maxPages, statePath, confirmWrite } };
 }
 
 // ─── 2) Başlangıç state + run-param eşleşme doğrulaması (saf) ─────────────────
@@ -257,7 +291,7 @@ export function buildRequestBody(params: RunParams, afterId: string | null): Rec
     sourceKey: params.sourceKey,
     mode: params.mode,
     scopedTenantId: params.scopedTenantId,
-    limit: LIMIT,
+    limit: params.limit, // BF-4C-PRE: doğrulanmış runtime --limit (sabit LIMIT sızmaz)
   };
   if (afterId !== null) base.afterId = afterId;
   return base;
@@ -328,7 +362,10 @@ export async function runScopedPaging(deps: PagingDeps): Promise<PagingResult> {
       logger.info("completed");
       return finish(null, true, pages);
     }
-    if (pages >= MAX_PAGES) {
+    // BF-4C-PRE HARD CAP: bir sonraki HTTP çağrısından ÖNCE kontrol. maxPages'e ulaşıldıysa
+    // ilk response hasMore=true olsa bile ikinci istek GÖNDERİLMEZ (off-by-one yok; state
+    // yukarıda zaten atomik ilerledi, completed=false → kontrollü parti sonu, HATA DEĞİL).
+    if (pages >= params.maxPages) {
       logger.stop("max-pages");
       return finish("max-pages", false, pages);
     }
