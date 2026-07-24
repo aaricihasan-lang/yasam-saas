@@ -140,7 +140,7 @@ export function BilgiDogaltasAta() {
   }
 
   return (
-    <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 p-10 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
+    <div className="py-1 md:rounded-[32px] md:border-2 md:border-violet-200/80 md:bg-white/95 md:p-10 md:shadow-xl md:ring-1 md:ring-purple-200 md:backdrop-blur-md">
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
         <div>
           <label htmlFor="tas-ata-analiz-turu" className={labelClass}>

@@ -56,10 +56,10 @@ export function NumerolojiListeKarti({
       )}
       <Link
         href={`/numeroloji/liste/${row.id}`}
-        className={`group relative block overflow-hidden rounded-[14px] border bg-white/80 px-4 py-2.5 no-underline backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_4px_16px_rgba(139,92,246,0.10)] ${
+        className={`group relative block overflow-hidden border-b border-violet-100/70 px-[clamp(8px,2.5vw,14px)] py-3 no-underline transition-all duration-200 md:rounded-[14px] md:border md:bg-white/80 md:px-4 md:py-2.5 md:backdrop-blur-xl md:hover:bg-white/95 md:hover:shadow-[0_4px_16px_rgba(139,92,246,0.10)] ${
           isSelected
-            ? "border-violet-400 ring-2 ring-violet-300/50"
-            : "border-violet-200/70 hover:border-violet-300"
+            ? "bg-violet-50/60 md:border-violet-400 md:ring-2 md:ring-violet-300/50"
+            : "md:border-violet-200/70 md:hover:border-violet-300"
         } ${onToggleSelect !== undefined ? "pr-10" : ""}`}
       >
         <div

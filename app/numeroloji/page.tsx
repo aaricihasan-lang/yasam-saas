@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { resolveNumerolojiSurface } from "./helpers/mobileUxLogic";
 
-const cardGlass =
-  "group relative flex min-h-[180px] flex-col justify-between overflow-hidden rounded-[18px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-3.5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform sm:min-h-[200px] sm:p-4 lg:min-h-0 lg:p-3.5 xl:p-4";
+// NUM-MOB-2-FIX2: modül-launcher yüzey sınıfları — karar TEK KAYNAK resolveNumerolojiSurface
+// modelinden gelir (mobil "flat-row" düz satır / masaüstü "existing-card" koyu premium kart).
+// Her iki sınıf da kaynakta literaldir (runtime Tailwind üretimi yok).
+const LAUNCHER_ROW =
+  "group relative flex min-h-[56px] flex-col justify-between overflow-hidden border-b border-violet-500/20 py-3 transition-all duration-300";
+const LAUNCHER_CARD =
+  "group relative flex min-h-[180px] flex-col justify-between overflow-hidden rounded-[18px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-4 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform lg:min-h-0 lg:p-3.5 xl:p-4";
 
 const cardHover =
   "hover:z-[1] hover:scale-[1.03] hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_40px_-8px_rgba(167,139,250,0.40),0_0_60px_-20px_rgba(251,191,36,0.10),0_24px_48px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
@@ -59,6 +66,20 @@ function IconBilgi() {
 }
 
 export default function NumerolojiHubPage() {
+  // NUM-MOB-2-FIX2: viewport → modül-launcher yüzey kararı saf model üzerinden (tek kaynak).
+  const [viewportW, setViewportW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const launcher = resolveNumerolojiSurface(viewportW, "module-launcher");
+  const launcherBase = launcher === "flat-row" ? LAUNCHER_ROW : `${LAUNCHER_CARD} ${cardHover}`;
+  const launcherAmber =
+    launcher === "existing-card"
+      ? "border-amber-300/45 ring-amber-300/20 shadow-[0_0_50px_-14px_rgba(251,191,36,0.30),0_8px_40px_-12px_rgba(0,0,0,0.65)]"
+      : "";
+
   return (
     <div className="relative min-h-screen overflow-y-auto bg-[#040210] text-white antialiased">
       <div
@@ -100,7 +121,7 @@ export default function NumerolojiHubPage() {
           <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-4">
             <Link
               href="/numeroloji/analiz"
-              className={`${cardGlass} ${cardHover} no-underline border-amber-300/45 ring-amber-300/20 shadow-[0_0_50px_-14px_rgba(251,191,36,0.30),0_8px_40px_-12px_rgba(0,0,0,0.65)]`}
+              className={`${launcherBase} no-underline ${launcherAmber}`}
             >
               <span className="absolute right-3 top-3 z-[2] rounded-full border border-amber-300/60 bg-amber-400/15 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100 shadow-sm backdrop-blur-md">
                 Buradan başlayın
@@ -130,7 +151,7 @@ export default function NumerolojiHubPage() {
               </span>
             </Link>
 
-            <Link href="/numeroloji/liste" className={`${cardGlass} ${cardHover} no-underline`}>
+            <Link href="/numeroloji/liste" className={`${launcherBase} no-underline`}>
               <div
                 className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/12 via-transparent to-violet-700/18 opacity-50 transition-all duration-300 group-hover:opacity-100"
                 aria-hidden
@@ -156,7 +177,7 @@ export default function NumerolojiHubPage() {
               </span>
             </Link>
 
-            <Link href="/numeroloji/bilgi-bankasi" className={`${cardGlass} ${cardHover} no-underline`}>
+            <Link href="/numeroloji/bilgi-bankasi" className={`${launcherBase} no-underline`}>
               <div
                 className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-500/14 via-transparent to-emerald-600/12 opacity-50 transition-all duration-300 group-hover:opacity-100"
                 aria-hidden

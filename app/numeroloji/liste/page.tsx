@@ -200,7 +200,7 @@ export default function NumerolojiListePage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] px-5 py-3 xl:px-8">
 
         {/* Hero */}
-        <div className="rounded-[18px] border border-violet-300/40 bg-white/80 px-4 py-3 shadow-[0_0_20px_rgba(139,92,246,0.08)] backdrop-blur-xl sm:px-5 sm:py-3.5">
+        <div className="px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-[18px] md:border md:border-violet-300/40 md:bg-white/80 md:px-5 md:py-3.5 md:shadow-[0_0_20px_rgba(139,92,246,0.08)] md:backdrop-blur-xl">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Link href="/numeroloji" className={listeNavSecondaryClass}>
               ← Modül seçimi
@@ -219,7 +219,7 @@ export default function NumerolojiListePage() {
 
         {/* Demo bilgilendirme banner */}
         {isDemo && (
-          <div className="mt-2.5 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+          <div className="mt-2.5 md:rounded-[14px] md:border md:border-blue-200 md:bg-blue-50/95 md:px-5 md:py-4 md:shadow-sm">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
               <div>
@@ -269,7 +269,7 @@ export default function NumerolojiListePage() {
         ) : null}
 
         {loading ? (
-          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-5 text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
+          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-5 text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
             Yükleniyor…
           </div>
         ) : null}
@@ -281,13 +281,13 @@ export default function NumerolojiListePage() {
         ) : null}
 
         {!loading && !error && rows.length === 0 ? (
-          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-8 text-center text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
+          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-8 text-center text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
             Henüz kayıtlı analiz yok.
           </div>
         ) : null}
 
         {!loading && !error && rows.length > 0 && displayRows.length === 0 ? (
-          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-6 text-center text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
+          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-6 text-center text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
             Aramanızla eşleşen kayıt bulunamadı.
           </div>
         ) : null}

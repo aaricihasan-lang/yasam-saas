@@ -17,15 +17,15 @@ const EV_YORUMLARI: Record<number, string> = {
 };
 
 const SAYI_RENK: Record<number, { chip: string; border: string; glow: string }> = {
-  1: { chip: "from-rose-500 to-red-500",      border: "border-rose-200/70",   glow: "shadow-[0_8px_28px_rgba(244,63,94,0.32)]" },
-  2: { chip: "from-orange-500 to-amber-400",  border: "border-orange-200/70", glow: "shadow-[0_8px_28px_rgba(249,115,22,0.30)]" },
-  3: { chip: "from-amber-400 to-yellow-400",  border: "border-amber-200/70",  glow: "shadow-[0_8px_28px_rgba(251,191,36,0.30)]" },
-  4: { chip: "from-lime-500 to-green-500",    border: "border-lime-200/70",   glow: "shadow-[0_8px_28px_rgba(132,204,22,0.30)]" },
-  5: { chip: "from-emerald-500 to-teal-500",  border: "border-emerald-200/70",glow: "shadow-[0_8px_28px_rgba(16,185,129,0.30)]" },
-  6: { chip: "from-teal-500 to-cyan-500",     border: "border-teal-200/70",   glow: "shadow-[0_8px_28px_rgba(20,184,166,0.30)]" },
-  7: { chip: "from-sky-500 to-blue-500",      border: "border-sky-200/70",    glow: "shadow-[0_8px_28px_rgba(14,165,233,0.30)]" },
-  8: { chip: "from-indigo-500 to-violet-500", border: "border-indigo-200/70", glow: "shadow-[0_8px_28px_rgba(99,102,241,0.32)]" },
-  9: { chip: "from-violet-600 to-fuchsia-500",border: "border-violet-200/70", glow: "shadow-[0_8px_28px_rgba(139,92,246,0.35)]" },
+  1: { chip: "from-rose-500 to-red-500",      border: "md:border-rose-200/70",   glow: "md:shadow-[0_8px_28px_rgba(244,63,94,0.32)]" },
+  2: { chip: "from-orange-500 to-amber-400",  border: "md:border-orange-200/70", glow: "md:shadow-[0_8px_28px_rgba(249,115,22,0.30)]" },
+  3: { chip: "from-amber-400 to-yellow-400",  border: "md:border-amber-200/70",  glow: "md:shadow-[0_8px_28px_rgba(251,191,36,0.30)]" },
+  4: { chip: "from-lime-500 to-green-500",    border: "md:border-lime-200/70",   glow: "md:shadow-[0_8px_28px_rgba(132,204,22,0.30)]" },
+  5: { chip: "from-emerald-500 to-teal-500",  border: "md:border-emerald-200/70",glow: "md:shadow-[0_8px_28px_rgba(16,185,129,0.30)]" },
+  6: { chip: "from-teal-500 to-cyan-500",     border: "md:border-teal-200/70",   glow: "md:shadow-[0_8px_28px_rgba(20,184,166,0.30)]" },
+  7: { chip: "from-sky-500 to-blue-500",      border: "md:border-sky-200/70",    glow: "md:shadow-[0_8px_28px_rgba(14,165,233,0.30)]" },
+  8: { chip: "from-indigo-500 to-violet-500", border: "md:border-indigo-200/70", glow: "md:shadow-[0_8px_28px_rgba(99,102,241,0.32)]" },
+  9: { chip: "from-violet-600 to-fuchsia-500",border: "md:border-violet-200/70", glow: "md:shadow-[0_8px_28px_rgba(139,92,246,0.35)]" },
 };
 
 // ─── Hesaplama ────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
     <div className="space-y-3">
 
       {/* ── Açıklama ──────────────────────────────────────────────── */}
-      <div className="rounded-[12px] border border-violet-200/60 bg-gradient-to-r from-violet-50/80 to-fuchsia-50/60 px-4 py-2.5">
+      <div className="px-[clamp(8px,2.5vw,14px)] py-2.5 md:rounded-[12px] md:border md:border-violet-200/60 md:bg-gradient-to-r md:from-violet-50/80 md:to-fuchsia-50/60 md:px-4">
         <p className="text-xs font-black uppercase tracking-wider text-violet-600">Ev / İş Yeri Sayısı</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
           Kapı/apartman numarası ile daire numarası toplanarak ev veya iş yeri numeroloji sayısı hesaplanır.
@@ -97,7 +97,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
       </div>
 
       {/* ── Giriş alanları ────────────────────────────────────────── */}
-      <div className="min-w-0 rounded-[12px] border border-violet-200/70 bg-white/90 p-3 shadow-[0_0_10px_rgba(139,92,246,0.05)]">
+      <div className="min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:border md:border-violet-200/70 md:rounded-[12px] md:bg-white/90 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.05)] md:last:border md:last:pb-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Kapı / Apartman No</label>
@@ -139,7 +139,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
       {sonuc && renkSet ? (
         <>
           {/* Hesap adımları */}
-          <div className="min-w-0 rounded-[12px] border border-violet-200/70 bg-white/90 p-3 shadow-[0_0_10px_rgba(139,92,246,0.05)]">
+          <div className="min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:border md:border-violet-200/70 md:rounded-[12px] md:bg-white/90 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.05)] md:last:border md:last:pb-3">
             <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">Hesap Adımları</p>
             <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-black text-slate-700">
               {/* Kapi + Daire = Toplam */}
@@ -160,8 +160,8 @@ export function NumerolojiEvIsYeriSayisiTab() {
           </div>
 
           {/* Büyük sonuç kartı */}
-          <div className={`relative min-w-0 overflow-hidden rounded-[14px] border ${renkSet.border} bg-white/95 p-4 ${renkSet.glow}`}>
-            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br opacity-[0.06] blur-2xl" aria-hidden />
+          <div className={`relative min-w-0 overflow-hidden md:rounded-[14px] md:border md:bg-white/95 md:p-4 ${renkSet.border} ${renkSet.glow}`}>
+            <div className="pointer-events-none absolute -right-6 -top-6 hidden h-24 w-24 rounded-full bg-gradient-to-br opacity-[0.06] blur-2xl md:block" aria-hidden />
             <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Ev / İş Yeri Sayısı</p>
             <div className="flex items-center gap-3">
               <span
@@ -183,7 +183,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
 
           {/* Yorum */}
           {yorum && (
-            <div className="min-w-0 rounded-[12px] border border-violet-200/70 bg-white/90 p-3 shadow-[0_0_10px_rgba(139,92,246,0.05)]">
+            <div className="min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:border md:border-violet-200/70 md:rounded-[12px] md:bg-white/90 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.05)] md:last:border md:last:pb-3">
               <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">
                 {sonuc.sonuc} Sayısının Anlamı
               </p>
@@ -200,7 +200,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
           </div>
         </>
       ) : (
-        <div className="min-w-0 rounded-[12px] border-2 border-dashed border-violet-200/60 bg-white/60 px-4 py-8 text-center">
+        <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-8 text-center md:rounded-[12px] md:border-2 md:border-dashed md:border-violet-200/60 md:bg-white/60 md:px-4">
           <p className="text-xs font-semibold text-slate-400">
             Kapı ve daire numarasını girerek hesaplamayı başlatın.
           </p>

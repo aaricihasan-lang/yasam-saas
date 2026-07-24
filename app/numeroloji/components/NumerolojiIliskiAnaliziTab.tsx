@@ -192,12 +192,13 @@ function SectionCard({ title, children, accent = "violet" }: {
   children: React.ReactNode;
   accent?: "violet" | "emerald" | "amber" | "sky" | "rose";
 }) {
+  // NUM-MOB-2-FIX2: renk yalnız md+ (mobilde kutu yok). md:* literalleri JIT için burada.
   const borderMap = {
-    violet: "border-violet-200/70",
-    emerald: "border-emerald-200/70",
-    amber: "border-amber-200/70",
-    sky: "border-sky-200/70",
-    rose: "border-rose-200/70",
+    violet: "md:border-violet-200/70",
+    emerald: "md:border-emerald-200/70",
+    amber: "md:border-amber-200/70",
+    sky: "md:border-sky-200/70",
+    rose: "md:border-rose-200/70",
   };
   const titleMap = {
     violet: "text-violet-600",
@@ -207,7 +208,7 @@ function SectionCard({ title, children, accent = "violet" }: {
     rose: "text-rose-600",
   };
   return (
-    <div className={`min-w-0 rounded-[12px] border bg-white/90 p-3 shadow-[0_0_10px_rgba(139,92,246,0.05)] ${borderMap[accent]}`}>
+    <div className={`min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:border md:rounded-[12px] md:bg-white/90 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.05)] md:last:border md:last:pb-3 ${borderMap[accent]}`}>
       <p className={`mb-2 text-[10px] font-black uppercase tracking-wider ${titleMap[accent]}`}>{title}</p>
       {children}
     </div>
@@ -309,9 +310,9 @@ export function NumerolojiIliskiAnaliziTab({
       {/* ── Header: person cards ─────────────────────────────────── */}
       <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[1fr_40px_1fr]">
 
-        {/* Kişi 1 — readonly */}
-        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-white px-3 py-2.5 shadow-[0_0_12px_rgba(139,92,246,0.07)]">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-violet-200/20 blur-xl" aria-hidden />
+        {/* Kişi 1 — readonly (NUM-MOB-2-FIX2: mobilde kutusuz düz; md+ kart) */}
+        <div className="relative min-w-0 overflow-hidden border-b border-slate-100/70 pb-3 md:border-b-0 md:pb-0 md:rounded-[14px] md:border md:border-violet-200/70 md:bg-gradient-to-br md:from-violet-50/80 md:via-white md:to-white md:px-3 md:py-2.5 md:shadow-[0_0_12px_rgba(139,92,246,0.07)]">
+          <div className="pointer-events-none absolute -right-4 -top-4 hidden h-16 w-16 rounded-full bg-violet-200/20 blur-xl md:block" aria-hidden />
           <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-violet-500">1. Kişi · Mevcut Kayıt</p>
           <p className="text-sm font-black text-slate-900 leading-tight">{kisi1AdSoyad}</p>
           <p className="text-[10px] text-slate-400 tabular-nums">{kisi1BirthDate || "—"}</p>
@@ -328,9 +329,9 @@ export function NumerolojiIliskiAnaliziTab({
           </div>
         </div>
 
-        {/* Kişi 2 */}
-        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/70 via-white to-white px-3 py-2.5 shadow-[0_0_12px_rgba(217,70,239,0.07)]">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-fuchsia-200/20 blur-xl" aria-hidden />
+        {/* Kişi 2 (NUM-MOB-2-FIX2: mobilde kutusuz düz; md+ kart) */}
+        <div className="relative min-w-0 overflow-hidden border-b border-slate-100/70 pb-3 md:border-b-0 md:pb-0 md:rounded-[14px] md:border md:border-fuchsia-200/70 md:bg-gradient-to-br md:from-fuchsia-50/70 md:via-white md:to-white md:px-3 md:py-2.5 md:shadow-[0_0_12px_rgba(217,70,239,0.07)]">
+          <div className="pointer-events-none absolute -right-4 -top-4 hidden h-16 w-16 rounded-full bg-fuchsia-200/20 blur-xl md:block" aria-hidden />
 
           {/* Compact readonly mode — mirrors Kişi 1 */}
           {!kisi2Editing && kisi2Pin8 && !showDanisan ? (
@@ -457,10 +458,11 @@ export function NumerolojiIliskiAnaliziTab({
       {/* ── Results ────────────────────────────────────────────────── */}
       {iliskiPin && kisi2Pin8 ? (
         <>
-          {/* ── Hero PIN card ──────────────────────────────────────── */}
-          <div className="relative min-w-0 overflow-hidden rounded-[16px] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-700 p-4 shadow-[0_8px_32px_rgba(139,92,246,0.40)]">
+          {/* ── Hero PIN sonucu (NUM-MOB-2-FIX2: mobilde radius/shadow yok → kart değil, tam
+               genişlik sonuç bandı; beyaz-metin tasarımı için renk katmanı korunur) ── */}
+          <div className="relative min-w-0 overflow-hidden bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-700 px-[clamp(8px,2.5vw,14px)] py-4 md:rounded-[16px] md:px-4 md:shadow-[0_8px_32px_rgba(139,92,246,0.40)]">
             {/* Glow orbs */}
-            <div className="pointer-events-none absolute -left-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="pointer-events-none absolute -left-8 -top-8 hidden h-32 w-32 rounded-full bg-white/10 blur-2xl md:block" aria-hidden />
             <div className="pointer-events-none absolute -right-8 bottom-0 h-24 w-24 rounded-full bg-fuchsia-300/20 blur-2xl" aria-hidden />
 
             <p className="relative mb-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/70">İlişki PIN Kodu</p>
@@ -565,7 +567,7 @@ export function NumerolojiIliskiAnaliziTab({
                 return (
                   <div
                     key={i}
-                    className="min-w-0 rounded-xl border border-violet-100/70 bg-gradient-to-b from-white to-violet-50/30 p-2.5 text-center shadow-sm"
+                    className="min-w-0 p-1.5 text-center md:rounded-xl md:border md:border-violet-100/70 md:bg-gradient-to-b md:from-white md:to-violet-50/30 md:p-2.5 md:shadow-sm"
                   >
                     <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{i + 1}. Hane</p>
                     <div className="mt-1.5 flex items-center justify-center gap-1 text-sm font-black">
@@ -678,7 +680,7 @@ export function NumerolojiIliskiAnaliziTab({
           </div>
         </>
       ) : (
-        <div className="min-w-0 rounded-[14px] border-2 border-dashed border-violet-200/70 bg-white/60 px-4 py-8 text-center">
+        <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-8 text-center md:rounded-[14px] md:border-2 md:border-dashed md:border-violet-200/70 md:bg-white/60 md:px-4">
           <div className="text-2xl mb-2 opacity-50">♥</div>
           <p className="text-xs font-semibold text-slate-500">2. kişinin doğum tarihini girerek ilişki enerjisini hesaplayın.</p>
         </div>

@@ -203,7 +203,7 @@ export function BilgiKayitEkleDuzenle() {
   }
 
   return (
-    <div className="rounded-2xl border border-violet-200/80 bg-white/95 p-4 shadow-sm ring-1 ring-purple-200/60 backdrop-blur-md">
+    <div className="py-1 md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:p-4 md:shadow-sm md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
