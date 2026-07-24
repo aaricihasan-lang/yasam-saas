@@ -13,7 +13,10 @@ import * as path from "node:path";
 
 import {
   DRIVER_NAME,
+  MAX_LIMIT,
+  MAX_PAGES,
   STATE_VERSION,
+  buildRequestBody,
   computeNextState,
   createFsStateStore,
   initState,
@@ -42,10 +45,10 @@ const TENANT = "11111111-1111-1111-1111-111111111111";
 const SOURCE = "biyoenerji:symbols";
 
 function dryParams(over: Partial<RunParams> = {}): RunParams {
-  return { mode: "dry-run", sourceKey: SOURCE, scopedTenantId: TENANT, statePath: "/tmp/x.json", confirmWrite: false, ...over };
+  return { mode: "dry-run", sourceKey: SOURCE, scopedTenantId: TENANT, limit: 10, maxPages: 500, statePath: "/tmp/x.json", confirmWrite: false, ...over };
 }
-function writeParams(): RunParams {
-  return { mode: "write", sourceKey: SOURCE, scopedTenantId: TENANT, statePath: "/tmp/x.json", confirmWrite: true };
+function writeParams(over: Partial<RunParams> = {}): RunParams {
+  return { mode: "write", sourceKey: SOURCE, scopedTenantId: TENANT, limit: 10, maxPages: 500, statePath: "/tmp/x.json", confirmWrite: true, ...over };
 }
 
 const silentLogger: SafeLogger = { info: () => {}, page: () => {}, stop: () => {}, done: () => {} };
@@ -102,15 +105,15 @@ function writeBody(nextCursor: string | null, hasMore: boolean, p: RunParams, wr
 async function main(): Promise<void> {
   // ══ A — parseArgs ═══════════════════════════════════════════════════════════
   {
-    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p"]);
-    check(r.ok && r.params.mode === "dry-run", "A default dry-run");
+    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p", "--limit", "10", "--max-pages", "1"]);
+    check(r.ok && r.params.mode === "dry-run" && r.params.limit === 10 && r.params.maxPages === 1, "A default dry-run + limit/max-pages");
   }
   {
-    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p", "--mode", "write"]);
+    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p", "--limit", "10", "--max-pages", "1", "--mode", "write"]);
     check(!r.ok && r.code === "write-needs-confirm", "A write --confirm-write eksik → red");
   }
   {
-    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p", "--mode", "write", "--confirm-write"]);
+    const r = parseArgs(["--source", SOURCE, "--tenant", TENANT, "--state", "/p", "--limit", "10", "--max-pages", "1", "--mode", "write", "--confirm-write"]);
     check(r.ok && r.params.mode === "write" && r.params.confirmWrite === true, "A write + confirm → ok");
   }
   check(!parseArgs(["--tenant", TENANT, "--state", "/p"]).ok, "A missing source → red");
@@ -139,6 +142,36 @@ async function main(): Promise<void> {
     const r = parseArgs(["--source", "--tenant"]); // --source değeri --tenant gibi görünür
     check(!r.ok && r.code === "missing-value", "A missing value → red");
   }
+
+  // ══ A2 — BF-4C-PRE: --limit / --max-pages CLI sözleşmesi ════════════════════
+  const baseCli = ["--source", SOURCE, "--tenant", TENANT, "--state", "/p"] as const;
+  const withMp = (over: readonly string[]) => parseArgs([...baseCli, ...over]);
+  {
+    const r = withMp(["--limit", "10", "--max-pages", "1"]);
+    check(r.ok && r.params.limit === 10 && r.params.maxPages === 1, "A2 valid --limit 10 --max-pages 1");
+  }
+  {
+    const r = withMp(["--limit", String(MAX_LIMIT), "--max-pages", String(MAX_PAGES)]);
+    check(r.ok && r.params.limit === MAX_LIMIT && r.params.maxPages === MAX_PAGES, "A2 boundary 500/500 ok");
+  }
+  { const r = withMp(["--max-pages", "1"]); check(!r.ok && r.code === "missing-limit", "A2 limit eksik → network 0 (missing-limit)"); }
+  { const r = withMp(["--limit", "10"]); check(!r.ok && r.code === "missing-max-pages", "A2 max-pages eksik → missing-max-pages"); }
+  { const r = withMp(["--limit", "0", "--max-pages", "1"]); check(!r.ok && r.code === "invalid-limit", "A2 limit 0 → red"); }
+  { const r = withMp(["--limit", "-1", "--max-pages", "1"]); check(!r.ok && r.code === "invalid-limit", "A2 limit negatif → red"); }
+  { const r = withMp(["--limit", "10.5", "--max-pages", "1"]); check(!r.ok && r.code === "invalid-limit", "A2 limit ondalık → red"); }
+  { const r = withMp(["--limit", "501", "--max-pages", "1"]); check(!r.ok && r.code === "invalid-limit", "A2 limit >500 → red"); }
+  { const r = withMp(["--limit", "abc", "--max-pages", "1"]); check(!r.ok && r.code === "invalid-limit", "A2 limit NaN → red"); }
+  { const r = withMp(["--limit", "10", "--max-pages", "0"]); check(!r.ok && r.code === "invalid-max-pages", "A2 max-pages 0 → red"); }
+  { const r = withMp(["--limit", "10", "--max-pages", "-2"]); check(!r.ok && r.code === "invalid-max-pages", "A2 max-pages negatif → red"); }
+  { const r = withMp(["--limit", "10", "--max-pages", "2.5"]); check(!r.ok && r.code === "invalid-max-pages", "A2 max-pages ondalık → red"); }
+  { const r = withMp(["--limit", "10", "--max-pages", "501"]); check(!r.ok && r.code === "invalid-max-pages", "A2 max-pages >500 → red"); }
+  { const r = parseArgs([...baseCli, "--limit", "10", "--limit", "20", "--max-pages", "1"]); check(!r.ok && r.code === "duplicate-arg", "A2 aynı flag iki kez → duplicate (fail-closed)"); }
+
+  // ══ BODY — BF-4C-PRE: request body limit doğrulanmış CLI'dan gelir ══════════
+  check(buildRequestBody(dryParams({ limit: 10 }), null).limit === 10, "BODY --limit 10 → body.limit=10");
+  check(buildRequestBody(dryParams({ limit: 250 }), null).limit === 250, "BODY başka geçerli limit taşınır");
+  check(typeof buildRequestBody(dryParams({ limit: 10 }), null).limit === "number", "BODY limit number tipinde");
+  check(buildRequestBody(dryParams({ limit: 7 }), null).limit !== 100, "BODY eski sabit LIMIT(100) runtime'a sızmaz");
 
   // ══ B — validateStateForRun ═════════════════════════════════════════════════
   const p = dryParams();
@@ -283,6 +316,99 @@ async function main(): Promise<void> {
     const sp = seqPost([okResp(writeBody(null, false, wp, {}))]);
     const res = await runScopedPaging({ params: wp, postPage: sp.post, store: ms.store, logger: silentLogger });
     check(res.stopped && res.stopCode === "mode-mismatch" && sp.calls.length === 0, "D8 dry-run state → write run fail-closed (ağ 0)");
+  }
+
+  // ══ CAP — BF-4C-PRE: --max-pages hard tavan ════════════════════════════════
+  // C1: maxPages=1 + hasMore=true → tam 1 HTTP; ikinci sayfa YOK; cursor ilerler; completed=false.
+  {
+    const p1 = dryParams({ maxPages: 1 });
+    const ms = memStore(null);
+    const sp = seqPost([okResp(dryBody("c1", true, p1)), okResp(dryBody(null, false, p1))]); // 2. asla tüketilmez
+    const res = await runScopedPaging({ params: p1, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1, "CAP1 maxPages=1 + hasMore → HTTP request count=1 (ikinci istek yok)");
+    check(res.stopped && res.stopCode === "max-pages" && res.completed === false, "CAP1 kontrollü parti sonu (max-pages, completed false)");
+    check(ms.writes.length === 1 && ms.writes[0].nextCursor === "c1" && ms.writes[0].completed === false, "CAP1 state cursor ilerler, completed=false");
+  }
+  // C2: maxPages=1 + hasMore=false → 1 HTTP; completed=true.
+  {
+    const p1 = dryParams({ maxPages: 1 });
+    const ms = memStore(null);
+    const sp = seqPost([okResp(dryBody(null, false, p1))]);
+    const res = await runScopedPaging({ params: p1, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1 && res.completed === true, "CAP2 maxPages=1 + hasMore=false → 1 istek, completed=true");
+  }
+  // C3: maxPages=2 + iki hasMore=true → tam 2 HTTP; üçüncü istek YOK.
+  {
+    const p2 = dryParams({ maxPages: 2 });
+    const ms = memStore(null);
+    const sp = seqPost([okResp(dryBody("c1", true, p2)), okResp(dryBody("c2", true, p2)), okResp(dryBody(null, false, p2))]);
+    const res = await runScopedPaging({ params: p2, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 2, "CAP3 maxPages=2 → HTTP request count=2 (üçüncü istek yok)");
+    check(res.stopped && res.stopCode === "max-pages", "CAP3 maxPages sınırı aşılmaz");
+    check(ms.writes.length === 2 && ms.writes[1].nextCursor === "c2", "CAP3 ikinci sayfa cursor ilerler");
+  }
+
+  // ══ DR — no-retry: hata durumunda tam 1 istek, state DEĞİŞMEZ ════════════════
+  {
+    const ms = memStore(null);
+    const sp = seqPost([{ ok: false, code: "timeout" }, okResp(dryBody(null, false, p))]);
+    await runScopedPaging({ params: p, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1 && ms.writes.length === 0, "DR timeout → 1 istek, retry 0, state unchanged");
+  }
+  {
+    const ms = memStore(null);
+    const sp = seqPost([{ ok: true, status: 503, text: "" }, okResp(dryBody(null, false, p))]);
+    await runScopedPaging({ params: p, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1 && ms.writes.length === 0, "DR 503 → 1 istek, retry 0, state unchanged");
+  }
+  {
+    const ms = memStore(null);
+    const sp = seqPost([okResp("{not-json"), okResp(dryBody(null, false, p))]);
+    await runScopedPaging({ params: p, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1 && ms.writes.length === 0, "DR parse → 1 istek, retry 0, state unchanged");
+  }
+  {
+    const ms = memStore(null);
+    const bad = JSON.parse(dryBody(null, false, p));
+    bad.sourceKey = "x:y";
+    const sp = seqPost([okResp(JSON.stringify(bad)), okResp(dryBody(null, false, p))]);
+    await runScopedPaging({ params: p, postPage: sp.post, store: ms.store, logger: silentLogger });
+    check(sp.calls.length === 1 && ms.writes.length === 0, "DR echo mismatch → ikinci istek yok, state unchanged");
+  }
+
+  // ══ F — secret safety (fake token; body/state/log/error içinde yok) ═════════
+  {
+    const FAKE_TOKEN = "FAKE-SESSION-TOKEN-do-not-log-1234567890";
+    const bodyJson = J(buildRequestBody(dryParams(), "cursorX"));
+    const stateJson = J(initState(dryParams()));
+    check(!bodyJson.includes(FAKE_TOKEN), "F fake token request body'de yok");
+    check(!stateJson.includes(FAKE_TOKEN), "F fake token state'te yok");
+    // Operasyonel loglar yalnız güvenli metadata taşır; token akışı buraya HİÇ girmez.
+    const logs: string[] = [];
+    const capLogger: SafeLogger = {
+      info: (s) => logs.push("info:" + s),
+      page: (n, h, c) => logs.push(`page:${n}:${h}:${c}`),
+      stop: (code) => logs.push("stop:" + code),
+      done: (sum) => logs.push("done:" + J(sum)),
+    };
+    const ms = memStore(null);
+    const sp = seqPost([okResp(dryBody(null, false, p))]);
+    await runScopedPaging({ params: p, postPage: sp.post, store: ms.store, logger: capLogger });
+    const logText = logs.join("|");
+    check(!logText.includes(FAKE_TOKEN), "F fake token operasyonel loglarda yok");
+    check(logText.includes("page:1"), "F güvenli metadata loglanıyor (page:1)");
+  }
+
+  // ══ G — network safety: tüm ağ enjekte fake postPage'ten (realFetch=0) ══════
+  {
+    let networkCalls = 0;
+    const injected = async (): Promise<RequestResult> => {
+      networkCalls += 1;
+      return okResp(dryBody(null, false, p));
+    };
+    const ms = memStore(null);
+    await runScopedPaging({ params: p, postPage: injected, store: ms.store, logger: silentLogger });
+    check(networkCalls === 1, "G ağ yalnız enjekte postPage üzerinden (gerçek fetch yok)");
   }
 
   // ══ E — createFsStateStore atomik (gerçek FS; os.tmpdir) ════════════════════
