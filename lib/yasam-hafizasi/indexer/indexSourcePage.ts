@@ -32,11 +32,16 @@ import {
   type IndexDbClient,
   type WriteIndexUnitsResult,
 } from "./supabaseIndexAdapters";
-import type { ParentPreloadStats } from "./runSource";
-import { runSource } from "./runSource";
+import type { ParentPreloadStats, RunSourceResult } from "./runSource";
+import { runSource, TenantFilterMismatchError } from "./runSource";
 import { runIndexUnit, summarizeRunResults, type RunSummary } from "./runIndexUnit";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
+import {
+  isValidatedTenantScope,
+  supportsTenantScopedPage,
+  type ValidatedTenantScope,
+} from "./tenantScopeGate";
 
 export type IndexSourcePageMode = "dry-run" | "write";
 
@@ -70,6 +75,31 @@ export class SourceNotIndexableError extends Error {
 }
 
 /**
+ * BF-4B ÇEKİRDEK GENİŞ-WRITE SAVUNMASI (§12): geniş (exact/tenant-scoped OLMAYAN) WRITE
+ * indexSourcePage'e ULAŞAMAZ. Kanıtsız ya da geçersiz-kanıtlı bir write, reader/writer/
+ * cursor'a DOKUNMADAN önce fırlatılır (route-bypass savunması; doğrudan çağrıda bile fail-closed).
+ * Handler bunu güvenli `broad-write-disabled` (403) yanıtına çevirir. Ham detay taşımaz.
+ */
+export class BroadWriteDisabledError extends Error {
+  constructor() {
+    super("broad-write-disabled");
+    this.name = "BroadWriteDisabledError";
+  }
+}
+
+/**
+ * BF-4B: tenant-scoped kanıt verildi ama kaynak (join/shared/pii/disabled) tenant-scoped
+ * backfill'e uygun DEĞİL → okuma yapılmadan fırlatılır. Handler `source-tenant-scope-unsupported`
+ * (422) yanıtına çevirir. Ham detay taşımaz.
+ */
+export class SourceTenantScopeUnsupportedError extends Error {
+  constructor() {
+    super("source-tenant-scope-unsupported");
+    this.name = "SourceTenantScopeUnsupportedError";
+  }
+}
+
+/**
  * Girdi. `config` statik allowlist'ten (`YH_INDEX_SOURCES`) gelmelidir; mevcut
  * `sources.ts` sourceKey→config registry export etmediğinden ve o dosya korunan
  * olduğundan, config caller tarafından statik olarak verilir (registry uydurulmaz).
@@ -89,6 +119,14 @@ export interface IndexSourcePageInput {
    */
   readonly exactSourceId?: string | null;
   readonly expectedTenantId?: string | null;
+  /**
+   * BF-4B tenant-scoped backfill (Model C). Verildiğinde geniş sayfa akışı yerine
+   * TEK tenant'a daraltılmış (column-mode) sayfa işlenir. Kanıt YALNIZ
+   * `evaluateTenantScope` (tenantScopeGate) tarafından üretilir; taklit/ham UUID
+   * `isValidatedTenantScope` ile reddedilir. Exact ile birlikte kullanılamaz
+   * (çağıran/validate katmanı garanti eder).
+   */
+  readonly validatedTenantScope?: ValidatedTenantScope;
 }
 
 /** Sonuç — yalnız güvenli sayılar/özet; ham unit veya demo içeriği taşımaz. */
@@ -128,6 +166,22 @@ export async function indexSourcePage(
     return runExactRecord(input, db);
   }
 
+  // BF-4B ÇEKİRDEK GENİŞ-WRITE SAVUNMASI (§12; route-bypass): exact OLMAYAN bir WRITE
+  // yalnız GEÇERLİ tenant-scoped kanıtıyla ilerleyebilir. Kanıt yoksa veya geçersizse
+  // reader/writer/cursor'a DOKUNMADAN fail-closed fırlat (doğrudan çağrıda bile geçerli).
+  if (
+    mode === "write" &&
+    (input.validatedTenantScope === undefined || !isValidatedTenantScope(input.validatedTenantScope))
+  ) {
+    throw new BroadWriteDisabledError();
+  }
+
+  // BF-4B TENANT-SCOPED BACKFILL (Model C): kanıt verildiğinde TEK tenant'a daraltılmış
+  // sayfa akışı çalışır (geniş sayfa davranışı DEĞİŞMEZ).
+  if (input.validatedTenantScope !== undefined) {
+    return runTenantScopedPage(input, db, input.validatedTenantScope);
+  }
+
   const reader = createSupabaseSourceReader(db);
   const parentReader =
     config.tenant.mode === "join" ? createSupabaseParentTenantReader(db) : undefined;
@@ -144,6 +198,89 @@ export async function indexSourcePage(
   // Demo + sentetik tenant unit'lerini writer ÖNCESİ zorunlu düş (mode-agnostik;
   // ham içerik sızmaz). Sınıflandırma tek ve açık: önce demo, sonra sentetik, kalan
   // eligible — bir unit YALNIZ bir sayaca girer; sentetik shared/null'a ÇEVRİLMEZ.
+  const eligible: BuiltIndexUnit[] = [];
+  let excludedDemo = 0;
+  let excludedSynthetic = 0;
+  for (const u of page.units) {
+    if (u.tenantId === YH_DEMO_TENANT_ID) {
+      excludedDemo += 1;
+    } else if (isSyntheticTenantId(u.tenantId)) {
+      excludedSynthetic += 1;
+    } else {
+      eligible.push(u);
+    }
+  }
+
+  let write: WriteIndexUnitsResult | null = null;
+  if (mode === "write") {
+    const writer = createSupabaseIndexWriter(db);
+    write = await writer.write({ config, units: eligible });
+  }
+
+  return {
+    sourceKey: page.sourceKey,
+    mode,
+    fetched: page.fetched,
+    eligibleUnits: eligible.length,
+    excludedDemo,
+    excludedSynthetic,
+    summary: page.summary,
+    nextCursor: page.nextCursor,
+    hasMore: page.hasMore,
+    parentStats: page.parentStats,
+    write,
+    exactMode: false,
+    exactStatus: null,
+  };
+}
+
+// ─── BF-4B TENANT-SCOPED BACKFILL (Model C; tek tenant; column-mode; fail-closed) ─
+//
+// `validatedTenantScope` (taşınamaz kanıt) ile TEK tenant'ın sayfasını işler. Reader
+// sorgusu `.eq(tenant.column, scope.tenantId)` ile daraltılır VE runSource ham satır
+// invaryantını uygular. Fail-closed sinyaller TİPLİ THROW ile taşınır (scopeStatus YOK):
+//   - geçersiz kanıt → BroadWriteDisabledError (kanıtsız scope tenant-scoped OKUYAMAZ)
+//   - kaynak uygun değil → SourceTenantScopeUnsupportedError (okuma yok)
+//   - yabancı tenant satırı → TenantFilterMismatchError (runSource + ikincil invaryant)
+// Her throw'da writer ÇAĞRILMAZ.
+async function runTenantScopedPage(
+  input: IndexSourcePageInput,
+  db: IndexDbClient,
+  scopeInput: ValidatedTenantScope,
+): Promise<IndexSourcePageResult> {
+  const { config, mode } = input;
+
+  // (1) Kanıt geçerli değilse HİÇ okuma yapılmaz. dry-run dahil: kanıtsız scope tenant-scoped
+  // OKUYAMAZ → broad-write-disabled (write yolunda çekirdek savunma zaten önce fırlatır).
+  if (!isValidatedTenantScope(scopeInput)) {
+    throw new BroadWriteDisabledError();
+  }
+  // (2) Kaynak tenant-scoped backfill'e uygun değilse (join/shared/pii/disabled) okuma yok.
+  if (!supportsTenantScopedPage(config)) {
+    throw new SourceTenantScopeUnsupportedError();
+  }
+  const scope = scopeInput;
+
+  const reader = createSupabaseSourceReader(db);
+
+  // Scoped sayfa oku. runSource ham satır invaryantında TenantFilterMismatchError fırlatır;
+  // okuma hatası dahil tüm hatalar propagate (writer'a ulaşılmaz).
+  const page: RunSourceResult = await runSource({
+    config,
+    reader,
+    afterId: input.afterId ?? null,
+    limit: input.limit,
+    scopedTenantId: scope.tenantId,
+  });
+
+  // İkincil invaryant: üretilen unit tenant'ı scope ile birebir eşleşmeli (writer öncesi).
+  for (const u of page.units) {
+    if (u.tenantId !== scope.tenantId) {
+      throw new TenantFilterMismatchError();
+    }
+  }
+
+  // Demo/sentetik düş (mevcut sınıflandırma; scope gerçek tenant olduğundan normalde 0).
   const eligible: BuiltIndexUnit[] = [];
   let excludedDemo = 0;
   let excludedSynthetic = 0;

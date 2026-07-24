@@ -20,6 +20,11 @@ import {
 } from "@/lib/yasam-hafizasi/indexer/adminIndexRequest";
 import { indexSourcePage } from "@/lib/yasam-hafizasi/indexer/indexSourcePage";
 import type { IndexDbClient } from "@/lib/yasam-hafizasi/indexer/supabaseIndexAdapters";
+import type { ValidatedTenantScope } from "@/lib/yasam-hafizasi/indexer/tenantScopeGate";
+import {
+  createSupabaseTenantScopeReader,
+  validateScopedTenant,
+} from "@/lib/yasam-hafizasi/indexer/supabaseTenantScopeAdapter";
 
 export const runtime = "nodejs";
 
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     },
 
     // S2.10 çekirdeği; guard.db enjekte (demo kaynak-unit filtresi içeride korunur).
-    runIndexSourcePage: (v: ValidatedAdminIndexRequest) =>
+    runIndexSourcePage: (v: ValidatedAdminIndexRequest, scope?: ValidatedTenantScope) =>
       indexSourcePage({
         config: v.config,
         afterId: v.afterId,
@@ -69,8 +74,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // BF-2B exact-write gate: doğrulanmış exact hedef (broad modda ikisi de null).
         exactSourceId: v.exactSourceId,
         expectedTenantId: v.expectedTenantId,
+        // BF-4B tenant-scoped backfill: doğrulanmış tenant kanıtı (yalnız scoped modda).
+        validatedTenantScope: scope,
         db: db as unknown as IndexDbClient,
       }),
+
+    // BF-4B tenant-scoped kapısı: tenants/users (PII-dışı) okuyup kanıt üretir.
+    validateScopedTenant: async (tenantId: string) =>
+      validateScopedTenant(tenantId, createSupabaseTenantScopeReader(db as unknown as IndexDbClient)),
 
     // Best-effort GÜVENLİ server log (DB write YOK). Ham içerik/DB-mesaj/cursor
     // değeri taşınmaz; yalnız sabit güvenli metadata.

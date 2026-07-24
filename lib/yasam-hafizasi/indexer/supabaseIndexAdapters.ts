@@ -88,7 +88,7 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
 // ─── SourceReader (gerçek) ────────────────────────────────────────────────────
 export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
   return {
-    readPage: async ({ config, afterId, limit }) => {
+    readPage: async ({ config, afterId, limit, scopedTenantId }) => {
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)
@@ -97,6 +97,10 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
         .limit(limit);
       if (config.activeColumn !== null) q = q.eq(config.activeColumn, true);
       if (afterId !== null) q = q.gt(config.primaryKey, afterId);
+      // BF-4B tenant-scoped backfill: column-mode kaynakta tenant kolonuna eşitlik filtresi.
+      if (scopedTenantId != null && config.tenant.mode === "column") {
+        q = q.eq(config.tenant.column, scopedTenantId);
+      }
 
       const { data, error } = await q;
       if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz

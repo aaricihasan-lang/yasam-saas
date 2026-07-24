@@ -48,6 +48,19 @@ import type { ParentTenantLookup } from "./tenantResolve";
 export const DEFAULT_SOURCE_BATCH_SIZE = 200;
 export const MAX_SOURCE_BATCH_SIZE = 500;
 
+/**
+ * BF-4B tenant-scoped invaryant ihlali: scopedTenantId verildiğinde (column-mode)
+ * bir satırın tenant kolonu beklenen tenant'a EŞİT DEĞİLSE fırlatılır. Bu, sayfanın
+ * TAMAMINI iptal eder (per-row catch bunu YUTMAZ, rethrow eder). Ham satır/tenant
+ * değeri taşımaz; yalnız sabit mesaj.
+ */
+export class TenantFilterMismatchError extends Error {
+  constructor() {
+    super("tenant-filter-mismatch");
+    this.name = "TenantFilterMismatchError";
+  }
+}
+
 // ─── Enjekte IO port sözleşmeleri (implementasyon S2.10) ─────────────────────
 
 /** Reader'ın döndürdüğü sıralı (id ASC) sayfa; cursor/hasMore RUNNER'da hesaplanır. */
@@ -61,6 +74,11 @@ export interface SourceReader {
     readonly config: SourceConfig;
     readonly afterId: string | null;
     readonly limit: number;
+    /**
+     * BF-4B tenant-scoped backfill: verildiğinde (column-mode) reader sorguya
+     * `.eq(tenant.column, scopedTenantId)` ekler. Verilmezse mevcut geniş davranış korunur.
+     */
+    readonly scopedTenantId?: string | null;
   }): Promise<SourceRowsPage>;
   /**
    * BF-2B exact-write gate — TEK kaydı primary key EŞİTLİĞİYLE okur (cursor/limit
@@ -93,6 +111,12 @@ export interface RunSourceInput {
   readonly parentReader?: ParentTenantReader;
   readonly afterId?: string | null;
   readonly limit?: number;
+  /**
+   * BF-4B tenant-scoped backfill hedefi. Verildiğinde (column-mode) reader'a iletilir
+   * VE her satır için ham invaryant denetlenir (tenant kolonu ≠ scopedTenantId →
+   * TenantFilterMismatchError; sayfayı iptal eder). Verilmezse mevcut davranış korunur.
+   */
+  readonly scopedTenantId?: string | null;
 }
 
 /** Parent ön-yükleme istatistiği (yalnız sayılar; içerik taşımaz). */
@@ -159,9 +183,10 @@ export async function runSource(input: RunSourceInput): Promise<RunSourceResult>
   const { config, reader, parentReader } = input;
   const limit = normalizeLimit(input.limit);
   const afterId = input.afterId ?? null;
+  const scopedTenantId = input.scopedTenantId ?? null;
 
   // 1) Sayfayı oku (reader reject → propagate).
-  const page = await reader.readPage({ config, afterId, limit });
+  const page = await reader.readPage({ config, afterId, limit, scopedTenantId });
   const rows = page.rows;
   const fetched = rows.length;
 
@@ -213,10 +238,19 @@ export async function runSource(input: RunSourceInput): Promise<RunSourceResult>
 
   for (const row of rows) {
     try {
+      // BF-4B ham tenant invaryantı (yalnız scoped + column-mode). İhlal → sayfayı
+      // İPTAL eden fatal (per-row catch YUTMAZ; rethrow). Fail-closed: yanlış tenant
+      // satırı asla unit'e/writer'a ulaşamaz.
+      if (scopedTenantId != null && config.tenant.mode === "column") {
+        if (row[config.tenant.column] !== scopedTenantId) {
+          throw new TenantFilterMismatchError();
+        }
+      }
       const result = runIndexUnit({ config, row, parentLookup });
       results.push(result);
       if (result.status === "unit") units.push(result.unit);
-    } catch {
+    } catch (err) {
+      if (err instanceof TenantFilterMismatchError) throw err; // sayfayı iptal et
       // Beklenmeyen satır hatası: gizlenmez ama batch'i durdurmaz.
       // Ham row/içerik/exception SONUCA KONMAZ; yalnız sayılır.
       failed += 1;

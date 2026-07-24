@@ -8,7 +8,7 @@
 import { ADMIN_LIBRARY_TENANT_ID } from "../lib/tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID, YH_TABLES } from "../lib/yasam-hafizasi/config";
 import type { BuiltIndexUnit } from "../lib/yasam-hafizasi/indexer/buildCandidate";
-import { indexSourcePage } from "../lib/yasam-hafizasi/indexer/indexSourcePage";
+import { BroadWriteDisabledError, indexSourcePage } from "../lib/yasam-hafizasi/indexer/indexSourcePage";
 import { parentTenantMapKey } from "../lib/yasam-hafizasi/indexer/parentTenantLookup";
 import type { SourceConfig } from "../lib/yasam-hafizasi/indexer/sources";
 import {
@@ -279,34 +279,53 @@ async function main(): Promise<void> {
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
     check(fake.upserts.length === 0 && r.write === null, `D1 dry-run writer çağrılmaz`);
   }
+  // BF-4B: geniş (exact/tenant-scoped OLMAYAN) WRITE artık indexSourcePage çekirdeğinde
+  // fail-closed → BroadWriteDisabledError; reader/writer/cursor'a DOKUNULMAZ (route-bypass savunması).
   {
     const fake = makeFake({ select: orchSelect });
-    const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
-    check(r.write !== null && fake.upserts.length === 1, `D2 write writer çağrılır`);
+    let threw = false;
+    try {
+      await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    } catch (e) {
+      threw = e instanceof BroadWriteDisabledError;
+    }
+    check(threw && fake.upserts.length === 0, `D2 geniş write → BroadWriteDisabledError, writer=0`);
   }
   {
+    // Kanıtsız broad write okuma bile yapmaz (reader=0): from() hiç çağrılmaz.
     const fake = makeFake({ select: orchSelect });
-    await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
-    // demo unit writer'a ulaşmamalı → upsert edilen satır yalnız r1 (1 satır)
-    check(fake.upserts[0].rows.length === 1 && fake.upserts[0].rows[0].source_id === "r1", `D3 demo unit writer'a ulaşmaz`);
+    let threw = false;
+    try {
+      await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    } catch (e) {
+      threw = e instanceof BroadWriteDisabledError;
+    }
+    check(threw && fake.froms.length === 0 && fake.upserts.length === 0, `D3 broad write → reader=0/writer=0`);
   }
   {
+    // Tekrar: fırlatma deterministik (aynı guard her çağrıda).
     const fake = makeFake({ select: orchSelect });
-    const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
-    check(r.excludedDemo === 1 && r.eligibleUnits === 1 && r.fetched === 2, `D4 excludedDemo=${r.excludedDemo} eligible=${r.eligibleUnits}`);
+    let code = "";
+    try {
+      await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    } catch (e) {
+      code = e instanceof Error ? e.message : "?";
+    }
+    check(code === "broad-write-disabled" && fake.upserts.length === 0, `D4 broad write mesajı 'broad-write-disabled'`);
   }
   {
     const fake = makeFake({ select: orchSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
     const keys = Object.keys(r).sort().join(",");
-    // BF-2B: exactMode/exactStatus güvenli skaler alanları eklendi (ham içerik değil);
-    // "units" (ham) sızmama garantisi KORUNUR.
-    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,exactMode,exactStatus,excludedDemo,excludedSynthetic,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok (${keys})`);
+    // BF-2B: exactMode/exactStatus güvenli skaler alanları; BF-4B: scopeStatus KALDIRILDI
+    // (public contract onaylı şekli korur). "units" (ham) sızmama garantisi KORUNUR.
+    check(keys.indexOf("units") === -1 && keys === "eligibleUnits,exactMode,exactStatus,excludedDemo,excludedSynthetic,fetched,hasMore,mode,nextCursor,parentStats,sourceKey,summary,write", `D5 ham units yok + scopeStatus yok (${keys})`);
   }
   {
-    // db injection çalışır: fake kullanıldı (gerçek getServerDb çağrılmadı → env gerekmez)
+    // db injection çalışır: fake kullanıldı (gerçek getServerDb çağrılmadı → env gerekmez).
+    // Broad write artık fırlattığından db-injection dry-run ile doğrulanır.
     const fake = makeFake({ select: orchSelect });
-    const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
     check(r.sourceKey === "test:col" && fake.froms.length > 0, `D6 db injection çalışır`);
   }
 
@@ -348,18 +367,28 @@ async function main(): Promise<void> {
       `E5 tümü sentetik → eligible=0, kontrollü başarı (${r.eligibleUnits}/${r.excludedSynthetic})`);
   }
   {
+    // BF-4B: geniş write fail-closed → BroadWriteDisabledError; okuma/yazma YOK.
     const fake = makeFake({ select: allSyntheticSelect });
-    const r = await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
-    // eligible=0 → writer boş-units yolu; upsert YOK, hata YOK.
-    check(fake.upserts.length === 0 && r.write !== null && r.write.attempted === 0,
-      `E6 write modunda sentetik writer'a ULAŞMAZ (upsert=${fake.upserts.length})`);
+    let threw = false;
+    try {
+      await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    } catch (e) {
+      threw = e instanceof BroadWriteDisabledError;
+    }
+    check(threw && fake.upserts.length === 0 && fake.froms.length === 0,
+      `E6 geniş write → BroadWriteDisabledError (reader=0/writer=0)`);
   }
   {
+    // BF-4B: mixed geniş write de fail-closed (writer'a hiç ulaşılmaz).
     const fake = makeFake({ select: mixedSelect });
-    await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
-    const rows = fake.upserts.flatMap((u) => u.rows);
-    check(rows.length === 1 && rows[0].source_id === "r1" && rows[0].tenant_id === TENANT_A,
-      `E7 mixed write → yalnız gerçek tenant yazılır (${rows.length})`);
+    let threw = false;
+    try {
+      await indexSourcePage({ config: colCfg, mode: "write", db: fake.db });
+    } catch (e) {
+      threw = e instanceof BroadWriteDisabledError;
+    }
+    check(threw && fake.upserts.length === 0,
+      `E7 mixed geniş write → BroadWriteDisabledError (writer=0)`);
   }
   {
     // Savunma derinliği: writer'a DOĞRUDAN sentetik unit verilirse fail-fast.

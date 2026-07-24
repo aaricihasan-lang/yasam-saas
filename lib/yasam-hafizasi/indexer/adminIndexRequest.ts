@@ -26,10 +26,14 @@ import { YH_INDEX_SOURCES } from "./sources";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
 import {
+  BroadWriteDisabledError,
   SourceNotIndexableError,
+  SourceTenantScopeUnsupportedError,
   type IndexSourcePageResult,
   type ExactWriteStatus,
 } from "./indexSourcePage";
+import { supportsTenantScopedPage, type ValidatedTenantScope } from "./tenantScopeGate";
+import { TenantFilterMismatchError } from "./runSource";
 import type { WriteIndexUnitsResult } from "./supabaseIndexAdapters";
 
 // ─── Source resolver (saf; statik allowlist) ─────────────────────────────────
@@ -54,6 +58,8 @@ export interface AdminIndexRequestBody {
   // BF-2B exact-write gate (opsiyonel; ikisi birlikte verilir).
   readonly exactSourceId?: string | null;
   readonly expectedTenantId?: string | null;
+  // BF-4B tenant-scoped backfill (opsiyonel; exact ile birlikte kullanılamaz).
+  readonly scopedTenantId?: string | null;
 }
 
 export interface ValidatedAdminIndexRequest {
@@ -62,9 +68,11 @@ export interface ValidatedAdminIndexRequest {
   readonly mode: AdminIndexMode;
   readonly afterId: string | null;
   readonly limit: number;
-  // BF-2B: exact modda ikisi de dolu + geçerli UUID; broad modda ikisi de null.
+  // BF-2B: exact modda ikisi de dolu + geçerli UUID; broad/scoped modda ikisi de null.
   readonly exactSourceId: string | null;
   readonly expectedTenantId: string | null;
+  // BF-4B: scoped modda geçerli UUID; broad/exact modda null.
+  readonly scopedTenantId: string | null;
 }
 
 export type AdminIndexErrorCode =
@@ -87,7 +95,30 @@ export type AdminIndexErrorCode =
   | "invalid-expected-tenant-id" // UUID değil
   | "exact-cursor-conflict" // exact + afterId birlikte verilemez
   | "exact-limit-conflict" // exact + limit≠1 verilemez
-  | "exact-not-eligible"; // exact write: eligible tam 1 değil / eşleşme yok → writer çağrılmadı
+  | "exact-not-eligible" // exact write: eligible tam 1 değil / eşleşme yok → writer çağrılmadı
+  // BF-4B tenant-scoped backfill hata kodları.
+  | "invalid-combination" // scoped + exact aynı istekte verilemez
+  | "invalid-tenant-id" // scopedTenantId UUID değil
+  | "broad-write-disabled" // geniş (scoped/exact olmayan) WRITE fail-closed
+  | "source-tenant-scope-unsupported" // kaynak column-mode/non-shared/safe değil
+  | "tenant-not-found" // tenant kaydı yok
+  | "tenant-inactive" // tenant.status !== 'active'
+  | "tenant-not-ready" // hazır uzman yok (admin-only / pending / rejected / boş)
+  | "tenant-demo" // tenant'ın tüm kullanıcıları demo
+  | "tenant-synthetic" // sentetik (ADMIN_LIBRARY) tenant
+  | "tenant-mixed-demo" // tenant demo + non-demo karışık
+  | "tenant-scope-validation-unavailable" // tenant/users okuma hatası (fail-closed)
+  | "tenant-filter-mismatch"; // scoped sayfada yabancı tenant satırı → 409
+
+/** deps.validateScopedTenant'ın döndürebileceği tenant kapısı hata kodları. */
+export type ScopedTenantGateCode =
+  | "tenant-not-found"
+  | "tenant-inactive"
+  | "tenant-not-ready"
+  | "tenant-demo"
+  | "tenant-mixed-demo"
+  | "tenant-synthetic"
+  | "tenant-scope-validation-unavailable";
 
 /** Güvenli sayfa özeti (ham içerik yok). */
 export interface SafePageSummary {
@@ -120,6 +151,7 @@ export interface AdminIndexDryRunSuccess {
   readonly ok: true;
   readonly mode: "dry-run";
   readonly sourceKey: string;
+  readonly scopedTenantId: string | null; // BF-4B: scoped modda tenant, aksi null
   readonly page: SafePageSummary;
   readonly write: null;
 }
@@ -127,6 +159,7 @@ export interface AdminIndexWriteSuccess {
   readonly ok: true;
   readonly mode: "write";
   readonly sourceKey: string;
+  readonly scopedTenantId: string | null; // BF-4B: scoped modda tenant, aksi null
   readonly page: SafePageSummary;
   readonly write: SafeWriteSummary & { readonly completed: true };
 }
@@ -134,6 +167,7 @@ export interface AdminIndexPartialWrite {
   readonly ok: false;
   readonly mode: "write";
   readonly sourceKey: string;
+  readonly scopedTenantId: string | null; // BF-4B: scoped modda tenant, aksi null
   readonly error: { readonly code: "partial-write" };
   readonly page: SafePageSummary;
   readonly write: SafeWriteSummary & { readonly completed: false };
@@ -176,7 +210,20 @@ export interface AdminIndexHandlerDeps {
   readonly checkAdminDemoStatus: (
     adminId: string,
   ) => Promise<{ ok: true; isDemo: boolean } | { ok: false; code: "demo-check-failed" }>;
-  readonly runIndexSourcePage: (input: ValidatedAdminIndexRequest) => Promise<IndexSourcePageResult>;
+  readonly runIndexSourcePage: (
+    input: ValidatedAdminIndexRequest,
+    scope?: ValidatedTenantScope,
+  ) => Promise<IndexSourcePageResult>;
+  /**
+   * BF-4B tenant-scoped backfill: doğrulanmış tenant kanıtı üretir (IO; route enjekte
+   * eder). scoped modda ZORUNLU; yoksa handler 503 tenant-scope-validation-unavailable döner.
+   */
+  readonly validateScopedTenant?: (
+    tenantId: string,
+  ) => Promise<
+    | { ok: true; scope: ValidatedTenantScope }
+    | { ok: false; code: ScopedTenantGateCode }
+  >;
   readonly writeAuditEvent?: (event: SafeAdminIndexAuditEvent) => Promise<void>;
 }
 
@@ -194,6 +241,8 @@ const ALLOWED_KEYS: ReadonlySet<string> = new Set([
   // BF-2B exact-write gate (opsiyonel).
   "exactSourceId",
   "expectedTenantId",
+  // BF-4B tenant-scoped backfill (opsiyonel).
+  "scopedTenantId",
 ]);
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -247,12 +296,41 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
   const hasExactTenant = body.expectedTenantId !== undefined && body.expectedTenantId !== null;
   const exactMode = hasExactSource || hasExactTenant;
 
+  // BF-4B tenant-scoped tespiti.
+  const scoped = body.scopedTenantId !== undefined && body.scopedTenantId !== null;
+
+  // scoped + exact aynı istekte verilemez (fail-closed kombinasyon reddi).
+  if (scoped && exactMode) return fail(400, "invalid-combination");
+
   let afterId: string | null = null;
   let limit = DEFAULT_LIMIT;
   let exactSourceId: string | null = null;
   let expectedTenantId: string | null = null;
+  let scopedTenantId: string | null = null;
 
-  if (exactMode) {
+  if (scoped) {
+    // scopedTenantId geçerli UUID olmalı.
+    const st = body.scopedTenantId;
+    if (typeof st !== "string" || !UUID_RE.test(st)) return fail(400, "invalid-tenant-id");
+    scopedTenantId = st;
+
+    // afterId (cursor) opsiyonel — geniş yol ile aynı katı doğrulama.
+    if (body.afterId !== undefined && body.afterId !== null) {
+      const a = body.afterId;
+      if (typeof a !== "string" || a.length === 0 || a.length > 128 || hasControlChar(a) || a !== a.trim()) {
+        return fail(400, "invalid-cursor");
+      }
+      afterId = a;
+    }
+    // limit 1..500 (geniş yol ile aynı; clamp yok, reddet).
+    if (body.limit !== undefined) {
+      const l = body.limit;
+      if (typeof l !== "number" || !Number.isInteger(l) || l < 1 || l > MAX_LIMIT) {
+        return fail(400, "invalid-limit");
+      }
+      limit = l;
+    }
+  } else if (exactMode) {
     // İkisi birlikte zorunlu.
     if (!hasExactSource || !hasExactTenant) return fail(400, "exact-fields-incomplete");
 
@@ -269,7 +347,9 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
     if (body.limit !== undefined && body.limit !== 1) return fail(400, "exact-limit-conflict");
     limit = 1;
   } else {
-    // afterId: eksik/null → başlangıç; verilirse katı string.
+    // GENİŞ (broad) mod. NOT: geniş WRITE reddi (broad-write-disabled) VALIDATION'da
+    // DEĞİL, handler'da demo kapısından SONRA uygulanır (demo admin geniş write →
+    // demo-write-forbidden davranışı korunur). Burada yalnız afterId/limit doğrulanır.
     if (body.afterId !== undefined && body.afterId !== null) {
       const a = body.afterId;
       if (
@@ -302,9 +382,23 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
   // → 403 fail-closed. dry-run ve write AYNI kapıdan geçer; classification detayı sızmaz.
   if (!isIndexableSource(config)) return fail(403, "source-not-indexable");
 
+  // BF-4B: scoped modda kaynak column-mode/non-shared/safe-non-pii olmalı; aksi → 422.
+  if (scoped && !supportsTenantScopedPage(config)) {
+    return fail(422, "source-tenant-scope-unsupported");
+  }
+
   return {
     ok: true,
-    value: { sourceKey: config.sourceKey, config, mode, afterId, limit, exactSourceId, expectedTenantId },
+    value: {
+      sourceKey: config.sourceKey,
+      config,
+      mode,
+      afterId,
+      limit,
+      exactSourceId,
+      expectedTenantId,
+      scopedTenantId,
+    },
   };
 }
 
@@ -341,6 +435,22 @@ function toSafeWrite(w: WriteIndexUnitsResult): SafeWriteSummary {
 
 // ─── Handler (orkestrasyon; enjekte deps) ────────────────────────────────────
 
+/** BF-4B tenant kapısı kodunu HTTP status'e çevirir (fail-closed eşleme). */
+function tenantGateHttpStatus(code: ScopedTenantGateCode): number {
+  switch (code) {
+    case "tenant-not-found":
+      return 404;
+    case "tenant-inactive":
+    case "tenant-not-ready":
+    case "tenant-demo":
+    case "tenant-mixed-demo":
+    case "tenant-synthetic":
+      return 403;
+    case "tenant-scope-validation-unavailable":
+      return 503;
+  }
+}
+
 async function bestEffortAudit(
   deps: AdminIndexHandlerDeps,
   event: SafeAdminIndexAuditEvent,
@@ -364,8 +474,10 @@ export async function handleAdminIndexRequest(
   if (!v.ok) {
     return { status: v.status, body: { ok: false, error: { code: v.code } } };
   }
-  const { sourceKey, mode, afterId, limit } = v.value;
+  const { sourceKey, mode, afterId, limit, exactSourceId, scopedTenantId } = v.value;
   const cursorPresent = afterId !== null;
+  const scoped = scopedTenantId !== null;
+  const broad = exactSourceId === null && scopedTenantId === null;
 
   // Write kapısı: fail-closed demo kontrolü (dry-run demo sorgusu çalıştırmaz).
   if (mode === "write") {
@@ -380,11 +492,49 @@ export async function handleAdminIndexRequest(
     }
   }
 
+  // BF-4B: GENİŞ (scoped/exact olmayan) WRITE fail-closed. Demo kapısından SONRA
+  // uygulanır (demo admin geniş write → demo-write-forbidden davranışı korunur).
+  // Üretim geniş write'ı indexSourcePage'e HİÇ ulaşmaz.
+  if (broad && mode === "write") {
+    await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "broad-write-disabled" });
+    return { status: 403, body: { ok: false, error: { code: "broad-write-disabled" } } };
+  }
+
+  // BF-4B tenant-scoped kapısı: kanıt üret (IO). scoped modda ZORUNLU.
+  let scope: ValidatedTenantScope | undefined;
+  if (scoped) {
+    if (!deps.validateScopedTenant) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "tenant-scope-validation-unavailable" });
+      return { status: 503, body: { ok: false, error: { code: "tenant-scope-validation-unavailable" } } };
+    }
+    const gate = await deps.validateScopedTenant(scopedTenantId);
+    if (!gate.ok) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: gate.code });
+      return { status: tenantGateHttpStatus(gate.code), body: { ok: false, error: { code: gate.code } } };
+    }
+    scope = gate.scope;
+  }
+
   // İndeksleme (tek çağrı). IO fatal → 500 index-failed (ham hata taşınmaz).
+  // BF-4B: indexSourcePage çekirdeği fail-closed durumları TİPLİ THROW ile bildirir
+  // (validator zaten fail-fast reddeder; bunlar route-bypass/doğrudan çağrı savunmasıdır).
   let result: IndexSourcePageResult;
   try {
-    result = await deps.runIndexSourcePage(v.value);
+    result = await deps.runIndexSourcePage(v.value, scope);
   } catch (err) {
+    // BF-4B tenant-scoped tipli hatalar → güvenli HTTP eşlemesi.
+    if (err instanceof TenantFilterMismatchError) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "tenant-filter-mismatch" });
+      return { status: 409, body: { ok: false, error: { code: "tenant-filter-mismatch" } } };
+    }
+    if (err instanceof BroadWriteDisabledError) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "broad-write-disabled" });
+      return { status: 403, body: { ok: false, error: { code: "broad-write-disabled" } } };
+    }
+    if (err instanceof SourceTenantScopeUnsupportedError) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "source-tenant-scope-unsupported" });
+      return { status: 422, body: { ok: false, error: { code: "source-tenant-scope-unsupported" } } };
+    }
     // BF-0 son savunma: indexSourcePage non-indexable kaynak fırlatırsa → 403 (validation
     // zaten engeller; bu defense-in-depth). Diğer IO fatal → 500 index-failed.
     if (err instanceof SourceNotIndexableError) {
@@ -405,7 +555,7 @@ export async function handleAdminIndexRequest(
 
   if (mode === "dry-run") {
     await bestEffortAudit(deps, { ...auditBase, outcome: "dry-run-ok" });
-    return { status: 200, body: { ok: true, mode: "dry-run", sourceKey, page, write: null } };
+    return { status: 200, body: { ok: true, mode: "dry-run", sourceKey, scopedTenantId, page, write: null } };
   }
 
   // BF-2B exact-write gate (defense-in-depth): write modunda exactStatus !== 'ok'
@@ -432,13 +582,13 @@ export async function handleAdminIndexRequest(
 
   if (completed) {
     await bestEffortAudit(deps, { ...auditWrite, outcome: "write-ok" });
-    return { status: 200, body: { ok: true, mode: "write", sourceKey, page, write: { ...write, completed: true } } };
+    return { status: 200, body: { ok: true, mode: "write", sourceKey, scopedTenantId, page, write: { ...write, completed: true } } };
   }
 
   // Kısmi write → 503, ok:false (monitoring görür; idempotent tekrar edilebilir).
   await bestEffortAudit(deps, { ...auditWrite, outcome: "partial-write", errorCode: "partial-write" });
   return {
     status: 503,
-    body: { ok: false, mode: "write", sourceKey, error: { code: "partial-write" }, page, write: { ...write, completed: false } },
+    body: { ok: false, mode: "write", sourceKey, scopedTenantId, error: { code: "partial-write" }, page, write: { ...write, completed: false } },
   };
 }
