@@ -2,6 +2,12 @@
 
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
+  isExpertReady,
+  normalizeApprovalStatus as normalizeApprovalStatusPure,
+  normalizeRole as normalizeRolePure,
+  resolveApprovalStatus as resolveApprovalStatusPure,
+} from "@/lib/auth/approvalGate";
+import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
@@ -66,8 +72,9 @@ export function invalidateYasamUserSyncCache(): void {
   syncInFlight = null;
 }
 
+/** SAF çekirdeğe (approvalGate) delege; imza + davranış birebir korunur. */
 export function normalizeRole(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
+  return normalizeRolePure(value);
 }
 
 export function isAllowedLoginRole(role: unknown): role is UserRole {
@@ -145,34 +152,21 @@ function parseActiveFlag(value: unknown): boolean | undefined {
   return undefined;
 }
 
+/** SAF çekirdeğe (approvalGate) delege; imza + davranış birebir korunur. */
 export function normalizeApprovalStatus(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
+  return normalizeApprovalStatusPure(value);
 }
 
-/** Admin paneli ile aynı standart: users.active + users.approval_status */
+/** Admin paneli ile aynı standart: users.active + users.approval_status (approvalGate delege). */
 export function resolveApprovalStatus(
   row: Record<string, unknown>,
 ): ApprovalStatus | undefined {
-  if (row.approval_status != null && String(row.approval_status).trim() !== "") {
-    return normalizeApprovalStatus(row.approval_status) as ApprovalStatus;
-  }
-  if (row.is_approved === true || row.approved === true) return "approved";
-  if (row.is_approved === false || row.approved === false) return "pending";
-  const status = normalizeApprovalStatus(row.status);
-  if (status === "approved" || status === "pending" || status === "rejected") {
-    return status as ApprovalStatus;
-  }
-  return undefined;
+  return resolveApprovalStatusPure(row) as ApprovalStatus | undefined;
 }
 
-/** Uzman: aktif + onaylı (admin paneli ile uyumlu) */
+/** Uzman: aktif + onaylı (admin paneli ile uyumlu; approvalGate saf çekirdeğine delege). */
 export function isExpertAccountReady(user: YasamUser): boolean {
-  if (user.active !== true) return false;
-  const approval = normalizeApprovalStatus(user.approval_status);
-  if (approval === "rejected") return false;
-  if (approval === "approved") return true;
-  if (!approval) return true;
-  return false;
+  return isExpertReady({ active: user.active, approval: user.approval_status });
 }
 
 /**
