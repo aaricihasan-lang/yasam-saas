@@ -27,7 +27,8 @@ export default function NumerolojiBilgiBankasiPage() {
       {isDemo && (
         <DemoModuleBanner className="mb-3" message="Numeroloji bilgi bankası demo hesabında görüntülenebilir. Kayıt ekleme, düzenleme ve silme işlemleri yapılamaz." />
       )}
-      <div className="mb-3 rounded-2xl border border-violet-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-xl">
+      {/* NUM-MOB-1: mobilde kenar-yaslı (rounded/border-x kaldırıldı); md+ kart görünümü korunur. */}
+      <div className="mb-3 border-y border-violet-200/80 bg-white/90 px-4 py-4 shadow-[0_6px_24px_-8px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-xl md:rounded-2xl md:border md:px-5">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
           Bilgi Bankası
         </h1>
@@ -36,8 +37,8 @@ export default function NumerolojiBilgiBankasiPage() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-violet-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-md">
-        <div className="flex flex-wrap gap-2 rounded-t-2xl border-b border-violet-200/60 bg-white/75 p-3 backdrop-blur-xl">
+      <div className="overflow-hidden border-y border-violet-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-md md:rounded-2xl md:border">
+        <div className="flex flex-wrap gap-2 border-b border-violet-200/60 bg-white/75 p-3 backdrop-blur-xl md:rounded-t-2xl">
           {BILGI_TABS.filter((t) => !isDemo || t.id === "kayit-listesi").map((t) => (
             <button
               key={t.id}
@@ -54,7 +55,7 @@ export default function NumerolojiBilgiBankasiPage() {
           ))}
         </div>
 
-        <div className="bg-gradient-to-b from-white/95 to-violet-50/25 p-4">
+        <div className="bg-gradient-to-b from-white/95 to-violet-50/25 px-2 py-3 md:p-4">
           {tab === "kayit-ekle" ? <BilgiKayitEkleDuzenle /> : null}
           {tab === "dogaltas-ata" ? <BilgiDogaltasAta /> : null}
           {tab === "kayit-listesi" ? <BilgiKayitListesi /> : null}

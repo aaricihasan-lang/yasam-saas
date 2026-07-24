@@ -141,7 +141,7 @@ export default function NumerolojiKayitDetayPage() {
               type="button"
               onClick={() => void downloadWord()}
               disabled={wordBusy}
-              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
+              className="hidden shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60 md:inline-flex"
             >
               {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
             </button>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { isMobileViewport } from "../helpers/mobileUxLogic";
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -323,11 +325,12 @@ function KayitGorselKontrolPanel({
         >
           {kayitGorselKaydediliyor ? "Kaydediliyor…" : "Ayarları Kaydet"}
         </button>
+        {/* NUM-MOB-1: PNG İndir mobilde gizli (yer kaplamaz); md+ değişmez. */}
         <button
           type="button"
           disabled={gorselPngHazirlaniyor || kayitGorselKaydediliyor}
           onClick={onPngIndir}
-          className="h-9 w-full rounded-xl border border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="hidden h-9 w-full rounded-xl border border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 md:block"
         >
           {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
         </button>
@@ -369,6 +372,21 @@ export function NumerolojiKayitDetayPanel({
   const [kayitGorselKaydediliyor, setKayitGorselKaydediliyor] = useState(false);
   const [kayitGorselMesaj, setKayitGorselMesaj] = useState<string | null>(null);
   const [contentFontSize, setContentFontSize] = useState<ContentFontSize>("normal");
+  // NUM-MOB-1: mobil tam ekran görsel rapor viewer.
+  const [tamEkran, setTamEkran] = useState(false);
+  useEffect(() => {
+    if (!tamEkran) return;
+    const prevBody = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTamEkran(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [tamEkran]);
 
   const isOkumaTab = tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas";
   const isIliskiTab = tab === "iliski";
@@ -445,7 +463,10 @@ export function NumerolojiKayitDetayPanel({
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setTab(t.id)}
+                  onClick={() => {
+                    setTab(t.id);
+                    setTamEkran(false);
+                  }}
                   className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide transition-all duration-150 ${
                     tab === t.id
                       ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_2px_8px_rgba(139,92,246,0.25)]"
@@ -517,22 +538,77 @@ export function NumerolojiKayitDetayPanel({
                 onPngIndir={() => void handleGorselPngIndir()}
               />
             </div>
-            <GorselScalePreview
-              out={out}
-              isimGoster={isimGoster}
-              dogumGoster={birthDate}
-              firstName={name}
-              lastName={surname}
-              temaId={gorselTema}
-              uzmanAdi={uzmanAdi}
-              gorselTaslariGoster={gorselTaslariGoster}
-              tasBileklik={tasBileklik}
-              tasKolye={tasKolye}
-              tasKutle={tasKutle}
-            />
+            {/* NUM-MOB-1: mobilde önizlemeye dokununca tam ekran açılır. */}
+            <div>
+              <p className="mb-1 text-center text-[11px] font-bold text-violet-700/80 md:hidden">
+                Tam ekran görüntülemek için rapora dokunun
+              </p>
+              <div
+                className="max-md:cursor-zoom-in"
+                onClick={() => {
+                  // Yalnız viewport <768 iken tam ekran aç (masaüstünde no-op).
+                  if (typeof window !== "undefined" && isMobileViewport(window.innerWidth)) {
+                    setTamEkran(true);
+                  }
+                }}
+              >
+                <GorselScalePreview
+                  out={out}
+                  isimGoster={isimGoster}
+                  dogumGoster={birthDate}
+                  firstName={name}
+                  lastName={surname}
+                  temaId={gorselTema}
+                  uzmanAdi={uzmanAdi}
+                  gorselTaslariGoster={gorselTaslariGoster}
+                  tasBileklik={tasBileklik}
+                  tasKolye={tasKolye}
+                  tasKutle={tasKutle}
+                />
+              </div>
+            </div>
           </div>
         ) : null}
       </div>
+
+      {/* NUM-MOB-1: mobil tam ekran görsel rapor viewer (portal + scroll-lock + ESC). */}
+      {tamEkran && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Görsel rapor tam ekran"
+              className="fixed inset-0 z-[9999] overflow-y-auto overflow-x-hidden bg-black/95"
+            >
+              <div className="flex min-h-full justify-center px-1 py-8">
+                <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-10">
+                  <GorselScalePreview
+                    out={out}
+                    isimGoster={isimGoster}
+                    dogumGoster={birthDate}
+                    firstName={name}
+                    lastName={surname}
+                    temaId={gorselTema}
+                    uzmanAdi={uzmanAdi}
+                    gorselTaslariGoster={gorselTaslariGoster}
+                    tasBileklik={tasBileklik}
+                    tasKolye={tasKolye}
+                    tasKutle={tasKutle}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTamEkran(false)}
+                aria-label="Tam ekranı kapat"
+                className="fixed right-4 top-4 z-[10000] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
+              >
+                ×
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
