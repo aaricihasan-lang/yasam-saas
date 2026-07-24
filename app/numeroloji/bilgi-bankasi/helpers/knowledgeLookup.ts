@@ -2,6 +2,7 @@ import type { NumerolojiResult } from "@/lib/numeroloji";
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
+import type { KnowledgeSection } from "./knowledgeSections";
 
 const KNOWLEDGE_API = "/api/numeroloji/knowledge";
 
@@ -14,12 +15,14 @@ const NUMERO_ANALYSIS_TYPES = {
   element: "element",
 } as const;
 
+// NKB-V2-H: Danışan analiz yorumu için GÜVENLİ alanlar. source/display_label/bibliyografik
+// alanlar/internal_note DANIŞAN notuna GİRMEZ. content_sections canonical yorum kaynağıdır.
 export type KnowledgeNote = {
   id: string;
   analysisType: string;
   value: string;
-  source: string | null;
   description: string | null;
+  content_sections: KnowledgeSection[] | null;
 };
 
 export type KnowledgeNotesForAnalysis = {
@@ -136,12 +139,13 @@ export function buildElementLookupValues(_out: NumerolojiMotorOut): string[] {
 }
 
 function rowToNote(row: KnowledgeRecordRow): KnowledgeNote {
+  // Yalnız güvenli alanlar taşınır: source ASLA taşınmaz (danışan gizlilik sınırı).
   return {
     id: row.id,
     analysisType: row.analysis_type,
     value: row.value,
-    source: row.source,
     description: row.description,
+    content_sections: Array.isArray(row.content_sections) ? row.content_sections : null,
   };
 }
 

@@ -1,6 +1,8 @@
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import { analizTuruLabel } from "./bilgiBankaLabels";
 import type { KnowledgeSection } from "./knowledgeSections";
+import { buildListSummary } from "./noteLogic";
+import { listAllRecordSources, listSources } from "./sourcesApi";
 
 const KNOWLEDGE_API = "/api/numeroloji/knowledge";
 const STONE_API = "/api/numeroloji/stones";
@@ -154,13 +156,38 @@ export async function listBilgiBankaKayitlari(): Promise<{
   rows: BilgiBankaListeSatir[];
   error: string | null;
 }> {
-  const [knowledgeRes, stoneRes] = await Promise.all([fetchKnowledgeRows(), fetchStoneRows()]);
+  // NKB-V2-H: knowledge + stones + (yapılandırılmış kaynak) tek seferde; N+1 YOK.
+  // Kaynak sorguları başarısızsa liste yine yüklenir (yalnız display_label yok — başka tenant fallback YOK).
+  const [knowledgeRes, stoneRes, linkRes, sourceRes] = await Promise.all([
+    fetchKnowledgeRows(),
+    fetchStoneRows(),
+    listAllRecordSources(),
+    listSources(),
+  ]);
   if (knowledgeRes.error) return { rows: [], error: knowledgeRes.error };
   if (stoneRes.error) return { rows: [], error: stoneRes.error };
 
+  // source_id → display_label ; ardından knowledge_record_id → display_label[]
+  const labelBySourceId = new Map<string, string>();
+  for (const s of sourceRes.rows) labelBySourceId.set(s.id, s.display_label);
+  const labelsByRecordId = new Map<string, string[]>();
+  for (const l of linkRes.rows) {
+    const label = labelBySourceId.get(l.source_id);
+    if (!label) continue;
+    const arr = labelsByRecordId.get(l.knowledge_record_id) ?? [];
+    if (!arr.includes(label)) arr.push(label);
+    labelsByRecordId.set(l.knowledge_record_id, arr);
+  }
+
   const aciklama = knowledgeRes.rows.map((row): BilgiBankaListeSatir => {
     const analiz = analizTuruLabel(row.analysis_type);
-    const bilgi = [row.source, row.description].filter(Boolean).join(" — ");
+    const displayLabels = labelsByRecordId.get(row.id) ?? null;
+    const bilgi = buildListSummary({
+      displayLabels,
+      content_sections: row.content_sections,
+      source: row.source,
+      description: row.description,
+    });
     return {
       id: `aciklama:${row.id}`,
       recordId: row.id,
@@ -168,12 +195,12 @@ export async function listBilgiBankaKayitlari(): Promise<{
       analizTuruKey: row.analysis_type,
       analizTuru: analiz,
       deger: row.value,
-      bilgiVeyaAciklama: bilgi || "—",
+      bilgiVeyaAciklama: bilgi,
       guncellemeTarihi: row.updated_at,
       source: row.source ?? "",
       description: row.description ?? "",
       content_sections: Array.isArray(row.content_sections) ? row.content_sections : null,
-      aramaMetni: [analiz, row.value, row.source, row.description]
+      aramaMetni: [analiz, row.value, (displayLabels ?? []).join(" "), bilgi]
         .filter(Boolean)
         .join(" ")
         .toLocaleLowerCase("tr-TR"),

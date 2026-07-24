@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ANALIZ_TURU_LABELS } from "../helpers/bilgiBankaLabels";
@@ -31,35 +32,27 @@ const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatM
   `${el} | FAZLA Destek`,
 ]);
 
+// NKB-V2-H: kompakt premium alanlar (önceki dev boyutlar küçültüldü; iç sabit-yükseklik/scroll kaldırıldı).
 const modalFieldBase =
-  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+  "w-full rounded-xl border-2 border-violet-200/90 bg-white px-4 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
 
-const modalSelectClass = `h-16 ${modalFieldBase} px-6 text-lg font-semibold`;
-
-const modalInputClass = `h-16 ${modalFieldBase} px-6 text-lg font-semibold placeholder:text-slate-400`;
-
-const modalTextareaClass = `${modalFieldBase} min-h-[220px] resize-y rounded-2xl p-6 text-lg font-medium leading-9 text-slate-700 placeholder:text-slate-400 xl:text-xl`;
-
-const modalLabelClass = "mb-3 block text-base font-black text-slate-800 xl:text-lg";
-
+const modalSelectClass = `h-11 ${modalFieldBase} text-sm font-semibold`;
+const modalInputClass = `h-11 ${modalFieldBase} text-sm font-semibold placeholder:text-slate-400`;
+// Düzenleme textarea'sı: makul min-height; ayrı scrollbar zorlayan sabit büyük yükseklik yok.
+const modalTextareaClass = `${modalFieldBase} min-h-[120px] resize-y rounded-xl py-2.5 text-sm font-medium leading-7 text-slate-700 placeholder:text-slate-400`;
+const modalLabelClass = "mb-1.5 block text-sm font-black text-slate-800";
 const modalReadonlyClass =
-  "mt-2 flex min-h-[4rem] items-center rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 px-6 text-lg font-semibold text-slate-800";
-
-const modalReadonlyAciklamaClass =
-  "mt-2 min-h-[220px] whitespace-pre-wrap rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 p-6 text-lg font-medium leading-9 text-slate-700 xl:text-xl";
-
-// Kulvar bölüm görünümü: min-height YOK → boş bölümlerde dev boş kutu oluşmaz.
+  "mt-1.5 flex min-h-[2.75rem] items-center rounded-xl border-2 border-violet-200/90 bg-violet-50/30 px-4 text-sm font-semibold text-slate-800";
+// Salt-okuma açıklama/bölüm: min-height YOK, iç overflow YOK → metin doğal aksar, modal body scroll eder.
 const modalSectionViewClass =
-  "mt-2 whitespace-pre-wrap rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 p-6 text-lg font-medium leading-9 text-slate-700 xl:text-xl";
+  "mt-1.5 whitespace-pre-wrap rounded-xl border-2 border-violet-200/90 bg-violet-50/30 p-4 text-sm font-medium leading-7 text-slate-700";
 
 const modalPrimaryBtn =
-  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-black text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 xl:text-lg";
-
+  "inline-flex h-11 items-center justify-center rounded-xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 text-sm font-black text-white shadow-md ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60";
 const modalSecondaryBtn =
-  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 text-base font-black text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80 xl:text-lg";
-
+  "inline-flex h-11 items-center justify-center rounded-xl border-2 border-violet-200/90 bg-white px-5 text-sm font-black text-violet-900 shadow-sm ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80";
 const modalCloseBtn =
-  "inline-flex h-14 shrink-0 items-center justify-center rounded-2xl border-2 border-slate-300/90 bg-slate-50 px-8 text-base font-black text-slate-800 shadow-md ring-2 ring-slate-200/60 transition hover:border-slate-400 hover:bg-white xl:text-lg";
+  "inline-flex h-10 shrink-0 items-center justify-center rounded-xl border-2 border-slate-300/90 bg-slate-50 px-4 text-sm font-black text-slate-800 shadow-sm ring-2 ring-slate-200/60 transition hover:border-slate-400 hover:bg-white";
 
 type ModalFormState = {
   analizTuruKey: string;
@@ -83,7 +76,6 @@ function kayitTuruLabel(tur: KayitTuru) {
 }
 
 function rowToForm(row: BilgiBankaListeSatir): ModalFormState {
-  // Kulvar kaydında bölümler content_sections'tan (yoksa legacy description → overview) gelir.
   const kulvarBodies = isKulvarAnalysisType(row.analizTuruKey)
     ? bodiesFromRecord({ content_sections: row.content_sections, description: row.description ?? null })
     : { ...EMPTY_KULVAR_BODIES };
@@ -100,7 +92,6 @@ function rowToForm(row: BilgiBankaListeSatir): ModalFormState {
 
 function formSnapshot(row: BilgiBankaListeSatir, form: ModalFormState): string {
   if (row.kayitTuru === "aciklama") {
-    // Kulvar ise dirty-tespiti bölümler üzerinden; değilse description üzerinden.
     if (isKulvarAnalysisType(form.analizTuruKey)) {
       return JSON.stringify({
         analizTuruKey: form.analizTuruKey,
@@ -147,21 +138,14 @@ export function KayitDetayModal({
   const [form, setForm] = useState<ModalFormState>(() => rowToForm(row));
   const [baseline, setBaseline] = useState(() => formSnapshot(row, rowToForm(row)));
   const [kaydediliyor, setKaydediliyor] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Kaynaklar yalnız Ana/Yan Kulvar açıklama kaydında ve modal açıkken yüklenir.
   const isKulvarRecord = row.kayitTuru === "aciklama" && isKulvarAnalysisType(row.analizTuruKey);
   const { sources, links, loading, reload } = useKulvarSources(row.recordId, isKulvarRecord);
 
-  useEffect(() => {
-    const next = rowToForm(row);
-    setForm(next);
-    setBaseline(formSnapshot(row, next));
-    setEditMode(false);
-  }, [row]);
-
   const dirty = editMode && formSnapshot(row, form) !== baseline;
 
-  async function requestClose() {
+  const requestClose = useCallback(async () => {
     if (dirty) {
       const ok = await confirm({
         title: "Kapat",
@@ -173,7 +157,34 @@ export function KayitDetayModal({
       if (!ok) return;
     }
     onClose();
-  }
+  }, [dirty, confirm, onClose]);
+
+  // Kayıt değişince formu tazele + modal body'yi en üste al.
+  useEffect(() => {
+    const next = rowToForm(row);
+    setForm(next);
+    setBaseline(formSnapshot(row, next));
+    setEditMode(false);
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [row]);
+
+  // Arka sayfa scroll kilidi (modal açıkken); unmount'ta eski değer geri gelir.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // ESC ile kapat.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") void requestClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [requestClose]);
 
   function handleAnalizChange(analizTuruKey: string) {
     setForm((prev) => ({
@@ -189,34 +200,20 @@ export function KayitDetayModal({
     }
     if (isCakraOmurga(form.analizTuruKey)) {
       return (
-        <select
-          id="detay-deger"
-          value={form.deger}
-          onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))}
-          className={modalSelectClass}
-        >
+        <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
           <option value="">Seçiniz...</option>
           {CHAKRA_VALUE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
+            <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
       );
     }
     if (isElement(form.analizTuruKey)) {
       return (
-        <select
-          id="detay-deger"
-          value={form.deger}
-          onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))}
-          className={modalSelectClass}
-        >
+        <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
           <option value="">Seçiniz...</option>
           {ELEMENT_DEGER_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
+            <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
       );
@@ -248,8 +245,7 @@ export function KayitDetayModal({
 
     if (row.kayitTuru === "aciklama") {
       const res = isKulvarAnalysisType(form.analizTuruKey)
-        ? // Kulvar: content_sections canonical; description GÖNDERİLMEZ (eski korunur).
-          await updateKnowledgeRecordById(row.recordId, {
+        ? await updateKnowledgeRecordById(row.recordId, {
             analysisType: form.analizTuruKey,
             value: form.deger,
             source: form.source,
@@ -285,37 +281,31 @@ export function KayitDetayModal({
     await onSaved();
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="bilgi-detay-baslik"
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/55 backdrop-blur-md"
+        className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
         aria-label="Kapat"
         onClick={() => void requestClose()}
       />
-      <div className="relative z-10 flex max-h-[88vh] min-h-[720px] w-[92vw] max-w-[1200px] flex-col overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white shadow-2xl ring-1 ring-purple-200">
-        <div className="shrink-0 border-b border-violet-100/90 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/80 px-8 py-8 sm:px-12 sm:py-10">
-          <div className="flex flex-wrap items-start justify-between gap-5">
+      <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[1000px] flex-col overflow-hidden rounded-2xl border-2 border-violet-200/80 bg-white shadow-2xl ring-1 ring-purple-200">
+        {/* Header — sabit */}
+        <div className="shrink-0 border-b border-violet-100/90 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/80 px-5 py-4 sm:px-7">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-700/80">
-                Bilgi bankası
-              </p>
-              <h2 id="bilgi-detay-baslik" className="mt-2 text-4xl font-black tracking-tight text-slate-900 xl:text-5xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700/80">Bilgi bankası</p>
+              <h2 id="bilgi-detay-baslik" className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">
                 Kayıt detayı
               </h2>
-              <p className="mt-2 text-lg font-medium text-slate-600">
-                {editMode
-                  ? "Kaydı düzenleyin ve Kaydet ile güncelleyin"
-                  : "Kayıt bilgilerini görüntüleyin veya güncelleyin"}
-              </p>
-              <span
-                className={`mt-4 inline-block rounded-xl px-4 py-2 text-sm font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}
-              >
+              <span className={`mt-2 inline-block rounded-lg px-3 py-1 text-xs font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}>
                 {kayitTuruLabel(row.kayitTuru)}
               </span>
             </div>
@@ -325,24 +315,15 @@ export function KayitDetayModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden p-8 xl:p-10">
-          <div className="max-h-[calc(88vh-170px)] overflow-y-auto">
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
+        {/* Body — TEK dikey scroll alanı */}
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6">
+          <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
             <div>
-              <label htmlFor="detay-analiz-turu" className={modalLabelClass}>
-                Analiz türü
-              </label>
+              <label htmlFor="detay-analiz-turu" className={modalLabelClass}>Analiz türü</label>
               {editMode ? (
-                <select
-                  id="detay-analiz-turu"
-                  value={form.analizTuruKey}
-                  onChange={(e) => handleAnalizChange(e.target.value)}
-                  className={modalSelectClass}
-                >
+                <select id="detay-analiz-turu" value={form.analizTuruKey} onChange={(e) => handleAnalizChange(e.target.value)} className={modalSelectClass}>
                   {ANALIZ_TURU_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               ) : (
@@ -351,18 +332,14 @@ export function KayitDetayModal({
             </div>
 
             <div>
-              <label htmlFor="detay-deger" className={modalLabelClass}>
-                Değer
-              </label>
+              <label htmlFor="detay-deger" className={modalLabelClass}>Değer</label>
               {renderDegerField(!editMode)}
             </div>
 
             {row.kayitTuru === "aciklama" ? (
               <>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-kaynak" className={modalLabelClass}>
-                    Bilgi kaynağı
-                  </label>
+                  <label htmlFor="detay-kaynak" className={modalLabelClass}>Bilgi kaynağı</label>
                   {editMode ? (
                     <input
                       id="detay-kaynak"
@@ -373,9 +350,7 @@ export function KayitDetayModal({
                       className={modalInputClass}
                     />
                   ) : (
-                    <div className={`${modalReadonlyClass} whitespace-pre-wrap`}>
-                      {form.source.trim() || "—"}
-                    </div>
+                    <div className={`${modalReadonlyClass} whitespace-pre-wrap`}>{form.source.trim() || "—"}</div>
                   )}
                 </div>
                 {isKulvarAnalysisType(form.analizTuruKey) ? (
@@ -391,10 +366,10 @@ export function KayitDetayModal({
                         idPrefix="detay-kulvar"
                       />
                     ) : KULVAR_SECTION_TEMPLATE.some((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "") ? (
-                      <div className="grid gap-4">
+                      <div className="grid gap-3">
                         {KULVAR_SECTION_TEMPLATE.filter((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "").map((t) => (
                           <div key={t.key} className="min-w-0">
-                            <p className="text-base font-black text-violet-800 xl:text-lg">{t.label}</p>
+                            <p className="text-sm font-black text-violet-800">{t.label}</p>
                             <div className={modalSectionViewClass}>{form.kulvarBodies[t.key]}</div>
                           </div>
                         ))}
@@ -405,22 +380,18 @@ export function KayitDetayModal({
                   </div>
                 ) : (
                   <div className="lg:col-span-2">
-                    <label htmlFor="detay-aciklama" className={modalLabelClass}>
-                      Açıklama metni
-                    </label>
+                    <label htmlFor="detay-aciklama" className={modalLabelClass}>Açıklama metni</label>
                     {editMode ? (
                       <textarea
                         id="detay-aciklama"
                         value={form.description}
                         onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                        rows={10}
+                        rows={8}
                         placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
                         className={modalTextareaClass}
                       />
                     ) : (
-                      <div className={modalReadonlyAciklamaClass}>
-                        {form.description.trim() || "—"}
-                      </div>
+                      <div className={modalSectionViewClass}>{form.description.trim() || "—"}</div>
                     )}
                   </div>
                 )}
@@ -445,48 +416,38 @@ export function KayitDetayModal({
             ) : (
               <>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-oneri" className={modalLabelClass}>
-                    Öneri açıklaması
-                  </label>
+                  <label htmlFor="detay-oneri" className={modalLabelClass}>Öneri açıklaması</label>
                   {editMode ? (
                     <textarea
                       id="detay-oneri"
                       value={form.reason}
                       onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
-                      rows={6}
+                      rows={5}
                       placeholder="Doğaltaş öneri ve kullanım açıklaması…"
                       className={modalTextareaClass}
                     />
                   ) : (
-                    <div className={modalReadonlyAciklamaClass}>
-                      {form.reason.trim() || "—"}
-                    </div>
+                    <div className={modalSectionViewClass}>{form.reason.trim() || "—"}</div>
                   )}
                 </div>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-taslar" className={modalLabelClass}>
-                    Taş listesi
-                  </label>
+                  <label htmlFor="detay-taslar" className={modalLabelClass}>Taş listesi</label>
                   {editMode ? (
                     <>
                       <textarea
                         id="detay-taslar"
                         value={form.stonesText}
                         onChange={(e) => setForm((p) => ({ ...p, stonesText: e.target.value }))}
-                        rows={8}
+                        rows={6}
                         placeholder="Her satıra bir taş veya virgülle ayırarak yazın…"
                         className={modalTextareaClass}
                       />
-                      <p className="mt-2 text-sm font-medium text-slate-500">
-                        Virgül, nokta veya satır sonu ile ayırabilirsiniz.
-                      </p>
+                      <p className="mt-1.5 text-xs font-medium text-slate-500">Virgül, nokta veya satır sonu ile ayırabilirsiniz.</p>
                     </>
                   ) : form.stonesText.trim() ? (
-                    <ul className="mt-2 space-y-2 rounded-2xl border-2 border-emerald-100/80 bg-emerald-50/50 p-5">
+                    <ul className="mt-1.5 space-y-1.5 rounded-xl border-2 border-emerald-100/80 bg-emerald-50/50 p-4">
                       {normalizeStoneList(form.stonesText).map((tas) => (
-                        <li key={tas} className="text-lg font-medium text-slate-800">
-                          {tas}
-                        </li>
+                        <li key={tas} className="text-sm font-medium text-slate-800">{tas}</li>
                       ))}
                     </ul>
                   ) : (
@@ -496,18 +457,13 @@ export function KayitDetayModal({
               </>
             )}
           </div>
-          </div>
         </div>
 
-        <div className="shrink-0 flex flex-wrap items-center justify-between gap-4 border-t-2 border-violet-100/90 bg-violet-50/30 px-8 py-6 sm:px-12 sm:py-8">
+        {/* Footer — sabit */}
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-t-2 border-violet-100/90 bg-violet-50/30 px-5 py-3.5 sm:px-7">
           <div>
             {editMode ? (
-              <button
-                type="button"
-                disabled={kaydediliyor}
-                onClick={() => void handleKaydet()}
-                className={modalPrimaryBtn}
-              >
+              <button type="button" disabled={kaydediliyor} onClick={() => void handleKaydet()} className={modalPrimaryBtn}>
                 {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
               </button>
             ) : (
@@ -521,6 +477,7 @@ export function KayitDetayModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

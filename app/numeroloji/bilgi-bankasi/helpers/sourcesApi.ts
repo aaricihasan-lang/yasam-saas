@@ -105,6 +105,14 @@ export async function listRecordSources(
   return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as RecordSourceRow[], error: null };
 }
 
+/** NKB-V2-H: tenant'ın TÜM kayıt-kaynak bağlantıları (liste için tek bounded sorgu; N+1 yok). */
+export async function listAllRecordSources(): Promise<{ rows: RecordSourceRow[]; error: string | null }> {
+  const res = await numApi(RECORD_SOURCES_API);
+  const err = numApiError(res);
+  if (err) return { rows: [], error: err };
+  return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as RecordSourceRow[], error: null };
+}
+
 export async function createRecordSource(
   knowledgeRecordId: string,
   input: LinkInput,
