@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { isMobileViewport } from "../helpers/mobileUxLogic";
+import { isMobileViewport, resolveViewerControls } from "../helpers/mobileUxLogic";
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -233,7 +233,7 @@ function KayitGorselKontrolPanel({
   onPngIndir: () => void;
 }) {
   return (
-    <aside className="w-full space-y-2.5 rounded-[14px] border border-violet-200/70 bg-gradient-to-br from-white/95 via-violet-50/30 to-white/90 p-3 shadow-[0_8px_24px_-10px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 lg:sticky lg:top-3">
+    <aside className="w-full space-y-2.5 py-1 md:rounded-[14px] md:border md:border-violet-200/70 md:bg-gradient-to-br md:from-white/95 md:via-violet-50/30 md:to-white/90 md:p-3 md:shadow-[0_8px_24px_-10px_rgba(91,33,182,0.18)] md:ring-1 md:ring-violet-100/55 lg:sticky lg:top-3">
       <p className="text-sm font-black tracking-wide text-violet-800">Görsel rapor ayarları</p>
 
       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-800">
@@ -374,6 +374,14 @@ export function NumerolojiKayitDetayPanel({
   const [contentFontSize, setContentFontSize] = useState<ContentFontSize>("normal");
   // NUM-MOB-1: mobil tam ekran görsel rapor viewer.
   const [tamEkran, setTamEkran] = useState(false);
+  // NUM-MOB-2-FIX2: reaktif viewport → viewer kontrol kararı saf model üzerinden.
+  const [viewportW, setViewportW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const viewerCtl = resolveViewerControls(viewportW);
   useEffect(() => {
     if (!tamEkran) return;
     const prevBody = document.body.style.overflow;
@@ -453,9 +461,11 @@ export function NumerolojiKayitDetayPanel({
     }
   }
 
+  // NUM-MOB-2: mobilde kutusuz (dış kart kaldırıldı); md+ mevcut kart korunur.
   return (
-    <div className="w-full overflow-hidden rounded-[16px] border border-violet-200/55 bg-white/80 shadow-[0_0_18px_rgba(139,92,246,0.08)] backdrop-blur-xl">
-      <div className="border-b border-violet-100/60 bg-gradient-to-r from-violet-50/60 via-white/80 to-fuchsia-50/40 px-3 py-2 sm:px-4">
+    <div className="w-full overflow-hidden md:rounded-[16px] md:border md:border-violet-200/55 md:bg-white/80 md:shadow-[0_0_18px_rgba(139,92,246,0.08)] md:backdrop-blur-xl">
+      {/* NUM-MOB-2-FIX1: mobilde sekme başlığı kutusuz (bg/border yok); md+ korunur. */}
+      <div className="px-0 py-2 md:border-b md:border-violet-100/60 md:bg-gradient-to-r md:from-violet-50/60 md:via-white/80 md:to-fuchsia-50/40 md:px-4">
         <div className="flex items-center gap-2">
           <div className="flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="flex min-w-max gap-1 pb-px">
@@ -486,7 +496,7 @@ export function NumerolojiKayitDetayPanel({
         </div>
       </div>
 
-      <div className="w-full bg-gradient-to-b from-white/98 via-slate-50/30 to-violet-50/20 p-3 sm:p-4">
+      <div className="w-full px-[clamp(8px,2.5vw,14px)] py-3 md:bg-gradient-to-b md:from-white/98 md:via-slate-50/30 md:to-violet-50/20 md:p-4">
         {isOkumaTab ? (
           <ContentFontSizeProvider size={contentFontSize}>
             {tab === "summary" ? (
@@ -580,8 +590,10 @@ export function NumerolojiKayitDetayPanel({
               aria-label="Görsel rapor tam ekran"
               className="fixed inset-0 z-[9999] overflow-y-auto overflow-x-hidden bg-black/95"
             >
-              <div className="flex min-h-full justify-center px-1 py-8">
-                <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-10">
+              {/* NUM-MOB-2-FIX1: kapatma YALNIZ altta, normal akışta, görselden sonra ≥40px
+                  boşlukla. Görselin üzerinde/öncesinde hiçbir kontrol yok. */}
+              <div className="flex min-h-full flex-col items-center px-1 py-6">
+                <div className="w-full max-w-[min(760px,210mm)] shrink-0">
                   <GorselScalePreview
                     out={out}
                     isimGoster={isimGoster}
@@ -596,15 +608,21 @@ export function NumerolojiKayitDetayPanel({
                     tasKutle={tasKutle}
                   />
                 </div>
+                {viewerCtl.footerCloseVisible ? (
+                  <div
+                    className="mt-10 flex w-full justify-center"
+                    style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setTamEkran(false)}
+                      className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/70 px-8 text-sm font-black uppercase tracking-wider text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
+                    >
+                      Kapat
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <button
-                type="button"
-                onClick={() => setTamEkran(false)}
-                aria-label="Tam ekranı kapat"
-                className="fixed right-4 top-4 z-[10000] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
-              >
-                ×
-              </button>
             </div>,
             document.body,
           )

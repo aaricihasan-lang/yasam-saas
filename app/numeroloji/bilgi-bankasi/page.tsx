@@ -27,8 +27,8 @@ export default function NumerolojiBilgiBankasiPage() {
       {isDemo && (
         <DemoModuleBanner className="mb-3" message="Numeroloji bilgi bankası demo hesabında görüntülenebilir. Kayıt ekleme, düzenleme ve silme işlemleri yapılamaz." />
       )}
-      {/* NUM-MOB-1: mobilde kenar-yaslı (rounded/border-x kaldırıldı); md+ kart görünümü korunur. */}
-      <div className="mb-3 border-y border-violet-200/80 bg-white/90 px-4 py-4 shadow-[0_6px_24px_-8px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-xl md:rounded-2xl md:border md:px-5">
+      {/* NUM-MOB-2-FIX1: mobilde başlık kutusuz (düz); md+ kart korunur. */}
+      <div className="mb-3 px-[clamp(8px,2.5vw,14px)] py-2 md:border md:border-violet-200/80 md:bg-white/90 md:px-5 md:py-4 md:shadow-[0_6px_24px_-8px_rgba(91,33,182,0.18)] md:ring-1 md:ring-purple-200/60 md:backdrop-blur-xl md:rounded-2xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
           Bilgi Bankası
         </h1>
@@ -37,8 +37,9 @@ export default function NumerolojiBilgiBankasiPage() {
         </p>
       </div>
 
-      <div className="overflow-hidden border-y border-violet-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-purple-200/60 backdrop-blur-md md:rounded-2xl md:border">
-        <div className="flex flex-wrap gap-2 border-b border-violet-200/60 bg-white/75 p-3 backdrop-blur-xl md:rounded-t-2xl">
+      {/* NUM-MOB-2-FIX1: mobilde kutusuz (panel kabı/sekme şeridi düz); md+ kart korunur. */}
+      <div className="overflow-hidden md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
+        <div className="flex flex-wrap gap-2 py-2 md:border-b md:border-violet-200/60 md:bg-white/75 md:p-3 md:backdrop-blur-xl md:rounded-t-2xl">
           {BILGI_TABS.filter((t) => !isDemo || t.id === "kayit-listesi").map((t) => (
             <button
               key={t.id}
@@ -55,7 +56,7 @@ export default function NumerolojiBilgiBankasiPage() {
           ))}
         </div>
 
-        <div className="bg-gradient-to-b from-white/95 to-violet-50/25 px-2 py-3 md:p-4">
+        <div className="px-[clamp(8px,2.5vw,14px)] py-3 md:bg-gradient-to-b md:from-white/95 md:to-violet-50/25 md:p-4">
           {tab === "kayit-ekle" ? <BilgiKayitEkleDuzenle /> : null}
           {tab === "dogaltas-ata" ? <BilgiDogaltasAta /> : null}
           {tab === "kayit-listesi" ? <BilgiKayitListesi /> : null}

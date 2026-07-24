@@ -149,7 +149,7 @@ export default function NumerolojiKayitDetayPage() {
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_28px_rgba(139,92,246,0.12)] backdrop-blur-xl">
+          <div className="px-[clamp(8px,2.5vw,14px)] py-3 text-sm font-semibold text-slate-600 md:rounded-xl md:border md:border-violet-300/40 md:bg-white/80 md:px-4 md:shadow-[0_0_28px_rgba(139,92,246,0.12)] md:backdrop-blur-xl">
             Yükleniyor…
           </div>
         ) : null}
@@ -165,9 +165,10 @@ export default function NumerolojiKayitDetayPage() {
 
         {row && !error ? (
           <div className="w-full space-y-2">
-            <header className="relative overflow-hidden rounded-[16px] border border-violet-200/60 bg-white/82 px-4 py-3 shadow-[0_0_16px_rgba(139,92,246,0.08)] backdrop-blur-xl sm:px-5">
-              <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-violet-200/20 blur-2xl" aria-hidden />
-              <div className="pointer-events-none absolute right-12 top-2 h-12 w-12 rounded-full bg-amber-200/18 blur-xl" aria-hidden />
+            {/* NUM-MOB-2-FIX2: mobilde kayıt başlığı kutusuz düz akış; md+ kart. */}
+            <header className="relative overflow-hidden px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-[16px] md:border md:border-violet-200/60 md:bg-white/82 md:px-5 md:py-3 md:shadow-[0_0_16px_rgba(139,92,246,0.08)] md:backdrop-blur-xl">
+              <div className="pointer-events-none absolute -right-10 -top-10 hidden h-24 w-24 rounded-full bg-violet-200/20 blur-2xl md:block" aria-hidden />
+              <div className="pointer-events-none absolute right-12 top-2 hidden h-12 w-12 rounded-full bg-amber-200/18 blur-xl md:block" aria-hidden />
               <div className="relative flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="inline-block rounded-full border border-violet-200/60 bg-violet-50/70 px-2 py-0.5 text-[9px] font-black tracking-[0.20em] text-violet-600">

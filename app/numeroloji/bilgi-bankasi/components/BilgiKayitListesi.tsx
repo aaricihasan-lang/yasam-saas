@@ -283,7 +283,8 @@ export function BilgiKayitListesi() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-2xl border-2 border-violet-200/80 bg-white/95 p-4 shadow-lg ring-1 ring-purple-200 backdrop-blur-md md:p-5">
+      {/* NUM-MOB-2-FIX1: mobilde filtre kabı kutusuz (form kontrolleri sınırını korur); md+ kart. */}
+      <div className="px-[clamp(8px,2.5vw,14px)] py-0 md:rounded-2xl md:border-2 md:border-violet-200/80 md:bg-white/95 md:p-5 md:shadow-lg md:ring-1 md:ring-purple-200 md:backdrop-blur-md">
         <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2 xl:items-end 2xl:grid-cols-[1.1fr_1.1fr_2fr_auto_1.3fr]">
           {/* NUM-MOB-1: Kayıt türü filtresi mobilde gizli (veri/mantık korunur, yalnız sunum). */}
           <div className="hidden min-w-0 md:block">
@@ -414,14 +415,15 @@ export function BilgiKayitListesi() {
       ) : (
         <>
         {/* NUM-MOB-1: MOBİL kart listesi — tam genişlik, yatay taşma yok, Kayıt Türü/kaynak/rozet yok. */}
-        <div className="space-y-2 md:hidden">
+        {/* NUM-MOB-2-FIX1: kutusuz düz satırlar — kart/radius/shadow/border yok, ince alt ayraç. */}
+        <div className="md:hidden">
           {filtrelenmis.map((row) => {
             const secili = seciliIds.has(row.id);
             return (
               <div
                 key={row.id}
-                className={`space-y-2 rounded-xl border px-3 py-2.5 shadow-sm transition ${
-                  secili ? "border-violet-300 bg-violet-100/70" : "border-violet-200/70 bg-white/95"
+                className={`space-y-2 border-b border-violet-100/70 px-1 py-3 transition last:border-b-0 ${
+                  secili ? "bg-violet-50/60" : ""
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-2.5">

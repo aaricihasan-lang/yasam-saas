@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { isMobileViewport } from "../helpers/mobileUxLogic";
+import { isMobileViewport, resolveViewerControls } from "../helpers/mobileUxLogic";
 import {
   readDemoNumerolojiAnaliz,
   saveDemoNumerolojiAnaliz,
@@ -126,6 +126,15 @@ export default function NumerolojiAnalizPage() {
   const gorselRaporRef = useRef<HTMLDivElement>(null);
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const gorselIndirmeKilitli = gorselPngHazirlaniyor;
+
+  // NUM-MOB-2-FIX2: reaktif viewport → viewer kontrol kararı saf model üzerinden.
+  const [viewportW, setViewportW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const viewerCtl = resolveViewerControls(viewportW);
 
   const isDemo = readYasamUser()?.is_demo_account === true;
   // Demo'da IP bazlı tek-analiz limiti aşıldığında gösterilen uyarı
@@ -363,7 +372,8 @@ export default function NumerolojiAnalizPage() {
         <DemoModuleBanner message="Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır." />
       )}
       <div className="space-y-3">
-        <header className="relative overflow-hidden border-y border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-4 py-4 text-center shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] ring-1 ring-white/60 backdrop-blur-xl sm:px-6 sm:py-5 md:rounded-2xl md:border">
+        {/* NUM-MOB-2-FIX1: mobilde başlık banner'ı kutusuz/düz; md+ mevcut premium banner. */}
+        <header className="relative overflow-hidden px-[clamp(8px,2.5vw,14px)] py-3 text-center md:border md:border-violet-200/50 md:bg-gradient-to-br md:from-violet-200/40 md:via-white/70 md:to-amber-100/35 md:px-6 md:py-5 md:shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] md:ring-1 md:ring-white/60 md:backdrop-blur-xl md:rounded-2xl">
 
           <div className="pointer-events-none absolute -left-14 -top-14 h-40 w-40 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
@@ -402,7 +412,7 @@ export default function NumerolojiAnalizPage() {
         </header>
 
         {out && !formAcik ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-100/70 via-white/80 to-amber-50/60 px-4 py-3 shadow-[0_8px_24px_-12px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-2xl md:border md:border-violet-200/70 md:bg-gradient-to-r md:from-violet-100/70 md:via-white/80 md:to-amber-50/60 md:px-4 md:py-3 md:shadow-[0_8px_24px_-12px_rgba(91,33,182,0.18)] md:ring-1 md:ring-violet-100/55 md:backdrop-blur-xl">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Aktif analiz</p>
               <p className="mt-0.5 truncate text-base font-black text-slate-900">{isimGoster || "—"}</p>
@@ -428,7 +438,7 @@ export default function NumerolojiAnalizPage() {
         ) : (
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-white/85 bg-white/75 p-4 shadow-[0_8px_24px_-10px_rgba(91,33,182,0.15)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:p-5"
+          className="px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-2xl md:border md:border-white/85 md:bg-white/75 md:p-5 md:shadow-[0_8px_24px_-10px_rgba(91,33,182,0.15)] md:ring-1 md:ring-violet-100/50 md:backdrop-blur-xl"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -516,9 +526,10 @@ export default function NumerolojiAnalizPage() {
         {out ? (
           <div
             ref={sonucRef}
-            className="scroll-mt-4 overflow-hidden border-y border-slate-200/80 bg-white/85 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-md md:rounded-2xl md:border"
+            className="scroll-mt-4 overflow-hidden md:rounded-2xl md:border md:border-slate-200/80 md:bg-white/85 md:shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] md:ring-1 md:ring-violet-100/55 md:backdrop-blur-md"
           >
-            <div className="border-b border-slate-200/80 bg-gradient-to-r from-violet-100/70 via-white/50 to-amber-50/60 p-3">
+            {/* NUM-MOB-2-FIX1: mobilde sekme paneli kutusuz (bg/border/shadow yok); md+ korunur. */}
+            <div className="pb-2 pt-0 md:border-b md:border-slate-200/80 md:bg-gradient-to-r md:from-violet-100/70 md:via-white/50 md:to-amber-50/60 md:p-3">
               <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
                 <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
               </div>
@@ -545,7 +556,7 @@ export default function NumerolojiAnalizPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 px-2 py-3 sm:p-5" data-gorsel-rapor-scroll-host>
+            <div className="px-[clamp(8px,2.5vw,14px)] py-3 md:bg-gradient-to-b md:from-white/98 md:via-slate-50/40 md:to-violet-50/25 md:p-5" data-gorsel-rapor-scroll-host>
               {tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas" ? (
                 <ContentFontSizeProvider size={contentFontSize}>
                   {tab === "summary" ? (
@@ -635,8 +646,8 @@ export default function NumerolojiAnalizPage() {
                             <p id="gorsel-fs-title" className="sr-only">
                               Numerolojik yaşam haritası tam ekran görünümü
                             </p>
-                            <div className="flex min-h-full justify-center px-1 py-8 sm:px-6 sm:py-12">
-                              <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-8">
+                            <div className="flex min-h-full flex-col items-center px-1 pb-8 pt-8 sm:px-6 sm:pb-12 sm:pt-12">
+                              <div className="w-full max-w-[min(760px,210mm)] shrink-0">
                                 <GorselScaleFit
                                   key={gorselTema}
                                   ref={gorselTamEkran ? gorselRaporRef : null}
@@ -653,23 +664,44 @@ export default function NumerolojiAnalizPage() {
                                   tasKutle={tasKutle}
                                 />
                               </div>
+                              {/* NUM-MOB-2-FIX2: kapatma yerleşimi saf model kararıyla. Mobilde YALNIZ
+                                  altta, normal akışta, görselden sonra ≥40px boşlukla. */}
+                              {viewerCtl.footerCloseVisible ? (
+                                <div
+                                  className="mt-10 flex w-full justify-center"
+                                  style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => setGorselTamEkran(false)}
+                                    className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/70 px-8 text-sm font-black uppercase tracking-wider text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
+                                  >
+                                    Kapat
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           </div>
-                          <GorselRaporTamEkranKontrolCubugu
-                            gorselTema={gorselTema}
-                            setGorselTema={setGorselTema}
-                            onGorselPngIndir={handleGorselPngIndir}
-                            gorselIndirmeKilitli={gorselIndirmeKilitli}
-                            gorselPngHazirlaniyor={gorselPngHazirlaniyor}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setGorselTamEkran(false)}
-                            className="fixed right-6 top-6 z-[10050] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
-                            aria-label="Tam ekranı kapat"
-                          >
-                            ×
-                          </button>
+                          {/* Tema kontrolü ve yüzen X yalnız masaüstünde (saf model kararı). */}
+                          {viewerCtl.themeControlsVisible ? (
+                            <GorselRaporTamEkranKontrolCubugu
+                              gorselTema={gorselTema}
+                              setGorselTema={setGorselTema}
+                              onGorselPngIndir={handleGorselPngIndir}
+                              gorselIndirmeKilitli={gorselIndirmeKilitli}
+                              gorselPngHazirlaniyor={gorselPngHazirlaniyor}
+                            />
+                          ) : null}
+                          {viewerCtl.floatingCloseVisible ? (
+                            <button
+                              type="button"
+                              onClick={() => setGorselTamEkran(false)}
+                              className="fixed right-6 top-6 z-[10050] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
+                              aria-label="Tam ekranı kapat"
+                            >
+                              ×
+                            </button>
+                          ) : null}
                         </>,
                         document.body,
                       )

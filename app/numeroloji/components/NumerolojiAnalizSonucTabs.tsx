@@ -39,6 +39,22 @@ import { useContentTypography } from "./numerolojiContentTypography";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
+// NUM-MOB-2: Mobil (0–767px) KUTUSUZ / tam genişlik doküman görünümü; md+ (768px+) mevcut
+// kart tasarımı KORUNUR. Dinamik typography padding değerlerinin (boxPadding + infoBoxPadding,
+// toplam 4 olası değer) md+ varyantı. Tailwind JIT yalnız KAYNAKTA birebir geçen sınıfları
+// üretir → md:* değerleri burada literal olmalıdır (çalışma-zamanı string üretimi CSS'e girmez).
+const MD_PAD: Record<string, string> = {
+  "rounded-[12px] p-2.5": "md:rounded-[12px] md:p-2.5",
+  "rounded-[14px] p-3": "md:rounded-[14px] md:p-3",
+  "rounded-[16px] p-3.5": "md:rounded-[16px] md:p-3.5",
+  "rounded-[18px] p-4": "md:rounded-[18px] md:p-4",
+};
+
+/** Mobil: kutusuz (padding yok); md+: verilen dinamik padding/rounded değeri. */
+function mdPad(padding: string): string {
+  return MD_PAD[padding] ?? "";
+}
+
 function OzetRow({ label, value }: { label: string; value: string }) {
   const typo = useContentTypography();
   return (
@@ -52,7 +68,7 @@ function OzetRow({ label, value }: { label: string; value: string }) {
 function OzetSectionCard({ title, children }: { title: string; children: ReactNode }) {
   const typo = useContentTypography();
   return (
-    <div className={`min-w-0 border border-violet-200/70 bg-white/85 shadow-[0_0_10px_rgba(139,92,246,0.06)] ${typo.boxPadding}`}>
+    <div className={`min-w-0 md:border md:border-violet-200/70 md:bg-white/85 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] ${mdPad(typo.boxPadding)}`}>
       <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">{title}</h3>
       <div className="mt-1.5 w-full min-w-0">{children}</div>
     </div>
@@ -126,8 +142,9 @@ function CakraEnerjiDaireleri({
 }
 
 export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
+  // NUM-MOB-2-FIX1: mobilde dış kart yok (yalnız başlık + gösterge satırları); md+ kart korunur.
   return (
-    <section className="col-span-full min-w-0 w-full rounded-[14px] border border-violet-200/70 bg-white/85 p-3 shadow-[0_0_12px_rgba(139,92,246,0.06)]">
+    <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-violet-200/70 md:bg-white/85 md:p-3 md:shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Çakra Sütunu & Çakra Omurgası</h3>
       <div className="mt-2 space-y-0.5">
         {CAKRA_TABLO_SIRA.map((cNo) => {
@@ -137,7 +154,7 @@ export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
           return (
             <div
               key={cNo}
-              className="flex w-full items-center justify-between gap-2 rounded-lg border border-violet-100/60 bg-white/65 px-2 py-1.5 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30"
+              className="flex w-full items-center justify-between gap-2 border-b border-violet-100/50 px-0 py-1.5 last:border-b-0 md:rounded-lg md:border md:border-violet-100/60 md:bg-white/65 md:px-2 md:shadow-sm md:ring-1 md:ring-white/80 md:transition-colors md:hover:bg-violet-50/30"
             >
               <CakraEnerjiDaireleri count={sol} hex={hex} tone="pasif" align="left" />
               <span className="shrink-0 px-1 text-center text-[10px] font-black tracking-wide text-slate-700">
@@ -182,8 +199,9 @@ function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
 }
 
 function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] }) {
+  // NUM-MOB-2-FIX1: mobilde dış kart yok (yalnız başlık + harf hücre ızgarası); md+ kart korunur.
   return (
-    <section className="col-span-full min-w-0 w-full rounded-[14px] border border-amber-300/35 bg-white/80 p-3 shadow-[0_0_12px_rgba(245,158,11,0.07)] backdrop-blur-xl">
+    <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-amber-300/35 md:bg-white/80 md:p-3 md:shadow-[0_0_12px_rgba(245,158,11,0.07)] md:backdrop-blur-xl">
       <h3 className="text-xs font-black uppercase tracking-wider text-violet-600">Harflerin Yankılanışı</h3>
       <div className="mt-2 grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
         {segments.length === 0 ? (
@@ -244,16 +262,17 @@ function OzetPremiumKart({
   tint: string;
   gold?: boolean;
 }) {
+  // NUM-MOB-2-FIX1: mobilde kutusuz (yalnız sayı+etiket düz); md+ mevcut mini-kart.
   return (
     <div
-      className={`relative min-w-0 overflow-hidden rounded-[12px] border p-3 shadow-[0_0_10px_rgba(139,92,246,0.06)] transition-all duration-200 hover:-translate-y-0.5 ${
+      className={`relative min-w-0 overflow-hidden md:rounded-[12px] md:border md:p-3 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] md:transition-all md:duration-200 md:hover:-translate-y-0.5 ${
         gold
-          ? "border-amber-300/80 ring-1 ring-amber-200/60 shadow-[0_4px_18px_-6px_rgba(217,119,6,0.28)]"
-          : "border-violet-200/70"
+          ? "md:border-amber-300/80 md:ring-1 md:ring-amber-200/60 md:shadow-[0_4px_18px_-6px_rgba(217,119,6,0.28)]"
+          : "md:border-violet-200/70"
       } ${tint}`}
     >
       <div
-        className={`pointer-events-none absolute -right-3 -top-3 h-10 w-10 rounded-full blur-lg ${gold ? "bg-amber-400/15" : "bg-violet-400/8"}`}
+        className={`pointer-events-none absolute -right-3 -top-3 hidden h-10 w-10 rounded-full blur-lg md:block ${gold ? "bg-amber-400/15" : "bg-violet-400/8"}`}
         aria-hidden
       />
       <div className="relative flex min-w-0 items-start justify-between gap-1.5">
@@ -290,18 +309,19 @@ function TabSonucOzetiPremium({
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
 
+  // NUM-MOB-2-FIX1: tint yalnız md+ (mobilde kutu/bg yok). md:* literalleri Tailwind JIT için burada.
   const ustKartlar = [
-    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "bg-gradient-to-br from-violet-50/80 to-white/90", icon: "♔", gold: false },
-    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "bg-gradient-to-br from-indigo-50/80 to-white/90", icon: "⚖", gold: false },
-    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "bg-gradient-to-br from-fuchsia-50/80 to-white/90", icon: "✦", gold: false },
-    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "bg-gradient-to-br from-amber-50/90 to-white/90", icon: "☤", gold: true },
+    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
+    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
+    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
+    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-violet-200/60 bg-gradient-to-br from-white/90 via-violet-50/40 to-amber-50/30 px-4 py-3 shadow-[0_0_12px_rgba(139,92,246,0.07)]">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-violet-200/14 blur-2xl" aria-hidden />
-        <div className="pointer-events-none absolute right-4 top-3 opacity-[0.10]" aria-hidden>
+      <div className="relative min-w-0 overflow-hidden md:rounded-[14px] md:border md:border-violet-200/60 md:bg-gradient-to-br md:from-white/90 md:via-violet-50/40 md:to-amber-50/30 md:px-4 md:py-3 md:shadow-[0_0_12px_rgba(139,92,246,0.07)]">
+        <div className="pointer-events-none absolute -right-10 -top-10 hidden h-24 w-24 rounded-full bg-violet-200/14 blur-2xl md:block" aria-hidden />
+        <div className="pointer-events-none absolute right-4 top-3 hidden opacity-[0.10] md:block" aria-hidden>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-violet-700">
             <path d="M12 2l2.2 6.8H21l-5.5 4 2.1 6.5L12 15.3 6.4 19.3l2.1-6.5L3 8.8h6.8L12 2z" stroke="currentColor" strokeWidth="0.5" fill="currentColor" fillOpacity="0.2" />
           </svg>
@@ -322,7 +342,7 @@ function TabSonucOzetiPremium({
       <div className="grid grid-cols-1 gap-2">
         <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
-        <section className={`min-w-0 w-full rounded-[14px] border border-violet-200/70 bg-white/85 shadow-[0_0_10px_rgba(139,92,246,0.06)] ${typo.boxPadding}`}>
+        <section className={`min-w-0 w-full md:border md:border-violet-200/70 md:bg-white/85 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] ${mdPad(typo.boxPadding)}`}>
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Elementler</h3>
           <div className="mt-2 w-full min-w-0 space-y-2">
             {ELEMENT_ORDER.map((name) => (
@@ -489,9 +509,10 @@ export function TabSonucOzeti({
 }
 
 function DetayCard({ title, children }: { title: string; children: ReactNode }) {
+  // Mobil: kutusuz — başlık + ince alt ayraç + dikey boşluk. md+: mevcut kart.
   return (
-    <section className="min-w-0 rounded-[12px] border border-violet-200/70 bg-white/85 p-3 shadow-[0_0_10px_rgba(139,92,246,0.06)]">
-      <h3 className="border-b border-violet-100/60 pb-1.5 text-xs font-black uppercase tracking-wider text-slate-500">{title}</h3>
+    <section className="min-w-0 border-b border-violet-100/70 pb-4 last:border-b-0 last:pb-0 md:rounded-[12px] md:border md:border-violet-200/70 md:bg-white/85 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] md:last:border md:last:pb-3">
+      <h3 className="text-sm font-black uppercase tracking-wider text-violet-700 md:border-b md:border-violet-100/60 md:pb-1.5 md:text-xs md:text-slate-500">{title}</h3>
       <div className="w-full min-w-0 pt-2">{children}</div>
     </section>
   );
@@ -526,9 +547,10 @@ function TasDestekSectionBlock({
   const typo = useContentTypography();
   if (!items.length) return null;
 
+  // Mobil: kutusuz — üstte ince ayraç + başlık. md+: mevcut kart.
   return (
     <div
-      className={`mt-4 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white/95 ring-1 ring-emerald-100/70 ${typo.infoBoxPadding}`}
+      className={`mt-4 border-t border-emerald-100 pt-4 md:mt-4 md:border-t-0 md:pt-0 md:border md:border-emerald-200/80 md:bg-gradient-to-br md:from-emerald-50/90 md:to-white/95 md:ring-1 md:ring-emerald-100/70 ${mdPad(typo.infoBoxPadding)}`}
     >
       <p className={`${typo.sectionTitle} text-emerald-900/95`}>{title}</p>
       <div className="mt-3 space-y-4">
@@ -552,14 +574,19 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
     .filter((x) => x.sections.length > 0);
   if (!kartlar.length) return null;
 
+  // Mobil: kutusuz — üstte ince ayraç + başlık; her not düz, ince ayraçla ayrılır.
+  // md+: mevcut çift-kart tasarımı korunur.
   return (
     <div
-      className={`mt-4 rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/95 ring-1 ring-violet-100/70 ${typo.infoBoxPadding}`}
+      className={`mt-4 border-t border-violet-100 pt-4 md:mt-4 md:border-t-0 md:pt-0 md:border md:border-violet-200/80 md:bg-gradient-to-br md:from-violet-50/90 md:to-white/95 md:ring-1 md:ring-violet-100/70 ${mdPad(typo.infoBoxPadding)}`}
     >
       <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-4 md:space-y-3">
         {kartlar.map(({ note, sections }) => (
-          <div key={note.id} className="rounded-xl border border-violet-100 bg-white/85 p-3 shadow-sm ring-1 ring-violet-100/60">
+          <div
+            key={note.id}
+            className="border-t border-violet-100/70 pt-3 first:border-t-0 first:pt-0 md:rounded-xl md:border md:border-violet-100 md:bg-white/85 md:p-3 md:pt-3 md:shadow-sm md:ring-1 md:ring-violet-100/60 md:first:border md:first:pt-3"
+          >
             <p className={`${typo.body} font-black text-violet-900`}>{noteHeading(note.analysisType, note.value)}</p>
             <div className="mt-2 space-y-2.5">
               {sections.map((s, i) => (
@@ -587,7 +614,8 @@ function NumeroCardBody({
 }) {
   const k = (r.key || "").trim();
   const typo = useContentTypography();
-  const stepsPre = `mt-2 whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50/70 px-2.5 py-2 ${typo.pre} text-slate-700`;
+  // Mobil: düz hesap dökümü (kutusuz). md+: subtle tek yüzey.
+  const stepsPre = `mt-2 whitespace-pre-wrap px-0 py-0 md:rounded-lg md:border md:border-slate-100 md:bg-slate-50/70 md:px-2.5 md:py-2 ${typo.pre} text-slate-700`;
   return (
     <div className="space-y-1.5">
       <p className="text-3xl font-black text-violet-900">{nrDisplay(r)}</p>
@@ -620,11 +648,11 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
     <p className="mb-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-1.5 text-[11px] font-medium text-violet-800">
       💡 Bilgi bankası yorumlarınız ve doğaltaş önerileriniz <span className="font-black">Sayısal Hesaplama</span> sekmesinde her sayının altında görünür.
     </p>
-    <div className="overflow-hidden rounded-[12px] border border-violet-200/70 bg-white/90 shadow-[0_0_12px_rgba(139,92,246,0.06)]">
+    <div className="overflow-hidden md:rounded-[12px] md:border md:border-violet-200/70 md:bg-white/90 md:shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       {blocks.map((blok, i) => (
         <div
           key={i}
-          className={`grid grid-cols-[6rem_1fr] items-start gap-2 px-3 py-2 sm:grid-cols-[9rem_1fr]${i > 0 ? " border-t border-violet-100/60" : ""}`}
+          className={`grid grid-cols-[6rem_1fr] items-start gap-2 px-0 py-2 sm:grid-cols-[9rem_1fr] md:px-3${i > 0 ? " border-t border-violet-100/60" : ""}`}
         >
           <p className="shrink-0 pt-0.5 text-[9px] font-black uppercase leading-tight tracking-wider text-slate-400">
             {blok.title}
@@ -674,7 +702,7 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
       );
     }
     return (
-      <div className="rounded-2xl border border-dashed border-violet-300/70 bg-gradient-to-br from-violet-50/55 via-white to-amber-50/40 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/55">
+      <div className="px-[clamp(8px,2.5vw,14px)] py-12 text-center md:rounded-2xl md:border md:border-dashed md:border-violet-300/70 md:bg-gradient-to-br md:from-violet-50/55 md:via-white md:to-amber-50/40 md:px-6 md:shadow-sm md:ring-1 md:ring-violet-100/55">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/60 bg-gradient-to-br from-violet-100/70 to-amber-50/80 text-2xl text-violet-700 shadow-inner" aria-hidden>
           ◈
         </div>

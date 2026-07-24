@@ -20,6 +20,8 @@ const {
   viewerToggle,
   isMobileViewport,
   MOBILE_MAX_WIDTH,
+  resolveNumerolojiSurface,
+  resolveViewerControls,
 } = m;
 
 let pass = 0, fail = 0;
@@ -88,6 +90,57 @@ check("(8) 767px → mobil", isMobileViewport(767) === true);
 check("(8) 768px (md sınırı) → mobil DEĞİL", isMobileViewport(768) === false);
 check("(8) 320px → mobil", isMobileViewport(320) === true);
 check("(8) 1440px masaüstü → mobil DEĞİL", isMobileViewport(1440) === false);
+
+// ── NUM-MOB-2-FIX2: Yüzey (kutu vs düz) karar modeli ──
+const M = 767; // mobil örnek genişlik
+const D = 1440; // masaüstü örnek genişlik
+const FLAT_SURFACES = [
+  "result-section",
+  "knowledge-note",
+  "summary-section",
+  "relationship-result",
+  "home-business-result",
+  "saved-analysis-row",
+  "stone-assignment-state",
+];
+// (9.1) 767 result-section = flat
+check("(9.1) 767 result-section → flat", resolveNumerolojiSurface(767, "result-section") === "flat");
+// (9.2) 768 result-section = existing-card
+check("(9.2) 768 result-section → existing-card", resolveNumerolojiSurface(768, "result-section") === "existing-card");
+// (9.3-9.9) mobil içerik yüzeyleri flat
+for (const s of FLAT_SURFACES) {
+  check(`(9) mobil ${s} → flat`, resolveNumerolojiSurface(M, s) === "flat");
+}
+// (9.8) module-launcher → flat-row (mobil)
+check("(9) mobil module-launcher → flat-row", resolveNumerolojiSurface(M, "module-launcher") === "flat-row");
+check("(9) 320px result-section → flat", resolveNumerolojiSurface(320, "result-section") === "flat");
+// (9.10) desktop tüm yüzeyler existing-card
+for (const s of [...FLAT_SURFACES, "module-launcher"]) {
+  check(`(9.10) desktop ${s} → existing-card`, resolveNumerolojiSurface(D, s) === "existing-card");
+}
+
+// ── NUM-MOB-2-FIX2: Viewer kontrol modeli ──
+const vm = resolveViewerControls(M);
+const vd = resolveViewerControls(D);
+check("(11) mobil topCloseVisible = false", vm.topCloseVisible === false);
+check("(12) mobil floatingCloseVisible = false", vm.floatingCloseVisible === false);
+check("(13) mobil themeControlsVisible = false", vm.themeControlsVisible === false);
+check("(14) mobil footerCloseVisible = true", vm.footerCloseVisible === true);
+check("(15) mobil closePlacement = after-report", vm.closePlacement === "after-report");
+check("(16) desktop floatingCloseVisible = true", vd.floatingCloseVisible === true);
+check("(16) desktop themeControlsVisible = true", vd.themeControlsVisible === true);
+check("(16) desktop footerCloseVisible = false", vd.footerCloseVisible === false);
+check("(16) desktop closePlacement = floating", vd.closePlacement === "floating");
+check("(16) desktop topCloseVisible = false (her iki modda üst şerit yok)", vd.topCloseVisible === false);
+check("(11b) 768 sınırı masaüstü sayılır", resolveViewerControls(768).floatingCloseVisible === true);
+check("(11c) 767 sınırı mobil sayılır", resolveViewerControls(767).footerCloseVisible === true);
+
+// (17) footer close viewer'ı kapatır → toggle(true)=false (kapalı)
+check("(17) footer close viewer'ı kapatır", viewerToggle(true) === false);
+// (18) ESC viewer'ı kapatır (aynı toggle sözleşmesi)
+check("(18) ESC viewer'ı kapatır (toggle)", viewerToggle(true) === false);
+// (19) reopen scroll start = 0 (yeniden açılışta en üstten — portal remount)
+check("(19) reopen scroll start = 0", viewerToggle(false) === true);
 
 console.log(`\nToplam: ${pass} PASS / ${fail} FAIL (${pass + fail} kontrol)`);
 if (fail > 0) process.exit(1);

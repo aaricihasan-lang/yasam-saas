@@ -92,3 +92,72 @@ export function disariAktarmaGorunur(isMobile: boolean): boolean {
 export function viewerToggle(open: boolean): boolean {
   return !open;
 }
+
+// ── NUM-MOB-2-FIX2: Numeroloji mobil yüzey (kutu vs düz) karar modeli ─────────
+
+/** Numeroloji içerik yüzeyi türleri (kart üreten wrapper'lar). */
+export type NumerolojiSurfaceType =
+  | "result-section"
+  | "knowledge-note"
+  | "summary-section"
+  | "relationship-result"
+  | "home-business-result"
+  | "saved-analysis-row"
+  | "module-launcher"
+  | "stone-assignment-state";
+
+/** Yüzey kararı: mobilde düz (module-launcher → düz satır), md+'da mevcut kart. */
+export type SurfaceDecision = "flat" | "flat-row" | "existing-card";
+
+/**
+ * Bir içerik yüzeyinin viewport'a göre kutulu mu düz mü olacağını verir.
+ * Mobil (≤767): tüm içerik yüzeyleri kutusuz; module-launcher düz navigasyon satırı.
+ * Masaüstü (≥768): mevcut kart tasarımı korunur.
+ * (İşlevsel öğeler — input/button/dialog/uyarı/gerçek rapor görseli — bu modelin
+ *  dışındadır; sınırlarını her zaman korur.)
+ */
+export function resolveNumerolojiSurface(
+  viewportWidth: number,
+  surfaceType: NumerolojiSurfaceType,
+): SurfaceDecision {
+  if (!isMobileViewport(viewportWidth)) return "existing-card";
+  return surfaceType === "module-launcher" ? "flat-row" : "flat";
+}
+
+// ── NUM-MOB-2-FIX2: Görsel rapor viewer kontrol modeli ───────────────────────
+
+export type ViewerControls = {
+  /** Üstte sabit kapatma şeridi görünür mü? (mobilde ASLA) */
+  topCloseVisible: boolean;
+  /** Rapor üzerinde yüzen kapatma düğmesi görünür mü? (mobilde ASLA) */
+  floatingCloseVisible: boolean;
+  /** Tam ekran tema kontrol çubuğu görünür mü? (mobilde ASLA) */
+  themeControlsVisible: boolean;
+  /** Rapor sonrası normal-akış "Kapat" düğmesi görünür mü? (mobilde HER ZAMAN) */
+  footerCloseVisible: boolean;
+  /** Kapatma kontrolünün yerleşimi. */
+  closePlacement: "after-report" | "floating";
+};
+
+/**
+ * Viewer kapatma/kontrol yerleşimi. Mobil: yalnız rapordan SONRA normal-akış Kapat;
+ * üst/floating close ve tema çubuğu yok. Masaüstü: mevcut yüzen X + tema kontrolü.
+ */
+export function resolveViewerControls(viewportWidth: number): ViewerControls {
+  if (isMobileViewport(viewportWidth)) {
+    return {
+      topCloseVisible: false,
+      floatingCloseVisible: false,
+      themeControlsVisible: false,
+      footerCloseVisible: true,
+      closePlacement: "after-report",
+    };
+  }
+  return {
+    topCloseVisible: false,
+    floatingCloseVisible: true,
+    themeControlsVisible: true,
+    footerCloseVisible: false,
+    closePlacement: "floating",
+  };
+}

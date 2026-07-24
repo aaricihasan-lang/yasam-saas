@@ -376,7 +376,7 @@ export function KulvarSourceManager({
         ) : (
           <ul className="mt-2 grid gap-3">
             {joined.map(({ link, source }) => (
-              <li key={link.id} className={`min-w-0 rounded-2xl border-2 bg-white p-3 shadow-sm ${link.is_primary ? "border-violet-400" : "border-violet-200/80"}`}>
+              <li key={link.id} className={`min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:rounded-2xl md:border-2 md:bg-white md:p-3 md:pb-3 md:shadow-sm md:last:border-2 md:last:pb-3 ${link.is_primary ? "md:border-violet-400" : "md:border-violet-200/80"}`}>
                 {editingLinkId === link.id ? (
                   <div className="space-y-3">
                     <LinkFormFields form={editLinkForm} set={(p) => setEditLinkForm((s) => ({ ...s, ...p }))} disabled={busy} sources={sources} lockSource />
@@ -431,7 +431,7 @@ export function KulvarSourceManager({
         ) : (
           <ul className="mt-2 grid gap-3">
             {sources.map((s) => (
-              <li key={s.id} className="min-w-0 rounded-2xl border-2 border-violet-200/80 bg-white p-3 shadow-sm">
+              <li key={s.id} className="min-w-0 border-b border-slate-100/70 pb-3 last:border-b-0 last:pb-0 md:rounded-2xl md:border-2 md:border-violet-200/80 md:bg-white md:p-3 md:pb-3 md:shadow-sm md:last:border-2 md:last:pb-3">
                 {editingSourceId === s.id ? (
                   <div className="space-y-3">
                     <SourceFormFields form={editSourceForm} set={(p) => setEditSourceForm((f) => ({ ...f, ...p }))} disabled={busy} />

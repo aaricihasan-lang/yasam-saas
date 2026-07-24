@@ -174,6 +174,8 @@ export function GorselRaporTamEkranKontrolCubugu({
   gorselPngHazirlaniyor,
 }: GorselRaporTamEkranKontrolCubuguProps) {
   return (
+    // NUM-MOB-2-FIX2: mobil/masaüstü görünürlük artık çağıran taraftaki resolveViewerControls
+    // kararıyla yönetilir (mobilde hiç render edilmez).
     <div className="fixed left-6 top-6 z-[10050] flex flex-col gap-2">
       <div
         role="group"
