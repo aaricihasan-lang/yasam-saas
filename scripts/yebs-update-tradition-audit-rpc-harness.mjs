@@ -16,7 +16,7 @@ import { execFileSync } from "node:child_process";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
-const TS = "20260809000000";
+const TS = "20260810000000";
 const BASENAME = `${TS}_yebs_update_tradition_with_audit.sql`;
 const MIGRATION = resolve(ROOT, "supabase/migrations", BASENAME);
 
