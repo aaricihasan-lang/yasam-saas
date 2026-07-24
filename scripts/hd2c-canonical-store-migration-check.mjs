@@ -66,8 +66,20 @@ const allTs = readdirSync(MIG_DIR).map((f) => f.match(/^(\d{14})_/)?.[1]).filter
 const hdTs = MIG_NAME.match(/^(\d{14})_/)?.[1] ?? "";
 const tsCount = allTs.filter((t) => t === hdTs).length;
 check(`A2. Migration timestamp tekil (collision yok): ${hdTs} (×${tsCount})`, tsCount === 1);
-check(`A3. Migration timestamp mevcut maksimumdan büyük`,
-  hdTs !== "" && allTs.every((t) => t === hdTs || t < hdTs));
+// A3: HD-2C migration KİMLİK sabitliği. "Global maksimum timestamp" varsayımı KALDIRILDI —
+// daha sonra eklenen meşru migration'lar (ör. HD-2D 20260809000000_hd_source_foundation.sql)
+// HD-2C'yi en-yeni olmaktan çıkarır; bu normaldir ve A3'ü FAIL ETTİRMEMELİDİR. Migration
+// sıralaması/global-max HD-2C harness'in sorumluluğu değildir. A3 yalnız HD-2C'nin KENDİ
+// kimliğini + collision'ını doğrular: tek dosya, sabit ad, 14-hane timestamp, sabit
+// 20260808000000, aynı timestamp-prefix'ini kullanan ikinci migration yok.
+const HD2C_EXPECTED_NAME = "20260808000000_hd_canonical_store.sql";
+const hd2cPrefixCount = readdirSync(MIG_DIR).filter((f) => f.startsWith("20260808000000_")).length;
+check(`A3. HD-2C migration kimliği sabit + tekil (daha yeni migration'lar geçerli)`,
+  hdFiles.length === 1 &&
+  MIG_NAME === HD2C_EXPECTED_NAME &&
+  /^\d{14}$/.test(hdTs) &&
+  hdTs === "20260808000000" &&
+  hd2cPrefixCount === 1);
 
 // Yorumları soy (mevcut tablo adları YALNIZ yorumda geçer → gövdeye karışmasın).
 const BODY = MIG.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
