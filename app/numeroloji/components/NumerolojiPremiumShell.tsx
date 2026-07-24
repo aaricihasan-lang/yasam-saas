@@ -19,7 +19,8 @@ export function NumerolojiPremiumShell({ children, maxWidthClass = "max-w-5xl" }
         <div className="absolute bottom-[-10%] left-[15%] h-[20rem] w-[20rem] rounded-full bg-sky-400/22 blur-3xl" />
         <div className="absolute right-[10%] top-[45%] h-[14rem] w-[14rem] rounded-full bg-fuchsia-400/15 blur-2xl" />
       </div>
-      <div className={`relative z-10 mx-auto w-full px-4 py-4 lg:px-8 xl:px-10 ${maxWidthClass}`}>{children}</div>
+      {/* NUM-MOB-1: mobilde dış yatay padding sıfır (edge-to-edge); md+ mevcut boşluklar korunur. */}
+      <div className={`relative z-10 mx-auto w-full px-0 py-4 md:px-4 lg:px-8 xl:px-10 ${maxWidthClass}`}>{children}</div>
     </div>
   );
 }

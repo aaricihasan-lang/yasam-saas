@@ -250,6 +250,7 @@ export default function NumerolojiListePage() {
             {!isDemo && (
               <BulkExportBar
                 compact
+                hideWordOnMobile
                 selectedCount={selectedIds.size}
                 totalCount={rows.length}
                 filteredCount={filteredRows.length}

@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import { isMobileViewport } from "../helpers/mobileUxLogic";
 import {
   readDemoNumerolojiAnaliz,
   saveDemoNumerolojiAnaliz,
@@ -362,7 +363,8 @@ export default function NumerolojiAnalizPage() {
         <DemoModuleBanner message="Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır." />
       )}
       <div className="space-y-3">
-        <header className="relative overflow-hidden rounded-2xl border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-4 py-4 text-center shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] ring-1 ring-white/60 backdrop-blur-xl sm:px-6 sm:py-5">
+        <header className="relative overflow-hidden border-y border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-4 py-4 text-center shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] ring-1 ring-white/60 backdrop-blur-xl sm:px-6 sm:py-5 md:rounded-2xl md:border">
+
           <div className="pointer-events-none absolute -left-14 -top-14 h-40 w-40 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
           <nav
@@ -514,7 +516,7 @@ export default function NumerolojiAnalizPage() {
         {out ? (
           <div
             ref={sonucRef}
-            className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-md"
+            className="scroll-mt-4 overflow-hidden border-y border-slate-200/80 bg-white/85 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-md md:rounded-2xl md:border"
           >
             <div className="border-b border-slate-200/80 bg-gradient-to-r from-violet-100/70 via-white/50 to-amber-50/60 p-3">
               <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
@@ -543,7 +545,7 @@ export default function NumerolojiAnalizPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-4 sm:p-5" data-gorsel-rapor-scroll-host>
+            <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 px-2 py-3 sm:p-5" data-gorsel-rapor-scroll-host>
               {tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas" ? (
                 <ContentFontSizeProvider size={contentFontSize}>
                   {tab === "summary" ? (
@@ -590,7 +592,19 @@ export default function NumerolojiAnalizPage() {
                         gorselTamEkran={gorselTamEkran}
                         setGorselTamEkran={setGorselTamEkran}
                       />
-                      <div className="pt-14 sm:pt-[4.5rem]">
+                      {/* NUM-MOB-1: mobilde önizlemeye dokununca tam ekran viewer açılır. */}
+                      <p className="mb-1 mt-1 text-center text-[11px] font-bold text-violet-700/80 md:hidden">
+                        Tam ekran görüntülemek için rapora dokunun
+                      </p>
+                      <div
+                        className="pt-14 sm:pt-[4.5rem] max-md:cursor-zoom-in"
+                        onClick={() => {
+                          // Yalnız viewport <768 iken tam ekran aç (masaüstünde no-op).
+                          if (typeof window !== "undefined" && isMobileViewport(window.innerWidth)) {
+                            setGorselTamEkran(true);
+                          }
+                        }}
+                      >
                         <GorselScaleFit
                           ref={gorselTamEkran ? null : gorselRaporRef}
                           out={out}
@@ -621,7 +635,7 @@ export default function NumerolojiAnalizPage() {
                             <p id="gorsel-fs-title" className="sr-only">
                               Numerolojik yaşam haritası tam ekran görünümü
                             </p>
-                            <div className="flex min-h-full justify-center px-4 py-10 sm:px-6 sm:py-12">
+                            <div className="flex min-h-full justify-center px-1 py-8 sm:px-6 sm:py-12">
                               <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-8">
                                 <GorselScaleFit
                                   key={gorselTema}

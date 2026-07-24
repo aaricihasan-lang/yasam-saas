@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ANALIZ_TURU_FILTER_OPTIONS } from "../helpers/bilgiBankaLabels";
+import { isMobileViewport, mobileKayitKimligi } from "../../helpers/mobileUxLogic";
 import {
   deleteBilgiBankaKayit,
   deleteBilgiBankaKayitlari,
@@ -11,6 +12,7 @@ import {
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
 import { KayitDetayModal } from "./KayitDetayModal";
+import { MobileSilmeDialog } from "./MobileSilmeDialog";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -79,6 +81,10 @@ export function BilgiKayitListesi() {
   const [siliniyorId, setSiliniyorId] = useState<string | null>(null);
   const [topluSiliniyor, setTopluSiliniyor] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  // NUM-MOB-1: mobil iki-aşamalı silme hedefi (masaüstü confirm akışı değişmez).
+  const [mobilSilHedef, setMobilSilHedef] = useState<
+    { mode: "tek"; row: BilgiBankaListeSatir } | { mode: "toplu" } | null
+  >(null);
 
   const yukleListe = useCallback(async () => {
     setYukleniyor(true);
@@ -156,18 +162,9 @@ export function BilgiKayitListesi() {
     }
   }
 
-  async function handleSecilileriSil() {
-    if (seciliSayisi === 0) return;
-
-    const ok = await confirm({
-      title: "Seçili kayıtları sil",
-      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-    });
-    if (!ok) return;
-
+  // Toplu silme çekirdeği (onay UI'sından bağımsız). Masaüstü confirm ve mobil
+  // iki-kapılı dialog aynı çekirdeği çağırır → tek delete API çağrısı.
+  async function silTopluUygula() {
     const knowledgeIds = seciliSatirlar
       .filter((r) => r.kayitTuru === "aciklama")
       .map((r) => r.recordId);
@@ -188,6 +185,31 @@ export function BilgiKayitListesi() {
     if (detayRow && seciliIds.has(detayRow.id)) setDetayRow(null);
     setSeciliIds(new Set());
     void yukleListe();
+  }
+
+  async function handleSecilileriSil() {
+    if (seciliSayisi === 0) return;
+
+    const ok = await confirm({
+      title: "Seçili kayıtları sil",
+      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
+    if (!ok) return;
+    await silTopluUygula();
+  }
+
+  /**
+   * Toplu silme tetikleyici: yalnız viewport genişliğine göre (PWA'dan bağımsız).
+   * Mobilde (<768) iki-kapılı dialog, md+ masaüstünde mevcut confirm akışı.
+   */
+  function topluSilTetikle() {
+    if (seciliSayisi === 0) return;
+    const mobil = typeof window !== "undefined" && isMobileViewport(window.innerWidth);
+    if (mobil) setMobilSilHedef({ mode: "toplu" });
+    else void handleSecilileriSil();
   }
 
   async function exportKnowledgeWord(mode: "all" | "filtered") {
@@ -231,16 +253,8 @@ export function BilgiKayitListesi() {
     }
   }
 
-  async function handleSil(row: BilgiBankaListeSatir) {
-    const ok = await confirm({
-      title: "Kaydı sil",
-      message: "Bu bilgi bankası kaydını silmek istediğinize emin misiniz?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-    });
-    if (!ok) return;
-
+  // Tek kayıt silme çekirdeği (onay UI'sından bağımsız).
+  async function silTekUygula(row: BilgiBankaListeSatir) {
     setSiliniyorId(row.id);
     const { error } = await deleteBilgiBankaKayit(row.kayitTuru, row.recordId);
     setSiliniyorId(null);
@@ -255,11 +269,24 @@ export function BilgiKayitListesi() {
     void yukleListe();
   }
 
+  async function handleSil(row: BilgiBankaListeSatir) {
+    const ok = await confirm({
+      title: "Kaydı sil",
+      message: "Bu bilgi bankası kaydını silmek istediğinize emin misiniz?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
+    if (!ok) return;
+    await silTekUygula(row);
+  }
+
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border-2 border-violet-200/80 bg-white/95 p-4 shadow-lg ring-1 ring-purple-200 backdrop-blur-md md:p-5">
         <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2 xl:items-end 2xl:grid-cols-[1.1fr_1.1fr_2fr_auto_1.3fr]">
-          <div className="min-w-0">
+          {/* NUM-MOB-1: Kayıt türü filtresi mobilde gizli (veri/mantık korunur, yalnız sunum). */}
+          <div className="hidden min-w-0 md:block">
             <label htmlFor="liste-kayit-turu" className={filterLabelClass}>
               Kayıt türü
             </label>
@@ -329,7 +356,7 @@ export function BilgiKayitListesi() {
               <button
                 type="button"
                 disabled={seciliSayisi === 0 || topluSiliniyor || yukleniyor}
-                onClick={() => void handleSecilileriSil()}
+                onClick={topluSilTetikle}
                 className={secilileriSilBtnClass}
               >
                 {topluSiliniyor
@@ -338,11 +365,12 @@ export function BilgiKayitListesi() {
                     ? `Seçilileri Sil (${seciliSayisi})`
                     : "Seçilileri Sil"}
               </button>
+              {/* NUM-MOB-1: Word butonları mobilde tamamen gizli (yer kaplamaz), md+ değişmez. */}
               <button
                 type="button"
                 disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
                 onClick={() => void exportKnowledgeWord("all")}
-                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
               >
                 {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
               </button>
@@ -351,7 +379,7 @@ export function BilgiKayitListesi() {
                   type="button"
                   disabled={wordBusy || filtrelenmis.length === 0}
                   onClick={() => void exportKnowledgeWord("filtered")}
-                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
                 >
                   {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
                 </button>
@@ -384,7 +412,58 @@ export function BilgiKayitListesi() {
           <p className="text-lg font-medium text-amber-950/85">Filtreye uygun kayıt bulunamadı.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border-2 border-violet-200/80 bg-white/95 shadow-lg ring-1 ring-purple-200 backdrop-blur-md">
+        <>
+        {/* NUM-MOB-1: MOBİL kart listesi — tam genişlik, yatay taşma yok, Kayıt Türü/kaynak/rozet yok. */}
+        <div className="space-y-2 md:hidden">
+          {filtrelenmis.map((row) => {
+            const secili = seciliIds.has(row.id);
+            return (
+              <div
+                key={row.id}
+                className={`space-y-2 rounded-xl border px-3 py-2.5 shadow-sm transition ${
+                  secili ? "border-violet-300 bg-violet-100/70" : "border-violet-200/70 bg-white/95"
+                }`}
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={secili}
+                    onChange={() => toggleSec(row.id)}
+                    className={`${checkboxClass} shrink-0`}
+                    aria-label={`${mobileKayitKimligi({ analizTuru: row.analizTuru, deger: row.deger })} seç`}
+                  />
+                  <p className="min-w-0 flex-1 break-words text-sm font-black leading-snug text-violet-900">
+                    {mobileKayitKimligi({ analizTuru: row.analizTuru, deger: row.deger })}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`${detayBtnClass} flex-1`}
+                    onClick={() => setDetayRow(row)}
+                  >
+                    Detay
+                  </button>
+                  <button
+                    type="button"
+                    className={`${silBtnClass} flex-1`}
+                    disabled={siliniyorId === row.id || topluSiliniyor}
+                    onClick={() => setMobilSilHedef({ mode: "tek", row })}
+                  >
+                    {siliniyorId === row.id ? "Siliniyor…" : "Sil"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          <p className="px-1 py-1 text-xs font-medium text-slate-500">
+            {filtrelenmis.length} kayıt gösteriliyor
+            {tumSatirlar.length !== filtrelenmis.length ? ` (toplam ${tumSatirlar.length})` : null}
+          </p>
+        </div>
+
+        {/* MASAÜSTÜ tablo — md ve üzeri (mevcut tasarım korunur). */}
+        <div className="hidden overflow-hidden rounded-2xl border-2 border-violet-200/80 bg-white/95 shadow-lg ring-1 ring-purple-200 backdrop-blur-md md:block">
           <div className="overflow-x-auto p-3 sm:p-4">
             <table className="w-full min-w-[960px] border-separate border-spacing-y-2 text-left">
               <thead>
@@ -491,6 +570,7 @@ export function BilgiKayitListesi() {
               : null}
           </p>
         </div>
+        </>
       )}
 
       {detayRow ? (
@@ -498,6 +578,24 @@ export function BilgiKayitListesi() {
           row={detayRow}
           onClose={() => setDetayRow(null)}
           onSaved={detayGuncelleVeYenile}
+        />
+      ) : null}
+
+      {/* NUM-MOB-1: mobil iki-aşamalı silme onayı (tek + toplu). API yalnız nihai onayda bir kez. */}
+      {mobilSilHedef !== null ? (
+        <MobileSilmeDialog
+          baslik={mobilSilHedef.mode === "toplu" ? "Seçili kayıtları sil" : "Kaydı sil"}
+          kimlik={
+            mobilSilHedef.mode === "toplu"
+              ? `${seciliSayisi} kayıt`
+              : mobileKayitKimligi({ analizTuru: mobilSilHedef.row.analizTuru, deger: mobilSilHedef.row.deger })
+          }
+          onClose={() => setMobilSilHedef(null)}
+          onConfirm={async () => {
+            if (mobilSilHedef.mode === "toplu") await silTopluUygula();
+            else await silTekUygula(mobilSilHedef.row);
+            setMobilSilHedef(null);
+          }}
         />
       ) : null}
     </div>
