@@ -90,10 +90,77 @@ check("14. null/array/non-object → 400", /body\s*===\s*null\s*\|\|\s*typeof\s+
 // --- reason / expected_updated_at ---
 check("15. reason zorunlu (string + trim-boş değil + <=2000)",
   /typeof\s+reason\s*!==\s*"string"\s*\|\|\s*reason\.trim\(\)\s*===\s*""\s*\|\|\s*reason\.length\s*>\s*REASON_MAX_LEN/.test(patchBlock));
-check("16. expected_updated_at zorunlu + strict tz format + geçerli tarih",
-  /EXPECTED_UPDATED_AT_RE\.test\(expectedUpdatedAt\)/.test(patchBlock) && /Number\.isNaN\(Date\.parse\(expectedUpdatedAt\)\)/.test(patchBlock));
-check("16b. strict tz'li regex (Z veya ±HH:mm zorunlu)", /\(Z\|\[\+\\?-\]\\d\{2\}:\\d\{2\}\)\$/.test(detail) || /Z\|\[\+\-\]\\d\{2\}:\\d\{2\}/.test(detail));
-check("17. Date.toISOString normalization YOK (PATCH bloğu + service)", !/toISOString\s*\(/.test(patchBlock) && !/toISOString\s*\(/.test(mutCode));
+check("16. expected_updated_at zorunlu (isValidExpectedUpdatedAt çağrısı)",
+  /typeof\s+expectedUpdatedAt\s*!==\s*"string"\s*\|\|\s*!isValidExpectedUpdatedAt\(expectedUpdatedAt\)/.test(patchBlock));
+check("16b. strict tz'li regex (Z veya ±HH:mm zorunlu, yakalama gruplu)",
+  /Z\|\[\+\-\]\\d\{2\}:\\d\{2\}/.test(detail));
+
+// --- STRICT takvim doğrulaması (statik): yalnız regex+Date.parse yetmez ---
+check("16c. strict validator fonksiyonu mevcut (isValidExpectedUpdatedAt)",
+  /function\s+isValidExpectedUpdatedAt\s*\(\s*value\s*:\s*string\s*\)\s*:\s*boolean/.test(detail));
+check("16d. yalnız regex+Date.parse yeterli DEĞİL (takvim bileşenleri denetleniyor)",
+  /month\s*<\s*1\s*\|\|\s*month\s*>\s*12/.test(detail) && /day\s*<\s*1\s*\|\|\s*day\s*>\s*daysInMonth/.test(detail));
+check("16e. ay aralığı (01–12)", /month\s*<\s*1\s*\|\|\s*month\s*>\s*12/.test(detail));
+check("16f. ayın gerçek gün sayısı (daysInMonth tablosu, artık-yıl duyarlı)",
+  /daysInMonth\s*=\s*\[\s*31\s*,\s*isLeap\s*\?\s*29\s*:\s*28/.test(detail) && /day\s*>\s*daysInMonth\[month\s*-\s*1\]/.test(detail));
+check("16g. artık yıl kuralı (4 / 100 / 400)",
+  /\(\s*year\s*%\s*4\s*===\s*0\s*&&\s*year\s*%\s*100\s*!==\s*0\s*\)\s*\|\|\s*year\s*%\s*400\s*===\s*0/.test(detail));
+check("16h. saat/dakika/saniye sınırları (23/59/59)",
+  /hour\s*>\s*23/.test(detail) && /minute\s*>\s*59/.test(detail) && /second\s*>\s*59/.test(detail));
+check("16i. yıl 0000 reddediliyor", /year\s*===\s*0/.test(detail));
+check("16j. tz offset saat/dakika sınırı", /offsetHour\s*>\s*23\s*\|\|\s*offsetMinute\s*>\s*59/.test(detail));
+check("16k. nihai Number.isFinite(Date.parse(...))", /Number\.isFinite\(Date\.parse\(value\)\)/.test(detail));
+
+// --- DAVRANIŞSAL: route'un GERÇEK validator'ını çıkar (server-only import etmeden)
+//     ve örnek vektörlere karşı çalıştır. Saf fonksiyon; Number/RegExp/Date.parse. ---
+function extractValidator(src) {
+  const reMatch = src.match(/const EXPECTED_UPDATED_AT_RE\s*=\s*\/[^\n]*\/;/);
+  const fnStart = src.indexOf("function isValidExpectedUpdatedAt");
+  if (!reMatch || fnStart === -1) return null;
+  const open = src.indexOf("{", fnStart);
+  let depth = 0, end = -1;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) return null;
+  const fn = src.slice(fnStart, end + 1).replace("(value: string): boolean", "(value)");
+  return `${reMatch[0]}\n${fn}\nreturn isValidExpectedUpdatedAt(__v);`;
+}
+const validatorSrc = extractValidator(detail);
+if (!validatorSrc) {
+  bad("16l. route validator çıkarılabildi (davranışsal test için)");
+} else {
+  let runner = null;
+  try { runner = new Function("__v", validatorSrc); } catch { runner = null; }
+  if (!runner) {
+    bad("16l. route validator derlenebildi");
+  } else {
+    ok("16l. route validator çıkarıldı+derlendi (davranışsal)");
+    const INVALID = [
+      "2026-02-29T10:00:00Z", "2026-02-31T10:00:00Z", "2026-04-31T10:00:00Z",
+      "2026-13-01T10:00:00Z", "2026-01-01T24:00:00Z", "2026-01-01T10:60:00Z",
+      "2026-01-01T10:00:60Z", "0000-01-01T10:00:00Z",
+    ];
+    const VALID = [
+      "2028-02-29T10:00:00Z", "2026-01-31T23:59:59.123456+03:00", "2026-07-24T10:00:00.1-04:30",
+    ];
+    let allRej = true, allAcc = true;
+    for (const s of INVALID) {
+      let r; try { r = runner(s); } catch { r = true; }
+      if (r !== false) { allRej = false; console.log(`    reddedilmeli ama kabul: ${s}`); }
+    }
+    for (const s of VALID) {
+      let r; try { r = runner(s); } catch { r = false; }
+      if (r !== true) { allAcc = false; console.log(`    kabul edilmeli ama red: ${s}`); }
+    }
+    check("7. geçersiz takvim örnekleri REDDEDİLİYOR (davranışsal)", allRej);
+    check("8. geçerli (artık yıl dahil) örnekler KABUL EDİLİYOR (davranışsal)", allAcc);
+  }
+}
+
+check("17. Date.toISOString normalization YOK (route + service)",
+  !/toISOString\s*\(/.test(detailCode) && !/toISOString\s*\(/.test(mutCode));
 check("17b. expected_updated_at ORİJİNAL iletiliyor (değiştirilmeden)", /updateTradition\s*\([\s\S]{0,80}expectedUpdatedAt\s*,\s*patch\s*,\s*reason\s*\)/.test(patchBlock));
 
 // --- Canonical alanlar / omitted-null ---

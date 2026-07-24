@@ -91,9 +91,47 @@ export async function GET(
 const REASON_MAX_LEN = 2000;
 
 // Zorunlu timezone'lu tarih-zaman: YYYY-MM-DDTHH:mm:ss[.1-6 kesir](Z|±HH:mm).
-// Yalnız-tarih veya tz'siz değer reddedilir. Değer DEĞİŞTİRİLMEDEN service'e gider.
+// Biçim regex'i (yakalama gruplu): yıl/ay/gün/saat/dakika/saniye/kesir/tz.
 const EXPECTED_UPDATED_AT_RE =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+
+// STRICT takvim doğrulaması: Date.parse tek başına 31 Şubat/aşkın günleri
+// normalize edebildiğinden yetmez. Ay/gün/artık-yıl/saat/dakika/saniye/offset
+// bileşenleri ayrıca doğrulanır; böylece RPC'ye YALNIZ geçerli timestamptz metni
+// ulaşır. Geçerli değer DEĞİŞTİRİLMEDEN aktarılır (normalize/trim/toISOString YOK).
+function isValidExpectedUpdatedAt(value: string): boolean {
+  const m = EXPECTED_UPDATED_AT_RE.exec(value);
+  if (!m) return false;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(m[4]);
+  const minute = Number(m[5]);
+  const second = Number(m[6]);
+  const tz = m[8];
+
+  if (year === 0) return false; // 0000 reddedilir
+  if (month < 1 || month > 12) return false;
+  if (hour > 23) return false;
+  if (minute > 59) return false;
+  if (second > 59) return false;
+
+  // Artık yıl: 4'e bölünen; 100'e bölünüp 400'e bölünmeyen HARİÇ.
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInMonth = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day < 1 || day > daysInMonth[month - 1]) return false;
+
+  // Timezone offset (Z değilse ±HH:mm): saat 00–23, dakika 00–59.
+  if (tz !== "Z") {
+    const offsetHour = Number(tz.slice(1, 3));
+    const offsetMinute = Number(tz.slice(4, 6));
+    if (offsetHour > 23 || offsetMinute > 59) return false;
+  }
+
+  // Nihai güvenlik: motor da ayrıştırabilmeli (finite).
+  return Number.isFinite(Date.parse(value));
+}
 
 const PATCH_ALLOWED_KEYS = [
   "expected_updated_at",
@@ -215,13 +253,9 @@ export async function PATCH(
     return invalidUpdateBody();
   }
 
-  // --- expected_updated_at ZORUNLU (strict tz'li format + geçerli tarih; orijinal) ---
+  // --- expected_updated_at ZORUNLU (strict tz'li format + gerçek takvim; orijinal) ---
   const expectedUpdatedAt = obj.expected_updated_at;
-  if (
-    typeof expectedUpdatedAt !== "string" ||
-    !EXPECTED_UPDATED_AT_RE.test(expectedUpdatedAt) ||
-    Number.isNaN(Date.parse(expectedUpdatedAt))
-  ) {
+  if (typeof expectedUpdatedAt !== "string" || !isValidExpectedUpdatedAt(expectedUpdatedAt)) {
     return invalidUpdateBody();
   }
 
