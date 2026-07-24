@@ -40,7 +40,6 @@ const AUD1_MIGRATION = "supabase/migrations/20260803010000_yebs_audit_events.sql
 const AUD2_MIGRATION = "supabase/migrations/20260805000000_yebs_create_tradition_with_audit.sql";
 const AUD2_HARNESS = "scripts/yebs-create-tradition-audit-rpc-harness.mjs";
 const READ_SVC_REL = "lib/yebs/service/traditions.ts";
-const DETAIL_ROUTE_REL = "app/api/admin/yebs/traditions/[id]/route.ts";
 
 let pass = 0;
 let fail = 0;
@@ -292,8 +291,10 @@ try {
   }
   const rs = blobEqualsOriginMain(READ_SVC_REL);
   check("36b. read service blob = origin/main (değiştirilmedi)", rs.same, rs.same ? "" : `${rs.wt} != ${rs.base}`);
-  const dr = blobEqualsOriginMain(DETAIL_ROUTE_REL);
-  check("[id] detail route blob = origin/main (değiştirilmedi)", dr.same, dr.same ? "" : `${dr.wt} != ${dr.base}`);
+  // NOT: [id] detail route değişmezliği artık BU harness'in sorumluluğu değildir.
+  // API-A0U detail route'a PATCH ekler; o dosyanın sözleşmesini update harness
+  // (yebs-traditions-update-harness.mjs) doğrular. Bu create-write harness'i yalnız
+  // collection route (POST create) sözleşmesini ve create-yan değişmezleri korur.
 } catch (e) {
   bad("git blob değişmezlik kontrolü çalıştı", String(e && e.message));
 }

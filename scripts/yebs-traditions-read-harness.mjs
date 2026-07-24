@@ -83,19 +83,20 @@ try {
 }
 
 if (list && detail && svc) {
-  // Collection route: GET + POST meşru (API-A0W audit'li create). Detail route:
-  // yalnız GET. Diğer fiiller (PUT/PATCH/DELETE) her iki route'ta yasak; detail'de
-  // POST de yasak.
+  // Collection route: GET + POST meşru (API-A0W create). Detail route: GET + PATCH
+  // meşru (API-A0U update). PUT/DELETE her iki route'ta yasak; collection'da PATCH,
+  // detail'de POST yasak.
   check("list route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(list));
   check("list route: POST export ediyor (A0W create)", /export\s+async\s+function\s+POST\s*\(/.test(list));
   check("detail route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(detail));
+  check("detail route: PATCH export ediyor (A0U update)", /export\s+async\s+function\s+PATCH\s*\(/.test(detail));
   for (const verb of ["PUT", "PATCH", "DELETE"]) {
     check(
       `list route: ${verb} export ETMİYOR`,
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(list),
     );
   }
-  for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
+  for (const verb of ["POST", "PUT", "DELETE"]) {
     check(
       `detail route: ${verb} export ETMİYOR`,
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(detail),
