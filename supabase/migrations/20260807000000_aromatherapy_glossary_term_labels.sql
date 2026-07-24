@@ -116,14 +116,14 @@ CREATE UNIQUE INDEX aromatherapy_glossary_term_labels_term_lang_text_uidx
     tenant_id,
     glossary_term_id,
     lower(btrim(language_tag)),
-    CASE
+    (CASE
       WHEN lower(btrim(language_tag)) = 'tr'
            OR lower(btrim(language_tag)) LIKE 'tr-%'
       THEN
         lower(translate(regexp_replace(btrim(label_text), '\s+', ' ', 'g'), 'İIŞĞÇÖÜ', 'iışğçöü'))
       ELSE
         lower(regexp_replace(btrim(label_text), '\s+', ' ', 'g'))
-    END
+    END)
   );
 
 -- Reverse lookup (non-unique): label → candidate canonical terms (retrieval yönü).
@@ -132,14 +132,14 @@ CREATE INDEX aromatherapy_glossary_term_labels_lookup_idx
   ON public.aromatherapy_glossary_term_labels (
     tenant_id,
     lower(btrim(language_tag)),
-    CASE
+    (CASE
       WHEN lower(btrim(language_tag)) = 'tr'
            OR lower(btrim(language_tag)) LIKE 'tr-%'
       THEN
         lower(translate(regexp_replace(btrim(label_text), '\s+', ' ', 'g'), 'İIŞĞÇÖÜ', 'iışğçöü'))
       ELSE
         lower(regexp_replace(btrim(label_text), '\s+', ' ', 'g'))
-    END
+    END)
   );
 
 -- Identity guard (fail-fast CREATE). (id, tenant_id, glossary_term_id, created_at) immutable;
