@@ -61,25 +61,37 @@ const bodyMatch = sql.match(/AS\s+\$\$([\s\S]*?)\$\$\s*;/);
 const fnBody = bodyMatch ? bodyMatch[1] : "";
 check("fonksiyon gövdesi ($$...$$) bulundu", fnBody.length > 0);
 
-// --- Cross-worktree / cross-ref timestamp çakışma kontrolü ---
+// --- Phase-aware timestamp çakışma kontrolü ---
+// A0U migration artık origin/main'e MERGE edilmiştir; canonical path'in origin/main'de
+// ve main-tabanlı worktree'lerde bulunması NORMALdir (pre-merge guard tersine dönmez).
+// Gerçek çakışma = AYNI timestamp öneki (TS) + FARKLI dosya adı/path. `${TS}` ile başlayan
+// ikinci/farklı bir migration artifact'i hiçbir ref veya worktree'de kabul EDİLMEZ.
+const CANONICAL_REL = `supabase/migrations/${BASENAME}`;
 const localMatches = readdirSync(resolve(ROOT, "supabase/migrations")).filter((f) => f.startsWith(TS));
 check(`yerelde tam 1 ${TS} migration (bu dosya)`, localMatches.length === 1 && localMatches[0] === BASENAME, localMatches.join(", "));
 try {
   const originTree = execFileSync("git", ["-C", ROOT, "ls-tree", "-r", "--name-only", "origin/main", "--", "supabase/migrations/"], { encoding: "utf8" });
-  check(`origin/main'de ${TS} YOK`, !originTree.split(/\r?\n/).some((l) => l.includes(TS)));
+  const originTsFiles = originTree.split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("supabase/migrations/") && l.slice("supabase/migrations/".length).startsWith(TS));
+  // Canonical path origin/main'de bulunabilir (merge sonrası beklenen). Yalnız farklı dosya adı FAIL.
+  const originForeign = originTsFiles.filter((l) => l !== CANONICAL_REL);
+  check(`origin/main'de ${TS} yalnız canonical path (farklı dosya YOK)`, originForeign.length === 0, originForeign.join(", "));
 } catch (e) { bad("origin/main timestamp kontrolü", String(e && e.message)); }
 try {
   const wt = execFileSync("git", ["-C", ROOT, "worktree", "list", "--porcelain"], { encoding: "utf8" });
   const paths = wt.split(/\r?\n/).filter((l) => l.startsWith("worktree ")).map((l) => l.slice("worktree ".length).trim());
-  const others = [];
+  const foreign = [];
   for (const p of paths) {
     // Kendi worktree'mizi hariç tut (slash normalizasyonu için resolve ile karşılaştır).
     if (resolve(p) === ROOT) continue;
     const md = resolve(p, "supabase/migrations");
     if (!existsSync(md)) continue;
-    for (const f of readdirSync(md)) if (f.startsWith(TS)) others.push(`${p}:${f}`);
+    // Aynı canonical dosya adı başka (main-tabanlı) worktree'de bulunabilir; bu çakışma DEĞİL.
+    // Yalnız aynı TS öneki + FARKLI dosya adı gerçek çakışmadır.
+    for (const f of readdirSync(md)) if (f.startsWith(TS) && f !== BASENAME) foreign.push(`${p}:${f}`);
   }
-  check(`başka worktree'de ${TS} YOK`, others.length === 0, others.join(" | "));
+  check(`başka worktree'de ${TS} farklı dosya YOK`, foreign.length === 0, foreign.join(" | "));
 } catch (e) { bad("worktree timestamp kontrolü", String(e && e.message)); }
 
 // --- Explicit transaction / fail-fast ---
@@ -123,10 +135,12 @@ check("YEBS_TRADITION_ID_REQUIRED", /p_tradition_id\s+IS\s+NULL[\s\S]{0,80}YEBS_
 check("YEBS_EXPECTED_UPDATED_AT_REQUIRED", /p_expected_updated_at\s+IS\s+NULL[\s\S]{0,120}YEBS_EXPECTED_UPDATED_AT_REQUIRED/i.test(sql));
 check("YEBS_EXPECTED_UPDATED_AT_INVALID üretilmiyor (typed cast sınırı)", !/YEBS_EXPECTED_UPDATED_AT_INVALID/.test(sql));
 
-// --- reason zorunlu ---
-check("reason zorunlu + <=2000 → YEBS_REASON_INVALID",
-  /v_reason\s*:=\s*nullif\(btrim\(coalesce\(p_reason/i.test(sql)
-  && /v_reason\s+IS\s+NULL\s+OR\s+length\(v_reason\)\s*>\s*2000[\s\S]{0,80}YEBS_REASON_INVALID/i.test(sql));
+// --- reason ZORUNLU + FIDELITY (özgün p_reason korunur; normalize YOK) ---
+check("reason zorunlu: p_reason NULL/btrim boş/length>2000 → YEBS_REASON_INVALID",
+  /p_reason\s+IS\s+NULL[\s\S]{0,60}btrim\(p_reason\)\s*=\s*''[\s\S]{0,60}length\(p_reason\)\s*>\s*2000[\s\S]{0,80}YEBS_REASON_INVALID/i.test(sql));
+check("reason FIDELITY: v_reason değişkeni YOK (normalize edilmiş kopya yok)", !/v_reason/i.test(sql));
+check("reason FIDELITY: p_reason için nullif(btrim(coalesce())) normalization YOK", !/nullif\(btrim\(coalesce\(p_reason/i.test(sql));
+check("reason FIDELITY: btrim yalnız boşluk denetimi (btrim(p_reason) = '' emptiness)", /btrim\(p_reason\)\s*=\s*''/i.test(sql));
 
 // --- patch: object + boş değil + whitelist ---
 check("patch NULL/non-object → YEBS_INVALID_PATCH", /p_patch\s+IS\s+NULL\s+OR\s+jsonb_typeof\(p_patch\)\s*<>\s*'object'[\s\S]{0,80}YEBS_INVALID_PATCH/i.test(sql));
@@ -218,7 +232,7 @@ check("new_state = to_jsonb(v_updated)", /to_jsonb\(v_updated\)/i.test(sql));
 check("changed_fields = v_changed audit'e yazılıyor", /v_changed,/.test(sql));
 check("error_code NULL + metadata '{}'", /p_operation_id,\s*NULL,\s*'\{\}'::jsonb/i.test(sql));
 check("entity_id = v_updated.id", /v_updated\.id/i.test(sql));
-check("request_id/operation_id/reason audit'e", /p_request_id,/.test(sql) && /p_operation_id,/.test(sql) && /v_reason,/.test(sql));
+check("request_id/operation_id/reason audit'e (reason = özgün p_reason)", /p_request_id,/.test(sql) && /p_operation_id,/.test(sql) && /v_changed,\s*p_reason,\s*p_request_id/i.test(sql));
 
 // --- Audit insert yutulmuyor + atomiklik ---
 const auditIdx = sql.indexOf("INSERT INTO public.yebs_audit_events");

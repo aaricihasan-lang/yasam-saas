@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260809000000_yebs_update_tradition_with_audit.sql
+-- 20260810000000_yebs_update_tradition_with_audit.sql
 --
 -- Yaşam Enerjisi Bilgi Sistemi (YEBS) — FAZ API-A0U
 -- Atomik TRADITION UPDATE + AUDIT (partial JSONB patch)
@@ -66,7 +66,6 @@ DECLARE
   v_actor_label  text;
   v_existing     public.yebs_traditions;
   v_updated      public.yebs_traditions;
-  v_reason       text;
   v_slug         text;
   v_name_tr      text;
   v_type         text;
@@ -92,9 +91,11 @@ BEGIN
     RAISE EXCEPTION 'YEBS_EXPECTED_UPDATED_AT_REQUIRED' USING ERRCODE = 'P0001';
   END IF;
 
-  -- --- 5) reason ZORUNLU: btrim≠'' ve ≤2000 (orijinal değer audit'e yazılır) ---
-  v_reason := nullif(btrim(coalesce(p_reason, '')), '');
-  IF v_reason IS NULL OR length(v_reason) > 2000 THEN
+  -- --- 5) reason ZORUNLU: btrim YALNIZ boşluk denetimi; p_reason normalize EDİLMEZ,
+  --         özgün değer (baştaki/sondaki boşluklar dahil) aynen audit'e yazılır ---
+  IF p_reason IS NULL
+     OR btrim(p_reason) = ''
+     OR length(p_reason) > 2000 THEN
     RAISE EXCEPTION 'YEBS_REASON_INVALID' USING ERRCODE = 'P0001';
   END IF;
 
@@ -345,7 +346,7 @@ BEGIN
     to_jsonb(v_existing),
     to_jsonb(v_updated),
     v_changed,
-    v_reason,
+    p_reason,
     p_request_id,
     p_operation_id,
     NULL,
