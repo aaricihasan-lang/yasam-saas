@@ -67,7 +67,7 @@ const hdTs = MIG_NAME.match(/^(\d{14})_/)?.[1] ?? "";
 const tsCount = allTs.filter((t) => t === hdTs).length;
 check(`A2. Migration timestamp tekil (collision yok): ${hdTs} (×${tsCount})`, tsCount === 1);
 // A3: HD-2C migration KİMLİK sabitliği. "Global maksimum timestamp" varsayımı KALDIRILDI —
-// daha sonra eklenen meşru migration'lar (ör. HD-2D 20260809000000_hd_source_foundation.sql)
+// daha sonra eklenen meşru migration'lar (ör. HD-2D 20260811000000_hd_source_foundation.sql)
 // HD-2C'yi en-yeni olmaktan çıkarır; bu normaldir ve A3'ü FAIL ETTİRMEMELİDİR. Migration
 // sıralaması/global-max HD-2C harness'in sorumluluğu değildir. A3 yalnız HD-2C'nin KENDİ
 // kimliğini + collision'ını doğrular: tek dosya, sabit ad, 14-hane timestamp, sabit
