@@ -105,6 +105,17 @@ export function valueCandidatesFromResult(r: NumerolojiResult): string[] {
   return ordered;
 }
 
+/**
+ * NKB-V2-K1: Hayat Yolu için EXACT-only lookup adayı — yalnız hesaplanan tam değer.
+ * Bileşik sonuç (ör. "32/5") ASLA parçalanmaz ("32"/"5" adayı üretilmez) ve exact
+ * kayıt yoksa indirgenmiş sayıya fallback yapılmaz. Tek aday döner.
+ * key öncelikli (calcHayatYolu: key=display=tam değer); boş veya "-" ise [].
+ */
+export function exactValueFromResult(r: NumerolojiResult): string[] {
+  const v = ((r.key || r.display) || "").trim();
+  return v && v !== "-" ? [v] : [];
+}
+
 /** Sağ sütun (destek) X sayısı: 0–1 AZ, 2–3 ideal (not yok), 4+ FAZLA */
 export function chakraLookupValue(chakraNo: number, sagDestekXCount: number): string | null {
   if (sagDestekXCount === 2 || sagDestekXCount === 3) return null;
@@ -149,7 +160,7 @@ function rowToNote(row: KnowledgeRecordRow): KnowledgeNote {
   };
 }
 
-function pickNotesForType(
+export function pickNotesForType(
   rows: KnowledgeRecordRow[],
   analysisType: string,
   valuesInOrder: string[],
@@ -185,8 +196,9 @@ export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): {
       values: valueCandidatesFromResult(out.ifadeSayisi),
     },
     {
+      // NKB-V2-K1: Hayat Yolu EXACT-only — bileşik değer parçalanmaz, indirgenmiş sayı fallback'i yok.
       analysisType: NUMERO_ANALYSIS_TYPES.hayatYolu,
-      values: valueCandidatesFromResult(out.hayatYolu),
+      values: exactValueFromResult(out.hayatYolu),
     },
     {
       analysisType: NUMERO_ANALYSIS_TYPES.cakraOmurga,
