@@ -36,8 +36,9 @@ const allTs = all.map((f) => f.match(/^(\d{14})_/)?.[1]).filter(Boolean);
 const hdTs = MIG_NAME.match(/^(\d{14})_/)?.[1] ?? "";
 check(`A2. Timestamp 14 haneli + tekil (collision yok): ${hdTs}`,
   /^\d{14}$/.test(hdTs) && allTs.filter((t) => t === hdTs).length === 1);
-check("A3. Timestamp mevcut maksimumdan büyük",
-  hdTs !== "" && allTs.every((t) => t === hdTs || t < hdTs));
+const HD2D1_EXPECTED_NAME = "20260811000000_hd_source_foundation.sql";
+check("A3. HD-2D1 migration kimliği sabit ve tekil; daha yeni migration'lar geçerlidir",
+  MIG_NAME === HD2D1_EXPECTED_NAME && hdTs === "20260811000000");
 
 // BODY = yorumsuz; SCHEMA = string literal'ler de boşaltılmış (prose kolon adına takılmasın).
 const BODY = MIG.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
