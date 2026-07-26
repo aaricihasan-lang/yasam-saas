@@ -100,14 +100,19 @@ try {
 }
 
 if (list && detail && svc) {
-  // A1R SALT-OKUNUR: her iki route yalnız GET; POST/PATCH/PUT/DELETE YASAK.
+  // A1W: collection route GET + POST (create); detail route SALT-OKUNUR (yalnız GET).
   check("list route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(list));
   check("detail route: GET export ediyor", /export\s+async\s+function\s+GET\s*\(/.test(detail));
-  for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
+  check("list route: POST export ediyor (A1W create)", /export\s+async\s+function\s+POST\s*\(/.test(list));
+  // Collection'da PATCH/PUT/DELETE yasak (create dışı mutation yok).
+  for (const verb of ["PUT", "PATCH", "DELETE"]) {
     check(
-      `list route: ${verb} export ETMİYOR (salt-okunur)`,
+      `list route: ${verb} export ETMİYOR`,
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(list),
     );
+  }
+  // Detail route salt-okunur kalır: POST/PATCH/PUT/DELETE yasak.
+  for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
     check(
       `detail route: ${verb} export ETMİYOR (salt-okunur)`,
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(detail),
@@ -151,10 +156,13 @@ if (list && detail && svc) {
       check(`${label}: .${op}( çağrısı YOK`, !new RegExp(`\\.${op}\\s*\\(`).test(src));
     }
   }
-  // Mutation servis importu YOK (schoolMutations gelecekte; A1R'de yasak)
+  // A1W: collection route mutation servisini (schoolMutations) import EDEBİLİR (POST create);
+  // detail route ve read service (schools.ts) mutation servisini import ETMEZ.
+  check("detail route: mutation servisi (schoolMutations) import ETMİYOR", !/schoolMutations/.test(detail));
+  check("read service: mutation servisi (schoolMutations) import ETMİYOR", !/schoolMutations/.test(svc));
+  // crypto.randomUUID yalnız mutation service içindedir; route/read-service DOĞRUDAN kullanmaz.
   for (const [label, src] of [["list route", list], ["detail route", detail], ["service", svc]]) {
-    check(`${label}: mutation servisi (schoolMutations) import ETMİYOR`, !/schoolMutations/.test(src));
-    check(`${label}: crypto.randomUUID kullanmıyor`, !/crypto\.randomUUID/.test(src));
+    check(`${label}: crypto.randomUUID doğrudan kullanmıyor`, !/crypto\.randomUUID/.test(src));
   }
 
   // Doğru tabloya erişiyor
@@ -304,22 +312,42 @@ try {
   bad("git blob değişmezlik kontrolü", String(e && e.message));
 }
 
-// Hiçbir migration dosyası değişmedi/eklenmedi (A1R migration YOK).
+// A1W: mevcut migration DEĞİŞMEZ; yalnız YENİ create-school migration'ı eklenebilir.
+const CREATE_SCHOOL_MIG_RE = /^supabase\/migrations\/[0-9]{14}_yebs_create_school_with_audit\.sql$/;
 try {
-  const migStatus = execFileSync("git", ["-C", ROOT, "status", "--porcelain", "--", "supabase/migrations/"], { encoding: "utf8" }).trim();
-  check("A1R'de migration değişikliği/eklemesi YOK", migStatus === "", migStatus);
+  const migStatus = execFileSync("git", ["-C", ROOT, "status", "--porcelain", "--untracked-files=all", "--", "supabase/migrations/"], { encoding: "utf8" }).trim();
+  const migLines = migStatus ? migStatus.split(/\r?\n/) : [];
+  const badMig = migLines.filter((l) => {
+    const st = l.slice(0, 2);
+    const p = l.replace(/^..\s+/, "").replace(/^"|"$/g, "");
+    // İzinli: yalnız yeni (untracked ??) create-school migration'ı; mevcut migration modifiye YOK.
+    return !(st.includes("?") && CREATE_SCHOOL_MIG_RE.test(p));
+  });
+  check("migration: yalnız yeni create-school migration'ı (mevcut migration değişmedi)", badMig.length === 0, badMig.join(" | "));
 } catch (e) {
   bad("migration status kontrolü", String(e && e.message));
 }
 
-// Kapsam: çalışma ağacındaki tüm değişiklikler yalnız 4 hedef Schools dosyası olmalı.
+// Kapsam: çalışma ağacındaki tüm değişiklikler yalnız A1W 6-dosya kapsamında olmalı.
+// (Yetkili 6-dosya + tam immutability denetimi A1W create-RPC harness'ındadır; §18.)
 try {
   // --untracked-files=all: yeni dizinleri tek girişe indirgemeden dosya dosya listeler.
   const porcelain = execFileSync("git", ["-C", ROOT, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
-  const paths = porcelain.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-    .map((l) => l.replace(/^..\s+/, "").replace(/^"|"$/g, ""));
-  const foreign = paths.filter((p) => !TARGET_RELS.has(p));
-  check("kapsam: yalnız 4 Schools hedef dosyası değişti/eklendi", foreign.length === 0, foreign.join(" | "));
+  // Porcelain: "XY PATH" (XY tam 2 kolon, sonra boşluk). trim() KULLANMA — " M" durumunu bozar.
+  const paths = porcelain.split(/\r?\n/).filter((l) => l.length > 3).map((l) => {
+    let p = l.slice(3);
+    const a = p.indexOf(" -> ");
+    if (a !== -1) p = p.slice(a + 4);
+    return p.replace(/^"|"$/g, "");
+  });
+  // A1R read/POST route + harness (TARGET_RELS) + yeni A1W mutation/harness dosyaları.
+  const A1W_EXTRA = new Set([
+    "lib/yebs/service/schoolMutations.ts",
+    "scripts/yebs-schools-write-harness.mjs",
+    "scripts/yebs-create-school-audit-rpc-harness.mjs",
+  ]);
+  const foreign = paths.filter((p) => !TARGET_RELS.has(p) && !A1W_EXTRA.has(p) && !CREATE_SCHOOL_MIG_RE.test(p));
+  check("kapsam: yalnız A1W hedef dosyaları (6) değişti/eklendi", foreign.length === 0, foreign.join(" | "));
 } catch (e) {
   bad("kapsam kontrolü", String(e && e.message));
 }
