@@ -1,5 +1,6 @@
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import { analizTuruLabel } from "./bilgiBankaLabels";
+import { sortKnowledgeRows } from "./knowledgeListOrder";
 import type { KnowledgeSection } from "./knowledgeSections";
 import { buildListSummary } from "./noteLogic";
 import { listAllRecordSources, listSources } from "./sourcesApi";
@@ -230,9 +231,10 @@ export async function listBilgiBankaKayitlari(): Promise<{
     };
   });
 
-  const rows = [...aciklama, ...dogaltas].sort((a, b) =>
-    b.guncellemeTarihi.localeCompare(a.guncellemeTarihi),
-  );
+  // NKB-V2-J1: kanonik deterministik sıra (analysis_type → doğal value → kayıt türü
+  // → stabil id). Tarih (updated_at/guncellemeTarihi) HİÇBİR seviyede kullanılmaz →
+  // liste her açılışta aynı; sonradan eklenen kayıt kendi doğru yerine oturur.
+  const rows = sortKnowledgeRows([...aciklama, ...dogaltas]);
 
   return { rows, error: null };
 }
