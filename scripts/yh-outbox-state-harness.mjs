@@ -72,7 +72,7 @@ const eqArr = (a, b) =>
 // ═════════════════════════════════════════════════════════════════════════════
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIG_DIR = join(HERE, "..", "supabase", "migrations");
-const EXPECTED_NAME = "20260814000000_yasam_hafizasi_outbox.sql";
+const EXPECTED_NAME = "20260815000000_yasam_hafizasi_outbox.sql";
 
 const allMig = readdirSync(MIG_DIR);
 const outboxFiles = allMig.filter((f) => /_yasam_hafizasi_outbox\.sql$/.test(f));
