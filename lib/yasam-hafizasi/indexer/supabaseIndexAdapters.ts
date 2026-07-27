@@ -62,6 +62,27 @@ export interface IndexDbClient {
   from(table: string): DbTableBuilder;
 }
 
+// ─── BF-11B: dar, TEK-METOTLU keyed-delete istemcisi (deindex) ────────────────
+// Mevcut `IndexDbClient`/`DbTableBuilder` DEĞİŞMEZ (reader/writer regression'ı korunur).
+// Chainable builder YERİNE tek bir `deleteRows` metodu: gerçek Supabase zinciri
+// (from().delete({count}).eq()...) worker facade'ında UNSAFE CAST'SİZ delege edilir.
+export interface IndexDeleteQuery {
+  readonly table: string;
+  /** Birlikte AND'lenecek eşitlik filtreleri (kolon, değer). */
+  readonly filters: ReadonlyArray<readonly [column: string, value: string]>;
+  /** Silinen satır sayısı için `count: "exact"` zorunlu. */
+  readonly count: "exact";
+}
+export interface IndexDeleteOutcome {
+  /** DB hatası oluştuysa true (ham mesaj TAŞINMAZ). */
+  readonly error: boolean;
+  /** Silinen satır sayısı; count alınamadıysa null (fail-closed → delete-failed). */
+  readonly count: number | null;
+}
+export interface IndexDeleteClient {
+  deleteRows(query: IndexDeleteQuery): Promise<IndexDeleteOutcome>;
+}
+
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 function chunk<T>(arr: readonly T[], size: number): T[][] {
   const out: T[][] = [];
@@ -293,6 +314,77 @@ export function createSupabaseIndexWriter(db: IndexDbClient): IndexWriter {
         conflictKey: INDEX_CONFLICT_KEY,
         errors,
       };
+    },
+  };
+}
+
+// ─── BF-11B: Tenant-Scoped Fiziksel Deindexer (fail-closed) ───────────────────
+//
+// `yasam_hafizasi_index`'te `source_key` YOKTUR → filtre `source_table` üzerinden
+// kurulur (registry `config.tableName`; olayın ham source_table'ı çağıran katmanda
+// zaten config ile eşleştirilir). Tenant izolasyonu: index'in kendi `tenant_id`
+// kolonuna eşitlik → yanlış tenant asla silinmez (0 satır = fail-closed no-op).
+//
+// v1 KAPSAMI (BF-11A tenant-scoped): yalnız column-mode + non-shared + record-unit.
+// Aksi kaynak okuma yapılmadan `tenant-model-unsupported` döner.
+//   DB error                          → delete-failed (geçici; ham mesaj taşınmaz)
+//   count null/undefined/geçersiz int → delete-failed (FAIL-CLOSED; count:"exact" ist.)
+//   count = 0                         → no-op (idempotent success)
+//   count = 1                         → ok
+//   count > 1                         → multi-row-anomaly (record-unit sözleşme ihlali)
+
+export type DeindexStatus =
+  | "ok"
+  | "no-op"
+  | "multi-row-anomaly"
+  | "delete-failed"
+  | "tenant-model-unsupported";
+
+export interface DeindexInput {
+  readonly config: SourceConfig;
+  readonly sourceId: string;
+  readonly tenantId: string;
+}
+export interface DeindexResult {
+  readonly status: DeindexStatus;
+  readonly deleted: number;
+}
+export interface IndexDeindexer {
+  deindex(input: DeindexInput): Promise<DeindexResult>;
+}
+
+export function createSupabaseIndexDeindexer(db: IndexDeleteClient): IndexDeindexer {
+  return {
+    deindex: async ({ config, sourceId, tenantId }) => {
+      // v1 fail-closed model kapısı (okuma/silme yapılmadan).
+      if (
+        config.tenant.mode !== "column" ||
+        config.tenant.allowSharedNull === true ||
+        config.unit !== "record"
+      ) {
+        return { status: "tenant-model-unsupported", deleted: 0 };
+      }
+
+      // Tenant-scoped fiziksel silme (source_table + source_id + tenant_id birlikte).
+      const { error, count } = await db.deleteRows({
+        table: YH_TABLES.index,
+        filters: [
+          ["source_table", config.tableName],
+          ["source_id", sourceId],
+          ["tenant_id", tenantId],
+        ],
+        count: "exact",
+      });
+
+      if (error) return { status: "delete-failed", deleted: 0 }; // ham mesaj taşınmaz
+      // FAIL-CLOSED: count:"exact" istenmişken null/undefined/geçersiz → doğrulanmış
+      // sıfır DEĞİL → delete-failed (geçici; retry idempotent: sonraki silme 0 → no-op).
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 0) {
+        return { status: "delete-failed", deleted: 0 };
+      }
+      if (count === 0) return { status: "no-op", deleted: 0 };
+      if (count === 1) return { status: "ok", deleted: 1 };
+      return { status: "multi-row-anomaly", deleted: count };
     },
   };
 }
