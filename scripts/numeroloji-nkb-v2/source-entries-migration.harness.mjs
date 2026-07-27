@@ -149,6 +149,17 @@ check("47 SQL statement güvenliği (yalnız BEGIN/DO/CREATE/ALTER-yeni/REVOKE/G
 check("48 migration timestamp guard uyumu (YYYYMMDDHHMMSS_ad.sql biçimi)",
   /^\d{14}_[a-z0-9_]+\.sql$/.test(FILENAME));
 
+// ---- 49-51: fail-closed DO-block name[]/text[] tip-güvenliği (PROD-HOTFIX) ----
+// pg_attribute.attname `name` tipindedir; array_agg(attname) → name[]. Literal ARRAY[...]
+// → text[]. `name[] = text[]` PostgreSQL'de belirsiz operatördür (ERROR 42883) ve migration
+// apply sırasında fail-closed guard'ı patlatır. İki tarafı da text[]'e eşitlemek zorunludur.
+check("49 DO-block attname aggregate ::text cast'li (2 kez: knowledge + sources)",
+  (code.match(/array_agg\(a\.attname::text\s+ORDER BY\s+a\.attname\)/gi) || []).length === 2);
+check("50 DO-block literal kolon dizisi ::text[] cast'li (2 kez: knowledge + sources)",
+  (code.match(/ARRAY\['id','tenant_id'\]::text\[\]/gi) || []).length === 2);
+check("51 bare name[] = text[] karşılaştırması YOK (attname agg ::text'siz VEYA literal ::text[]'siz kalmadı)",
+  !/array_agg\(a\.attname\s+ORDER BY/i.test(code) && !/ARRAY\['id','tenant_id'\](?!::text\[\])/i.test(code));
+
 console.log("\n============================================================");
 const total = pass + fail;
 console.log(`TOTAL ${total}`);
