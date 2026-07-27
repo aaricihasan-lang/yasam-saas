@@ -56,10 +56,10 @@ BEGIN
     WHERE n.nspname = 'public'
       AND cl.relname = 'numerology_knowledge_records'
       AND c.contype = 'u'
-      AND (SELECT array_agg(a.attname ORDER BY a.attname)
+      AND (SELECT array_agg(a.attname::text ORDER BY a.attname)
              FROM unnest(c.conkey) AS k(attnum)
              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum)
-          = ARRAY['id','tenant_id']
+          = ARRAY['id','tenant_id']::text[]
   ) THEN
     RAISE EXCEPTION 'NKB-V2-L3 durdu: numerology_knowledge_records UNIQUE (tenant_id, id) yok — kompozit FK hedefi hazır degil.'; END IF;
 
@@ -71,10 +71,10 @@ BEGIN
     WHERE n.nspname = 'public'
       AND cl.relname = 'numerology_sources'
       AND c.contype = 'u'
-      AND (SELECT array_agg(a.attname ORDER BY a.attname)
+      AND (SELECT array_agg(a.attname::text ORDER BY a.attname)
              FROM unnest(c.conkey) AS k(attnum)
              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum)
-          = ARRAY['id','tenant_id']
+          = ARRAY['id','tenant_id']::text[]
   ) THEN
     RAISE EXCEPTION 'NKB-V2-L3 durdu: numerology_sources UNIQUE (tenant_id, id) yok — kompozit FK hedefi hazir degil.'; END IF;
 
