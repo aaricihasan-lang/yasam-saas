@@ -357,9 +357,23 @@ function parseStones(raw: unknown): string[] {
 }
 
 // ── Taş kartları ─────────────────────────────────────────────────────────────
-function stoneColumns(stones: string[], stockIndex: StockIndex, cols = 3): Table {
+function stoneColumns(stones: string[], stockIndex: StockIndex, contextTitle: string, cols = 3): Table {
   const rows: TableRow[] = [];
   const cw = Math.floor(100 / cols);
+  // Tekrarlayan bağlam başlığı: kart sayfalar arası bölünürse docx bunu her yeni sayfanın
+  // BAŞINDA otomatik tekrarlar → devam sayfası bağlamsız taş adıyla başlamaz. Kompakt lila bar
+  // (yeni ana kart gibi görünmez; stok yeşil vurgusunu bozmaz).
+  rows.push(new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: [new TableCell({
+      columnSpan: cols,
+      shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" },
+      borders: NO_BORDERS,
+      margins: { top: 30, bottom: 30, left: 60, right: 60 },
+      children: [new Paragraph({ spacing: { after: 0 }, children: [tr(`${contextTitle}  ·  Önerilen Taşlar — Devam`, { bold: true, color: MOR, size: S_SMALL })] })],
+    })],
+  }));
   for (let i = 0; i < stones.length; i += cols) {
     const slice = stones.slice(i, i + cols);
     while (slice.length < cols) slice.push("");
@@ -410,7 +424,8 @@ function tasBlocks(motor: Motor, shared: WordSharedData, stockIndex: StockIndex)
       if (st.reason?.trim()) out.push(new Paragraph({ keepNext: stones.length > 0, spacing: { after: 100, line: 264 }, alignment: AlignmentType.JUSTIFIED, children: [tr(st.reason.trim())] }));
       if (stones.length > 0) {
         out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 30 }, children: [tr("Önerilen Taşlar", { bold: true, color: INDIGO, size: S_SMALL })] }));
-        out.push(stoneColumns(stones, stockIndex, stones.length >= 6 ? 3 : 2));
+        const contextTitle = `${analizLabel(st.analysis_type)} — ${st.value}`;
+        out.push(stoneColumns(stones, stockIndex, contextTitle, stones.length >= 6 ? 3 : 2));
       }
     }
   }

@@ -26,8 +26,9 @@ function check(name, cond) { const ok = Boolean(cond); console.log(`${ok ? "PASS
 const motor = hesaplaNumeroloji({ firstName: "Ayşe", lastName: "YILMAZ", birthDate: "15.03.1990" });
 const plan = buildKnowledgeLookupPlan(motor);
 const val = (t) => { const p = plan.find((x) => x.analysisType === t); return p && p.values.length ? p.values[0] : "1"; };
-const AV = val("ana-kulvar"), IV = val("ifade-sayisi"), HV = val("hayat-yolu");
+const AV = val("ana-kulvar"), IV = val("ifade-sayisi"), HV = val("hayat-yolu"), CV = val("cakra-omurga");
 const R = (t) => `rec-${t}`;
+const LONG_STONES = ["Ametist", "Sitrin", "Turmalin", "Akik", "Oniks", "Kuvars", "Akuamarin", "Sodalit", "Lapis", "Yeşim", "Obsidyen", "Karnelyan"];
 
 const row = { id: "r1", name: "Ayşe", surname: "YILMAZ", birth_date: "15.03.1990", created_at: "2026-01-01T10:00:00Z", analysis_data: { version: 1, motor, summary: "FIXTURE_OZET." } };
 const mk = (t, v, over) => ({ id: R(t), tenant_id: "t", analysis_type: t, value: v, source: null, description: null, content_sections: null, updated_at: "2026-01-01", ...over });
@@ -44,7 +45,10 @@ const shared = {
   ],
   entries: [{ id: "e1", tenant_id: "t", knowledge_record_id: R("ana-kulvar"), source_id: null, body: "KAYNAK_NOTU_X", display_order: 1, include_in_analysis: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }],
   sourceLabelById: new Map(),
-  stoneRows: [{ id: "s1", analysis_type: "ana-kulvar", value: AV, reason: "TAS_SEBEP_X", stones: ["Ametist", "Sitrin", "Turmalin", "Akik", "Oniks", "Kuvars"] }],
+  stoneRows: [
+    { id: "s1", analysis_type: "ana-kulvar", value: AV, reason: "TAS_SEBEP_X", stones: ["Ametist", "Sitrin", "Turmalin", "Akik", "Oniks", "Kuvars"] },
+    { id: "s2", analysis_type: "cakra-omurga", value: CV, reason: "CAKRA_TAS_SEBEP", stones: LONG_STONES },
+  ],
 };
 // Uzman stoku: Ametist (18), Turmalin (adet 0 → "Stokta"), "Mor Akik" (→ suggested "Akik" ile eşleşMEZ).
 const STOCK = buildStockIndex([{ name: "Ametist", adet: 18 }, { name: "Turmalin", adet: 0 }, { name: "Mor Akik", adet: 4 }]);
@@ -105,6 +109,17 @@ console.log("\n── UZMAN STOK VURGUSU (Word) ──");
   check("FUZZY YOK: 'Akik' önerildi, stokta 'Mor Akik' → Akik nötr (•  Akik)", t.xml.includes("•  Akik"));
   const noStock = await gen(sel("tas"), new Map());
   check("stok yoksa (boş index) taşlar nötr, yeşil (ECFDF5) yok", !noStock.xml.includes("ECFDF5"));
+}
+
+console.log("\n── DEVAM SAYFASI BAĞLAMI (uzun taş kartı) ──");
+{
+  const t = await gen(sel("tas"), STOCK);
+  check("devam başlığı 'Önerilen Taşlar — Devam' bulunuyor", t.xml.includes("Önerilen Taşlar — Devam"));
+  check("devam bağlamı doğru çakra + AZ/FAZLA durumu içeriyor", t.xml.includes(`Çakra Omurga — ${CV}`) && (CV.includes("AZ") || CV.includes("FAZLA")));
+  check("tekrarlayan tablo başlığı (tblHeader) → devam sayfasında otomatik tekrar", t.xml.includes("tblHeader"));
+  check("uzun listedeki taşlar kaybolmuyor (12 taş da mevcut)", LONG_STONES.every((s) => t.xml.includes(s)));
+  check("taş tekrarlanmıyor (Karnelyan yalnız bir kez)", occ(t.xml, "Karnelyan") === 1);
+  check("stok yeşil vurgu + adet devam kartında da korunuyor", t.xml.includes("ECFDF5") && t.xml.includes("Stokta · 18 adet"));
 }
 
 console.log("\n── Dört bölüm + dedup ──");
