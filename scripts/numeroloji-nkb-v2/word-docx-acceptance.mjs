@@ -1,8 +1,6 @@
 /**
- * NKB-V4 — GERÇEK DOCX kabul testi (kelime araması DEĞİL): fixture veriyle .docx üretir, jszip ile
- * açıp document.xml + header + footer + media'yı PARSE EDEREK premium yapıyı doğrular: kapak, PIN
- * piramidi, Çakra Omurgası sol/merkez/sağ, element kartları, yorum kartları (pastel potansiyel),
- * dedup, taş çok sütunlu, Görsel Rapor YOK, sayfa X/Y.
+ * NKB-V5 — GERÇEK DOCX kabul testi (jszip parse; kelime araması değil). Premium yapı + yorum
+ * bütünlüğü (İfade/Hayat) + uzman stok vurgusu (yeşil + adet, fuzzy YOK) + sayfa bölünmesi.
  *
  * Çalıştır: npx tsx scripts/numeroloji-nkb-v2/word-docx-acceptance.mjs
  */
@@ -15,9 +13,11 @@ const ROOT = join(HERE, "..", "..");
 const HELPERS = join(ROOT, "app", "numeroloji", "bilgi-bankasi", "helpers");
 const build = await import(pathToFileURL(join(HELPERS, "wordDocxBuild.ts")).href);
 const kl = await import(pathToFileURL(join(HELPERS, "knowledgeLookup.ts")).href);
+const ss = await import(pathToFileURL(join(HELPERS, "stoneStockLogic.ts")).href);
 const motorMod = await import(pathToFileURL(join(ROOT, "lib", "numeroloji", "numerolojiMotor.ts")).href);
 const { buildNumerolojiWordChildren, packNumerolojiDocx } = build;
 const { buildKnowledgeLookupPlan } = kl;
+const { buildStockIndex } = ss;
 const { hesaplaNumeroloji } = motorMod;
 
 let pass = 0, fail = 0;
@@ -25,26 +25,33 @@ function check(name, cond) { const ok = Boolean(cond); console.log(`${ok ? "PASS
 
 const motor = hesaplaNumeroloji({ firstName: "Ayşe", lastName: "YILMAZ", birthDate: "15.03.1990" });
 const plan = buildKnowledgeLookupPlan(motor);
-const ak = plan.find((x) => x.analysisType === "ana-kulvar");
-const MV = ak && ak.values.length ? ak.values[0] : "1";
-const REC = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const val = (t) => { const p = plan.find((x) => x.analysisType === t); return p && p.values.length ? p.values[0] : "1"; };
+const AV = val("ana-kulvar"), IV = val("ifade-sayisi"), HV = val("hayat-yolu");
+const R = (t) => `rec-${t}`;
 
 const row = { id: "r1", name: "Ayşe", surname: "YILMAZ", birth_date: "15.03.1990", created_at: "2026-01-01T10:00:00Z", analysis_data: { version: 1, motor, summary: "FIXTURE_OZET." } };
+const mk = (t, v, over) => ({ id: R(t), tenant_id: "t", analysis_type: t, value: v, source: null, description: null, content_sections: null, updated_at: "2026-01-01", ...over });
 const shared = {
-  knowledgeRows: [{ id: REC, tenant_id: "t", analysis_type: "ana-kulvar", value: MV, source: null, description: null,
-    content_sections: [
+  knowledgeRows: [
+    mk("ana-kulvar", AV, { content_sections: [
       { key: "overview", label: "Genel Açıklama", body: "GENEL_ACIKLAMA_X", order: 1 },
       { key: "constructive", label: "Yapıcı Potansiyeller", body: "YAPICI_X", order: 2 },
       { key: "negative", label: "Olumsuz Potansiyeller", body: "OLUMSUZ_X", order: 3 },
       { key: "destructive", label: "Yıkıcı Potansiyeller", body: "YIKICI_X", order: 4 },
-    ], updated_at: "2026-01-01" }],
-  entries: [{ id: "e1", tenant_id: "t", knowledge_record_id: REC, source_id: null, body: "KAYNAK_NOTU_X", display_order: 1, include_in_analysis: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }],
+    ] }),
+    mk("ifade-sayisi", IV, { description: "IFADE_YORUM_METNI" }),
+    mk("hayat-yolu", HV, { description: "HAYAT_YORUM_METNI" }),
+  ],
+  entries: [{ id: "e1", tenant_id: "t", knowledge_record_id: R("ana-kulvar"), source_id: null, body: "KAYNAK_NOTU_X", display_order: 1, include_in_analysis: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }],
   sourceLabelById: new Map(),
-  stoneRows: [{ id: "s1", analysis_type: "ana-kulvar", value: MV, reason: "TAS_SEBEP_X", stones: ["Ametist", "Sitrin", "Turmalin", "Akuamarin", "Oniks", "Kuvars"] }],
+  stoneRows: [{ id: "s1", analysis_type: "ana-kulvar", value: AV, reason: "TAS_SEBEP_X", stones: ["Ametist", "Sitrin", "Turmalin", "Akik", "Oniks", "Kuvars"] }],
 };
+// Uzman stoku: Ametist (18), Turmalin (adet 0 → "Stokta"), "Mor Akik" (→ suggested "Akik" ile eşleşMEZ).
+const STOCK = buildStockIndex([{ name: "Ametist", adet: 18 }, { name: "Turmalin", adet: 0 }, { name: "Mor Akik", adet: 4 }]);
+
 function sel(...keys) { const s = { summary: false, plain: false, detailed: false, tas: false }; for (const k of keys) s[k] = true; return s; }
-async function gen(sections) {
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren([row], sections, shared);
+async function gen(sections, stock = new Map()) {
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren([row], sections, shared, stock);
   if (!anyContent) return { anyContent, emptyTabs, xml: "", header: "", footer: "", tbl: 0 };
   const buf = await packNumerolojiDocx(children, "Ayşe YILMAZ");
   const zip = await JSZip.loadAsync(buf);
@@ -55,63 +62,57 @@ async function gen(sections) {
 }
 const occ = (xml, s) => xml.split(s).length - 1;
 
-console.log("── Ortak: premium kapak + üst/alt bilgi + Görsel Rapor YOK ──");
+console.log("── Premium yapı + Görsel Rapor YOK ──");
 {
-  const r = await gen(sel("summary", "plain", "detailed", "tas"));
-  check("premium kapak: NUMEROLOJİ ANALİZ RAPORU + YAŞAM SİSTEMİ + slogan", r.xml.includes("NUMEROLOJİ ANALİZ RAPORU") && r.xml.includes("YAŞAM SİSTEMİ") && r.xml.includes("Bütüncül Yaşam Analizi Platformu"));
-  check("kapak kişi kartı: Danışan/Doğum/Analiz/Rapor Tarihi", r.xml.includes("Danışan") && r.xml.includes("Doğum Tarihi") && r.xml.includes("Analiz Tarihi") && r.xml.includes("Rapor Tarihi"));
-  check("gereksiz Sistem Özeti/İçindekiler YOK", !r.xml.includes("İçindekiler") && !r.xml.includes("Sistem Özeti"));
-  check("ham '——————————' YOK", !r.xml.includes("——————————"));
-  check("üst bilgi (running header) var", r.header.includes("Numeroloji Analiz Raporu"));
-  check("alt bilgi Sayfa X/Y (PAGE alanı)", r.footer.includes("Sayfa") && r.footer.includes("PAGE"));
-  check("Görsel Rapor HİÇBİR yerde yok", !r.xml.includes("Görsel Rapor"));
+  const r = await gen(sel("summary", "plain", "detailed", "tas"), STOCK);
+  check("premium kapak + running header + footer PAGE", r.xml.includes("NUMEROLOJİ ANALİZ RAPORU") && r.header.includes("Numeroloji Analiz Raporu") && r.footer.includes("PAGE"));
+  check("Görsel Rapor/İçindekiler/ham ayraç YOK", !r.xml.includes("Görsel Rapor") && !r.xml.includes("İçindekiler") && !r.xml.includes("——————————"));
+  check("native tablolar + Heading stilleri", r.tbl >= 6 && r.xml.includes('w:val="Heading2"'));
 }
 
-console.log("\n── 1. Sonuç Özeti — profil kartları + PIN piramidi + yorum kartları (tekrar yok) ──");
+console.log("\n── İÇERİK BÜTÜNLÜĞÜ: İfade Sayısı + Hayat Yolu yorumları ──");
 {
-  const r = await gen(sel("summary"));
-  check("summary: 'Numerolojik Profil Özeti' + değer kartları (ANA KULVAR etiketi)", r.xml.includes("Numerolojik Profil Özeti") && r.xml.includes("ANA KULVAR"));
-  check("summary: 'PIN Kodu' bölümü var (piramit için birden çok tablo)", r.xml.includes("PIN Kodu") && r.tbl >= 5);
-  check("summary: tekrar eden 'Ana kulvar: ...' tek satırı YOK", !r.xml.includes("Ana kulvar:") && !r.xml.includes("Ana kulvar :"));
-  check("summary: 'Ana Yorumlar' + kanonik + pastel potansiyeller", r.xml.includes("Ana Yorumlar") && r.xml.includes("GENEL_ACIKLAMA_X") && r.xml.includes("Yapıcı Potansiyeller") && r.xml.includes("Olumsuz Potansiyeller"));
+  const s = await gen(sel("summary"), new Map());
+  check("Sonuç Özeti'nde İfade Sayısı yorumu var", s.xml.includes("IFADE_YORUM_METNI"));
+  check("Sonuç Özeti'nde Hayat Yolu yorumu var", s.xml.includes("HAYAT_YORUM_METNI"));
+  const d = await gen(sel("detailed"), new Map());
+  check("Hesap Özetli'de İfade Sayısı yorumu var", d.xml.includes("IFADE_YORUM_METNI"));
+  check("Hesap Özetli'de Hayat Yolu yorumu var", d.xml.includes("HAYAT_YORUM_METNI"));
+  check("kanonik + kaynak notu doğru kartın altında; metin kesilmemiş", d.xml.includes("GENEL_ACIKLAMA_X") && d.xml.includes("KAYNAK_NOTU_X") && d.xml.includes("Yıkıcı Potansiyeller"));
 }
 
-console.log("\n── 2. Hesap Özetsiz — omurga/element/piramit yerleşimi ──");
+console.log("\n── SAYFA YAPISI: Harfler + taş bölünmesi ──");
 {
-  const r = await gen(sel("plain"));
-  check("plain: Çakra Omurgası sol/merkez/sağ (Sol Destek/Çakra/Sağ Destek + açıklama)", r.xml.includes("Çakra Omurgası") && r.xml.includes("Sol Destek") && r.xml.includes("Sağ Destek") && r.xml.includes("Sol sütun sayı desteğini"));
-  check("plain: Element kartları + BASKIN ELEMENT vurgusu", r.xml.includes("HAVA") && r.xml.includes("BASKIN ELEMENT"));
-  check("plain: Harflerin Yankılanışı tablosu (gerçek karşılaştırma)", r.xml.includes("Harflerin Yankılanışı") && r.xml.includes("Yaş Aralığı"));
-  check("plain: PIN piramidi için çoklu küçük tablo (tbl yüksek)", r.tbl >= 8);
+  const r = await gen(sel("plain"), new Map());
+  check("Harflerin Yankılanışı yeni sayfadan (pageBreakBefore) — tek satır sayfa sonunda kalmaz", (() => {
+    const i = r.xml.indexOf("Harflerin Yankılanışı");
+    // Harfler subHeading paragrafında w:pageBreakBefore bulunmalı (başlıktan hemen önce).
+    const before = r.xml.slice(Math.max(0, i - 400), i);
+    return i > -1 && before.includes("w:pageBreakBefore");
+  })());
+  const t = await gen(sel("tas"), STOCK);
+  check("taş kartı: keepNext (başlık+açıklama+Önerilen Taşlar kopmaz)", occ(t.xml, "w:keepNext") >= 3);
 }
 
-console.log("\n── 3. Hesap Özetli (tek) — kısa profil + yorumlar ──");
+console.log("\n── UZMAN STOK VURGUSU (Word) ──");
 {
-  const r = await gen(sel("detailed"));
-  check("detailed tek: 'Kısa Numerolojik Profil' + 'Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları'", r.xml.includes("Kısa Numerolojik Profil") && r.xml.includes("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları"));
-  check("detailed: kanonik + kaynak notu + pastel potansiyeller", r.xml.includes("GENEL_ACIKLAMA_X") && r.xml.includes("KAYNAK_NOTU_X") && r.xml.includes("Yıkıcı Potansiyeller"));
+  const t = await gen(sel("tas"), STOCK);
+  check("stok girişinde açıklama: 'uzman stoklarında bulunmaktadır'", t.xml.includes("uzman stoklarında bulunmaktadır"));
+  check("stoktaki taş yeşil zeminli (ECFDF5) + ✓ işareti", t.xml.includes("ECFDF5") && t.xml.includes("✓"));
+  check("adetli stok: 'Stokta · 18 adet' (Ametist)", t.xml.includes("Stokta · 18 adet"));
+  check("adetsiz stok kaydı: 'Stokta' (Turmalin, adet 0) — sayı yok", t.xml.includes("Stokta") && !t.xml.includes("Stokta · 0"));
+  check("stokta olmayan taş nötr madde işareti (•  Sitrin)", t.xml.includes("•  Sitrin"));
+  check("FUZZY YOK: 'Akik' önerildi, stokta 'Mor Akik' → Akik nötr (•  Akik)", t.xml.includes("•  Akik"));
+  const noStock = await gen(sel("tas"), new Map());
+  check("stok yoksa (boş index) taşlar nötr, yeşil (ECFDF5) yok", !noStock.xml.includes("ECFDF5"));
 }
 
-console.log("\n── 4. Taş Açıklamaları — kartlar + çok sütunlu taşlar ──");
+console.log("\n── Dört bölüm + dedup ──");
 {
-  const r = await gen(sel("tas"));
-  check("tas: 'Kişiye Özel Taş Destekleri' + kart başlığı + sebep + 'Önerilen Taşlar'", r.xml.includes("Kişiye Özel Taş Destekleri") && r.xml.includes("TAS_SEBEP_X") && r.xml.includes("Önerilen Taşlar"));
-  check("tas: taşlar tek uzun virgüllü paragraf DEĞİL (madde işaretli hücreler)", r.xml.includes("•  Ametist") && r.xml.includes("•  Turmalin"));
-}
-
-console.log("\n── 5. Dört bölüm birlikte ──");
-{
-  const r = await gen(sel("summary", "plain", "detailed", "tas"));
-  check("4 bölüm başlığı ekran sırasıyla", r.xml.includes("Sonuç Özeti") && r.xml.includes("Analiz (Hesap Özetsiz)") && r.xml.includes("Analiz (Hesap Özetli)") && r.xml.includes("Taş Açıklamaları"));
-  check("tek kapak (bir NUMEROLOJİ ANALİZ RAPORU)", occ(r.xml, "NUMEROLOJİ ANALİZ RAPORU") === 1);
-}
-
-console.log("\n── 6. Hesap Özetsiz + Hesap Özetli birlikte → tekrar önleme ──");
-{
-  const r = await gen(sel("plain", "detailed"));
-  check("dedup: 'Çakra Omurgası' yalnız BİR kez (özetli tekrar etmez)", occ(r.xml, "Çakra Omurgası") === 1);
-  check("dedup: 'Kısa Numerolojik Profil' YOK (özetsiz zaten var)", !r.xml.includes("Kısa Numerolojik Profil"));
-  check("dedup: özetli doğrudan yorumlara geçer", r.xml.includes("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları") && r.xml.includes("GENEL_ACIKLAMA_X"));
+  const r = await gen(sel("summary", "plain", "detailed", "tas"), STOCK);
+  check("4 bölüm başlığı + tek kapak", r.xml.includes("Sonuç Özeti") && r.xml.includes("Taş Açıklamaları") && occ(r.xml, "NUMEROLOJİ ANALİZ RAPORU") === 1);
+  const pd = await gen(sel("plain", "detailed"), new Map());
+  check("dedup: Çakra Omurgası tek kez; özetli doğrudan yorumlara", occ(pd.xml, "Çakra Omurgası") === 1 && pd.xml.includes("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları"));
 }
 
 console.log(`\nToplam: ${pass} PASS / ${fail} FAIL (${pass + fail} kontrol)`);

@@ -40,6 +40,7 @@ import { buildKnowledgeLookupPlan, pickNotesForType, type KnowledgeNote } from "
 import { noteHeading, resolveNoteSectionsForView } from "./noteLogic";
 import type { SourceEntryRow } from "./sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
+import { matchStock, stockLabel, STOCK_HINT_WORD, type StockIndex } from "./stoneStockLogic";
 import { extractMotorFromAnalysisJson, extractSummaryFromAnalysisData } from "../../utils/analysisJson";
 
 type Block = Paragraph | Table;
@@ -54,6 +55,7 @@ const BODY = "334155";
 const SECONDARY = "64748B";
 const WHITE = "FFFFFF";
 const GREEN_BG = "ECFDF5";
+const GREEN_TXT = "047857";
 const AMBER_BG = "FFFBEB";
 const RED_BG = "FEF2F2";
 
@@ -107,9 +109,9 @@ function sectionHeading(text: string, pageBreakBefore = false): Paragraph {
     children: [new TextRun({ text: `  ${text}`, font: FONT, size: S_H2, bold: true, color: INDIGO })],
   });
 }
-function subHeading(text: string): Paragraph {
+function subHeading(text: string, pageBreakBefore = false): Paragraph {
   return new Paragraph({
-    heading: HeadingLevel.HEADING_3, keepNext: true, spacing: { before: 150, after: 70 },
+    heading: HeadingLevel.HEADING_3, keepNext: true, pageBreakBefore, spacing: { before: pageBreakBefore ? 0 : 150, after: 70 },
     children: [new TextRun({ text, font: FONT, size: S_H3, bold: true, color: MOR })],
   });
 }
@@ -355,12 +357,26 @@ function parseStones(raw: unknown): string[] {
 }
 
 // ── Taş kartları ─────────────────────────────────────────────────────────────
-function stoneColumns(stones: string[], cols = 3): Table {
+function stoneColumns(stones: string[], stockIndex: StockIndex, cols = 3): Table {
   const rows: TableRow[] = [];
+  const cw = Math.floor(100 / cols);
   for (let i = 0; i < stones.length; i += cols) {
     const slice = stones.slice(i, i + cols);
     while (slice.length < cols) slice.push("");
-    rows.push(new TableRow({ cantSplit: true, children: slice.map((s) => new TableCell({ margins: { top: 20, bottom: 20, left: 60, right: 60 }, width: { size: Math.floor(100 / cols), type: WidthType.PERCENTAGE }, borders: NO_BORDERS, children: [new Paragraph({ spacing: { after: 0 }, children: s ? [tr(`•  ${s}`, {})] : [] })] })) }));
+    rows.push(new TableRow({ cantSplit: true, children: slice.map((s) => {
+      if (!s) return new TableCell({ margins: { top: 20, bottom: 20, left: 60, right: 60 }, width: { size: cw, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, children: [new Paragraph({ spacing: { after: 0 }, children: [] })] });
+      const info = matchStock(s, stockIndex);
+      // Stoktaki taş: açık yeşil hücre + ✓ + "Stokta[· N adet]". Yoksa nötr madde işareti.
+      const runs = info.stocked
+        ? [tr("✓ ", { bold: true, color: GREEN_TXT }), tr(s, { bold: true }), tr(`  — ${stockLabel(info)}`, { bold: true, color: GREEN_TXT, size: S_SMALL })]
+        : [tr(`•  ${s}`, {})];
+      return new TableCell({
+        shading: info.stocked ? { type: ShadingType.CLEAR, fill: GREEN_BG, color: "auto" } : undefined,
+        borders: info.stocked ? { top: { style: BorderStyle.SINGLE, size: 2, color: "A7F3D0" }, bottom: { style: BorderStyle.SINGLE, size: 2, color: "A7F3D0" }, left: { style: BorderStyle.SINGLE, size: 2, color: "A7F3D0" }, right: { style: BorderStyle.SINGLE, size: 2, color: "A7F3D0" } } : NO_BORDERS,
+        margins: { top: 20, bottom: 20, left: 60, right: 60 }, width: { size: cw, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ spacing: { after: 0 }, children: runs })],
+      });
+    }) }));
   }
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, rows });
 }
@@ -370,10 +386,10 @@ function stoneStatusLabel(value: string): string | null {
   if (v.includes("AZ")) return "AZ DESTEK";
   return null;
 }
-function tasBlocks(motor: Motor, shared: WordSharedData): Block[] {
+function tasBlocks(motor: Motor, shared: WordSharedData, stockIndex: StockIndex): Block[] {
   const out: Block[] = [];
   if (!motor) return out;
-  out.push(p("Kişiye özel taş destekleri, hesaplanan değerlere göre aşağıda kart hâlinde sunulmuştur.", { color: SECONDARY, size: S_SMALL, after: 100 }));
+  out.push(p(STOCK_HINT_WORD, { color: SECONDARY, size: S_SMALL, after: 100 }));
   const seen = new Set<string>();
   let any = false;
   for (const plan of buildKnowledgeLookupPlan(motor)) {
@@ -389,9 +405,13 @@ function tasBlocks(motor: Motor, shared: WordSharedData): Block[] {
       const badge = stoneStatusLabel(st.value);
       const titleRuns: TextRun[] = [tr(`  ${analizLabel(st.analysis_type)} — ${st.value}`, { bold: true, color: WHITE, size: S_H3 })];
       if (badge) titleRuns.push(tr(`    [ ${badge} ]`, { bold: true, color: LILA, size: S_SMALL }));
+      // Kart başlığı + ilk açıklama paragrafı aynı sayfada (keepNext); tek satır/başlık artık kalmaz.
       out.push(new Paragraph({ keepNext: true, spacing: { before: 150, after: 60 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: titleRuns }));
-      if (st.reason?.trim()) out.push(p(st.reason.trim(), { justify: true }));
-      if (stones.length > 0) { out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 30 }, children: [tr("Önerilen Taşlar", { bold: true, color: INDIGO, size: S_SMALL })] })); out.push(stoneColumns(stones, stones.length >= 6 ? 3 : 2)); }
+      if (st.reason?.trim()) out.push(new Paragraph({ keepNext: stones.length > 0, spacing: { after: 100, line: 264 }, alignment: AlignmentType.JUSTIFIED, children: [tr(st.reason.trim())] }));
+      if (stones.length > 0) {
+        out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 30 }, children: [tr("Önerilen Taşlar", { bold: true, color: INDIGO, size: S_SMALL })] }));
+        out.push(stoneColumns(stones, stockIndex, stones.length >= 6 ? 3 : 2));
+      }
     }
   }
   return any ? out : [];
@@ -405,6 +425,7 @@ export function buildPersonSections(
   reportType: string,
   selectedLabels: string[],
   personIndex: number,
+  stockIndex: StockIndex,
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
@@ -464,7 +485,7 @@ export function buildPersonSections(
         if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); }
         const z = zirveCards(motor); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); }
         const muc = mucadeleBlocks(motor); if (muc.length) { blocks.push(subHeading("Mücadele Yılları")); blocks.push(...muc); }
-        const harf = harflerTable(motor); if (harf) { blocks.push(subHeading("Harflerin Yankılanışı")); blocks.push(harf); }
+        const harf = harflerTable(motor); if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); }
       }
     } else if (tab === "detailed") {
       // Hesap Özetsiz de seçiliyse hesap bölümlerini TEKRAR ETME → doğrudan yorumlara geç.
@@ -481,7 +502,7 @@ export function buildPersonSections(
       const yorum = commentCards(matched, shared);
       if (yorum.length) { blocks.push(subHeading("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları")); blocks.push(...yorum); }
     } else if (tab === "tas") {
-      blocks = tasBlocks(motor, shared);
+      blocks = tasBlocks(motor, shared, stockIndex);
       if (blocks.length) blocks.unshift(subHeading("Kişiye Özel Taş Destekleri"));
     }
 
@@ -495,6 +516,7 @@ export function buildNumerolojiWordChildren(
   rows: WordRecordRow[],
   sections: WordPersonSections,
   shared: WordSharedData,
+  stockIndex: StockIndex = new Map(),
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
   const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
@@ -504,7 +526,7 @@ export function buildNumerolojiWordChildren(
   let anyContent = false;
 
   rows.forEach((row, i) => {
-    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i);
+    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex);
     for (const t of emptyTabs) emptyTabSet.add(t);
     // Bu kişi en az bir seçili sekmede içerik ürettiyse belge içerik taşıyor.
     if (selected.some((k) => !emptyTabs.includes(k))) anyContent = true;

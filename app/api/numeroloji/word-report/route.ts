@@ -15,6 +15,7 @@ import {
 } from "@/app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild";
 import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
+import { buildStockIndex, type StockIndex } from "@/app/numeroloji/bilgi-bankasi/helpers/stoneStockLogic";
 
 export const runtime = "nodejs";
 
@@ -78,16 +79,22 @@ export async function POST(request: Request): Promise<Response> {
     shared.entries = (seRes.data || []) as SourceEntryRow[];
     for (const s of (srcRes.data || []) as { id: string; display_label: string }[]) shared.sourceLabelById.set(s.id, s.display_label);
   }
+  // Uzmanın kendi Doğaltaş stoku (yalnız Taş bölümü seçiliyse; tek toplu tenant-scoped sorgu — N+1 yok).
+  let stockIndex: StockIndex = new Map();
   if (sections.tas) {
     if (shared.knowledgeRows.length === 0) {
       const kRes = await db.from("numerology_knowledge_records").select("id, analysis_type, value").eq("tenant_id", tenantId);
       shared.knowledgeRows = (kRes.data || []) as KnowledgeRecordRow[];
     }
-    const stRes = await db.from("numerology_stone_assignments").select("id, analysis_type, value, reason, stones").eq("tenant_id", tenantId);
+    const [stRes, invRes] = await Promise.all([
+      db.from("numerology_stone_assignments").select("id, analysis_type, value, reason, stones").eq("tenant_id", tenantId),
+      db.from("dogaltas_inventory").select("name, adet").eq("tenant_id", tenantId),
+    ]);
     shared.stoneRows = (stRes.data || []) as WordStoneRow[];
+    stockIndex = buildStockIndex((invRes.data || []) as { name?: unknown; adet?: unknown }[]);
   }
 
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared);
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex);
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
