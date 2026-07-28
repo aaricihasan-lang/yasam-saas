@@ -13,6 +13,8 @@ import {
 } from "../helpers/bilgiBankaKayit";
 import { KayitDetayModal } from "./KayitDetayModal";
 import { MobileSilmeDialog } from "./MobileSilmeDialog";
+import { WordSectionPicker } from "./WordSectionPicker";
+import type { WordSections } from "../helpers/wordSectionLogic";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -81,6 +83,7 @@ export function BilgiKayitListesi() {
   const [siliniyorId, setSiliniyorId] = useState<string | null>(null);
   const [topluSiliniyor, setTopluSiliniyor] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const [wordPicker, setWordPicker] = useState<{ mode: "all" | "filtered" } | null>(null);
   // NUM-MOB-1: mobil iki-aşamalı silme hedefi (masaüstü confirm akışı değişmez).
   const [mobilSilHedef, setMobilSilHedef] = useState<
     { mode: "tek"; row: BilgiBankaListeSatir } | { mode: "toplu" } | null
@@ -212,7 +215,7 @@ export function BilgiKayitListesi() {
     else void handleSecilileriSil();
   }
 
-  async function exportKnowledgeWord(mode: "all" | "filtered") {
+  async function exportKnowledgeWord(mode: "all" | "filtered", sections: WordSections) {
     const { resolveNumerolojiUserAndTenant } = await import("../../helpers/numerolojiKayit");
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
@@ -223,7 +226,7 @@ export function BilgiKayitListesi() {
 
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId: tid, userId, exportMode: mode };
+      const body: Record<string, unknown> = { tenantId: tid, userId, exportMode: mode, sections };
       if (mode === "filtered") {
         body.knowledgeIds = filtrelenmis.filter((r) => r.kayitTuru === "aciklama").map((r) => r.recordId);
         body.stoneIds = filtrelenmis.filter((r) => r.kayitTuru === "dogaltas").map((r) => r.recordId);
@@ -246,6 +249,7 @@ export function BilgiKayitListesi() {
       a.click();
       URL.revokeObjectURL(url);
       showToast({ title: "Başarılı", message: "Bilgi bankası raporu indirildi.", type: "success" });
+      setWordPicker(null);
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
     } finally {
@@ -370,7 +374,7 @@ export function BilgiKayitListesi() {
               <button
                 type="button"
                 disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
-                onClick={() => void exportKnowledgeWord("all")}
+                onClick={() => setWordPicker({ mode: "all" })}
                 className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
               >
                 {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
@@ -379,7 +383,7 @@ export function BilgiKayitListesi() {
                 <button
                   type="button"
                   disabled={wordBusy || filtrelenmis.length === 0}
-                  onClick={() => void exportKnowledgeWord("filtered")}
+                  onClick={() => setWordPicker({ mode: "filtered" })}
                   className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
                 >
                   {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
@@ -582,6 +586,16 @@ export function BilgiKayitListesi() {
           onSaved={detayGuncelleVeYenile}
         />
       ) : null}
+
+      {/* NKB-V2: Word bölüm seçici — en az bir bölüm zorunlu; seçim server'a uygulanır. */}
+      <WordSectionPicker
+        open={wordPicker !== null}
+        busy={wordBusy}
+        onCancel={() => setWordPicker(null)}
+        onConfirm={(sections) => {
+          if (wordPicker) void exportKnowledgeWord(wordPicker.mode, sections);
+        }}
+      />
 
       {/* NUM-MOB-1: mobil iki-aşamalı silme onayı (tek + toplu). API yalnız nihai onayda bir kez. */}
       {mobilSilHedef !== null ? (

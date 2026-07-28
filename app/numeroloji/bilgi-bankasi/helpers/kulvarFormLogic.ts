@@ -49,6 +49,18 @@ export function decideSaveMethod(existingId: string | null | undefined): "PATCH"
   return existingId ? "PATCH" : "POST";
 }
 
+export type CanonicalSaveOutcome = "success" | "error" | "conflict";
+
+/**
+ * Canonical form kaydet sonrası davranış sözleşmesi:
+ *  - "success" → form başlangıca döner (edit modu kapanır, eski kayıt durumu temizlenir);
+ *  - "error" / "conflict" → form verisi ve edit modu KORUNUR (kullanıcı düzeltip tekrar dener).
+ * Yalnız başarıda reset edilir.
+ */
+export function shouldResetCanonicalFormAfterSave(outcome: CanonicalSaveOutcome): boolean {
+  return outcome === "success";
+}
+
 /** Görüntüleme için dolu bölümleri (boş olmayan body) sırayla döndürür. */
 export function nonEmptySectionsForView(record: {
   content_sections?: unknown;

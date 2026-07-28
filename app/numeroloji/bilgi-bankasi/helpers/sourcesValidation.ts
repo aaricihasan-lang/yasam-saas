@@ -291,6 +291,91 @@ export function validateRecordSourceInput(
   return { ok: true, value: out };
 }
 
+// ── numerology_knowledge_source_entries girdi doğrulama (NKB-V2 kaynak notları) ──
+
+const SOURCE_ENTRY_ALLOWED = new Set<string>([
+  "knowledge_record_id",
+  "source_id",
+  "body",
+  "display_order",
+  "include_in_analysis",
+]);
+
+export type SourceEntryPayload = {
+  knowledge_record_id?: string;
+  source_id?: string | null;
+  body?: string;
+  display_order?: number;
+  include_in_analysis?: boolean;
+};
+
+/**
+ * Kaynak notu (numerology_knowledge_source_entries) create/patch payload doğrulama.
+ *  - Bilinmeyen alan reddedilir.
+ *  - create'te knowledge_record_id zorunlu + UUID; body zorunlu ve trim sonrası boş olamaz.
+ *  - source_id: null serbest ("Uzmanın Kendi Notu"); verilirse UUID. PATCH'te değiştirilebilir.
+ *  - display_order: >=0 tamsayı. include_in_analysis: boolean.
+ *  - knowledge_record_id PATCH'te değiştirilemez (kayıt taşınmaz).
+ */
+export function validateSourceEntryInput(
+  body: unknown,
+  opts: { partial: boolean },
+): Result<SourceEntryPayload> {
+  if (!isPlainObject(body)) return { ok: false, status: 400, error: "Geçersiz istek gövdesi." };
+
+  for (const key of Object.keys(body)) {
+    if (!SOURCE_ENTRY_ALLOWED.has(key)) {
+      return { ok: false, status: 400, error: `Bilinmeyen alan: "${key}".` };
+    }
+  }
+
+  const out: SourceEntryPayload = {};
+
+  if (!opts.partial) {
+    if (!isUuid(body.knowledge_record_id)) {
+      return { ok: false, status: 400, error: "knowledge_record_id geçerli bir UUID olmalı." };
+    }
+    out.knowledge_record_id = trimEnds(body.knowledge_record_id as string);
+  } else if (body.knowledge_record_id !== undefined) {
+    return { ok: false, status: 400, error: "knowledge_record_id değiştirilemez." };
+  }
+
+  // source_id: undefined → dokunma; null → Uzmanın Kendi Notu; string → UUID.
+  if (body.source_id !== undefined) {
+    if (body.source_id === null) {
+      out.source_id = null;
+    } else if (isUuid(body.source_id)) {
+      out.source_id = trimEnds(body.source_id as string);
+    } else {
+      return { ok: false, status: 400, error: "source_id null veya geçerli bir UUID olmalı." };
+    }
+  }
+
+  // body: create'te zorunlu; her durumda verilirse trim sonrası boş olamaz.
+  if (body.body !== undefined) {
+    if (typeof body.body !== "string") return { ok: false, status: 400, error: "body string olmalı." };
+    const t = trimEnds(body.body);
+    if (t === "") return { ok: false, status: 400, error: "Not metni boş olamaz." };
+    out.body = t;
+  } else if (!opts.partial) {
+    return { ok: false, status: 400, error: "Not metni (body) zorunludur." };
+  }
+
+  if (body.display_order !== undefined) {
+    if (isSafeInt(body.display_order, 0, 1_000_000)) out.display_order = body.display_order;
+    else return { ok: false, status: 400, error: "display_order 0..1000000 arası tamsayı olmalı." };
+  }
+
+  if (body.include_in_analysis !== undefined) {
+    if (typeof body.include_in_analysis !== "boolean") {
+      return { ok: false, status: 400, error: "include_in_analysis boolean olmalı." };
+    }
+    out.include_in_analysis = body.include_in_analysis;
+  }
+
+  return { ok: true, value: out };
+}
+
 /** DB hata kodunu güvenli HTTP yanıtına çevirir (iç ayrıntı sızdırmaz). */
 export function safeDbError(error: unknown): { status: number; message: string } {
   const code =

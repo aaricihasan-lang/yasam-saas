@@ -28,6 +28,15 @@ import {
   recordSourceView,
 } from "@/app/numeroloji/bilgi-bankasi/helpers/wordKulvarLogic";
 import type { NumerologySourceRow, RecordSourceRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourcesApi";
+import {
+  normalizeWordSections,
+  sourceNotesEffective,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/wordSectionLogic";
+import {
+  EXPERT_OWN_NOTE_LABEL,
+  sortSourceEntries,
+  type SourceEntryRow,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
 
 export const runtime = "nodejs";
 
@@ -80,13 +89,17 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", knowledgeIds, stoneIds } = body as {
+  const { tenantId, userId, exportMode = "all", knowledgeIds, stoneIds, sections: sectionsRaw } = body as {
     tenantId?: string;
     userId?: string;
     exportMode?: ExportMode;
     knowledgeIds?: string[];
     stoneIds?: string[];
+    sections?: unknown;
   };
+
+  // Bölüm seçimi (verilmezse tüm bölümler — eski istemci uyumu).
+  const sections = normalizeWordSections(sectionsRaw);
 
   if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
@@ -178,6 +191,43 @@ export async function POST(request: Request): Promise<Response> {
     linksByRecord.set(l.knowledge_record_id, arr);
   }
 
+  // NKB-V2: Kaynak Notları (include_in_analysis=true) — yalnız seçiliyse; TEK bounded sorgu (N+1 yok).
+  const entriesByRecord = new Map<string, SourceEntryRow[]>();
+  const entrySourceLabelById = new Map<string, string>();
+  if (sourceNotesEffective(sections) && knowledgeRows.length > 0) {
+    const kIds = knowledgeRows.map((r) => r.id);
+    const { data: seData, error: seErr } = await db
+      .from("numerology_knowledge_source_entries")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("include_in_analysis", true)
+      .in("knowledge_record_id", kIds);
+    if (seErr) return Response.json({ ok: false, error: "Kaynak notları okunamadı." }, { status: 500 });
+    const seRows = (seData || []) as SourceEntryRow[];
+    for (const e of sortSourceEntries(seRows)) {
+      const arr = entriesByRecord.get(e.knowledge_record_id) ?? [];
+      arr.push(e);
+      entriesByRecord.set(e.knowledge_record_id, arr);
+    }
+    // Kaynak etiketleri: bibliyografik sources'dan gelenleri kullan; eksikleri ayrıca çek.
+    const needSrcIds = Array.from(new Set(seRows.map((e) => e.source_id).filter((x): x is string => x !== null)));
+    for (const id of needSrcIds) {
+      const s = sourcesById.get(id);
+      if (s) entrySourceLabelById.set(id, s.display_label);
+    }
+    const missing = needSrcIds.filter((id) => !entrySourceLabelById.has(id));
+    if (missing.length > 0) {
+      const { data: msData } = await db
+        .from("numerology_sources")
+        .select("id, display_label")
+        .eq("tenant_id", tenantId)
+        .in("id", missing);
+      for (const s of (msData || []) as { id: string; display_label: string }[]) {
+        entrySourceLabelById.set(s.id, s.display_label);
+      }
+    }
+  }
+
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
   const totalCount = knowledgeRows.length + stoneRows.length;
@@ -229,12 +279,30 @@ export async function POST(request: Request): Promise<Response> {
     ["Kapsam",          exportLabel],
   ]));
 
+  // Bir kanonik kayda ait Kaynak Notları'nı Word'e ekler (yalnız sourceNotes seçiliyse çağrılır).
+  const pushSourceNotes = (recordId: string) => {
+    const es = entriesByRecord.get(recordId);
+    if (!es || es.length === 0) return;
+    all.push(muted("Kaynak Notları"));
+    for (const e of es) {
+      const srcLabel = e.source_id === null
+        ? EXPERT_OWN_NOTE_LABEL
+        : entrySourceLabelById.get(e.source_id) ?? "Bilinmeyen Kaynak";
+      all.push(bodyText(`[${srcLabel}] ${e.body.trim()}`, 20));
+    }
+  };
+
   // Gruplu içerik
   let sectionN = 2;
   for (const key of sortedKeys) {
     const label = analizLabel(key);
     const kRows = knowledgeRows.filter((r) => r.analysis_type === key);
     const sRows = stoneRows.filter((r) => r.analysis_type === key);
+
+    // Bölüm seçimine göre bu grupta gösterilecek içerik var mı?
+    const showDesc = sections.descriptions && kRows.length > 0;
+    const showStones = sections.stones && sRows.length > 0;
+    if (!showDesc && !showStones) continue; // boş grup başlığı basılmaz
 
     all.push(h1Colored(`${sectionN}. ${label}`, C_KNOWLEDGE, true));
     all.push(muted(`${kRows.length} açıklama · ${sRows.length} taş atama`));
@@ -243,7 +311,7 @@ export async function POST(request: Request): Promise<Response> {
     let itemN = 0;
 
     // Açıklama kayıtları
-    if (kRows.length > 0) {
+    if (showDesc) {
       all.push(h2("Açıklama Kayıtları"));
       for (const k of kRows) {
         itemN++;
@@ -276,6 +344,9 @@ export async function POST(request: Request): Promise<Response> {
           if (k.description?.trim()) all.push(bodyText(k.description.trim()));
         }
 
+        // NKB-V2: Kaynak Notları (yalnız sourceNotes seçiliyse; include_in_analysis=true).
+        if (sourceNotesEffective(sections)) pushSourceNotes(k.id);
+
         all.push(fieldInline("Güncelleme",
           new Date(k.updated_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })
         ));
@@ -284,8 +355,8 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // Doğaltaş atamaları
-    if (sRows.length > 0) {
-      if (kRows.length > 0) all.push(spacer());
+    if (showStones) {
+      if (showDesc) all.push(spacer());
       all.push(h2("Doğaltaş Atamaları"));
       let sItemN = 0;
       for (const s of sRows) {
@@ -307,7 +378,9 @@ export async function POST(request: Request): Promise<Response> {
 
   // NKB-V2-E: Belge-sonu Kaynakça — yalnız dahil edilen Kulvar kayıtlarına bağlı yapılandırılmış
   // numerology_sources kayıtları; her source_id BİR kez; deterministik sıra. Legacy source DAHİL DEĞİL.
-  const bibliography = buildBibliography(recordSources, Array.from(sourcesById.values()));
+  const bibliography = sections.bibliography
+    ? buildBibliography(recordSources, Array.from(sourcesById.values()))
+    : [];
   if (bibliography.length > 0) {
     all.push(h1Colored(`${sectionN}. Kaynakça`, C_KNOWLEDGE, true));
     all.push(muted(`${bibliography.length} kaynak`));

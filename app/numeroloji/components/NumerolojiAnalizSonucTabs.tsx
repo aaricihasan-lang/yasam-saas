@@ -598,6 +598,21 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
                 </div>
               ))}
             </div>
+            {/* NKB-V2: Uzman Kaynak Notları — kanonik metnin ALTINDA, görsel/semantik AYRI.
+                Yalnız include_in_analysis=true notlar; her notta kaynak etiketi. */}
+            {note.sourceEntries?.length ? (
+              <div className="mt-2.5 border-t border-fuchsia-100 pt-2.5">
+                <p className={`${typo.caption} font-bold uppercase tracking-wide text-fuchsia-700/90`}>Uzman Kaynak Notları</p>
+                <div className="mt-1.5 space-y-2">
+                  {note.sourceEntries.map((se) => (
+                    <div key={se.id} className="rounded-lg border border-fuchsia-100 bg-fuchsia-50/40 px-2.5 py-1.5">
+                      <p className={`${typo.caption} font-bold text-fuchsia-800/90`}>{se.sourceLabel}</p>
+                      <p className={`mt-0.5 whitespace-pre-wrap ${typo.body} text-slate-800`}>{se.body.trim()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

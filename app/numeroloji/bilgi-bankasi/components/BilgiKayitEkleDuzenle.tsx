@@ -5,11 +5,13 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getKnowledgeRecord, saveKnowledgeRecord, updateKnowledgeRecordById } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
 import { isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
-import { EMPTY_KULVAR_BODIES, bodiesFromRecord, decideSaveMethod, sectionsFromBodies, type KulvarBodies } from "../helpers/kulvarFormLogic";
+import { EMPTY_KULVAR_BODIES, bodiesFromRecord, decideSaveMethod, sectionsFromBodies, shouldResetCanonicalFormAfterSave, type KulvarBodies } from "../helpers/kulvarFormLogic";
 import { MSG_NEEDS_SAVED_RECORD } from "../helpers/sourceUiLogic";
 import { useKulvarSources } from "../helpers/useKulvarSources";
 import { KulvarSectionEditor } from "./KulvarSectionEditor";
 import { KulvarSourceManager } from "./KulvarSourceManager";
+import { KaynakNotlariYonetimi } from "./KaynakNotlariYonetimi";
+import { AckPanel, type AckState } from "./AckPanel";
 
 const fieldBase =
   "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
@@ -57,6 +59,7 @@ export function BilgiKayitEkleDuzenle() {
   const [kulvarBodies, setKulvarBodies] = useState<KulvarBodies>({ ...EMPTY_KULVAR_BODIES });
   const [existingId, setExistingId] = useState<string | null>(null);
   const [kaydediliyor, setKaydediliyor] = useState(false);
+  const [ack, setAck] = useState<AckState>(null);
 
   const isKulvar = isKulvarAnalysisType(analizTuru);
   // Kaynak yönetimi yalnız kaydedilmiş (existingId) Kulvar kaydında etkin.
@@ -76,10 +79,12 @@ export function BilgiKayitEkleDuzenle() {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
     resetIcerik();
+    setAck(null);
   }
 
   function handleDegerChange(value: string) {
     setDeger(value);
+    setAck(null);
   }
 
   // Mevcut kaydı yükle: content_sections canonical, yoksa legacy description → overview fallback.
@@ -120,6 +125,7 @@ export function BilgiKayitEkleDuzenle() {
     setAnalizTuru("");
     setDeger("");
     resetIcerik();
+    setAck(null);
   }
 
   function handleKulvarBodyChange(key: KulvarSectionKey, value: string) {
@@ -179,24 +185,30 @@ export function BilgiKayitEkleDuzenle() {
       }
 
       if (conflict) {
-        showToast({
+        // HATA/çakışma: form verisi korunur; kalıcı panel.
+        setAck({
+          type: "error",
           message: "Bu analiz türü ve değer için kayıt zaten mevcut. Düzenlemek için mevcut kaydı açın.",
-          type: "warning",
         });
         return;
       }
       if (error) {
-        showToast({ message: `Kayıt sırasında hata oluştu: ${error}`, type: "error" });
+        setAck({ type: "error", message: `Kayıt sırasında hata oluştu: ${error}` });
         return;
       }
 
-      showToast({ message: "Kayıt kaydedildi", type: "success" });
-      // Başarıdan sonra id'yi yakala → sonraki Kaydet bilinçli PATCH olur (tekrar create/409 önlenir).
-      const { data } = await getKnowledgeRecord(analizTuru, deger.trim());
-      if (data) setExistingId(data.id);
+      // BAŞARI: formu başlangıç durumuna döndür — edit modu kapanır, seçili eski kayıt durumu
+      // temizlenir (eski form verileri ekranda KALMAZ). Kalıcı başarı paneli "Tamam"a kadar kalır.
+      // (Yukarıdaki hata/çakışma yolları erken return ile formu ve edit modunu KORUR.)
+      if (shouldResetCanonicalFormAfterSave("success")) {
+        setAnalizTuru("");
+        setDeger("");
+        resetIcerik();
+      }
+      setAck({ type: "success", message: "Kanonik açıklama kaydedildi." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({ message: `Kayıt sırasında hata oluştu: ${msg}`, type: "error" });
+      setAck({ type: "error", message: `Kayıt sırasında hata oluştu: ${msg}` });
     } finally {
       setKaydediliyor(false);
     }
@@ -204,6 +216,13 @@ export function BilgiKayitEkleDuzenle() {
 
   return (
     <div className="py-1 md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:p-4 md:shadow-sm md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
+      <div className="mb-3 rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2">
+        <p className="text-sm font-black text-violet-900">A. Kanonik Açıklama</p>
+        <p className="mt-0.5 text-xs font-medium text-slate-600">
+          Her analiz türü ve değer için tek kanonik açıklama. Kaynağa özgü uzman notları aşağıdaki
+          <span className="font-bold"> B. Kaynak Notları</span> bölümünde ayrı tutulur.
+        </p>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
@@ -336,8 +355,28 @@ export function BilgiKayitEkleDuzenle() {
           onClick={() => void handleKaydet()}
           className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_6px_20px_-4px_rgba(91,33,182,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
+          {existingId ? (kaydediliyor ? "Güncelleniyor..." : "Kanonik Açıklamayı Güncelle") : kaydediliyor ? "Kaydediliyor..." : "Kanonik Açıklamayı Kaydet"}
         </button>
+      </div>
+
+      <AckPanel panel={ack} onClose={() => setAck(null)} />
+
+      {/* B. Kaynak Notları — kanonik açıklamadan AYRI; kaydedilmiş kayıt gerekir. */}
+      <div className="mt-5 border-t border-violet-100 pt-4">
+        <div className="mb-3 rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2">
+          <p className="text-sm font-black text-violet-900">B. Kaynak Notları</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-600">
+            Kaynak başına ayrı uzman notları. Kanonik açıklamayı DEĞİŞTİRMEZ. “Uzmanın Kendi Notu” için
+            kaynak seçmeden kaydedin. “Analizde kullan” işaretli notlar yalnız Hesap Özetli analizde görünür.
+          </p>
+        </div>
+        {existingId ? (
+          <KaynakNotlariYonetimi recordId={existingId} />
+        ) : (
+          <p className="text-sm font-medium text-slate-500">
+            Kaynak notu eklemek için önce yukarıdan analiz türü ve değeri seçip kanonik açıklamayı kaydedin.
+          </p>
+        )}
       </div>
     </div>
   );

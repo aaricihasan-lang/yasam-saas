@@ -10,16 +10,17 @@ import {
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
 
+// NKB-V2: kompakt düzen (Bilgi Bankası ekranını gereksiz uzatmaz; mobilde taşma yok).
 const fieldBase =
-  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+  "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
 
-const selectClass = `h-16 ${fieldBase} text-lg`;
+const selectClass = `h-9 ${fieldBase} text-sm`;
 
-const inputClass = `h-16 ${fieldBase} text-lg placeholder:text-slate-400`;
+const inputClass = `h-9 ${fieldBase} text-sm placeholder:text-slate-400`;
 
-const textareaClass = `${fieldBase} min-h-[300px] resize-y py-5 text-lg leading-relaxed placeholder:text-slate-400`;
+const textareaClass = `${fieldBase} min-h-[96px] resize-y py-2 text-sm leading-relaxed placeholder:text-slate-400`;
 
-const labelClass = "mb-3 block text-lg font-bold text-slate-800";
+const labelClass = "mb-1 block text-xs font-bold text-slate-700";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -113,22 +114,24 @@ export function BilgiDogaltasAta() {
       reason: oneriAciklamasi,
       stones,
     };
-    console.log("Kaydedilecek veri:", payload);
     setKaydediliyor(true);
     try {
       const { error } = await saveStoneAssignment(payload);
       if (error) {
-        console.error("Bilgi Bankası kayıt hatası:", error);
+        // Hata: seçimler KORUNUR.
         showToast({
           message: `Kayıt sırasında hata oluştu: ${error}`,
           type: "error",
         });
         return;
       }
-      setTasListesi(stonesToTextarea(stones));
-      showToast({ message: "Kayıt kaydedildi", type: "success" });
+      // Başarı: ilgili seçimler ve durum TAMAMEN sıfırlanır.
+      setAnalizTuru("");
+      setDeger("");
+      setOneriAciklamasi("");
+      setTasListesi("");
+      showToast({ message: "Doğaltaş ataması kaydedildi", type: "success" });
     } catch (err) {
-      console.error("Bilgi Bankası beklenmeyen hata:", err);
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
       showToast({
         message: `Kayıt sırasında hata oluştu: ${msg}`,
@@ -140,8 +143,8 @@ export function BilgiDogaltasAta() {
   }
 
   return (
-    <div className="py-1 md:rounded-[32px] md:border-2 md:border-violet-200/80 md:bg-white/95 md:p-10 md:shadow-xl md:ring-1 md:ring-purple-200 md:backdrop-blur-md">
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
+    <div className="py-1 md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:p-4 md:shadow-sm md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="tas-ata-analiz-turu" className={labelClass}>
             Analiz Türü
@@ -212,7 +215,7 @@ export function BilgiDogaltasAta() {
             id="tas-ata-oneri"
             value={oneriAciklamasi}
             onChange={(e) => setOneriAciklamasi(e.target.value)}
-            rows={8}
+            rows={4}
             placeholder="Bu analiz türü ve değer için doğaltaş öneri açıklamasını yazın…"
             className={textareaClass}
           />
@@ -226,21 +229,21 @@ export function BilgiDogaltasAta() {
             id="tas-ata-liste"
             value={tasListesi}
             onChange={(e) => setTasListesi(e.target.value)}
-            rows={10}
+            rows={5}
             placeholder="Taşları alt alta veya virgülle yazın. Örn: ametist, sitrin, turmalin"
             className={textareaClass}
           />
-          <p className="mt-2 text-sm font-medium text-slate-500">
+          <p className="mt-1.5 text-xs font-medium text-slate-500">
             Kayıtta taşlar normalize edilir (virgül, nokta, satır sonu); her taşın ilk harfi büyük yazılır.
           </p>
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-4 border-t-2 border-violet-100/90 pt-8 sm:mt-10">
+      <div className="mt-4 flex flex-wrap gap-2.5 border-t border-violet-100/90 pt-4">
         <button
           type="button"
           onClick={handleYeni}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 py-3 text-base font-black uppercase tracking-wide text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80"
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
           Yeni
         </button>
@@ -248,7 +251,7 @@ export function BilgiDogaltasAta() {
           type="button"
           disabled={kaydediliyor}
           onClick={() => void handleKaydet()}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-400/70 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.4)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_6px_20px_-4px_rgba(91,33,182,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
         </button>

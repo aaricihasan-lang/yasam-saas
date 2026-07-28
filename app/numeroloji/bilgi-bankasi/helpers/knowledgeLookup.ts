@@ -3,6 +3,9 @@ import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
 import type { KnowledgeSection } from "./knowledgeSections";
+import { listAnalysisSourceEntries } from "./sourceEntriesApi";
+import { listSources } from "./sourcesApi";
+import { EXPERT_OWN_NOTE_LABEL, sortSourceEntries, type SourceEntryRow } from "./sourceEntryUiLogic";
 
 const KNOWLEDGE_API = "/api/numeroloji/knowledge";
 
@@ -17,12 +20,22 @@ const NUMERO_ANALYSIS_TYPES = {
 
 // NKB-V2-H: Danışan analiz yorumu için GÜVENLİ alanlar. source/display_label/bibliyografik
 // alanlar/internal_note DANIŞAN notuna GİRMEZ. content_sections canonical yorum kaynağıdır.
+// NKB-V2: analiz için kaynak notu (Hesap Özetli'de kanonik metnin ALTINDA gösterilir).
+export type AnalysisSourceEntry = {
+  id: string;
+  body: string;
+  sourceLabel: string; // kaynak display_label veya "Uzmanın Kendi Notu"
+  display_order: number;
+};
+
 export type KnowledgeNote = {
   id: string;
   analysisType: string;
   value: string;
   description: string | null;
   content_sections: KnowledgeSection[] | null;
+  // Yalnız include_in_analysis=true notlar; yoksa alan atanmaz (eski davranış birebir korunur).
+  sourceEntries?: AnalysisSourceEntry[];
 };
 
 export type KnowledgeNotesForAnalysis = {
@@ -211,6 +224,41 @@ export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): {
   ];
 }
 
+/**
+ * NKB-V2 (saf/testable): include_in_analysis=true kaynak notlarını knowledge_record_id üzerinden
+ * ilgili notlara iliştirir. Deterministik sıra (display_order, created_at, id). Kaynak etiketi:
+ * source_id NULL → "Uzmanın Kendi Notu"; aksi halde display_label. Not olmayan kayıt DEĞİŞMEZ
+ * (sourceEntries alanı atanmaz → eski davranış birebir korunur).
+ */
+export function attachSourceEntriesToNotes(
+  buckets: KnowledgeNotesForAnalysis,
+  entries: SourceEntryRow[],
+  sourceLabelById: Map<string, string>,
+): KnowledgeNotesForAnalysis {
+  const byRecord = new Map<string, AnalysisSourceEntry[]>();
+  for (const e of sortSourceEntries(entries)) {
+    if (!e.include_in_analysis) continue; // güvenlik: yalnız true
+    const label =
+      e.source_id === null ? EXPERT_OWN_NOTE_LABEL : sourceLabelById.get(e.source_id) ?? "Bilinmeyen Kaynak";
+    const arr = byRecord.get(e.knowledge_record_id) ?? [];
+    arr.push({ id: e.id, body: e.body, sourceLabel: label, display_order: e.display_order });
+    byRecord.set(e.knowledge_record_id, arr);
+  }
+  const attach = (notes: KnowledgeNote[]): KnowledgeNote[] =>
+    notes.map((n) => {
+      const es = byRecord.get(n.id);
+      return es && es.length ? { ...n, sourceEntries: es } : n;
+    });
+  return {
+    anaKulvar: attach(buckets.anaKulvar),
+    yanKulvar: attach(buckets.yanKulvar),
+    ifadeSayisi: attach(buckets.ifadeSayisi),
+    hayatYolu: attach(buckets.hayatYolu),
+    cakraOmurga: attach(buckets.cakraOmurga),
+    element: attach(buckets.element),
+  };
+}
+
 export async function getKnowledgeNotesForAnalysis(
   out: NumerolojiMotorOut,
   _tenantId?: string,
@@ -231,7 +279,7 @@ export async function getKnowledgeNotesForAnalysis(
     const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as KnowledgeRecordRow[];
     const seenIds = new Set<string>();
 
-    return {
+    const buckets: KnowledgeNotesForAnalysis = {
       anaKulvar: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.anaKulvar, plan[0].values, seenIds),
       yanKulvar: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.yanKulvar, plan[1].values, seenIds),
       ifadeSayisi: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.ifadeSayisi, plan[2].values, seenIds),
@@ -239,6 +287,20 @@ export async function getKnowledgeNotesForAnalysis(
       cakraOmurga: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.cakraOmurga, plan[4].values, seenIds),
       element: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.element, plan[5].values, seenIds),
     };
+
+    // Kaynak notlarını TEK bounded sorgu (+ kaynak etiketleri) ile topla; N+1 yok.
+    // Hata halinde kanonik notlar aynen döner (graceful).
+    try {
+      const [seRes, srcRes] = await Promise.all([listAnalysisSourceEntries(), listSources()]);
+      if (!seRes.error && seRes.rows.length) {
+        const labelById = new Map<string, string>();
+        for (const s of srcRes.rows) labelById.set(s.id, s.display_label);
+        return attachSourceEntriesToNotes(buckets, seRes.rows, labelById);
+      }
+    } catch (seErr) {
+      console.error("Kaynak notları iliştirilemedi:", seErr);
+    }
+    return buckets;
   } catch (err) {
     console.error("Bilgi Bankası notları beklenmeyen hata:", err);
     return { ...EMPTY_NOTES };
