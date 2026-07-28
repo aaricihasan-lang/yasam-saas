@@ -14,6 +14,8 @@ import {
 } from "../../helpers/numerolojiKayit";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
 import { RowErrorBoundary } from "../../components/RowErrorBoundary";
+import { WordPersonSectionPicker } from "../../components/WordPersonSectionPicker";
+import type { WordPersonSections } from "../../bilgi-bankasi/helpers/wordPersonSections";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -33,11 +35,12 @@ export default function NumerolojiKayitDetayPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
+  const [wordPicker, setWordPicker] = useState(false);
 
   const isOpenRecord = row ? isDemoNumerologiOpenRecord(row) : false;
   const gateActive = isDemo && !isOpenRecord;
 
-  const downloadWord = useCallback(async () => {
+  const downloadWord = useCallback(async (sections: WordPersonSections) => {
     if (!row) return;
     if (gateActive) return;
     const session = await resolveNumerolojiUserAndTenant();
@@ -51,7 +54,7 @@ export default function NumerolojiKayitDetayPage() {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -69,6 +72,7 @@ export default function NumerolojiKayitDetayPage() {
       a.download = `numeroloji-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
+      setWordPicker(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Word raporu indirilemedi. Lütfen tekrar deneyin.");
     } finally {
@@ -139,7 +143,7 @@ export default function NumerolojiKayitDetayPage() {
           {row && !loading && !gateActive && (
             <button
               type="button"
-              onClick={() => void downloadWord()}
+              onClick={() => setWordPicker(true)}
               disabled={wordBusy}
               className="hidden shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60 md:inline-flex"
             >
@@ -147,6 +151,13 @@ export default function NumerolojiKayitDetayPage() {
             </button>
           )}
         </div>
+
+        <WordPersonSectionPicker
+          open={wordPicker}
+          busy={wordBusy}
+          onCancel={() => setWordPicker(false)}
+          onConfirm={(sections) => void downloadWord(sections)}
+        />
 
         {loading ? (
           <div className="px-[clamp(8px,2.5vw,14px)] py-3 text-sm font-semibold text-slate-600 md:rounded-xl md:border md:border-violet-300/40 md:bg-white/80 md:px-4 md:shadow-[0_0_28px_rgba(139,92,246,0.12)] md:backdrop-blur-xl">

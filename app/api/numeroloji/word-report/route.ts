@@ -18,10 +18,32 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import {
+  normalizeWordPersonSections,
+  personSourceNotesForRecords,
+  type MatchedNoteRef,
+  type PersonSourceNoteGroup,
+  type WordPersonSections,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/wordPersonSections";
+import { buildKnowledgeLookupPlan, pickNotesForType } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeLookup";
+import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
+import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
+import { extractMotorFromAnalysisJson } from "@/app/numeroloji/utils/analysisJson";
 
 export const runtime = "nodejs";
 
 const C_NR = "4c1d95"; // derin mor — numeroloji rengi
+
+const ANALIZ_LABELS: Record<string, string> = {
+  "ana-kulvar": "Ana Kulvar",
+  "yan-kulvar": "Yan Kulvar",
+  "ifade-sayisi": "İfade Sayısı",
+  "hayat-yolu": "Hayat Yolu",
+  "cakra-omurga": "Çakra Omurga",
+  element: "Element",
+  diger: "Diğer",
+};
+const analizLabel = (k: string): string => ANALIZ_LABELS[k] ?? k;
 
 type ExportMode = "all" | "selected" | "single";
 
@@ -72,7 +94,12 @@ function slugify(t: string): string {
     .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 }
 
-function buildSingleRecord(row: RecordRow, n: number): ReportChild[] {
+function buildSingleRecord(
+  row: RecordRow,
+  n: number,
+  sections: WordPersonSections,
+  sourceGroups: PersonSourceNoteGroup[] | undefined,
+): ReportChild[] {
   const motor = safeMotor(row.analysis_data);
   const summary = safeSummary(row.analysis_data);
   const adSoyad = `${row.name} ${row.surname}`.trim();
@@ -82,17 +109,19 @@ function buildSingleRecord(row: RecordRow, n: number): ReportChild[] {
   out.push(profileLabel(`KAYIT #${String(n).padStart(3, "0")}`, C_NR));
   out.push(h1Colored(`${n}. ${adSoyad}`, C_NR, n > 1));
 
-  // Kimlik tablosu
-  out.push(h2("Kimlik Bilgileri"));
-  out.push(twoColTable([
-    ["Ad",            row.name || "—"],
-    ["Soyad",         row.surname || "—"],
-    ["Doğum Tarihi",  row.birth_date || "—"],
-    ["Analiz Tarihi", new Date(row.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })],
-  ]));
+  // Kimlik tablosu — yalnız seçiliyse
+  if (sections.identity) {
+    out.push(h2("Kimlik Bilgileri"));
+    out.push(twoColTable([
+      ["Ad",            row.name || "—"],
+      ["Soyad",         row.surname || "—"],
+      ["Doğum Tarihi",  row.birth_date || "—"],
+      ["Analiz Tarihi", new Date(row.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })],
+    ]));
+  }
 
-  // Ana sayılar
-  if (motor) {
+  // Temel değerler — yalnız seçiliyse ve motor varsa
+  if (sections.values && motor) {
     out.push(h2("Temel Numeroloji Değerleri"));
     out.push(twoColTable([
       ["Ana Kulvar",   safeDisplay(motor.anaKulvar)],
@@ -100,17 +129,27 @@ function buildSingleRecord(row: RecordRow, n: number): ReportChild[] {
       ["İfade Sayısı", safeDisplay(motor.ifadeSayisi)],
       ["Hayat Yolu",   safeDisplay(motor.hayatYolu)],
     ]));
-
-    // PIN Kodu
-    const pinStr = safePin(motor);
-    out.push(h3("PIN Kodu"));
-    out.push(fieldInline("PIN", pinStr));
   }
 
-  // Özet metin
-  if (summary) {
+  // PIN — yalnız seçiliyse ve motor varsa
+  if (sections.pin && motor) {
+    out.push(h3("PIN Kodu"));
+    out.push(fieldInline("PIN", safePin(motor)));
+  }
+
+  // Özet — yalnız seçiliyse ve varsa
+  if (sections.summary && summary) {
     out.push(h2("Analiz Özeti"));
     out.push(bodyText(summary.slice(0, 600)));
+  }
+
+  // Kaynak Notları — yalnız seçiliyse; kişinin değerlerine eşleşen include_in_analysis notları
+  if (sections.sourceNotes && sourceGroups && sourceGroups.length > 0) {
+    out.push(h2("Kaynak Notları"));
+    for (const g of sourceGroups) {
+      out.push(h3(`${analizLabel(g.ref.analysisType)} — ${g.ref.value}`));
+      for (const nt of g.notes) out.push(bodyText(`[${nt.label}] ${nt.body.trim()}`, 20));
+    }
   }
 
   return out;
@@ -121,13 +160,17 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", ids, recordId } = body as {
+  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw } = body as {
     tenantId?: string;
     userId?: string;
     exportMode?: ExportMode;
     ids?: string[];
     recordId?: string;
+    sections?: unknown;
   };
+
+  // Bölüm seçimi (verilmezse tüm bölümler — eski istemci uyumu).
+  const sections = normalizeWordPersonSections(sectionsRaw);
 
   if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
@@ -168,6 +211,39 @@ export async function POST(request: Request): Promise<Response> {
   const rows = (data || []) as RecordRow[];
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için kayıt bulunamadı." }, { status: 404 });
+
+  // NKB-V2: Kaynak Notları — yalnız seçiliyse. Kişinin hesaplanan değerlerini tenant'ın kanonik
+  // kayıtlarına eşleştirip (analiz ekranıyla AYNI pure lookup) include_in_analysis=true notları
+  // ekler. Bulk fetch (3 sorgu, kişi başına DEĞİL → N+1 yok); eşleştirme bellek içi.
+  const sourceGroupsByRecord = new Map<string, PersonSourceNoteGroup[]>();
+  if (sections.sourceNotes) {
+    const [kRes, seRes, srcRes] = await Promise.all([
+      db.from("numerology_knowledge_records").select("id, analysis_type, value").eq("tenant_id", tenantId),
+      db.from("numerology_knowledge_source_entries").select("*").eq("tenant_id", tenantId).eq("include_in_analysis", true),
+      db.from("numerology_sources").select("id, display_label").eq("tenant_id", tenantId),
+    ]);
+    if (!kRes.error && !seRes.error && !srcRes.error) {
+      const kRows = (kRes.data || []) as KnowledgeRecordRow[];
+      const entries = (seRes.data || []) as SourceEntryRow[];
+      const labelMap = new Map<string, string>();
+      for (const s of (srcRes.data || []) as { id: string; display_label: string }[]) labelMap.set(s.id, s.display_label);
+      if (entries.length > 0 && kRows.length > 0) {
+        for (const person of rows) {
+          const motor = extractMotorFromAnalysisJson(person.analysis_data);
+          if (!motor) continue;
+          const seen = new Set<string>();
+          const matched: MatchedNoteRef[] = [];
+          for (const p of buildKnowledgeLookupPlan(motor)) {
+            for (const nt of pickNotesForType(kRows, p.analysisType, p.values, seen)) {
+              matched.push({ id: nt.id, analysisType: nt.analysisType, value: nt.value });
+            }
+          }
+          const groups = personSourceNotesForRecords(matched, entries, labelMap);
+          if (groups.length > 0) sourceGroupsByRecord.set(person.id, groups);
+        }
+      }
+    }
+  }
 
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
@@ -210,7 +286,7 @@ export async function POST(request: Request): Promise<Response> {
 
   rows.forEach((row, i) => {
     if (i > 0) all.push(divider());
-    all.push(...buildSingleRecord(row, i + 1));
+    all.push(...buildSingleRecord(row, i + 1, sections, sourceGroupsByRecord.get(row.id)));
   });
 
   const doc = new Document({
