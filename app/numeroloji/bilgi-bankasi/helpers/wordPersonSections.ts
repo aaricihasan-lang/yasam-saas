@@ -1,17 +1,17 @@
 /**
- * NKB-V2 — Kişi/analiz Word raporu (/api/numeroloji/word-report) bölüm seçimi (saf; client+server).
+ * NKB-V2 — Kişi/analiz Word raporu (/api/numeroloji/word-report) SEKME seçimi (saf; client+server).
  *
- * word-report generator'ının GERÇEKTEN ürettiği bölümler:
- *   - identity   : "Kimlik Bilgileri"
- *   - values     : "Temel Numeroloji Değerleri"
- *   - pin        : "PIN Kodu"
- *   - summary    : "Analiz Özeti"
- *   - sourceNotes: "Kaynak Notları" (kişinin hesaplanan değerlerine eşleşen, include_in_analysis=true uzman notları)
+ * Word bölümleri = ekrandaki gerçek sonuç sekmeleriyle BİREBİR (ad/sıra aynı):
+ *   summary  : "Sonuç Özeti"               ← kayıtlı analysis_data.summary (tam; kesilmez)
+ *   plain    : "Analiz (Hesap Özetsiz)"     ← buildPlainAnalizFull(motor) (tam)
+ *   detailed : "Analiz (Hesap Özetli)"      ← buildPlainAnalizFull + Bilgi Bankası yorumları + kaynak notları + taş
+ *   tas      : "Taş Açıklamaları"           ← taş atamaları (kişinin değerlerine eşleşen)
+ *   gorsel   : "Görsel Rapor"               ← ekrandaki gerçek görsel (PNG; yalnız tek kişi, client üretir)
+ *   iliski   : "İlişki Analizi"             ← canlı 2. kişi girişi gerektirir; KAYITLI içerik yok → boş
+ *   evis     : "Ev / İş Yeri Sayısı"        ← canlı kapı/daire girişi gerektirir; KAYITLI içerik yok → boş
  *
- * Kurallar:
- *   - En az bir bölüm seçilmeli.
- *   - `sections` gönderilmezse (eski istemci) TÜM bölümler açık (geri-uyumlu).
- *   - sourceNotes kişinin numaralarına bağlı bağımsız içeriktir; tek başına seçilebilir.
+ * Kurallar: en az bir sekme seçilmeli; `sections` gönderilmezse eski istemci uyumu için TÜMÜ açık.
+ * Kimlik bilgileri (ad/doğum/analiz tarihi) BAĞIMSIZ seçim DEĞİL — belge üstbilgisidir.
  */
 
 import {
@@ -20,55 +20,64 @@ import {
   type SourceEntryRow,
 } from "./sourceEntryUiLogic";
 
-export type WordPersonSectionKey = "identity" | "values" | "pin" | "summary" | "sourceNotes";
+export type WordTabKey = "summary" | "plain" | "detailed" | "tas" | "gorsel" | "iliski" | "evis";
 
-export type WordPersonSections = Record<WordPersonSectionKey, boolean>;
+export type WordPersonSections = Record<WordTabKey, boolean>;
 
-export const WORD_PERSON_SECTION_ORDER: WordPersonSectionKey[] = [
-  "identity",
-  "values",
-  "pin",
-  "summary",
-  "sourceNotes",
-];
+export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas", "gorsel", "iliski", "evis"];
 
-export const WORD_PERSON_SECTION_LABELS: Record<WordPersonSectionKey, string> = {
-  identity: "Kimlik Bilgileri",
-  values: "Temel Numeroloji Değerleri",
-  pin: "PIN Kodu",
-  summary: "Analiz Özeti",
-  sourceNotes: "Kaynak Notları (Analizde kullanılan)",
+/** Ekrandaki sekme adlarıyla BİREBİR (değiştirilmez). */
+export const WORD_TAB_LABELS: Record<WordTabKey, string> = {
+  summary: "Sonuç Özeti",
+  plain: "Analiz (Hesap Özetsiz)",
+  detailed: "Analiz (Hesap Özetli)",
+  tas: "Taş Açıklamaları",
+  gorsel: "Görsel Rapor",
+  iliski: "İlişki Analizi",
+  evis: "Ev / İş Yeri Sayısı",
 };
 
+/** Dosya adı için güvenli sekme kısaltması. */
+export const WORD_TAB_FILENAME: Record<WordTabKey, string> = {
+  summary: "Sonuc_Ozeti",
+  plain: "Hesap_Ozetsiz",
+  detailed: "Hesap_Ozetli",
+  tas: "Tas_Aciklamalari",
+  gorsel: "Gorsel_Rapor",
+  iliski: "Iliski_Analizi",
+  evis: "Ev_Is_Yeri",
+};
+
+/** Kayıtlı analizden Word'e aktarılamayan sekmeler (canlı giriş gerektirir). */
+export const WORD_TAB_NO_SAVED_CONTENT: WordTabKey[] = ["iliski", "evis"];
+
 export function defaultWordPersonSections(): WordPersonSections {
-  return { identity: true, values: true, pin: true, summary: true, sourceNotes: true };
+  return { summary: true, plain: true, detailed: true, tas: true, gorsel: true, iliski: true, evis: true };
 }
 
-/** En az bir bölüm seçili mi? */
 export function atLeastOneWordPersonSection(s: WordPersonSections): boolean {
-  return WORD_PERSON_SECTION_ORDER.some((k) => s[k]);
+  return WORD_TAB_ORDER.some((k) => s[k]);
 }
 
-/**
- * Server normalizasyonu: `sections` verilmezse tüm bölümler açık (eski istemci uyumu).
- * Verilmişse bilinen anahtarlar boolean'a indirgenir; hiçbiri seçili değilse fail-safe tam çıktı.
- */
 export function normalizeWordPersonSections(input: unknown): WordPersonSections {
   if (input === undefined || input === null || typeof input !== "object") {
     return defaultWordPersonSections();
   }
   const o = input as Record<string, unknown>;
   const out: WordPersonSections = {
-    identity: false,
-    values: false,
-    pin: false,
-    summary: false,
-    sourceNotes: false,
+    summary: false, plain: false, detailed: false, tas: false, gorsel: false, iliski: false, evis: false,
   };
-  for (const k of WORD_PERSON_SECTION_ORDER) out[k] = o[k] === true;
+  for (const k of WORD_TAB_ORDER) out[k] = o[k] === true;
   if (!atLeastOneWordPersonSection(out)) return defaultWordPersonSections();
   return out;
 }
+
+/** Bir sekme kayıtlı analizden içerik üretebilir mi? (iliski/evis her zaman false) */
+export function tabCanHaveSavedContent(k: WordTabKey): boolean {
+  return !WORD_TAB_NO_SAVED_CONTENT.includes(k);
+}
+
+// ── Kaynak notu gruplama (Hesap Özetli sekmesi) ──────────────────────────────
 
 export type MatchedNoteRef = { id: string; analysisType: string; value: string };
 
@@ -78,10 +87,9 @@ export type PersonSourceNoteGroup = {
 };
 
 /**
- * Kişinin eşleşen kanonik kayıtlarına (matched) bağlı include_in_analysis kaynak notlarını
- * gruplar. Deterministik sıra (display_order, created_at, id). Etiket: source_id NULL →
- * "Uzmanın Kendi Notu"; aksi halde display_label. Notu olmayan eşleşme atlanır.
- * Not: entries YALNIZ include_in_analysis=true satırları içermelidir (server-side filtrelenir).
+ * Kişinin eşleşen kanonik kayıtlarına bağlı include_in_analysis kaynak notlarını gruplar.
+ * Deterministik sıra (display_order, created_at, id). Etiket: source_id NULL → "Uzmanın Kendi Notu".
+ * entries YALNIZ include_in_analysis=true olmalıdır (server-side filtrelenir).
  */
 export function personSourceNotesForRecords(
   matched: MatchedNoteRef[],
@@ -90,7 +98,7 @@ export function personSourceNotesForRecords(
 ): PersonSourceNoteGroup[] {
   const byRecord = new Map<string, SourceEntryRow[]>();
   for (const e of sortSourceEntries(entries)) {
-    if (!e.include_in_analysis) continue; // güvenlik: yalnız true
+    if (!e.include_in_analysis) continue;
     const arr = byRecord.get(e.knowledge_record_id) ?? [];
     arr.push(e);
     byRecord.set(e.knowledge_record_id, arr);
@@ -111,4 +119,23 @@ export function personSourceNotesForRecords(
     });
   }
   return out;
+}
+
+/** Güvenli dosya adı parçası (Türkçe → ASCII, boşluk → _). */
+export function safeFileNamePart(v: string): string {
+  return (v || "")
+    .replace(/ı/g, "i").replace(/İ/g, "I").replace(/ğ/g, "g").replace(/Ğ/g, "G")
+    .replace(/ü/g, "u").replace(/Ü/g, "U").replace(/ş/g, "s").replace(/Ş/g, "S")
+    .replace(/ö/g, "o").replace(/Ö/g, "O").replace(/ç/g, "c").replace(/Ç/g, "C")
+    .replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kayit";
+}
+
+/**
+ * Word dosya adı: tek sekme → Numeroloji_<Ad_Soyad>_<Sekme>.docx;
+ * çok sekme → Numeroloji_<Ad_Soyad>_Secili_Bolumler.docx.
+ */
+export function wordFileName(adSoyad: string, selectedTabs: WordTabKey[]): string {
+  const who = safeFileNamePart(adSoyad);
+  if (selectedTabs.length === 1) return `Numeroloji_${who}_${WORD_TAB_FILENAME[selectedTabs[0]!]}.docx`;
+  return `Numeroloji_${who}_Secili_Bolumler.docx`;
 }

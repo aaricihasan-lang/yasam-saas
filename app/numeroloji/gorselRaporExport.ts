@@ -49,9 +49,11 @@ function safePixelRatio(width: number, height: number): number {
   return 1;
 }
 
-/** Yüksek çözünürlüklü tam rapor PNG'si. Başarısızlıkta Error fırlatır. */
-export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
-  if (!hedef || typeof window === "undefined") return;
+/** Hedef elemandan yüksek çözünürlüklü PNG dataURL üretir (indirmez). Başarısızlıkta Error. */
+export async function gorselRaporuPngYakala(hedef: HTMLElement | null): Promise<string> {
+  if (!hedef || typeof window === "undefined") {
+    throw new Error("Görsel rapor alanı bulunamadı.");
+  }
 
   const { toPng } = await import("html-to-image");
 
@@ -95,16 +97,22 @@ export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): P
     if (!dataUrl || dataUrl === "data:,") {
       throw new Error("PNG oluşturulamadı. Tarayıcınız canvas boyutunu desteklemeyebilir.");
     }
-
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = "numeroloji-raporu.png";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    return dataUrl;
   } finally {
     hedef.classList.remove("png-export-mode");
     removePngExportStyles();
   }
+}
+
+/** Yüksek çözünürlüklü tam rapor PNG'si — dosyaya indirir. Başarısızlıkta Error fırlatır. */
+export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
+  if (!hedef || typeof window === "undefined") return;
+  const dataUrl = await gorselRaporuPngYakala(hedef);
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = "numeroloji-raporu.png";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }

@@ -7,8 +7,9 @@
 
 import { useState } from "react";
 import {
-  WORD_PERSON_SECTION_LABELS,
-  WORD_PERSON_SECTION_ORDER,
+  WORD_TAB_LABELS,
+  WORD_TAB_ORDER,
+  WORD_TAB_NO_SAVED_CONTENT,
   atLeastOneWordPersonSection,
   defaultWordPersonSections,
   type WordPersonSections,
@@ -47,20 +48,26 @@ export function WordPersonSectionPicker({
         </div>
         <div className="px-6 py-5">
           <div className="flex flex-col gap-2">
-            {WORD_PERSON_SECTION_ORDER.map((key) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-violet-100 bg-violet-50/40 p-2.5 text-sm font-semibold text-slate-800"
-              >
-                <input
-                  type="checkbox"
-                  checked={sections[key]}
-                  onChange={() => setSections((prev) => ({ ...prev, [key]: !prev[key] }))}
-                  className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
-                />
-                {WORD_PERSON_SECTION_LABELS[key]}
-              </label>
-            ))}
+            {WORD_TAB_ORDER.map((key) => {
+              const liveOnly = WORD_TAB_NO_SAVED_CONTENT.includes(key);
+              return (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-violet-100 bg-violet-50/40 p-2.5 text-sm font-semibold text-slate-800"
+                >
+                  <input
+                    type="checkbox"
+                    checked={sections[key]}
+                    onChange={() => setSections((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
+                  />
+                  <span className="min-w-0">{WORD_TAB_LABELS[key]}</span>
+                  {liveOnly ? (
+                    <span className="ml-auto text-[10px] font-medium text-slate-400">canlı giriş gerekir</span>
+                  ) : null}
+                </label>
+              );
+            })}
           </div>
           {!canGenerate ? (
             <p className="mt-3 text-xs font-bold text-rose-600">En az bir bölüm seçin.</p>

@@ -189,6 +189,11 @@ export default function NumerolojiListePage() {
       URL.revokeObjectURL(url);
       showToast({ title: "Başarılı", message: "Numeroloji raporu indirildi.", type: "success" });
       setWordPicker(null);
+      const emptyRaw = res.headers.get("X-Empty-Tabs");
+      const empty = emptyRaw ? decodeURIComponent(emptyRaw).split("|").filter(Boolean) : [];
+      if (empty.length > 0) {
+        showToast({ title: "Bilgi", message: `Bazı bölümlerde içerik yoktu ve eklenmedi: ${empty.join(", ")}`, type: "info" });
+      }
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
     } finally {
