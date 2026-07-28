@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260822000000_hd_editorial_sources_and_expert_notes.sql
+-- 20260824000000_hd_editorial_sources_and_expert_notes.sql
 --
 -- Human Design — Uzman Bilgi Bankası: dinamik KAYNAK sekmeleri + "Hasan Notlarım"
 --
