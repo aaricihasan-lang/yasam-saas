@@ -143,7 +143,7 @@ a(check_id, passed) AS (
        ((SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='aromatherapy_claim_audit_events') = 0)),
     -- Snapshot helper (6)
     ('A30_snapshot_overload_count_1', ((SELECT count(*) FROM fn WHERE proname='aromatherapy_claim_snapshot') = 1)),
-    ('A31_snapshot_idargs',   (SELECT idargs='uuid, uuid'   FROM fn WHERE proname='aromatherapy_claim_snapshot')),
+    ('A31_snapshot_idargs',   (SELECT pg_catalog.oidvectortypes(pp.proargtypes)='uuid, uuid' FROM pg_catalog.pg_proc pp WHERE pp.oid=(SELECT oid FROM fn WHERE proname='aromatherapy_claim_snapshot'))),
     ('A32_snapshot_returns_jsonb',
        (SELECT pg_get_function_result(oid)='jsonb' FROM fn WHERE proname='aromatherapy_claim_snapshot')),
     ('A33_snapshot_stable',   (SELECT provolatile='s' FROM fn WHERE proname='aromatherapy_claim_snapshot')),
@@ -158,8 +158,8 @@ a(check_id, passed) AS (
        (SELECT proargnames = ARRAY['p_actor_user_id','p_actor_label_snapshot','p_tenant_id','p_preparation_id','p_claim_type','p_conclusion','p_conclusion_provenance','p_evidence_layer','p_rationale_status','p_safety_topic','p_preparation_context','p_outcome_type','p_rationale','p_routes','p_populations','p_sources','p_passages','p_relations','p_reason']::text[]
         FROM fn WHERE proname='aromatherapy_create_claim_with_audit')),
     ('A40_create_idargs',
-       (SELECT idargs='uuid, text, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, jsonb, jsonb, jsonb, jsonb, text'
-        FROM fn WHERE proname='aromatherapy_create_claim_with_audit')),
+       (SELECT pg_catalog.oidvectortypes(pp.proargtypes)='uuid, text, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, jsonb, jsonb, jsonb, jsonb, text'
+        FROM pg_catalog.pg_proc pp WHERE pp.oid=(SELECT oid FROM fn WHERE proname='aromatherapy_create_claim_with_audit'))),
     ('A41_create_returns_jsonb', (SELECT pg_get_function_result(oid)='jsonb' FROM fn WHERE proname='aromatherapy_create_claim_with_audit')),
     ('A42_create_secdef',        (SELECT prosecdef FROM fn WHERE proname='aromatherapy_create_claim_with_audit')),
     ('A43_create_search_path',   (SELECT 'search_path=pg_catalog, public' = ANY(coalesce(proconfig, ARRAY[]::text[])) FROM fn WHERE proname='aromatherapy_create_claim_with_audit')),
@@ -185,8 +185,8 @@ a(check_id, passed) AS (
        (SELECT proargnames = ARRAY['p_actor_user_id','p_actor_label_snapshot','p_tenant_id','p_claim_id','p_reason','p_claim_patch','p_routes','p_populations','p_sources','p_passages','p_relations','p_expected_updated_at']::text[]
         FROM fn WHERE proname='aromatherapy_update_claim_with_audit')),
     ('A57_update_idargs',
-       (SELECT idargs='uuid, text, uuid, uuid, text, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, timestamp with time zone'
-        FROM fn WHERE proname='aromatherapy_update_claim_with_audit')),
+       (SELECT pg_catalog.oidvectortypes(pp.proargtypes)='uuid, text, uuid, uuid, text, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, timestamp with time zone'
+        FROM pg_catalog.pg_proc pp WHERE pp.oid=(SELECT oid FROM fn WHERE proname='aromatherapy_update_claim_with_audit'))),
     ('A58_update_returns_jsonb', (SELECT pg_get_function_result(oid)='jsonb' FROM fn WHERE proname='aromatherapy_update_claim_with_audit')),
     ('A59_update_secdef',        (SELECT prosecdef FROM fn WHERE proname='aromatherapy_update_claim_with_audit')),
     ('A60_update_search_path',   (SELECT 'search_path=pg_catalog, public' = ANY(coalesce(proconfig, ARRAY[]::text[])) FROM fn WHERE proname='aromatherapy_update_claim_with_audit')),
@@ -256,19 +256,19 @@ rpcchk(check_id, passed) AS (
     ('create_exec_service_role_true',  has_function_privilege('service_role', (SELECT oid FROM crt), 'EXECUTE')),
     ('create_exec_anon_false',         NOT has_function_privilege('anon',          (SELECT oid FROM crt), 'EXECUTE')),
     ('create_exec_authenticated_false',NOT has_function_privilege('authenticated', (SELECT oid FROM crt), 'EXECUTE')),
-    ('create_exec_public_false',       NOT has_function_privilege('public',        (SELECT oid FROM crt), 'EXECUTE')),
+    ('create_exec_public_false',       (SELECT p.proacl IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_catalog.pg_proc p WHERE p.oid=(SELECT oid FROM crt))),
     ('update_exec_service_role_true',  has_function_privilege('service_role', (SELECT oid FROM upd), 'EXECUTE')),
     ('update_exec_anon_false',         NOT has_function_privilege('anon',          (SELECT oid FROM upd), 'EXECUTE')),
     ('update_exec_authenticated_false',NOT has_function_privilege('authenticated', (SELECT oid FROM upd), 'EXECUTE')),
-    ('update_exec_public_false',       NOT has_function_privilege('public',        (SELECT oid FROM upd), 'EXECUTE')),
+    ('update_exec_public_false',       (SELECT p.proacl IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_catalog.pg_proc p WHERE p.oid=(SELECT oid FROM upd))),
     ('snapshot_exec_service_role_false',NOT has_function_privilege('service_role', (SELECT oid FROM snp), 'EXECUTE')),
     ('snapshot_exec_anon_false',       NOT has_function_privilege('anon',          (SELECT oid FROM snp), 'EXECUTE')),
     ('snapshot_exec_authenticated_false',NOT has_function_privilege('authenticated',(SELECT oid FROM snp), 'EXECUTE')),
-    ('snapshot_exec_public_false',     NOT has_function_privilege('public',        (SELECT oid FROM snp), 'EXECUTE')),
+    ('snapshot_exec_public_false',     (SELECT p.proacl IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_catalog.pg_proc p WHERE p.oid=(SELECT oid FROM snp))),
     ('trgfn_exec_service_role_false',  NOT has_function_privilege('service_role', (SELECT oid FROM trg), 'EXECUTE')),
     ('trgfn_exec_anon_false',          NOT has_function_privilege('anon',          (SELECT oid FROM trg), 'EXECUTE')),
     ('trgfn_exec_authenticated_false', NOT has_function_privilege('authenticated', (SELECT oid FROM trg), 'EXECUTE')),
-    ('trgfn_exec_public_false',        NOT has_function_privilege('public',        (SELECT oid FROM trg), 'EXECUTE')),
+    ('trgfn_exec_public_false',        (SELECT p.proacl IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_catalog.pg_proc p WHERE p.oid=(SELECT oid FROM trg))),
     ('create_owner_is_table_owner',    (SELECT ownername FROM crt) = (SELECT ownername FROM tbl_owner)),
     ('update_owner_is_table_owner',    (SELECT ownername FROM upd) = (SELECT ownername FROM tbl_owner)),
     ('snapshot_owner_is_table_owner',  (SELECT ownername FROM snp) = (SELECT ownername FROM tbl_owner)),
@@ -320,6 +320,8 @@ DECLARE
   SRC2     constant uuid := 'a0000007-0000-4000-8000-000000000007';
   PSG      constant uuid := 'a0000008-0000-4000-8000-000000000008';  -- source SRC
   PSG2     constant uuid := 'a0000009-0000-4000-8000-000000000009';  -- source SRC2
+  CID18    constant uuid := 'a0000010-0000-4000-8000-000000000010';  -- CP18 deterministik claim (sabit eski ts)
+  CID19    constant uuid := 'a0000011-0000-4000-8000-000000000011';  -- CP19 deterministik claim (sabit eski ts)
   r        jsonb;
   cid      uuid;
   cid2     uuid;
@@ -329,6 +331,7 @@ DECLARE
   v_cnt    integer;
   v_before jsonb;
   v_role   text;
+  v_bool   boolean;
 BEGIN
   -- ═══════════════ POZİTİF (29) ═══════════════
   r := public.aromatherapy_create_claim_with_audit(ACTOR, LABEL, T, PREP, 'use', 'sonuc', 'source_original', 'traditional', 'source_gives_no_rationale');
@@ -366,12 +369,19 @@ BEGIN
   IF v_cnt<>1 THEN RAISE EXCEPTION 'FAIL CP07 verified alanlari uretilmedi'; END IF;
   RAISE NOTICE 'PASS CP07 verified passage actor/now uretimi';
 
-  SELECT count(*) INTO v_cnt FROM public.aromatherapy_claim_passages
-    WHERE claim_id=(SELECT (r2->>'claim_id')::uuid FROM (SELECT public.aromatherapy_create_claim_with_audit(
-        ACTOR, LABEL, T, PREP, 'use', 'sonuc8', 'source_original', 'traditional', 'source_gives_no_rationale',
+  -- CP08: create() AYRI statement'ta çalışır (CP07 paterni). Veri değiştiren RPC'yi okuyan
+  -- SELECT'in alt-sorgusuna gömmek, aynı-statement snapshot'ı nedeniyle yeni passage satırını
+  -- görünmez kılıyordu (false-negative). Ayrı count SELECT taze snapshot ile satırı görür.
+  r := public.aromatherapy_create_claim_with_audit(ACTOR, LABEL, T, PREP, 'use', 'sonuc8', 'source_original', 'traditional', 'source_gives_no_rationale',
         p_sources:=('[{"source_id":"'||SRC||'","source_role":"primary_support"}]')::jsonb,
-        p_passages:=('[{"passage_id":"'||PSG||'","passage_kind":"excerpt","evidence_relation":"supports","verification_status":"unverified"}]')::jsonb) AS r2) s)
-    AND verified_by IS NULL AND verified_at IS NULL;
+        p_passages:=('[{"passage_id":"'||PSG||'","passage_kind":"excerpt","evidence_relation":"supports","verification_status":"unverified"}]')::jsonb);
+  -- Exact satır bağlaması: CP08'in kendi claim'i + exact passage_id (PSG=a0000008) +
+  -- verification_status='unverified'; CP07'nin verified passage'ı veya başka claim/passage karışamaz.
+  SELECT count(*) INTO v_cnt FROM public.aromatherapy_claim_passages
+    WHERE claim_id=(r->>'claim_id')::uuid
+      AND passage_id=PSG
+      AND verification_status='unverified'
+      AND verified_by IS NULL AND verified_at IS NULL;
   IF v_cnt<>1 THEN RAISE EXCEPTION 'FAIL CP08 unverified alanlari NULL degil'; END IF;
   RAISE NOTICE 'PASS CP08 unverified passage NULL';
 
@@ -379,8 +389,9 @@ BEGIN
         p_relations:=('[{"other_claim_id":"'||cid||'","relation_type":"complementary","explanation_tr":"iliski"}]')::jsonb);
   RAISE NOTICE 'PASS CP09 valid relation create';
 
-  SELECT previous_state IS NULL INTO v_role FROM public.aromatherapy_claim_audit_events WHERE claim_id=cid AND operation='create' LIMIT 1;
-  IF v_role IS DISTINCT FROM true THEN RAISE EXCEPTION 'FAIL CP10 previous_state NULL degil'; END IF;
+  -- CP10: previous_state IS NULL boolean sonucu AYRI boolean değişkende (v_role text değil); IS NOT TRUE ile kontrol.
+  SELECT previous_state IS NULL INTO v_bool FROM public.aromatherapy_claim_audit_events WHERE claim_id=cid AND operation='create' LIMIT 1;
+  IF v_bool IS NOT TRUE THEN RAISE EXCEPTION 'FAIL CP10 previous_state NULL degil'; END IF;
   RAISE NOTICE 'PASS CP10 create audit previous_state NULL';
 
   IF NOT (r ? 'claim_id' AND r ? 'warnings' AND (SELECT count(*) FROM jsonb_object_keys(r))=2) THEN
@@ -415,25 +426,52 @@ BEGIN
   IF v_cnt<>2 THEN RAISE EXCEPTION 'FAIL CP17 non-empty replacement'; END IF;
   RAISE NOTICE 'PASS CP17 non-empty collection full replacement';
 
-  SELECT updated_at INTO v_ua FROM public.aromatherapy_claims WHERE id=cidupd;
-  r := public.aromatherapy_update_claim_with_audit(ACTOR, LABEL, T, cidupd, 'child-only', p_populations:='[{"population_code":"adult","age_min":18}]'::jsonb);
-  SELECT updated_at INTO v_ua2 FROM public.aromatherapy_claims WHERE id=cidupd;
+  -- CP18: now() transaction-stable → aynı transaction'da before/after eşit kalıp false-negative
+  -- üretiyordu. Deterministik: CP18'e özel claim'i owner bağlamında sabit ESKİ timestamp ile doğrudan
+  -- INSERT et; sonra yalnız child (populations) RPC ile değiştir → updated_at = now() > 2020 (strict >).
+  INSERT INTO public.aromatherapy_claims
+    (id, tenant_id, preparation_id, claim_type, conclusion, conclusion_provenance,
+     evidence_layer, rationale_status, created_at, updated_at)
+  VALUES
+    (CID18, T, PREP, 'use', 'cp18 sonuc', 'source_original', 'traditional',
+     'source_gives_no_rationale', '2020-01-01 00:00:00+00'::timestamptz, '2020-01-01 00:00:00+00'::timestamptz);
+  SELECT updated_at INTO v_ua FROM public.aromatherapy_claims WHERE id=CID18;   -- = 2020 sabit
+  r := public.aromatherapy_update_claim_with_audit(ACTOR, LABEL, T, CID18, 'cp18-child-only',
+        p_populations:='[{"population_code":"adult","age_min":18}]'::jsonb);
+  SELECT updated_at INTO v_ua2 FROM public.aromatherapy_claims WHERE id=CID18;   -- = now() > 2020
   IF v_ua2 <= v_ua THEN RAISE EXCEPTION 'FAIL CP18 child-only updated_at bump yok'; END IF;
+  IF (SELECT conclusion FROM public.aromatherapy_claims WHERE id=CID18) <> 'cp18 sonuc' THEN
+    RAISE EXCEPTION 'FAIL CP18 core degisti'; END IF;
+  SELECT count(*) INTO v_cnt FROM public.aromatherapy_claim_populations WHERE claim_id=CID18;
+  IF v_cnt<>1 THEN RAISE EXCEPTION 'FAIL CP18 child seti degismedi'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.aromatherapy_claim_audit_events WHERE claim_id=CID18 AND operation='update') THEN
+    RAISE EXCEPTION 'FAIL CP18 audit event yok'; END IF;
   RAISE NOTICE 'PASS CP18 child-only updated_at bump';
 
-  SELECT updated_at INTO v_ua FROM public.aromatherapy_claims WHERE id=cidupd;
-  SELECT count(*) INTO v_cnt FROM public.aromatherapy_claim_audit_events WHERE claim_id=cidupd;
-  r := public.aromatherapy_update_claim_with_audit(ACTOR, LABEL, T, cidupd, 'noop', p_claim_patch:='{"conclusion":"yeni sonuc"}'::jsonb);
-  SELECT updated_at INTO v_ua2 FROM public.aromatherapy_claims WHERE id=cidupd;
+  -- CP19: gerçek no-op updated_at'i DEĞİŞTİRMEMELİ. Deterministik: CP19'a özel claim'i sabit ESKİ
+  -- timestamp ile doğrudan INSERT et; no-op sonrası updated_at hâlâ tam o sabit değer olmalı
+  -- (yanlışlıkla bump olsa now()≠2020 olur ve yakalanır). Audit yine de +1 üretmeli.
+  INSERT INTO public.aromatherapy_claims
+    (id, tenant_id, preparation_id, claim_type, conclusion, conclusion_provenance,
+     evidence_layer, rationale_status, created_at, updated_at)
+  VALUES
+    (CID19, T, PREP, 'use', 'cp19 sonuc', 'source_original', 'traditional',
+     'source_gives_no_rationale', '2020-01-01 00:00:00+00'::timestamptz, '2020-01-01 00:00:00+00'::timestamptz);
+  SELECT updated_at INTO v_ua FROM public.aromatherapy_claims WHERE id=CID19;   -- = 2020 sabit
+  SELECT count(*) INTO v_cnt FROM public.aromatherapy_claim_audit_events WHERE claim_id=CID19;
+  r := public.aromatherapy_update_claim_with_audit(ACTOR, LABEL, T, CID19, 'cp19-noop', p_claim_patch:='{"conclusion":"cp19 sonuc"}'::jsonb);
+  SELECT updated_at INTO v_ua2 FROM public.aromatherapy_claims WHERE id=CID19;   -- no-op → hâlâ 2020
   IF v_ua2 IS DISTINCT FROM v_ua THEN RAISE EXCEPTION 'FAIL CP19 no-op updated_at degisti'; END IF;
-  IF (SELECT count(*) FROM public.aromatherapy_claim_audit_events WHERE claim_id=cidupd) <> v_cnt+1 THEN RAISE EXCEPTION 'FAIL CP19 no-op audit yok'; END IF;
+  IF (SELECT count(*) FROM public.aromatherapy_claim_audit_events WHERE claim_id=CID19) <> v_cnt+1 THEN RAISE EXCEPTION 'FAIL CP19 no-op audit yok'; END IF;
   RAISE NOTICE 'PASS CP19 no-op audit uretir updated_at degismez';
 
   SELECT updated_at INTO v_ua FROM public.aromatherapy_claims WHERE id=cidupd;
   r := public.aromatherapy_update_claim_with_audit(ACTOR, LABEL, T, cidupd, 'optimistic-ok', p_claim_patch:='{"conclusion":"opt sonuc"}'::jsonb, p_expected_updated_at:=v_ua);
   RAISE NOTICE 'PASS CP20 expected_updated_at dogru update';
 
-  SELECT new_state INTO v_before FROM public.aromatherapy_claim_audit_events WHERE claim_id=cidupd AND operation='update' ORDER BY occurred_at DESC LIMIT 1;
+  -- CP21: occurred_at=now() tüm audit'lerde aynı (transaction-stable) → ORDER BY occurred_at beraberliği
+  -- yanlış satır seçebilir. CP20'nin audit'ini reason='optimistic-ok' ile deterministik hedefle.
+  SELECT new_state INTO v_before FROM public.aromatherapy_claim_audit_events WHERE claim_id=cidupd AND operation='update' AND reason='optimistic-ok' ORDER BY occurred_at DESC LIMIT 1;
   IF v_before->'claim'->>'conclusion' <> 'opt sonuc' THEN RAISE EXCEPTION 'FAIL CP21 after-snapshot yanlis'; END IF;
   RAISE NOTICE 'PASS CP21 update audit before/after snapshot';
 
@@ -612,8 +650,9 @@ ROLLBACK;
 
 
 -- ============================================================
--- RESIDUAL — 11 tablo, yalnız fixture UUID/code; her sayaç 0 (salt-okunur)
+-- RESIDUAL — 11 tablo, yalnız fixture UUID/code; her sayaç 0 (salt-okunur) + RESIDUAL_OVERALL
 -- ============================================================
+WITH residual(table_name, residual_rows) AS (
 SELECT 'aromatherapy_claim_audit_events' AS table_name,
        (SELECT count(*) FROM public.aromatherapy_claim_audit_events
         WHERE tenant_id IN ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222')) AS residual_rows
@@ -637,4 +676,12 @@ UNION ALL SELECT 'aromatherapy_preparations',
        (SELECT count(*) FROM public.aromatherapy_preparations WHERE id IN ('a0000002-0000-4000-8000-000000000002','b0000002-0000-4000-8000-000000000002'))
 UNION ALL SELECT 'aromatherapy_plant_taxa',
        (SELECT count(*) FROM public.aromatherapy_plant_taxa WHERE id IN ('a0000001-0000-4000-8000-000000000001','b0000001-0000-4000-8000-000000000001'))
-ORDER BY table_name;
+)
+-- RESIDUAL_OVERALL son satıra: UNION doğrudan expression ORDER BY yerine subquery + güvenli CASE ORDER BY.
+SELECT table_name, residual_rows
+FROM (
+  SELECT table_name, residual_rows FROM residual
+  UNION ALL
+  SELECT 'RESIDUAL_OVERALL', sum(residual_rows) FROM residual
+) q
+ORDER BY CASE WHEN table_name = 'RESIDUAL_OVERALL' THEN 1 ELSE 0 END, table_name;
