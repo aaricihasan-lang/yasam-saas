@@ -11,6 +11,8 @@ import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUse
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 import { RowErrorBoundary } from "../components/RowErrorBoundary";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { WordPersonSectionPicker } from "../components/WordPersonSectionPicker";
+import type { WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
 import { numApi, numApiError } from "../helpers/numApiClient";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -36,6 +38,7 @@ export default function NumerolojiListePage() {
   // Toplu seçim
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [wordPicker, setWordPicker] = useState<{ mode: "selected" | "all" | "filtered" } | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -146,7 +149,7 @@ export default function NumerolojiListePage() {
     showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
   }
 
-  async function exportWord(mode: "selected" | "all" | "filtered") {
+  async function exportWord(mode: "selected" | "all" | "filtered", sections: WordPersonSections) {
     if (isDemo) {
       showToast({ title: "Demo Modu", message: "Demo hesapta toplu Word raporu alınamaz.", type: "error" });
       return;
@@ -170,7 +173,7 @@ export default function NumerolojiListePage() {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: mode === "all" ? "all" : "selected", ids }),
+        body: JSON.stringify({ tenantId, userId, exportMode: mode === "all" ? "all" : "selected", ids, sections }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -185,6 +188,12 @@ export default function NumerolojiListePage() {
       a.click();
       URL.revokeObjectURL(url);
       showToast({ title: "Başarılı", message: "Numeroloji raporu indirildi.", type: "success" });
+      setWordPicker(null);
+      const emptyRaw = res.headers.get("X-Empty-Tabs");
+      const empty = emptyRaw ? decodeURIComponent(emptyRaw).split("|").filter(Boolean) : [];
+      if (empty.length > 0) {
+        showToast({ title: "Bilgi", message: `Bazı bölümlerde içerik yoktu ve eklenmedi: ${empty.join(", ")}`, type: "info" });
+      }
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
     } finally {
@@ -257,9 +266,9 @@ export default function NumerolojiListePage() {
                 hasActiveFilter={hasActiveFilter}
                 onSelectAll={selectAllFiltered}
                 onClearSelection={clearSelection}
-                onExportSelected={() => void exportWord("selected")}
-                onExportAll={() => void exportWord("all")}
-                onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
+                onExportSelected={() => setWordPicker({ mode: "selected" })}
+                onExportAll={() => setWordPicker({ mode: "all" })}
+                onExportFiltered={hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
                 isExporting={wordBusy}
                 onDeleteSelected={() => void handleBulkDelete()}
                 isDeleting={deleteLoading}
@@ -306,6 +315,15 @@ export default function NumerolojiListePage() {
           </ul>
         ) : null}
       </div>
+
+      <WordPersonSectionPicker
+        open={wordPicker !== null}
+        busy={wordBusy}
+        onCancel={() => setWordPicker(null)}
+        onConfirm={(sections) => {
+          if (wordPicker) void exportWord(wordPicker.mode, sections);
+        }}
+      />
     </div>
   );
 }

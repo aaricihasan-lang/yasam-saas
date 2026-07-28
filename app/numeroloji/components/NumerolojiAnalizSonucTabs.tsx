@@ -14,6 +14,8 @@ import {
   getStoneAssignmentsForAnalysis,
   type StoneAssignmentForAnalysis,
 } from "../bilgi-bankasi/helpers/stoneLookup";
+import { useStoneStock } from "../bilgi-bankasi/helpers/useStoneStock";
+import { matchStock, stockLabel, STOCK_HINT, type StockIndex } from "../bilgi-bankasi/helpers/stoneStockLogic";
 
 const STONE_TYPE_CAKRA = "cakra-omurga";
 const STONE_TYPE_ELEMENT = "element";
@@ -518,7 +520,7 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function TasDestekItem({ item }: { item: StoneAssignmentForAnalysis }) {
+function TasDestekItem({ item, stockIndex }: { item: StoneAssignmentForAnalysis; stockIndex: StockIndex }) {
   const typo = useContentTypography();
   return (
     <div className="border-t border-emerald-100/90 pt-3 first:border-t-0 first:pt-0">
@@ -529,9 +531,33 @@ function TasDestekItem({ item }: { item: StoneAssignmentForAnalysis }) {
         </p>
       ) : null}
       {item.stones.length ? (
-        <p className={`mt-2 ${typo.body} text-slate-800`}>
-          <span className="font-bold text-slate-700">Taşlar:</span> {item.stones.join(", ")}
-        </p>
+        <div className="mt-2">
+          <p className={`mb-1.5 ${typo.body} font-bold text-slate-700`}>Taşlar:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {item.stones.map((stone, i) => {
+              const info = matchStock(stone, stockIndex);
+              const label = stockLabel(info);
+              return info.stocked ? (
+                <span
+                  key={`${stone}-${i}`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-sm font-semibold text-emerald-900"
+                  title={label}
+                >
+                  <span aria-hidden className="text-emerald-600">✓</span>
+                  <span className="min-w-0 break-words">{stone}</span>
+                  <span className="text-[11px] font-bold text-emerald-700">· {label}</span>
+                </span>
+              ) : (
+                <span
+                  key={`${stone}-${i}`}
+                  className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-sm font-medium text-slate-700"
+                >
+                  <span className="min-w-0 break-words">{stone}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -540,9 +566,11 @@ function TasDestekItem({ item }: { item: StoneAssignmentForAnalysis }) {
 function TasDestekSectionBlock({
   title,
   items,
+  stockIndex,
 }: {
   title: string;
   items: StoneAssignmentForAnalysis[];
+  stockIndex: StockIndex;
 }) {
   const typo = useContentTypography();
   if (!items.length) return null;
@@ -555,7 +583,7 @@ function TasDestekSectionBlock({
       <p className={`${typo.sectionTitle} text-emerald-900/95`}>{title}</p>
       <div className="mt-3 space-y-4">
         {items.map((item) => (
-          <TasDestekItem key={`${item.typeKey}:${item.value}`} item={item} />
+          <TasDestekItem key={`${item.typeKey}:${item.value}`} item={item} stockIndex={stockIndex} />
         ))}
       </div>
     </div>
@@ -598,6 +626,21 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
                 </div>
               ))}
             </div>
+            {/* NKB-V2: Uzman Kaynak Notları — kanonik metnin ALTINDA, görsel/semantik AYRI.
+                Yalnız include_in_analysis=true notlar; her notta kaynak etiketi. */}
+            {note.sourceEntries?.length ? (
+              <div className="mt-2.5 border-t border-fuchsia-100 pt-2.5">
+                <p className={`${typo.caption} font-bold uppercase tracking-wide text-fuchsia-700/90`}>Uzman Kaynak Notları</p>
+                <div className="mt-1.5 space-y-2">
+                  {note.sourceEntries.map((se) => (
+                    <div key={se.id} className="rounded-lg border border-fuchsia-100 bg-fuchsia-50/40 px-2.5 py-1.5">
+                      <p className={`${typo.caption} font-bold text-fuchsia-800/90`}>{se.sourceLabel}</p>
+                      <p className={`mt-0.5 whitespace-pre-wrap ${typo.body} text-slate-800`}>{se.body.trim()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
@@ -674,6 +717,7 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
 export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const stockIndex = useStoneStock();
 
   useEffect(() => {
     let cancelled = false;
@@ -724,8 +768,11 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      <p className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+        <span aria-hidden className="text-emerald-600">✓</span> {STOCK_HINT}
+      </p>
       {stoneSections.map((sec) => (
-        <TasDestekSectionBlock key={sec.key} title={sec.title} items={sec.items} />
+        <TasDestekSectionBlock key={sec.key} title={sec.title} items={sec.items} stockIndex={stockIndex} />
       ))}
     </div>
   );
@@ -734,6 +781,7 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
 export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMotorOut; layout?: "default" | "detay" }) {
   const [knowledgeNotes, setKnowledgeNotes] = useState<KnowledgeNotesForAnalysis | null>(null);
   const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
+  const stockIndex = useStoneStock();
 
   useEffect(() => {
     let cancelled = false;
@@ -806,7 +854,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {knowledgeNotes?.cakraOmurga.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
         ) : null}
-        <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} />
+        <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Elementler">
         <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
@@ -816,7 +864,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {knowledgeNotes?.element.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}
-        <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} />
+        <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
         <pre className={preScroll}>{out.degisimDonusumMetni || "—"}</pre>

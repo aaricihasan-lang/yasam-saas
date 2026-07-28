@@ -12,7 +12,7 @@ const HELPERS = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app",
 const fl = await import(pathToFileURL(join(HELPERS, "kulvarFormLogic.ts")).href);
 const ks = await import(pathToFileURL(join(HELPERS, "knowledgeSections.ts")).href);
 
-const { sectionsFromBodies, bodiesFromRecord, decideSaveMethod, nonEmptySectionsForView, EMPTY_KULVAR_BODIES } = fl;
+const { sectionsFromBodies, bodiesFromRecord, decideSaveMethod, nonEmptySectionsForView, EMPTY_KULVAR_BODIES, shouldResetCanonicalFormAfterSave } = fl;
 const { validateKulvarSections } = ks;
 
 let pass = 0;
@@ -68,6 +68,12 @@ const view = nonEmptySectionsForView({
   description: null,
 });
 check("nonEmptySectionsForView boş body'yi eler", view.length === 1 && view[0].key === "overview");
+
+// NKB-V2 — canonical form başarı sonrası reset sözleşmesi
+console.log("\n── NKB-V2 — canonical kaydet sonrası reset sözleşmesi ──");
+check("başarı → form reset edilir", shouldResetCanonicalFormAfterSave("success") === true);
+check("hata → form KORUNUR (reset yok)", shouldResetCanonicalFormAfterSave("error") === false);
+check("çakışma → form KORUNUR (reset yok)", shouldResetCanonicalFormAfterSave("conflict") === false);
 
 console.log(`\nToplam: ${pass} PASS / ${fail} FAIL (${pass + fail} kontrol)`);
 if (fail > 0) process.exit(1);
