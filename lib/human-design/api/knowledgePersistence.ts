@@ -31,6 +31,7 @@ const EDITABLE_KEYS: (keyof HumanDesignKnowledgeRecord)[] = [
   "tags",
   "sort_order",
   "is_active",
+  "expert_notes",
 ];
 
 function pick(input: Record<string, unknown>): Record<string, unknown> {

@@ -111,6 +111,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       related_gates: form.related_gates,
       sort_order: form.sort_order,
       is_active: form.is_active,
+      expert_notes: null,
     });
     setSaving(false);
     if (error) {

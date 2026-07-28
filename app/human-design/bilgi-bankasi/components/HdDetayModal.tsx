@@ -17,6 +17,8 @@ import {
   type StructuredOption,
 } from "@/lib/human-design/codeHelpers";
 import { updateHdKnowledgeRecord, type HdKnowledgeRow } from "../helpers/hdBilgiKayit";
+import { listHdSources, insertHdSource, type HdSourceRow } from "../helpers/hdKaynaklar";
+import { HdKaynakEditor } from "./HdKaynakEditor";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -35,6 +37,7 @@ type FormState = {
   structuredValue: string; // yapısal kategorilerde seçilen ham kod
   code: string;
   content: string;
+  expertNotes: string;
   keywordsText: string;
   tagsText: string;
   related_centers: string[];
@@ -43,6 +46,9 @@ type FormState = {
   sort_order: number;
   is_active: boolean;
 };
+
+// Sekme kimliği: sabit sekmeler + her kaynak için "src:<id>"
+type TabId = "summary" | "notes" | `src:${string}`;
 
 function computeCode(category: string, title: string, structuredValue: string): string {
   if (!category) return "";
@@ -61,6 +67,7 @@ function rowToForm(row: HdKnowledgeRow): FormState {
     structuredValue,
     code: row.code,
     content: row.content,
+    expertNotes: row.expert_notes ?? "",
     keywordsText: row.keywords.join(", "),
     tagsText: row.tags.join(", "),
     related_centers: row.related_centers ?? [],
@@ -79,6 +86,10 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
   const { showToast } = useToast();
   const [form, setForm] = useState<FormState>(() => rowToForm(row));
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>("summary");
+  const [sources, setSources] = useState<HdSourceRow[]>([]);
+  const [loadingSources, setLoadingSources] = useState(true);
+  const [addingSource, setAddingSource] = useState(false);
 
   useEffect(() => {
     setForm(rowToForm(row));
@@ -88,6 +99,25 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
     const newCode = computeCode(form.category, form.title, form.structuredValue);
     setForm((p) => (p.code === newCode ? p : { ...p, code: newCode }));
   }, [form.category, form.title, form.structuredValue]);
+
+  // Kaynakları yükle
+  useEffect(() => {
+    // Not: loadingSources başlangıçta true; senkron setState (effect body) yerine
+    // sonucu async callback içinde yazıyoruz (cascading render lint kuralı).
+    let alive = true;
+    listHdSources(row.id).then(({ rows, error }) => {
+      if (!alive) return;
+      setLoadingSources(false);
+      if (error) {
+        showToast({ message: `Kaynaklar yüklenemedi: ${error}`, type: "error" });
+        return;
+      }
+      setSources(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [row.id, showToast]);
 
   function toggleCenter(code: string) {
     setForm((p) => ({
@@ -116,17 +146,20 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
     }));
   }
 
-  async function handleSave() {
+  async function handleSaveRecord() {
     if (!form.category) {
       showToast({ message: "Kategori seçin.", type: "warning" });
+      setActiveTab("summary");
       return;
     }
     if (!form.title.trim()) {
       showToast({ message: "Başlık girin.", type: "warning" });
+      setActiveTab("summary");
       return;
     }
     if (!form.content.trim()) {
-      showToast({ message: "İçerik alanını doldurun.", type: "warning" });
+      showToast({ message: "Editöryal Özet alanını doldurun.", type: "warning" });
+      setActiveTab("summary");
       return;
     }
     setSaving(true);
@@ -135,6 +168,8 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
       title: form.title.trim(),
       code: form.code,
       content: form.content.trim(),
+      // "Hasan Notlarım" — editöryal özetten ayrı; rapora akmaz.
+      expert_notes: form.expertNotes.trim() || null,
       keywords: parseCSV(form.keywordsText),
       tags: parseCSV(form.tagsText),
       related_centers: form.related_centers,
@@ -151,6 +186,52 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
       onSaved();
     }
   }
+
+  async function handleAddSource() {
+    setAddingSource(true);
+    const { id, error } = await insertHdSource(row.id, {
+      source_name: "Yeni Kaynak",
+      sort_order: sources.length,
+    });
+    if (error || !id) {
+      setAddingSource(false);
+      showToast({ message: `Kaynak eklenemedi: ${error ?? ""}`, type: "error" });
+      return;
+    }
+    const { rows } = await listHdSources(row.id);
+    setSources(rows);
+    setAddingSource(false);
+    setActiveTab(`src:${id}`);
+    showToast({ message: "Kaynak eklendi.", type: "success" });
+  }
+
+  function handleSourceSaved(updated: HdSourceRow) {
+    setSources((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+  }
+
+  function handleSourceDeleted(id: string) {
+    setSources((prev) => prev.filter((s) => s.id !== id));
+    setActiveTab("summary");
+  }
+
+  const tabBtn = (id: TabId, label: string, active: boolean) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setActiveTab(id)}
+      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+        active
+          ? "bg-indigo-600 text-white shadow-sm"
+          : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-800"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const activeSource =
+    activeTab.startsWith("src:") ? sources.find((s) => `src:${s.id}` === activeTab) ?? null : null;
+  const isSourceTab = activeTab.startsWith("src:");
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
@@ -181,250 +262,308 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
           </button>
         </div>
 
+        {/* Sekme çubuğu */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-indigo-100/70 bg-white px-4 py-2.5">
+          {tabBtn("summary", "Editöryal Özet", activeTab === "summary")}
+          {tabBtn("notes", "Hasan Notlarım", activeTab === "notes")}
+          {sources.map((s, i) =>
+            tabBtn(`src:${s.id}`, s.source_name?.trim() || `Kaynak ${i + 1}`, activeTab === `src:${s.id}`),
+          )}
+          <button
+            type="button"
+            onClick={handleAddSource}
+            disabled={addingSource}
+            className="whitespace-nowrap rounded-lg border border-dashed border-indigo-300 px-3 py-1.5 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
+          >
+            {addingSource ? "Ekleniyor..." : "+ Kaynak Ekle"}
+          </button>
+        </div>
+
         {/* Body */}
-        <div className="max-h-[72vh] overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Temel Bilgiler */}
-            <section>
-              <p className={sectionCls}>Temel Bilgiler</p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelCls}>Kategori *</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        category: e.target.value as HdKnowledgeCategory,
-                        title: "",
-                        structuredValue: "",
-                      }))
-                    }
-                    className={`h-9 ${fieldBase}`}
-                  >
-                    <option value="">Seçin...</option>
-                    {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={labelCls}>Başlık *</label>
-                  {(() => {
-                    const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
-                    if (opts) {
-                      return (
-                        <select
-                          value={form.structuredValue}
-                          onChange={(e) => {
-                            const opt = opts.find((o) => o.code === e.target.value);
-                            setForm((p) => ({
-                              ...p,
-                              structuredValue: e.target.value,
-                              title: opt?.label ?? "",
-                            }));
-                          }}
-                          className={`h-9 ${fieldBase}`}
-                        >
-                          <option value="">— Seçin —</option>
-                          {opts.map((opt) => (
-                            <option key={opt.code} value={opt.code}>{opt.label}</option>
-                          ))}
-                        </select>
-                      );
-                    }
-                    return (
-                      <input
-                        type="text"
-                        value={form.title}
-                        onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                        className={`h-9 ${fieldBase}`}
-                      />
-                    );
-                  })()}
-                </div>
-
-                <div>
-                  <label className={labelCls}>Kod (otomatik)</label>
-                  <input
-                    type="text"
-                    value={form.code}
-                    readOnly
-                    className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelCls}>Sıralama</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.sort_order}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sort_order: Number(e.target.value) }))
-                    }
-                    className={`h-9 ${fieldBase}`}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2.5 sm:col-span-2">
-                  <input
-                    id="hd-modal-is-active"
-                    type="checkbox"
-                    checked={form.is_active}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, is_active: e.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
-                  />
-                  <label
-                    htmlFor="hd-modal-is-active"
-                    className="text-sm font-semibold text-slate-700"
-                  >
-                    Aktif kayıt
-                  </label>
-                </div>
-
-                {/* Kod rehberi */}
-                <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
-                  {getStructuredCategoryOptions(form.category) !== null ? (
-                    <><span className="font-bold">Yapısal kategori: </span>Dropdown seçiminden kod otomatik üretilir ve harita verileriyle birebir eşleşir. Başlığı kendiniz yazmayın.</>
-                  ) : form.category ? (
-                    <><span className="font-bold">Serbest kategori: </span>Başlık serbest girilebilir; kod başlıktan türetilir. Bu kategori harita kodu eşleştirmesinde kullanılmaz, raporda ek bölüm olarak eklenir.</>
-                  ) : (
-                    <>Önce kategori seçin. Yapısal kategorilerde (Tipler, Otoriteler, Profiller, Tanımlar, Merkezler, Kanallar, Kapılar) kod harita verileriyle otomatik eşleşir.</>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* İçerik */}
-            <section>
-              <p className={sectionCls}>İçerik</p>
-              <textarea
-                value={form.content}
-                onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
-                rows={7}
-                className={`${fieldBase} resize-y leading-relaxed`}
-              />
-            </section>
-
-            {/* Merkezler */}
-            <section>
-              <p className={sectionCls}>İlişkili Merkezler</p>
-              <div className="flex flex-wrap gap-2">
-                {HUMAN_DESIGN_CENTERS.map((center) => {
-                  const sel = form.related_centers.includes(center.code);
-                  return (
-                    <button
-                      key={center.code}
-                      type="button"
-                      onClick={() => toggleCenter(center.code)}
-                      className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
-                        sel
-                          ? "border-transparent bg-indigo-600 text-white shadow-[0_3px_10px_rgba(79,70,229,0.3)]"
-                          : "border-indigo-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-indigo-50"
-                      }`}
+        <div className="max-h-[68vh] overflow-y-auto p-6">
+          {/* --- SEKME: Editöryal Özet --- */}
+          {activeTab === "summary" && (
+            <div className="space-y-6">
+              {/* Temel Bilgiler */}
+              <section>
+                <p className={sectionCls}>Temel Bilgiler</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={labelCls}>Kategori *</label>
+                    <select
+                      value={form.category}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          category: e.target.value as HdKnowledgeCategory,
+                          title: "",
+                          structuredValue: "",
+                        }))
+                      }
+                      className={`h-9 ${fieldBase}`}
                     >
-                      {center.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+                      <option value="">Seçin...</option>
+                      {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* Kanallar */}
-            <section>
-              <p className={sectionCls}>İlişkili Kanallar</p>
-              <div className="max-h-36 overflow-y-auto rounded-xl border border-indigo-200/80 bg-white/70 p-3">
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                  {HUMAN_DESIGN_CHANNELS.map((ch) => {
-                    const sel = form.related_channels.includes(ch.code);
-                    return (
-                      <label
-                        key={ch.code}
-                        className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
-                          sel
-                            ? "bg-indigo-50 text-indigo-800"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
+                  <div>
+                    <label className={labelCls}>Başlık *</label>
+                    {(() => {
+                      const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
+                      if (opts) {
+                        return (
+                          <select
+                            value={form.structuredValue}
+                            onChange={(e) => {
+                              const opt = opts.find((o) => o.code === e.target.value);
+                              setForm((p) => ({
+                                ...p,
+                                structuredValue: e.target.value,
+                                title: opt?.label ?? "",
+                              }));
+                            }}
+                            className={`h-9 ${fieldBase}`}
+                          >
+                            <option value="">— Seçin —</option>
+                            {opts.map((opt) => (
+                              <option key={opt.code} value={opt.code}>{opt.label}</option>
+                            ))}
+                          </select>
+                        );
+                      }
+                      return (
                         <input
-                          type="checkbox"
-                          checked={sel}
-                          onChange={() => toggleChannel(ch.code)}
-                          className="h-3.5 w-3.5 rounded border-indigo-300 accent-indigo-600"
+                          type="text"
+                          value={form.title}
+                          onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                          className={`h-9 ${fieldBase}`}
                         />
-                        {ch.label}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
+                      );
+                    })()}
+                  </div>
 
-            {/* Kapılar */}
-            <section>
-              <p className={sectionCls}>İlişkili Kapılar</p>
-              <div className="rounded-xl border border-indigo-200/80 bg-white/70 p-3">
-                <div className="grid grid-cols-8 gap-1.5">
-                  {HUMAN_DESIGN_GATES.map((gate) => {
-                    const sel = form.related_gates.includes(gate.code);
+                  <div>
+                    <label className={labelCls}>Kod (otomatik)</label>
+                    <input
+                      type="text"
+                      value={form.code}
+                      readOnly
+                      className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Sıralama</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.sort_order}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, sort_order: Number(e.target.value) }))
+                      }
+                      className={`h-9 ${fieldBase}`}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2.5 sm:col-span-2">
+                    <input
+                      id="hd-modal-is-active"
+                      type="checkbox"
+                      checked={form.is_active}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, is_active: e.target.checked }))
+                      }
+                      className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
+                    />
+                    <label
+                      htmlFor="hd-modal-is-active"
+                      className="text-sm font-semibold text-slate-700"
+                    >
+                      Aktif kayıt
+                    </label>
+                  </div>
+
+                  {/* Kod rehberi */}
+                  <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
+                    {getStructuredCategoryOptions(form.category) !== null ? (
+                      <><span className="font-bold">Yapısal kategori: </span>Dropdown seçiminden kod otomatik üretilir ve harita verileriyle birebir eşleşir. Başlığı kendiniz yazmayın.</>
+                    ) : form.category ? (
+                      <><span className="font-bold">Serbest kategori: </span>Başlık serbest girilebilir; kod başlıktan türetilir. Bu kategori harita kodu eşleştirmesinde kullanılmaz, raporda ek bölüm olarak eklenir.</>
+                    ) : (
+                      <>Önce kategori seçin. Yapısal kategorilerde (Tipler, Otoriteler, Profiller, Tanımlar, Merkezler, Kanallar, Kapılar) kod harita verileriyle otomatik eşleşir.</>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* Editöryal Özet (content) — varsayılan raporu besler */}
+              <section>
+                <p className={sectionCls}>Editöryal Özet</p>
+                <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800">
+                  Yalnız doğrulanmış ortak bilgi + açıkça ayrılmış editöryal anlatım. Varsayılan rapor metnini bu alan besler.
+                </div>
+                <textarea
+                  value={form.content}
+                  onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
+                  rows={7}
+                  className={`${fieldBase} resize-y leading-relaxed`}
+                />
+              </section>
+
+              {/* Merkezler */}
+              <section>
+                <p className={sectionCls}>İlişkili Merkezler</p>
+                <div className="flex flex-wrap gap-2">
+                  {HUMAN_DESIGN_CENTERS.map((center) => {
+                    const sel = form.related_centers.includes(center.code);
                     return (
                       <button
-                        key={gate.code}
+                        key={center.code}
                         type="button"
-                        title={gate.label}
-                        onClick={() => toggleGate(gate.code)}
-                        className={`flex h-8 w-full items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                        onClick={() => toggleCenter(center.code)}
+                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
                           sel
-                            ? "bg-indigo-600 text-white shadow-sm"
-                            : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-800"
+                            ? "border-transparent bg-indigo-600 text-white shadow-[0_3px_10px_rgba(79,70,229,0.3)]"
+                            : "border-indigo-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-indigo-50"
                         }`}
                       >
-                        {gate.code}
+                        {center.label}
                       </button>
                     );
                   })}
                 </div>
-                {form.related_gates.length > 0 && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Seçili: {form.related_gates.join(", ")}
-                  </p>
-                )}
-              </div>
-            </section>
+              </section>
 
-            {/* Etiketler */}
+              {/* Kanallar */}
+              <section>
+                <p className={sectionCls}>İlişkili Kanallar</p>
+                <div className="max-h-36 overflow-y-auto rounded-xl border border-indigo-200/80 bg-white/70 p-3">
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    {HUMAN_DESIGN_CHANNELS.map((ch) => {
+                      const sel = form.related_channels.includes(ch.code);
+                      return (
+                        <label
+                          key={ch.code}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
+                            sel
+                              ? "bg-indigo-50 text-indigo-800"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={sel}
+                            onChange={() => toggleChannel(ch.code)}
+                            className="h-3.5 w-3.5 rounded border-indigo-300 accent-indigo-600"
+                          />
+                          {ch.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              {/* Kapılar */}
+              <section>
+                <p className={sectionCls}>İlişkili Kapılar</p>
+                <div className="rounded-xl border border-indigo-200/80 bg-white/70 p-3">
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {HUMAN_DESIGN_GATES.map((gate) => {
+                      const sel = form.related_gates.includes(gate.code);
+                      return (
+                        <button
+                          key={gate.code}
+                          type="button"
+                          title={gate.label}
+                          onClick={() => toggleGate(gate.code)}
+                          className={`flex h-8 w-full items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                            sel
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-800"
+                          }`}
+                        >
+                          {gate.code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {form.related_gates.length > 0 && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Seçili: {form.related_gates.join(", ")}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* Etiketler */}
+              <section>
+                <p className={sectionCls}>Anahtar Kelimeler & Etiketler</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={labelCls}>Anahtar Kelimeler</label>
+                    <input
+                      type="text"
+                      value={form.keywordsText}
+                      onChange={(e) => setForm((p) => ({ ...p, keywordsText: e.target.value }))}
+                      placeholder="virgülle ayırın"
+                      className={`h-9 ${fieldBase}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Etiketler</label>
+                    <input
+                      type="text"
+                      value={form.tagsText}
+                      onChange={(e) => setForm((p) => ({ ...p, tagsText: e.target.value }))}
+                      placeholder="virgülle ayırın"
+                      className={`h-9 ${fieldBase}`}
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* --- SEKME: Hasan Notlarım --- */}
+          {activeTab === "notes" && (
             <section>
-              <p className={sectionCls}>Anahtar Kelimeler & Etiketler</p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelCls}>Anahtar Kelimeler</label>
-                  <input
-                    type="text"
-                    value={form.keywordsText}
-                    onChange={(e) => setForm((p) => ({ ...p, keywordsText: e.target.value }))}
-                    placeholder="virgülle ayırın"
-                    className={`h-9 ${fieldBase}`}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Etiketler</label>
-                  <input
-                    type="text"
-                    value={form.tagsText}
-                    onChange={(e) => setForm((p) => ({ ...p, tagsText: e.target.value }))}
-                    placeholder="virgülle ayırın"
-                    className={`h-9 ${fieldBase}`}
-                  />
-                </div>
+              <p className={sectionCls}>Hasan Notlarım</p>
+              <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600">
+                Editöryal özetten ayrı, kişisel çalışma notların. Varsayılan rapora eklenmez.
               </div>
+              <textarea
+                value={form.expertNotes}
+                onChange={(e) => setForm((p) => ({ ...p, expertNotes: e.target.value }))}
+                rows={12}
+                placeholder="Kendi notların..."
+                className={`${fieldBase} resize-y leading-relaxed`}
+              />
             </section>
-          </div>
+          )}
+
+          {/* --- SEKME: Kaynak --- */}
+          {isSourceTab && (
+            <div>
+              {loadingSources ? (
+                <p className="py-8 text-center text-sm text-slate-500">Yükleniyor...</p>
+              ) : activeSource ? (
+                <HdKaynakEditor
+                  key={activeSource.id}
+                  source={activeSource}
+                  onSaved={handleSourceSaved}
+                  onDeleted={handleSourceDeleted}
+                />
+              ) : (
+                <p className="py-8 text-center text-sm text-slate-500">Kaynak bulunamadı.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -436,14 +575,16 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
           >
             Kapat
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? "Kaydediliyor..." : "Güncelle"}
-          </button>
+          {!isSourceTab && (
+            <button
+              type="button"
+              onClick={handleSaveRecord}
+              disabled={saving}
+              className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Kaydediliyor..." : "Güncelle"}
+            </button>
+          )}
         </div>
       </div>
     </div>

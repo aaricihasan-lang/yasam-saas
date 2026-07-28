@@ -37,9 +37,65 @@ export type HumanDesignKnowledgeRecord = {
   tags:             string[];
   sort_order:       number;
   is_active:        boolean;
+  // "Hasan Notlarım" — editöryal özet (content) ile karışmayan ayrı uzman notu.
+  expert_notes:     string | null;
   created_at:       string;
   updated_at:       string;
 };
+
+// -------------------------------------------------------
+// Bilgi kaydına bağlı dinamik KAYNAK satırı (human_design_knowledge_sources)
+// Künye + özgün metin + sadık TR çeviri + hak/kullanım katmanları AYRI tutulur.
+// -------------------------------------------------------
+export type HdSourceRightsStatus =
+  | "public_domain"
+  | "licensed"
+  | "permission_granted"
+  | "permission_pending"
+  | "restricted"
+  | "unknown";
+
+export type HdSourceType =
+  | "book"
+  | "article"
+  | "website"
+  | "video"
+  | "teaching_note"
+  | "regulatory_document"
+  | "oral_source"
+  | "other";
+
+export type HumanDesignKnowledgeSource = {
+  id:                          string;
+  tenant_id:                   string | null;
+  user_id:                     string | null;
+  record_id:                   string;
+  source_name:                 string;
+  source_type:                 HdSourceType;
+  author_or_organization:      string | null;
+  title:                       string | null;
+  page_or_section:             string | null;
+  source_url:                  string | null;
+  accessed_on:                 string | null;
+  original_language_tag:       string | null;
+  original_text:               string | null;
+  faithful_translation_tr:     string | null;
+  source_specific_note:        string | null;
+  rights_status:               HdSourceRightsStatus;
+  permission_reference:        string | null;
+  private_use_allowed:         boolean;
+  client_report_allowed:       boolean;
+  expert_distribution_allowed: boolean;
+  commercial_use_allowed:      boolean;
+  sort_order:                  number;
+  created_at:                  string;
+  updated_at:                  string;
+};
+
+export type HumanDesignKnowledgeSourceInsert = Omit<
+  HumanDesignKnowledgeSource,
+  "id" | "created_at" | "updated_at"
+>;
 
 export type HumanDesignChart = {
   id:                 string;
