@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20260824000000_yasam_hafizasi_dogaltas_outbox_trigger.sql
+-- 20260825000000_yasam_hafizasi_dogaltas_outbox_trigger.sql
 --
 -- YAŞAM HAFIZASI™ — BF-11C: PİLOT DOĞALTAŞ OUTBOX ENQUEUE TRIGGER
 --

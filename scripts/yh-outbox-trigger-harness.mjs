@@ -19,7 +19,7 @@ import { decideComplete, decideFail } from "../lib/yasam-hafizasi/outbox/outboxS
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, "..");
-const MIG_NAME = "20260824000000_yasam_hafizasi_dogaltas_outbox_trigger.sql";
+const MIG_NAME = "20260825000000_yasam_hafizasi_dogaltas_outbox_trigger.sql";
 const MIG_PATH = join(repo, "supabase/migrations", MIG_NAME);
 
 // ─── Test altyapısı ──────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ check("D", "42 trigger AFTER + FOR EACH ROW (satır seviyesi atomik)", /AFTER\s+
 // ═══════════════ E — YASAK KAPSAM ═══════════════
 const migFiles = readdirSync(join(repo, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
 const tsCount = (ts) => migFiles.filter((f) => f.startsWith(ts)).length;
-check("E", "43 migration timestamp benzersiz (20260824000000 tek)", tsCount("20260824000000") === 1);
+check("E", "43 migration timestamp benzersiz (20260825000000 tek)", tsCount("20260825000000") === 1);
 check("E", "44 outbox INSERT yalnız 1 (function içi enqueue; seed/manuel event yok)", count(/INSERT\s+INTO\s+public\.yasam_hafizasi_outbox/gi) === 1);
 check("E", "45 DELETE/UPDATE/TRUNCATE DML (seed/backfill) yok", !/\bTRUNCATE\b/i.test(BODY) && !/DELETE\s+FROM\s+public\./i.test(BODY) && !/UPDATE\s+public\.\w+\s+SET/i.test(BODY.replace(/DO\s+UPDATE[\s\S]*?event_version[^;]*/i, "")));
 check("E", "46 BF-11B worker dosyası değişmemiş (marker)", (() => {
