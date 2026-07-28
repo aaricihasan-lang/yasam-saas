@@ -107,8 +107,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const nowStr = new Date().toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
-  const buffer = await packNumerolojiDocx(children, nowStr);
+  const buffer = await packNumerolojiDocx(children);
 
   const filename = isSingle
     ? wordFileName(`${rows[0]!.name} ${rows[0]!.surname}`, selectedTabs)

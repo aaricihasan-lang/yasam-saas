@@ -20,11 +20,11 @@ import {
   type SourceEntryRow,
 } from "./sourceEntryUiLogic";
 
-export type WordTabKey = "summary" | "plain" | "detailed" | "tas" | "gorsel" | "iliski" | "evis";
+export type WordTabKey = "summary" | "plain" | "detailed" | "tas" | "gorsel";
 
 export type WordPersonSections = Record<WordTabKey, boolean>;
 
-export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas", "gorsel", "iliski", "evis"];
+export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas", "gorsel"];
 
 /** Ekrandaki sekme adlarıyla BİREBİR (değiştirilmez). */
 export const WORD_TAB_LABELS: Record<WordTabKey, string> = {
@@ -33,8 +33,6 @@ export const WORD_TAB_LABELS: Record<WordTabKey, string> = {
   detailed: "Analiz (Hesap Özetli)",
   tas: "Taş Açıklamaları",
   gorsel: "Görsel Rapor",
-  iliski: "İlişki Analizi",
-  evis: "Ev / İş Yeri Sayısı",
 };
 
 /** Dosya adı için güvenli sekme kısaltması. */
@@ -44,15 +42,10 @@ export const WORD_TAB_FILENAME: Record<WordTabKey, string> = {
   detailed: "Hesap_Ozetli",
   tas: "Tas_Aciklamalari",
   gorsel: "Gorsel_Rapor",
-  iliski: "Iliski_Analizi",
-  evis: "Ev_Is_Yeri",
 };
 
-/** Kayıtlı analizden Word'e aktarılamayan sekmeler (canlı giriş gerektirir). */
-export const WORD_TAB_NO_SAVED_CONTENT: WordTabKey[] = ["iliski", "evis"];
-
 export function defaultWordPersonSections(): WordPersonSections {
-  return { summary: true, plain: true, detailed: true, tas: true, gorsel: true, iliski: true, evis: true };
+  return { summary: true, plain: true, detailed: true, tas: true, gorsel: true };
 }
 
 export function atLeastOneWordPersonSection(s: WordPersonSections): boolean {
@@ -64,17 +57,10 @@ export function normalizeWordPersonSections(input: unknown): WordPersonSections 
     return defaultWordPersonSections();
   }
   const o = input as Record<string, unknown>;
-  const out: WordPersonSections = {
-    summary: false, plain: false, detailed: false, tas: false, gorsel: false, iliski: false, evis: false,
-  };
+  const out: WordPersonSections = { summary: false, plain: false, detailed: false, tas: false, gorsel: false };
   for (const k of WORD_TAB_ORDER) out[k] = o[k] === true;
   if (!atLeastOneWordPersonSection(out)) return defaultWordPersonSections();
   return out;
-}
-
-/** Bir sekme kayıtlı analizden içerik üretebilir mi? (iliski/evis her zaman false) */
-export function tabCanHaveSavedContent(k: WordTabKey): boolean {
-  return !WORD_TAB_NO_SAVED_CONTENT.includes(k);
 }
 
 // ── Kaynak notu gruplama (Hesap Özetli sekmesi) ──────────────────────────────
