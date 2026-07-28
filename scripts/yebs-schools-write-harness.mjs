@@ -15,7 +15,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -96,7 +95,10 @@ if (route) {
 // ── B. Mutation service ──
 if (mut) {
   check('mutation: import "server-only"', /^import\s+["']server-only["'];/m.test(mut));
-  check("mutation: iki ayrı crypto.randomUUID()", (mut.match(/crypto\.randomUUID\(\)/g) || []).length === 2);
+  // A1U additif: dosya artık createSchool + updateSchool içerir. crypto sayımı FONKSİYON
+  // bölgesine göre kapsanır (createSchool bölgesi = A1U bloğundan önce; her biri 2 ayrı UUID).
+  const createRegion = mut.includes("API-A1U") ? mut.slice(0, mut.indexOf("API-A1U")) : mut;
+  check("mutation: createSchool iki ayrı crypto.randomUUID()", (createRegion.match(/crypto\.randomUUID\(\)/g) || []).length === 2);
   check("mutation: exact RPC adı yebs_create_school_with_audit", /db\.rpc\("yebs_create_school_with_audit"/.test(mut));
   // exact 10 p_-parametre payload
   const payload = ["p_actor_admin_id", "p_request_id", "p_operation_id", "p_tradition_id", "p_slug", "p_name_tr", "p_native_name", "p_native_language_tag", "p_native_script_code", "p_reason"];
@@ -115,12 +117,80 @@ if (mut) {
   }
 }
 
-// ── C. Detail route değişmezliği (A1W'de dokunulmaz) ──
+// ── C. A1U PATCH route + updateSchool servis sözleşmesi (statik) ──
+// NOT: A1U detail route'a PATCH ekler → eski "detail route değişmedi" blob kontrolü
+// KALDIRILDI (dosya artık A1U'ya ait). Yerine PATCH/update sözleşmesi denetlenir.
+console.log("\n[A1U-PATCH] Schools PATCH update sözleşmesi (statik)");
+let detailSrc = "";
 try {
-  const wt = execFileSync("git", ["-C", ROOT, "hash-object", P.detail], { encoding: "utf8" }).trim();
-  const base = execFileSync("git", ["-C", ROOT, "rev-parse", "origin/main:app/api/admin/yebs/schools/[id]/route.ts"], { encoding: "utf8" }).trim();
-  check("detail route origin/main blob'una eşit (değişmedi)", wt === base);
-} catch (e) { bad("detail route değişmezlik kontrolü", String(e && e.message)); }
+  detailSrc = readFileSync(P.detail, "utf8");
+  ok("detail route ([id]) okunabildi");
+} catch (e) {
+  bad("detail route okunamadı", String(e && e.message));
+}
+if (detailSrc) {
+  check("detail GET korunuyor", /export\s+async\s+function\s+GET\s*\(/.test(detailSrc));
+  check("detail PATCH export ediyor", /export\s+async\s+function\s+PATCH\s*\(/.test(detailSrc));
+  for (const verb of ["POST", "PUT", "DELETE"]) {
+    check(`detail ${verb} export ETMİYOR`, !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(detailSrc));
+  }
+  check("PATCH: verifyAdminRequest", /verifyAdminRequest\s*\(/.test(detailSrc));
+  check("PATCH: guard.response", /return\s+guard\.response/.test(detailSrc));
+  check("PATCH: actor yalnız guard.adminId", /const\s*\{\s*adminId,\s*db\s*\}\s*=\s*guard/.test(detailSrc));
+  check("PATCH: URL id strict UUID → YEBS_INVALID_SCHOOL_ID", /UUID_RE\.test\(id\)/.test(detailSrc) && /YEBS_INVALID_SCHOOL_ID/.test(detailSrc));
+  check("PATCH: updateSchool(db, adminId, id, expectedUpdatedAt, patch, reason)", /updateSchool\(\s*db,\s*adminId,\s*id,\s*expectedUpdatedAt,\s*patch,\s*reason\s*\)/.test(detailSrc));
+  check("PATCH: 200 dönüş", /\{\s*status:\s*200\s*\}/.test(detailSrc));
+
+  // PATCH exact 7-key allowlist
+  const PATCH_ALLOWED = ["expected_updated_at", "reason", "slug", "name_tr", "native_name", "native_language_tag", "native_script_code"];
+  const patchBlock = detailSrc.match(/PATCH_ALLOWED_KEYS\s*=\s*\[([\s\S]*?)\]/)?.[1] || "";
+  check("PATCH exact 7-key allowlist tanımlı", PATCH_ALLOWED.every((k) => new RegExp(`"${k}"`).test(patchBlock)));
+  const patchKeys = (patchBlock.match(/"([a-z_]+)"/g) || []).map((s) => s.replace(/"/g, ""));
+  check("PATCH allowlist yalnız 7 anahtar (fazla yok)", patchKeys.length === PATCH_ALLOWED.length && patchKeys.every((k) => PATCH_ALLOWED.includes(k)), patchKeys.join(","));
+  for (const forbidden of ["tradition_id", "status", "id", "created_at", "updated_at", "actor_admin_id", "request_id", "operation_id", "changed_fields", "action", "outcome"]) {
+    check(`PATCH yasak alan allowlist'te YOK: ${forbidden}`, !new RegExp(`"${forbidden}"`).test(patchBlock));
+  }
+
+  // Body validation
+  check("PATCH malformed JSON → invalidUpdateBody (400 YEBS_INVALID_REQUEST_BODY)", /await\s+req\.json\(\)[\s\S]{0,80}catch[\s\S]{0,40}invalidUpdateBody\(\)/.test(detailSrc) && /YEBS_INVALID_REQUEST_BODY/.test(detailSrc));
+  check("PATCH plain-object kontrolü", /typeof\s+body\s*!==\s*"object"\s*\|\|\s*Array\.isArray\(body\)/.test(detailSrc));
+  check("PATCH unknown key → invalidUpdateBody", /if\s*\(!allowed\.has\(key\)\)\s*return\s+invalidUpdateBody\(\)/.test(detailSrc));
+  check("PATCH reason zorunlu (string+trim+2000)", /typeof\s+reason\s*!==\s*"string"\s*\|\|\s*reason\.trim\(\)\s*===\s*""\s*\|\|\s*reason\.length\s*>\s*REASON_MAX_LEN/.test(detailSrc));
+  check("PATCH expected_updated_at zorunlu + strict validator", /isValidExpectedUpdatedAt\(expectedUpdatedAt\)/.test(detailSrc));
+  check("PATCH en az bir canonical alan zorunlu", /Object\.keys\(patch\)\.length\s*===\s*0/.test(detailSrc));
+  check("PATCH native present → string|null (coercion yok)", /v\s*!==\s*null\s*&&\s*typeof\s+v\s*!==\s*"string"/.test(detailSrc) && /patch\.slug\s*=\s*v/.test(detailSrc));
+
+  // HTTP mapping
+  check("PATCH map 400: INVALID_PATCH/INVALID_SCHOOL_INPUT/REASON_INVALID", /YEBS_INVALID_PATCH[\s\S]{0,120}YEBS_INVALID_SCHOOL_INPUT[\s\S]{0,120}YEBS_REASON_INVALID[\s\S]{0,120}status:\s*400/.test(detailSrc));
+  check("PATCH map 404: SCHOOL_NOT_FOUND", /YEBS_SCHOOL_NOT_FOUND[\s\S]{0,160}status:\s*404/.test(detailSrc));
+  check("PATCH map 409: DUPLICATE", /YEBS_SCHOOL_DUPLICATE[\s\S]{0,340}status:\s*409/.test(detailSrc));
+  check("PATCH map 409: STALE_UPDATE", /YEBS_SCHOOL_STALE_UPDATE[\s\S]{0,340}status:\s*409/.test(detailSrc));
+  check("PATCH map 409: STATUS_LOCKED", /YEBS_SCHOOL_STATUS_LOCKED[\s\S]{0,340}status:\s*409/.test(detailSrc));
+  check("PATCH map 409: NO_CHANGES", /YEBS_SCHOOL_NO_CHANGES[\s\S]{0,340}status:\s*409/.test(detailSrc));
+  check("PATCH map 403: ADMIN_FORBIDDEN", /YEBS_ADMIN_FORBIDDEN[\s\S]{0,60}status:\s*403/.test(detailSrc));
+  check("PATCH map 500: SCHOOL_UPDATE_FAILED default", /YEBS_SCHOOL_UPDATE_FAILED[\s\S]{0,60}status:\s*500/.test(detailSrc));
+
+  // Güvenlik: ham DB sızıntısı yok + doğrudan DB çağrısı yok (servis üzerinden)
+  check("PATCH: ham error.message YOK", !/error\.message/.test(detailSrc));
+  for (const op of ["insert", "update", "delete", "upsert", "rpc"]) {
+    check(`detail: .${op}( doğrudan çağrısı YOK`, !new RegExp(`\\.${op}\\s*\\(`).test(detailSrc));
+  }
+}
+
+// ── C2. updateSchool servis sözleşmesi (statik) ──
+if (mut) {
+  const updateRegion = mut.includes("API-A1U") ? mut.slice(mut.indexOf("API-A1U")) : "";
+  check("service: updateSchool export", /export\s+async\s+function\s+updateSchool\s*\(/.test(mut));
+  check("service: UpdateSchoolPatch + UpdateSchoolErrorCode tipleri", /export\s+type\s+UpdateSchoolPatch/.test(mut) && /export\s+type\s+UpdateSchoolErrorCode/.test(mut));
+  check("service: updateSchool iki ayrı crypto.randomUUID()", (updateRegion.match(/crypto\.randomUUID\(\)/g) || []).length === 2);
+  check("service: exact RPC adı yebs_update_school_with_audit", /db\.rpc\("yebs_update_school_with_audit"/.test(mut));
+  const upayload = ["p_actor_admin_id", "p_request_id", "p_operation_id", "p_school_id", "p_expected_updated_at", "p_patch", "p_reason"];
+  check("service: exact 7 RPC parametre payload", upayload.every((p) => new RegExp(`${p}:`).test(updateRegion)));
+  check("service: actor yalnız actorAdminId", /p_actor_admin_id:\s*actorAdminId/.test(updateRegion));
+  check("service: request/operation server UUID (istemci değil)", /p_request_id:\s*requestId/.test(updateRegion) && /p_operation_id:\s*operationId/.test(updateRegion));
+  check("service: UPDATE_RPC_ERROR_CODES ReadonlySet + Set.has", /UPDATE_RPC_ERROR_CODES:\s*ReadonlySet/.test(mut) && /UPDATE_RPC_ERROR_CODES\.has\(/.test(mut));
+  check("service: canonical row guard (isCanonicalSchoolRow reuse)", /isCanonicalSchoolRow/.test(mut));
+}
 
 // ── D. Canlı NEGATİF: auth'suz POST → 401 (yazma YAPMAZ) ──
 console.log("\n[D] Canlı negatif kontrol (yazma YAPMAZ)");

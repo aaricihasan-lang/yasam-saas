@@ -232,9 +232,10 @@ const IMMUTABLE = [
   "scripts/yebs-create-tradition-audit-rpc-harness.mjs",
   "scripts/yebs-update-tradition-audit-rpc-harness.mjs",
   "scripts/yebs-audit-events-schema-harness.mjs",
-  // A1R read service + detail route + merkezî guard (A1W'de DEĞİŞMEZ)
+  // A1R read service + merkezî guard (A1W'de DEĞİŞMEZ).
+  // NOT: app/api/admin/yebs/schools/[id]/route.ts artık A1U (Schools Update) fazına
+  // aittir — A1U bu dosyaya PATCH ekler → IMMUTABLE listesinden ÇIKARILDI.
   "lib/yebs/service/schools.ts",
-  "app/api/admin/yebs/schools/[id]/route.ts",
   "scripts/migration-timestamp-guard-check.mjs",
 ];
 function blobEq(rel) {
@@ -247,15 +248,24 @@ try {
   for (const f of IMMUTABLE) check(`değişmez (origin/main blob): ${f}`, blobEq(f));
 } catch (e) { bad("git blob değişmezlik kontrolü", String(e && e.message)); }
 
-// --- Bu fazın kapsamı: yalnız 6 A1W dosyası ---
+// --- Bu fazın kapsamı: yalnız A1W (create) + A1U (update) hedef dosyaları ---
+// A1W create kod/harness'i A1U fazında da izole çalıştırıldığından, kapsam kapısı
+// A1U'nun onaylı dosyalarını da kapsar (aksi hâlde bu regresyon A1U worktree'sinde
+// yanlış "yabancı dosya" verirdi). A1U dosyaları: update migration + update RPC harness
+// + [id] PATCH route + schoolMutations updateSchool + write-harness PATCH assertion'ları.
 try {
-  const A1W_ALLOWED = new Set([
+  const SCOPE_ALLOWED = new Set([
+    // A1W (create)
     CANONICAL_REL,
     "app/api/admin/yebs/schools/route.ts",
     "lib/yebs/service/schoolMutations.ts",
     "scripts/yebs-create-school-audit-rpc-harness.mjs",
     "scripts/yebs-schools-write-harness.mjs",
     "scripts/yebs-schools-read-harness.mjs",
+    // A1U (update)
+    "supabase/migrations/20260821000000_yebs_update_school_with_audit.sql",
+    "scripts/yebs-update-school-audit-rpc-harness.mjs",
+    "app/api/admin/yebs/schools/[id]/route.ts",
   ]);
   const porcelain = execFileSync("git", ["-C", ROOT, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
   // Porcelain: "XY PATH" (XY tam 2 kolon). trim() KULLANMA — " M" (modified) durumunu bozar.
@@ -265,8 +275,8 @@ try {
     if (a !== -1) p = p.slice(a + 4);
     return p.replace(/^"|"$/g, "");
   });
-  const foreign = paths.filter((p) => !A1W_ALLOWED.has(p));
-  check("kapsam: yalnız 6 A1W hedef dosyası değişti/eklendi", foreign.length === 0, foreign.join(" | "));
+  const foreign = paths.filter((p) => !SCOPE_ALLOWED.has(p));
+  check("kapsam: yalnız A1W+A1U hedef dosyaları değişti/eklendi", foreign.length === 0, foreign.join(" | "));
 } catch (e) { bad("kapsam kontrolü", String(e && e.message)); }
 
 console.log(`\n== SONUC: ${pass} PASS / ${fail} FAIL ==`);
