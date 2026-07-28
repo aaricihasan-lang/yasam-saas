@@ -73,7 +73,41 @@ if (sql && aud) {
   check("delete: stale", /yebs_delete_concept_label_with_audit[\s\S]*?v_existing\.updated_at IS DISTINCT FROM p_expected_updated_at THEN\s*RAISE EXCEPTION 'YEBS_LABEL_STALE_UPDATE'/.test(sql));
 
   console.log("\n[G] Duplicate vs primary conflict ayrımı");
-  check("GET STACKED DIAGNOSTICS constraint name", /GET STACKED DIAGNOSTICS v_constraint = PG_EXCEPTION_CONSTRAINT_NAME/.test(sql));
+  // GET STACKED DIAGNOSTICS item adı GEÇERLİ olmalı: CONSTRAINT_NAME.
+  // 42601 REGRESYON KAPISI: geçersiz PG_EXCEPTION_CONSTRAINT_NAME öğesi
+  // (yalnız GET CURRENT DIAGNOSTICS'te başka öğeler vardır; GET STACKED için
+  // constraint adı yalnız CONSTRAINT_NAME'dir) migration'da BULUNMAMALI.
+  check("hatalı PG_EXCEPTION_CONSTRAINT_NAME öğesi YOK (42601 regresyon kapısı)",
+    !/PG_EXCEPTION_CONSTRAINT_NAME/.test(sql));
+  // Geçerli biçim: `GET STACKED DIAGNOSTICS <var> = CONSTRAINT_NAME;` — assignment
+  // item olarak (comment/metin eşleşmesi PASS üretmez; item token ; ile biter).
+  const diagRe = /GET STACKED DIAGNOSTICS\s+[a-z_][a-z0-9_]*\s*=\s*CONSTRAINT_NAME\s*;/g;
+  const diagCount = (sql.match(diagRe) || []).length;
+  check("geçerli GET STACKED DIAGNOSTICS <var> = CONSTRAINT_NAME; biçimi mevcut", diagCount >= 1,
+    `diagCount=${diagCount}`);
+  // Occurrence sayısı gerçek migration'dan kilitlendi: create + update Label RPC
+  // exception blokları (delete RPC diagnostics kullanmaz) = tam 2.
+  check("CONSTRAINT_NAME diagnostics tam 2 kez (create+update label RPC)", diagCount === 2,
+    `beklenen=2 bulunan=${diagCount}`);
+  // CONSTRAINT_NAME yalnız diagnostics assignment item olarak geçmeli; başka
+  // (comment/serbest metin) kullanım olmamalı → toplam CONSTRAINT_NAME sayısı = diagCount.
+  check("CONSTRAINT_NAME yalnız diagnostics item olarak kullanılıyor",
+    (sql.match(/CONSTRAINT_NAME/g) || []).length === diagCount,
+    `toplam CONSTRAINT_NAME=${(sql.match(/CONSTRAINT_NAME/g) || []).length}`);
+  // Lokal negatif/pozitif fixture: bozuk satır reddedilir, doğru satır kabul edilir.
+  {
+    const badLine = "      GET STACKED DIAGNOSTICS v_constraint = PG_EXCEPTION_CONSTRAINT_NAME;";
+    const goodLine = "      GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME;";
+    check("fixture: bozuk diagnostics satırı diagRe'yi geçmez",
+      !diagRe.test(badLine) && !/PG_EXCEPTION_CONSTRAINT_NAME/.test(goodLine));
+    diagRe.lastIndex = 0;
+    check("fixture: doğru diagnostics satırı diagRe'yi geçer", /GET STACKED DIAGNOSTICS\s+[a-z_][a-z0-9_]*\s*=\s*CONSTRAINT_NAME\s*;/.test(goodLine));
+  }
+  // Constraint-name ayrımı kullanan create + update exception blokları gerçekten kapsanır.
+  check("create RPC exception bloğu CONSTRAINT_NAME diagnostics kullanır",
+    /yebs_create_concept_label_with_audit[\s\S]*?WHEN unique_violation THEN[\s\S]*?GET STACKED DIAGNOSTICS\s+\w+\s*=\s*CONSTRAINT_NAME\s*;/.test(sql));
+  check("update RPC exception bloğu CONSTRAINT_NAME diagnostics kullanır",
+    /yebs_update_concept_label_with_audit[\s\S]*?WHEN unique_violation THEN[\s\S]*?GET STACKED DIAGNOSTICS\s+\w+\s*=\s*CONSTRAINT_NAME\s*;/.test(sql));
   check("primary index → LABEL_PRIMARY_CONFLICT", /v_constraint = 'yebs_concept_labels_primary_key' THEN\s*RAISE EXCEPTION 'YEBS_LABEL_PRIMARY_CONFLICT'/.test(sql));
   check("identity → LABEL_DUPLICATE", /ELSE\s*RAISE EXCEPTION 'YEBS_LABEL_DUPLICATE'/.test(sql));
   check("constraint adı client'a sızmıyor (yalnız iç sınıflandırma)", !/RAISE EXCEPTION v_constraint/.test(sql));

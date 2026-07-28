@@ -192,7 +192,7 @@ BEGIN
     WHEN unique_violation THEN
       -- Primary partial unique index vs doğal kimlik constraint ayrımı
       -- (constraint/index adı client'a SIZMAZ; yalnız iç sınıflandırma).
-      GET STACKED DIAGNOSTICS v_constraint = PG_EXCEPTION_CONSTRAINT_NAME;
+      GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME;
       IF v_constraint = 'yebs_concept_labels_primary_key' THEN
         RAISE EXCEPTION 'YEBS_LABEL_PRIMARY_CONFLICT' USING ERRCODE = 'P0001';
       ELSE
@@ -490,7 +490,7 @@ BEGIN
     RETURNING * INTO v_updated;
   EXCEPTION
     WHEN unique_violation THEN
-      GET STACKED DIAGNOSTICS v_constraint = PG_EXCEPTION_CONSTRAINT_NAME;
+      GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME;
       IF v_constraint = 'yebs_concept_labels_primary_key' THEN
         RAISE EXCEPTION 'YEBS_LABEL_PRIMARY_CONFLICT' USING ERRCODE = 'P0001';
       ELSE
