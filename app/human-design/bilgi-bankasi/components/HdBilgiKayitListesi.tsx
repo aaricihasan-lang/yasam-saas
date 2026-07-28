@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { HD_KNOWLEDGE_CATEGORIES } from "@/lib/human-design/constants";
@@ -10,7 +11,6 @@ import {
   deleteHdKnowledgeRecords,
   type HdKnowledgeRow,
 } from "../helpers/hdBilgiKayit";
-import { HdDetayModal } from "./HdDetayModal";
 
 function formatDate(iso: string): string {
   try {
@@ -46,6 +46,7 @@ function CategoryBadge({ category }: { category: string }) {
 }
 
 export function HdBilgiKayitListesi() {
+  const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
@@ -55,7 +56,6 @@ export function HdBilgiKayitListesi() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<"" | "active" | "passive">("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editRow, setEditRow] = useState<HdKnowledgeRow | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -230,6 +230,9 @@ export function HdBilgiKayitListesi() {
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
                   Güncelleme
                 </th>
+                <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
+                  İlişkiler
+                </th>
                 <th className="px-3 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600">
                   İşlem
                 </th>
@@ -271,11 +274,24 @@ export function HdBilgiKayitListesi() {
                   <td className="hidden px-3 py-3 text-xs text-slate-500 lg:table-cell">
                     {formatDate(row.updated_at)}
                   </td>
+                  <td className="hidden px-3 py-3 lg:table-cell">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-200/70" title="Merkez">
+                        M{(row.related_centers ?? []).length}
+                      </span>
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/70" title="Kanal">
+                        K{(row.related_channels ?? []).length}
+                      </span>
+                      <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700 ring-1 ring-orange-200/70" title="Kapı">
+                        G{(row.related_gates ?? []).length}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setEditRow(row)}
+                        onClick={() => router.push(`/human-design/bilgi-bankasi/${row.id}`)}
                         className="h-7 rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
                       >
                         Düzenle
@@ -298,18 +314,6 @@ export function HdBilgiKayitListesi() {
             {selected.size > 0 && ` · ${selected.size} seçili`}
           </div>
         </div>
-      )}
-
-      {/* Düzenle Modali */}
-      {editRow && (
-        <HdDetayModal
-          row={editRow}
-          onClose={() => setEditRow(null)}
-          onSaved={() => {
-            setEditRow(null);
-            loadRows();
-          }}
-        />
       )}
     </>
   );

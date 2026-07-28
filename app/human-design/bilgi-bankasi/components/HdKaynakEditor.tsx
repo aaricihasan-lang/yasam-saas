@@ -95,7 +95,7 @@ function rowToForm(s: HdSourceRow): FormState {
 export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
-  // Aktif kaynak değişince bileşen `key` ile remount edilir (HdDetayModal) →
+  // Aktif kaynak değişince bileşen `key` ile remount edilir (çağıran editör) →
   // form doğrudan initializer'dan yüklenir; effect içinde setState gerekmez.
   const [form, setForm] = useState<FormState>(() => rowToForm(source));
   const [saving, setSaving] = useState(false);

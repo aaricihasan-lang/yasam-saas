@@ -40,6 +40,15 @@ function pick(input: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+// Taslak güvenliği (server savunması, "Ya doğru bilgi ya hiç"): AKTİF bir kaydın
+// Editöryal Özet (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
+const ACTIVE_CONTENT_ERROR =
+  "Kaydı aktif etmek için Editöryal Özet alanını doldurun.";
+
+function isBlank(v: unknown): boolean {
+  return typeof v !== "string" || v.trim() === "";
+}
+
 export async function listKnowledge(
   db: SupabaseClient,
   tenantId: string,
@@ -52,6 +61,22 @@ export async function listKnowledge(
     .order("updated_at", { ascending: false });
   if (error) return { rows: [], error: error.message };
   return { rows: (data ?? []) as HumanDesignKnowledgeRecord[], error: null };
+}
+
+export async function getKnowledgeById(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ row: HumanDesignKnowledgeRecord | null; error: string | null }> {
+  const { data, error } = await db
+    .from(TABLE)
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { row: null, error: error.message };
+  if (!data) return { row: null, error: "Kayıt bulunamadı." };
+  return { row: data as HumanDesignKnowledgeRecord, error: null };
 }
 
 export async function listKnowledgeByCodes(
@@ -78,8 +103,14 @@ export async function insertKnowledge(
   userId: string,
   input: Record<string, unknown>,
 ): Promise<{ id: string | null; error: string | null }> {
+  const picked = pick(input);
+  // is_active verilmezse DB default TRUE → aktif kabul edilir.
+  const activeEffective = picked.is_active === undefined ? true : picked.is_active === true;
+  if (activeEffective && isBlank(picked.content)) {
+    return { id: null, error: ACTIVE_CONTENT_ERROR };
+  }
   const payload = {
-    ...pick(input),
+    ...picked,
     tenant_id: tenantId,
     user_id: userId,
     updated_at: new Date().toISOString(),
@@ -95,7 +126,30 @@ export async function updateKnowledge(
   id: string,
   input: Record<string, unknown>,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const fields = { ...pick(input), updated_at: new Date().toISOString() };
+  const picked = pick(input);
+  // Kısmi payload'da nihai durumu değerlendir: eksik alanlar mevcut kayıttan alınır.
+  let activeEffective: boolean;
+  let contentEffective: unknown;
+  if (picked.is_active === undefined || picked.content === undefined) {
+    const { data: existing } = await db
+      .from(TABLE)
+      .select("is_active, content")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const ex = (existing ?? null) as { is_active?: boolean; content?: string } | null;
+    activeEffective =
+      picked.is_active === undefined ? ex?.is_active === true : picked.is_active === true;
+    contentEffective = picked.content === undefined ? (ex?.content ?? "") : picked.content;
+  } else {
+    activeEffective = picked.is_active === true;
+    contentEffective = picked.content;
+  }
+  if (activeEffective && isBlank(contentEffective)) {
+    return { ok: false, error: ACTIVE_CONTENT_ERROR };
+  }
+
+  const fields = { ...picked, updated_at: new Date().toISOString() };
   const { data, error } = await db
     .from(TABLE)
     .update(fields)
