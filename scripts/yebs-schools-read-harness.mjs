@@ -111,10 +111,11 @@ if (list && detail && svc) {
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(list),
     );
   }
-  // Detail route salt-okunur kalır: POST/PATCH/PUT/DELETE yasak.
-  for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
+  // Detail route: A1R GET + A1U PATCH (update). POST/PUT/DELETE yasak.
+  check("detail route: PATCH export ediyor (A1U update)", /export\s+async\s+function\s+PATCH\s*\(/.test(detail));
+  for (const verb of ["POST", "PUT", "DELETE"]) {
     check(
-      `detail route: ${verb} export ETMİYOR (salt-okunur)`,
+      `detail route: ${verb} export ETMİYOR`,
       !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(detail),
     );
   }
@@ -156,9 +157,10 @@ if (list && detail && svc) {
       check(`${label}: .${op}( çağrısı YOK`, !new RegExp(`\\.${op}\\s*\\(`).test(src));
     }
   }
-  // A1W: collection route mutation servisini (schoolMutations) import EDEBİLİR (POST create);
-  // detail route ve read service (schools.ts) mutation servisini import ETMEZ.
-  check("detail route: mutation servisi (schoolMutations) import ETMİYOR", !/schoolMutations/.test(detail));
+  // A1W: collection route mutation servisini import EDEBİLİR (POST create).
+  // A1U: detail route mutation servisini (updateSchool) import EDER (PATCH update).
+  // Read service (schools.ts) mutation servisini ASLA import ETMEZ (salt-okunur çekirdek).
+  check("detail route: mutation servisi (schoolMutations) import EDİYOR (A1U update)", /schoolMutations/.test(detail));
   check("read service: mutation servisi (schoolMutations) import ETMİYOR", !/schoolMutations/.test(svc));
   // crypto.randomUUID yalnız mutation service içindedir; route/read-service DOĞRUDAN kullanmaz.
   for (const [label, src] of [["list route", list], ["detail route", detail], ["service", svc]]) {
@@ -312,18 +314,20 @@ try {
   bad("git blob değişmezlik kontrolü", String(e && e.message));
 }
 
-// A1W: mevcut migration DEĞİŞMEZ; yalnız YENİ create-school migration'ı eklenebilir.
+// A1W/A1U: mevcut migration DEĞİŞMEZ; yalnız YENİ create-school ve update-school
+// migration'ları eklenebilir (ikisi de untracked).
 const CREATE_SCHOOL_MIG_RE = /^supabase\/migrations\/[0-9]{14}_yebs_create_school_with_audit\.sql$/;
+const UPDATE_SCHOOL_MIG_RE = /^supabase\/migrations\/[0-9]{14}_yebs_update_school_with_audit\.sql$/;
 try {
   const migStatus = execFileSync("git", ["-C", ROOT, "status", "--porcelain", "--untracked-files=all", "--", "supabase/migrations/"], { encoding: "utf8" }).trim();
   const migLines = migStatus ? migStatus.split(/\r?\n/) : [];
   const badMig = migLines.filter((l) => {
     const st = l.slice(0, 2);
     const p = l.replace(/^..\s+/, "").replace(/^"|"$/g, "");
-    // İzinli: yalnız yeni (untracked ??) create-school migration'ı; mevcut migration modifiye YOK.
-    return !(st.includes("?") && CREATE_SCHOOL_MIG_RE.test(p));
+    // İzinli: yalnız yeni (untracked ??) create/update-school migration'ları; mevcut modifiye YOK.
+    return !(st.includes("?") && (CREATE_SCHOOL_MIG_RE.test(p) || UPDATE_SCHOOL_MIG_RE.test(p)));
   });
-  check("migration: yalnız yeni create-school migration'ı (mevcut migration değişmedi)", badMig.length === 0, badMig.join(" | "));
+  check("migration: yalnız yeni create/update-school migration'ları (mevcut migration değişmedi)", badMig.length === 0, badMig.join(" | "));
 } catch (e) {
   bad("migration status kontrolü", String(e && e.message));
 }
@@ -340,14 +344,15 @@ try {
     if (a !== -1) p = p.slice(a + 4);
     return p.replace(/^"|"$/g, "");
   });
-  // A1R read/POST route + harness (TARGET_RELS) + yeni A1W mutation/harness dosyaları.
+  // A1R read/detail route + harness (TARGET_RELS) + A1W mutation/harness + A1U update harness.
   const A1W_EXTRA = new Set([
     "lib/yebs/service/schoolMutations.ts",
     "scripts/yebs-schools-write-harness.mjs",
     "scripts/yebs-create-school-audit-rpc-harness.mjs",
+    "scripts/yebs-update-school-audit-rpc-harness.mjs",
   ]);
-  const foreign = paths.filter((p) => !TARGET_RELS.has(p) && !A1W_EXTRA.has(p) && !CREATE_SCHOOL_MIG_RE.test(p));
-  check("kapsam: yalnız A1W hedef dosyaları (6) değişti/eklendi", foreign.length === 0, foreign.join(" | "));
+  const foreign = paths.filter((p) => !TARGET_RELS.has(p) && !A1W_EXTRA.has(p) && !CREATE_SCHOOL_MIG_RE.test(p) && !UPDATE_SCHOOL_MIG_RE.test(p));
+  check("kapsam: yalnız A1W+A1U hedef dosyaları değişti/eklendi", foreign.length === 0, foreign.join(" | "));
 } catch (e) {
   bad("kapsam kontrolü", String(e && e.message));
 }

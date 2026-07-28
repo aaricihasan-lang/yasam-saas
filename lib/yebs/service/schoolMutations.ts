@@ -173,3 +173,136 @@ export async function createSchool(
 
   return { ok: true, row };
 }
+
+/* ============================================================
+ * API-A1U — audit'li School UPDATE (partial JSONB patch)
+ *
+ * createSchool davranışı DEĞİŞTİRİLMEZ; aşağıdakiler additiftir.
+ * Canonical update yalnız SECURITY DEFINER RPC
+ * public.yebs_update_school_with_audit üzerinden yapılır (doğrudan tablo
+ * mutasyonu YOK). Actor ayrı güvenilir parametredir; request/operation ID
+ * server-side üretilir. Değerler coerce EDİLMEZ. tradition_id ve status
+ * güncellenemez (patch whitelist dışı; reparent/transition kapsam dışı).
+ * ============================================================ */
+
+/**
+ * Route tarafından doğrulanmış partial patch: yalnız PRESENT canonical anahtarlar
+ * taşınır. Required alanlar (slug/name_tr) present ise string; nullable native
+ * alanlar present ise string veya null. Omitted anahtar hiç bulunmaz (mevcut değer
+ * korunur). Coercion route'ta da YAPILMAZ.
+ */
+export type UpdateSchoolPatch = {
+  slug?: string;
+  name_tr?: string;
+  native_name?: string | null;
+  native_language_tag?: string | null;
+  native_script_code?: string | null;
+};
+
+/** Update için stabil hata kodları (create'ten AYRI union). */
+export type UpdateSchoolErrorCode =
+  | "YEBS_REQUEST_ID_REQUIRED"
+  | "YEBS_OPERATION_ID_REQUIRED"
+  | "YEBS_SCHOOL_ID_REQUIRED"
+  | "YEBS_EXPECTED_UPDATED_AT_REQUIRED"
+  | "YEBS_REASON_INVALID"
+  | "YEBS_INVALID_PATCH"
+  | "YEBS_ADMIN_NOT_FOUND"
+  | "YEBS_ADMIN_NOT_ACTIVE"
+  | "YEBS_SCHOOL_NOT_FOUND"
+  | "YEBS_SCHOOL_STATUS_LOCKED"
+  | "YEBS_SCHOOL_STALE_UPDATE"
+  | "YEBS_SCHOOL_NO_CHANGES"
+  | "YEBS_SCHOOL_DUPLICATE"
+  | "YEBS_INVALID_SCHOOL_INPUT"
+  | "YEBS_SCHOOL_UPDATE_FAILED";
+
+export type UpdateSchoolResult =
+  | { ok: true; row: YebsSchoolRow }
+  | { ok: false; code: UpdateSchoolErrorCode };
+
+/**
+ * Update RPC'nin kontrollü mesajları — EXACT allowlist (Set). Sınıflandırma yalnız
+ * tam eşitlikle (Set.has); includes/startsWith/endsWith/regex KULLANILMAZ.
+ */
+const UPDATE_RPC_ERROR_CODES: ReadonlySet<UpdateSchoolErrorCode> = new Set([
+  "YEBS_REQUEST_ID_REQUIRED",
+  "YEBS_OPERATION_ID_REQUIRED",
+  "YEBS_SCHOOL_ID_REQUIRED",
+  "YEBS_EXPECTED_UPDATED_AT_REQUIRED",
+  "YEBS_REASON_INVALID",
+  "YEBS_INVALID_PATCH",
+  "YEBS_ADMIN_NOT_FOUND",
+  "YEBS_ADMIN_NOT_ACTIVE",
+  "YEBS_SCHOOL_NOT_FOUND",
+  "YEBS_SCHOOL_STATUS_LOCKED",
+  "YEBS_SCHOOL_STALE_UPDATE",
+  "YEBS_SCHOOL_NO_CHANGES",
+  "YEBS_SCHOOL_DUPLICATE",
+  "YEBS_INVALID_SCHOOL_INPUT",
+]);
+
+function classifyUpdateRpcError(error: { message?: unknown }): UpdateSchoolErrorCode {
+  const msg = error?.message;
+  if (typeof msg === "string" && UPDATE_RPC_ERROR_CODES.has(msg as UpdateSchoolErrorCode)) {
+    return msg as UpdateSchoolErrorCode;
+  }
+  return "YEBS_SCHOOL_UPDATE_FAILED";
+}
+
+/**
+ * Mevcut ekol kaydını audit'li ve atomik olarak günceller.
+ *
+ * @param db                service_role client (route'un guard.db'si)
+ * @param actorAdminId      doğrulanmış admin ID (guard.adminId) — güvenilir, ayrı
+ * @param schoolId          hedef canonical satır id'si (route'ta UUID doğrulanmış)
+ * @param expectedUpdatedAt optimistic concurrency token'ı (GET'ten alınan orijinal
+ *                          ISO string; değiştirilmeden iletilir)
+ * @param patch             yalnız present canonical anahtarları taşıyan partial patch
+ * @param reason            zorunlu audit gerekçesi (orijinal string)
+ */
+export async function updateSchool(
+  db: SupabaseClient,
+  actorAdminId: string,
+  schoolId: string,
+  expectedUpdatedAt: string,
+  patch: UpdateSchoolPatch,
+  reason: string,
+): Promise<UpdateSchoolResult> {
+  // request_id / operation_id server-side, iki AYRI UUID (istemci veremez).
+  const requestId = crypto.randomUUID();
+  const operationId = crypto.randomUUID();
+
+  const { data, error } = await db.rpc("yebs_update_school_with_audit", {
+    p_actor_admin_id: actorAdminId,
+    p_request_id: requestId,
+    p_operation_id: operationId,
+    p_school_id: schoolId,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_patch: patch,
+    p_reason: reason,
+  });
+
+  if (error) {
+    // Ham message/details/hint/constraint yalnız server log'a; istemciye gitmez.
+    console.error("[yebs] updateSchool RPC failed:", error.message);
+    return { ok: false, code: classifyUpdateRpcError(error) };
+  }
+
+  // Canonical dönüş: tek object; array gelirse yalnız EXACT tek elemanlı kabul.
+  let row: unknown = data;
+  if (Array.isArray(data)) {
+    if (data.length !== 1) {
+      console.error("[yebs] updateSchool beklenmeyen dönüş kardinalitesi:", data.length);
+      return { ok: false, code: "YEBS_SCHOOL_UPDATE_FAILED" };
+    }
+    row = data[0];
+  }
+
+  if (!isCanonicalSchoolRow(row)) {
+    console.error("[yebs] updateSchool beklenmeyen dönüş biçimi");
+    return { ok: false, code: "YEBS_SCHOOL_UPDATE_FAILED" };
+  }
+
+  return { ok: true, row };
+}
