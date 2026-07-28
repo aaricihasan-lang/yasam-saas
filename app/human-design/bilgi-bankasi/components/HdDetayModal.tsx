@@ -19,6 +19,7 @@ import {
 import { updateHdKnowledgeRecord, type HdKnowledgeRow } from "../helpers/hdBilgiKayit";
 import { listHdSources, insertHdSource, type HdSourceRow } from "../helpers/hdKaynaklar";
 import { HdKaynakEditor } from "./HdKaynakEditor";
+import { useOverlay } from "@/lib/dogaltas/useOverlay";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -84,6 +85,14 @@ function parseCSV(text: string): string[] {
 
 export function HdDetayModal({ row, onClose, onSaved }: Props) {
   const { showToast } = useToast();
+  // Ortak overlay davranışı: arka plan scroll-lock (cleanup'lı) + Esc-ile-kapat + focus-trap.
+  const { containerRef } = useOverlay<HTMLDivElement>({
+    open: true,
+    onClose,
+    lockScroll: true,
+    closeOnEsc: true,
+    trapFocus: true,
+  });
   const [form, setForm] = useState<FormState>(() => rowToForm(row));
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("summary");
@@ -219,7 +228,7 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
       key={id}
       type="button"
       onClick={() => setActiveTab(id)}
-      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+      className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
         active
           ? "bg-indigo-600 text-white shadow-sm"
           : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-800"
@@ -234,7 +243,7 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
   const isSourceTab = activeTab.startsWith("src:");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       {/* Overlay */}
       <button
         type="button"
@@ -244,9 +253,12 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-3xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl">
+      <div
+        ref={containerRef}
+        className="relative z-10 flex max-h-[calc(100dvh-24px)] w-full max-w-[1280px] flex-col overflow-hidden rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl sm:max-h-[calc(100dvh-48px)]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
               Kayıt Güncelle
@@ -263,7 +275,7 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
         </div>
 
         {/* Sekme çubuğu */}
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-indigo-100/70 bg-white px-4 py-2.5">
+        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto border-b border-indigo-100/70 bg-white px-4 py-2.5">
           {tabBtn("summary", "Editöryal Özet", activeTab === "summary")}
           {tabBtn("notes", "Hasan Notlarım", activeTab === "notes")}
           {sources.map((s, i) =>
@@ -273,14 +285,14 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
             type="button"
             onClick={handleAddSource}
             disabled={addingSource}
-            className="whitespace-nowrap rounded-lg border border-dashed border-indigo-300 px-3 py-1.5 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
+            className="shrink-0 whitespace-nowrap rounded-lg border border-dashed border-indigo-300 px-3 py-1.5 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
           >
             {addingSource ? "Ekleniyor..." : "+ Kaynak Ekle"}
           </button>
         </div>
 
         {/* Body */}
-        <div className="max-h-[68vh] overflow-y-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
           {/* --- SEKME: Editöryal Özet --- */}
           {activeTab === "summary" && (
             <div className="space-y-6">
@@ -567,7 +579,7 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 rounded-b-[26px] border-t border-indigo-100/80 bg-slate-50/60 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-3 rounded-b-[26px] border-t border-indigo-100/80 bg-slate-50/60 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
