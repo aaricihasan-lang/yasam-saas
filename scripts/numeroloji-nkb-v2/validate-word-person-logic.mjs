@@ -23,22 +23,22 @@ function check(name, cond) {
   if (ok) pass++; else fail++;
 }
 
-console.log("── NKB-V3 — 5 gerçek sekme (İlişki/Ev-İş kaldırıldı) ──");
-check("sekme sırası: summary,plain,detailed,tas,gorsel", WORD_TAB_ORDER.join(",") === "summary,plain,detailed,tas,gorsel");
-check("İlişki/Ev-İş TAMAMEN kaldırıldı", !("iliski" in WORD_TAB_LABELS) && !("evis" in WORD_TAB_LABELS) && !WORD_TAB_ORDER.includes("iliski") && !WORD_TAB_ORDER.includes("evis"));
+console.log("── NKB-V4 — 4 gerçek sekme (Görsel Rapor + İlişki/Ev-İş kaldırıldı) ──");
+check("sekme sırası: summary,plain,detailed,tas", WORD_TAB_ORDER.join(",") === "summary,plain,detailed,tas");
+check("Görsel Rapor TAMAMEN kaldırıldı", !("gorsel" in WORD_TAB_LABELS) && !WORD_TAB_ORDER.includes("gorsel"));
+check("İlişki/Ev-İş yok", !("iliski" in WORD_TAB_LABELS) && !("evis" in WORD_TAB_LABELS));
 check("etiketler ekranla birebir",
   WORD_TAB_LABELS.summary === "Sonuç Özeti" && WORD_TAB_LABELS.plain === "Analiz (Hesap Özetsiz)" &&
-  WORD_TAB_LABELS.detailed === "Analiz (Hesap Özetli)" && WORD_TAB_LABELS.tas === "Taş Açıklamaları" &&
-  WORD_TAB_LABELS.gorsel === "Görsel Rapor");
+  WORD_TAB_LABELS.detailed === "Analiz (Hesap Özetli)" && WORD_TAB_LABELS.tas === "Taş Açıklamaları");
 check("teknik/DB seçenekleri YOK", !("identity" in WORD_TAB_LABELS) && !("sourceNotes" in WORD_TAB_LABELS) && !("pin" in WORD_TAB_LABELS));
 
 console.log("\n── seçim/normalize ──");
-check("varsayılan tümü açık (5)", (() => { const d = defaultWordPersonSections(); return WORD_TAB_ORDER.every((k) => d[k]) && Object.keys(d).length === 5; })());
-check("atLeastOne hiçbiri false", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: false, gorsel: false }) === false);
-check("atLeastOne yalnız gorsel true", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: false, gorsel: true }) === true);
+check("varsayılan tümü açık (4)", (() => { const d = defaultWordPersonSections(); return WORD_TAB_ORDER.every((k) => d[k]) && Object.keys(d).length === 4; })());
+check("atLeastOne hiçbiri false", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: false }) === false);
+check("atLeastOne yalnız tas true", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: true }) === true);
 check("normalize undefined → tümü açık", (() => { const n = normalizeWordPersonSections(undefined); return WORD_TAB_ORDER.every((k) => n[k]); })());
-check("normalize eski iliski/evis anahtarları yok sayılır", (() => { const n = normalizeWordPersonSections({ iliski: true, evis: true }); return WORD_TAB_ORDER.every((k) => n[k]); })()); // hepsi false → fail-safe tümü açık
-check("normalize {detailed:true} → yalnız detailed", (() => { const n = normalizeWordPersonSections({ detailed: true }); return n.detailed && !n.summary && !n.plain && !n.tas && !n.gorsel; })());
+check("normalize eski gorsel/iliski anahtarları yok sayılır", (() => { const n = normalizeWordPersonSections({ gorsel: true, iliski: true }); return WORD_TAB_ORDER.every((k) => n[k]) && !("gorsel" in n); })()); // hepsi false → fail-safe tümü açık
+check("normalize {detailed:true} → yalnız detailed", (() => { const n = normalizeWordPersonSections({ detailed: true }); return n.detailed && !n.summary && !n.plain && !n.tas; })());
 
 console.log("\n── dosya adı ──");
 check("safeFileNamePart Türkçe→ASCII", safeFileNamePart("Ayşe ÇINAR") === "Ayse_CINAR");

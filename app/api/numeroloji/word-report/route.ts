@@ -8,7 +8,6 @@ import {
 } from "@/app/numeroloji/bilgi-bankasi/helpers/wordPersonSections";
 import {
   buildNumerolojiWordChildren,
-  dataUrlToBuffer,
   packNumerolojiDocx,
   type WordRecordRow,
   type WordSharedData,
@@ -26,14 +25,13 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw, gorselImage } = body as {
+  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw } = body as {
     tenantId?: string;
     userId?: string;
     exportMode?: ExportMode;
     ids?: string[];
     recordId?: string;
     sections?: unknown;
-    gorselImage?: unknown;
   };
 
   const sections = normalizeWordPersonSections(sectionsRaw);
@@ -70,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Paylaşımlı bulk veriler (yalnız gereken sekmeler seçiliyse; N+1 yok).
   const shared: WordSharedData = { knowledgeRows: [], entries: [], sourceLabelById: new Map(), stoneRows: [] };
-  if (sections.detailed) {
+  if (sections.detailed || sections.summary) {
     const [kRes, seRes, srcRes] = await Promise.all([
       db.from("numerology_knowledge_records").select("*").eq("tenant_id", tenantId),
       db.from("numerology_knowledge_source_entries").select("*").eq("tenant_id", tenantId).eq("include_in_analysis", true),
@@ -89,10 +87,7 @@ export async function POST(request: Request): Promise<Response> {
     shared.stoneRows = (stRes.data || []) as WordStoneRow[];
   }
 
-  // Görsel: yalnız tek kişi + client PNG sağlandıysa.
-  const gorselBuf = isSingle ? dataUrlToBuffer(gorselImage) : null;
-
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, gorselBuf);
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared);
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
@@ -107,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const buffer = await packNumerolojiDocx(children);
+  const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim());
 
   const filename = isSingle
     ? wordFileName(`${rows[0]!.name} ${rows[0]!.surname}`, selectedTabs)

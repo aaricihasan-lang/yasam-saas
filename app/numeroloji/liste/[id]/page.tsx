@@ -4,10 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
-import { extractMotorFromAnalysisJson, extractGorselFromAnalysisData } from "../../utils/analysisJson";
-import { GorselRaporInfografik, type GorselTemaId } from "../../components/NumerolojiGorselRaporInfografik";
-import { gorselRaporuPngYakala } from "../../gorselRaporExport";
+import { useEffect, useState, useCallback } from "react";
+import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
   resolveNumerolojiTenantId,
@@ -38,7 +36,6 @@ export default function NumerolojiKayitDetayPage() {
   const [loading, setLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
   const [wordPicker, setWordPicker] = useState(false);
-  const gorselRef = useRef<HTMLDivElement>(null);
 
   const isOpenRecord = row ? isDemoNumerologiOpenRecord(row) : false;
   const gateActive = isDemo && !isOpenRecord;
@@ -54,19 +51,10 @@ export default function NumerolojiKayitDetayPage() {
     const { userId, tenantId } = session;
     setWordBusy(true);
     try {
-      // Görsel Rapor seçildiyse ekrandaki gerçek görseli (gizli infografik) PNG olarak yakala.
-      let gorselImage: string | undefined;
-      if (sections.gorsel && gorselRef.current) {
-        try {
-          gorselImage = await gorselRaporuPngYakala(gorselRef.current);
-        } catch {
-          gorselImage = undefined; // yakalanamazsa server görseli boş sekme olarak işaretler
-        }
-      }
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections, gorselImage }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -132,7 +120,6 @@ export default function NumerolojiKayitDetayPage() {
 
   const motor = row ? extractMotorFromAnalysisJson(row.analysis_data) : null;
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
-  const gorsel = row ? extractGorselFromAnalysisData(row.analysis_data) : null;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f3ff_38%,#ecfeff_100%)] text-slate-900 antialiased">
@@ -173,30 +160,6 @@ export default function NumerolojiKayitDetayPage() {
           onCancel={() => setWordPicker(false)}
           onConfirm={(sections) => void downloadWord(sections)}
         />
-
-        {/* Görsel Rapor Word'e gömme: ekrandaki gerçek infografiği tam boyutta (1400px) EKRAN
-            DIŞINDA render edip PNG yakalar. Yalnız seçim paneli açıkken monte edilir. */}
-        {wordPicker && row && motor ? (
-          <div
-            ref={gorselRef}
-            aria-hidden
-            style={{ position: "fixed", left: -100000, top: 0, width: 1400, pointerEvents: "none" }}
-          >
-            <GorselRaporInfografik
-              out={motor}
-              isimGoster={adSoyad}
-              dogumGoster={row.birth_date}
-              firstName={row.name}
-              lastName={row.surname}
-              temaId={(gorsel?.temaId ?? "kozmikMor") as GorselTemaId}
-              uzmanAdi={gorsel?.uzmanAdi ?? ""}
-              gorselTaslariGoster={gorsel?.gorselTaslariGoster ?? false}
-              tasBileklik={gorsel?.tasBileklik ?? ""}
-              tasKolye={gorsel?.tasKolye ?? ""}
-              tasKutle={gorsel?.tasKutle ?? ""}
-            />
-          </div>
-        ) : null}
 
         {loading ? (
           <div className="px-[clamp(8px,2.5vw,14px)] py-3 text-sm font-semibold text-slate-600 md:rounded-xl md:border md:border-violet-300/40 md:bg-white/80 md:px-4 md:shadow-[0_0_28px_rgba(139,92,246,0.12)] md:backdrop-blur-xl">

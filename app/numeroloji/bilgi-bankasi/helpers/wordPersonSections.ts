@@ -1,17 +1,15 @@
 /**
- * NKB-V2 — Kişi/analiz Word raporu (/api/numeroloji/word-report) SEKME seçimi (saf; client+server).
+ * NKB-V4 — Kişi/analiz Word raporu (/api/numeroloji/word-report) SEKME seçimi (saf; client+server).
  *
- * Word bölümleri = ekrandaki gerçek sonuç sekmeleriyle BİREBİR (ad/sıra aynı):
- *   summary  : "Sonuç Özeti"               ← kayıtlı analysis_data.summary (tam; kesilmez)
- *   plain    : "Analiz (Hesap Özetsiz)"     ← buildPlainAnalizFull(motor) (tam)
- *   detailed : "Analiz (Hesap Özetli)"      ← buildPlainAnalizFull + Bilgi Bankası yorumları + kaynak notları + taş
- *   tas      : "Taş Açıklamaları"           ← taş atamaları (kişinin değerlerine eşleşen)
- *   gorsel   : "Görsel Rapor"               ← ekrandaki gerçek görsel (PNG; yalnız tek kişi, client üretir)
- *   iliski   : "İlişki Analizi"             ← canlı 2. kişi girişi gerektirir; KAYITLI içerik yok → boş
- *   evis     : "Ev / İş Yeri Sayısı"        ← canlı kapı/daire girişi gerektirir; KAYITLI içerik yok → boş
+ * Word bölümleri = ekrandaki gerçek sonuç sekmeleriyle BİREBİR (ad/sıra aynı). YALNIZ 4 seçenek:
+ *   summary  : "Sonuç Özeti"            ← profil kartları + PIN piramidi + ana yorumlar
+ *   plain    : "Analiz (Hesap Özetsiz)" ← temel değerler + PIN piramidi + çakra omurgası + element + zaman çizelgeleri
+ *   detailed : "Analiz (Hesap Özetli)"  ← (özetsiz seçiliyse tekrar etmez) + Bilgi Bankası yorum kartları + kaynak notları
+ *   tas      : "Taş Açıklamaları"        ← taş atama kartları (kişinin değerlerine eşleşen)
  *
+ * Görsel Rapor, İlişki ve Ev/İş Word'den KALDIRILDI (ayrı PNG indirme ekranda korunur).
  * Kurallar: en az bir sekme seçilmeli; `sections` gönderilmezse eski istemci uyumu için TÜMÜ açık.
- * Kimlik bilgileri (ad/doğum/analiz tarihi) BAĞIMSIZ seçim DEĞİL — belge üstbilgisidir.
+ * Kimlik bilgileri (ad/doğum/analiz tarihi) BAĞIMSIZ seçim DEĞİL — kapak/üstbilgidir.
  */
 
 import {
@@ -20,19 +18,18 @@ import {
   type SourceEntryRow,
 } from "./sourceEntryUiLogic";
 
-export type WordTabKey = "summary" | "plain" | "detailed" | "tas" | "gorsel";
+export type WordTabKey = "summary" | "plain" | "detailed" | "tas";
 
 export type WordPersonSections = Record<WordTabKey, boolean>;
 
-export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas", "gorsel"];
+export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas"];
 
-/** Ekrandaki sekme adlarıyla BİREBİR (değiştirilmez). */
+/** Ekrandaki sekme adlarıyla BİREBİR (değiştirilmez). Görsel Rapor Word'den kaldırıldı. */
 export const WORD_TAB_LABELS: Record<WordTabKey, string> = {
   summary: "Sonuç Özeti",
   plain: "Analiz (Hesap Özetsiz)",
   detailed: "Analiz (Hesap Özetli)",
   tas: "Taş Açıklamaları",
-  gorsel: "Görsel Rapor",
 };
 
 /** Dosya adı için güvenli sekme kısaltması. */
@@ -41,11 +38,10 @@ export const WORD_TAB_FILENAME: Record<WordTabKey, string> = {
   plain: "Hesap_Ozetsiz",
   detailed: "Hesap_Ozetli",
   tas: "Tas_Aciklamalari",
-  gorsel: "Gorsel_Rapor",
 };
 
 export function defaultWordPersonSections(): WordPersonSections {
-  return { summary: true, plain: true, detailed: true, tas: true, gorsel: true };
+  return { summary: true, plain: true, detailed: true, tas: true };
 }
 
 export function atLeastOneWordPersonSection(s: WordPersonSections): boolean {
@@ -57,7 +53,7 @@ export function normalizeWordPersonSections(input: unknown): WordPersonSections 
     return defaultWordPersonSections();
   }
   const o = input as Record<string, unknown>;
-  const out: WordPersonSections = { summary: false, plain: false, detailed: false, tas: false, gorsel: false };
+  const out: WordPersonSections = { summary: false, plain: false, detailed: false, tas: false };
   for (const k of WORD_TAB_ORDER) out[k] = o[k] === true;
   if (!atLeastOneWordPersonSection(out)) return defaultWordPersonSections();
   return out;
