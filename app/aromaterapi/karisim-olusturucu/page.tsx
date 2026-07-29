@@ -6,6 +6,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, getYasamUserDisplayName } from "@/lib/auth/yasamUser";
 import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecetePrint";
+import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
@@ -273,6 +274,7 @@ export default function KarisimOlusturucuPage() {
     <>
     <main className={`${pageBg} print:hidden`}>
       <div className="relative z-10 mx-auto w-full max-w-[1500px] space-y-4 px-3 py-4 sm:px-5 lg:px-7">
+        <AromaterapiModuleNav />
         {/* Header */}
         <header className={`${panel} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0">
