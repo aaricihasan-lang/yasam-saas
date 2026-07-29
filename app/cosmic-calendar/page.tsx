@@ -386,16 +386,28 @@ function mergeCityResults(tr: ReadonlyArray<Location>, global: ReadonlyArray<Loc
   return out;
 }
 
-/** Seçili şehir için kısa görünürlük rozeti (genelleme yok). */
+/**
+ * Seçili şehir için kısa görünürlük rozeti (genelleme yok).
+ * Metin biçimi TR ekinden bağımsızdır: "{şehir} konumundan görünür/görünmez/ufuk yakını"
+ * → Balıkesir/Afyon/İzmir dahil tüm TR ve dünya konumlarında dil hatası oluşmaz
+ * (kesme ekli 'dan/'den kullanılmaz). Normal ve Uzman görünüm bu ortak helper'ı kullanır.
+ */
 function cityVisBadge(vis: EclipseCityVis[], city: string): { text: string; visible: boolean } {
   const v = vis.find(x => x.city === city);
-  if (!v) return { text: `${city}'dan görülmez`, visible: false };
+  if (!v) return { text: `${city} konumundan görünmez`, visible: false };
   if (v.visible) {
     const near = v.visibilityStatus.includes("ufuk yakını");
-    return { text: near ? `${city}'dan ufuk yakını` : `${city}'dan görülür`, visible: true };
+    return { text: near ? `${city} konumundan ufuk yakını` : `${city} konumundan görünür`, visible: true };
   }
-  return { text: `${city}'dan görülmez`, visible: false };
+  return { text: `${city} konumundan görünmez`, visible: false };
 }
+
+/**
+ * Motor görünürlük durumunu (ör. "Balıkesir'dan görülür (Ay ufuk üstü)") TR kesme-ekinden
+ * bağımsız sunum biçimine çevirir → "Balıkesir konumundan görülür …". Yalnız sunum; motor
+ * verisi değişmez. Uzman detay panelinde şehir-adı kesme eki dil hatasını önler.
+ */
+const safeVisStatus = (s: string): string => s.replace(/'dan\s+/g, " konumundan ");
 
 function EclipseCard({ e, tz, statusText, visible, coverage, onClick }: {
   e: AnyEclipse; tz: string; statusText: string; visible: boolean; coverage?: string | null; onClick?: () => void;
@@ -451,7 +463,7 @@ function EclipseDetail({ row, city, tz, sel, onClose }: { row: EclipseRow; city:
   if (e.obscuration != null) fields.push(["Örtülme oranı", `%${Math.round(e.obscuration * 100)}`]);
   if (solar && sel) {
     const sv = sel as SolarCityVisibility;
-    fields.push([`${city} görünürlük`, sv.visibilityStatus]);
+    fields.push([`${city} görünürlük`, safeVisStatus(sv.visibilityStatus)]);
     if (sv.altitudeAtPeak != null) fields.push([`${city} Güneş yüks.`, `${sv.altitudeAtPeak}°`]);
     if (zt(sv.partialBeginTR)) fields.push([`Parçalı başl. (${lbl})`, zt(sv.partialBeginTR)!]);
     if (zt(sv.totalBeginTR)) fields.push([`Tam başl. (${lbl})`, zt(sv.totalBeginTR)!]);
@@ -1061,8 +1073,11 @@ export default function CosmicCalendarPage() {
   const locCacheRef = useRef<Map<string, Location> | null>(null);
   const locCache = (locCacheRef.current ??= new Map(ECLIPSE_LOCATIONS.map((l): [string, Location] => [l.id, l])));
 
-  // Seçili konum — kimlik id-tabanlı; nesne önce cache'ten (global gn-* dahil), yoksa statik dataset'ten.
-  // Ad ve tz sunum için türetilir; Ankara yalnız gerçekten çözülemezse fallback.
+  // ETKİN KONUM (effectiveLocation) SÖZLEŞMESİ — Kozmik Ajanda'daki TÜM konuma bağlı bölümler
+  // (Gezegen Saatleri, Tutulma görünürlüğü/etiketi, Gün Yöneticisi) bu TEK nesneyi kullanır.
+  // Öncelik: geçici seçim (eclipseLocId) → mount'ta kayıtlı varsayılan (getUserLocationPref) ile
+  // başlatılır → hiç kullanıcı konumu yoksa Ankara fallback (yalnız locPrefLoaded sonrası geçerli).
+  // Ad/tz/lat/lon aynı nesneden gelir; aynı etiketle farklı koordinat OLUŞMAZ.
   const selEclipseLoc = useMemo(
     () => locCache.get(eclipseLocId) ?? ECLIPSE_LOCATIONS.find(l => l.id === eclipseLocId),
     [eclipseLocId, locCache],
@@ -1939,8 +1954,14 @@ export default function CosmicCalendarPage() {
           {/* ── Sağ Kolon (günlük bilgi paneli) ── */}
           <div id="gezegen-saati" className="flex scroll-mt-4 flex-col gap-3">
 
-            {/* Gezegen Saati mini */}
-            {isSelectedToday && (
+            {/* Gezegen Saati mini — konum tercihi çözülene kadar Ankara fallback GÖSTERİLMEZ */}
+            {isSelectedToday && !locPrefLoaded && (
+              <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
+                <p className="text-[11px] font-semibold text-slate-400">📍 Konum yükleniyor…</p>
+              </div>
+            )}
+            {isSelectedToday && locPrefLoaded && (
               <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
                 <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
                 <div className="flex items-center gap-2.5">
@@ -2453,7 +2474,10 @@ export default function CosmicCalendarPage() {
           </div>
           <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Yaklaşan ve geçmiş doğrulanmış Güneş ve Ay tutulmaları.</p>
 
-          {!eclipseExpert ? (
+          {!locPrefLoaded ? (
+            /* Konum tercihi çözülmeden Ankara fallback görünürlüğü render EDİLMEZ */
+            <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs font-semibold text-slate-400">📍 Konum yükleniyor…</p>
+          ) : !eclipseExpert ? (
             <>
               {/* İlk görünüm: en yakın Güneş + Ay; "Tüm tutulmaları göster" ile genişler */}
               {eclipseUpcoming.length > 0 ? (
@@ -2463,8 +2487,10 @@ export default function CosmicCalendarPage() {
                   </p>
                   <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {(showAllEclipses ? eclipseUpcoming : eclipsePrimary).map(row => {
-                      const b = cityVisBadge(row.vis, "Ankara");
-                      return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
+                      // Etkin konum (selEclipseLoc) ile — Uzman görünümüyle aynı hesap yolu.
+                      const selVis = resolveSelVis(row, selEclipseLoc);
+                      const b = cityVisBadge(selVis ? [selVis] : [], eclipseCity);
+                      return <EclipseCard key={row.e.id} e={row.e} tz={eclipseTz} statusText={b.text} visible={b.visible} />;
                     })}
                   </div>
                   {eclipseUpcoming.length > eclipsePrimary.length && (
@@ -2495,15 +2521,16 @@ export default function CosmicCalendarPage() {
                   {showPastEclipses && (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {eclipsePast.map(row => {
-                        const b = cityVisBadge(row.vis, "Ankara");
-                        return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
+                        const selVis = resolveSelVis(row, selEclipseLoc);
+                        const b = cityVisBadge(selVis ? [selVis] : [], eclipseCity);
+                        return <EclipseCard key={row.e.id} e={row.e} tz={eclipseTz} statusText={b.text} visible={b.visible} />;
                       })}
                     </div>
                   )}
                 </>
               )}
               <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
-                Astronomik veriye dayanır; yorum içermez. Görünürlük Ankara referans alınarak gösterilir.
+                Astronomik veriye dayanır; yorum içermez. Görünürlük {eclipseCity} konumu referans alınarak gösterilir.
               </p>
             </>
           ) : (
