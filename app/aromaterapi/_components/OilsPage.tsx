@@ -4,6 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import {
   Suspense,
   useCallback,
@@ -814,6 +815,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
       <div className="pointer-events-none absolute -right-20 top-40 h-[280px] w-[280px] rounded-full bg-violet-200/18 blur-[100px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-5 xl:px-7">
+        <AromaterapiModuleNav />
         {isDemo && (
           <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz." />
         )}

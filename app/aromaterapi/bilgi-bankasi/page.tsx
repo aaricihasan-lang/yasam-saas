@@ -14,6 +14,7 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DEMO_AROMA_KNOWLEDGE_SHEETS } from "@/lib/demo/demoAromaterapiKnowledge";
+import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 
 // -------------------------------------------------------
 // Tasarım token'ları
@@ -247,6 +248,8 @@ export default function BilgiBankasiPage() {
       <div className="pointer-events-none absolute -right-20 top-40 h-[300px] w-[300px] rounded-full bg-amber-200/15 blur-[100px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+
+        <AromaterapiModuleNav />
 
         {isDemo && (
           <DemoModuleBanner message="Bilgi bankası içerikleri demo hesabında korunur. Sekme başlıkları görünür; makale içerikleri tam sürümde açılır." />

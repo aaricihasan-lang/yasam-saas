@@ -7,6 +7,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
+import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import {
   createOil,
   deleteOil,
@@ -458,6 +459,8 @@ export default function OilDetailPage() {
   return (
     <main className={`flex min-h-screen flex-col text-slate-950 ${pageBg}`}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-2 px-3 py-4 sm:px-5 lg:px-8 xl:px-10">
+
+        <AromaterapiModuleNav />
 
         {isDemo && (
           <DemoModuleBanner
