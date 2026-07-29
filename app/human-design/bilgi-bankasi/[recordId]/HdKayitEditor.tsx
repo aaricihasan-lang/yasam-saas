@@ -26,7 +26,7 @@ import {
   type HdKnowledgeRow,
 } from "../helpers/hdBilgiKayit";
 import { listHdSources, insertHdSource, type HdSourceRow } from "../helpers/hdKaynaklar";
-import { HdKaynakEditor } from "../components/HdKaynakEditor";
+import { HdKaynakEditor, rightsStatusLabel } from "../components/HdKaynakEditor";
 import { useUnsavedGuard } from "../../rapor-olustur/hooks/useUnsavedGuard";
 import { HdUnsavedChangesDialog } from "../../rapor-olustur/components/HdUnsavedChangesDialog";
 
@@ -362,13 +362,14 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const SECTIONS: { id: SectionId; label: string; desc: string }[] = [
     { id: "content", label: "İçerik", desc: "Temel bilgiler, editöryal özet ve kişisel notlar." },
     { id: "sources", label: "Kaynaklar", desc: "Bu bilgiyi dayandıran kaynaklar; her biri ayrı tutulur." },
-    { id: "relations", label: "İlişkiler", desc: "Bağlantılı merkez, kanal ve kapılar — sınıflandırma/organizasyon." },
+    { id: "relations", label: "İlişkiler", desc: "Bu bilgiyle bağlantılı merkez, kanal ve kapıları işaretleyin." },
   ];
 
   return (
     <HumanDesignShell maxWidthClass="max-w-[1600px]">
-      {/* Sticky işlem başlığı */}
-      <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-indigo-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
+      {/* Sticky işlem başlığı — global logo çubuğunun (fixed, --logo-h=44px, z-50)
+          hemen altına sabitlenir; z-30 < z-50 olduğundan çubukla çakışmaz. */}
+      <div className="sticky top-[var(--logo-h)] z-30 -mx-4 mb-4 border-b border-indigo-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <button
             type="button"
@@ -553,7 +554,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>Hasan Notlarım</p>
+            <p className={sectionCls}>Uzman Notu</p>
             <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600">
               Uzmanın özel çalışma notudur. Varsayılan danışan raporuna girmez.
             </div>
@@ -631,7 +632,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                         {s.source_name?.trim() || "Adsız kaynak"}
                       </p>
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                        {s.rights_status}
+                        {rightsStatusLabel(s.rights_status)}
                       </p>
                     </button>
                   </li>
@@ -663,8 +664,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         <div className="space-y-4">
           <div className={cardCls}>
             <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600">
-              İlişkiler bu bilgiyi bağlantılı HD öğeleriyle sınıflandırır (organizasyon / editöryal bağlam).
-              Rapor eşleştirmesini doğrudan yapan mekanizma değildir; rapor mevcut kod-tabanlı davranışını korur.
+              Bu bilgiyle bağlantılı merkezleri, kanalları ve kapıları burada işaretleyin. Bu seçimler kaydı düzenlemek ve ilgili Human Design öğeleriyle ilişkilendirmek için kullanılır; danışan raporuna otomatik içerik eklemez.
             </div>
 
             {/* Seçili özet */}

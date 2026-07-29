@@ -27,14 +27,25 @@ const SOURCE_TYPES: { code: HdSourceType; label: string }[] = [
   { code: "other", label: "Diğer" },
 ];
 
-const RIGHTS_STATUSES: { code: HdSourceRightsStatus; label: string }[] = [
+// Telif/hak durumu için kullanıcıya görünen TEK kaynak etiket haritası.
+// Hem bu editördeki dropdown hem de kayıt editöründeki kaynak listesi rozeti
+// bu haritayı kullanır — enum değerleri veri/API'de İngilizce kalır.
+export const RIGHTS_STATUSES: { code: HdSourceRightsStatus; label: string }[] = [
   { code: "unknown", label: "Belirsiz" },
   { code: "public_domain", label: "Kamu malı" },
   { code: "licensed", label: "Lisanslı" },
-  { code: "permission_granted", label: "İzin alındı" },
-  { code: "permission_pending", label: "İzin bekleniyor" },
+  { code: "permission_granted", label: "İzin verildi" },
+  { code: "permission_pending", label: "İzin bekliyor" },
   { code: "restricted", label: "Kısıtlı" },
 ];
+
+// Ham enum değeri yerine kullanıcıya Türkçe etiket döndürür.
+// Bilinmeyen/eksik kod güvenli biçimde "Belirsiz" olarak gösterilir.
+export function rightsStatusLabel(
+  code: HdSourceRightsStatus | string | null | undefined,
+): string {
+  return RIGHTS_STATUSES.find((r) => r.code === code)?.label ?? "Belirsiz";
+}
 
 // Telifi belirsiz / kısıtlı / izin bekleyen kaynaklar private-only olur:
 // rapor ve uzman dağıtımına kapatılır (Ürün Kuralı 14).
