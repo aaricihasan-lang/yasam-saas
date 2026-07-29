@@ -557,7 +557,8 @@ const MONTH_NAMES_TR: ReadonlyArray<string> = [
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
 ];
 
-const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
+// Pazartesi başlangıçlı hafta (PZT→PAZ). CSS `uppercase` ile büyük harf gösterilir.
+const DAY_HEADERS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
 const LEGEND_ITEMS = [
   { icon: "🌑", label: "Yeni Ay"    },
@@ -570,6 +571,18 @@ const LEGEND_ITEMS = [
 const BADGES = [
   "🌙 Hicri Takvim", "🌕 Ay Fazları", "🪐 Gezegen Saatleri",
 ] as const;
+
+// Kozmik Merkezler hızlı erişim (Hero altı üst navigasyon). KARMA model:
+// - route: gerçek alt sayfası olanlar (Link)
+// - anchor: sayfa-içi bölüme kaydırır (#id) — sahte route ÜRETİLMEZ.
+const QUICK_ACCESS: ReadonlyArray<{ emoji: string; label: string; href: string; kind: "route" | "anchor" }> = [
+  { emoji: "📅", label: "Takvim",           href: "#takvim",                          kind: "anchor" },
+  { emoji: "🌕", label: "Ay Fazları",       href: "/cosmic-calendar/moon-phases",     kind: "route"  },
+  { emoji: "☿",  label: "Retro Takvimi",    href: "/cosmic-calendar/retro-calendar",  kind: "route"  },
+  { emoji: "⏰", label: "Gezegen Saatleri", href: "#gezegen-saati",                   kind: "anchor" },
+  { emoji: "🩸", label: "Hacamat Takvimi",  href: "/cosmic-calendar/hacamat",         kind: "route"  },
+  { emoji: "🌙", label: "Hicri Takvim",     href: "#takvim",                          kind: "anchor" },
+];
 
 const PHASE_TOOLTIP: Record<string, string> = {
   "🌑": "Yeni Ay — Niyetler ve yeni başlangıçlar için en güçlü an",
@@ -616,7 +629,9 @@ type SearchResult =
 // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
 
 function buildCalendarCells(year: number, month: number): (number | null)[] {
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  // Pazartesi tabanı: JS getDay() Pazar=0 → (getDay()+6)%7 ile Pzt=0…Paz=6.
+  // Ör. 1 Tem 2026 Çarşamba → getDay()=3 → (3+6)%7=2 → 2 ön boş hücre, 3. sütun (ÇAR).
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth    = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
@@ -858,6 +873,8 @@ export default function CosmicCalendarPage() {
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
+  const [showAllEclipses,  setShowAllEclipses]  = useState(false);   // normal görünüm: tüm yaklaşan tutulmalar
+  const [showPastEclipses, setShowPastEclipses] = useState(false);   // normal görünüm: geçmiş tutulmalar (varsayılan kapalı)
   const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // GEÇİCİ görüntülenen konum (id-tabanlı; aynı-isim ayrımı)
   const [savedLocId,       setSavedLocId]       = useState<string | null>(null);   // KAYITLI varsayılan konumun id'si (null = kayıtlı yok → Ankara varsayılan)
   const [locPrefLoaded,    setLocPrefLoaded]    = useState(false);                 // kayıtlı tercih fetch'i çözüldü mü (çözülene kadar "yükleniyor…" placeholder)
@@ -968,6 +985,11 @@ export default function CosmicCalendarPage() {
   }, [todayPlanets, todayMoonSign]);
 
   const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
+
+  // Şu an (realNow) aktif retro gezegenleri — "Şu An Gökyüzünde" önceliği (madde 7/8) ve
+  // gezegen satırı retro rozeti (madde 19) için. Yeni hesap YOK; getActiveRetros türevi.
+  const activeRetrosNow = useMemo(() => getActiveRetros(realNow), [realNow]);
+  const retroPlanetSet  = useMemo(() => new Set(activeRetrosNow.map(r => r.planet)), [activeRetrosNow]);
 
   // ── Gökyüzü Açıları — seçili güne göre majör aspect'ler (FAZ 2B) ──────────────
   // Ay açıları (includesMoon) ve background gizli; yalnız very-strong/strong, maks 5.
@@ -1320,35 +1342,9 @@ export default function CosmicCalendarPage() {
     return result;
   }, [todayYear, todayMonth, todayDay]);
 
-  // ── Kozmik Merkez kartları — mini özet ───────────────────────────────────────
-  const cosmicCenterCards = useMemo(() => {
-    const rt = upcomingRetrosList[0];
-    const mp = upcomingMoonPhases[0];
-    return [
-      {
-        emoji: "☿", title: "Retro Takvimi", href: "/cosmic-calendar/retro-calendar",
-        color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
-        titleColor: "text-rose-700", summaryColor: "text-rose-600",
-        s1: rt ? `${rt.symbol} ${rt.planet}` : "Retro yok",
-        s2: rt ? (() => { const d = Math.ceil((parseRetroDate(rt.start).getTime() - realNow.getTime()) / 86_400_000); return d > 0 ? `${d} gün sonra` : "Şu an aktif"; })() : "—",
-      },
-      {
-        emoji: "🌙", title: "Ay Fazları", href: "/cosmic-calendar/moon-phases",
-        color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
-        titleColor: "text-violet-700", summaryColor: "text-violet-600",
-        s1: mp ? `${mp.emoji} ${mp.name}` : "—",
-        s2: mp ? (mp.daysFromNow === 1 ? "Yarın" : `${mp.daysFromNow} gün sonra`) : "",
-      },
-      {
-        // FAZ 6C: FAZ 4'te kaldırılan Hacamat navigasyon linki geri eklendi (route zaten mevcut).
-        emoji: "🩸", title: "Hacamat Takvimi", href: "/cosmic-calendar/hacamat",
-        color: "from-emerald-50/80 to-teal-50/60 border-emerald-100/70 hover:border-emerald-200",
-        titleColor: "text-emerald-700", summaryColor: "text-emerald-600",
-        s1: "Ay fazları ve destekleyici",
-        s2: "dönem bilgileri",
-      },
-    ];
-  }, [upcomingRetrosList, upcomingMoonPhases, realNow]);
+  // (Kozmik Merkez kartları kaldırıldı — bağlantılar Hero altı QUICK_ACCESS hızlı erişim
+  //  satırına taşındı; sayfa-ortası tekrar blok silindi. Özet veriler zaten "Şu An
+  //  Gökyüzünde" + Yaklaşan Olaylar panelinde gösterilir.)
 
   // ── Şu An Gökyüzünde — özet hesapları (realNow) ──────────────────────────────
   const todaySummary = useMemo(() => {
@@ -1404,6 +1400,55 @@ export default function CosmicCalendarPage() {
     }
     return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
   }, [upcomingRetrosList, upcomingMoonPhases, cosmicEvents, todayYear, todayMonth, todayDay]);
+
+  // ── Güncel Kritik Olay Şeridi (deterministik; yalnız doğrulanmış realNow verisi) ──
+  // Öncelik: 1 bugünkü tutulma → 2 bugünkü Yeni/Dolunay → 3 bugünkü retro başl/bitiş →
+  // 4 Ay şu an boşlukta → 5 bugünkü burç geçişi → 6 bugün başlayan boşluk → 7 ≤2 gün tutulma.
+  // İlk geçerli olay döner; yoksa null (şerit render EDİLMEZ). Yorum/kehanet/tavsiye YOK.
+  const criticalNow = useMemo<{ icon: string; label: string; detail: string; tone: "amber" | "violet" | "rose" | "sky" } | null>(() => {
+    const todayIso = `${todayYear}-${String(todayMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
+
+    // 1. Bugünkü tutulma
+    const eclToday = eclipseData.find(r => r.period === "upcoming" && isSameDay(new Date(Date.parse(r.e.peakUTC)), realNow));
+    if (eclToday) return { icon: eclToday.e.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclToday.e), detail: "Bugün", tone: "amber" };
+
+    // 2. Bugünkü Yeni Ay / Dolunay
+    const moonToday = cosmicEvents.find(e => (e.type === "new_moon" || e.type === "full_moon") && e.date === todayIso);
+    if (moonToday) return { icon: moonToday.symbol, label: moonToday.title, detail: moonToday.time ? `Bugün · ${moonToday.time}` : "Bugün", tone: "violet" };
+
+    // 3. Bugünkü retro başlangıcı / bitişi
+    const retroToday = cosmicEvents.find(e => (e.type === "retro_start" || e.type === "retro_end") && e.date === todayIso);
+    if (retroToday) return { icon: retroToday.symbol, label: retroToday.title, detail: "Bugün", tone: "rose" };
+
+    // 4. Ay şu an boşlukta
+    if (vocData.isVoidNow && vocData.cur) return { icon: "🌙", label: `Ay boşlukta · ${vocData.cur.moonSign} → ${vocData.cur.nextMoonSign}`, detail: `Bitiş ${vocDateTime(vocData.cur.voidEndTR)}`, tone: "amber" };
+
+    // 5. Bugünkü doğrulanmış burç geçişi
+    const scToday = cosmicEvents.find(e => e.type === "sign_change" && e.date === todayIso);
+    if (scToday) return { icon: scToday.symbol, label: scToday.title, detail: "Bugün", tone: "sky" };
+
+    // 6. Bugün başlayacak Ay boşluğu
+    if (vocData.cur && !vocData.isVoidNow && isSameDay(new Date(Date.parse(vocData.cur.voidStartUTC)), realNow))
+      return { icon: "🌙", label: `Ay boşluğu bugün · ${vocData.cur.moonSign} → ${vocData.cur.nextMoonSign}`, detail: `${vocDateTime(vocData.cur.voidStartTR)} → ${vocDateTime(vocData.cur.voidEndTR)}`, tone: "violet" };
+
+    // 7. En fazla 2 gün içindeki tutulma
+    const eclNear = eclipseData.find(r => r.period === "upcoming");
+    if (eclNear) {
+      const days = Math.round((Date.parse(eclNear.e.peakUTC) - new Date(todayYear, todayMonth, todayDay).getTime()) / 86_400_000);
+      if (days >= 0 && days <= 2) return { icon: eclNear.e.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclNear.e), detail: days === 0 ? "Bugün" : days === 1 ? "Yarın" : `${days} gün içinde`, tone: "amber" };
+    }
+    return null;
+  }, [eclipseData, cosmicEvents, vocData, realNow, todayYear, todayMonth, todayDay]);
+
+  // ── Tutulma gruplama (normal görünüm ilk-görünüm daraltma) ──
+  const eclipseUpcoming = useMemo(() => eclipseData.filter(r => r.period === "upcoming"), [eclipseData]);
+  const eclipsePast     = useMemo(() => eclipseData.filter(r => r.period === "past"), [eclipseData]);
+  // İlk görünüm: en yakın anlamlı Güneş + Ay tutulması.
+  const eclipsePrimary  = useMemo(() => {
+    const solar = eclipseUpcoming.find(r => r.e.kind === "solar");
+    const lunar = eclipseUpcoming.find(r => r.e.kind === "lunar");
+    return [solar, lunar].filter((r): r is EclipseRow => Boolean(r));
+  }, [eclipseUpcoming]);
 
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
@@ -1505,6 +1550,28 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
+        {/* ── Kozmik Merkezler — hızlı erişim (üst navigasyon; karma route/anchor) ── */}
+        <nav aria-label="Kozmik Merkezler hızlı erişim" className="mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 snap-x sm:flex-wrap sm:overflow-visible">
+            {QUICK_ACCESS.map(({ emoji, label, href, kind }) => {
+              const cls = "group flex shrink-0 snap-start items-center gap-1.5 rounded-full border border-indigo-200/70 bg-white/75 px-3 py-1.5 text-[12px] font-bold text-indigo-700 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-white";
+              return kind === "route" ? (
+                <Link key={label} href={href} className={cls}>
+                  <span className="text-sm leading-none" aria-hidden>{emoji}</span>
+                  <span className="whitespace-nowrap">{label}</span>
+                  <span className="text-[10px] text-indigo-400 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+                </Link>
+              ) : (
+                <a key={label} href={href} className={cls}>
+                  <span className="text-sm leading-none" aria-hidden>{emoji}</span>
+                  <span className="whitespace-nowrap">{label}</span>
+                  <span className="text-[10px] text-indigo-400" aria-hidden>↓</span>
+                </a>
+              );
+            })}
+          </div>
+        </nav>
+
         {/* ── Şu An Gökyüzünde (realNow) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-200/70 bg-gradient-to-br from-indigo-600/[0.09] via-violet-500/[0.07] to-indigo-400/[0.05] p-4 shadow-[0_6px_28px_rgba(99,102,241,0.14)] backdrop-blur-md">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -1535,16 +1602,27 @@ export default function CosmicCalendarPage() {
           </div>
           {/* 3 yaklaşan olay */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-rose-100/80 bg-rose-50/60 px-2.5 py-2 backdrop-blur-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-rose-500/80">☿ Sonraki Retro</p>
-              {todaySummary.retro ? (
+            {/* Retro durumu — aktif retro daima önce; yoksa nötr "Aktif retro yok" + uzak sonraki ikincil */}
+            <div className={`rounded-xl border px-2.5 py-2 backdrop-blur-sm ${activeRetrosNow.length > 0 ? "border-rose-200/80 bg-rose-50/70" : "border-emerald-100/70 bg-emerald-50/40"}`}>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-rose-500/80">☿ Retro Durumu</p>
+              {activeRetrosNow.length > 0 ? (
                 <>
-                  <p className="text-xs font-black text-slate-900 leading-tight">{todaySummary.retro.symbol} {todaySummary.retro.planet}</p>
-                  <p className="mt-0.5 text-[10px] font-semibold text-rose-600">
-                    {todaySummary.retro.daysLeft > 0 ? `${todaySummary.retro.daysLeft} gün kaldı` : "Şu an aktif"}
+                  <p className="text-xs font-black text-slate-900 leading-tight">
+                    {activeRetrosNow.map(r => `${r.symbol} ${r.planet}`).join(", ")}
                   </p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Şu an aktif</p>
                 </>
-              ) : <p className="text-xs text-slate-400">—</p>}
+              ) : (
+                <>
+                  <p className="text-xs font-black text-emerald-600 leading-tight">Aktif retro yok</p>
+                  {todaySummary.retro && (
+                    <p className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                      Sonraki: {todaySummary.retro.symbol} {todaySummary.retro.planet}
+                      {todaySummary.retro.daysLeft > 0 ? ` · ${todaySummary.retro.daysLeft}g` : ""}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <div className="rounded-xl border border-violet-100/80 bg-violet-50/60 px-2.5 py-2 backdrop-blur-sm">
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-violet-500/80">🌙 Sonraki Ay Fazı</p>
@@ -1571,33 +1649,24 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Yaklaşan Olaylar (full-width) ── */}
-        <div className="mb-4 rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
-            {mergedUpcomingEvents.length > 8 && (
-              <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
-                {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
-              </button>
-            )}
+        {/* ── Güncel Kritik Olay Şeridi (deterministik; anlamlı olay yoksa render edilmez) ── */}
+        {criticalNow && (
+          <div
+            className={`mb-4 flex items-center gap-2.5 rounded-2xl border px-3.5 py-2 shadow-sm backdrop-blur-md ${
+              criticalNow.tone === "amber"  ? "border-amber-200/80 bg-amber-50/70"   :
+              criticalNow.tone === "violet" ? "border-violet-200/80 bg-violet-50/70" :
+              criticalNow.tone === "rose"   ? "border-rose-200/80 bg-rose-50/70"     :
+                                              "border-sky-200/80 bg-sky-50/70"
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500">⚡ Güncel</span>
+            <span className="shrink-0 text-lg leading-none" aria-hidden>{criticalNow.icon}</span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-black text-slate-900">{criticalNow.label}</span>
+            <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-500">{criticalNow.detail}</span>
           </div>
-          {mergedUpcomingEvents.length === 0 ? (
-            <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 8)).map((ev, i) => (
-                <button key={i} type="button" onClick={() => navigateToDate(ev.date)} className="flex w-full items-center gap-1.5 border-b border-slate-100/80 py-1.5 text-left transition hover:opacity-75">
-                  <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{ev.label}</span>
-                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
-                  <span className="shrink-0 w-8 text-right text-[10px] text-slate-400 tabular-nums">
-                    {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ── Ana 2-Kolon Grid ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_310px] lg:items-start">
@@ -1606,7 +1675,7 @@ export default function CosmicCalendarPage() {
           <div className="flex flex-col gap-3">
 
             {/* Kompakt Takvim */}
-            <div className="rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
+            <div id="takvim" className="scroll-mt-4 rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
               <div className="mb-1.5 flex items-center gap-2">
                 <button onClick={prevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Önceki ay">
                   <ChevronLeft className="h-3.5 w-3.5" />
@@ -1867,8 +1936,8 @@ export default function CosmicCalendarPage() {
 
           </div>
 
-          {/* ── Sağ Kolon ── */}
-          <div className="flex flex-col gap-3">
+          {/* ── Sağ Kolon (günlük bilgi paneli) ── */}
+          <div id="gezegen-saati" className="flex scroll-mt-4 flex-col gap-3">
 
             {/* Gezegen Saati mini */}
             {isSelectedToday && (
@@ -1897,32 +1966,58 @@ export default function CosmicCalendarPage() {
               </div>
             )}
 
+            {/* Ay boşluk durumu (kompakt güncel özet — ayrıntı aşağıdaki bölümde) */}
+            {vocData.cur && (
+              <div className={`rounded-2xl border px-3 py-2.5 shadow-sm backdrop-blur-md ${
+                vocData.isVoidNow ? "border-amber-200/80 bg-amber-50/70" : "border-violet-200/70 bg-white/70"
+              }`}>
+                <p className="mb-1 text-xs font-black uppercase tracking-[0.15em] text-violet-700">🌙 Ay Boşluk Durumu</p>
+                {vocData.isVoidNow ? (
+                  <>
+                    <p className="text-sm font-black text-amber-700">Şu an boşlukta</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-600">{vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-slate-500">Bitiş: {vocDateTime(vocData.cur.voidEndTR)} · {vocDuration((vocData.voidEndMs - vocData.nowMs) / 60000)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-black text-violet-700">Şu an boşlukta değil</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-600">Sonraki: {vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{vocDateTime(vocData.cur.voidStartTR)} (TR)</p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Yaklaşan Olaylar — kompakt (ilk 3-4; "Tümü" ile genişler) */}
+            <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
+                {mergedUpcomingEvents.length > 4 && (
+                  <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
+                    {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
+                  </button>
+                )}
+              </div>
+              {mergedUpcomingEvents.length === 0 ? (
+                <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
+              ) : (
+                <div className="flex flex-col">
+                  {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 4)).map((ev, i) => (
+                    <button key={i} type="button" onClick={() => navigateToDate(ev.date)} className="flex w-full items-center gap-1.5 border-b border-slate-100/80 py-1.5 text-left transition hover:opacity-75 last:border-b-0">
+                      <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{ev.label}</span>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
+                      <span className="shrink-0 w-8 text-right text-[10px] text-slate-400 tabular-nums">
+                        {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
-
-        {/* ── Kozmik Merkezler (Takvim'in hemen altında — yardımcı bağlantılar) ── */}
-        <section className="mt-6 border-t border-slate-200/70 pt-4">
-          <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
-          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
-            {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
-              <Link
-                key={title}
-                href={href}
-                className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xl leading-none">{emoji}</span>
-                  <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
-                </div>
-                <div>
-                  <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
-                  <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
-                  <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
 
         {/* ── Gezegenlerin Güncel Burç Konumları ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
@@ -1933,7 +2028,7 @@ export default function CosmicCalendarPage() {
             <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{todayMiladi}</span>
           </div>
 
-          {/* Gezegen grid */}
+          {/* Gezegen grid — retro rozeti getActiveRetros(realNow) türevidir (yeni hesap yok) */}
           <div className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-2">
             {gokyuzuRows.map(({ key, symbol, sign, signSymbol, outOfRange }) => (
               <div key={key} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/50">
@@ -1944,6 +2039,9 @@ export default function CosmicCalendarPage() {
                   ? <span className="text-xs font-semibold text-amber-500">⚠ Veri yok</span>
                   : <span className="text-sm font-black text-slate-900">{signSymbol} {sign} Burcunda</span>
                 }
+                {retroPlanetSet.has(key as PlanetName) && (
+                  <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-600" title={`${key} şu an retrograd`}>℞ Retro</span>
+                )}
               </div>
             ))}
           </div>
@@ -2229,6 +2327,115 @@ export default function CosmicCalendarPage() {
           )}
         </section>
 
+        {/* ── Ay Boşlukta mı? (FAZ 3B Adım 3) — Tutulmalar'ın üstünde (madde 20) ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-indigo-50/55 to-white/60 p-4 shadow-sm backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-700">🌙 Ay Boşlukta mı?</p>
+            <button
+              type="button"
+              onClick={() => setVocExpert(v => !v)}
+              aria-pressed={vocExpert}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                vocExpert ? "border-violet-300 bg-violet-600 text-white" : "border-violet-200/70 bg-white/70 text-violet-600 hover:bg-white"
+              }`}
+            >
+              {vocExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
+            </button>
+          </div>
+          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Klasik Void of Course Moon hesabına göre Ay&apos;ın boşlukta olduğu zaman aralıkları.</p>
+
+          {/* Şu an durumu */}
+          {vocData.cur && (
+            <div className={`mb-3 rounded-xl border px-3 py-2.5 ${
+              vocData.isVoidNow ? "border-amber-200/80 bg-amber-50/70" : "border-violet-200/70 bg-white/70"
+            }`}>
+              {vocData.isVoidNow ? (
+                <>
+                  <p className="text-sm font-black text-amber-700">🌙 Ay şu an boşlukta</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">{vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Kalan: {vocDuration((vocData.voidEndMs - vocData.nowMs) / 60000)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-black text-violet-700">Ay şu an boşlukta değil</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">Sonraki boşluk: {vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Süre: {vocData.cur.durationLabel}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {!vocExpert ? (
+            /* Normal: yaklaşan kartlar (tıklanmaz) */
+            vocData.upcoming.length > 0 && (
+              <>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {vocData.upcoming.map(p => <VocCard key={p.id} period={p} />)}
+                </div>
+              </>
+            )
+          ) : (
+            /* Uzman: filtreler + tıklanabilir kartlar */
+            <>
+              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-violet-100 bg-white/60 px-3 py-2.5">
+                {([["all", "Tümü"], ["ongoing", "Şu an"], ["upcoming", "Yaklaşan"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, scope: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.scope === k ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                <span className="mx-0.5 text-slate-300">|</span>
+                {([["all", "Süre"], ["short", "Kısa <3sa"], ["long", "Uzun ≥3sa"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, duration: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.duration === k ? "border-indigo-400 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600">
+                  <input type="checkbox" checked={vocFilters.noAspectOnly} onChange={e => setVocFilters(f => ({ ...f, noAspectOnly: e.target.checked }))} className="h-3 w-3 accent-violet-600" />
+                  Aspectsiz
+                </label>
+                <select value={vocFilters.moonSign} onChange={e => setVocFilters(f => ({ ...f, moonSign: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm burçlar</option>
+                  {vocSignsPresent.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={vocFilters.planet} onChange={e => setVocFilters(f => ({ ...f, planet: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm gezegenler</option>
+                  {VOC_CLASSICAL_BODIES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <select value={vocFilters.aspect} onChange={e => setVocFilters(f => ({ ...f, aspect: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm aspektler</option>
+                  {VOC_ASPECT_NAMES.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                {vocFiltersActive && (
+                  <button type="button" onClick={() => setVocFilters(DEFAULT_VOC_FILTERS)}
+                    className="ml-auto rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">Temizle</button>
+                )}
+              </div>
+
+              {vocFiltered.length === 0 ? (
+                <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Filtrelerle eşleşen VOC penceresi yok.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {vocFiltered.map(p => <VocCard key={p.id} period={p} onClick={() => setVocDetail(p)} />)}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Tanım etiketi */}
+          <p className="mt-3 text-[10px] leading-snug text-slate-400">
+            Hesap tanımı: klasik VOC — Ay&apos;ın Güneş, Merkür, Venüs, Mars, Jüpiter ve Satürn ile yaptığı son majör aspectten sonraki burç girişine kadar olan süre.
+            Uranüs, Neptün, Plüton, Chiron, asteroidler ve minör aspectler varsayılan hesaba dahil değildir.
+          </p>
+
+          {vocDetail && <VocDetail period={vocDetail} onClose={() => setVocDetail(null)} />}
+        </section>
+
         {/* ── Tutulmalar (FAZ 3A Adım 3+4) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-amber-100/80 bg-gradient-to-br from-amber-50/70 via-white/55 to-violet-50/70 p-4 shadow-sm backdrop-blur-md">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -2248,26 +2455,51 @@ export default function CosmicCalendarPage() {
 
           {!eclipseExpert ? (
             <>
-              {eclipseData.filter(r => r.period === "upcoming").length > 0 && (
+              {/* İlk görünüm: en yakın Güneş + Ay; "Tüm tutulmaları göster" ile genişler */}
+              {eclipseUpcoming.length > 0 ? (
                 <>
-                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan</p>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    {showAllEclipses ? "Yaklaşan" : "En yakın Güneş ve Ay tutulması"}
+                  </p>
                   <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {eclipseData.filter(r => r.period === "upcoming").map(row => {
+                    {(showAllEclipses ? eclipseUpcoming : eclipsePrimary).map(row => {
                       const b = cityVisBadge(row.vis, "Ankara");
                       return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
                     })}
                   </div>
+                  {eclipseUpcoming.length > eclipsePrimary.length && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllEclipses(v => !v)}
+                      aria-expanded={showAllEclipses}
+                      className="mb-3 rounded-full border border-amber-200 bg-white/70 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 transition hover:bg-white"
+                    >
+                      {showAllEclipses ? "Daha az göster" : `Tüm tutulmaları göster (${eclipseUpcoming.length})`}
+                    </button>
+                  )}
                 </>
+              ) : (
+                <p className="mb-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Yaklaşan tutulma bulunmuyor.</p>
               )}
-              {eclipseData.filter(r => r.period === "past").length > 0 && (
+              {/* Geçmiş tutulmalar — varsayılan kapalı */}
+              {eclipsePast.length > 0 && (
                 <>
-                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Geçmiş</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {eclipseData.filter(r => r.period === "past").map(row => {
-                      const b = cityVisBadge(row.vis, "Ankara");
-                      return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
-                    })}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPastEclipses(v => !v)}
+                    aria-expanded={showPastEclipses}
+                    className="mb-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-0.5 text-[11px] font-bold text-slate-500 transition hover:bg-white"
+                  >
+                    {showPastEclipses ? "Geçmiş tutulmaları gizle" : `Geçmiş tutulmaları göster (${eclipsePast.length})`}
+                  </button>
+                  {showPastEclipses && (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {eclipsePast.map(row => {
+                        const b = cityVisBadge(row.vis, "Ankara");
+                        return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
+                      })}
+                    </div>
+                  )}
                 </>
               )}
               <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
@@ -2440,115 +2672,6 @@ export default function CosmicCalendarPage() {
           )}
 
           {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} tz={eclipseTz} sel={resolveSelVis(eclipseDetail, selEclipseLoc)} onClose={() => setEclipseDetail(null)} />}
-        </section>
-
-        {/* ── Ay Boşlukta mı? (FAZ 3B Adım 3) ── */}
-        <section className="mb-4 overflow-hidden rounded-[18px] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-indigo-50/55 to-white/60 p-4 shadow-sm backdrop-blur-md">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-700">🌙 Ay Boşlukta mı?</p>
-            <button
-              type="button"
-              onClick={() => setVocExpert(v => !v)}
-              aria-pressed={vocExpert}
-              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
-                vocExpert ? "border-violet-300 bg-violet-600 text-white" : "border-violet-200/70 bg-white/70 text-violet-600 hover:bg-white"
-              }`}
-            >
-              {vocExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
-            </button>
-          </div>
-          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Klasik Void of Course Moon hesabına göre Ay&apos;ın boşlukta olduğu zaman aralıkları.</p>
-
-          {/* Şu an durumu */}
-          {vocData.cur && (
-            <div className={`mb-3 rounded-xl border px-3 py-2.5 ${
-              vocData.isVoidNow ? "border-amber-200/80 bg-amber-50/70" : "border-violet-200/70 bg-white/70"
-            }`}>
-              {vocData.isVoidNow ? (
-                <>
-                  <p className="text-sm font-black text-amber-700">🌙 Ay şu an boşlukta</p>
-                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">{vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Kalan: {vocDuration((vocData.voidEndMs - vocData.nowMs) / 60000)}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-black text-violet-700">Ay şu an boşlukta değil</p>
-                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">Sonraki boşluk: {vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Süre: {vocData.cur.durationLabel}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          {!vocExpert ? (
-            /* Normal: yaklaşan kartlar (tıklanmaz) */
-            vocData.upcoming.length > 0 && (
-              <>
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan</p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {vocData.upcoming.map(p => <VocCard key={p.id} period={p} />)}
-                </div>
-              </>
-            )
-          ) : (
-            /* Uzman: filtreler + tıklanabilir kartlar */
-            <>
-              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-violet-100 bg-white/60 px-3 py-2.5">
-                {([["all", "Tümü"], ["ongoing", "Şu an"], ["upcoming", "Yaklaşan"]] as const).map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, scope: k }))}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.scope === k ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
-                ))}
-                <span className="mx-0.5 text-slate-300">|</span>
-                {([["all", "Süre"], ["short", "Kısa <3sa"], ["long", "Uzun ≥3sa"]] as const).map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, duration: k }))}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.duration === k ? "border-indigo-400 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
-                ))}
-                <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600">
-                  <input type="checkbox" checked={vocFilters.noAspectOnly} onChange={e => setVocFilters(f => ({ ...f, noAspectOnly: e.target.checked }))} className="h-3 w-3 accent-violet-600" />
-                  Aspectsiz
-                </label>
-                <select value={vocFilters.moonSign} onChange={e => setVocFilters(f => ({ ...f, moonSign: e.target.value }))}
-                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                  <option value="all">Tüm burçlar</option>
-                  {vocSignsPresent.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select value={vocFilters.planet} onChange={e => setVocFilters(f => ({ ...f, planet: e.target.value }))}
-                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                  <option value="all">Tüm gezegenler</option>
-                  {VOC_CLASSICAL_BODIES.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-                <select value={vocFilters.aspect} onChange={e => setVocFilters(f => ({ ...f, aspect: e.target.value }))}
-                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                  <option value="all">Tüm aspektler</option>
-                  {VOC_ASPECT_NAMES.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-                {vocFiltersActive && (
-                  <button type="button" onClick={() => setVocFilters(DEFAULT_VOC_FILTERS)}
-                    className="ml-auto rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">Temizle</button>
-                )}
-              </div>
-
-              {vocFiltered.length === 0 ? (
-                <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Filtrelerle eşleşen VOC penceresi yok.</p>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {vocFiltered.map(p => <VocCard key={p.id} period={p} onClick={() => setVocDetail(p)} />)}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Tanım etiketi */}
-          <p className="mt-3 text-[10px] leading-snug text-slate-400">
-            Hesap tanımı: klasik VOC — Ay&apos;ın Güneş, Merkür, Venüs, Mars, Jüpiter ve Satürn ile yaptığı son majör aspectten sonraki burç girişine kadar olan süre.
-            Uranüs, Neptün, Plüton, Chiron, asteroidler ve minör aspectler varsayılan hesaba dahil değildir.
-          </p>
-
-          {vocDetail && <VocDetail period={vocDetail} onClose={() => setVocDetail(null)} />}
         </section>
 
         {/* ── Ay Yörüngesi (FAZ 3C Adım 3) ── */}
