@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import type { HdSourceRightsStatus, HdSourceType } from "@/lib/human-design/types";
 import {
+  insertHdSource,
   updateHdSource,
   deleteHdSource,
   type HdSourceRow,
@@ -53,10 +54,43 @@ function isDistributionLocked(rights: HdSourceRightsStatus): boolean {
   return rights === "restricted" || rights === "permission_pending" || rights === "unknown";
 }
 
+// Detaylı bölümün otomatik açılıp açılmayacağını belirler: kayıtta güvenli
+// varsayılanlar dışında herhangi bir detay alanı doluysa bölüm açık başlar.
+// (Yeni taslakta güvenli varsayılanlar geçerli olduğu için kapalı kalır.)
+function hasDetailedData(s: HdSourceRow): boolean {
+  return (
+    (s.source_type ?? "other") !== "other" ||
+    !!s.accessed_on ||
+    !!s.original_language_tag ||
+    !!s.original_text ||
+    !!s.faithful_translation_tr ||
+    !!s.source_specific_note ||
+    (s.rights_status ?? "unknown") !== "unknown" ||
+    !!s.permission_reference ||
+    !!s.private_use_allowed ||
+    !!s.client_report_allowed ||
+    !!s.expert_distribution_allowed ||
+    !!s.commercial_use_allowed
+  );
+}
+
 type Props = {
   source: HdSourceRow;
   onSaved: (updated: HdSourceRow) => void;
   onDeleted: (id: string) => void;
+  /**
+   * Kaydedilmemiş yeni kaynak taslağı. `true` iken "Kaynağı Kaydet" bir POST (insert)
+   * yapar ve `onCreated` ile kalıcı satırı üst bileşene bildirir; "Taslağı İptal Et"
+   * hiçbir API çağrısı yapmadan yalnız yerel taslağı kapatır (`onDiscard`).
+   * `false`/tanımsız iken davranış eskisi gibidir: PATCH + DELETE.
+   */
+  isDraft?: boolean;
+  /** Taslağı POST etmek için gerekli kayıt kimliği (yalnız isDraft iken kullanılır). */
+  recordId?: string;
+  /** Taslak kalıcı olarak oluşturulduğunda (POST başarılı) çağrılır. */
+  onCreated?: (created: HdSourceRow) => void;
+  /** Kaydedilmemiş taslak iptal edildiğinde çağrılır — API DELETE YOK. */
+  onDiscard?: () => void;
 };
 
 type FormState = {
@@ -103,13 +137,26 @@ function rowToForm(s: HdSourceRow): FormState {
   };
 }
 
-export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
+export function HdKaynakEditor({
+  source,
+  onSaved,
+  onDeleted,
+  isDraft = false,
+  recordId,
+  onCreated,
+  onDiscard,
+}: Props) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   // Aktif kaynak değişince bileşen `key` ile remount edilir (çağıran editör) →
   // form doğrudan initializer'dan yüklenir; effect içinde setState gerekmez.
   const [form, setForm] = useState<FormState>(() => rowToForm(source));
   const [saving, setSaving] = useState(false);
+  // Detaylı bölüm: yeni taslakta kapalı; mevcut kayıtta detay verisi varsa açık.
+  // Başlangıç değeri ilk `source`'tan türetilir; kullanıcı sonradan açıp kapatabilir.
+  const [showDetails, setShowDetails] = useState<boolean>(
+    () => !isDraft && hasDetailedData(source),
+  );
 
   const locked = isDistributionLocked(form.rights_status);
 
@@ -133,6 +180,8 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
       return;
     }
     setSaving(true);
+    // Detaylı bölüm kapalı olsa da form state'i (dolayısıyla gizli detay değerleri)
+    // korunur ve payload'a girer — kapatmak alanları TEMİZLEMEZ.
     const payload: HdSourceEditable = {
       source_name: form.source_name.trim(),
       source_type: form.source_type,
@@ -153,6 +202,18 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
       commercial_use_allowed: locked ? false : form.commercial_use_allowed,
       sort_order: form.sort_order,
     };
+    // Yeni taslak → POST (insert); mevcut kayıtlı kaynak → PATCH (update).
+    if (isDraft) {
+      const { id, error } = await insertHdSource(recordId ?? source.record_id, payload);
+      setSaving(false);
+      if (error || !id) {
+        showToast({ message: `Kaynak oluşturulamadı: ${error ?? ""}`, type: "error" });
+        return;
+      }
+      showToast({ message: "Kaynak oluşturuldu.", type: "success" });
+      onCreated?.({ ...source, ...payload, id } as HdSourceRow);
+      return;
+    }
     const { error } = await updateHdSource(source.id, payload);
     setSaving(false);
     if (error) {
@@ -164,6 +225,11 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
   }
 
   async function handleDelete() {
+    // Kaydedilmemiş taslak: API DELETE YOK — yalnız yerel taslağı kapat.
+    if (isDraft) {
+      onDiscard?.();
+      return;
+    }
     const ok = await confirm({
       title: "Kaynağı sil",
       message: "Bu kaynak kalıcı olarak silinecek. Emin misiniz?",
@@ -182,8 +248,12 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
 
   return (
     <div className="space-y-1">
-      {/* Künye */}
-      <p className={sectionCls}>Kaynak Künyesi</p>
+      {/* ---------- HIZLI KAYNAK KAYDI ---------- */}
+      <p className={`${sectionCls} mt-0`}>Hızlı Kaynak Kaydı</p>
+      <p className="mb-3 text-[11px] leading-snug text-slate-500">
+        Kaynağı tanımlamak için temel bilgileri girin. Özgün metin, çeviri ve kullanım
+        hakları gerektiğinde detaylı bölümü açabilirsiniz.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Kaynak Adı *</label>
@@ -191,21 +261,9 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
             type="text"
             value={form.source_name}
             onChange={(e) => setForm((p) => ({ ...p, source_name: e.target.value }))}
-            placeholder="Sekmede görünen ad"
+            placeholder="örn: Pera Akademi"
             className={`h-9 ${fieldBase}`}
           />
-        </div>
-        <div>
-          <label className={labelCls}>Kaynak Türü</label>
-          <select
-            value={form.source_type}
-            onChange={(e) => setForm((p) => ({ ...p, source_type: e.target.value as HdSourceType }))}
-            className={`h-9 ${fieldBase}`}
-          >
-            {SOURCE_TYPES.map((t) => (
-              <option key={t.code} value={t.code}>{t.label}</option>
-            ))}
-          </select>
         </div>
         <div>
           <label className={labelCls}>Yazar / Kurum</label>
@@ -213,15 +271,17 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
             type="text"
             value={form.author_or_organization}
             onChange={(e) => setForm((p) => ({ ...p, author_or_organization: e.target.value }))}
+            placeholder="örn: Elif Hoca"
             className={`h-9 ${fieldBase}`}
           />
         </div>
         <div>
-          <label className={labelCls}>Başlık (eser)</label>
+          <label className={labelCls}>Eser / Eğitim Adı</label>
           <input
             type="text"
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            placeholder="örn: Human Design Eğitimi"
             className={`h-9 ${fieldBase}`}
           />
         </div>
@@ -231,10 +291,11 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
             type="text"
             value={form.page_or_section}
             onChange={(e) => setForm((p) => ({ ...p, page_or_section: e.target.value }))}
+            placeholder="örn: 3. Ders"
             className={`h-9 ${fieldBase}`}
           />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className={labelCls}>Kaynak URL</label>
           <input
             type="text"
@@ -244,122 +305,164 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
             className={`h-9 ${fieldBase}`}
           />
         </div>
-        <div>
-          <label className={labelCls}>Erişim Tarihi</label>
-          <input
-            type="date"
-            value={form.accessed_on}
-            onChange={(e) => setForm((p) => ({ ...p, accessed_on: e.target.value }))}
-            className={`h-9 ${fieldBase}`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Özgün Dil (etiket)</label>
-          <input
-            type="text"
-            value={form.original_language_tag}
-            onChange={(e) => setForm((p) => ({ ...p, original_language_tag: e.target.value }))}
-            placeholder="örn: en, de, tr"
-            className={`h-9 ${fieldBase}`}
-          />
-        </div>
       </div>
 
-      {/* Metin katmanları */}
-      <p className={sectionCls}>Özgün Metin & Sadık Çeviri</p>
-      <div className="space-y-3">
-        <div>
-          <label className={labelCls}>Özgün Metin</label>
-          <textarea
-            value={form.original_text}
-            onChange={(e) => setForm((p) => ({ ...p, original_text: e.target.value }))}
-            rows={4}
-            placeholder="Kaynağın özgün dilindeki metni"
-            className={`${fieldBase} resize-y leading-relaxed`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Sadık Türkçe Çeviri</label>
-          <div className="mb-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-amber-800">
-            Birebir çeviri: yorum, sadeleştirme, ekleme, çıkarma veya AI açıklaması içermez.
+      {/* ---------- DETAYLI KAYNAK BİLGİLERİ (açılır-kapanır) ---------- */}
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          aria-expanded={showDetails}
+          className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left transition hover:bg-slate-50"
+        >
+          <span className="text-xs font-black uppercase tracking-widest text-indigo-700">
+            {showDetails
+              ? "Detaylı kaynak bilgilerini gizle"
+              : "Detaylı kaynak bilgilerini göster"}
+          </span>
+          <span className="shrink-0 text-slate-400">{showDetails ? "▾" : "▸"}</span>
+        </button>
+
+        {showDetails && (
+          <div className="mt-2">
+            <p className="mb-3 text-[11px] leading-snug text-slate-500">
+              Özgün metin, sadık çeviri, erişim bilgileri ve kullanım hakları gerektiğinde
+              bu bölümü kullanın.
+            </p>
+
+            {/* Künye detayları */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelCls}>Kaynak Türü</label>
+                <select
+                  value={form.source_type}
+                  onChange={(e) => setForm((p) => ({ ...p, source_type: e.target.value as HdSourceType }))}
+                  className={`h-9 ${fieldBase}`}
+                >
+                  {SOURCE_TYPES.map((t) => (
+                    <option key={t.code} value={t.code}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Erişim Tarihi</label>
+                <input
+                  type="date"
+                  value={form.accessed_on}
+                  onChange={(e) => setForm((p) => ({ ...p, accessed_on: e.target.value }))}
+                  className={`h-9 ${fieldBase}`}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Özgün Dil (etiket)</label>
+                <input
+                  type="text"
+                  value={form.original_language_tag}
+                  onChange={(e) => setForm((p) => ({ ...p, original_language_tag: e.target.value }))}
+                  placeholder="örn: en, de, tr"
+                  className={`h-9 ${fieldBase}`}
+                />
+              </div>
+            </div>
+
+            {/* Metin katmanları */}
+            <p className={sectionCls}>Özgün Metin & Sadık Çeviri</p>
+            <div className="space-y-3">
+              <div>
+                <label className={labelCls}>Özgün Metin</label>
+                <textarea
+                  value={form.original_text}
+                  onChange={(e) => setForm((p) => ({ ...p, original_text: e.target.value }))}
+                  rows={4}
+                  placeholder="Kaynağın özgün dilindeki metni"
+                  className={`${fieldBase} resize-y leading-relaxed`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Sadık Türkçe Çeviri</label>
+                <div className="mb-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-amber-800">
+                  Birebir çeviri: yorum, sadeleştirme, ekleme, çıkarma veya AI açıklaması içermez.
+                </div>
+                <textarea
+                  value={form.faithful_translation_tr}
+                  onChange={(e) => setForm((p) => ({ ...p, faithful_translation_tr: e.target.value }))}
+                  rows={4}
+                  placeholder="Özgün metnin birebir Türkçesi"
+                  className={`${fieldBase} resize-y leading-relaxed`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Kaynağa Özel Not</label>
+                <textarea
+                  value={form.source_specific_note}
+                  onChange={(e) => setForm((p) => ({ ...p, source_specific_note: e.target.value }))}
+                  rows={2}
+                  className={`${fieldBase} resize-y leading-relaxed`}
+                />
+              </div>
+            </div>
+
+            {/* Hak / kullanım */}
+            <p className={sectionCls}>Hak & Kullanım</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelCls}>Telif Durumu</label>
+                <select
+                  value={form.rights_status}
+                  onChange={(e) => setRights(e.target.value as HdSourceRightsStatus)}
+                  className={`h-9 ${fieldBase}`}
+                >
+                  {RIGHTS_STATUSES.map((r) => (
+                    <option key={r.code} value={r.code}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>İzin Referansı</label>
+                <input
+                  type="text"
+                  value={form.permission_reference}
+                  onChange={(e) => setForm((p) => ({ ...p, permission_reference: e.target.value }))}
+                  placeholder="izin no / e-posta / sözleşme"
+                  className={`h-9 ${fieldBase}`}
+                />
+              </div>
+            </div>
+            {locked && (
+              <p className="mt-2 rounded-lg border border-rose-200/80 bg-rose-50/70 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
+                Telif belirsiz/kısıtlı/izin bekliyor → yalnız özel kullanım. Rapor ve uzman dağıtımı kapalı.
+              </p>
+            )}
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {([
+                ["private_use_allowed", "Özel kullanım (private)", false],
+                ["client_report_allowed", "Danışan raporunda kullanım", true],
+                ["expert_distribution_allowed", "Uzman dağıtımı", true],
+                ["commercial_use_allowed", "Ticari kullanım", true],
+              ] as const).map(([key, label, gated]) => {
+                const disabled = gated && locked;
+                const checked = disabled ? false : form[key];
+                return (
+                  <label
+                    key={key}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold ${
+                      disabled ? "cursor-not-allowed text-slate-400" : "text-slate-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.checked }))}
+                      className="h-4 w-4 rounded border-indigo-300 accent-indigo-600 disabled:opacity-50"
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
           </div>
-          <textarea
-            value={form.faithful_translation_tr}
-            onChange={(e) => setForm((p) => ({ ...p, faithful_translation_tr: e.target.value }))}
-            rows={4}
-            placeholder="Özgün metnin birebir Türkçesi"
-            className={`${fieldBase} resize-y leading-relaxed`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Kaynağa Özel Not</label>
-          <textarea
-            value={form.source_specific_note}
-            onChange={(e) => setForm((p) => ({ ...p, source_specific_note: e.target.value }))}
-            rows={2}
-            className={`${fieldBase} resize-y leading-relaxed`}
-          />
-        </div>
-      </div>
-
-      {/* Hak / kullanım */}
-      <p className={sectionCls}>Hak & Kullanım</p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={labelCls}>Telif Durumu</label>
-          <select
-            value={form.rights_status}
-            onChange={(e) => setRights(e.target.value as HdSourceRightsStatus)}
-            className={`h-9 ${fieldBase}`}
-          >
-            {RIGHTS_STATUSES.map((r) => (
-              <option key={r.code} value={r.code}>{r.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>İzin Referansı</label>
-          <input
-            type="text"
-            value={form.permission_reference}
-            onChange={(e) => setForm((p) => ({ ...p, permission_reference: e.target.value }))}
-            placeholder="izin no / e-posta / sözleşme"
-            className={`h-9 ${fieldBase}`}
-          />
-        </div>
-      </div>
-      {locked && (
-        <p className="mt-2 rounded-lg border border-rose-200/80 bg-rose-50/70 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
-          Telif belirsiz/kısıtlı/izin bekliyor → yalnız özel kullanım. Rapor ve uzman dağıtımı kapalı.
-        </p>
-      )}
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {([
-          ["private_use_allowed", "Özel kullanım (private)", false],
-          ["client_report_allowed", "Danışan raporunda kullanım", true],
-          ["expert_distribution_allowed", "Uzman dağıtımı", true],
-          ["commercial_use_allowed", "Ticari kullanım", true],
-        ] as const).map(([key, label, gated]) => {
-          const disabled = gated && locked;
-          const checked = disabled ? false : form[key];
-          return (
-            <label
-              key={key}
-              className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold ${
-                disabled ? "cursor-not-allowed text-slate-400" : "text-slate-700"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={disabled}
-                onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.checked }))}
-                className="h-4 w-4 rounded border-indigo-300 accent-indigo-600 disabled:opacity-50"
-              />
-              {label}
-            </label>
-          );
-        })}
+        )}
       </div>
 
       {/* Aksiyonlar */}
@@ -369,7 +472,7 @@ export function HdKaynakEditor({ source, onSaved, onDeleted }: Props) {
           onClick={handleDelete}
           className="h-9 rounded-xl border border-rose-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
         >
-          Kaynağı Sil
+          {isDraft ? "Taslağı İptal Et" : "Kaynağı Sil"}
         </button>
         <button
           type="button"

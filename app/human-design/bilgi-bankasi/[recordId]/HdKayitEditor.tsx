@@ -25,12 +25,46 @@ import {
   deleteHdKnowledgeRecord,
   type HdKnowledgeRow,
 } from "../helpers/hdBilgiKayit";
-import { listHdSources, insertHdSource, type HdSourceRow } from "../helpers/hdKaynaklar";
+import { listHdSources, type HdSourceRow } from "../helpers/hdKaynaklar";
 import { HdKaynakEditor, rightsStatusLabel } from "../components/HdKaynakEditor";
 import { useUnsavedGuard } from "../../rapor-olustur/hooks/useUnsavedGuard";
 import { HdUnsavedChangesDialog } from "../../rapor-olustur/components/HdUnsavedChangesDialog";
 
 const LIST_HREF = "/human-design/bilgi-bankasi";
+
+// İstemci-tarafı kaynak taslağı için sentinel kimlik. Bu kimlikli kaynak DB'ye
+// yazılmamıştır; yalnız "Kaynağı Kaydet" ile POST edilince kalıcı olur.
+const DRAFT_SOURCE_ID = "__draft__";
+
+// Yeni kaynak taslağı — hiçbir API çağrısı YAPMADAN yerelde oluşturulur.
+function makeDraftSource(recordId: string, sortOrder: number): HdSourceRow {
+  return {
+    id: DRAFT_SOURCE_ID,
+    tenant_id: null,
+    user_id: null,
+    record_id: recordId,
+    source_name: "Yeni Kaynak",
+    source_type: "other",
+    author_or_organization: null,
+    title: null,
+    page_or_section: null,
+    source_url: null,
+    accessed_on: null,
+    original_language_tag: null,
+    original_text: null,
+    faithful_translation_tr: null,
+    source_specific_note: null,
+    rights_status: "unknown",
+    permission_reference: null,
+    private_use_allowed: false,
+    client_report_allowed: false,
+    expert_distribution_allowed: false,
+    commercial_use_allowed: false,
+    sort_order: sortOrder,
+    created_at: "",
+    updated_at: "",
+  };
+}
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -105,7 +139,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
 
   const [sources, setSources] = useState<HdSourceRow[]>([]);
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
-  const [addingSource, setAddingSource] = useState(false);
+  // Kaydedilmemiş kaynak taslağı (aynı anda en fazla bir tane).
+  const [draftSource, setDraftSource] = useState<HdSourceRow | null>(null);
 
   const [relSearch, setRelSearch] = useState("");
   const [onlySelected, setOnlySelected] = useState(false);
@@ -152,7 +187,10 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   }, [recordId, showToast]);
 
   const dirty = form !== null && JSON.stringify(form) !== snapshot;
-  useUnsavedGuard(dirty);
+  // Kayıt formu kirli VEYA açık bir kaynak taslağı varsa kaydedilmemiş iş vardır;
+  // sayfadan çıkışta uyarı ver (taslak metni sessizce kaybolmasın).
+  const hasUnsavedWork = dirty || draftSource !== null;
+  useUnsavedGuard(hasUnsavedWork);
 
   const patch = useCallback((upd: Partial<FormState>) => {
     setForm((p) => (p ? { ...p, ...upd } : p));
@@ -261,29 +299,37 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   }
 
   function requestLeave() {
-    if (dirty) {
+    if (hasUnsavedWork) {
       setLeaveOpen(true);
       return;
     }
     router.push(LIST_HREF);
   }
 
-  async function handleAddSource() {
-    setAddingSource(true);
-    const { id, error } = await insertHdSource(recordId, {
-      source_name: "Yeni Kaynak",
-      sort_order: sources.length,
-    });
-    if (error || !id) {
-      setAddingSource(false);
-      showToast({ message: `Kaynak eklenemedi: ${error ?? ""}`, type: "error" });
+  // "+ Ekle": yalnız yerel taslak açar — API POST YOK. Kalıcı kayıt "Kaynağı Kaydet"te.
+  function handleAddSource() {
+    if (draftSource) {
+      // Zaten açık bir taslak var → onu odakla (birden fazla taslak oluşturma).
+      setActiveSourceId(DRAFT_SOURCE_ID);
       return;
     }
-    const { rows } = await listHdSources(recordId);
-    setSources(rows);
-    setAddingSource(false);
-    setActiveSourceId(id);
-    showToast({ message: "Kaynak eklendi.", type: "success" });
+    setDraftSource(makeDraftSource(recordId, sources.length));
+    setActiveSourceId(DRAFT_SOURCE_ID);
+  }
+
+  // Taslak "Kaynağı Kaydet" ile POST edilip kalıcı satır döndüğünde çağrılır.
+  function handleDraftCreated(created: HdSourceRow) {
+    setSources((prev) => [...prev, created]);
+    setDraftSource(null);
+    setActiveSourceId(created.id);
+  }
+
+  // "Taslağı İptal Et" — API DELETE YOK; yalnız yerel taslağı kapat.
+  function handleDraftDiscard() {
+    setDraftSource(null);
+    setActiveSourceId((cur) =>
+      cur === DRAFT_SOURCE_ID ? sources[0]?.id ?? null : cur,
+    );
   }
 
   function handleSourceSaved(updated: HdSourceRow) {
@@ -357,7 +403,10 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   }
 
   const isStructured = getStructuredCategoryOptions(form.category) !== null;
-  const activeSource = sources.find((s) => s.id === activeSourceId) ?? null;
+  const activeIsDraft = activeSourceId === DRAFT_SOURCE_ID && draftSource !== null;
+  const activeSource = activeIsDraft
+    ? draftSource
+    : sources.find((s) => s.id === activeSourceId) ?? null;
 
   const SECTIONS: { id: SectionId; label: string; desc: string }[] = [
     { id: "content", label: "İçerik", desc: "Temel bilgiler, editöryal özet ve kişisel notlar." },
@@ -366,7 +415,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   ];
 
   return (
-    <HumanDesignShell maxWidthClass="max-w-[1600px]">
+    <HumanDesignShell maxWidthClass="max-w-[1600px]" stickyChildren>
       {/* Sticky işlem başlığı — global logo çubuğunun (fixed, --logo-h=44px, z-50)
           hemen altına sabitlenir; z-30 < z-50 olduğundan çubukla çakışmaz. */}
       <div className="sticky top-[var(--logo-h)] z-30 -mx-4 mb-4 border-b border-indigo-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
@@ -607,13 +656,14 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               <button
                 type="button"
                 onClick={handleAddSource}
-                disabled={addingSource}
+                disabled={draftSource !== null}
+                title={draftSource ? "Önce açık taslağı kaydedin veya iptal edin" : undefined}
                 className="rounded-lg border border-dashed border-indigo-300 px-2.5 py-1 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
               >
-                {addingSource ? "..." : "+ Ekle"}
+                + Ekle
               </button>
             </div>
-            {sources.length === 0 ? (
+            {sources.length === 0 && !draftSource ? (
               <p className="py-6 text-center text-xs text-slate-500">Henüz kaynak yok.</p>
             ) : (
               <ul className="space-y-1.5">
@@ -637,6 +687,29 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                     </button>
                   </li>
                 ))}
+                {draftSource && (
+                  <li key={DRAFT_SOURCE_ID}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSourceId(DRAFT_SOURCE_ID)}
+                      className={`w-full rounded-xl border border-dashed px-3 py-2 text-left transition ${
+                        activeSourceId === DRAFT_SOURCE_ID
+                          ? "border-amber-400 bg-amber-50"
+                          : "border-amber-300 bg-white hover:bg-amber-50/50"
+                      }`}
+                    >
+                      <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
+                        {draftSource.source_name?.trim() || "Yeni Kaynak"}
+                        <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">
+                          Taslak
+                        </span>
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        Henüz kaydedilmedi
+                      </p>
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
           </div>
@@ -647,8 +720,12 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               <HdKaynakEditor
                 key={activeSource.id}
                 source={activeSource}
+                isDraft={activeIsDraft}
+                recordId={recordId}
                 onSaved={handleSourceSaved}
                 onDeleted={handleSourceDeleted}
+                onCreated={handleDraftCreated}
+                onDiscard={handleDraftDiscard}
               />
             ) : (
               <p className="py-16 text-center text-sm text-slate-500">
