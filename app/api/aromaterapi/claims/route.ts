@@ -6,8 +6,73 @@ import {
   CLAIM_ERROR_HTTP,
   type CreateClaimInput,
 } from "@/lib/aromaterapi/service/claimMutations";
+import { parseListParams, isUuid } from "@/lib/aromaterapi/service/readValidation";
+import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
+import {
+  listKnowledgeRecords,
+  isSafetyTopic,
+  CLAIM_TYPES,
+  CLAIM_STATUS,
+  EVIDENCE_LAYERS,
+  RATIONALE_STATUS,
+} from "@/lib/aromaterapi/service/claimReads";
 
 export const runtime = "nodejs";
+
+/**
+ * GET /api/aromaterapi/claims — Bilgi Kayıtları (claims) tenant-scoped listesi.
+ * C3C read: mutation YAPMAZ; POST (aşağıda, C2T) sözleşmesine dokunmaz. Güvenlik
+ * (Bölüm 9): tenantId oturumdan; claim_type=safety + safety_topic + evidence
+ * filtreleriyle güvenlik görünümü. Kullanıcıya "claim" terimi gösterilmez.
+ */
+export async function GET(req: NextRequest): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const url = new URL(req.url);
+
+  // preparation_id — opsiyonel UUID filtresi.
+  const prepRaw = url.searchParams.get("preparation_id");
+  let preparationId: string | undefined;
+  if (prepRaw !== null && prepRaw !== "") {
+    if (!isUuid(prepRaw)) return readFail("AROMA_INVALID_UUID");
+    preparationId = prepRaw;
+  }
+
+  // safety_topic — dinamik (allowlist değil); yalnız biçim doğrulaması.
+  const topicRaw = url.searchParams.get("safety_topic");
+  let safetyTopic: string | undefined;
+  if (topicRaw !== null && topicRaw !== "") {
+    const t = topicRaw.trim();
+    if (t.length > 128 || !isSafetyTopic(t)) return readFail("AROMA_INVALID_FILTER");
+    safetyTopic = t;
+  }
+
+  const parsed = parseListParams(url.searchParams, {
+    sorts: {
+      updated: { column: "updated_at", ascending: false },
+      created: { column: "created_at", ascending: false },
+      type: { column: "claim_type", ascending: true },
+    },
+    filters: {
+      claim_type: { column: "claim_type", allow: CLAIM_TYPES },
+      status: { column: "status", allow: CLAIM_STATUS },
+      evidence_layer: { column: "evidence_layer", allow: EVIDENCE_LAYERS },
+      rationale_status: { column: "rationale_status", allow: RATIONALE_STATUS },
+    },
+  });
+  if (!parsed.ok) return readFail(parsed.code);
+
+  try {
+    const { rows, total } = await listKnowledgeRecords(guard.db, guard.tenantId, parsed.value, {
+      preparationId,
+      safetyTopic,
+    });
+    return readListOk(rows, parsed.value.page, parsed.value.limit, total);
+  } catch (e) {
+    return readServerError("claims:list", e);
+  }
+}
 
 /**
  * POST /api/aromaterapi/claims — Aromaterapi claim CREATE (C2T canonical yol).
