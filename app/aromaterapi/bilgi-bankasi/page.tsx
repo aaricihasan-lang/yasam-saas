@@ -251,6 +251,17 @@ export default function BilgiBankasiPage() {
 
         <AromaterapiModuleNav />
 
+        {/* C3C: Sözlük alt-görünümüne kontrollü erişim (mevcut sheet/demo davranışı değişmez). */}
+        <div className="flex justify-end">
+          <Link
+            href="/aromaterapi/bilgi-bankasi/sozluk"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-rose-200/70 bg-white/80 px-3.5 text-[12.5px] font-black text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60"
+          >
+            <span aria-hidden>📖</span>
+            Sözlük&apos;e git →
+          </Link>
+        </div>
+
         {isDemo && (
           <DemoModuleBanner message="Bilgi bankası içerikleri demo hesabında korunur. Sekme başlıkları görünür; makale içerikleri tam sürümde açılır." />
         )}

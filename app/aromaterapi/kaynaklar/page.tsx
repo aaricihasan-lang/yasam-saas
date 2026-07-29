@@ -1,49 +1,26 @@
 "use client";
 
+import { Suspense } from "react";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
-import { AromaterapiEmptyState } from "@/app/aromaterapi/_components/AromaterapiEmptyState";
-import { AromaterapiSectionSkeletonCard } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
+import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
+import { KaynaklarView } from "@/app/aromaterapi/kaynaklar/_components/KaynaklarView";
 
 /**
- * Kaynaklar — C3B görsel iskeleti.
+ * Kaynaklar — C3C tenant-scoped okuma ekranı.
  *
- * Kaynak → pasaj → sadık çeviri → editoryal açıklama/yorum provenans zincirinin
- * ev sahibi bölüm. C3B'de yalnız yapı gösterilir; okuma/arama ve içerik yönetimi
- * sonraki adımlarda etkinleşir. API çağrısı yapmaz, sahte içerik göstermez.
+ * İnce kabuk: sayfa yalnız görsel kabuğu ve okuma görünümünü bağlar; veri erişimi
+ * ayrı istemci bileşeni (KaynaklarView) ve server read API üzerindedir.
  */
 export default function KaynaklarPage() {
   return (
     <AromaterapiSectionShell
       title="Kaynaklar"
-      subtitle="Kaynak, pasaj, özgün metin, sadık çeviri ve editoryal katmanlar tek provenans zincirinde. Katmanlar birbirine karıştırılmaz."
+      subtitle="Kaynak → pasaj → sadık çeviri → editoryal açıklama/yorum provenans zinciri."
       icon="📜"
     >
-      <div className="space-y-4">
-        <AromaterapiEmptyState
-          variant="pending"
-          title="Kaynaklar hazırlanıyor"
-          message="Bu bölümün okuma ve arama bağlantıları sonraki ürünleştirme adımında etkinleştirilecektir. Aşağıda provenans zincirinin alacağı yapı görülmektedir."
-        />
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <AromaterapiSectionSkeletonCard
-            title="Özgün Kaynak Metni"
-            hint="Kaynağın birebir pasajı; künye, konum ve haklar bilgisiyle korunur."
-          />
-          <AromaterapiSectionSkeletonCard
-            title="Sadık Çeviri"
-            hint="Özgün metne doğrudan bağlı çeviri; yorum eklemez, sadeleştirmez."
-          />
-          <AromaterapiSectionSkeletonCard
-            title="Editoryal Açıklama"
-            hint="Çeviriden ayrı; okuyucuya yönelik açıklayıcı editoryal katman."
-          />
-          <AromaterapiSectionSkeletonCard
-            title="Editoryal Yorum & Uzman Notu"
-            hint="Editoryal yorum ve uzman değerlendirmesi; kaynak metinden net biçimde ayrılır."
-          />
-        </div>
-      </div>
+      <Suspense fallback={<AromaterapiListSkeleton />}>
+        <KaynaklarView />
+      </Suspense>
     </AromaterapiSectionShell>
   );
 }

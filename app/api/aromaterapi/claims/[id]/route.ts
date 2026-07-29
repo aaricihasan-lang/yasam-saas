@@ -6,10 +6,35 @@ import {
   CLAIM_ERROR_HTTP,
   type UpdateClaimInput,
 } from "@/lib/aromaterapi/service/claimMutations";
+import { isUuid } from "@/lib/aromaterapi/service/readValidation";
+import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
+import { getKnowledgeRecord } from "@/lib/aromaterapi/service/claimReads";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+/**
+ * GET /api/aromaterapi/claims/[id] — Bilgi Kaydı detay + ayrı ilişki dizileri
+ * (routes/populations/sources/passages/relations) + updated_at (optimistic
+ * concurrency). C3C read: mutation YAPMAZ; PATCH (aşağıda, C2T) sözleşmesine
+ * dokunmaz. Out-of-tenant/eksik → 404.
+ */
+export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const { id } = await ctx.params;
+  if (!isUuid(id)) return readFail("AROMA_INVALID_UUID");
+
+  try {
+    const record = await getKnowledgeRecord(guard.db, guard.tenantId, id);
+    if (!record) return readNotFound();
+    return NextResponse.json({ ok: true, record });
+  } catch (e) {
+    return readServerError("claims:detail", e);
+  }
+}
 
 /**
  * PATCH /api/aromaterapi/claims/[id] — Aromaterapi claim UPDATE (C2T canonical yol).
