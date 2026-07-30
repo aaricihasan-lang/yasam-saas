@@ -57,6 +57,15 @@ export default function BilgiKaydiDetayPage() {
     >
       {data ? (
         <div className="space-y-4">
+          {/* C3D-D: Düzenle aksiyonu (Sil aksiyonu YOK). */}
+          <div className="flex justify-end">
+            <Link
+              href={`/aromaterapi/bilgi-kayitlari/${data.id}/duzenle`}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+            >
+              ✏️ Düzenle
+            </Link>
+          </div>
           <DetailSection title="Sonuç ve Gerekçe">
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
               <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700">Sonuç</p>
