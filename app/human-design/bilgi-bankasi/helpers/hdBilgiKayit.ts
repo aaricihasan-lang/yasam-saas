@@ -39,6 +39,25 @@ export async function listHdKnowledgeRecords(): Promise<{
   return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
+export async function getHdKnowledgeRecord(
+  id: string,
+): Promise<{ row: HdKnowledgeRow | null; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/knowledge?id=${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { row: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && j.row && typeof j.row === "object") {
+    return { row: j.row as HdKnowledgeRow, error: null };
+  }
+  return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
 export async function insertHdKnowledgeRecord(
   input: Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id">,
 ): Promise<{ id: string | null; error: string | null }> {

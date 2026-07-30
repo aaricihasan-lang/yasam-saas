@@ -3,6 +3,7 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   listKnowledge,
   listKnowledgeByCodes,
+  getKnowledgeById,
   insertKnowledge,
   updateKnowledge,
   deleteKnowledge,
@@ -34,6 +35,21 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
+
+  // Tekil kayıt (tam sayfa editör derin-link/refresh) — tenant-scoped, read-only.
+  const idRaw = url.searchParams.get("id");
+  if (idRaw !== null) {
+    const id = idRaw.trim();
+    if (!id) {
+      return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400, headers: NO_STORE });
+    }
+    const { row, error } = await getKnowledgeById(guard.db, guard.tenantId, id);
+    if (error || !row) {
+      return NextResponse.json({ ok: false, error: error ?? "Kayıt bulunamadı." }, { status: 404, headers: NO_STORE });
+    }
+    return NextResponse.json({ ok: true, row }, { status: 200, headers: NO_STORE });
+  }
+
   const codesRaw = url.searchParams.get("codes");
 
   if (codesRaw !== null) {
