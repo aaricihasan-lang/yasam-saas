@@ -124,7 +124,13 @@ if (!drift) ok("D8/D9 + AUD1 + A0-A4 + adminGuard + package blob'ları origin/ma
 
 console.log("\n[H] Migration timestamp + canlı 401");
 check("20260906000000 migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql")));
-check("20260908000000 (A5B) bu turda YOK", !existsSync(resolve(ROOT, "supabase/migrations/20260908000000_yebs_concept_relation_source_mutations.sql")));
+// Kapsam izolasyonu (kalıcı-geçerli): A5A migration'ı yalnız relation mutation'larını
+// tanımlar; relation_source (D9/A5B) mutation RPC'si İÇERMEZ. A5B ayrı migration/commit.
+{
+  const a5aMig = readFileSync(resolve(ROOT, "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql"), "utf8").replace(/--.*$/gm, "");
+  check("A5A migration relation_source RPC/mutation İÇERMEZ (kapsam izolasyonu)",
+    !/CREATE (OR REPLACE )?FUNCTION public\.\w*relation_source/i.test(a5aMig) && !/(INSERT INTO|UPDATE|DELETE FROM)\s+public\.yebs_concept_relation_sources/i.test(a5aMig));
+}
 const BASE_URL = process.env.YEBS_HARNESS_BASE_URL;
 if (!BASE_URL) skipped("canlı HTTP", "YEBS_HARNESS_BASE_URL yok");
 else {
