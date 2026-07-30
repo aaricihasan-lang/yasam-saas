@@ -65,6 +65,17 @@ export function BilgiKayitlariView() {
         </div>
       ) : null}
 
+      {/* C3D-D: Yeni Bilgi Kaydı aksiyonu (görünür, baskın olmayan CTA). */}
+      <div className="flex justify-end">
+        <Link
+          href="/aromaterapi/bilgi-kayitlari/yeni"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+        >
+          <span aria-hidden>＋</span>
+          Yeni Bilgi Kaydı
+        </Link>
+      </div>
+
       <ReadListScreen<KnowledgeRecordListItem>
         loading={s.loading}
         errorCode={s.errorCode}
