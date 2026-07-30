@@ -37,7 +37,7 @@ export type HumanDesignKnowledgeRecord = {
   tags:             string[];
   sort_order:       number;
   is_active:        boolean;
-  // "Hasan Notlarım" — editöryal özet (content) ile karışmayan ayrı uzman notu.
+  // "Hasan Notlarım" — kaynaklandırılmış ana metin (content) ile karışmayan ayrı uzman notu.
   expert_notes:     string | null;
   created_at:       string;
   updated_at:       string;

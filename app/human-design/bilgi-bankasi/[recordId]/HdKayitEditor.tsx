@@ -262,11 +262,11 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       setSection("content");
       return;
     }
-    // Taslak güvenliği: aktif kayıt boş Editöryal Özet ile kaydedilemez.
+    // Taslak güvenliği: aktif kayıt boş Kaynaklandırılmış Ana Metin ile kaydedilemez.
     // Pasif (taslak) kayıt boş içerikle kaydedilebilir.
     if (form.is_active && !form.content.trim()) {
       showToast({
-        message: "Kaydı aktif etmek için Editöryal Özet alanını doldurun.",
+        message: "Kaydı aktif etmek için Kaynaklandırılmış Ana Metin alanını doldurun.",
         type: "warning",
       });
       setSection("content");
@@ -426,7 +426,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     : sources.find((s) => s.id === activeSourceId) ?? null;
 
   const SECTIONS: { id: SectionId; label: string; desc: string }[] = [
-    { id: "content", label: "İçerik", desc: "Temel bilgiler, editöryal özet ve kişisel notlar." },
+    { id: "content", label: "İçerik", desc: "Temel bilgiler, kaynaklandırılmış ana metin ve kişisel notlar." },
     { id: "sources", label: "Kaynaklar", desc: "Bu bilgiyi dayandıran kaynaklar; her biri ayrı tutulur." },
     { id: "relations", label: "İlişkiler", desc: "Bu bilgiyle bağlantılı merkez, kanal ve kapıları işaretleyin." },
   ];
@@ -618,9 +618,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>Editöryal Özet</p>
+            <p className={sectionCls}>Kaynaklandırılmış Ana Metin</p>
             <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800">
-              Birden fazla güvenilir kaynaktan doğrulanmış ortak bilgi + açıkça ayrılmış editöryal anlatım. Varsayılan danışan raporu metnini bu alan besler.
+              Kaynaklardaki anlamı, kesinlik derecesini ve teknik terminolojiyi koruyan ana rapor metnidir. Özet değildir; her önemli ifade kaynağına kadar izlenebilir olmalı, tek kaynağa özgü bilgiler açıkça kaynaklandırılmalıdır.
             </div>
             <textarea
               value={form.content}
