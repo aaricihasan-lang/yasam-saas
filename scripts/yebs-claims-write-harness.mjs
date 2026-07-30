@@ -127,8 +127,21 @@ for (const rel of FROZEN) {
 if (!drift) ok("D6/D7 + AUD1 + A0/A1/A2/A3 + adminGuard + package blob'ları origin/main ile AYNI");
 
 console.log("\n[H] Migration timestamp + canlı 401");
-check("20260828000000 migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260828000000_yebs_claim_mutations.sql")));
-check("20260830000000 (A4B) bu turda YOK", !existsSync(resolve(ROOT, "supabase/migrations/20260830000000_yebs_claim_source_mutations.sql")));
+check("20260828000000 A4A migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260828000000_yebs_claim_mutations.sql")));
+// Faz-stabil invariant (A4B'nin repoda bulunmasından BAĞIMSIZ): A4A Claims katmanı
+// Claim Source RPC/mutation/write-gate veya endpoint İÇERMEZ (sorumluluk ayrımı).
+{
+  let a4aMig = "";
+  try { a4aMig = readFileSync(resolve(ROOT, "supabase/migrations/20260828000000_yebs_claim_mutations.sql"), "utf8"); } catch { /* migration mevcut kontrolü ayrı */ }
+  check("A4A Claims migration Claim Source RPC/mutation/write-gate İÇERMEZ (faz-stabil)",
+    !/yebs_attach_claim_source|yebs_update_claim_source|yebs_remove_claim_source/.test(a4aMig)
+    && !/(INSERT INTO|UPDATE|DELETE FROM)\s+public\.yebs_claim_sources/.test(a4aMig)
+    && !/(TABLE|ON TABLE)\s+public\.yebs_claim_sources/.test(a4aMig));
+  check("A4A route/service Claim Source endpoint/mutation İÇERMEZ (faz-stabil)",
+    !/claim-sources|claimSource|yebs_claim_sources|\/sources\b/.test(S.listRoute || "")
+    && !/claim-sources|claimSource|yebs_claim_sources|\/sources\b/.test(S.detailRoute || "")
+    && !/claim-sources|claimSource|yebs_claim_sources/.test(S.mut || ""));
+}
 const BASE_URL = process.env.YEBS_HARNESS_BASE_URL;
 if (!BASE_URL) skipped("canlı HTTP", "YEBS_HARNESS_BASE_URL yok");
 else {
