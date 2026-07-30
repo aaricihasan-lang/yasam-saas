@@ -126,6 +126,18 @@ export class CombinedReconcile {
   classOf(sourceId: string): ReconRecordResult | null {
     return this.byId.get(sourceId)?.result ?? null;
   }
+
+  /**
+   * TÜM birleşik sonuçlar (identity başına kazanan sınıf + standalone). Bounded DEĞİL —
+   * byId taranan identity sayısıyla (safety cap ile) sınırlıdır. BF-11D6 apply core'un
+   * tam actionable aday listesini alması için (dry-run davranışı değişmez; salt-okuma).
+   */
+  entries(): ReconRecordResult[] {
+    const out: ReconRecordResult[] = [];
+    for (const { result } of this.byId.values()) out.push(result);
+    for (const r of this.standalone) out.push(r);
+    return out;
+  }
 }
 
 /** classification tally + bounded sample biriktirici. */
