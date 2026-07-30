@@ -93,6 +93,12 @@ export interface ReconRecordResult {
   readonly futureAction: ReconFutureAction;
   readonly sourceId: string | null;
   readonly tenantId: string | null;
+  /**
+   * Yeniden üretilen içerik hash'i — YALNIZ eligible source→index sonuçlarında
+   * (healthy/missing_index/stale_index) doldurulur; aksi undefined. BF-11D6 candidate
+   * digest güvenlik kapısı için (içerik/PII taşımaz; SHA-256 fingerprint).
+   */
+  readonly contentHash?: string;
 }
 
 // ─── Safety cap'ler (muhafazakâr; tek yerde) ──────────────────────────────────

@@ -165,6 +165,7 @@ export function decideSourceToIndex(
     reason: ReconReason,
     futureAction: ReconRecordResult["futureAction"],
     tenantId: string | null,
+    contentHash?: string,
   ): ReconRecordResult => ({
     pass: "source",
     classification,
@@ -172,6 +173,7 @@ export function decideSourceToIndex(
     futureAction,
     sourceId,
     tenantId,
+    ...(contentHash !== undefined ? { contentHash } : {}),
   });
 
   // Yalnız kaynağın KENDİ tenant'ına ait canonical index eşleşme sayılır.
@@ -204,13 +206,13 @@ export function decideSourceToIndex(
 
     case "eligible": {
       if (!hasOwnIndex) {
-        return make("missing_index", "none", "upsert", verdict.tenantId);
+        return make("missing_index", "none", "upsert", verdict.tenantId, verdict.contentHash);
       }
       // Content hash TEK OTORİTE (source_updated_at değil).
       if ((sameTenantIndex as IndexRowView).contentHash === verdict.contentHash) {
-        return make("healthy", "hash_match", "none", verdict.tenantId);
+        return make("healthy", "hash_match", "none", verdict.tenantId, verdict.contentHash);
       }
-      return make("stale_index", "hash_mismatch", "upsert", verdict.tenantId);
+      return make("stale_index", "hash_mismatch", "upsert", verdict.tenantId, verdict.contentHash);
     }
 
     default: {
