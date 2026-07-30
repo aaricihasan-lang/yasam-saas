@@ -8,11 +8,12 @@
 --   güvenli ve DEĞİŞTİRİLEMEZ (append-only) biçimde kaydedilmesi için tablo.
 --   Bu migration YALNIZCA altyapıdır; mevcut route'lara audit çağrısı EKLENMEZ.
 --
--- GÜVENLİK MODELİ (ürün kuralı #10 — default-deny):
---   1) REVOKE ALL ... FROM anon, authenticated  → anon/authenticated tam red.
---   2) ENABLE ROW LEVEL SECURITY.
---   3) Yalnız service_role policy (server API / getServerDb) yazar ve okur.
---   Browser/publishable doğrudan erişim YOK.
+-- GÜVENLİK MODELİ (ürün kuralı #10 — default-deny + least-privilege):
+--   1) REVOKE ALL ... FROM anon, authenticated, service_role → varsayılan yetki sıfır.
+--   2) GRANT SELECT, INSERT TO service_role → yalnız yaz+oku (UPDATE/DELETE YOK).
+--   3) ENABLE ROW LEVEL SECURITY + service_role policy.
+--   Browser/publishable doğrudan erişim YOK. Supabase varsayılan grant'lerine GÜVENİLMEZ
+--   (grant açıkça verilir → migration deterministik ve self-contained).
 --
 -- DEĞİŞTİRİLEMEZLİK (ürün kuralı #9 — append-only):
 --   BEFORE UPDATE / BEFORE DELETE trigger'ları her satır için exception fırlatır.
@@ -109,6 +110,12 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_actor_created
 CREATE INDEX IF NOT EXISTS idx_admin_audit_action_created
   ON public.admin_audit_log(action, created_at DESC);
 
+-- Global zaman-sıralı sorgular (global audit akışı / tarih-aralığı / retention budama).
+-- Kompozit index'ler lider kolonları (target/actor/action) nedeniyle salt created_at
+-- sıralamasını verimli karşılayamaz → ayrı index gerekir.
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created
+  ON public.admin_audit_log(created_at DESC);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Değiştirilemezlik (append-only) — UPDATE/DELETE engeli
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -133,9 +140,15 @@ CREATE TRIGGER trg_admin_audit_no_delete
   FOR EACH ROW EXECUTE FUNCTION public.admin_audit_log_prevent_mutation();
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- RLS + grant güvenliği (default-deny; yalnız service_role)
+-- RLS + grant güvenliği (default-deny + service_role least-privilege)
 -- ─────────────────────────────────────────────────────────────────────────────
-REVOKE ALL ON TABLE public.admin_audit_log FROM anon, authenticated;
+-- Supabase varsayılan yetkilerine GÜVENİLMEZ: service_role dahil tüm rollerin tablo
+-- yetkisi sıfırlanır, sonra service_role'e YALNIZ SELECT + INSERT verilir. UPDATE/DELETE
+-- verilmez → append-only grant SEVİYESİNDE de zorlanır (trigger + grant çift koruma).
+-- writeAdminAudit için gereken minimum: INSERT + SELECT (insert().select("id")).
+REVOKE ALL ON TABLE public.admin_audit_log FROM anon, authenticated, service_role;
+
+GRANT SELECT, INSERT ON TABLE public.admin_audit_log TO service_role;
 
 ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
 
@@ -150,8 +163,12 @@ COMMIT;
 -- DOĞRULAMA (uygulama sonrası, salt-okuma — beklenen):
 --   SELECT relrowsecurity FROM pg_class
 --     WHERE relnamespace='public'::regnamespace AND relname='admin_audit_log';   -- true
---   SELECT has_table_privilege('anon','public.admin_audit_log','SELECT');         -- false
---   SELECT has_table_privilege('authenticated','public.admin_audit_log','INSERT');-- false
+--   SELECT has_table_privilege('anon','public.admin_audit_log','SELECT');           -- false
+--   SELECT has_table_privilege('authenticated','public.admin_audit_log','INSERT');   -- false
+--   SELECT has_table_privilege('service_role','public.admin_audit_log','SELECT');    -- true
+--   SELECT has_table_privilege('service_role','public.admin_audit_log','INSERT');    -- true
+--   SELECT has_table_privilege('service_role','public.admin_audit_log','UPDATE');    -- false
+--   SELECT has_table_privilege('service_role','public.admin_audit_log','DELETE');    -- false
 --   SELECT count(*) FROM pg_policies
 --     WHERE schemaname='public' AND tablename='admin_audit_log';                  -- 1 (service_role)
 --   -- append-only: service_role ile UPDATE/DELETE denemesi exception vermeli.

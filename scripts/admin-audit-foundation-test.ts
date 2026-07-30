@@ -120,7 +120,7 @@ const sql = readFileSync(MIG_PATH, "utf8");
 
 ok(/create table if not exists public\.admin_audit_log/i.test(sql), "migration: tablo oluşturuluyor");
 ok(/enable row level security/i.test(sql), "migration: RLS ENABLE");
-ok(/revoke all on table public\.admin_audit_log from anon, authenticated/i.test(sql), "migration: anon/authenticated REVOKE");
+ok(/revoke all on table public\.admin_audit_log from anon, authenticated, service_role/i.test(sql), "migration: anon/authenticated/service_role REVOKE");
 ok(/create policy "service_role_admin_audit_log"[\s\S]*for all to service_role/i.test(sql), "migration: service_role policy");
 ok(/before update on public\.admin_audit_log/i.test(sql), "migration: append-only UPDATE trigger");
 ok(/before delete on public\.admin_audit_log/i.test(sql), "migration: append-only DELETE trigger");
@@ -129,6 +129,17 @@ ok(/actor_admin_id\s+uuid\s+not null/i.test(sql), "migration: actor_admin_id NOT
 ok(/idx_admin_audit_target_created/i.test(sql), "migration: target index");
 ok(/idx_admin_audit_actor_created/i.test(sql), "migration: actor index");
 ok(/idx_admin_audit_action_created/i.test(sql), "migration: action index");
+ok(/idx_admin_audit_created\s+on public\.admin_audit_log\(created_at desc\)/i.test(sql), "migration: created_at tekil index");
+
+// service_role least-privilege: GRANT yalnız SELECT + INSERT (UPDATE/DELETE/ALL YOK).
+// Yorumları hariç tutmak için yalnız GRANT ile başlayan gerçek ifade satırları filtrelenir.
+const grantLines = sql.split(/\r?\n/).filter((l) => /^\s*grant\b/i.test(l) && /service_role/i.test(l));
+ok(
+  grantLines.length === 1 &&
+    /grant\s+select,\s*insert\s+on\s+table\s+public\.admin_audit_log\s+to\s+service_role/i.test(grantLines[0]),
+  "migration: service_role grant yalnız SELECT+INSERT",
+);
+ok(!grantLines.some((l) => /\b(update|delete|all|truncate)\b/i.test(l)), "migration: service_role GRANT'inde UPDATE/DELETE/ALL yok (append-only)");
 
 const checkBlock = sql.match(/action in \(([\s\S]*?)\)\s*\)/i)?.[1] ?? "";
 for (const a of ADMIN_AUDIT_ACTIONS) {
