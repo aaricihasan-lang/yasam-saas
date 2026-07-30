@@ -145,7 +145,7 @@ for (const rel of FROZEN) {
 if (!drift) ok("A4A + D6/D7 + AUD1 + A0/A1/A2/A3 + adminGuard + package blob'ları beklenen ref ile AYNI");
 
 console.log("\n[H] Migration timestamp + canlı 401");
-check("20260830000000 migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260830000000_yebs_claim_source_mutations.sql")));
+check("20260902000000 migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260902000000_yebs_claim_source_mutations.sql")));
 check("20260828000000 A4A migration hâlâ mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260828000000_yebs_claim_mutations.sql")));
 const BASE_URL = process.env.YEBS_HARNESS_BASE_URL;
 if (!BASE_URL) skipped("canlı HTTP", "YEBS_HARNESS_BASE_URL yok");
