@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -149,6 +149,23 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const [openGates, setOpenGates] = useState(true);
 
   const [leaveOpen, setLeaveOpen] = useState(false);
+
+  // Route'a özel FIXED işlem çubuğu: global logo çubuğunun (fixed, --logo-h) altına
+  // sabitlenir. Fixed olduğu için akıştan çıkar; içeriğin altında başlaması için
+  // çubuğun GERÇEK yüksekliği kadar bir spacer üretiriz. Yükseklik masaüstü/mobil
+  // ve toolbar satır kırıldığında değiştiği için ResizeObserver ile ölçülür
+  // (kör sabit yükseklik yok).
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const measure = () => setToolbarHeight(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading, notFound]);
 
   // Kaydı ve kaynaklarını yükle
   useEffect(() => {
@@ -415,10 +432,16 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   ];
 
   return (
-    <HumanDesignShell maxWidthClass="max-w-[1600px]" stickyChildren>
-      {/* Sticky işlem başlığı — global logo çubuğunun (fixed, --logo-h=44px, z-50)
-          hemen altına sabitlenir; z-30 < z-50 olduğundan çubukla çakışmaz. */}
-      <div className="sticky top-[var(--logo-h)] z-30 -mx-4 mb-4 border-b border-indigo-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
+    <HumanDesignShell maxWidthClass="max-w-[1600px]">
+      {/* Route'a özel FIXED işlem çubuğu — viewport'a göre sabit; global logo
+          çubuğunun (fixed, --logo-h=44px, z-50) hemen altında (top:var(--logo-h)).
+          z-40 < z-50 → logoyu örtmez; içerikten yüksek. İç container sayfa
+          hizasını (max-w-[1600px] + aynı yatay padding) korur. */}
+      <div
+        ref={toolbarRef}
+        className="fixed inset-x-0 top-[var(--logo-h)] z-40 border-b border-indigo-200/70 bg-white/90 backdrop-blur-xl"
+      >
+        <div className="mx-auto w-full max-w-[1600px] px-4 py-3 lg:px-8 xl:px-10">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <button
             type="button"
@@ -491,7 +514,12 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         <p className="mt-1.5 text-xs text-slate-500">
           {SECTIONS.find((s) => s.id === section)?.desc}
         </p>
+        </div>
       </div>
+
+      {/* Dinamik spacer — fixed işlem çubuğunun ölçülen yüksekliği kadar yer ayırır,
+          böylece içerik çubuğun altında başlar (masaüstü/mobil + wrap'te otomatik). */}
+      <div aria-hidden style={{ height: toolbarHeight }} />
 
       {/* ================= İÇERİK ================= */}
       {section === "content" && (
