@@ -41,9 +41,9 @@ function pick(input: Record<string, unknown>): Record<string, unknown> {
 }
 
 // Taslak güvenliği (server savunması, "Ya doğru bilgi ya hiç"): AKTİF bir kaydın
-// Editöryal Özet (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
+// Kaynaklandırılmış Ana Metin (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
 const ACTIVE_CONTENT_ERROR =
-  "Kaydı aktif etmek için Editöryal Özet alanını doldurun.";
+  "Kaydı aktif etmek için Kaynaklandırılmış Ana Metin alanını doldurun.";
 
 function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";

@@ -69,7 +69,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       related_channels: [],
       related_gates: [],
       sort_order: form.sort_order,
-      // Taslak: yeni kayıt daima pasif oluşturulur. Editöryal Özet tamamlanınca
+      // Taslak: yeni kayıt daima pasif oluşturulur. Kaynaklandırılmış Ana Metin tamamlanınca
       // düzenleme sayfasından aktif edilir ("Ya doğru bilgi ya hiç").
       is_active: false,
       expert_notes: null,
@@ -172,7 +172,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           </div>
 
           <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
-            Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Editöryal Özet tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Editöryal Özet, Uzman Notu, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
+            Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Kaynaklandırılmış Ana Metin tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Kaynaklandırılmış Ana Metin, Uzman Notu, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
           </div>
         </div>
       </section>
