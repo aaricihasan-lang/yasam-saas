@@ -365,5 +365,51 @@ check("N10. channel_code ↔ gate_a/gate_b uyumu CHECK",
 check("N11. extension kind/key ↔ registry uyumu composite FK ile (4 FK)",
   (BODY.match(/FOREIGN KEY \(entity_id, entity_kind, canonical_key\)/g) ?? []).length === 4);
 
-console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
+// Historical HD-2C (çekirdek) sonuçları — GRUP O eklenmeden önce snapshot.
+const coreP = pass, coreF = fail;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// GRUP O — ACL migration-chain parity (ileri yönlü fix migration farkındalığı)
+// ═════════════════════════════════════════════════════════════════════════════
+// Historical HD-2C migration (20260808000000) production'a UYGULANMIŞTIR ve
+// BYTE-FOR-BYTE korunur; bu nedenle "historical migration kendi içinde service_role
+// REVOKE taşımalı" ŞARTI EKLENMEZ (bu, historical blobu bilerek FAIL ettirirdi).
+// Bunun yerine effective ACL, ileri yönlü parity migration ile zincir olarak
+// doğrulanır: yeni/temiz ortamda tüm zincir uygulandığında service_role yetkileri
+// yalnız SELECT/INSERT/UPDATE olmalıdır.
+console.log("── GRUP O: ACL migration-chain parity ──");
+const aclFiles = readdirSync(MIG_DIR).filter((f) => /_hd_canonical_service_role_acl_fix\.sql$/.test(f));
+check("O1. İleri yönlü canonical ACL parity migration mevcut (eksikse FAIL)",
+  aclFiles.length === 1);
+const ACL_RAW = aclFiles.length === 1 ? readFileSync(`${MIG_DIR}/${aclFiles[0]}`, "utf8") : "";
+const ACL_SQL = ACL_RAW
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/--[^\n]*/g, "")
+  .replace(/'(?:[^']|'')*'/g, "''");
+
+check("O2. Historical HD-2C beş tabloda service_role S/I/U grant eder (değiştirilmedi)",
+  EXPECTED_TABLES.every((t) =>
+    new RegExp(`GRANT SELECT, INSERT, UPDATE ON TABLE public\\.${t} TO service_role`).test(BODY)));
+check("O3. Historical HD-2C service_role'dan REVOKE ETMEZ (parity migration'a bırakılmıştır)",
+  !/REVOKE[^;]*FROM\s+service_role/i.test(BODY));
+
+for (const t of EXPECTED_TABLES) {
+  const rIdx = ACL_SQL.search(new RegExp(`REVOKE\\s+ALL\\s+PRIVILEGES\\s+ON\\s+TABLE\\s+public\\.${t}\\s+FROM\\s+service_role`, "i"));
+  const gIdx = ACL_SQL.search(new RegExp(`GRANT\\s+SELECT,\\s*INSERT,\\s*UPDATE\\s+ON\\s+TABLE\\s+public\\.${t}\\s+TO\\s+service_role`, "i"));
+  check(`O.${t}: parity migration REVOKE ALL PRIVILEGES FROM service_role var`, rIdx >= 0);
+  check(`O.${t}: parity migration GRANT S/I/U TO service_role var`, gIdx >= 0);
+  check(`O.${t}: REVOKE-before-GRANT (tablo bazında sıra)`, rIdx >= 0 && gIdx >= 0 && rIdx < gIdx);
+}
+check("O4. Parity migration DELETE/TRUNCATE/REFERENCES/TRIGGER grant ETMEZ",
+  !/GRANT[^;]*\b(DELETE|TRUNCATE|REFERENCES|TRIGGER)\b/i.test(ACL_SQL));
+check("O5. Parity migration GRANT ALL ETMEZ", !/GRANT\s+ALL\b/i.test(ACL_SQL));
+check("O6. Effective zincir: yeni/temiz ortamda service_role yalnız S/I/U (5/5)",
+  aclFiles.length === 1 && EXPECTED_TABLES.every((t) =>
+    new RegExp(`REVOKE\\s+ALL\\s+PRIVILEGES\\s+ON\\s+TABLE\\s+public\\.${t}\\s+FROM\\s+service_role`, "i").test(ACL_SQL) &&
+    new RegExp(`GRANT\\s+SELECT,\\s*INSERT,\\s*UPDATE\\s+ON\\s+TABLE\\s+public\\.${t}\\s+TO\\s+service_role`, "i").test(ACL_SQL)));
+
+const chainP = pass - coreP, chainF = fail - coreF;
+console.log(`\nHD-2C historical kontroller:            ${coreP} PASS / ${coreF} FAIL`);
+console.log(`ACL migration-chain/parity kontrolleri: ${chainP} PASS / ${chainF} FAIL`);
+console.log(`SONUÇ (toplam):                         ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) { console.log("FAILED:"); for (const f of fails) console.log("  - " + f); process.exit(1); }
