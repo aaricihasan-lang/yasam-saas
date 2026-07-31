@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +24,11 @@ export async function GET(
 ): Promise<Response> {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
+  const { adminId, db } = guard;
+
+  // Uzman workspace görüntüleme yalnız ANA YÖNETİCİYE açıktır (Faz 1/P1).
+  const main = await requireMainAdmin(db, adminId);
+  if (!main.ok) return NextResponse.json({ ok: false, error: main.error }, { status: main.status });
 
   const { id: expertUserId, clientId } = await params;
   if (!expertUserId || !clientId) {
@@ -30,8 +37,6 @@ export async function GET(
       { status: 400 },
     );
   }
-
-  const { db } = guard;
 
   const { data: expert, error: expertErr } = await db
     .from("users")
@@ -68,6 +73,9 @@ export async function GET(
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
+
+  const rec = await recordWorkspaceView(db, adminId, expertUserId, "client_analyses", { client_id: clientId });
+  if (!rec.ok) return NextResponse.json({ ok: false, error: rec.error }, { status: rec.status });
 
   return NextResponse.json({ ok: true, analyses: data ?? [] });
 }

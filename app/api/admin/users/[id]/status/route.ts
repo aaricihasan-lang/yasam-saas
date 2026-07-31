@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
+import { guardAdminLockoutById, requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -27,6 +27,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       { error: "Kendi hesabınız üzerinde durum değişikliği yapamazsınız." },
       { status: 400 },
     );
+  }
+
+  // Hedef bir admin ise yalnız ana yönetici durum değiştirebilir (normal admin
+  // başka admini yönetemez). Expert hedefte normal admin serbest.
+  const adminTarget = await requireMainAdminForAdminTarget(db, adminId, id);
+  if (!adminTarget.ok) {
+    return NextResponse.json({ error: adminTarget.error }, { status: adminTarget.status });
   }
 
   const body = (await req.json()) as {

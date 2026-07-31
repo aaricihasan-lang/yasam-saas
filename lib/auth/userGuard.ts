@@ -33,7 +33,7 @@ export type VerifyUserOptions = {
 
 // Varsayılan (auth) kolonları — mevcut davranış. Literal tip: supabase-js sorgu
 // sonucunu doğru çıkarabilsin (birleştirilmiş string `string`'e genişler ve tipi bozar).
-const DEFAULT_USER_SELECT = "id, tenant_id, email, active, is_demo_account" as const;
+const DEFAULT_USER_SELECT = "id, tenant_id, email, active, approval_status, is_demo_account" as const;
 
 // Profil route'u için genişletilmiş GÜVENLİ whitelist. password/password_hash YOK.
 // (app/api/auth/profile/route.ts eski PROFILE_SELECT sözleşmesiyle birebir aynı.)
@@ -136,6 +136,20 @@ export async function verifyUserRequest(
     return {
       ok: false,
       response: NextResponse.json({ error: "Yetki yok." }, { status: 403 }),
+    };
+  }
+
+  // Pending/rejected server-side engel (Faz 1/P1): onay bekleyen veya reddedilen
+  // kullanıcı korumalı uçlara erişemez. Yalnız istemci yönlendirmesine güvenilmez.
+  // approved veya (legacy) boş → serbest; pending/rejected → 403.
+  const approval = String(data.approval_status ?? "").trim().toLowerCase();
+  if (approval === "pending" || approval === "rejected") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Hesabınız henüz onaylanmadı." },
+        { status: 403 },
+      ),
     };
   }
 

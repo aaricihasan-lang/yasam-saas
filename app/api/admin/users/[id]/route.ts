@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import { isUserPremiumPackage, adminPermissionsToPayload, mapDbUser } from "@/lib/admin/userManagement";
-import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
+import {
+  guardAdminLockoutById,
+  requireMainAdmin,
+  requireMainAdminForAdminTarget,
+  resolveIsSuperAdmin,
+} from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -12,7 +17,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { adminId, db } = guard;
 
   const { id } = await ctx.params;
   if (!id) {
@@ -35,7 +40,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .eq("user_id", id)
     .order("created_at", { ascending: false });
 
-  return NextResponse.json({ user: data, paymentHistory: history ?? [] });
+  // İsteği yapan adminin ana yönetici olup olmadığı — UI ana-admine özel alanları
+  // (workspace görüntüleme) yalnız buna göre gösterir. Güvenlik SERVER'da zorlanır.
+  const viewerIsSuperAdmin = await resolveIsSuperAdmin(db, adminId);
+
+  return NextResponse.json({ user: data, paymentHistory: history ?? [], viewerIsSuperAdmin });
 }
 
 /** PATCH /api/admin/users/[id] — kullanıcı bilgileri veya modül izinleri */
@@ -47,6 +56,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params;
   if (!id) {
     return NextResponse.json({ error: "Kullanıcı ID gerekli." }, { status: 400 });
+  }
+
+  // Hedef bir admin ise yalnız ana yönetici düzenleyebilir (normal admin başka
+  // adminin kritik alanlarını / modül / lisans / rol bilgisini değiştiremez).
+  const adminTarget = await requireMainAdminForAdminTarget(db, adminId, id);
+  if (!adminTarget.ok) {
+    return NextResponse.json({ error: adminTarget.error }, { status: adminTarget.status });
   }
 
   const body = (await req.json()) as {
@@ -175,6 +191,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   // Rol yükseltme koruması: sadece 'admin' veya 'expert' kabul edilir
   const role = body.role === "admin" ? "admin" : "expert";
   const willBeActive = body.active !== false;
+
+  // Bir kullanıcıyı ADMIN yapmak (rol yükseltme) yalnız ana yöneticiye açıktır.
+  if (role === "admin") {
+    const main = await requireMainAdmin(db, adminId);
+    if (!main.ok) return NextResponse.json({ error: main.error }, { status: main.status });
+  }
 
   // Admin kendi hesabını edit ile pasifleştiremez.
   if (id === adminId && !willBeActive) {

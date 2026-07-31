@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
+import { guardAdminLockoutById, requireMainAdmin } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -42,29 +42,23 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: "Admin şifresi gerekli." }, { status: 400 });
   }
 
-  // Admin'in owner yetkisi var mı?
+  // Silme yalnız ANA YÖNETİCİYE açıktır (kalıcı is_super_admin işareti; e-posta/
+  // admin_level'a GÜVENİLMEZ — admin_level canlıda her admin için 'owner' üretir).
+  const main = await requireMainAdmin(db, adminId);
+  if (!main.ok) {
+    return NextResponse.json({ error: main.error }, { status: main.status });
+  }
+
+  // verify_admin_login için ana-adminin e-postası gerekli.
   const { data: adminRow } = await db
     .from("users")
-    .select("email, admin_level")
+    .select("email")
     .eq("id", adminId)
     .maybeSingle();
-
   if (!adminRow) {
     return NextResponse.json({ error: "Admin kaydı bulunamadı." }, { status: 403 });
   }
-
-  const adminLevel = String(adminRow.admin_level ?? "").trim().toLowerCase();
   const adminEmail = String(adminRow.email ?? "").trim().toLowerCase();
-  const OWNER_FALLBACK = "admin@yasamsistemi.com";
-  const isOwner =
-    adminLevel === "owner" || (!adminLevel && adminEmail === OWNER_FALLBACK);
-
-  if (!isOwner) {
-    return NextResponse.json(
-      { error: "Silme yetkisi yalnızca ana admine aittir." },
-      { status: 403 },
-    );
-  }
 
   // Admin şifresini server-side RPC ile doğrula (plaintext browser'a gelmez)
   const { data: verified, error: verifyErr } = await db.rpc("verify_admin_login", {

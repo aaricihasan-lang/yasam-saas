@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
 
@@ -19,7 +21,11 @@ const TABLE = "numerology_records";
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { adminId, db } = guard;
+
+  // Uzman numeroloji kayıtlarını çapraz-tenant görüntüleme yalnız ANA YÖNETİCİYE açık.
+  const main = await requireMainAdmin(db, adminId);
+  if (!main.ok) return NextResponse.json({ ok: false, error: main.error }, { status: main.status });
 
   const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim();
   if (!tenantId) return NextResponse.json({ ok: false, error: "tenantId zorunludur." }, { status: 400 });
@@ -34,6 +40,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       .maybeSingle();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    const recOne = await recordWorkspaceView(db, adminId, null, "numerology_record", { tenant_id: tenantId, record_id: id });
+    if (!recOne.ok) return NextResponse.json({ ok: false, error: recOne.error }, { status: recOne.status });
     return NextResponse.json({ ok: true, row: data });
   }
 
@@ -43,5 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false, nullsFirst: false });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  const recList = await recordWorkspaceView(db, adminId, null, "numerology_records", { tenant_id: tenantId });
+  if (!recList.ok) return NextResponse.json({ ok: false, error: recList.error }, { status: recList.status });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
