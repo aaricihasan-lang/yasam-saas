@@ -33,10 +33,23 @@ export type AdminTargetRow = {
  * is_super_admin esastır. Her iki yolda da sonuç aynı hesaba (admin@yasamsistemi.com)
  * çözülür; güvenlik farkı yoktur.
  */
+/**
+ * STRICT geçiş kapısı: REQUIRE_DB_SUPER_ADMIN_MARKER === "true" ise runtime ana-yönetici
+ * kararı YALNIZ DB işaretine (is_super_admin) dayanır; e-posta/admin_level fallback YOK.
+ * Yalnız tam string "true" strict'i açar (eksik/boş/false/TRUE/1/yes → transition).
+ * Yalnız server-side okunur. Güvenli production sırası:
+ *   1) düzeltilmiş migration apply → is_super_admin kolonu + doğru hesap canlı,
+ *   2) REQUIRE_DB_SUPER_ADMIN_MARKER=true production ENV + redeploy → transition fallback ölür.
+ */
+export function isDbSuperAdminMarkerRequired(): boolean {
+  return process.env.REQUIRE_DB_SUPER_ADMIN_MARKER === "true";
+}
+
 export async function resolveIsSuperAdmin(
   db: SupabaseClient,
   userId: string,
 ): Promise<boolean> {
+  // Ana ve esas karar kaynağı: kalıcı is_super_admin işareti.
   const primary = await db
     .from("users")
     .select("is_super_admin")
@@ -45,7 +58,19 @@ export async function resolveIsSuperAdmin(
   if (!primary.error && primary.data && typeof primary.data.is_super_admin === "boolean") {
     return primary.data.is_super_admin === true;
   }
-  // Kolon yok / hata → e-posta fallback (yalnız transition için).
+
+  // Kolon yok / DB hatası:
+  // STRICT modda e-posta/admin_level fallback YOKTUR → fail-closed false (403).
+  // Runtime hiçbir kalıcı durumda e-postaya dayanmaz.
+  if (isDbSuperAdminMarkerRequired()) {
+    return false;
+  }
+
+  // TRANSITION (ENV tam "true" değil; migration henüz uygulanmamış olabilir): yalnız
+  // mevcut ana yönetici e-postası için geçici fallback. Impersonation-safe: e-posta
+  // normalized-unique (BF-11F) + userId token-bound (verifyAdminRequest/verifyUserRequest);
+  // normal admin bu e-postaya sahip olamaz ve başkasının id'siyle çözülemez. Migration +
+  // ENV=true sonrası bu dal tamamen ölür (kolon geldiğinde primary yol kazanır).
   const fb = await db
     .from("users")
     .select("email, role")

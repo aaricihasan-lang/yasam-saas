@@ -19,6 +19,7 @@ import {
   requireMainAdminForAdminTarget,
   requireSuperAdminWorkspaceAccess,
   isSuperAdminWorkspaceViewEnabled,
+  isDbSuperAdminMarkerRequired,
   guardAdminLockout,
   OWNER_FALLBACK_EMAIL,
   type AdminTargetRow,
@@ -65,11 +66,28 @@ const SUPER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const NORMAL_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 async function run(): Promise<void> {
-// ── 1) MIGRATION SÖZLEŞMESİ ──────────────────────────────────────────────────
+// ── 1) MIGRATION SÖZLEŞMESİ (FAIL-CLOSED) ───────────────────────────────────
 const sql = readFileSync("supabase/migrations/20260913000000_users_is_super_admin.sql", "utf8");
-ok(/add column if not exists is_super_admin boolean not null default false/i.test(sql), "migration: is_super_admin NOT NULL DEFAULT false");
-ok(/update public\.users[\s\S]*set is_super_admin = true[\s\S]*admin@yasamsistemi\.com/i.test(sql), "migration: backfill admin@yasamsistemi.com");
-ok(/create unique index if not exists uq_users_single_super_admin[\s\S]*where is_super_admin = true/i.test(sql), "migration: tek-super-admin partial unique index");
+// Yorum satırlarını (--) çıkar → assertion'lar gerçek DDL/DML üzerinde çalışsın.
+const sqlCode = sql.split(/\r?\n/).filter((l) => !/^\s*--/.test(l)).join("\n");
+
+ok(/add column if not exists is_super_admin boolean not null default false/i.test(sqlCode), "migration: is_super_admin NOT NULL DEFAULT false");
+ok(/update public\.users[\s\S]*set is_super_admin = true[\s\S]*admin@yasamsistemi\.com/i.test(sqlCode), "migration: backfill admin@yasamsistemi.com");
+ok(/create unique index if not exists uq_users_single_super_admin[\s\S]*where is_super_admin = true/i.test(sqlCode), "migration: tek-super-admin partial unique index");
+// fail-closed sözleşmesi (gerçek DDL/DML'de):
+ok(/do \$\$/i.test(sqlCode), "migration: DO $$ bloğu");
+ok(/\bbegin\b[\s\S]*\bcommit\b/i.test(sqlCode), "migration: BEGIN/COMMIT transaction");
+ok(/lower\(btrim\(email\)\)\s*=\s*'admin@yasamsistemi\.com'/i.test(sqlCode), "migration: normalize e-posta");
+ok(/role\s*=\s*'admin'/i.test(sqlCode), "migration: role=admin sözleşmesi");
+ok(/select\s+count\(\*\)\s+into\s+match_count/i.test(sqlCode), "migration: match_count hesaplanır");
+ok(/if\s+match_count\s*<>\s*1\s+then[\s\S]*raise\s+exception/i.test(sqlCode), "migration: match_count<>1 → RAISE EXCEPTION");
+ok(/select\s+count\(\*\)\s+into\s+super_count/i.test(sqlCode), "migration: final super_count hesaplanır");
+ok(/if\s+super_count\s*<>\s*1\s+then[\s\S]*raise\s+exception/i.test(sqlCode), "migration: final super_count<>1 → RAISE (yanlış mevcut true fail-closed)");
+ok((sqlCode.match(/raise\s+exception/gi) ?? []).length >= 2, "migration: en az 2 fail-closed RAISE EXCEPTION");
+// güvenlik: veri/şema sınırları (gerçek DML'de)
+ok(!/^\s*(insert|delete)\s+/im.test(sqlCode), "migration: users INSERT/DELETE yok");
+ok(!/\b(password|password_hash|session|module_permissions)\b/i.test(sqlCode), "migration: password/session/module alanına dokunmuyor");
+ok(!/(grant|revoke)\s|enable\s+row\s+level\s+security/i.test(sqlCode), "migration: GRANT/REVOKE/RLS değişikliği yok");
 
 // ── 2) resolveIsSuperAdmin ──────────────────────────────────────────────────
 // (a) kolon var + true
@@ -100,6 +118,35 @@ ok(/create unique index if not exists uq_users_single_super_admin[\s\S]*where is
   });
   ok((await resolveIsSuperAdmin(db, NORMAL_ID)) === false, "resolveIsSuperAdmin: kolon yok + başka e-posta → false");
 }
+
+// ── 2b) STRICT MODE (REQUIRE_DB_SUPER_ADMIN_MARKER) — e-posta fallback kaldırma ──
+const MARK = "REQUIRE_DB_SUPER_ADMIN_MARKER";
+function setMark(v: string | undefined): void { if (v === undefined) delete process.env[MARK]; else process.env[MARK] = v; }
+setMark("true");
+ok(isDbSuperAdminMarkerRequired() === true, "strict: marker=true → required");
+for (const bad of [undefined, "", "false", "TRUE", "1", "yes", "True"]) { setMark(bad); ok(isDbSuperAdminMarkerRequired() === false, `strict: marker=${JSON.stringify(bad)} → transition`); }
+const colAbsentOwner = mockDb((t, s) => {
+  if (t === "users" && s.includes("is_super_admin")) return { error: { message: "column does not exist" } };
+  if (t === "users" && s.includes("email")) return { data: { email: OWNER_FALLBACK_EMAIL, role: "admin" } };
+  return { data: null };
+});
+// STRICT + kolon yok + owner e-posta → e-posta fallback YOK → false (fail-closed)
+setMark("true");
+ok((await resolveIsSuperAdmin(colAbsentOwner, SUPER_ID)) === false, "strict: kolon yok + owner e-posta → FALSE (fallback yok)");
+// STRICT + kolon VAR true → true (DB marker esas, ENV'den bağımsız)
+{
+  const db = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: true } } : { data: null });
+  ok((await resolveIsSuperAdmin(db, SUPER_ID)) === true, "strict: kolon var+true → true (DB marker esas)");
+}
+// STRICT + normal admin (kolon var false) → false; spoof imkânsız (kendi satırı okunur)
+{
+  const db = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: false } } : { data: { email: OWNER_FALLBACK_EMAIL, role: "admin" } });
+  ok((await resolveIsSuperAdmin(db, NORMAL_ID)) === false, "strict: normal admin (kolon false) → false (spoof yok)");
+}
+// TRANSITION (marker kapalı) + kolon yok + owner e-posta → true (deploy↔apply penceresinde kilit yok)
+setMark(undefined);
+ok((await resolveIsSuperAdmin(colAbsentOwner, SUPER_ID)) === true, "transition: kolon yok + owner e-posta → true (kilit yok)");
+setMark(undefined); // temiz
 
 // ── 3) requireMainAdmin ─────────────────────────────────────────────────────
 {
