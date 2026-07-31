@@ -44,7 +44,8 @@ const RPCS = [
 console.log("\n[B2A-A] Migration kimliği ve kapsam");
 // ============================================================
 check("A01 tek catalog_method_writers migration", migFiles.length === 1, `bulunan: ${migFiles.length}`);
-check("A02 timestamp 20260914000000", /^20260914000000_/.test(migFiles[0] || ""), migFiles[0]);
+check("A02 timestamp 20260915000000 (20260914000000 origin/main'de hd_central_content ile çakıştı)",
+  /^20260915000000_/.test(migFiles[0] || ""), migFiles[0]);
 check("A03 tek transaction (BEGIN + COMMIT)", /^BEGIN;/m.test(M) && /^COMMIT;/m.test(M));
 check("A04 CREATE OR REPLACE / DROP / DDL IF (NOT) EXISTS YOK",
   !/CREATE\s+OR\s+REPLACE/i.test(SQL) &&
@@ -164,7 +165,7 @@ try {
 } catch (e) { bad("G00 git status alınamadı", String(e)); }
 
 const ALLOWED = new Set([
-  `${MIG_DIR}/20260914000000_aromatherapy_catalog_method_writers.sql`,
+  `${MIG_DIR}/20260915000000_aromatherapy_catalog_method_writers.sql`,
   "lib/aromaterapi/service/methodCanonical.ts",
   "lib/aromaterapi/service/requestBody.ts",
   "lib/aromaterapi/service/catalogMethodMutations.ts",
@@ -182,7 +183,7 @@ const ALLOWED = new Set([
   "scripts/verify-aromatherapy-catalog-method-writers.sql",
 ]);
 const outside = changed.filter((f) => !ALLOWED.has(f));
-const oldMig = changed.filter((f) => f.startsWith(`${MIG_DIR}/`) && !/20260914000000_aromatherapy_catalog_method_writers\.sql$/.test(f));
+const oldMig = changed.filter((f) => f.startsWith(`${MIG_DIR}/`) && !/20260915000000_aromatherapy_catalog_method_writers\.sql$/.test(f));
 const oils = changed.filter((f) => /oils/i.test(f));
 const pkg = changed.filter((f) => /package(-lock)?\.json|pnpm-lock|yarn\.lock/.test(f));
 check("G01 kapsam dışı dosya = 0", outside.length === 0, outside.join(","));

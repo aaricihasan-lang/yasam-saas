@@ -1,5 +1,5 @@
 -- ============================================================
--- 20260914000000_aromatherapy_catalog_method_writers.sql
+-- 20260915000000_aromatherapy_catalog_method_writers.sql
 --
 -- Aromaterapi Bilgi Sistemi V2 — FAZ C / C3D-B2A
 --   (Katalog yazarları + Üretim/Elde Ediliş yöntem backend'i)
