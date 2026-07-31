@@ -4,6 +4,7 @@ import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createExpertTenant";
 import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
+import { requireMainAdmin } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
   const password = String(body.password ?? "").trim();
   const role: "admin" | "expert" = body.role === "admin" ? "admin" : "expert";
   const active = body.active !== false;
+
+  // Yeni admin oluşturma yalnız ANA YÖNETİCİYE açıktır (Faz 1/P1). is_super_admin
+  // client body'sinden GELMEZ ve provisionExpert kabul etmez → yeni kullanıcıda false kalır.
+  if (role === "admin") {
+    const main = await requireMainAdmin(db, guard.adminId);
+    if (!main.ok) return NextResponse.json({ error: main.error }, { status: main.status });
+  }
 
   if (!fullName || !email || !password) {
     return NextResponse.json(

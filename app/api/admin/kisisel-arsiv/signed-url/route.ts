@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { requireSuperAdminWorkspaceAccess } from "@/lib/admin/adminGuards";
+import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
 
@@ -50,6 +52,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Yetki yok." }, { status: 403 });
     }
 
+    // Uzman özel arşiv dosyası = workspace özel içeriği → yalnız ANA YÖNETİCİ (Faz 1/P1).
+    // NOT (teknik borç): bu route token-bound DEĞİL (adminUserId query'den gelir);
+    // header+token (verifyAdminRequest) modeline yükseltilmesi ayrı bir iştir.
+    const main = await requireSuperAdminWorkspaceAccess(db, adminUserId);
+    if (!main.ok) return NextResponse.json({ error: main.error }, { status: main.status });
+
     // Service role ile signed URL üret (bucket PRIVATE olsa bile çalışır)
     const { data: signed, error: signErr } = await db.storage
       .from("personal-archive")
@@ -59,6 +67,9 @@ export async function GET(request: Request) {
       console.error("[admin/kisisel-arsiv/signed-url]", signErr);
       return NextResponse.json({ error: "URL üretilemedi." }, { status: 500 });
     }
+
+    const rec = await recordWorkspaceView(db, adminUserId, null, "personal_archive");
+    if (!rec.ok) return NextResponse.json({ error: rec.error }, { status: rec.status });
 
     return NextResponse.json({ signedUrl: signed.signedUrl });
   } catch (err) {

@@ -21,7 +21,118 @@ export type AdminTargetRow = {
   admin_level?: unknown;
   email?: unknown;
   active?: unknown;
+  is_super_admin?: unknown;
 };
+
+/**
+ * Kalıcı ana-yönetici (super admin) işareti çözümü — TRANSITION-SAFE.
+ *
+ * Esas kaynak: public.users.is_super_admin (migration 20260913000000).
+ * Kolon henüz yoksa (deploy sırası) SELECT hata verir → bilinen ana-admin
+ * e-postasına (OWNER_FALLBACK_EMAIL) düşülür. Kolon geldikten sonra yalnız
+ * is_super_admin esastır. Her iki yolda da sonuç aynı hesaba (admin@yasamsistemi.com)
+ * çözülür; güvenlik farkı yoktur.
+ */
+export async function resolveIsSuperAdmin(
+  db: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const primary = await db
+    .from("users")
+    .select("is_super_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!primary.error && primary.data && typeof primary.data.is_super_admin === "boolean") {
+    return primary.data.is_super_admin === true;
+  }
+  // Kolon yok / hata → e-posta fallback (yalnız transition için).
+  const fb = await db
+    .from("users")
+    .select("email, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (fb.error || !fb.data) return false;
+  return (
+    String(fb.data.role ?? "").trim().toLowerCase() === "admin" &&
+    String(fb.data.email ?? "").trim().toLowerCase() === OWNER_FALLBACK_EMAIL
+  );
+}
+
+export type MainAdminGuardResult =
+  | { ok: true }
+  | { ok: false; status: number; error: string };
+
+/**
+ * İşlemi yapan adminin ANA YÖNETİCİ olmasını zorunlu kılar (server-side).
+ * Normal admin için 403 döner. Yalnızca gerçekten ana-admine özel işlemlerde
+ * çağrılır (admin oluşturma, rol=admin verme, silme, ana-admin hedefli kritik
+ * işlem, workspace görüntüleme).
+ */
+export async function requireMainAdmin(
+  db: SupabaseClient,
+  actorAdminId: string,
+): Promise<MainAdminGuardResult> {
+  const isSuper = await resolveIsSuperAdmin(db, actorAdminId);
+  if (!isSuper) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Bu işlem yalnızca ana yöneticiye açıktır.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sunucu feature flag'i — ana yöneticinin uzman workspace'ini görüntüleme izni
+ * yalnız tam string "true" ise açıktır. FAIL-CLOSED: eksik/boş/`false`/`TRUE`/`1`/
+ * `yes` → kapalı. Yalnız server-side okunur; client'a gönderilmez.
+ */
+export function isSuperAdminWorkspaceViewEnabled(): boolean {
+  return process.env.ALLOW_SUPER_ADMIN_WORKSPACE_VIEW === "true";
+}
+
+/**
+ * Workspace erişim kapısı (Faz 1/P1) — İKİ şart birlikte:
+ *   1) İstek yapan admin ANA YÖNETİCİ (is_super_admin=true), ve
+ *   2) ALLOW_SUPER_ADMIN_WORKSPACE_VIEW === "true".
+ * Normal admin → ENV ne olursa olsun daima 403. Ana yönetici + flag kapalı → 403.
+ * Tüm 8 workspace/özel-içerik route'u bu MERKEZİ gate'i kullanır (env kontrolü
+ * route'larda kopyalanmaz). Yayın öncesi bu istisna, flag'i kaldırarak kapatılır.
+ */
+export async function requireSuperAdminWorkspaceAccess(
+  db: SupabaseClient,
+  actorAdminId: string,
+): Promise<MainAdminGuardResult> {
+  const isSuper = await resolveIsSuperAdmin(db, actorAdminId);
+  if (!isSuper) {
+    return { ok: false, status: 403, error: "Bu işlem yalnızca ana yöneticiye açıktır." };
+  }
+  if (!isSuperAdminWorkspaceViewEnabled()) {
+    return { ok: false, status: 403, error: "Workspace görüntüleme şu anda kapalı." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Admin-hedef yönetim kısıtı: HEDEF bir admin ise (role='admin'), yalnız ANA
+ * YÖNETİCİ işlem yapabilir (normal admin başka admini yönetemez — kritik alan
+ * değiştiremez, pasifleştiremez, silemez). HEDEF expert ise normal admin serbest.
+ */
+export async function requireMainAdminForAdminTarget(
+  db: SupabaseClient,
+  actorAdminId: string,
+  targetId: string,
+): Promise<MainAdminGuardResult> {
+  const { data } = await db
+    .from("users")
+    .select("role")
+    .eq("id", targetId)
+    .maybeSingle();
+  const targetIsAdmin = String(data?.role ?? "").trim().toLowerCase() === "admin";
+  if (!targetIsAdmin) return { ok: true };
+  return requireMainAdmin(db, actorAdminId);
+}
 
 /**
  * Satır owner (sistem sahibi) admin mi?
@@ -76,11 +187,13 @@ export function guardAdminLockout(
     // Hedef hâlâ aktif admin kalıyorsa etkisizleştirme değildir.
     if (willBeActive && willBeAdmin) return { ok: true };
 
-    if (isOwnerAdminRow(target)) {
+    // Ana yönetici (super admin) mutlak korumalı: kalıcı is_super_admin işareti
+    // VEYA (transition/legacy) owner e-postası → pasifleştirilemez/düşürülemez/silinemez.
+    if (target.is_super_admin === true || isOwnerAdminRow(target)) {
       return {
         ok: false,
         status: 403,
-        error: "Sistem sahibi (owner) admin pasifleştirilemez, rolü düşürülemez veya silinemez.",
+        error: "Ana yönetici pasifleştirilemez, rolü düşürülemez veya silinemez.",
       };
     }
 
@@ -112,7 +225,10 @@ export async function guardAdminLockoutById(
     .eq("id", targetId)
     .maybeSingle();
   if (!target) return { ok: true }; // hedef yok → route kendi 404'ünü verir
-  return guardAdminLockout(db, target as AdminTargetRow, opts);
+  // is_super_admin'i AYRI ve defensive oku (kolon henüz yoksa e-posta fallback'ine
+  // düşer) — böylece ana-yönetici koruması transition sırasında da çalışır.
+  const t = { ...(target as AdminTargetRow), is_super_admin: await resolveIsSuperAdmin(db, targetId) };
+  return guardAdminLockout(db, t, opts);
 }
 
 /*

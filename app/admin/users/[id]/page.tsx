@@ -446,6 +446,8 @@ export default function AdminUserDetailPage() {
 
   const [sessionChecked, setSessionChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
+  // Yalnız ANA YÖNETİCİ workspace görüntüleme kartını görür (server de zorlar).
+  const [viewerIsSuperAdmin, setViewerIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [user, setUser] = useState<ManagedUser | null>(null);
@@ -630,8 +632,10 @@ export default function AdminUserDetailPage() {
     const json = (await res.json()) as {
       user: Record<string, unknown>;
       paymentHistory: Record<string, unknown>[];
+      viewerIsSuperAdmin?: boolean;
     };
 
+    setViewerIsSuperAdmin(json.viewerIsSuperAdmin === true);
     const row = json.user;
     setMembershipSampleRow(row);
     setCanPersistModulePermissions("module_permissions" in row);
@@ -1241,6 +1245,7 @@ export default function AdminUserDetailPage() {
               ) : null}
             </section>
 
+            {viewerIsSuperAdmin && (
             <section
               className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/95 via-white to-violet-50/70`}
             >
@@ -1259,6 +1264,7 @@ export default function AdminUserDetailPage() {
                 </div>
               </Link>
             </section>
+            )}
 
             {paymentDraft ? (
               <section
