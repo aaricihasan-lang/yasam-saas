@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { requireSuperAdminWorkspaceAccess } from "@/lib/admin/adminGuards";
 import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     // Uzman özel arşiv dosyası = workspace özel içeriği → yalnız ANA YÖNETİCİ (Faz 1/P1).
     // NOT (teknik borç): bu route token-bound DEĞİL (adminUserId query'den gelir);
     // header+token (verifyAdminRequest) modeline yükseltilmesi ayrı bir iştir.
-    const main = await requireMainAdmin(db, adminUserId);
+    const main = await requireSuperAdminWorkspaceAccess(db, adminUserId);
     if (!main.ok) return NextResponse.json({ error: main.error }, { status: main.status });
 
     // Service role ile signed URL üret (bucket PRIVATE olsa bile çalışır)

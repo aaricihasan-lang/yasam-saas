@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { requireSuperAdminWorkspaceAccess } from "@/lib/admin/adminGuards";
 import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
@@ -27,7 +27,7 @@ export async function GET(
   const { adminId, db } = guard;
 
   // Uzman workspace görüntüleme yalnız ANA YÖNETİCİYE açıktır (Faz 1/P1).
-  const main = await requireMainAdmin(db, adminId);
+  const main = await requireSuperAdminWorkspaceAccess(db, adminId);
   if (!main.ok) return NextResponse.json({ ok: false, error: main.error }, { status: main.status });
 
   const { id: expertUserId, clientId } = await params;

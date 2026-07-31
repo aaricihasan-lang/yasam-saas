@@ -17,6 +17,8 @@ import {
   resolveIsSuperAdmin,
   requireMainAdmin,
   requireMainAdminForAdminTarget,
+  requireSuperAdminWorkspaceAccess,
+  isSuperAdminWorkspaceViewEnabled,
   guardAdminLockout,
   OWNER_FALLBACK_EMAIL,
   type AdminTargetRow,
@@ -175,6 +177,46 @@ const noDb = mockDb(() => ({ data: null }));
   const r = await recordWorkspaceView(db, SUPER_ID, null, "x", { email: "danisan@x.com" });
   ok(r.ok === false && r.status === 500, "recordWorkspaceView: yasaklı PII → fail-closed 500");
   ok(ins.calls === 0, "recordWorkspaceView: yasaklı PII → insert 0");
+}
+
+// ── 7) WORKSPACE FEATURE FLAG (fail-closed) ─────────────────────────────────
+const superDbFlag = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: true } } : { data: null });
+const normalDbFlag = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: false } } : { data: null });
+const ENV = "ALLOW_SUPER_ADMIN_WORKSPACE_VIEW";
+function setEnv(v: string | undefined): void { if (v === undefined) delete process.env[ENV]; else process.env[ENV] = v; }
+
+// yalnız tam "true" + super → ok
+setEnv("true");
+ok(isSuperAdminWorkspaceViewEnabled() === true, "flag: env=true → enabled");
+ok((await requireSuperAdminWorkspaceAccess(superDbFlag, SUPER_ID)).ok === true, "workspace: super + env=true → ok");
+{ const r = await requireSuperAdminWorkspaceAccess(normalDbFlag, NORMAL_ID); ok(r.ok === false && r.status === 403, "workspace: normal admin + env=true → 403"); }
+
+// eksik / boş / false / TRUE / 1 / yes → super olsa bile 403
+for (const bad of [undefined, "", "false", "TRUE", "1", "yes", "True", " true "]) {
+  setEnv(bad);
+  ok(isSuperAdminWorkspaceViewEnabled() === false, `flag: env=${JSON.stringify(bad)} → disabled`);
+  const r = await requireSuperAdminWorkspaceAccess(superDbFlag, SUPER_ID);
+  ok(r.ok === false && r.status === 403, `workspace: super + env=${JSON.stringify(bad)} → 403 (fail-closed)`);
+}
+setEnv(undefined); // temizle
+
+// env kontrolü MERKEZİ: helper'da var, 8 route'ta kopyalanmamış
+const guardsSrc = readFileSync("lib/admin/adminGuards.ts", "utf8");
+ok(guardsSrc.includes("ALLOW_SUPER_ADMIN_WORKSPACE_VIEW"), "flag: merkezi helper env'i okur");
+const wsRoutes = [
+  "app/api/admin/users/[id]/workspace/clients/route.ts",
+  "app/api/admin/users/[id]/workspace/clients/[clientId]/route.ts",
+  "app/api/admin/users/[id]/workspace/clients/[clientId]/analyses/route.ts",
+  "app/api/admin/users/[id]/workspace/clients/[clientId]/notes/route.ts",
+  "app/api/admin/users/[id]/workspace/clients/[clientId]/homeworks/route.ts",
+  "app/api/admin/users/[id]/workspace/appointments/route.ts",
+  "app/api/admin/numeroloji/records/route.ts",
+  "app/api/admin/kisisel-arsiv/signed-url/route.ts",
+];
+for (const rf of wsRoutes) {
+  const src = readFileSync(rf, "utf8");
+  ok(!src.includes("ALLOW_SUPER_ADMIN_WORKSPACE_VIEW"), `flag: route env kopyası yok — ${rf.split("/").slice(-2).join("/")}`);
+  ok(src.includes("requireSuperAdminWorkspaceAccess"), `flag: route merkezi gate'i kullanır — ${rf.split("/").slice(-2).join("/")}`);
 }
 
 // ── SONUÇ ───────────────────────────────────────────────────────────────────

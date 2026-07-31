@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { requireSuperAdminWorkspaceAccess } from "@/lib/admin/adminGuards";
 import { recordWorkspaceView } from "@/lib/admin/workspaceAudit";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { adminId, db } = guard;
 
   // Uzman numeroloji kayıtlarını çapraz-tenant görüntüleme yalnız ANA YÖNETİCİYE açık.
-  const main = await requireMainAdmin(db, adminId);
+  const main = await requireSuperAdminWorkspaceAccess(db, adminId);
   if (!main.ok) return NextResponse.json({ ok: false, error: main.error }, { status: main.status });
 
   const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim();

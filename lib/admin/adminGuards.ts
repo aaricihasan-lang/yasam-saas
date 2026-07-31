@@ -84,6 +84,37 @@ export async function requireMainAdmin(
 }
 
 /**
+ * Sunucu feature flag'i — ana yöneticinin uzman workspace'ini görüntüleme izni
+ * yalnız tam string "true" ise açıktır. FAIL-CLOSED: eksik/boş/`false`/`TRUE`/`1`/
+ * `yes` → kapalı. Yalnız server-side okunur; client'a gönderilmez.
+ */
+export function isSuperAdminWorkspaceViewEnabled(): boolean {
+  return process.env.ALLOW_SUPER_ADMIN_WORKSPACE_VIEW === "true";
+}
+
+/**
+ * Workspace erişim kapısı (Faz 1/P1) — İKİ şart birlikte:
+ *   1) İstek yapan admin ANA YÖNETİCİ (is_super_admin=true), ve
+ *   2) ALLOW_SUPER_ADMIN_WORKSPACE_VIEW === "true".
+ * Normal admin → ENV ne olursa olsun daima 403. Ana yönetici + flag kapalı → 403.
+ * Tüm 8 workspace/özel-içerik route'u bu MERKEZİ gate'i kullanır (env kontrolü
+ * route'larda kopyalanmaz). Yayın öncesi bu istisna, flag'i kaldırarak kapatılır.
+ */
+export async function requireSuperAdminWorkspaceAccess(
+  db: SupabaseClient,
+  actorAdminId: string,
+): Promise<MainAdminGuardResult> {
+  const isSuper = await resolveIsSuperAdmin(db, actorAdminId);
+  if (!isSuper) {
+    return { ok: false, status: 403, error: "Bu işlem yalnızca ana yöneticiye açıktır." };
+  }
+  if (!isSuperAdminWorkspaceViewEnabled()) {
+    return { ok: false, status: 403, error: "Workspace görüntüleme şu anda kapalı." };
+  }
+  return { ok: true };
+}
+
+/**
  * Admin-hedef yönetim kısıtı: HEDEF bir admin ise (role='admin'), yalnız ANA
  * YÖNETİCİ işlem yapabilir (normal admin başka admini yönetemez — kritik alan
  * değiştiremez, pasifleştiremez, silemez). HEDEF expert ise normal admin serbest.

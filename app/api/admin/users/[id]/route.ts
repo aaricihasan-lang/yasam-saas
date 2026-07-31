@@ -7,6 +7,7 @@ import {
   requireMainAdmin,
   requireMainAdminForAdminTarget,
   resolveIsSuperAdmin,
+  isSuperAdminWorkspaceViewEnabled,
 } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
@@ -40,9 +41,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .eq("user_id", id)
     .order("created_at", { ascending: false });
 
-  // İsteği yapan adminin ana yönetici olup olmadığı — UI ana-admine özel alanları
-  // (workspace görüntüleme) yalnız buna göre gösterir. Güvenlik SERVER'da zorlanır.
-  const viewerIsSuperAdmin = await resolveIsSuperAdmin(db, adminId);
+  // UI workspace kartını yalnız (ana yönetici VE flag açık) ise gösterir — server-derived
+  // capability. `viewerIsSuperAdmin` alanı bu iki koşulun birleşimini taşır; flag kapalıysa
+  // ana yönetici de kartı görmez (false-success önlenir). Güvenlik ayrıca SERVER'da zorlanır.
+  const viewerIsSuperAdmin =
+    (await resolveIsSuperAdmin(db, adminId)) && isSuperAdminWorkspaceViewEnabled();
 
   return NextResponse.json({ user: data, paymentHistory: history ?? [], viewerIsSuperAdmin });
 }
