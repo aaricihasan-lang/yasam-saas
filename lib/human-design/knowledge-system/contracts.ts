@@ -316,3 +316,33 @@ export function validateHdChannelContract(c: Partial<HdChannelContract>): string
   }
   return problems;
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// FAZ-2 ADDİTİF — Merkezî içerik hattı köprü sözleşmeleri
+// ============================================================================
+// Mevcut HD-2B tenant-bağımsız içerik sözleşmeleri (yukarısı) DEĞİŞTİRİLMEZ.
+// Fiziksel merkezî şema/tip/persistence AYRI dosyalardadır
+// (lib/human-design/admin/centralContent*). Burada yalnız iki katman arasındaki
+// kararlı köprü değerleri additif olarak ilan edilir (kaynak evidence ilişki
+// türü + sadık çeviri durumu). Bunlar migration CHECK'leriyle birebir olmalıdır.
+
+/** İçerik ↔ kaynak pasajı evidence ilişki türü (hd_content_evidence.relation_type). */
+export type HdEvidenceRelationType =
+  | "supports"
+  | "contradicts"
+  | "school_specific"
+  | "background";
+
+export const HD_EVIDENCE_RELATION_TYPES: readonly HdEvidenceRelationType[] = [
+  "supports",
+  "contradicts",
+  "school_specific",
+  "background",
+];
+
+/** Sadık çeviri yayın durumu (hd_faithful_translations.status). */
+export type HdFaithfulTranslationStatus = "draft" | "verified" | "archived";
+
+export function isHdEvidenceRelationType(v: unknown): v is HdEvidenceRelationType {
+  return typeof v === "string" && (HD_EVIDENCE_RELATION_TYPES as readonly string[]).includes(v);
+}
