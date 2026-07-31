@@ -7,7 +7,7 @@ import { dirname, resolve } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
-const MIG = resolve(ROOT, "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql");
+const MIG = resolve(ROOT, "supabase/migrations/20260907000000_yebs_concept_relation_mutations.sql");
 
 let pass = 0, fail = 0, skip = 0;
 const failures = [];
