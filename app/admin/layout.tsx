@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
 
@@ -31,5 +32,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (!data) redirect("/");
 
-  return <>{children}</>;
+  return (
+    <>
+      {/* Admin navigation — Human Design merkezî içerik yönetimi bağlantısı (tek). */}
+      <nav className="border-b border-slate-200 bg-white/80 px-4 py-1.5 text-xs">
+        <Link href="/admin/human-design" className="font-semibold text-indigo-700 hover:underline">
+          Human Design İçerik Yönetimi
+        </Link>
+      </nav>
+      {children}
+    </>
+  );
 }
