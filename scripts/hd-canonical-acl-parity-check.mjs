@@ -3,7 +3,7 @@
  * =====================================================
  *
  * DETERMİNİSTİK, SALT-OKUNUR, DB'SİZ. Yalnız ileri yönlü parity migration'ını
- * (20260906000000_hd_canonical_service_role_acl_fix.sql) denetler.
+ * (20260909000000_hd_canonical_service_role_acl_fix.sql) denetler.
  *
  * Amaç: production'da manuel uygulanan service_role ACL düzeltmesinin repository
  * karşılığının, beş canonical tabloda "önce REVOKE ALL PRIVILEGES FROM service_role,
@@ -23,7 +23,7 @@ function check(desc, cond) {
   else { fail++; fails.push(desc); console.log(`  FAIL  ${desc}`); }
 }
 
-const EXPECTED_NAME = "20260906000000_hd_canonical_service_role_acl_fix.sql";
+const EXPECTED_NAME = "20260909000000_hd_canonical_service_role_acl_fix.sql";
 const TABLES = [
   "hd_canonical_entities",
   "hd_canonical_types",
