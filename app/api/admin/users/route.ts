@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
-import { createTenantForNewUser, deleteTenantById } from "@/lib/auth/createExpertTenant";
+import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createExpertTenant";
+import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
   const fullName = String(body.fullName ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "").trim();
-  const role = body.role === "admin" ? "admin" : "expert";
+  const role: "admin" | "expert" = body.role === "admin" ? "admin" : "expert";
   const active = body.active !== false;
 
   if (!fullName || !email || !password) {
@@ -64,74 +65,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // E-posta tekrar kontrolü — DB unique constraint öncesi hızlı kontrol
-  const { data: existing } = await db
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "Bu e-posta adresi zaten kayıtlı." },
-      { status: 409 },
-    );
-  }
-
-  // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC)
+  // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", {
     p_plain: password,
   });
-
   if (hashError || !hashResult) {
-    return NextResponse.json(
-      { error: "Şifre hashlenemedi: " + (hashError?.message ?? "bilinmeyen hata") },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Şifre hashlenemedi." }, { status: 500 });
   }
 
-  const tenantResult = await createTenantForNewUser({ fullName, email });
-  if (!tenantResult.ok) {
-    return NextResponse.json(
-      { error: "Çalışma alanı oluşturulamadı: " + tenantResult.error },
-      { status: 500 },
-    );
-  }
-
-  const tenantId = tenantResult.tenantId;
-  const now = new Date();
-  const trialEnds = new Date(now);
-  trialEnds.setDate(trialEnds.getDate() + 7);
-
-  const payload: Record<string, unknown> = {
-    full_name: fullName,
+  // BF-11F-B: tenant+user+admin_audit_log TEK atomik `provision_expert` transaction'ında;
+  // route tenant/users INSERT veya rollback YAPMAZ. Mevcut rol/active/default davranışı
+  // korunur (admin: DB default'lar; expert: module_permissions + trial). actor_admin_id
+  // client body'sinden DEĞİL, admin guard'dan gelir.
+  const result = await provisionExpert(db, {
+    mode: "admin",
     email,
-    password_hash: hashResult as string,
+    passwordHash: hashResult as string,
+    fullName,
+    tenantName: buildTenantDisplayName(fullName, email),
+    tenantSlugBase: buildTenantSlugBase(fullName, email),
     role,
     active,
-    approval_status: active ? "approved" : "pending",
-    tenant_id: tenantId,
-  };
+    actorAdminId: guard.adminId,
+    ...(role === "expert" ? { modulePermissions: DEFAULT_MODULE_PERMISSIONS } : {}),
+  });
 
-  if (role === "expert") {
-    payload.module_permissions = DEFAULT_MODULE_PERMISSIONS;
-    if (active) {
-      payload.plan = "trial";
-      payload.subscription_status = "trial";
-      payload.trial_started_at = now.toISOString();
-      payload.trial_ends_at = trialEnds.toISOString();
-    }
+  if (result.ok) {
+    return NextResponse.json({ ok: true });
   }
-
-  const { error: insertError } = await db.from("users").insert(payload);
-
-  if (insertError) {
-    await deleteTenantById(tenantId);
-    return NextResponse.json(
-      { error: "Kayıt hatası: " + insertError.message },
-      { status: 500 },
-    );
+  if (result.outcome === "already_exists") {
+    return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı." }, { status: 409 });
   }
-
-  return NextResponse.json({ ok: true });
+  if (result.outcome === "idempotency_key_conflict") {
+    return NextResponse.json({ error: "İşlem kimliği çakışması." }, { status: 409 });
+  }
+  return NextResponse.json({ error: "Kayıt oluşturulamadı." }, { status: 500 });
 }

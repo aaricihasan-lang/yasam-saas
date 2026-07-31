@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
-import { createTenantForNewUser, deleteTenantById } from "@/lib/auth/createExpertTenant";
+import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createExpertTenant";
+import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 
 export const runtime = "nodejs";
@@ -8,9 +9,11 @@ export const runtime = "nodejs";
 /**
  * POST /api/register
  *
- * Public kayıt endpoint — kullanıcı kendi hesabını oluşturur.
- * RLS nedeniyle client-side insert artık çalışmaz; bu route service_role kullanır.
- * Şifre server-side bcrypt ile hashlenir.
+ * Public kayıt endpoint — kullanıcı kendi hesabını oluşturur (service_role).
+ * BF-11F-B: tenant+user artık atomik `provision_expert` RPC'sinde oluşturulur;
+ * bu route tenant/users INSERT veya rollback YAPMAZ. Şifre server-side bcrypt ile
+ * hashlenir (hash_password RPC — DB mutasyonu değildir). Public kayıt DEĞİŞMEZ
+ * biçimde: role=expert, active=false, approval_status=pending (RPC server-forced).
  */
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as {
@@ -24,10 +27,7 @@ export async function POST(req: NextRequest) {
   const password = String(body.password ?? "").trim();
 
   if (!fullName || !email || !password) {
-    return NextResponse.json(
-      { error: "Tüm alanları doldurunuz." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Tüm alanları doldurunuz." }, { status: 400 });
   }
 
   let db: ReturnType<typeof getServerDb>;
@@ -37,69 +37,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
   }
 
-  // E-posta tekrar kontrolü
-  const { data: existing } = await db
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "Bu e-posta adresi zaten kayıtlı." },
-      { status: 409 },
-    );
+  // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
+  const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
+  if (hashError || !hashResult) {
+    return NextResponse.json({ error: "Şifre işlenemedi." }, { status: 500 });
   }
 
-  // Şifreyi server-side bcrypt ile hashle
-  const { data: hashResult, error: hashError } = await db.rpc("hash_password", {
-    p_plain: password,
+  // Atomik provisioning (tenant+user+event TEK transaction). E-posta tekilliği +
+  // race güvenliği DB'de (UNIQUE normalized email); orphan tenant üretilmez.
+  const result = await provisionExpert(db, {
+    mode: "public",
+    email,
+    passwordHash: hashResult as string,
+    fullName,
+    tenantName: buildTenantDisplayName(fullName, email),
+    tenantSlugBase: buildTenantSlugBase(fullName, email),
+    modulePermissions: DEFAULT_MODULE_PERMISSIONS,
   });
 
-  if (hashError || !hashResult) {
-    return NextResponse.json(
-      { error: "Şifre işlenemedi: " + (hashError?.message ?? "bilinmeyen hata") },
-      { status: 500 },
-    );
+  if (result.ok) {
+    return NextResponse.json({ ok: true });
   }
-
-  const tenantResult = await createTenantForNewUser({ fullName, email });
-  if (!tenantResult.ok) {
-    return NextResponse.json(
-      { error: tenantResult.error },
-      { status: 500 },
-    );
+  if (result.outcome === "already_exists") {
+    return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı." }, { status: 409 });
   }
-
-  const tenantId = tenantResult.tenantId;
-  const now = new Date();
-  const trialEnds = new Date(now);
-  trialEnds.setDate(trialEnds.getDate() + 7);
-
-  const { error: insertError } = await db.from("users").insert([
-    {
-      full_name: fullName,
-      email,
-      password_hash: hashResult as string,
-      role: "expert",
-      active: false,
-      approval_status: "pending",
-      module_permissions: DEFAULT_MODULE_PERMISSIONS,
-      tenant_id: tenantId,
-      plan: "trial",
-      subscription_status: "trial",
-      trial_started_at: now.toISOString(),
-      trial_ends_at: trialEnds.toISOString(),
-    },
-  ]);
-
-  if (insertError) {
-    await deleteTenantById(tenantId);
-    return NextResponse.json(
-      { error: insertError.message },
-      { status: 500 },
-    );
+  if (result.outcome === "idempotency_key_conflict") {
+    return NextResponse.json({ error: "İşlem kimliği çakışması." }, { status: 409 });
   }
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ error: "Kayıt oluşturulamadı." }, { status: 500 });
 }

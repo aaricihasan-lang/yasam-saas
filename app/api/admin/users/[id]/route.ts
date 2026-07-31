@@ -202,8 +202,16 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     active: willBeActive,
   };
 
+  // BF-11F-B: e-posta normalized-unique index (users_email_normalized_uidx) ile aynı
+  // kanonik sözleşme; case/whitespace varyantı çakışması unique_violation (23505) verir.
+  // Ham DB hatası kullanıcıya SIZDIRILMAZ; çakışma 409'a, diğer hatalar generic 500'e maplenir.
   const { error } = await db.from("users").update(updatePayload).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı." }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Kullanıcı güncellenemedi." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
