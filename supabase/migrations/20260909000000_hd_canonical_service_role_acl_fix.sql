@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20260906000000_hd_canonical_service_role_acl_fix.sql
+-- 20260909000000_hd_canonical_service_role_acl_fix.sql
 --
 -- HUMAN DESIGN — HD-2C · CANONICAL STORE SERVICE_ROLE ACL PARITY (additif, dar kapsam)
 --
