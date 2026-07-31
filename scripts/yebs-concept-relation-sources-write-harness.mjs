@@ -103,8 +103,13 @@ if (Object.keys(S).length === 3) {
 
 console.log("\n[G] A5A + D8/D9 + AUD1 + A0/A1/A2/A3/A4 + adminGuard + package git-blob DEĞİŞMEZLİĞİ");
 const A5A_COMMIT = "833e8f7fe33cff6a731539c144cfc342ed6e802f";
+// A5A migration timestamp collision fix (PR#97 HD ile 20260906000000 çakışması) sonrası
+// A5A migration 20260906000000 → 20260907000000 olarak RENAME edildi (içerik/blob AYNI).
+// A5A_COMMIT (833e8f7) ağacında hâlâ eski path'te; değişmezlik eski path blob'una bakar.
+const A5A_MIG_NEW = "supabase/migrations/20260907000000_yebs_concept_relation_mutations.sql";
+const A5A_MIG_OLD = "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql";
 const A5A_FILES = new Set([
-  "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql",
+  A5A_MIG_NEW,
   "app/api/admin/yebs/relations/route.ts",
   "app/api/admin/yebs/relations/[id]/route.ts",
   "lib/yebs/service/conceptRelations.ts",
@@ -136,17 +141,21 @@ function gitBlob(ref, path) {
 }
 let drift = false;
 for (const rel of FROZEN) {
-  const head = gitBlob("HEAD", rel);
+  // "Güncel" taraf: HEAD değil INDEX (staged) blob'u — rename commit'ten önce de
+  // doğru görülsün (git rev-parse :path). Değişmemiş dosyalarda index == HEAD.
+  const head = gitBlob("", rel);
   const ref = A5A_FILES.has(rel) ? A5A_COMMIT : "origin/main";
-  const base = gitBlob(ref, rel);
-  if (base === null) { skipped(`blob ${rel}`, `${ref}'de yok`); continue; }
-  if (base !== head) { bad(`DEĞİŞMEZLİK ihlali: ${rel} (${ref})`); drift = true; }
+  // A5A migration A5A_COMMIT ağacında eski path'te; rename-farkındalı bakış.
+  const basePath = (ref === A5A_COMMIT && rel === A5A_MIG_NEW) ? A5A_MIG_OLD : rel;
+  const base = gitBlob(ref, basePath);
+  if (base === null) { skipped(`blob ${rel}`, `${ref}:${basePath}'de yok`); continue; }
+  if (base !== head) { bad(`DEĞİŞMEZLİK ihlali: ${rel} (${ref}:${basePath})`); drift = true; }
 }
 if (!drift) ok("A5A + D8/D9 + AUD1 + A0-A4 + adminGuard + package blob'ları beklenen ref ile AYNI");
 
 console.log("\n[H] Migration timestamp + canlı 401");
 check("20260908000000 A5B migration mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260908000000_yebs_concept_relation_source_mutations.sql")));
-check("20260906000000 A5A migration hâlâ mevcut", existsSync(resolve(ROOT, "supabase/migrations/20260906000000_yebs_concept_relation_mutations.sql")));
+check("20260907000000 A5A migration hâlâ mevcut (collision fix sonrası)", existsSync(resolve(ROOT, "supabase/migrations/20260907000000_yebs_concept_relation_mutations.sql")));
 const BASE_URL = process.env.YEBS_HARNESS_BASE_URL;
 if (!BASE_URL) skipped("canlı HTTP", "YEBS_HARNESS_BASE_URL yok");
 else {
