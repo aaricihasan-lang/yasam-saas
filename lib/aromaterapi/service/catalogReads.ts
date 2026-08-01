@@ -55,7 +55,7 @@ const TAXA_SEARCH_COLS = [
 
 const TAXA_LIST_COLS =
   "id, canonical_name, genus, species, taxon_rank, family, author_citation, is_hybrid, status, updated_at";
-const TAXA_DETAIL_COLS = `${TAXA_LIST_COLS}, infraspecific_epithet, created_at`;
+const TAXA_DETAIL_COLS = `${TAXA_LIST_COLS}, infraspecific_epithet, primary_common_name_tr, created_at`;
 const PREP_LIST_COLS =
   "id, taxon_id, preparation_type, plant_part, chemotype, status, updated_at";
 

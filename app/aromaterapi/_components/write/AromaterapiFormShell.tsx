@@ -35,6 +35,12 @@ export type AromaterapiFormShellProps = {
   /** Genel hata mesajı (stabil koddan çevrilmiş kullanıcı metni). */
   errorMessage?: string | null;
   submitLabel?: string;
+  /**
+   * Kontrollü full-width düzen (C3D-B2B). Varsayılan false → mevcut max-w-2xl
+   * (C3D-D formları değişmez). true → masaüstünde daha geniş (max-w-4xl), form
+   * bölümleri 2-kolonlu ızgaralar kurabilsin diye. Mobilde her iki değerde tek kolon.
+   */
+  wide?: boolean;
 };
 
 export function AromaterapiFormShell({
@@ -51,6 +57,7 @@ export function AromaterapiFormShell({
   conflict = false,
   errorMessage,
   submitLabel,
+  wide = false,
 }: AromaterapiFormShellProps) {
   const errId = useId();
   const defaultLabel = mode === "create" ? "Kaydet" : "Değişiklikleri kaydet";
@@ -60,7 +67,7 @@ export function AromaterapiFormShell({
       onSubmit={onSubmit}
       noValidate
       aria-describedby={errorMessage ? errId : undefined}
-      className="mx-auto w-full max-w-2xl space-y-4"
+      className={`mx-auto w-full space-y-4 ${wide ? "max-w-4xl" : "max-w-2xl"}`}
     >
       <header className="min-w-0">
         <h2 className="text-lg font-black tracking-tight text-slate-900">{title}</h2>

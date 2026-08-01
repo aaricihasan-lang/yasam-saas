@@ -184,6 +184,27 @@ export const VERIFICATION_STATUS_TR: Record<string, string> = {
   verified: "Doğrulanmış",
 };
 
+// ---- C3D-B2B Üretim / Elde Ediliş Yöntemi ----
+
+export const METHOD_KIND_TR: Record<string, string> = {
+  faithful_source: "Kaynağa Sadık Yöntem",
+  editorial: "Editoryal Yöntem",
+  expert: "Uzman Yöntemi",
+};
+
+export const MATERIAL_STATE_TR: Record<string, string> = {
+  fresh: "Taze",
+  dried: "Kurutulmuş",
+  other: "Diğer",
+};
+
+/** Method revizyon durumu (taxon/preparation'dan farklı: archived var, approved yok). */
+export const METHOD_STATUS_TR: Record<string, string> = {
+  draft: "Taslak",
+  verified: "Doğrulanmış",
+  archived: "Arşivlenmiş",
+};
+
 export const GLOSSARY_STATUS_TR = SOURCE_STATUS_TR;
 export const AUDIT_OPERATION_TR: Record<string, string> = {
   create: "Oluşturma",

@@ -104,8 +104,17 @@ function PlantTaxaSection() {
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
 
   return (
-    <ReadListScreen<PlantTaxonListItem>
-      loading={s.loading}
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Link
+          href="/aromaterapi/katalog/bitkiler/yeni"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+        >
+          <span aria-hidden>＋</span> Yeni Bitki
+        </Link>
+      </div>
+      <ReadListScreen<PlantTaxonListItem>
+        loading={s.loading}
       errorCode={s.errorCode}
       rows={s.rows}
       total={s.total}
@@ -143,29 +152,40 @@ function PlantTaxaSection() {
           />
         </>
       }
-      renderItem={(row) => <PlantTaxonRow key={row.id} row={row} />}
-    />
+        renderItem={(row) => <PlantTaxonRow key={row.id} row={row} />}
+      />
+    </div>
   );
 }
 
 function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
   return (
-    <Link
-      href={`/aromaterapi/katalog/bitkiler/${row.id}`}
-      className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
-    >
-      <h3 className="text-[15px] font-black italic leading-snug text-slate-900 [overflow-wrap:anywhere] group-hover:text-teal-800">
-        {row.canonical_name}
-      </h3>
-      <p className="mt-1 text-[12px] font-semibold text-slate-500 [overflow-wrap:anywhere]">
-        {row.family}
-      </p>
-      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
-        <MetaChip tone="teal">{tr.label(TAXON_RANK_TR, row.taxon_rank)}</MetaChip>
-        {row.is_hybrid ? <MetaChip tone="violet">Hibrit</MetaChip> : null}
-        <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+    <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
+      <Link
+        href={`/aromaterapi/katalog/bitkiler/${row.id}`}
+        className="flex flex-col rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
+      >
+        <h3 className="text-[15px] font-black italic leading-snug text-slate-900 [overflow-wrap:anywhere] group-hover:text-teal-800">
+          {row.canonical_name}
+        </h3>
+        <p className="mt-1 text-[12px] font-semibold text-slate-500 [overflow-wrap:anywhere]">
+          {row.family}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <MetaChip tone="teal">{tr.label(TAXON_RANK_TR, row.taxon_rank)}</MetaChip>
+          {row.is_hybrid ? <MetaChip tone="violet">Hibrit</MetaChip> : null}
+          <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+        </div>
+      </Link>
+      <div className="mt-auto flex justify-end border-t border-teal-50 pt-2.5">
+        <Link
+          href={`/aromaterapi/katalog/bitkiler/${row.id}/duzenle`}
+          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 text-[12px] font-black text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+        >
+          ✏️ Düzenle
+        </Link>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -179,8 +199,17 @@ function PreparationSection() {
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
 
   return (
-    <ReadListScreen<PreparationListItem>
-      loading={s.loading}
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Link
+          href="/aromaterapi/katalog/preparatlar/yeni"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+        >
+          <span aria-hidden>＋</span> Yeni Preparat
+        </Link>
+      </div>
+      <ReadListScreen<PreparationListItem>
+        loading={s.loading}
       errorCode={s.errorCode}
       rows={s.rows}
       total={s.total}
@@ -221,30 +250,41 @@ function PreparationSection() {
           />
         </>
       }
-      renderItem={(row) => <PreparationRow key={row.id} row={row} />}
-    />
+        renderItem={(row) => <PreparationRow key={row.id} row={row} />}
+      />
+    </div>
   );
 }
 
 function PreparationRow({ row }: { row: PreparationListItem }) {
   return (
-    <Link
-      href={`/aromaterapi/katalog/preparatlar/${row.id}`}
-      className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
-    >
-      <h3 className="text-[15px] font-black leading-snug text-slate-900 group-hover:text-teal-800">
-        {tr.label(PREPARATION_TYPE_TR, row.preparation_type)}
-      </h3>
-      {row.taxon_canonical_name ? (
-        <p className="mt-1 text-[12px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">
-          {row.taxon_canonical_name}
-        </p>
-      ) : null}
-      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
-        <MetaChip tone="teal">{row.plant_part}</MetaChip>
-        {row.chemotype ? <MetaChip tone="amber">CT: {row.chemotype}</MetaChip> : null}
-        <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+    <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
+      <Link
+        href={`/aromaterapi/katalog/preparatlar/${row.id}`}
+        className="flex flex-col rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
+      >
+        <h3 className="text-[15px] font-black leading-snug text-slate-900 group-hover:text-teal-800">
+          {tr.label(PREPARATION_TYPE_TR, row.preparation_type)}
+        </h3>
+        {row.taxon_canonical_name ? (
+          <p className="mt-1 text-[12px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">
+            {row.taxon_canonical_name}
+          </p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <MetaChip tone="teal">{row.plant_part}</MetaChip>
+          {row.chemotype ? <MetaChip tone="amber">CT: {row.chemotype}</MetaChip> : null}
+          <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+        </div>
+      </Link>
+      <div className="mt-auto flex justify-end border-t border-teal-50 pt-2.5">
+        <Link
+          href={`/aromaterapi/katalog/preparatlar/${row.id}/duzenle`}
+          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 text-[12px] font-black text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+        >
+          ✏️ Düzenle
+        </Link>
       </div>
-    </Link>
+    </article>
   );
 }

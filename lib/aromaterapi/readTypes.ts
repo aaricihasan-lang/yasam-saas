@@ -44,6 +44,8 @@ export type PlantTaxonListItem = {
 
 export type PlantTaxonDetail = PlantTaxonListItem & {
   infraspecific_epithet: string | null;
+  /** C3D-B2B düzenleme için gerekli (create/update RPC alanı). */
+  primary_common_name_tr: string | null;
   created_at: string;
 };
 
