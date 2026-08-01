@@ -67,6 +67,82 @@ export type PreparationDetail = PreparationListItem & {
 };
 
 // ------------------------------------------------------------------
+// Üretim / Elde Ediliş Yöntemleri — Method Series & Revisions (C3D-B2B okuma)
+// ------------------------------------------------------------------
+
+/** Sıralı üretim adımı (steps jsonb) — canonical `{order, text}`. */
+export type MethodStepView = {
+  order: number;
+  text: string;
+};
+
+/**
+ * Bir preparata bağlı üretim yöntemi serisi (liste öğesi).
+ * Seri kimliği (method_kind/source/passage/method_lang) immutable'dır; içerik
+ * revizyonlarda taşınır. `latest_*` en yüksek revizyonu, `verified_*` (varsa) tek
+ * verified revizyonu özetler.
+ */
+export type MethodSeriesListItem = {
+  id: string;
+  preparation_id: string;
+  method_kind: string;
+  method_lang: string;
+  source_id: string | null;
+  passage_id: string | null;
+  /** Tenant-scoped çözülmüş okunur etiketler (yoksa null). */
+  source_title: string | null;
+  passage_locator: string | null;
+  created_at: string;
+  revision_count: number;
+  latest_revision: number;
+  latest_revision_id: string;
+  latest_status: string;
+  latest_updated_at: string;
+  verified_revision: number | null;
+  verified_revision_id: string | null;
+};
+
+/** Bir revizyonun hafif özeti (revizyon geçmişi listesi). */
+export type MethodRevisionListItem = {
+  id: string;
+  series_id: string;
+  revision: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Seri detayı + revizyon geçmişi (yeni → eski). */
+export type MethodSeriesDetail = MethodSeriesListItem & {
+  revisions: MethodRevisionListItem[];
+};
+
+/** Tek revizyonun tam içeriği (detay). note_hash yalnız okunur bütünlük göstergesidir. */
+export type MethodRevisionDetail = {
+  id: string;
+  series_id: string;
+  revision: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  plant_part_used: string | null;
+  material_state: string | null;
+  method_text: string;
+  equipment: string | null;
+  amount_ratio: string | null;
+  solvent_carrier: string | null;
+  duration_text: string | null;
+  temperature_text: string | null;
+  steps: MethodStepView[] | null;
+  filtration: string | null;
+  resting: string | null;
+  storage: string | null;
+  quality_notes: string | null;
+  safety_notes: string | null;
+  note_hash: string;
+};
+
+// ------------------------------------------------------------------
 // Kaynaklar — Kaynak, Pasaj, Pasaj Katmanları
 // ------------------------------------------------------------------
 

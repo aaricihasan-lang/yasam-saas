@@ -1,8 +1,10 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { isUuid, validateMandatoryReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { appendMethodRevision } from "@/lib/aromaterapi/service/catalogMethodMutations";
+import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
+import { listMethodRevisions } from "@/lib/aromaterapi/service/methodReads";
 import {
   CATALOG_BODY_LIMITS,
   catalogBad,
@@ -44,6 +46,26 @@ const APPEND_ALLOWED = new Set<string>([
   "expected_latest_revision",
   "reason",
 ]);
+
+/**
+ * GET /api/aromaterapi/methods/[seriesId]/revisions — Serinin revizyon geçmişi
+ * (yeni → eski, yalnız meta). Salt-okunur, tenant-scoped. Seri out-of-tenant/eksik → 404.
+ */
+export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const { seriesId } = await ctx.params;
+  if (!isUuid(seriesId)) return readFail("AROMA_INVALID_UUID");
+
+  try {
+    const revisions = await listMethodRevisions(guard.db, guard.tenantId, seriesId);
+    if (!revisions) return readNotFound();
+    return NextResponse.json({ ok: true, revisions });
+  } catch (e) {
+    return readServerError("methods:revisions:list", e);
+  }
+}
 
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
