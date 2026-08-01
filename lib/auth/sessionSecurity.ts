@@ -17,6 +17,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { classifyDeviceType, normalizeLimit, UNLIMITED, type LimitReason } from "@/lib/auth/sessionLimits";
 
 // ─── Eşikler ─────────────────────────────────────────────────────────────────
 
@@ -103,10 +104,8 @@ function classifySession(
  * Tarayıcı user-agent dizesinden platform çıkarır.
  */
 export function detectPlatform(userAgent: string): string {
-  const ua = userAgent.toLowerCase();
-  if (/ipad|tablet|kindle|playbook/.test(ua)) return "tablet";
-  if (/mobile|android|iphone|ipod|opera mini|windows phone/.test(ua)) return "mobile";
-  return ua ? "desktop" : "unknown";
+  // P3: merkezi sınıflandırıcıyı kullan (Android tablet düzeltmesi + WebView→mobile).
+  return classifyDeviceType(userAgent);
 }
 
 async function insertSession(
@@ -148,12 +147,16 @@ async function insertSession(
 /**
  * Giriş sonrası çağrılır. Lisans + platform ayarlarına göre dinamik risk politikası uygular.
  */
+export type CreateSessionResult =
+  | { ok: true; suspiciousLogin: boolean; highRisk: boolean }
+  | { ok: false; reason: LimitReason; deviceType: string };
+
 export async function createUserSession(
   db: SupabaseClient,
   userId: string,
   location: LocationInfo,
   sessionToken: string,
-): Promise<{ suspiciousLogin: boolean; highRisk: boolean }> {
+): Promise<CreateSessionResult> {
   const now      = new Date().toISOString();
   const platform = detectPlatform(location.userAgent);
 
@@ -165,25 +168,25 @@ export async function createUserSession(
     .maybeSingle();
 
   const securityExempt  = lr?.security_exempt === true;
-  const allowedSessions = Math.max(1, Number(lr?.allowed_active_sessions ?? 2));
   const allowedLocs     = Math.max(1, Number(lr?.allowed_locations ?? 1));
   const rawMode         = String(lr?.security_mode ?? "normal");
   const secMode         = (["strict", "normal", "flexible"].includes(rawMode) ? rawMode : "normal") as
     "strict" | "normal" | "flexible";
   const freshThresholdMs = secMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS;
 
-  // Platform limitleri (0 = platform bazlı limit yok, toplam limitle yönetilir)
-  const platformLimits: Record<string, number> = {
-    desktop: Math.max(0, Number(lr?.allowed_desktop_sessions ?? 1)),
-    mobile:  Math.max(0, Number(lr?.allowed_mobile_sessions  ?? 1)),
-    tablet:  Math.max(0, Number(lr?.allowed_tablet_sessions  ?? 0)),
-    unknown: Math.max(0, Number(lr?.allowed_unknown_sessions ?? 0)),
+  // P3 limit semantiği: -1 SINIRSIZ · 0 YASAK · N max (normalize; default -1).
+  const totalLimit = normalizeLimit(lr?.allowed_active_sessions);
+  const platformLimitByType: Record<string, number> = {
+    desktop: normalizeLimit(lr?.allowed_desktop_sessions),
+    mobile:  normalizeLimit(lr?.allowed_mobile_sessions),
+    tablet:  normalizeLimit(lr?.allowed_tablet_sessions),
+    unknown: normalizeLimit(lr?.allowed_unknown_sessions),
   };
 
   // ── Güvenlik muafiyeti ────────────────────────────────────────────────────
   if (securityExempt) {
     await insertSession(db, userId, location, sessionToken, platform, now);
-    return { suspiciousLogin: false, highRisk: false };
+    return { ok: true, suspiciousLogin: false, highRisk: false };
   }
 
   // ── Aktif oturumları çek ──────────────────────────────────────────────────
@@ -335,78 +338,51 @@ export async function createUserSession(
     });
   }
 
-  // ── Platform bazlı oturum limiti ──────────────────────────────────────────
-  // Risk kapatmalarından sonra kalan fresh session'lar
-  const closedForRiskIds = new Set(sessionsToCloseForRisk);
-  const remainingSessions = knownFreshSessions.filter((s) => !closedForRiskIds.has(s.id));
+  // ── Platform + toplam limit: REJECT-NEW (atomik, race-safe) ───────────────
+  // Risk/stale kapatmalar yukarıda yapıldı. Yeni oturumu, aktif sayımı advisory
+  // lock altında yeniden yapan RPC ile ATOMİK oluştururuz: limit aşımında INSERT
+  // ETMEZ ve MEVCUT oturumlara DOKUNMAZ; yalnız reddeder (P3 reject-new).
+  const platformLimit = platformLimitByType[platform] ?? UNLIMITED;
 
-  const platformLimit = platformLimits[platform] ?? 0;
-  let closedForPlatformLimit = false;
+  const { data: rpcData, error: rpcError } = await db.rpc("create_session_within_limits", {
+    p_user_id:        userId,
+    p_session_token:  sessionToken,
+    p_ip:             location.ip,
+    p_country:        location.country,
+    p_city:           location.city,
+    p_user_agent:     location.userAgent,
+    p_platform:       platform,
+    p_platform_limit: platformLimit,
+    p_total_limit:    totalLimit,
+  });
+  if (rpcError) {
+    throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
+  }
 
-  if (platformLimit > 0) {
-    // Platform bazlı limit aktif — aynı platformdaki session'ları say
-    const samePlatformSessions = remainingSessions
-      .filter((s) => (s.platform ?? "desktop") === platform)
-      .sort((a, b) => new Date(a.last_seen_at).getTime() - new Date(b.last_seen_at).getTime());
-
-    if (samePlatformSessions.length >= platformLimit) {
-      const oldest = samePlatformSessions[0];
-      if (oldest) {
-        await db
-          .from("user_sessions")
-          .update({ is_active: false, ended_at: now, end_reason: "session_limit" })
-          .eq("id", oldest.id);
-        closedForPlatformLimit = true;
-        // Remaining'den çıkar, toplam limit hesabında hesaba katılmaz
-        const idx = remainingSessions.findIndex((s) => s.id === oldest.id);
-        if (idx !== -1) remainingSessions.splice(idx, 1);
-      }
+  const result = (rpcData ?? {}) as { inserted?: boolean; reason?: string };
+  if (!result.inserted) {
+    const reason = (result.reason ?? "total_limit") as LimitReason;
+    // Gözlemlenebilirlik için düşük seviyeli log (best-effort; PII/secret yok).
+    try {
+      await db.from("security_events").insert({
+        user_id:    userId,
+        event_type: "session_limit_blocked",
+        severity:   "low",
+        message:    `Yeni giriş reddedildi (${reason}) — ${platform}`,
+        ip_address: location.ip,
+        country:    location.country,
+        city:       location.city,
+        user_agent: location.userAgent,
+        metadata:   { platform, reason, platform_limit: platformLimit, total_limit: totalLimit },
+      });
+    } catch {
+      /* log başarısızlığı yeni girişi bloke etmez */
     }
+    return { ok: false, reason, deviceType: platform };
   }
-
-  // ── Toplam oturum limiti ──────────────────────────────────────────────────
-  let closedForTotalLimit = false;
-  if (remainingSessions.length >= allowedSessions) {
-    const oldest = [...remainingSessions].sort(
-      (a, b) => new Date(a.last_seen_at).getTime() - new Date(b.last_seen_at).getTime(),
-    )[0];
-    if (oldest) {
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: now, end_reason: "session_limit" })
-        .eq("id", oldest.id);
-      closedForTotalLimit = true;
-    }
-  }
-
-  if (closedForPlatformLimit || closedForTotalLimit) {
-    await db.from("security_events").insert({
-      user_id:    userId,
-      event_type: "many_same_city_sessions",
-      severity:   "low",
-      message: closedForPlatformLimit
-        ? `${platform} oturum limiti aşıldı, en eski ${platform} kapatıldı (limit: ${platformLimit})`
-        : `Toplam oturum limiti aşıldı, en eski kapatıldı (limit: ${allowedSessions})`,
-      ip_address: location.ip,
-      country:    location.country,
-      city:       location.city,
-      user_agent: location.userAgent,
-      metadata: {
-        platform,
-        city:          location.city,
-        active_count:  remainingSessions.length + 1,
-        platform_limit: platformLimit,
-        total_limit:   allowedSessions,
-        closed_for_platform: closedForPlatformLimit,
-        closed_for_total:    closedForTotalLimit,
-      },
-    });
-  }
-
-  // ── Yeni oturum oluştur ───────────────────────────────────────────────────
-  await insertSession(db, userId, location, sessionToken, platform, now);
 
   return {
+    ok: true,
     suspiciousLogin: riskLevel === "suspicious",
     highRisk:        riskLevel === "high_risk",
   };

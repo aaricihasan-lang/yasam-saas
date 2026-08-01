@@ -1082,7 +1082,7 @@ export default function AdminUserDetailPage() {
     showToast({ title: "Başarılı", message: "Modül izinleri güncellendi.", type: "success" });
   }
 
-  async function saveLicenseSettings() {
+  async function saveLicenseSettings(confirmExcessRevocation = false) {
     if (!user) return;
     setSavingLicense(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
@@ -1100,15 +1100,42 @@ export default function AdminUserDetailPage() {
         securityMode:           licenseDraft.securityMode,
         securityExempt:         licenseDraft.securityExempt,
         licenseNote:            licenseDraft.licenseNote,
+        confirmExcessRevocation,
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      requiresConfirmation?: boolean;
+      excessSessionCount?: number;
+      revokedSessionCount?: number;
+    };
     setSavingLicense(false);
+
+    // P3: limit düşürme fazla oturum kapatacaksa ONAYSIZ uygulanmaz (409). Admin'e
+    // kaç oturumun kapanacağını göster, açık onay al, sonra revoke-onaylı tekrar gönder.
+    if (res.status === 409 && json.requiresConfirmation) {
+      const n = json.excessSessionCount ?? 0;
+      const proceed = window.confirm(
+        `Bu limitler ${n} aktif oturumu kapatacak (en eski oturumlar öncelikli). Devam edilsin mi?`,
+      );
+      if (proceed) await saveLicenseSettings(true);
+      return;
+    }
+
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Lisans ayarları güncellenemedi.", type: "error" });
       return;
     }
-    showToast({ title: "Başarılı", message: "Lisans & oturum limitleri güncellendi.", type: "success" });
+    const revoked = json.revokedSessionCount ?? 0;
+    showToast({
+      title: "Başarılı",
+      message:
+        revoked > 0
+          ? `Lisans & oturum limitleri güncellendi; ${revoked} fazla oturum kapatıldı.`
+          : "Lisans & oturum limitleri güncellendi.",
+      type: "success",
+    });
     await loadUser(currentAdminId);
     await loadActiveSessions(user.id, currentAdminId);
   }

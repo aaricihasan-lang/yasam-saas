@@ -1056,7 +1056,7 @@ export default function Home() {
       return;
     }
 
-    // Oturum kaydı oluştur (güvenlik kontrolü + eski oturumları kapat)
+    // Oturum kaydı oluştur (güvenlik kontrolü + P3 cihaz/oturum limiti)
     let isSuspiciousLogin = false;
     try {
       const sessionRes = await fetch("/api/auth/session", {
@@ -1064,6 +1064,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: loggedUser.id }),
       });
+      // P3 reject-new: limit aşımında server 403 döner ve token vermez → giriş DURDURULUR.
+      if (sessionRes.status === 403) {
+        const errJson = (await sessionRes.json().catch(() => ({}))) as { error?: string };
+        setMessage(
+          errJson.error ?? "Oturum limiti nedeniyle giriş yapılamadı. Yöneticinizle iletişime geçin.",
+        );
+        setLoading(false);
+        return;
+      }
       if (sessionRes.ok) {
         const sessionJson = (await sessionRes.json()) as {
           sessionToken?: string;
@@ -1076,7 +1085,7 @@ export default function Home() {
         isSuspiciousLogin = !!(sessionJson.suspiciousLogin || sessionJson.highRisk);
       }
     } catch {
-      // Oturum API hatası giriş akışını durdurmamalı
+      // Ağ/500 hatası giriş akışını durdurmamalı (limit reddi 403 ayrı ele alınır)
     }
 
     setUser(loggedUser);

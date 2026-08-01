@@ -9,6 +9,12 @@ import {
   resolveIsSuperAdmin,
   isSuperAdminWorkspaceViewEnabled,
 } from "@/lib/admin/adminGuards";
+import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
+import {
+  computeExcessSessionsToRevoke,
+  type SessionLimits,
+  type ActiveSessionRow,
+} from "@/lib/admin/sessionLimitManagement";
 
 export const runtime = "nodejs";
 
@@ -85,9 +91,19 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     securityMode?: string;
     securityExempt?: boolean;
     licenseNote?: string;
+    confirmExcessRevocation?: boolean;
   };
 
   if (body.action === "license") {
+    // Self-target koruması: admin kendi oturum limitlerini bu ekrandan değiştiremez
+    // (yanlışlıkla kendi oturumunu kapatma riski).
+    if (id === adminId) {
+      return NextResponse.json(
+        { error: "Kendi oturum limitlerinizi bu ekrandan değiştiremezsiniz." },
+        { status: 403 },
+      );
+    }
+
     const VALID_LICENSE_TYPES  = ["single", "professional", "family", "partner", "team", "custom"];
     const VALID_SECURITY_MODES = ["strict", "normal", "flexible"];
 
@@ -105,34 +121,67 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       );
     }
 
+    // P3 semantiği: oturum limitleri -1 (SINIRSIZ) · 0 (YASAK) · N (max).
     const allowedActiveSessions  = Number(body.allowedActiveSessions);
-    const allowedLocations        = Number(body.allowedLocations);
-    const allowedDesktopSessions  = Number(body.allowedDesktopSessions ?? 0);
-    const allowedMobileSessions   = Number(body.allowedMobileSessions  ?? 0);
-    const allowedTabletSessions   = Number(body.allowedTabletSessions  ?? 0);
-    const allowedUnknownSessions  = Number(body.allowedUnknownSessions ?? 0);
+    const allowedLocations       = Number(body.allowedLocations);
+    const allowedDesktopSessions = Number(body.allowedDesktopSessions ?? -1);
+    const allowedMobileSessions  = Number(body.allowedMobileSessions  ?? -1);
+    const allowedTabletSessions  = Number(body.allowedTabletSessions  ?? -1);
+    const allowedUnknownSessions = Number(body.allowedUnknownSessions ?? -1);
 
-    if (!Number.isInteger(allowedActiveSessions) || allowedActiveSessions < 1 || allowedActiveSessions > 50) {
-      return NextResponse.json({ error: "allowedActiveSessions 1–50 arasında tam sayı olmalıdır." }, { status: 400 });
+    const validLimit = (n: number) => Number.isInteger(n) && n >= -1 && n <= 10000;
+    if (!validLimit(allowedActiveSessions)) {
+      return NextResponse.json({ error: "allowedActiveSessions -1 (sınırsız), 0 (yasak) veya pozitif tam sayı olmalıdır." }, { status: 422 });
     }
     if (!Number.isInteger(allowedLocations) || allowedLocations < 1 || allowedLocations > 20) {
-      return NextResponse.json({ error: "allowedLocations 1–20 arasında tam sayı olmalıdır." }, { status: 400 });
+      return NextResponse.json({ error: "allowedLocations 1–20 arasında tam sayı olmalıdır." }, { status: 422 });
     }
-    if (!Number.isInteger(allowedDesktopSessions) || allowedDesktopSessions < 0 || allowedDesktopSessions > 20) {
-      return NextResponse.json({ error: "allowedDesktopSessions 0–20 arasında tam sayı olmalıdır." }, { status: 400 });
-    }
-    if (!Number.isInteger(allowedMobileSessions) || allowedMobileSessions < 0 || allowedMobileSessions > 20) {
-      return NextResponse.json({ error: "allowedMobileSessions 0–20 arasında tam sayı olmalıdır." }, { status: 400 });
-    }
-    if (!Number.isInteger(allowedTabletSessions) || allowedTabletSessions < 0 || allowedTabletSessions > 10) {
-      return NextResponse.json({ error: "allowedTabletSessions 0–10 arasında tam sayı olmalıdır." }, { status: 400 });
-    }
-    if (!Number.isInteger(allowedUnknownSessions) || allowedUnknownSessions < 0 || allowedUnknownSessions > 5) {
-      return NextResponse.json({ error: "allowedUnknownSessions 0–5 arasında tam sayı olmalıdır." }, { status: 400 });
+    if (!validLimit(allowedDesktopSessions) || !validLimit(allowedMobileSessions) || !validLimit(allowedTabletSessions) || !validLimit(allowedUnknownSessions)) {
+      return NextResponse.json({ error: "Cihaz limitleri -1 (sınırsız), 0 (yasak) veya pozitif tam sayı olmalıdır." }, { status: 422 });
     }
 
     const securityExempt = body.securityExempt === true;
     const licenseNote    = String(body.licenseNote ?? "").trim().slice(0, 500);
+
+    const newLimits: SessionLimits = {
+      total:   allowedActiveSessions,
+      desktop: allowedDesktopSessions,
+      mobile:  allowedMobileSessions,
+      tablet:  allowedTabletSessions,
+      unknown: allowedUnknownSessions,
+    };
+
+    // Audit için mevcut (eski) limitleri çek.
+    const { data: before } = await db
+      .from("users")
+      .select("allowed_active_sessions, allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions")
+      .eq("id", id)
+      .maybeSingle();
+
+    // Limit DÜŞÜRME fazlalığı: exempt değilse aktif oturumlara göre hesapla.
+    let revokePlan = { toRevoke: [] as string[], total: 0, byDevice: { desktop: 0, mobile: 0, tablet: 0, unknown: 0 } };
+    if (!securityExempt) {
+      const { data: activeSessions } = await db
+        .from("user_sessions")
+        .select("id, platform, created_at")
+        .eq("user_id", id)
+        .eq("is_active", true);
+      revokePlan = computeExcessSessionsToRevoke((activeSessions ?? []) as ActiveSessionRow[], newLimits);
+    }
+
+    // Fazla oturum kapanacaksa ONAYSIZ uygulama YAPMA → 409 preview.
+    if (revokePlan.total > 0 && body.confirmExcessRevocation !== true) {
+      return NextResponse.json(
+        {
+          ok: false,
+          requiresConfirmation: true,
+          excessSessionCount: revokePlan.total,
+          byDevice: revokePlan.byDevice,
+          error: `Bu limitler ${revokePlan.total} aktif oturumu kapatacak. Onaylayın.`,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     const { error } = await db.from("users").update({
       license_type:              body.licenseType,
@@ -147,8 +196,52 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       license_note:              licenseNote || null,
     }).eq("id", id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    if (error) return NextResponse.json({ error: "Lisans güncellenemedi." }, { status: 500 });
+
+    // Fazla oturumları deterministik (en eski önce) revoke et (onay verildi).
+    let revokedSessionCount = 0;
+    if (revokePlan.total > 0) {
+      const { data: revoked, error: revErr } = await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: new Date().toISOString(), end_reason: "admin_session_limit" })
+        .in("id", revokePlan.toRevoke)
+        .eq("is_active", true)
+        .select("id");
+      if (revErr) {
+        return NextResponse.json(
+          { error: "Limitler güncellendi ancak fazla oturumlar kapatılamadı. Lütfen tekrar deneyin." },
+          { status: 500 },
+        );
+      }
+      revokedSessionCount = revoked?.length ?? 0;
+    }
+
+    // Audit (mevcut Faz G action: total_session_limit_changed). Parola/PII yok.
+    try {
+      const actorIsMainAdmin = await resolveIsSuperAdmin(db, adminId);
+      await writeAdminAudit(db, {
+        actorAdminId: adminId,
+        action: "total_session_limit_changed",
+        targetUserId: id,
+        actorIsMainAdmin,
+        oldValue: before ?? null,
+        newValue: {
+          allowed_active_sessions:  allowedActiveSessions,
+          allowed_desktop_sessions: allowedDesktopSessions,
+          allowed_mobile_sessions:  allowedMobileSessions,
+          allowed_tablet_sessions:  allowedTabletSessions,
+          allowed_unknown_sessions: allowedUnknownSessions,
+        },
+        context: { revoked_session_count: revokedSessionCount, by_device: revokePlan.byDevice },
+      });
+    } catch (e) {
+      if (e instanceof AdminAuditError) {
+        return NextResponse.json({ error: "İşlem kaydı oluşturulamadı." }, { status: 500 });
+      }
+      throw e;
+    }
+
+    return NextResponse.json({ ok: true, revokedSessionCount }, { headers: { "Cache-Control": "no-store" } });
   }
 
   if (body.action === "modules") {
