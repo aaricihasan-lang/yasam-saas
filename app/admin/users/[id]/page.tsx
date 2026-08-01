@@ -8,11 +8,13 @@ import {
   Banknote,
   ChevronDown,
   Eye,
+  EyeOff,
   Filter,
   HelpCircle,
   Home,
   KeyRound,
   Loader2,
+  LogOut,
   Monitor,
   Package,
   Pencil,
@@ -80,6 +82,8 @@ const actionBtn =
 
 const OWNER_FALLBACK_EMAIL = "admin@yasamsistemi.com";
 const DELETE_CONFIRM_PHRASE = "SİLMEYİ ONAYLIYORUM";
+/** Tüm cihazlardan çıkış ikinci onayı — tam metin (Türkçe karakter korunur). */
+const LOGOUT_ALL_PHRASE = "ÇIKIŞ YAPTIR";
 
 const deleteModalOverlay =
   "fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm";
@@ -468,6 +472,13 @@ export default function AdminUserDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [newPasswordRepeat, setNewPasswordRepeat] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  // P2 — hesap müdahaleleri: pasife alma onayı + tüm cihazlardan çıkış (iki adım).
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [logoutAllStep, setLogoutAllStep] = useState<null | "confirm" | "verify">(null);
+  const [logoutAllPhrase, setLogoutAllPhrase] = useState("");
+  const [logoutAllSubmitting, setLogoutAllSubmitting] = useState(false);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
 
   const [canPersistModulePermissions, setCanPersistModulePermissions] =
@@ -802,9 +813,42 @@ export default function AdminUserDetailPage() {
     await loadUser(currentAdminId);
   }
 
+  /** Şifre panelini kapatırken hassas parola state'ini temizle. */
+  function closePasswordPanel() {
+    setPasswordOpen(false);
+    setNewPassword("");
+    setNewPasswordRepeat("");
+    setShowNewPassword(false);
+  }
+
+  /**
+   * Bu hedef üzerinde P2 hesap müdahalesi (pasife alma / şifre / logout-all) UI'da
+   * açık mı? Sunucu her koşulda yeniden doğrular; bu yalnız erken engelleme:
+   *   - kendi hesabın → kapalı
+   *   - ana yönetici (owner) hedef → kapalı (mutlak koruma)
+   *   - admin hedef + görüntüleyen ana yönetici değil → kapalı (P1)
+   */
+  function canManageAccountActions(): boolean {
+    if (!user || isSelf()) return false;
+    if (isManagedOwnerAdmin(user)) return false;
+    if (user.role === "admin" && !isOwnerAdmin(currentAdminUser)) return false;
+    return true;
+  }
+
   async function savePassword() {
-    if (!user || !newPassword.trim()) {
+    if (!user || !canManageAccountActions()) return;
+    const pw = newPassword.trim();
+    const pw2 = newPasswordRepeat.trim();
+    if (!pw) {
       showToast({ title: "İşlem başarısız", message: "Yeni şifre giriniz.", type: "error" });
+      return;
+    }
+    if (pw.length < 6) {
+      showToast({ title: "İşlem başarısız", message: "Yeni şifre en az 6 karakter olmalı.", type: "error" });
+      return;
+    }
+    if (pw !== pw2) {
+      showToast({ title: "İşlem başarısız", message: "Şifreler eşleşmiyor.", type: "error" });
       return;
     }
 
@@ -812,9 +856,13 @@ export default function AdminUserDetailPage() {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/password`, {
       method: "POST",
       headers: adminHeaders(currentAdminId, true),
-      body: JSON.stringify({ newPassword: newPassword.trim() }),
+      body: JSON.stringify({ newPassword: pw }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      revokedSessionCount?: number;
+    };
     setSavingPassword(false);
 
     if (!res.ok || !json.ok) {
@@ -822,9 +870,12 @@ export default function AdminUserDetailPage() {
       return;
     }
 
-    setPasswordOpen(false);
-    setNewPassword("");
-    showToast({ title: "Başarılı", message: "Şifre güncellendi.", type: "success" });
+    closePasswordPanel();
+    showToast({
+      title: "Başarılı",
+      message: "Şifre değiştirildi ve kullanıcı tüm cihazlardan çıkarıldı.",
+      type: "success",
+    });
   }
 
   async function postStatus(action: string, extra?: Record<string, unknown>): Promise<boolean> {
@@ -857,11 +908,11 @@ export default function AdminUserDetailPage() {
     }
   }
 
-  async function toggleActive() {
+  /** Aktif/Pasif düğmesi: pasife alma güvenli onay ister (tüm cihaz çıkışı), aktifleştirme doğrudan. */
+  function requestToggleActive() {
     if (!user || isSelf()) return;
-    const wasActive = user.active;
     // Owner (sistem sahibi) admin pasifleştirilemez — sunucu da engeller, burada erken uyarı.
-    if (wasActive && isManagedOwnerAdmin(user)) {
+    if (user.active && isManagedOwnerAdmin(user)) {
       showToast({
         title: "İşlem engellendi",
         message: "Sistem sahibi (owner) admin pasifleştirilemez.",
@@ -869,13 +920,86 @@ export default function AdminUserDetailPage() {
       });
       return;
     }
-    if (await postStatus("toggle_active", { currentActive: wasActive })) {
+    if (user.active) {
+      setDeactivateOpen(true); // pasife alma → onay ekranı (tüm cihazlardan çıkış)
+    } else {
+      void doToggleActive(); // aktifleştirme → doğrudan (oturum oluşturmaz)
+    }
+  }
+
+  async function doToggleActive(): Promise<boolean> {
+    if (!user) return false;
+    const wasActive = user.active;
+    const done = await postStatus("toggle_active", { currentActive: wasActive });
+    if (done) {
       showToast({
         title: "Başarılı",
-        message: wasActive ? "Kullanıcı pasif yapıldı." : "Kullanıcı aktif yapıldı.",
+        message: wasActive
+          ? "Kullanıcı pasif yapıldı ve tüm cihazlardan çıkarıldı."
+          : "Kullanıcı aktif yapıldı. Erişim için tekrar giriş yapmalı.",
         type: "success",
       });
     }
+    return done;
+  }
+
+  async function confirmDeactivate() {
+    if (await doToggleActive()) setDeactivateOpen(false);
+  }
+
+  // ── Tüm cihazlardan çıkış (iki adımlı onay) ─────────────────────────────────
+  function closeLogoutAllModal() {
+    setLogoutAllStep(null);
+    setLogoutAllPhrase("");
+    setLogoutAllSubmitting(false);
+  }
+
+  function openLogoutAllModal() {
+    if (!canManageAccountActions()) return;
+    setLogoutAllPhrase("");
+    setLogoutAllStep("confirm");
+  }
+
+  async function executeLogoutAll() {
+    if (!user || !canManageAccountActions()) return;
+    if (logoutAllPhrase.trim() !== LOGOUT_ALL_PHRASE) {
+      showToast({
+        title: "İşlem başarısız",
+        message: `Onay için tam olarak "${LOGOUT_ALL_PHRASE}" yazmalısınız.`,
+        type: "error",
+      });
+      return;
+    }
+
+    setLogoutAllSubmitting(true);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/logout-all`, {
+      method: "POST",
+      headers: adminHeaders(currentAdminId, true),
+      body: JSON.stringify({ confirm: logoutAllPhrase.trim() }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      revokedSessionCount?: number;
+    };
+    setLogoutAllSubmitting(false);
+
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
+      return;
+    }
+
+    closeLogoutAllModal();
+    const n = json.revokedSessionCount ?? 0;
+    showToast({
+      title: "Başarılı",
+      message:
+        n > 0
+          ? `${n} oturum kapatıldı; kullanıcı tüm cihazlardan çıkarıldı.`
+          : "Aktif oturum yoktu; kullanıcı zaten çıkış yapmış.",
+      type: "success",
+    });
+    if (activeSessionsLoaded) await loadActiveSessions(user.id, currentAdminId);
   }
 
   async function savePackageMembership() {
@@ -1476,17 +1600,17 @@ export default function AdminUserDetailPage() {
                 ) : null}
                 <button
                   type="button"
-                  disabled={
-                    isSelf() ||
-                    actionUserId === user.id ||
-                    (user.active && isManagedOwnerAdmin(user))
-                  }
+                  disabled={actionUserId === user.id || !canManageAccountActions()}
                   title={
-                    user.active && isManagedOwnerAdmin(user)
-                      ? "Sistem sahibi (owner) admin pasifleştirilemez."
-                      : undefined
+                    isSelf()
+                      ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
+                      : isManagedOwnerAdmin(user)
+                        ? "Ana yönetici pasifleştirilemez."
+                        : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                          ? "Admin hesabı durumunu yalnızca ana yönetici değiştirebilir."
+                          : undefined
                   }
-                  onClick={toggleActive}
+                  onClick={requestToggleActive}
                   className={`${actionBtn} border-emerald-200 bg-emerald-50 text-emerald-950`}
                 >
                   {user.active ? (
@@ -1498,14 +1622,42 @@ export default function AdminUserDetailPage() {
                 </button>
                 <button
                   type="button"
+                  disabled={!canManageAccountActions()}
+                  title={
+                    isManagedOwnerAdmin(user)
+                      ? "Ana yönetici hesabına bu işlem uygulanamaz."
+                      : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                        ? "Admin şifresini yalnızca ana yönetici sıfırlayabilir."
+                        : undefined
+                  }
                   onClick={() => {
-                    setPasswordOpen((o) => !o);
-                    setEditOpen(false);
+                    if (passwordOpen) {
+                      closePasswordPanel();
+                    } else {
+                      setPasswordOpen(true);
+                      setEditOpen(false);
+                    }
                   }}
-                  className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950`}
+                  className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950 disabled:cursor-not-allowed disabled:opacity-50`}
                 >
                   <KeyRound className="h-4 w-4" />
-                  Şifre Güncelle
+                  Şifreyi Sıfırla
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManageAccountActions()}
+                  title={
+                    isManagedOwnerAdmin(user)
+                      ? "Ana yönetici hesabına bu işlem uygulanamaz."
+                      : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                        ? "Bu işlem yalnızca ana yöneticiye açıktır."
+                        : undefined
+                  }
+                  onClick={openLogoutAllModal}
+                  className={`${actionBtn} border-orange-200 bg-orange-50 text-orange-950 disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Tüm Cihazlardan Çıkış
                 </button>
                 <button
                   type="button"
@@ -1548,22 +1700,61 @@ export default function AdminUserDetailPage() {
 
               {passwordOpen ? (
                 <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-4">
-                  <p className="text-sm font-black text-amber-950">Yeni şifre</p>
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <p className="text-sm font-black text-amber-950">Yeni şifre belirle</p>
+                  <p className="mt-1 text-xs font-bold text-amber-900/85">
+                    Şifre değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        className={`${inputClass} mt-0 w-full pr-11`}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Yeni şifre (en az 6 karakter)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((s) => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-amber-700 transition hover:bg-amber-100"
+                        aria-label={showNewPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <input
-                      type="password"
-                      className={`${inputClass} mt-0 flex-1`}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Yeni şifre"
+                      type={showNewPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      className={`${inputClass} mt-0 w-full`}
+                      value={newPasswordRepeat}
+                      onChange={(e) => setNewPasswordRepeat(e.target.value)}
+                      placeholder="Yeni şifre (tekrar)"
                     />
+                    {newPasswordRepeat.length > 0 && newPassword.trim() !== newPasswordRepeat.trim() ? (
+                      <p className="text-xs font-bold text-rose-700">Şifreler eşleşmiyor.</p>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={savePassword}
-                      disabled={savingPassword}
-                      className={saveBtnClass}
+                      disabled={
+                        savingPassword ||
+                        newPassword.trim().length < 6 ||
+                        newPassword.trim() !== newPasswordRepeat.trim()
+                      }
+                      className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
-                      {savingPassword ? "Kaydediliyor…" : "Onayla"}
+                      {savingPassword ? "Kaydediliyor…" : "Şifreyi Sıfırla"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closePasswordPanel}
+                      disabled={savingPassword}
+                      className={`${actionBtn} border-slate-200 bg-white text-slate-800`}
+                    >
+                      İptal
                     </button>
                   </div>
                 </div>
@@ -2727,6 +2918,171 @@ export default function AdminUserDetailPage() {
                   </>
                 ) : (
                   "Kullanıcıyı sil"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── P2: Pasife alma onayı (tüm cihazlardan çıkış uyarısı) ───────────── */}
+      {deactivateOpen && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deactivate-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={() => setDeactivateOpen(false)}
+              disabled={actionUserId === user.id}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="deactivate-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
+              Kullanıcıyı pasife almak üzeresiniz
+            </h2>
+            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+              Bu işlem kullanıcının erişimini durdurur ve <span className="font-black">masaüstü, mobil ve tablet
+              dahil tüm cihazlardaki oturumlarını kapatır</span>. Kullanıcı yeniden aktif yapılana ve tekrar giriş
+              yapana kadar sisteme erişemez.
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDeactivateOpen(false)}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeactivate()}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionUserId === user.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    İşleniyor…
+                  </>
+                ) : (
+                  "Pasife al ve çıkış yaptır"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── P2: Tüm cihazlardan çıkış — adım 1 (bilgilendirme) ──────────────── */}
+      {logoutAllStep === "confirm" && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-all-confirm-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={closeLogoutAllModal}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="logout-all-confirm-title" className="pr-8 text-xl font-black text-orange-950 sm:text-2xl">
+              Tüm cihazlardan çıkış
+            </h2>
+            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+              Kullanıcının <span className="font-black">masaüstü, mobil ve tablet dahil tüm aktif oturumları</span>{" "}
+              sonlandırılır. Hesap durumu, şifre ve modül izinleri değişmez. Kullanıcı isterse tekrar giriş
+              yapabilir (pasifse giriş yapamaz).
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeLogoutAllModal}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoutAllPhrase("");
+                  setLogoutAllStep("verify");
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-orange-300 bg-orange-600 px-5 text-sm font-black text-white transition hover:bg-orange-700"
+              >
+                Devam et
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── P2: Tüm cihazlardan çıkış — adım 2 (tam metin onayı) ────────────── */}
+      {logoutAllStep === "verify" && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-all-verify-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={closeLogoutAllModal}
+              disabled={logoutAllSubmitting}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="logout-all-verify-title" className="pr-8 text-xl font-black text-orange-950 sm:text-2xl">
+              Onay gerekli
+            </h2>
+            <p className="mt-3 text-sm font-medium text-slate-700">
+              Onaylamak için aşağıya tam olarak yazın:
+            </p>
+            <p className="mt-1 text-sm font-black text-orange-900">{LOGOUT_ALL_PHRASE}</p>
+            <input
+              type="text"
+              value={logoutAllPhrase}
+              onChange={(e) => setLogoutAllPhrase(e.target.value)}
+              disabled={logoutAllSubmitting}
+              className="mt-4 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-orange-300 focus:border-orange-400 focus:ring-2 disabled:opacity-60"
+              placeholder={LOGOUT_ALL_PHRASE}
+            />
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setLogoutAllStep("confirm")}
+                disabled={logoutAllSubmitting}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Geri
+              </button>
+              <button
+                type="button"
+                onClick={() => void executeLogoutAll()}
+                disabled={logoutAllSubmitting || logoutAllPhrase.trim() !== LOGOUT_ALL_PHRASE}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-orange-300 bg-orange-600 px-5 text-sm font-black text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {logoutAllSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Çıkış yaptırılıyor…
+                  </>
+                ) : (
+                  "Tüm cihazlardan çıkış yaptır"
                 )}
               </button>
             </div>
