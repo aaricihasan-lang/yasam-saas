@@ -43,3 +43,11 @@ next-env.d.ts
 /app/generated/prisma
 
 .vercel
+
+# BF-12B pre-sale backup — gerçek output/secret ASLA commit edilmez (local-only araç)
+# (Araç output'u zaten repo dışına yazar; bunlar ek koruma.)
+/bf12b-backup-output/
+*.backup.enc
+*.passphrase
+bf12b-*.passphrase
+/scripts/yh-bf12b/*.local.*
