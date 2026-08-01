@@ -14,6 +14,7 @@ import { validateArchive, type DatabaseArchive } from "../../lib/yasam-hafizasi/
 import { decryptArtifact } from "../../lib/yasam-hafizasi/backup/crypto";
 import { buildWordArchive } from "../../lib/yasam-hafizasi/backup/word";
 import { findGitRoot } from "../../lib/yasam-hafizasi/backup/outputSafety";
+import { redactSecrets, resolveProductionDbConfig, type ProdResolveInput } from "../../lib/yasam-hafizasi/backup/prodConfig";
 import { COMPLETE_MARKER } from "../../lib/yasam-hafizasi/backup/constants";
 import type {
   EncryptedEnvelope,
@@ -215,6 +216,59 @@ async function main(): Promise<void> {
   const c1 = readJson<EncryptedEnvelope>(posDir, "database/database.full.json.enc").ciphertext;
   const c2 = readJson<EncryptedEnvelope>(posDir2, "database/database.full.json.enc").ciphertext;
   add("s30-encrypted-bytes-differ-unique-iv", c1 !== c2, "");
+
+  // ── BLOCKER FIX: DB-env / secret-safe config testleri (bağlantı KURULMAZ) ──
+  const DBURL_SENTINEL = "SECRET_DBURL_SENTINEL";
+  const KEY_SENTINEL = "eySERVICEKEYSENTINEL1234567890abcdef";
+  const goodEnv: Record<string, string | undefined> = {
+    BF12B_DB_URL: `postgres://u:${DBURL_SENTINEL}@host:5432/db`,
+    BF12B_SERVICE_ROLE_KEY: KEY_SENTINEL,
+  };
+  const baseInput = (o: Partial<ProdResolveInput>): ProdResolveInput => ({
+    dbUrlEnv: "BF12B_DB_URL",
+    rawDbUrlProvided: false,
+    supabaseUrl: "https://proj.supabase.co",
+    serviceKeyEnv: "BF12B_SERVICE_ROLE_KEY",
+    passphraseFileProvided: true,
+    execute: true,
+    ack: true,
+    projectRef: "ylasompuxavjvimbbfgd",
+    out: "E:/out",
+    env: goodEnv,
+    ...o,
+  });
+
+  add("s31-db-url-env-resolve-ok", resolveProductionDbConfig(baseInput({})).ok, "");
+  add("s32-env-value-missing-failclosed", !resolveProductionDbConfig(baseInput({ env: { BF12B_SERVICE_ROLE_KEY: KEY_SENTINEL } })).ok, "");
+  add(
+    "s33-invalid-env-name-failclosed",
+    !resolveProductionDbConfig(baseInput({ dbUrlEnv: "../../secret" })).ok &&
+      !resolveProductionDbConfig(baseInput({ dbUrlEnv: "BF12B-DB-URL" })).ok,
+    "",
+  );
+  const rawRej = resolveProductionDbConfig(baseInput({ rawDbUrlProvided: true }));
+  add("s34-raw-db-url-rejected", !rawRej.ok && rawRej.errors.some((e) => e.includes("Ham --db-url")), "");
+  const red = redactSecrets(`${goodEnv.BF12B_DB_URL} key=${KEY_SENTINEL}`);
+  add("s35-redaction-strips-secrets", !red.includes(DBURL_SENTINEL) && !red.includes(KEY_SENTINEL), red);
+  {
+    const pubStr = readFileSync(join(posDir, "manifest.public.json"), "utf8");
+    const valStr = readFileSync(join(posDir, "validation", "validation-report.json"), "utf8");
+    const clean = ![pubStr, valStr].some((s) => s.includes(DBURL_SENTINEL) || s.includes(KEY_SENTINEL) || s.includes("postgres://"));
+    add("s36-no-db-secret-in-manifests", clean, "");
+  }
+  {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")) as { devDependencies?: Record<string, string> };
+    const dd = pkg.devDependencies ?? {};
+    add("s37-pg-in-package-json", typeof dd["pg"] === "string" && typeof dd["@types/pg"] === "string", `pg=${dd["pg"]} @types/pg=${dd["@types/pg"]}`);
+    const lock = readFileSync(join(REPO_ROOT, "package-lock.json"), "utf8");
+    add("s38-pg-in-lockfile", lock.includes('"node_modules/pg"') && lock.includes('"node_modules/@types/pg"'), "");
+  }
+  {
+    const rb = readFileSync(join(REPO_ROOT, "docs/yasam-hafizasi/BF-12B_BACKUP_RUNBOOK.md"), "utf8");
+    const noAdhoc = !rb.includes("npm install pg") && !rb.includes("npm i -D pg") && !rb.includes("npm i pg");
+    add("s39-runbook-no-adhoc-pg-install", noAdhoc, "");
+  }
+  add("s40-missing-env-no-connection", !resolveProductionDbConfig(baseInput({ env: {} })).ok, "resolve fail-closed → connection=0");
 
   // Bağımsız arşiv doğrulaması (pozitif)
   const finalValidation = validateArchive({ backupDir: posDir, passphrase: PASS });

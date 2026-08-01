@@ -21,6 +21,7 @@ import { assertPassphraseStrength } from "../../lib/yasam-hafizasi/backup/crypto
 import { findGitRoot } from "../../lib/yasam-hafizasi/backup/outputSafety";
 import { createProductionPgReader } from "../../lib/yasam-hafizasi/backup/reader";
 import { createSupabaseStorageReader } from "../../lib/yasam-hafizasi/backup/storage";
+import { redactSecrets, resolveProductionDbConfig } from "../../lib/yasam-hafizasi/backup/prodConfig";
 import { buildBaseDb, buildBaseStorage } from "./fixture";
 
 function parseArgs(argv: string[]): { cmd: string; flags: Map<string, string>; bools: Set<string> } {
@@ -94,47 +95,48 @@ async function cmdBackup(flags: Map<string, string>, bools: Set<string>): Promis
   }
 
   // ── Production yürütme kapısı (AYRI ONAY; bu kod fazında çalıştırılmaz) ──
-  const missing: string[] = [];
-  const need = (k: string): string => {
-    const v = flags.get(k);
-    if (!v) missing.push(`--${k}`);
-    return v ?? "";
-  };
-  const execute = bools.has("execute");
-  const outDir = need("out");
-  const projectRef = need("project-ref");
-  const dbUrl = flags.get("db-url") ?? process.env.BF12B_DB_URL ?? "";
-  const supaUrl = flags.get("supabase-url") ?? process.env.BF12B_SUPABASE_URL ?? "";
-  const serviceKeyEnv = flags.get("service-key-env") ?? "BF12B_SERVICE_ROLE_KEY";
-  const serviceKey = process.env[serviceKeyEnv] ?? "";
-  const passFile = flags.get("passphrase-file");
-  const ack = bools.has("i-understand-production-read");
-
-  if (!dbUrl) missing.push("--db-url|BF12B_DB_URL");
-  if (!supaUrl) missing.push("--supabase-url|BF12B_SUPABASE_URL");
-  if (!serviceKey) missing.push(`env:${serviceKeyEnv}`);
-  if (!passFile) missing.push("--passphrase-file");
-  if (!ack) missing.push("--i-understand-production-read");
-  if (!execute) missing.push("--execute");
-
-  if (missing.length > 0) {
+  // Gerçek DB URL / service key CLI ARGÜMANI olarak alınmaz; yalnız env ADI.
+  const resolved = resolveProductionDbConfig({
+    dbUrlEnv: flags.get("db-url-env"),
+    rawDbUrlProvided: flags.has("db-url") || bools.has("db-url"),
+    supabaseUrl: flags.get("supabase-url"),
+    serviceKeyEnv: flags.get("service-key-env"),
+    passphraseFileProvided: flags.has("passphrase-file"),
+    execute: bools.has("execute"),
+    ack: bools.has("i-understand-production-read"),
+    projectRef: flags.get("project-ref"),
+    out: flags.get("out"),
+    env: process.env,
+  });
+  if (!resolved.ok || !resolved.config) {
     // FAIL-CLOSED: production'a bağlanma, secret basma.
     throw new Error(
-      `Production backup için eksik parametre(ler): ${missing.join(", ")}. ` +
-        `Bağlantı KURULMADI (fail-closed). Gerçek run AYRI açık onay kapısıdır.`,
+      "Production backup fail-closed (bağlantı KURULMADI):\n" +
+        resolved.errors.map((e) => `  - ${e}`).join("\n") +
+        "\nGerçek run AYRI açık onay kapısıdır.",
     );
   }
+  const cfg = resolved.config;
 
-  const passphrase = readPassphrase(passFile);
+  const passphrase = readPassphrase(flags.get("passphrase-file"));
   const repoRoot = findGitRoot(process.cwd()) ?? process.cwd();
-  process.stdout.write(`[production] proje=${projectRef} → ${outDir} (gerçek okuma başlıyor)\n`);
-  const reader = await createProductionPgReader({ connectionString: dbUrl, expectedProjectRef: projectRef });
+  process.stdout.write(`[production] proje=${cfg.projectRef} → ${cfg.out} (gerçek okuma başlıyor)\n`);
+
+  let reader;
   try {
-    const storage = await createSupabaseStorageReader({ url: supaUrl, serviceRoleKey: serviceKey });
+    reader = await createProductionPgReader({
+      connectionString: cfg.connectionString,
+      expectedProjectRef: cfg.projectRef,
+    });
+  } catch (e) {
+    throw new Error(`DB bağlantısı başarısız: ${redactSecrets(e instanceof Error ? e.message : String(e))}`);
+  }
+  try {
+    const storage = await createSupabaseStorageReader({ url: cfg.supabaseUrl, serviceRoleKey: cfg.serviceRoleKey });
     const res = await runBackup({
       reader,
       storage,
-      outputDir: outDir,
+      outputDir: cfg.out,
       passphrase,
       toolVersion: "bf12b-cli",
       originMainSha: flags.get("origin-sha") ?? "unknown",
@@ -144,6 +146,8 @@ async function cmdBackup(flags: Map<string, string>, bools: Set<string>): Promis
     });
     process.stdout.write(`complete=${res.complete} validation.ok=${res.validation.ok} → ${res.finalDir}\n`);
     return res.complete && res.validation.ok ? 0 : 1;
+  } catch (e) {
+    throw new Error(redactSecrets(e instanceof Error ? e.message : String(e)));
   } finally {
     await reader.close();
   }
@@ -163,6 +167,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stdout.write(`BF-12B CLI hata: ${e instanceof Error ? e.message : String(e)}\n`);
+  process.stdout.write(`BF-12B CLI hata: ${redactSecrets(e instanceof Error ? e.message : String(e))}\n`);
   process.exit(1);
 });

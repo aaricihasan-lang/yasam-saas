@@ -30,17 +30,22 @@ Yapmaz:
 
 | Amaç | Nasıl verilir |
 |---|---|
-| DB read (salt-okunur) | `--db-url` veya env `BF12B_DB_URL` (Postgres bağlantı dizesi) |
-| Storage read | `--supabase-url` (env `BF12B_SUPABASE_URL`) + service_role key **yalnız env** `BF12B_SERVICE_ROLE_KEY` (adı `--service-key-env` ile değişebilir) |
+| DB read (salt-okunur) | **Yalnız env ADI**: `--db-url-env BF12B_DB_URL`. Gerçek DB URL değeri **argümanda verilmez**; `process.env`'den okunur. Ham `--db-url <değer>` production'da **reddedilir**. |
+| Storage read | `--supabase-url <URL>` + service_role key **yalnız env** `--service-key-env BF12B_SERVICE_ROLE_KEY` (değer `process.env`'den) |
 | Şifreleme passphrase | **yalnız** `--passphrase-file <dosya>` (argv/asla) |
 | Proje doğrulaması | `--project-ref <ref>` |
 
-**Saklamayın:** bu değerleri repo/worktree/commit/log içine. `.env*`, `*.passphrase`,
-`*.backup.enc` `.gitignore`'dadır. Service key **echo edilmez**.
+env adı allowlist: `^[A-Z][A-Z0-9_]*$`. Env tanımsızsa **bağlantı kurulmadan** fail-closed.
+Hata/log/manifest/Word/validation report **hiçbir** DB URL / host / user / password / key
+göstermez (redaction uygulanır).
 
-> **Gerçek DB reader için:** `pg` paketi runtime'da dinamik yüklenir. Gerçek run
-> öncesi operatör kurar: `npm i -D pg` (bu araç bağımlılık olarak eklemez — kod fazı
-> lockfile'ı temiz tutar). Storage read için mevcut `@supabase/supabase-js` kullanılır.
+**Saklamayın:** bu değerleri repo/worktree/commit/log içine. `.env*`, `*.passphrase`,
+`*.backup.enc` `.gitignore`'dadır. Service key/DB URL **echo edilmez**.
+
+> **`pg` proje bağımlılığıdır** (`package.json` + `package-lock.json`, devDependency)
+> ve `@types/pg` ile birlikte gelir. Temiz checkout + **normal bağımlılık kurulumu**
+> sonrası araç hazırdır — gerçek run öncesi **ayrıca elle `pg` kurulumu GEREKMEZ**.
+> Storage için mevcut `@supabase/supabase-js`, Word için mevcut `docx` kullanılır.
 
 ---
 
@@ -74,21 +79,34 @@ npm run yh:bf12b:harness
 # Mevcut bir arşivi doğrula
 npm run yh:bf12b:validate -- --backup-dir <path> --passphrase-file <file>
 
-# GERÇEK PRODUCTION (AYRI ONAY KAPISI — aşağıdaki tüm bayraklar zorunlu)
-npm run yh:bf12b:backup -- \
-  --source production --execute \
-  --project-ref <ref> \
-  --db-url "$BF12B_DB_URL" \
-  --supabase-url "$BF12B_SUPABASE_URL" \
-  --service-key-env BF12B_SERVICE_ROLE_KEY \
-  --out /mnt/harici-disk/yasam-backup-YYYYMMDD \
-  --passphrase-file /secure/bf12b.passphrase \
-  --i-understand-production-read \
-  --origin-sha <origin/main sha>
+# GERÇEK PRODUCTION (AYRI ONAY KAPISI) — Windows PowerShell
+# 1) Secret'ları ENV'e koy (argümana ASLA):
+$env:BF12B_DB_URL = "<Supabase direct/read connection URL>"
+$env:BF12B_SERVICE_ROLE_KEY = "<service role key>"
+
+# 2) Çalıştır — DB URL yalnız ENV ADI ile geçilir (--db-url-env):
+npm run yh:bf12b:backup -- `
+  --source production `
+  --execute `
+  --project-ref ylasompuxavjvimbbfgd `
+  --db-url-env BF12B_DB_URL `
+  --supabase-url "<Supabase project URL>" `
+  --service-key-env BF12B_SERVICE_ROLE_KEY `
+  --out "E:\yasam-backups\yasam-backup-YYYYMMDD-HHMM" `
+  --passphrase-file "E:\yasam-backups\secrets\bf12b.passphrase" `
+  --i-understand-production-read `
+  --origin-sha "<merged-production-SHA>"
+
+# 3) Session sonrası secret env'leri temizle:
+Remove-Item Env:BF12B_DB_URL
+Remove-Item Env:BF12B_SERVICE_ROLE_KEY
 ```
 
-Eksik bayrakta araç **production'a bağlanmaz**, anlaşılır fail-closed hata verir,
-secret basmaz. `--source` olmadan `backup` production'a **bağlanmaz**.
+Kurallar:
+- **Ham `--db-url <değer>` kullanma** (production'da reddedilir). DB URL yalnız `--db-url-env`.
+- Bash `$VAR` genişletmesini DB URL argümanı olarak **kullanma** (argv'de secret görünür).
+- Eksik/geçersiz env'de araç **production'a bağlanmaz**, redakte edilmiş fail-closed hata verir.
+- Gerçek secret'ı terminal history'ye yazmamaya dikkat et; `pg` normal `npm install` ile gelir.
 
 ---
 

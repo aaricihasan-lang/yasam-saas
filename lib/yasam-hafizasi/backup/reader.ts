@@ -116,12 +116,12 @@ export interface ProductionReaderConfig {
 }
 
 /**
- * `pg` Client'ı statik olmayan specifier ile yükler → tsc `pg` paketi gerektirmez.
- * (Gerçek run öncesi operatör `npm i -D pg` kurmalıdır.)
+ * `pg` Client'ı LAZY yükler (yalnız production reader oluşturulurken). `pg` +
+ * `@types/pg` proje devDependency'sidir (package.json + lockfile) → temiz checkout +
+ * normal `npm install` sonrası hazırdır; run sırasında ad-hoc kurulum YOK.
  */
 async function loadPgClient(cfg: { connectionString: string }): Promise<PgClientLike> {
-  const specifier = "pg";
-  const mod = (await import(specifier)) as { Client: new (c: unknown) => PgClientLike };
+  const mod = (await import("pg")) as unknown as { Client: new (c: unknown) => PgClientLike };
   return new mod.Client({ connectionString: cfg.connectionString });
 }
 
