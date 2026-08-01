@@ -10,21 +10,21 @@ import {
   MetaChip,
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { useAromaterapiDetail } from "@/app/aromaterapi/_components/read/useAromaterapiDetail";
+import { PreparationMethodList } from "@/app/aromaterapi/katalog/_components/PreparationMethodList";
 import { fetchPreparation } from "@/lib/aromaterapi/catalogData";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import type { PreparationDetail } from "@/lib/aromaterapi/readTypes";
 import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
 
 /**
- * Preparat detay — künye + bağlı bitki + ilişkili bilgi kaydı sayısı.
- *
- * NOT: "Üretim ve Elde Ediliş" ve "Saklama ve Kalite" bölümlerinin ayrıntılı
- * alanları (yöntem, ekipman, oran, süre, sıcaklık, saklama, kalite/güvenlik
- * notları) mevcut şemada YOKTUR. Bu nedenle sahte içerik gösterilmez;
- * bölümler profesyonel boş-durum ile korunur (şema tamamlanınca doldurulur).
+ * Preparat detay — künye + bağlı bitki + üretim/elde ediliş yöntemleri (C3D-B2B) +
+ * ilişkili bilgi kaydı sayısı. Yöntem bölümü artık gerçek verilerle doldurulur
+ * (method series/revision); düzenleme ve "Yeni Üretim Yöntemi" akışları bağlanır.
  */
 export default function PreparatDetayPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const fetcher = useCallback((signal: AbortSignal) => fetchPreparation(id, signal), [id]);
   const { data, loading, notFound, errorCode, retry } = useAromaterapiDetail<PreparationDetail>(
     fetcher,
@@ -48,6 +48,17 @@ export default function PreparatDetayPage() {
     >
       {data ? (
         <div className="space-y-4">
+          {!isDemo ? (
+            <div className="flex justify-end">
+              <Link
+                href={`/aromaterapi/katalog/preparatlar/${data.id}/duzenle`}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+              >
+                ✏️ Preparatı düzenle
+              </Link>
+            </div>
+          ) : null}
+
           <DetailSection title="Genel Bilgiler">
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <DetailField label="Preparat Türü" value={typeLabel} />
@@ -86,14 +97,10 @@ export default function PreparatDetayPage() {
           </DetailSection>
 
           <DetailSection
-            title="Üretim ve Elde Ediliş"
-            hint="Uçucu yağ, hidrosol, maserat ve diğer preparat türleri için ayrı yöntem varyantları."
+            title="Üretim ve Elde Ediliş Yöntemleri"
+            hint="Bu preparatın nasıl elde edildiği; her yöntem kendi revizyon geçmişini taşır."
           >
-            <SchemaGapNote message="Bu preparat için yapılandırılmış üretim/elde ediliş bilgisi (kullanılan bitki kısmı ayrıntısı, yöntem, ekipman, oran, süre, sıcaklık, süzme, dinlendirme) henüz kaynağa dayalı olarak girilmemiştir. Hazır olduğunda burada kaynağıyla birlikte gösterilecektir." />
-          </DetailSection>
-
-          <DetailSection title="Saklama ve Kalite">
-            <SchemaGapNote message="Saklama koşulları, raf ömrü ve kalite/güvenlik notları kaynağa dayalı olarak girildiğinde burada listelenecektir." />
+            <PreparationMethodList preparationId={data.id} isDemo={isDemo} />
           </DetailSection>
 
           <DetailSection title="İlişkili Bilgi Kayıtları">
@@ -113,16 +120,5 @@ export default function PreparatDetayPage() {
         </div>
       ) : null}
     </DetailScreen>
-  );
-}
-
-function SchemaGapNote({ message }: { message: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3.5">
-      <span aria-hidden className="text-lg">
-        🧭
-      </span>
-      <p className="text-[13px] font-medium leading-relaxed text-slate-500">{message}</p>
-    </div>
   );
 }

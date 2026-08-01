@@ -11,6 +11,7 @@ import {
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { useAromaterapiDetail } from "@/app/aromaterapi/_components/read/useAromaterapiDetail";
 import { fetchPlantTaxon, type PlantTaxonDetailResult } from "@/lib/aromaterapi/catalogData";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   CATALOG_STATUS_TR,
   PREPARATION_TYPE_TR,
@@ -22,6 +23,7 @@ import {
 export default function BitkiDetayPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const fetcher = useCallback(
     (signal: AbortSignal) => fetchPlantTaxon(id, signal),
     [id],
@@ -46,6 +48,17 @@ export default function BitkiDetayPage() {
     >
       {taxon ? (
         <div className="space-y-4">
+          {!isDemo ? (
+            <div className="flex justify-end">
+              <Link
+                href={`/aromaterapi/katalog/bitkiler/${taxon.id}/duzenle`}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+              >
+                ✏️ Bitkiyi düzenle
+              </Link>
+            </div>
+          ) : null}
+
           <DetailSection title="Genel Bilgiler">
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <DetailField label="Kanonik Ad" value={<span className="italic">{taxon.canonical_name}</span>} />

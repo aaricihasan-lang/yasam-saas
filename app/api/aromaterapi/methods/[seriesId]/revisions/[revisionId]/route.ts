@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   isUuid,
@@ -8,6 +8,8 @@ import {
 } from "@/lib/aromaterapi/service/writeValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { transitionMethodRevisionStatus } from "@/lib/aromaterapi/service/catalogMethodMutations";
+import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
+import { getMethodRevision } from "@/lib/aromaterapi/service/methodReads";
 import {
   CATALOG_BODY_LIMITS,
   catalogBad,
@@ -32,6 +34,26 @@ type RouteContext = { params: Promise<{ seriesId: string; revisionId: string }> 
  * transaction'da otomatik archived edilir (tek verified değişmezi). reason + expected_updated_at
  * ZORUNLU. Aynı status → no-op.
  */
+/**
+ * GET /api/aromaterapi/methods/[seriesId]/revisions/[revisionId] — Tek revizyonun tam
+ * içeriği (salt-okunur, tenant-scoped). Seri/revizyon eşleşmezse veya out-of-tenant → 404.
+ */
+export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const { seriesId, revisionId } = await ctx.params;
+  if (!isUuid(seriesId) || !isUuid(revisionId)) return readFail("AROMA_INVALID_UUID");
+
+  try {
+    const revision = await getMethodRevision(guard.db, guard.tenantId, seriesId, revisionId);
+    if (!revision) return readNotFound();
+    return NextResponse.json({ ok: true, revision });
+  } catch (e) {
+    return readServerError("methods:revision:detail", e);
+  }
+}
+
 const PATCH_ALLOWED = new Set<string>(["target_status", "expected_updated_at", "reason"]);
 
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
