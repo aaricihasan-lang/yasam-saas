@@ -231,6 +231,9 @@ export type UpdateConceptRelationSourceErrorCode =
   | "YEBS_RELATION_SOURCE_RELATION_LOCKED"
   | "YEBS_RELATION_SOURCE_STALE_UPDATE"
   | "YEBS_RELATION_SOURCE_NO_CHANGES"
+  // API-TX (TX-V): verification_status IN (verified,rejected) iken içerik edit kilidi
+  // (evidence-lock trigger'ı → RAISE). Değişiklik yalnız verification transition ile.
+  | "YEBS_RELATION_SOURCE_VERIFICATION_LOCKED"
   | "YEBS_RELATION_SOURCE_UPDATE_FAILED";
 
 export type UpdateConceptRelationSourceResult =
@@ -252,6 +255,7 @@ const UPDATE_RPC_ERROR_CODES: ReadonlySet<UpdateConceptRelationSourceErrorCode> 
   "YEBS_RELATION_SOURCE_RELATION_LOCKED",
   "YEBS_RELATION_SOURCE_STALE_UPDATE",
   "YEBS_RELATION_SOURCE_NO_CHANGES",
+  "YEBS_RELATION_SOURCE_VERIFICATION_LOCKED",
 ]);
 
 function classifyUpdateRpcError(

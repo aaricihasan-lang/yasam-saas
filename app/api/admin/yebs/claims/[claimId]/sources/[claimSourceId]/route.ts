@@ -137,6 +137,9 @@ function mapUpdateError(code: UpdateClaimSourceErrorCode): Response {
       return NextResponse.json({ ok: false, error: "Kaynak bağı başka bir işlem tarafından güncellendi. Güncel kaydı yeniden yükleyin.", code }, { status: 409 });
     case "YEBS_CLAIM_SOURCE_CLAIM_LOCKED":
       return NextResponse.json({ ok: false, error: "Yalnız taslak durumundaki iddianın kaynak bağı düzenlenebilir.", code }, { status: 409 });
+    case "YEBS_CLAIM_SOURCE_VERIFICATION_LOCKED":
+      // API-TX (TX-V) evidence edit lock: verified/rejected kanıt içeriği düzenlenemez.
+      return NextResponse.json({ ok: false, error: "Doğrulanmış/reddedilmiş kanıtın içeriği düzenlenemez; önce doğrulama durumunu 'unverified' yapın.", code }, { status: 409 });
     case "YEBS_CLAIM_SOURCE_NO_CHANGES":
       return NextResponse.json({ ok: false, error: "Kaynak bağında kaydedilecek bir değişiklik bulunamadı.", code }, { status: 409 });
     case "YEBS_ADMIN_NOT_FOUND":
