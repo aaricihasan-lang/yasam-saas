@@ -7,7 +7,7 @@
  * + filtre sadeleştirme + admin/test uyarı sertleştirmesi). Commit 2 (modül gate)
  * bu dosyaya ayrı bölümler ekler. Gerçek DB'ye YAZMAZ (saf fn + statik sözleşme).
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import {
   normalizeLimit,
   evaluateNewSession,
@@ -19,6 +19,12 @@ import {
   computeExcessSessionsToRevoke,
   type ActiveSessionRow,
 } from "../lib/admin/sessionLimitManagement";
+import { resolveModuleAccess } from "../lib/auth/moduleAccess";
+import {
+  MODULE_ROUTE_PREFIXES,
+  EXCLUDED_API_PREFIXES,
+  EXPLICIT_EXCLUDED_ROUTES,
+} from "../lib/auth/moduleRouteRegistry";
 
 let passed = 0;
 let failed = 0;
@@ -195,12 +201,89 @@ function run(): void {
   const home = readFileSync("app/page.tsx", "utf8");
   ok(!/(TEST ORTAMI|STAGING|MONITORING PANEL|DEBUG PANEL)/i.test(home), "uyarı: ana ekranda admin/test banner yok");
 
-  console.log(`\nfaz1-p3-access-management harness (Commit 1): ${passed} PASS, ${failed} FAIL`);
+  // ══════════════════════════════════════════════════════════════════════════
+  // COMMIT 2 — merkezi modül registry + requireModuleAccess + server-gate + Premium
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── 9) resolveModuleAccess (Premium bypass YOK; admin/cosmic/coming-soon/hub) ──
+  ok(resolveModuleAccess("admin", {}, "stones") === true, "module: admin → tüm modüller");
+  ok(resolveModuleAccess("expert", {}, "cosmic_calendar") === true, "module: cosmic_calendar always-on");
+  ok(resolveModuleAccess("expert", { stones: true }, "human_design") === false, "module: human_design yakında (non-admin false)");
+  ok(resolveModuleAccess("admin", {}, "human_design") === true, "module: human_design admin → true");
+  ok(resolveModuleAccess("expert", { stones: true }, "stones") === true, "module: açık modül → izin");
+  ok(resolveModuleAccess("expert", { stones: false }, "stones") === false, "module: kapalı modül → red");
+  ok(resolveModuleAccess("expert", { dogaltas: true }, "stones") === true, "module: alias (dogaltas→stones)");
+  ok(resolveModuleAccess("expert", {}, "stones") === false, "module: izin yok → red");
+  // Premium bypass KALDIRILDI: package_type premium olsa da module_permissions esastır.
+  ok(resolveModuleAccess("expert", {}, "aromatherapy") === false, "module: Premium bypass YOK (izin yoksa red)");
+  ok(resolveModuleAccess("expert", { video_ceviri: true }, "digital_content") === true, "module: digital_content hub (alt modülden)");
+  ok(resolveModuleAccess("expert", {}, "digital_content") === false, "module: hub alt modül yoksa red");
+
+  // ── 10) ENVANTER / GATE KAPSAMI — her modül route'u ya gate'li ya explicit-exclude ──
+  const API_ROOT = "app/api";
+  function listRouteFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const p = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) out.push(...listRouteFiles(p));
+      else if (entry.name === "route.ts") out.push(p);
+    }
+    return out;
+  }
+  const allRoutes = listRouteFiles(API_ROOT);
+  ok(allRoutes.length >= 190, `envanter: api route sayısı okundu (${allRoutes.length})`);
+
+  const excludedPrefixes = EXCLUDED_API_PREFIXES.map((e) => e.prefix);
+  const explicitExcluded = new Set(EXPLICIT_EXCLUDED_ROUTES.map((e) => e.path));
+  const ungated: string[] = [];
+  const unclassified: string[] = [];
+  let gatedCount = 0;
+  let excludedCount = 0;
+
+  for (const rel of allRoutes) {
+    if (excludedPrefixes.some((p) => rel === `${p}/route.ts` || rel.startsWith(`${p}/`))) { excludedCount++; continue; }
+    if (explicitExcluded.has(rel)) { excludedCount++; continue; }
+    const mod = MODULE_ROUTE_PREFIXES.find((m) => rel === `${m.prefix}/route.ts` || rel.startsWith(`${m.prefix}/`));
+    if (!mod) { unclassified.push(rel); continue; }
+    const src = readFileSync(rel, "utf8");
+    if (/requireModuleAccess\s*\(|assertUserModuleAccess\s*\(|requireDigitalContentUser\s*\([^)]*,\s*"/.test(src)) {
+      gatedCount++;
+    } else {
+      ungated.push(rel);
+    }
+  }
+  ok(unclassified.length === 0, `envanter: sınıflandırılamayan route yok (${unclassified.slice(0, 5).join(", ")})`);
+  ok(ungated.length === 0, `envanter: GATE'SİZ modül route yok (${ungated.slice(0, 8).join(", ")})`);
+  ok(gatedCount >= 110, `envanter: gate'li modül route sayısı (${gatedCount})`);
+  ok(excludedCount >= 70, `envanter: exclude edilen route sayısı (${excludedCount})`);
+
+  // ── 11) Premium bypass KALDIRMA (statik) ───────────────────────────────────
+  const modPerms = readFileSync("lib/auth/modulePermissions.ts", "utf8");
+  ok(!/if \(isPremiumExpertUser\(user\)\)/.test(modPerms), "premium: hasModulePermission/hasAny'de bypass KALDIRILDI");
+  const homeSrc = readFileSync("app/page.tsx", "utf8");
+  ok(!/if \(isPremiumExpertUser\(user\)\)\s*\{[\s\S]{0,80}PREMIUM_HOME_MODULE_KEYS/.test(homeSrc), "premium: home display bypass KALDIRILDI");
+
+  // ── 12) requireModuleAccess + moduleAccess sözleşmeleri (statik) ───────────
+  const userGuard = readFileSync("lib/auth/userGuard.ts", "utf8");
+  ok(/requireModuleAccess/.test(userGuard) && /resolveModuleAccess/.test(userGuard) && /includeProfile: true/.test(userGuard), "requireModuleAccess: verifyUserRequest+profil+resolve");
+  const modAccess = readFileSync("lib/auth/moduleAccess.ts", "utf8");
+  ok(!/isPremiumExpertUser|package_type/.test(modAccess), "moduleAccess: Premium/paket bypass YOK");
+
+  // ── 13) Premium backfill migration + module audit (statik) ─────────────────
+  const bfMig = readFileSync("supabase/migrations/20260919000000_p3_module_permissions_backfill.sql", "utf8");
+  ok(/module_permissions\s*=\s*COALESCE/i.test(bfMig) && /\|\|/.test(bfMig), "migration: premium backfill merge (||, kapatmaz)");
+  ok(/role\s*=\s*'expert'/i.test(bfMig) && /premium/i.test(bfMig), "migration: yalnız premium expert");
+  ok(!/human_design/i.test(bfMig.split("ROLLBACK")[0] ?? bfMig), "migration: human_design backfill'e DAHİL DEĞİL");
+  const licRoute2 = readFileSync("app/api/admin/users/[id]/route.ts", "utf8");
+  ok(/module_enabled/.test(licRoute2) && /module_disabled/.test(licRoute2), "module-audit: enabled/disabled actions");
+  ok(!/Premium pakette modül izinleri değiştirilemez/.test(licRoute2), "module: Premium düzenleme engeli KALDIRILDI");
+
+  console.log(`\nfaz1-p3-access-management harness (Commit 1+2): ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
     process.exit(1);
   }
-  console.log("✅ Commit 1 — oturum limitleri + login + filtre + uyarı testleri geçti.");
+  console.log("✅ Commit 1+2 — oturum limitleri + modül server-gate + envanter kapsamı geçti.");
 }
 
 run();

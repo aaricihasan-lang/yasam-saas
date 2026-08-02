@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseListParams, isUuid } from "@/lib/aromaterapi/service/readValidation";
 import {
   readFail,
@@ -19,7 +19,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * 404 döner (varlık sızdırmaz). page/limit desteklenir.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { id } = await ctx.params;

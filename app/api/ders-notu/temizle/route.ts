@@ -195,7 +195,7 @@ function postProcess(raw: string): string {
 
 export async function POST(request: NextRequest) {
   // Güvenlik: kimlik + demo engeli (gpt-4o harcaması — kimliksiz erişim kapatıldı).
-  const auth = await requireDigitalContentUser(request);
+  const auth = await requireDigitalContentUser(request, "ders_notu");
   if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();

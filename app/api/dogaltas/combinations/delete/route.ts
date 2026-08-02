@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * (tekli veya toplu).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id SUNUCUDAN (oturumdan) alınır; client'tan GELMEZ.
  *   - DELETE her zaman tenant_id = session tenant ile sınırlıdır → tenant dışı
  *     silme imkânsızdır.
@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 const MAX_ISSUES = 1000;
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

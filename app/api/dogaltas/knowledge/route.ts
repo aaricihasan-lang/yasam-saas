@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * /api/dogaltas/knowledge — stone_knowledge_articles güvenli server kapısı.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id daima oturumdan; body/query'den GÜVENİLMEZ.
  *   - GET: paylaşımlı kütüphane (ADMIN_LIBRARY_TENANT_ID) + bu tenant'ın kendi
  *     ekleri okunur (mevcut client davranışı birebir korunur).
@@ -38,7 +38,7 @@ function sanitize(body: Record<string, unknown>, allowed?: Set<string>): Record<
 
 // ─── GET /api/dogaltas/knowledge ───────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/dogaltas/knowledge (yeni makale) ────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 // ─── PATCH /api/dogaltas/knowledge ─────────────────────────────────────────────
 // Tek kayıt: body.id + alanlar.   Toplu: body.ids[] + alanlar.
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -134,7 +134,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 // ─── DELETE /api/dogaltas/knowledge ────────────────────────────────────────────
 // Tek kayıt: ?id=...   Toplu: body.ids[] (veya ?id virgülle).
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

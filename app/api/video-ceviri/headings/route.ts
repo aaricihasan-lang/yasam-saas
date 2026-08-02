@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -20,7 +20,7 @@ const MAX_CHARS = 24_000;
 export async function POST(request: NextRequest) {
   try {
     // Kimlik yalnız oturumdan: tenant/user body'den ALINMAZ (spoof engellenir).
-    const guard = await verifyUserRequest(request);
+    const guard = await requireModuleAccess(request, "video_ceviri");
     if (!guard.ok) return guard.response;
     const { db, tenantId, userId, is_demo_account } = guard;
 

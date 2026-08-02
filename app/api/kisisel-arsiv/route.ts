@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/kisisel-arsiv — personal_archives (Kişisel Arşiv) güvenli server kapısı.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - Her sorgu/insert/update/delete .eq("tenant_id", tenantId) ile bağlanır.
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -27,7 +27,7 @@ function sanitize(body: Record<string, unknown>): Record<string, unknown> {
 
 // ─── GET /api/kisisel-arsiv — liste ────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/kisisel-arsiv — ekle ────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── PATCH /api/kisisel-arsiv — güncelle (body.id) ─────────────────────────────
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // ─── DELETE /api/kisisel-arsiv?id=... — sil ────────────────────────────────────
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   getBioResource,
   pickWritableBioFields,
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * /api/biyoenerji/[resource] — biyoenerji kayıtları liste/oluştur.
  *
  * Güvenlik (proje standardı):
- *   - verifyUserRequest → x-user-id + x-session-token + binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + binding.
  *   - tenant_id SUNUCUDA session'dan alınır; body/query'den GÜVENİLMEZ.
  *   - resource whitelist + kolon whitelist (çapraz-tenant ve kolon enjeksiyonu engellenir).
  *   - Demo hesap: yazma yapılmaz.
@@ -27,7 +27,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource } = await params;
@@ -113,7 +113,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource } = await params;
@@ -149,7 +149,7 @@ export async function POST(
  *   { all: true }      → bu modüldeki TÜM tenant kayıtlarını sil ("Tümünü Sil")
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA session'dan.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA session'dan.
  *   - Her sorgu .eq("tenant_id", tenantId) ile sınırlanır → başka tenant verisi
  *     ASLA silinemez (id'ler başka tenant'a aitse hiçbir şey silinmez).
  *   - resource whitelist (getBioResource).
@@ -159,7 +159,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource } = await params;

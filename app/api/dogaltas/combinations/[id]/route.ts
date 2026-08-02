@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * PATCH /api/dogaltas/combinations/[id] — tek genel kombinasyon (variant) güncelleme.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - Her işlem .eq("id", id).eq("tenant_id", tenantId) → çapraz-tenant PATCH imkânsız
  *     (başka tenant id'si gelse 0 satır → 404).
  *   - tenant_id / user_id / id / created_at / source_id / variant_index / source
@@ -37,7 +37,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;

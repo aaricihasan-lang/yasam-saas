@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * /api/clients/[id]/appointments — bir danışanın randevuları (C2-B1a read + C2-B1b write).
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - Önce client_id'nin bu tenant'a ait olduğu doğrulanır (IDOR).
  *   - Sorgu/insert tenant_id + client_id ile bağlanır.
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -43,7 +43,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;
@@ -79,7 +79,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;

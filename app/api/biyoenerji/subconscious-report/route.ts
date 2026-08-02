@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   bodyText,
   buildFooter,
@@ -54,8 +54,8 @@ function slugify(t: string): string {
 
 export async function POST(request: NextRequest): Promise<Response> {
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
-  // (verifyUserRequest) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
-  const guard = await verifyUserRequest(request);
+  // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  const guard = await requireModuleAccess(request, "energy_body");
   if (!guard.ok) return guard.response;
   const { tenantId } = guard;
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
-import { isUserPremiumPackage, adminPermissionsToPayload, mapDbUser } from "@/lib/admin/userManagement";
+import { adminPermissionsToPayload } from "@/lib/admin/userManagement";
 import {
   guardAdminLockoutById,
   requireMainAdmin,
@@ -249,10 +249,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "modulePermissions gerekli." }, { status: 400 });
     }
 
-    // Premium pakette modül izinleri değiştirilemez — sunucu koruması
+    // P3: Premium artık otomatik tüm modül DEĞİL → admin, Premium dahil her uzmanın
+    // modüllerini kişiye özel yönetebilir (eski "Premium pakette değiştirilemez" bloğu
+    // kaldırıldı). Erişim server-side lib/auth/moduleAccess ile zorlanır.
     const { data: currentRow } = await db
       .from("users")
-      .select(USERS_SAFE_SELECT)
+      .select("id, module_permissions")
       .eq("id", id)
       .maybeSingle();
 
@@ -260,21 +262,54 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
     }
 
-    const mapped = mapDbUser(currentRow as unknown as Record<string, unknown>);
-    if (isUserPremiumPackage(mapped)) {
-      return NextResponse.json(
-        { error: "Premium pakette modül izinleri değiştirilemez." },
-        { status: 400 },
-      );
+    const oldPerms = ((currentRow as { module_permissions?: unknown }).module_permissions ?? {}) as Record<string, unknown>;
+    const newPayload = adminPermissionsToPayload(body.modulePermissions as never) as Record<string, boolean>;
+
+    const enabledKeys: string[] = [];
+    const disabledKeys: string[] = [];
+    for (const k of new Set([...Object.keys(oldPerms), ...Object.keys(newPayload)])) {
+      const wasOn = oldPerms[k] === true;
+      const nowOn = newPayload[k] === true;
+      if (!wasOn && nowOn) enabledKeys.push(k);
+      else if (wasOn && !nowOn) disabledKeys.push(k);
     }
 
     const { error } = await db
       .from("users")
-      .update({ module_permissions: adminPermissionsToPayload(body.modulePermissions as never) })
+      .update({ module_permissions: newPayload })
       .eq("id", id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    if (error) return NextResponse.json({ error: "Modül izinleri güncellenemedi." }, { status: 500 });
+
+    // Audit (mevcut Faz G actions). Yalnız bounded modül anahtar listesi; PII yok.
+    try {
+      const actorIsMainAdmin = await resolveIsSuperAdmin(db, adminId);
+      if (enabledKeys.length > 0) {
+        await writeAdminAudit(db, {
+          actorAdminId: adminId,
+          action: "module_enabled",
+          targetUserId: id,
+          actorIsMainAdmin,
+          context: { modules: enabledKeys.slice(0, 40), count: enabledKeys.length },
+        });
+      }
+      if (disabledKeys.length > 0) {
+        await writeAdminAudit(db, {
+          actorAdminId: adminId,
+          action: "module_disabled",
+          targetUserId: id,
+          actorIsMainAdmin,
+          context: { modules: disabledKeys.slice(0, 40), count: disabledKeys.length },
+        });
+      }
+    } catch (e) {
+      if (e instanceof AdminAuditError) {
+        return NextResponse.json({ error: "İşlem kaydı oluşturulamadı." }, { status: 500 });
+      }
+      throw e;
+    }
+
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   }
 
   // Varsayılan: edit (fullName, email, role, active)

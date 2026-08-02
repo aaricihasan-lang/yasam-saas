@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
 /**
  * /api/aromaterapi/blends — aromatherapy_blends güvenli server kapısı (FAZ B1).
  * GET (kullanıcının blend listesi), POST (yeni blend).
- * tenant_id DAİMA oturumdan (verifyUserRequest); istemciden ASLA kabul edilmez.
+ * tenant_id DAİMA oturumdan (requireModuleAccess); istemciden ASLA kabul edilmez.
  * Tarayıcı bu tabloya doğrudan erişmez (tablo RLS-kilitli, yalnız service_role).
  */
 
@@ -35,7 +35,7 @@ function toNumber(v: unknown, fallback = 0): number {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

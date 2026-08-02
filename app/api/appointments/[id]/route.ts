@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * /api/appointments/[id] — randevu güncelle/sil (C2-B1b write).
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - UPDATE/DELETE her zaman id + tenant_id filtresiyle (IDOR engellenir).
  *   - Body'deki tenant_id/id/created_at yok sayılır.
  *   - client_id güncellenecekse yeni client'ın bu tenant'a ait olduğu doğrulanır.
@@ -44,7 +44,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "appointments");
   if (!guard.ok) return guard.response;
 
   const { id: appointmentId } = await params;
@@ -104,7 +104,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "appointments");
   if (!guard.ok) return guard.response;
 
   const { id: appointmentId } = await params;

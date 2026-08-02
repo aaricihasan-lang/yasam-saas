@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -11,13 +11,13 @@ export const runtime = "nodejs";
  *   (localStorage semantiğiyle birebir) → server upsert.
  *
  * Güvenlik:
- *   - verifyUserRequest binding; tenant_id SUNUCUDA (body'den değil).
+ *   - requireModuleAccess binding; tenant_id SUNUCUDA (body'den değil).
  *   - RLS + service_role only. Demo hesap: Supabase'e yazılmaz.
  */
 
 // ─── GET — tenant'ın atlas belgesi ────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── PUT — tam belgeyi senkronla (upsert, tek satır) ──────────────────────────
 export async function PUT(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

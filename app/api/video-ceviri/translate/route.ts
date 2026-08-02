@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import OpenAI from "openai";
 import { splitIntoChunks } from "@/lib/video-ceviri/translationHelpers";
 
@@ -54,7 +54,7 @@ function parseFirstChunk(raw: string): FirstChunkParsed | null {
 export async function POST(request: NextRequest) {
   try {
     // Kimlik yalnız oturumdan: tenant/user body'den ALINMAZ (spoof engellenir).
-    const guard = await verifyUserRequest(request);
+    const guard = await requireModuleAccess(request, "video_ceviri");
     if (!guard.ok) return guard.response;
     const { db, tenantId, userId, is_demo_account } = guard;
 

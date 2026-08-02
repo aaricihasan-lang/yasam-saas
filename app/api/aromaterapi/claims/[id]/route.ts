@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   updateClaim,
   resolveActorLabel,
@@ -21,7 +21,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * dokunmaz. Out-of-tenant/eksik → 404.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { id } = await ctx.params;
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
  * PATCH /api/aromaterapi/claims/[id] — Aromaterapi claim UPDATE (C2T canonical yol).
  *
  * Güvenlik / sözleşme:
- *   - verifyUserRequest(includeProfile:true) → başarısızsa guard.response. Demo → 403.
+ *   - requireModuleAccess(includeProfile, "aromatherapy":true) → başarısızsa guard.response. Demo → 403.
  *   - actor/tenant YALNIZ guard'dan; claim id YALNIZ URL'den. Body'deki tenant/actor/
  *     claim_id/id/preparation_id/created_at/updated_at/route sessizce yok sayılmaz,
  *     allowlist dışı anahtar → 400.
@@ -117,7 +117,7 @@ function bad(code: string): Response {
 type OptArr = { ok: true; value: unknown[] | undefined } | { ok: false };
 
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json({ ok: false, code: "AROMA_DEMO_FORBIDDEN" }, { status: 403 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   listReportsWithClients,
   getReportById,
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  * /api/hd/reports — human_design_reports güvenli CRUD (Sprint-4 Aşama-2).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id + user_id YALNIZ guard'dan; request gövdesinden GÜVENİLMEZ.
  *   - client_id / chart_id IDOR guard (persistence katmanında tenant sahiplik).
  *   - Tüm sorgular tenant-scoped; yanıt no-store; demo hesap yazamaz.
@@ -30,7 +30,7 @@ function isObj(v: unknown): v is Record<string, unknown> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
@@ -137,7 +137,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * ayrı bir özet endpoint kullanılır.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + binding.
  *   - tenant_id SUNUCUDA user kaydından alınır.
  *   - Sorgu yalnızca bu tenant'ın kayıtlarını döndürür.
  *   - "bugün" sunucuda hesaplanır (client'tan tarih alınmaz).
@@ -20,7 +20,7 @@ export const runtime = "nodejs";
  * Dönüş: { ok, alerts: { [clientId]: adet } }
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 
@@ -14,10 +14,10 @@ export const runtime = "nodejs";
  *   `stones` tablosundan çekiyordu. RLS güvenlik kilidi (Faz 1-C) anon erişimi
  *   kapatınca sorgu 401 dönüyor, hata sessizce [] oluyor ve uyarı modalı hiç
  *   açılmıyordu. Artık uyarı kontrolü diğer Doğaltaş erişimleri gibi burada,
- *   service_role + verifyUserRequest ile yapılır.
+ *   service_role + requireModuleAccess ile yapılır.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id SUNUCUDAN (oturumdan) alınır; client body/query'den ALINMAZ.
  *   - service_role yalnız burada (guard.db).
  *   - tenant-only mimari: normal uzman yalnız kendi tenant'ının taşlarını görür
@@ -38,7 +38,7 @@ function tenantIdsFor(tenantId: string, isDemo: boolean): string[] {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

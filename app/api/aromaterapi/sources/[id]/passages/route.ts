@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseListParams, isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { READ_MAX_Q_LEN } from "@/lib/aromaterapi/readTypes";
 import {
@@ -19,7 +19,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Kaynak aynı tenant'ta yoksa 404. Opsiyonel `language` (original_lang) eşitliği.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { id } = await ctx.params;

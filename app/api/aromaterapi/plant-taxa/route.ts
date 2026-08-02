@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listPlantTaxa, PLANT_TAXA_STATUS } from "@/lib/aromaterapi/service/catalogReads";
@@ -25,12 +25,12 @@ export const runtime = "nodejs";
  * GET /api/aromaterapi/plant-taxa — Bitki (takson) tenant-scoped listesi.
  *
  * Güvenlik (C3C değişmez read sözleşmesi):
- *   - verifyUserRequest → tenantId YALNIZ oturumdan; query/body'den tenant KABUL EDİLMEZ.
+ *   - requireModuleAccess → tenantId YALNIZ oturumdan; query/body'den tenant KABUL EDİLMEZ.
  *   - service_role SELECT yalnız server servisinde; tarayıcı tabloya erişmez.
  *   - Mutation YOK. Ham DB hatası istemciye sızmaz (readServerError → stabil 500).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest): Promise<Response> {
  * POST /api/aromaterapi/plant-taxa — Bitki (takson) CREATE (C3D-B2A canonical yol).
  *
  * Güvenlik/sözleşme:
- *   - verifyUserRequest(includeProfile). Demo → 403.
+ *   - requireModuleAccess(includeProfile, "aromatherapy"). Demo → 403.
  *   - actor/tenant YALNIZ guard'dan. EXACT allowlist → tenant/actor/id/status/canonical_name
  *     vb. anahtarlar allowlist dışı → 400. canonical_name DB generated; status create'te YOK.
  *   - Değerler coerce/trim EDİLMEZ; canonical create yalnız SECURITY DEFINER RPC üzerinden.
@@ -76,7 +76,7 @@ const CREATE_ALLOWED = new Set<string>([
 ]);
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

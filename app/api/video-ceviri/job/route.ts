@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  *
  * Neden: iş kaydı oluşturma/güncelleme tarayıcıdan anon key ile yapılıyordu →
  * güvenlik tamamen RLS'e bağlıydı ve anon yazma cross-tenant riski taşıyordu.
- * Artık tüm yazmalar service_role ile SUNUCUDA; kimlik verifyUserRequest ile
+ * Artık tüm yazmalar service_role ile SUNUCUDA; kimlik requireModuleAccess ile
  * doğrulanır, tenant_id + user_id oturumdan alınır (body'den GÜVENİLMEZ).
  *
  * Kapsam: yalnız video_transcription_jobs tablosu. Storage (video-temp bucket)
@@ -24,7 +24,7 @@ const CLIENT_ALLOWED_STATUS = new Set(["failed"]);
 
 // ─── GET — kullanıcının video işleri (tenant + user) ──────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "video_ceviri");
   if (!guard.ok) return guard.response;
   const { db, tenantId, userId } = guard;
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST — yeni iş oluştur ───────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "video_ceviri");
   if (!guard.ok) return guard.response;
   const { db, tenantId, userId, is_demo_account } = guard;
   if (is_demo_account) {
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── PATCH — iş güncelle (video_temp_path / status=failed / error_message) ─────
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "video_ceviri");
   if (!guard.ok) return guard.response;
   const { db, tenantId, userId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });

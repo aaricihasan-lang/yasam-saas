@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  *   eşleştirir → iki depo (localStorage ↔ server) sapması kapanır (zombie protokol).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token binding.
+ *   - requireModuleAccess → x-user-id + x-session-token binding.
  *   - tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgular tenant_id + source_uid ile bağlanır (IDOR engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -26,7 +26,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ uid: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { uid } = await params;
@@ -88,7 +88,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ uid: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { uid } = await params;

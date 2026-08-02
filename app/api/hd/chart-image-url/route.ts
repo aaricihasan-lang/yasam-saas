@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  *
  * Kurallar:
  *   - İstemci storage path GÖNDERMEZ; yalnız clientId gönderir.
- *   - verifyUserRequest → oturum + token↔user binding.
+ *   - requireModuleAccess → oturum + token↔user binding.
  *   - tenantId YALNIZ guard'dan; danışan sahipliği tenant-scoped doğrulanır.
  *   - Path DB'den (chart_image_url) server-side okunur ve beklenen
  *     {tenantId}/{clientId}/ prefix'iyle yeniden doğrulanır (keyfi path imzalanmaz).
@@ -28,7 +28,7 @@ function fail(status: number, error: string): Response {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
   const clientId = new URL(req.url).searchParams.get("clientId")?.trim() ?? "";

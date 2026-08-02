@@ -23,9 +23,7 @@ import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
   hasModulePermission,
-  isPremiumExpertUser,
   LOCKED_PERMISSION_TOAST,
-  PREMIUM_HOME_MODULE_KEYS,
   COMING_SOON_MODULE_KEYS,
   type ModuleLockReason,
   type ModulePermissionKey,
@@ -406,10 +404,8 @@ function isExpertDashboardModuleVisible(
 
   const key = item.permissionKey;
 
-  if (isPremiumExpertUser(user)) {
-    return PREMIUM_HOME_MODULE_KEYS.includes(key);
-  }
-
+  // P3: Premium otomatik-tüm-modül bypass'ı KALDIRILDI — kişiye özel izinlere dayanır
+  // (mevcut Premium izinleri migration 20260919 ile backfill edildi). Server ayrıca zorlar.
   if (hasModulePermission(user, key)) return true;
 
   const row = getRawPermissionRow(user);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   validateContentSectionsForType,
   decideCreateConflict,
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * /api/numeroloji/knowledge — numerology_knowledge_records güvenli sunucu kapısı.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + binding.
  *   - tenant_id SUNUCUDA session'dan alınır; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/yazma .eq("tenant_id", tenantId) ile bağlanır (çapraz-tenant engellenir).
  *   - Demo hesap: yazma yapılmaz.
@@ -38,7 +38,7 @@ function str(v: unknown): string {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -192,7 +192,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
