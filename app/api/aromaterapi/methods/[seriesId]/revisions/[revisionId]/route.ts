@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   isUuid,
   isValidExpectedUpdatedAt,
@@ -35,7 +35,7 @@ type RouteContext = { params: Promise<{ seriesId: string; revisionId: string }> 
 const PATCH_ALLOWED = new Set<string>(["target_status", "expected_updated_at", "reason"]);
 
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

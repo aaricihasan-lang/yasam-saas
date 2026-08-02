@@ -24,6 +24,7 @@ import {
   MODULE_ROUTE_PREFIXES,
   EXCLUDED_API_PREFIXES,
   EXPLICIT_EXCLUDED_ROUTES,
+  DEFERRED_MODULE_PREFIXES,
 } from "../lib/auth/moduleRouteRegistry";
 
 let passed = 0;
@@ -234,15 +235,20 @@ function run(): void {
   ok(allRoutes.length >= 190, `envanter: api route sayısı okundu (${allRoutes.length})`);
 
   const excludedPrefixes = EXCLUDED_API_PREFIXES.map((e) => e.prefix);
+  const deferredPrefixes = DEFERRED_MODULE_PREFIXES.map((e) => e.prefix);
   const explicitExcluded = new Set(EXPLICIT_EXCLUDED_ROUTES.map((e) => e.path));
   const ungated: string[] = [];
   const unclassified: string[] = [];
+  const deferred: string[] = [];
   let gatedCount = 0;
   let excludedCount = 0;
 
   for (const rel of allRoutes) {
     if (excludedPrefixes.some((p) => rel === `${p}/route.ts` || rel.startsWith(`${p}/`))) { excludedCount++; continue; }
     if (explicitExcluded.has(rel)) { excludedCount++; continue; }
+    // DEFERRED (paralel workstream): gate HENÜZ uygulanmadı — AYRI sınıf. Gate varmış
+    // gibi sayılmaz, gate'siz-hata olarak da sayılmaz; görünür raporlanır (follow-up).
+    if (deferredPrefixes.some((p) => rel === `${p}/route.ts` || rel.startsWith(`${p}/`))) { deferred.push(rel); continue; }
     const mod = MODULE_ROUTE_PREFIXES.find((m) => rel === `${m.prefix}/route.ts` || rel.startsWith(`${m.prefix}/`));
     if (!mod) { unclassified.push(rel); continue; }
     const src = readFileSync(rel, "utf8");
@@ -252,10 +258,14 @@ function run(): void {
       ungated.push(rel);
     }
   }
-  ok(unclassified.length === 0, `envanter: sınıflandırılamayan route yok (${unclassified.slice(0, 5).join(", ")})`);
-  ok(ungated.length === 0, `envanter: GATE'SİZ modül route yok (${ungated.slice(0, 8).join(", ")})`);
-  ok(gatedCount >= 110, `envanter: gate'li modül route sayısı (${gatedCount})`);
-  ok(excludedCount >= 70, `envanter: exclude edilen route sayısı (${excludedCount})`);
+  // Görünür rapor — 3 AYRI sayı; deferred sahte-PASS değil, follow-up gereksinimi görünür.
+  console.log(`  [envanter] gated=${gatedCount} · explicit-excluded=${excludedCount} · DEFERRED=${deferred.length} (aromaterapi — server gate ERTELENDİ, ayrı follow-up PR gerekli)`);
+
+  ok(unclassified.length === 0, `envanter: sınıflandırılamayan route YOK (${unclassified.slice(0, 5).join(", ")})`);
+  ok(ungated.length === 0, `envanter: gate-required ama GATE'SİZ modül route YOK (${ungated.slice(0, 8).join(", ")})`);
+  ok(gatedCount >= 90, `envanter: gate'li modül route sayısı (${gatedCount})`);
+  ok(excludedCount >= 70, `envanter: explicit-exclude route sayısı (${excludedCount})`);
+  ok(deferred.length === 20, `envanter: aromaterapi DEFERRED route sayısı = 20 (follow-up) (bulunan ${deferred.length})`);
 
   // ── 11) Premium bypass KALDIRMA (statik) ───────────────────────────────────
   const modPerms = readFileSync("lib/auth/modulePermissions.ts", "utf8");

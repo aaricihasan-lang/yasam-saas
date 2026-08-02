@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 
 export const runtime = "nodejs";
 
 /**
  * /api/aromaterapi/oils — aromatherapy_oils güvenli server kapısı (K-2).
- * tenant_id DAİMA oturumdan (requireModuleAccess); istemciden ASLA kabul edilmez.
+ * tenant_id DAİMA oturumdan (verifyUserRequest); istemciden ASLA kabul edilmez.
  * Okuma: kullanıcının kendi kayıtları + paylaşımlı (tenant_id IS NULL) kütüphane.
  * Yazma: yalnız kendi tenant kayıtları; global (null) kayıtlara dokunulamaz.
  * Tarayıcı bu tabloya doğrudan erişmez (tablo RLS-kilitli, yalnız service_role).
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 const PAGE = 1000;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

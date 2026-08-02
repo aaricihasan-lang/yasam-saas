@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 

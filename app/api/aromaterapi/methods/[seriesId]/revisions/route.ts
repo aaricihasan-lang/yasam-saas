@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { isUuid, validateMandatoryReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { appendMethodRevision } from "@/lib/aromaterapi/service/catalogMethodMutations";
@@ -46,7 +46,7 @@ const APPEND_ALLOWED = new Set<string>([
 ]);
 
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

@@ -11,7 +11,6 @@ import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
 /** Modül route prefix'i → kanonik modül anahtarı (per-user gate uygulanır). */
 export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/dogaltas", key: "stones" },
-  { prefix: "app/api/aromaterapi", key: "aromatherapy" },
   { prefix: "app/api/clients", key: "clients" },
   { prefix: "app/api/numeroloji", key: "numerology" },
   { prefix: "app/api/hd", key: "human_design" },
@@ -25,6 +24,26 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/ders-notu", key: "ders_notu" },
   { prefix: "app/api/appointments", key: "appointments" },
   { prefix: "app/api/ajanda", key: "appointments" },
+];
+
+/**
+ * ERTELENMİŞ modül gate'i — genuine exclude DEĞİL, "gate henüz uygulanmadı".
+ *
+ * Aromaterapi modülü AYRI bir worktree/branch üzerinde AKTİF geliştiriliyor. P3'ün
+ * bu route'lara dokunması paralel çalışmayla çakışacağından, server-side modül gate'i
+ * BİLİNÇLİ olarak izole bir FOLLOW-UP PR'a ERTELENDİ (parallel Aromatherapy workstream;
+ * server module gate intentionally deferred to isolated follow-up PR). Bu route'lar şu an
+ * verifyUserRequest ile korunuyor (kimlik/tenant) ama kişiye-özel modül izni ZORLANMIYOR.
+ *
+ * Envanter harness bunu AYRI bir sınıf olarak sayar ve görünür raporlar — gate varmış gibi
+ * SAHTE PASS üretmez. Follow-up: güncel aromaterapi route'larına gate + bu kaydın kaldırılması.
+ */
+export const DEFERRED_MODULE_PREFIXES: { prefix: string; key: ModuleGateKey; reason: string }[] = [
+  {
+    prefix: "app/api/aromaterapi",
+    key: "aromatherapy",
+    reason: "parallel Aromatherapy workstream; server module gate intentionally deferred to isolated follow-up PR",
+  },
 ];
 
 /**

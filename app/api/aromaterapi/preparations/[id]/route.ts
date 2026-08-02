@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   isUuid,
   isValidExpectedUpdatedAt,
@@ -30,7 +30,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * GET /api/aromaterapi/preparations/[id] — Preparat detay + bağlı takson + bilgi kaydı sayısı.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const { id } = await ctx.params;
@@ -63,7 +63,7 @@ const UPDATE_ALLOWED = new Set<string>([
 ]);
 
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

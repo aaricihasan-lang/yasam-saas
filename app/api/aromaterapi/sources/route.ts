@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listSources, SOURCE_STATUS, SOURCE_TYPES } from "@/lib/aromaterapi/service/sourceReads";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * GET /api/aromaterapi/sources — Kaynak tenant-scoped listesi (+ pasaj sayısı).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);

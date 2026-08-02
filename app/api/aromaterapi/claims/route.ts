@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import {
   createClaim,
   resolveActorLabel,
@@ -26,7 +26,7 @@ export const runtime = "nodejs";
  * filtreleriyle güvenlik görünümü. Kullanıcıya "claim" terimi gösterilmez.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest): Promise<Response> {
  * POST /api/aromaterapi/claims — Aromaterapi claim CREATE (C2T canonical yol).
  *
  * Güvenlik / sözleşme:
- *   - requireModuleAccess(includeProfile, "aromatherapy":true) → başarısızsa guard.response. Demo → 403.
+ *   - verifyUserRequest(includeProfile:true) → başarısızsa guard.response. Demo → 403.
  *   - actor (userId/label) ve tenantId YALNIZ guard'dan; body'deki tenant/actor/status/id
  *     alanları sessizce yok sayılmaz, allowlist dışı anahtar → 400.
  *   - status create'te YASAK (allowlist'te yok). route (legacy) DB default'una bırakılır.
@@ -117,7 +117,7 @@ type OptStr = { ok: true; value: string | null } | { ok: false };
 type OptArr = { ok: true; value: unknown[] | undefined } | { ok: false };
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json({ ok: false, code: "AROMA_DEMO_FORBIDDEN" }, { status: 403 });

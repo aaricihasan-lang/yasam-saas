@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { parseListParams, isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import {
@@ -29,7 +29,7 @@ export const runtime = "nodejs";
  * Opsiyonel plant_taxon_id filtresi (UUID doğrulanır; geçersizse 400).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy");
+  const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -74,7 +74,7 @@ const CREATE_ALLOWED = new Set<string>([
 ]);
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 
