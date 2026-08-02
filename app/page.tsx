@@ -264,6 +264,21 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
+    title: "Yaşam Hafızası",
+    desc: "Modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın",
+    count: "Aktif",
+    badge: "Modül",
+    href: "/yasam-hafizasi",
+    permissionKey: "yasam_hafizasi",
+    emoji: "🧠",
+    Icon: Brain,
+    theme: {
+      iconWrap: "from-violet-500 to-emerald-600",
+      cardBg: "from-violet-100/90 via-indigo-50/95 to-white",
+      border: "border-violet-200/70",
+    },
+  },
+  {
     title: "Doğaltaş",
     desc: "Taş, mineral ve danışan eşleştirmeleri",
     count: "Aktif",
@@ -382,6 +397,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   human_design: [],
   digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
   cosmic_calendar: [],
+  yasam_hafizasi: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {

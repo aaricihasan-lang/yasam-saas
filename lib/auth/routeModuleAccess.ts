@@ -64,6 +64,7 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   { prefix: "/video-ceviri", keys: ["video_ceviri"] },
   { prefix: "/belge-ceviri", keys: ["belge_ceviri"] },
   { prefix: "/human-design", keys: ["human_design"] },
+  { prefix: "/yasam-hafizasi", keys: ["yasam_hafizasi"] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PUBLIC_EXACT_PATHS = new Set(["/"]);
@@ -149,4 +150,5 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   video_ceviri: "/video-ceviri",
   belge_ceviri: "/belge-ceviri",
   human_design: "/human-design",
+  yasam_hafizasi: "/yasam-hafizasi",
 };
