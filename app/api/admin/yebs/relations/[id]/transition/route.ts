@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import {
   UUID_RE,
   parseTransitionBody,
   invalidTransitionId,
   invalidTransitionBody,
-  transitionErrorResponse,
 } from "@/lib/yebs/service/transitionValidation";
 import {
   transitionConceptRelation,
   CONCEPT_RELATION_STATUS_VALUES,
 } from "@/lib/yebs/service/conceptRelationTransitions";
+import { dispatchA7OrMechanical } from "@/lib/yebs/service/a7Gates";
 
 export const runtime = "nodejs";
 
@@ -39,16 +39,14 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const parsed = parseTransitionBody(body, CONCEPT_RELATION_STATUS_VALUES);
   if (!parsed) return invalidTransitionBody();
 
-  const result = await transitionConceptRelation(
+  return dispatchA7OrMechanical(
+    "concept_relation",
     db,
     adminId,
     id,
     parsed.expectedUpdatedAt,
     parsed.targetStatus,
     parsed.reason,
+    transitionConceptRelation,
   );
-
-  if (!result.ok) return transitionErrorResponse(result.code);
-
-  return NextResponse.json({ ok: true, row: result.row }, { status: 200 });
 }

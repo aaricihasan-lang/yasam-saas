@@ -156,6 +156,35 @@ export function parseVerificationBody(
  * Ham DB/RPC hata metni istemciye DÖNMEZ; yalnız stabil YEBS_ kodu + sabit mesaj.
  * ============================================================ */
 
+/**
+ * A7 (Quality/Publish gate) eligibility/bağımlılık/graf blocker kodları → 409.
+ * API-TX invalid-transition=409 ile TUTARLI (eligibility yetersizliği = state conflict;
+ * §16: 422 KULLANILMAZ). Ham DB detail dönmez; yalnız stabil kod + sabit mesaj.
+ * Additive: mevcut suffix kuralları (STALE/NOOP/INVALID_TRANSITION/PARENT_STATUS_LOCKED/
+ * NOT_FOUND/admin) DEĞİŞMEDEN korunur.
+ */
+export const A7_CONFLICT_CODES: ReadonlySet<string> = new Set([
+  "YEBS_TRADITION_NOT_PUBLISH_READY",
+  "YEBS_SCHOOL_NOT_PUBLISH_READY",
+  "YEBS_CONCEPT_NOT_PUBLISH_READY",
+  "YEBS_SCHOOL_PARENT_TRADITION_NOT_PUBLISHED",
+  "YEBS_CONCEPT_PARENT_NOT_PUBLISHED",
+  "YEBS_CONCEPT_REQUIRED_LABEL_MISSING",
+  "YEBS_SOURCE_METADATA_INCOMPLETE",
+  "YEBS_CLAIM_NO_VERIFIED_EVIDENCE",
+  "YEBS_CLAIM_SUPPORT_SOURCE_NOT_READY",
+  "YEBS_CLAIM_NOT_APPROVAL_READY",
+  "YEBS_CLAIM_PARENT_CONCEPT_NOT_PUBLISHED",
+  "YEBS_CLAIM_PROVENANCE_INCOMPLETE",
+  "YEBS_RELATION_NO_VERIFIED_EVIDENCE",
+  "YEBS_RELATION_SUPPORT_SOURCE_NOT_READY",
+  "YEBS_RELATION_NOT_APPROVAL_READY",
+  "YEBS_RELATION_PARENT_CONCEPT_NOT_PUBLISHED",
+  "YEBS_RELATION_PROVENANCE_INCOMPLETE",
+  "YEBS_RELATION_GRAPH_CYCLE",
+  "YEBS_PUBLISH_DEPENDENCY_BLOCKED",
+]);
+
 /** URL kimliği UUID değil → 400. */
 export function invalidTransitionId(): NextResponse {
   return NextResponse.json(
@@ -231,6 +260,14 @@ export function transitionErrorResponse(code: string): NextResponse {
     return NextResponse.json(
       { ok: false, error: "Kayıt bulunamadı.", code },
       { status: 404 },
+    );
+  }
+
+  // A7 eligibility/bağımlılık/graf blocker → 409 (kalite yetersizliği = state conflict).
+  if (A7_CONFLICT_CODES.has(code)) {
+    return NextResponse.json(
+      { ok: false, error: "Kalite/yayın koşulları sağlanmadı.", code },
+      { status: 409 },
     );
   }
 
