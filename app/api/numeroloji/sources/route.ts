@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateSourceInput, safeDbError } from "@/app/numeroloji/bilgi-bankasi/helpers/sourcesValidation";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * /api/numeroloji/sources — numerology_sources güvenli sunucu kapısı (NKB-V2-C).
  *
  * Güvenlik:
- *   - verifyUserRequest → tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
+ *   - requireModuleAccess → tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/yazma .eq("tenant_id", tenantId) ile bağlı (çapraz-tenant okuma/yazma engelli).
  *   - Demo hesap: yazma yapılmaz.
  *   - Hata cevaplarında iç DB ayrıntısı sızmaz (safeDbError).
@@ -27,7 +27,7 @@ function str(v: unknown): string {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

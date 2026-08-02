@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   bodyText,
   buildFooter,
@@ -326,8 +326,8 @@ function buildGuideContent(guide: GuideRaw, index: number, isSingle: boolean): R
 // ── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest): Promise<Response> {
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
-  // (verifyUserRequest) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
-  const guard = await verifyUserRequest(request);
+  // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  const guard = await requireModuleAccess(request, "sifa_rehberi");
   if (!guard.ok) return guard.response;
   // Export sorgularında body tenantId değil, oturumdan doğrulanmış tenant kullanılır.
   const verifiedTenantId = guard.tenantId;

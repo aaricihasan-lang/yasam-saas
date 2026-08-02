@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/refleksoloji/protocols/[id] — tek protokol oku/sil (C2-B3a).
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - id + tenant_id eşleşmesi zorunlu (IDOR engellenir; istemci üretimli id güvenilmez).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
@@ -17,7 +17,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -52,7 +52,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

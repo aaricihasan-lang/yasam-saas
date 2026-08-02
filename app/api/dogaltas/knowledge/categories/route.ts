@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * stone_knowledge_categories GLOBAL ortak sistem tablosudur (tenant_id yok).
  * Eskiden Taş Bilgi Kütüphanesi ekranı bu tabloyu tarayıcıdan anon key ile
  * OKUYUP YAZIYORDU (SELECT + INSERT). Artık:
- *   - GET  : giriş yapmış her kullanıcı okuyabilir (verifyUserRequest + service_role).
+ *   - GET  : giriş yapmış her kullanıcı okuyabilir (requireModuleAccess + service_role).
  *   - POST : yalnız admin yeni global kategori oluşturur (verifyAdminRequest).
  *            Normal expert kullanıcı ve demo hesap yazamaz (admin gate).
  * UPDATE/DELETE bilinçli olarak AÇILMADI. tenant filtresi yok (tablo global);
@@ -30,7 +30,7 @@ const ALLOWED_COLORS = new Set([
 
 // ─── GET — aktif global kategoriler (sort_order asc, name asc) ─────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db } = guard;
 

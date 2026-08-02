@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
 import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   WORD_TAB_LABELS,
@@ -51,6 +52,9 @@ export async function POST(request: Request): Promise<Response> {
   // IDOR koruması — kullanıcı bu tenant'a ait mi (service_role)
   const { data: userRow } = await db.from("users").select("id").eq("id", userId).eq("tenant_id", tenantId).maybeSingle();
   if (!userRow) return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  const __moduleGate = await assertUserModuleAccess(db, userId, "numerology");
+  if (!__moduleGate.ok) return __moduleGate.response;
 
   if (await isDemoAccountId(userId, db))
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });

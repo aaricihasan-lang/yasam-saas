@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * DELETE → kombinasyonu siler.
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - client_id'nin bu tenant'a ait olduğu doğrulanır (IDOR).
  *   - Tüm işlemler tenant_id + client_id + id kapsamıyla yapılır.
  *   - Demo hesap: yazma yapılmaz.
@@ -46,7 +46,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; combinationId: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId, combinationId } = await params;
@@ -116,7 +116,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; combinationId: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId, combinationId } = await params;

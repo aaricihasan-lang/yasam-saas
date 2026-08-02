@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * Tek atomik istek olduğu için "sayfadan çıkınca kısmi silme" riski ortadan kalkar.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

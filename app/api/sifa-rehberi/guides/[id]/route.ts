@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/sifa-rehberi/guides/[id] — tekil şifa rehberi kaydı (healing_guides).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - GET/PATCH/DELETE her zaman .eq("tenant_id", tenantId).eq("id", id) ile bağlanır.
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -103,7 +103,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 
 // ─── GET /api/sifa-rehberi/guides/[id] ─────────────────────────────────────────
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 
 // ─── PATCH /api/sifa-rehberi/guides/[id] ───────────────────────────────────────
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
@@ -186,7 +186,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
 
 // ─── DELETE /api/sifa-rehberi/guides/[id] ──────────────────────────────────────
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

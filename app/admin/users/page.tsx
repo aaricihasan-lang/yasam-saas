@@ -31,27 +31,48 @@ import {
   readSessionToken,
 } from "@/lib/auth/yasamUser";
 
-type UserListFilter =
-  | "all"
-  | "pending"
-  | "active"
-  | "passive"
-  | "admin"
-  | "expert"
-  | "payment_pending"
-  | "payment_overdue"
-  | "payment_paid";
+// P3: karışık tek-satır filtre yerine bağımsız gruplu boyutlar (Durum / Kayıt / Rol
+// / Ödeme). Eski birleşik pasif etiketi kaldırıldı. Her boyut varsayılan "all".
+type StatusFilter = "all" | "active" | "passive";
+type ApprovalFilter = "all" | "pending" | "approved" | "rejected";
+type RoleFilter = "all" | "admin" | "expert";
+type PaymentFilter = "all" | "pending" | "overdue" | "paid";
 
-const USER_LIST_FILTERS: { key: UserListFilter; label: string }[] = [
+type UserFilters = {
+  status: StatusFilter;
+  approval: ApprovalFilter;
+  role: RoleFilter;
+  payment: PaymentFilter;
+};
+
+const DEFAULT_USER_FILTERS: UserFilters = {
+  status: "all",
+  approval: "all",
+  role: "all",
+  payment: "all",
+};
+
+const STATUS_FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "Tümü" },
-  { key: "pending", label: "Onay Bekleyen" },
   { key: "active", label: "Aktif" },
   { key: "passive", label: "Pasif" },
+];
+const APPROVAL_FILTER_OPTIONS: { key: ApprovalFilter; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "pending", label: "Beklemede" },
+  { key: "approved", label: "Onaylandı" },
+  { key: "rejected", label: "Reddedildi" },
+];
+const ROLE_FILTER_OPTIONS: { key: RoleFilter; label: string }[] = [
+  { key: "all", label: "Tümü" },
   { key: "admin", label: "Admin" },
   { key: "expert", label: "Uzman" },
-  { key: "payment_pending", label: "Ödeme Bekleyen" },
-  { key: "payment_overdue", label: "Geciken Ödeme" },
-  { key: "payment_paid", label: "Ödendi" },
+];
+const PAYMENT_FILTER_OPTIONS: { key: PaymentFilter; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "pending", label: "Ödeme Bekleyen" },
+  { key: "overdue", label: "Geciken" },
+  { key: "paid", label: "Ödendi" },
 ];
 
 function matchesUserSearch(user: ManagedUser, query: string): boolean {
@@ -61,29 +82,54 @@ function matchesUserSearch(user: ManagedUser, query: string): boolean {
   return haystack.includes(q);
 }
 
-function matchesUserListFilter(user: ManagedUser, filter: UserListFilter): boolean {
-  switch (filter) {
-    case "all":
-      return true;
-    case "pending":
-      return user.approvalStatus === "pending";
-    case "active":
-      return user.active && user.approvalStatus === "approved";
-    case "passive":
-      return !user.active;
-    case "admin":
-      return user.role === "admin";
-    case "expert":
-      return user.role === "expert";
-    case "payment_pending":
-      return user.payment.status === "pending";
-    case "payment_overdue":
-      return user.payment.status === "overdue";
-    case "payment_paid":
-      return user.payment.status === "paid";
-    default:
-      return true;
-  }
+function matchesUserFilters(user: ManagedUser, f: UserFilters): boolean {
+  if (f.status === "active" && !user.active) return false;
+  if (f.status === "passive" && user.active) return false;
+  if (f.approval !== "all" && user.approvalStatus !== f.approval) return false;
+  if (f.role !== "all" && user.role !== f.role) return false;
+  if (f.payment !== "all" && user.payment.status !== f.payment) return false;
+  return true;
+}
+
+function countActiveFilters(f: UserFilters): number {
+  return [f.status, f.approval, f.role, f.payment].filter((v) => v !== "all").length;
+}
+
+/** Tek filtre boyutu için pill satırı (mobil uyumlu: etiket üstte, pill'ler wrap). */
+function FilterPillRow<T extends string>({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: { key: T; label: string }[];
+  value: T;
+  onSelect: (v: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+      <span className="text-[11px] font-black uppercase tracking-wide text-slate-500 sm:w-24 sm:shrink-0">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onSelect(o.key)}
+            className={`rounded-full border-2 px-3 py-1.5 text-xs font-black transition ${
+              value === o.key
+                ? "border-violet-400 bg-violet-100 text-violet-950"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const panelClass =
@@ -370,17 +416,18 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<CreateForm>(emptyCreateForm);
   const [formOpen, setFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [listFilter, setListFilter] = useState<UserListFilter>("all");
+  const [filters, setFilters] = useState<UserFilters>(DEFAULT_USER_FILTERS);
 
   const filteredUsers = useMemo(
     () =>
       users.filter(
         (user) =>
-          matchesUserSearch(user, searchQuery) &&
-          matchesUserListFilter(user, listFilter),
+          matchesUserSearch(user, searchQuery) && matchesUserFilters(user, filters),
       ),
-    [users, searchQuery, listFilter],
+    [users, searchQuery, filters],
   );
+
+  const activeFilterCount = countActiveFilters(filters);
 
   const stats = useMemo(() => {
     const pending = users.filter((u) => u.approvalStatus === "pending").length;
@@ -534,7 +581,7 @@ export default function AdminUsersPage() {
           <SummaryStatCard label="Toplam Üye" value={stats.total} tone="violet" />
           <SummaryStatCard label="Onay Bekleyen" value={stats.pending} tone="amber" />
           <SummaryStatCard label="Aktif Üye" value={stats.active} tone="emerald" />
-          <SummaryStatCard label="Pasif / Askıda" value={stats.passive} tone="slate" />
+          <SummaryStatCard label="Pasif" value={stats.passive} tone="slate" />
         </section>
 
         <section className={`${panelClass} mb-6 border-indigo-200/80`}>
@@ -629,21 +676,49 @@ export default function AdminUsersPage() {
               className="h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white py-3 pl-12 pr-4 text-base font-semibold outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
             />
           </label>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {USER_LIST_FILTERS.map(({ key, label }) => (
+          <div className="mt-3 space-y-2.5">
+            <FilterPillRow
+              label="Durum"
+              options={STATUS_FILTER_OPTIONS}
+              value={filters.status}
+              onSelect={(status) => setFilters((f) => ({ ...f, status }))}
+            />
+            <FilterPillRow
+              label="Kayıt"
+              options={APPROVAL_FILTER_OPTIONS}
+              value={filters.approval}
+              onSelect={(approval) => setFilters((f) => ({ ...f, approval }))}
+            />
+            <FilterPillRow
+              label="Rol"
+              options={ROLE_FILTER_OPTIONS}
+              value={filters.role}
+              onSelect={(role) => setFilters((f) => ({ ...f, role }))}
+            />
+            <FilterPillRow
+              label="Ödeme"
+              options={PAYMENT_FILTER_OPTIONS}
+              value={filters.payment}
+              onSelect={(payment) => setFilters((f) => ({ ...f, payment }))}
+            />
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-bold text-slate-500">
+                {activeFilterCount > 0
+                  ? `${activeFilterCount} filtre aktif`
+                  : "Tüm kullanıcılar"}
+              </span>
               <button
-                key={key}
                 type="button"
-                onClick={() => setListFilter(key)}
-                className={`rounded-full border-2 px-3 py-1.5 text-xs font-black transition ${
-                  listFilter === key
-                    ? "border-violet-400 bg-violet-100 text-violet-950"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
-                }`}
+                onClick={() => {
+                  setFilters(DEFAULT_USER_FILTERS);
+                  setSearchQuery("");
+                }}
+                disabled={activeFilterCount === 0 && searchQuery.trim() === ""}
+                className="rounded-full border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {label}
+                Filtreleri Temizle
               </button>
-            ))}
+            </div>
           </div>
         </section>
 

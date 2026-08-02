@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  *       silme döngüsünü kaldırmak. Alt kayıt silme artık service_role'lü bu route'tan.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA user kaydından alınır; client'tan gelen tenant_id'ye GÜVENİLMEZ.
  *   - client_id'nin bu tenant'a ait olduğu doğrulanır.
  *   - Tüm silmeler tenant_id + client_id kapsamıyla yapılır.
@@ -43,7 +43,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;

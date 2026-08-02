@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * Kullanıcının kendi tenant'ındaki kombinasyonları okur (liste + detay sayfaları).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id SUNUCUDAN (oturumdan) alınır; client'tan GELMEZ → çapraz-tenant
  *     okuma imkânsızdır (publishable key ile doğrudan SELECT yerine).
  *   - SELECT yalnızca tenant_id = session tenant ile sınırlıdır.
@@ -27,7 +27,7 @@ const COMBINATION_COLUMNS =
 const MAX_ISSUE = 500;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;

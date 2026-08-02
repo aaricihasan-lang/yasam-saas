@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyUserRequest, type UserGuardOk } from "@/lib/auth/userGuard";
+import { assertUserModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
 
 export type RequireUserResult =
   | { ok: true; user: UserGuardOk }
@@ -19,6 +20,7 @@ export type RequireUserResult =
  */
 export async function requireDigitalContentUser(
   req: NextRequest,
+  moduleKey?: ModuleGateKey,
 ): Promise<RequireUserResult> {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return { ok: false, response: guard.response };
@@ -30,6 +32,11 @@ export async function requireDigitalContentUser(
         { status: 403 },
       ),
     };
+  }
+  // P3: kişiye özel modül izni server-side zorlanır (belge_ceviri / ders_notu).
+  if (moduleKey) {
+    const gate = await assertUserModuleAccess(guard.db, guard.userId, moduleKey);
+    if (!gate.ok) return { ok: false, response: gate.response };
   }
   return { ok: true, user: guard };
 }

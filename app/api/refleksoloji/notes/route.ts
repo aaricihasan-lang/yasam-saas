@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/refleksoloji/notes — uzmanın klinik notları (P1-1, cihazlar arası senkron).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token binding.
+ *   - requireModuleAccess → x-user-id + x-session-token binding.
  *   - tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/yazma tenant_id ile bağlanır. Demo hesap: Supabase'e yazılmaz.
  *
@@ -29,7 +29,7 @@ type IncomingNote = {
 
 // ─── GET — tenant'ın tüm notları (SavedClinicalNote[] olarak) ──────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── PUT — tam liste ile senkronla (replace-all) ──────────────────────────────
 export async function PUT(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

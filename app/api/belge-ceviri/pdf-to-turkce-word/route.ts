@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   // Güvenlik: kimlik + demo engeli. tenant_id artık SUNUCUDAN (oturumdan) alınır;
   // body'deki tenantId'ye güvenilmez (spoof edilemez) — [[project-digital-content-qa-final]].
-  const auth = await requireDigitalContentUser(request);
+  const auth = await requireDigitalContentUser(request, "belge_ceviri");
   if (!auth.ok) return auth.response;
   const tenantId = auth.user.tenantId;
   const userId = auth.user.userId;

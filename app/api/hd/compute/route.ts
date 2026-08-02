@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { handleCompute } from "@/lib/human-design/api/handleCompute";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * POST /api/hd/compute — doğrulanmış HD chart hesabı (FAZ 5 / ADIM 2b).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenantId SUNUCUDA session/user kaydından alınır; request'ten GÜVENİLMEZ.
  *   - STATELESS: DB okuma/yazma YOK; tenant yalnız erişim kapısı (izolasyon gereksiz).
  *   - Yanıt no-store (kişisel veri). Birth data LOGLANMAZ.
@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
   // guard.tenantId sunucudan gelir; stateless compute'ta veri-izolasyonu için

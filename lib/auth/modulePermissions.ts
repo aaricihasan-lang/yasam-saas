@@ -205,9 +205,9 @@ export function hasAnyModulePermissionFlag(
 ): boolean {
   if (!user) return false;
   if (isAdminRole(user)) return true;
-  if (isPremiumExpertUser(user)) {
-    return keys.some((key) => isPremiumModuleAccessKey(key));
-  }
+  // P3: Premium otomatik-tüm-modül BYPASS'ı KALDIRILDI. Erişim yalnız kişiye özel
+  // module_permissions'a dayanır (mevcut Premium izinleri migration 20260919 ile
+  // backfill edildi). Server tarafı ayrıca lib/auth/moduleAccess ile zorlanır.
   const flags = getModulePermissionFlags(user);
   return keys.some((key) => flags[key] === true);
 }
@@ -219,9 +219,7 @@ export function hasModulePermission(
   if (!user) return false;
   if (isAdminRole(user)) return true;
   if (key === "cosmic_calendar") return true;
-  if (isPremiumExpertUser(user)) {
-    return isPremiumModuleAccessKey(key);
-  }
+  // P3: Premium bypass KALDIRILDI (bkz. hasAnyModulePermissionFlag notu).
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   // Hub kartı: alt modüllerden herhangi birine izin varsa erişilebilir
   if (key === "digital_content") {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { normalizeDuplicateName } from "@/lib/dogaltas/duplicateName";
 
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ const CONFIG: Record<string, { table: string; col: string; ownTenantOnly: boolea
 };
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 

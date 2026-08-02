@@ -326,17 +326,6 @@ function membershipAccessState(user: ManagedUser): { label: string; cls: string 
   return { label: "Premium · Aktif · Onaylı", cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
 }
 
-function PremiumModuleNotice() {
-  return (
-    <div className="rounded-2xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 via-teal-50/80 to-white p-4 md:p-5">
-      <p className="text-sm font-black text-emerald-950">Modül İzinleri</p>
-      <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-900/95">
-        Premium üyelik: Admin hariç tüm modüller otomatik açıktır.
-      </p>
-    </div>
-  );
-}
-
 function ModulePermissionSwitches({
   value,
   onChange,
@@ -1059,7 +1048,8 @@ export default function AdminUserDetailPage() {
   }
 
   async function saveModulePermissions(next: AdminModulePermissions) {
-    if (!user || isUserPremiumPackage(user)) return;
+    // P3: Premium dahil her uzman için modül izinleri kişiye özel düzenlenebilir.
+    if (!user || user.role !== "expert") return;
 
     setUser((prev) => (prev ? { ...prev, modulePermissions: next } : prev));
     if (!canPersistModulePermissions) return;
@@ -1082,7 +1072,7 @@ export default function AdminUserDetailPage() {
     showToast({ title: "Başarılı", message: "Modül izinleri güncellendi.", type: "success" });
   }
 
-  async function saveLicenseSettings() {
+  async function saveLicenseSettings(confirmExcessRevocation = false) {
     if (!user) return;
     setSavingLicense(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
@@ -1100,15 +1090,42 @@ export default function AdminUserDetailPage() {
         securityMode:           licenseDraft.securityMode,
         securityExempt:         licenseDraft.securityExempt,
         licenseNote:            licenseDraft.licenseNote,
+        confirmExcessRevocation,
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      requiresConfirmation?: boolean;
+      excessSessionCount?: number;
+      revokedSessionCount?: number;
+    };
     setSavingLicense(false);
+
+    // P3: limit düşürme fazla oturum kapatacaksa ONAYSIZ uygulanmaz (409). Admin'e
+    // kaç oturumun kapanacağını göster, açık onay al, sonra revoke-onaylı tekrar gönder.
+    if (res.status === 409 && json.requiresConfirmation) {
+      const n = json.excessSessionCount ?? 0;
+      const proceed = window.confirm(
+        `Bu limitler ${n} aktif oturumu kapatacak (en eski oturumlar öncelikli). Devam edilsin mi?`,
+      );
+      if (proceed) await saveLicenseSettings(true);
+      return;
+    }
+
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Lisans ayarları güncellenemedi.", type: "error" });
       return;
     }
-    showToast({ title: "Başarılı", message: "Lisans & oturum limitleri güncellendi.", type: "success" });
+    const revoked = json.revokedSessionCount ?? 0;
+    showToast({
+      title: "Başarılı",
+      message:
+        revoked > 0
+          ? `Lisans & oturum limitleri güncellendi; ${revoked} fazla oturum kapatıldı.`
+          : "Lisans & oturum limitleri güncellendi.",
+      type: "success",
+    });
     await loadUser(currentAdminId);
     await loadActiveSessions(user.id, currentAdminId);
   }
@@ -1891,22 +1908,14 @@ export default function AdminUserDetailPage() {
 
             <section className={`${panelClass} border-violet-200/80`}>
               <h2 className="text-xl font-black text-slate-950">Modül İzinleri</h2>
-              {user.role === "expert" && isUserPremiumPackage(user) ? (
+              {user.role === "expert" ? (
                 <div className="mt-4">
-                  <PremiumModuleNotice />
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {ADMIN_MODULE_UI_KEYS.map((key) => (
-                      <ModulePermissionCard
-                        key={key}
-                        label={ADMIN_MODULE_UI_LABELS[key]}
-                        description={ADMIN_MODULE_UI_DESCRIPTIONS[key]}
-                        enabled
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : user.role === "expert" ? (
-                <div className="mt-4">
+                  {isUserPremiumPackage(user) ? (
+                    <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
+                      Premium: modüller varsayılan açık verildi. Kişiye özel olarak
+                      kapatıp açabilirsiniz — erişim server tarafında zorlanır.
+                    </p>
+                  ) : null}
                   <ModulePermissionSwitches
                     value={user.modulePermissions}
                     onChange={saveModulePermissions}
@@ -2771,11 +2780,7 @@ export default function AdminUserDetailPage() {
                     key={key}
                     label={ADMIN_MODULE_UI_LABELS[key]}
                     description={ADMIN_MODULE_UI_DESCRIPTIONS[key]}
-                    enabled={
-                      isUserPremiumPackage(user)
-                        ? true
-                        : user.modulePermissions[key]
-                    }
+                    enabled={user.modulePermissions[key] === true}
                   />
                 ))}
               </div>

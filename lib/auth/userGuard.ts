@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
 import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
+import { resolveModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type UserGuardOk = {
@@ -163,4 +164,35 @@ export async function verifyUserRequest(
     // includeProfile=false ise undefined → diğer route'lar ek kolon/veri taşımaz.
     profile: includeProfile ? (data as Record<string, unknown>) : undefined,
   };
+}
+
+/**
+ * Faz 1/P3 — MODÜL KAPILI kullanıcı doğrulaması. `verifyUserRequest` (header-token
+ * bağlama + pending/rejected gate) üzerine, kişiye özel SERVER-SIDE modül iznini
+ * ekler. verifyUserRequest ile AYNI dönüş şeklini verir (drop-in): mevcut route'lar
+ * `guard.userId/tenantId/db/email` kullanımını değiştirmeden korur.
+ *
+ * includeProfile zorlanır (role + module_permissions tek users lookup'ında gelir →
+ * ek sorgu YOK). Modül reddi → 403 (no-store). admin/cosmic_calendar geçer;
+ * human_design "yakında"; digital_content hub alt-modülden açılır.
+ */
+export async function requireModuleAccess(
+  req: NextRequest,
+  moduleKey: ModuleGateKey,
+  options?: VerifyUserOptions,
+): Promise<UserGuardResult> {
+  const guard = await verifyUserRequest(req, { ...options, includeProfile: true });
+  if (!guard.ok) return guard;
+
+  const profile = guard.profile ?? {};
+  if (!resolveModuleAccess(profile.role, profile.module_permissions, moduleKey)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Bu modül hesabınız için aktif değil. Yöneticinizle iletişime geçin." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      ),
+    };
+  }
+  return guard;
 }

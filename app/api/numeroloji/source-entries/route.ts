@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   validateSourceEntryInput,
   isUuid,
@@ -18,7 +18,7 @@ export const runtime = "nodejs";
  *   - Kanonik description ile karıştırılmaz; bu tablo yalnız uzman notu tutar.
  *
  * Güvenlik:
- *   - verifyUserRequest → tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
+ *   - requireModuleAccess → tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/yazma .eq("tenant_id", tenantId) ile bağlı.
  *   - Uygulama katmanı sahiplik: knowledge_record_id ve (verilmişse) source_id İSTEĞİ YAPAN
  *     tenant'a ait olmalı → aksi halde 404 (varlık sızdırmayan güvenli hata).
@@ -60,7 +60,7 @@ async function sourceOwned(db: SupabaseClient, tenantId: string, sourceId: strin
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -198,7 +198,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

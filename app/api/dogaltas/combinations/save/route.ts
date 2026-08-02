@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * "Kombinasyon Sepeti"ndeki taşları public.combinations tablosuna kaydeder.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id SUNUCUDA oturumdan alınır; client'tan GELEN tenant_id'ye GÜVENİLMEZ.
  *   - Yazma service_role'lü guard.db ile yapılır (tarayıcı doğrudan insert etmez).
  *   - Demo hesap: hiçbir koşulda Supabase'e yazılmaz (başarılı gibi döner).
@@ -36,7 +36,7 @@ function str(v: unknown, max: number): string | null {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

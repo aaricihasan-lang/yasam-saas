@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  *
  * Neden: dosya satırı insert/select/delete tarayıcıdan anon key ile yapılıyordu →
  * güvenlik tamamen RLS'e bağlıydı ve anon yazma cross-tenant riski taşıyordu.
- * Artık yazmalar service_role ile SUNUCUDA; kimlik verifyUserRequest ile doğrulanır,
+ * Artık yazmalar service_role ile SUNUCUDA; kimlik requireModuleAccess ile doğrulanır,
  * tenant_id oturumdan alınır (body/query'den GÜVENİLMEZ), archive_id'nin bu tenant'a
  * ait olduğu doğrulanır (IDOR).
  *
@@ -35,7 +35,7 @@ async function archiveInTenant(
 
 // ─── GET ?archiveIds=a,b,c — bu arşivlerin dosya satırları (tenant-scoped) ──────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST { archiveId, files:[{file_name,file_path,file_type,file_size}] } ──────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── DELETE ?archiveId=... — arşivin tüm dosya satırlarını sil (tenant-scoped) ──
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });

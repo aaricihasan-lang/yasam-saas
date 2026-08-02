@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/sifa-rehberi/guides — uzmanın şifa rehberi kayıtları (healing_guides).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/insert/update/delete tenant_id ile bağlanır (çapraz-tenant erişim engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -102,7 +102,7 @@ function pickWritableFields(body: Record<string, unknown>): Record<string, unkno
 
 // ─── GET /api/sifa-rehberi/guides ──────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/sifa-rehberi/guides ─────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── DELETE /api/sifa-rehberi/guides?ids=a,b,c (toplu silme) ────────────────────
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "sifa_rehberi");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

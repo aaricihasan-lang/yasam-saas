@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/numeroloji/analyses — numerology_records tablosunun güvenli sunucu kapısı.
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA oturum kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/yazma .eq("tenant_id", tenantId) ile bağlanır (çapraz-tenant engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -30,7 +30,7 @@ function sanitize(body: Record<string, unknown>): Record<string, unknown> {
 // ?recent=N → son N kayıt (full_name, created_at) döner.
 // Aksi halde tüm satırlar listelenir.
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/numeroloji/analyses — yeni analiz kaydı ──────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── PATCH /api/numeroloji/analyses — kayıt güncelle (body.id) ──────────────────
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -135,7 +135,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // ─── DELETE /api/numeroloji/analyses — kayıt sil (?id veya body.id) ─────────────
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

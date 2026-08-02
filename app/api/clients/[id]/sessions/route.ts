@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * (C2-B1a read + C2-B1b write).
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - Önce client_id'nin bu tenant'a ait olduğu doğrulanır (IDOR).
  *   - Tüm sorgu/insert/update/delete tenant_id + client_id ile bağlanır.
  *   - PATCH/DELETE hedef satır id'si body/query'den; filtre id + tenant_id + client_id.
@@ -46,7 +46,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;
@@ -76,7 +76,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;
@@ -117,7 +117,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;
@@ -174,7 +174,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { id: clientId } = await params;

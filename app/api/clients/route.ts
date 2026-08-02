@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/clients — uzmanın danışan listesi/oluşturma (C2-B1a read + C2-B1b write).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; request body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/insert tenant_id ile bağlanır (çapraz-tenant erişim engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -26,7 +26,7 @@ function sanitizePayload(body: Record<string, unknown>): Record<string, unknown>
 
 // ─── GET /api/clients ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/clients ─────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;

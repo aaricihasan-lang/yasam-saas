@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   Document,
   HeadingLevel,
@@ -41,7 +41,7 @@ function sectionHeading(text: string, spaceBefore = 0): Paragraph {
 export async function GET(request: NextRequest) {
   // Kimlik yalnız oturumdan (x-user-id + x-session-token); tenant/user
   // query'den ALINMAZ. jobId + mode query'den okunur.
-  const guard = await verifyUserRequest(request);
+  const guard = await requireModuleAccess(request, "video_ceviri");
   if (!guard.ok) return guard.response;
   const { db, tenantId, userId, is_demo_account } = guard;
 

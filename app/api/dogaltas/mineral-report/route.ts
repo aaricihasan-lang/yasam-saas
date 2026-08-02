@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
 import { Document, Packer, Paragraph } from "docx";
 import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
@@ -159,6 +160,9 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  const __moduleGate = await assertUserModuleAccess(db, userId, "stones");
+  if (!__moduleGate.ok) return __moduleGate.response;
 
   // Demo hesap: export sunucu seviyesinde engellenir
   if (await isDemoAccountId(userId, db))

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   saveComputedChart,
   listComputedCharts,
@@ -19,7 +19,7 @@ export const runtime = "nodejs";
  * /api/hd/charts — hesaplanmış HD haritalarının güvenli kalıcılığı (FAZ 9B).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id + user_id YALNIZ guard'dan; request gövdesinden GÜVENİLMEZ.
  *   - Tüm sorgular tenant-scoped + source='computed' (manuel akış izole).
  *   - POST: recompute-on-save (client computed_result'ına güvenilmez).
@@ -67,7 +67,7 @@ async function readManualBody(
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -178,7 +178,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // PATCH — yalnız manuel harita güncelleme (id ile). Computed akışında PATCH yoktur.
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (new URL(req.url).searchParams.get("scope") !== "manual") {
     return NextResponse.json(
@@ -209,7 +209,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(

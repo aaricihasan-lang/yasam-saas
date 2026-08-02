@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * POST /api/hd/delete-chart-image — Human Design harita görseli silme (HD-0 güvenlik).
  *
  * Güvenlik modeli:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenantId YALNIZ guard'dan; istekten GÜVENİLMEZ.
  *   - İstemciden KEYFİ storage path KABUL EDİLMEZ; path DB'den server-side okunur.
  *   - Danışan sahipliği tenant-scoped doğrulanır; başka tenant'ın path'i silinemez.
@@ -25,7 +25,7 @@ function fail(status: number, error: string): Response {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return fail(403, "Demo hesabında bu işlem kullanılamaz.");

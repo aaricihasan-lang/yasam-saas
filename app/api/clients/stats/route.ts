@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -13,10 +13,10 @@ export const runtime = "nodejs";
  * hesaplanıp ISO olarak gelir; sunucu bunları timestamptz karşılaştırmasında
  * kullanır. Böylece "bu ay" sayımı tarayıcıdaki eski hesapla birebir aynı kalır.
  *
- * Güvenlik: verifyUserRequest → tenant_id sunucuda; tüm sorgular tenant'a bağlı.
+ * Güvenlik: requireModuleAccess → tenant_id sunucuda; tüm sorgular tenant'a bağlı.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;

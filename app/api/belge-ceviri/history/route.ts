@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -35,6 +36,9 @@ export async function GET(request: Request) {
     if (userErr || !userRow) {
       return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 403 });
     }
+
+    const __moduleGate = await assertUserModuleAccess(db, userId, "belge_ceviri");
+    if (!__moduleGate.ok) return __moduleGate.response;
 
     // Demo hesap: geçmiş listesi boş döner (gerçek job verisi gösterilmez).
     if (userRow.is_demo_account === true) {

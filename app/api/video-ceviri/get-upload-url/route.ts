@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
 /**
  * TUS resumable upload için kısa ömürlü upload token üretir.
  * service_role key sunucu tarafında kalır; client'a asla sızmaz.
- * Kimlik yalnız oturumdan (verifyUserRequest); tenant/user body'den ALINMAZ.
+ * Kimlik yalnız oturumdan (requireModuleAccess); tenant/user body'den ALINMAZ.
  */
 export async function POST(request: NextRequest) {
   try {
-    const guard = await verifyUserRequest(request);
+    const guard = await requireModuleAccess(request, "video_ceviri");
     if (!guard.ok) return guard.response;
     const { db, tenantId, userId, is_demo_account } = guard;
 

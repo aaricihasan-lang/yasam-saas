@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getBioResource, pickWritableBioFields } from "@/lib/biyoenerji/resourceConfig";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * /api/biyoenerji/[resource]/[id] — tek kayıt oku/güncelle/sil.
  *
  * Güvenlik:
- *   - verifyUserRequest → binding. tenant_id SUNUCUDA.
+ *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - id + tenant_id eşleşmesi zorunlu (IDOR engellenir).
  *   - Body'de yalnız izinli kolonlar; tenant_id/id/created_at yok sayılır.
  *   - Demo hesap: yazma yapılmaz.
@@ -18,7 +18,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string; id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource, id } = await params;
@@ -43,7 +43,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string; id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource, id } = await params;
@@ -80,7 +80,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ resource: string; id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
 
   const { resource, id } = await params;

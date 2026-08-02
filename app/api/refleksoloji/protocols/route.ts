@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * /api/refleksoloji/protocols — uzmanın refleksoloji protokolleri (C2-B3a).
  *
  * Güvenlik:
- *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
+ *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/insert tenant_id ile bağlanır (çapraz-tenant erişim engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 
 // ─── GET /api/refleksoloji/protocols ───────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // ─── POST /api/refleksoloji/protocols ──────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
