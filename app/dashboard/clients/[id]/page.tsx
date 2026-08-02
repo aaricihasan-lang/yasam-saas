@@ -37,6 +37,7 @@ const SessionsTab = dynamic(() => import("./components/SessionsTab"), { loading:
 const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading: TabSkeleton, ssr: false });
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
+const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -619,6 +620,7 @@ export default function ClientDetailPage() {
             <Tab label="Ödevler"             id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
             <Tab label="Analizler"           id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label="✦ Danışan Yolculuğu" id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
+            <Tab label="🧠 Yaşam Hafızası"    id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
             <button
               onClick={generateWordReport}
               disabled={generatingReport}
@@ -869,6 +871,11 @@ export default function ClientDetailPage() {
               clientDogum={client.dogum}
               onNavigate={setActiveTab}
             />
+          </div>
+          )}
+          {openedTabs.has("hafiza") && (
+          <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
+            <ClientMemoryTab clientId={client.id} clientName={fullName || "Danışan"} />
           </div>
           )}
         </DanisanSectionShell>
