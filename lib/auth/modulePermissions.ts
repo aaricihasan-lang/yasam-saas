@@ -18,7 +18,8 @@ export type ModulePermissionKey =
   | "ders_notu"
   | "human_design"
   | "digital_content"
-  | "cosmic_calendar";
+  | "cosmic_calendar"
+  | "yasam_hafizasi";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -37,6 +38,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "human_design",
   "digital_content",
   "cosmic_calendar",
+  "yasam_hafizasi",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -54,6 +56,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   human_design: "Human Design",
   digital_content: "Dijital İçerik Merkezi",
   cosmic_calendar: "Yaşam Takvimi / Kozmik Ajanda",
+  yasam_hafizasi: "Yaşam Hafızası",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -71,6 +74,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   human_design: false,
   digital_content: false,
   cosmic_calendar: false,
+  yasam_hafizasi: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
@@ -247,4 +251,27 @@ export function getModuleLockReason(
   if (!subscriptionOpen) return "subscription";
   if (!hasModulePermission(user, key)) return "permission";
   return null;
+}
+
+/**
+ * Server-side modül kapısı: `verifyUserRequest(req, { includeProfile: true })`'in
+ * döndürdüğü gevşek `profile` kaydından merkezî `hasModulePermission` mantığını
+ * yeniden kullanır (ayrı bir izin mantığı YAZILMAZ). Yalnız hasModulePermission'ın
+ * okuduğu alanlar (role/admin_level/package_type/plan/module_permissions) kullanılır.
+ */
+export function hasModulePermissionForProfile(
+  profile: Record<string, unknown> | null | undefined,
+  key: ModulePermissionKey,
+): boolean {
+  if (!profile) return false;
+  const user = {
+    role: typeof profile.role === "string" ? profile.role : "",
+    admin_level: typeof profile.admin_level === "string" ? profile.admin_level : undefined,
+    package_type: typeof profile.package_type === "string" ? profile.package_type : undefined,
+    plan: typeof profile.plan === "string" ? profile.plan : undefined,
+    membership_status:
+      typeof profile.membership_status === "string" ? profile.membership_status : undefined,
+    module_permissions: parseModulePermissions(profile.module_permissions),
+  } as unknown as YasamUser;
+  return hasModulePermission(user, key);
 }

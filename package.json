@@ -13,7 +13,8 @@
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
     "yh:bf12b:validate": "tsx scripts/yh-bf12b/cli.ts validate",
     "yh:bf12b:backup": "tsx scripts/yh-bf12b/cli.ts backup",
-    "yh:bf12b:harness": "tsx scripts/yh-bf12b/harness.ts"
+    "yh:bf12b:harness": "tsx scripts/yh-bf12b/harness.ts",
+    "yh:bf13:harness": "tsx scripts/yh-bf13/harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
