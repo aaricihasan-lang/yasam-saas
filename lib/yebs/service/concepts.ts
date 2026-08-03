@@ -88,7 +88,12 @@ export type ListConceptsFilters = {
   conceptType?: YebsConceptType;
   /**
    * Arama terimi. Route tarafında trim + 100 karakter + PostgREST filtre-özel
-   * karakterlerinden ( , ( ) * % ) arındırılmış olarak gelir. YALNIZ slug'a uygulanır.
+   * karakterlerinden ( , ( ) * % ) arındırılmış olarak gelir.
+   *
+   * A8 (label-aware search): slug'a EK OLARAK, insan-okur etiket metnine
+   * (yebs_concept_labels.label) de uygulanır — böylece Concept picker
+   * kavramları adıyla bulabilir. Kontrat değişmez (aynı param, aynı DTO,
+   * aynı count:"exact" tek-tablo semantiği; satır tekilliği korunur).
    */
   q?: string;
   /** Slug tam eşleşme filtresi (route tarafında trim edilmiş gelir). */
@@ -161,8 +166,48 @@ export async function listConcepts(
   }
 
   if (filters.q) {
-    // filters.q ön-arındırılmıştır (route). YALNIZ slug üzerinde ilike.
-    query = query.ilike("slug", `%${filters.q}%`);
+    // ============================================================
+    // A8 — ADDITIVE label-aware arama (SALT-OKUNUR; JOIN yok; satır tekilliği korunur)
+    //
+    // filters.q ön-arındırılmıştır (route: trim + 100 + `,()*%` strip) — bu yüzden
+    // PostgREST `.or()` filtre-string'ine güvenle gömülebilir.
+    //
+    // Teknik: (1) yebs_concept_labels'ı `label ilike %q%` için ÖN-SORGULA
+    //   (sane cap = 500) ve eşleşen distinct concept_id'leri topla; (2) ana concepts
+    //   sorgusunda slug-only ilike yerine tek-tabloluk `.or(slug.ilike | id.in)` uygula.
+    //   Bu bir JOIN/nested-select DEĞİLDİR → satır çoğaltmaz; count:"exact" tek-tablo
+    //   semantiği korunur; mevcut diğer .eq filtreleri AND ile birleşmeye devam eder.
+    //   Eşleşen etiket yoksa slug-only ilike'a düşer (davranış geriye-uyumlu).
+    // ============================================================
+    const labelPattern = `%${filters.q}%`;
+
+    const { data: labelRows, error: labelErr } = await db
+      .from("yebs_concept_labels")
+      .select("concept_id")
+      .ilike("label", labelPattern)
+      .limit(500);
+
+    if (labelErr) {
+      console.error("[yebs] listConcepts label pre-query failed:", labelErr.message);
+      return { ok: false, code: "YEBS_CONCEPTS_LIST_FAILED" };
+    }
+
+    // Distinct concept_id (UUID'ler — güvenli; ayrıca route q'yu arındırmıştır).
+    const conceptIds = Array.from(
+      new Set(
+        ((labelRows ?? []) as { concept_id?: unknown }[])
+          .map((r) => r.concept_id)
+          .filter((v): v is string => typeof v === "string"),
+      ),
+    );
+
+    // PostgREST `.or()` ilike wildcard'ı `*`'tir (builder %'i çevirmez). q arındırıldığından
+    // yıldız/virgül içermez; UUID'ler güvenli. Eşleşen etiket yoksa slug-only ilike'a düş.
+    if (conceptIds.length > 0) {
+      query = query.or(`slug.ilike.*${filters.q}*,id.in.(${conceptIds.join(",")})`);
+    } else {
+      query = query.ilike("slug", labelPattern);
+    }
   }
 
   const { data, error, count } = await query.range(
