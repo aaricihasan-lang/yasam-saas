@@ -15,8 +15,10 @@ const ROOT = resolve(HERE, "..");
 const MIGDIR = resolve(ROOT, "supabase/migrations");
 const TS_G = "20260921000000";
 const TS_Q = "20260922000000";
+const TS_H = "20260924000000";
 const MIG_G = resolve(MIGDIR, `${TS_G}_yebs_a7_hierarchy_graph.sql`);
 const MIG_Q = resolve(MIGDIR, `${TS_Q}_yebs_a7_quality_gates.sql`);
+const MIG_H = resolve(MIGDIR, `${TS_H}_yebs_a7_blocker_acl_hardening.sql`);
 
 let pass = 0, fail = 0; const fails = [];
 const ok = (n) => { pass++; };
@@ -176,33 +178,70 @@ chk("[A7-Q] contradiction rolü nitelikli-destek DIŞI (contradiction sayılmaz)
     !/source_role in \('primary_support','supporting','contradiction'\)/.test(qN));
 
 // ============================================================
+// MIG_H — blocker ACL sertleştirme (PUBLIC-only revoke kör noktası kapatma)
+//
+// KÖK NEDEN: MIG_Q'daki altı `_blockers` helper yalnız `REVOKE ... FROM PUBLIC` içerir.
+// Supabase default privileges anon+authenticated'a AÇIK EXECUTE verdiği için `FROM PUBLIC`
+// tek başına yetersizdir → helper'lar anon/auth tarafından çağrılabilir kalır. MIG_H bunu
+// PUBLIC+anon+authenticated tam REVOKE ile kapatır. (Bu blok, 05_POST_APPLY/07_RESIDUE
+// canlı checker'larındaki role-bazlı has_function_privilege kontrolünün statik karşılığıdır.)
+// ============================================================
+chk("MIG_H mevcut", existsSync(MIG_H), MIG_H);
+const hRaw = existsSync(MIG_H) ? rd(MIG_H) : "";
+const hSql = stripSql(hRaw), hN = norm(hSql);
+chk("[H] BEGIN/COMMIT", /^\s*BEGIN;/m.test(hSql) && /COMMIT;\s*$/.test(hSql.trim() + "\n"));
+chk("[H] additive: yalnız REVOKE (CREATE/ALTER/DROP/DELETE/GRANT yok)",
+    /\brevoke\b/.test(hN) &&
+    !/\bcreate\b|\balter\b|\bdrop\b|delete\s+from|\bgrant\b|\binsert\b|\bupdate\s+public/.test(hN));
+chk("[H] tablo grant DEĞİŞTİRİLMEZ (ON TABLE public.yebs_ yok)", !/on\s+table\s+public\.yebs_/.test(hN));
+for (const { e } of ENT) {
+  const bl = `yebs_a7_${e}_blockers`;
+  // MIG_G+MIG_Q+MIG_H birleşik etkisi: her helper PUBLIC + anon + authenticated tam REVOKE.
+  // MIG_Q PUBLIC'i, MIG_H ise PUBLIC+anon+authenticated'ı revoke eder → tam kilit.
+  const reRevoke = (role) =>
+    new RegExp(`revoke all on function public\\.${bl}\\(uuid, ?text\\) from [^;]*\\b${role}\\b`, "i");
+  chk(`[H] ${bl} PUBLIC revoke`, reRevoke("public").test(hN));
+  chk(`[H] ${bl} anon revoke (kör nokta kapandı)`, reRevoke("anon").test(hN));
+  chk(`[H] ${bl} authenticated revoke (kör nokta kapandı)`, reRevoke("authenticated").test(hN));
+  // service_role'e yeni GRANT açılmadığını doğrula (internal helper kalır).
+  chk(`[H] ${bl} service_role'e yeni GRANT yok`, !new RegExp(`grant[^;]*public\\.${bl}`, "i").test(hN));
+}
+
+// ============================================================
 // TIMESTAMP + PROTECTED
 // ============================================================
 const local = readdirSync(MIGDIR);
 chk("[ts] 20260921 tek dosya", local.filter((f) => f.startsWith(TS_G)).length === 1);
 chk("[ts] 20260922 tek dosya", local.filter((f) => f.startsWith(TS_Q)).length === 1);
-// tüm reflerde 21/22 farklı-dosya çakışması yok
+chk("[ts] 20260924 tek dosya (hotfix)", local.filter((f) => f.startsWith(TS_H)).length === 1);
+// tüm reflerde 21/22/24 farklı-dosya çakışması yok
+const EXPECT = {
+  [TS_G]: `${TS_G}_yebs_a7_hierarchy_graph.sql`,
+  [TS_Q]: `${TS_Q}_yebs_a7_quality_gates.sql`,
+  [TS_H]: `${TS_H}_yebs_a7_blocker_acl_hardening.sql`,
+};
 const refs = git(["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes"]).split(/\r?\n/).filter(Boolean);
 let coll = "";
 for (const ref of refs) {
   const tree = git(["ls-tree", "-r", "--name-only", ref]);
-  for (const h of tree.split(/\r?\n/).filter((p) => /supabase\/migrations\//.test(p) && (p.includes(`/${TS_G}_`) || p.includes(`/${TS_Q}_`)))) {
+  for (const h of tree.split(/\r?\n/).filter((p) => /supabase\/migrations\//.test(p) &&
+      (p.includes(`/${TS_G}_`) || p.includes(`/${TS_Q}_`) || p.includes(`/${TS_H}_`)))) {
     const b = h.split("/").pop();
-    if (b !== `${TS_G}_yebs_a7_hierarchy_graph.sql` && b !== `${TS_Q}_yebs_a7_quality_gates.sql`) coll += `${ref}:${h} `;
+    const ts = b.slice(0, 14);
+    if (EXPECT[ts] && b !== EXPECT[ts]) coll += `${ref}:${h} `;
   }
 }
-chk("[ts] hiçbir ref'te 21/22 farklı-dosya çakışması yok", coll === "", coll);
+chk("[ts] hiçbir ref'te 21/22/24 farklı-dosya çakışması yok", coll === "", coll);
 
-// A0–A5 + API-TX protected + scope: origin/main DRIFT edebildiğinden working-tree
-// (git status = bu branch'te BENİM değişikliğim) esas alınır. Protected migration'a
-// veya başka modüle DOKUNULMADIĞI böyle kanıtlanır.
+// A0–A5 + API-TX + 21/22 protected + scope: bu hotfix worktree origin/main (21/22 COMMIT'li)
+// üzerine kurulu. working-tree değişikliği (git status) = YALNIZ yeni 24 hotfix migration
+// olmalı; 21/22 status'ta GÖRÜNMEZ → byte-exact korundukları böyle kanıtlanır.
 const status = git(["status", "--porcelain"]).split(/\r?\n/).filter(Boolean)
   .map((l) => l.slice(3).replace(/^"|"$/g, "").replace(/\\/g, "/"));
 const changedMig = status.filter((p) => /^supabase\/migrations\//.test(p));
-chk("[protected] working-tree'de yalnız 2 yeni A7 migration (A0–A5/API-TX SAME)",
-    changedMig.length === 2 &&
-    changedMig.includes(`supabase/migrations/${TS_G}_yebs_a7_hierarchy_graph.sql`) &&
-    changedMig.includes(`supabase/migrations/${TS_Q}_yebs_a7_quality_gates.sql`),
+chk("[protected] working-tree'de yalnız 1 yeni hotfix migration (21/22 + A0–A5/API-TX SAME)",
+    changedMig.length === 1 &&
+    changedMig[0] === `supabase/migrations/${TS_H}_yebs_a7_blocker_acl_hardening.sql`,
     changedMig.join(", "));
 const A7_SCOPE = /(^supabase\/migrations\/.*_yebs_a7_)|(^app\/api\/admin\/yebs\/)|(^lib\/yebs\/)|(^scripts\/yebs-a7)/;
 chk("[scope] working-tree değişikliklerinin tamamı A7/yebs kapsamında",
