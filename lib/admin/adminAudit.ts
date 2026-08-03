@@ -47,6 +47,12 @@ export const ADMIN_AUDIT_ACTIONS = [
   "user_deleted",
   "user_archived",
   "main_admin_critical_action",
+  // FAZ 1 / P4 — admin kütüphane hediyesi (bağımsız snapshot aktarımı).
+  // ⚠️ 20260925000000_admin_library_transfer_provenance.sql CHECK süperseti ile
+  //    BİREBİR aynı olmalı (harness doğrular).
+  "library_transfer_completed",
+  "library_transfer_failed",
+  "library_transfer_retried",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

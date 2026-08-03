@@ -1,15 +1,24 @@
-import {
-  EMPTY_SOURCE_ADMIN_MESSAGE,
-  resolveSourceAdminTenantId,
-} from "@/lib/admin/adminSourceTenant";
-import { supabase } from "@/lib/supabase";
-import { adminTransferNumerology } from "@/lib/admin/adminNumerologyApi";
+/**
+ * Admin "Veri Paylaşımı / Kütüphane Aktarım Merkezi" — istemci yardımcısı.
+ *
+ * FAZ 1 / P4: Aktarım artık tarayıcıdan DOĞRUDAN tabloya INSERT YAPMAZ. Eski akış
+ * anon/authenticated Supabase client ile `stones` vb. tablolara insert ediyordu;
+ * modül lock migration'ları (20260627120000_dogaltas_lock_anon …) bu yetkiyi revoke
+ * ettiği için `permission denied for table stones` alınıyordu. Tüm yazma tek bir
+ * service-role server route'una taşındı: POST /api/admin/veri-paylasimi/transfer.
+ *
+ * Bu dosya yalnız: seçim → istek gövdesi hazırlama + güvenli sonuç/mesaj üretimi.
+ * Kaynak admin tenant'ı SUNUCUDA çözülür (burada gönderilmez).
+ */
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
 
 export { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
+export { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
 
 export const TRANSFER_BATCH_SIZE = 100;
 
-/** UI seçim anahtarı → gerçek Supabase tablo adı */
+/** UI seçim anahtarı → server registry ile aynı grup anahtarları. */
 export type TransferGroupKey =
   | "stones"
   | "minerals"
@@ -32,6 +41,8 @@ export type LibraryTransferResult = {
   error?: string;
   /** Başarı toast metni — sayfa `successMessage ?? formatTransferResultLines(...)` kullanabilir */
   successMessage?: string;
+  /** İdempotent replay ise true (aynı batch ikinci kez kopya üretmedi). */
+  replayed?: boolean;
 };
 
 /** Her TransferGroupKey için opsiyonel id filtresi. Tanımsız bırakılırsa tüm kayıtlar kopyalanır. */
@@ -53,72 +64,21 @@ export function emptyTransferCounts(): TransferResultCounts {
   };
 }
 
-const STRIP_ON_COPY = new Set(["id", "created_at", "updated_at"]);
-
-export { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
-
-function prepareRowForInsert(
-  row: Record<string, unknown>,
-  targetTenantId: string,
-): Record<string, unknown> {
-  const copy: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (STRIP_ON_COPY.has(key)) continue;
-    copy[key] = value;
-  }
-  copy.tenant_id = targetTenantId;
-  return copy;
+function adminHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-admin-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
 }
 
-/** Doğaltaş insert — yalnızca tablo alanları (minerals/combinations ile aynı strip mantığı) */
-const STONE_COPY_FIELDS = [
-  "short_description",
-  "general_info",
-  "source_note",
-  "physical_effects",
-  "spiritual_effects",
-  "other_effects",
-  "warning_text",
-  "warning_tags",
-  "feng_shui",
-  "meditation",
-  "care",
-  "application",
-  "chakras",
-  "assignments",
-  "images",
-  "image_upload_failed",
-] as const;
-
-function prepareStoneRowForInsert(
-  row: Record<string, unknown>,
-  targetTenantId: string,
-): Record<string, unknown> | null {
-  const stoneName = String(row.stone_name ?? row.name ?? "").trim();
-  if (!stoneName) {
-    console.warn(
-      "[veri-paylasimi] stones atlandı: stone_name/name yok",
-      row.id ?? "(id yok)",
-    );
-    return null;
-  }
-
-  const copy: Record<string, unknown> = {
-    tenant_id: targetTenantId,
-    stone_name: stoneName,
-  };
-
-  for (const key of STONE_COPY_FIELDS) {
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      copy[key] = row[key];
-    }
-  }
-
-  if (copy.images == null) copy.images = [];
-  if (copy.assignments == null) copy.assignments = {};
-  if (copy.warning_tags == null) copy.warning_tags = [];
-
-  return copy;
+function newBatchId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  // crypto yoksa (çok eski tarayıcı) — sunucu yine batch_id'yi doğrular.
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
 }
 
 function sumSelectedCounts(
@@ -175,279 +135,73 @@ function buildTransferSuccessMessage(
   return lines.join("\n");
 }
 
-/** Yalnızca INSERT — batch, replace/update yok */
-async function insertRowsBatched(
-  table: TransferTableName,
-  rows: Record<string, unknown>[],
-): Promise<{ inserted: number; error?: string }> {
-  if (rows.length === 0) return { inserted: 0 };
-
-  let inserted = 0;
-
-  for (let offset = 0; offset < rows.length; offset += TRANSFER_BATCH_SIZE) {
-    const batch = rows.slice(offset, offset + TRANSFER_BATCH_SIZE);
-    const { error } = await supabase.from(table).insert(batch);
-
-    if (!error) {
-      inserted += batch.length;
-      continue;
-    }
-
-    for (const row of batch) {
-      const { error: singleError } = await supabase.from(table).insert(row);
-      if (singleError) {
-        return {
-          inserted,
-          error: singleError.message,
-        };
-      }
-      inserted += 1;
-    }
-  }
-
-  return { inserted };
-}
-
 /**
- * Doğaltaş — minerals/combinations ile aynı akış: SELECT → prepare → batch INSERT.
- * Tablo adı: public.stones
+ * Seçili grupları hedef uzmana bağımsız kopya (snapshot) olarak aktarır.
+ * Tüm yazma service-role server route'unda yapılır; burada yalnız istek + sonuç.
  */
-async function copyStonesTableToTenant(
-  sourceAdminTenantId: string,
-  targetUserTenantId: string,
-  filterIds?: string[],
-): Promise<{ count: number; readCount: number; error?: string }> {
-  const stonesQuery = supabase
-    .from("stones")
-    .select("*")
-    .eq("tenant_id", sourceAdminTenantId);
-  const { data: sourceRows, error: readError } = await (
-    filterIds?.length ? stonesQuery.in("id", filterIds) : stonesQuery
-  );
-
-  if (readError) {
-    console.error("[veri-paylasimi] tablo=stones okuma hata:", readError.message);
-    return { count: 0, readCount: 0, error: readError.message };
-  }
-
-  const rows = (sourceRows ?? []) as Record<string, unknown>[];
-  const readCount = rows.length;
-
-  console.log(
-    `[veri-paylasimi] tablo=stones kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} okunan=${readCount}`,
-  );
-
-  if (readCount === 0) {
-    return { count: 0, readCount: 0 };
-  }
-
-  const payloads = rows
-    .map((row) => prepareStoneRowForInsert(row, targetUserTenantId))
-    .filter((row): row is Record<string, unknown> => row !== null);
-
-  console.log(
-    `[veri-paylasimi] tablo=stones insert öncesi data.length=${payloads.length} okunan=${readCount}`,
-    payloads[0]
-      ? {
-          stone_name: payloads[0].stone_name,
-          tenant_id: payloads[0].tenant_id,
-          alanlar: Object.keys(payloads[0]),
-        }
-      : null,
-  );
-
-  if (payloads.length === 0) {
-    return {
-      count: 0,
-      readCount,
-      error:
-        "Doğaltaş: kaynakta kayıt var ancak stone_name/name dolu satır bulunamadı.",
-    };
-  }
-
-  const { inserted, error: insertError } = await insertRowsBatched("stones", payloads);
-
-  console.log(
-    `[veri-paylasimi] tablo=stones hedef=${targetUserTenantId} insert sonrası eklenen=${inserted} okunan=${readCount} payloads=${payloads.length}${
-      insertError ? ` hata=${insertError}` : ""
-    }`,
-  );
-
-  if (inserted === 0) {
-    const detail = insertError ? ` ${insertError}` : "";
-    return {
-      count: 0,
-      readCount,
-      error: `Doğaltaş aktarımı başarısız (okunan ${readCount}, eklenen 0).${detail}`,
-    };
-  }
-
-  if (inserted < payloads.length) {
-    return {
-      count: inserted,
-      readCount,
-      error: `Doğaltaş: ${payloads.length} hazır, ${inserted} eklendi.`,
-    };
-  }
-
-  return { count: inserted, readCount };
-}
-
-export async function copyLibraryTableToTenant(
-  table: TransferTableName,
-  sourceAdminTenantId: string,
-  targetUserTenantId: string,
-  filterIds?: string[],
-): Promise<{ count: number; error?: string }> {
-  console.log(
-    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} işlem=SELECT+INSERT${filterIds?.length ? ` filtre=${filterIds.length}id` : ""}`,
-  );
-
-  if (table === "stones") {
-    const stonesResult = await copyStonesTableToTenant(
-      sourceAdminTenantId,
-      targetUserTenantId,
-      filterIds,
-    );
-    return {
-      count: stonesResult.count,
-      error: stonesResult.error,
-    };
-  }
-
-  // Numeroloji tabloları RLS ile korunur → service-role admin API üzerinden kopyalanır.
-  if (table === "numerology_knowledge_records" || table === "numerology_stone_assignments") {
-    const { inserted, error } = await adminTransferNumerology(
-      table,
-      sourceAdminTenantId,
-      targetUserTenantId,
-      filterIds,
-    );
-    return { count: inserted, error: error ?? undefined };
-  }
-
-  const tableQuery = supabase
-    .from(table)
-    .select("*")
-    .eq("tenant_id", sourceAdminTenantId);
-  const { data, error } = await (
-    filterIds?.length ? tableQuery.in("id", filterIds) : tableQuery
-  );
-
-  if (error) {
-    console.error(
-      `[veri-paylasimi] tablo=${table} okuma hata:`,
-      error.message,
-    );
-    return { count: 0, error: error.message };
-  }
-
-  const sourceRows = (data ?? []) as Record<string, unknown>[];
-  const readCount = sourceRows.length;
-
-  console.log(
-    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} okunan=${readCount}`,
-  );
-
-  if (readCount === 0) {
-    return { count: 0 };
-  }
-
-  const payloads = sourceRows.map((row) =>
-    prepareRowForInsert(row, targetUserTenantId),
-  );
-
-  const { inserted, error: insertError } = await insertRowsBatched(table, payloads);
-
-  console.log(
-    `[veri-paylasimi] tablo=${table} hedef=${targetUserTenantId} okunan=${readCount} eklenen=${inserted}${
-      insertError ? ` hata=${insertError}` : ""
-    }`,
-  );
-
-  return { count: inserted, error: insertError };
-}
-
 export async function runLibraryTransfer(
   groups: TransferGroupKey[],
+  targetUserId: string,
   targetTenantId: string,
   targetExpertEmail?: string,
   filterMap?: FilterMap,
 ): Promise<LibraryTransferResult> {
   const target = targetTenantId.trim();
   const uniqueGroups = [...new Set(groups)];
-
-  if (!target) {
-    return {
-      counts: emptyTransferCounts(),
-      error: "Hedef kullanıcı tenant_id geçersiz.",
-    };
-  }
-
-  const sourceResolved = await resolveSourceAdminTenantId();
-  if (!sourceResolved.tenantId) {
-    return {
-      counts: emptyTransferCounts(),
-      error: sourceResolved.error ?? "Admin kaynak tenant_id alınamadı.",
-    };
-  }
-
-  const sourceAdminTenantId = sourceResolved.tenantId;
-  const targetUserTenantId = target;
-
-  console.log("[veri-paylasimi] AKTARIM BAŞLANGIÇ", {
-    kaynakTenant: sourceAdminTenantId,
-    hedefTenant: targetUserTenantId,
-    gruplar: uniqueGroups,
-  });
-
-  if (targetUserTenantId === sourceAdminTenantId) {
-    console.warn(
-      "[veri-paylasimi] AKTARIM İPTAL: kaynak ve hedef tenant aynı",
-      sourceAdminTenantId,
-    );
-    return {
-      counts: emptyTransferCounts(),
-      error: "Kaynak ve hedef tenant aynı; aktarım yalnızca seçili üyeye yapılmalı.",
-    };
-  }
-
   const counts = emptyTransferCounts();
 
-  for (const group of uniqueGroups) {
-    const { count, error } = await copyLibraryTableToTenant(
-      group,
-      sourceAdminTenantId,
-      targetUserTenantId,
-      filterMap?.[group],
-    );
-    counts[group] = count;
-    if (error) {
-      console.error("[veri-paylasimi] AKTARIM HATA", {
-        tablo: group,
-        kaynakTenant: sourceAdminTenantId,
-        hedefTenant: targetUserTenantId,
-        eklenen: count,
-        hata: error,
-      });
-      return { counts, error };
+  if (!targetUserId.trim() || !target) {
+    return { counts, error: "Hedef kullanıcı bilgisi geçersiz." };
+  }
+  if (uniqueGroups.length === 0) {
+    return { counts, error: "Aktarılacak en az bir veri grubu seçin." };
+  }
+
+  const batchId = newBatchId();
+
+  let res: Response;
+  try {
+    res = await fetch("/api/admin/veri-paylasimi/transfer", {
+      method: "POST",
+      headers: adminHeaders(),
+      body: JSON.stringify({
+        batchId,
+        targetUserId: targetUserId.trim(),
+        targetTenantId: target,
+        groups: uniqueGroups,
+        filterMap: filterMap ?? {},
+      }),
+    });
+  } catch {
+    return { counts, error: "Bağlantı hatası. Hiçbir kayıt aktarılmadı." };
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    counts?: Partial<TransferResultCounts>;
+    replayed?: boolean;
+  };
+
+  if (!res.ok || json.ok === false) {
+    const msg =
+      typeof json.error === "string" && json.error.trim()
+        ? json.error
+        : `Aktarım tamamlanamadı (HTTP ${res.status}).`;
+    return { counts, error: msg };
+  }
+
+  // Sunucu sayımlarını güvenle birleştir (yalnız bilinen anahtarlar).
+  if (json.counts && typeof json.counts === "object") {
+    for (const key of uniqueGroups) {
+      const v = json.counts[key];
+      if (typeof v === "number" && Number.isFinite(v)) counts[key] = v;
     }
   }
 
   const totalInserted = sumSelectedCounts(counts, uniqueGroups);
-
-  console.log("[veri-paylasimi] AKTARIM BİTİŞ", {
-    kaynakTenant: sourceAdminTenantId,
-    hedefTenant: targetUserTenantId,
-    sayimlar: counts,
-    toplamEklenen: totalInserted,
-  });
-
-  if (totalInserted === 0) {
-    return {
-      counts,
-      error: EMPTY_SOURCE_ADMIN_MESSAGE,
-    };
+  if (totalInserted === 0 && !json.replayed) {
+    return { counts, error: EMPTY_SOURCE_ADMIN_MESSAGE, replayed: json.replayed };
   }
 
   const successMessage = buildTransferSuccessMessage(
@@ -459,6 +213,7 @@ export async function runLibraryTransfer(
   return {
     counts,
     successMessage: successMessage ?? undefined,
+    replayed: json.replayed,
   };
 }
 
