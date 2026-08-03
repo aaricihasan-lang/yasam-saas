@@ -18,10 +18,13 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
+import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 
 export const runtime = "nodejs";
 
 const C_SIFA = "059669";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ExportMode = "all" | "selected" | "single";
 
@@ -340,10 +343,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", ids, id } = body as {
+  const { exportMode = "all", ids, id, clientId, selectionGroupId } = body as {
     exportMode?: ExportMode;
     ids?: string[];
     id?: string;
+    // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
+    clientId?: string;
+    selectionGroupId?: string;
   };
 
   if (exportMode === "single" && !id)
@@ -434,6 +440,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (i > 0) all.push(divider());
     all.push(...buildGuideContent(guide, i, isSingle));
   });
+
+  // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
+  // Yalnız single mode + doğrulanmış client + selection group. Yoksa çıktı DEĞİŞMEZ.
+  // healing_guides / healing_guide_sections MUTATE EDİLMEZ; canonical içerik değişmez.
+  if (
+    exportMode === "single" &&
+    typeof id === "string" && UUID_RE.test(id) &&
+    typeof clientId === "string" && UUID_RE.test(clientId) &&
+    typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId)
+  ) {
+    const { data: cliRow } = await db
+      .from("clients").select("id").eq("id", clientId).eq("tenant_id", verifiedTenantId).maybeSingle();
+    if (!cliRow) {
+      return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
+    }
+    try {
+      const snaps = await readSnapshotsForDelivery(db, {
+        tenantId: verifiedTenantId, clientId, targetKind: "guide", targetRef: id, selectionGroup: selectionGroupId,
+      });
+      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps));
+    } catch {
+      /* regresyon güvenli: teslim seçimi eklenemezse mevcut rehber raporu korunur */
+    }
+  }
 
   const doc = new Document({
     sections: [{

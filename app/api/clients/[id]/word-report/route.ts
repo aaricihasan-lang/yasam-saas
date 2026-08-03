@@ -50,8 +50,12 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
+import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 
 export const runtime = "nodejs";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Bölüm renkleri ──────────────────────────────────────────────────────────
 
@@ -940,12 +944,13 @@ export async function POST(
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "full", tabName, dateRange } = body as {
+  const { tenantId, userId, exportMode = "full", tabName, dateRange, selectionGroupId } = body as {
     tenantId?: string;
     userId?: string;
     exportMode?: string;
     tabName?: string;
     dateRange?: { start: string; end: string };
+    selectionGroupId?: string;
   };
 
   if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
@@ -1831,6 +1836,23 @@ export async function POST(
           spacing: { before: 0, after: 0 },
         }));
       }
+    }
+  }
+
+  // ── 9. Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL)
+  // selectionGroupId yoksa VEYA snapshot yoksa: mevcut Word çıktısı BİREBİR korunur.
+  if (typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId)) {
+    try {
+      const snaps = await readSnapshotsForDelivery(db, {
+        tenantId,
+        clientId,
+        targetKind: "report",
+        targetRef: null,
+        selectionGroup: selectionGroupId,
+      });
+      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps, { headingNumber: 9 }));
+    } catch {
+      /* regresyon güvenli: teslim seçimi eklenemezse mevcut rapor korunur */
     }
   }
 

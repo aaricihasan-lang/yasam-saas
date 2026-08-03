@@ -38,6 +38,7 @@ const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading:
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
+const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -186,6 +187,10 @@ export default function ClientDetailPage() {
   } | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [tabWordBusy, setTabWordBusy] = useState(false);
+  // BF-14 P2: Yaşam Hafızası teslim seçimi (report target). selectionGroupId yoksa çıktı değişmez.
+  const [yhPickerOpen, setYhPickerOpen] = useState(false);
+  const [yhSelectionGroupId, setYhSelectionGroupId] = useState<string | null>(null);
+  const [yhSelectionCount, setYhSelectionCount] = useState(0);
   const [drStart, setDrStart] = useState("");
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
@@ -387,7 +392,7 @@ export default function ClientDetailPage() {
       const userId = readYasamUser()?.id;
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId }),
+        body: JSON.stringify({ tenantId, userId, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -621,6 +626,13 @@ export default function ClientDetailPage() {
             <Tab label="Analizler"           id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label="✦ Danışan Yolculuğu" id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
             <Tab label="🧠 Yaşam Hafızası"    id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
+            <button
+              onClick={() => setYhPickerOpen(true)}
+              aria-label="Yaşam Hafızası'ndan rapora kayıt seç"
+              className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-violet-200 bg-violet-50 px-[18px] py-2.5 text-[13px] font-extrabold text-violet-700 transition-all hover:bg-violet-100 md:inline-flex md:items-center"
+            >
+              🧠 Yaşam Hafızası&apos;ndan Seç{yhSelectionCount > 0 ? ` (${yhSelectionCount})` : ""}
+            </button>
             <button
               onClick={generateWordReport}
               disabled={generatingReport}
@@ -879,6 +891,20 @@ export default function ClientDetailPage() {
           </div>
           )}
         </DanisanSectionShell>
+        {yhPickerOpen && client ? (
+          <MemoryPicker
+            open={yhPickerOpen}
+            onClose={() => setYhPickerOpen(false)}
+            targetKind="report"
+            fixedClient={{ id: client.id, name: fullName || "Danışan" }}
+            onConfirmed={({ selectionGroupId, total }) => {
+              setYhSelectionGroupId(selectionGroupId);
+              setYhSelectionCount(total);
+              setYhPickerOpen(false);
+              showToast({ title: "Eklendi", message: `${total} kayıt raporun Yaşam Hafızası bölümüne eklenecek.`, type: "success" });
+            }}
+          />
+        ) : null}
       </DanisanSectionShell>
       </div>
 

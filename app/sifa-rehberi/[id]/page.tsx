@@ -25,6 +25,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureGuide, getDemoGuideDetail } from "@/lib/demo/demoSifaRehberi";
+import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 
 type GuideImage = {
   id: string;
@@ -386,6 +387,9 @@ export default function SifaRehberiDetailPage() {
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  // BF-14 P2: danışana özel teslim eki (guide target). Yoksa çıktı değişmez.
+  const [yhPickerOpen, setYhPickerOpen] = useState(false);
+  const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -727,7 +731,10 @@ export default function SifaRehberiDetailPage() {
           "x-user-id": userId,
           "x-session-token": readSessionToken() ?? "",
         },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", id: record.id }),
+        body: JSON.stringify({
+          tenantId, userId, exportMode: "single", id: record.id,
+          ...(yhSelection ? { clientId: yhSelection.clientId, selectionGroupId: yhSelection.selectionGroupId } : {}),
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -744,7 +751,7 @@ export default function SifaRehberiDetailPage() {
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, record]);
+  }, [queryTenantId, record, yhSelection]);
 
   function toggleEditOrSave() {
     if (!draft || !record) return;
@@ -866,6 +873,14 @@ export default function SifaRehberiDetailPage() {
             {/* Araç çubuğu — demo hesapta gizli */}
             {!isDemo && (
             <div className={detailToolbarWrap}>
+              <button
+                type="button"
+                onClick={() => setYhPickerOpen(true)}
+                disabled={!record}
+                className={`${detailToolbarBtn} border border-violet-200/90 bg-violet-50/95 text-violet-800 shadow-sm hover:bg-violet-100 disabled:opacity-60`}
+              >
+                🧠 Yaşam Hafızası&apos;ndan Seç{yhSelection ? ` (${yhSelection.total})` : ""}
+              </button>
               <button
                 type="button"
                 onClick={() => void downloadWord()}
@@ -1215,6 +1230,19 @@ export default function SifaRehberiDetailPage() {
             </div>
           </div>
         </div>
+      ) : null}
+      {yhPickerOpen && record && !isDemo ? (
+        <MemoryPicker
+          open={yhPickerOpen}
+          onClose={() => setYhPickerOpen(false)}
+          targetKind="guide"
+          targetRef={record.id}
+          onConfirmed={(r) => {
+            setYhSelection(r);
+            setYhPickerOpen(false);
+            setSuccessMessage(`${r.total} kayıt danışan teslim ekine eklenecek.`);
+          }}
+        />
       ) : null}
     </main>
   );

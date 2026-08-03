@@ -30,6 +30,7 @@ import {
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
+import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -169,6 +170,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
   const [wordBusy, setWordBusy] = useState(false);
+  // BF-14 P2: danışana özel Yaşam Hafızası teslim eki (protocol target). Yoksa çıktı değişmez.
+  const [yhPickerOpen, setYhPickerOpen] = useState(false);
+  const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
   const { showToast } = useToast();
 
   const downloadWord = useCallback(async () => {
@@ -180,6 +184,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     }
     setWordBusy(true);
     try {
+      // Teslim eki yalnız aynı protokol için yapılmış bir seçime aitse gönderilir.
+      const yhAttach = yhSelection ? { clientId: yhSelection.clientId, selectionGroupId: yhSelection.selectionGroupId } : {};
       const res = await fetch("/api/refleksoloji/protocol-report", {
         method: "POST",
         headers: {
@@ -187,7 +193,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           "x-user-id": readYasamUser()?.id ?? "",
           "x-session-token": readSessionToken() ?? "",
         },
-        body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id }),
+        body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id, ...yhAttach }),
       });
       if (!res.ok) {
         const errJson = (await res.json().catch(() => ({}))) as { error?: string };
@@ -210,7 +216,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     } finally {
       setWordBusy(false);
     }
-  }, [protocol, isDemo, showToast]);
+  }, [protocol, isDemo, showToast, yhSelection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,6 +389,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             {protocol && !isDemo && (
               <button
                 type="button"
+                onClick={() => setYhPickerOpen(true)}
+                className="inline-flex h-8 items-center rounded-lg border border-violet-200 bg-violet-50 px-3 text-[12px] font-semibold text-violet-800 transition hover:bg-violet-100"
+              >
+                🧠 Yaşam Hafızası{yhSelection ? ` (${yhSelection.total})` : ""}
+              </button>
+            )}
+            {protocol && !isDemo && (
+              <button
+                type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
                 className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
@@ -534,6 +549,19 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           )}
         </div>
       </div>
+      {yhPickerOpen && protocol && !isDemo ? (
+        <MemoryPicker
+          open={yhPickerOpen}
+          onClose={() => setYhPickerOpen(false)}
+          targetKind="protocol"
+          targetRef={protocol.id}
+          onConfirmed={(r) => {
+            setYhSelection(r);
+            setYhPickerOpen(false);
+            showToast({ title: "Eklendi", message: `${r.total} kayıt protokol teslimine eklenecek.`, type: "success" });
+          }}
+        />
+      ) : null}
     </main>
   );
 }

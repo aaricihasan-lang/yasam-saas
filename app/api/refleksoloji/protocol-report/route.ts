@@ -20,10 +20,13 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
+import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 
 export const runtime = "nodejs";
 
 const C_PROTOKOL = "be185d"; // refleksoloji pembe-mor
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ExportMode = "all" | "selected" | "single";
 
@@ -75,10 +78,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", protocolIds, protocolId } = body as {
+  const { exportMode = "all", protocolIds, protocolId, clientId, selectionGroupId } = body as {
     exportMode?: ExportMode;
     protocolIds?: string[];
     protocolId?: string;
+    // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
+    clientId?: string;
+    selectionGroupId?: string;
   };
 
   if (exportMode === "single" && !protocolId)
@@ -190,6 +196,31 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
     }
   });
+
+  // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
+  // Yalnız single mode + doğrulanmış client + selection group. Yoksa çıktı DEĞİŞMEZ.
+  // Protokol ana kaydı (reflexology_protocols) MUTATE EDİLMEZ; snapshot yalnız teslim katmanı.
+  if (
+    exportMode === "single" &&
+    typeof protocolId === "string" && UUID_RE.test(protocolId) &&
+    typeof clientId === "string" && UUID_RE.test(clientId) &&
+    typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId)
+  ) {
+    // Client ownership server-side doğrulanmalı (başka tenant/client reddedilir).
+    const { data: cliRow } = await db
+      .from("clients").select("id").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
+    if (!cliRow) {
+      return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
+    }
+    try {
+      const snaps = await readSnapshotsForDelivery(db, {
+        tenantId, clientId, targetKind: "protocol", targetRef: protocolId, selectionGroup: selectionGroupId,
+      });
+      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps));
+    } catch {
+      /* regresyon güvenli: teslim seçimi eklenemezse mevcut protokol raporu korunur */
+    }
+  }
 
   const doc = new Document({
     sections: [{

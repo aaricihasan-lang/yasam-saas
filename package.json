@@ -15,7 +15,8 @@
     "yh:bf12b:backup": "tsx scripts/yh-bf12b/cli.ts backup",
     "yh:bf12b:harness": "tsx scripts/yh-bf12b/harness.ts",
     "yh:bf13:harness": "tsx scripts/yh-bf13/harness.ts",
-    "yh:bf14:harness": "tsx scripts/yh-bf14/harness.ts"
+    "yh:bf14:harness": "tsx scripts/yh-bf14/harness.ts",
+    "yh:bf14:delivery:harness": "tsx scripts/yh-bf14/deliveryHarness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
