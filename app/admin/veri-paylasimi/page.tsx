@@ -571,7 +571,7 @@ export default function VeriPaylasimiPage() {
     const expertName = selectedExpert.fullName;
     const ok = await confirm({
       title: "Veriler Aktarılsın mı?",
-      message: `Seçili veriler ${expertName} kullanıcısına eklenecek.\n\nMevcut veriler silinmez.\nYeni kayıtlar ayrı eklenir.`,
+      message: `Seçili kayıtlar ${expertName} kullanıcısına bağımsız kopya olarak eklenecek. Uzman bu kayıtları düzenleyebilir veya silebilir. Mevcut kayıtları değiştirilmeyecek.`,
       confirmText: "Aktar",
       cancelText: "İptal",
       tone: "info",
@@ -593,6 +593,7 @@ export default function VeriPaylasimiPage() {
 
     const { counts, error, successMessage } = await runLibraryTransfer(
       activeTransferGroups,
+      selectedExpert.id,
       selectedExpert.tenantId,
       selectedExpert.email ?? undefined,
       filterMap,

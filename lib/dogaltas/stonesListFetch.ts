@@ -13,16 +13,16 @@ import {
 
 // ─── Select ──────────────────────────────────────────────────────────────────
 
-/** Liste görünümü — ağır metin alanları yok */
+/** Liste görünümü — ağır metin alanları yok. origin_type: provenance rozeti (P4). */
 export const STONES_LIST_SELECT =
-  "id, tenant_id, stone_name, short_description, chakras, images, updated_at";
+  "id, tenant_id, stone_name, short_description, chakras, images, updated_at, origin_type";
 
 /**
  * Tam içerik araması için genişletilmiş select — tüm metin alanları dahil.
  * Bu select ile gelen veriler client-side full-text aramasında kullanılır.
  */
 export const STONES_LIST_EXTENDED_SELECT =
-  "id, tenant_id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, assignments, warning_text, warning_tags, chakras, images, updated_at";
+  "id, tenant_id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, assignments, warning_text, warning_tags, chakras, images, updated_at, origin_type";
 
 export const STONES_LIST_PAGE_SIZE = 30;
 
@@ -53,6 +53,8 @@ export type StoneListItem = {
   chakras: string[] | null;
   images: unknown;
   updated_at: string | null;
+  /** P4 provenance — 'admin_transfer' ise "Kaynak: Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export type StoneListItemExtended = StoneListItem & {

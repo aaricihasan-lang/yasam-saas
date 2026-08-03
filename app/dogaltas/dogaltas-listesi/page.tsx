@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import {
   Suspense,
   memo,
@@ -365,6 +366,8 @@ const StoneCard = memo(function StoneCard({
               ))}
 
               <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
+
+              <AdminTransferBadge originType={stone.origin_type} />
 
               {imageCount > 0 && (
                 <span className={uiBadgeImage}>

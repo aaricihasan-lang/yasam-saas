@@ -15,6 +15,8 @@ export type CombinationApiRow = {
   notes_text_2: string | null;
   notes_text_3: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export type FetchCombinationsResult = {

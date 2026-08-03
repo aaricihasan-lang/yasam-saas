@@ -22,7 +22,7 @@ export const runtime = "nodejs";
  */
 
 const COMBINATION_COLUMNS =
-  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
+  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at,origin_type";
 
 const MAX_ISSUE = 500;
 

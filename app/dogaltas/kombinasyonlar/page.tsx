@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -119,6 +120,8 @@ type CombinationRecord = {
   notes_text_2: string | null;
   notes_text_3: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 function previewText(rows: CombinationRecord[], limit = 100) {
@@ -727,6 +730,14 @@ export default function KombinasyonlarPage() {
                   <h2 className="text-sm font-black leading-snug text-slate-950">
                     {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
                   </h2>
+                  <AdminTransferBadge
+                    originType={
+                      groupRows.some((r) => r.origin_type === "admin_transfer")
+                        ? "admin_transfer"
+                        : null
+                    }
+                    className="mt-1"
+                  />
 
                   {/* Source */}
                   {sourceLine ? (

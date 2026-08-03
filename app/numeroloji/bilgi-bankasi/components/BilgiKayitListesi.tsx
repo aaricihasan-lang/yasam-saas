@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ANALIZ_TURU_FILTER_OPTIONS } from "../helpers/bilgiBankaLabels";
 import { isMobileViewport, mobileKayitKimligi } from "../../helpers/mobileUxLogic";
@@ -442,6 +443,7 @@ export function BilgiKayitListesi() {
                     {mobileKayitKimligi({ analizTuru: row.analizTuru, deger: row.deger })}
                   </p>
                 </div>
+                <AdminTransferBadge originType={row.origin_type} />
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -518,6 +520,7 @@ export function BilgiKayitListesi() {
                       <span className={`${kayitTuruRozetClass} ${kayitTuruBadge(row.kayitTuru)}`}>
                         {kayitTuruLabel(row.kayitTuru)}
                       </span>
+                      <AdminTransferBadge originType={row.origin_type} className="mt-1 block w-fit" />
                     </td>
                     <td
                       className={`${tableTdClass} ${

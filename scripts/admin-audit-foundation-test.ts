@@ -13,7 +13,7 @@
  *
  * Gerçek DB'ye YAZMAZ — mock SupabaseClient kullanır.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ADMIN_AUDIT_ACTIONS,
@@ -141,14 +141,35 @@ ok(
 );
 ok(!grantLines.some((l) => /\b(update|delete|all|truncate)\b/i.test(l)), "migration: service_role GRANT'inde UPDATE/DELETE/ALL yok (append-only)");
 
-const checkBlock = sql.match(/action in \(([\s\S]*?)\)\s*\)/i)?.[1] ?? "";
-for (const a of ADMIN_AUDIT_ACTIONS) {
-  ok(checkBlock.includes(`'${a}'`), `migration CHECK içeriyor: ${a}`);
+// admin_audit_action_chk zamanla EK migration'larla genişletilebilir (append-only
+// SÜPERSET: uygulanmış bir CHECK yeni action eklemek için ayrı migration'da yeniden
+// tanımlanır). Etkin DB allowlist'i = admin_audit_action_chk'i tanımlayan TÜM
+// migration'ların action'larının BİRLEŞİMİ. Invariant korunur: TS listesi bu etkin
+// kümeyle BİREBİR eşleşir (ne eksik ne fazla).
+const originalCheck = sql.match(/action in \(([\s\S]*?)\)\s*\)/i)?.[1] ?? "";
+for (const a of Array.from(originalCheck.matchAll(/'([a-z_]+)'/g)).map((m) => m[1])) {
+  ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `orijinal SQL action TS'te tanımlı: ${a}`);
 }
-const sqlActions = Array.from(checkBlock.matchAll(/'([a-z_]+)'/g)).map((m) => m[1]);
-ok(sqlActions.length === ADMIN_AUDIT_ACTIONS.length, `action sayısı eşit (TS=${ADMIN_AUDIT_ACTIONS.length}, SQL=${sqlActions.length})`);
-for (const a of sqlActions) {
-  ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `SQL action TS'te tanımlı: ${a}`);
+
+const MIG_DIR = "supabase/migrations";
+const effectiveActions = new Set<string>();
+for (const f of readdirSync(MIG_DIR)) {
+  if (!f.endsWith(".sql")) continue;
+  const body = readFileSync(`${MIG_DIR}/${f}`, "utf8");
+  if (!/admin_audit_action_chk/i.test(body)) continue;
+  for (const m of body.matchAll(/action in \(([\s\S]*?)\)\s*\)/gi)) {
+    for (const am of (m[1] ?? "").matchAll(/'([a-z_]+)'/g)) effectiveActions.add(am[1]);
+  }
+}
+for (const a of ADMIN_AUDIT_ACTIONS) {
+  ok(effectiveActions.has(a), `etkin DB CHECK içeriyor (migration union): ${a}`);
+}
+ok(
+  effectiveActions.size === ADMIN_AUDIT_ACTIONS.length,
+  `action sayısı eşit (TS=${ADMIN_AUDIT_ACTIONS.length}, etkin SQL=${effectiveActions.size})`,
+);
+for (const a of effectiveActions) {
+  ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `etkin SQL action TS'te tanımlı: ${a}`);
 }
 
 // =============================================================================

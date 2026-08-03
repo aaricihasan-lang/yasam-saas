@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import {
   Suspense,
   useCallback,
@@ -696,6 +697,7 @@ function MineralListesiPageContent() {
                             ? renderHighlightedText(mineral.name, activeSearch)
                             : mineral.name}
                         </h2>
+                        <AdminTransferBadge originType={mineral.origin_type} className="mt-1" />
                         <DemoBlur isProtected={isPreviewProtected} intensity={4} className="mt-2 flex-1">
                           <p className="text-sm leading-6 text-slate-600">
                             {isSearchActive

@@ -1,5 +1,7 @@
 "use client";
 
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
+
 import { runInEffect } from "@/lib/runInEffect";
 import { Layers } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -84,6 +86,8 @@ type BioenergyEnergyBodyRecord = {
   onerilen_taslar: string | null;
   not_text: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 type EnergyBodyForm = {
@@ -733,6 +737,7 @@ export default function EnerjiBedenleri() {
                       <p className="text-[13px] font-black capitalize leading-snug tracking-tight text-slate-900">
                         {row.source_uid?.trim() || "—"}
                       </p>
+                      <AdminTransferBadge originType={row.origin_type} className="mt-1" />
                     </button>
                   </div>
                 );

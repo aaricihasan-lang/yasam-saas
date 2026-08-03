@@ -1,5 +1,7 @@
 "use client";
 
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
+
 import Link from "next/link";
 import { ArrowRight, Brain } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -571,6 +573,7 @@ export default function BilincaltiSebepleri() {
                   <h2 className="line-clamp-2 text-[15px] font-black leading-snug text-slate-950">
                     {row.title?.trim() || "İsimsiz kayıt"}
                   </h2>
+                  <AdminTransferBadge originType={row.origin_type} className="mt-1" />
 
                   <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
                     <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">

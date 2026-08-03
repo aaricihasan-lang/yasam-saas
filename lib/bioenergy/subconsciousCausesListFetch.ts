@@ -28,6 +28,8 @@ export type SubconsciousCauseListItem = {
   content: string | null;
   note_text: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export function buildSubconsciousCausesSearchOrFilter(term: string): string | null {
