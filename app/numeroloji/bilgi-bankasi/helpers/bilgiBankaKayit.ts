@@ -20,6 +20,8 @@ export type KnowledgeRecordRow = {
   // Opsiyonel + nullable → eski kayıtlar (alan yok/NULL) geriye uyumlu kalır.
   // Ham API JSON'ı doğrulanmamış olabilir; doğrulama knowledgeSections.ts katmanında.
   content_sections?: KnowledgeSection[] | null;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export type StoneAssignmentRow = {
@@ -30,6 +32,8 @@ export type StoneAssignmentRow = {
   reason: string | null;
   stones: unknown;
   updated_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export type BilgiBankaListeSatir = {
@@ -48,6 +52,8 @@ export type BilgiBankaListeSatir = {
   content_sections?: KnowledgeSection[] | null;
   reason?: string;
   stones?: string[];
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 /** Virgül, nokta, noktalı virgül ve satır sonuna göre parçalar; Türkçe baş harf büyütür. */
@@ -201,6 +207,7 @@ export async function listBilgiBankaKayitlari(): Promise<{
       source: row.source ?? "",
       description: row.description ?? "",
       content_sections: Array.isArray(row.content_sections) ? row.content_sections : null,
+      origin_type: row.origin_type ?? null,
       aramaMetni: [analiz, row.value, (displayLabels ?? []).join(" "), bilgi]
         .filter(Boolean)
         .join(" ")
@@ -224,6 +231,7 @@ export async function listBilgiBankaKayitlari(): Promise<{
       guncellemeTarihi: row.updated_at,
       reason: row.reason ?? "",
       stones: taslar,
+      origin_type: row.origin_type ?? null,
       aramaMetni: [analiz, row.value, row.reason, tasMetin]
         .filter(Boolean)
         .join(" ")

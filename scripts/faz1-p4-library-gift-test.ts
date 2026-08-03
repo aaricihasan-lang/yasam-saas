@@ -178,8 +178,8 @@ function run(): void {
   const stonesUi = read(STONES_LIST_UI);
   ok(/origin_type/.test(stonesFetch), "stones select: origin_type dahil");
   ok(/origin_type\?:\s*string \| null/.test(stonesFetch), "stones tip: origin_type opsiyonel alan");
-  ok(/origin_type === "admin_transfer"/.test(stonesUi), "stones UI: admin_transfer rozet koşulu");
-  ok(/Admin Kütüphanesi/.test(stonesUi), "stones UI: 'Admin Kütüphanesi' rozet etiketi");
+  ok(/AdminTransferBadge/.test(stonesUi), "stones UI: merkezî AdminTransferBadge kullanımı");
+  ok(/originType=\{stone\.origin_type\}/.test(stonesUi), "stones UI: origin_type badge'e geçiyor");
   ok(/key=\{stone\.id\}/.test(stonesUi), "stones UI: liste key = UUID (aynı isim çakışmaz)");
 
   // ── L) Saf yardımcı mantık (sayım/özet) ────────────────────────────────────
@@ -195,6 +195,65 @@ function run(): void {
   const lines = formatTransferResultLines(counts, "uzman@x.com");
   ok(lines.some((l) => /2 Doğaltaş/.test(l)) && lines.some((l) => /3 Biyoenerji/.test(l)), "formatTransferResultLines: doğaltaş+biyoenerji satırları");
   ok(Object.keys(emptyTransferCounts()).length === TRANSFER_TABLES.length, "emptyTransferCounts: 11 grup");
+
+  // ── M) Provenance rozeti — merkezî component + tüm gerçek uzman yüzeyleri ───
+  const BADGE = "components/provenance/AdminTransferBadge.tsx";
+  const badge = read(BADGE);
+  ok(/ADMIN_TRANSFER_ORIGIN\s*=\s*["']admin_transfer["']/.test(badge), "badge: ADMIN_TRANSFER_ORIGIN sabiti");
+  ok(/if\s*\(!isAdminTransferOrigin\(originType\)\)\s*return null/.test(badge), "badge: yalnız admin_transfer'de render (expert-created'da null)");
+  ok(/Admin Kütüphanesi/.test(badge), "badge: 'Admin Kütüphanesi' etiketi");
+  ok(!/email|e-posta|uuid|admin_id|adminId/i.test(stripTs(badge)), "badge: PII/UUID/e-posta GÖSTERMEZ (kodda)");
+  ok(/max-w-full|truncate/.test(badge), "badge: mobilde taşma yok (truncate/max-w-full)");
+
+  // Explicit-select yüzeylerde origin_type kolonu taşınıyor
+  ok(/origin_type/.test(read(STONES_FETCH)), "select: stones origin_type");
+  ok(/origin_type/.test(read("lib/dogaltas/mineralsListFetch.ts")), "select: minerals origin_type");
+  ok(/origin_type/.test(read("app/api/dogaltas/combinations/route.ts")), "select: combinations origin_type");
+
+  // Row tipleri origin_type taşıyor (select(*) + explicit)
+  const TYPE_FILES = [
+    "lib/dogaltas/stonesListFetch.ts",
+    "lib/dogaltas/mineralsListFetch.ts",
+    "lib/dogaltas/combinationsApi.ts",
+    "lib/bioenergy/symbolLanguageListFetch.ts",
+    "lib/bioenergy/imaginationsListFetch.ts",
+    "lib/bioenergy/chakrasListFetch.ts",
+    "lib/bioenergy/subconsciousCausesListFetch.ts",
+    "app/dashboard/biyoenerji/components/EnerjiBedenleri.tsx",
+    "app/refleksoloji/kayitli-protokoller/types.ts",
+    "app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit.ts",
+  ];
+  for (const f of TYPE_FILES) {
+    ok(/origin_type\?:\s*string \| null/.test(read(f)), `tip: origin_type opsiyonel alan (${f.split("/").pop()})`);
+  }
+
+  // Gerçek uzman UI yüzeyleri rozeti render ediyor (import + kullanım)
+  const BADGE_SURFACES: Array<[string, string]> = [
+    ["app/dogaltas/dogaltas-listesi/page.tsx", "stones"],
+    ["app/dogaltas/mineral-listesi/page.tsx", "minerals"],
+    ["app/dogaltas/kombinasyonlar/page.tsx", "combinations"],
+    ["app/dashboard/biyoenerji/components/SembolDili.tsx", "bioenergy_symbols"],
+    ["app/dashboard/biyoenerji/components/Imajinasyonlar.tsx", "bioenergy_imaginations"],
+    ["app/dashboard/biyoenerji/components/Cakralar.tsx", "bioenergy_chakras"],
+    ["app/dashboard/biyoenerji/components/EnerjiBedenleri.tsx", "bioenergy_energy_bodies"],
+    ["app/dashboard/biyoenerji/components/BilincaltiSebepleri.tsx", "bioenergy_subconscious_causes"],
+    ["app/refleksoloji/kayitli-protokoller/components/ProtocolListCard.tsx", "reflexology_protocols"],
+    ["app/numeroloji/bilgi-bankasi/components/BilgiKayitListesi.tsx", "numerology (knowledge+stone_assignments)"],
+  ];
+  for (const [f, dom] of BADGE_SURFACES) {
+    const src = read(f);
+    ok(/AdminTransferBadge/.test(src), `UI badge import/kullanım: ${dom}`);
+    ok(/originType=\{[^}]*origin_type/.test(src.replace(/\s+/g, " ")) || /originType=\{[\s\S]*?origin_type/.test(src), `UI badge origin_type geçiyor: ${dom}`);
+  }
+
+  // Aynı isimli kayıtlar UUID ile ayrı render (React key = id)
+  ok(/key=\{stone\.id\}/.test(read("app/dogaltas/dogaltas-listesi/page.tsx")), "key=UUID: stones");
+  ok(/key=\{mineral\.id\}/.test(read("app/dogaltas/mineral-listesi/page.tsx")), "key=UUID: minerals");
+  ok(/key=\{row\.id\}/.test(read("app/dashboard/biyoenerji/components/SembolDili.tsx")), "key=UUID: biyoenerji");
+  ok(/key=\{row\.id\}/.test(read("app/numeroloji/bilgi-bankasi/components/BilgiKayitListesi.tsx")), "key=UUID: numeroloji");
+
+  // Rozet update/delete engellemez: badge component'i buton/kilit değil, salt <span>
+  ok(!/onClick|disabled|<button/.test(badge), "badge: interaktif değil (update/delete engellemez)");
 
   console.log(`\nfaz1-p4-library-gift harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {

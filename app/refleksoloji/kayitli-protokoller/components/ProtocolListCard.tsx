@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DemoBlur } from "@/components/demo/DemoBlur";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { getOrganColor } from "@/app/refleksoloji/protokol-haritasi/types";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import type { ReflexologyProtocolRecord } from "../types";
@@ -54,7 +55,10 @@ export function ProtocolListCard({
         className="block min-w-0 flex-1"
       >
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-base font-black text-slate-900">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-slate-900">{title}</h2>
+            <AdminTransferBadge originType={protocol.origin_type} className="mt-1" />
+          </div>
           {organsList.length > 0 ? (
             <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-900">
               {organsList.length} organ

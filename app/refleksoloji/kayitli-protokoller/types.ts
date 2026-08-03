@@ -8,4 +8,6 @@ export type ReflexologyProtocolRecord = {
   application_notes: string | null;
   raw_json: Record<string, unknown> | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti (yalnız DB kaynaklı). */
+  origin_type?: string | null;
 };

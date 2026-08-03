@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import {
   Suspense,
   memo,
@@ -260,9 +261,6 @@ const StoneCard = memo(function StoneCard({
   const imageCount = stoneListImageCount(stone.images);
   const coverImageUrl = getFirstStoneImageUrl(stone.images);
   const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
-  // P4: adminden hediye edilen bağımsız kopya (provenance). Kaydı kilitlemez;
-  // uzman düzenleyebilir/silebilir — yalnız köken etiketidir.
-  const isAdminTransfer = stone.origin_type === "admin_transfer";
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
   const displayName = stone.stone_name || "İsimsiz taş";
   const displayDescription = safeText(stone.short_description, 120);
@@ -369,14 +367,7 @@ const StoneCard = memo(function StoneCard({
 
               <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
 
-              {isAdminTransfer ? (
-                <span
-                  className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-200"
-                  title="Bu kayıt Admin Kütüphanesi'nden bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-                >
-                  🎁 Admin Kütüphanesi
-                </span>
-              ) : null}
+              <AdminTransferBadge originType={stone.origin_type} />
 
               {imageCount > 0 && (
                 <span className={uiBadgeImage}>

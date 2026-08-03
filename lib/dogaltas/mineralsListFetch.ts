@@ -4,13 +4,13 @@ import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 // NOT (Faz 1-B): Mineral liste/sayım/arama artık /api/dogaltas/minerals üzerinden;
 // tarayıcı doğrudan supabase.from("minerals") ÇAĞIRMAZ. tenant sunucudan.
 
-/** Liste kartı — hafif kolonlar */
+/** Liste kartı — hafif kolonlar. origin_type: provenance rozeti (P4). */
 export const MINERALS_LIST_SELECT =
-  "id, tenant_id, source_id, name, aciklama, kategori, created_at";
+  "id, tenant_id, source_id, name, aciklama, kategori, created_at, origin_type";
 
 /** Arama modunda tüm tablo taraması (dizi alanları dahil) */
 export const MINERALS_LIST_SEARCH_SELECT =
-  "id, tenant_id, source_id, name, aciklama, kategori, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar, created_at";
+  "id, tenant_id, source_id, name, aciklama, kategori, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar, created_at, origin_type";
 
 export const MINERALS_LIST_PAGE_SIZE = 30;
 
@@ -33,6 +33,8 @@ export type MineralListItem = {
   aciklama: string | null;
   kategori: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 type MineralSearchRow = MineralListItem & {

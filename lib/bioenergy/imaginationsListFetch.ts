@@ -28,6 +28,8 @@ export type ImaginationListItem = {
   notes: string | null;
   source: string | null;
   created_at: string;
+  /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
+  origin_type?: string | null;
 };
 
 export function buildImaginationsSearchOrFilter(term: string): string | null {
