@@ -34,10 +34,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <>
-      {/* Admin navigation — Human Design merkezî içerik yönetimi bağlantısı (tek). */}
-      <nav className="border-b border-slate-200 bg-white/80 px-4 py-1.5 text-xs">
+      {/* Admin navigation — merkezî içerik yönetimi bağlantıları. */}
+      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-200 bg-white/80 px-4 py-1.5 text-xs">
         <Link href="/admin/human-design" className="font-semibold text-indigo-700 hover:underline">
           Human Design İçerik Yönetimi
+        </Link>
+        <Link href="/admin/yebs" className="font-semibold text-violet-700 hover:underline">
+          Yaşam Enerjisi Bilgi Sistemi
         </Link>
       </nav>
       {children}
