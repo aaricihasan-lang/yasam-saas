@@ -468,6 +468,47 @@ export const YH_INDEX_SOURCES = [
     enabled: true,
   },
 
+  // ── Numeroloji (BF-14 Birleşik Modül Kaynak Genişletme; DORMANT enabled:false) ──
+  // Professional bilgi/kaynak katalogu; danışan-bağımsız (client_id YOK, ad/doğum YOK).
+  // Yalnız repository migration'ında TAM CREATE TABLE ile doğrulanmış tablolar bağlandı
+  // (numerology_knowledge_records CREATE TABLE repo'da YOK → bilinçli olarak bağlanmadı).
+  {
+    sourceKey: "numeroloji:sources",
+    classification: "safe-non-pii", // bibliyografik kaynak katalogu; danışan-bağımsız
+
+    sourceFamily: "numeroloji",
+    tableName: "numerology_sources",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["display_label", "title"],
+    searchTextColumns: ["title", "authors", "organization", "source_type", "notes"],
+    snippetColumns: ["notes", "title"],
+    topicTagsColumns: ["source_type", "language"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    enabled: false, // DORMANT — aktivasyon BF-11E
+  },
+  {
+    sourceKey: "numeroloji:knowledge-entries",
+    classification: "safe-non-pii", // uzmanın bilgi-kaydı notu (professional overlay); danışan-bağımsız
+
+    sourceFamily: "numeroloji",
+    tableName: "numerology_knowledge_source_entries",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: [], // başlık yok; kart başlığı body snippet'inden türetilir (builder)
+    searchTextColumns: ["body"],
+    snippetColumns: ["body"],
+    topicTagsColumns: [],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    enabled: false, // DORMANT — aktivasyon BF-11E
+  },
+
   // ── Kişisel Arşiv ─────────────────────────────────────────────────────────
   {
     sourceKey: "kisisel_arsiv:archives",
