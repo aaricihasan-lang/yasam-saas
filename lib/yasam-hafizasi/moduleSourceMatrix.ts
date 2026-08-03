@@ -14,9 +14,10 @@
  *   - Client kaynaklarının tamamı DORMANT (enabled:false); aktivasyon AYRI kapı = BF-11E.
  *   - Heuristik (isim/e-posta/telefon/doğum) client eşleştirmesi YASAK → böyle modül
  *     DEFERRED_FOR_SAFETY sınıfına girer; sahte eşleştirme yapılmaz.
- *   - Professional module ailesi kümesi (config.YH_SOURCE_MODULES) KİLİTLİ 6 üyedir; yeni
- *     professional aile (numeroloji/yebs/human_design canonical) eklemek AYRI çekirdek
- *     değişikliğidir → burada FOUNDATION_READY olarak sınıflanır (uydurma wiring YOK).
+ *   - Professional module ailesi kümesi (config.YH_SOURCE_MODULES) ADDİTİF genişletilebilir;
+ *     bu pakette 'numeroloji' ailesi eklendi (mevcut 6 aile ve davranışları DEĞİŞMEDİ). YEBS
+ *     tenant_id kolonu OLMADIĞI için (merkezî/global) DEFERRED_FOR_SAFETY; HD canonical ayrı
+ *     hassas alan. Uydurma tablo/kolon wiring YOK.
  */
 import { YH_INDEX_SOURCES } from "./indexer/sources";
 import { YH_CLIENT_INDEX_SOURCES } from "./client/clientSources";
@@ -94,20 +95,21 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "numeroloji",
     label: "Numeroloji",
-    classification: "FOUNDATION_READY",
-    professionalSourceKeys: [],
+    classification: "DORMANT_READY",
+    professionalSourceKeys: ["numeroloji:sources", "numeroloji:knowledge-entries"],
     clientSourceKeys: [],
-    allow: ["(client) türetilmiş PII'siz sayısal sonuç kodları — YALNIZ doğrulanmış client_id ile"],
-    deny: ["ad", "soyad", "doğum tarihi", "açık doğum verisi", "serbest kişisel metin", "isimden client eşleştirme"],
+    allow: ["bibliyografik kaynak (display_label/title/authors/kurum/notes)", "uzman bilgi-kaydı notu (body)"],
+    deny: ["ad", "soyad", "doğum tarihi", "açık doğum verisi", "serbest kişisel/danışan metni", "isimden client eşleştirme", "danışan analiz sonucu"],
     rationale:
-      "Professional bilgi tabloları (numerology_knowledge_source_entries / numerology_sources / " +
-      "numerology_record_sources) tenant_id ile mevcut ve doğrulandı; ancak numeroloji, kilitli " +
-      "professional aile kümesinde (config.YH_SOURCE_MODULES) DEĞİL → aktivasyon çekirdek aile " +
-      "genişletmesi gerektirir (uydurma wiring yapılmadı). Client-scoped numeroloji analizi için " +
-      "doğrulanmış client_id taşıyan tablo YOK ve içerik ad/doğum PII riski taşır → client katmanı " +
-      "DEFERRED (isimden eşleştirme YASAK).",
+      "Professional numeroloji WIRED (DORMANT): numerology_sources (bibliyografik kaynak) + " +
+      "numerology_knowledge_source_entries (uzman bilgi notu) tenant-scoped, client_id/PII YOK, " +
+      "repo migration'ında TAM CREATE TABLE ile doğrulandı → YH_INDEX_SOURCES'a enabled:false " +
+      "eklendi (config.YH_SOURCE_MODULES additif 'numeroloji' ailesi). numerology_knowledge_records " +
+      "CREATE TABLE repo'da YOK (migration şemayı VARSAYMIYOR) → bilinçli olarak bağlanmadı. " +
+      "Client-scoped numeroloji için doğrulanmış client_id tablo YOK + ad/doğum PII riski → client " +
+      "katmanı DEFERRED (isimden eşleştirme YASAK; danışan analiz sonucu professional'a girmez).",
     activationPrerequisite:
-      "Professional: YH_SOURCE_MODULES aile genişletmesi + exact kolon/görünürlük contract. " +
+      "Professional: BF-11E (trigger + enabled:true + kontrollü backfill). " +
       "Client: additive nullable client_id + kanıtlanmış semantik ilişki (heuristik değil).",
   },
   {
@@ -207,18 +209,24 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "yebs",
     label: "YEBS",
-    classification: "FOUNDATION_READY",
+    classification: "DEFERRED_FOR_SAFETY",
     professionalSourceKeys: [],
     clientSourceKeys: [],
-    allow: ["(pro) tradition/school/concept/source/claim/relation — YALNIZ status uygunsa; claim-source bağı korunur"],
-    deny: ["karşıt/çelişkili claim birleştirme", "bilimsel/geleneksel/metafizik katman karıştırma", "AI doğrulayıcı/yayınlayıcı", "client (client-owned YEBS tablosu yok)"],
+    allow: [],
+    deny: ["karşıt/çelişkili claim birleştirme", "bilimsel/geleneksel/metafizik katman karıştırma", "AI doğrulayıcı/yayınlayıcı", "tenant-siz global içeriği çapraz-tenant paylaşımlı indexleme"],
     rationale:
-      "yebs_traditions/schools/concepts/sources/claims/relations tenant_id + status yaşam döngüsü " +
-      "(draft→verified→approved→published; geçiş server-side) ile mevcut ve doğrulandı → PROFESSIONAL. " +
-      "Ancak YEBS professional aile kümesinde değil ve claim/source/evidence ilişkisi düz metne " +
-      "indirgenirken katman/karşıtlık korunmalı → aktivasyon aile genişletmesi + status/görünürlük " +
-      "contract gerektirir (uydurma wiring YOK). Gerçek client-owned YEBS tablosu YOK → client değil.",
-    activationPrerequisite: "YH_SOURCE_MODULES aile genişletmesi + status/publish görünürlük contract + katman-koruyan extractor.",
+      "GERÇEK ŞEMA BLOCKER (uydurma değil): yebs_traditions/schools/concepts/sources/claims/" +
+      "concept_relations tablolarında tenant_id KOLONU YOK (merkezî/global referans sistemi; " +
+      "status draft→verified→approved→published yaşam döngüsü var). Yaşam Hafızası professional " +
+      "index'i tenant-scoped'tur (TenantResolution kolon/join gerektirir). Tenant-siz YEBS'i " +
+      "bağlamak (1) yeni 'shared-constant' tenant çözümleme modu + (2) status-eligibility filtre " +
+      "contract'ı + (3) yayımlanan tüm YEBS'in TÜM tenant'lara görünür olması (çapraz-tenant global " +
+      "shared) ürün/güvenlik kararını gerektirir; ayrıca YEBS izole çekirdek (modül entegrasyonu " +
+      "kısıtlı). Bu, bu branch içinde tek taraflı çözülemeyecek gerçek blocker → DEFERRED. Client-" +
+      "owned YEBS tablosu da YOK.",
+    activationPrerequisite:
+      "Ayrı ürün/güvenlik kararı: çapraz-tenant shared görünürlük onayı + tenant-siz shared-constant " +
+      "çözümleme modu + status/publish eligibility contract + katman/claim-source koruyan extractor.",
   },
   {
     moduleKey: "kozmik_ajanda",

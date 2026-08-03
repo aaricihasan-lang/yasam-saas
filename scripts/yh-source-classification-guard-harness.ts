@@ -114,7 +114,8 @@ async function main(): Promise<void> {
 
   // ═══ 2. Registry sınıflandırma envanteri ══════════════════════════════════
   {
-    check("10 registry tam 17 kaynak", YH_INDEX_SOURCES.length === 17);
+    // BF-14: +2 numeroloji DORMANT (enabled:false) source → toplam 19 (17 canlı + 2 dormant).
+    check("10 registry tam 19 kaynak (17 canlı + 2 numeroloji dormant)", YH_INDEX_SOURCES.length === 19);
     const VALID: readonly SourceClassification[] = ["safe-non-pii", "pii", "unclassified", "deferred"];
     check(
       "11 her kaynak geçerli classification taşır",
@@ -122,7 +123,7 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 15", count("safe-non-pii") === 15);
+    check("12 safe-non-pii sayısı 17 (15 + 2 numeroloji)", count("safe-non-pii") === 17);
     check("13 pii sayısı 1", count("pii") === 1);
     check("14 unclassified sayısı 1", count("unclassified") === 1);
     check("15 deferred sayısı 0", count("deferred") === 0);
@@ -255,7 +256,7 @@ async function main(): Promise<void> {
   console.log("S2.19-BF/BF-0 source classification guard harness — saf/mock; gerçek API/DB YOK.");
   console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
   console.log("- guard: yalnız safe-non-pii+enabled kabul; pii/unclassified/deferred/disabled fail-closed");
-  console.log("- registry 17 kaynak (15 safe / 1 pii / 1 unclassified / 0 deferred); her kaynak classification taşır");
+  console.log("- registry 19 kaynak (17 safe / 1 pii / 1 unclassified / 0 deferred; +2 numeroloji DORMANT); her kaynak classification taşır");
   console.log("- validate + indexSourcePage son savunma: pii/unclassified/disabled reddedilir, reader/writer'a ulaşılmaz");
   console.log("- demo guard regresyonu korunur; classification HTTP yanıtına sızmaz");
   if (failed > 0) process.exitCode = 1;

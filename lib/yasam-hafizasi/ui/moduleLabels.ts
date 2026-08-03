@@ -15,6 +15,7 @@ export const YH_MODULE_LABELS: Record<YhSourceModule, string> = {
   dogaltas: "Doğaltaş",
   aromaterapi: "Aromaterapi",
   kisisel_arsiv: "Kişisel Arşiv",
+  numeroloji: "Numeroloji",
 };
 
 /** Modül → uygulama-içi ALLOWLIST route (modül ana sayfası; per-record link değil). */
@@ -25,6 +26,7 @@ const YH_MODULE_ROUTES: Record<YhSourceModule, string> = {
   dogaltas: "/dogaltas",
   aromaterapi: "/aromaterapi",
   kisisel_arsiv: "/dashboard/kisisel-arsiv",
+  numeroloji: "/numeroloji",
 };
 
 export function moduleLabel(module: string): string {

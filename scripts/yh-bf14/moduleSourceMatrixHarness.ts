@@ -14,6 +14,8 @@ import {
 import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
 import { YH_CLIENT_INDEX_SOURCES } from "@/lib/yasam-hafizasi/client/clientSources";
 import { CLIENT_MODULE_LABELS } from "@/lib/yasam-hafizasi/client/clientSources";
+import { YH_SOURCE_MODULES } from "@/lib/yasam-hafizasi/config";
+import { YH_MODULE_LABELS } from "@/lib/yasam-hafizasi/ui/moduleLabels";
 
 const checks: { name: string; ok: boolean; detail: string }[] = [];
 const add = (name: string, ok: boolean, detail = ""): void => {
@@ -61,15 +63,49 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("xref-client-keys-nonempty", referencedClientKeys().length > 0);
 }
 
-// ── 3) Dormancy: yeni/genişletilmiş client kaynakları enabled:false ──
+// ── 3) Dormancy + existing-live/new-dormant ayrımı ──
 {
+  const live = YH_INDEX_SOURCES.filter((s) => s.enabled === true);
+  const dormantPro = YH_INDEX_SOURCES.filter((s) => s.enabled === false);
+  const numKeys = ["numeroloji:sources", "numeroloji:knowledge-entries"];
+  const num = YH_INDEX_SOURCES.filter((s) => numKeys.includes(s.sourceKey));
+
   add("client-sources-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false), "");
   // BF-14 P1 6 client source; bu paket YENİ client source EKLEMEDİ (duplicate yok).
   add("client-registry-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_INDEX_SOURCES.length));
-  // Professional registry (17) değişmedi (bu paket professional kaynak eklemedi/kaldırmadı).
-  add("professional-registry-count-17", YH_INDEX_SOURCES.length === 17, String(YH_INDEX_SOURCES.length));
-  // Client source key benzersizliği.
   add("client-source-keys-unique", new Set(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_CLIENT_INDEX_SOURCES.length);
+
+  // EXISTING_LIVE_PROFESSIONAL: mevcut 17 canlı kaynak DEĞİŞMEDİ (enabled:true sayısı 17).
+  add("existing-live-professional-17", live.length === 17, `live=${live.length}`);
+  // NEW_DORMANT_READY professional: yalnız 2 numeroloji kaynağı ve enabled:false.
+  add("professional-registry-total-19", YH_INDEX_SOURCES.length === 19, String(YH_INDEX_SOURCES.length));
+  add("new-dormant-professional-2", dormantPro.length === 2 && dormantPro.every((s) => s.sourceKey.startsWith("numeroloji:")), dormantPro.map((s) => s.sourceKey).join(","));
+  add("numerology-sources-enabled-false", num.length === 2 && num.every((s) => s.enabled === false), String(num.length));
+  add("professional-source-keys-unique", new Set(YH_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_INDEX_SOURCES.length);
+}
+
+// ── 3b) Numeroloji source contract (deterministic; verified tables; PII-safe) ──
+{
+  const byKey = new Map(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s] as const));
+  const src = byKey.get("numeroloji:sources");
+  const ent = byKey.get("numeroloji:knowledge-entries");
+  add("num-sources-family", src?.sourceFamily === "numeroloji" && src?.classification === "safe-non-pii");
+  add("num-sources-table", src?.tableName === "numerology_sources" && src?.tenant.mode === "column");
+  add("num-sources-updatedat", src?.updatedAtColumn === "updated_at");
+  add("num-entries-family", ent?.sourceFamily === "numeroloji" && ent?.classification === "safe-non-pii");
+  add("num-entries-table", ent?.tableName === "numerology_knowledge_source_entries" && ent?.searchTextColumns.includes("body"));
+  // PII-safe: indexlenen kolonlarda client/PII kolonu YOK.
+  const pii = ["client_id", "client_name", "name", "ad", "soyad", "dogum", "birth_date", "phone", "email", "pin"];
+  const indexedCols = [src, ent].filter(Boolean).flatMap((s) => [
+    ...(s!.titleColumns), ...(s!.searchTextColumns), ...(s!.snippetColumns), ...(s!.topicTagsColumns), ...(s!.relationColumns),
+  ]);
+  add("num-no-pii-columns", indexedCols.every((c) => !pii.includes(c)), indexedCols.join(","));
+  // numerology_knowledge_records (repo'da CREATE TABLE yok) BAĞLANMADI.
+  add("num-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));
+  // Family additif genişledi (mevcut 6 korunur + numeroloji).
+  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 7);
+  add("family-preserves-existing", ["refleksoloji", "sifa_rehberi", "biyoenerji", "dogaltas", "aromaterapi", "kisisel_arsiv"].every((m) => (YH_SOURCE_MODULES as readonly string[]).includes(m)));
+  add("numeroloji-module-label", YH_MODULE_LABELS.numeroloji === "Numeroloji");
 }
 
 // ── 4) Modül-bazlı negatif güvenlik kuralları ──
@@ -77,7 +113,9 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // Numeroloji: ad/doğum indexlenmez; isimden client eşleştirme yasak; client değil.
   add("numeroloji-deny-name-dob", denyHas("numeroloji", "doğum tarihi") && denyHas("numeroloji", "ad"));
   add("numeroloji-deny-name-match", denyHas("numeroloji", "isimden client eşleştirme"));
-  add("numeroloji-not-client-dormant", entry("numeroloji")?.clientSourceKeys.length === 0 && entry("numeroloji")?.classification === "FOUNDATION_READY");
+  // Numeroloji: professional WIRED (DORMANT_READY, 2 pro key), client YOK (DEFERRED).
+  add("numeroloji-professional-dormant-ready", entry("numeroloji")?.classification === "DORMANT_READY" && entry("numeroloji")?.professionalSourceKeys.length === 2 && entry("numeroloji")?.clientSourceKeys.length === 0);
+  add("numeroloji-deny-client-result", denyHas("numeroloji", "danışan analiz sonucu"));
 
   // Human Design: birth data denied; frozen engine; client dormant chart.
   add("hd-deny-birthdata", denyHas("human_design", "doğum tarihi") && denyHas("human_design", "doğum saati") && denyHas("human_design", "koordinat"));
@@ -96,8 +134,10 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // Şifa Rehberi: snapshot recursive source yasağı.
   add("sifa-no-recursive-snapshot", denyHas("sifa_rehberi", "snapshot") && entry("sifa_rehberi")?.clientSourceKeys.length === 0);
 
-  // YEBS: professional-only; claim birleştirme yasağı; client değil.
-  add("yebs-professional-only", entry("yebs")?.clientSourceKeys.length === 0 && (denyHas("yebs", "claim birleştir") || denyHas("yebs", "karşıt")));
+  // YEBS: gerçek şema blocker (tenant_id yok) → DEFERRED; kaynak yok; claim birleştirme yasağı.
+  add("yebs-deferred-no-tenant", entry("yebs")?.classification === "DEFERRED_FOR_SAFETY" && entry("yebs")?.professionalSourceKeys.length === 0 && entry("yebs")?.clientSourceKeys.length === 0);
+  add("yebs-tenant-blocker-evidence", rationaleHas("yebs", "tenant_id kolonu yok") && (denyHas("yebs", "çapraz-tenant") || rationaleHas("yebs", "çapraz-tenant")));
+  add("yebs-claim-merge-denied", denyHas("yebs", "claim birleştir") || denyHas("yebs", "karşıt"));
 
   // Kozmik: geçici hesap → NOT_MEMORY_SOURCE, kaynak yok.
   add("kozmik-not-memory", entry("kozmik_ajanda")?.classification === "NOT_MEMORY_SOURCE" && (entry("kozmik_ajanda")?.professionalSourceKeys.length ?? 1) === 0 && (entry("kozmik_ajanda")?.clientSourceKeys.length ?? 1) === 0);

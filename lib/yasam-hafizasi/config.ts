@@ -26,6 +26,10 @@ export const YH_SOURCE_MODULES = [
   "dogaltas",
   "aromaterapi",
   "kisisel_arsiv",
+  // BF-14 Birleşik Modül Kaynak Genişletme: ADDITİF professional aile (numeroloji bilgi
+  // bankası / kaynak katalogu). Yalnız DORMANT (enabled:false) source contract; mevcut
+  // 6 aile ve davranışları DEĞİŞMEZ. source_module DB CHECK'i length>0 (enum yok).
+  "numeroloji",
 ] as const;
 export type YhSourceModule = (typeof YH_SOURCE_MODULES)[number];
 
