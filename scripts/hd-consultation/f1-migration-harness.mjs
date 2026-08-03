@@ -108,8 +108,10 @@ check("F7. FORCE ROW LEVEL yok", !/FORCE ROW LEVEL SECURITY/i.test(sql));
 
 console.log("── G: 6 RPC · SECURITY DEFINER · search_path · EXECUTE ACL ──");
 for (const r of RPCS) check(`G.${r}: fonksiyon mevcut`, new RegExp(`CREATE OR REPLACE FUNCTION public\\.${r}\\(`).test(sql));
-check("G. SECURITY DEFINER x6", (sql.match(/SECURITY DEFINER/g) || []).length === 6);
-check("G. SET search_path = public x6", (sql.match(/SET search_path = public\b/g) || []).length === 6);
+check("G. hash helper fonksiyonu mevcut", /CREATE OR REPLACE FUNCTION public\.hd_consultation_canonical_hash\(p_canonical_content_id uuid\)/.test(sql));
+check("G. SECURITY DEFINER x7 (6 RPC + helper)", (sql.match(/SECURITY DEFINER/g) || []).length === 7);
+check("G. SET search_path = public x7", (sql.match(/SET search_path = public\b/g) || []).length === 7);
+check("G. helper EXECUTE anon/authenticated REVOKE (internal, service_role GRANT yok)", /REVOKE ALL ON FUNCTION public\.hd_consultation_canonical_hash\(uuid\) FROM anon/.test(sql) && !/GRANT EXECUTE ON FUNCTION public\.hd_consultation_canonical_hash/.test(sql));
 check("G. GRANT EXECUTE ... service_role (ACL loop)", /GRANT EXECUTE ON FUNCTION public\.%s TO service_role/.test(sql));
 check("G. EXECUTE anon/authenticated REVOKE", /REVOKE ALL ON FUNCTION public\.%s FROM anon/.test(sql) && /REVOKE ALL ON FUNCTION public\.%s FROM authenticated/.test(sql));
 check("G. ACL loop 6 RPC imzası listeler", RPCS.every((r) => new RegExp(r + "\\(").test(sql)));
@@ -157,6 +159,28 @@ check("I8. açık BEGIN/COMMIT", /^BEGIN;/m.test(sql) && /^COMMIT;/m.test(sql));
 check("I9. audit resource_kind mevcut 6 değer KORUNUR", ["canonical_content","source","source_passage","original_text","faithful_translation","content_evidence"].every((v)=>new RegExp(`'${v}'`).test(sql)));
 check("I10. audit resource_kind danışmanlık additif", ["consultation_content","consultation_section","consultation_entitlement"].every((v)=>new RegExp(`'${v}'`).test(sql)));
 check("I11. mevcut centralContent* API/persistence değişmedi (bu migration onlara dokunmaz)", !/centralContentPersistence|app\/api\/admin\/hd/.test(sql));
+
+console.log("── J: canonical hash TRUST-BOUNDARY (DB'de hesap; payload'dan değil) ──");
+const createSig = /rpc_hd_consultation_create\(([\s\S]*?)\) RETURNS uuid/.exec(sql)?.[1] || "";
+const helper = /FUNCTION public\.hd_consultation_canonical_hash[\s\S]*?\$hash\$([\s\S]*?)\$hash\$/.exec(sql)?.[1] || "";
+const HASH_FIELDS = ["general_description","report_text","strategy_text","signature_text","not_self_text","decision_mechanism","application_text","caution_notes","general_theme","full_channel_text","hanging_gate_context"];
+check("J1. create imzasında canonical_content_hash PARAMETRESİ YOK", createSig.length > 0 && !/p_canonical_content_hash/.test(createSig));
+check("J2. create imzasında canonical_content_version PARAMETRESİ YOK", !/p_canonical_content_version/.test(createSig));
+check("J3. HİÇBİR RPC imzasında canonical hash param yok", !/p_canonical_content_hash/.test(sql));
+check("J4. create: hash DB helper ile hesaplanır", /v_cchash := public\.hd_consultation_canonical_hash\(p_canonical_content_id\)/.test(create));
+check("J5. create: canonical version DB'den FOR SHARE ile okunur", /SELECT version INTO v_ccver FROM public\.hd_canonical_content[\s\S]*?FOR SHARE/.test(create));
+check("J6. create: FOR SHARE, INSERT'ten ÖNCE (pin/insert arası kilit)", create.indexOf("FOR SHARE") >= 0 && create.indexOf("FOR SHARE") < create.indexOf("INSERT INTO public.hd_consultation_contents"));
+check("J7. helper: pg_catalog.sha256 + encode('hex') (yerleşik)", /encode\(pg_catalog\.sha256\(convert_to\(v_input, 'UTF8'\)\), 'hex'\)/.test(helper));
+check("J8. helper: pgcrypto/digest/extension YOK", !/pgcrypto|digest\(|create extension/i.test(helper) && !/create extension/i.test(sql));
+check("J9. helper: deterministik sabit-sıra content alanları", HASH_FIELDS.every((f) => new RegExp(`r\\.${f}\\b`).test(helper)) && /concat_ws\(chr\(30\)/.test(helper));
+check("J10. helper: identity alanları (entity_id/kind/key/version)", /r\.entity_id::text/.test(helper) && /r\.entity_kind/.test(helper) && /r\.canonical_key/.test(helper) && /r\.version::text/.test(helper));
+check("J11. helper: VOLATİL alanlar (created_at/updated_at) hash'e dahil DEĞİL", !/r\.created_at|r\.updated_at/.test(helper));
+check("J12. update: canonical pin PATCH ile değiştirilemez", /canonical pin patch ile değiştirilemez/.test(update) && /p_patch \? 'canonical_content_hash'/.test(update));
+check("J13. update: açık repin DB'den yeniden hesap", /p_repin/.test(update) && /hd_consultation_canonical_hash\(v_ccid\)/.test(update) && /FOR SHARE/.test(update));
+check("J14. publish: stale karşılaştırma + HD_CONSULTATION_CANONICAL_STALE", /v_cur_ver IS DISTINCT FROM v_ccver OR v_cur_hash IS DISTINCT FROM v_hash_stored/.test(publish) && /HD_CONSULTATION_CANONICAL_STALE/.test(publish));
+check("J15. publish: güncel hash DB'de hesaplanır (helper)", /v_cur_hash := public\.hd_consultation_canonical_hash\(v_ccid\)/.test(publish));
+check("J16. SHA-256 64-hex lowercase sözleşmesi (helper hex + DB CHECK)", /'hex'\)/.test(helper) && /canonical_content_hash ~ '\^\[0-9a-f\]\{64\}\$'/.test(sql));
+check("J17. audit'e hash/tam-metin sızmıyor (context küçük metadata)", !/context[\s\S]{0,120}(canonical_content_hash|v_cchash|report_text|body_text)/.test(sql));
 
 console.log(`\nf1-migration-harness: PASS ${pass} / FAIL ${fail}`);
 if (fail > 0) { console.log("FAILURES:\n - " + fails.join("\n - ")); process.exit(1); }

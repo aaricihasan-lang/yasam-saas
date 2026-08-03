@@ -388,28 +388,50 @@ $lock$;
 --     audit tablosuna context'e TAM METİN yazılmaz (yalnız changed_fields + kısa kod).
 -- =============================================================================
 
--- 12.1) create — content + sections + questions + conditions + evidence TEK txn
+-- 12.0) canonical hash helper — RPC txn içinde hd_canonical_content satırından
+--   DETERMİNİSTİK SHA-256 üretir. pg_catalog.sha256(bytea) (PG14+ YERLEŞİK) →
+--   pgcrypto/extension YOK, search_path kırılganlığı YOK. Alan sırası SABİT;
+--   volatil alanlar (created_at/updated_at/status/is_ai_generated/human_approved_at/
+--   audit) HARİÇ. Sonuç 64-hex lowercase. İnternal: yalnız SECURITY DEFINER
+--   RPC'lerden çağrılır (service_role'a GRANT yok).
+CREATE OR REPLACE FUNCTION public.hd_consultation_canonical_hash(p_canonical_content_id uuid)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $hash$
+DECLARE r public.hd_canonical_content; v_input text;
+BEGIN
+  SELECT * INTO r FROM public.hd_canonical_content WHERE id = p_canonical_content_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'canonical içerik bulunamadı: %', p_canonical_content_id; END IF;
+  v_input := concat_ws(chr(30),
+    r.entity_id::text, r.entity_kind, r.canonical_key, r.version::text,
+    coalesce(r.general_description, ''), coalesce(r.report_text, ''),
+    coalesce(r.strategy_text, ''), coalesce(r.signature_text, ''), coalesce(r.not_self_text, ''),
+    coalesce(r.decision_mechanism, ''), coalesce(r.application_text, ''), coalesce(r.caution_notes, ''),
+    coalesce(r.general_theme, ''), coalesce(r.full_channel_text, ''), coalesce(r.hanging_gate_context, ''));
+  RETURN encode(pg_catalog.sha256(convert_to(v_input, 'UTF8')), 'hex');
+END
+$hash$;
+
+-- 12.1) create — content + sections + questions + conditions + evidence TEK txn.
+--   canonical_content_version/hash PAYLOAD'DAN ALINMAZ: canonical satır FOR SHARE
+--   kilitlenir, version DB'den okunur, hash aynı txn'de DB'de hesaplanır.
 CREATE OR REPLACE FUNCTION public.rpc_hd_consultation_create(
-  p_actor_admin_id          uuid,
-  p_entity_id               uuid,
-  p_canonical_content_id    uuid,
-  p_canonical_content_version integer,
-  p_canonical_content_hash  text,
-  p_is_ai_generated         boolean,
-  p_sections                jsonb,
-  p_questions               jsonb,
-  p_conditions              jsonb,
-  p_evidence                jsonb
+  p_actor_admin_id       uuid,
+  p_entity_id            uuid,
+  p_canonical_content_id uuid,
+  p_is_ai_generated      boolean,
+  p_sections             jsonb,
+  p_questions            jsonb,
+  p_conditions           jsonb,
+  p_evidence             jsonb
 ) RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
 DECLARE
-  v_kind      text;
-  v_key       text;
-  v_content   uuid;
-  v_section   uuid;
-  v_rec       jsonb;
-  v_ext_key   text;
-  v_sec_kind  text;
+  v_kind    text;
+  v_key     text;
+  v_content uuid;
+  v_rec     jsonb;
+  v_ext_key text;
+  v_ccver   integer;
+  v_cchash  text;
 BEGIN
   IF p_actor_admin_id IS NULL THEN RAISE EXCEPTION 'actor_admin_id zorunlu (guard sonucu).'; END IF;
 
@@ -418,18 +440,13 @@ BEGIN
     FROM public.hd_canonical_entities WHERE id = p_entity_id;
   IF v_kind IS NULL THEN RAISE EXCEPTION 'canonical entity bulunamadı: %', p_entity_id; END IF;
 
-  -- canonical kaynak izi: ya tümü NULL ya da id+version+hash birlikte + DB doğrulaması
+  -- canonical kaynak izi: version DB'den AUTHORITATIVE, hash txn içinde DB'de HESAPLANIR.
   IF p_canonical_content_id IS NOT NULL THEN
-    IF p_canonical_content_version IS NULL OR p_canonical_content_hash IS NULL THEN
-      RAISE EXCEPTION 'canonical içerik izi eksik (id+version+hash birlikte).';
-    END IF;
-    IF p_canonical_content_hash !~ '^[0-9a-f]{64}$' THEN
-      RAISE EXCEPTION 'canonical_content_hash 64-hex olmalı.';
-    END IF;
-    -- version DB'de AUTHORITATIVE doğrulanır; içerik aynı entity'ye ait olmalı.
-    PERFORM 1 FROM public.hd_canonical_content
-      WHERE id = p_canonical_content_id AND entity_id = p_entity_id AND version = p_canonical_content_version;
-    IF NOT FOUND THEN RAISE EXCEPTION 'canonical içerik/sürüm/entity eşleşmiyor.'; END IF;
+    -- canonical satırı txn boyunca kilitle (pin ile insert arası değişim engeli)
+    SELECT version INTO v_ccver FROM public.hd_canonical_content
+      WHERE id = p_canonical_content_id AND entity_id = p_entity_id FOR SHARE;
+    IF v_ccver IS NULL THEN RAISE EXCEPTION 'canonical içerik/entity eşleşmiyor.'; END IF;
+    v_cchash := public.hd_consultation_canonical_hash(p_canonical_content_id);
   END IF;
 
   INSERT INTO public.hd_consultation_contents (
@@ -437,7 +454,7 @@ BEGIN
     canonical_content_version, canonical_content_hash, status, version, is_ai_generated
   ) VALUES (
     p_entity_id, v_kind, v_key, p_canonical_content_id,
-    p_canonical_content_version, p_canonical_content_hash, 'draft', 1, COALESCE(p_is_ai_generated, false)
+    v_ccver, v_cchash, 'draft', 1, COALESCE(p_is_ai_generated, false)
   ) RETURNING id INTO v_content;
 
   -- sections
@@ -497,23 +514,34 @@ BEGIN
 END
 $fn$;
 
--- 12.2) update — expected_version (stale reject) + diff upsert + audit
+-- 12.2) update — expected_version (stale reject) + AÇIK repin. Canonical pin
+--   (version/hash/id) PATCH ile DEĞİŞTİRİLEMEZ; repin yalnız DB'den yeniden hesap.
 CREATE OR REPLACE FUNCTION public.rpc_hd_consultation_update(
-  p_actor_admin_id uuid,
-  p_content_id     uuid,
+  p_actor_admin_id   uuid,
+  p_content_id       uuid,
   p_expected_version integer,
-  p_patch          jsonb
+  p_patch            jsonb,
+  p_repin            boolean DEFAULT false
 ) RETURNS integer
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
 DECLARE
-  v_cur   integer;
-  v_status text;
-  v_entity uuid;
-  v_key   text;
-  v_new   integer;
+  v_cur     integer;
+  v_status  text;
+  v_entity  uuid;
+  v_key     text;
+  v_new     integer;
+  v_ccid    uuid;
+  v_ccver   integer;
+  v_cchash  text;
+  v_changed text[] := ARRAY['version'];
 BEGIN
   IF p_actor_admin_id IS NULL THEN RAISE EXCEPTION 'actor_admin_id zorunlu.'; END IF;
-  SELECT version, status, entity_id, canonical_key INTO v_cur, v_status, v_entity, v_key
+  -- canonical pin PATCH ile değiştirilemez (kör hash/version overwrite YASAK)
+  IF p_patch ? 'canonical_content_version' OR p_patch ? 'canonical_content_hash' OR p_patch ? 'canonical_content_id' THEN
+    RAISE EXCEPTION 'canonical pin patch ile değiştirilemez (repin kullanın).';
+  END IF;
+  SELECT version, status, entity_id, canonical_key, canonical_content_id
+    INTO v_cur, v_status, v_entity, v_key, v_ccid
     FROM public.hd_consultation_contents WHERE id = p_content_id FOR UPDATE;
   IF v_cur IS NULL THEN RAISE EXCEPTION 'içerik bulunamadı: %', p_content_id; END IF;
   IF v_status = 'archived' THEN RAISE EXCEPTION 'archived içerik güncellenemez.'; END IF;
@@ -527,8 +555,20 @@ BEGIN
          version = v_new
    WHERE id = p_content_id;
 
+  -- AÇIK repin: canonical pin'i DB'den yeniden hesapla (kör overwrite DEĞİL)
+  IF COALESCE(p_repin, false) THEN
+    IF v_ccid IS NULL THEN RAISE EXCEPTION 'repin için canonical bağı yok.'; END IF;
+    SELECT version INTO v_ccver FROM public.hd_canonical_content WHERE id = v_ccid FOR SHARE;
+    IF v_ccver IS NULL THEN RAISE EXCEPTION 'canonical içerik bulunamadı (repin).'; END IF;
+    v_cchash := public.hd_consultation_canonical_hash(v_ccid);
+    UPDATE public.hd_consultation_contents
+       SET canonical_content_version = v_ccver, canonical_content_hash = v_cchash
+     WHERE id = p_content_id;
+    v_changed := v_changed || ARRAY['canonical_content_version', 'canonical_content_hash'];
+  END IF;
+
   INSERT INTO public.hd_content_audit_events (actor_admin_id, action, resource_kind, resource_id, canonical_entity_id, canonical_key, changed_fields, context)
-  VALUES (p_actor_admin_id, 'updated', 'consultation_content', p_content_id, v_entity, v_key, ARRAY['version'], jsonb_build_object('from_version', v_cur, 'to_version', v_new));
+  VALUES (p_actor_admin_id, 'updated', 'consultation_content', p_content_id, v_entity, v_key, v_changed, jsonb_build_object('from_version', v_cur, 'to_version', v_new, 'repin', COALESCE(p_repin, false)));
   RETURN v_new;
 END
 $fn$;
@@ -545,17 +585,30 @@ DECLARE
   v_key     text;
   v_ccid    uuid;
   v_ccver   integer;
+  v_hash_stored text;
+  v_cur_ver integer;
+  v_cur_hash text;
   v_active  integer;
 BEGIN
   IF p_actor_admin_id IS NULL THEN RAISE EXCEPTION 'actor_admin_id zorunlu.'; END IF;
-  SELECT status, entity_id, canonical_key, canonical_content_id, canonical_content_version
-    INTO v_status, v_entity, v_key, v_ccid, v_ccver
+  SELECT status, entity_id, canonical_key, canonical_content_id, canonical_content_version, canonical_content_hash
+    INTO v_status, v_entity, v_key, v_ccid, v_ccver, v_hash_stored
     FROM public.hd_consultation_contents WHERE id = p_content_id FOR UPDATE;
   IF v_status IS NULL THEN RAISE EXCEPTION 'içerik bulunamadı: %', p_content_id; END IF;
   IF v_status = 'archived' THEN RAISE EXCEPTION 'archived içerik publish edilemez.'; END IF;
 
-  -- canonical kaynak izi zorunlu + canonical ana içerik yayınlı & insan onaylı (güvenli kapı)
+  -- canonical kaynak izi zorunlu
   IF v_ccid IS NULL THEN RAISE EXCEPTION 'publish için canonical içerik bağı zorunlu.'; END IF;
+  -- canonical satırı txn boyunca kilitle + GÜNCEL version/hash'i DB'de hesapla
+  SELECT version INTO v_cur_ver FROM public.hd_canonical_content
+    WHERE id = v_ccid AND entity_id = v_entity FOR SHARE;
+  IF v_cur_ver IS NULL THEN RAISE EXCEPTION 'canonical içerik/entity eşleşmiyor.'; END IF;
+  v_cur_hash := public.hd_consultation_canonical_hash(v_ccid);
+  -- STALE: kayıtlı pin (version+hash) canonical'ın GÜNCEL DB değeriyle uyuşmuyorsa reddet.
+  IF v_cur_ver IS DISTINCT FROM v_ccver OR v_cur_hash IS DISTINCT FROM v_hash_stored THEN
+    RAISE EXCEPTION 'HD_CONSULTATION_CANONICAL_STALE';
+  END IF;
+  -- canonical ana içerik yayınlı & insan onaylı (güvenli kapı)
   PERFORM 1 FROM public.hd_canonical_content
     WHERE id = v_ccid AND entity_id = v_entity AND version = v_ccver
       AND status = 'published' AND human_approved_at IS NOT NULL;
@@ -699,8 +752,8 @@ DO $acl$
 DECLARE f text;
 BEGIN
   FOREACH f IN ARRAY ARRAY[
-    'rpc_hd_consultation_create(uuid,uuid,uuid,integer,text,boolean,jsonb,jsonb,jsonb,jsonb)',
-    'rpc_hd_consultation_update(uuid,uuid,integer,jsonb)',
+    'rpc_hd_consultation_create(uuid,uuid,uuid,boolean,jsonb,jsonb,jsonb,jsonb)',
+    'rpc_hd_consultation_update(uuid,uuid,integer,jsonb,boolean)',
     'rpc_hd_consultation_publish(uuid,uuid)',
     'rpc_hd_consultation_archive(uuid,uuid)',
     'rpc_hd_consultation_entitlement_grant(uuid,uuid,uuid,text,uuid)',
@@ -713,6 +766,12 @@ BEGIN
   END LOOP;
 END
 $acl$;
+
+-- Yardımcı hash fonksiyonu INTERNAL: public/anon/authenticated EXECUTE REVOKE.
+-- service_role'a GRANT YOK (yalnız SECURITY DEFINER RPC'ler owner bağlamında çağırır).
+REVOKE ALL ON FUNCTION public.hd_consultation_canonical_hash(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.hd_consultation_canonical_hash(uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.hd_consultation_canonical_hash(uuid) FROM authenticated;
 
 COMMIT;
 
