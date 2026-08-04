@@ -77,9 +77,9 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
 
   // EXISTING_LIVE_PROFESSIONAL: mevcut 17 canlı kaynak DEĞİŞMEDİ (enabled:true sayısı 17).
   add("existing-live-professional-17", live.length === 17, `live=${live.length}`);
-  // NEW_DORMANT_READY professional: yalnız 2 numeroloji kaynağı ve enabled:false.
-  add("professional-registry-total-19", YH_INDEX_SOURCES.length === 19, String(YH_INDEX_SOURCES.length));
-  add("new-dormant-professional-2", dormantPro.length === 2 && dormantPro.every((s) => s.sourceKey.startsWith("numeroloji:")), dormantPro.map((s) => s.sourceKey).join(","));
+  // DORMANT professional: 2 numeroloji + 6 yebs + 1 belge_video = 9 (hepsi enabled:false).
+  add("professional-registry-total-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
+  add("new-dormant-professional-9", dormantPro.length === 9 && dormantPro.every((s) => /^(numeroloji|yebs|belge_video):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
   add("numerology-sources-enabled-false", num.length === 2 && num.every((s) => s.enabled === false), String(num.length));
   add("professional-source-keys-unique", new Set(YH_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_INDEX_SOURCES.length);
 }
@@ -103,7 +103,8 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // numerology_knowledge_records (repo'da CREATE TABLE yok) BAĞLANMADI.
   add("num-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));
   // Family additif genişledi (mevcut 6 korunur + numeroloji).
-  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 7);
+  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 9);
+  add("family-has-yebs-belge", (YH_SOURCE_MODULES as readonly string[]).includes("yebs") && (YH_SOURCE_MODULES as readonly string[]).includes("belge_video"));
   add("family-preserves-existing", ["refleksoloji", "sifa_rehberi", "biyoenerji", "dogaltas", "aromaterapi", "kisisel_arsiv"].every((m) => (YH_SOURCE_MODULES as readonly string[]).includes(m)));
   add("numeroloji-module-label", YH_MODULE_LABELS.numeroloji === "Numeroloji");
 }
@@ -135,15 +136,15 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("sifa-no-recursive-snapshot", denyHas("sifa_rehberi", "snapshot") && entry("sifa_rehberi")?.clientSourceKeys.length === 0);
 
   // YEBS: gerçek şema blocker (tenant_id yok) → DEFERRED; kaynak yok; claim birleştirme yasağı.
-  add("yebs-deferred-no-tenant", entry("yebs")?.classification === "DEFERRED_FOR_SAFETY" && entry("yebs")?.professionalSourceKeys.length === 0 && entry("yebs")?.clientSourceKeys.length === 0);
-  add("yebs-tenant-blocker-evidence", rationaleHas("yebs", "tenant_id kolonu yok") && (denyHas("yebs", "çapraz-tenant") || rationaleHas("yebs", "çapraz-tenant")));
+  add("yebs-wired-dormant", entry("yebs")?.classification === "DORMANT_READY" && entry("yebs")?.professionalSourceKeys.length === 6 && entry("yebs")?.clientSourceKeys.length === 0);
+  add("yebs-global-canonical-noted", rationaleHas("yebs", "global-canonical") && rationaleHas("yebs", "published"));
   add("yebs-claim-merge-denied", denyHas("yebs", "claim birleştir") || denyHas("yebs", "karşıt"));
 
   // Kozmik: geçici hesap → NOT_MEMORY_SOURCE, kaynak yok.
   add("kozmik-not-memory", entry("kozmik_ajanda")?.classification === "NOT_MEMORY_SOURCE" && (entry("kozmik_ajanda")?.professionalSourceKeys.length ?? 1) === 0 && (entry("kozmik_ajanda")?.clientSourceKeys.length ?? 1) === 0);
 
   // Belge/Video: DEFERRED, kaynak yok, arbitrary indexleme yasağı.
-  add("belge-deferred", entry("belge_video")?.classification === "DEFERRED_FOR_SAFETY" && denyHas("belge_video", "arbitrary"));
+  add("belge-wired-dormant", entry("belge_video")?.classification === "DORMANT_READY" && ((entry("belge_video")?.professionalSourceKeys ?? []) as readonly string[]).includes("belge_video:passages") && denyHas("belge_video", "transient job"));
 
   // Kişisel Arşiv: DEFERRED.
   add("kisisel-arsiv-deferred", entry("kisisel_arsiv")?.classification === "DEFERRED_FOR_SAFETY");

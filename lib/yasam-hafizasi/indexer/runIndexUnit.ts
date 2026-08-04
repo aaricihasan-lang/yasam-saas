@@ -31,6 +31,8 @@
 import { buildIndexUnit } from "./buildCandidate";
 import type { BuiltIndexUnit } from "./buildCandidate";
 import { extractFields } from "./extractFields";
+import { evaluateRowEligibility } from "./rowEligibility";
+import type { RowEligibilityReason } from "./rowEligibility";
 import type { SourceConfig } from "./sources";
 import { resolveTenant } from "./tenantResolve";
 import type { ParentTenantLookup, TenantResolveFailureReason } from "./tenantResolve";
@@ -50,6 +52,7 @@ export interface RunIndexUnitInput {
  *   - stage "build":  buildIndexUnit `null` döndü (neden OPAK: build-null).
  */
 export type RunSkipReason =
+  | { readonly stage: "eligibility"; readonly reason: RowEligibilityReason }
   | { readonly stage: "tenant"; readonly reason: TenantResolveFailureReason }
   | { readonly stage: "build"; readonly reason: "build-null" };
 
@@ -71,6 +74,14 @@ export type RunIndexUnitResult =
  */
 export function runIndexUnit(input: RunIndexUnitInput): RunIndexUnitResult {
   const { config, row, parentLookup } = input;
+
+  // 0) Satır-seviyesi eligibility (BF-14; fail-closed). Mevcut kaynaklar bu declarative
+  //    alanları taşımadığı için no-op → davranış BYTE-DEĞİŞMEZ. YEBS published-only /
+  //    Belge-Video passage safe-non-pii kapıları BURADA uygulanır (draft/unclassified/pii → skip).
+  const eligibility = evaluateRowEligibility(config, row);
+  if (!eligibility.eligible) {
+    return { status: "skipped", skip: { stage: "eligibility", reason: eligibility.reason } };
+  }
 
   // 1) Tenant sahipliği (fail-closed). Join mode'da parentLookup enjekte edilir.
   const tenant = resolveTenant(config, row, parentLookup);

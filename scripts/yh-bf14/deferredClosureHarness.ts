@@ -10,7 +10,11 @@ import {
   YH_DEFERRED_SOURCE_CLOSURE,
   validateDeferredClosure,
   expectedFoundationTables,
+  wiredDormantRegistryKeys,
 } from "@/lib/yasam-hafizasi/deferredSourceClosure";
+import { resolveTenant } from "@/lib/yasam-hafizasi/indexer/tenantResolve";
+import { evaluateRowEligibility } from "@/lib/yasam-hafizasi/indexer/rowEligibility";
+import { evaluateSourceGuard } from "@/lib/yasam-hafizasi/indexer/sourceGuard";
 import { parsePromoteRequest } from "@/lib/yasam-hafizasi/documents/promoteRequest";
 import { chunkText, contentHash } from "@/lib/yasam-hafizasi/documents/chunkText";
 import {
@@ -23,7 +27,7 @@ import {
   YEBS_VISIBILITY,
   YEBS_SOURCE_TABLES,
 } from "@/lib/yasam-hafizasi/yebs/yebsVisibility";
-import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
+import { YH_INDEX_SOURCES, type SourceConfig } from "@/lib/yasam-hafizasi/indexer/sources";
 
 const U1 = "11111111-1111-4111-1111-111111111111";
 const HASH = "a".repeat(64);
@@ -74,7 +78,7 @@ add("yebs-visibility-global-canonical", YEBS_VISIBILITY === "GLOBAL_CANONICAL");
 add("yebs-eligible-published-only", isYebsPublishedEligible("published") && !isYebsPublishedEligible("draft") && !isYebsPublishedEligible("verified") && !isYebsPublishedEligible("approved") && !isYebsPublishedEligible("") && !isYebsPublishedEligible(null));
 add("yebs-global-tenant-null", yebsGlobalTenantId() === null);
 add("yebs-tables-tenantless-set", YEBS_SOURCE_TABLES.length === 6);
-add("yebs-domain-foundation-ready", dom("yebs_global_canonical")?.result === "FOUNDATION_READY" && (dom("yebs_global_canonical")?.foundationTables.length ?? 1) === 0);
+add("yebs-domain-wired-dormant", dom("yebs_global_canonical")?.result === "WIRED_DORMANT" && (dom("yebs_global_canonical")?.registrySourceKeys.length ?? 0) === 6);
 add("yebs-no-client", (dom("yebs_global_canonical")?.deny ?? []).some((d) => d.includes("client memory")));
 
 // ── 4) Numeroloji: DEFERRED_HARD_BLOCKER + exact kanıt ──
@@ -102,7 +106,7 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   add("chunk-hash-64", chunks[0]!.textHash.length === 64 && contentHash("x").length === 64);
   const big = chunkText("x".repeat(9000));
   add("chunk-bounded", big.every((c) => c.text.length <= 4000) && big.length >= 2);
-  add("belge-domain-foundation-ready", dom("belge_video_ingestion")?.result === "FOUNDATION_READY" && (dom("belge_video_ingestion")?.foundationTables.length ?? 0) === 2);
+  add("belge-domain-wired-dormant", dom("belge_video_ingestion")?.result === "WIRED_DORMANT" && (dom("belge_video_ingestion")?.foundationTables.length ?? 0) === 2 && (dom("belge_video_ingestion")?.registrySourceKeys.length ?? 0) === 1);
 }
 
 // ── 6) Kişisel Arşiv: classification validation + row-level fail-closed ──
@@ -121,14 +125,63 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   add("archive-domain-fail-closed", dom("kisisel_arsiv_classification")?.result === "EXISTING_FAIL_CLOSED");
 }
 
-// ── 7) Mevcut kisisel_arsiv:archives kaynağı fail-closed (registry değişmedi) ──
+// ── 7) Registry wiring: YEBS + Belge/Video DORMANT bağlı; mevcut/live değişmedi ──
 {
-  const arc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives");
-  add("existing-archive-source-unclassified", arc?.classification === "unclassified", arc?.classification ?? "missing");
-  // Bu paket YENİ registry source EKLEMEDİ (source wiring aktivasyonu ayrı kapı).
-  add("registry-count-19-unchanged", YH_INDEX_SOURCES.length === 19, String(YH_INDEX_SOURCES.length));
-  add("no-yebs-registry-entry", !YH_INDEX_SOURCES.some((s) => s.sourceKey.startsWith("yebs:")));
-  add("no-document-registry-entry", !YH_INDEX_SOURCES.some((s) => s.sourceKey.startsWith("belge") || s.sourceKey.startsWith("document")));
+  const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
+  // Mevcut kisisel_arsiv:archives kaynağı fail-closed (unclassified; değişmedi; duplicate yok).
+  add("existing-archive-source-unclassified", byKey.get("kisisel_arsiv:archives")?.classification === "unclassified", byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
+  // 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video).
+  add("registry-count-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
+  add("live-count-17-unchanged", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  // WIRED_DORMANT closure key'leri GERÇEKTEN registry'de ve HEPSİ enabled:false.
+  const wired = wiredDormantRegistryKeys();
+  add("closure-wired-keys-in-registry", wired.length === 7 && wired.every((k) => byKey.has(k)), wired.join(","));
+  add("closure-wired-keys-all-dormant", wired.every((k) => byKey.get(k)?.enabled === false));
+  // YEBS: 6 global-canonical + published-only.
+  const yebs = YH_INDEX_SOURCES.filter((s) => s.sourceKey.startsWith("yebs:")) as SourceConfig[];
+  add("yebs-6-global-canonical", yebs.length === 6 && yebs.every((s) => s.tenant.mode === "global-canonical" && s.enabled === false));
+  add("yebs-published-only", yebs.every((s) => s.statusColumn === "status" && JSON.stringify(s.eligibleStatuses) === JSON.stringify(["published"])));
+  add("yebs-safe-non-pii", yebs.every((s) => s.classification === "safe-non-pii"));
+  // Belge/Video: durable passages, row-classification gated, join tenant.
+  const doc = byKey.get("belge_video:passages");
+  add("belge-passages-durable", doc?.tableName === "yh_document_passages" && doc?.enabled === false);
+  add("belge-passages-row-gate", doc?.rowClassificationColumn === "classification");
+  add("belge-passages-join-tenant", doc?.tenant.mode === "join");
+  // Guard: her yeni dormant source enabled:false → source-guard 'disabled' (event/reconcile no-op).
+  add("new-dormant-guard-disabled", wired.every((k) => { const s = byKey.get(k)!; return s.enabled === false; }));
+}
+
+// ── 8) Fonksiyonel indexer wiring: global-canonical resolve + row-eligibility + guard ──
+{
+  const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
+  const yebsTrad = byKey.get("yebs:traditions")!;
+  const docPass = byKey.get("belge_video:passages")!;
+
+  // global-canonical → tenant DAİMA shared (null); synthetic tenant yok.
+  const gt = resolveTenant(yebsTrad, { id: U1, status: "published" });
+  add("fn-global-canonical-shared", gt.ok === true && gt.tenantId === null && gt.isShared === true);
+
+  // YEBS row-eligibility: yalnız published geçer; draft/verified/pending fail-closed.
+  add("fn-yebs-published-eligible", evaluateRowEligibility(yebsTrad, { status: "published" }).eligible === true);
+  add("fn-yebs-draft-skip", evaluateRowEligibility(yebsTrad, { status: "draft" }).eligible === false);
+  add("fn-yebs-approved-skip", evaluateRowEligibility(yebsTrad, { status: "approved" }).eligible === false);
+  add("fn-yebs-missing-status-skip", evaluateRowEligibility(yebsTrad, {}).eligible === false);
+
+  // Belge/Video row-eligibility: yalnız safe-non-pii passage; unclassified/pii fail-closed.
+  add("fn-doc-safe-eligible", evaluateRowEligibility(docPass, { classification: "safe-non-pii" }).eligible === true);
+  add("fn-doc-unclassified-skip", evaluateRowEligibility(docPass, { classification: "unclassified" }).eligible === false);
+  add("fn-doc-pii-skip", evaluateRowEligibility(docPass, { classification: "pii" }).eligible === false);
+  add("fn-doc-missing-class-skip", evaluateRowEligibility(docPass, {}).eligible === false);
+
+  // Mevcut kaynaklar (no eligibility gate) → daima eligible (davranış değişmez).
+  const live = YH_INDEX_SOURCES.find((s) => s.sourceKey === "refleksoloji:protocols")!;
+  add("fn-live-source-no-gate", evaluateRowEligibility(live, {}).eligible === true);
+
+  // Guard: yeni dormant kaynaklar 'disabled' → event/reconcile no-op (index write yok).
+  add("fn-yebs-guard-disabled", evaluateSourceGuard(yebsTrad).indexable === false);
+  add("fn-doc-guard-disabled", evaluateSourceGuard(docPass).indexable === false);
+  // Mevcut canlı kaynak hâlâ indexable (regresyon yok).
+  add("fn-live-guard-indexable", evaluateSourceGuard(live).indexable === true);
 }
 
 function main(): void {

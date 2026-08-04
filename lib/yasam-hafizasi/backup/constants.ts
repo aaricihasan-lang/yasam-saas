@@ -132,8 +132,10 @@ export const YH_SOURCE_MODULES = [
   "dogaltas",
   "aromaterapi",
   "kisisel_arsiv",
-  // BF-14: config.YH_SOURCE_MODULES ile senkron (additif numeroloji ailesi).
+  // BF-14: config.YH_SOURCE_MODULES ile senkron (additif numeroloji + yebs + belge_video aileleri).
   "numeroloji",
+  "yebs",
+  "belge_video",
 ] as const;
 
 /** Owner tenantında diğer uzmanlarca canlı okunan shared-read tablo(lar). */

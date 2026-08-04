@@ -28,6 +28,11 @@ export interface ClosureDomain {
   readonly foundationTables: readonly string[];
   /** Bu pakette eklenen server API foundation'ları (varsa). */
   readonly foundationApis: readonly string[];
+  /**
+   * Bu alan için YH_INDEX_SOURCES'a bağlanan DORMANT (enabled:false) source key'ler. WIRED_DORMANT
+   * için ≥1 gerçek key; diğer sonuçlar için []. Harness registry ile çapraz doğrular.
+   */
+  readonly registrySourceKeys: readonly string[];
   /** Güvenli/izinli alan özeti. */
   readonly allow: readonly string[];
   /** Kesin yasak alan/işlem özeti. */
@@ -44,26 +49,29 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
   {
     domain: "yebs_global_canonical",
     label: "YEBS Global/Canonical Görünürlük",
-    result: "FOUNDATION_READY",
+    result: "WIRED_DORMANT",
     productDecision:
       "YEBS professional GLOBAL_CANONICAL bilgi sistemidir; client memory değil; tenant-owned " +
       "gösterilmez; tenant başına çoğaltılmaz; synthetic tenant yok. Yalnız published görünür.",
     foundationTables: [],
     foundationApis: [],
+    registrySourceKeys: [
+      "yebs:traditions", "yebs:schools", "yebs:concepts", "yebs:sources", "yebs:claims", "yebs:concept-relations",
+    ],
     allow: ["published tradition/school/concept/source/claim/concept_relation", "global-canonical provenans etiketi"],
     deny: ["draft/verified/approved/review/pending/rejected/archived", "karşıt claim birleştirme", "katman karıştırma", "AI publish/verify", "client memory", "tenant başına kopya", "synthetic tenant"],
     hardBlockerEvidence: [],
     rationale:
-      "Görünürlük + eligibility sözleşmesi KODDA ifade edildi (lib/yasam-hafizasi/yebs/" +
-      "yebsVisibility.ts: YEBS_VISIBILITY=GLOBAL_CANONICAL, isYebsPublishedEligible, " +
-      "yebsGlobalTenantId=null). yebs_* tabloları tenant_id kolonu TAŞIMAZ → index tenant_id " +
-      "NULL/shared. Gerçek source-registry aktivasyonu, professional indexer'a additive " +
-      "'global-canonical' tenant çözümleme modu + status-eligibility filtresi gerektirir; bu " +
-      "core BF-11 indexer genişletmesi ayrı foundation kapısıdır (mevcut 17 canlı kaynağı riske " +
-      "atmamak için tek turda aktive edilmedi). Uydurma wiring YOK.",
+      "WIRED (DORMANT): 6 yebs:* professional source YH_INDEX_SOURCES'a enabled:false eklendi. " +
+      "Indexer'a additive 'global-canonical' tenant modu (resolveTenant → tenant_id NULL/shared; " +
+      "synthetic tenant yok) + row-eligibility (statusColumn='status', eligibleStatuses=['published']; " +
+      "draft/verified/approved/... fail-closed) eklendi. Görünürlük/eligibility sözleşmesi " +
+      "yebsVisibility.ts'te; claim/source/relation katmanı searchText kolonlarında KORUNUR (karşıt " +
+      "claim birleştirme yok). yebs_* tenant_id TAŞIMAZ → tenant başına kopya yok. enabled:false + " +
+      "source-guard 'disabled' → event/reconcile no-op (production index write yok).",
     activationPrerequisite:
-      "professional indexer'da additive global-canonical tenant modu + status='published' " +
-      "eligibility filtresi + enabled:false yebs:* registry entries + harness (sonraki kapı).",
+      "BF-11E: enabled:true + reader global-canonical status filtresi + kontrollü index/reconcile " +
+      "(ayrı onay). YEBS publish/transition sözleşmesi değişmez.",
   },
   {
     domain: "numeroloji_client_id",
@@ -74,6 +82,7 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
       "client context + PII'siz türetilmiş sonuç kodlarıyla kurulabilir; heuristik YASAK.",
     foundationTables: [],
     foundationApis: [],
+    registrySourceKeys: [],
     allow: ["(gelecekte, güvenli entity kurulursa) hayat yolu/ifade/element/çakra kodları, tarih, durum"],
     deny: ["ad", "soyad", "doğum tarihi", "doğum yeri", "telefon", "e-posta", "açık PIN", "ham hesaplama girdisi", "serbest not", "Word raporu", "isim/doğum ile client eşleştirme"],
     hardBlockerEvidence: [
@@ -90,25 +99,28 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
   {
     domain: "belge_video_ingestion",
     label: "Belge/Video Provenanslı Ingestion",
-    result: "FOUNDATION_READY",
+    result: "WIRED_DORMANT",
     productDecision:
       "Transient job tabloları doğrudan source DEĞİLDİR. Kalıcı, tenant-owned, provenanslı " +
       "source + ordered passage + explicit promotion; başlangıç classification 'unclassified'.",
     foundationTables: ["yh_document_sources", "yh_document_passages"],
     foundationApis: ["POST /api/yasam-hafizasi/documents/promote"],
-    allow: ["promoted durable source", "ordered passages (deterministic ordinal + locator + hash)", "provenans meta", "server-derived job metni"],
+    registrySourceKeys: ["belge_video:passages"],
+    allow: ["promoted durable source", "ordered passages (deterministic ordinal + locator + hash)", "provenans meta", "server-derived job metni", "yalnız safe-non-pii sınıflandırılmış passage"],
     deny: ["arbitrary client text trusted source", "transient job'ı doğrudan indexleme", "başka tenant job promote", "unclassified/pii index", "original filename index", "Storage secret/URL index", "raw dosya binary"],
     hardBlockerEvidence: [],
     rationale:
-      "Additive migration ile yh_document_sources + yh_document_passages (RLS + service_role; " +
-      "composite FK; default classification 'unclassified'; content/text hash). Promotion API job " +
-      "ownership doğrular ve server-derived metni chunk'lar (video_training_records.transcript_tr). " +
-      "Belge (dosya) chunk'lama Storage ayrıştırma gerektirdiğinden foundation dışında " +
-      "(YH_DOC_KIND_NOT_SUPPORTED_YET). Source-registry index wiring, row-level classification " +
-      "gate'i (safe-non-pii + hash) gerektirir → aktivasyon kapısı.",
+      "WIRED (DORMANT): belge_video:passages source YH_INDEX_SOURCES'a enabled:false eklendi " +
+      "(kaynak = promoted durable yh_document_passages; transient job DEĞİL). tenant join → " +
+      "yh_document_sources. Row-eligibility rowClassificationColumn='classification' → yalnız " +
+      "safe-non-pii passage indexlenebilir (unclassified/pii/restricted fail-closed). Additive " +
+      "migration (yh_document_sources + yh_document_passages; default 'unclassified'; content/text " +
+      "hash) + promotion API (job ownership + server-derived deterministic chunk; arbitrary text yok). " +
+      "enabled:false + source-guard 'disabled' → event/reconcile no-op. Belge dosya-ayrıştırma " +
+      "(YH_DOC_KIND_NOT_SUPPORTED_YET) ayrı path.",
     activationPrerequisite:
-      "row-level classification gate (safe-non-pii only) + document source registry entry " +
-      "enabled:false + belge dosya-ayrıştırma path'i (ayrı).",
+      "BF-11E: enabled:true + promoted passage'ların safe-non-pii sınıflandırılması + kontrollü " +
+      "index (ayrı onay). Belge dosya-ayrıştırma path'i ayrı.",
   },
   {
     domain: "kisisel_arsiv_classification",
@@ -119,6 +131,8 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
       "unclassified; stale-content (hash) guard; yalnız yetkili review ile safe-non-pii.",
     foundationTables: ["yh_archive_classifications"],
     foundationApis: ["POST /api/yasam-hafizasi/archive-classification"],
+    // Mevcut kaynak; YENİ entry eklenmedi (duplicate yok) → EXISTING_FAIL_CLOSED.
+    registrySourceKeys: ["kisisel_arsiv:archives"],
     allow: ["yetkili review ile safe-non-pii işaretleme (reason + reviewedContentHash zorunlu)"],
     deny: ["mevcut kayıtları otomatik safe sayma", "backfill", "pii/unclassified index", "stale hash index", "cross-tenant classification", "AI auto-classification", "classification bypass"],
     hardBlockerEvidence: [],
@@ -159,10 +173,28 @@ export function validateDeferredClosure(): void {
       throw new Error(`Yalnız DEFERRED_HARD_BLOCKER kanıt taşır: ${d.domain}`);
     }
     if (d.rationale.trim().length < 20) throw new Error(`Yetersiz rationale: ${d.domain}`);
+    // WIRED_DORMANT → ≥1 gerçek registry key; DEFERRED_HARD_BLOCKER → hiç key olmamalı.
+    if (d.result === "WIRED_DORMANT" && d.registrySourceKeys.length === 0) {
+      throw new Error(`WIRED_DORMANT gerçek registry key gerektirir: ${d.domain}`);
+    }
+    if (d.result === "DEFERRED_HARD_BLOCKER" && d.registrySourceKeys.length > 0) {
+      throw new Error(`DEFERRED_HARD_BLOCKER registry key taşıyamaz: ${d.domain}`);
+    }
   }
 }
 
 /** Bu paketin additive migration'ında bulunması beklenen tüm foundation tabloları. */
 export function expectedFoundationTables(): string[] {
   return [...new Set(YH_DEFERRED_SOURCE_CLOSURE.flatMap((d) => d.foundationTables))];
+}
+
+/** WIRED_DORMANT alanların YH_INDEX_SOURCES'a bağlı olması beklenen dormant source key'leri. */
+export function wiredDormantRegistryKeys(): string[] {
+  return [
+    ...new Set(
+      (YH_DEFERRED_SOURCE_CLOSURE as readonly ClosureDomain[])
+        .filter((d) => d.result === "WIRED_DORMANT")
+        .flatMap((d) => d.registrySourceKeys),
+    ),
+  ];
 }
