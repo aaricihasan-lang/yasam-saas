@@ -94,8 +94,12 @@ function chunk<T>(arr: readonly T[], size: number): T[][] {
 export function sourceSelectColumns(config: SourceConfig): string[] {
   const cols = new Set<string>();
   cols.add(config.primaryKey);
+  // Tenant kolonu: column → tenant kolonu; join → FK; global-canonical → tenant kolonu YOK.
   if (config.tenant.mode === "column") cols.add(config.tenant.column);
-  else cols.add(config.tenant.fkColumn);
+  else if (config.tenant.mode === "join") cols.add(config.tenant.fkColumn);
+  // BF-14 row-eligibility kolonları (varsa) fetch'e dahil (status/row-classification kapıları).
+  if (typeof config.statusColumn === "string" && config.statusColumn.length > 0) cols.add(config.statusColumn);
+  if (typeof config.rowClassificationColumn === "string" && config.rowClassificationColumn.length > 0) cols.add(config.rowClassificationColumn);
   for (const c of config.titleColumns) cols.add(c);
   for (const c of config.searchTextColumns) cols.add(c);
   for (const c of config.snippetColumns) cols.add(c);

@@ -36,7 +36,13 @@ export type TenantResolution =
       readonly parentTable: string;
       readonly parentTenantColumn: string;
       readonly allowSharedNull?: boolean;
-    };
+    }
+  /**
+   * BF-14 Ertelenmiş Kaynaklar: global/canonical kaynak (tenant kolonu YOK; merkezî).
+   * Sahiplik DAİMA shared (tenant_id NULL). Yalnız YEBS gibi tenant-siz global bilgi için;
+   * synthetic tenant/tenant-başına-kopya YOK. (allowSharedNull tip uyumu için opsiyonel.)
+   */
+  | { readonly mode: "global-canonical"; readonly allowSharedNull?: boolean };
 
 /**
  * Kaynak PII sınıflandırması (S2.19-BF / BF-0). Ana index yalnız PII-DIŞI içindir
@@ -87,6 +93,18 @@ export interface SourceConfig {
   readonly updatedAtColumn: string | null;
   /** Aktiflik/soft-delete kolonu (yoksa null). */
   readonly activeColumn: string | null;
+  /**
+   * BF-14: yayın/status kolonu (ör. YEBS 'status'). Verilirse row-eligibility yalnız
+   * `eligibleStatuses` içindeki değerlere izin verir (fail-closed). Yoksa status kapısı yok.
+   */
+  readonly statusColumn?: string | null;
+  /** BF-14: statusColumn için izinli değerler (ör. ['published']). statusColumn ile birlikte. */
+  readonly eligibleStatuses?: readonly string[];
+  /**
+   * BF-14: satır-seviyesi classification kolonu (ör. yh_document_passages 'classification').
+   * Verilirse yalnız 'safe-non-pii' satırlar indexlenebilir (unclassified/pii/restricted → skip).
+   */
+  readonly rowClassificationColumn?: string | null;
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
 }
@@ -507,6 +525,160 @@ export const YH_INDEX_SOURCES = [
     updatedAtColumn: "updated_at",
     activeColumn: null,
     enabled: false, // DORMANT — aktivasyon BF-11E
+  },
+
+  // ── YEBS (BF-14 Ertelenmiş Kaynaklar; GLOBAL-CANONICAL, published-only, DORMANT) ──
+  // Tenant-siz merkezî bilgi → tenant: global-canonical (index tenant_id NULL/shared). Yalnız
+  // published görünür (statusColumn+eligibleStatuses; row-eligibility fail-closed). client YOK.
+  {
+    sourceKey: "yebs:traditions",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_traditions",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    titleColumns: ["name_tr"],
+    searchTextColumns: ["name_tr", "tradition_type", "native_name"],
+    snippetColumns: ["native_name"],
+    topicTagsColumns: ["tradition_type"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+  {
+    sourceKey: "yebs:schools",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_schools",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    titleColumns: ["name_tr"],
+    searchTextColumns: ["name_tr", "native_name"],
+    snippetColumns: ["native_name"],
+    topicTagsColumns: [],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+  {
+    sourceKey: "yebs:concepts",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_concepts",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    titleColumns: ["slug"],
+    searchTextColumns: ["slug", "concept_type"],
+    snippetColumns: [],
+    topicTagsColumns: ["concept_type"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+  {
+    sourceKey: "yebs:sources",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_sources",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    titleColumns: ["title"],
+    searchTextColumns: ["title", "authors", "organization", "publisher"],
+    snippetColumns: ["title"],
+    topicTagsColumns: ["source_type"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+  {
+    sourceKey: "yebs:claims",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_claims",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    // claim metni + katman/tür KORUNUR (karşıt claim birleştirme YOK; düz metne ezilmez).
+    titleColumns: ["claim_type"],
+    searchTextColumns: ["claim_text", "claim_type", "evidence_layer", "provenance_kind"],
+    snippetColumns: ["claim_text"],
+    topicTagsColumns: ["claim_type", "evidence_layer"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+  {
+    sourceKey: "yebs:concept-relations",
+    classification: "safe-non-pii",
+
+    sourceFamily: "yebs",
+    tableName: "yebs_concept_relations",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "global-canonical" },
+    // subject/predicate/object ilişki yapısı KORUNUR (relation_type + concept id'ler).
+    titleColumns: ["relation_type"],
+    searchTextColumns: ["relation_type"],
+    snippetColumns: [],
+    topicTagsColumns: ["relation_type"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["published"],
+    enabled: false,
+  },
+
+  // ── Belge/Video (BF-14; promoted durable passage; row-classification gated; DORMANT) ──
+  // Kaynak = yh_document_passages (promoted durable). Transient job'lar DEĞİL. tenant join →
+  // yh_document_sources. Yalnız safe-non-pii sınıflandırılmış passage indexlenebilir.
+  {
+    sourceKey: "belge_video:passages",
+    classification: "safe-non-pii",
+
+    sourceFamily: "belge_video",
+    tableName: "yh_document_passages",
+    primaryKey: "id",
+    unit: "row",
+    tenant: {
+      mode: "join",
+      fkColumn: "document_id",
+      parentTable: "yh_document_sources",
+      parentTenantColumn: "tenant_id",
+    },
+    titleColumns: [],
+    searchTextColumns: ["passage_text"],
+    snippetColumns: ["passage_text"],
+    topicTagsColumns: [],
+    relationColumns: [],
+    updatedAtColumn: "source_updated_at",
+    activeColumn: null,
+    rowClassificationColumn: "classification",
+    enabled: false,
   },
 
   // ── Kişisel Arşiv ─────────────────────────────────────────────────────────

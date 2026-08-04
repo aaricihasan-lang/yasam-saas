@@ -88,6 +88,13 @@ export function resolveTenant(
 ): TenantResolveResult {
   const tenant = config.tenant;
 
+  // ── GLOBAL-CANONICAL MODE (BF-14) ──────────────────────────────────────────
+  // Tenant kolonu YOK; merkezî/global bilgi (ör. YEBS). Sahiplik DAİMA shared (NULL).
+  // Synthetic tenant / tenant-başına-kopya YOK. isShared === (tenantId === null) korunur.
+  if (tenant.mode === "global-canonical") {
+    return ownership(null);
+  }
+
   // ── COLUMN MODE ────────────────────────────────────────────────────────────
   if (tenant.mode === "column") {
     const raw = row[tenant.column];

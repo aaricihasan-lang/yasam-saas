@@ -209,24 +209,20 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "yebs",
     label: "YEBS",
-    classification: "DEFERRED_FOR_SAFETY",
-    professionalSourceKeys: [],
+    classification: "DORMANT_READY",
+    professionalSourceKeys: ["yebs:traditions", "yebs:schools", "yebs:concepts", "yebs:sources", "yebs:claims", "yebs:concept-relations"],
     clientSourceKeys: [],
-    allow: [],
-    deny: ["karşıt/çelişkili claim birleştirme", "bilimsel/geleneksel/metafizik katman karıştırma", "AI doğrulayıcı/yayınlayıcı", "tenant-siz global içeriği çapraz-tenant paylaşımlı indexleme"],
+    allow: ["published tradition/school/concept/source/claim/concept-relation (global-canonical)", "claim/source/relation katmanı korunur"],
+    deny: ["draft/verified/approved/pending/rejected/archived", "karşıt/çelişkili claim birleştirme", "katman karıştırma", "AI doğrulayıcı/yayınlayıcı", "client memory", "tenant başına kopya/synthetic tenant"],
     rationale:
-      "GERÇEK ŞEMA BLOCKER (uydurma değil): yebs_traditions/schools/concepts/sources/claims/" +
-      "concept_relations tablolarında tenant_id KOLONU YOK (merkezî/global referans sistemi; " +
-      "status draft→verified→approved→published yaşam döngüsü var). Yaşam Hafızası professional " +
-      "index'i tenant-scoped'tur (TenantResolution kolon/join gerektirir). Tenant-siz YEBS'i " +
-      "bağlamak (1) yeni 'shared-constant' tenant çözümleme modu + (2) status-eligibility filtre " +
-      "contract'ı + (3) yayımlanan tüm YEBS'in TÜM tenant'lara görünür olması (çapraz-tenant global " +
-      "shared) ürün/güvenlik kararını gerektirir; ayrıca YEBS izole çekirdek (modül entegrasyonu " +
-      "kısıtlı). Bu, bu branch içinde tek taraflı çözülemeyecek gerçek blocker → DEFERRED. Client-" +
-      "owned YEBS tablosu da YOK.",
+      "WIRED (DORMANT): 6 yebs:* professional source enabled:false. Indexer'a additive " +
+      "'global-canonical' tenant modu (resolveTenant → tenant_id NULL/shared) + row-eligibility " +
+      "(statusColumn='status', eligibleStatuses=['published']; draft/verified/approved fail-closed). " +
+      "yebs_* tablolarında tenant_id YOK → merkezî/global; tenant başına kopya/synthetic tenant yok. " +
+      "Claim/source/relation katmanı searchText kolonlarında korunur; karşıt claim birleştirme yok. " +
+      "enabled:false → source-guard 'disabled' → event/reconcile no-op.",
     activationPrerequisite:
-      "Ayrı ürün/güvenlik kararı: çapraz-tenant shared görünürlük onayı + tenant-siz shared-constant " +
-      "çözümleme modu + status/publish eligibility contract + katman/claim-source koruyan extractor.",
+      "BF-11E: enabled:true + reader global-canonical status filtresi + kontrollü index (ayrı onay).",
   },
   {
     moduleKey: "kozmik_ajanda",
@@ -245,17 +241,19 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "belge_video",
     label: "Belge / Video İçerikleri",
-    classification: "DEFERRED_FOR_SAFETY",
-    professionalSourceKeys: [],
+    classification: "DORMANT_READY",
+    professionalSourceKeys: ["belge_video:passages"],
     clientSourceKeys: [],
-    allow: [],
-    deny: ["arbitrary dosya metnini toplu indexleme", "telif/provenanssız chunk", "büyük payload", "PII"],
+    allow: ["promoted durable passage (yalnız safe-non-pii)", "ordered ordinal + locator + hash + provenans"],
+    deny: ["transient job doğrudan index", "arbitrary/serbest client text", "unclassified/pii passage", "original filename", "Storage secret/URL", "başka tenant job"],
     rationale:
-      "belge_ceviri_jobs / video_training_records / video_transcription_jobs GEÇİCİ iş kayıtlarıdır " +
-      "(status pending; tenant_id nullable). Telif/provenans + parça/chunk kimliği + PII + tenant " +
-      "ownership için ayrı ingestion sözleşmesi gerekir; güvenli tenant-owned provenanslı chunk " +
-      "tablosu YOK → DEFERRED (arbitrary dosya metni bu pakette indexlenmez).",
-    activationPrerequisite: "Tenant-owned, provenanslı, chunk-kimlikli güvenli ingestion tablosu + sözleşmesi.",
+      "WIRED (DORMANT): belge_video:passages source enabled:false (kaynak = promoted durable " +
+      "yh_document_passages; transient job DEĞİL). tenant join → yh_document_sources; row-eligibility " +
+      "rowClassificationColumn='classification' → yalnız safe-non-pii passage (unclassified/pii/" +
+      "restricted fail-closed). Additive migration (yh_document_sources + yh_document_passages) + " +
+      "promotion API (job ownership + server-derived deterministic chunk). enabled:false → " +
+      "source-guard 'disabled' → event/reconcile no-op.",
+    activationPrerequisite: "BF-11E: enabled:true + safe-non-pii passage sınıflandırması + kontrollü index (ayrı onay).",
   },
   {
     moduleKey: "kisisel_arsiv",
