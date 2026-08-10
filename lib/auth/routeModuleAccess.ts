@@ -95,12 +95,30 @@ export function findRouteModuleRule(pathname: string): RouteModuleRule | null {
   return null;
 }
 
+/**
+ * YALNIZ admin (role='admin') erişebilen route prefix'leri. Modül-izin sistemi
+ * DIŞINDADIR — hiçbir uzmana açılmaz ve hiçbir ModulePermissionKey'e bağlı değildir.
+ * YEBS admin-only read-only uzman vitrini (/yebs) buradadır. Bu bir defense-in-depth
+ * client kapısıdır; gerçek veri güvenliği server-side verifyAdminRequest'tir.
+ */
+const ADMIN_ONLY_ROUTE_PREFIXES = ["/yebs"] as const;
+
+export function isAdminOnlyRoutePath(pathname: string): boolean {
+  const path = normalizePathname(pathname);
+  return ADMIN_ONLY_ROUTE_PREFIXES.some(
+    (p) => path === p || path.startsWith(`${p}/`),
+  );
+}
+
 export function canExpertAccessRoutePath(
   user: YasamUser | null | undefined,
   pathname: string,
 ): boolean {
   if (!user) return true;
   if (isAdminUser(user)) return true;
+
+  // Admin-only route'lar (ör. /yebs) uzmanlara KAPALI — modül izninden bağımsız.
+  if (isAdminOnlyRoutePath(pathname)) return false;
 
   const rule = findRouteModuleRule(pathname);
   if (!rule) return true;
@@ -120,6 +138,9 @@ export function evaluateRouteModuleGuard(
   if (!user) return "skip";
 
   if (isAdminUser(user)) return "allow";
+
+  // Admin-only route'lar (ör. /yebs) uzmanlara KAPALI — modül izninden bağımsız.
+  if (isAdminOnlyRoutePath(path)) return "deny";
 
   const rule = findRouteModuleRule(path);
   if (!rule) return "allow";

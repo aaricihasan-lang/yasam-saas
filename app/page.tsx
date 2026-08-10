@@ -1555,6 +1555,36 @@ export default function Home() {
                       </div>
                     </div>
                   </Link>
+
+                  {/* YEBS — YALNIZ yönetici hesabında görünür admin-only kart.
+                      Gerçek güvenlik server-side verifyAdminRequest'tedir; bu kart
+                      isAdminUser ile gizlenir (defense-in-depth). Diğer modül
+                      kartlarının görünürlük mantığına DOKUNMAZ (ayrı, koşullu blok). */}
+                  {isAdminUser(user) ? (
+                    <Link href="/yebs" data-yebs-admin-card data-admin-only="true" className="block text-inherit no-underline">
+                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-emerald-100/90 via-teal-50/95 to-white border-emerald-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-emerald-200/90 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          Yönetici
+                        </span>
+                        <span className="text-3xl leading-none" aria-hidden>
+                          🌿
+                        </span>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">Yaşam Enerjisi Bilgi Sistemi</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                          Gelenekler, kavramlar, kaynaklar ve profesyonel bilgi ağı
+                        </p>
+                        <p className="mt-1.5 text-xs text-slate-500">İçerik hazır</p>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                            YEBS
+                          </span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
                 </div>
               )}
 
