@@ -33,8 +33,6 @@ import {
 
 export const runtime = "nodejs";
 
-const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Sections = {
@@ -369,8 +367,8 @@ export async function POST(request: Request): Promise<Response> {
   if (await isDemoAccountId(userId, db))
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
-  const knowledgeTenants = [ADMIN_LIBRARY_TENANT_ID];
-  if (tenantId !== ADMIN_LIBRARY_TENANT_ID) knowledgeTenants.push(tenantId);
+  // Shared-library kaldırma: bilgi bölümü YALNIZ uzmanın kendi tenant kayıtları
+  // (admin kütüphanesi UNION edilmez — stones/minerals/combinations ile tutarlı).
 
   // Parallel DB fetches
   const [stonesRes, mineralsRes, combinationsRes, knowledgeRes] = await Promise.all([
@@ -397,7 +395,7 @@ export async function POST(request: Request): Promise<Response> {
     sections.knowledge
       ? db.from("stone_knowledge_articles")
           .select("title, content, category, sub_category, source, tags, related_stones, related_minerals, notes")
-          .in("tenant_id", knowledgeTenants).eq("is_active", true)
+          .eq("tenant_id", tenantId).eq("is_active", true)
           .order("category").order("title")
       : null,
   ]);

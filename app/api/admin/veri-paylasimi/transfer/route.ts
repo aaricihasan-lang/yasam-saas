@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
+import { OIL_COPY_FIELDS } from "@/lib/aromaterapi/oilFields";
+import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,21 @@ const UUID_RE =
 const INSERT_BATCH = 100;
 const MAX_IDS_PER_GROUP = 5000;
 
+/** Taş Bilgi Kütüphanesi kopya alanları — yalnız bilinen iş alanları. */
+const KNOWLEDGE_COPY_FIELDS = [
+  "title",
+  "content",
+  "category",
+  "sub_category",
+  "tags",
+  "related_stones",
+  "related_minerals",
+  "source",
+  "source_section",
+  "keyword",
+  "notes",
+] as const;
+
 /** Doğaltaş kopya alanları — yalnız bilinen iş alanları (kanıtlı eski davranış). */
 const STONE_COPY_FIELDS = [
   "short_description",
@@ -62,6 +79,21 @@ type GroupConfig = {
   copyFields?: readonly string[];
   /** Kopyalanacak satırda dolu olması gereken iş alanı (boşsa satır atlanır). */
   requireField?: string;
+  /**
+   * Kaynak okuma modu:
+   *  - "admin_tenant" (varsayılan): kaynak satırlar adminin kendi tenant'ında
+   *    (.eq tenant_id = sourceTenantId). Doğaltaş/Biyoenerji/... master modeli.
+   *  - "canonical_null": kaynak satırlar kanonik/global havuzda (tenant_id IS NULL).
+   *    Aromaterapi yağ kütüphanesi bu modeldedir (admin yüklü içerik tenant_id=null).
+   *  - "admin_library": kaynak satırlar sabit ADMIN_LIBRARY_TENANT_ID sentetik
+   *    tenant'ında. Taş Bilgi Kütüphanesi bu modeldedir.
+   */
+  sourceMode?: "admin_tenant" | "canonical_null" | "admin_library";
+  /** Kaynak okumada ek SABİT eşitlik filtresi (ör. oil_type). Dinamik değer YOK. */
+  matchColumn?: string;
+  matchValue?: string;
+  /** true ise kaynak yalnız is_active=true satırları okur (soft-inactive kopyalanmaz). */
+  activeOnly?: boolean;
 };
 
 /** UI grup anahtarı → tablo + kopya davranışı. */
@@ -77,6 +109,30 @@ const REGISTRY = {
   reflexology_protocols: { table: "reflexology_protocols" },
   numerology_knowledge_records: { table: "numerology_knowledge_records" },
   numerology_stone_assignments: { table: "numerology_stone_assignments" },
+  // Aromaterapi yağları — tek tablo (aromatherapy_oils), oil_type ile 3 grup.
+  // Kaynak KANONİK (tenant_id IS NULL) yağ kütüphanesidir; kopya hedef uzman
+  // tenant'ına yeni UUID + provenance ile yazılır. Kanonik kaynak DEĞİŞMEZ.
+  aromatherapy_oils_essential: {
+    table: "aromatherapy_oils", copyFields: OIL_COPY_FIELDS, requireField: "name",
+    sourceMode: "canonical_null", matchColumn: "oil_type", matchValue: "essential",
+    activeOnly: true,
+  },
+  aromatherapy_oils_carrier: {
+    table: "aromatherapy_oils", copyFields: OIL_COPY_FIELDS, requireField: "name",
+    sourceMode: "canonical_null", matchColumn: "oil_type", matchValue: "carrier",
+    activeOnly: true,
+  },
+  aromatherapy_oils_maceration: {
+    table: "aromatherapy_oils", copyFields: OIL_COPY_FIELDS, requireField: "name",
+    sourceMode: "canonical_null", matchColumn: "oil_type", matchValue: "maceration",
+    activeOnly: true,
+  },
+  // Taş Bilgi Kütüphanesi — kaynak sabit ADMIN_LIBRARY_TENANT_ID sentetik tenant.
+  // Kopya hedef uzman tenant'ına yeni UUID + provenance ile yazılır. Kaynak DEĞİŞMEZ.
+  stone_knowledge_articles: {
+    table: "stone_knowledge_articles", copyFields: KNOWLEDGE_COPY_FIELDS,
+    requireField: "title", sourceMode: "admin_library", activeOnly: true,
+  },
 } as const satisfies Record<string, GroupConfig>;
 
 type GroupKey = keyof typeof REGISTRY;
@@ -133,7 +189,20 @@ async function cloneGroup(
 ): Promise<{ requested: number; inserted: number }> {
   const cfg: GroupConfig = REGISTRY[group];
 
-  let readQ = db.from(cfg.table).select("*").eq("tenant_id", sourceTenantId);
+  // Kaynak okuma modu: kanonik null / sabit admin kütüphane tenant / adminin tenant'ı.
+  let readQ;
+  if (cfg.sourceMode === "canonical_null") {
+    readQ = db.from(cfg.table).select("*").is("tenant_id", null);
+  } else if (cfg.sourceMode === "admin_library") {
+    readQ = db.from(cfg.table).select("*").eq("tenant_id", ADMIN_LIBRARY_TENANT_ID);
+  } else {
+    readQ = db.from(cfg.table).select("*").eq("tenant_id", sourceTenantId);
+  }
+  // Sabit alt-tür filtresi (ör. oil_type) — değer REGISTRY'den, istemciden DEĞİL.
+  if (cfg.matchColumn && cfg.matchValue != null) {
+    readQ = readQ.eq(cfg.matchColumn, cfg.matchValue);
+  }
+  if (cfg.activeOnly) readQ = readQ.eq("is_active", true);
   if (filterIds && filterIds.length > 0) readQ = readQ.in("id", filterIds);
   const { data, error } = await readQ;
   if (error) throw new TransferError("read", group);
@@ -290,6 +359,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (targetTenantId === sourceTenantId) {
     return jsonError(400, "Kaynak ve hedef tenant aynı olamaz.");
+  }
+  if (targetTenantId === ADMIN_LIBRARY_TENANT_ID) {
+    return jsonError(400, "Hedef, admin kütüphane tenant'ı olamaz.");
   }
 
   // ── İdempotency claim: batch_id PK insert atomiktir ────────────────────────

@@ -52,10 +52,35 @@ type ModuleDef = {
   subGroups: SubGroupDef[];
 };
 
-const GRANULAR_KEYS = ["stones", "minerals", "combinations"] as const;
+const GRANULAR_KEYS = [
+  "stones",
+  "minerals",
+  "combinations",
+  "aromatherapy_oils_essential",
+  "aromatherapy_oils_carrier",
+  "aromatherapy_oils_maceration",
+  "stone_knowledge_articles",
+] as const;
 type GranularKey = (typeof GRANULAR_KEYS)[number];
 type SelectionMode = "all" | "selected";
 type RecordItem = { id: string; label: string };
+
+/** GRANULAR_KEYS'ten türetilen başlangıç durumu — anahtar seti drift etmez. */
+function initGranular<T>(value: T): Record<GranularKey, T> {
+  return Object.fromEntries(GRANULAR_KEYS.map((k) => [k, value])) as Record<GranularKey, T>;
+}
+function initGranularSets(): Record<GranularKey, Set<string>> {
+  return Object.fromEntries(
+    GRANULAR_KEYS.map((k) => [k, new Set<string>()]),
+  ) as Record<GranularKey, Set<string>>;
+}
+
+/** Aromaterapi granular anahtarı → oil_type (admin kanonik listesi çekimi). */
+const OIL_KEY_TO_TYPE: Partial<Record<GranularKey, string>> = {
+  aromatherapy_oils_essential: "essential",
+  aromatherapy_oils_carrier: "carrier",
+  aromatherapy_oils_maceration: "maceration",
+};
 
 const MODULES: ModuleDef[] = [
   {
@@ -81,10 +106,10 @@ const MODULES: ModuleDef[] = [
         transferKeys: ["minerals"],
       },
       {
-        key: "stone_info",
+        key: "stone_knowledge_articles",
         label: "Taş Bilgi Kütüphanesi",
-        active: false,
-        pendingNote: "Henüz tenant tablosu tanımlı değil",
+        active: true,
+        transferKeys: ["stone_knowledge_articles"],
       },
     ],
   },
@@ -168,16 +193,22 @@ const MODULES: ModuleDef[] = [
     label: "Aromaterapi",
     subGroups: [
       {
-        key: "aro_vol",
+        key: "aromatherapy_oils_essential",
         label: "Uçucu Yağlar",
-        active: false,
-        pendingNote: "Projede Supabase tablosu henüz bağlı değil",
+        active: true,
+        transferKeys: ["aromatherapy_oils_essential"],
       },
       {
-        key: "aro_fix",
+        key: "aromatherapy_oils_carrier",
         label: "Sabit Yağlar",
-        active: false,
-        pendingNote: "Projede Supabase tablosu henüz bağlı değil",
+        active: true,
+        transferKeys: ["aromatherapy_oils_carrier"],
+      },
+      {
+        key: "aromatherapy_oils_maceration",
+        label: "Maserasyon Yağları",
+        active: true,
+        transferKeys: ["aromatherapy_oils_maceration"],
       },
     ],
   },
@@ -282,21 +313,21 @@ export default function VeriPaylasimiPage() {
     lines?: string[];
   } | null>(null);
 
-  const [selectionMode, setSelectionMode] = useState<Record<GranularKey, SelectionMode>>({
-    stones: "all", minerals: "all", combinations: "all",
-  });
-  const [groupRecords, setGroupRecords] = useState<Record<GranularKey, RecordItem[]>>({
-    stones: [], minerals: [], combinations: [],
-  });
-  const [groupRecordsLoading, setGroupRecordsLoading] = useState<Record<GranularKey, boolean>>({
-    stones: false, minerals: false, combinations: false,
-  });
-  const [selectedIds, setSelectedIds] = useState<Record<GranularKey, Set<string>>>({
-    stones: new Set(), minerals: new Set(), combinations: new Set(),
-  });
-  const [groupRecordErrors, setGroupRecordErrors] = useState<Record<GranularKey, string | null>>({
-    stones: null, minerals: null, combinations: null,
-  });
+  const [selectionMode, setSelectionMode] = useState<Record<GranularKey, SelectionMode>>(
+    () => initGranular<SelectionMode>("all"),
+  );
+  const [groupRecords, setGroupRecords] = useState<Record<GranularKey, RecordItem[]>>(
+    () => initGranular<RecordItem[]>([]),
+  );
+  const [groupRecordsLoading, setGroupRecordsLoading] = useState<Record<GranularKey, boolean>>(
+    () => initGranular<boolean>(false),
+  );
+  const [selectedIds, setSelectedIds] = useState<Record<GranularKey, Set<string>>>(
+    () => initGranularSets(),
+  );
+  const [groupRecordErrors, setGroupRecordErrors] = useState<Record<GranularKey, string | null>>(
+    () => initGranular<string | null>(null),
+  );
 
   const selectedExpert = useMemo(
     () => experts.find((e) => e.id === selectedExpertId) ?? null,
@@ -465,7 +496,7 @@ export default function VeriPaylasimiPage() {
             return { id: String(row.id), label: String(row.name ?? row.id) };
           });
         }
-      } else {
+      } else if (key === "combinations") {
         const adminId = readYasamUser()?.id;
         const res = await fetch(
           `/api/admin/dogaltas/combinations?tenantId=${encodeURIComponent(sourceAdminTenantId)}`,
@@ -488,6 +519,49 @@ export default function VeriPaylasimiPage() {
               label: vi > 0 ? `${issue} (Varyant ${vi + 1})` : issue,
             };
           });
+        }
+      } else if (key === "stone_knowledge_articles") {
+        // Taş Bilgi Kütüphanesi — ADMIN_LIBRARY_TENANT_ID havuzu, service-role route.
+        const adminId = readYasamUser()?.id;
+        const res = await fetch(
+          `/api/admin/dogaltas/knowledge`,
+          { headers: adminHeaders(adminId), cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: { id: string; title: string }[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          fetchError = json.error ?? `HTTP ${res.status}`;
+          console.error("[veri-paylasimi] taş bilgi yükleme hatası:", fetchError);
+        } else {
+          items = (json.rows ?? []).map((row) => ({
+            id: String(row.id),
+            label: String(row.title ?? row.id),
+          }));
+        }
+      } else {
+        // Aromaterapi yağları — KANONİK (tenant_id IS NULL) havuz, service-role route.
+        const oilType = OIL_KEY_TO_TYPE[key];
+        const adminId = readYasamUser()?.id;
+        const res = await fetch(
+          `/api/admin/aromaterapi/oils?type=${encodeURIComponent(oilType ?? "")}`,
+          { headers: adminHeaders(adminId), cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: { id: string; name: string }[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          fetchError = json.error ?? `HTTP ${res.status}`;
+          console.error("[veri-paylasimi] aromaterapi yağ yükleme hatası:", fetchError);
+        } else {
+          items = (json.rows ?? []).map((row) => ({
+            id: String(row.id),
+            label: String(row.name ?? row.id),
+          }));
         }
       }
 

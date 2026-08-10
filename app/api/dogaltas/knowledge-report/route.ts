@@ -26,8 +26,6 @@ import {
 
 export const runtime = "nodejs";
 
-const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ExportMode = "all" | "category" | "filtered" | "viewed";
@@ -202,14 +200,13 @@ export async function POST(request: Request): Promise<Response> {
   if (await isDemoAccountId(userId, db))
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
-  const tenants = [ADMIN_LIBRARY_TENANT_ID];
-  if (tenantId !== ADMIN_LIBRARY_TENANT_ID) tenants.push(tenantId);
-
+  // Shared-library kaldırma: rapor YALNIZ uzmanın kendi tenant kayıtlarını içerir
+  // (admin kütüphanesi UNION edilmez — liste görünümüyle tutarlı).
   const SELECT =
     "id, title, content, category, sub_category, source, source_section, notes, tags, related_stones, related_minerals, created_at";
 
   let q = db.from("stone_knowledge_articles")
-    .select(SELECT).in("tenant_id", tenants).eq("is_active", true);
+    .select(SELECT).eq("tenant_id", tenantId).eq("is_active", true);
 
   let exportLabel = "Tüm Makaleler";
   if (exportMode === "category" && categoryName?.trim()) {
