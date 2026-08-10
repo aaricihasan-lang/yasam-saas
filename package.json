@@ -18,7 +18,9 @@
     "yh:bf14:harness": "tsx scripts/yh-bf14/harness.ts",
     "yh:bf14:delivery:harness": "tsx scripts/yh-bf14/deliveryHarness.ts",
     "yh:bf14:matrix:harness": "tsx scripts/yh-bf14/moduleSourceMatrixHarness.ts",
-    "yh:bf14:closure:harness": "tsx scripts/yh-bf14/deferredClosureHarness.ts"
+    "yh:bf14:closure:harness": "tsx scripts/yh-bf14/deferredClosureHarness.ts",
+    "yh:bf11e:harness": "tsx scripts/yh-bf11e/activationHarness.ts",
+    "yh:bf11e:preflight": "tsx scripts/yh-bf11e/preflight.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
