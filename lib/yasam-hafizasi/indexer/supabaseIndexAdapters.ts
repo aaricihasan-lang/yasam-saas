@@ -329,13 +329,14 @@ export function createSupabaseIndexWriter(db: IndexDbClient): IndexWriter {
 // zaten config ile eşleştirilir). Tenant izolasyonu: index'in kendi `tenant_id`
 // kolonuna eşitlik → yanlış tenant asla silinmez (0 satır = fail-closed no-op).
 //
-// v1 KAPSAMI (BF-11A tenant-scoped): yalnız column-mode + non-shared + record-unit.
-// Aksi kaynak okuma yapılmadan `tenant-model-unsupported` döner.
+// KAPSAM: column-mode + non-shared + record-unit VE (BF-11E Belge/Video) join-mode +
+// non-shared + row-unit. Silme (source_table + source_id + tenant_id) tenant-mode/unit'ten
+// BAĞIMSIZ genel bir filtredir; global-canonical + shared kaynak fail-closed reddedilir.
 //   DB error                          → delete-failed (geçici; ham mesaj taşınmaz)
 //   count null/undefined/geçersiz int → delete-failed (FAIL-CLOSED; count:"exact" ist.)
 //   count = 0                         → no-op (idempotent success)
 //   count = 1                         → ok
-//   count > 1                         → multi-row-anomaly (record-unit sözleşme ihlali)
+//   count > 1                         → multi-row-anomaly (tek-unit sözleşme ihlali)
 
 export type DeindexStatus =
   | "ok"
@@ -360,11 +361,12 @@ export interface IndexDeindexer {
 export function createSupabaseIndexDeindexer(db: IndexDeleteClient): IndexDeindexer {
   return {
     deindex: async ({ config, sourceId, tenantId }) => {
-      // v1 fail-closed model kapısı (okuma/silme yapılmadan).
+      // Fail-closed model kapısı (okuma/silme yapılmadan): column|join (non-shared) + record|row.
+      // global-canonical + shared kaynak desteklenmez.
       if (
-        config.tenant.mode !== "column" ||
+        (config.tenant.mode !== "column" && config.tenant.mode !== "join") ||
         config.tenant.allowSharedNull === true ||
-        config.unit !== "record"
+        (config.unit !== "record" && config.unit !== "row")
       ) {
         return { status: "tenant-model-unsupported", deleted: 0 };
       }
