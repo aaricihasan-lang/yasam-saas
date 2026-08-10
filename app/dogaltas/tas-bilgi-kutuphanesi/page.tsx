@@ -39,6 +39,8 @@ type Article = {
   keyword: string;
   notes: string;
   is_active: boolean;
+  /** P4 provenance — admin→uzman bağımsız kopyada 'admin_transfer'; legacy/kendi kayıtta null. */
+  origin_type?: string | null;
 };
 
 type NewArticleForm = {
@@ -746,7 +748,7 @@ export default function TasBilgiKutuphanesiPage() {
       showToast({
         type: "success",
         message: skipped > 0
-          ? `${count} kayıt silindi. ${skipped} kütüphane kaydı atlandı.`
+          ? `${count} kayıt silindi. ${skipped} kayıt atlandı.`
           : `${count} kayıt başarıyla silindi.`,
       });
     } catch (err) {
@@ -1398,6 +1400,14 @@ export default function TasBilgiKutuphanesiPage() {
                     {/* Salt okunur meta etiketler */}
                     {!isEditing && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
+                        {selectedArticle.origin_type === "admin_transfer" && (
+                          <span
+                            className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
+                            title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
+                          >
+                            🎁 Adminden Gelen Bilgi
+                          </span>
+                        )}
                         {selectedArticle.source && (
                           <DemoBlur isProtected={isDemo}>
                             <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">

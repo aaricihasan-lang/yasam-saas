@@ -33,7 +33,8 @@ export type TransferGroupKey =
   | "numerology_stone_assignments"
   | "aromatherapy_oils_essential"
   | "aromatherapy_oils_carrier"
-  | "aromatherapy_oils_maceration";
+  | "aromatherapy_oils_maceration"
+  | "stone_knowledge_articles";
 
 export type TransferTableName = TransferGroupKey;
 
@@ -67,6 +68,7 @@ export function emptyTransferCounts(): TransferResultCounts {
     aromatherapy_oils_essential: 0,
     aromatherapy_oils_carrier: 0,
     aromatherapy_oils_maceration: 0,
+    stone_knowledge_articles: 0,
   };
 }
 
@@ -151,6 +153,10 @@ function buildTransferSuccessMessage(
     (groups.includes("aromatherapy_oils_carrier") ? counts.aromatherapy_oils_carrier : 0) +
     (groups.includes("aromatherapy_oils_maceration") ? counts.aromatherapy_oils_maceration : 0);
   if (aro > 0) lines.push(`${aro} Aromaterapi yağ kaydı ${account} hesabına eklendi`);
+
+  if (groups.includes("stone_knowledge_articles") && counts.stone_knowledge_articles > 0) {
+    lines.push(`${counts.stone_knowledge_articles} Taş bilgi kaydı ${account} hesabına eklendi`);
+  }
 
   if (lines.length === 0) return null;
   return lines.join("\n");
@@ -314,6 +320,14 @@ export function formatTransferResultLines(
       account
         ? `${aro} Aromaterapi yağ kaydı ${account} hesabına eklendi`
         : `${aro} Aromaterapi yağı`,
+    );
+  }
+
+  if (counts.stone_knowledge_articles > 0) {
+    lines.push(
+      account
+        ? `${counts.stone_knowledge_articles} Taş bilgi kaydı ${account} hesabına eklendi`
+        : `${counts.stone_knowledge_articles} Taş bilgi`,
     );
   }
 

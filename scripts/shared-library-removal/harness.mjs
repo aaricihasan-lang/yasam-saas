@@ -38,6 +38,15 @@ const detailPage = read("app/aromaterapi/yaglar/[id]/page.tsx");
 const migration = read(
   "supabase/migrations/20260927000000_aromatherapy_oils_transfer_provenance.sql",
 );
+// Taş Bilgi Kütüphanesi (stone_knowledge_articles) kaynakları
+const knowledgeRoute = read("app/api/dogaltas/knowledge/route.ts");
+const adminKnowledge = read("app/api/admin/dogaltas/knowledge/route.ts");
+const knowledgePage = read("app/dogaltas/tas-bilgi-kutuphanesi/page.tsx");
+const knowledgeReport = read("app/api/dogaltas/knowledge-report/route.ts");
+const wordReport = read("app/api/dogaltas/word-report/route.ts");
+const migration2 = read(
+  "supabase/migrations/20260928000000_stone_knowledge_articles_transfer_provenance.sql",
+);
 
 // ── A) Shared görünüm kaldırma — uzman okuma yalnız kendi tenant ──────────────
 check("A1 oils GET null-union kaldırıldı", !oilsRoute.includes("tenant_id.is.null"));
@@ -149,6 +158,54 @@ check("K migration RLS/grant zayıflatmaz", !migration.includes("GRANT") && !mig
 check("K migration DROP TABLE/COLUMN yok", !/DROP\s+(TABLE|COLUMN)/i.test(migration));
 check("K migration mass backfill yok (UPDATE/INSERT ... SELECT yok)",
   !/\bUPDATE\s+public\./i.test(migration) && !/INSERT\s+INTO/i.test(migration));
+
+// ── L) Taş Bilgi Kütüphanesi (stone_knowledge_articles) — snapshot dönüşümü ────
+check("L1 knowledge GET own-only (.eq tenant_id)", knowledgeRoute.includes('.eq("tenant_id", tenantId)'));
+check("L2 knowledge ADMIN_LIBRARY import/kullanımı kaldırıldı",
+  !knowledgeRoute.includes("import { ADMIN_LIBRARY_TENANT_ID }") &&
+  !knowledgeRoute.includes("[ADMIN_LIBRARY_TENANT_ID]"));
+check("L3 knowledge GET .in(tenant_id,tenantIds) union kaldırıldı", !knowledgeRoute.includes('.in("tenant_id", tenantIds)'));
+check("L4 knowledge SELECT origin_type çeker", knowledgeRoute.includes("origin_type"));
+check("L5 registry stone_knowledge_articles", transfer.includes("stone_knowledge_articles"));
+check("L6 registry admin_library source modu", transfer.includes('sourceMode: "admin_library"'));
+check("L7 cloneGroup admin_library → ADMIN_LIBRARY_TENANT_ID okur",
+  transfer.includes('.eq("tenant_id", ADMIN_LIBRARY_TENANT_ID)'));
+check("L8 KNOWLEDGE_COPY_FIELDS tanımlı", transfer.includes("KNOWLEDGE_COPY_FIELDS"));
+check("L9 knowledge requireField title", transfer.includes('requireField: "title"'));
+check("L10 hedef ADMIN_LIBRARY olamaz guard", transfer.includes("Hedef, admin kütüphane tenant"));
+// Admin okuma ucu
+check("L11 admin knowledge endpoint verifyAdminRequest", adminKnowledge.includes("verifyAdminRequest"));
+check("L12 admin knowledge ADMIN_LIBRARY okur", adminKnowledge.includes("ADMIN_LIBRARY_TENANT_ID"));
+check("L13 admin knowledge salt-okuma", !adminKnowledge.includes(".insert(") && !adminKnowledge.includes(".delete("));
+// İstemci senkron
+check("L14 TransferGroupKey stone_knowledge_articles", clientTransfer.includes("stone_knowledge_articles"));
+check("L15 Taş bilgi başarı satırı", clientTransfer.includes("Taş bilgi"));
+// Admin UI
+check("L16 admin UI stone_knowledge_articles aktif", adminUi.includes('key: "stone_knowledge_articles"'));
+check("L17 admin UI granular knowledge anahtarı", adminUi.includes('key === "stone_knowledge_articles"'));
+check("L18 admin UI 'Henüz tenant tablosu' placeholder kaldırıldı",
+  !adminUi.includes("Henüz tenant tablosu tanımlı değil"));
+// Uzman UI provenance
+check("L19 knowledge Article origin_type alanı", knowledgePage.includes("origin_type"));
+check("L20 knowledge provenance rozeti", knowledgePage.includes("Adminden Gelen Bilgi"));
+check("L21 knowledge 'kütüphane kaydı atlandı' framing kaldırıldı",
+  !knowledgePage.includes("kütüphane kaydı atlandı"));
+// Migration
+check("L22 migration2 provenance kolonları", migration2.includes("ADD COLUMN IF NOT EXISTS origin_type"));
+check("L23 migration2 CHECK guard", migration2.includes("stone_knowledge_articles_origin_type_chk"));
+check("L24 migration2 additive (DROP yok)", !/DROP\s+(TABLE|COLUMN)/i.test(migration2));
+check("L25 migration2 mass backfill yok", !/INSERT\s+INTO/i.test(migration2) && !/\bUPDATE\s+public\./i.test(migration2));
+// Rapor tutarlılığı — admin kütüphanesi rapora da UNION edilmez
+check("L26 knowledge-report own-only", !knowledgeReport.includes("ADMIN_LIBRARY_TENANT_ID"));
+check("L27 knowledge-report .eq(tenant_id)", knowledgeReport.includes('.eq("tenant_id", tenantId)'));
+check("L28 word-report knowledge own-only", !wordReport.includes("ADMIN_LIBRARY_TENANT_ID"));
+
+// ── M) Global sözleşme — P4 + aromaterapi regresyon korunur ───────────────────
+check("M1 admin_library import (syntheticTenants)", transfer.includes("ADMIN_LIBRARY_TENANT_ID"));
+check("M2 P4 11 tablo + 3 oil + knowledge = registry bütünlüğü",
+  ["stones","minerals","combinations","reflexology_protocols",
+   "aromatherapy_oils_essential","stone_knowledge_articles"].every((k) => transfer.includes(k)));
+check("M3 aromaterapi oils own-only korunuyor (regresyon)", !oilsRoute.includes("tenant_id.is.null"));
 
 // ── Sonuç ────────────────────────────────────────────────────────────────────
 console.log(`\nshared-library-removal harness: ${pass} PASS / ${fail} FAIL (toplam ${pass + fail})`);

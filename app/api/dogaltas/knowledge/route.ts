@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 
 export const runtime = "nodejs";
 
@@ -10,18 +9,19 @@ export const runtime = "nodejs";
  * Güvenlik:
  *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id daima oturumdan; body/query'den GÜVENİLMEZ.
- *   - GET: paylaşımlı kütüphane (ADMIN_LIBRARY_TENANT_ID) + bu tenant'ın kendi
- *     ekleri okunur (mevcut client davranışı birebir korunur).
- *   - Yazma işlemleri (POST/PATCH/DELETE) yalnız bu tenant'ın kayıtlarına dokunur;
- *     paylaşımlı kütüphane kayıtları (.eq("tenant_id", tenantId) ile) atlanır.
+ *   - GET: YALNIZ bu tenant'ın kendi kayıtları. Paylaşımlı/kanonik admin kütüphanesi
+ *     (ADMIN_LIBRARY_TENANT_ID) artık uzman GET'ine UNION EDİLMEZ. Admin bir bilgi
+ *     kaydını vermek isterse P4 transfer ile bağımsız snapshot kopya üretir
+ *     (origin_type='admin_transfer'); kopya uzmanın kendi tenant kaydı olur.
+ *   - Yazma (POST/PATCH/DELETE) yalnız bu tenant'ın kayıtlarına dokunur.
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  *
- * Not: stone_knowledge_categories REFERANS/GLOBAL tablodur, bu kapıda
- *      kilitlenmez; client tarafında okunmaya devam eder.
+ * Not: stone_knowledge_categories REFERANS/GLOBAL vocabulary tablodur (tenant_id
+ *      yok, sabit kontrollü liste); bu kapıda kilitlenmez, client okumaya devam eder.
  */
 
 const SELECT =
-  "id, tenant_id, title, content, category, sub_category, tags, related_stones, related_minerals, source, source_section, keyword, notes, is_active";
+  "id, tenant_id, title, content, category, sub_category, tags, related_stones, related_minerals, source, source_section, keyword, notes, is_active, origin_type";
 
 // Client'tan kabul EDİLMEYECEK alanlar (tenant override + id güvenliği).
 const PROTECTED = new Set(["tenant_id", "id", "created_at", "updated_at"]);
@@ -42,14 +42,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  // Paylaşımlı kütüphane + kullanıcının kendi ekleri (client davranışıyla birebir).
-  const tenantIds: string[] = [ADMIN_LIBRARY_TENANT_ID];
-  if (tenantId && tenantId !== ADMIN_LIBRARY_TENANT_ID) tenantIds.push(tenantId);
-
+  // YALNIZ bu tenant'ın kendi kayıtları — paylaşımlı admin kütüphanesi UNION edilmez.
   const { data, error } = await db
     .from("stone_knowledge_articles")
     .select(SELECT)
-    .in("tenant_id", tenantIds)
+    .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .order("title", { ascending: true });
 

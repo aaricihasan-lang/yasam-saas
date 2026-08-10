@@ -59,6 +59,7 @@ const GRANULAR_KEYS = [
   "aromatherapy_oils_essential",
   "aromatherapy_oils_carrier",
   "aromatherapy_oils_maceration",
+  "stone_knowledge_articles",
 ] as const;
 type GranularKey = (typeof GRANULAR_KEYS)[number];
 type SelectionMode = "all" | "selected";
@@ -105,10 +106,10 @@ const MODULES: ModuleDef[] = [
         transferKeys: ["minerals"],
       },
       {
-        key: "stone_info",
+        key: "stone_knowledge_articles",
         label: "Taş Bilgi Kütüphanesi",
-        active: false,
-        pendingNote: "Henüz tenant tablosu tanımlı değil",
+        active: true,
+        transferKeys: ["stone_knowledge_articles"],
       },
     ],
   },
@@ -518,6 +519,27 @@ export default function VeriPaylasimiPage() {
               label: vi > 0 ? `${issue} (Varyant ${vi + 1})` : issue,
             };
           });
+        }
+      } else if (key === "stone_knowledge_articles") {
+        // Taş Bilgi Kütüphanesi — ADMIN_LIBRARY_TENANT_ID havuzu, service-role route.
+        const adminId = readYasamUser()?.id;
+        const res = await fetch(
+          `/api/admin/dogaltas/knowledge`,
+          { headers: adminHeaders(adminId), cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: { id: string; title: string }[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          fetchError = json.error ?? `HTTP ${res.status}`;
+          console.error("[veri-paylasimi] taş bilgi yükleme hatası:", fetchError);
+        } else {
+          items = (json.rows ?? []).map((row) => ({
+            id: String(row.id),
+            label: String(row.title ?? row.id),
+          }));
         }
       } else {
         // Aromaterapi yağları — KANONİK (tenant_id IS NULL) havuz, service-role route.
