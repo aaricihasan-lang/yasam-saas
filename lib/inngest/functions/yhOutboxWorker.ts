@@ -33,6 +33,7 @@ import {
   type OutboxRpcDb,
 } from "@/lib/yasam-hafizasi/outbox/outboxRpcClient";
 import { runOutboxBatch } from "@/lib/yasam-hafizasi/outbox/eventProcessor";
+import { isSourceProcessingActive } from "@/lib/yasam-hafizasi/activation/activationRuntimeGate";
 import {
   DEFAULT_MAX_ATTEMPTS,
   DEFAULT_BASE_DELAY_SECONDS,
@@ -97,6 +98,9 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     // (aynı singleton) → BF-11B kodunda IndexDbClient cast'i gerekmez.
     const batch = await runOutboxBatch({
       resolveConfig: resolveYhSourceConfig,
+      // BF-11E RUNTIME ACTIVATION GATE: CONTROLLED kaynak enabled:true olsa dahi DB
+      // is_active=true değilse index write NO-OP; grandfathered CANLI kaynaklar için true.
+      isSourceProcessingActive: (sourceKey) => isSourceProcessingActive(sourceKey, serverDb),
       runExactUpsert: ({ config, exactSourceId, expectedTenantId }) =>
         indexSourcePage({
           config,
