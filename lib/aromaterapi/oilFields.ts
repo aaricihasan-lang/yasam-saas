@@ -7,11 +7,13 @@
  */
 
 // Liste görünümünde çekilen hafif projeksiyon (OilListRow ile birebir).
+// origin_type → uzman UI'da "🎁 Adminden Gelen Bilgi" rozeti için (provenance).
 export const OIL_LIST_SELECT =
   "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
   "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +
   "spiritual_benefits,diffuser_usage,massage_usage,usage_methods,safety_notes," +
-  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems";
+  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
+  "origin_type";
 
 const OIL_STRING_FIELDS = [
   "name", "latin_name", "english_name", "oil_type", "category",
@@ -27,6 +29,18 @@ const OIL_STRING_FIELDS = [
 
 const OIL_ARRAY_FIELDS = [
   "therapeutic_properties", "blends_well_with", "target_systems", "images",
+] as const;
+
+/**
+ * Admin→uzman bağımsız snapshot (P4 transfer) için kopyalanacak iş alanları.
+ * Yalnız iş verisi; id/tenant_id/timestamps/provenance ASLA buraya dahil değildir
+ * (bunlar hedef kayıtta yeniden üretilir). pickWritableOilFields ile aynı alan
+ * kümesini paylaşır → drift olmaz. Sunucu transfer route'u bunu import eder.
+ */
+export const OIL_COPY_FIELDS = [
+  ...OIL_STRING_FIELDS,
+  ...OIL_ARRAY_FIELDS,
+  "is_photosensitive",
 ] as const;
 
 /**

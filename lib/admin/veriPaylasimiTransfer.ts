@@ -30,7 +30,10 @@ export type TransferGroupKey =
   | "bioenergy_subconscious_causes"
   | "reflexology_protocols"
   | "numerology_knowledge_records"
-  | "numerology_stone_assignments";
+  | "numerology_stone_assignments"
+  | "aromatherapy_oils_essential"
+  | "aromatherapy_oils_carrier"
+  | "aromatherapy_oils_maceration";
 
 export type TransferTableName = TransferGroupKey;
 
@@ -61,7 +64,19 @@ export function emptyTransferCounts(): TransferResultCounts {
     reflexology_protocols: 0,
     numerology_knowledge_records: 0,
     numerology_stone_assignments: 0,
+    aromatherapy_oils_essential: 0,
+    aromatherapy_oils_carrier: 0,
+    aromatherapy_oils_maceration: 0,
   };
+}
+
+/** Seçili gruplardaki aromaterapi yağ toplamı (3 oil_type). */
+export function sumAromatherapyOilCounts(counts: TransferResultCounts): number {
+  return (
+    counts.aromatherapy_oils_essential +
+    counts.aromatherapy_oils_carrier +
+    counts.aromatherapy_oils_maceration
+  );
 }
 
 function adminHeaders(): Record<string, string> {
@@ -130,6 +145,12 @@ function buildTransferSuccessMessage(
       ? counts.numerology_stone_assignments
       : 0);
   if (num > 0) lines.push(`${num} Numeroloji kaydı ${account} hesabına eklendi`);
+
+  const aro =
+    (groups.includes("aromatherapy_oils_essential") ? counts.aromatherapy_oils_essential : 0) +
+    (groups.includes("aromatherapy_oils_carrier") ? counts.aromatherapy_oils_carrier : 0) +
+    (groups.includes("aromatherapy_oils_maceration") ? counts.aromatherapy_oils_maceration : 0);
+  if (aro > 0) lines.push(`${aro} Aromaterapi yağ kaydı ${account} hesabına eklendi`);
 
   if (lines.length === 0) return null;
   return lines.join("\n");
@@ -284,6 +305,15 @@ export function formatTransferResultLines(
   if (num > 0) {
     lines.push(
       account ? `${num} Numeroloji kaydı ${account} hesabına eklendi` : `${num} Numeroloji`,
+    );
+  }
+
+  const aro = sumAromatherapyOilCounts(counts);
+  if (aro > 0) {
+    lines.push(
+      account
+        ? `${aro} Aromaterapi yağ kaydı ${account} hesabına eklendi`
+        : `${aro} Aromaterapi yağı`,
     );
   }
 

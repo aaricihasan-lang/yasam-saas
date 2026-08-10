@@ -9,7 +9,6 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import { useToast } from "@/components/ui/ToastProvider";
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import {
-  createOil,
   deleteOil,
   fetchOilDetail,
   fetchOilNameMap,
@@ -19,6 +18,8 @@ import {
   oilToFormData,
   parseTagsInput,
   parseImageUrls,
+  isAdminTransferOil,
+  ADMIN_TRANSFER_BADGE,
   OIL_TYPES,
   type AromatherapyOil,
   type OilFormData,
@@ -277,7 +278,6 @@ export default function OilDetailPage() {
   const [tab, setTab] = useState<DetailTabId>("kimlik");
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [copying, setCopying] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
@@ -293,7 +293,8 @@ export default function OilDetailPage() {
   }, [editEnabled, activeTab.fields, draft]);
 
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
-  const isSharedContent = oil?.tenant_id === null;
+  // Admin'den bağımsız kopya olarak gelen kayıt (provenance rozeti için).
+  const isAdminTransfer = !!oil && isAdminTransferOil(oil);
   const { isDemo } = useDemoGuard();
   const isDemoProtectedTab = isDemo && DEMO_PROTECTED_TABS.has(tab);
 
@@ -393,32 +394,6 @@ export default function OilDetailPage() {
     setDeleteConfirmOpen(false); router.push("/aromaterapi/yaglar?view=list");
   }
 
-  async function handleCopy() {
-    if (!oil || !tenantId) return;
-    setCopying(true); setErrorMessage("");
-    const t = (v: string) => v || "";
-    const { id: newId, error } = await createOil({
-      name: `${oil.name} (Kopya)`,
-      latin_name: t(oil.latin_name), english_name: t(oil.english_name), oil_type: oil.oil_type,
-      category: t(oil.category), extraction_method: t(oil.extraction_method), plant_part: t(oil.plant_part),
-      origin: t(oil.origin), shelf_life: t(oil.shelf_life), aroma_profile: t(oil.aroma_profile),
-      aroma_note: t(oil.aroma_note), color: t(oil.color), consistency: t(oil.consistency),
-      is_photosensitive: oil.is_photosensitive ?? false, main_components: t(oil.main_components),
-      therapeutic_properties: oil.therapeutic_properties ?? [],
-      emotional_benefits: t(oil.emotional_benefits), spiritual_benefits: t(oil.spiritual_benefits),
-      physical_benefits: t(oil.physical_benefits), skin_benefits: t(oil.skin_benefits), benefits: t(oil.benefits),
-      diffuser_usage: t(oil.diffuser_usage), massage_usage: t(oil.massage_usage),
-      usage_methods: t(oil.usage_methods), dilution_ratio: t(oil.dilution_ratio),
-      blends_well_with: oil.blends_well_with ?? [], target_systems: oil.target_systems ?? [],
-      chakra_connection: t(oil.chakra_connection), element_connection: t(oil.element_connection),
-      safety_notes: t(oil.safety_notes), contraindications: t(oil.contraindications),
-      images: oil.images ?? [], notes: t(oil.notes), source: t(oil.source),
-    });
-    setCopying(false);
-    if (error || !newId) { setErrorMessage("Kopyalama başarısız."); return; }
-    router.push(`/aromaterapi/yaglar/${newId}`);
-  }
-
   // -------------------------------------------------------
   // Yükleniyor / Bulunamadı
   // -------------------------------------------------------
@@ -463,13 +438,7 @@ export default function OilDetailPage() {
         <AromaterapiModuleNav />
 
         {isDemo && (
-          <DemoModuleBanner
-            message={
-              isDemoFixtureOil(id)
-                ? "Bu demo yağ kaydıdır. Kimlik bilgileri görünürdür; klinik detaylar demo hesabında korunur."
-                : "Kütüphane kaydı. Kimlik sekmesi açıktır; klinik içerikler demo hesabında korunur."
-            }
-          />
+          <DemoModuleBanner message="Bu demo yağ kaydıdır. Kimlik bilgileri görünürdür; klinik detaylar demo hesabında korunur." />
         )}
 
         {/* ─── HERO HEADER ──────────────────────────────────── */}
@@ -520,8 +489,13 @@ export default function OilDetailPage() {
                   {oil.is_photosensitive ? (
                     <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">☀️ Fotosensitif</span>
                   ) : null}
-                  {isSharedContent ? (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">🔒 Paylaşımlı</span>
+                  {isAdminTransfer ? (
+                    <span
+                      className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700"
+                      title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
+                    >
+                      {ADMIN_TRANSFER_BADGE}
+                    </span>
                   ) : null}
                 </div>
 
@@ -549,12 +523,7 @@ export default function OilDetailPage() {
               {/* Sağ: aksiyon butonları — demo hesapta gizli */}
               {!isDemo && (
               <div className="flex shrink-0 flex-wrap items-center gap-1">
-                {isSharedContent ? (
-                  <button type="button" onClick={() => void handleCopy()} disabled={copying}
-                    className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
-                    {copying ? "Düzenleniyor…" : "✏️ Düzenle"}
-                  </button>
-                ) : editEnabled ? (
+                {editEnabled ? (
                   <>
                     <button type="button" onClick={() => void handleSave()} disabled={saving}
                       className={`${btnBase} bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow ring-1 ring-amber-400/30 hover:brightness-105`}>
@@ -587,9 +556,9 @@ export default function OilDetailPage() {
               ✏️ Düzenleme modundasınız — kaydetmeden çıkmak için Vazgeç&apos;e basın
             </div>
           )}
-          {isSharedContent && !editEnabled && (
-            <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-1.5 text-[11px] font-medium text-slate-500">
-              Bu kayıt ortak kütüphaneden kullanılmaktadır. Düzenleme yaptığınızda size özel bir kopya oluşturulur.
+          {isAdminTransfer && !editEnabled && (
+            <div className="border-t border-violet-100 bg-violet-50/60 px-4 py-1.5 text-[11px] font-medium text-violet-600">
+              🎁 Bu kayıt Admin&apos;den bağımsız kopya olarak eklendi. Size özeldir; düzenleyebilir veya silebilirsiniz.
             </div>
           )}
           {errorMessage ? (
@@ -664,17 +633,12 @@ export default function OilDetailPage() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/50 text-2xl shadow-sm">📋</div>
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Bu bölümde kayıtlı bilgi yok</p>
-                {!isDemo && (!isSharedContent ? (
+                {!isDemo && (
                   <button type="button" onClick={startEdit}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white transition hover:brightness-110">
                     ✏️ Düzenle
                   </button>
-                ) : (
-                  <button type="button" onClick={() => void handleCopy()} disabled={copying}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white shadow disabled:opacity-60 hover:brightness-110">
-                    ✏️ Düzenle
-                  </button>
-                ))}
+                )}
               </div>
 
             ) : editEnabled ? (

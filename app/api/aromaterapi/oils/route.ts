@@ -7,8 +7,11 @@ export const runtime = "nodejs";
 /**
  * /api/aromaterapi/oils — aromatherapy_oils güvenli server kapısı (K-2).
  * tenant_id DAİMA oturumdan (verifyUserRequest); istemciden ASLA kabul edilmez.
- * Okuma: kullanıcının kendi kayıtları + paylaşımlı (tenant_id IS NULL) kütüphane.
- * Yazma: yalnız kendi tenant kayıtları; global (null) kayıtlara dokunulamaz.
+ * Okuma: YALNIZ kullanıcının kendi tenant kayıtları. Paylaşımlı/kanonik
+ *   (tenant_id IS NULL) kütüphane satırları uzman UI'sında ARTIK gösterilmez —
+ *   admin bir yağı vermek isterse P4 transfer ile bağımsız snapshot kopya üretir
+ *   (origin_type='admin_transfer'), kopya uzmanın kendi tenant kaydı olur.
+ * Yazma: yalnız kendi tenant kayıtları; kanonik (null) kayıtlara dokunulamaz.
  * Tarayıcı bu tabloya doğrudan erişmez (tablo RLS-kilitli, yalnız service_role).
  */
 
@@ -19,8 +22,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  // tenantId oturumdan gelen doğrulanmış UUID → .or() enjeksiyonu mümkün değil.
-  const tenantOr = `tenant_id.eq.${tenantId},tenant_id.is.null`;
   const url = new URL(req.url);
 
   // 1) Hub sayaçları — tek çağrıda 4 head-count (1000 tavanından bağımsız gerçek toplam).
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const base = () =>
       db.from("aromatherapy_oils")
         .select("id", { count: "exact", head: true })
-        .or(tenantOr)
+        .eq("tenant_id", tenantId)
         .eq("is_active", true);
 
     const [t, e, c, m] = await Promise.all([
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const { data, error } = await db
       .from("aromatherapy_oils")
       .select("id, name")
-      .or(tenantOr)
+      .eq("tenant_id", tenantId)
       .eq("is_active", true)
       .order("name", { ascending: true });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     let q = db
       .from("aromatherapy_oils")
       .select(OIL_LIST_SELECT)
-      .or(tenantOr)
+      .eq("tenant_id", tenantId)
       .eq("is_active", true);
     if (type) q = q.eq("oil_type", type);
 

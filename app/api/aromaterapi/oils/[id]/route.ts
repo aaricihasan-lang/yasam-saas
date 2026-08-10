@@ -6,9 +6,10 @@ export const runtime = "nodejs";
 
 /**
  * /api/aromaterapi/oils/[id] — tekil yağ oku (GET) / güncelle (PATCH) / sil (DELETE) (K-2).
- * tenant_id DAİMA oturumdan. GET: kendi kaydı VEYA paylaşımlı (null) kayıt.
- * PATCH/DELETE: yalnız kendi tenant kaydı (.eq id + tenant) → IDOR koruması,
- * global (null) admin kayıtları salt-okunurdur.
+ * tenant_id DAİMA oturumdan. GET/PATCH/DELETE: YALNIZ kendi tenant kaydı
+ * (.eq id + tenant) → IDOR koruması. Kanonik/paylaşımlı (null) satırlar uzman
+ * UI'sında görünmez; admin bir yağı vermek isterse P4 transfer ile bağımsız
+ * snapshot kopya üretir (origin_type='admin_transfer').
  */
 
 export async function GET(
@@ -26,7 +27,7 @@ export async function GET(
   const { data, error } = await db
     .from("aromatherapy_oils")
     .select("*")
-    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+    .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
