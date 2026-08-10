@@ -55,6 +55,14 @@ export interface EventProcessorDeps {
   readonly runExactUpsert: (input: RunExactUpsertInput) => Promise<IndexSourcePageResult>;
   /** Tenant-scoped fiziksel deindex. */
   readonly deindex: (input: DeindexInput) => Promise<DeindexResult>;
+  /**
+   * BF-11E RUNTIME ACTIVATION GATE (server enjekte eder). Bir sourceKey'in olay işlemesinin
+   * aktif olup olmadığını döndürür (activationRuntimeGate.isSourceProcessingActive). CONTROLLED
+   * kaynak registry enabled:true olsa dahi DB is_active=true değilse false döner; grandfathered
+   * CANLI kaynaklar için true. Enjekte EDİLMEZSE (harness/geriye-uyum) gate atlanır (mevcut
+   * davranış). Production worker DAİMA enjekte eder.
+   */
+  readonly isSourceProcessingActive?: (sourceKey: string) => Promise<boolean>;
 }
 
 // ─── Ana işleyici ─────────────────────────────────────────────────────────────
@@ -73,6 +81,23 @@ export async function processOutboxEvent(
   if (event.sourceTable !== config.tableName) return permanent("source-table-mismatch");
   // Kapı 4: safe-non-pii + enabled?
   if (!isIndexableSource(config)) return permanent("source-not-indexable");
+  // Kapı 4b (BF-11E RUNTIME ACTIVATION GATE): CONTROLLED kaynak enabled:true olsa dahi DB
+  // is_active=true değilse index YAZILMAZ (CODE MERGED ≠ SOURCE ACTIVATED). Grandfathered CANLI
+  // kaynaklar için gate true (davranış değişmez). Dep enjekte edilmemişse (harness) atlanır.
+  if (deps.isSourceProcessingActive !== undefined) {
+    let active: boolean;
+    try {
+      active = await deps.isSourceProcessingActive(event.sourceKey);
+    } catch {
+      // Activation durumu okunamadı → GEÇİCİ (DB backoff); sessiz "aktif" varsayımı YOK (fail-closed).
+      return transient("activation-check-error");
+    }
+    if (!active) {
+      // CONTROLLED inactive / kill-switch: index YAZILMAZ, deindex YAPILMAZ (index korunur),
+      // olay kuyruktan düşürülür (dead-letter biriktirilmez).
+      return complete("inactive-source-noop");
+    }
+  }
   // Kapı 5: tenant modeli column mı?
   if (config.tenant.mode !== "column") return permanent("tenant-model-unsupported");
   // Kapı 6: shared davranışı kapalı mı?

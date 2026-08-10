@@ -27,10 +27,12 @@ import { YH_INDEX_SOURCES } from "../indexer/sources";
 import { YH_CLIENT_INDEX_SOURCES } from "../client/clientSources";
 import {
   ACTIVATION_CLASS_POLICY,
+  evaluateProcessingGate,
   isActivationClass,
   type ActivationClass,
   type ActivationScope,
   type SourceActivationDesired,
+  type SourceActivationRuntime,
 } from "./activationState";
 
 /** Tenant çözümleme modu (registry TenantResolution ile hizalı; client = column). */
@@ -362,6 +364,104 @@ export function toDesired(entry: ActivationMatrixEntry): SourceActivationDesired
 /** Belirli bir sınıftaki tüm kaynak anahtarları. */
 export function sourceKeysByClass(activationClass: ActivationClass): string[] {
   return YH_ACTIVATION_MATRIX.filter((e) => e.activationClass === activationClass).map((e) => e.sourceKey);
+}
+
+const MATRIX_BY_KEY: ReadonlyMap<string, ActivationMatrixEntry> = new Map(
+  YH_ACTIVATION_MATRIX.map((e) => [e.sourceKey, e] as const),
+);
+
+/** sourceKey → matris entry (yoksa undefined). */
+export function activationEntryOf(sourceKey: string): ActivationMatrixEntry | undefined {
+  return MATRIX_BY_KEY.get(sourceKey);
+}
+
+/**
+ * PURE processing kararı: matris entry + runtime DB görüntüsü → processing aktif mi
+ * (evaluateProcessingGate). DB erişimi YOK (harness + server-only runtime gate ortak kullanır).
+ * Bilinmeyen/matris-dışı key → FAIL-CLOSED false.
+ */
+export function resolveProcessingActive(
+  sourceKey: string,
+  runtime: SourceActivationRuntime | null,
+): boolean {
+  const entry = MATRIX_BY_KEY.get(sourceKey);
+  if (entry === undefined) return false;
+  return evaluateProcessingGate(toDesired(entry), runtime).active;
+}
+
+// ─── BF-11E COHORT DIZILIMI (kaynak-başına aktivasyon kohortu; türetilmiş) ─────
+//
+// Cohort-1 = "runtime activation gate wired sonrası, kod önkoşulları çözülünce ilk
+// güvenli aktive edilebilecek kaynaklar". Kohort ataması matris alanlarından TÜRETİLİR
+// (ayrı elle senkronlanan alan drift'i YOK). Bu turda HİÇBİR kaynak production'da
+// aktive edilmez; kohort yalnız disposition + kalan exact kod önkoşuludur (readyGap).
+
+export type CohortDisposition =
+  | "KEEP_LIVE" // grandfathered CANLI; kohort kavramı dışı (davranış değişmez)
+  | "COHORT_1_BLOCKED" // Cohort-1 adayı; aktivasyon için exact kod önkoşulu var
+  | "WAIT_FOR_CLEAN_RESET" // mevcut production verisi test-data riski → temiz reset öncesi aktive edilmez
+  | "COHORT_2" // canonical/client; ayrı worker/CDC genişletmesi gerektiren sonraki faz
+  | "DEFERRED_HARD_BLOCKER"; // güvenli ownership yok (matriste registry kaydı da yok)
+
+export interface CohortAssessment {
+  readonly cohort: CohortDisposition;
+  /** Aktivasyon için kalan exact kod/altyapı önkoşulu ("" = KEEP_LIVE, önkoşul yok). */
+  readonly readyGap: string;
+}
+
+/**
+ * Bir kaynağın kohort dispozisyonunu matris alanlarından FAIL-CLOSED türetir.
+ * Bu turda hiçbir kaynak "hazır (gap yok)" değildir: worker CDC exact-write yolu YALNIZ
+ * column-tenant + record destekler (indexer/indexSourcePage runExactRecord), dolayısıyla
+ * join/row (belge_video), global-canonical (YEBS) ve client-index (danisan:*) kaynakları
+ * ek indexer/worker genişletmesi ister; numeroloji professional test-data reset bekler.
+ */
+export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
+  switch (entry.activationClass) {
+    case "KEEP_LIVE":
+      return { cohort: "KEEP_LIVE", readyGap: "" };
+    case "ROW_GATED_READY":
+      return {
+        cohort: "COHORT_1_BLOCKED",
+        readyGap:
+          "row-level classification gate (isArchiveRowIndexable) runtime indexer'a bağlı DEĞİL + " +
+          "personal_archives mevcut PII verisi → source-level safe-non-pii + row-gate wiring önkoşulu.",
+      };
+    case "CANONICAL_BACKFILL_CANDIDATE":
+      return {
+        cohort: "COHORT_2",
+        readyGap:
+          "global-canonical worker/exact-write desteği (outbox tenant_id NOT NULL + runExactRecord " +
+          "column-only) + published→ineligible tombstone; ayrı kohort.",
+      };
+    case "WAIT_FOR_CLEAN_RESET":
+      return { cohort: "WAIT_FOR_CLEAN_RESET", readyGap: "sistem-genel test-data temiz reset (mevcut tenant verisi risk)." };
+    case "FUTURE_ONLY_READY":
+      if (entry.scope === "client") {
+        return {
+          cohort: "COHORT_2",
+          readyGap:
+            "client index (yasam_hafizasi_client_index) worker/CDC pipeline: outbox client_id taşımıyor + " +
+            "runExactUpsert client-index hedefi yok → ayrı kohort.",
+        };
+      }
+      // belge_video:passages (professional, join/row): tek test-data-siz (empty foundation) aday.
+      return {
+        cohort: "COHORT_1_BLOCKED",
+        readyGap:
+          "indexer/indexSourcePage runExactRecord join-tenant + row-unit desteği (şu an column-only " +
+          "'tenant-model-unsupported') + eventProcessor tenant-model/unit gate genişletmesi.",
+      };
+    case "DEFERRED_HARD_BLOCKER":
+      return { cohort: "DEFERRED_HARD_BLOCKER", readyGap: "güvenli client-owned entity yok (registry kaydı da yok)." };
+    default:
+      return { cohort: "COHORT_2", readyGap: "bilinmeyen sınıf → fail-closed." };
+  }
+}
+
+/** Belirli kohort dispozisyonundaki kaynak anahtarları. */
+export function sourceKeysByCohort(cohort: CohortDisposition): string[] {
+  return YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === cohort).map((e) => e.sourceKey);
 }
 
 // ─── Bütünlük doğrulaması (import-zamanı güvenlik + harness) ──────────────────
