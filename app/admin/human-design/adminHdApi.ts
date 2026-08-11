@@ -32,7 +32,7 @@ export async function hdGet<T>(path: string): Promise<HdApiResult<T>> {
 }
 
 export async function hdSend<T>(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body?: Record<string, unknown>,
 ): Promise<HdApiResult<T>> {

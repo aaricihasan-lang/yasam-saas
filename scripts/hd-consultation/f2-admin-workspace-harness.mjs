@@ -107,7 +107,11 @@ check("H9. canlı AI drafting YOK (AI adayı yalnız boolean flag; isAiGenerated
 check("H10. uzman entitlement / Bilgileri Getir / Word / session KODU YOK (yorum hariç)",
   !/entitlement|Bilgileri Getir|knowledge-bank|bilgi-bankasi|\bdocx\b|\bword\b|report snapshot|\bsession\b/i.test(ws));
 check("H11. draft/published/archived + human approval durumları gösterilir", /STATUS_LABEL/.test(ws) && /insan-onaylı/.test(src.workspace) && /humanApprovedAt/.test(ws));
-check("H12. section düzenlenemez uyarısı (F1 kontratı; sahte edit yok)", /değiştirilemez/.test(src.workspace));
+// H12 (F2.1 güncellemesi): F1'in blanket "section değiştirilemez" kontratı, F2.1'de
+// DRAFT editability ile aşıldı. Yeni kontrat: draft editable (DraftBodyEditor), published/
+// archived salt-okunur (immutable). Detaylı doğrulama f2-1-draft-edit-harness'te.
+check("H12. draft editable + published/archived salt-okunur (F2.1 kontratı)",
+  /DraftBodyEditor/.test(src.workspace) && /ReadOnlyBody/.test(src.workspace) && /salt-okunurdur/.test(src.workspace));
 
 console.log("── I: nav / page / scope ──");
 check("I1. admin nav 'Danışmanlık İçeriği' → /admin/hd-danismanlik", /\/admin\/hd-danismanlik/.test(src.layout) && /Danışmanlık İçeriği/.test(src.layout));

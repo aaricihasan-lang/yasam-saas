@@ -14,7 +14,9 @@ export function httpStatusForConsultationError(code: ConsultationErrorCode): num
     case "EVIDENCE_MISSING":
     case "CANONICAL_NOT_APPROVED":
     case "NO_ACTIVE_SECTION":
-    case "ARCHIVED": return 409;
+    case "ARCHIVED":
+    case "NOT_DRAFT":
+    case "HAS_EXPERT_NOTES": return 409;
     case "PIN_PATCH_BLOCKED": return 400;
     default: return 500;
   }
@@ -33,6 +35,8 @@ export function messageForConsultationError(code: ConsultationErrorCode, fallbac
     case "CANONICAL_NOT_APPROVED": return "Bağlı merkezî canonical içerik yayınlı ve insan-onaylı değil.";
     case "NO_ACTIVE_SECTION": return "Yayın için en az bir aktif bölüm gerekir.";
     case "ARCHIVED": return "Arşivlenmiş içerik üzerinde bu işlem yapılamaz.";
+    case "NOT_DRAFT": return "Yalnız taslak içerik düzenlenebilir; yayınlanmış içerik salt-okunurdur.";
+    case "HAS_EXPERT_NOTES": return "Bu içeriğe bağlı uzman notu bulunduğundan gövde yeniden düzenlenemez.";
     default: return "Beklenmeyen bir sunucu hatası oluştu.";
   }
 }
