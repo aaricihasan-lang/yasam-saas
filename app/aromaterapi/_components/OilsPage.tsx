@@ -27,8 +27,6 @@ import {
   parseTagsInput,
   parseImageUrls,
   EMPTY_OIL_FORM,
-  isAdminTransferOil,
-  ADMIN_TRANSFER_BADGE,
   type OilListRow,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
@@ -987,14 +985,6 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         ☀️ Fotosensitif
                       </span>
                     ) : null}
-                    {isAdminTransferOil(row) ? (
-                      <span
-                        className="inline-flex items-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-bold text-violet-700"
-                        title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-                      >
-                        {ADMIN_TRANSFER_BADGE}
-                      </span>
-                    ) : null}
                   </div>
 
                   <h2 className="mt-2.5 text-[17px] font-black tracking-tight text-slate-950">{row.name}</h2>
@@ -1071,11 +1061,6 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         </span>
                         {row.is_photosensitive ? (
                           <span className="mt-0.5 block text-[9px] font-bold text-amber-600">☀️ Fotosensitif</span>
-                        ) : null}
-                        {isAdminTransferOil(row) ? (
-                          <span className="mt-0.5 block text-[9px] font-bold text-violet-600" title="Admin'den bağımsız kopya">
-                            {ADMIN_TRANSFER_BADGE}
-                          </span>
                         ) : null}
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>

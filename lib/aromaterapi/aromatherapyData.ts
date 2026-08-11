@@ -114,17 +114,11 @@ export type AromatherapyOil = {
   updated_at: string | null;
 
   // Provenance (P4 admin→uzman snapshot). Legacy/kendi kayıtta null.
+  // NOT: Yalnız teknik/audit iz sürme içindir; uzman UI'sında GÖRSEL ETİKET GÖSTERİLMEZ
+  // (ürün kararı 2026-08-11).
   origin_type?: string | null;
   origin_label?: string | null;
 };
-
-/** Kayıt admin kütüphanesinden bağımsız kopya olarak mı geldi? */
-export function isAdminTransferOil(row: { origin_type?: string | null }): boolean {
-  return row.origin_type === "admin_transfer";
-}
-
-/** Uzman-facing provenance etiketi (admin kaynağı gizlenir; yalnız "hediye" bilgisi). */
-export const ADMIN_TRANSFER_BADGE = "🎁 Adminden Gelen Bilgi";
 
 // -------------------------------------------------------
 // Liste Satırı
