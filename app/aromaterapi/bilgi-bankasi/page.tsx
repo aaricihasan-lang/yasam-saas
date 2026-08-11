@@ -247,7 +247,7 @@ export default function BilgiBankasiPage() {
       <div className="pointer-events-none absolute -left-20 -top-20 h-[400px] w-[400px] rounded-full bg-violet-200/20 blur-[120px]" />
       <div className="pointer-events-none absolute -right-20 top-40 h-[300px] w-[300px] rounded-full bg-amber-200/15 blur-[100px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-[1280px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
 
         <AromaterapiModuleNav />
 
@@ -277,7 +277,7 @@ export default function BilgiBankasiPage() {
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Bilgi Bankası
               </h1>
-              <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+              <p className="mt-1.5 text-[12px] font-medium text-slate-500">
                 Uzman referans içerikleri ve notları
               </p>
             </div>
