@@ -991,6 +991,33 @@ async function insertCombinationsViaApi(
   }
 }
 
+/** Güvenli Biyoenerji admin import API'sine gönderir (publishable insert yerine service_role). */
+async function insertBioenergyViaApi(
+  resource: string,
+  rows: Record<string, unknown>[],
+): Promise<{ ok: boolean; error?: string }> {
+  const adminId = readYasamUser()?.id ?? "";
+  const sessionToken = readSessionToken();
+  try {
+    const res = await fetch("/api/admin/biyoenerji/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-id": adminId,
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ resource, rows }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) {
+      return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Ağ hatası" };
+  }
+}
+
 async function importCombinationRows(rows: CombinationInsertRow[]): Promise<{
   successCount: number;
   failedCount: number;
@@ -1781,13 +1808,6 @@ function flattenBioenergySymbolItemsToRows(
   return rows;
 }
 
-function bioenergySymbolInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
-}
-
 async function importBioenergySymbolRows(rows: BioenergySymbolInsertRow[]): Promise<{
   successCount: number;
   failedCount: number;
@@ -1806,31 +1826,25 @@ async function importBioenergySymbolRows(rows: BioenergySymbolInsertRow[]): Prom
 
   for (let offset = 0; offset < rows.length; offset += SYMBOL_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + SYMBOL_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("bioenergy_symbols")
-      .insert(batch)
-      .select("id");
+    const result = await insertBioenergyViaApi("symbols", batch);
 
-    if (!error && bioenergySymbolInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.bioenergy_symbols tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("bioenergy_symbols")
-        .insert(row)
-        .select("id");
+      const single = await insertBioenergyViaApi("symbols", [row]);
 
-      if (singleError || !bioenergySymbolInsertSucceeded(rowData, 1)) {
+      if (!single.ok) {
         recordFailure(
           row.symbol,
           row.title,
-          singleError?.message ?? batchMessage,
+          single.error ?? batchMessage,
         );
       } else {
         successCount += 1;
@@ -2185,13 +2199,6 @@ function flattenBioenergyImaginationItemsToRows(
   return rows;
 }
 
-function bioenergyImaginationInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
-}
-
 async function importBioenergyImaginationRows(
   rows: BioenergyImaginationInsertRow[],
 ): Promise<{
@@ -2212,28 +2219,22 @@ async function importBioenergyImaginationRows(
 
   for (let offset = 0; offset < rows.length; offset += IMAGINATION_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + IMAGINATION_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("bioenergy_imaginations")
-      .insert(batch)
-      .select("id");
+    const result = await insertBioenergyViaApi("imaginations", batch);
 
-    if (!error && bioenergyImaginationInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.bioenergy_imaginations tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("bioenergy_imaginations")
-        .insert(row)
-        .select("id");
+      const single = await insertBioenergyViaApi("imaginations", [row]);
 
-      if (singleError || !bioenergyImaginationInsertSucceeded(rowData, 1)) {
-        recordFailure(row.title, singleError?.message ?? batchMessage);
+      if (!single.ok) {
+        recordFailure(row.title, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }
@@ -2601,13 +2602,6 @@ function flattenBioenergyChakraItemsToRows(
   return rows;
 }
 
-function bioenergyChakraInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
-}
-
 async function importBioenergyChakraRows(rows: BioenergyChakraInsertRow[]): Promise<{
   successCount: number;
   failedCount: number;
@@ -2626,28 +2620,22 @@ async function importBioenergyChakraRows(rows: BioenergyChakraInsertRow[]): Prom
 
   for (let offset = 0; offset < rows.length; offset += CHAKRA_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + CHAKRA_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("bioenergy_chakras")
-      .insert(batch)
-      .select("id");
+    const result = await insertBioenergyViaApi("chakras", batch);
 
-    if (!error && bioenergyChakraInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.bioenergy_chakras tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("bioenergy_chakras")
-        .insert(row)
-        .select("id");
+      const single = await insertBioenergyViaApi("chakras", [row]);
 
-      if (singleError || !bioenergyChakraInsertSucceeded(rowData, 1)) {
-        recordFailure(row.name, singleError?.message ?? batchMessage);
+      if (!single.ok) {
+        recordFailure(row.name, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }
@@ -2997,13 +2985,6 @@ function flattenBioenergyEnergyBodyItemsToRows(
   return rows;
 }
 
-function bioenergyEnergyBodyInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
-}
-
 async function importBioenergyEnergyBodyRows(
   rows: BioenergyEnergyBodyInsertRow[],
 ): Promise<{
@@ -3024,28 +3005,22 @@ async function importBioenergyEnergyBodyRows(
 
   for (let offset = 0; offset < rows.length; offset += ENERGY_BODY_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + ENERGY_BODY_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("bioenergy_energy_bodies")
-      .insert(batch)
-      .select("id");
+    const result = await insertBioenergyViaApi("energy-bodies", batch);
 
-    if (!error && bioenergyEnergyBodyInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.bioenergy_energy_bodies tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("bioenergy_energy_bodies")
-        .insert(row)
-        .select("id");
+      const single = await insertBioenergyViaApi("energy-bodies", [row]);
 
-      if (singleError || !bioenergyEnergyBodyInsertSucceeded(rowData, 1)) {
-        recordFailure(row.source_uid, singleError?.message ?? batchMessage);
+      if (!single.ok) {
+        recordFailure(row.source_uid, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }
@@ -3398,13 +3373,6 @@ function flattenBioenergySubconsciousItemsToRows(
   return rows;
 }
 
-function bioenergySubconsciousInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
-}
-
 async function importBioenergySubconsciousRows(
   rows: BioenergySubconsciousInsertRow[],
 ): Promise<{
@@ -3425,28 +3393,22 @@ async function importBioenergySubconsciousRows(
 
   for (let offset = 0; offset < rows.length; offset += SUBCONSCIOUS_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + SUBCONSCIOUS_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("bioenergy_subconscious_causes")
-      .insert(batch)
-      .select("id");
+    const result = await insertBioenergyViaApi("subconscious-causes", batch);
 
-    if (!error && bioenergySubconsciousInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.bioenergy_subconscious_causes tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("bioenergy_subconscious_causes")
-        .insert(row)
-        .select("id");
+      const single = await insertBioenergyViaApi("subconscious-causes", [row]);
 
-      if (singleError || !bioenergySubconsciousInsertSucceeded(rowData, 1)) {
-        recordFailure(row.title, row.source_uid, singleError?.message ?? batchMessage);
+      if (!single.ok) {
+        recordFailure(row.title, row.source_uid, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }

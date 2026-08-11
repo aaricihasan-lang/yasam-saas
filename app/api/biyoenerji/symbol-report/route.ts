@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
+  reportRateLimit,
+  capSelectedIds,
+  MAX_EXPORT_RECORDS,
+  EXPORT_TRUNCATED_NOTE,
+} from "@/lib/biyoenerji/reportSecurity";
+import {
   bodyText,
   buildFooter,
   buildPremiumCover,
@@ -63,6 +69,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (guard.is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
+  // FAZ1: best-effort rate-limit (asıl koruma aşağıdaki HARD CAP'tir).
+  const rl = reportRateLimit("symbol", tenantId);
+  if (rl) return rl;
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
@@ -87,12 +97,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (exportMode === "single" && id) {
     query = query.eq("id", id);
   } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
-    query = query.in("id", ids);
+    query = query.in("id", capSelectedIds(ids));
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error)
-    return Response.json({ ok: false, error: `Semboller okunamadı: ${error.message}` }, { status: 500 });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
+  if (error) {
+    console.error("[symbol-report] read failed:", error);
+    return Response.json({ ok: false, error: "Semboller okunamadı." }, { status: 500 });
+  }
 
   const rows = (data || []) as SymbolRow[];
   if (!rows.length)
@@ -134,6 +146,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   ]));
 
   all.push(...buildTOCPage());
+
+  if (rows.length >= MAX_EXPORT_RECORDS) {
+    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
+  }
 
   all.push(h1Colored("1. Sembol Dili", C_SEMBOL, true));
   all.push(muted(`${rows.length} kayıt`));
