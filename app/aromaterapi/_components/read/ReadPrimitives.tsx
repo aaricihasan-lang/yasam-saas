@@ -64,7 +64,7 @@ export function ReadFilterSelect({
   const id = useId();
   return (
     <div className="flex min-w-[140px] flex-col gap-1">
-      <label htmlFor={id} className="text-[11px] font-black uppercase tracking-wide text-slate-400">
+      <label htmlFor={id} className="text-[12px] font-black uppercase tracking-wide text-slate-500">
         {label}
       </label>
       <select
@@ -249,8 +249,8 @@ export function DetailSection({
   return (
     <section className="rounded-[20px] border border-amber-100/70 bg-white/85 p-4 shadow-sm sm:p-5">
       <div className="mb-3 border-b border-amber-100/60 pb-2">
-        <h2 className="text-[14px] font-black tracking-tight text-slate-900">{title}</h2>
-        {hint ? <p className="mt-0.5 text-[12px] font-medium text-slate-400">{hint}</p> : null}
+        <h2 className="text-[15px] font-black tracking-tight text-slate-900">{title}</h2>
+        {hint ? <p className="mt-0.5 text-[12px] font-medium text-slate-500">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -261,8 +261,8 @@ export function DetailSection({
 export function DetailField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 py-1.5">
-      <dt className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</dt>
-      <dd className="break-words text-[14px] font-semibold text-slate-800">{value ?? "—"}</dd>
+      <dt className="text-[12px] font-black uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="break-words text-[15px] font-semibold text-slate-800">{value ?? "—"}</dd>
     </div>
   );
 }

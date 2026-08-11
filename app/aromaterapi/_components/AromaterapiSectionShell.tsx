@@ -67,7 +67,7 @@ export function AromaterapiSectionShell({
       />
 
       <div
-        className={`relative z-10 mx-auto w-full ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10`}
+        className={`relative z-10 mx-auto w-full ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12`}
       >
         <AromaterapiBreadcrumb leaf={breadcrumbLeaf} />
 
