@@ -39,6 +39,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/human-design" className="font-semibold text-indigo-700 hover:underline">
           Human Design İçerik Yönetimi
         </Link>
+        <Link href="/admin/hd-danismanlik" className="font-semibold text-teal-700 hover:underline">
+          Danışmanlık İçeriği
+        </Link>
         <Link href="/admin/yebs" className="font-semibold text-violet-700 hover:underline">
           Yaşam Enerjisi Bilgi Sistemi
         </Link>
