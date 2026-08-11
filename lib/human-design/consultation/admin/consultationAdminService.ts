@@ -14,6 +14,10 @@ import {
   type HdConsultationCreateInput,
 } from "@/lib/human-design/consultation/createInput";
 import {
+  validateConsultationEditDraftInput,
+  type HdConsultationEditDraftInput,
+} from "@/lib/human-design/consultation/editInput";
+import {
   resolveEffectiveRights,
   evaluateProductRights,
 } from "@/lib/human-design/consultation/rightsResolver";
@@ -32,6 +36,8 @@ import type {
   ConsultationServiceResult,
   ConsultationUpdateInput,
   ConsultationEvidenceDetail,
+  CanonicalEvidencePool,
+  CanonicalEvidenceCandidate,
 } from "@/lib/human-design/consultation/admin/consultationAdminTypes";
 
 // ── coercion helpers (supabase satırları untyped) ────────────────────────────
@@ -53,6 +59,9 @@ function logServer(scope: string, err: { message?: string } | null | unknown): v
 /** RPC RAISE metnini stabil koda indirger (ham metin sızdırılmaz). */
 function classifyRpcError(err: { message?: string } | null): ConsultationErrorCode {
   const m = (err?.message ?? "").toLowerCase();
+  if (m.includes("hd_consultation_has_expert_notes") || m.includes("uzman notu")) return "HAS_EXPERT_NOTES";
+  if (m.includes("archived")) return "ARCHIVED";
+  if (m.includes("hd_consultation_not_draft") || m.includes("yalnız taslak")) return "NOT_DRAFT";
   if (m.includes("hd_consultation_canonical_stale") || (m.includes("canonical") && m.includes("stale"))) return "CANONICAL_STALE";
   if (m.includes("stale version") || m.includes("beklenen")) return "STALE_VERSION";
   if (m.includes("canonical pin patch")) return "PIN_PATCH_BLOCKED";
@@ -378,4 +387,125 @@ export async function archiveConsultation(
   const { data, error } = await db.rpc("rpc_hd_consultation_archive", { p_actor_admin_id: actorAdminId, p_content_id: contentId });
   if (error) { logServer("archiveConsultation rpc", error); return { ok: false, code: classifyRpcError(error), message: "Arşivleme başarısız." }; }
   return { ok: true, data: { id: asStr(data) || contentId } };
+}
+
+// ── EDIT DRAFT (F2.1 · yalnız rpc_hd_consultation_edit_draft) ─────────────────
+// Draft gövdesini (sections + nested q/c/e + content-düzeyi q/c) atomik yeniden
+// kurar. Yazma YALNIZ RPC üzerinden; doğrudan tablo mutation YOK. actor guard'dan.
+export async function editDraftConsultation(
+  db: SupabaseClient,
+  actorAdminId: string,
+  contentId: string,
+  input: HdConsultationEditDraftInput,
+): Promise<ConsultationServiceResult<{ version: number }>> {
+  const problems = validateConsultationEditDraftInput(input);
+  if (problems.length) return { ok: false, code: "VALIDATION", message: problems.join("; ") };
+
+  const p_sections = input.sections.map((s) => ({
+    client_ref: s.clientRef,
+    section_kind: s.sectionKind,
+    body_text: s.bodyText,
+    usage_scope: s.usageScope,
+    topic_scope: s.topicScope ?? null,
+    sort_order: s.sortOrder ?? 0,
+    status: s.status ?? "draft",
+    questions: (s.questions ?? []).map((qi) => ({ question_text: qi.questionText, topic_scope: qi.topicScope ?? null, sort_order: qi.sortOrder ?? 0 })),
+    conditions: (s.conditions ?? []).map((ci) => ({ condition_kind: ci.conditionKind, condition_value: ci.conditionValue, sort_order: ci.sortOrder ?? 0 })),
+    evidence: (s.evidence ?? []).map((ei) => ({ passage_id: ei.passageId, relation_type: ei.relationType, is_primary: ei.isPrimary ?? false, is_single_source: ei.isSingleSource ?? false, editorial_note: ei.editorialNote ?? null, sort_order: ei.sortOrder ?? 0 })),
+  }));
+  const p_content_questions = (input.contentQuestions ?? []).map((qi) => ({ question_text: qi.questionText, topic_scope: qi.topicScope ?? null, sort_order: qi.sortOrder ?? 0 }));
+  const p_content_conditions = (input.contentConditions ?? []).map((ci) => ({ condition_kind: ci.conditionKind, condition_value: ci.conditionValue, sort_order: ci.sortOrder ?? 0 }));
+
+  const { data, error } = await db.rpc("rpc_hd_consultation_edit_draft", {
+    p_actor_admin_id: actorAdminId,
+    p_content_id: contentId,
+    p_expected_version: input.expectedVersion,
+    p_sections,
+    p_content_questions,
+    p_content_conditions,
+  });
+  if (error) { logServer("editDraftConsultation rpc", error); return { ok: false, code: classifyRpcError(error), message: "Taslak düzenlenemedi." }; }
+  const r = (data ?? {}) as Row;
+  const version = asNum(r.version);
+  if (!version) return { ok: false, code: "SERVER_ERROR", message: "Beklenmeyen düzenleme sonucu." };
+  return { ok: true, data: { version } };
+}
+
+// ── CANONICAL EVIDENCE POOL (F2.1 · read-only projeksiyon) ───────────────────
+// Seçili entity → hd_canonical_content → hd_content_evidence → hd_source_passages
+// → hd_sources. Effective rights F0B rightsResolver ile (ikinci motor YAZILMAZ).
+// Tam original/source metni TAŞINMAZ; unknown → deny (resolver default-deny).
+export async function getCanonicalEvidencePool(
+  db: SupabaseClient,
+  entityId: string,
+): Promise<ConsultationServiceResult<CanonicalEvidencePool>> {
+  if (!entityId) return { ok: false, code: "VALIDATION", message: "entityId gerekli." };
+
+  // entity → canonical content (entity başına tek merkezî içerik)
+  const { data: cc, error: ccErr } = await db
+    .from("hd_canonical_content").select("id").eq("entity_id", entityId).maybeSingle();
+  if (ccErr) { logServer("getCanonicalEvidencePool content", ccErr); return { ok: false, code: "SERVER_ERROR", message: "Kanıt havuzu okunamadı." }; }
+  const canonicalContentId = asStrOrNull((cc as Row | null)?.id);
+  if (!canonicalContentId) return { ok: true, data: { entityId, canonicalContentId: null, candidates: [] } };
+
+  // canonical evidence bağları (yalnız bu entity'nin canonical içeriği — cross-entity sızıntı yok)
+  const { data: evRows0, error: evErr } = await db
+    .from("hd_content_evidence").select("*").eq("content_id", canonicalContentId).order("sort_order", { ascending: true });
+  if (evErr) { logServer("getCanonicalEvidencePool evidence", evErr); return { ok: false, code: "SERVER_ERROR", message: "Kanıt havuzu okunamadı." }; }
+  const evRows = (evRows0 ?? []) as Row[];
+
+  const passageIds = [...new Set(evRows.map((e) => asStr(e.passage_id)).filter(Boolean))];
+  const passageById = new Map<string, Row>();
+  const sourceById = new Map<string, Row>();
+  if (passageIds.length) {
+    const { data: passages } = await db.from("hd_source_passages").select("*").in("id", passageIds);
+    for (const p of (passages ?? []) as Row[]) passageById.set(asStr(p.id), p);
+    const sourceIds = [...new Set([...passageById.values()].map((p) => asStr(p.source_id)).filter(Boolean))];
+    if (sourceIds.length) {
+      const { data: sources } = await db.from("hd_sources").select("*").in("id", sourceIds);
+      for (const s of (sources ?? []) as Row[]) sourceById.set(asStr(s.id), s);
+    }
+  }
+
+  const candidates: CanonicalEvidenceCandidate[] = [];
+  for (const e of evRows) {
+    const p = passageById.get(asStr(e.passage_id));
+    const s = p ? sourceById.get(asStr(p.source_id)) : undefined;
+    if (!p || !s) continue; // passage/source çözülemezse aday listelenmez (deny-by-omission)
+    const src = sourceRightsFromRow(s);
+    const { override, hasOverride } = passageOverrideFromRow(p);
+    const eff = resolveEffectiveRights(src, override);
+    candidates.push({
+      canonicalEvidenceId: asStr(e.id),
+      passageId: asStr(e.passage_id),
+      canonicalRelationType: (asStr(e.relation_type) || "supports") as CanonicalEvidenceCandidate["canonicalRelationType"],
+      isPrimary: asBool(e.is_primary),
+      isSingleSource: asBool(e.is_single_source),
+      editorialNote: asStrOrNull(e.editorial_note),
+      passage: {
+        id: asStr(p.id),
+        locatorLabel: asStr(p.locator_label),
+        locatorValue: asStr(p.locator_value),
+        sourceSpecificNote: asStrOrNull(p.source_specific_note),
+        sourceId: asStr(s.id),
+        sourceTitle: asStr(s.title),
+        sourceAuthors: asStrArr(s.authors),
+        sourceOrganization: asStrOrNull(s.organization),
+        rightsStatus: eff.rights_status,
+        effective: {
+          internalUseAllowed: eff.internal_use_allowed,
+          expertDeliveryAllowed: eff.expert_delivery_allowed,
+          privateReportUseAllowed: eff.private_report_use_allowed,
+          translationAllowed: eff.translation_allowed,
+          quotationAllowed: eff.quotation_allowed,
+          quotationWordLimit: eff.quotation_word_limit,
+        },
+        hasOverride,
+        expertGuide: evaluateProductRights(eff, "expert_guide"),
+        clientReport: evaluateProductRights(eff, "client_report"),
+      },
+    });
+  }
+
+  return { ok: true, data: { entityId, canonicalContentId, candidates } };
 }

@@ -148,7 +148,56 @@ export type ConsultationErrorCode =
   | "CANONICAL_NOT_APPROVED"
   | "NO_ACTIVE_SECTION"
   | "ARCHIVED"
+  /** Yalnız draft düzenlenebilir; published/archived edit denemesi (F2.1). */
+  | "NOT_DRAFT"
+  /** Draft'a bağlı uzman notu var; gövde yeniden kurulamaz (F2.1). */
+  | "HAS_EXPERT_NOTES"
   | "SERVER_ERROR";
+
+/**
+ * F2.1 · Canonical-linked evidence aday havuzu satırı (read-only projeksiyon).
+ * Seçili entity'nin canonical content'ine bağlı evidence/passage adayları. Tam
+ * original/source text TAŞINMAZ; yalnız locator + effective rights + provenance.
+ */
+export type CanonicalEvidenceCandidate = {
+  /** hd_content_evidence.id (canonical evidence bağı; consultation evidence DEĞİL). */
+  canonicalEvidenceId: string;
+  passageId: string;
+  /** Canonical bağın ilişki türü (öneri; consultation'da admin değiştirebilir). */
+  canonicalRelationType: HdEvidenceRelationType;
+  isPrimary: boolean;
+  isSingleSource: boolean;
+  editorialNote: string | null;
+  passage: {
+    id: string;
+    locatorLabel: string;
+    locatorValue: string;
+    sourceSpecificNote: string | null;
+    sourceId: string;
+    sourceTitle: string;
+    sourceAuthors: string[];
+    sourceOrganization: string | null;
+    rightsStatus: HdRightsStatus;
+    effective: {
+      internalUseAllowed: boolean;
+      expertDeliveryAllowed: boolean;
+      privateReportUseAllowed: boolean;
+      translationAllowed: boolean;
+      quotationAllowed: boolean;
+      quotationWordLimit: number | null;
+    };
+    hasOverride: boolean;
+    expertGuide: RightsDecision;
+    clientReport: RightsDecision;
+  };
+};
+
+export type CanonicalEvidencePool = {
+  entityId: string;
+  canonicalContentId: string | null;
+  /** canonicalContentId null ise havuz boştur (entity'nin canonical içeriği yok). */
+  candidates: CanonicalEvidenceCandidate[];
+};
 
 export type ConsultationServiceResult<T> =
   | { ok: true; data: T }
