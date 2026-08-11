@@ -241,19 +241,19 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "belge_video",
     label: "Belge / Video İçerikleri",
-    classification: "DORMANT_READY",
-    professionalSourceKeys: ["belge_video:passages"],
+    classification: "NOT_MEMORY_SOURCE",
+    professionalSourceKeys: [],
     clientSourceKeys: [],
-    allow: ["promoted durable passage (yalnız safe-non-pii)", "ordered ordinal + locator + hash + provenans"],
-    deny: ["transient job doğrudan index", "arbitrary/serbest client text", "unclassified/pii passage", "original filename", "Storage secret/URL", "başka tenant job"],
+    allow: [],
+    deny: ["transient işleme/export çıktısı", "belge dönüştürme/çeviri/transkript ara ürünü", "ders notu üretim artefaktı", "arbitrary/serbest client text"],
     rationale:
-      "WIRED (DORMANT): belge_video:passages source enabled:false (kaynak = promoted durable " +
-      "yh_document_passages; transient job DEĞİL). tenant join → yh_document_sources; row-eligibility " +
-      "rowClassificationColumn='classification' → yalnız safe-non-pii passage (unclassified/pii/" +
-      "restricted fail-closed). Additive migration (yh_document_sources + yh_document_passages) + " +
-      "promotion API (job ownership + server-derived deterministic chunk). enabled:false → " +
-      "source-guard 'disabled' → event/reconcile no-op.",
-    activationPrerequisite: "BF-11E: enabled:true + safe-non-pii passage sınıflandırması + kontrollü index (ayrı onay).",
+      "ÜRÜN KARARI (NON_SOURCE): Dijital İçerik Merkezi'nin belge/video/ders-notu işleme alanı " +
+      "TRANSIENT PROCESSING / EXPORT WORKSPACE'tir (belge dönüştür, transkript üret, çevir, Word/PDF/" +
+      "ders notu üret). Uzman nihai çıktıyı indirir VEYA gerçek ait olduğu profesyonel modüle aktarır; " +
+      "Yaşam Hafızası bilgiyi bu geçici işleme merkezinden DEĞİL nihai kalıcı modülden öğrenir " +
+      "(çift ingestion engeli). belge_video:passages source registry/activation/matrix'ten ÇIKARILDI. " +
+      "PR#128 join+row REUSABLE indexer/worker yeteneği korunur; foundation tabloları DROP EDİLMEZ.",
+    activationPrerequisite: "Yok (source değil). Nihai bilgi ilgili profesyonel modülden öğrenilir.",
   },
   {
     moduleKey: "kisisel_arsiv",

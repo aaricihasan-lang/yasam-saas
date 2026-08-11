@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   // ═══ 2. Registry sınıflandırma envanteri ══════════════════════════════════
   {
     // BF-14: 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video) = 26 kaynak.
-    check("10 registry tam 26 kaynak (17 canlı + 9 dormant)", YH_INDEX_SOURCES.length === 26);
+    check("10 registry tam 25 kaynak (17 canlı + 8 dormant; belge_video retired)", YH_INDEX_SOURCES.length === 25);
     const VALID: readonly SourceClassification[] = ["safe-non-pii", "pii", "unclassified", "deferred"];
     check(
       "11 her kaynak geçerli classification taşır",
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 24 (15 + 2 numeroloji + 6 yebs + 1 belge_video)", count("safe-non-pii") === 24);
+    check("12 safe-non-pii sayısı 23 (15 + 2 numeroloji + 6 yebs; belge retired)", count("safe-non-pii") === 23);
     check("13 pii sayısı 1", count("pii") === 1);
     check("14 unclassified sayısı 1", count("unclassified") === 1);
     check("15 deferred sayısı 0", count("deferred") === 0);

@@ -204,27 +204,11 @@ export const YH_ACTIVATION_MATRIX = [
   yebs("yebs:claims", "yebs_claims"),
   yebs("yebs:concept-relations", "yebs_concept_relations"),
 
-  // ── E'/F) BELGE / VİDEO (FUTURE_ONLY_READY) — foundation BOŞ; yalnız gelecekte promoted safe passage ──
-  {
-    sourceKey: "belge_video:passages",
-    module: "Belge / Video İçerikleri",
-    scope: "professional",
-    activationClass: "FUTURE_ONLY_READY",
-    sourceTable: "yh_document_passages",
-    tenantMode: "join",
-    rowGate: "row-classification",
-    registryEnabled: false,
-    currentDataRisk: "empty-foundation",
-    futureEventEligible: true,
-    backfillEligibility: "blocked-pii",
-    triggerFeasibleNow: false,
-    activationPrerequisite:
-      "BF-11E: enabled:true + safe-non-pii passage sınıflandırması + worker join/row-unit kapsam genişletmesi + kontrollü index. Production foundation tabloları ŞU AN BOŞ.",
-    activationCohort: "document-video",
-    rollbackBehavior: DORMANT_ROLLBACK,
-    recommendation:
-      "FUTURE_ONLY_READY: Kaynak = promoted durable yh_document_passages (transient job DEĞİL). Yalnız GELECEKTE explicit promote + safe-non-pii + tenant-owned + hash-valid passage indexlenebilir. Mevcut transient job'lar ASLA backfill edilmez. Foundation boş → aktivasyon yapılsa dahi index üretmez.",
-  },
+  // ── BELGE / VİDEO: EMEKLİYE AYRILDI (ÜRÜN KARARI — NON_SOURCE) ──────────────────
+  // belge_video:passages source registry'den (YH_INDEX_SOURCES) çıkarıldığından aktivasyon
+  // matrisinde de YER ALMAZ (Yaşam Hafızası source DOMAIN'İ değil; Dijital İçerik işleme alanı
+  // transient workspace). moduleSourceMatrix NOT_MEMORY_SOURCE + deferredSourceClosure
+  // NOT_APPLICABLE ile tutarlı. Query/search/filter/CDC/backfill/reconcile source path YOK.
 
   // ── B) CLIENT SOURCES (FUTURE_ONLY_READY) — ayrı client index/RPC; test-data riski → kör backfill YASAK ──
   client("danisan:stones", "Danışan Taşı", "client_stones"),
@@ -437,20 +421,13 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
     case "WAIT_FOR_CLEAN_RESET":
       return { cohort: "WAIT_FOR_CLEAN_RESET", readyGap: "sistem-genel test-data temiz reset (mevcut tenant verisi risk)." };
     case "FUTURE_ONLY_READY":
-      if (entry.scope === "client") {
-        return {
-          cohort: "COHORT_2",
-          readyGap:
-            "client index (yasam_hafizasi_client_index) worker/CDC pipeline: outbox client_id taşımıyor + " +
-            "runExactUpsert client-index hedefi yok → ayrı kohort.",
-        };
-      }
-      // belge_video:passages (professional, join/row): tek test-data-siz (empty foundation) aday.
+      // NOT: belge_video:passages (tek professional FUTURE_ONLY_READY adayı) ÜRÜN KARARIYLA
+      //   source registry/matrix'ten çıkarıldı (NON_SOURCE) → geriye yalnız client kaynaklar kalır.
       return {
-        cohort: "COHORT_1_BLOCKED",
+        cohort: "COHORT_2",
         readyGap:
-          "indexer/indexSourcePage runExactRecord join-tenant + row-unit desteği (şu an column-only " +
-          "'tenant-model-unsupported') + eventProcessor tenant-model/unit gate genişletmesi.",
+          "client index (yasam_hafizasi_client_index) worker/CDC pipeline: outbox client_id taşımıyor + " +
+          "runExactUpsert client-index hedefi yok → ayrı kohort.",
       };
     case "DEFERRED_HARD_BLOCKER":
       return { cohort: "DEFERRED_HARD_BLOCKER", readyGap: "güvenli client-owned entity yok (registry kaydı da yok)." };

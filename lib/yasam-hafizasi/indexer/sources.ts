@@ -653,33 +653,15 @@ export const YH_INDEX_SOURCES = [
     enabled: false,
   },
 
-  // ── Belge/Video (BF-14; promoted durable passage; row-classification gated; DORMANT) ──
-  // Kaynak = yh_document_passages (promoted durable). Transient job'lar DEĞİL. tenant join →
-  // yh_document_sources. Yalnız safe-non-pii sınıflandırılmış passage indexlenebilir.
-  {
-    sourceKey: "belge_video:passages",
-    classification: "safe-non-pii",
-
-    sourceFamily: "belge_video",
-    tableName: "yh_document_passages",
-    primaryKey: "id",
-    unit: "row",
-    tenant: {
-      mode: "join",
-      fkColumn: "document_id",
-      parentTable: "yh_document_sources",
-      parentTenantColumn: "tenant_id",
-    },
-    titleColumns: [],
-    searchTextColumns: ["passage_text"],
-    snippetColumns: ["passage_text"],
-    topicTagsColumns: [],
-    relationColumns: [],
-    updatedAtColumn: "source_updated_at",
-    activeColumn: null,
-    rowClassificationColumn: "classification",
-    enabled: false,
-  },
+  // ── Belge/Video: EMEKLİYE AYRILDI (ÜRÜN KARARI — NON_SOURCE) ────────────────────
+  // Dijital İçerik Merkezi'nin belge/video/ders-notu işleme alanı TRANSIENT PROCESSING /
+  // EXPORT WORKSPACE'tir; Yaşam Hafızası SOURCE DOMAIN'İ DEĞİLDİR. Nihai bilgi geçici işleme
+  // merkezinden DEĞİL, uzmanın aktardığı nihai profesyonel modülden öğrenilir (çift ingestion
+  // engeli). Bu nedenle belge_video:passages source registry'den ÇIKARILDI (activationMatrix +
+  // moduleSourceMatrix NOT_MEMORY_SOURCE + deferredSourceClosure NOT_APPLICABLE ile tutarlı).
+  // yh_document_passages join+row REUSABLE indexer/worker yeteneği (PR#128) korunur; yalnız bu
+  // kaynak-özel kayıt emekliye ayrılmıştır. Foundation tabloları (yh_document_sources/passages)
+  // DROP EDİLMEZ (cleanup-candidate; ayrı sistem-genel risk kapısı).
 
   // ── Kişisel Arşiv ─────────────────────────────────────────────────────────
   {
