@@ -61,7 +61,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const cliKeys = new Set<string>(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey));
   const matrixKeys = YH_ACTIVATION_MATRIX.map((e) => e.sourceKey);
 
-  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 32, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
+  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 31, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
   add("A-no-duplicate-key", new Set(matrixKeys).size === matrixKeys.length);
   add("A-no-unknown-source", matrixKeys.every((k) => proKeys.has(k) || cliKeys.has(k)));
   add("A-every-entry-has-class", YH_ACTIVATION_MATRIX.every((e) => (ACTIVATION_CLASSES as readonly string[]).includes(e.activationClass)));
@@ -73,7 +73,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("A-row-gated-1", sourceKeysByClass("ROW_GATED_READY").length === 1 && sourceKeysByClass("ROW_GATED_READY")[0] === "kisisel_arsiv:archives");
   add("A-canonical-backfill-6-yebs", sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").length === 6 && sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").every((k) => k.startsWith("yebs:")));
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
-  add("A-future-only-7", sourceKeysByClass("FUTURE_ONLY_READY").length === 7, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  add("A-future-only-7", sourceKeysByClass("FUTURE_ONLY_READY").length === 6, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
   add("A-no-deferred-registry-entry", sourceKeysByClass("DEFERRED_HARD_BLOCKER").length === 0);
 
   // Numeroloji CLIENT hard blocker KORUNUR (registry'de yok + closure DEFERRED_HARD_BLOCKER).
@@ -91,7 +91,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const activeRuntime: SourceActivationRuntime = { isActive: true, backfillAllowed: false };
   add("B-merge-does-not-activate", dormant.every((e) => !ACTIVE(activeRuntime, toDesired(e))), "dormant registryEnabled=false → inactive");
   // registryEnabled=false = 9 professional dormant (2 numeroloji + 6 yebs + 1 belge_video) + 6 client = 15.
-  add("B-dormant-count-15", dormant.length === 15, String(dormant.length));
+  add("B-dormant-count-14", dormant.length === 14, String(dormant.length));
 
   // Default production activation OFF: runtime === null → her sınıf (grandfathered hariç) inactive.
   const numSrc = entryOf("numeroloji:sources")!;
@@ -132,7 +132,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("C-fail-closed-null-ids", has(/IF v_source_id IS NULL THEN[\s\S]*RAISE EXCEPTION/) && has(/IF v_tenant_id IS NULL THEN[\s\S]*RAISE EXCEPTION/));
   add("C-fail-closed-unknown-op", has(/RAISE EXCEPTION 'yh_cdc_enqueue: desteklenmeyen TG_OP/));
   // Dormant future-event: kaynak dormant iken future INSERT işlenmez (pure gate).
-  add("C-dormant-future-not-processed", !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(entryOf("belge_video:passages")!)));
+  add("C-dormant-future-not-processed", !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(entryOf("numeroloji:sources")!)));
 }
 
 // ═══ D) CLIENT (tenant+client izolasyon; PII denylist; disabled no-op) ════════
@@ -182,25 +182,15 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("E-yebs-backfill-default-false", yebs.every((e) => !evaluateBackfillGate(toDesired(e), { isActive: false, backfillAllowed: false }).allowed));
 }
 
-// ═══ F) BELGE / VIDEO (durable promoted passage only; row-classification gated) ═
+// ═══ F) BELGE / VIDEO: EMEKLİYE AYRILDI (NON_SOURCE; retirement) ═══
 {
-  const doc = entryOf("belge_video:passages")!;
-  add("F-belge-future-only", doc.activationClass === "FUTURE_ONLY_READY");
-  add("F-belge-durable-passages", doc.sourceTable === "yh_document_passages");
-  add("F-belge-row-classification-gate", doc.rowGate === "row-classification");
-  add("F-belge-empty-foundation", doc.currentDataRisk === "empty-foundation");
-  add("F-belge-no-historical-backfill", doc.backfillEligibility === "blocked-pii" && /transient job/i.test(doc.recommendation));
-  // Registry row-eligibility: yalnız safe-non-pii passage; unclassified/pii/restricted no-op.
-  const docSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "belge_video:passages")!;
-  add("F-doc-safe-eligible", evaluateRowEligibility(docSrc, { classification: "safe-non-pii" }).eligible === true);
-  add("F-doc-unclassified-noop", evaluateRowEligibility(docSrc, { classification: "unclassified" }).eligible === false);
-  add("F-doc-pii-noop", evaluateRowEligibility(docSrc, { classification: "pii" }).eligible === false);
-  add("F-doc-restricted-noop", evaluateRowEligibility(docSrc, { classification: "restricted" }).eligible === false);
-  add("F-doc-missing-class-noop", evaluateRowEligibility(docSrc, {}).eligible === false);
-  // Passage content outbox payload'a girmez (migration statik: passage_text yok).
+  // belge_video:passages source registry/activation matrisinden çıkarıldı → aktivasyon adayı değil.
+  add("F-belge-not-in-matrix", !YH_ACTIVATION_MATRIX.some((e) => e.sourceKey === "belge_video:passages"));
+  add("F-belge-not-in-registry", !YH_INDEX_SOURCES.some((s) => (s.sourceKey as string) === "belge_video:passages"));
+  add("F-belge-entry-of-null", entryOf("belge_video:passages") === undefined);
+  add("F-belge-no-passages-table-source", !YH_ACTIVATION_MATRIX.some((e) => e.sourceTable === "yh_document_passages"));
+  // Passage content outbox payload'a girmez (activation-control migration statik: passage_text yok).
   add("F-passage-text-not-in-payload", !/passage_text/i.test(MIG));
-  // Dormant: guard disabled.
-  add("F-belge-guard-disabled", evaluateSourceGuard(docSrc).indexable === false);
 }
 
 // ═══ G) KİŞİSEL ARŞİV (safe-non-pii + current hash only; classification bypass yok) ═
@@ -272,9 +262,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
 // ═══ K) MODÜL REGRESYON (registry sayıları / dormancy değişmedi) ═════════════
 {
-  add("K-professional-registry-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
+  add("K-professional-registry-25", YH_INDEX_SOURCES.length === 25, String(YH_INDEX_SOURCES.length));
   add("K-live-professional-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
-  add("K-dormant-professional-9", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 9);
+  add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
   add("K-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
   add("K-numerology-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));

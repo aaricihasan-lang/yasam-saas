@@ -48,13 +48,14 @@ async function run(): Promise<void> {
   add("A-keep-live-active-null", resolveProcessingActive("dogaltas:stones", null) === true);
   add("A-keep-live-active-ignores-runtime", resolveProcessingActive("dogaltas:stones", { isActive: false, backfillAllowed: false }) === true);
   // CONTROLLED dormant (registryEnabled=false): DB is_active=true olsa DAHI inactive.
-  add("A-controlled-dormant-inactive-db-true", resolveProcessingActive("belge_video:passages", { isActive: true, backfillAllowed: false }) === false);
-  add("A-controlled-dormant-inactive-null", resolveProcessingActive("belge_video:passages", null) === false);
-  // Bilinmeyen key → fail-closed false.
+  add("A-controlled-dormant-inactive-db-true", resolveProcessingActive("numeroloji:sources", { isActive: true, backfillAllowed: false }) === false);
+  add("A-controlled-dormant-inactive-null", resolveProcessingActive("numeroloji:sources", null) === false);
+  // Bilinmeyen key (belge_video:passages ARTIK source değil → retired) → fail-closed false.
   add("A-unknown-key-false", resolveProcessingActive("nope:x", { isActive: true, backfillAllowed: false }) === false);
+  add("A-retired-belge-false", resolveProcessingActive("belge_video:passages", { isActive: true, backfillAllowed: false }) === false);
 
   // ÇİFT KAPI ispatı: hipotetik kod enabled:true bir CONTROLLED kaynak TEK BAŞINA aktive olmaz.
-  const hyp: SourceActivationDesired = { sourceKey: "belge_video:passages", scope: "professional", activationClass: "FUTURE_ONLY_READY", registryEnabled: true };
+  const hyp: SourceActivationDesired = { sourceKey: "danisan:sessions", scope: "client", activationClass: "FUTURE_ONLY_READY", registryEnabled: true };
   add("A-code-enabled-runtime-null-inactive", evaluateProcessingGate(hyp, null).active === false);
   add("A-code-enabled-runtime-false-inactive", evaluateProcessingGate(hyp, { isActive: false, backfillAllowed: false }).active === false);
   add("A-both-gates-active", evaluateProcessingGate(hyp, { isActive: true, backfillAllowed: false }).active === true);
@@ -132,10 +133,11 @@ async function run(): Promise<void> {
   // KEEP_LIVE 16 (grandfathered) + ROW_GATED_READY archive COHORT_1_BLOCKED.
   add("D-keep-live-16", sourceKeysByCohort("KEEP_LIVE").length === 16);
   add("D-archive-cohort1-blocked", sourceKeysByCohort("COHORT_1_BLOCKED").includes("kisisel_arsiv:archives"));
-  add("D-belge-cohort1-blocked", sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
-  // Cohort-1 adayları GAP taşır (bu turda hiçbiri "hazır (gap yok)" değil).
+  // belge_video:passages ÜRÜN KARARIYLA emekliye ayrıldı → COHORT_1_BLOCKED'da DEĞİL (source değil).
+  add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
+  // Cohort-1 adayı yalnız kisisel_arsiv:archives (belge retirement sonrası); GAP taşır.
   const cohort1 = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_BLOCKED");
-  add("D-cohort1-all-have-gap", cohort1.length === 2 && cohort1.every((e) => assessCohort(e).readyGap.length > 20), cohort1.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-all-have-gap", cohort1.length === 1 && cohort1.every((e) => assessCohort(e).readyGap.length > 20), cohort1.map((e) => e.sourceKey).join(","));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);
@@ -147,7 +149,7 @@ async function run(): Promise<void> {
 {
   add("E-live-count-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
   // Bu turda registry enabled DEĞİŞMEDİ: dormant professional 9, client 6.
-  add("E-dormant-professional-9", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 9);
+  add("E-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("E-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
   // KEEP_LIVE kaynaklar runtime gate'te DB gerektirmez (grandfathered → null runtime aktif).
   const keepLive = YH_ACTIVATION_MATRIX.filter((e) => e.activationClass === "KEEP_LIVE");
