@@ -3,8 +3,11 @@
  *
  * BAĞLAYICI (§6D/§14): yalnız yetkili uzman/admin explicit action + reason ile sınıflandırır.
  * classification allowlist; safe-non-pii yalnız açık aksiyon; unclassified/pii FAIL-CLOSED.
- * reviewedContentHash → stale-content guard (archive güncellenirse eski safe geçersiz).
  * tenant BURADA OKUNMAZ (session'dan); archive_id doğrulanmış ownership'ten gelir.
+ *
+ * BF-11E: reviewed_content_hash CLIENT tarafından belirlenemez → request'ten KALDIRILDI. Server,
+ * archive satırından buildIndexUnit().contentHash türeterek reviewed_content_hash'i KENDİSİ yazar
+ * (stale-content guard). Client bir hash gönderse dahi IGNORE edilir (authoritative DEĞİL).
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,8 +22,6 @@ export interface ParsedArchiveClassification {
   archiveId: string;
   classification: ArchiveClassification;
   reason?: string;
-  /** Mevcut archive içeriğinin hash'i; safe-non-pii için ZORUNLU (stale guard). */
-  reviewedContentHash?: string;
 }
 
 export type ParseArchiveClassificationResult =
@@ -50,16 +51,9 @@ export function parseArchiveClassification(body: unknown): ParseArchiveClassific
     if (t.length > 0) reason = t;
   }
 
-  // safe-non-pii güvenli sınıf → stale guard için mevcut içerik hash'i ZORUNLU + reason ZORUNLU.
-  let reviewedContentHash: string | undefined;
-  if (b.reviewedContentHash !== undefined && b.reviewedContentHash !== null) {
-    if (typeof b.reviewedContentHash !== "string" || !HASH_RE.test(b.reviewedContentHash)) {
-      return { ok: false, code: "YH_ARC_INVALID_HASH" };
-    }
-    reviewedContentHash = b.reviewedContentHash.toLowerCase();
-  }
+  // safe-non-pii güvenli sınıf → yetkili review gerekçesi (reason) ZORUNLU. reviewed_content_hash
+  // CLIENT'tan ALINMAZ; server archive satırından türetir (bkz. route). Client hash gönderse IGNORE.
   if (b.classification === "safe-non-pii") {
-    if (!reviewedContentHash) return { ok: false, code: "YH_ARC_HASH_REQUIRED" };
     if (!reason) return { ok: false, code: "YH_ARC_REASON_REQUIRED" };
   }
 
@@ -69,7 +63,6 @@ export function parseArchiveClassification(body: unknown): ParseArchiveClassific
       archiveId: b.archiveId,
       classification: b.classification,
       ...(reason ? { reason } : {}),
-      ...(reviewedContentHash ? { reviewedContentHash } : {}),
     },
   };
 }

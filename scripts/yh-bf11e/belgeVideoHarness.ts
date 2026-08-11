@@ -148,10 +148,10 @@ async function run(): Promise<void> {
 // ═══ G) KEEP_LIVE / PERSONAL ARCHIVE / OTHER SOURCES UNCHANGED ═══
 {
   add("G-keep-live-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
-  // Personal Archive DEĞİŞMEDİ (ROW_GATED_READY; registry'de unclassified).
-  const arc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives");
-  add("G-personal-archive-unchanged", arc?.classification === "unclassified" && arc?.enabled === true);
-  add("G-archive-cohort-row-gated", activationEntryOf("kisisel_arsiv:archives")?.activationClass === "ROW_GATED_READY");
+  // Personal Archive BF-11E ROW-GATED CONTROLLED'a graduate (safe-non-pii + requiresRowEligibilityGate).
+  const arc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives") as SourceConfig | undefined;
+  add("G-personal-archive-row-gated", arc?.classification === "safe-non-pii" && arc?.requiresRowEligibilityGate === true && arc?.enabled === true);
+  add("G-archive-cohort-controlled", activationEntryOf("kisisel_arsiv:archives")?.activationClass === "ROW_GATED_CONTROLLED");
   // YEBS/client/Numerology durumları.
   add("G-yebs-6-dormant", YH_INDEX_SOURCES.filter((s) => s.sourceKey.startsWith("yebs:")).length === 6 && YH_INDEX_SOURCES.filter((s) => s.sourceKey.startsWith("yebs:")).every((s) => s.enabled === false));
   add("G-numerology-2-dormant", YH_INDEX_SOURCES.filter((s) => s.sourceKey.startsWith("numeroloji:")).length === 2);

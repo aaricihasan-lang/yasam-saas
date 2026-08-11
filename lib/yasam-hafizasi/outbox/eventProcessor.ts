@@ -152,12 +152,15 @@ async function handleUpsert(
       }
       return complete("upsert-ok");
     }
-    // Kaynak yok / indekslenebilir içerik yok / demo / sentetik →
-    // DEFENSIVE DEINDEX + COMPLETE (dead-letter'ı doldurma; index'i tutarlı bırak).
+    // Kaynak yok / indekslenebilir içerik yok / demo / sentetik / BF-11E row-gate ineligible →
+    // DEFENSIVE DEINDEX + COMPLETE (dead-letter'ı doldurma; index'i tutarlı bırak). "row-ineligible"
+    // = classification safe→unsafe/unclassified/missing veya content edit sonrası stale hash →
+    // eski index STALE ise tombstone (var olan güvensiz kaydı bırakmaz).
     case "not-found":
     case "skipped-build":
     case "excluded-demo":
     case "excluded-synthetic":
+    case "row-ineligible":
       return defensiveDeindex(event, config, deps, status);
     // v1 gate column+non-shared garanti eder; shared burada imkânsız → fail-closed.
     case "excluded-shared":

@@ -33,6 +33,7 @@ export const ACTIVATION_CLASSES = [
   "CANONICAL_BACKFILL_CANDIDATE", // Yalnız güvenli canonical/global veri; ayrı onay + preflight ile backfill.
   "WAIT_FOR_CLEAN_RESET", // Mevcut production kayıtları test-verisi riski taşır; aktivasyon şimdilik YOK.
   "ROW_GATED_READY", // Kaynak aktif olabilir ama YALNIZ safe row eligibility geçen kayıtlar indexlenir.
+  "ROW_GATED_CONTROLLED", // Row-gated + CONTROLLED: DB is_active ZORUNLU (default OFF) + zorunlu row-gate.
   "DEFERRED_HARD_BLOCKER", // Güvenli ownership/PII ilişkisi kurulamaz; aktive EDİLMEZ.
 ] as const;
 
@@ -57,6 +58,9 @@ export interface ActivationClassPolicy {
 export const ACTIVATION_CLASS_POLICY: Readonly<Record<ActivationClass, ActivationClassPolicy>> = {
   KEEP_LIVE: { requiresRuntimeActivation: false, backfillEligible: false, neverActivatable: false },
   ROW_GATED_READY: { requiresRuntimeActivation: false, backfillEligible: false, neverActivatable: false },
+  // ROW_GATED_CONTROLLED: grandfathered DEĞİL → DB is_active ZORUNLU (default OFF; CODE≠ACTIVATED).
+  // Backfill YASAK (blind bulk = PII yüzeyi); yalnız CDC future-event + zorunlu row-gate ile indexler.
+  ROW_GATED_CONTROLLED: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },
   FUTURE_ONLY_READY: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },
   CANONICAL_BACKFILL_CANDIDATE: { requiresRuntimeActivation: true, backfillEligible: true, neverActivatable: false },
   WAIT_FOR_CLEAN_RESET: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },

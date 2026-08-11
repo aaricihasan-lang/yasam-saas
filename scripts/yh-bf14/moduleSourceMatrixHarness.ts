@@ -147,8 +147,8 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // belge_video ÜRÜN KARARIYLA NON_MEMORY_SOURCE'a taşındı (retirement); kaynak taşımaz.
   add("belge-not-memory-source", entry("belge_video")?.classification === "NOT_MEMORY_SOURCE" && (entry("belge_video")?.professionalSourceKeys.length ?? 1) === 0 && (entry("belge_video")?.clientSourceKeys.length ?? 1) === 0);
 
-  // Kişisel Arşiv: DEFERRED.
-  add("kisisel-arsiv-deferred", entry("kisisel_arsiv")?.classification === "DEFERRED_FOR_SAFETY");
+  // Kişisel Arşiv: BF-11E ROW-GATED CONTROLLED → FOUNDATION_READY (foundation WIRED; aktivasyon ayrı kapı).
+  add("kisisel-arsiv-foundation-ready", entry("kisisel_arsiv")?.classification === "FOUNDATION_READY" && ((entry("kisisel_arsiv")?.professionalSourceKeys as readonly string[] | undefined)?.includes("kisisel_arsiv:archives") ?? false));
 }
 
 // ── 5) DORMANT_READY tutarlılığı: en az bir gerçek kaynak referansı ──

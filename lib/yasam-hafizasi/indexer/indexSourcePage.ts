@@ -40,6 +40,10 @@ import type { ParentTenantLookup } from "./tenantResolve";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
 import {
+  decideArchiveEligibility,
+  type ArchiveEligibilityPort,
+} from "./archiveEligibility";
+import {
   isValidatedTenantScope,
   supportsTenantScopedPage,
   type ValidatedTenantScope,
@@ -62,7 +66,8 @@ export type ExactWriteStatus =
   | "excluded-synthetic" // sentetik (ADMIN_LIBRARY) tenant
   | "excluded-shared" // tenant_id NULL (shared) → exact pilotta reddedilir
   | "source-id-mismatch" // üretilen unit.sourceId ≠ exactSourceId
-  | "tenant-mismatch"; // üretilen unit.tenantId ≠ expectedTenantId
+  | "tenant-mismatch" // üretilen unit.tenantId ≠ expectedTenantId
+  | "row-ineligible"; // BF-11E row-gate: safe-non-pii + current-hash geçmeyen kayıt (tombstone yolu)
 
 /**
  * BF-0 son savunma hatası (INV-PII): route dışından doğrudan çağrılıp `safe-non-pii`
@@ -102,6 +107,19 @@ export class SourceTenantScopeUnsupportedError extends Error {
 }
 
 /**
+ * BF-11E ROW-GATE FAIL-CLOSED: `requiresRowEligibilityGate` kaynak için eligibility portu
+ * ENJEKTE EDİLMEMİŞSE (yanlış-wiring), yazma öncesi fırlatılır. Bilinen "ineligible" DEĞİLDİR
+ * (iyi veriyi tombstone ETMEZ); worker bunu GEÇİCİ hata olarak ele alır (yazma/silme YOK).
+ * Production worker + admin route DAİMA portu enjekte eder.
+ */
+export class ArchiveEligibilityGateMissingError extends Error {
+  constructor() {
+    super("archive-eligibility-gate-missing");
+    this.name = "ArchiveEligibilityGateMissingError";
+  }
+}
+
+/**
  * Girdi. `config` statik allowlist'ten (`YH_INDEX_SOURCES`) gelmelidir; mevcut
  * `sources.ts` sourceKey→config registry export etmediğinden ve o dosya korunan
  * olduğundan, config caller tarafından statik olarak verilir (registry uydurulmaz).
@@ -129,6 +147,13 @@ export interface IndexSourcePageInput {
    * (çağıran/validate katmanı garanti eder).
    */
   readonly validatedTenantScope?: ValidatedTenantScope;
+  /**
+   * BF-11E ROW-GATE (Kişisel Arşiv): `config.requiresRowEligibilityGate === true` kaynaklarda
+   * ZORUNLU. exact-record yazma öncesi built unit'in server-türetimli contentHash'i ile ayrı
+   * classification tablosundaki (safe-non-pii + reviewed_content_hash) karşılaştırılır. Enjekte
+   * EDİLMEZSE ilgili kaynakta yazma fail-closed durur (ArchiveEligibilityGateMissingError).
+   */
+  readonly archiveEligibility?: ArchiveEligibilityPort;
 }
 
 /** Sonuç — yalnız güvenli sayılar/özet; ham unit veya demo içeriği taşımaz. */
@@ -407,6 +432,27 @@ async function runExactRecord(
   if (unit.sourceId !== exactSourceId) return reject("source-id-mismatch", fetched, summary, 0, 0);
   if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
     return reject("tenant-mismatch", fetched, summary, 0, 0);
+  }
+
+  // BF-11E ROW-GATE (Kişisel Arşiv; requiresRowEligibilityGate): source-level guard'ları geçen
+  // kayıt YALNIZ ayrı classification tablosunda safe-non-pii + server-türetimli current content
+  // hash (unit.contentHash) eşleşiyorsa yazılır. Bu chokepoint TÜM exact yolları (event + reconcile
+  // apply, aynı worker) kapsar; bypass yolu YOKTUR.
+  //   - port yok (yanlış-wiring)         → THROW (fail-closed transient; yazma/silme YOK)
+  //   - port GERÇEK DB hatası            → THROW (transient; iyi veri tombstone EDİLMEZ)
+  //   - lookup missing / unsafe / stale  → "row-ineligible" → defensiveDeindex (stale tombstone)
+  if (config.requiresRowEligibilityGate === true) {
+    if (input.archiveEligibility === undefined) {
+      throw new ArchiveEligibilityGateMissingError();
+    }
+    // unit.tenantId burada expectedTenantId ile birebir (üstteki guard); unit.sourceId === exactSourceId.
+    const lookup = await input.archiveEligibility({
+      tenantId: unit.tenantId,
+      archiveId: unit.sourceId,
+    });
+    if (!decideArchiveEligibility(lookup, unit.contentHash)) {
+      return reject("row-ineligible", fetched, summary, 0, 0);
+    }
   }
 
   // Tüm exact guard'lar PASS → tam 1 eligible unit. Yalnız write modunda writer çağrılır.

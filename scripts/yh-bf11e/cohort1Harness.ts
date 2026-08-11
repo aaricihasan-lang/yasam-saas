@@ -130,14 +130,15 @@ async function run(): Promise<void> {
   add("D-matrix-validate", ok, detail);
   // Her kaynak bir kohort dispozisyonu alır (fail-closed default yok).
   add("D-every-entry-cohort", YH_ACTIVATION_MATRIX.every((e) => assessCohort(e).cohort.length > 0));
-  // KEEP_LIVE 16 (grandfathered) + ROW_GATED_READY archive COHORT_1_BLOCKED.
+  // KEEP_LIVE 16 (grandfathered). BF-11E: archive artık COHORT_1_READY (kod-ready; gap yok).
   add("D-keep-live-16", sourceKeysByCohort("KEEP_LIVE").length === 16);
-  add("D-archive-cohort1-blocked", sourceKeysByCohort("COHORT_1_BLOCKED").includes("kisisel_arsiv:archives"));
-  // belge_video:passages ÜRÜN KARARIYLA emekliye ayrıldı → COHORT_1_BLOCKED'da DEĞİL (source değil).
+  add("D-archive-cohort1-ready", sourceKeysByCohort("COHORT_1_READY").includes("kisisel_arsiv:archives"));
+  // COHORT_1_BLOCKED artık BOŞ (archive graduate; belge retired → source değil).
+  add("D-cohort1-blocked-empty", sourceKeysByCohort("COHORT_1_BLOCKED").length === 0);
   add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
-  // Cohort-1 adayı yalnız kisisel_arsiv:archives (belge retirement sonrası); GAP taşır.
-  const cohort1 = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_BLOCKED");
-  add("D-cohort1-all-have-gap", cohort1.length === 1 && cohort1.every((e) => assessCohort(e).readyGap.length > 20), cohort1.map((e) => e.sourceKey).join(","));
+  // COHORT_1_READY adayı yalnız kisisel_arsiv:archives; kod önkoşulu çözüldü → readyGap BOŞ.
+  const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
+  add("D-cohort1-ready-one-no-gap", cohort1Ready.length === 1 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);

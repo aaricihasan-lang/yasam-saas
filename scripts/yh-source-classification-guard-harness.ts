@@ -20,8 +20,10 @@ import {
 import {
   indexSourcePage,
   SourceNotIndexableError,
+  BroadWriteDisabledError,
   type IndexSourcePageResult,
 } from "../lib/yasam-hafizasi/indexer/indexSourcePage";
+import { supportsTenantScopedPage } from "../lib/yasam-hafizasi/indexer/tenantScopeGate";
 import type {
   IndexDbClient,
   DbSelectBuilder,
@@ -123,13 +125,13 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 23 (15 + 2 numeroloji + 6 yebs; belge retired)", count("safe-non-pii") === 23);
+    check("12 safe-non-pii sayısı 24 (15 + 2 numeroloji + 6 yebs + kisisel_arsiv row-gated; belge retired)", count("safe-non-pii") === 24);
     check("13 pii sayısı 1", count("pii") === 1);
-    check("14 unclassified sayısı 1", count("unclassified") === 1);
+    check("14 unclassified sayısı 0 (kisisel_arsiv ROW-GATED CONTROLLED'a graduate)", count("unclassified") === 0);
     check("15 deferred sayısı 0", count("deferred") === 0);
     const cls = (key: string) => YH_INDEX_SOURCES.find((s) => s.sourceKey === key)?.classification;
     check("16 refleksoloji:notes = pii", cls("refleksoloji:notes") === "pii");
-    check("17 kisisel_arsiv:archives = unclassified", cls("kisisel_arsiv:archives") === "unclassified");
+    check("17 kisisel_arsiv:archives = safe-non-pii (row-gated; requiresRowEligibilityGate)", cls("kisisel_arsiv:archives") === "safe-non-pii");
     check("18 refleksoloji:protocols = safe-non-pii", cls("refleksoloji:protocols") === "safe-non-pii");
     check("19 aromaterapi:blends = safe-non-pii", cls("aromaterapi:blends") === "safe-non-pii");
     const oils = resolveYhSourceConfig("aromaterapi:oils");
@@ -147,11 +149,13 @@ async function main(): Promise<void> {
     const piiWrite = validateAdminIndexRequest({ sourceKey: "refleksoloji:notes", mode: "write" });
     check("23 pii write → source-not-indexable (403)", !piiWrite.ok && piiWrite.code === "source-not-indexable" && piiWrite.status === 403);
 
-    const uncDry = validateAdminIndexRequest({ sourceKey: "kisisel_arsiv:archives", mode: "dry-run" });
-    check("24 unclassified dry-run → source-not-indexable (403)", !uncDry.ok && uncDry.code === "source-not-indexable");
+    // BF-11E: kisisel_arsiv:archives artık ROW-GATED CONTROLLED (safe-non-pii) → source-level guard
+    // GEÇER (satır güvenliği row-gate'te). Ama kör tenant-scoped backfill FAIL-CLOSED.
+    const arcDry = validateAdminIndexRequest({ sourceKey: "kisisel_arsiv:archives", mode: "dry-run" });
+    check("24 archive row-gated dry-run → source-level ok (row-gate downstream)", arcDry.ok === true);
 
-    const uncWrite = validateAdminIndexRequest({ sourceKey: "kisisel_arsiv:archives", mode: "write" });
-    check("25 unclassified write → source-not-indexable (403)", !uncWrite.ok && uncWrite.code === "source-not-indexable");
+    const arcCfg = resolveYhSourceConfig("kisisel_arsiv:archives")!;
+    check("25 archive kör tenant-scoped backfill FAIL-CLOSED (supportsTenantScopedPage=false)", supportsTenantScopedPage(arcCfg) === false);
 
     const safe = validateAdminIndexRequest({ sourceKey: "aromaterapi:oils", mode: "dry-run" });
     check("26 safe source dry-run → ok", safe.ok === true);
@@ -174,15 +178,16 @@ async function main(): Promise<void> {
     check("27 indexSourcePage pii → SourceNotIndexableError", threwPii);
     check("28 pii non-indexable'da reader/writer çağrılmaz (db.from=0)", m1.fromCalls.length === 0);
 
-    // unclassified → throw
+    // BF-11E row-gated archive: source-level guard geçer ama kör (scope'suz) broad WRITE FAIL-CLOSED
+    // → BroadWriteDisabledError (writer'a ulaşılmaz). Kör bulk indexleme yolu kapalı.
     const m2 = makeMockDb();
-    let threwUnc = false;
+    let threwArcBroad = false;
     try {
       await indexSourcePage({ config: archives, mode: "write", db: m2.db });
     } catch (e) {
-      threwUnc = e instanceof SourceNotIndexableError;
+      threwArcBroad = e instanceof BroadWriteDisabledError;
     }
-    check("29 indexSourcePage unclassified → throw + writer çağrılmaz", threwUnc && m2.fromCalls.length === 0);
+    check("29 indexSourcePage archive broad write → broad-write-disabled + writer çağrılmaz", threwArcBroad && m2.fromCalls.length === 0);
 
     // disabled safe → throw (classification safe olsa da enabled=false)
     const m3 = makeMockDb();
@@ -256,7 +261,7 @@ async function main(): Promise<void> {
   console.log("S2.19-BF/BF-0 source classification guard harness — saf/mock; gerçek API/DB YOK.");
   console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
   console.log("- guard: yalnız safe-non-pii+enabled kabul; pii/unclassified/deferred/disabled fail-closed");
-  console.log("- registry 26 kaynak (24 safe / 1 pii / 1 unclassified / 0 deferred; +2 numeroloji +6 yebs +1 belge_video DORMANT); her kaynak classification taşır");
+  console.log("- registry 25 kaynak (24 safe / 1 pii / 0 unclassified / 0 deferred; kisisel_arsiv ROW-GATED CONTROLLED; +2 numeroloji +6 yebs DORMANT; belge_video retired); her kaynak classification taşır");
   console.log("- validate + indexSourcePage son savunma: pii/unclassified/disabled reddedilir, reader/writer'a ulaşılmaz");
   console.log("- demo guard regresyonu korunur; classification HTTP yanıtına sızmaz");
   if (failed > 0) process.exitCode = 1;

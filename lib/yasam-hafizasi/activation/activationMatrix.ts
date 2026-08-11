@@ -142,12 +142,12 @@ export const YH_ACTIVATION_MATRIX = [
   keepLive("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
   keepLive("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
 
-  // ── E) KİŞİSEL ARŞİV (ROW_GATED_READY) — enabled:true ama unclassified → fail-closed ──
+  // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {
     sourceKey: "kisisel_arsiv:archives",
     module: "Kişisel Arşiv",
     scope: "professional",
-    activationClass: "ROW_GATED_READY",
+    activationClass: "ROW_GATED_CONTROLLED",
     sourceTable: "personal_archives",
     tenantMode: "column",
     rowGate: "row-classification-hash",
@@ -155,14 +155,15 @@ export const YH_ACTIVATION_MATRIX = [
     currentDataRisk: "pii-freeform",
     futureEventEligible: true,
     backfillEligibility: "blocked-pii",
-    triggerFeasibleNow: false,
+    // Row-gate runtime'a bağlı + column-tenant + record → CDC trigger + worker exact-write teknik fizibl.
+    triggerFeasibleNow: true,
     activationPrerequisite:
-      "Row-level classification gate'inin indexer'a bağlanması (safe-non-pii + current reviewed hash). Production yh_archive_classifications şu an 0 satır → mevcut kayıtlar OTOMATİK SAFE DEĞİL.",
+      "AYRI production kapısı: (1) migration apply (composite UNIQUE(tenant_id,id) + classification FK + archive & classification CDC trigger), (2) yh_source_activation_set('kisisel_arsiv:archives', true) — CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Row-gate indexer'a WIRED; kör backfill YASAK; mevcut kayıtlar OTOMATİK SAFE DEĞİL (yalnız yetkili review + hash eşleşmesi).",
     activationCohort: "row-gated-archive",
     rollbackBehavior:
-      "Mevcut kaynak (enabled:true) fail-closed KORUNUR: classification=unclassified → index no-op. Rollback = classification satırlarını safe-non-pii yapmayı durdurmak; index satırları korunur.",
+      "yh_source_deactivate('kisisel_arsiv:archives') (kill-switch) → yeni olay işlenmez; existing index KORUNUR. Trigger drop güvenli. Row classification safe→unsafe/edit → sonraki event tombstone.",
     recommendation:
-      "ROW_GATED_READY: Kaynak canlı ama YALNIZ safe-non-pii + current-hash geçen satır indexlenebilir. Mevcut unclassified kayıtlar (0 classification satırı) index ÜRETMEZ; kör backfill YASAK.",
+      "ROW_GATED_CONTROLLED: kaynak kod-enabled + row-gate WIRED ama production'da DB is_active=true olmadan NO-OP. YALNIZ safe-non-pii + server-türetimli current-hash geçen satır indexlenir; kör tenant backfill FAIL-CLOSED. Aktivasyon ayrı onay.",
   },
 
   // ── D) NUMEROLOJİ PROFESSIONAL (WAIT_FOR_CLEAN_RESET) — tenant test-data riski ──
@@ -383,6 +384,7 @@ export function resolveProcessingActive(
 export type CohortDisposition =
   | "KEEP_LIVE" // grandfathered CANLI; kohort kavramı dışı (davranış değişmez)
   | "COHORT_1_BLOCKED" // Cohort-1 adayı; aktivasyon için exact kod önkoşulu var
+  | "COHORT_1_READY" // kod önkoşulları ÇÖZÜLDÜ (row-gate WIRED); yalnız production trigger apply + activation kaldı
   | "WAIT_FOR_CLEAN_RESET" // mevcut production verisi test-data riski → temiz reset öncesi aktive edilmez
   | "COHORT_2" // canonical/client; ayrı worker/CDC genişletmesi gerektiren sonraki faz
   | "DEFERRED_HARD_BLOCKER"; // güvenli ownership yok (matriste registry kaydı da yok)
@@ -411,6 +413,11 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
           "row-level classification gate (isArchiveRowIndexable) runtime indexer'a bağlı DEĞİL + " +
           "personal_archives mevcut PII verisi → source-level safe-non-pii + row-gate wiring önkoşulu.",
       };
+    case "ROW_GATED_CONTROLLED":
+      // Kod önkoşulları çözüldü: row-gate runExactRecord'a WIRED (requiresRowEligibilityGate),
+      // server-türetimli hash (unit.contentHash), backfill-deny, classification/archive CDC.
+      // Kalan yalnız AYRI production kapıları: migration apply + trigger + is_active flip.
+      return { cohort: "COHORT_1_READY", readyGap: "" };
     case "CANONICAL_BACKFILL_CANDIDATE":
       return {
         cohort: "COHORT_2",
