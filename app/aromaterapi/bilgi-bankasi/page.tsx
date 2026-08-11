@@ -103,14 +103,14 @@ function GenelBilgiRenderer({ rows }: { rows: ReferenceRow[] }) {
           );
         }
 
-        // LEVEL 3 — alt-konu satırı (etiket + açıklama; KART DEĞİL, nefesli satır).
+        // LEVEL 3 — alt-konu kaydı: hafif bilgi bloğu (kendi yüzeyi; ağır kart DEĞİL).
         return (
           <div
             key={row.id}
-            className="grid grid-cols-1 gap-x-8 gap-y-1 border-b border-slate-100/70 py-3.5 last:border-0 sm:grid-cols-[minmax(150px,240px)_1fr]"
+            className="mb-3 grid grid-cols-1 gap-x-6 gap-y-1.5 rounded-xl border border-slate-200/70 bg-slate-50/70 px-4 py-3.5 last:mb-0 sm:grid-cols-[minmax(160px,220px)_1fr] sm:px-5"
           >
             <dt className="text-[13px] font-black text-slate-800">{col0}</dt>
-            <dd className="max-w-[68ch] text-[14px] leading-[1.75] text-slate-600">{col1}</dd>
+            <dd className="max-w-[68ch] text-[14px] leading-[1.75] text-slate-700">{col1}</dd>
           </div>
         );
       })}
