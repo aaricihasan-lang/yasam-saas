@@ -244,12 +244,15 @@ async function main(): Promise<void> {
     check(upserts.length === 0, "P9: upsert yok");
   }
 
-  // 2.10 join kaynak → tenant-model-unsupported.
+  // 2.10 join kaynak (BF-11E Belge/Video): ARTIK DESTEKLENİR (tenant parent üzerinden resolve).
+  //   Bu satırda FK (guide_id) yok → resolveTenant fail-closed → skipped-build (write yok).
+  //   (Global-canonical/shared hâlâ tenant-model-unsupported; bkz P9.)
   {
     const joinCfg = { ...cfg, tenant: { mode: "join" as const, fkColumn: "guide_id", parentTable: "p", parentTenantColumn: "tenant_id" } };
-    const { db } = makeFake([row(EXACT_ID, REAL_TENANT)]);
+    const { db, upserts } = makeFake([row(EXACT_ID, REAL_TENANT)]);
     const r = await indexSourcePage({ config: joinCfg, mode: "write", exactSourceId: EXACT_ID, expectedTenantId: REAL_TENANT, db });
-    check(r.exactStatus === "tenant-model-unsupported", "P10: join kaynak → tenant-model-unsupported");
+    check(r.exactStatus === "skipped-build", "P10: join kaynak FK yok → skipped-build (fail-closed; artık desteklenir)");
+    check(upserts.length === 0, "P10: upsert yok");
   }
 
   // ══════════════════════════════════════════════════════════════════════════

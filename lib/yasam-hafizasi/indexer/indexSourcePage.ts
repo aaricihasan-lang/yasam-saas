@@ -35,6 +35,8 @@ import {
 import type { ParentPreloadStats, RunSourceResult } from "./runSource";
 import { runSource, TenantFilterMismatchError } from "./runSource";
 import { runIndexUnit, summarizeRunResults, type RunSummary } from "./runIndexUnit";
+import { makeParentTenantLookup } from "./parentTenantLookup";
+import type { ParentTenantLookup } from "./tenantResolve";
 import type { SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
 import {
@@ -356,8 +358,9 @@ async function runExactRecord(
     exactStatus: status,
   });
 
-  // Exact pilot YALNIZ column-mode + non-shared kaynak (join/shared fail-closed).
-  if (config.tenant.mode !== "column" || config.tenant.allowSharedNull === true) {
+  // Exact write: column-mode VEYA join-mode (non-shared). global-canonical + shared fail-closed.
+  // BF-11E Belge/Video: join+row kaynak desteği (parent üzerinden server-side tenant resolve).
+  if (config.tenant.mode === "global-canonical" || config.tenant.allowSharedNull === true) {
     return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
   }
 
@@ -373,8 +376,24 @@ async function runExactRecord(
   if (fetched === 0) return reject("not-found", 0, ZERO_SUMMARY, 0, 0);
   if (fetched > 1) return reject("multiple-rows", fetched, ZERO_SUMMARY, 0, 0);
 
-  // Tek satır → saf çekirdek (S2.08). Column mode: parentLookup gerekmez.
-  const runRes = runIndexUnit({ config, row: page.rows[0] });
+  // Join-mode: parent (yh_document_sources) üzerinden tenant sahipliğini SERVER-SIDE çöz
+  //   (composite ownership; body/input tenant'a güvenilmez). Column-mode: parentLookup gerekmez.
+  //   FK eksik/parent yok → resolveTenant fail-closed → skipped-build → defensiveDeindex (stale temizlenir).
+  let parentLookup: ParentTenantLookup | undefined;
+  if (config.tenant.mode === "join") {
+    const fkRaw = page.rows[0][config.tenant.fkColumn];
+    const parentIds = typeof fkRaw === "string" && fkRaw.length > 0 ? [fkRaw] : [];
+    const parentReader = createSupabaseParentTenantReader(db);
+    const map = await parentReader.readParentTenants({
+      parentTable: config.tenant.parentTable,
+      parentTenantColumn: config.tenant.parentTenantColumn,
+      parentIds,
+    });
+    parentLookup = makeParentTenantLookup(map);
+  }
+
+  // Tek satır → saf çekirdek (S2.08). Row-unit + join tenant (varsa) burada değerlendirilir.
+  const runRes = runIndexUnit({ config, row: page.rows[0], parentLookup });
   const summary = summarizeRunResults([runRes]);
   if (runRes.status !== "unit") {
     return reject("skipped-build", fetched, summary, 0, 0);

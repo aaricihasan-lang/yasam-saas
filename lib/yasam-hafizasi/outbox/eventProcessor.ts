@@ -98,12 +98,17 @@ export async function processOutboxEvent(
       return complete("inactive-source-noop");
     }
   }
-  // Kapı 5: tenant modeli column mı?
-  if (config.tenant.mode !== "column") return permanent("tenant-model-unsupported");
-  // Kapı 6: shared davranışı kapalı mı?
+  // Kapı 5: tenant modeli column VEYA join mı? (BF-11E Belge/Video join+row desteği;
+  //   global-canonical HENÜZ desteklenmez → fail-closed).
+  if (config.tenant.mode !== "column" && config.tenant.mode !== "join") {
+    return permanent("tenant-model-unsupported");
+  }
+  // Kapı 6: shared (allowSharedNull) davranışı kapalı mı? (shared kaynak fail-closed)
   if (config.tenant.allowSharedNull === true) return permanent("shared-source-unsupported");
-  // Kapı 7: unit record mı?
-  if (config.unit !== "record") return permanent("non-record-unit-unsupported");
+  // Kapı 7: unit record VEYA row mı? (section HENÜZ desteklenmez → fail-closed)
+  if (config.unit !== "record" && config.unit !== "row") {
+    return permanent("non-record-unit-unsupported");
+  }
   // Kapı 8: tenant_id + source_id geçerli UUID mi?
   if (!isUuid(event.tenantId) || !isUuid(event.sourceId)) {
     return permanent("invalid-event-contract");

@@ -215,7 +215,8 @@ async function main() {
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "sifa_rehberi:guide-sections", sourceTable: GUIDE_SECTIONS.tableName }), upsertDeps());
-    check("B", "20 join tenant model → permanent (tenant-model-unsupported)", d.action === "fail" && d.code === "tenant-model-unsupported");
+    // BF-11E: join tenant ARTIK desteklenir; guide-sections unit "section" olduğu için Kapı 7 reddeder.
+    check("B", "20 join+section unit → permanent (non-record-unit-unsupported)", d.action === "fail" && d.code === "non-record-unit-unsupported");
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "dogaltas:knowledge", sourceTable: KNOWLEDGE.tableName }), upsertDeps());

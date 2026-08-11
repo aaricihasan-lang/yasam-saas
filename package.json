@@ -21,7 +21,8 @@
     "yh:bf14:closure:harness": "tsx scripts/yh-bf14/deferredClosureHarness.ts",
     "yh:bf11e:harness": "tsx scripts/yh-bf11e/activationHarness.ts",
     "yh:bf11e:preflight": "tsx scripts/yh-bf11e/preflight.ts",
-    "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts"
+    "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts",
+    "yh:bf11e:belge:harness": "tsx scripts/yh-bf11e/belgeVideoHarness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
