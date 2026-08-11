@@ -60,7 +60,7 @@ function classifyRow(row: ReferenceRow): RowKind {
 function GenelBilgiRenderer({ rows }: { rows: ReferenceRow[] }) {
   const sorted = [...rows].sort((a, b) => a.row_index - b.row_index);
   return (
-    <div className="space-y-0">
+    <div>
       {sorted.map((row) => {
         const kind = classifyRow(row);
         if (kind === "skip") return null;
@@ -69,42 +69,48 @@ function GenelBilgiRenderer({ rows }: { rows: ReferenceRow[] }) {
         const col1 = (row.cells["1"] ?? "").trim();
         const text = (col1 || col0).trim();
 
+        // LEVEL 1 — büyük harf ana başlık: belirgin section bandı (yeni ana konu).
         if (kind === "major") {
           return (
-            <div key={row.id} className="mb-2 mt-8 first:mt-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-50 to-rose-50/60 px-4 py-1.5 shadow-sm">
-                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-800">
-                  {text}
-                </span>
-              </div>
+            <div
+              key={row.id}
+              className="mt-12 mb-4 flex items-center gap-3 rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-50/80 to-rose-50/40 px-4 py-3 first:mt-0"
+            >
+              <span aria-hidden className="h-5 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-amber-400 to-rose-400" />
+              <h3 className="text-[15px] font-black uppercase tracking-[0.06em] text-amber-900">{text}</h3>
             </div>
           );
         }
 
+        // LEVEL 2 — ana bölüm başlığı: güçlü section başlangıcı (accent + alt kural).
         if (kind === "section") {
           return (
-            <div key={row.id} className="mb-3 mt-6 border-l-2 border-amber-300/70 pl-3.5 first:mt-0">
-              <p className="text-[14px] font-black tracking-tight text-slate-900">{text}</p>
+            <div key={row.id} className="mt-9 mb-3 border-b border-amber-100/80 pb-2 first:mt-0">
+              <h4 className="flex items-center gap-2.5 text-[16px] font-black tracking-tight text-slate-900">
+                <span aria-hidden className="h-4 w-1 shrink-0 rounded-full bg-amber-400" />
+                {text}
+              </h4>
             </div>
           );
         }
 
+        // Serbest paragraf — okunur ölçüde satır uzunluğu.
         if (kind === "paragraph") {
           return (
-            <p key={row.id} className="mb-2.5 text-[13px] leading-[1.75] text-slate-700">
+            <p key={row.id} className="mb-3 max-w-[72ch] text-[14px] leading-[1.75] text-slate-700">
               {text}
             </p>
           );
         }
 
-        // definition
+        // LEVEL 3 — alt-konu satırı (etiket + açıklama; KART DEĞİL, nefesli satır).
         return (
           <div
             key={row.id}
-            className="grid grid-cols-1 gap-x-6 gap-y-1 border-b border-slate-100/60 py-3 last:border-0 sm:grid-cols-[minmax(140px,220px)_1fr]"
+            className="grid grid-cols-1 gap-x-8 gap-y-1 border-b border-slate-100/70 py-3.5 last:border-0 sm:grid-cols-[minmax(150px,240px)_1fr]"
           >
-            <dt className="text-[12px] font-black text-amber-800">{col0}</dt>
-            <dd className="text-[13px] leading-[1.75] text-slate-700">{col1}</dd>
+            <dt className="text-[13px] font-black text-slate-800">{col0}</dt>
+            <dd className="max-w-[68ch] text-[14px] leading-[1.75] text-slate-600">{col1}</dd>
           </div>
         );
       })}
@@ -151,7 +157,7 @@ function EldeEtmeRenderer({ rows }: { rows: ReferenceRow[] }) {
               {cols.map((c) => (
                 <td
                   key={c}
-                  className="border-b border-slate-100/60 px-4 py-2.5 align-top text-[13px] text-slate-700"
+                  className="border-b border-slate-100/60 px-4 py-3 align-top text-[14px] text-slate-700"
                 >
                   {row.cells[String(c)] ?? ""}
                 </td>
@@ -174,9 +180,9 @@ function DefaultRenderer({ rows }: { rows: ReferenceRow[] }) {
     Object.values(row.cells as Record<string, string>).filter((v) => v.trim().length > 0)
   );
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {allValues.map((v, i) => (
-        <p key={i} className="text-[13px] leading-[1.75] text-slate-600">
+        <p key={i} className="max-w-[72ch] text-[14px] leading-[1.75] text-slate-600">
           {v}
         </p>
       ))}
@@ -348,7 +354,7 @@ export default function BilgiBankasiPage() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50/60 text-lg leading-none shadow-sm">
                     {TAB_ICONS[activeSheet.sheet_name] ?? "📄"}
                   </span>
-                  <h2 className="text-[16px] font-black tracking-tight text-slate-950">
+                  <h2 className="text-[18px] font-black tracking-tight text-slate-950">
                     {activeSheet.display_title}
                   </h2>
                 </div>
