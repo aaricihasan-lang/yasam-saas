@@ -7,7 +7,8 @@
  */
 
 // Liste görünümünde çekilen hafif projeksiyon (OilListRow ile birebir).
-// origin_type → uzman UI'da "🎁 Adminden Gelen Bilgi" rozeti için (provenance).
+// origin_type yalnız teknik/audit provenance içindir; uzman UI'sında GÖRSEL
+// ETİKET GÖSTERİLMEZ (ürün kararı 2026-08-11). Alan geriye uyumluluk için döner.
 export const OIL_LIST_SELECT =
   "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
   "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +

@@ -1,20 +1,25 @@
 import type { CSSProperties } from "react";
 
 /**
- * FAZ 1 / P4 — Merkezî provenance rozeti.
+ * FAZ 1 / P4 — Merkezî provenance rozeti (ARTIK GÖRSEL ETİKET RENDER ETMEZ).
  *
- * Admin kütüphanesinden uzmana BAĞIMSIZ KOPYA olarak gönderilen kayıtlar için
- * "Adminden gelen bilgi / Kaynak: Admin Kütüphanesi" etiketi. Yalnız köken
- * bilgisidir: kaydı KİLİTLEMEZ, düzenleme/silme ENGELLEMEZ, admin sahipliği
- * OLUŞTURMAZ, canlı senkron ANLAMINA GELMEZ. Admin UUID/e-posta GÖSTERMEZ.
+ * ÜRÜN KARARI (2026-08-11): Admin → uzman transfer edilen kayıtlar uzman
+ * tarafında HİÇBİR görsel/tekst provenance etiketi göstermez. Bu bileşen tüm
+ * çağrı yerlerinde artık `null` render eder — hedef kayıt uzmanın kendi bağımsız
+ * kaydı gibi görünür.
  *
- * Kullanım: <AdminTransferBadge originType={row.origin_type} />
- * (origin_type !== 'admin_transfer' ise hiçbir şey render etmez.)
+ * DEĞİŞMEYEN: origin_type / origin_label / origin_source_id /
+ * origin_transfer_batch_id / transferred_at alanları DB'de + audit/rollback/teknik
+ * iz sürme için KORUNUR. Transfer snapshot mantığı, edit/delete davranışı ve çağrı
+ * yerleri (props kontratı) DEĞİŞMEZ; yalnız görsel rozet kaldırılmıştır.
+ *
+ * Admin paneli / transfer / audit ekranları bu karardan ETKİLENMEZ (bunlar bu
+ * bileşeni kullanmaz; kaynağı teknik olarak görmeye devam eder).
  */
 
 export const ADMIN_TRANSFER_ORIGIN = "admin_transfer";
 
-/** Bir kaydın admin hediyesi (bağımsız kopya) olup olmadığını belirler. */
+/** Bir kaydın admin hediyesi (bağımsız kopya) olup olmadığını belirler (mantık; görsel değil). */
 export function isAdminTransferOrigin(originType: unknown): boolean {
   return originType === ADMIN_TRANSFER_ORIGIN;
 }
@@ -27,30 +32,10 @@ type Props = {
   style?: CSSProperties;
 };
 
-export function AdminTransferBadge({
-  originType,
-  variant = "chip",
-  className,
-  style,
-}: Props) {
-  if (!isAdminTransferOrigin(originType)) return null;
-
-  const base =
-    "inline-flex max-w-full items-center gap-1 truncate rounded-full bg-violet-50 font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-200";
-  const size =
-    variant === "inline"
-      ? "px-2.5 py-1 text-[10px]"
-      : "px-2 py-0.5 text-[9px]";
-
-  return (
-    <span
-      className={`${base} ${size}${className ? ` ${className}` : ""}`}
-      style={style}
-      title="Bu kayıt Admin Kütüphanesi'nden bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-    >
-      🎁 Admin Kütüphanesi
-    </span>
-  );
+// Props kontratı korunur (çağrı yerleri tip-güvenli kalsın); görsel çıktı yoktur.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function AdminTransferBadge(_props: Props) {
+  return null;
 }
 
 export default AdminTransferBadge;

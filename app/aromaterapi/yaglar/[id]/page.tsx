@@ -18,8 +18,6 @@ import {
   oilToFormData,
   parseTagsInput,
   parseImageUrls,
-  isAdminTransferOil,
-  ADMIN_TRANSFER_BADGE,
   OIL_TYPES,
   type AromatherapyOil,
   type OilFormData,
@@ -293,8 +291,6 @@ export default function OilDetailPage() {
   }, [editEnabled, activeTab.fields, draft]);
 
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
-  // Admin'den bağımsız kopya olarak gelen kayıt (provenance rozeti için).
-  const isAdminTransfer = !!oil && isAdminTransferOil(oil);
   const { isDemo } = useDemoGuard();
   const isDemoProtectedTab = isDemo && DEMO_PROTECTED_TABS.has(tab);
 
@@ -489,14 +485,6 @@ export default function OilDetailPage() {
                   {oil.is_photosensitive ? (
                     <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">☀️ Fotosensitif</span>
                   ) : null}
-                  {isAdminTransfer ? (
-                    <span
-                      className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700"
-                      title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-                    >
-                      {ADMIN_TRANSFER_BADGE}
-                    </span>
-                  ) : null}
                 </div>
 
                 {hasInfoChips ? (
@@ -554,11 +542,6 @@ export default function OilDetailPage() {
           {editEnabled && (
             <div className="border-t border-amber-100 bg-amber-50/70 px-4 py-1.5 text-[11px] font-semibold text-amber-700">
               ✏️ Düzenleme modundasınız — kaydetmeden çıkmak için Vazgeç&apos;e basın
-            </div>
-          )}
-          {isAdminTransfer && !editEnabled && (
-            <div className="border-t border-violet-100 bg-violet-50/60 px-4 py-1.5 text-[11px] font-medium text-violet-600">
-              🎁 Bu kayıt Admin&apos;den bağımsız kopya olarak eklendi. Size özeldir; düzenleyebilir veya silebilirsiniz.
             </div>
           )}
           {errorMessage ? (
