@@ -126,27 +126,27 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
   {
     domain: "kisisel_arsiv_classification",
     label: "Kişisel Arşiv Sınıflandırma",
-    result: "EXISTING_FAIL_CLOSED",
+    result: "FOUNDATION_READY",
     productDecision:
       "Kişisel Arşiv'i otomatik safe YAPMA. Kayıt-bazlı explicit classification; varsayılan " +
-      "unclassified; stale-content (hash) guard; yalnız yetkili review ile safe-non-pii.",
+      "unclassified; server-türetimli current-hash stale guard; yalnız yetkili review ile safe-non-pii.",
     foundationTables: ["yh_archive_classifications"],
     foundationApis: ["POST /api/yasam-hafizasi/archive-classification"],
-    // Mevcut kaynak; YENİ entry eklenmedi (duplicate yok) → EXISTING_FAIL_CLOSED.
     registrySourceKeys: ["kisisel_arsiv:archives"],
-    allow: ["yetkili review ile safe-non-pii işaretleme (reason + reviewedContentHash zorunlu)"],
-    deny: ["mevcut kayıtları otomatik safe sayma", "backfill", "pii/unclassified index", "stale hash index", "cross-tenant classification", "AI auto-classification", "classification bypass"],
+    allow: ["yetkili review ile safe-non-pii işaretleme (reason zorunlu; reviewed_content_hash SERVER-türetimli)"],
+    deny: ["mevcut kayıtları otomatik safe sayma", "kör backfill", "pii/unclassified/restricted index", "stale hash index", "cross-tenant classification", "AI auto-classification", "client-supplied hash authority", "classification bypass"],
     hardBlockerEvidence: [],
     rationale:
-      "Mevcut kisisel_arsiv:archives kaynağı classification=unclassified → source-guard FAIL-CLOSED " +
-      "(index unit üretmez; harness doğruladı). Additive yh_archive_classifications (standalone; " +
-      "personal_archives tracked olmadığı için app-layer (tenant_id, archive_id); default " +
-      "unclassified; reviewedContentHash stale guard) + classification API. Row-level index " +
-      "eligibility isArchiveRowIndexable ile SAF: yalnız safe-non-pii + hash eşleşmesi. Mevcut " +
-      "kayıtlar update/backfill EDİLMEDİ; live source davranışı fail-closed KORUNDU.",
+      "ROW-GATED CONTROLLED (BF-11E implementation): kisisel_arsiv:archives kaynağı row-gate " +
+      "runtime'a WIRED (requiresRowEligibilityGate; runExactRecord chokepoint) + server-türetimli " +
+      "canonical hash = buildIndexUnit().contentHash (client hash authoritative DEĞİL) + kör " +
+      "tenant-scoped backfill FAIL-CLOSED (supportsTenantScopedPage=false) + controlled activation " +
+      "(ROW_GATED_CONTROLLED; DB is_active ZORUNLU, default OFF) + archive/classification CDC (source " +
+      "identity=archive_id). Additive migration: composite UNIQUE(tenant_id,id) + classification FK + " +
+      "2 CDC trigger. Foundation WIRED → FOUNDATION_READY; gerçek aktivasyon AYRI production kapısı.",
     activationPrerequisite:
-      "row-level classification gate'inin indexer'a bağlanması (safe-non-pii + current hash) — " +
-      "mevcut kisisel_arsiv:archives fail-closed davranışı korunarak.",
+      "AYRI production kapısı: migration apply + yh_source_activation_set('kisisel_arsiv:archives', true). " +
+      "Mevcut kayıtlar OTOMATİK safe DEĞİL (yalnız yetkili review + hash); backfill DEFAULT false.",
   },
 ] as const satisfies readonly ClosureDomain[];
 

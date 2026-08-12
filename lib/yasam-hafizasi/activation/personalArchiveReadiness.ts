@@ -4,27 +4,25 @@
  * =============================================================================
  *
  * `kisisel_arsiv:archives` kaynağının Yaşam Hafızası için controlled-source olarak
- * AKTİVASYONA HAZIR OLUP OLMADIĞININ exact, kod-olarak-yaşayan sonucudur. activationMatrix
- * (ROW_GATED_READY / COHORT_1_BLOCKED) ve deferredSourceClosure (EXISTING_FAIL_CLOSED)
- * dispozisyonlarını TAMAMLAR; onlarla çelişmez.
+ * durumu. NİHAİ SONUÇ: DISPOSITION = "READY" (kod/config graduation TAMAM), PRODUCT_FIT =
+ * "PASS". Dört güvenlik ön-koşulu çözüldü:
+ *   A. row-gated source capability (requiresRowEligibilityGate) → kör backfill FAIL-CLOSED,
+ *   B. row-gate runExactRecord chokepoint'ine WIRED (tek otorite; event + reconcile bypass yok),
+ *   C. server-türetimli canonical hash = buildIndexUnit().contentHash (client hash authoritative DEĞİL),
+ *   D. classification/archive CDC → archive source identity event.
  *
- * NİHAİ SONUÇ: DISPOSITION = "BLOCKED".
- *   PRODUCT_FIT = PASS-in-principle (Belge/Video'nun aksine Kişisel Arşiv KALICI bir
- *   depodur → ilkesel olarak meşru bir source olabilir), fakat GÜVENLİ aktivasyon
- *   dört bağımsız ön-koşulun çözülmesini ister ve bunların toplamı MİNİMAL güvenli
- *   wiring DEĞİL, INV-PII sınırında güvenlik-hassas bir yeniden-mimaridir (§16/§29
- *   gereği: `enabled:true`/source-classification ZORLA çevrilmez → BLOCKED).
+ * PRODUCTION'DA HÂLÂ OFF: ROW_GATED_CONTROLLED (requiresRuntimeActivation=true) → DB is_active
+ * olmadan hiçbir olay indexlemez (CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED ≠ BACKFILL).
  *
- * MERGE-SAFE: Bu dosya SALT BİLDİRİMDİR. Import/merge edilmesi hiçbir kaynağı aktive
- * etmez, hiçbir classification çevirmez, hiçbir trigger kurmaz, hiçbir olay üretmez,
- * production'a dokunmaz. `validatePersonalArchiveReadiness()` yalnız SAF kod
- * invaryantlarını doğrular (DB/IO YOK).
+ * MERGE-SAFE: Bu dosya SALT BİLDİRİMDİR. Import/merge edilmesi hiçbir kaynağı aktive etmez,
+ * hiçbir trigger kurmaz, hiçbir olay üretmez, production'a dokunmaz.
  *
- * NEDEN KOD (yalnız doküman değil): `validate` fonksiyonu, dispozisyon BLOCKED iken
- * kaynağın CANLI kodda fail-closed KALDIĞINI zorlar. Biri ileride ön-koşulları çözmeden
- * source-level classification'ı 'safe-non-pii'ye çevirirse (ki bu `supportsTenantScopedPage`
- * üzerinden ANINDA kör tenant-scoped backfill açar), bu kilit CI/harness'te PATLAR →
- * sessiz PII regresyonu imkânsızlaşır.
+ * NEDEN KOD (CANLI-KOD GÜVENLİK KİLİDİ): `validatePersonalArchiveReadiness()`, READY iken
+ * kaynağın güvenlik-eşleşmesini (safety coupling) CANLI kodda ZORLAR: source-level 'safe-non-pii'
+ * YALNIZ requiresRowEligibilityGate=true + supportsTenantScopedPage=false + ROW_GATED_CONTROLLED
+ * (controlled activation) ile BİRLİKTE bulunabilir. Biri ileride row-gate'i kaldırır ya da
+ * backfill'i açarsa (safe-non-pii'yi gate'siz bırakırsa) bu kilit harness/CI'da PATLAR → sessiz
+ * PII/backfill regresyonu imkânsızlaşır.
  */
 
 import { YH_INDEX_SOURCES, type SourceConfig } from "../indexer/sources";
@@ -32,6 +30,7 @@ import { evaluateSourceGuard } from "../indexer/sourceGuard";
 import { supportsTenantScopedPage } from "../indexer/tenantScopeGate";
 import { isArchiveRowIndexable } from "../archive/archiveClassificationRequest";
 import { activationEntryOf, assessCohort } from "./activationMatrix";
+import { ACTIVATION_CLASS_POLICY, isActivationClass } from "./activationState";
 import { YH_DEFERRED_SOURCE_CLOSURE } from "../deferredSourceClosure";
 
 /** Değerlendirilen tek kaynak. */
@@ -43,30 +42,23 @@ export type ReadinessDisposition = "BLOCKED" | "READY";
 /** Ürün-uygunluğu sonucu (§24). */
 export type ProductFit = "PASS" | "PASS_IN_PRINCIPLE" | "BLOCKED";
 
-/**
- * Aktivasyon için çözülmesi gereken exact ön-koşul. Her biri CANLI koddan kanıtlıdır;
- * hiçbiri "sadece config" değildir. Toplamı §16/§29 anlamında büyük/riskli rewrite'tır.
- */
+/** Çözülen güvenlik ön-koşulu (READY: hepsi satisfied). */
 export interface ReadinessPrecondition {
-  /** Kısa kararlı kimlik. */
   readonly id: string;
-  /** İnsan-okur başlık. */
   readonly title: string;
-  /** Neden minimal wiring DEĞİL — exact kod kanıtı. */
-  readonly evidence: string;
-  /** Bu ön-koşul çözülmeden aktivasyon güvenli mi (daima false; BLOCKED). */
-  readonly satisfied: false;
+  /** Nasıl çözüldüğü (exact kod kanıtı). */
+  readonly resolution: string;
+  /** READY iken true. */
+  readonly satisfied: boolean;
 }
 
 export interface PersonalArchiveReadiness {
   readonly sourceKey: string;
   readonly disposition: ReadinessDisposition;
   readonly productFit: ProductFit;
-  /** Kilitli ürün kararı (kısa). */
   readonly productDecision: string;
-  /** Çözülmesi gereken exact ön-koşullar (hepsi açık). */
   readonly preconditions: readonly ReadinessPrecondition[];
-  /** DISPOSITION=BLOCKED iken CANLI kodda tutulması ZORUNLU fail-closed invaryantlar. */
+  /** DISPOSITION=READY iken CANLI kodda tutulması ZORUNLU güvenlik-eşleşme invaryantları. */
   readonly lockedInvariants: readonly string[];
   /** Bu turda KESİN yapılmayanlar (production/risk kapıları). */
   readonly notDoneThisTurn: readonly string[];
@@ -76,81 +68,71 @@ export interface PersonalArchiveReadiness {
 
 export const PERSONAL_ARCHIVE_READINESS: PersonalArchiveReadiness = {
   sourceKey: PERSONAL_ARCHIVE_SOURCE_KEY,
-  disposition: "BLOCKED",
-  productFit: "PASS_IN_PRINCIPLE",
+  disposition: "READY",
+  productFit: "PASS",
   productDecision:
-    "Kişisel Arşiv'i otomatik safe YAPMA. Belge/Video'nun aksine KALICI kişisel/profesyonel " +
-    "depodur → ilkesel olarak meşru bir Yaşam Hafızası source'u olabilir; ancak veri doğası " +
-    "serbest-form PII'dir ve yalnız kayıt-bazlı explicit review (safe-non-pii + current reviewed " +
-    "hash) ile indexlenebilir. Güvenli row-gate CANLI koda bağlanana kadar source fail-closed KALIR.",
+    "Kişisel Arşiv KALICI kişisel/profesyonel depodur → meşru controlled Yaşam Hafızası source'u. " +
+    "Otomatik safe YAPILMAZ: yalnız yetkili review ile safe-non-pii + server-türetimli current-hash " +
+    "geçen kayıt indexlenir. Güvenlik source-level flip'e DEĞİL, satır-bazlı row-gate'e dayanır; " +
+    "production'da controlled activation (DB is_active) olmadan NO-OP.",
   preconditions: [
     {
-      id: "P1-source-classification-coupling",
-      title: "Source-classification flip = sistem-genel PII regresyonu (yalnız local wiring değil)",
-      evidence:
-        "sourceGuard yalnız source-level classification==='safe-non-pii' geçirir → source'u indexe " +
-        "sokmak için flip ZORUNLU. Ancak supportsTenantScopedPage() (tenantScopeGate.ts) SADECE " +
-        "source-level 'safe-non-pii'ye bakar → flip ANINDA TÜM personal_archives satırlarının kör " +
-        "tenant-scoped backfill'ini açar (row-gate YOK). Flip, backfill kapısıyla AYNI anda yeniden " +
-        "mimarlanmadan yapılamaz.",
-      satisfied: false,
+      id: "A-source-classification-coupling",
+      title: "Source-classification flip artık kör backfill açmıyor",
+      resolution:
+        "requiresRowEligibilityGate=true source capability eklendi; supportsTenantScopedPage bu " +
+        "bayrağı taşıyan kaynağı source-level 'safe-non-pii' olsa DAHİ FAIL-CLOSED reddeder → kör " +
+        "tenant-scoped backfill KAPALI. safe-non-pii ile gate atomik olarak birlikte geldi.",
+      satisfied: true,
     },
     {
-      id: "P2-runtime-row-gate-not-wired",
-      title: "row-classification-hash gate hiçbir write path'ine bağlı değil",
-      evidence:
-        "runExactRecord (worker exact-write) source-guard + demo/synthetic/tenant kapıları uygular " +
-        "ama per-row classification/hash gate YOK. runIndexUnit SAF'tır ve evaluateRowEligibility " +
-        "yalnız satırın KENDİ kolonlarını okur → ayrı yh_archive_classifications tablosunu veya " +
-        "server-hash'i okuyamaz. Gate, 17 canlı kaynağın da aktığı çekirdek IO dosyasına (indexSourcePage) " +
-        "DB-okuyan bir bağımlılık olarak enjekte edilmeyi ister.",
-      satisfied: false,
+      id: "B-runtime-row-gate-wired",
+      title: "row-classification-hash gate runExactRecord'a WIRED (tek otorite)",
+      resolution:
+        "archiveEligibility portu + decideArchiveEligibility runExactRecord chokepoint'ine bağlandı; " +
+        "event + reconcile-apply aynı worker exact yolundan geçer (bypass yok). Port yok/DB hatası → " +
+        "fail-closed transient (iyi veri tombstone EDİLMEZ); missing/unsafe/stale → row-ineligible → tombstone.",
+      satisfied: true,
     },
     {
-      id: "P3-server-hash-contract-absent",
-      title: "Server-türetimli kanonik içerik hash'i YOK; untracked tablo üzerinde güvenle kurulamaz",
-      evidence:
-        "isArchiveRowIndexable bir currentContentHash PARAMETRESİ alır fakat onu personal_archives " +
-        "satırından üreten server tarafı YOK. Classification route CLIENT-supplied hash saklar " +
-        "(reviewed_content_hash). §17/§19 client hash'e güveni yasaklar + server-türetimli kanonik " +
-        "hash ister. Fakat personal_archives'in TRACKED CREATE TABLE'ı YOK (untracked app-layer; API " +
-        "SELECT *) → kanonik kolon kümesi şema-doğrulanamaz (numeroloji-client'ı HARD_BLOCKER yapan " +
-        "aynı koşul). Hash contract'ı sıfırdan icat + canlı production route retrofit ister.",
-      satisfied: false,
+      id: "C-server-hash-contract",
+      title: "Server-türetimli canonical hash uygulandı; client hash authoritative değil",
+      resolution:
+        "reviewed_content_hash artık classification route'ta SERVER tarafından buildIndexUnit().contentHash " +
+        "ile türetilir (index'lenen canonical yüzey: title/note/category/tags). Request'ten client hash " +
+        "KALDIRILDI; gönderilse IGNORE. İçerik değişince hash değişir → sonraki review şart (stale tombstone).",
+      satisfied: true,
     },
     {
-      id: "P4-classification-mutation-cdc-bespoke",
-      title: "Classification-mutation olayı (§14 en kritik) generic CDC ile üretilemez",
-      evidence:
-        "Generic yh_outbox_enqueue() NEW.id/NEW.tenant_id kullanır; yh_archive_classifications'a " +
-        "bağlanırsa source_id=classification-row-id olur, archive_id DEĞİL → archive source kimliğine " +
-        "eşlenemez. archive_id'yi source_id yapan source-özel bir enqueue varyantı gerekir. Ayrıca " +
-        "içerik-değişim invalidasyonu için personal_archives (untracked tablo) üzerinde ikinci bir " +
-        "trigger gerekir.",
-      satisfied: false,
+      id: "D-classification-mutation-cdc",
+      title: "Classification/archive CDC → archive source identity event",
+      resolution:
+        "Migration: personal_archives'a generic yh_cdc_enqueue('kisisel_arsiv:archives','personal_archives') " +
+        "trigger + yh_archive_classifications'a source-özel yh_cdc_enqueue_archive_classification() " +
+        "(source_id=archive_id, tenant_id=classification.tenant_id, op=upsert reevaluate). Aynı outbox " +
+        "identity (source_key, archive_id) idempotent; ham içerik/PII payload YOK. Activation-gated.",
+      satisfied: true,
     },
   ],
   lockedInvariants: [
-    "kisisel_arsiv:archives registry classification === 'unclassified' (fail-closed anchor).",
-    "kisisel_arsiv:archives registry enabled === true (mevcut durum; guard yine de 'unclassified' ile reddeder).",
-    "evaluateSourceGuard(kisisel_arsiv:archives).indexable === false (reason 'unclassified').",
-    "supportsTenantScopedPage(kisisel_arsiv:archives) === false (kör tenant-scoped backfill KAPALI).",
+    "kisisel_arsiv:archives classification === 'safe-non-pii' ⟹ requiresRowEligibilityGate === true (güvenlik-eşleşme).",
+    "supportsTenantScopedPage(kisisel_arsiv:archives) === false (kör tenant-scoped backfill FAIL-CLOSED).",
+    "evaluateSourceGuard(kisisel_arsiv:archives).indexable === true (safe-non-pii + enabled; kaynak erişilebilir, satır row-gate'e tabi).",
+    "activation class === 'ROW_GATED_CONTROLLED' ve requiresRuntimeActivation === true (default OFF; DB is_active ZORUNLU).",
+    "cohort === 'COHORT_1_READY' (kod-ready; production trigger apply + activation ayrı kapı).",
+    "deferred closure (kisisel_arsiv_classification) === 'FOUNDATION_READY'.",
     "isArchiveRowIndexable yalnız safe-non-pii + eşleşen current hash → true; aksi hepsi false.",
-    "activation matrix cohort === COHORT_1_BLOCKED; deferredSourceClosure === EXISTING_FAIL_CLOSED.",
   ],
   notDoneThisTurn: [
-    "source-level classification flip YOK (INV-PII invaryantı korunur).",
-    "row-gate runtime wiring YOK.",
-    "server-hash contract / route retrofit YOK.",
-    "classification-mutation CDC trigger YOK; personal_archives trigger YOK.",
-    "production migration/apply/activation/backfill/reconcile YOK; test verisi indexlenmedi.",
+    "production migration apply YOK (UNIQUE(tenant_id,id) + classification FK + 2 CDC trigger).",
+    "production trigger attach YOK; is_active=true YOK; backfill YOK; reconcile YOK.",
+    "production connection/mutation YOK; test verisi indexlenmedi.",
+    "mevcut archive kayıtları OTOMATİK safe YAPILMADI (yalnız yetkili review + hash).",
   ],
   nextRiskGate:
-    "AYRI onay gerektiren bütünsel BF-11E Kişisel Arşiv tasarım turu: (1) untracked personal_archives " +
-    "için tracked kanonik şema + server-türetimli hash contract, (2) DB-okuyan row-gate'in çekirdek " +
-    "worker path'ine güvenli enjeksiyonu, (3) source-classification/backfill kapı çiftinin eşzamanlı " +
-    "yeniden-mimarisi, (4) archive_id'ye eşlenen source-özel classification-mutation CDC. Ancak hepsi " +
-    "PASS olduğunda graduation + ayrı production kapıları.",
+    "AYRI production kapıları (sırayla): (1) migration apply (composite UNIQUE + classification FK NOT VALID + " +
+    "archive & classification CDC trigger), (2) yh_source_activation_set('kisisel_arsiv:archives', true) — CODE " +
+    "ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Backfill DEFAULT false (ayrı kapı).",
 } as const;
 
 /** Kişisel Arşiv registry config'i (bulunamazsa fail-closed throw). */
@@ -166,9 +148,9 @@ const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 
 /**
- * SAF bütünlük + CANLI-KOD KİLİDİ (import-zamanı güvenlik + harness). Dispozisyon BLOCKED
- * iken kaynağın gerçekten fail-closed KALDIĞINI zorlar; herhangi biri ihlal edilirse
- * THROW eder (deploy/harness öncesi yakalanır). DB/IO YOK.
+ * SAF bütünlük + CANLI-KOD GÜVENLİK KİLİDİ (import-zamanı güvenlik + harness). READY iken
+ * kaynağın güvenlik-eşleşmesini (safety coupling) zorlar; herhangi biri ihlal edilirse THROW
+ * eder (deploy/harness öncesi yakalanır). DB/IO YOK.
  */
 export function validatePersonalArchiveReadiness(): void {
   const R = PERSONAL_ARCHIVE_READINESS;
@@ -177,50 +159,59 @@ export function validatePersonalArchiveReadiness(): void {
   if (R.sourceKey !== PERSONAL_ARCHIVE_SOURCE_KEY) {
     throw new Error("Readiness sourceKey uyuşmazlığı.");
   }
-  if (R.preconditions.length === 0) throw new Error("BLOCKED en az bir ön-koşul gerektirir.");
-  if (R.preconditions.some((p) => p.satisfied !== false)) {
-    throw new Error("BLOCKED iken hiçbir ön-koşul satisfied olamaz.");
-  }
+  if (R.preconditions.length === 0) throw new Error("En az bir ön-koşul kaydı gerekir.");
   const ids = new Set(R.preconditions.map((p) => p.id));
   if (ids.size !== R.preconditions.length) throw new Error("Ön-koşul id tekrarı.");
 
-  // 1) BLOCKED ⇒ CANLI kodda fail-closed invaryantlar ZORUNLU (sessiz regresyon kilidi).
-  if (R.disposition === "BLOCKED") {
+  // 1) DISPOSITION=READY ⇒ CANLI kodda GÜVENLİK-EŞLEŞME invaryantları ZORUNLU.
+  if (R.disposition === "READY") {
+    if (R.preconditions.some((p) => p.satisfied !== true)) {
+      throw new Error("READY iken tüm ön-koşullar satisfied olmalı.");
+    }
     const cfg = archiveConfig();
 
-    // 1a) Registry hâlâ unclassified (fail-closed anchor); flip edilmemiş.
-    if (cfg.classification !== "unclassified") {
+    // 1a) GÜVENLİK-EŞLEŞME: source-level safe-non-pii YALNIZ row-gate ile bir arada olabilir.
+    if (cfg.classification === "safe-non-pii" && cfg.requiresRowEligibilityGate !== true) {
       throw new Error(
-        "KİLİT İHLALİ: kisisel_arsiv:archives classification BLOCKED iken 'unclassified' OLMALI " +
-          `(bulunan: '${cfg.classification}'). Source-classification flip = kör PII backfill riski; ` +
-          "önce ön-koşulları çöz + bu değerlendirmeyi READY'ye yükselt.",
+        "KİLİT İHLALİ: kisisel_arsiv:archives 'safe-non-pii' ama requiresRowEligibilityGate!=true → " +
+          "row-gate'siz safe-non-pii = kör PII/backfill yüzeyi. Gate'i geri ekle ya da classification'ı düşür.",
       );
     }
-
-    // 1b) Source guard reddediyor.
-    const guard = evaluateSourceGuard(cfg);
-    if (guard.indexable !== false) {
-      throw new Error("KİLİT İHLALİ: source-guard kisisel_arsiv:archives'i indexable buldu (fail-closed beklenir).");
+    if (cfg.classification !== "safe-non-pii") {
+      throw new Error("KİLİT İHLALİ: READY iken classification 'safe-non-pii' beklenir.");
+    }
+    if (cfg.requiresRowEligibilityGate !== true) {
+      throw new Error("KİLİT İHLALİ: READY iken requiresRowEligibilityGate true beklenir.");
     }
 
-    // 1c) Kör tenant-scoped backfill KAPALI.
+    // 1b) Kör tenant-scoped backfill KAPALI.
     if (supportsTenantScopedPage(cfg) !== false) {
-      throw new Error(
-        "KİLİT İHLALİ: supportsTenantScopedPage BLOCKED iken false OLMALI (kör PII backfill kapısı açılmış).",
-      );
+      throw new Error("KİLİT İHLALİ: supportsTenantScopedPage READY iken false OLMALI (kör backfill açılmış).");
     }
 
-    // 1d) Aktivasyon matrisi kohortu COHORT_1_BLOCKED.
+    // 1c) Source guard kaynağı erişilebilir buluyor (satır güvenliği row-gate'te).
+    if (evaluateSourceGuard(cfg).indexable !== true) {
+      throw new Error("KİLİT İHLALİ: source-guard safe-non-pii + enabled kaynağı indexable bulmalı.");
+    }
+
+    // 1d) Controlled activation: ROW_GATED_CONTROLLED + requiresRuntimeActivation=true (default OFF).
     const entry = activationEntryOf(PERSONAL_ARCHIVE_SOURCE_KEY);
     if (!entry) throw new Error("Aktivasyon matrisinde Kişisel Arşiv entry yok.");
-    if (assessCohort(entry).cohort !== "COHORT_1_BLOCKED") {
-      throw new Error("KİLİT İHLALİ: Kişisel Arşiv kohortu COHORT_1_BLOCKED beklenir.");
+    if (entry.activationClass !== "ROW_GATED_CONTROLLED") {
+      throw new Error("KİLİT İHLALİ: activation class ROW_GATED_CONTROLLED beklenir.");
+    }
+    if (!isActivationClass(entry.activationClass) ||
+        ACTIVATION_CLASS_POLICY[entry.activationClass].requiresRuntimeActivation !== true) {
+      throw new Error("KİLİT İHLALİ: ROW_GATED_CONTROLLED requiresRuntimeActivation=true olmalı (default OFF).");
+    }
+    if (assessCohort(entry).cohort !== "COHORT_1_READY") {
+      throw new Error("KİLİT İHLALİ: Kişisel Arşiv kohortu COHORT_1_READY beklenir.");
     }
 
-    // 1e) Deferred closure EXISTING_FAIL_CLOSED.
+    // 1e) Deferred closure FOUNDATION_READY.
     const closure = YH_DEFERRED_SOURCE_CLOSURE.find((d) => d.domain === "kisisel_arsiv_classification");
-    if (!closure || closure.result !== "EXISTING_FAIL_CLOSED") {
-      throw new Error("KİLİT İHLALİ: kisisel_arsiv_classification closure EXISTING_FAIL_CLOSED beklenir.");
+    if (!closure || closure.result !== "FOUNDATION_READY") {
+      throw new Error("KİLİT İHLALİ: kisisel_arsiv_classification closure FOUNDATION_READY beklenir.");
     }
   }
 

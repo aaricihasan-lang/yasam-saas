@@ -115,23 +115,24 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
 {
   add("arc-ok", parseArchiveClassification({ archiveId: U1, classification: "pii" }).ok);
   add("arc-bad-class", !parseArchiveClassification({ archiveId: U1, classification: "safe" }).ok);
-  add("arc-safe-needs-hash", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "ok" }).ok);
-  add("arc-safe-needs-reason", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reviewedContentHash: HASH }).ok);
-  add("arc-safe-ok", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "incelendi", reviewedContentHash: HASH }).ok);
+  // BF-11E: reviewed hash CLIENT'tan alınmaz (server türetir) → safe-non-pii yalnız reason ister.
+  add("arc-safe-no-client-hash-needed", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "ok" }).ok);
+  add("arc-safe-needs-reason", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii" }).ok);
+  add("arc-safe-client-hash-ignored", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "incelendi", reviewedContentHash: HASH }).ok);
   // Row-level index eligibility fail-closed:
   add("arc-index-safe-hash-match", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, HASH) === true);
   add("arc-index-unclassified-no", isArchiveRowIndexable({ classification: "unclassified", reviewedContentHash: HASH }, HASH) === false);
   add("arc-index-pii-no", isArchiveRowIndexable({ classification: "pii", reviewedContentHash: HASH }, HASH) === false);
   add("arc-index-stale-hash-no", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, "b".repeat(64)) === false);
   add("arc-index-no-hash-no", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: null }, HASH) === false);
-  add("archive-domain-fail-closed", dom("kisisel_arsiv_classification")?.result === "EXISTING_FAIL_CLOSED");
+  add("archive-domain-foundation-ready", dom("kisisel_arsiv_classification")?.result === "FOUNDATION_READY");
 }
 
 // ── 7) Registry wiring: YEBS + Belge/Video DORMANT bağlı; mevcut/live değişmedi ──
 {
   const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
-  // Mevcut kisisel_arsiv:archives kaynağı fail-closed (unclassified; değişmedi; duplicate yok).
-  add("existing-archive-source-unclassified", byKey.get("kisisel_arsiv:archives")?.classification === "unclassified", byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
+  // BF-11E: kisisel_arsiv:archives ROW-GATED CONTROLLED (safe-non-pii + requiresRowEligibilityGate; duplicate yok).
+  add("existing-archive-source-row-gated", byKey.get("kisisel_arsiv:archives")?.classification === "safe-non-pii" && byKey.get("kisisel_arsiv:archives")?.requiresRowEligibilityGate === true, byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
   // 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video).
   add("registry-count-25", YH_INDEX_SOURCES.length === 25, String(YH_INDEX_SOURCES.length));
   add("live-count-17-unchanged", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);

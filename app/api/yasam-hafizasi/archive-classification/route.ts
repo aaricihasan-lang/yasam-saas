@@ -3,20 +3,26 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import { parseArchiveClassification } from "@/lib/yasam-hafizasi/archive/archiveClassificationRequest";
+import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
+import { runIndexUnit } from "@/lib/yasam-hafizasi/indexer/runIndexUnit";
 
 export const runtime = "nodejs";
 
 /**
  * POST /api/yasam-hafizasi/archive-classification — Kişisel Arşiv kayıt-bazlı sınıflandırma
- * (BF-14 Ertelenmiş Kaynaklar foundation). Yalnız yetkili uzman/admin explicit action.
+ * (BF-11E ROW-GATED CONTROLLED). Yalnız yetkili uzman/admin explicit action.
  *
  * Güvenlik: tenant YALNIZ session'dan; archive_id ownership session tenant ile bağlanır (yazma
- * tenant-scoped). safe-non-pii → reason + reviewedContentHash ZORUNLU (stale guard). Varsayılan
- * ve tüm diğer sınıflar fail-closed (indexlenmez). Demo write engelli. Şema yoksa → not-active.
- * Mevcut kayıtlar OTOMATİK safe yapılmaz; hiçbir backfill yapılmaz.
+ * tenant-scoped). safe-non-pii → reason ZORUNLU; reviewed_content_hash CLIENT'tan ALINMAZ →
+ * server, archive satırından buildIndexUnit().contentHash türetir (stale guard). pii/restricted/
+ * unclassified → reviewed_content_hash NULL (indexlenmez, fail-closed). Demo write engelli. Şema
+ * yoksa → not-active. Mevcut kayıtlar OTOMATİK safe yapılmaz; hiçbir backfill yapılmaz.
  */
 
 const UNAVAILABLE = new Set(["42P01", "42883", "PGRST205", "PGRST202"]);
+
+/** Kişisel Arşiv registry config'i (server-türetimli hash için canonical build surface). */
+const ARCHIVE_SOURCE = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives")!;
 
 function fail(code: string, status: number): NextResponse {
   return NextResponse.json({ ok: false, code }, { status });
@@ -41,7 +47,28 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   const parsed = parseArchiveClassification(rawBody);
   if (!parsed.ok) return fail(parsed.code, 400);
-  const { archiveId, classification, reason, reviewedContentHash } = parsed.value;
+  const { archiveId, classification, reason } = parsed.value;
+
+  // BF-11E SERVER-TÜRETİMLİ HASH: safe-non-pii için reviewed_content_hash CLIENT'tan ALINMAZ.
+  // Server, archive satırını tenant-scoped okur ve buildIndexUnit().contentHash türetir (index'lenen
+  // canonical yüzey = title/note/category/tags). İçerik değişirse hash değişir → sonraki review şart.
+  // pii/restricted/unclassified → hash NULL (indexlenmez). Cross-tenant imkânsız (.eq tenant_id).
+  let reviewedContentHash: string | null = null;
+  if (classification === "safe-non-pii") {
+    const arc = await db
+      .from("personal_archives")
+      .select("*")
+      .eq("id", archiveId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (arc.error) {
+      return fail(UNAVAILABLE.has(arc.error.code ?? "") ? "YH_ARC_NOT_ACTIVE" : "YH_ARC_READ_FAILED", UNAVAILABLE.has(arc.error.code ?? "") ? 409 : 500);
+    }
+    if (!arc.data) return fail("YH_ARC_ARCHIVE_NOT_FOUND", 404);
+    const built = runIndexUnit({ config: ARCHIVE_SOURCE, row: arc.data as Record<string, unknown> });
+    if (built.status !== "unit") return fail("YH_ARC_NO_INDEXABLE_CONTENT", 422);
+    reviewedContentHash = built.unit.contentHash;
+  }
 
   // Upsert (tenant_id, archive_id): sınıflandırma yalnız bu tenant scope'unda yazılır.
   const row = {
@@ -51,7 +78,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     reason: reason ?? null,
     reviewed_by: userId,
     reviewed_at: new Date().toISOString(),
-    reviewed_content_hash: reviewedContentHash ?? null,
+    reviewed_content_hash: reviewedContentHash,
     updated_at: new Date().toISOString(),
   };
   const res = await db

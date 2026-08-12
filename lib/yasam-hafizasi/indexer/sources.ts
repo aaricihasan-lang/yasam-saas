@@ -105,6 +105,16 @@ export interface SourceConfig {
    * Verilirse yalnız 'safe-non-pii' satırlar indexlenebilir (unclassified/pii/restricted → skip).
    */
   readonly rowClassificationColumn?: string | null;
+  /**
+   * BF-11E Kişisel Arşiv (ROW-GATED CONTROLLED): bu kaynak YALNIZ satır-seviyesi eligibility
+   * kapısından (ayrı classification tablosu + server-türetimli current content hash eşleşmesi;
+   * `archiveEligibility.ts`) geçen kayıtları indexler. true ise:
+   *   (a) `supportsTenantScopedPage` FALSE döner → kör tenant-scoped backfill KAPALI;
+   *   (b) `runExactRecord` yazma öncesi zorunlu row-gate uygular (port yok/erişilemez → fail-closed).
+   * Source-level classification 'safe-non-pii' olsa dahi güvenlik row-gate'e dayanır (kaynak
+   * güvenliği source-level flip'e DEĞİL, satır-bazlı reviewed+hash kapısına bağlıdır).
+   */
+  readonly requiresRowEligibilityGate?: boolean;
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
 }
@@ -663,10 +673,15 @@ export const YH_INDEX_SOURCES = [
   // kaynak-özel kayıt emekliye ayrılmıştır. Foundation tabloları (yh_document_sources/passages)
   // DROP EDİLMEZ (cleanup-candidate; ayrı sistem-genel risk kapısı).
 
-  // ── Kişisel Arşiv ─────────────────────────────────────────────────────────
+  // ── Kişisel Arşiv (ROW-GATED CONTROLLED; BF-11E) ──────────────────────────
+  // Source-level 'safe-non-pii' YALNIZ requiresRowEligibilityGate + backfill-deny + controlled
+  // activation (ROW_GATED_CONTROLLED) ile BİRLİKTE anlamlıdır: her satır ayrı classification
+  // tablosunda safe-non-pii + server-türetimli current content hash eşleşmesi ister (fail-closed).
+  // Kör backfill KAPALI (supportsTenantScopedPage=false); production'da DB is_active=true olmadan
+  // hiçbir olay indexlemez. Serbest-form kişisel içerik row-gate'siz index ÜRETMEZ.
   {
     sourceKey: "kisisel_arsiv:archives",
-    classification: "unclassified", // serbest-form kişisel arşiv; F5'e ertelendi; reddedilir
+    classification: "safe-non-pii", // güvenlik row-gate'e dayanır (bkz. requiresRowEligibilityGate)
 
     sourceFamily: "kisisel_arsiv",
     tableName: "personal_archives",
@@ -680,6 +695,7 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: null,
+    requiresRowEligibilityGate: true, // per-row classification + current-hash gate ZORUNLU
     enabled: true,
   },
 ] as const satisfies readonly SourceConfig[];

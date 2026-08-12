@@ -23,6 +23,8 @@
     "yh:bf11e:preflight": "tsx scripts/yh-bf11e/preflight.ts",
     "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts",
     "yh:bf11e:belge:harness": "tsx scripts/yh-bf11e/belgeVideoHarness.ts",
+    "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
+    "yh:bf11e:archive:security:harness": "tsx scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
     "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts"
   },
   "dependencies": {

@@ -25,7 +25,7 @@ import {
   type SourceActivationRuntime,
 } from "@/lib/yasam-hafizasi/activation/activationState";
 import { buildPreflightSql, buildActivationTemplate } from "@/lib/yasam-hafizasi/activation/activationPlan";
-import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
+import { YH_INDEX_SOURCES, type SourceConfig } from "@/lib/yasam-hafizasi/indexer/sources";
 import {
   YH_CLIENT_INDEX_SOURCES,
   validateAllClientSources,
@@ -36,6 +36,7 @@ import {
 } from "@/lib/yasam-hafizasi/deferredSourceClosure";
 import { validateModuleSourceMatrix } from "@/lib/yasam-hafizasi/moduleSourceMatrix";
 import { evaluateSourceGuard } from "@/lib/yasam-hafizasi/indexer/sourceGuard";
+import { supportsTenantScopedPage } from "@/lib/yasam-hafizasi/indexer/tenantScopeGate";
 import { evaluateRowEligibility } from "@/lib/yasam-hafizasi/indexer/rowEligibility";
 import {
   parseArchiveClassification,
@@ -70,7 +71,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
   // Sınıf dağılımı (deterministik beklenti).
   add("A-keep-live-16", sourceKeysByClass("KEEP_LIVE").length === 16, String(sourceKeysByClass("KEEP_LIVE").length));
-  add("A-row-gated-1", sourceKeysByClass("ROW_GATED_READY").length === 1 && sourceKeysByClass("ROW_GATED_READY")[0] === "kisisel_arsiv:archives");
+  add("A-row-gated-ready-0", sourceKeysByClass("ROW_GATED_READY").length === 0);
+  add("A-row-gated-controlled-1", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
   add("A-canonical-backfill-6-yebs", sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").length === 6 && sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").every((k) => k.startsWith("yebs:")));
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
   add("A-future-only-7", sourceKeysByClass("FUTURE_ONLY_READY").length === 6, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
@@ -196,19 +198,22 @@ const has = (re: RegExp): boolean => re.test(MIG);
 // ═══ G) KİŞİSEL ARŞİV (safe-non-pii + current hash only; classification bypass yok) ═
 {
   const arc = entryOf("kisisel_arsiv:archives")!;
-  add("G-archive-row-gated", arc.activationClass === "ROW_GATED_READY" && arc.rowGate === "row-classification-hash");
+  add("G-archive-row-gated", arc.activationClass === "ROW_GATED_CONTROLLED" && arc.rowGate === "row-classification-hash");
   const HASH = "a".repeat(64);
   add("G-safe-hash-match-indexable", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, HASH) === true);
   add("G-missing-classification-noop", isArchiveRowIndexable({ classification: "unclassified", reviewedContentHash: HASH }, HASH) === false);
   add("G-pii-noop", isArchiveRowIndexable({ classification: "pii", reviewedContentHash: HASH }, HASH) === false);
   add("G-stale-hash-noop", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, "b".repeat(64)) === false);
   add("G-no-hash-noop", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: null }, HASH) === false);
-  // safe-non-pii işaretleme reason + hash ZORUNLU (classification bypass yok).
-  add("G-safe-requires-reason-hash", !parseArchiveClassification({ archiveId: "11111111-1111-4111-1111-111111111111", classification: "safe-non-pii" }).ok);
-  // Mevcut kaynak registry'de unclassified (fail-closed; değişmedi).
-  const arcSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives")!;
-  add("G-archive-source-unclassified", arcSrc.classification === "unclassified");
-  add("G-archive-guard-fail-closed", evaluateSourceGuard(arcSrc).indexable === false);
+  // safe-non-pii işaretleme reason ZORUNLU (classification bypass yok; hash SERVER-türetimli).
+  add("G-safe-requires-reason", !parseArchiveClassification({ archiveId: "11111111-1111-4111-1111-111111111111", classification: "safe-non-pii" }).ok);
+  // BF-11E ROW-GATED CONTROLLED: source-level safe-non-pii + requiresRowEligibilityGate + backfill-deny.
+  const arcSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives")! as SourceConfig;
+  add("G-archive-source-safe-non-pii", arcSrc.classification === "safe-non-pii" && arcSrc.requiresRowEligibilityGate === true);
+  // Source guard artık kaynağı erişilebilir bulur (satır güvenliği row-gate'te; sourceGuard değil).
+  add("G-archive-guard-indexable", evaluateSourceGuard(arcSrc).indexable === true);
+  // Kör tenant-scoped backfill FAIL-CLOSED (safe-non-pii olsa DAHİ).
+  add("G-archive-backfill-denied", supportsTenantScopedPage(arcSrc) === false);
 }
 
 // ═══ H) BACKFILL ayrımı (default false; explicit allowlist; activation != backfill) ═
