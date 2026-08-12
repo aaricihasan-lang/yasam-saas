@@ -21,6 +21,7 @@ import {
 export function ReadListScreen<T extends { id: string }>({
   search,
   filters,
+  action,
   loading,
   errorCode,
   rows,
@@ -39,6 +40,8 @@ export function ReadListScreen<T extends { id: string }>({
 }: {
   search: ReactNode;
   filters?: ReactNode;
+  /** Listenin birincil eylemi (ör. "Yeni Bitki"). Kontrol çubuğuna bağlanır. */
+  action?: ReactNode;
   loading: boolean;
   errorCode: string | null;
   rows: T[];
@@ -61,6 +64,7 @@ export function ReadListScreen<T extends { id: string }>({
       <ReadToolbar
         search={search}
         filters={filters}
+        action={action}
         count={<ReadResultCount total={total} loading={loading} />}
       />
 

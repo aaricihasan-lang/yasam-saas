@@ -70,7 +70,7 @@ function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
     <div
       role="tablist"
       aria-label="Katalog görünümü"
-      className="flex gap-2 rounded-2xl border border-teal-100/70 bg-white/70 p-1.5 shadow-sm"
+      className="flex w-full gap-2 rounded-2xl border border-teal-100/70 bg-white/70 p-1.5 shadow-sm sm:w-fit"
     >
       <button
         type="button"
@@ -104,15 +104,6 @@ function PlantTaxaSection() {
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <Link
-          href="/aromaterapi/katalog/bitkiler/yeni"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-        >
-          <span aria-hidden>＋</span> Yeni Bitki
-        </Link>
-      </div>
       <ReadListScreen<PlantTaxonListItem>
         loading={s.loading}
       errorCode={s.errorCode}
@@ -125,6 +116,14 @@ function PlantTaxaSection() {
       onRetry={s.retry}
       emptyTitle="Henüz bitki kaydı yok"
       emptyMessage="Bu tenant kütüphanesinde kanonik bitki (takson) kaydı bulunmuyor."
+      action={
+        <Link
+          href="/aromaterapi/katalog/bitkiler/yeni"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
+        >
+          <span aria-hidden>＋</span> Yeni Bitki
+        </Link>
+      }
       search={
         <ReadSearchBar
           value={s.qInput}
@@ -154,7 +153,6 @@ function PlantTaxaSection() {
       }
         renderItem={(row) => <PlantTaxonRow key={row.id} row={row} />}
       />
-    </div>
   );
 }
 
@@ -199,15 +197,6 @@ function PreparationSection() {
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <Link
-          href="/aromaterapi/katalog/preparatlar/yeni"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-        >
-          <span aria-hidden>＋</span> Yeni Preparat
-        </Link>
-      </div>
       <ReadListScreen<PreparationListItem>
         loading={s.loading}
       errorCode={s.errorCode}
@@ -220,6 +209,14 @@ function PreparationSection() {
       onRetry={s.retry}
       emptyTitle="Henüz preparat kaydı yok"
       emptyMessage="Bu tenant kütüphanesinde preparat kaydı bulunmuyor."
+      action={
+        <Link
+          href="/aromaterapi/katalog/preparatlar/yeni"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
+        >
+          <span aria-hidden>＋</span> Yeni Preparat
+        </Link>
+      }
       search={
         <ReadSearchBar
           value={s.qInput}
@@ -252,7 +249,6 @@ function PreparationSection() {
       }
         renderItem={(row) => <PreparationRow key={row.id} row={row} />}
       />
-    </div>
   );
 }
 

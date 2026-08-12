@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
@@ -59,57 +59,82 @@ function classifyRow(row: ReferenceRow): RowKind {
 
 function GenelBilgiRenderer({ rows }: { rows: ReferenceRow[] }) {
   const sorted = [...rows].sort((a, b) => a.row_index - b.row_index);
-  return (
-    <div className="space-y-0">
-      {sorted.map((row) => {
-        const kind = classifyRow(row);
-        if (kind === "skip") return null;
 
-        const col0 = (row.cells["0"] ?? "").trim();
-        const col1 = (row.cells["1"] ?? "").trim();
-        const text = (col1 || col0).trim();
+  // Ardışık LEVEL 3 kayıtları gruplanır → geniş ekranda 2 kolonlu ızgara (outer
+  // yüzey genişliği gerçekten kullanılır, metin ölçüsü korunur, sağda ölü boşluk
+  // oluşmaz). section/major/paragraph tam genişlik span eder ve grubu keser.
+  const out: ReactNode[] = [];
+  let group: ReferenceRow[] = [];
 
-        if (kind === "major") {
+  const flush = () => {
+    if (group.length === 0) return;
+    const g = group;
+    group = [];
+    out.push(
+      <div key={`g-${g[0]!.id}`} className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {g.map((row) => {
+          const label = (row.cells["0"] ?? "").trim();
+          const desc = (row.cells["1"] ?? "").trim();
           return (
-            <div key={row.id} className="mb-2 mt-8 first:mt-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-50 to-rose-50/60 px-4 py-1.5 shadow-sm">
-                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-800">
-                  {text}
-                </span>
-              </div>
+            <div
+              key={row.id}
+              className="grid grid-cols-1 gap-x-6 gap-y-1.5 rounded-xl border border-slate-300/80 bg-slate-50 px-4 py-3.5 sm:grid-cols-[minmax(150px,200px)_1fr] sm:px-5"
+            >
+              <dt className="text-[13px] font-black text-slate-900">{label}</dt>
+              <dd className="max-w-[72ch] text-[14px] leading-[1.7] text-slate-700">{desc}</dd>
             </div>
           );
-        }
+        })}
+      </div>,
+    );
+  };
 
-        if (kind === "section") {
-          return (
-            <div key={row.id} className="mb-3 mt-6 border-l-2 border-amber-300/70 pl-3.5 first:mt-0">
-              <p className="text-[14px] font-black tracking-tight text-slate-900">{text}</p>
-            </div>
-          );
-        }
+  sorted.forEach((row) => {
+    const kind = classifyRow(row);
+    if (kind === "skip") return;
+    if (kind === "definition") {
+      group.push(row);
+      return;
+    }
+    flush(); // section/major/paragraph başlamadan bekleyen blok grubunu bitir
 
-        if (kind === "paragraph") {
-          return (
-            <p key={row.id} className="mb-2.5 text-[13px] leading-[1.75] text-slate-700">
-              {text}
-            </p>
-          );
-        }
+    const col0 = (row.cells["0"] ?? "").trim();
+    const col1 = (row.cells["1"] ?? "").trim();
+    const text = (col1 || col0).trim();
 
-        // definition
-        return (
-          <div
-            key={row.id}
-            className="grid grid-cols-1 gap-x-6 gap-y-1 border-b border-slate-100/60 py-3 last:border-0 sm:grid-cols-[minmax(140px,220px)_1fr]"
-          >
-            <dt className="text-[12px] font-black text-amber-800">{col0}</dt>
-            <dd className="text-[13px] leading-[1.75] text-slate-700">{col1}</dd>
-          </div>
-        );
-      })}
-    </div>
-  );
+    if (kind === "major") {
+      // LEVEL 1 — büyük harf ana başlık: belirgin section bandı (yeni ana konu).
+      out.push(
+        <div
+          key={row.id}
+          className="mt-12 mb-4 flex items-center gap-3 rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-50/80 to-rose-50/40 px-4 py-3 first:mt-0"
+        >
+          <span aria-hidden className="h-5 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-amber-400 to-rose-400" />
+          <h3 className="text-[15px] font-black uppercase tracking-[0.06em] text-amber-900">{text}</h3>
+        </div>,
+      );
+    } else if (kind === "section") {
+      // LEVEL 2 — ana bölüm başlığı: güçlü section başlangıcı (accent + alt kural).
+      out.push(
+        <div key={row.id} className="mt-9 mb-3 border-b border-amber-100/80 pb-2 first:mt-0">
+          <h4 className="flex items-center gap-2.5 text-[16px] font-black tracking-tight text-slate-900">
+            <span aria-hidden className="h-4 w-1 shrink-0 rounded-full bg-amber-400" />
+            {text}
+          </h4>
+        </div>,
+      );
+    } else {
+      // Serbest paragraf — okunur ölçüde satır uzunluğu.
+      out.push(
+        <p key={row.id} className="mb-3 max-w-[72ch] text-[14px] leading-[1.75] text-slate-700">
+          {text}
+        </p>,
+      );
+    }
+  });
+  flush();
+
+  return <div>{out}</div>;
 }
 
 // -------------------------------------------------------
@@ -151,7 +176,7 @@ function EldeEtmeRenderer({ rows }: { rows: ReferenceRow[] }) {
               {cols.map((c) => (
                 <td
                   key={c}
-                  className="border-b border-slate-100/60 px-4 py-2.5 align-top text-[13px] text-slate-700"
+                  className="border-b border-slate-100/60 px-4 py-3 align-top text-[14px] text-slate-700"
                 >
                   {row.cells[String(c)] ?? ""}
                 </td>
@@ -174,9 +199,9 @@ function DefaultRenderer({ rows }: { rows: ReferenceRow[] }) {
     Object.values(row.cells as Record<string, string>).filter((v) => v.trim().length > 0)
   );
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {allValues.map((v, i) => (
-        <p key={i} className="text-[13px] leading-[1.75] text-slate-600">
+        <p key={i} className="max-w-[72ch] text-[14px] leading-[1.75] text-slate-600">
           {v}
         </p>
       ))}
@@ -247,7 +272,7 @@ export default function BilgiBankasiPage() {
       <div className="pointer-events-none absolute -left-20 -top-20 h-[400px] w-[400px] rounded-full bg-violet-200/20 blur-[120px]" />
       <div className="pointer-events-none absolute -right-20 top-40 h-[300px] w-[300px] rounded-full bg-amber-200/15 blur-[100px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
 
         <AromaterapiModuleNav />
 
@@ -277,7 +302,7 @@ export default function BilgiBankasiPage() {
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Bilgi Bankası
               </h1>
-              <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+              <p className="mt-1.5 text-[12px] font-medium text-slate-500">
                 Uzman referans içerikleri ve notları
               </p>
             </div>
@@ -348,7 +373,7 @@ export default function BilgiBankasiPage() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50/60 text-lg leading-none shadow-sm">
                     {TAB_ICONS[activeSheet.sheet_name] ?? "📄"}
                   </span>
-                  <h2 className="text-[16px] font-black tracking-tight text-slate-950">
+                  <h2 className="text-[18px] font-black tracking-tight text-slate-950">
                     {activeSheet.display_title}
                   </h2>
                 </div>

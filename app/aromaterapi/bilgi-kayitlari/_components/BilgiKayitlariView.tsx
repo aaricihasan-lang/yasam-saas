@@ -65,17 +65,6 @@ export function BilgiKayitlariView() {
         </div>
       ) : null}
 
-      {/* C3D-D: Yeni Bilgi Kaydı aksiyonu (görünür, baskın olmayan CTA). */}
-      <div className="flex justify-end">
-        <Link
-          href="/aromaterapi/bilgi-kayitlari/yeni"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-        >
-          <span aria-hidden>＋</span>
-          Yeni Bilgi Kaydı
-        </Link>
-      </div>
-
       <ReadListScreen<KnowledgeRecordListItem>
         loading={s.loading}
         errorCode={s.errorCode}
@@ -88,7 +77,16 @@ export function BilgiKayitlariView() {
         onRetry={s.retry}
         emptyTitle="Henüz bilgi kaydı yok"
         emptyMessage="Bu tenant kütüphanesinde kaynağa dayalı bilgi kaydı bulunmuyor."
-        gridClassName="grid grid-cols-1 gap-3 lg:grid-cols-2"
+        gridClassName="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+        action={
+          <Link
+            href="/aromaterapi/bilgi-kayitlari/yeni"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+          >
+            <span aria-hidden>＋</span>
+            Yeni Bilgi Kaydı
+          </Link>
+        }
         search={
           <ReadSearchBar
             value={s.qInput}

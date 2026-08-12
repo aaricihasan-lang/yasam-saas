@@ -46,7 +46,7 @@ export function KaynaklarView() {
       onRetry={s.retry}
       emptyTitle="Henüz kaynak yok"
       emptyMessage="Bu tenant kütüphanesinde kaynak künyesi bulunmuyor."
-      gridClassName="grid grid-cols-1 gap-3 lg:grid-cols-2"
+      gridClassName="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
       search={
         <ReadSearchBar
           value={s.qInput}

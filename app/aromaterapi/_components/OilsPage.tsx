@@ -378,7 +378,7 @@ function NewOilForm({
     "min-h-[80px] max-h-[120px] w-full cursor-pointer resize-none rounded-xl border border-amber-100/90 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-amber-100/80";
 
   const miniCard =
-    "rounded-2xl border border-amber-100/80 bg-gradient-to-b from-white to-amber-50/30 p-4 shadow-[0_6px_20px_-10px_rgba(245,158,11,0.2)]";
+    "rounded-xl border border-slate-100 bg-white p-4";
 
   return (
     <>
@@ -870,7 +870,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     }`}
                   >
                     {t.label}
-                    <span className={`rounded-full px-1 text-[9px] font-black ${active ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"}`}>
+                    <span className={`rounded-full px-1 text-[10px] font-black ${active ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"}`}>
                       {count}
                     </span>
                   </button>
@@ -981,7 +981,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                       </span>
                     ) : null}
                     {row.is_photosensitive ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                      <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
                         ☀️ Fotosensitif
                       </span>
                     ) : null}
@@ -1060,7 +1060,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                           {oilTypeLabel(row.oil_type)}
                         </span>
                         {row.is_photosensitive ? (
-                          <span className="mt-0.5 block text-[9px] font-bold text-amber-600">☀️ Fotosensitif</span>
+                          <span className="mt-0.5 block text-[10px] font-bold text-amber-600">☀️ Fotosensitif</span>
                         ) : null}
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>

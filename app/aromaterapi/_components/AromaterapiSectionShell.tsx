@@ -22,7 +22,7 @@ export type AromaterapiSectionShellProps = {
   showNav?: boolean;
   /** Hero üstünde tam-genişlik alan (ör. demo banner). */
   banner?: ReactNode;
-  /** İçerik genişliği (varsayılan max-w-[1400px]). */
+  /** İçerik genişliği (varsayılan max-w-[1600px] — data-management çalışma yüzeyi). */
   maxWidthClass?: string;
   /** Hero ile içerik arası boşluk override. */
   contentClassName?: string;
@@ -46,7 +46,7 @@ export function AromaterapiSectionShell({
   breadcrumbLeaf,
   showNav = true,
   banner,
-  maxWidthClass = "max-w-[1400px]",
+  maxWidthClass = "max-w-[1600px]",
   contentClassName = "mt-4",
   children,
 }: AromaterapiSectionShellProps) {
@@ -67,7 +67,7 @@ export function AromaterapiSectionShell({
       />
 
       <div
-        className={`relative z-10 mx-auto w-full ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10`}
+        className={`relative z-10 mx-auto w-full ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12`}
       >
         <AromaterapiBreadcrumb leaf={breadcrumbLeaf} />
 

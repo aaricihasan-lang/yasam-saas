@@ -24,7 +24,7 @@ export function ReadSearchBar({
 }) {
   const id = useId();
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full">
       <label htmlFor={id} className="sr-only">
         {placeholder}
       </label>
@@ -64,7 +64,7 @@ export function ReadFilterSelect({
   const id = useId();
   return (
     <div className="flex min-w-[140px] flex-col gap-1">
-      <label htmlFor={id} className="text-[11px] font-black uppercase tracking-wide text-slate-400">
+      <label htmlFor={id} className="text-[12px] font-black uppercase tracking-wide text-slate-500">
         {label}
       </label>
       <select
@@ -90,19 +90,25 @@ export function ReadToolbar({
   search,
   filters,
   count,
+  action,
 }: {
   search: ReactNode;
   filters?: ReactNode;
   count?: ReactNode;
+  /** Bu listenin birincil eylemi (ör. "Yeni Bitki"). Kontrol çubuğunun sağ ucuna oturur. */
+  action?: ReactNode;
 }) {
   return (
-    <section className="rounded-[20px] border border-amber-100/70 bg-white/80 p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          {search}
-          {count ? <div className="shrink-0">{count}</div> : null}
-        </div>
+    <section className="rounded-2xl border border-slate-200/70 bg-white/60 p-3 shadow-sm sm:p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end lg:gap-4">
+        <div className="w-full min-w-0 lg:flex-1 lg:min-w-[240px]">{search}</div>
         {filters ? <div className="flex flex-wrap items-end gap-3">{filters}</div> : null}
+        {count || action ? (
+          <div className="flex items-center justify-between gap-3 lg:ml-auto">
+            {count ? <div className="shrink-0">{count}</div> : null}
+            {action ? <div className="shrink-0">{action}</div> : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -160,7 +166,8 @@ export function ReadPagination({
   onPage: (page: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  if (total === 0) return null;
+  // Tek sayfa veya boş sonuçta sayfalayıcı gizlenir (sonuç sayısı zaten araç çubuğunda).
+  if (total === 0 || totalPages <= 1) return null;
   const from = (page - 1) * limit + 1;
   const to = Math.min(total, page * limit);
 
@@ -249,8 +256,8 @@ export function DetailSection({
   return (
     <section className="rounded-[20px] border border-amber-100/70 bg-white/85 p-4 shadow-sm sm:p-5">
       <div className="mb-3 border-b border-amber-100/60 pb-2">
-        <h2 className="text-[14px] font-black tracking-tight text-slate-900">{title}</h2>
-        {hint ? <p className="mt-0.5 text-[12px] font-medium text-slate-400">{hint}</p> : null}
+        <h2 className="text-[15px] font-black tracking-tight text-slate-900">{title}</h2>
+        {hint ? <p className="mt-0.5 text-[12px] font-medium text-slate-500">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -261,8 +268,8 @@ export function DetailSection({
 export function DetailField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 py-1.5">
-      <dt className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</dt>
-      <dd className="break-words text-[14px] font-semibold text-slate-800">{value ?? "—"}</dd>
+      <dt className="text-[12px] font-black uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="break-words text-[15px] font-semibold text-slate-800">{value ?? "—"}</dd>
     </div>
   );
 }

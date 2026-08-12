@@ -240,7 +240,7 @@ function isSafeUrl(url: string): boolean {
 function ChemicalChips({ raw }: { raw: string }) {
   const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
   if (items.length < 2) {
-    return <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">{raw}</p>;
+    return <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-slate-800">{raw}</p>;
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -464,7 +464,7 @@ export default function OilDetailPage() {
                     placeholder="Yağ adı"
                   />
                 ) : (
-                  <h1 className="text-[18px] font-black leading-tight tracking-tight text-slate-950 sm:text-[20px]">
+                  <h1 className="text-[20px] font-black leading-tight tracking-tight text-slate-950 sm:text-[22px]">
                     {oil.name}
                   </h1>
                 )}
@@ -635,7 +635,7 @@ export default function OilDetailPage() {
 
                   const inputCls    = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
                   const textareaCls = "w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-[13px] leading-[1.65] text-slate-900 shadow-inner outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
-                  const cardCls     = "rounded-xl border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/20 p-3.5 shadow-sm";
+                  const cardCls     = "rounded-lg border border-slate-100 bg-white p-3.5";
                   const labelCls    = "mb-2 block text-[10px] font-black uppercase tracking-[0.13em] text-amber-600";
 
                   if (meta.isBooleanToggle) {
@@ -698,7 +698,7 @@ export default function OilDetailPage() {
 
             ) : (
               /* ── Görünüm modu — gerçek hesap veya açık kimlik sekmesi ── */
-              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-0 sm:grid-cols-2">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
@@ -706,8 +706,8 @@ export default function OilDetailPage() {
                   const value       = typeof rawValue === "string" ? rawValue : "";
                   const isFullWidth = FULL_WIDTH_FIELDS.has(fieldKey as string);
 
-                  const itemCls  = `rounded-xl border border-slate-100/80 bg-white/70 px-4 py-3.5 shadow-[0_1px_4px_rgba(15,23,42,0.04)]${isFullWidth ? " col-span-full" : ""}`;
-                  const labelCls = "mb-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-amber-600/80";
+                  const itemCls  = `border-b border-slate-100/70 px-1 py-3.5${isFullWidth ? " col-span-full" : ""}`;
+                  const labelCls = "mb-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-amber-600/90";
 
                   if (meta.isBooleanToggle) {
                     return draft.is_photosensitive ? (
@@ -802,7 +802,7 @@ export default function OilDetailPage() {
                     return (
                       <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
-                        <dd className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">{value}</dd>
+                        <dd className="whitespace-pre-wrap text-[14px] leading-[1.75] text-slate-800">{value}</dd>
                       </div>
                     );
                   }
@@ -810,7 +810,7 @@ export default function OilDetailPage() {
                   return (
                     <div key={fieldKey} className={itemCls}>
                       <dt className={labelCls}>{meta.label}</dt>
-                      <dd className="text-[13px] font-medium text-slate-800">{value}</dd>
+                      <dd className="text-[14px] font-medium text-slate-800">{value}</dd>
                     </div>
                   );
                 })}
