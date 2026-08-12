@@ -25,20 +25,26 @@ export default function BiyoenerjiFolderPage() {
           </Link>
         </div>
 
-        <header className="relative mb-4 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-3 shadow-md sm:px-6 sm:py-3.5">
+        <header className="relative mb-4 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-md sm:px-6 sm:py-5">
           <Activity
-            className="pointer-events-none absolute right-4 top-1/2 h-14 w-14 -translate-y-1/2 text-violet-400 opacity-[0.07]"
+            className="pointer-events-none absolute right-4 top-1/2 h-16 w-16 -translate-y-1/2 text-violet-400 opacity-[0.07]"
             strokeWidth={1.25}
             aria-hidden
           />
           <div className="relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/85">
+            <h1 className="text-[1.7rem] font-black leading-[1.1] tracking-tight text-slate-950 sm:text-4xl">
               Yaşam Enerjisi Sistemi
-            </p>
-            <h1 className="mt-0.5 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-              Biyoenerji
             </h1>
-            <p className="mt-1 text-[13px] font-medium leading-snug text-slate-500">
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="h-1 w-6 shrink-0 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
+                aria-hidden
+              />
+              <p className="text-base font-black tracking-tight text-violet-700 sm:text-lg">
+                Biyoenerji
+              </p>
+            </div>
+            <p className="mt-2 max-w-xl text-[13px] font-medium leading-snug text-slate-500">
               Enerji anatomisinden tekniklere — tüm çalışma alanları tek merkezde.
             </p>
           </div>
