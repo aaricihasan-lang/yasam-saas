@@ -65,14 +65,14 @@ function PlannerScreen() {
     });
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-3 py-4 sm:px-4 sm:py-6">
+    <main className="min-h-screen w-full max-w-none px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
       {/* Üst alan: geri dön + başlık */}
       <div className="mb-4">
         <Link
           href="/cosmic-calendar"
-          className="inline-flex items-center gap-1 rounded-full border border-indigo-200/70 bg-white/70 px-3 py-1 text-[11px] font-bold text-indigo-600 transition-colors hover:bg-white"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50/80 px-3.5 py-2 text-[13px] font-black text-indigo-700 shadow-sm transition-colors hover:border-indigo-400 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
         >
-          ← Kozmik Ajanda&apos;ya dön
+          <span aria-hidden="true">←</span> Kozmik Ajanda&apos;ya Dön
         </Link>
         <h1 className="mt-3 text-lg font-black tracking-tight text-slate-900 sm:text-xl">🗓️ Gezegen Saati Planlayıcısı</h1>
         <p className="mt-1 text-[12px] leading-snug text-slate-500">
