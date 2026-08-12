@@ -939,7 +939,18 @@ export default function CosmicCalendarPage() {
   const [plannerOpen,      setPlannerOpen]      = useState(false);
   const [plannerDays,      setPlannerDays]      = useState(30);         // aralık uzunluğu (gün); maks PLANNER_MAX_DAYS
   const [plannerPlanets,   setPlannerPlanets]   = useState<Set<string>>(() => new Set(["Merkür", "Venüs"]));
+  const plannerRef = useRef<HTMLElement>(null);   // "Planlayıcıyı Aç" → planner'a smooth-scroll (tek instance)
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // Gezegen Saati kutusundaki giriş noktası: TEK canonical plannerOpen state'i çevirir;
+  // açarken planner'ı görünür alana kaydırır (yeni instance/state OLUŞTURMAZ). Salt client (onClick).
+  function togglePlannerFromHour(): void {
+    const willOpen = !plannerOpen;
+    setPlannerOpen(willOpen);
+    if (willOpen && typeof window !== "undefined") {
+      requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
   const searchRef    = useRef<HTMLInputElement>(null);
 
   // #418 fix: ilk render sabit tohumla (server↔client birebir); mount'ta (paint öncesi) gerçek
@@ -2180,6 +2191,20 @@ export default function CosmicCalendarPage() {
                 <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                   Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
                 </p>
+
+                {/* Planlayıcı giriş noktası — "Şimdi/Seçili saat" ile "ileri günleri planla" bağını kurar */}
+                <button
+                  type="button"
+                  onClick={togglePlannerFromHour}
+                  aria-expanded={plannerOpen}
+                  aria-controls="gezegen-saati-planlayici"
+                  className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-white/80 px-3 py-1.5 text-[11px] font-black text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  🗓️ {plannerOpen ? "Planlayıcıyı gizle" : "İleri günleri planla"}
+                </button>
+                <p className="mt-1 text-center text-[10px] leading-snug text-slate-400">
+                  Seçili günden ileri Merkür/Mars vb. gezegen saatlerini listeler.
+                </p>
               </div>
             )}
 
@@ -2268,7 +2293,7 @@ export default function CosmicCalendarPage() {
         </section>
 
         {/* ── Gezegen Saati Planlayıcısı (seans planlama) ── */}
-        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
+        <section ref={plannerRef} id="gezegen-saati-planlayici" className="mb-4 scroll-mt-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🗓️ Gezegen Saati Planlayıcısı</p>
             <button
