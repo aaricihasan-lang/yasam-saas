@@ -1,0 +1,25 @@
+{
+  "_comment": "Gunluk exact-aspect timeline dogrulama fixture'lari. month 1-12 (insan-okur). tz = IANA. category yalnizca belgeleme. Production'a dahil DEGILDIR; yalniz scripts/ altinda calisir.",
+  "bodyOrder": ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"],
+  "aspects": [
+    { "name": "Kavusum", "angle": 0 },
+    { "name": "Sekstil", "angle": 60 },
+    { "name": "Kare", "angle": 90 },
+    { "name": "Ucgen", "angle": 120 },
+    { "name": "Karsit", "angle": 180 }
+  ],
+  "days": [
+    { "id": "moon-heavy-ist",    "label": "Ay yogun gun (ornek 11 Agu 2026)",        "year": 2026, "month": 8,  "day": 11, "tz": "Europe/Istanbul",   "category": "moon" },
+    { "id": "inner-ist",         "label": "Ic gezegen aci gunu",                     "year": 2026, "month": 2,  "day": 14, "tz": "Europe/Istanbul",   "category": "inner" },
+    { "id": "outer-slow-ist",    "label": "Yavas dis cift donemi (Jup/Sat civari)",  "year": 2026, "month": 5,  "day": 20, "tz": "Europe/Istanbul",   "category": "outer" },
+    { "id": "mercury-retro-ist", "label": "Merkur retro donemi (coklu gecis)",       "year": 2026, "month": 3,  "day": 2,  "tz": "Europe/Istanbul",   "category": "retro" },
+    { "id": "boundary-ny",       "label": "Yerel gece-yarisi sinirina yakin (NY)",   "year": 2026, "month": 8,  "day": 11, "tz": "America/New_York",  "category": "boundary" },
+    { "id": "boundary-ist",      "label": "Ayni gun Istanbul (membership karsit)",   "year": 2026, "month": 8,  "day": 11, "tz": "Europe/Istanbul",   "category": "boundary" },
+
+    { "id": "dst-spring-berlin", "label": "DST ileri (Berlin 29 Mar 2026 = 23s)",    "year": 2026, "month": 3,  "day": 29, "tz": "Europe/Berlin",     "category": "dst-spring" },
+    { "id": "dst-fall-berlin",   "label": "DST geri (Berlin 25 Eki 2026 = 25s)",     "year": 2026, "month": 10, "day": 25, "tz": "Europe/Berlin",     "category": "dst-fall" },
+    { "id": "dst-spring-ny",     "label": "DST ileri (New York 8 Mar 2026 = 23s)",   "year": 2026, "month": 3,  "day": 8,  "tz": "America/New_York",  "category": "dst-spring" },
+    { "id": "dst-fall-ny",       "label": "DST geri (New York 1 Kas 2026 = 25s)",    "year": 2026, "month": 11, "day": 1,  "tz": "America/New_York",  "category": "dst-fall" },
+    { "id": "normal-ist",        "label": "Normal gun (Istanbul sabit +3 = 24s)",    "year": 2026, "month": 6,  "day": 15, "tz": "Europe/Istanbul",   "category": "normal" }
+  ]
+}
