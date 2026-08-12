@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -85,7 +86,7 @@ export async function PATCH(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydı güncellenemez
     .select("*");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
@@ -116,7 +117,7 @@ export async function DELETE(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydına dokunamaz
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.delete", error, "Karışım silinemedi.");
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },

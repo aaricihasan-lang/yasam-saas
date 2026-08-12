@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GlossaryTermListItem } from "@/lib/aromaterapi/readTypes";
 import {
-  buildOrIlike,
+  buildSearchNormIlike,
   type ParsedListParams,
 } from "@/lib/aromaterapi/service/readValidation";
 
@@ -21,11 +21,8 @@ const GLOSSARY_TABLE = "aromatherapy_glossary_terms";
 
 export const GLOSSARY_STATUS = ["draft", "verified", "archived"] as const;
 
-const GLOSSARY_SEARCH_COLS = [
-  "canonical_term_tr",
-  "canonical_term_en",
-  "short_definition_tr",
-] as const;
+// Arama: generated `search_norm` = normalize(canonical_term_tr, canonical_term_en,
+// short_definition_tr) — migration 20261003000000. Eski çok-kolon .ilike kapsamı korunur.
 const GLOSSARY_LIST_COLS =
   "id, canonical_term_tr, canonical_term_en, short_definition_tr, professional_definition_tr, status, updated_at";
 
@@ -39,7 +36,7 @@ export async function listGlossaryTerms(
     .select(GLOSSARY_LIST_COLS, { count: "exact" })
     .eq("tenant_id", tenantId);
 
-  if (p.q) query = query.or(buildOrIlike(GLOSSARY_SEARCH_COLS, p.q));
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   for (const [col, val] of Object.entries(p.equals)) query = query.eq(col, val);
 
   const { data, error, count } = await query

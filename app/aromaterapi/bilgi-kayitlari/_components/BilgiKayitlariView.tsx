@@ -100,7 +100,11 @@ export function BilgiKayitlariView() {
               label="Kayıt türü"
               value={s.filters.claim_type ?? ""}
               options={opts(CLAIM_TYPE_TR)}
-              onChange={(v) => s.setFilter("claim_type", v)}
+              // safety_topic kontrolü yalnız claim_type=safety iken görünür; başka
+              // türe geçince bağımlı param'ı da atomik temizle (ghost filter fix).
+              onChange={(v) =>
+                s.setFilter("claim_type", v, v === "safety" ? undefined : ["safety_topic"])
+              }
             />
             <ReadFilterSelect
               label="Kanıt katmanı"

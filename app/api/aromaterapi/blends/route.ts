@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("is_active", true)
     .order("created_at", { ascending: false, nullsFirst: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.list", error, "Karışımlar yüklenemedi.");
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -96,6 +97,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.create", error, "Karışım kaydedilemedi.");
   return NextResponse.json({ ok: true, blend: data });
 }

@@ -13,7 +13,7 @@ import type {
   PreparationListItem,
 } from "@/lib/aromaterapi/readTypes";
 import {
-  buildOrIlike,
+  buildSearchNormIlike,
   UUID_RE,
   type ParsedListParams,
 } from "@/lib/aromaterapi/service/readValidation";
@@ -53,7 +53,8 @@ export const EVIDENCE_LAYERS = [
 ] as const;
 export const RATIONALE_STATUS = ["from_source", "source_gives_no_rationale"] as const;
 
-const CLAIM_SEARCH_COLS = ["conclusion", "rationale", "preparation_context"] as const;
+// Arama: generated `search_norm` = normalize(conclusion, rationale, preparation_context)
+// — migration 20261003000000. Eski çok-kolon .ilike kapsamı korunur.
 const CLAIM_LIST_COLS =
   "id, claim_type, conclusion, conclusion_provenance, evidence_layer, rationale_status, status, safety_topic, outcome_type, preparation_id, preparation_context, updated_at";
 const CLAIM_DETAIL_COLS =
@@ -80,7 +81,7 @@ export async function listKnowledgeRecords(
     .select(CLAIM_LIST_COLS, { count: "exact" })
     .eq("tenant_id", tenantId);
 
-  if (p.q) query = query.or(buildOrIlike(CLAIM_SEARCH_COLS, p.q));
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   for (const [col, val] of Object.entries(p.equals)) query = query.eq(col, val);
   if (extra.preparationId) query = query.eq("preparation_id", extra.preparationId);
   if (extra.safetyTopic) query = query.eq("safety_topic", extra.safetyTopic);

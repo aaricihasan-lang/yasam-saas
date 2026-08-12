@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .order("name", { ascending: true })
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return legacyDbErrorResponse("admin.oils.list", error, "Kanonik yağ listesi yüklenemedi.");
 
     const page = (data ?? []) as { id: string; name: string }[];
     all.push(...page);

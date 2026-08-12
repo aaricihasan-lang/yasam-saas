@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     ]);
 
     const err = t.error || e.error || c.error || m.error;
-    if (err) return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+    if (err) return legacyDbErrorResponse("oils.counts", err, "Sayaçlar yüklenemedi.");
 
     return NextResponse.json({
       ok: true,
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
       .order("name", { ascending: true });
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return legacyDbErrorResponse("oils.names", error, "İsim listesi yüklenemedi.");
     return NextResponse.json({ ok: true, names: data ?? [] });
   }
 
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .order("name", { ascending: true })
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return legacyDbErrorResponse("oils.list", error, "Yağlar yüklenemedi.");
 
     const page = (data ?? []) as unknown as Record<string, unknown>[];
     all.push(...page);
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .insert({ ...fields, tenant_id: tenantId }) // tenant_id yalnız güvenlik katmanından
     .select("id")
     .single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("oils.create", error, "Yağ kaydedilemedi.");
   return NextResponse.json({ ok: true, id: data.id });
 }
 
@@ -136,6 +137,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId) // yalnız kendi tenant kayıtları; global (null) dokunulmaz
     .in("id", ids)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
   return NextResponse.json({ ok: true, deletedIds: (data ?? []).map((r) => r.id as string) });
 }

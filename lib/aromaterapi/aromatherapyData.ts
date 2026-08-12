@@ -1,4 +1,5 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -271,19 +272,12 @@ export async function deleteOils(
 // Yardımcılar
 // -------------------------------------------------------
 
-// Türkçe İ/ı/I/i arama eşleştirmesi.
-// JS'in `toLowerCase()`'i "İ" harfini "i" + birleşik nokta (U+0307) yapar ve
-// noktasız "ı" ile noktalı "i" ayrık kalır; bu yüzden "BİBERİYE" araması
-// "Biberiye" kaydını kaçırır. Bu fonksiyon dört I türevini de tek "i"ye indirger.
-// Sonuç: "BİBERİYE" = "Biberiye" = "biberiye", "İNCELE" = "İncele" = "incele".
-const COMBINING_DOT_ABOVE = String.fromCharCode(0x0307);
-
+// Türkçe arama eşleştirmesi — TEK sözleşme (lib/aromaterapi/searchNormalize.ts;
+// sunucu `search_norm` ile byte-eş). Dört I türevi (İ/I/ı/i)→i, Türkçe diakritik
+// (ş/ğ/ü/ö/ç)→ASCII, U+0307 silme, whitespace collapse. Böylece istemci Oils/blend
+// araması ile sunucu araması AYNI davranır: "BİBERİYE"="biberiye", "cay"="Çay".
 export function foldForSearch(value: string): string {
-  return value
-    .replace(/[İIıi]/g, "i") // dört I türevi → i (toLowerCase'in noktalı-i sorununu atlar)
-    .toLowerCase() // kalan harfleri küçült (ş, ğ, ü, ö, ç...)
-    .split(COMBINING_DOT_ABOVE)
-    .join(""); // olası birleşik nokta (U+0307) temizlenir
+  return normalizeForSearch(value);
 }
 
 // Arama alanları — TEK ortak kaynak. matchesOilSearch (blend araması) ve
