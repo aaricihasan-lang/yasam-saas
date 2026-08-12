@@ -130,15 +130,18 @@ async function run(): Promise<void> {
   add("D-matrix-validate", ok, detail);
   // Her kaynak bir kohort dispozisyonu alır (fail-closed default yok).
   add("D-every-entry-cohort", YH_ACTIVATION_MATRIX.every((e) => assessCohort(e).cohort.length > 0));
-  // KEEP_LIVE 16 (grandfathered). BF-11E: archive artık COHORT_1_READY (kod-ready; gap yok).
-  add("D-keep-live-16", sourceKeysByCohort("KEEP_LIVE").length === 16);
+  // KEEP_LIVE 2 (grandfathered: dogaltas:stones + refleksoloji:notes). Cohort A: 14 professional
+  // graduate + 2 yeni Biyoenerji → FUTURE_ONLY_READY → COHORT_1_READY (archive de COHORT_1_READY).
+  add("D-keep-live-2", sourceKeysByCohort("KEEP_LIVE").length === 2 && sourceKeysByCohort("KEEP_LIVE").every((k) => k === "dogaltas:stones" || k === "refleksoloji:notes"), sourceKeysByCohort("KEEP_LIVE").join(","));
   add("D-archive-cohort1-ready", sourceKeysByCohort("COHORT_1_READY").includes("kisisel_arsiv:archives"));
   // COHORT_1_BLOCKED artık BOŞ (archive graduate; belge retired → source değil).
   add("D-cohort1-blocked-empty", sourceKeysByCohort("COHORT_1_BLOCKED").length === 0);
   add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
-  // COHORT_1_READY adayı yalnız kisisel_arsiv:archives; kod önkoşulu çözüldü → readyGap BOŞ.
+  // COHORT_1_READY = kisisel_arsiv:archives (ROW_GATED_CONTROLLED) + 16 Cohort-A professional
+  // FUTURE_ONLY_READY = 17; kod önkoşulları çözüldü → readyGap BOŞ.
   const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
-  add("D-cohort1-ready-one-no-gap", cohort1Ready.length === 1 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-17-no-gap", cohort1Ready.length === 17 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-includes-archive", cohort1Ready.some((e) => e.sourceKey === "kisisel_arsiv:archives"));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);
@@ -146,10 +149,11 @@ async function run(): Promise<void> {
   add("D-numerology-wait-reset", sourceKeysByCohort("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByCohort("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
 }
 
-// ═══ E) KEEP_LIVE COMPATIBILITY (17 canlı registry kaynak DEĞİŞMEDİ) ═══
+// ═══ E) KEEP_LIVE COMPATIBILITY (Cohort A: 19 canlı registry kaynak) ═══
 {
-  add("E-live-count-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
-  // Bu turda registry enabled DEĞİŞMEDİ: dormant professional 9, client 6.
+  // Cohort A: 2 yeni Biyoenerji professional kaynağı enabled:true → live 17→19.
+  add("E-live-count-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
+  // dormant professional 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; client 6 dormant.
   add("E-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("E-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
   // KEEP_LIVE kaynaklar runtime gate'te DB gerektirmez (grandfathered → null runtime aktif).

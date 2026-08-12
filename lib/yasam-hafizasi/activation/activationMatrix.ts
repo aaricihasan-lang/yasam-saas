@@ -104,8 +104,11 @@ const DORMANT_ROLLBACK =
 const SEP_APPROVAL = "AYRI production onayı (kod enabled:true + DB is_active flip + preflight PASS).";
 
 export const YH_ACTIVATION_MATRIX = [
-  // ── A) EXISTING LIVE PROFESSIONAL (KEEP_LIVE) — mevcut 16 canlı; davranış DEĞİŞMEZ ──
-  keepLive("refleksoloji:protocols", "Refleksoloji", "reflexology_protocols", "column", "source-classification"),
+  // ── A) COHORT A PROFESSIONAL — dogaltas:stones + refleksoloji:notes KEEP_LIVE (grandfathered
+  //   CANLI; davranış DEĞİŞMEZ); diğer 14 mevcut + 2 yeni Biyoenerji kaynağı FUTURE_ONLY_READY
+  //   (controlled): CDC trigger WIRED (migration 20261004000000) ama production'da is_active=true
+  //   olmadan NO-OP (default OFF; CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED). ──
+  controlled("refleksoloji:protocols", "Refleksoloji", "reflexology_protocols", "column", "source-classification"),
   {
     // refleksoloji:notes registry'de enabled:true ANCAK classification=pii → guard fail-closed
     // (index no-op). "KEEP_LIVE" = mevcut davranışı KORU (pii no-op) demektir; değiştirilmez.
@@ -127,20 +130,24 @@ export const YH_ACTIVATION_MATRIX = [
     recommendation:
       "KEEP_LIVE: classification=pii → source-guard fail-closed (index no-op). Mevcut davranış KORUNUR; PII ana index'e girmez.",
   },
-  keepLive("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
-  keepLive("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
-  keepLive("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
-  keepLive("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
-  keepLive("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),
-  keepLive("biyoenerji:imaginations", "Biyoenerji", "bioenergy_imaginations", "column", "source-classification"),
+  controlled("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
+  controlled("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
+  controlled("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
+  controlled("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
+  controlled("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),
+  controlled("biyoenerji:imaginations", "Biyoenerji", "bioenergy_imaginations", "column", "source-classification"),
+  // BF-CohortA yeni Biyoenerji professional kaynakları (migration 20261004000000 ile trigger WIRED).
+  controlled("biyoenerji:sessions", "Biyoenerji", "bioenergy_sessions", "column", "source-classification"),
+  controlled("biyoenerji:energy-bodies", "Biyoenerji", "bioenergy_energy_bodies", "column", "source-classification"),
+  // dogaltas:stones KEEP_LIVE (grandfathered CANLI; mevcut koşulsuz outbox trigger — DEĞİŞMEZ).
   keepLive("dogaltas:stones", "Doğaltaş", "stones", "column", "source-classification"),
-  keepLive("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
-  keepLive("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
-  keepLive("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
-  keepLive("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
-  keepLive("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
-  keepLive("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
-  keepLive("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
+  controlled("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
+  controlled("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
+  controlled("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
+  controlled("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
+  controlled("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
+  controlled("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
+  controlled("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
 
   // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {
@@ -249,6 +256,41 @@ function keepLive(
     rollbackBehavior: KEEP_LIVE_ROLLBACK,
     recommendation:
       "KEEP_LIVE: Mevcut canlı professional bilgi/katalog kaynağı. Yeni aktivasyon kapısı bu kaynağı DEĞİŞTİRMEZ; regresyonla korunur.",
+  };
+}
+
+/**
+ * COHORT A CONTROLLED (FUTURE_ONLY_READY): keepLive'in eşi ancak grandfathered DEĞİL — CDC
+ * trigger migration 20261004000000 ile WIRED, fakat production'da yh_source_activation.is_active=true
+ * olmadan NO-OP (default OFF). registryEnabled:true TEK BAŞINA aktive etmez (çift kapı). Backfill
+ * YASAK (blind bulk); yalnız INSERT/UPDATE/DELETE future-event current-state indexlenir.
+ */
+function controlled(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+  tenantMode: ActivationTenantMode,
+  rowGate: ActivationRowGate,
+): ActivationMatrixEntry {
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "FUTURE_ONLY_READY",
+    sourceTable,
+    tenantMode,
+    rowGate,
+    registryEnabled: true,
+    currentDataRisk: "none",
+    futureEventEligible: true,
+    backfillEligibility: "not-applicable",
+    triggerFeasibleNow: true,
+    activationPrerequisite:
+      "AYRI production kapıları: (1) CDC trigger WIRED (migration 20261004000000; enqueue AKTİVASYON-KAPILI — is_active YOKSA sessiz NO-OP), (2) yh_source_activation_set(<sourceKey>, true) — CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Kaynak default OFF; kör backfill YASAK (yalnız future-event current-state).",
+    activationCohort: "cohort-a-professional",
+    rollbackBehavior: DORMANT_ROLLBACK,
+    recommendation:
+      "FUTURE_ONLY_READY (controlled): CDC trigger migration 20261004000000 ile WIRED ama production'da yh_source_activation.is_active=true olmadan NO-OP (default OFF). registryEnabled:true TEK BAŞINA aktive etmez (çift kapı: kod + DB flip). Backfill DEFAULT false (blind bulk YASAK); yalnız INSERT→upsert / UPDATE→refresh / DELETE→deindex future-event indexlenir. Aktivasyon ayrı production onayı.",
   };
 }
 
@@ -428,8 +470,13 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
     case "WAIT_FOR_CLEAN_RESET":
       return { cohort: "WAIT_FOR_CLEAN_RESET", readyGap: "sistem-genel test-data temiz reset (mevcut tenant verisi risk)." };
     case "FUTURE_ONLY_READY":
-      // NOT: belge_video:passages (tek professional FUTURE_ONLY_READY adayı) ÜRÜN KARARIYLA
-      //   source registry/matrix'ten çıkarıldı (NON_SOURCE) → geriye yalnız client kaynaklar kalır.
+      // COHORT A PROFESSIONAL: kod önkoşulları ÇÖZÜLDÜ (registry + matris + CDC trigger WIRED
+      // migration 20261004000000). Kalan yalnız AYRI production kapıları: trigger apply + is_active
+      // flip → COHORT_1_READY (readyGap boş; belge_video ÜRÜN KARARIYLA NON_SOURCE, matriste yok).
+      if (entry.scope === "professional") {
+        return { cohort: "COHORT_1_READY", readyGap: "" };
+      }
+      // CLIENT: ayrı client index (yasam_hafizasi_client_index) worker/CDC pipeline gerektirir.
       return {
         cohort: "COHORT_2",
         readyGap:

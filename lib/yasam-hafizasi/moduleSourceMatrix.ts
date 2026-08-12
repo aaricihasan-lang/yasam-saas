@@ -67,6 +67,8 @@ export const YH_MODULE_SOURCE_MATRIX = [
       "biyoenerji:symbols",
       "biyoenerji:chakras",
       "biyoenerji:imaginations",
+      "biyoenerji:sessions",
+      "biyoenerji:energy-bodies",
     ],
     clientSourceKeys: [],
     allow: ["başlık", "sembol/anlam", "kategori", "yapılandırılmış içerik", "kaynak"],

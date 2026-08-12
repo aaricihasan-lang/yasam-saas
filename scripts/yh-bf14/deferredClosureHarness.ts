@@ -133,9 +133,9 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
   // BF-11E: kisisel_arsiv:archives ROW-GATED CONTROLLED (safe-non-pii + requiresRowEligibilityGate; duplicate yok).
   add("existing-archive-source-row-gated", byKey.get("kisisel_arsiv:archives")?.classification === "safe-non-pii" && byKey.get("kisisel_arsiv:archives")?.requiresRowEligibilityGate === true, byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
-  // 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video).
-  add("registry-count-25", YH_INDEX_SOURCES.length === 25, String(YH_INDEX_SOURCES.length));
-  add("live-count-17-unchanged", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  // Cohort A: 19 canlı + 8 dormant (2 numeroloji + 6 yebs) = 27 kaynak.
+  add("registry-count-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("live-count-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
   // WIRED_DORMANT closure key'leri GERÇEKTEN registry'de ve HEPSİ enabled:false.
   const wired = wiredDormantRegistryKeys();
   add("closure-wired-keys-in-registry", wired.length === 6 && wired.every((k) => byKey.has(k)), wired.join(","));

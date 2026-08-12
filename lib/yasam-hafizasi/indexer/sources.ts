@@ -121,8 +121,10 @@ export interface SourceConfig {
 
 /**
  * Kilitli 17 kaynak (Sprint 2 başlangıç kapsamı).
- * Kapsam dışı 5 tablo (refleksoloji atlası, enerji bedenleri, arşiv dosyaları,
- * aromaterapi bilgi makaleleri ve taş dışlama filtresi) bu listede YER ALMAZ.
+ * Kapsam dışı 3 tablo (refleksoloji atlası, arşiv dosyaları ve taş dışlama filtresi)
+ * bu listede YER ALMAZ. NOT: Biyoenerji "Enerji Bedenleri" (bioenergy_energy_bodies) ve
+ * "Teknikler & Uygulamalar / Seanslar" (bioenergy_sessions) ARTIK professional kaynaktır
+ * (Cohort A event-driven parity; migration 20261004000000) → aşağıda kayıtlıdır.
  */
 export const YH_INDEX_SOURCES = [
   // ── Refleksoloji ──────────────────────────────────────────────────────────
@@ -297,6 +299,42 @@ export const YH_INDEX_SOURCES = [
     searchTextColumns: ["text", "notes", "source"],
     snippetColumns: ["text"],
     topicTagsColumns: ["category"],
+    relationColumns: [],
+    updatedAtColumn: null,
+    activeColumn: null,
+    enabled: true,
+  },
+  {
+    sourceKey: "biyoenerji:sessions",
+    classification: "safe-non-pii", // Teknikler & Uygulamalar; danışan-bağımsız (client_id yok)
+
+    sourceFamily: "biyoenerji",
+    tableName: "bioenergy_sessions",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["content", "category", "source", "note"],
+    snippetColumns: ["content"],
+    topicTagsColumns: ["category"],
+    relationColumns: [],
+    updatedAtColumn: null,
+    activeColumn: null,
+    enabled: true,
+  },
+  {
+    sourceKey: "biyoenerji:energy-bodies",
+    classification: "safe-non-pii", // Enerji Bedenleri; danışan-bağımsız
+
+    sourceFamily: "biyoenerji",
+    tableName: "bioenergy_energy_bodies",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["source_uid"],
+    searchTextColumns: ["genel_tanim", "gorevi", "bozulma", "onerilen_taslar", "not_text"],
+    snippetColumns: ["genel_tanim"],
+    topicTagsColumns: [],
     relationColumns: [],
     updatedAtColumn: null,
     activeColumn: null,
