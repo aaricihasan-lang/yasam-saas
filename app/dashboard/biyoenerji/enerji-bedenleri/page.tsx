@@ -6,6 +6,7 @@ export default function EnerjiBedenleriPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
+      activeSection="enerji-bedenleri"
       badge="BİYOENERJİ · KATMAN"
       title="Enerji Bedenleri"
       subtitle="Aura, eterik, astral ve enerji katman bilgileri — kayıt seçin, detayları okuyun ve düzenleyin"

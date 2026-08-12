@@ -32,14 +32,15 @@ export default function BiyoenerjiFolderPage() {
             aria-hidden
           />
           <div className="relative z-10">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700/85">
-              Enerji &amp; Beden
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700/85">
+              Yaşam Enerjisi Sistemi
             </p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
               Biyoenerji
             </h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-              Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir.
+              Enerji anatomisinden tekniklere kadar tüm çalışma alanları. Bir başlık
+              seçin — veriler yalnızca ilgili alana girince yüklenir.
             </p>
           </div>
         </header>
