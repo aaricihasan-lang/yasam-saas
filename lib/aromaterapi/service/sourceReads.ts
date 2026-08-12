@@ -10,7 +10,7 @@ import type {
   SourceListItem,
 } from "@/lib/aromaterapi/readTypes";
 import {
-  buildOrIlike,
+  buildSearchNormIlike,
   type ParsedListParams,
 } from "@/lib/aromaterapi/service/readValidation";
 
@@ -44,16 +44,9 @@ export const SOURCE_TYPES = [
 ] as const;
 export const SOURCE_STATUS = ["draft", "verified", "archived"] as const;
 
-const SOURCE_SEARCH_COLS = [
-  "title",
-  "authors",
-  "organization",
-  "doi",
-  "pmid",
-  "isbn",
-  "url",
-  "document_no",
-] as const;
+// Arama: generated `search_norm` = normalize(title, authors, organization, doi,
+// pmid, isbn, url, document_no) — migration 20261003000000. Kapsam korunur.
+// Passage araması ise locator_label'ı normalize eden kendi search_norm'unu kullanır.
 
 const SOURCE_LIST_COLS =
   "id, title, source_type, status, authors, organization, publication_year, updated_at";
@@ -75,7 +68,7 @@ export async function listSources(
     .select(SOURCE_LIST_COLS, { count: "exact" })
     .eq("tenant_id", tenantId);
 
-  if (p.q) query = query.or(buildOrIlike(SOURCE_SEARCH_COLS, p.q));
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   for (const [col, val] of Object.entries(p.equals)) query = query.eq(col, val);
   if (p.year !== null) query = query.eq("publication_year", p.year);
 
@@ -163,7 +156,7 @@ export async function listSourcePassages(
     .eq("tenant_id", tenantId)
     .eq("source_id", sourceId);
 
-  if (p.q) query = query.or(buildOrIlike(["locator_label"], p.q));
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   if (language) query = query.eq("original_lang", language);
 
   const { data, error, count } = await query

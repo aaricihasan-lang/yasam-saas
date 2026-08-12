@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
+import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 import {
   deleteOil,
   fetchOilDetail,
@@ -148,12 +149,10 @@ function tabHasData(t: DetailTab, draft: OilFormData): boolean {
 
 type BlendEntry = { id: string; name: string };
 
+// Ortak arama sözleşmesine delege (searchNormalize.ts) — eski elle katlama İ/ı
+// combining-dot bug'ı taşıyordu; artık server `search_norm` ile byte-eş.
 function normTR(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .trim();
+  return normalizeForSearch(s);
 }
 
 function stripYagSuffix(s: string): string {

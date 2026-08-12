@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,7 @@ export async function GET(
     .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("oils.detail", error, "Yağ kaydı yüklenemedi.");
   if (!data)
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı.", notFound: true }, { status: 404 });
   return NextResponse.json({ ok: true, oil: data });
@@ -63,7 +64,7 @@ export async function PATCH(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant / global kayıt güncellenemez
     .eq("id", id)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("oils.update", error, "Yağ güncellenemedi.");
   if (!data || data.length === 0)
     return NextResponse.json(
       { ok: false, error: "Güncelleme başarısız — kayıt bulunamadı veya erişim izniniz yok." },
@@ -92,7 +93,7 @@ export async function DELETE(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant / global kayıt silinemez
     .eq("id", id)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
   if (!data || data.length === 0)
     return NextResponse.json(
       { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil." },

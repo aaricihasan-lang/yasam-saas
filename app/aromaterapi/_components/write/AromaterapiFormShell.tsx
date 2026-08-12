@@ -5,6 +5,7 @@ import {
   AROMATERAPI_REASON_MAX_LEN,
   type AromaterapiFormMode,
 } from "@/lib/aromaterapi/writeTypes";
+import { useUnsavedChangesGuard } from "@/app/aromaterapi/_components/write/useUnsavedChangesGuard";
 
 /**
  * Aromaterapi V2 — C3D reusable yazma formu ve güvenlik UI temeli.
@@ -62,7 +63,16 @@ export function AromaterapiFormShell({
   const errId = useId();
   const defaultLabel = mode === "create" ? "Kaydet" : "Değişiklikleri kaydet";
 
+  // Uygulama-içi dirty navigasyon koruması (Cancel/Vazgeç → onay diyaloğu).
+  // beforeUnload: false → sekme-kapat uyarısını çağıran form kendi
+  // useAromaterapiDirtyGuard'ı ile yönetir (çift listener önlenir).
+  const { guard, guardDialog } = useUnsavedChangesGuard(Boolean(dirty) && !isDemo, {
+    beforeUnload: false,
+  });
+  const guardedCancel = onCancel ? () => guard(onCancel) : undefined;
+
   return (
+    <>
     <form
       onSubmit={onSubmit}
       noValidate
@@ -106,13 +116,15 @@ export function AromaterapiFormShell({
 
       <AromaterapiFormActions
         mode={mode}
-        onCancel={onCancel}
+        onCancel={guardedCancel}
         submitting={submitting}
         isDemo={isDemo}
         dirty={dirty}
         submitLabel={submitLabel ?? defaultLabel}
       />
     </form>
+    {guardDialog}
+    </>
   );
 }
 
