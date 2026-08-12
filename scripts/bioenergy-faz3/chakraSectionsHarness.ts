@@ -11,6 +11,7 @@
  */
 import {
   buildChakraSections,
+  resolveActiveChakraSection,
   CHAKRA_SECTION_DICTIONARY,
   type ChakraSectionInput,
 } from "../../lib/bioenergy/chakraSections";
@@ -123,6 +124,34 @@ check(
 // Üretilen tüm id'ler sözlükte (future olmayan) var mı?
 const dictNonFuture = new Set(CHAKRA_SECTION_DICTIONARY.filter((s) => !s.future).map((s) => s.id));
 check("Üretilen section'lar sözlükteki non-future ile tutarlı", full.every((s) => dictNonFuture.has(s.id)));
+
+// 9) Tek-section workspace seçim sözleşmesi (resolveActiveChakraSection)
+// Default: param yok → İLK görünür section
+check("Default (param null) → ilk görünür section", resolveActiveChakraSection(full, null)?.id === "genel-bakis");
+check("Default (param boş string) → ilk görünür", resolveActiveChakraSection(full, "")?.id === "genel-bakis");
+// Geçerli param → o section
+check("Geçerli param → o section", resolveActiveChakraSection(full, "beden-sistem")?.id === "beden-sistem");
+check("Geçerli param 2 → taslar", resolveActiveChakraSection(full, "taslar-destekleyiciler")?.id === "taslar-destekleyiciler");
+// Geçersiz param → güvenli fallback İLK görünür
+check("Geçersiz param → ilk görünür fallback", resolveActiveChakraSection(full, "bilinmeyen-xyz")?.id === "genel-bakis");
+// Future section hash → görünür değil → fallback ilk
+check("Future hash (enerji-anatomisi) → fallback ilk", resolveActiveChakraSection(full, "enerji-anatomisi")?.id === "genel-bakis");
+check("Future hash (uygulamalar) → fallback ilk", resolveActiveChakraSection(full, "uygulamalar")?.id === "genel-bakis");
+// Görünmeyen (bu kayıtta boş) section param → fallback ilk
+const partial = buildChakraSections({ causes: "x", notes: "y" }, { stonesVisible: false });
+check("Kayıtta olmayan section param → fallback ilk görünür", resolveActiveChakraSection(partial, "beden-sistem")?.id === "nedenler-blokajlar");
+// Boş sections → null
+check("Boş sections → null", resolveActiveChakraSection([], "genel-bakis") === null);
+// Her görünür section kendi hash'iyle seçilebilir (all-selectable)
+check(
+  "6 görünür section'ın hepsi kendi hash'iyle seçilebilir",
+  full.every((s) => resolveActiveChakraSection(full, s.hash)?.id === s.id),
+);
+// stones section param stonesVisible=false iken seçilemez → fallback
+check(
+  "stones param ama stones görünmez → fallback ilk",
+  resolveActiveChakraSection(noStones, "taslar-destekleyiciler")?.id === "genel-bakis",
+);
 
 console.log(`\nBİYOENERJİ FAZ 3.1 — ÇAKRA SECTION HARNESS`);
 console.log(`PASS: ${pass}  FAIL: ${fail}  TOTAL: ${pass + fail}`);

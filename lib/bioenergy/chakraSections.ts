@@ -138,3 +138,18 @@ export function buildChakraSections(
 
   return out;
 }
+
+/**
+ * Tek-section workspace seçim sözleşmesi: URL `?section=<hash>` parametresini
+ * görünür section'lara karşı doğrular. Geçersiz / boş / future / bilinmeyen →
+ * güvenli varsayılan = İLK görünür section. Görünür section yoksa null.
+ * (Boş/future section ASLA aktif olamaz çünkü yalnız görünürler aday.)
+ */
+export function resolveActiveChakraSection(
+  sections: ChakraSection[],
+  param: string | null | undefined,
+): ChakraSection | null {
+  if (sections.length === 0) return null;
+  const found = param ? sections.find((s) => s.hash === param) : undefined;
+  return found ?? sections[0] ?? null;
+}
