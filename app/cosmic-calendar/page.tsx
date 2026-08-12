@@ -21,6 +21,7 @@ import { getPlanetSigns } from "@/lib/cosmic/planets";
 import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
+import { getExactAspectsInRange, type ExactAspectHit } from "@/lib/cosmic/exactAspects";
 import {
   getAllEclipses, getSolarCityVisibility, getLunarCityVisibility,
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
@@ -29,7 +30,7 @@ import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref, saveUserLocationPref } from "@/lib/location/userLocationPref";
-import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes } from "@/lib/location/tz";
+import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -70,6 +71,22 @@ function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: stri
 
 const motionDirTR = (d: AspectMotionState["direction"]): string =>
   d === "applying" ? "Yaklaşıyor" : d === "separating" ? "Ayrılıyor" : "Tam";
+
+// ─── Günün Exact Açıları (timeline) yardımcıları ───────────────────────────────
+// Timeline, seçili gün için [00:00, ertesi 00:00) SEÇİLİ KONUM saat diliminde exact
+// major açıların kronolojik listesidir (snapshot DEĞİL). Global selectedDate DEĞİŞMEZ.
+
+/** Bir exact olayın gösterim saati: dakika hassasiyetinde tz-aware HH:mm; "date"te saat YOK. */
+function timelineClock(hit: ExactAspectHit, tz: string): { time: string | null; note: string } {
+  if (hit.displayPrecision === "date") return { time: null, note: "gün içinde" };
+  return { time: formatInTimeZone(hit.exactAt, tz), note: "" };
+}
+
+/** Exact çözücünün güven düzeyi — insan-okur (yalnız uzman modda gösterilir). */
+const confidenceTR = (c: ExactAspectHit["confidence"]): string =>
+  c === "high" ? "yüksek güven" : c === "medium" ? "orta güven" : "konum güveni";
+
+const timelineIncludesMoon = (h: ExactAspectHit): boolean => h.bodyA === "Ay" || h.bodyB === "Ay";
 
 // ─── Void of Course Moon (FAZ 3B Adım 3 — normal kullanıcı) ────────────────────
 // Yalnız production voidMoon engine verisi. Teknik alanlar (source/validation/id) gizli.
@@ -892,6 +909,7 @@ export default function CosmicCalendarPage() {
   const [showFilters,      setShowFilters]      = useState(false);  // filtre paneli aç/kapa
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
+  const [timelineMoon,     setTimelineMoon]     = useState(true);   // Günün Exact Açıları: Ay dahil (varsayılan açık — Ay olayların çoğu)
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
   const [showAllEclipses,  setShowAllEclipses]  = useState(false);   // normal görünüm: tüm yaklaşan tutulmalar
   const [showPastEclipses, setShowPastEclipses] = useState(false);   // normal görünüm: geçmiş tutulmalar (varsayılan kapalı)
@@ -1129,6 +1147,25 @@ export default function CosmicCalendarPage() {
   );
   const eclipseCity = selEclipseLoc?.name ?? "Ankara";
   const eclipseTz = selEclipseLoc?.tz ?? TR_TZ;
+
+  // ── Günün Exact Açıları (timeline) — FAZ 2C sunum katmanı ─────────────────────
+  // Snapshot (getDailyAspects) DEĞİŞMEZ; bu AYRI bir semantik: seçili günün
+  // [00:00, ertesi 00:00) SEÇİLİ KONUM saat dilimindeki TÜM exact major açıları.
+  // Global selectedDate dokunulmaz — yalnız Y/M/D + eclipseTz'den tz-aware pencere türetilir.
+  // Motor yeniden yazılmadı: getZonedDayRange (tz) + getExactAspectsInRange (mevcut çözücü).
+  const dayTimeline = useMemo(() => {
+    const { start, end } = getZonedDayRange(
+      selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), eclipseTz,
+    );
+    return { start, end, events: getExactAspectsInRange(start, end) };
+  }, [selectedDate, eclipseTz]);
+
+  // Ay filtresi client-side; yeni astronomik hesap YAPMAZ (hazır liste süzülür).
+  const timelineView = useMemo<ExactAspectHit[]>(
+    () => (timelineMoon ? dayTimeline.events : dayTimeline.events.filter(h => !timelineIncludesMoon(h))),
+    [dayTimeline, timelineMoon],
+  );
+  const timelineMoonCount = useMemo(() => dayTimeline.events.filter(timelineIncludesMoon).length, [dayTimeline]);
 
   // P5g — Gezegen Saati / Gün Yöneticisi SEÇİLİ KONUMA göre: koordinat + IANA tz'nin DST-doğru
   // offset'i (getTimeZoneOffsetMinutes, lib/location/tz.ts salt kullanım). Motor default UTC+3 →
@@ -2531,6 +2568,75 @@ export default function CosmicCalendarPage() {
           <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
             Bu bölüm gezegenlerin gökyüzündeki açısal konumlarını gösterir. Astronomik veriye dayanır; yorum içermez.
           </p>
+
+          {/* ── GÜNÜN EXACT AÇILARI (timeline) — snapshot'tan AYRI semantik ── */}
+          <div className="mt-4 border-t border-indigo-100/70 pt-3">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-600">
+                  {isSelectedToday ? "🕒 Bugünün Exact Açıları" : "🕒 Günün Exact Açıları"}
+                </p>
+                <span className="rounded-full border border-violet-200/70 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-violet-600">{miladiDate}</span>
+                {isSelectedToday && <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Bugün</span>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setTimelineMoon(v => !v)}
+                aria-pressed={timelineMoon}
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                  timelineMoon ? "border-cyan-300 bg-cyan-600 text-white" : "border-slate-200 bg-white/70 text-slate-500 hover:bg-white"
+                }`}
+              >
+                ☽ Ay {timelineMoon ? "dahil" : "hariç"}{timelineMoonCount ? ` (${timelineMoonCount})` : ""}
+              </button>
+            </div>
+            <p className="mb-2.5 text-[11px] leading-snug text-slate-500">
+              Seçili gün boyunca <span className="font-semibold text-slate-600">tam (exact)</span> olan majör açıların,
+              seçili konum saatine ({eclipseTz}) göre kronolojik listesi. Bu bir anlık görüntü değildir.
+            </p>
+
+            {timelineView.length === 0 ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
+                Bu gün için seçili filtrelerde exact majör açı bulunamadı{timelineMoon ? "" : " (Ay hariç)"}.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-1.5">
+                {timelineView.map((h) => {
+                  const { time, note } = timelineClock(h, eclipseTz);
+                  const isMoon = timelineIncludesMoon(h);
+                  const retroBodies = [h.retroA ? h.bodyA : null, h.retroB ? h.bodyB : null].filter(Boolean).join(", ");
+                  return (
+                    <div key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-violet-100/70 bg-white/70 px-3 py-2">
+                      <span className="w-12 shrink-0 text-sm font-black tabular-nums text-violet-700">
+                        {time ?? <span className="text-[11px] font-semibold text-slate-400">gün içi</span>}
+                      </span>
+                      <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-900">
+                        <span className="text-indigo-500">{h.bodyASymbol}</span>
+                        <span className="truncate">{h.bodyA}</span>
+                        <span className="shrink-0 px-0.5 text-base text-indigo-400">{h.aspectSymbol}</span>
+                        <span className="text-indigo-500">{h.bodyBSymbol}</span>
+                        <span className="truncate">{h.bodyB}</span>
+                      </span>
+                      {isMoon && <span className="rounded-full bg-cyan-50 px-1.5 py-px text-[10px] font-bold text-cyan-600">☽ Ay</span>}
+                      {retroBodies && <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold text-amber-700">℞ {retroBodies}</span>}
+                      {note && <span className="rounded-full bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-500">{note}</span>}
+                      {expertMode && (
+                        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[10px] font-semibold text-slate-400">
+                          <span>{confidenceTR(h.confidence)}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="tabular-nums">{h.relativeSpeed.toFixed(2)}°/gün</span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-[10px] leading-snug text-slate-400">
+              Exact = açının tam olduğu an (yaklaşan/ayrılan değil). Saatler seçili konum diliminde; hızlı çiftlerde (Ay) dakika güvenilir,
+              yavaş çiftlerde tarih düzeyinde gösterilir. Astronomik veriye dayanır; yorum içermez.
+            </p>
+          </div>
 
           {/* ── Aspect Detay Penceresi (yalnız doğrulanmış astronomik alanlar) ── */}
           {detailRow && (

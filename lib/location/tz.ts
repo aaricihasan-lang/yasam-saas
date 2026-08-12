@@ -78,3 +78,42 @@ export function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
   );
   return Math.round((wallAsUtc - date.getTime()) / 60000);
 }
+
+/**
+ * Bir yerel duvar-saatini (verilen tz'de Y/M/D + saat) o an geçerli UTC anına çevirir.
+ * DST-güvenli iki geçiş: ilk ofsetle tahmin, sınırda ofset değiştiyse ikinci geçişle düzelt.
+ * Gece yarısı (00:00) test edilen tüm zamanlarda tekil/geçerli olduğundan sağlamdır;
+ * (İstanbul/Berlin/New York geçişleri 02:00–03:00 yereldedir, gece yarısında değil.)
+ */
+function zonedWallToUtcMs(
+  year: number, month0: number, day: number,
+  hour: number, minute: number, second: number, timeZone: string,
+): number {
+  const wallAsUtc = Date.UTC(year, month0, day, hour, minute, second);
+  const off1 = getTimeZoneOffsetMinutes(new Date(wallAsUtc), timeZone);
+  let utc = wallAsUtc - off1 * 60000;
+  const off2 = getTimeZoneOffsetMinutes(new Date(utc), timeZone);
+  if (off2 !== off1) utc = wallAsUtc - off2 * 60000;
+  return utc;
+}
+
+/**
+ * Bir takvim gününün (Y/M/D), verilen IANA saat diliminde [00:00, ertesi gün 00:00)
+ * yarı-açık UTC aralığı. Astronomik motor UTC/instant'ta çalışır; bu yalnız "hangi
+ * yerel güne ait" penceresini üretir. Global selectedDate semantiği DEĞİŞMEZ —
+ * çağıran yalnız Y/M/D geçirir; tarayıcı saat dilimi sonucu etkilemez.
+ *
+ * DST doğruluğu: her sınır kendi ofsetiyle bağımsız çözüldüğünden yerel gün
+ * 23s (ilkbahar) / 24s / 25s (sonbahar) olabilir ve pencere buna uyar.
+ * Ardışık günlerin pencereleri örtüşmez/boşluk bırakmaz (bir günün end'i = ertesinin start'ı).
+ */
+export function getZonedDayRange(
+  year: number, month0: number, day: number, timeZone: string,
+): { start: Date; end: Date } {
+  const tz = safeZone(timeZone);
+  const startMs = zonedWallToUtcMs(year, month0, day, 0, 0, 0, tz);
+  // Ertesi takvim günü — ay/yıl taşmasında güvenli (Date.UTC normalize eder).
+  const nx = new Date(Date.UTC(year, month0, day + 1));
+  const endMs = zonedWallToUtcMs(nx.getUTCFullYear(), nx.getUTCMonth(), nx.getUTCDate(), 0, 0, 0, tz);
+  return { start: new Date(startMs), end: new Date(endMs) };
+}
