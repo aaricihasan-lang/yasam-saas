@@ -12,11 +12,13 @@ export default function ImajinasyonlarDetailPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="detail"
+      activeSection="imajinasyonlar"
+      detailCrumb="Kayıt detayı"
       badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
       title="İmajinasyonlar"
       subtitle="Kayıt detayı — metin, not ve kaynak"
     >
-      <div className="w-full min-w-0 max-w-5xl">
+      <div className="w-full min-w-0 max-w-3xl">
         <ImajinasyonlarDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

@@ -6,6 +6,7 @@ export default function CakralarPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
+      activeSection="cakralar"
       badge="BİYOENERJİ · ÇAKRA KÜTÜPHANESİ"
       title="Çakra Kütüphanesi"
       subtitle="Enerji merkezleri, organlar, renkler ve çakra notları"

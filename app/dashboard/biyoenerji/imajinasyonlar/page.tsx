@@ -6,6 +6,7 @@ export default function ImajinasyonlarPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
+      activeSection="imajinasyonlar"
       badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
       title="İmajinasyon Kütüphanesi"
       subtitle="Görselleştirme, rehberli çalışmalar ve seans imgeleri"

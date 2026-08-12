@@ -12,11 +12,13 @@ export default function SembolDiliDetailPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="detail"
+      activeSection="sembol-dili"
+      detailCrumb="Kayıt detayı"
       badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
       title="Sembol Dili"
       subtitle="Kayıt detayı — anlam ve bilinçaltı mesajı"
     >
-      <div className="w-full min-w-0 max-w-5xl">
+      <div className="w-full min-w-0 max-w-3xl">
         <SembolDiliDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

@@ -6,6 +6,7 @@ export default function BilincaltiSebepleriPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
+      activeSection="bilincalti-sebepleri"
       badge="BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ"
       title="Bilinçaltı Sebepleri Kütüphanesi"
       subtitle="Arama yapın, karttan detayı açın — kök nedenler ve dönüşüm notları"

@@ -12,11 +12,13 @@ export default function BilincaltiSebepleriDetailPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="detail"
+      activeSection="bilincalti-sebepleri"
+      detailCrumb="Kayıt detayı"
       badge="BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ"
       title="Bilinçaltı Sebepleri"
       subtitle="Kayıt detayı — içerik ve notlar"
     >
-      <div className="w-full min-w-0 max-w-5xl">
+      <div className="w-full min-w-0 max-w-3xl">
         <BilincaltiSebepleriDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

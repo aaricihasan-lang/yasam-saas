@@ -14,8 +14,8 @@ export default function BiyoenerjiFolderPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-3 py-4 sm:px-5 xl:px-8 2xl:px-12">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-3 sm:px-5 xl:px-6">
+        <div className="mb-2.5 flex flex-wrap items-center gap-2">
           <Link
             href="/enerji-beden"
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300/60 hover:bg-slate-50 hover:text-violet-700 lg:min-h-0"
@@ -25,21 +25,27 @@ export default function BiyoenerjiFolderPage() {
           </Link>
         </div>
 
-        <header className="relative mb-5 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-lg sm:px-7 sm:py-5">
+        <header className="relative mb-4 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-md sm:px-6 sm:py-5">
           <Activity
-            className="pointer-events-none absolute right-5 top-1/2 h-20 w-20 -translate-y-1/2 text-violet-400 opacity-10"
+            className="pointer-events-none absolute right-4 top-1/2 h-16 w-16 -translate-y-1/2 text-violet-400 opacity-[0.07]"
             strokeWidth={1.25}
             aria-hidden
           />
           <div className="relative z-10">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700/85">
-              Enerji &amp; Beden
-            </p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-              Biyoenerji
+            <h1 className="text-[1.7rem] font-black leading-[1.1] tracking-tight text-slate-950 sm:text-4xl">
+              Yaşam Enerjisi Sistemi
             </h1>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-              Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir.
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="h-1 w-6 shrink-0 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
+                aria-hidden
+              />
+              <p className="text-base font-black tracking-tight text-violet-700 sm:text-lg">
+                Biyoenerji
+              </p>
+            </div>
+            <p className="mt-2 max-w-xl text-[13px] font-medium leading-snug text-slate-500">
+              Enerji anatomisinden tekniklere — tüm çalışma alanları tek merkezde.
             </p>
           </div>
         </header>

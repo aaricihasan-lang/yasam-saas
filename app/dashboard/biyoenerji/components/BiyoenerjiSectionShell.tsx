@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
+import {
+  BIOENERJI_FOLDER_BASE,
+  findBiyoenerjiSection,
+  type BiyoenerjiSectionKey,
+} from "../biyoenerjiFolderConfig";
+import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
+import BiyoenerjiSectionNav from "./BiyoenerjiSectionNav";
 
 type BiyoenerjiSectionShellProps = {
   title: string;
@@ -11,7 +17,36 @@ type BiyoenerjiSectionShellProps = {
   badge: string;
   children: ReactNode;
   headerVariant?: "default" | "premium" | "detail";
+  /**
+   * FAZ 2 — verildiğinde profesyonel breadcrumb + bölüm nav (hibrit) render edilir.
+   * Verilmezse eski davranış korunur (tam geriye dönük uyumlu).
+   */
+  activeSection?: BiyoenerjiSectionKey;
+  /** detail varyantında son (geçerli) breadcrumb öğesi — örn. "Kayıt detayı". */
+  detailCrumb?: string;
 };
+
+/** activeSection'dan breadcrumb zinciri kurar. */
+function buildCrumbs(
+  activeSection: BiyoenerjiSectionKey,
+  variant: "list" | "detail",
+  detailCrumb?: string,
+): BiyoenerjiCrumb[] {
+  const found = findBiyoenerjiSection(activeSection);
+  if (!found) return [{ label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE }];
+  const { card, group } = found;
+  const crumbs: BiyoenerjiCrumb[] = [
+    { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
+    { label: group.title },
+  ];
+  if (variant === "detail") {
+    crumbs.push({ label: card.title, href: card.href });
+    crumbs.push({ label: detailCrumb?.trim() || "Detay" });
+  } else {
+    crumbs.push({ label: card.title });
+  }
+  return crumbs;
+}
 
 export default function BiyoenerjiSectionShell({
   title,
@@ -19,9 +54,20 @@ export default function BiyoenerjiSectionShell({
   badge,
   children,
   headerVariant = "default",
+  activeSection,
+  detailCrumb,
 }: BiyoenerjiSectionShellProps) {
   const premium = headerVariant === "premium";
   const detail = headerVariant === "detail";
+
+  const nav = activeSection ? (
+    <div className="flex flex-col gap-2.5">
+      <BiyoenerjiBreadcrumb
+        items={buildCrumbs(activeSection, detail ? "detail" : "list", detailCrumb)}
+      />
+      <BiyoenerjiSectionNav activeSection={activeSection} />
+    </div>
+  ) : null;
 
   if (detail) {
     return (
@@ -29,6 +75,7 @@ export default function BiyoenerjiSectionShell({
         <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-violet-400/12 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-5 sm:py-3.5 xl:px-8 2xl:px-12">
+          {nav && <div className="mb-4 shrink-0">{nav}</div>}
           <div className="min-h-0 min-w-0 flex-1 pb-2">{children}</div>
         </div>
       </main>
@@ -65,6 +112,8 @@ export default function BiyoenerjiSectionShell({
                 Enerji &amp; Beden
               </Link>
             </div>
+
+            {nav}
 
             <div>
               <p className="mb-1.5 inline-flex rounded-full border border-violet-200 bg-violet-50/90 px-3 py-0.5 text-[10px] font-black tracking-[0.18em] text-violet-800">
