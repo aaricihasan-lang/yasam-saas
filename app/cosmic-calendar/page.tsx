@@ -11,7 +11,8 @@ import {
   getMonthPhaseEvents, getUpcomingPhaseEvents,
   type UpcomingPhaseEvent,
 } from "@/lib/cosmic/moon";
-import { getPlanetaryHour, getDayRuler, getPlanetaryHoursForRange, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
+import { getPlanetaryHour, getDayRuler } from "@/lib/cosmic/planetary-hours";
+import { toDateParam } from "./planetary-hours/plannerData";
 import {
   getActiveRetros, getUpcomingRetros, getNextRetro, parseRetroDate,
   RETRO_PERIODS,
@@ -586,14 +587,6 @@ const MONTH_NAMES_TR: ReadonlyArray<string> = [
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
 ];
 
-// Gezegen Saati Planlayıcısı — makul üst sınır (varsayılan 30 gün; kullanıcı değiştirebilir).
-const PLANNER_MAX_DAYS = 90;
-const PLANNER_PRESETS: ReadonlyArray<number> = [30, 60, 90];
-// getDay() 0=Pazar … 6=Cumartesi (tam adlar; planlayıcı gün başlıkları için).
-const WEEKDAY_TR_FULL: ReadonlyArray<string> = [
-  "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi",
-];
-
 // Pazartesi başlangıçlı hafta (PZT→PAZ). CSS `uppercase` ile büyük harf gösterilir.
 const DAY_HEADERS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
@@ -935,22 +928,9 @@ export default function CosmicCalendarPage() {
   // Gezegen Saati — "Şimdi" (realNow, yalnız bugün) vs "Seçili saat" (selectedDate + saat)
   const [phMode,           setPhMode]           = useState<"now" | "custom">("now");
   const [phTime,           setPhTime]           = useState("12:00");   // "HH:MM" — deterministik (hydration-safe)
-  // Gezegen Saati Planlayıcısı (seans planlama) — açılınca hesaplar (perf)
-  const [plannerOpen,      setPlannerOpen]      = useState(false);
-  const [plannerDays,      setPlannerDays]      = useState(30);         // aralık uzunluğu (gün); maks PLANNER_MAX_DAYS
-  const [plannerPlanets,   setPlannerPlanets]   = useState<Set<string>>(() => new Set(["Merkür", "Venüs"]));
-  const plannerRef = useRef<HTMLElement>(null);   // "Planlayıcıyı Aç" → planner'a smooth-scroll (tek instance)
+  // Gezegen Saati Planlayıcısı AYRI sayfaya taşındı (/cosmic-calendar/planetary-hours).
+  // Ana sayfada yalnız Gezegen Saati kutusundaki giriş noktası kalır (aşağıda Link).
   const dateInputRef = useRef<HTMLInputElement>(null);
-
-  // Gezegen Saati kutusundaki giriş noktası: TEK canonical plannerOpen state'i çevirir;
-  // açarken planner'ı görünür alana kaydırır (yeni instance/state OLUŞTURMAZ). Salt client (onClick).
-  function togglePlannerFromHour(): void {
-    const willOpen = !plannerOpen;
-    setPlannerOpen(willOpen);
-    if (willOpen && typeof window !== "undefined") {
-      requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
-  }
   const searchRef    = useRef<HTMLInputElement>(null);
 
   // #418 fix: ilk render sabit tohumla (server↔client birebir); mount'ta (paint öncesi) gerçek
@@ -1207,48 +1187,6 @@ export default function CosmicCalendarPage() {
     const result = getPlanetaryHour(target, selEclipseLoc?.lat, selEclipseLoc?.lon, offset);
     return { target, result };
   }, [phEffectiveMode, phTime, selectedDate, eclipseTz, selEclipseLoc]);
-
-  // ── Gezegen Saati Planlayıcısı (Feature C) ────────────────────────────────────
-  // Açılınca hesaplar (perf). Aralık = seçili gün .. seçili gün + (plannerDays-1), DAHİL.
-  // Offset her gün için HEDEF TARİHE göre çözülür (DST-doğru). Yeni astronomik hesap YOK;
-  // getPlanetaryHoursForRange mevcut calcSunTimes/Keldani matematiğini yeniden kullanır.
-  const plannerData = useMemo(() => {
-    if (!plannerOpen || !locPrefLoaded) return null;
-    const lat = selEclipseLoc?.lat ?? 39.9334;   // Ankara fallback (locPrefLoaded sonrası normalde selEclipseLoc dolu)
-    const lon = selEclipseLoc?.lon ?? 32.8597;
-    const days = Math.min(PLANNER_MAX_DAYS, Math.max(1, plannerDays));
-    const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (days - 1));
-    const resolveOffset = (d: Date) => getTimeZoneOffsetMinutes(d, eclipseTz);
-    const range = getPlanetaryHoursForRange(start, end, lat, lon, resolveOffset);
-
-    type PlannerSlot = { planet: string; symbol: string; startLabel: string; endLabel: string; period: "day" | "night" };
-    type PlannerDay  = { dayKey: string; dateLabel: string; weekday: string; slots: PlannerSlot[] };
-    const groups: PlannerDay[] = [];
-    let total = 0;
-    for (const d of range) {
-      const matched = d.slots.filter(s => plannerPlanets.has(s.planet.name));
-      if (matched.length === 0) continue;
-      total += matched.length;
-      const [y, mo, dd] = d.dayKey.split("-").map(n => Number.parseInt(n, 10));
-      const dateObj = new Date(y!, (mo! - 1), dd!);
-      groups.push({
-        dayKey:    d.dayKey,
-        dateLabel: `${dd} ${MONTH_NAMES_TR[(mo! - 1)]} ${y}`,
-        weekday:   WEEKDAY_TR_FULL[dateObj.getDay()] ?? "",
-        slots: matched.map(s => ({
-          planet:     s.planet.name,
-          symbol:     s.planet.symbol,
-          startLabel: formatInTimeZone(s.start, eclipseTz),
-          endLabel:   formatInTimeZone(s.end, eclipseTz),
-          period:     s.period,
-        })),
-      });
-    }
-    const startLabel = `${start.getDate()} ${MONTH_NAMES_TR[start.getMonth()]}`;
-    const endLabel   = `${end.getDate()} ${MONTH_NAMES_TR[end.getMonth()]} ${end.getFullYear()}`;
-    return { groups, total, days, rangeLabel: `${startLabel} – ${endLabel}` };
-  }, [plannerOpen, locPrefLoaded, selEclipseLoc, plannerDays, plannerPlanets, selectedDate, eclipseTz]);
 
   // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → durum satırı).
   const eclipseCityHasQuery = eclipseCityQuery.trim() !== "";
@@ -2192,18 +2130,15 @@ export default function CosmicCalendarPage() {
                   Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
                 </p>
 
-                {/* Planlayıcı giriş noktası — "Şimdi/Seçili saat" ile "ileri günleri planla" bağını kurar */}
-                <button
-                  type="button"
-                  onClick={togglePlannerFromHour}
-                  aria-expanded={plannerOpen}
-                  aria-controls="gezegen-saati-planlayici"
+                {/* Planlayıcı giriş noktası — ayrı planlama sayfasına gider (seçili tarih taşınır) */}
+                <Link
+                  href={`/cosmic-calendar/planetary-hours?date=${toDateParam(selectedDate)}`}
                   className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-white/80 px-3 py-1.5 text-[11px] font-black text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 >
-                  🗓️ {plannerOpen ? "Planlayıcıyı gizle" : "İleri günleri planla"}
-                </button>
+                  🗓️ İleri günleri planla →
+                </Link>
                 <p className="mt-1 text-center text-[10px] leading-snug text-slate-400">
-                  Seçili günden ileri Merkür/Mars vb. gezegen saatlerini listeler.
+                  Seçili günden ileri Merkür/Mars vb. gezegen saatlerini ayrı sayfada listeler.
                 </p>
               </div>
             )}
@@ -2292,97 +2227,8 @@ export default function CosmicCalendarPage() {
 
         </section>
 
-        {/* ── Gezegen Saati Planlayıcısı (seans planlama) ── */}
-        <section ref={plannerRef} id="gezegen-saati-planlayici" className="mb-4 scroll-mt-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🗓️ Gezegen Saati Planlayıcısı</p>
-            <button
-              type="button"
-              onClick={() => setPlannerOpen(v => !v)}
-              aria-expanded={plannerOpen}
-              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${plannerOpen ? "border-indigo-400 bg-indigo-600 text-white" : "border-indigo-200/70 bg-white/70 text-indigo-500 hover:bg-white"}`}
-            >
-              {plannerOpen ? "Gizle" : "Planlayıcıyı Aç"}
-            </button>
-          </div>
-          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">
-            Seçili günden başlayarak, seçtiğiniz gezegen saatlerine denk gelen zamanları listeler — danışan seansı planlaması için.
-          </p>
-
-          {plannerOpen && (
-            <>
-              {/* Aralık (varsayılan 30 gün; maks 90) */}
-              <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-0.5 text-[11px] font-semibold text-slate-500">Aralık:</span>
-                {PLANNER_PRESETS.map(d => (
-                  <button key={d} type="button" onClick={() => setPlannerDays(d)} aria-pressed={plannerDays === d}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums transition-colors ${plannerDays === d ? "border-indigo-400 bg-indigo-600 text-white" : "border-indigo-200/70 bg-white/70 text-indigo-500 hover:bg-white"}`}>
-                    {d} gün
-                  </button>
-                ))}
-                {plannerData && <span className="ml-1 text-[10px] font-semibold text-indigo-500 tabular-nums">{plannerData.rangeLabel}</span>}
-              </div>
-
-              {/* Gezegen filtresi (varsayılan Merkür + Venüs; en az biri seçili) */}
-              <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                <span className="mr-0.5 text-[11px] font-semibold text-slate-500">Gezegenler:</span>
-                {CHALDEAN_PLANETS.map(p => {
-                  const on = plannerPlanets.has(p.name);
-                  return (
-                    <button key={p.name} type="button" aria-pressed={on}
-                      onClick={() => setPlannerPlanets(prev => {
-                        const next = new Set(prev);
-                        if (next.has(p.name)) { if (next.size > 1) next.delete(p.name); }  // min 1 korunur
-                        else next.add(p.name);
-                        return next;
-                      })}
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${on ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white/70 text-slate-500 hover:bg-white"}`}>
-                      {p.symbol} {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {plannerData ? (
-                <>
-                  <p className="mb-2 text-[11px] font-bold text-indigo-600 tabular-nums">
-                    {plannerData.days} günlük aralık · {plannerData.total} uygun saat
-                  </p>
-                  {plannerData.total === 0 ? (
-                    <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
-                      Seçilen aralıkta bu filtrelere uygun gezegen saati bulunamadı.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {plannerData.groups.map(g => (
-                        <div key={g.dayKey} className="rounded-xl border border-indigo-100/70 bg-white/70 px-3 py-2 backdrop-blur-sm">
-                          <p className="mb-1.5 text-[11px] font-black text-indigo-700">
-                            {g.dateLabel} <span className="font-semibold text-slate-400">· {g.weekday}</span>
-                          </p>
-                          <div className="flex flex-col gap-1">
-                            {g.slots.map((s, i) => (
-                              <div key={i} className="flex items-center gap-2 text-[11px]">
-                                <span className="w-5 shrink-0 text-center text-sm leading-none text-indigo-500">{s.symbol}</span>
-                                <span className="w-[3.5rem] shrink-0 font-semibold text-slate-700">{s.planet}</span>
-                                <span className="font-bold tabular-nums text-slate-800">{s.startLabel}–{s.endLabel}</span>
-                                <span className="ml-auto shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">{s.period === "day" ? "Gündüz" : "Gece"}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
-                    📍 {eclipseCity} konumuna göre. Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
-                  </p>
-                </>
-              ) : (
-                <p className="text-[11px] font-semibold text-slate-400">📍 Konum yükleniyor…</p>
-              )}
-            </>
-          )}
-        </section>
+        {/* Gezegen Saati Planlayıcısı AYRI sayfaya taşındı: /cosmic-calendar/planetary-hours
+            (giriş noktası: sağdaki Gezegen Saati kutusundaki "İleri günleri planla" bağlantısı). */}
 
         {/* ── Gökyüzü Açıları (FAZ 2B + 2C Uzman Modu) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
