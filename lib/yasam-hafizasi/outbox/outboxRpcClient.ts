@@ -72,7 +72,7 @@ export interface ClaimedOutboxEvent {
   readonly sourceKey: string;
   readonly sourceTable: string;
   readonly sourceId: string;
-  readonly tenantId: string;
+  readonly tenantId: string | null; // Worker-v2: SHARED olay (tenant_id IS NULL) için null olabilir.
   readonly operation: OutboxOperation;
   readonly attempts: number;
   readonly eventVersion: number;
@@ -91,7 +91,7 @@ export interface SweptOutboxRow {
   readonly id: string;
   readonly sourceKey: string;
   readonly sourceId: string;
-  readonly tenantId: string;
+  readonly tenantId: string | null; // Worker-v2: SHARED olay (tenant_id IS NULL) için null olabilir.
   readonly attempts: number;
   readonly eventVersion: number;
 }
@@ -126,6 +126,17 @@ export async function claimEvents(
   return data.map(mapClaimRow);
 }
 
+/**
+ * Worker-v2: tenant_id transport-parse. NULL geçerli bir değerdir (SHARED olay, tenant_id IS NULL);
+ * non-null bozuk değer FAIL-CLOSED reddedilir. NULL'ın YALNIZ shared-capable kaynak için geçerli
+ * olması capability policy'sidir ve eventProcessor gate 8'de zorlanır (transport katmanı değil).
+ */
+function tenantIdOrNull(value: unknown, code: string): string | null {
+  if (value === null) return null;
+  if (!isUuid(value)) throw new OutboxRpcInvariantError(code);
+  return value;
+}
+
 function mapClaimRow(row: unknown): ClaimedOutboxEvent {
   if (!isRecord(row)) throw new OutboxRpcInvariantError("claim-row-not-object");
   const { id, source_key, source_table, source_id, tenant_id, operation, attempts, event_version } =
@@ -136,7 +147,7 @@ function mapClaimRow(row: unknown): ClaimedOutboxEvent {
     throw new OutboxRpcInvariantError("claim-invalid-source-table");
   }
   if (!isUuid(source_id)) throw new OutboxRpcInvariantError("claim-invalid-source-id");
-  if (!isUuid(tenant_id)) throw new OutboxRpcInvariantError("claim-invalid-tenant-id");
+  const tenantId = tenantIdOrNull(tenant_id, "claim-invalid-tenant-id");
   if (!isOperation(operation)) throw new OutboxRpcInvariantError("claim-invalid-operation");
   if (!isNonNegInt(attempts)) throw new OutboxRpcInvariantError("claim-invalid-attempts");
   if (!isPosInt(event_version)) throw new OutboxRpcInvariantError("claim-invalid-event-version");
@@ -145,7 +156,7 @@ function mapClaimRow(row: unknown): ClaimedOutboxEvent {
     sourceKey: source_key,
     sourceTable: source_table,
     sourceId: source_id,
-    tenantId: tenant_id,
+    tenantId,
     operation,
     attempts,
     eventVersion: event_version,
@@ -218,14 +229,14 @@ function mapSweepRow(row: unknown): SweptOutboxRow {
   if (!isUuid(id)) throw new OutboxRpcInvariantError("sweep-invalid-id");
   if (!isNonEmptyString(source_key)) throw new OutboxRpcInvariantError("sweep-invalid-source-key");
   if (!isUuid(source_id)) throw new OutboxRpcInvariantError("sweep-invalid-source-id");
-  if (!isUuid(tenant_id)) throw new OutboxRpcInvariantError("sweep-invalid-tenant-id");
+  const tenantId = tenantIdOrNull(tenant_id, "sweep-invalid-tenant-id");
   if (!isNonNegInt(attempts)) throw new OutboxRpcInvariantError("sweep-invalid-attempts");
   if (!isPosInt(event_version)) throw new OutboxRpcInvariantError("sweep-invalid-event-version");
   return {
     id,
     sourceKey: source_key,
     sourceId: source_id,
-    tenantId: tenant_id,
+    tenantId,
     attempts,
     eventVersion: event_version,
   };

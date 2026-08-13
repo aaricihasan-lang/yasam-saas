@@ -140,13 +140,13 @@ async function run(): Promise<void> {
   add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
   // COHORT_1_READY = kisisel_arsiv:archives (ROW_GATED_CONTROLLED) + 11 worker-v1-supported Cohort-A
   // professional FUTURE_ONLY_READY = 12; kod önkoşulları çözüldü → readyGap BOŞ.
+  // COHORT_1_READY = archive (ROW_GATED_CONTROLLED) + 16 professional FUTURE_ONLY_READY (11 worker-v1
+  // Cohort A + 5 worker-v2) = 17; kod önkoşulları çözüldü → readyGap BOŞ.
   const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
-  add("D-cohort1-ready-12-no-gap", cohort1Ready.length === 12 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-17-no-gap", cohort1Ready.length === 17 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
   add("D-cohort1-ready-includes-archive", cohort1Ready.some((e) => e.sourceKey === "kisisel_arsiv:archives"));
-  // DEFERRED_SHARED_WORKER_V2 kohortu = 5 (worker v1 işleyemez; readyGap DOLU → aktivasyona hazır DEĞİL).
-  const deferredV2 = sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2");
-  add("D-deferred-worker-v2-cohort-5", deferredV2.length === 5 && deferredV2.every((k) => assessCohort(YH_ACTIVATION_MATRIX.find((e) => e.sourceKey === k)!).readyGap.length > 0), deferredV2.join(","));
-  add("D-deferred-not-cohort1-ready", deferredV2.every((k) => !sourceKeysByCohort("COHORT_1_READY").includes(k)));
+  // DEFERRED_SHARED_WORKER_V2 kohortu = 0: Worker-v2 5 kaynağa capability verdi → COHORT_1_READY'ye taşındı.
+  add("D-deferred-worker-v2-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").join(","));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);

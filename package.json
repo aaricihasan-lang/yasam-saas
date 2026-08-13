@@ -27,7 +27,8 @@
     "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
     "yh:bf11e:archive:security:harness": "tsx scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
     "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
-    "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts"
+    "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts",
+    "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
