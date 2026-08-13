@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   bodyText,
   buildFooter,
@@ -338,6 +339,17 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Demo hesap: export sunucu seviyesinde engellenir
   if (guard.is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
+  // Maliyet-abuse koruması: DOCX üretimi pahalı (tüm kayıtları çekip render eder).
+  // Tenant başına dakikada makul sayıda export'a izin ver; art arda kötüye kullanımı kes.
+  // (In-memory / instance-başına — Faz 1 kapsamında ağır global altyapı kurulmadı.)
+  const rl = checkRateLimit(`sifa-word:${verifiedTenantId}`, 10, 60_000);
+  if (!rl.allowed) {
+    return Response.json(
+      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+    );
+  }
 
   let body: unknown;
   try { body = await request.json(); }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
 
 export const runtime = "nodejs";
 
@@ -161,6 +162,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
       return NextResponse.json({ ok: false, error: "Rahatsızlık adı zorunludur." }, { status: 400 });
     }
     body.name = name;
+  }
+
+  // Girdi sertleştirme: alan uzunluk/şekil sınırları.
+  const bodyError = validateGuideBody(body);
+  if (bodyError) {
+    return NextResponse.json({ ok: false, error: bodyError }, { status: 400 });
   }
 
   const fields = pickWritableFields(body);

@@ -26,6 +26,8 @@ import {
   peekCachedList,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
+import { SUGGESTED_CATEGORIES } from "@/lib/sifa-rehberi/categories";
+import { formToSections } from "@/lib/sifa-rehberi/formToSections";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -522,6 +524,7 @@ function SifaRehberiContent() {
   const [saving, setSaving] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
@@ -744,20 +747,28 @@ function SifaRehberiContent() {
   }
 
   const filteredRows = useMemo(() => {
-    const list = rows.filter((row) => matchesListSearch(row, search));
+    const cat = categoryFilter.trim();
+    const list = rows.filter(
+      (row) =>
+        matchesListSearch(row, search) &&
+        (cat === "" || (row.category?.trim() ?? "") === cat),
+    );
     return [...list].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "tr-TR")
     );
-  }, [rows, search]);
+  }, [rows, search, categoryFilter]);
 
-  const categoryCount = useMemo(() => {
+  const categoryOptions = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => {
       const c = r.category?.trim();
       if (c) set.add(c);
     });
-    return set.size;
+    return [...set].sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows]);
+
+  // "0 Kategori" sayacı teknik olarak doğru kalır: dolu kategori sayısı.
+  const categoryCount = categoryOptions.length;
 
   const activeFormTab = useMemo(
     () => FORM_TABS.find((t) => t.id === formTab) ?? FORM_TABS[0],
@@ -878,31 +889,14 @@ function SifaRehberiContent() {
       return;
     }
 
+    // CANONICAL: yeni manuel kayıt içeriği healing_guide_sections'a yazılır (flat-only
+    // borç üretmez). Guide satırına yalnız üst-düzey alanlar (ad, kategori, görseller)
+    // gider; 21 içerik alanı formToSections ile canonical section'lara dönüşür.
     const { error: insertError } = await createHealingGuide({
       name: nameTrim,
       category: trimOrNull(form.category),
-      general_summary: trimOrNull(form.general_summary),
-      medical_causes: trimOrNull(form.medical_causes),
-      subconscious_causes: trimOrNull(form.subconscious_causes),
-      temperament_causes: trimOrNull(form.temperament_causes),
-      other_causes: trimOrNull(form.other_causes),
-      iridology_match: trimOrNull(form.iridology_match),
-      hand_analysis_match: trimOrNull(form.hand_analysis_match),
-      cupping_leech: trimOrNull(form.cupping_leech),
-      reflexology: trimOrNull(form.reflexology),
-      diet_recommendations: trimOrNull(form.diet_recommendations),
-      herbal_methods: trimOrNull(form.herbal_methods),
-      stone_recommendations: trimOrNull(form.stone_recommendations),
-      aromatherapy: trimOrNull(form.aromatherapy),
-      meditation: trimOrNull(form.meditation),
-      breathwork: trimOrNull(form.breathwork),
-      bioenergy: trimOrNull(form.bioenergy),
-      massage: trimOrNull(form.massage),
-      daily_routine: trimOrNull(form.daily_routine),
-      sleep_routine: trimOrNull(form.sleep_routine),
-      supportive_alternative_methods: trimOrNull(form.supportive_alternative_methods),
-      islamic_recommendations: trimOrNull(form.islamic_recommendations),
       images: formImages.length > 0 ? formImages : null,
+      sections: formToSections(form),
     });
 
     setSaving(false);
@@ -1077,7 +1071,13 @@ function SifaRehberiContent() {
                             onChange={(e) => setForm({ ...form, category: e.target.value })}
                             className={newViewFieldInput}
                             placeholder="Örn. Sinir sistemi"
+                            list="sifa-category-suggestions"
                           />
+                          <datalist id="sifa-category-suggestions">
+                            {SUGGESTED_CATEGORIES.map((c) => (
+                              <option key={c} value={c} />
+                            ))}
+                          </datalist>
                         </section>
                       </div>
                       <section className={newViewMiniCard}>
@@ -1469,6 +1469,22 @@ function SifaRehberiContent() {
                 className={listSearchInput}
               />
             </div>
+
+            {categoryOptions.length > 0 ? (
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-9 shrink-0 rounded-lg border border-emerald-200 bg-white/90 px-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/40"
+                aria-label="Kategoriye göre filtrele"
+              >
+                <option value="">Tüm kategoriler</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            ) : null}
 
             <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               <button
