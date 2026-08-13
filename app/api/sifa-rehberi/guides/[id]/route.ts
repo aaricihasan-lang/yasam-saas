@@ -57,6 +57,10 @@ const GUIDE_DETAIL_SELECT = `
     title,
     note,
     source,
+    source_kind,
+    expert_note,
+    attention,
+    sort_order,
     images,
     created_at
   )
