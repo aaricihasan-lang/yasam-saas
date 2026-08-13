@@ -1,5 +1,6 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
+import { getList, buildQuery, type ListResult } from "@/lib/aromaterapi/readClient";
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -167,15 +168,36 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 
 // İmza korunur: tenantId parametresi geriye dönük uyumluluk için durur; gerçek
 // tenant server tarafında oturumdan belirlenir (istemci değeri güvenilmez).
-export async function fetchOilList(
-  _tenantId: string,
-  oilType?: string,
+/**
+ * FAZ 2 — server-side paginated liste fetcher (useAromaterapiListQuery uyumlu).
+ * `params` q/sort/page/limit/type taşır; modern `{ok,rows,page,limit,total}` envelope.
+ * fetch-all KALDIRILDI.
+ */
+export async function fetchOilListPage(
+  params: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<ListResult<OilListRow>> {
+  return getList<OilListRow>(`/api/aromaterapi/oils?${params.toString()}`, signal);
+}
+
+/**
+ * FAZ 2 — Blend typeahead / carrier datalist için KÜÇÜK sonuç kümesi (server-side
+ * arama + oil_type; fetch-all YOK). Aynı liste endpoint'ini `limit` ile paylaşır →
+ * ayrı duplicate endpoint yok.
+ */
+export async function fetchOilSearch(
+  q: string,
+  oilType: string,
+  limit = 40,
+  signal?: AbortSignal,
 ): Promise<{ rows: OilListRow[]; error: string | null }> {
-  const qs = oilType ? `?type=${encodeURIComponent(oilType)}` : "";
-  const res = await fetch(`/api/aromaterapi/oils${qs}`, { headers: authHeaders() });
-  const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { rows: [], error: String(j.error ?? `HTTP ${res.status}`) };
-  return { rows: (j.rows as OilListRow[]) ?? [], error: null };
+  const qs = buildQuery({ q, type: oilType, limit, page: 1 });
+  const res = await getList<OilListRow>(`/api/aromaterapi/oils${qs}`, signal);
+  if (!res.ok) {
+    if (res.errorCode === null) return { rows: [], error: null }; // abort → sessiz
+    return { rows: [], error: res.errorCode };
+  }
+  return { rows: res.envelope?.rows ?? [], error: null };
 }
 
 export async function fetchOilDetail(
