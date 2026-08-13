@@ -1,5 +1,6 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
+import { foldedIncludes, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
 
 /**
  * healing_guides tablosuna tarayıcıdan doğrudan (anon/publishable) erişim
@@ -323,15 +324,17 @@ function sectionSnippet(section: HealingGuideSectionRow): string {
 export function listRowPreview(row: HealingGuideListRow, limit = 140): string {
   const clamp = (s: string) => (s.length > limit ? `${s.slice(0, limit)}…` : s);
 
-  const fromSymptoms = row.symptoms?.trim();
-  if (fromSymptoms) return clamp(fromSymptoms);
+  // symptoms YALNIZ gerçek içerikse kullanılır. Kök neden (production): bazı
+  // kayıtların symptoms'ında "Bu bölüm için henüz bilgi eklenmemiş." placeholder'ı
+  // var ve gerçek section içeriğini gölgeliyordu. isMeaningfulText bunu eler →
+  // gerçek section/özet içeriği asla placeholder tarafından gizlenmez.
+  if (isMeaningfulText(row.symptoms)) return clamp(row.symptoms!.trim());
 
-  // Manuel kayıt: düz-kolon özeti (öncelik general_summary)
-  const fromLegacy = row.legacyPreview?.trim();
-  if (fromLegacy) return clamp(fromLegacy);
+  // Manuel/legacy kayıt: düz-kolon özeti (öncelik general_summary)
+  if (isMeaningfulText(row.legacyPreview)) return clamp(row.legacyPreview!.trim());
 
-  const fromSection = row.sectionSnippets.find((s) => s.length > 0);
-  if (fromSection) return clamp(fromSection);
+  const fromSection = row.sectionSnippets.find((s) => isMeaningfulText(s));
+  if (fromSection) return clamp(fromSection.trim());
 
   if (row.sectionCount > 0) {
     return `${row.sectionCount} alt içerik kaydı mevcut.`;
@@ -347,20 +350,17 @@ export function countListFilledSections(row: HealingGuideListRow): number {
 }
 
 export function matchesListSearch(row: HealingGuideListRow, query: string): boolean {
-  const q = query.trim().toLocaleLowerCase("tr-TR");
-  if (!q) return true;
-
+  // Türkçe deterministik normalizasyon: astım↔astim, siğil↔sigil eşitlenir.
+  // Placeholder symptoms haystack'i kirletmesin diye yalnız anlamlıysa eklenir.
   const haystack = [
     row.name,
     row.category ?? "",
-    row.symptoms ?? "",
+    isMeaningfulText(row.symptoms) ? row.symptoms ?? "" : "",
     row.legacyText ?? "",
     ...row.sectionSnippets,
-  ]
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+  ].join(" ");
 
-  return haystack.includes(q);
+  return foldedIncludes(haystack, query);
 }
 
 function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
@@ -650,6 +650,33 @@ export async function deleteHealingGuides(
   for (const gid of deletedIds) detailCache.delete(gid); // silinenlerin önbelleğini düşür
   listCache = null;
   return { deletedIds, error: null };
+}
+
+/**
+ * Form-şekilli kaydın section'larını topluca değiştirir (canonical edit yolu).
+ * Sunucu kayıp-güvenli sıra ile (önce ekle, sonra eskileri sil) uygular.
+ */
+export async function replaceHealingGuideSections(
+  guideId: string,
+  sections: unknown[],
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}/sections`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ sections }),
+    });
+  } catch {
+    return { error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || json.ok !== true) {
+    return { error: json.error ?? `Bölümler kaydedilemedi (HTTP ${res.status}).` };
+  }
+  detailCache.delete(guideId);
+  listCache = null;
+  return { error: null };
 }
 
 export function groupSectionsByType(

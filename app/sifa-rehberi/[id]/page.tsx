@@ -16,10 +16,16 @@ import {
   groupSectionsByType,
   HEALING_SECTION_DISPLAY,
   peekCachedDetail,
+  replaceHealingGuideSections,
   updateHealingGuide,
   type HealingGuideDetail,
   type HealingGuideSectionRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
+import {
+  formToSections,
+  isFormShapedSections,
+  sectionsToFormDraft,
+} from "@/lib/sifa-rehberi/formToSections";
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -410,6 +416,10 @@ export default function SifaRehberiDetailPage() {
   );
 
   const useSectionView = sections.length > 0 && !editEnabled;
+  // Form-şekilli (yeni manuel oluşturulan / tek-section'a-alan) kayıtlar 7 sekmeli
+  // formdan KAYIPSIZ düzenlenebilir. Karmaşık import kayıtları form-şekilli değildir
+  // → mevcut salt-okunur davranış korunur (sessiz veri kaybı olmaz).
+  const isFormShaped = useMemo(() => isFormShapedSections(sections), [sections]);
   const { isDemo } = useDemoGuard();
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
@@ -653,9 +663,9 @@ export default function SifaRehberiDetailPage() {
 
   async function handleSaveFields() {
     if (!draft || !id) return;
-    // Savunma guard'ı: içe aktarılmış (section'lı) kayıt düzenlemesi legacy kolonlara
-    // yazılıp section görünümünde kaybolmasın — düzenleme zaten toggleEditOrSave'de engelli.
-    if (sections.length > 0) {
+    // Savunma guard'ı: KARMAŞIK (import edilmiş, form-şekilli olmayan) section kayıtları
+    // 7 sekmeli forma kayıpsız sığmaz → düzenleme engellenir (toggleEditOrSave'de de).
+    if (sections.length > 0 && !isFormShaped) {
       setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
       return;
     }
@@ -675,6 +685,32 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
+    // CANONICAL edit yolu: içerik healing_guide_sections'ta. Guide satırına yalnız
+    // üst-düzey alanlar (ad/kategori/görsel) yazılır; 21 içerik alanı section'lara.
+    if (sections.length > 0) {
+      const { error: guideErr } = await updateHealingGuide(id, {
+        name: nameTrim,
+        category: trimOrNull(draft.category),
+        images: draft.images.length > 0 ? draft.images : null,
+      });
+      if (guideErr) {
+        setSaving(false);
+        setErrorMessage(`Kayıt güncellenemedi: ${guideErr}`);
+        return;
+      }
+      const { error: secErr } = await replaceHealingGuideSections(id, formToSections(draft));
+      setSaving(false);
+      if (secErr) {
+        setErrorMessage(`Bölümler kaydedilemedi: ${secErr}`);
+        return;
+      }
+      setEditEnabled(false);
+      setSuccessMessage("Kayıt güncellendi.");
+      await loadRecord();
+      return;
+    }
+
+    // Flat (legacy / eski manuel) kayıt: mevcut davranış aynen korunur.
     const { error } = await updateHealingGuide(id, {
       name: nameTrim,
       category: trimOrNull(draft.category),
@@ -758,14 +794,16 @@ export default function SifaRehberiDetailPage() {
     if (editEnabled) {
       void handleSaveFields();
     } else {
-      // İçe aktarılmış (section'lı) kayıtlarda içerik healing_guide_sections'ta durur;
-      // düzenleme yalnız legacy kolonlara yazıp section görünümünde kaybolacağı için
-      // (sessiz veri kaybı) düzenleme moduna girilmesi engellenir.
-      if (sections.length > 0) {
+      // KARMAŞIK import kayıtları (çok-section / kaynaklı / görselli) forma kayıpsız
+      // sığmaz → düzenleme engellenir (sessiz veri kaybı guard'ı korunur).
+      if (sections.length > 0 && !isFormShaped) {
         setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
         return;
       }
-      setDraft(recordToDraft(record));
+      // Form-şekilli section kaydı: içeriği section'lardan 7 sekmeli forma geri-map'le.
+      const base = recordToDraft(record);
+      const reverse = sections.length > 0 ? sectionsToFormDraft(sections) : null;
+      setDraft(reverse ? { ...base, ...reverse } : base);
       setEditEnabled(true);
       setErrorMessage("");
     }

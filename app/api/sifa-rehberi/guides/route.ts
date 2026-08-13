@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { validateGuideBody, validateSectionsBody } from "@/lib/sifa-rehberi/limits";
 
 export const runtime = "nodejs";
 
@@ -143,6 +144,19 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Rahatsızlık adı zorunludur." }, { status: 400 });
   }
 
+  // Girdi sertleştirme: alan uzunluk/şekil sınırları (tenant/auth davranışı değişmez).
+  const bodyError = validateGuideBody(body);
+  if (bodyError) {
+    return NextResponse.json({ ok: false, error: bodyError }, { status: 400 });
+  }
+  const hasSections = "sections" in body && body.sections != null;
+  if (hasSections) {
+    const secError = validateSectionsBody(body.sections);
+    if (secError) {
+      return NextResponse.json({ ok: false, error: secError }, { status: 400 });
+    }
+  }
+
   // tenant_id payload'dan yok sayılır; server her zaman kendi tenant'ını yazar.
   const fields = pickWritableFields(body);
   fields.name = name;
@@ -155,6 +169,29 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  // Canonical model: yeni kayıt section'larla oluşturulduysa onları da yaz.
+  // Böylece yeni manuel kayıtlar da healing_guide_sections'a gider (flat-only borç yok).
+  const guideId = (data as { id: string }).id;
+  if (hasSections && Array.isArray(body.sections) && body.sections.length > 0) {
+    const sectionRows = (body.sections as Record<string, unknown>[]).map((s) => ({
+      guide_id: guideId,
+      section_type: String(s.section_type),
+      mode: s.mode == null ? null : String(s.mode),
+      title: s.title == null ? null : String(s.title),
+      note: s.note == null ? null : String(s.note),
+      source: s.source == null ? null : String(s.source),
+      images: Array.isArray(s.images) ? s.images : [],
+    }));
+
+    const { error: secErr } = await db.from("healing_guide_sections").insert(sectionRows);
+
+    if (secErr) {
+      // Section yazımı başarısızsa yeni oluşan guide'ı geri al (yarım kayıt bırakma).
+      await db.from("healing_guides").delete().eq("tenant_id", tenantId).eq("id", guideId);
+      return NextResponse.json({ ok: false, error: secErr.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true, guide: data });
