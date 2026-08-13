@@ -30,6 +30,16 @@ export type ChakraDetailItem = ChakraListItem & {
   glands: string | null;
   physical: string | null;
   mental: string | null;
+  /**
+   * FAZ 3.2C — parent additive quick-fact kolonları (migration DORMANT).
+   * Kolonlar production'da henüz uygulanmadığından prod'da `select("*")` bunları
+   * DÖNDÜRMEZ → defensif okuma null verir (mevcut davranış korunur). İçerik gelince
+   * (FAZ 3.3) Genel Bakış compact satırlarını besler.
+   */
+  sanskrit_name: string | null;
+  element: string | null;
+  location: string | null;
+  bija_mantra: string | null;
 };
 
 export function buildChakrasSearchOrFilter(term: string): string | null {
@@ -63,6 +73,11 @@ export function mapChakraDetailRow(row: Record<string, unknown>): ChakraDetailIt
     glands: row.glands != null ? String(row.glands) : null,
     physical: row.physical != null ? String(row.physical) : null,
     mental: row.mental != null ? String(row.mental) : null,
+    // FAZ 3.2C additive quick facts — kolon yoksa (dormant) undefined → null.
+    sanskrit_name: row.sanskrit_name != null ? String(row.sanskrit_name) : null,
+    element: row.element != null ? String(row.element) : null,
+    location: row.location != null ? String(row.location) : null,
+    bija_mantra: row.bija_mantra != null ? String(row.bija_mantra) : null,
   };
 }
 
