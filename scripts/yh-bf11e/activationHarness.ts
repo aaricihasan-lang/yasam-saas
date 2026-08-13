@@ -62,20 +62,30 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const cliKeys = new Set<string>(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey));
   const matrixKeys = YH_ACTIVATION_MATRIX.map((e) => e.sourceKey);
 
-  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 31, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
+  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 33, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
   add("A-no-duplicate-key", new Set(matrixKeys).size === matrixKeys.length);
   add("A-no-unknown-source", matrixKeys.every((k) => proKeys.has(k) || cliKeys.has(k)));
   add("A-every-entry-has-class", YH_ACTIVATION_MATRIX.every((e) => (ACTIVATION_CLASSES as readonly string[]).includes(e.activationClass)));
   add("A-every-registry-pro-covered", [...proKeys].every((k) => matrixKeys.includes(k)));
   add("A-every-registry-client-covered", [...cliKeys].every((k) => matrixKeys.includes(k)));
 
-  // Sınıf dağılımı (deterministik beklenti).
-  add("A-keep-live-16", sourceKeysByClass("KEEP_LIVE").length === 16, String(sourceKeysByClass("KEEP_LIVE").length));
+  // Sınıf dağılımı (deterministik beklenti). Cohort A (PRE-MERGE REVIEW DÜZELTMESİ): worker-v1-supported
+  // 11 professional kaynak (9 mevcut graduate + 2 yeni Biyoenerji) → FUTURE_ONLY_READY (controlled);
+  // 5 kaynak worker v1 kapsamı dışı (4 shared + guide-sections section) → DEFERRED_SHARED_WORKER_V2;
+  // KEEP_LIVE = 2 grandfathered (dogaltas:stones + refleksoloji:notes).
+  add("A-keep-live-2", sourceKeysByClass("KEEP_LIVE").length === 2 && sourceKeysByClass("KEEP_LIVE").every((k) => k === "dogaltas:stones" || k === "refleksoloji:notes"), sourceKeysByClass("KEEP_LIVE").join(","));
   add("A-row-gated-ready-0", sourceKeysByClass("ROW_GATED_READY").length === 0);
   add("A-row-gated-controlled-1", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
   add("A-canonical-backfill-6-yebs", sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").length === 6 && sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").every((k) => k.startsWith("yebs:")));
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
-  add("A-future-only-7", sourceKeysByClass("FUTURE_ONLY_READY").length === 6, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  // FUTURE_ONLY_READY = 11 professional controlled (worker-v1-supported Cohort A) + 6 client = 17.
+  add("A-future-only-17", sourceKeysByClass("FUTURE_ONLY_READY").length === 17, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  // DEFERRED_SHARED_WORKER_V2 = 5 (dogaltas:knowledge + aromaterapi:oils/reference-sheets/reference-rows + sifa_rehberi:guide-sections).
+  {
+    const dw = [...sourceKeysByClass("DEFERRED_SHARED_WORKER_V2")].sort();
+    const expect = ["aromaterapi:oils", "aromaterapi:reference-rows", "aromaterapi:reference-sheets", "dogaltas:knowledge", "sifa_rehberi:guide-sections"];
+    add("A-deferred-shared-worker-v2-5", dw.length === 5 && JSON.stringify(dw) === JSON.stringify(expect), dw.join(","));
+  }
   add("A-no-deferred-registry-entry", sourceKeysByClass("DEFERRED_HARD_BLOCKER").length === 0);
 
   // Numeroloji CLIENT hard blocker KORUNUR (registry'de yok + closure DEFERRED_HARD_BLOCKER).
@@ -267,8 +277,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
 // ═══ K) MODÜL REGRESYON (registry sayıları / dormancy değişmedi) ═════════════
 {
-  add("K-professional-registry-25", YH_INDEX_SOURCES.length === 25, String(YH_INDEX_SOURCES.length));
-  add("K-live-professional-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  add("K-professional-registry-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("K-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
   add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
   add("K-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));

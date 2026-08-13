@@ -94,10 +94,10 @@ async function run(): Promise<void> {
 
 // ═══ C) SOURCE INVENTORY COUNTS (belge çıktıktan sonra) ═══
 {
-  add("C-professional-registry-25", YH_INDEX_SOURCES.length === 25, String(YH_INDEX_SOURCES.length));
-  add("C-live-professional-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  add("C-professional-registry-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("C-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
   add("C-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8, String(YH_INDEX_SOURCES.filter((s) => s.enabled === false).length));
-  add("C-activation-matrix-31", YH_ACTIVATION_MATRIX.length === 31, String(YH_ACTIVATION_MATRIX.length));
+  add("C-activation-matrix-33", YH_ACTIVATION_MATRIX.length === 33, String(YH_ACTIVATION_MATRIX.length));
   add("C-family-modules-8", (YH_SOURCE_MODULES as readonly string[]).length === 8, String((YH_SOURCE_MODULES as readonly string[]).length));
 }
 
@@ -147,7 +147,7 @@ async function run(): Promise<void> {
 
 // ═══ G) KEEP_LIVE / PERSONAL ARCHIVE / OTHER SOURCES UNCHANGED ═══
 {
-  add("G-keep-live-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  add("G-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
   // Personal Archive BF-11E ROW-GATED CONTROLLED'a graduate (safe-non-pii + requiresRowEligibilityGate).
   const arc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives") as SourceConfig | undefined;
   add("G-personal-archive-row-gated", arc?.classification === "safe-non-pii" && arc?.requiresRowEligibilityGate === true && arc?.enabled === true);

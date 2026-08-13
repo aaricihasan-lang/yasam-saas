@@ -116,8 +116,8 @@ async function main(): Promise<void> {
 
   // ═══ 2. Registry sınıflandırma envanteri ══════════════════════════════════
   {
-    // BF-14: 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video) = 26 kaynak.
-    check("10 registry tam 25 kaynak (17 canlı + 8 dormant; belge_video retired)", YH_INDEX_SOURCES.length === 25);
+    // Cohort A: 19 canlı + 8 dormant (2 numeroloji + 6 yebs) = 27 kaynak.
+    check("10 registry tam 27 kaynak (19 canlı + 8 dormant; belge_video retired)", YH_INDEX_SOURCES.length === 27);
     const VALID: readonly SourceClassification[] = ["safe-non-pii", "pii", "unclassified", "deferred"];
     check(
       "11 her kaynak geçerli classification taşır",
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 24 (15 + 2 numeroloji + 6 yebs + kisisel_arsiv row-gated; belge retired)", count("safe-non-pii") === 24);
+    check("12 safe-non-pii sayısı 26 (17 katalog + 2 numeroloji + 6 yebs + kisisel_arsiv row-gated; belge retired)", count("safe-non-pii") === 26);
     check("13 pii sayısı 1", count("pii") === 1);
     check("14 unclassified sayısı 0 (kisisel_arsiv ROW-GATED CONTROLLED'a graduate)", count("unclassified") === 0);
     check("15 deferred sayısı 0", count("deferred") === 0);
@@ -261,7 +261,7 @@ async function main(): Promise<void> {
   console.log("S2.19-BF/BF-0 source classification guard harness — saf/mock; gerçek API/DB YOK.");
   console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
   console.log("- guard: yalnız safe-non-pii+enabled kabul; pii/unclassified/deferred/disabled fail-closed");
-  console.log("- registry 25 kaynak (24 safe / 1 pii / 0 unclassified / 0 deferred; kisisel_arsiv ROW-GATED CONTROLLED; +2 numeroloji +6 yebs DORMANT; belge_video retired); her kaynak classification taşır");
+  console.log("- registry 27 kaynak (26 safe / 1 pii / 0 unclassified / 0 deferred; kisisel_arsiv ROW-GATED CONTROLLED; +2 biyoenerji cohort-A; +2 numeroloji +6 yebs DORMANT; belge_video retired); her kaynak classification taşır");
   console.log("- validate + indexSourcePage son savunma: pii/unclassified/disabled reddedilir, reader/writer'a ulaşılmaz");
   console.log("- demo guard regresyonu korunur; classification HTTP yanıtına sızmaz");
   if (failed > 0) process.exitCode = 1;
