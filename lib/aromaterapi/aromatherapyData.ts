@@ -184,6 +184,12 @@ export async function fetchOilListPage(
  * FAZ 2 — Blend typeahead / carrier datalist için KÜÇÜK sonuç kümesi (server-side
  * arama + oil_type; fetch-all YOK). Aynı liste endpoint'ini `limit` ile paylaşır →
  * ayrı duplicate endpoint yok.
+ *
+ * KAPSAM: Karışım Oluşturucu typeahead'i yalnız KİMLİK alanlarında arar (qmode=name →
+ * server name/latin_name/english_name ILIKE). İçerik alanları (benefits/usage/aroma…)
+ * DAHİL DEĞİL → "lav" yalnız isimde geçen yağları getirir, içerikte geçenleri değil.
+ * Yağlar Kütüphanesi'nin geniş search_norm araması AYRIDIR ve değişmez (fetchOilListPage).
+ * Boş q (carrier datalist lookup) arama dalını atlar → qmode etkisizdir, davranış aynı.
  */
 export async function fetchOilSearch(
   q: string,
@@ -191,13 +197,27 @@ export async function fetchOilSearch(
   limit = 40,
   signal?: AbortSignal,
 ): Promise<{ rows: OilListRow[]; error: string | null }> {
-  const qs = buildQuery({ q, type: oilType, limit, page: 1 });
+  const qs = buildQuery({ q, type: oilType, limit, page: 1, qmode: "name" });
   const res = await getList<OilListRow>(`/api/aromaterapi/oils${qs}`, signal);
   if (!res.ok) {
     if (res.errorCode === null) return { rows: [], error: null }; // abort → sessiz
     return { rows: [], error: res.errorCode };
   }
-  return { rows: res.envelope?.rows ?? [], error: null };
+  const rows = res.envelope?.rows ?? [];
+  const trimmed = q.trim();
+  if (!trimmed) return { rows, error: null }; // carrier boş-q lookup: sıra değişmez (server A–Z)
+
+  // Seçim UX önceliği: (a) name prefix, (b) name contains, (c) yalnız latin/english eşleşmesi.
+  // Küçük küme (≤limit); yeni SQL/migration YOK. Array.sort stabil → aynı rütbede server
+  // A–Z sırası korunur. Türkçe-güvenli karşılaştırma için foldForSearch.
+  const needle = foldForSearch(trimmed);
+  const rank = (o: OilListRow): number => {
+    const n = foldForSearch(o.name);
+    if (n.startsWith(needle)) return 0;
+    if (n.includes(needle)) return 1;
+    return 2; // isimde yok → latin/english üzerinden eşleşmiş (server zaten döndürdü)
+  };
+  return { rows: [...rows].sort((a, b) => rank(a) - rank(b)), error: null };
 }
 
 export async function fetchOilDetail(

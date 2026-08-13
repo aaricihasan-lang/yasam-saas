@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
-import { parseListParams, buildSearchNormIlike } from "@/lib/aromaterapi/service/readValidation";
+import { parseListParams, buildSearchNormIlike, buildOrIlike } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readServerError, readListOk } from "@/lib/aromaterapi/service/readErrors";
 
 export const runtime = "nodejs";
@@ -104,7 +104,19 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId) // DAİMA oturumdan; istemci override edemez
     .eq("is_active", true);
   for (const [col, val] of Object.entries(p.equals)) q = q.eq(col, val); // yalnız oil_type (allowlist)
-  if (p.q) q = q.or(buildSearchNormIlike(p.q)); // search_norm ILIKE (normalize + sanitize)
+  // Arama kapsamı — SUNUCU-SABİT branch (istemci arbitrary kolon SEÇEMEZ):
+  //   varsayılan  → geniş search_norm (Yağlar Kütüphanesi; içerik alanları dahil).
+  //   qmode=name  → yalnız kimlik alanları (name/latin_name/english_name) — Karışım
+  //                 Oluşturucu typeahead; içerik-alan kirliliği (benefits/usage/aroma…) YOK.
+  // Kolonlar geliştirici-sabit allowlist; q her iki dalda da safeIlikePattern ile sanitize.
+  const nameScope = url.searchParams.get("qmode") === "name";
+  if (p.q) {
+    q = q.or(
+      nameScope
+        ? buildOrIlike(["name", "latin_name", "english_name"], p.q) // kimlik-only ILIKE
+        : buildSearchNormIlike(p.q), // search_norm ILIKE (normalize + sanitize)
+    );
+  }
 
   const { data, error, count } = await q
     .order("name", { ascending: true })
