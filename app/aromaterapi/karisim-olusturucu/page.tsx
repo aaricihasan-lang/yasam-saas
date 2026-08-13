@@ -10,9 +10,8 @@ import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiM
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
-  fetchOilList,
+  fetchOilSearch,
   fetchOilDetail,
-  matchesOilSearch,
   type OilListRow,
 } from "@/lib/aromaterapi/aromatherapyData";
 import {
@@ -68,8 +67,8 @@ export default function KarisimOlusturucuPage() {
   const [bottleMl, setBottleMl] = useState<number>(30);
   const [dilution, setDilution] = useState<number>(2);
 
-  // Orta panel (uçucu yağ arama)
-  const [essentialOils, setEssentialOils] = useState<OilListRow[]>([]);
+  // Orta panel (uçucu yağ arama) — FAZ 2: server typeahead (fetch-all YOK).
+  const [searchResults, setSearchResults] = useState<OilListRow[]>([]);
   const [carrierOils, setCarrierOils] = useState<OilListRow[]>([]);
   const [search, setSearch] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -129,22 +128,27 @@ export default function KarisimOlusturucuPage() {
         const tid = await getSyncedTenantId();
         setTenantId(tid);
         if (!tid) { setErrorMsg(MISSING_SESSION_TENANT_MESSAGE); return; }
-        const [ess, car] = await Promise.all([
-          fetchOilList(tid, "essential"),
-          fetchOilList(tid, "carrier"),
-        ]);
-        setEssentialOils(ess.rows);
+        // Taşıyıcı (sabit) yağlar tipik olarak azdır → tek çağrı (limit 100) datalist için yeterli.
+        const car = await fetchOilSearch("", "carrier", 100);
         setCarrierOils(car.rows);
         await loadSaved();
       })();
     });
   }, [loadSaved]);
 
-  const searchResults = useMemo(() => {
-    const q = search.trim();
-    const base = q ? essentialOils.filter((o) => matchesOilSearch(o, q)) : essentialOils;
-    return base.slice(0, 40);
-  }, [essentialOils, search]);
+  // FAZ 2 — uçucu yağ typeahead: server-side arama (search_norm), 300ms debounce,
+  // stale-response abort, en fazla 40 sonuç. Boş sorgu → ilk 40 (başlangıç listesi).
+  useEffect(() => {
+    if (!tenantId) return;
+    const controller = new AbortController();
+    const h = window.setTimeout(() => {
+      void (async () => {
+        const { rows } = await fetchOilSearch(search.trim(), "essential", 40, controller.signal);
+        if (!controller.signal.aborted) setSearchResults(rows);
+      })();
+    }, 300);
+    return () => { window.clearTimeout(h); controller.abort(); };
+  }, [search, tenantId]);
 
   async function addOil(row: OilListRow) {
     if (items.some((it) => it.oil_id === row.id)) {

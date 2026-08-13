@@ -2,8 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
+import { parseListParams, buildSearchNormIlike } from "@/lib/aromaterapi/service/readValidation";
+import { readFail, readServerError, readListOk } from "@/lib/aromaterapi/service/readErrors";
 
 export const runtime = "nodejs";
+
+/**
+ * FAZ 2 liste sözleşmesi — modern C3C paginated okuma (parseListParams).
+ * sort: yalnız `name` (asc, deterministik `id` tie-breaker route'ta eklenir).
+ * filter: `type` → oil_type allowlist. Arama: search_norm (Türkçe-normalize).
+ */
+const OILS_LIST_SPEC = {
+  sorts: { name: { column: "name", ascending: true } },
+  filters: {
+    type: { column: "oil_type", allow: ["essential", "carrier", "maceration"] },
+  },
+} as const;
 
 /**
  * /api/aromaterapi/oils — aromatherapy_oils güvenli server kapısı (K-2).
@@ -15,8 +29,6 @@ export const runtime = "nodejs";
  * Yazma: yalnız kendi tenant kayıtları; kanonik (null) kayıtlara dokunulamaz.
  * Tarayıcı bu tabloya doğrudan erişmez (tablo RLS-kilitli, yalnız service_role).
  */
-
-const PAGE = 1000;
 
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyUserRequest(req);
@@ -66,28 +78,27 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, names: data ?? [] });
   }
 
-  // 3) Liste — windowing ile TÜM sayfalar (kararlı name+id sıralaması).
-  const type = url.searchParams.get("type")?.trim() || "";
-  const all: Record<string, unknown>[] = [];
-  for (let from = 0; ; from += PAGE) {
-    let q = db
-      .from("aromatherapy_oils")
-      .select(OIL_LIST_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true);
-    if (type) q = q.eq("oil_type", type);
+  // 3) Liste — FAZ 2: server-side paginated + Türkçe-normalize arama + oil_type filtre.
+  //    fetch-all KALDIRILDI (O(all-rows-to-client) yerine O(page_size)).
+  const parsed = parseListParams(url.searchParams, OILS_LIST_SPEC);
+  if (!parsed.ok) return readFail(parsed.code); // {ok:false, code} + uygun status
+  const p = parsed.value;
 
-    const { data, error } = await q
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (error) return legacyDbErrorResponse("oils.list", error, "Yağlar yüklenemedi.");
+  let q = db
+    .from("aromatherapy_oils")
+    .select(OIL_LIST_SELECT, { count: "exact" })
+    .eq("tenant_id", tenantId) // DAİMA oturumdan; istemci override edemez
+    .eq("is_active", true);
+  for (const [col, val] of Object.entries(p.equals)) q = q.eq(col, val); // yalnız oil_type (allowlist)
+  if (p.q) q = q.or(buildSearchNormIlike(p.q)); // search_norm ILIKE (normalize + sanitize)
 
-    const page = (data ?? []) as unknown as Record<string, unknown>[];
-    all.push(...page);
-    if (page.length < PAGE) break;
-  }
-  return NextResponse.json({ ok: true, rows: all });
+  const { data, error, count } = await q
+    .order("name", { ascending: true })
+    .order("id", { ascending: true }) // deterministik tie-breaker
+    .range(p.offset, p.offset + p.limit - 1);
+
+  if (error) return readServerError("oils.list", error); // ham hata yalnız server log
+  return readListOk((data ?? []) as unknown[], p.page, p.limit, count ?? 0);
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

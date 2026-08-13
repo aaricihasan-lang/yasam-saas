@@ -17,7 +17,8 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import {
   createOil,
   deleteOils,
-  fetchOilList,
+  fetchOilListPage,
+  fetchOilCounts,
   buildOilSearchBlob,
   foldForSearch,
   oilListRowPreview,
@@ -30,6 +31,9 @@ import {
   type OilListRow,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
+import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
+import { ReadPagination } from "@/app/aromaterapi/_components/read/ReadPrimitives";
+import { messageForCode, type ListResult } from "@/lib/aromaterapi/readClient";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -623,6 +627,35 @@ function viewFromParam(v: string | null): PageView {
   return v === "new" ? "new" : "list";
 }
 
+// FAZ 2 — server list sayfa boyutu (modern read pipeline standardı: 24 kart yoğunluğu).
+const OILS_PAGE_SIZE = 24;
+
+/**
+ * Demo listesi client-side sayfalayıcı — gerçek server sözleşmesini (q/type/page/limit,
+ * name,id sort, search_norm-eş arama) DEMO_SEED_OILS üzerinde taklit eder. Böylece
+ * useAromaterapiListQuery demo ve gerçek path'te AYNI şekilde kullanılır (koşullu hook yok).
+ * Arama demo'da da ortak sözleşmeyle (foldForSearch = normalizeForSearch) çalışır → parity.
+ */
+function demoListResult(all: OilListRow[], params: URLSearchParams): ListResult<OilListRow> {
+  const q = foldForSearch((params.get("q") ?? "").trim());
+  const type = (params.get("type") ?? "").trim();
+  const page = Math.max(1, Number(params.get("page") ?? 1) || 1);
+  const limit = Math.max(1, Number(params.get("limit") ?? OILS_PAGE_SIZE) || OILS_PAGE_SIZE);
+
+  let filtered = all;
+  if (type) filtered = filtered.filter((o) => o.oil_type === type);
+  if (q) filtered = filtered.filter((o) => buildOilSearchBlob(o).includes(q));
+  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
+
+  const total = filtered.length;
+  const start = (page - 1) * limit;
+  return {
+    ok: true,
+    envelope: { rows: filtered.slice(start, start + limit), page, limit, total },
+    errorCode: null,
+  };
+}
+
 function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, pageDescription }: OilsPageConfig) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -630,111 +663,99 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
-  const [rows, setRows] = useState<OilListRow[]>(() =>
-    isDemo ? (fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS) : [],
+  // FAZ 2 — server-side paginated okuma (useAromaterapiListQuery). fetch-all KALDIRILDI.
+  // Demo: client-side seed (fetcher demoListResult ile sayfalar/filtreler). Gerçek:
+  // fetchOilListPage (search_norm arama + oil_type + name,id sort + range pagination).
+  const demoRows = useMemo<OilListRow[]>(
+    () =>
+      isDemo
+        ? fixedOilType
+          ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType)
+          : DEMO_SEED_OILS
+        : [],
+    [isDemo, fixedOilType],
   );
+
+  const fetcher = useCallback(
+    (params: URLSearchParams, signal: AbortSignal): Promise<ListResult<OilListRow>> => {
+      if (isDemo) return Promise.resolve(demoListResult(demoRows, params));
+      if (fixedOilType) params.set("type", fixedOilType); // typed route → sabit oil_type
+      return fetchOilListPage(params, signal);
+    },
+    [isDemo, demoRows, fixedOilType],
+  );
+
+  const s = useAromaterapiListQuery<OilListRow>({
+    fetcher,
+    filterKeys: fixedOilType ? [] : ["type"],
+    limit: OILS_PAGE_SIZE,
+  });
+
   const [tenantId, setTenantId] = useState<string | null>(isDemo ? "demo" : null);
-  const [loading, setLoading] = useState(!isDemo);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>(fixedOilType ?? "all");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [bulkError, setBulkError] = useState("");
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
-  const [errorMessage, setErrorMessage] = useState("");
-  // Sonsuz kaydırma: tüm veri bellekte tutulur (arama/sayaç doğru kalsın diye),
-  // ama DOM'a bir seferde yalnızca `visibleCount` kadar kart basılır. Böylece
-  // 1500+ kayıtta bile mobil render performansı korunur.
-  const RENDER_PAGE = 60;
-  const [visibleCount, setVisibleCount] = useState(RENDER_PAGE);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const loadOils = useCallback(async (tid: string) => {
-    if (isDemo) {
-      setRows(fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS);
-      return;
-    }
-    setLoading(true);
-    setErrorMessage("");
-    const { rows: nextRows, error } = await fetchOilList(tid, fixedOilType);
-    setLoading(false);
-    if (error) { setErrorMessage(`Yağlar yüklenemedi: ${error}`); return; }
-    setRows(nextRows);
-  }, [fixedOilType, isDemo]);
+  // Tip sayaçları — gerçek: server head-count (client artık tüm dataset'e sahip değil,
+  // async fetch → state await SONRASI set edilir, effect'te senkron setState yok).
+  // Demo: demoRows'tan render sırasında türetilir (effect yok).
+  const [serverTypeCounts, setServerTypeCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (isDemo || fixedOilType) return; // typed route'da tip filtresi UI'ı yok
+    void (async () => {
+      const { counts } = await fetchOilCounts();
+      if (counts) {
+        setServerTypeCounts({
+          all: counts.total,
+          essential: counts.essential,
+          carrier: counts.carrier,
+          maceration: counts.maceration,
+        });
+      }
+    })();
+  }, [isDemo, fixedOilType]);
+  const typeCounts = useMemo(() => {
+    if (!isDemo) return serverTypeCounts;
+    const map: Record<string, number> = { all: demoRows.length };
+    for (const r of demoRows) map[r.oil_type] = (map[r.oil_type] ?? 0) + 1;
+    return map;
+  }, [isDemo, demoRows, serverTypeCounts]);
 
   useEffect(() => {
     if (isDemo) return;
     runInEffect(() => {
       void (async () => {
-        const tid = await getSyncedTenantId();
-        setTenantId(tid);
-        if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
-        await loadOils(tid);
+        setTenantId(await getSyncedTenantId());
       })();
     });
-  }, [loadOils, isDemo]);
+  }, [isDemo]);
 
   useBfcacheRefresh();
 
-  // PERF-2C: sıralama yalnız `rows` değiştiğinde çalışır (localeCompare arama/tip
-  // filtresi değişince yeniden koşmaz). Önce sırala → sonra filtrele; filtre sırayı
-  // koruduğu için çıktı, route'un name,id sırasıyla birebir aynı kalır.
-  const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => a.name.localeCompare(b.name, "tr-TR")),
-    [rows],
-  );
+  // Sunucu zaten filtreler + sıralar (name,id) + sayfalar → client sort/search/windowing YOK.
+  const rows = s.rows;
+  const loading = s.loading;
+  const totalCount = s.total;
+  const search = s.qInput;
+  const setSearch = s.setQInput;
+  const typeFilter = fixedOilType ?? s.filters.type ?? "all";
+  const setTypeFilter = (v: string) => s.setFilter("type", v === "all" ? "" : v);
+  const errorMessage = bulkError || (s.errorCode ? messageForCode(s.errorCode) : "");
+  const filteredRows = rows; // render uyumluluğu (sunucu = filtrelenmiş sayfa)
+  const visibleRows = rows; // DOM windowing kaldırıldı (page_size render'ı sınırlar)
+  const refresh = s.retry;
 
-  // PERF-2B: satır başına fold'lanmış arama blob'u yalnız `rows` değiştiğinde üretilir.
-  // Her tuş vuruşunda yalnız sorgu bir kez fold'lanır + kayıt başına tek `includes`.
-  const searchIndex = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of rows) map.set(r.id, buildOilSearchBlob(r));
-    return map;
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    const q = foldForSearch(search.trim());
-    return sortedRows.filter(
-      (r) =>
-        (typeFilter === "all" || r.oil_type === typeFilter) &&
-        (q === "" || (searchIndex.get(r.id) ?? "").includes(q)),
-    );
-  }, [sortedRows, searchIndex, search, typeFilter]);
-
-  // Görünen (DOM'a basılan) alt küme. filteredRows.length her zaman gerçek toplamı verir.
-  const visibleRows = useMemo(
-    () => filteredRows.slice(0, visibleCount),
-    [filteredRows, visibleCount],
-  );
-  const hasMore = visibleCount < filteredRows.length;
-
-  // Arama/filtre/görünüm değişince pencereyi başa sar.
-  useEffect(() => {
-    setVisibleCount(RENDER_PAGE);
-  }, [search, typeFilter, viewMode, rows]);
-
-  // Sentinel görünür olunca bir sonraki grubu yükle (sonsuz kaydırma).
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length));
-        }
-      },
-      { rootMargin: "800px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, filteredRows.length, visibleCount]);
-
-  const typeCounts = useMemo(() => {
-    const map: Record<string, number> = { all: rows.length };
-    for (const r of rows) map[r.oil_type] = (map[r.oil_type] ?? 0) + 1;
-    return map;
-  }, [rows]);
+  // Sayfa/filtre/arama değişince seçim temizlenir (bulk yalnız GÖRÜNÜR sayfayı kapsar).
+  // React'in önerdiği "anahtar değişince state sıfırla" kalıbı (render sırasında,
+  // effect DEĞİL) — useAromaterapiListQuery'nin prevUrlQ kalıbıyla aynı.
+  const selectionKey = `${s.page}|${s.q}|${s.filters.type ?? ""}`;
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setSelectedIds(new Set());
+  }
 
   const toggleOilSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -777,20 +798,20 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     setDeleteLoading(false);
 
     if (deleteError) {
-      setErrorMessage(`Seçili kayıtlar silinemedi: ${deleteError}`);
+      setBulkError(`Seçili kayıtlar silinemedi: ${deleteError}`);
       return;
     }
 
     const deletedCount = deletedIds.length;
     if (deletedCount === 0) {
-      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      setBulkError("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
       return;
     }
 
-    const deletedIdSet = new Set(deletedIds);
-    setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
     setSelectedIds(new Set());
+    setBulkError("");
     showToast({ title: "Başarılı", message: `${deletedCount} yağ kaydı başarıyla silindi.`, type: "success" });
+    refresh(); // sunucudan geçerli sayfayı tazele (optimistik client-mutation yerine)
   }
 
   function goToList() { router.replace(`${basePath}?view=list`); }
@@ -798,7 +819,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   function handleSaved() {
     goToList();
-    if (tenantId) void loadOils(tenantId);
+    refresh();
   }
 
   if (pageView === "new" && !isDemo) {
@@ -893,15 +914,15 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             <div className="flex shrink-0 items-center gap-1.5">
               <button type="button" onClick={() => setViewMode("card")} className={`${viewBtn} ${viewMode === "card" ? viewBtnActive : viewBtnIdle}`}>Kart</button>
               <button type="button" onClick={() => setViewMode("list")} className={`${viewBtn} ${viewMode === "list" ? viewBtnActive : viewBtnIdle}`}>Liste</button>
-              <button type="button" onClick={() => { if (tenantId) void loadOils(tenantId); }} className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
+              <button type="button" onClick={() => refresh()} className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
             </div>
           </div>
 
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2">
             <p className="text-[11px] font-bold text-slate-400">
               {search.trim() || (!fixedOilType && typeFilter !== "all")
-                ? `${filteredRows.length} sonuç`
-                : `${filteredRows.length} yağ (A–Z)`}
+                ? `${totalCount} sonuç`
+                : `${totalCount} yağ (A–Z)`}
             </p>
             {loading && (
               <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-100">
@@ -915,9 +936,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           <BulkExportBar
             compact
             selectedCount={selectedIds.size}
-            totalCount={rows.length}
-            filteredCount={filteredRows.length}
-            selectAllLabel="Kendi Kayıtlarımı Seç"
+            totalCount={totalCount}
+            filteredCount={totalCount}
+            selectAllLabel="Bu Sayfadaki Kayıtlarımı Seç"
             selectAllCount={ownFilteredRows.length}
             hasActiveFilter={Boolean(search.trim() || (!fixedOilType && typeFilter !== "all"))}
             onSelectAll={selectAllFiltered}
@@ -1086,23 +1107,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           )}
         </section>
 
-        {/* Sonsuz kaydırma sentinel'i + manuel fallback buton */}
-        {!loading && filteredRows.length > 0 && hasMore ? (
-          <div ref={sentinelRef} className="flex flex-col items-center gap-1 py-3">
-            <button
-              type="button"
-              onClick={() => setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length))}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-5 py-2 text-[12px] font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
-            >
-              Daha Fazla Göster
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
-                {filteredRows.length - visibleCount} kayıt daha
-              </span>
-            </button>
-            <p className="text-[10px] font-bold text-slate-400">
-              {visibleCount} / {filteredRows.length} gösteriliyor
-            </p>
-          </div>
+        {/* FAZ 2 — server pagination (sonsuz kaydırma/DOM windowing kaldırıldı). */}
+        {!loading ? (
+          <ReadPagination page={s.page} limit={s.limit} total={totalCount} onPage={s.goToPage} />
         ) : null}
       </div>
     </main>
