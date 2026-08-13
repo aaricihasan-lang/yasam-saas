@@ -422,6 +422,24 @@ async function runExactRecord(
       parentIds,
     });
     parentLookup = makeParentTenantLookup(map);
+
+    // Worker-v2 PARENT ELIGIBILITY (parentActiveColumn; ör. reference-rows → sheet.is_active):
+    // Child'ın current-state eligibility'si parent aktifliğine BAĞLI. Parent is_active=true DEĞİL
+    // (inactive / bulunamadı / reader desteklemiyor) → skipped-build → defensiveDeindex (stale child = 0).
+    // Tenant/shared scope aynı parent join'inden çözüldüğü için scope'tan BAĞIMSIZ (tenant + shared).
+    if (config.tenant.parentActiveColumn) {
+      if (parentIds.length === 0 || typeof parentReader.readParentActive !== "function") {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+      const activeMap = await parentReader.readParentActive({
+        parentTable: config.tenant.parentTable,
+        parentActiveColumn: config.tenant.parentActiveColumn,
+        parentIds,
+      });
+      if (activeMap.get(parentIds[0]) !== true) {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+    }
   }
 
   // Tek satır → saf çekirdek (S2.08). Row-unit + join tenant (varsa) burada değerlendirilir.

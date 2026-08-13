@@ -51,6 +51,13 @@ export type TenantResolution =
       readonly parentTable: string;
       readonly parentTenantColumn: string;
       readonly allowSharedNull?: boolean;
+      /**
+       * Worker-v2 (parent-derived-scope): verilirse child'ın current-state eligibility'si parent'ın
+       * bu boolean kolonuna (ör. reference-sheets `is_active`) BAĞLIDIR. Parent bu kolonda true DEĞİL
+       * iken child current searchable state DIŞINA çıkar → exact read skipped-build → defensiveDeindex
+       * (stale child hit = 0). Parent aktiflik değişimi propagation'ı source-specific trigger'dadır.
+       */
+      readonly parentActiveColumn?: string;
     }
   /**
    * BF-14 Ertelenmiş Kaynaklar: global/canonical kaynak (tenant kolonu YOK; merkezî).
@@ -538,6 +545,7 @@ export const YH_INDEX_SOURCES = [
       parentTable: "aromatherapy_reference_sheets",
       parentTenantColumn: "tenant_id",
       allowSharedNull: true, // parent sheet tenant NULL ise shared miras alınır
+      parentActiveColumn: "is_active", // Worker-v2: parent sheet is_active=false → child current-state DIŞI
     },
     titleColumns: [], // başlık cells JSONB'den türetilir → builder
     searchTextColumns: ["cells"], // jsonb; hücre metni çıkarımı builder'da

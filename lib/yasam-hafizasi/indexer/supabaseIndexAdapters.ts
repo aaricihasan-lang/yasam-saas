@@ -179,6 +179,25 @@ export function createSupabaseParentTenantReader(db: IndexDbClient): ParentTenan
       }
       return map;
     },
+
+    // Worker-v2: parent aktiflik kolonunu toplu oku (id → kolon===true). Parent bulunamayan id
+    // map'te YER ALMAZ → çağıran fail-closed. Yalnız minimal (id + activeColumn) select; `*` yok.
+    readParentActive: async ({ parentTable, parentActiveColumn, parentIds }) => {
+      const map = new Map<string, boolean>();
+      for (const c of chunk(parentIds, PARENT_CHUNK_SIZE)) {
+        const { data, error } = await db
+          .from(parentTable)
+          .select(`id,${parentActiveColumn}`)
+          .in("id", c);
+        if (error) throw new Error("parent-active-read-failed"); // chunk hatası → FATAL
+        for (const row of data ?? []) {
+          const id = row["id"];
+          if (typeof id !== "string" || id.length === 0) continue;
+          map.set(id, row[parentActiveColumn] === true);
+        }
+      }
+      return map;
+    },
   };
 }
 

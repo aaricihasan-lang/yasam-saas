@@ -244,8 +244,9 @@ REVOKE ALL ON FUNCTION public.yh_cdc_enqueue_reference_row_v2() FROM PUBLIC, ano
 -- ─── 5) PARENT-SIDE CAPTURE: aromatherapy_reference_sheets → reference-rows ───
 -- BEFORE DELETE: parent hâlâ mevcut + child'lar hâlâ mevcut → her child için DELETE olayı enqueue
 --   (bounded: yalnız bu sheet'in child'ları). Cascade sonrası child trigger parent'ı bulamaz → skip
---   (ghost YOK). AFTER UPDATE OF tenant_id: scope değişimi → her child için UPSERT re-eval (bounded;
---   index conflict key source_id → tek satır tenant güncellenir, ghost YOK). Aktivasyon-kapılı (child key).
+--   (ghost YOK). AFTER UPDATE OF tenant_id, is_active: scope VEYA aktiflik değişimi → her child için
+--   UPSERT re-eval (bounded; index conflict key source_id → tek satır güncellenir/deindex, ghost YOK;
+--   parent inactive → child defensiveDeindex, active → child indexlenir). Aktivasyon-kapılı (child key).
 CREATE OR REPLACE FUNCTION public.yh_capture_reference_sheet_children()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -275,9 +276,13 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     v_op := 'delete'; v_tenant_id := OLD.tenant_id;
   ELSIF TG_OP = 'UPDATE' THEN
-    -- Yalnız tenant scope değişiminde re-eval (aksi child'a etkisi yok). is_active child eligibility'sini
-    -- ETKİLEMEZ (child builder parent is_active okumaz) → gereksiz re-eval YAPILMAZ.
-    IF NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id THEN
+    -- tenant scope VEYA is_active değişiminde bounded re-eval (upsert). Child current-state eligibility
+    -- parent is_active'e BAĞLIDIR (parentActiveColumn): is_active true→false → worker exact read
+    -- skipped-build → defensiveDeindex (stale child = 0); false→true → child yeniden indexlenir.
+    -- İkisi de değişmediyse child'a etkisi yok → no-op. Bu historical backfill DEĞİL (yalnız bu parent'ın
+    -- mevcut child'ları), current-state parent mutation propagation'dır.
+    IF NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id
+       AND NEW.is_active IS NOT DISTINCT FROM OLD.is_active THEN
       RETURN NEW;
     END IF;
     v_op := 'upsert'; v_tenant_id := NEW.tenant_id;
@@ -424,7 +429,7 @@ DROP TRIGGER IF EXISTS yh_capture_reference_sheet_children_del_trg ON public.aro
 CREATE TRIGGER yh_capture_reference_sheet_children_del_trg BEFORE DELETE ON public.aromatherapy_reference_sheets
   FOR EACH ROW EXECUTE FUNCTION public.yh_capture_reference_sheet_children();
 DROP TRIGGER IF EXISTS yh_capture_reference_sheet_children_upd_trg ON public.aromatherapy_reference_sheets;
-CREATE TRIGGER yh_capture_reference_sheet_children_upd_trg AFTER UPDATE OF tenant_id ON public.aromatherapy_reference_sheets
+CREATE TRIGGER yh_capture_reference_sheet_children_upd_trg AFTER UPDATE OF tenant_id, is_active ON public.aromatherapy_reference_sheets
   FOR EACH ROW EXECUTE FUNCTION public.yh_capture_reference_sheet_children();
 
 -- D: reference_rows child (parent-derived scope).
