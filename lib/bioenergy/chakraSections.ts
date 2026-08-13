@@ -140,6 +140,29 @@ export function buildChakraSections(
 }
 
 /**
+ * FAZ 3.1 — Adaptif workspace: "Beden & Sistem İlişkileri" section'ının ana
+ * içeriğini (Fiziksel Etkiler) yapısal bağlamsal bilgiden (Organlar, Bezler)
+ * ayırır. SAF SUNUM bölümlemesi — aynı section'ın mevcut legacy blokları; yeni
+ * veri/dönüşüm/kolon YOK. İki alan da doluysa çağıran adaptif iki-kolon
+ * kompozisyonu kurabilir; biri boşsa çağıran tek kolona döner (boş panel yok).
+ */
+export const BEDEN_CONTEXT_BLOCK_TITLES = ["Organlar", "Bezler"] as const;
+
+export function partitionBedenSistemBlocks(section: ChakraSection): {
+  primary: ChakraSectionBlock[];
+  context: ChakraSectionBlock[];
+} {
+  const contextTitles = new Set<string>(BEDEN_CONTEXT_BLOCK_TITLES);
+  const primary: ChakraSectionBlock[] = [];
+  const context: ChakraSectionBlock[] = [];
+  for (const b of section.blocks) {
+    if (b.title && contextTitles.has(b.title)) context.push(b);
+    else primary.push(b);
+  }
+  return { primary, context };
+}
+
+/**
  * Tek-section workspace seçim sözleşmesi: URL `?section=<hash>` parametresini
  * görünür section'lara karşı doğrular. Geçersiz / boş / future / bilinmeyen →
  * güvenli varsayılan = İLK görünür section. Görünür section yoksa null.

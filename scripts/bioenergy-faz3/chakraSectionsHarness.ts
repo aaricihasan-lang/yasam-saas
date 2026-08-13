@@ -11,6 +11,7 @@
  */
 import {
   buildChakraSections,
+  partitionBedenSistemBlocks,
   resolveActiveChakraSection,
   CHAKRA_SECTION_DICTIONARY,
   type ChakraSectionInput,
@@ -151,6 +152,40 @@ check(
 check(
   "stones param ama stones görünmez → fallback ilk",
   resolveActiveChakraSection(noStones, "taslar-destekleyiciler")?.id === "genel-bakis",
+);
+
+// 10) Adaptif workspace — Beden & Sistem bölümlemesi (SAF SUNUM, veri kaybı yok)
+const bedenFull = byId["beden-sistem"]!;
+const part = partitionBedenSistemBlocks(bedenFull);
+check(
+  "Beden partition: primary = Fiziksel Etkiler",
+  part.primary.length === 1 && part.primary[0]?.title === "Fiziksel Etkiler" && part.primary[0]?.text === "Bel, bacaklar",
+);
+check(
+  "Beden partition: context = Organlar + Bezler (sıra korunur)",
+  part.context.map((b) => b.title).join(",") === "Organlar,Bezler",
+  part.context.map((b) => b.title).join(","),
+);
+check(
+  "Beden partition: context metinleri korunmuş",
+  part.context[0]?.text === "Böbrekler" && part.context[1]?.text === "Böbrek üstü bezi",
+);
+check(
+  "Beden partition: veri kaybı yok (primary+context == tüm bloklar)",
+  part.primary.length + part.context.length === bedenFull.blocks.length,
+);
+// Yalnız physical → context boş → çağıran tek kolona döner (adaptif değil)
+const onlyPhysical = buildChakraSections({ physical: "x" }, { stonesVisible: false });
+const partPhysical = partitionBedenSistemBlocks(onlyPhysical.find((s) => s.id === "beden-sistem")!);
+check("Yalnız physical → context boş (tek kolon)", partPhysical.primary.length === 1 && partPhysical.context.length === 0);
+// Yalnız organs/glands → primary boş → çağıran tek kolona döner (boş sol yok)
+const onlyStructural = buildChakraSections({ organs: "o", glands: "g" }, { stonesVisible: false });
+const partStructural = partitionBedenSistemBlocks(onlyStructural.find((s) => s.id === "beden-sistem")!);
+check("Yalnız organs+glands → primary boş (tek kolon, boş sol yok)", partStructural.primary.length === 0 && partStructural.context.length === 2);
+// Adaptif iki kolon yalnız her iki alan da doluyken (physical + en az bir yapısal)
+check(
+  "Adaptif iki kolon koşulu: full record'da primary>0 && context>0",
+  part.primary.length > 0 && part.context.length > 0,
 );
 
 console.log(`\nBİYOENERJİ FAZ 3.1 — ÇAKRA SECTION HARNESS`);
