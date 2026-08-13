@@ -53,6 +53,12 @@ export type HealingGuideSectionRow = {
   title: string | null;
   note: string | null;
   source: string | null;
+  /** FAZ 2 — opsiyonel profesyonel bilgi katmanları (hepsi null olabilir). */
+  source_kind: string | null;
+  expert_note: string | null;
+  attention: string | null;
+  /** FAZ 2 — kalıcı sıra (null ise created_at fallback). */
+  sort_order: number | null;
   images: unknown[] | null;
   created_at: string;
 };
@@ -285,6 +291,14 @@ function mapSectionRow(row: RawSectionRow): HealingGuideSectionRow | null {
   const id = textValue(row.id);
   if (!id || !guideId) return null;
 
+  const rawSort = row.sort_order;
+  const sortOrder =
+    typeof rawSort === "number"
+      ? rawSort
+      : typeof rawSort === "string" && rawSort.trim() !== "" && !Number.isNaN(Number(rawSort))
+        ? Number(rawSort)
+        : null;
+
   return {
     id,
     guide_id: guideId,
@@ -293,6 +307,10 @@ function mapSectionRow(row: RawSectionRow): HealingGuideSectionRow | null {
     title: textValue(row.title) || null,
     note: textValue(row.note) || null,
     source: textValue(row.source) || null,
+    source_kind: textValue(row.source_kind) || null,
+    expert_note: textValue(row.expert_note) || null,
+    attention: textValue(row.attention) || null,
+    sort_order: sortOrder,
     images: normalizeImages(row.images),
     created_at: textValue(row.created_at) || new Date().toISOString(),
   };
@@ -418,7 +436,16 @@ export function mapRawRowToDetail(row: RawGuideRow): HealingGuideDetail {
   const sections = rawSections
     .map((entry) => mapSectionRow(entry))
     .filter((entry): entry is HealingGuideSectionRow => Boolean(entry))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    // FAZ 2: kalıcı sıra. sort_order dolu olanlar önce ve ona göre; null olanlar
+    // sona ve created_at'e göre (mevcut deterministik davranış fallback).
+    .sort((a, b) => {
+      const ao = a.sort_order;
+      const bo = b.sort_order;
+      if (ao != null && bo != null) return ao - bo || a.created_at.localeCompare(b.created_at);
+      if (ao != null) return -1;
+      if (bo != null) return 1;
+      return a.created_at.localeCompare(b.created_at);
+    });
 
   return {
     guide: {

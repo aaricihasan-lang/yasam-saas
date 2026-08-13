@@ -22,10 +22,11 @@ import {
   type HealingGuideSectionRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import {
-  formToSections,
-  isFormShapedSections,
-  sectionsToFormDraft,
-} from "@/lib/sifa-rehberi/formToSections";
+  SectionEditor,
+  sectionRowToEditable,
+  editableToPayload,
+  type EditableSection,
+} from "@/components/sifa-rehberi/SectionEditor";
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -388,6 +389,8 @@ export default function SifaRehberiDetailPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [symptoms, setSymptoms] = useState<string | null>(null);
   const [sections, setSections] = useState<HealingGuideSectionRow[]>([]);
+  // FAZ 2: section-native düzenleme draft'ı (karmaşık/imported kayıtlar için).
+  const [editSections, setEditSections] = useState<EditableSection[]>([]);
   const [tab, setTab] = useState<DetailTabId>("rahatsizlik");
   const [sectionTab, setSectionTab] = useState<HealingGuideSectionType>("reasons");
   const [editEnabled, setEditEnabled] = useState(false);
@@ -416,10 +419,9 @@ export default function SifaRehberiDetailPage() {
   );
 
   const useSectionView = sections.length > 0 && !editEnabled;
-  // Form-şekilli (yeni manuel oluşturulan / tek-section'a-alan) kayıtlar 7 sekmeli
-  // formdan KAYIPSIZ düzenlenebilir. Karmaşık import kayıtları form-şekilli değildir
-  // → mevcut salt-okunur davranış korunur (sessiz veri kaybı olmaz).
-  const isFormShaped = useMemo(() => isFormShapedSections(sections), [sections]);
+  // FAZ 2: section-tabanlı kayıtlar artık section-native editörle KAYIPSIZ düzenlenir
+  // (form-şekilli olma zorunluluğu KALDIRILDI → 35/35 production kaydı editlenebilir).
+  const sectionEditMode = editEnabled && sections.length > 0;
   const { isDemo } = useDemoGuard();
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
@@ -663,12 +665,6 @@ export default function SifaRehberiDetailPage() {
 
   async function handleSaveFields() {
     if (!draft || !id) return;
-    // Savunma guard'ı: KARMAŞIK (import edilmiş, form-şekilli olmayan) section kayıtları
-    // 7 sekmeli forma kayıpsız sığmaz → düzenleme engellenir (toggleEditOrSave'de de).
-    if (sections.length > 0 && !isFormShaped) {
-      setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
-      return;
-    }
     const nameTrim = draft.name.trim();
     if (!nameTrim) {
       setErrorMessage("Rahatsızlık adı zorunludur.");
@@ -685,8 +681,9 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
-    // CANONICAL edit yolu: içerik healing_guide_sections'ta. Guide satırına yalnız
-    // üst-düzey alanlar (ad/kategori/görsel) yazılır; 21 içerik alanı section'lara.
+    // SECTION-NATIVE edit yolu (Faz 2): içerik healing_guide_sections'ta durur.
+    // Guide satırına yalnız üst-düzey alanlar (ad/kategori/görsel) yazılır; bölümler
+    // section-native editör draft'ından atomic replace RPC ile kayıpsız kaydedilir.
     if (sections.length > 0) {
       const { error: guideErr } = await updateHealingGuide(id, {
         name: nameTrim,
@@ -698,7 +695,7 @@ export default function SifaRehberiDetailPage() {
         setErrorMessage(`Kayıt güncellenemedi: ${guideErr}`);
         return;
       }
-      const { error: secErr } = await replaceHealingGuideSections(id, formToSections(draft));
+      const { error: secErr } = await replaceHealingGuideSections(id, editableToPayload(editSections));
       setSaving(false);
       if (secErr) {
         setErrorMessage(`Bölümler kaydedilemedi: ${secErr}`);
@@ -794,16 +791,13 @@ export default function SifaRehberiDetailPage() {
     if (editEnabled) {
       void handleSaveFields();
     } else {
-      // KARMAŞIK import kayıtları (çok-section / kaynaklı / görselli) forma kayıpsız
-      // sığmaz → düzenleme engellenir (sessiz veri kaybı guard'ı korunur).
-      if (sections.length > 0 && !isFormShaped) {
-        setErrorMessage("Bu kayıt içe aktarılmış bölümlerden oluşuyor; içeriği buradan düzenlenemiyor.");
-        return;
+      // FAZ 2: section-tabanlı kayıt → section-native editör draft'ını doldur (KAYIPSIZ,
+      // section_type/mode/title/note/source/source_kind/expert_note/attention taşınır).
+      // Flat/legacy kayıt → 21-alanlı form (mevcut davranış korunur).
+      setDraft(recordToDraft(record));
+      if (sections.length > 0) {
+        setEditSections(sections.map(sectionRowToEditable));
       }
-      // Form-şekilli section kaydı: içeriği section'lardan 7 sekmeli forma geri-map'le.
-      const base = recordToDraft(record);
-      const reverse = sections.length > 0 ? sectionsToFormDraft(sections) : null;
-      setDraft(reverse ? { ...base, ...reverse } : base);
       setEditEnabled(true);
       setErrorMessage("");
     }
@@ -966,6 +960,22 @@ export default function SifaRehberiDetailPage() {
         ) : null}
 
         <section className="flex max-h-[min(92vh,900px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 max-md:max-h-none max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none max-md:ring-0 lg:max-h-[min(88vh,960px)] lg:flex-row">
+          {sectionEditMode ? (
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 max-md:overflow-visible max-md:p-0 max-md:pt-3 lg:p-5">
+              <div className="rounded-2xl border border-white/90 bg-white/80 p-4 shadow-sm max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
+                <h2 className="text-base font-bold tracking-tight text-slate-950 max-md:text-lg">
+                  Bölümler
+                </h2>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500 lg:text-sm">
+                  Bölümleri ekleyin, düzenleyin, ↑↓ ile sıralayın veya silin. İçerik uzunluk sınırı yoktur.
+                </p>
+                <div className="mt-4">
+                  <SectionEditor value={editSections} onChange={setEditSections} disabled={saving} />
+                </div>
+              </div>
+            </div>
+          ) : (
+          <>
           <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 max-md:block max-md:overflow-visible max-md:border-b-0 max-md:p-0 max-md:pb-1 lg:w-[240px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
             <div className="space-y-1.5 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-2 ring-1 ring-white/90 max-md:flex max-md:w-full max-md:flex-col max-md:gap-1.5 max-md:space-y-0 max-md:rounded-none max-md:bg-none max-md:p-0 max-md:ring-0">
               {useSectionView
@@ -1197,6 +1207,8 @@ export default function SifaRehberiDetailPage() {
               </div>
             </div>
           </div>
+          </>
+          )}
         </section>
       </div>
 

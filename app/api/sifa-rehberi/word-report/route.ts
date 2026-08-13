@@ -21,6 +21,8 @@ import {
 } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
+// FAZ 2: etiket haritaları tek merkezden (sectionModel) — duplication azaltıldı.
+import { MODE_LABEL, SECTION_TYPE_LABEL, SECTION_TYPE_ORDER, sectionHasAnyLayer } from "@/lib/sifa-rehberi/sectionModel";
 
 export const runtime = "nodejs";
 
@@ -38,6 +40,11 @@ type SectionRow = {
   title: string | null;
   note: string | null;
   source: string | null;
+  // FAZ 2 — opsiyonel profesyonel bilgi katmanları + kalıcı sıra.
+  source_kind: string | null;
+  expert_note: string | null;
+  attention: string | null;
+  sort_order: number | null;
   created_at: string;
 };
 
@@ -76,68 +83,7 @@ type GuideRaw = {
   healing_guide_sections: SectionRow[] | null;
 };
 
-// ── Mode / section_type → Türkçe etiket ──────────────────────────────────────
-const MODE_LABEL: Record<string, string> = {
-  general_summary: "Genel Özet",
-  medical_causes: "Tıbbi Nedenler",
-  subconscious_causes: "Bilinçaltı Sebepleri",
-  temperament_causes: "Mizaç Sebepleri",
-  other_causes: "Diğer Sebepler",
-  iridology_match: "İridoloji'de Karşılığı",
-  hand_analysis_match: "El Analizinde Karşılığı",
-  cupping_leech: "Hacamat & Sülük",
-  hacamat_suluk: "Hacamat & Sülük",
-  hacamat: "Hacamat & Sülük",
-  reflexology: "Refleksoloji",
-  refleksoloji: "Refleksoloji",
-  diet_recommendations: "Diyet Önerileri",
-  diyet: "Diyet Önerileri",
-  herbal_methods: "Bitkisel Yöntemler",
-  herbal: "Bitkisel Yöntemler",
-  bitkisel: "Bitkisel Yöntemler",
-  stone_recommendations: "Doğaltaş Önerileri",
-  stones_details: "Doğaltaş Detayları",
-  aromatherapy: "Aromaterapi",
-  aromaterapi: "Aromaterapi",
-  meditation: "Meditasyon",
-  breathwork: "Nefes Çalışması",
-  nefes: "Nefes Çalışması",
-  bioenergy: "Biyoenerji",
-  bioenerji: "Biyoenerji",
-  massage: "Masaj",
-  masaj: "Masaj",
-  daily_routine: "Günlük Rutin",
-  sleep_routine: "Uyku Düzeni",
-  supportive_alternative_methods: "Destekleyici / Alternatif Uygulamalar",
-  supportive: "Destekleyici Uygulamalar",
-  islamic_recommendations: "İslami Öneriler",
-  islamic_suggestions: "İslami Öneriler",
-  reasons: "Nedenler / Sebepler",
-  applications: "Uygulamalar / Yöntemler",
-  tibbi: "Tıbbi Nedenler",
-  bilincalti: "Bilinçaltı Sebepleri",
-  mizac: "Mizaç Sebepleri",
-  diger: "Diğer Sebepler",
-  uygulama: "Uygulama",
-};
-
-const SECTION_TYPE_LABEL: Record<string, string> = {
-  reasons: "Nedenler / Sebepler",
-  applications: "Uygulamalar / Yöntemler",
-  herbal: "Bitkisel Yöntemler",
-  stones_details: "Doğaltaş Detayları",
-  islamic_suggestions: "İslami Öneriler",
-  supportive: "Destekleyici Uygulamalar",
-};
-
-const SECTION_TYPE_ORDER = [
-  "reasons",
-  "applications",
-  "herbal",
-  "stones_details",
-  "islamic_suggestions",
-  "supportive",
-];
+// MODE_LABEL / SECTION_TYPE_LABEL / SECTION_TYPE_ORDER → sectionModel'den import edilir.
 
 function normKey(v: string | null | undefined): string {
   if (!v) return "";
@@ -187,9 +133,45 @@ function addLegacySection(
   out.push(bodyText(t));
 }
 
+/** Kaynak + kaynak türü tek satır. */
+function sourceLine(s: SectionRow): string {
+  const src = txt(s.source);
+  const kind = txt(s.source_kind);
+  if (src && kind) return `Kaynak (${kind}): ${src}`;
+  if (src) return `Kaynak: ${src}`;
+  if (kind) return `Kaynak Türü: ${kind}`;
+  return "";
+}
+
+/**
+ * Bir section'da yazdırılabilir herhangi bir katman var mı? (merkezi sectionHasAnyLayer)
+ * DİKKAT: bu YALNIZ boş-bölüm filtresidir; içerik EŞİTLİĞİNE bakmaz → aynı note'a sahip
+ * iki FARKLI section asla birbirini düşürmez (semantic content dedup YOK).
+ */
+function hasAnySectionLayer(s: SectionRow): boolean {
+  return sectionHasAnyLayer(s);
+}
+
+/**
+ * FAZ 2 — bilgi KATMANLARINI birbirinden AÇIKÇA ayırarak yazar:
+ *   Ana İçerik → Kaynak/Tür → Uzman Notu → Dikkat Edilmesi Gerekenler.
+ * Boş katman basılmaz; uzun içerik truncate edilmez.
+ */
+function pushSectionLayers(out: ReportChild[], s: SectionRow, subLabel?: string) {
+  if (subLabel) out.push(bodyText(`▸ ${subLabel}`));
+  const content = txt(s.note);
+  if (content) out.push(bodyText(content));
+  const src = sourceLine(s);
+  if (src) out.push(muted(src));
+  const expert = txt(s.expert_note);
+  if (expert) out.push(bodyText(`Uzman Notu: ${expert}`));
+  const attn = txt(s.attention);
+  if (attn) out.push(bodyText(`Dikkat Edilmesi Gerekenler: ${attn}`));
+}
+
 function buildFromSections(out: ReportChild[], sections: SectionRow[]) {
-  // Önce symptoms / genel özet varsa ekle
-  // sections_type bazında grupla ve sırayla yaz
+  // section_type bazında grupla ve sırayla yaz (grup içi sort_order korunur —
+  // sections zaten sort_order/created_at ile sıralı gelir).
   const grouped: Record<string, SectionRow[]> = {};
   for (const s of sections) {
     const key = s.section_type || "other";
@@ -197,39 +179,27 @@ function buildFromSections(out: ReportChild[], sections: SectionRow[]) {
     grouped[key].push(s);
   }
 
-  // Önce SECTION_TYPE_ORDER'a göre, sonra bilinmeyenler
   const orderedTypes = [
     ...SECTION_TYPE_ORDER.filter((t) => grouped[t]?.length),
     ...Object.keys(grouped).filter((t) => !SECTION_TYPE_ORDER.includes(t) && grouped[t]?.length),
   ];
 
   for (const stype of orderedTypes) {
-    const rows = grouped[stype] ?? [];
+    const rows = (grouped[stype] ?? []).filter(hasAnySectionLayer);
     if (!rows.length) continue;
 
     const stypeLabel = SECTION_TYPE_LABEL[stype] ?? stype;
 
-    // Eğer bu grup tek bir section içeriyorsa başlık olarak section label kullan
     if (rows.length === 1) {
       const s = rows[0]!;
-      const content = txt(s.note);
-      if (!content) continue;
       const label = sectionDisplayLabel(s);
       out.push(h3(label !== stypeLabel ? label : stypeLabel));
-      out.push(bodyText(content));
-      if (txt(s.source)) out.push(bodyText(`Kaynak: ${txt(s.source)}`));
+      pushSectionLayers(out, s);
     } else {
-      // Birden fazla: grup başlığı + alt bölümler
       out.push(h3(stypeLabel));
       for (const s of rows) {
-        const content = txt(s.note);
-        if (!content) continue;
         const label = sectionDisplayLabel(s);
-        if (label !== stypeLabel) {
-          out.push(bodyText(`▸ ${label}`));
-        }
-        out.push(bodyText(content));
-        if (txt(s.source)) out.push(bodyText(`Kaynak: ${txt(s.source)}`));
+        pushSectionLayers(out, s, label !== stypeLabel ? label : undefined);
       }
     }
   }
@@ -314,7 +284,18 @@ function buildGuideContent(guide: GuideRaw, index: number, isSingle: boolean): R
   const sections = (Array.isArray(guide.healing_guide_sections)
     ? guide.healing_guide_sections
     : []
-  ).filter((s) => txt(s.note)); // sadece içeriği olan sections
+  )
+    .filter((s) => hasAnySectionLayer(s)) // içerik / kaynak / uzman notu / dikkat olan bölümler
+    // FAZ 2: kalıcı sıra (sort_order dolu önce; null'lar created_at ile sona).
+    .slice()
+    .sort((a, b) => {
+      const ao = typeof a.sort_order === "number" ? a.sort_order : null;
+      const bo = typeof b.sort_order === "number" ? b.sort_order : null;
+      if (ao != null && bo != null) return ao - bo || a.created_at.localeCompare(b.created_at);
+      if (ao != null) return -1;
+      if (bo != null) return 1;
+      return a.created_at.localeCompare(b.created_at);
+    });
 
   if (sections.length > 0) {
     // Yeni yapı: section tablosundan içerik
@@ -386,7 +367,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     aromatherapy, meditation, breathwork, bioenergy, massage, daily_routine,
     sleep_routine, supportive_alternative_methods, islamic_recommendations,
     healing_guide_sections (
-      id, guide_id, section_type, mode, title, note, source, created_at
+      id, guide_id, section_type, mode, title, note, source,
+      source_kind, expert_note, attention, sort_order, created_at
     )
   `;
 

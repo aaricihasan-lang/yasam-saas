@@ -14,6 +14,8 @@
  *      uzunluk sınırı (bunlar ana içerik değildir).
  */
 
+import { isAllowedSourceKind } from "@/lib/sifa-rehberi/sectionModel";
+
 /** Metadata alanları için makul teknik uzunluk sınırları (ana içerik DEĞİL). */
 export const FIELD_MAX = {
   name: 200,
@@ -94,7 +96,16 @@ export function validateGuideBody(body: Record<string, unknown>): string | null 
   return null;
 }
 
-/** Section insert dizisini doğrular. */
+/** section_type için makul teknik uzunluk sınırı (metadata). */
+const SECTION_TYPE_MAX = 60;
+
+/**
+ * Section insert dizisini doğrular (FAZ 2: source_kind / expert_note / attention dahil).
+ *
+ * ÜRÜN KARARI: ANA İÇERİK alanları — note, expert_note, attention — UZUNLUK SINIRSIZ;
+ * yalnız tip guard'ı (object/array → red). Metadata (title/mode/source/section_type)
+ * makul teknik sınırlarını korur. source_kind opsiyonel + merkezi allow-list ile doğrulanır.
+ */
 export function validateSectionsBody(sections: unknown): string | null {
   if (!Array.isArray(sections)) return "Geçersiz bölüm listesi.";
   if (sections.length > MAX_SECTIONS) return `En fazla ${MAX_SECTIONS} bölüm.`;
@@ -104,9 +115,23 @@ export function validateSectionsBody(sections: unknown): string | null {
     if (typeof row.section_type !== "string" || row.section_type.length === 0) {
       return "Bölüm tipi zorunlu.";
     }
+    if (row.section_type.length > SECTION_TYPE_MAX) return "Geçersiz bölüm tipi.";
     // Ana içerik (note): UZUNLUK SINIRI YOK; yalnız tip guard (object/array → red).
     if ("note" in row && row.note != null && typeof row.note !== "string") {
       return "Geçersiz bölüm metni.";
+    }
+    // Uzman notu (expert_note): ANA İÇERİK — uzunluk sınırı YOK; yalnız tip guard.
+    if ("expert_note" in row && row.expert_note != null && typeof row.expert_note !== "string") {
+      return "Geçersiz uzman notu.";
+    }
+    // Dikkat notu (attention): ANA İÇERİK — uzunluk sınırı YOK; yalnız tip guard.
+    if ("attention" in row && row.attention != null && typeof row.attention !== "string") {
+      return "Geçersiz dikkat notu.";
+    }
+    // Kaynak türü (source_kind): opsiyonel; doluysa merkezi allow-list.
+    if ("source_kind" in row && row.source_kind != null) {
+      if (typeof row.source_kind !== "string") return "Geçersiz kaynak türü.";
+      if (!isAllowedSourceKind(row.source_kind)) return "Geçersiz kaynak türü.";
     }
     if (typeof row.title === "string" && row.title.length > FIELD_MAX.title) {
       return `Bölüm başlığı çok uzun (en fazla ${FIELD_MAX.title} karakter).`;
