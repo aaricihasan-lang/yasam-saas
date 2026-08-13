@@ -27,7 +27,13 @@ import {
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { SUGGESTED_CATEGORIES } from "@/lib/sifa-rehberi/categories";
-import { formToSections } from "@/lib/sifa-rehberi/formToSections";
+import {
+  SectionEditor,
+  editableToPayload,
+  type EditableSection,
+} from "@/components/sifa-rehberi/SectionEditor";
+import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -44,204 +50,17 @@ type GuideImage = {
   section?: string;
 };
 
-type HealingGuideRecord = {
-  id: string;
-  tenant_id: string;
-  name: string;
-  category: string | null;
-  general_summary: string | null;
-  medical_causes: string | null;
-  subconscious_causes: string | null;
-  temperament_causes: string | null;
-  other_causes: string | null;
-  iridology_match: string | null;
-  hand_analysis_match: string | null;
-  cupping_leech: string | null;
-  reflexology: string | null;
-  diet_recommendations: string | null;
-  herbal_methods: string | null;
-  stone_recommendations: string | null;
-  aromatherapy: string | null;
-  meditation: string | null;
-  breathwork: string | null;
-  bioenergy: string | null;
-  massage: string | null;
-  daily_routine: string | null;
-  sleep_routine: string | null;
-  supportive_alternative_methods: string | null;
-  islamic_recommendations: string | null;
-  images: GuideImage[] | null;
-  created_at: string;
-  updated_at: string | null;
-};
-
+// FAZ 3: create/edit convergence — create artık section-native (SectionEditor).
+// Guide üst-seviye alanları basit tutulur; içerik section'larda toplanır.
 type GuideForm = {
   name: string;
   category: string;
-  general_summary: string;
-  medical_causes: string;
-  subconscious_causes: string;
-  temperament_causes: string;
-  other_causes: string;
-  iridology_match: string;
-  hand_analysis_match: string;
-  cupping_leech: string;
-  reflexology: string;
-  diet_recommendations: string;
-  herbal_methods: string;
-  stone_recommendations: string;
-  aromatherapy: string;
-  meditation: string;
-  breathwork: string;
-  bioenergy: string;
-  massage: string;
-  daily_routine: string;
-  sleep_routine: string;
-  supportive_alternative_methods: string;
-  islamic_recommendations: string;
 };
 
 const emptyForm: GuideForm = {
   name: "",
   category: "",
-  general_summary: "",
-  medical_causes: "",
-  subconscious_causes: "",
-  temperament_causes: "",
-  other_causes: "",
-  iridology_match: "",
-  hand_analysis_match: "",
-  cupping_leech: "",
-  reflexology: "",
-  diet_recommendations: "",
-  herbal_methods: "",
-  stone_recommendations: "",
-  aromatherapy: "",
-  meditation: "",
-  breathwork: "",
-  bioenergy: "",
-  massage: "",
-  daily_routine: "",
-  sleep_routine: "",
-  supportive_alternative_methods: "",
-  islamic_recommendations: "",
 };
-
-const FORM_SECTIONS: { key: keyof GuideForm; label: string; multiline?: boolean }[] = [
-  { key: "name", label: "Rahatsızlık adı" },
-  { key: "category", label: "Kategori" },
-  { key: "general_summary", label: "Genel / Özeti", multiline: true },
-  { key: "medical_causes", label: "Tıbbi Nedenler", multiline: true },
-  { key: "subconscious_causes", label: "Bilinçaltı Sebepleri", multiline: true },
-  { key: "temperament_causes", label: "Mizaç Sebepleri", multiline: true },
-  { key: "other_causes", label: "Diğer Sebepler", multiline: true },
-  { key: "iridology_match", label: "İridoloji’de Karşılığı", multiline: true },
-  { key: "hand_analysis_match", label: "El Analizinde Karşılığı", multiline: true },
-  { key: "cupping_leech", label: "Hacamat & Sülük", multiline: true },
-  { key: "reflexology", label: "Refleksoloji", multiline: true },
-  { key: "diet_recommendations", label: "Diyet Önerileri", multiline: true },
-  { key: "herbal_methods", label: "Bitkisel Yöntemler", multiline: true },
-  { key: "stone_recommendations", label: "Doğaltaş Önerileri", multiline: true },
-  { key: "aromatherapy", label: "Aromaterapi", multiline: true },
-  { key: "meditation", label: "Meditasyon", multiline: true },
-  { key: "breathwork", label: "Nefes", multiline: true },
-  { key: "bioenergy", label: "Biyoenerji", multiline: true },
-  { key: "massage", label: "Masaj", multiline: true },
-  { key: "daily_routine", label: "Günlük Rutin", multiline: true },
-  { key: "sleep_routine", label: "Uyku Düzeni", multiline: true },
-  {
-    key: "supportive_alternative_methods",
-    label: "Destekleyici / Alternatif Uygulamalar",
-    multiline: true,
-  },
-  {
-    key: "islamic_recommendations",
-    label: "İslami Öneriler",
-    multiline: true,
-  },
-];
-
-type FormTabId =
-  | "rahatsizlik"
-  | "belirtiler"
-  | "uygulamalar"
-  | "dogaltas"
-  | "aromaterapi"
-  | "destekleyici"
-  | "islami_oneriler";
-
-const FORM_TABS: {
-  id: FormTabId;
-  label: string;
-  icon: string;
-  desc: string;
-  keys: (keyof GuideForm)[];
-}[] = [
-  {
-    id: "rahatsizlik",
-    label: "Rahatsızlık",
-    icon: "📋",
-    desc: "Temel tanım, kategori ve genel özet bilgileri.",
-    keys: ["name", "category", "general_summary"],
-  },
-  {
-    id: "belirtiler",
-    label: "Belirtiler / Sebepler",
-    icon: "🔍",
-    desc: "Olası nedenler ve iridoloji / el analizi eşleştirmeleri.",
-    keys: [
-      "medical_causes",
-      "subconscious_causes",
-      "temperament_causes",
-      "other_causes",
-      "iridology_match",
-      "hand_analysis_match",
-    ],
-  },
-  {
-    id: "uygulamalar",
-    label: "Uygulamalar / Yöntemler",
-    icon: "🙌",
-    desc: "Hacamat, refleksoloji, diyet ve bitkisel yöntem alanları.",
-    keys: ["cupping_leech", "reflexology", "diet_recommendations", "herbal_methods"],
-  },
-  {
-    id: "dogaltas",
-    label: "Doğaltaş & Mineral",
-    icon: "💎",
-    desc: "Taş ve mineral önerilerinizi buradan girin.",
-    keys: ["stone_recommendations"],
-  },
-  {
-    id: "aromaterapi",
-    label: "Aromaterapi",
-    icon: "🌸",
-    desc: "Aromaterapi ile ilgili notlar ve öneriler.",
-    keys: ["aromatherapy"],
-  },
-  {
-    id: "destekleyici",
-    label: "Destekleyici",
-    icon: "✨",
-    desc: "Meditasyon, nefes, biyoenerji, masaj ve günlük rutinler.",
-    keys: [
-      "meditation",
-      "breathwork",
-      "bioenergy",
-      "massage",
-      "daily_routine",
-      "sleep_routine",
-      "supportive_alternative_methods",
-    ],
-  },
-  {
-    id: "islami_oneriler",
-    label: "İslami Öneriler",
-    icon: "🕌",
-    desc: "Dua, sure, niyet, manevi destek notları.",
-    keys: ["islamic_recommendations"],
-  },
-];
 
 function trimOrNull(value: string) {
   const t = value.trim();
@@ -533,15 +352,12 @@ function SifaRehberiContent() {
     return pageViewFromQueryParam(searchParams.get("view")) ?? "menu";
   });
   const [form, setForm] = useState(() => ({ ...emptyForm }));
+  // FAZ 3: create içeriği artık section-native (edit ile ortak SectionEditor).
+  const [createSections, setCreateSections] = useState<EditableSection[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
-  const [largeEditorKey, setLargeEditorKey] = useState<keyof GuideForm | null>(null);
-  const [largeEditorLabel, setLargeEditorLabel] = useState("");
-  const [largeEditorValue, setLargeEditorValue] = useState("");
-  const [formTab, setFormTab] = useState<FormTabId>("rahatsizlik");
   const [formImages, setFormImages] = useState<GuideImage[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [lightbox, setLightbox] = useState<GuideImage | null>(null);
-  const [uploadTargetSection, setUploadTargetSection] = useState<FormTabId | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadGuides(tenantId: string) {
@@ -605,16 +421,6 @@ function SifaRehberiContent() {
   }, [searchParams]);
 
   useBfcacheRefresh();
-
-  useEffect(() => {
-    if (pageView === "new") return;
-    runInEffect(() => {
-      setLargeEditorKey(null);
-      setLargeEditorLabel("");
-      setLargeEditorValue("");
-      setFormTab("rahatsizlik");
-    });
-  }, [pageView]);
 
   const toggleExportSelection = useCallback((id: string) => {
     setSelectedForExport((prev) => {
@@ -770,28 +576,15 @@ function SifaRehberiContent() {
   // "0 Kategori" sayacı teknik olarak doğru kalır: dolu kategori sayısı.
   const categoryCount = categoryOptions.length;
 
-  const activeFormTab = useMemo(
-    () => FORM_TABS.find((t) => t.id === formTab) ?? FORM_TABS[0],
-    [formTab]
-  );
-
-  const tabImages = useMemo(
-    () => formImages.filter((img) => img.section === formTab),
-    [formImages, formTab]
-  );
-
-  function triggerImagePick(section: FormTabId) {
-    setUploadTargetSection(section);
+  function triggerImagePick() {
     imageFileInputRef.current?.click();
   }
 
   async function handleGuideImageFileChange(e: ChangeEvent<HTMLInputElement>) {
     if (isDemo) { e.target.value = ""; return; }
     const file = e.target.files?.[0];
-    const section = uploadTargetSection;
     e.target.value = "";
-    setUploadTargetSection(null);
-    if (!file || !section) return;
+    if (!file) return;
 
     setUploadingImage(true);
     setErrorMessage("");
@@ -826,7 +619,6 @@ function SifaRehberiContent() {
       name: file.name,
       url: pub.publicUrl,
       file_path,
-      section,
     };
     setFormImages((prev) => [...prev, entry]);
   }
@@ -845,29 +637,10 @@ function SifaRehberiContent() {
     setLightbox((cur) => (cur?.id === img.id ? null : cur));
   }
 
-  function closeLargeEditor() {
-    setLargeEditorKey(null);
-    setLargeEditorLabel("");
-    setLargeEditorValue("");
-  }
-
-  function openLargeEditor(key: keyof GuideForm, label: string) {
-    setLargeEditorKey(key);
-    setLargeEditorLabel(label);
-    setLargeEditorValue(form[key]);
-  }
-
-  function saveLargeEditor() {
-    if (!largeEditorKey) return;
-    setForm((prev) => ({ ...prev, [largeEditorKey]: largeEditorValue }));
-    closeLargeEditor();
-  }
-
   function resetForm() {
-    closeLargeEditor();
-    setFormTab("rahatsizlik");
     setFormImages([]);
     setForm(() => ({ ...emptyForm }));
+    setCreateSections([]);
   }
 
   async function handleSave() {
@@ -889,14 +662,15 @@ function SifaRehberiContent() {
       return;
     }
 
-    // CANONICAL: yeni manuel kayıt içeriği healing_guide_sections'a yazılır (flat-only
-    // borç üretmez). Guide satırına yalnız üst-düzey alanlar (ad, kategori, görseller)
-    // gider; 21 içerik alanı formToSections ile canonical section'lara dönüşür.
+    // FAZ 3: section-native create. İçerik doğrudan section payload'ıyla
+    // healing_guide_sections'a yazılır (create=edit tutarlı; provenance/expert/attention
+    // create anında; gizli aromatherapy→supportive map YOK). Guide satırına yalnız
+    // üst-düzey alanlar (ad, kategori, görseller) gider.
     const { error: insertError } = await createHealingGuide({
       name: nameTrim,
       category: trimOrNull(form.category),
       images: formImages.length > 0 ? formImages : null,
-      sections: formToSections(form),
+      sections: editableToPayload(createSections),
     });
 
     setSaving(false);
@@ -923,14 +697,27 @@ function SifaRehberiContent() {
   const isListView = pageView === "list";
   const isNewView = pageView === "new";
 
-  const newViewScrollArea =
-    "min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  // FAZ 3 — kaydedilmemiş değişiklik koruması (create). Deterministik imza ile dirty.
+  const createDirty =
+    isNewView &&
+    (editorSignature(form.name, form.category, createSections) !== editorSignature("", "", []) ||
+      formImages.length > 0);
+  useUnsavedGuard(createDirty);
+
+  async function guardedLeaveCreate(dest: () => void) {
+    if (createDirty) {
+      const ok = await deleteConfirm({
+        title: "Kaydedilmemiş değişiklikler",
+        message: "Bu kayıttaki değişiklikler henüz kaydedilmedi.",
+        secondMessage: "Çıkarsanız girdiğiniz içerik kaybolur. Yine de çıkmak istiyor musunuz?",
+      });
+      if (!ok) return;
+    }
+    dest();
+  }
 
   const newViewFieldInput =
     "h-10 w-full rounded-xl border border-emerald-100/90 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
-
-  const newViewFieldTextarea =
-    "min-h-[88px] max-h-[120px] w-full cursor-pointer resize-none rounded-xl border border-emerald-100/90 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
 
   const newViewMiniCard =
     "rounded-2xl border border-emerald-100/80 bg-gradient-to-b from-white to-emerald-50/30 p-4 shadow-[0_8px_24px_-12px_rgba(16,185,129,0.25)]";
@@ -940,20 +727,20 @@ function SifaRehberiContent() {
       <section className={newViewMiniCard}>
         <header className="mb-3">
           <h4 className="text-[13px] font-black tracking-tight text-slate-900">Görseller</h4>
-          <p className="mt-0.5 text-[11px] font-medium text-slate-500">Bu bölüme görsel ekleyin</p>
+          <p className="mt-0.5 text-[11px] font-medium text-slate-500">Kayda görsel ekleyin (opsiyonel)</p>
         </header>
         <button
           type="button"
           disabled={uploadingImage}
-          onClick={() => triggerImagePick(formTab)}
+          onClick={() => triggerImagePick()}
           className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-100 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:opacity-60"
         >
           <span aria-hidden>📷</span>
           {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
         </button>
-        {tabImages.length > 0 ? (
+        {formImages.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
-            {tabImages.map((img) => (
+            {formImages.map((img) => (
               <div key={img.id} className="relative w-16 shrink-0 rounded-lg border border-emerald-100 p-0.5">
                 <button type="button" onClick={() => setLightbox(img)} className="block w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -981,8 +768,8 @@ function SifaRehberiContent() {
     return (
       <>
         <div className="flex min-h-dvh flex-col bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 lg:h-dvh lg:overflow-hidden">
-          <header className="mx-auto mb-4 flex h-16 w-full max-w-[1400px] shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
-            <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
+          <header className="mx-auto mb-4 flex h-16 w-full max-w-[1100px] shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
+            <SifaRehberiToolbarMenuButton onClick={() => void guardedLeaveCreate(goToMainMenu)} />
             <div className="min-w-0 pl-4 text-right">
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Yeni Kayıt</p>
               <h2 className="truncate text-base font-black text-slate-950">Yeni rahatsızlık kaydı</h2>
@@ -990,7 +777,7 @@ function SifaRehberiContent() {
           </header>
 
           {(errorMessage || successMessage) ? (
-            <div className="mx-auto mb-3 w-full max-w-[1400px] shrink-0 space-y-1">
+            <div className="mx-auto mb-3 w-full max-w-[1100px] shrink-0 space-y-1">
               {errorMessage ? (
                 <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">
                   {errorMessage}
@@ -1004,7 +791,7 @@ function SifaRehberiContent() {
             </div>
           ) : null}
 
-          <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[260px_1fr] lg:gap-5">
+          <div className="mx-auto flex w-full max-w-[1100px] flex-col lg:min-h-0 lg:flex-1">
             <input
               ref={imageFileInputRef}
               type="file"
@@ -1013,139 +800,60 @@ function SifaRehberiContent() {
               onChange={handleGuideImageFileChange}
             />
 
-            <aside className="shrink-0 overflow-x-auto rounded-2xl border border-emerald-100/80 bg-white/85 p-3 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:h-full lg:min-h-0 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[28px] lg:p-4 lg:shadow-xl">
-              <p className="mb-2 hidden text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 lg:mb-3 lg:block">Bölümler</p>
-              <div className="flex gap-2 lg:flex-col lg:gap-0 lg:space-y-2">
-                {FORM_TABS.map((tab) => {
-                  const active = formTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setFormTab(tab.id)}
-                      className={`flex shrink-0 h-9 items-center gap-2 rounded-xl px-3 text-left text-[12px] font-bold whitespace-nowrap transition lg:h-12 lg:w-full lg:whitespace-normal lg:text-[13px] ${
-                        active
-                          ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_6px_18px_rgba(16,185,129,0.35)]"
-                          : "border border-emerald-100/80 bg-white/70 text-slate-600 hover:bg-emerald-50/80"
-                      }`}
-                    >
-                      <span className="text-base leading-none">{tab.icon}</span>
-                      <span className="min-w-0 truncate">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
-
             <section className="flex flex-col overflow-hidden rounded-2xl border border-emerald-100/80 bg-white/85 shadow-sm lg:h-full lg:min-h-0 lg:rounded-[28px] lg:shadow-xl">
               <div className="p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
                 <div className="space-y-4 pb-4">
-                  {formTab === "rahatsizlik" ? (
-                    <>
-                      <header className="border-b border-emerald-100/80 pb-4">
-                        <h3 className="text-lg font-black tracking-tight text-slate-950">Rahatsızlık Bilgileri</h3>
-                        <p className="mt-1 text-[12px] font-medium text-slate-500">
-                          Temel tanım, kategori ve özet alanlarını doldurun.
-                        </p>
+                  <header className="border-b border-emerald-100/80 pb-4">
+                    <h3 className="text-lg font-black tracking-tight text-slate-950">Rahatsızlık Bilgileri</h3>
+                    <p className="mt-1 text-[12px] font-medium text-slate-500">
+                      Ad zorunlu; kategori opsiyonel. İçeriği aşağıda bölümler halinde ekleyin.
+                    </p>
+                  </header>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                    <section className={newViewMiniCard}>
+                      <header className="mb-2.5">
+                        <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
+                        <p className="text-[11px] font-medium text-slate-500">Zorunlu</p>
                       </header>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-                        <section className={newViewMiniCard}>
-                          <header className="mb-2.5">
-                            <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
-                            <p className="text-[11px] font-medium text-slate-500">Zorunlu</p>
-                          </header>
-                          <input
-                            value={form.name}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            className={newViewFieldInput}
-                            placeholder="Örn. Migren"
-                          />
-                        </section>
-                        <section className={newViewMiniCard}>
-                          <header className="mb-2.5">
-                            <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
-                            <p className="text-[11px] font-medium text-slate-500">Sınıflandırma</p>
-                          </header>
-                          <input
-                            value={form.category}
-                            onChange={(e) => setForm({ ...form, category: e.target.value })}
-                            className={newViewFieldInput}
-                            placeholder="Örn. Sinir sistemi"
-                            list="sifa-category-suggestions"
-                          />
-                          <datalist id="sifa-category-suggestions">
-                            {SUGGESTED_CATEGORIES.map((c) => (
-                              <option key={c} value={c} />
-                            ))}
-                          </datalist>
-                        </section>
-                      </div>
-                      <section className={newViewMiniCard}>
-                        <header className="mb-2.5">
-                          <h4 className="text-[13px] font-black text-slate-900">Genel / Özet</h4>
-                          <p className="text-[11px] font-medium text-slate-500">Geniş editör için tıklayın</p>
-                        </header>
-                        <textarea
-                          readOnly
-                          value={form.general_summary}
-                          onClick={() => openLargeEditor("general_summary", "Genel / Özeti")}
-                          onFocus={(e) => {
-                            openLargeEditor("general_summary", "Genel / Özeti");
-                            e.target.blur();
-                          }}
-                          rows={3}
-                          className={newViewFieldTextarea}
-                        />
-                      </section>
-                      {renderNewViewImagesBlock()}
-                    </>
-                  ) : (
-                    <>
-                      <header className="border-b border-emerald-100/80 pb-4">
-                        <h3 className="text-lg font-black tracking-tight text-slate-950">{activeFormTab.label}</h3>
-                        <p className="mt-1 text-[12px] font-medium text-slate-500">
-                          Bu bölümdeki alanları düzenleyin; uzun metinler için alana tıklayın.
-                        </p>
+                      <input
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        className={newViewFieldInput}
+                        placeholder="Örn. Migren"
+                      />
+                    </section>
+                    <section className={newViewMiniCard}>
+                      <header className="mb-2.5">
+                        <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
+                        <p className="text-[11px] font-medium text-slate-500">Opsiyonel</p>
                       </header>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-                        {activeFormTab.keys.map((fieldKey) => {
-                          const meta = FORM_SECTIONS.find((s) => s.key === fieldKey);
-                          if (!meta) return null;
-                          const { key, label, multiline } = meta;
-                          return (
-                            <section
-                              key={key}
-                              className={`${newViewMiniCard} ${multiline ? "col-span-full" : ""}`}
-                            >
-                              <header className="mb-2.5">
-                                <h4 className="text-[13px] font-black text-slate-900">{label}</h4>
-                              </header>
-                              {multiline ? (
-                                <textarea
-                                  readOnly
-                                  value={form[key]}
-                                  onClick={() => openLargeEditor(key, label)}
-                                  onFocus={(e) => {
-                                    openLargeEditor(key, label);
-                                    e.target.blur();
-                                  }}
-                                  rows={3}
-                                  className={newViewFieldTextarea}
-                                />
-                              ) : (
-                                <input
-                                  value={form[key]}
-                                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                                  className={newViewFieldInput}
-                                />
-                              )}
-                            </section>
-                          );
-                        })}
-                        <div className="col-span-2">{renderNewViewImagesBlock()}</div>
-                      </div>
-                    </>
-                  )}
+                      <input
+                        value={form.category}
+                        onChange={(e) => setForm({ ...form, category: e.target.value })}
+                        className={newViewFieldInput}
+                        placeholder="Örn. Sinir sistemi"
+                        list="sifa-category-suggestions"
+                      />
+                      <datalist id="sifa-category-suggestions">
+                        {SUGGESTED_CATEGORIES.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </section>
+                  </div>
+
+                  {renderNewViewImagesBlock()}
+
+                  <section className={newViewMiniCard}>
+                    <header className="mb-3">
+                      <h4 className="text-[13px] font-black tracking-tight text-slate-900">Bölümler</h4>
+                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                        Modalite seçip içerik, kaynak, uzman notu ve dikkat notu ekleyin. İçerik uzunluk sınırı yoktur.
+                      </p>
+                    </header>
+                    <SectionEditor value={createSections} onChange={setCreateSections} disabled={saving} />
+                  </section>
                 </div>
               </div>
 
@@ -1160,7 +868,7 @@ function SifaRehberiContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={goToMainMenu}
+                  onClick={() => void guardedLeaveCreate(goToMainMenu)}
                   className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
                 >
                   Kapat
@@ -1199,39 +907,6 @@ function SifaRehberiContent() {
           </div>
         ) : null}
 
-        {largeEditorKey ? (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
-            <div
-              className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-            >
-              <h3 className="mb-4 text-[20px] font-black text-slate-950">{largeEditorLabel}</h3>
-              <textarea
-                value={largeEditorValue}
-                onChange={(e) => setLargeEditorValue(e.target.value)}
-                className="h-[min(480px,52vh)] w-full resize-y rounded-2xl border border-emerald-100 p-5 text-[15px] leading-7 text-slate-800 outline-none focus:ring-4 focus:ring-emerald-100/70"
-                autoFocus
-              />
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={saveLargeEditor}
-                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white"
-                >
-                  Kaydet
-                </button>
-                <button
-                  type="button"
-                  onClick={closeLargeEditor}
-                  className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700"
-                >
-                  İptal
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </>
     );
   }
@@ -1414,7 +1089,7 @@ function SifaRehberiContent() {
                 title="Yeni Rahatsızlık Kaydı"
                 description="Bölümlü form ile nedenler, bitkisel yöntemler ve destekleyici uygulamaları tek kayıtta toplayın."
                 statBadges={[
-                  { label: `${FORM_TABS.length} bölüm`, variant: "solid", palette: "emerald" },
+                  { label: "Bölümlü kayıt", variant: "solid", palette: "emerald" },
                   { label: "Görsel destekli", variant: "outline", palette: "emerald" },
                 ]}
                 ctaLabel="Yeni kayıt oluştur"

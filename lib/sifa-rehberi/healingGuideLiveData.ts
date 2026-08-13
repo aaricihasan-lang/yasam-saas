@@ -333,7 +333,17 @@ export function hasLegacyDetailContent(legacy: Record<string, string | null>): b
 }
 
 function sectionSnippet(section: HealingGuideSectionRow): string {
-  return [section.title, section.note, section.mode, section.source]
+  // FAZ 3: arama haystack'i Faz2 profesyonel katmanlarını da kapsar
+  // (source_kind / expert_note / attention). Türkçe fold ile aranabilir olur.
+  return [
+    section.title,
+    section.note,
+    section.mode,
+    section.source,
+    section.source_kind,
+    section.expert_note,
+    section.attention,
+  ]
     .map((part) => textValue(part))
     .filter(Boolean)
     .join(" · ");

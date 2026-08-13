@@ -9,7 +9,7 @@
  * images KAYIPSIZ taşınır; sıra ↑↓ ile kalıcı değişir (drag YOK → WebView güvenli).
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   MODALITIES,
   MODE_LABEL,
@@ -75,6 +75,9 @@ export function SectionEditor({
   onChange: (next: EditableSection[]) => void;
   disabled?: boolean;
 }) {
+  // FAZ 3: yanlış dokunmaya karşı satır-içi silme onayı (ağır modal YOK).
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
+
   const update = useCallback(
     (key: string, patch: Partial<EditableSection>) => {
       onChange(value.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -94,14 +97,17 @@ export function SectionEditor({
   );
 
   const remove = useCallback(
-    (key: string) => onChange(value.filter((s) => s.key !== key)),
+    (key: string) => {
+      setConfirmKey(null);
+      onChange(value.filter((s) => s.key !== key));
+    },
     [value, onChange],
   );
 
-  const add = useCallback(
-    () => onChange([...value, emptyEditableSection()]),
-    [value, onChange],
-  );
+  const add = useCallback(() => {
+    setConfirmKey(null);
+    onChange([...value, emptyEditableSection()]);
+  }, [value, onChange]);
 
   const onModalityChange = useCallback(
     (s: EditableSection, selected: string) => {
@@ -172,15 +178,39 @@ export function SectionEditor({
                 >
                   ↓
                 </button>
-                <button
-                  type="button"
-                  aria-label="Bölümü sil"
-                  disabled={disabled}
-                  onClick={() => remove(s.key)}
-                  className={`${ctrlBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
-                >
-                  Sil
-                </button>
+                {confirmKey === s.key ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-rose-600">Silinsin mi?</span>
+                    <button
+                      type="button"
+                      aria-label="Silmeyi onayla"
+                      disabled={disabled}
+                      onClick={() => remove(s.key)}
+                      className={`${ctrlBtn} border-rose-300 bg-rose-600 text-white hover:bg-rose-700`}
+                    >
+                      Evet
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Silmeyi iptal et"
+                      disabled={disabled}
+                      onClick={() => setConfirmKey(null)}
+                      className={ctrlBtn}
+                    >
+                      Vazgeç
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Bölümü sil"
+                    disabled={disabled}
+                    onClick={() => setConfirmKey(s.key)}
+                    className={`${ctrlBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
+                  >
+                    Sil
+                  </button>
+                )}
               </div>
             </div>
 
