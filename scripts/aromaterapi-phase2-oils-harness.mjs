@@ -94,6 +94,31 @@ check("OilsPage bulk = current-page (seçim page/q/type değişince temizlenir)"
 check("OilsPage demo client-paginate (demoListResult)", /function demoListResult/.test(OILS));
 check("OilsPage tip sayaçları server head-count (fetchOilCounts)", /fetchOilCounts\(\)/.test(OILS));
 
+// --- Filter contract hotfix (oil_type allowlist/counts + stale-row-on-error) ---
+const EXPECTED_TYPES = ["essential", "carrier", "maceration", "hydrosol", "resin", "absolute"];
+const oilTypesSrc = (DATA.match(/OIL_TYPES\b[\s\S]*?=\s*\[([\s\S]*?)\];/) || ["", ""])[1];
+const uiTypes = [...oilTypesSrc.matchAll(/value:\s*"([a-z]+)"/g)].map((m) => m[1]);
+check("UI OIL_TYPES = 6 beklenen tip",
+  EXPECTED_TYPES.every((t) => uiTypes.includes(t)) && uiTypes.length === EXPECTED_TYPES.length, `bulunan: [${uiTypes}]`);
+const allowSrc = (API.match(/allow:\s*\[([\s\S]*?)\]/) || ["", ""])[1];
+const allowVals = [...allowSrc.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+check("Server oil_type allowlist = UI OIL_TYPES ile BİREBİR (6 tip)",
+  EXPECTED_TYPES.every((t) => allowVals.includes(t)) && allowVals.length === EXPECTED_TYPES.length, `allow=[${allowVals}]`);
+check("Server allowlist arbitrary tip kabul etmez (!allow.includes → AROMA_INVALID_FILTER)",
+  /!def\.allow\.includes\(val\)/.test(VALID) && /AROMA_INVALID_FILTER/.test(VALID));
+check("hydrosol/resin/absolute allowlist'te → 0 kayıt = normal boş sonuç (400 DEĞİL, readListOk)",
+  ["hydrosol", "resin", "absolute"].every((t) => allowVals.includes(t)) && /readListOk\(/.test(API));
+check("count=1 endpoint 6 oil_type head-count (hydrosol/resin/absolute regresyon fix)",
+  /"oil_type",\s*"hydrosol"/.test(API) && /"oil_type",\s*"resin"/.test(API) && /"oil_type",\s*"absolute"/.test(API) &&
+  /hydrosol:\s*h\.count/.test(API) && /resin:\s*r\.count/.test(API) && /absolute:\s*a\.count/.test(API));
+check("fetchOilCounts tipi 6 oil_type sayaç içerir",
+  /hydrosol:\s*number/.test(DATA) && /resin:\s*number/.test(DATA) && /absolute:\s*number/.test(DATA));
+check("OilsPage serverTypeCounts 6 tip map eder",
+  /hydrosol:\s*counts\.hydrosol/.test(OILS) && /resin:\s*counts\.resin/.test(OILS) && /absolute:\s*counts\.absolute/.test(OILS));
+const HOOK = read("app/aromaterapi/_components/read/useAromaterapiListQuery.ts");
+check("Hook fetch-fail'de stale rows temizlenir (rows:[]+total:0, errorCode ile)",
+  /rows:\s*\[\],[\s\S]*?total:\s*0,[\s\S]*?errorCode:\s*res\.errorCode/.test(HOOK));
+
 // --- Migration additive -----------------------------------------------------
 const MIG = read("supabase/migrations/20261004000000_aromatherapy_oils_search_scale.sql");
 check("MIG mevcut", MIG.length > 0);

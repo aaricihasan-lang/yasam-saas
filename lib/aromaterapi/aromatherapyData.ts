@@ -212,16 +212,26 @@ export async function fetchOilDetail(
   return { oil: (j.oil as AromatherapyOil) ?? null, error: null, notFound: false };
 }
 
-// Hub sayaçları — tek çağrıda toplam/uçucu/sabit/maserasyon.
+// Hub/facet sayaçları — tek çağrıda toplam + 6 oil_type (UI OIL_TYPES ile birebir).
+export type OilTypeCounts = {
+  total: number;
+  essential: number;
+  carrier: number;
+  maceration: number;
+  hydrosol: number;
+  resin: number;
+  absolute: number;
+};
+
 export async function fetchOilCounts(): Promise<{
-  counts: { total: number; essential: number; carrier: number; maceration: number } | null;
+  counts: OilTypeCounts | null;
   error: string | null;
 }> {
   const res = await fetch(`/api/aromaterapi/oils?count=1`, { headers: authHeaders() });
   const j = await readJson(res);
   if (!res.ok || j.ok !== true) return { counts: null, error: String(j.error ?? `HTTP ${res.status}`) };
   return {
-    counts: j.counts as { total: number; essential: number; carrier: number; maceration: number },
+    counts: j.counts as OilTypeCounts,
     error: null,
   };
 }

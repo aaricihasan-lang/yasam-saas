@@ -15,7 +15,13 @@ export const runtime = "nodejs";
 const OILS_LIST_SPEC = {
   sorts: { name: { column: "name", ascending: true } },
   filters: {
-    type: { column: "oil_type", allow: ["essential", "carrier", "maceration"] },
+    // oil_type allowlist = UI OIL_TYPES ile BİREBİR (6 değer). Eksik değer geçerli bir
+    // tipi 400 "Geçersiz filtre değeri"ne düşürür (FAZ 2 filter-contract regresyon fix).
+    // 0 kayıtlı tip geçersiz DEĞİLDİR → normal boş sonuç döner.
+    type: {
+      column: "oil_type",
+      allow: ["essential", "carrier", "maceration", "hydrosol", "resin", "absolute"],
+    },
   },
 } as const;
 
@@ -45,14 +51,19 @@ export async function GET(req: NextRequest): Promise<Response> {
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
 
-    const [t, e, c, m] = await Promise.all([
+    // Tip facet sayaçları — UI OIL_TYPES ile BİREBİR (6 tip). Eksik tip sayacı facet
+    // rozetini yanlışlıkla 0 gösterirdi (FAZ 2 filter-contract regresyon fix).
+    const [t, e, c, m, h, r, a] = await Promise.all([
       base(),
       base().eq("oil_type", "essential"),
       base().eq("oil_type", "carrier"),
       base().eq("oil_type", "maceration"),
+      base().eq("oil_type", "hydrosol"),
+      base().eq("oil_type", "resin"),
+      base().eq("oil_type", "absolute"),
     ]);
 
-    const err = t.error || e.error || c.error || m.error;
+    const err = t.error || e.error || c.error || m.error || h.error || r.error || a.error;
     if (err) return legacyDbErrorResponse("oils.counts", err, "Sayaçlar yüklenemedi.");
 
     return NextResponse.json({
@@ -62,6 +73,9 @@ export async function GET(req: NextRequest): Promise<Response> {
         essential: e.count ?? 0,
         carrier: c.count ?? 0,
         maceration: m.count ?? 0,
+        hydrosol: h.count ?? 0,
+        resin: r.count ?? 0,
+        absolute: a.count ?? 0,
       },
     });
   }
