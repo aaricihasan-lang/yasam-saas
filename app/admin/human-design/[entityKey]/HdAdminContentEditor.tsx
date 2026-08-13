@@ -35,7 +35,15 @@ const TYPE_FIELDS: Record<HdEntityKind, { key: keyof HdCanonicalContentRow; labe
 const fieldCls =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-indigo-400";
 
-export function HdAdminContentEditor({ entityKey }: { entityKey: string }) {
+export function HdAdminContentEditor({
+  entityKey,
+  backHref = "/admin/human-design",
+}: {
+  entityKey: string;
+  /** Geri/Listeye-dön hedefi. Varsayılan admin paneli; modül içine gömüldüğünde
+   *  modül Bilgi Bankası'na yönlendirmek için override edilir (davranış değişmez). */
+  backHref?: string;
+}) {
   const [entity, setEntity] = useState<HdCanonicalEntityRow | null>(null);
   const [content, setContent] = useState<HdCanonicalContentRow | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -126,7 +134,7 @@ export function HdAdminContentEditor({ entityKey }: { entityKey: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
-      <Link href="/admin/human-design" className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
         <ArrowLeft className="h-3.5 w-3.5" /> Listeye dön
       </Link>
       <h1 className="text-lg font-black text-indigo-800">{entity.name_tr}</h1>
