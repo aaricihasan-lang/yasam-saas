@@ -58,6 +58,23 @@ export function editableToPayload(list: EditableSection[]): Record<string, unkno
   }));
 }
 
+/**
+ * Editör durumunun deterministik imzası (dirty tespiti için).
+ * Referential equality DEĞİL; içerik-tabanlı stabil serileştirme (key hariç, sıra dahil).
+ * name/category/sections aynıysa imza aynı → dirty=false.
+ */
+export function editorSignature(
+  name: string,
+  category: string,
+  sections: EditableSection[],
+): string {
+  return JSON.stringify({
+    n: (name ?? "").trim(),
+    c: (category ?? "").trim(),
+    s: editableToPayload(sections),
+  });
+}
+
 /** Yeni boş bölüm (ilk modalite ile). */
 export function emptyEditableSection(): EditableSection {
   const first = MODALITIES[0];

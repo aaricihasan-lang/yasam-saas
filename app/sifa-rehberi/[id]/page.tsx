@@ -1,8 +1,8 @@
 ﻿"use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
@@ -27,6 +27,8 @@ import {
   editableToPayload,
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
+import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -391,6 +393,8 @@ export default function SifaRehberiDetailPage() {
   const [sections, setSections] = useState<HealingGuideSectionRow[]>([]);
   // FAZ 2: section-native düzenleme draft'ı (karmaşık/imported kayıtlar için).
   const [editSections, setEditSections] = useState<EditableSection[]>([]);
+  // FAZ 3: kaydedilmemiş değişiklik koruması — edit'e girişte alınan başlangıç imzası.
+  const [editInitialSig, setEditInitialSig] = useState("");
   const [tab, setTab] = useState<DetailTabId>("rahatsizlik");
   const [sectionTab, setSectionTab] = useState<HealingGuideSectionType>("reasons");
   const [editEnabled, setEditEnabled] = useState(false);
@@ -422,7 +426,31 @@ export default function SifaRehberiDetailPage() {
   // FAZ 2: section-tabanlı kayıtlar artık section-native editörle KAYIPSIZ düzenlenir
   // (form-şekilli olma zorunluluğu KALDIRILDI → 35/35 production kaydı editlenebilir).
   const sectionEditMode = editEnabled && sections.length > 0;
+  // FAZ 3 — kaydedilmemiş değişiklik koruması. Deterministik imza; görseller anında
+  // persist edildiği için dirty'ye dahil edilmez (images normalize).
+  const editSig = draft
+    ? sections.length > 0
+      ? editorSignature(draft.name, draft.category, editSections)
+      : JSON.stringify({ ...draft, images: [] as GuideImage[] })
+    : "";
+  const editDirty = editEnabled && editSig !== editInitialSig;
+  useUnsavedGuard(editDirty);
+  const navConfirm = useDeleteConfirm();
   const { isDemo } = useDemoGuard();
+
+  // FAZ 3 corrective: uygulamanın KENDİ bilinen in-app navigasyonu (Listeye dön) dirty
+  // iken sessiz route değiştirmez → onay. Clean iken onay yok. Fragile router hack YOK.
+  async function guardedBackToList() {
+    if (editDirty) {
+      const ok = await navConfirm({
+        title: "Kaydedilmemiş değişiklikler",
+        message: "Bu kayıttaki değişiklikler henüz kaydedilmedi.",
+        secondMessage: "Çıkarsanız değişiklikleriniz kaybolur. Listeye dönülsün mü?",
+      });
+      if (!ok) return;
+    }
+    router.push(SIFA_REHBERI_LIST_HREF);
+  }
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
   const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
@@ -794,9 +822,17 @@ export default function SifaRehberiDetailPage() {
       // FAZ 2: section-tabanlı kayıt → section-native editör draft'ını doldur (KAYIPSIZ,
       // section_type/mode/title/note/source/source_kind/expert_note/attention taşınır).
       // Flat/legacy kayıt → 21-alanlı form (mevcut davranış korunur).
-      setDraft(recordToDraft(record));
+      const initialDraft = recordToDraft(record);
+      const initialEditable = sections.length > 0 ? sections.map(sectionRowToEditable) : [];
+      // FAZ 3: dirty başlangıç imzasını AYNI formülle al (editSig ile bire bir).
+      setEditInitialSig(
+        sections.length > 0
+          ? editorSignature(initialDraft.name, initialDraft.category, initialEditable)
+          : JSON.stringify({ ...initialDraft, images: [] as GuideImage[] }),
+      );
+      setDraft(initialDraft);
       if (sections.length > 0) {
-        setEditSections(sections.map(sectionRowToEditable));
+        setEditSections(initialEditable);
       }
       setEditEnabled(true);
       setErrorMessage("");
@@ -858,6 +894,15 @@ export default function SifaRehberiDetailPage() {
         <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => void guardedBackToList()}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                >
+                  ← Liste
+                </button>
+              </div>
               <div className="mb-1.5 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-emerald-700 ring-1 ring-emerald-100">
                 ŞİFA REHBERİ DETAY
               </div>
@@ -1126,6 +1171,9 @@ export default function SifaRehberiDetailPage() {
                       const displayTitle = getHealingGuideSectionDisplayTitle(section);
                       const hasNote = Boolean(section.note?.trim());
                       const hasSource = Boolean(section.source?.trim());
+                      const hasSourceKind = Boolean(section.source_kind?.trim());
+                      const hasExpert = Boolean(section.expert_note?.trim());
+                      const hasAttention = Boolean(section.attention?.trim());
                       const badge = sectionContentBadge(section);
                       const cardIcon = sectionCardIcon(section, displayTitle);
 
@@ -1157,15 +1205,44 @@ export default function SifaRehberiDetailPage() {
                               <div className={`mt-2.5 ${sectionNoteBody}`}>{section.note!.trim()}</div>
                             </DemoBlur>
                           ) : null}
-                          {hasSource ? (
+                          {hasSource || hasSourceKind ? (
                             <DemoBlur isProtected={isDemo}>
                               <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
                                 <span className="font-bold text-slate-600">Kaynak:</span>{" "}
-                                {section.source!.trim()}
+                                {section.source?.trim() || "—"}
+                                {hasSourceKind ? (
+                                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                    {section.source_kind!.trim()}
+                                  </span>
+                                ) : null}
                               </p>
                             </DemoBlur>
                           ) : null}
-                          {!hasNote && !hasSource ? (
+                          {hasExpert ? (
+                            <DemoBlur isProtected={isDemo}>
+                              <div className="mt-2 rounded-lg border border-violet-100 bg-violet-50/45 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                                  Uzman Notu
+                                </p>
+                                <div className="mt-0.5 whitespace-pre-wrap text-[13px] leading-6 text-slate-700">
+                                  {section.expert_note!.trim()}
+                                </div>
+                              </div>
+                            </DemoBlur>
+                          ) : null}
+                          {hasAttention ? (
+                            <DemoBlur isProtected={isDemo}>
+                              <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/55 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                  Dikkat Edilmesi Gerekenler
+                                </p>
+                                <div className="mt-0.5 whitespace-pre-wrap text-[13px] leading-6 text-slate-700">
+                                  {section.attention!.trim()}
+                                </div>
+                              </div>
+                            </DemoBlur>
+                          ) : null}
+                          {!hasNote && !hasSource && !hasSourceKind && !hasExpert && !hasAttention ? (
                             <p className="mt-2 text-xs font-medium text-slate-400">
                               Bu başlık için henüz açıklama eklenmemiş.
                             </p>
