@@ -130,18 +130,23 @@ async function run(): Promise<void> {
   add("D-matrix-validate", ok, detail);
   // Her kaynak bir kohort dispozisyonu alır (fail-closed default yok).
   add("D-every-entry-cohort", YH_ACTIVATION_MATRIX.every((e) => assessCohort(e).cohort.length > 0));
-  // KEEP_LIVE 2 (grandfathered: dogaltas:stones + refleksoloji:notes). Cohort A: 14 professional
-  // graduate + 2 yeni Biyoenerji → FUTURE_ONLY_READY → COHORT_1_READY (archive de COHORT_1_READY).
+  // KEEP_LIVE 2 (grandfathered: dogaltas:stones + refleksoloji:notes). Cohort A (PRE-MERGE REVIEW
+  // DÜZELTMESİ): worker-v1-supported 11 professional → FUTURE_ONLY_READY → COHORT_1_READY (archive dahil);
+  // 5 worker-v1 kapsamı dışı kaynak → DEFERRED_SHARED_WORKER_V2 kohortu (aktivasyona hazır DEĞİL).
   add("D-keep-live-2", sourceKeysByCohort("KEEP_LIVE").length === 2 && sourceKeysByCohort("KEEP_LIVE").every((k) => k === "dogaltas:stones" || k === "refleksoloji:notes"), sourceKeysByCohort("KEEP_LIVE").join(","));
   add("D-archive-cohort1-ready", sourceKeysByCohort("COHORT_1_READY").includes("kisisel_arsiv:archives"));
   // COHORT_1_BLOCKED artık BOŞ (archive graduate; belge retired → source değil).
   add("D-cohort1-blocked-empty", sourceKeysByCohort("COHORT_1_BLOCKED").length === 0);
   add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
-  // COHORT_1_READY = kisisel_arsiv:archives (ROW_GATED_CONTROLLED) + 16 Cohort-A professional
-  // FUTURE_ONLY_READY = 17; kod önkoşulları çözüldü → readyGap BOŞ.
+  // COHORT_1_READY = kisisel_arsiv:archives (ROW_GATED_CONTROLLED) + 11 worker-v1-supported Cohort-A
+  // professional FUTURE_ONLY_READY = 12; kod önkoşulları çözüldü → readyGap BOŞ.
   const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
-  add("D-cohort1-ready-17-no-gap", cohort1Ready.length === 17 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-12-no-gap", cohort1Ready.length === 12 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
   add("D-cohort1-ready-includes-archive", cohort1Ready.some((e) => e.sourceKey === "kisisel_arsiv:archives"));
+  // DEFERRED_SHARED_WORKER_V2 kohortu = 5 (worker v1 işleyemez; readyGap DOLU → aktivasyona hazır DEĞİL).
+  const deferredV2 = sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2");
+  add("D-deferred-worker-v2-cohort-5", deferredV2.length === 5 && deferredV2.every((k) => assessCohort(YH_ACTIVATION_MATRIX.find((e) => e.sourceKey === k)!).readyGap.length > 0), deferredV2.join(","));
+  add("D-deferred-not-cohort1-ready", deferredV2.every((k) => !sourceKeysByCohort("COHORT_1_READY").includes(k)));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);

@@ -59,6 +59,7 @@ export type BackfillEligibility =
   | "not-applicable" // zaten canlı; backfill kavramı geçerli değil
   | "blocked-test-data" // mevcut veri test riski → backfill YASAK (temiz reset sonrası)
   | "blocked-pii" // PII/row-gate riski → backfill YASAK
+  | "blocked-worker-unsupported" // worker v1 kaynağı hiç işleyemez (shared/global tenant VEYA non-record unit) → backfill YASAK
   | "candidate-with-approval"; // yalnız güvenli canonical veri; ayrı onay + preflight ile
 
 export interface ActivationMatrixEntry {
@@ -104,10 +105,17 @@ const DORMANT_ROLLBACK =
 const SEP_APPROVAL = "AYRI production onayı (kod enabled:true + DB is_active flip + preflight PASS).";
 
 export const YH_ACTIVATION_MATRIX = [
-  // ── A) COHORT A PROFESSIONAL — dogaltas:stones + refleksoloji:notes KEEP_LIVE (grandfathered
-  //   CANLI; davranış DEĞİŞMEZ); diğer 14 mevcut + 2 yeni Biyoenerji kaynağı FUTURE_ONLY_READY
-  //   (controlled): CDC trigger WIRED (migration 20261004000000) ama production'da is_active=true
-  //   olmadan NO-OP (default OFF; CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED). ──
+  // ── A) COHORT A PROFESSIONAL — worker-v1-supported (record + column/join, non-shared) kaynaklar.
+  //   dogaltas:stones + refleksoloji:notes KEEP_LIVE (grandfathered CANLI; davranış DEĞİŞMEZ).
+  //   11 worker-v1-supported kaynak FUTURE_ONLY_READY (controlled): CDC trigger WIRED
+  //   (migration 20261004000000; 11 generic) ama production'da is_active=true olmadan NO-OP
+  //   (default OFF; CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED).
+  //   PRE-MERGE REVIEW DÜZELTMESİ: 5 kaynak worker v1 (eventProcessor) tarafından İŞLENEMEZ ve
+  //   Cohort A'dan ÇIKARILDI → DEFERRED_SHARED_WORKER_V2 (aşağıda F bölümü):
+  //     - dogaltas:knowledge, aromaterapi:oils/reference-sheets/reference-rows (allowSharedNull=true
+  //       → Kapı 6 permanent 'shared-source-unsupported')
+  //     - sifa_rehberi:guide-sections (unit=section → Kapı 7 permanent 'non-record-unit-unsupported').
+  //   Bu 5 kaynağa CDC trigger BAĞLANMAZ; registry `enabled:true` KORUNUR (arama semantiği bozulmaz). ──
   controlled("refleksoloji:protocols", "Refleksoloji", "reflexology_protocols", "column", "source-classification"),
   {
     // refleksoloji:notes registry'de enabled:true ANCAK classification=pii → guard fail-closed
@@ -131,7 +139,8 @@ export const YH_ACTIVATION_MATRIX = [
       "KEEP_LIVE: classification=pii → source-guard fail-closed (index no-op). Mevcut davranış KORUNUR; PII ana index'e girmez.",
   },
   controlled("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
-  controlled("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
+  // guide-sections unit=section → worker v1 Kapı 7 permanent 'non-record-unit-unsupported' → DEFERRED.
+  deferredWorkerV2("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification", "non-record-unit"),
   controlled("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
   controlled("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
   controlled("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),
@@ -142,11 +151,13 @@ export const YH_ACTIVATION_MATRIX = [
   // dogaltas:stones KEEP_LIVE (grandfathered CANLI; mevcut koşulsuz outbox trigger — DEĞİŞMEZ).
   keepLive("dogaltas:stones", "Doğaltaş", "stones", "column", "source-classification"),
   controlled("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
-  controlled("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
+  // dogaltas:knowledge allowSharedNull=true → worker v1 Kapı 6 permanent 'shared-source-unsupported' → DEFERRED.
+  deferredWorkerV2("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification", "shared-tenant"),
   controlled("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
-  controlled("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
-  controlled("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
-  controlled("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
+  // aromaterapi:oils/reference-sheets/reference-rows allowSharedNull=true → worker v1 Kapı 6 → DEFERRED.
+  deferredWorkerV2("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification", "shared-tenant"),
+  deferredWorkerV2("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification", "shared-tenant"),
+  deferredWorkerV2("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification", "shared-tenant"),
   controlled("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
 
   // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
@@ -294,6 +305,58 @@ function controlled(
   };
 }
 
+/**
+ * PRE-MERGE REVIEW DÜZELTMESİ — DEFERRED_SHARED_WORKER_V2: kayıtlı professional kaynak ama worker v1
+ * (eventProcessor) tarafından İŞLENEMEZ. İki gerçek mimari sınır:
+ *   - reason="shared-tenant": tenant modeli allowSharedNull=true (VEYA global-canonical) → eventProcessor
+ *     Kapı 5/6 permanent reject ('tenant-model-unsupported' / 'shared-source-unsupported').
+ *   - reason="non-record-unit": unit record/row DEĞİL (ör. section) → Kapı 7 permanent
+ *     'non-record-unit-unsupported'.
+ * Bu kaynaklara Cohort A'da CDC trigger BAĞLANMAZ (migration 20261004000000 dışında) ve "aktivasyona
+ * hazır" DENMEZ (aktive edilse olay dead-letter olur; index/deindex oluşmaz → ghost riski). registry
+ * `enabled:true` KORUNUR (mevcut profesyonel ARAMA semantiği bozulmaz). futureEventEligible=false +
+ * triggerFeasibleNow=false: worker v1 future-event bile işleyemez. Backfill YASAK. Ayrı worker v2
+ * (shared/global tenant + non-record unit) kohortu I/U/D + deindex parite'sini birlikte çözecek.
+ */
+function deferredWorkerV2(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+  tenantMode: ActivationTenantMode,
+  rowGate: ActivationRowGate,
+  reason: "shared-tenant" | "non-record-unit",
+): ActivationMatrixEntry {
+  const why =
+    reason === "shared-tenant"
+      ? "tenant modeli shared/global-optional (allowSharedNull=true) → eventProcessor Kapı 6 permanent 'shared-source-unsupported'"
+      : "birim record/row değil (section) → eventProcessor Kapı 7 permanent 'non-record-unit-unsupported'";
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "DEFERRED_SHARED_WORKER_V2",
+    sourceTable,
+    tenantMode,
+    rowGate,
+    registryEnabled: true, // registry enabled:true KORUNUR (arama semantiği); TEK BAŞINA aktive etmez.
+    currentDataRisk: "none",
+    futureEventEligible: false, // worker v1 future-event bile işleyemez (permanent reject).
+    backfillEligibility: "blocked-worker-unsupported",
+    triggerFeasibleNow: false, // Cohort A'da trigger BAĞLANMAZ; worker v1 kapsamı dışı.
+    activationPrerequisite:
+      `Worker v2 kapsam genişletmesi ZORUNLU: ${why}. Bu kohortta CDC trigger BAĞLANMAZ ve is_active flip YAPILMAZ ` +
+      "(aktive edilse olay dead-letter → index/deindex oluşmaz, DELETE sonrası ghost riski). Registry enabled:true " +
+      "yalnız arama içindir; worker v2 (shared/global tenant + non-record unit + doğru CDC/update/delete/deindex) gelene kadar ertelenir.",
+    activationCohort: "worker-v2-shared-global",
+    rollbackBehavior:
+      "Bu kohortta trigger BAĞLANMADIĞINDAN geri alınacak CDC yoktur (olay üretilmez). Registry enabled:true arama kaynağı olarak korunur; index satırları ETKİLENMEZ.",
+    recommendation:
+      `DEFERRED_SHARED_WORKER_V2: kayıtlı professional kaynak ama worker v1 İŞLEYEMEZ (${why}). Cohort A worker-v1 ` +
+      "parite kapsamından ÇIKARILDI; CDC trigger bağlanmaz, aktivasyona hazır DEĞİL. Profesyonel arama (registry enabled:true) " +
+      "korunur. Worker v2 shared/global + non-record unit kohortunda I/U/D + deindex ile birlikte çözülecek.",
+  };
+}
+
 function dormantPro(
   sourceKey: string,
   module: string,
@@ -429,6 +492,7 @@ export type CohortDisposition =
   | "COHORT_1_READY" // kod önkoşulları ÇÖZÜLDÜ (row-gate WIRED); yalnız production trigger apply + activation kaldı
   | "WAIT_FOR_CLEAN_RESET" // mevcut production verisi test-data riski → temiz reset öncesi aktive edilmez
   | "COHORT_2" // canonical/client; ayrı worker/CDC genişletmesi gerektiren sonraki faz
+  | "DEFERRED_SHARED_WORKER_V2" // worker v1 kaynağı işleyemez (shared/global tenant VEYA non-record unit); worker v2 kohortu
   | "DEFERRED_HARD_BLOCKER"; // güvenli ownership yok (matriste registry kaydı da yok)
 
 export interface CohortAssessment {
@@ -469,6 +533,15 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
       };
     case "WAIT_FOR_CLEAN_RESET":
       return { cohort: "WAIT_FOR_CLEAN_RESET", readyGap: "sistem-genel test-data temiz reset (mevcut tenant verisi risk)." };
+    case "DEFERRED_SHARED_WORKER_V2":
+      // Worker v1 (eventProcessor) bu kaynağı hiç işleyemez (shared/global tenant VEYA non-record unit).
+      // Cohort A'da trigger BAĞLANMAZ; aktivasyona hazır DEĞİL → ayrı worker v2 kohortu (readyGap dolu).
+      return {
+        cohort: "DEFERRED_SHARED_WORKER_V2",
+        readyGap:
+          "worker v2: shared/global tenant (outbox tenant_id NULL + allowShared) VEYA non-record (section) unit " +
+          "desteği + doğru CDC/update/delete/deindex; ayrı kohort.",
+      };
     case "FUTURE_ONLY_READY":
       // COHORT A PROFESSIONAL: kod önkoşulları ÇÖZÜLDÜ (registry + matris + CDC trigger WIRED
       // migration 20261004000000). Kalan yalnız AYRI production kapıları: trigger apply + is_active
@@ -496,6 +569,20 @@ export function sourceKeysByCohort(cohort: CohortDisposition): string[] {
 }
 
 // ─── Bütünlük doğrulaması (import-zamanı güvenlik + harness) ──────────────────
+
+/**
+ * eventProcessor (worker v1) Kapı 5/6/7'nin SAF aynası: bir registry kaynağı worker v1 tarafından
+ * exact-record CDC ile işlenebilir mi. (Kapı 5) tenant modeli column|join, (Kapı 6) allowSharedNull
+ * DEĞİL, (Kapı 7) unit record|row. Herhangi biri sağlanmazsa worker v1 permanent reject → DEFERRED.
+ * Bu SAF ayna import-zamanı invariant içindir; harness ayrıca GERÇEK processOutboxEvent ile kanıtlar.
+ */
+function isWorkerV1ProcessableConfig(src: (typeof YH_INDEX_SOURCES)[number]): boolean {
+  const t = src.tenant;
+  const allowShared = (t as { allowSharedNull?: boolean }).allowSharedNull === true;
+  const tenantOk = (t.mode === "column" || t.mode === "join") && !allowShared;
+  const unitOk = src.unit === "record" || src.unit === "row";
+  return tenantOk && unitOk;
+}
 
 const KNOWN_TENANT_MODES: readonly ActivationTenantMode[] = ["column", "join", "global-canonical"];
 const KNOWN_ROW_GATES: readonly ActivationRowGate[] = [
@@ -529,6 +616,10 @@ export function validateActivationMatrix(): void {
       // DEFERRED_HARD_BLOCKER kaynağın registry'de KAYDI OLMAMALI → matriste de yer almaz.
       throw new Error(`DEFERRED_HARD_BLOCKER matriste kaynak taşıyamaz: ${e.sourceKey}`);
     }
+    if (e.activationClass === "DEFERRED_SHARED_WORKER_V2" && e.scope !== "professional") {
+      // Worker v1 shared/non-record deferral yalnız professional index kaynaklarına aittir.
+      throw new Error(`DEFERRED_SHARED_WORKER_V2 yalnız professional olabilir: ${e.sourceKey}`);
+    }
     if (!KNOWN_TENANT_MODES.includes(e.tenantMode)) {
       throw new Error(`Geçersiz tenant modu: ${e.sourceKey} → ${e.tenantMode}`);
     }
@@ -545,6 +636,15 @@ export function validateActivationMatrix(): void {
       }
       if (src.enabled !== e.registryEnabled) {
         throw new Error(`registryEnabled drift: ${e.sourceKey} (matris ${e.registryEnabled} ≠ registry ${src.enabled})`);
+      }
+      // WORKER-V1 PARİTE İNVARYANTI (code=runtime): FUTURE_ONLY_READY professional kaynak worker v1
+      // tarafından GERÇEKTEN işlenebilir olmalı; DEFERRED_SHARED_WORKER_V2 kaynak GERÇEKTEN işlenemez
+      // olmalı (aksi = yanlış readiness/defer iddiası). eventProcessor Kapı 5/6/7 aynası.
+      if (e.activationClass === "FUTURE_ONLY_READY" && !isWorkerV1ProcessableConfig(src)) {
+        throw new Error(`FUTURE_ONLY_READY ama worker v1 işleyemez (shared/unit): ${e.sourceKey}`);
+      }
+      if (e.activationClass === "DEFERRED_SHARED_WORKER_V2" && isWorkerV1ProcessableConfig(src)) {
+        throw new Error(`DEFERRED_SHARED_WORKER_V2 ama worker v1 işleyebilir (yanlış defer): ${e.sourceKey}`);
       }
     } else {
       const src = cliByKey.get(e.sourceKey);

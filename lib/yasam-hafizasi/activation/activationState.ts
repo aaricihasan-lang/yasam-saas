@@ -34,6 +34,12 @@ export const ACTIVATION_CLASSES = [
   "WAIT_FOR_CLEAN_RESET", // Mevcut production kayıtları test-verisi riski taşır; aktivasyon şimdilik YOK.
   "ROW_GATED_READY", // Kaynak aktif olabilir ama YALNIZ safe row eligibility geçen kayıtlar indexlenir.
   "ROW_GATED_CONTROLLED", // Row-gated + CONTROLLED: DB is_active ZORUNLU (default OFF) + zorunlu row-gate.
+  // Kayıtlı professional kaynak ANCAK worker v1 (eventProcessor) tarafından İŞLENEMEZ: tenant modeli
+  // shared/global-optional (allowSharedNull=true / global-canonical → Kapı 5/6 permanent reject) VEYA
+  // birim record/row DEĞİL (ör. section → Kapı 7 permanent reject). Bu kaynaklara Cohort A'da CDC trigger
+  // BAĞLANMAZ ve "aktivasyona hazır" DENMEZ; ayrı worker v2 (shared/global + non-record unit) kohortuna
+  // ertelenir. Registry `enabled:true` KORUNUR (mevcut profesyonel ARAMA semantiği bozulmaz).
+  "DEFERRED_SHARED_WORKER_V2",
   "DEFERRED_HARD_BLOCKER", // Güvenli ownership/PII ilişkisi kurulamaz; aktive EDİLMEZ.
 ] as const;
 
@@ -64,6 +70,10 @@ export const ACTIVATION_CLASS_POLICY: Readonly<Record<ActivationClass, Activatio
   FUTURE_ONLY_READY: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },
   CANONICAL_BACKFILL_CANDIDATE: { requiresRuntimeActivation: true, backfillEligible: true, neverActivatable: false },
   WAIT_FOR_CLEAN_RESET: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },
+  // DEFERRED_SHARED_WORKER_V2: worker v1 kapsamı dışı (shared/global tenant VEYA non-record unit). Grandfathered
+  // DEĞİL → runtime kapısına tabi (ama Cohort A'da trigger BAĞLANMADIĞINDAN olay üretilmez). Backfill YASAK
+  // (worker v1 zaten işleyemez). neverActivatable=false: sınıf kalıcı yasak değil; worker v2 gelince yükseltilir.
+  DEFERRED_SHARED_WORKER_V2: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: false },
   DEFERRED_HARD_BLOCKER: { requiresRuntimeActivation: true, backfillEligible: false, neverActivatable: true },
 };
 
