@@ -712,6 +712,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           essential: counts.essential,
           carrier: counts.carrier,
           maceration: counts.maceration,
+          hydrosol: counts.hydrosol,
+          resin: counts.resin,
+          absolute: counts.absolute,
         });
       }
     })();
