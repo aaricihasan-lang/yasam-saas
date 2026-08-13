@@ -570,9 +570,6 @@ export default function CakralarDetail({ id }: { id: string }) {
   // Bağlam yoksa panel render EDİLMEZ; ana içerik doğal tek kolona genişler
   // (boş/sahte sağ kolon YOK). Yeni network/DB/field YOK — tümü mevcut veriden.
   const stonesReady = !stonesLoading && !stonesError;
-  const relManual = stoneView.manualItems.length;
-  const relMatched = stoneView.matchedCount;
-  const relExtra = stoneView.extraStones.length;
 
   const renderStonesMain = (): ReactNode => (
     <div className="flex flex-col gap-6">
@@ -638,16 +635,6 @@ export default function CakralarDetail({ id }: { id: string }) {
     </div>
   );
 
-  // Genel Bakış bağlamı — mevcut Doğaltaş ilişkisinin GÖRSEL özeti (kör tekrar
-  // değil: header yalnız eşleşen sayısını satır olarak gösterir; burada
-  // kayıtlı/eşleşen/ek dağılımı). Yalnız gerçek ilişki varsa görünür.
-  const genelContextVisible = stonesReady && (relMatched > 0 || relExtra > 0);
-  const relRows: { label: string; value: number; accent?: boolean }[] = [
-    ...(relManual > 0 ? [{ label: "Kayıtlı taş", value: relManual }] : []),
-    ...(relMatched > 0 ? [{ label: "Doğaltaş’ta eşleşen", value: relMatched, accent: true }] : []),
-    ...(relExtra > 0 ? [{ label: "Kütüphanede ek taş", value: relExtra }] : []),
-  ];
-
   let sectionMain: ReactNode = null;
   let sectionContext: ReactNode = null;
 
@@ -656,26 +643,10 @@ export default function CakralarDetail({ id }: { id: string }) {
       // Taşlar & Destekleyiciler — geniş tek kolon (chip grid'i bölme).
       sectionMain = renderStonesMain();
     } else if (activeSection.id === "genel-bakis") {
+      // Genel Bakış — yalnız mevcut gerçek veri (Renk). Bağlam paneli YOK:
+      // taş bilgisi "Taşlar & Destekleyiciler" domain'ine aittir, boşluk
+      // doldurmak için başka section'ın verisi ödünç alınmaz. Sade kabul edilir.
       sectionMain = renderGenelMain(activeSection);
-      if (genelContextVisible) {
-        sectionContext = (
-          <ContextPanel title="Doğaltaş İlişkisi">
-            <dl className="flex flex-col gap-2.5">
-              {relRows.map((r) => (
-                <div key={r.label} className="flex items-baseline justify-between gap-3">
-                  <dt className="text-[12.5px] font-medium text-slate-500">{r.label}</dt>
-                  <dd className={`text-lg font-black tabular-nums ${r.accent ? "text-emerald-700" : "text-slate-800"}`}>
-                    {r.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-3 border-t border-slate-200/60 pt-3 text-[11px] font-medium leading-snug text-slate-400">
-              Taşların tam listesi “Taşlar &amp; Destekleyiciler” bölümündedir.
-            </p>
-          </ContextPanel>
-        );
-      }
     } else if (activeSection.id === "beden-sistem") {
       // Fiziksel Etkiler = ana içerik; Organlar + Bezler = yapısal bağlam.
       // İkisi de doluysa adaptif iki kolon; değilse tek kolon (boş panel yok).

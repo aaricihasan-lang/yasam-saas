@@ -188,6 +188,28 @@ check(
   part.primary.length > 0 && part.context.length > 0,
 );
 
+// 11) Genel Bakış domain izolasyonu — yalnız kendi verisi (Renk); taş/organ/bez
+// gibi başka section'ın verisini ASLA içermez (context panel "boşluk doldurma"
+// için başka domain'i ödünç almaz). Sağ panel taş sayaçları buradan üretilemez.
+const genelSec = byId["genel-bakis"]!;
+check("Genel Bakış tek blok (Renk)", genelSec.blocks.length === 1 && genelSec.blocks[0]?.title === "Renk");
+check(
+  "Genel Bakış yalnız color verisi (taş/organ/bez ödünç YOK)",
+  genelSec.blocks.every((b) => b.title === "Renk"),
+);
+const FORBIDDEN_GENEL_TITLES = ["Organlar", "Bezler", "Fiziksel Etkiler", "Kayıtlı taş", "Doğaltaş’ta eşleşen", "Kütüphanede ek taş"];
+check(
+  "Genel Bakış'ta yabancı-domain başlık yok",
+  !genelSec.blocks.some((b) => b.title && FORBIDDEN_GENEL_TITLES.includes(b.title)),
+);
+// Genel Bakış color'a bağlı: color yoksa section hiç üretilmez (placeholder yok)
+const noColor = buildChakraSections({ causes: "x" }, { stonesVisible: true });
+check("Color yoksa Genel Bakış section üretilmez", !noColor.some((s) => s.id === "genel-bakis"));
+// partitionBedenSistemBlocks yalnız Beden domain'ine anlamlı: Genel Bakış'a
+// uygulanınca "Renk" context'e DÜŞMEZ (primary'de kalır) → yanlış bağlam yok
+const genelPart = partitionBedenSistemBlocks(genelSec);
+check("Genel Bakış partition: Renk primary'de kalır, context boş", genelPart.primary.length === 1 && genelPart.context.length === 0);
+
 console.log(`\nBİYOENERJİ FAZ 3.1 — ÇAKRA SECTION HARNESS`);
 console.log(`PASS: ${pass}  FAIL: ${fail}  TOTAL: ${pass + fail}`);
 if (fail > 0) {
