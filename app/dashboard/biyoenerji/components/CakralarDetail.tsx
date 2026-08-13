@@ -25,7 +25,8 @@ import {
 } from "@/lib/bioenergy/chakrasListFetch";
 import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
 import { buildChakraSections, resolveActiveChakraSection } from "@/lib/bioenergy/chakraSections";
-import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
+import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "../biyoenerjiFolderConfig";
+import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
 import ChakraSectionNav from "./ChakraSectionNav";
 import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
@@ -57,10 +58,15 @@ type ChakraForm = {
   notes: string;
 };
 
+// Aksiyon rayı — kompakt, header'la yarışmayan. Düzenle hafif violet ile öne
+// çıkar (bağırmadan); Sil destructive kimliğini korur ama baskın değildir; Word
+// sade. Mobilde 44px dokunma hedefi, masaüstünde kompakt.
 const tbBtn =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+const tbBtnPrimary =
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-violet-50 px-3 py-2 text-[13px] font-bold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-rose-200/70 bg-white/90 px-3 py-2 text-[13px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:opacity-40";
 
 function trimOrEmpty(v: string) {
   return v.trim();
@@ -487,6 +493,21 @@ export default function CakralarDetail({ id }: { id: string }) {
   const visibleSections = buildChakraSections(record, { stonesVisible });
   const activeSection = resolveActiveChakraSection(visibleSections, sectionParam);
 
+  // Breadcrumb — son segment gerçek kayıt adı (generic "Kayıt detayı" değil).
+  // Zincir IA sözlüğünden kurulur; link davranışı korunur (Çakralar → liste).
+  const chakraNav = findBiyoenerjiSection("cakralar");
+  const crumbs: BiyoenerjiCrumb[] = chakraNav
+    ? [
+        { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
+        { label: chakraNav.group.title },
+        { label: chakraNav.card.title, href: chakraNav.card.href },
+        { label: displayTitle },
+      ]
+    : [{ label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE }];
+
+  const stoneMatchVisible =
+    !stonesLoading && !stonesError && stoneView.matchedCount > 0;
+
   return (
     <div className="w-full min-w-0 max-w-none">
 
@@ -505,22 +526,45 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Title + actions */}
-      <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
+      {/* Breadcrumb — kompakt, geri planda; son segment gerçek kayıt adı */}
+      <div className="mb-3">
+        <BiyoenerjiBreadcrumb items={crumbs} />
+      </div>
+
+      {/* Record header — tek bütün: sol kimlik + meta, sağ aksiyon rayı */}
+      <header className="flex flex-col gap-3.5 border-b border-slate-200/70 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0 flex-1">
-          {badge ? (
-            <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden />
-              {badge}
-            </span>
-          ) : null}
-          <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
+          <h1 className="flex items-center gap-2.5 text-[1.7rem] font-black leading-tight tracking-tight text-slate-900 sm:text-[2rem]">
             <Flower2 className="h-7 w-7 shrink-0 text-emerald-500" strokeWidth={2} aria-hidden />
             <span className="min-w-0 break-words">{displayTitle}</span>
           </h1>
-          <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
+          {/* Meta — renk noktası + renk metni · tarih · taş eşleşme (record metadata) */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] font-medium text-slate-500">
+            {badge ? (
+              <span className="inline-flex items-center gap-1.5 text-slate-600">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-slate-200"
+                  style={{ backgroundColor: dotColor }}
+                  aria-hidden
+                />
+                <span className="min-w-0 break-words">{badge}</span>
+              </span>
+            ) : null}
+            {badge ? <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden /> : null}
+            <span>{formatDate(record.created_at)}</span>
+            {stoneMatchVisible ? (
+              <>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden />
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {stoneView.matchedCount} taş Doğaltaş ile eşleşiyor
+                </span>
+              </>
+            ) : null}
+          </div>
         </div>
-        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -534,8 +578,8 @@ export default function CakralarDetail({ id }: { id: string }) {
           />
           {!isDemo && (
             <>
-              <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+              <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtnPrimary}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Düzenle
               </button>
@@ -552,18 +596,10 @@ export default function CakralarDetail({ id }: { id: string }) {
             </>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Doğaltaş eşleşme özeti — tek satır, tekrar liste değil */}
-      {!stonesLoading && !stonesError && stoneView.matchedCount > 0 && (
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-bold text-emerald-800">
-          <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {stoneView.matchedCount} taş Doğaltaş kütüphanesi ile eşleşiyor.
-        </div>
-      )}
-
-      {/* FAZ 3.1 — Tek-section workspace: ikinci-seviye nav + YALNIZ aktif section */}
-      <div className="mb-4">
+      {/* FAZ 3.1 — ikinci-seviye editorial section nav (tek-section workspace) */}
+      <div className="mt-4">
         <ChakraSectionNav
           sections={visibleSections.map((s) => ({ hash: s.hash, title: s.title }))}
           activeHash={activeSection?.hash ?? ""}
@@ -576,8 +612,13 @@ export default function CakralarDetail({ id }: { id: string }) {
         message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
       >
         {activeSection ? (
-          <div className="rounded-2xl border border-slate-200/70 bg-white/75 p-5 shadow-sm sm:p-6">
-            <h2 className="mb-4 text-lg font-black tracking-tight text-slate-900">{activeSection.title}</h2>
+          // Editorial içerik yüzeyi — koca beyaz kart YOK; metin ana odak.
+          // Sol accent + güçlü başlık; bloklar arası ince separator (nested kart yok).
+          <section className="pt-5 sm:pt-6">
+            <h2 className="mb-4 flex items-center gap-2.5 text-xl font-black tracking-tight text-slate-900">
+              <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-violet-400 to-cyan-400" aria-hidden />
+              <span className="min-w-0 break-words">{activeSection.title}</span>
+            </h2>
 
             {activeSection.kind === "stones" ? (
               <div className="flex flex-col gap-6">
@@ -661,9 +702,9 @@ export default function CakralarDetail({ id }: { id: string }) {
                 ))}
               </div>
             )}
-          </div>
+          </section>
         ) : (
-          <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-5 text-sm font-medium text-slate-500 shadow-sm">
+          <div className="pt-6 text-sm font-medium text-slate-500">
             Bu kayıt için henüz içerik girilmemiş.
           </div>
         )}

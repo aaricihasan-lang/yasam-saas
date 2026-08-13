@@ -58,9 +58,10 @@ export default function ChakraSectionNav({
         </ul>
       </details>
 
-      {/* Masaüstü: sade yatay underline nav */}
-      <nav aria-label="Çakra bölümleri" className="hidden border-b border-slate-200 lg:block">
-        <ul className="flex flex-wrap">
+      {/* Masaüstü: premium editorial ikinci-seviye nav (sakin underline + hafif
+          violet tint active). Büyük SaaS pill / gradient / ağır shadow YOK. */}
+      <nav aria-label="Çakra bölümleri" className="hidden border-b border-slate-200/80 lg:block">
+        <ul className="flex flex-wrap gap-x-0.5">
           {sections.map((s) => {
             const isActive = s.hash === active.hash;
             return (
@@ -69,10 +70,10 @@ export default function ChakraSectionNav({
                   type="button"
                   onClick={() => onSelect(s.hash)}
                   aria-current={isActive ? "true" : undefined}
-                  className={`-mb-px inline-flex min-h-[44px] items-center border-b-2 px-3 text-[13px] font-bold transition ${
+                  className={`-mb-px inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 px-3.5 text-[13px] font-bold tracking-tight transition ${
                     isActive
-                      ? "border-violet-600 text-violet-800"
-                      : "border-transparent text-slate-500 hover:text-violet-700"
+                      ? "border-violet-500 bg-violet-50/60 text-violet-900"
+                      : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-violet-700"
                   }`}
                 >
                   {s.title}
