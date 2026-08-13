@@ -20,6 +20,7 @@ import {
   getPublishedEntityDetail,
   listPublishedGroup,
 } from "@/lib/human-design/knowledge/canonicalReadService";
+import { listEvidence } from "@/lib/human-design/admin/centralContentPersistence";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -273,6 +274,43 @@ async function main(): Promise<void> {
 
   // Admin yazma yalnız admin API (yeni expert route admin endpoint çağırmaz).
   ok("C16 expert API admin endpoint çağırmaz", !/\/api\/admin\/hd/.test(routeSrc));
+
+  // ── D. Admin persisted evidence read (UAT bugfix: PR #145) ────────────────
+  console.log("\nD. Admin persisted evidence read (module Kaynak Bağlantıları)");
+
+  // D-behavioral: listEvidence content_id-scope; cross-content leakage yok.
+  {
+    const db = makeDb({
+      hd_content_evidence: [
+        { id: "e-a1", content_id: "A", passage_id: "pa1", relation_type: "supports", is_primary: true, is_single_source: false, sort_order: 0, editorial_note: null },
+        { id: "e-a2", content_id: "A", passage_id: "pa2", relation_type: "background", is_primary: false, is_single_source: false, sort_order: 1, editorial_note: null },
+        { id: "e-b1", content_id: "B", passage_id: "pb1", relation_type: "supports", is_primary: false, is_single_source: false, sort_order: 0, editorial_note: null },
+      ],
+    });
+    const rA = await listEvidence(db, "A");
+    ok("D1 content A: 2 persisted evidence okunur", rA.ok && rA.data.length === 2);
+    ok("D2 cross-content leakage yok (B satırı gelmez)", rA.ok && !rA.data.some((e) => e.content_id === "B"));
+    const rEmpty = await listEvidence(db, "C");
+    ok("D3 gerçekten boş content → 0 satır", rEmpty.ok && rEmpty.data.length === 0);
+  }
+
+  // D-static: admin evidence route GET sözleşmesi + POST/DELETE korunuyor.
+  const evSrc = stripComments(read("app/api/admin/hd/evidence/route.ts"));
+  ok("D4 evidence route: GET export eklendi", /export async function GET/.test(evSrc));
+  ok("D5 evidence GET: verifyAdminRequest ile korunur", /verifyAdminRequest/.test(evSrc));
+  ok("D6 evidence GET: content_id scope zorunlu", /content_id/.test(evSrc));
+  ok("D7 evidence GET: listEvidence reuse (kopya sorgu yok)", /listEvidence/.test(evSrc));
+  ok("D8 evidence GET: no-store", /no-store|NO_STORE/.test(evSrc));
+  ok("D9 evidence POST+DELETE semantiği korunuyor", /export async function POST/.test(evSrc) && /export async function DELETE/.test(evSrc));
+  ok("D10 evidence GET read-only (create/deleteEvidence yalnız POST/DELETE'te)",
+    (evSrc.match(/createEvidence\(/g) || []).length === 1 && (evSrc.match(/deleteEvidence\(/g) || []).length === 1);
+
+  // D-static: admin evidence editor artık DB'den hydrate ediyor (session-local değil).
+  const edSrc = stripComments(read("app/admin/human-design/components/HdAdminEvidenceEditor.tsx"));
+  ok("D11 editor: mount'ta persisted evidence GET (hdGet + content_id)", /hdGet/.test(edSrc) && /content_id/.test(edSrc));
+  ok("D12 editor: useEffect ile hydrate", /useEffect/.test(edSrc));
+  ok("D13 editor: yazma sonrası DB reload (await load)", /await load\(\)/.test(edSrc));
+  ok("D14 editor: browser'da service_role yok", !/supabase-server|getServerDb|service_role/i.test(edSrc));
 
   console.log(`\nToplam: ${pass} geçti, ${fail} başarısız.`);
   if (fail > 0) process.exit(1);
