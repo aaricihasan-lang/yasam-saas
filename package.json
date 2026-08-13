@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",
+    "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
