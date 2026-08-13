@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, FileText, Flower2, Gem, Link2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSessionTenantId, getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -24,7 +24,16 @@ import {
   type ChakraDetailItem,
 } from "@/lib/bioenergy/chakrasListFetch";
 import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
-import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
+import {
+  buildChakraSections,
+  partitionBedenSistemBlocks,
+  resolveActiveChakraSection,
+  type ChakraSection,
+  type ChakraSectionBlock,
+} from "@/lib/bioenergy/chakraSections";
+import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "../biyoenerjiFolderConfig";
+import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
+import ChakraSectionNav from "./ChakraSectionNav";
 import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
@@ -55,10 +64,15 @@ type ChakraForm = {
   notes: string;
 };
 
+// Aksiyon rayı — kompakt, header'la yarışmayan. Düzenle hafif violet ile öne
+// çıkar (bağırmadan); Sil destructive kimliğini korur ama baskın değildir; Word
+// sade. Mobilde 44px dokunma hedefi, masaüstünde kompakt.
 const tbBtn =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+const tbBtnPrimary =
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-violet-50 px-3 py-2 text-[13px] font-bold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-rose-200/70 bg-white/90 px-3 py-2 text-[13px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:opacity-40";
 
 function trimOrEmpty(v: string) {
   return v.trim();
@@ -91,31 +105,13 @@ function useMobileViewport() {
   return isMobile;
 }
 
-function DetailContentCard({
-  title,
-  text,
-  typography,
-}: {
-  title: string;
-  text: string;
-  typography: ChakrasTypography;
-}) {
-  return (
-    <section className="border-t border-slate-200/60 py-5">
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</h2>
-      <div className="min-w-0" style={typography.bodyStyle}>
-        {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
-      </div>
-    </section>
-  );
-}
-
 /**
- * Manuel "Taşlar" bölümü — her satır kullanıcının yazdığı metni gösterir;
+ * Manuel "Taşlar" gövdesi — her satır kullanıcının yazdığı metni gösterir;
  * Doğaltaş'ta aynı isimde kayıt varsa satıra tıklanabilir küçük bir badge eklenir.
  * Manuel metin korunur (yalnızca sunum). Liste ayrıştırılamazsa ham metne döner.
+ * (Dış <section>/başlık artık üst section kartı tarafından sağlanır.)
  */
-function ManualStonesSection({
+function ManualStonesBody({
   text,
   items,
   typography,
@@ -125,8 +121,7 @@ function ManualStonesSection({
   typography: ChakrasTypography;
 }) {
   return (
-    <section className="border-t border-slate-200/60 py-5">
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Taşlar</h2>
+    <>
       {items.length === 0 ? (
         <div className="min-w-0" style={typography.bodyStyle}>
           {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
@@ -158,7 +153,58 @@ function ManualStonesSection({
           )}
         </div>
       )}
-    </section>
+    </>
+  );
+}
+
+/**
+ * İçerik blokları — editorial: alt başlık (h3) + gövde; bloklar arası ince
+ * separator (nested kart YOK). Hem ana içerikte hem context panelinde kullanılır.
+ */
+function ContentBlocks({
+  blocks,
+  typography,
+}: {
+  blocks: ChakraSectionBlock[];
+  typography: ChakrasTypography;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      {blocks.map((b, i) => (
+        <div
+          key={`${b.title ?? "blok"}-${i}`}
+          className={i > 0 ? "border-t border-slate-200/60 pt-5" : ""}
+        >
+          {b.title ? (
+            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {b.title}
+            </h3>
+          ) : null}
+          <div className="min-w-0 max-w-3xl" style={typography.bodyStyle}>
+            {formatStoneContent(b.text, { fontSizePx: typography.fontSizePx })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Bağlamsal bilgi paneli — çok hafif premium yüzey (sakin border/tint, ağır
+ * shadow/gradient YOK). Yalnız GERÇEK veri geldiğinde render edilir; boş/sahte
+ * panel gösterilmez. Gelecekte yeni gerçek alanlar geldiğinde aynı slot
+ * zenginleşir (empty-state reklamı YOK).
+ */
+function ContextPanel({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <aside className="rounded-xl border border-slate-200/70 bg-white/55 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:p-5">
+      {title ? (
+        <h3 className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-violet-700/80">
+          {title}
+        </h3>
+      ) : null}
+      {children}
+    </aside>
   );
 }
 
@@ -390,6 +436,35 @@ export default function CakralarDetail({ id }: { id: string }) {
     [record?.name, record?.stones, dogaltasStones],
   );
 
+  // Tek-section workspace state — URL `?section=<hash>` ile kalıcı (refresh +
+  // paylaşım + back/forward). Geçersiz/boş/future → ilk görünür section
+  // (render'da resolveActiveChakraSection ile). Lazy init: hydration-güvenli
+  // (section içeriği zaten kayıt yüklendikten sonra render edilir).
+  const [sectionParam, setSectionParam] = useState<string | null>(() =>
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("section")
+      : null,
+  );
+
+  // Back/forward: URL değişince section state'i güncelle (event handler).
+  useEffect(() => {
+    const onPop = () =>
+      setSectionParam(new URLSearchParams(window.location.search).get("section"));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const selectSection = useCallback((hash: string) => {
+    setSectionParam(hash);
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        null,
+        "",
+        `${window.location.pathname}?section=${encodeURIComponent(hash)}`,
+      );
+    }
+  }, []);
+
   async function handleGuncelle() {
     const tenantId = await getSyncedTenantId();
     if (!tenantId || !record) return;
@@ -467,18 +542,129 @@ export default function CakralarDetail({ id }: { id: string }) {
   const badge = chakraCardBadge(record);
   const dotColor = chakraColorDot(record.color);
 
-  // Gösterim sırası (veri kolonları değişmez, yalnızca sıra/etiket):
-  // Renk → Blokajlı Olmasının Nedenleri → Fiziksel/Zihinsel Etkiler →
-  // Organlar → Bezler → Taşlar → Notlar. ("Ruhsal" kolonu yok, gösterilmez.)
-  const sections: { title: string; text: string }[] = [];
-  if (record.color?.trim()) sections.push({ title: "Renk", text: record.color.trim() });
-  if (record.causes?.trim()) sections.push({ title: "Blokajlı Olmasının Nedenleri", text: record.causes.trim() });
-  if (record.physical?.trim()) sections.push({ title: "Fiziksel Etkiler", text: record.physical.trim() });
-  if (record.mental?.trim()) sections.push({ title: "Zihinsel Etkiler", text: record.mental.trim() });
-  if (record.organs?.trim()) sections.push({ title: "Organlar", text: record.organs.trim() });
-  if (record.glands?.trim()) sections.push({ title: "Bezler", text: record.glands.trim() });
-  if (record.stones?.trim()) sections.push({ title: "Taşlar", text: record.stones.trim() });
-  if (record.notes?.trim()) sections.push({ title: "Notlar", text: record.notes.trim() });
+  // FAZ 3.1 — legacy kolonlar profesyonel section modeline map edilir (veri
+  // dönüşümü YOK; boş alan → section gizli). Taşlar & Destekleyiciler manuel
+  // stones metni varsa görünür; Doğaltaş ek-taş bloğu ayrıca (aşağıda) render
+  // edilir (mevcut davranış korunur).
+  const stonesVisible = Boolean(record.stones?.trim());
+  const visibleSections = buildChakraSections(record, { stonesVisible });
+  const activeSection = resolveActiveChakraSection(visibleSections, sectionParam);
+
+  // Breadcrumb — son segment gerçek kayıt adı (generic "Kayıt detayı" değil).
+  // Zincir IA sözlüğünden kurulur; link davranışı korunur (Çakralar → liste).
+  const chakraNav = findBiyoenerjiSection("cakralar");
+  const crumbs: BiyoenerjiCrumb[] = chakraNav
+    ? [
+        { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
+        { label: chakraNav.group.title },
+        { label: chakraNav.card.title, href: chakraNav.card.href },
+        { label: displayTitle },
+      ]
+    : [{ label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE }];
+
+  const stoneMatchVisible =
+    !stonesLoading && !stonesError && stoneView.matchedCount > 0;
+
+  // ── Adaptif workspace kompozisyonu ─────────────────────────────────────────
+  // Selected section → ana içerik + (yalnız GERÇEK veri varsa) bağlam paneli.
+  // Bağlam yoksa panel render EDİLMEZ; ana içerik doğal tek kolona genişler
+  // (boş/sahte sağ kolon YOK). Yeni network/DB/field YOK — tümü mevcut veriden.
+  const stonesReady = !stonesLoading && !stonesError;
+
+  const renderStonesMain = (): ReactNode => (
+    <div className="flex flex-col gap-6">
+      <ManualStonesBody
+        text={record.stones?.trim() ?? ""}
+        items={stoneView.manualItems}
+        typography={contentTypography}
+      />
+      {/* Doğaltaşta bulunan ek taşlar — yalnız bu section aktifken (geniş grid) */}
+      {stonesReady && stoneView.extraStones.length > 0 && (
+        <div className="border-t border-slate-200/60 pt-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-sm">
+              <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-black tracking-tight text-slate-900">Doğaltaşta bulunan ek taşlar</h3>
+              <p className="text-[12px] font-medium leading-snug text-slate-500">
+                Bu çakraya Doğaltaş&rsquo;ta atanmış olup manuel listede olmayan taşlar.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {stoneView.extraStones.map((s) => (
+              <Link
+                key={s.id}
+                href={`/dogaltas/dogaltas-listesi/${s.id}`}
+                title="Doğaltaş kaydını aç"
+                className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-[12px] font-bold text-violet-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-100/80 hover:shadow"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
+                <span className="truncate">{s.name}</span>
+                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-60 transition group-hover:opacity-100" aria-hidden />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderGenelMain = (section: ChakraSection): ReactNode => (
+    <div className="flex flex-col gap-3">
+      {section.blocks.map((b, i) => (
+        <div key={`${section.id}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {b.title ? (
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {b.title}
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-slate-800">
+            {b.title === "Renk" ? (
+              <span
+                className="h-3.5 w-3.5 shrink-0 rounded-full ring-1 ring-slate-200"
+                style={{ backgroundColor: dotColor }}
+                aria-hidden
+              />
+            ) : null}
+            {b.text}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  let sectionMain: ReactNode = null;
+  let sectionContext: ReactNode = null;
+
+  if (activeSection) {
+    if (activeSection.kind === "stones") {
+      // Taşlar & Destekleyiciler — geniş tek kolon (chip grid'i bölme).
+      sectionMain = renderStonesMain();
+    } else if (activeSection.id === "genel-bakis") {
+      // Genel Bakış — yalnız mevcut gerçek veri (Renk). Bağlam paneli YOK:
+      // taş bilgisi "Taşlar & Destekleyiciler" domain'ine aittir, boşluk
+      // doldurmak için başka section'ın verisi ödünç alınmaz. Sade kabul edilir.
+      sectionMain = renderGenelMain(activeSection);
+    } else if (activeSection.id === "beden-sistem") {
+      // Fiziksel Etkiler = ana içerik; Organlar + Bezler = yapısal bağlam.
+      // İkisi de doluysa adaptif iki kolon; değilse tek kolon (boş panel yok).
+      const { primary, context } = partitionBedenSistemBlocks(activeSection);
+      if (primary.length > 0 && context.length > 0) {
+        sectionMain = <ContentBlocks blocks={primary} typography={contentTypography} />;
+        sectionContext = (
+          <ContextPanel>
+            <ContentBlocks blocks={context} typography={contentTypography} />
+          </ContextPanel>
+        );
+      } else {
+        sectionMain = <ContentBlocks blocks={activeSection.blocks} typography={contentTypography} />;
+      }
+    } else {
+      sectionMain = <ContentBlocks blocks={activeSection.blocks} typography={contentTypography} />;
+    }
+  }
 
   return (
     <div className="w-full min-w-0 max-w-none">
@@ -498,22 +684,45 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Title + actions */}
-      <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
+      {/* Breadcrumb — kompakt, geri planda; son segment gerçek kayıt adı */}
+      <div className="mb-3">
+        <BiyoenerjiBreadcrumb items={crumbs} />
+      </div>
+
+      {/* Record header — tek bütün: sol kimlik + meta, sağ aksiyon rayı */}
+      <header className="flex flex-col gap-3.5 border-b border-slate-200/70 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0 flex-1">
-          {badge ? (
-            <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden />
-              {badge}
-            </span>
-          ) : null}
-          <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
+          <h1 className="flex items-center gap-2.5 text-[1.7rem] font-black leading-tight tracking-tight text-slate-900 sm:text-[2rem]">
             <Flower2 className="h-7 w-7 shrink-0 text-emerald-500" strokeWidth={2} aria-hidden />
             <span className="min-w-0 break-words">{displayTitle}</span>
           </h1>
-          <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
+          {/* Meta — renk noktası + renk metni · tarih · taş eşleşme (record metadata) */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] font-medium text-slate-500">
+            {badge ? (
+              <span className="inline-flex items-center gap-1.5 text-slate-600">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-slate-200"
+                  style={{ backgroundColor: dotColor }}
+                  aria-hidden
+                />
+                <span className="min-w-0 break-words">{badge}</span>
+              </span>
+            ) : null}
+            {badge ? <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden /> : null}
+            <span>{formatDate(record.created_at)}</span>
+            {stoneMatchVisible ? (
+              <>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden />
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {stoneView.matchedCount} taş Doğaltaş ile eşleşiyor
+                </span>
+              </>
+            ) : null}
+          </div>
         </div>
-        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -527,8 +736,8 @@ export default function CakralarDetail({ id }: { id: string }) {
           />
           {!isDemo && (
             <>
-              <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+              <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtnPrimary}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Düzenle
               </button>
@@ -545,79 +754,47 @@ export default function CakralarDetail({ id }: { id: string }) {
             </>
           )}
         </div>
+      </header>
+
+      {/* FAZ 3.1 — ikinci-seviye editorial section nav (tek-section workspace) */}
+      <div className="mt-4">
+        <ChakraSectionNav
+          sections={visibleSections.map((s) => ({ hash: s.hash, title: s.title }))}
+          activeHash={activeSection?.hash ?? ""}
+          onSelect={selectSection}
+        />
       </div>
 
-      {/* Doğaltaş eşleşme özeti — tek satır, tekrar liste değil */}
-      {!stonesLoading && !stonesError && stoneView.matchedCount > 0 && (
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-bold text-emerald-800">
-          <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {stoneView.matchedCount} taş Doğaltaş kütüphanesi ile eşleşiyor.
-        </div>
-      )}
-
-      {/* Document sections */}
       <DemoGate
         isProtected={isDemo}
         message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
       >
-        <div>
-        {sections.length > 0 ? (
-          sections.map((s) =>
-            s.title === "Taşlar" ? (
-              <ManualStonesSection
-                key="Taşlar"
-                text={s.text}
-                items={stoneView.manualItems}
-                typography={contentTypography}
-              />
+        {activeSection ? (
+          // Editorial içerik yüzeyi — koca beyaz kart YOK; metin ana odak.
+          // Sol accent + güçlü başlık. Bağlam paneli varsa masaüstünde adaptif
+          // 8/4 iki kolon; yoksa doğal tek kolon (boş sağ rezerve YOK).
+          <section className="pt-5 sm:pt-6">
+            <h2 className="mb-4 flex items-center gap-2.5 text-xl font-black tracking-tight text-slate-900">
+              <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-violet-400 to-cyan-400" aria-hidden />
+              <span className="min-w-0 break-words">{activeSection.title}</span>
+            </h2>
+
+            {sectionContext ? (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+                <div className="min-w-0 lg:col-span-8">{sectionMain}</div>
+                {/* Mobilde context ana içeriğin ALTINA stack olur (iki kolon yok) */}
+                <div className="min-w-0 lg:col-span-4">{sectionContext}</div>
+              </div>
             ) : (
-              <DetailContentCard key={s.title} title={s.title} text={s.text} typography={contentTypography} />
-            ),
-          )
+              sectionMain
+            )}
+          </section>
         ) : (
-          <DetailContentCard
-            title="İçerik"
-            text="Bu kayıt için henüz organ, renk veya not girilmemiş."
-            typography={contentTypography}
-          />
+          <div className="pt-6 text-sm font-medium text-slate-500">
+            Bu kayıt için henüz içerik girilmemiş.
+          </div>
         )}
-        </div>
       </DemoGate>
-
-      {/* Doğaltaşta bulunan ek taşlar — manuel listede OLMAYAN, bu çakraya atanmış taşlar */}
-      {!stonesLoading && !stonesError && stoneView.extraStones.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-violet-100/80 bg-white/80 p-4 shadow-sm sm:p-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-sm">
-              <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-sm font-black tracking-tight text-slate-900">Doğaltaşta bulunan ek taşlar</h2>
-              <p className="text-[12px] font-medium leading-snug text-slate-500">
-                Bu çakraya Doğaltaş&rsquo;ta atanmış olup manuel listede olmayan taşlar.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {stoneView.extraStones.map((s) => (
-              <Link
-                key={s.id}
-                href={`/dogaltas/dogaltas-listesi/${s.id}`}
-                title="Doğaltaş kaydını aç"
-                className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-[12px] font-bold text-violet-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-100/80 hover:shadow"
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
-                <span className="truncate">{s.name}</span>
-                <ArrowUpRight
-                  className="h-3.5 w-3.5 shrink-0 opacity-60 transition group-hover:opacity-100"
-                  aria-hidden
-                />
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
