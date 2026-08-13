@@ -89,17 +89,16 @@ check("fetchOilSearch boş-q'da sıralamayı değiştirmez (carrier lookup korun
   /const trimmed = q\.trim\(\);[\s\S]*?if \(!trimmed\) return \{ rows, error: null \}/.test(DATA));
 check("fetchOilSearch name-öncelikli sıralama (prefix>contains>latin/english, foldForSearch)",
   /foldForSearch\(trimmed\)/.test(DATA) && /startsWith\(needle\)/.test(DATA) && /includes\(needle\)/.test(DATA));
-// Server: qmode=name → yalnız kimlik kolonları; default → search_norm (Yağlar Kütüphanesi).
-check("Route qmode=name branch → name/latin_name/english_name ILIKE (kimlik-only)",
-  /qmode"\)\s*===\s*"name"/.test(API) &&
-  /buildOrIlike\(\["name",\s*"latin_name",\s*"english_name"\]/.test(API));
+// Server: qmode=name → identity_norm (FAZ3: Türkçe-normalize kimlik-only, ham ILIKE'ın
+// yerini aldı); default → search_norm (Yağlar Kütüphanesi).
+check("Route qmode=name branch → identity_norm (FAZ3 Türkçe-normalize kimlik-only)",
+  /qmode"\)\s*===\s*"name"/.test(API) && /buildIdentityNormIlike\(p\.q\)/.test(API));
 check("Route default arama search_norm (Yağlar Kütüphanesi DEĞİŞMEDİ)",
   /buildSearchNormIlike\(p\.q\)/.test(API));
-// name-scope içerik kolonu SIZDIRMAZ (benefits/usage/aroma/safety/search_norm branch'te yok).
-const nameScopeCols = (API.match(/buildOrIlike\(\[([^\]]*)\]/) || ["", ""])[1];
-check("Route name-scope içerik alanı SIZDIRMAZ (benefits/usage/aroma/safety/search_norm YOK)",
-  !/benefits|usage|aroma|safety|search_norm|main_components|origin/.test(nameScopeCols),
-  `cols=${nameScopeCols}`);
+// Typeahead identity-only sözleşmesi korunur: qmode=name ham content-blob (search_norm)
+// KULLANMAZ; identity_norm da (migration) yalnız name/latin/english kapsar (içerik yok).
+check("Route typeahead identity-only (ham name/latin/english ILIKE kaldırıldı; search_norm typeahead'de değil)",
+  !/buildOrIlike\(\["name"/.test(API) && /buildIdentityNormIlike/.test(API));
 
 // --- OilsPage modern pipeline ----------------------------------------------
 const OILS = read("app/aromaterapi/_components/OilsPage.tsx");

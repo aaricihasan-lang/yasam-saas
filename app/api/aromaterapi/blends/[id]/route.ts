@@ -110,11 +110,16 @@ export async function DELETE(
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
+  // FAZ 3: SOFT delete — fiziksel .delete() yerine is_active=false. Okuma/liste zaten
+  // is_active=true filtreler (blends GET .eq("is_active", true)) → kayıt aktif listeden
+  // düşer ama DB satırı korunur (reçete/geçmiş kaybı yok). tenant scope + IDOR aynı;
+  // yeni lifecycle/audit/şema YOK. Zaten pasif kayıt idempotent (0 satır → 404).
   const { data, error } = await db
     .from("aromatherapy_blends")
-    .delete()
+    .update({ is_active: false })
     .eq("id", id)
     .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydına dokunamaz
+    .eq("is_active", true) // yalnız aktif kaydı pasifleştir (idempotent)
     .select("id");
 
   if (error) return legacyDbErrorResponse("blends.delete", error, "Karışım silinemedi.");

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
-import { parseListParams, buildSearchNormIlike, buildOrIlike } from "@/lib/aromaterapi/service/readValidation";
+import { parseListParams, buildSearchNormIlike, buildIdentityNormIlike } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readServerError, readListOk } from "@/lib/aromaterapi/service/readErrors";
 
 export const runtime = "nodejs";
@@ -106,14 +106,15 @@ export async function GET(req: NextRequest): Promise<Response> {
   for (const [col, val] of Object.entries(p.equals)) q = q.eq(col, val); // yalnız oil_type (allowlist)
   // Arama kapsamı — SUNUCU-SABİT branch (istemci arbitrary kolon SEÇEMEZ):
   //   varsayılan  → geniş search_norm (Yağlar Kütüphanesi; içerik alanları dahil).
-  //   qmode=name  → yalnız kimlik alanları (name/latin_name/english_name) — Karışım
-  //                 Oluşturucu typeahead; içerik-alan kirliliği (benefits/usage/aroma…) YOK.
-  // Kolonlar geliştirici-sabit allowlist; q her iki dalda da safeIlikePattern ile sanitize.
+  //   qmode=name  → yalnız KİMLİK (identity_norm: name+latin_name+english_name, Türkçe-
+  //                 normalize) — Karışım Oluşturucu typeahead; içerik-alan kirliliği YOK.
+  //                 FAZ 3: ham ILIKE yerine identity_norm → "adacayi"→"Adaçayı" foldlar.
+  // q her iki dalda da normalize + safeIlikePattern ile sanitize (kolonlar dev-sabit).
   const nameScope = url.searchParams.get("qmode") === "name";
   if (p.q) {
     q = q.or(
       nameScope
-        ? buildOrIlike(["name", "latin_name", "english_name"], p.q) // kimlik-only ILIKE
+        ? buildIdentityNormIlike(p.q) // identity_norm ILIKE (Türkçe-normalize kimlik-only)
         : buildSearchNormIlike(p.q), // search_norm ILIKE (normalize + sanitize)
     );
   }

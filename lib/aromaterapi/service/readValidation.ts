@@ -171,3 +171,15 @@ export function buildOrIlike(columns: readonly string[], q: string): string {
 export function buildSearchNormIlike(q: string): string {
   return buildOrIlike(["search_norm"], normalizeForSearch(q));
 }
+
+/**
+ * Türkçe-normalize KİMLİK araması (Karışım Oluşturucu identity-only typeahead).
+ * `identity_norm` generated kolonu (name+latin_name+english_name normalize birleşimi;
+ * migration 20261005000000) üzerinde arar → ham ILIKE'in Türkçe-fold boşluğunu kapatır
+ * ("adacayi"→"Adaçayı", "corek"→"Çörek", "isirgan"→"Isırgan"). İçerik alanları KAPSAM
+ * DIŞI (search_norm'dan ayrı) → typeahead'in identity-only sözleşmesi korunur. q önce
+ * `normalizeForSearch` (SQL normalizer ile byte-eş), sonra `safeIlikePattern` ile sanitize.
+ */
+export function buildIdentityNormIlike(q: string): string {
+  return buildOrIlike(["identity_norm"], normalizeForSearch(q));
+}
