@@ -37,7 +37,7 @@ import {
 } from "@/lib/yasam-hafizasi/activation/activationState";
 import { YH_INDEX_SOURCES, type SourceConfig } from "@/lib/yasam-hafizasi/indexer/sources";
 import { runIndexUnit, type RunIndexUnitResult } from "@/lib/yasam-hafizasi/indexer/runIndexUnit";
-import { processOutboxEvent, type EventProcessorDeps, type ProcessDirective } from "@/lib/yasam-hafizasi/outbox/eventProcessor";
+import { processOutboxEvent, type EventProcessorDeps } from "@/lib/yasam-hafizasi/outbox/eventProcessor";
 import type { ClaimedOutboxEvent } from "@/lib/yasam-hafizasi/outbox/outboxRpcClient";
 import type { IndexSourcePageResult } from "@/lib/yasam-hafizasi/indexer/indexSourcePage";
 import type { DeindexResult } from "@/lib/yasam-hafizasi/indexer/supabaseIndexAdapters";
@@ -87,15 +87,16 @@ const COHORT_A_READY_TABLE: Record<string, string> = {
 const READY_KEYS = Object.keys(COHORT_A_READY_TABLE);
 const NEW_KEYS = ["biyoenerji:sessions", "biyoenerji:energy-bodies"];
 
-// ── DEFERRED_SHARED_WORKER_V2 5 kaynak → worker v1 permanent reject kodu ──────
-const DEFERRED_REJECT: Record<string, string> = {
-  "dogaltas:knowledge": "shared-source-unsupported",
-  "aromaterapi:oils": "shared-source-unsupported",
-  "aromaterapi:reference-sheets": "shared-source-unsupported",
-  "aromaterapi:reference-rows": "shared-source-unsupported",
-  "sifa_rehberi:guide-sections": "non-record-unit-unsupported",
-};
-const DEFERRED_KEYS = Object.keys(DEFERRED_REJECT);
+// ── 5 formerly-deferred kaynak → Worker-v2 (migration 20261210000000) ile graduate (READY). ──
+// Worker-v1 tarafından işlenemez (shared/section) AMA worker-v2 capability ile işlenir; detay real
+// processOutboxEvent kanıtı scripts/yh-worker-v2/workerV2ParityHarness.ts.
+const DEFERRED_KEYS = [
+  "dogaltas:knowledge",
+  "aromaterapi:oils",
+  "aromaterapi:reference-sheets",
+  "aromaterapi:reference-rows",
+  "sifa_rehberi:guide-sections",
+];
 
 // eventProcessor deps: kaynak resolve + upsert 'ok' + deindex 'ok' + aktivasyon aktif.
 const evDeps = (key: string): EventProcessorDeps => ({
@@ -108,8 +109,6 @@ const outboxEvent = (key: string, op: "upsert" | "delete"): ClaimedOutboxEvent =
   id: EV_ID, sourceKey: key, sourceTable: cfg(key).tableName, sourceId: SID, tenantId: TENANT_A,
   operation: op, attempts: 1, eventVersion: 1,
 } as ClaimedOutboxEvent);
-const isPermanent = (d: ProcessDirective, code: string): boolean =>
-  d.action === "fail" && (d as { retryClass?: string }).retryClass === "permanent" && (d as { code?: string }).code === code;
 
 async function run(): Promise<void> {
 // ═══ A) REGISTRY MATRIX (11 worker-v1-supported ready kaynak) ═════════════════
@@ -131,30 +130,28 @@ async function run(): Promise<void> {
   add("A-new-energy-bodies-table", cfg("biyoenerji:energy-bodies").tableName === "bioenergy_energy_bodies");
   // Matris tenantMode registry tenant.mode ile hizalı.
   add("A-matrix-tenantmode-aligned", READY_KEYS.every((k) => entryOf(k)?.tenantMode === cfg(k).tenant.mode));
-  // Matris FUTURE_ONLY_READY professional kümesi TAM olarak 11 ready ile eşleşir (drift yok).
+  // Matris FUTURE_ONLY_READY professional = 11 worker-v1 READY + 5 worker-v2 graduate = 16 (drift yok).
   const futurePro = sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").sort();
-  add("A-matrix-future-pro-equals-ready", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS].sort()), futurePro.join(","));
+  add("A-matrix-future-pro-equals-16", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS].sort()), futurePro.join(","));
 }
 
-// ═══ A2) DEFERRED_SHARED_WORKER_V2 (5 kaynak; worker v1 kapsamı dışı) ═════════
+// ═══ A2) WORKER-V2 GRADUATION (5 kaynak; DEFERRED_SHARED_WORKER_V2 → FUTURE_ONLY_READY) ══════════
+// Worker-v2 (migration 20261210000000) shared/section/parent-derived capability verdi → 5 kaynak READY
+// (deferred DEĞİL). Detaylı gerçek-processOutboxEvent kanıtı: scripts/yh-worker-v2/workerV2ParityHarness.ts.
 {
-  add("A2-deferred-class", DEFERRED_KEYS.every((k) => entryOf(k)?.activationClass === "DEFERRED_SHARED_WORKER_V2"),
-    DEFERRED_KEYS.filter((k) => entryOf(k)?.activationClass !== "DEFERRED_SHARED_WORKER_V2").join(","));
-  // Matris DEFERRED kümesi TAM olarak beklenen 5 ile eşleşir.
-  add("A2-matrix-deferred-equals-5", JSON.stringify(sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").sort()) === JSON.stringify([...DEFERRED_KEYS].sort()),
-    sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
-  // Registry enabled:true KORUNUR (arama semantiği bozulmaz).
-  add("A2-deferred-registry-enabled", DEFERRED_KEYS.every((k) => cfg(k).enabled === true));
-  // worker v1 GERÇEKTEN işleyemez (config semantics).
-  add("A2-deferred-not-workerv1", DEFERRED_KEYS.every((k) => workerV1Ok(k) === false), DEFERRED_KEYS.filter((k) => workerV1Ok(k)).join(","));
-  // triggerFeasibleNow=false + futureEventEligible=false + backfill blocked.
-  add("A2-deferred-trigger-infeasible", DEFERRED_KEYS.every((k) => entryOf(k)?.triggerFeasibleNow === false));
-  add("A2-deferred-future-ineligible", DEFERRED_KEYS.every((k) => entryOf(k)?.futureEventEligible === false));
-  add("A2-deferred-backfill-blocked", DEFERRED_KEYS.every((k) => entryOf(k)?.backfillEligibility === "blocked-worker-unsupported"));
-  // Kohort dispozisyonu DEFERRED_SHARED_WORKER_V2 + readyGap DOLU (aktivasyona hazır DEĞİL).
-  add("A2-deferred-cohort", DEFERRED_KEYS.every((k) => { const e = entryOf(k)!; return assessCohort(e).cohort === "DEFERRED_SHARED_WORKER_V2" && assessCohort(e).readyGap.length > 0; }));
-  // DEFERRED kaynak "aktivasyona hazır" (COHORT_1_READY) DEĞİL.
-  add("A2-deferred-not-cohort1-ready", DEFERRED_KEYS.every((k) => assessCohort(entryOf(k)!).cohort !== "COHORT_1_READY"));
+  add("A2-graduated-future-only", DEFERRED_KEYS.every((k) => entryOf(k)?.activationClass === "FUTURE_ONLY_READY"),
+    DEFERRED_KEYS.filter((k) => entryOf(k)?.activationClass !== "FUTURE_ONLY_READY").join(","));
+  // DEFERRED_SHARED_WORKER_V2 class ARTIK BOŞ (5 kaynak graduate oldu).
+  add("A2-deferred-class-empty", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
+  // Registry enabled:true KORUNUR (arama semantiği bozulmadı).
+  add("A2-graduated-registry-enabled", DEFERRED_KEYS.every((k) => cfg(k).enabled === true));
+  // Worker-v1 GERÇEKTEN işleyemez (config semantics) AMA worker-v2 capability ile READY (§ B2).
+  add("A2-graduated-not-workerv1", DEFERRED_KEYS.every((k) => workerV1Ok(k) === false), DEFERRED_KEYS.filter((k) => workerV1Ok(k)).join(","));
+  // triggerFeasibleNow=true + futureEventEligible=true (worker-v2 WIRED).
+  add("A2-graduated-trigger-feasible", DEFERRED_KEYS.every((k) => entryOf(k)?.triggerFeasibleNow === true));
+  add("A2-graduated-future-eligible", DEFERRED_KEYS.every((k) => entryOf(k)?.futureEventEligible === true));
+  // Kohort dispozisyonu COHORT_1_READY + readyGap BOŞ.
+  add("A2-graduated-cohort1-ready", DEFERRED_KEYS.every((k) => { const e = entryOf(k)!; return assessCohort(e).cohort === "COHORT_1_READY" && assessCohort(e).readyGap.length === 0; }));
 }
 
 // ═══ B) ACTIVATION GRADUATION (FUTURE_ONLY_READY; OFF without activation; ON with) ═
@@ -183,8 +180,8 @@ async function run(): Promise<void> {
 }
 
 // ═══ B2) EVENTPROCESSOR COVERAGE (ZORUNLU) — GERÇEK worker kapı sözleşmesi ════
-// READY 11: real processOutboxEvent upsert+delete → complete (permanent reject DEĞİL).
-// DEFERRED 5: real processOutboxEvent → permanent reject (exact kod). Statik liste değil.
+// READY 11 (worker-v1): real processOutboxEvent upsert+delete → complete (permanent reject DEĞİL).
+// GRADUATE 5 (worker-v2): artık real processOutboxEvent tarafından KABUL edilir (deferred DEĞİL).
 {
   const readyResults = await Promise.all(READY_KEYS.map(async (k) => {
     const up = await processOutboxEvent(outboxEvent(k, "upsert"), evDeps(k));
@@ -201,24 +198,22 @@ async function run(): Promise<void> {
   const forbidden = new Set(["tenant-model-unsupported", "shared-source-unsupported", "non-record-unit-unsupported"]);
   add("B2-ready-no-tenant-unit-reject", readyResults.every((r) => !forbidden.has(String((r.up as { code?: string }).code))));
 
-  const deferredResults = await Promise.all(DEFERRED_KEYS.map(async (k) => {
+  // Worker-v2 graduate 5: tenant olay (non-null) real processOutboxEvent → complete (artık reddedilmez).
+  const graduatedResults = await Promise.all(DEFERRED_KEYS.map(async (k) => {
     const up = await processOutboxEvent(outboxEvent(k, "upsert"), evDeps(k));
     const del = await processOutboxEvent(outboxEvent(k, "delete"), evDeps(k));
     return { k, up, del };
   }));
-  add("B2-deferred-upsert-permanent-reject", deferredResults.every((r) => isPermanent(r.up, DEFERRED_REJECT[r.k])),
-    deferredResults.filter((r) => !isPermanent(r.up, DEFERRED_REJECT[r.k])).map((r) => `${r.k}:${JSON.stringify(r.up)}`).join(" | "));
-  add("B2-deferred-delete-permanent-reject", deferredResults.every((r) => isPermanent(r.del, DEFERRED_REJECT[r.k])),
-    deferredResults.filter((r) => !isPermanent(r.del, DEFERRED_REJECT[r.k])).map((r) => `${r.k}:${JSON.stringify(r.del)}`).join(" | "));
-  // NEGATIF: DEFERRED kaynaklardan HİÇBİRİ worker-v1 ready kümesinde OLMAMALI.
-  add("B2-deferred-absent-from-ready", DEFERRED_KEYS.every((k) => !READY_KEYS.includes(k)));
-  // ÇAPRAZ: config-semantics workerV1Ok ↔ gerçek processOutboxEvent kabulü BİREBİR.
-  add("B2-workerv1ok-matches-processor",
-    [...READY_KEYS, ...DEFERRED_KEYS].every((k) => {
-      const accepted = readyResults.find((r) => r.k === k)?.up.action === "complete"
-        || deferredResults.find((r) => r.k === k)?.up.action === "complete";
-      return workerV1Ok(k) === accepted;
-    }));
+  add("B2-graduated-upsert-accepted", graduatedResults.every((r) => r.up.action === "complete"),
+    graduatedResults.filter((r) => r.up.action !== "complete").map((r) => `${r.k}:${JSON.stringify(r.up)}`).join(" | "));
+  add("B2-graduated-delete-accepted", graduatedResults.every((r) => r.del.action === "complete"),
+    graduatedResults.filter((r) => r.del.action !== "complete").map((r) => `${r.k}:${JSON.stringify(r.del)}`).join(" | "));
+  // ÇAPRAZ: graduate kaynaklar workerV1Ok=false AMA worker-v2 capability ile processor KABUL eder.
+  add("B2-graduated-not-workerv1-but-accepted",
+    DEFERRED_KEYS.every((k) => workerV1Ok(k) === false && graduatedResults.find((r) => r.k === k)?.up.action === "complete"));
+  // READY 11 için: workerV1Ok=true ↔ accepted=true (worker-v1 parite korunur).
+  add("B2-ready-workerv1ok-matches-accepted",
+    READY_KEYS.every((k) => workerV1Ok(k) === (readyResults.find((r) => r.k === k)?.up.action === "complete")));
 }
 
 // ═══ C) SOURCE COUNT ARİTMETİĞİ (exact) ══════════════════════════════════════
@@ -229,16 +224,16 @@ async function run(): Promise<void> {
   add("C-keep-live-1-professional-stones", sourceKeysByClass("KEEP_LIVE").filter((k) => k === "dogaltas:stones").length === 1);
   // KEEP_LIVE class = 2 (stones + refleksoloji:notes pii no-op); professional-live-catalog = 1 (stones).
   add("C-keep-live-class-2", sourceKeysByClass("KEEP_LIVE").length === 2, sourceKeysByClass("KEEP_LIVE").join(","));
-  // FUTURE_ONLY_READY professional = 11 (worker-v1-supported Cohort A).
-  add("C-future-only-controlled-11-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 11, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
-  // FUTURE_ONLY_READY total = 11 professional + 6 client = 17.
-  add("C-future-only-total-17", sourceKeysByClass("FUTURE_ONLY_READY").length === 17, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
-  add("C-deferred-worker-v2-5", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 5, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
+  // FUTURE_ONLY_READY professional = 16 (11 worker-v1 Cohort A + 5 worker-v2 graduate).
+  add("C-future-only-controlled-16-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 16, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
+  // FUTURE_ONLY_READY total = 16 professional + 6 client = 22.
+  add("C-future-only-total-22", sourceKeysByClass("FUTURE_ONLY_READY").length === 22, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
+  add("C-deferred-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("C-row-gated-1-archive", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
   add("C-matrix-total-33", YH_ACTIVATION_MATRIX.length === 33, String(YH_ACTIVATION_MATRIX.length));
-  // Kohort dispozisyonu: COHORT_1_READY = 11 ready + 1 archive = 12; DEFERRED cohort = 5.
-  add("C-cohort1-ready-12", sourceKeysByCohort("COHORT_1_READY").length === 12, sourceKeysByCohort("COHORT_1_READY").join(","));
-  add("C-deferred-cohort-5", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 5);
+  // Kohort dispozisyonu: COHORT_1_READY = 16 professional ready + 1 archive = 17; DEFERRED cohort = 0.
+  add("C-cohort1-ready-17", sourceKeysByCohort("COHORT_1_READY").length === 17, sourceKeysByCohort("COHORT_1_READY").join(","));
+  add("C-deferred-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0);
 }
 
 // ═══ D) INSERT (runIndexUnit → unit; title/searchText/tenant/source_id) ═══════

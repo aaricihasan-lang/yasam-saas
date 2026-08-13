@@ -37,7 +37,7 @@ import { runSource, TenantFilterMismatchError } from "./runSource";
 import { runIndexUnit, summarizeRunResults, type RunSummary } from "./runIndexUnit";
 import { makeParentTenantLookup } from "./parentTenantLookup";
 import type { ParentTenantLookup } from "./tenantResolve";
-import type { SourceConfig } from "./sources";
+import { hasWorkerCapability, type SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
 import {
   decideArchiveEligibility,
@@ -383,9 +383,16 @@ async function runExactRecord(
     exactStatus: status,
   });
 
-  // Exact write: column-mode VEYA join-mode (non-shared). global-canonical + shared fail-closed.
-  // BF-11E Belge/Video: join+row kaynak desteği (parent üzerinden server-side tenant resolve).
-  if (config.tenant.mode === "global-canonical" || config.tenant.allowSharedNull === true) {
+  // Exact write: column|join. global-canonical fail-closed. Worker-v2: shared (allowSharedNull)
+  // YALNIZ 'shared-optional-professional' capability ile; aksi fail-closed. Section (unit) build
+  // yolunda değerlendirilir (runIndexUnit); burada model kapısı yalnız tenant modelidir.
+  if (config.tenant.mode === "global-canonical") {
+    return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
+  }
+  if (
+    config.tenant.allowSharedNull === true &&
+    !hasWorkerCapability(config, "shared-optional-professional")
+  ) {
     return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
   }
 
@@ -415,6 +422,24 @@ async function runExactRecord(
       parentIds,
     });
     parentLookup = makeParentTenantLookup(map);
+
+    // Worker-v2 PARENT ELIGIBILITY (parentActiveColumn; ör. reference-rows → sheet.is_active):
+    // Child'ın current-state eligibility'si parent aktifliğine BAĞLI. Parent is_active=true DEĞİL
+    // (inactive / bulunamadı / reader desteklemiyor) → skipped-build → defensiveDeindex (stale child = 0).
+    // Tenant/shared scope aynı parent join'inden çözüldüğü için scope'tan BAĞIMSIZ (tenant + shared).
+    if (config.tenant.parentActiveColumn) {
+      if (parentIds.length === 0 || typeof parentReader.readParentActive !== "function") {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+      const activeMap = await parentReader.readParentActive({
+        parentTable: config.tenant.parentTable,
+        parentActiveColumn: config.tenant.parentActiveColumn,
+        parentIds,
+      });
+      if (activeMap.get(parentIds[0]) !== true) {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+    }
   }
 
   // Tek satır → saf çekirdek (S2.08). Row-unit + join tenant (varsa) burada değerlendirilir.
@@ -425,12 +450,25 @@ async function runExactRecord(
   }
   const unit = runRes.unit;
 
-  // Dışlama + exact eşleşme (fail-closed sıra: demo → sentetik → shared → id → tenant).
+  // Dışlama + exact eşleşme (fail-closed sıra: demo → sentetik → id → shared/tenant).
   if (unit.tenantId === YH_DEMO_TENANT_ID) return reject("excluded-demo", fetched, summary, 1, 0);
-  if (isSyntheticTenantId(unit.tenantId)) return reject("excluded-synthetic", fetched, summary, 0, 1);
-  if (unit.tenantId === null) return reject("excluded-shared", fetched, summary, 0, 0);
+  if (unit.tenantId !== null && isSyntheticTenantId(unit.tenantId)) {
+    return reject("excluded-synthetic", fetched, summary, 0, 1);
+  }
   if (unit.sourceId !== exactSourceId) return reject("source-id-mismatch", fetched, summary, 0, 0);
-  if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
+  // Worker-v2 shared/tenant eşleşmesi:
+  //   - SHARED satır (tenant NULL): yalnız shared-capable kaynak + SHARED olay (expectedTenantId NULL).
+  //     capability yoksa excluded-shared (v1 davranışı); olay tenant-scoped ise tenant-mismatch.
+  //   - TENANT satır: SHARED olay (expected NULL) bir tenant satırıyla eşleşemez → tenant-mismatch;
+  //     aksi expectedTenantId birebir eşleşmeli.
+  if (unit.tenantId === null) {
+    if (!hasWorkerCapability(config, "shared-optional-professional")) {
+      return reject("excluded-shared", fetched, summary, 0, 0);
+    }
+    if (expectedTenantId !== null) {
+      return reject("tenant-mismatch", fetched, summary, 0, 0);
+    }
+  } else if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
     return reject("tenant-mismatch", fetched, summary, 0, 0);
   }
 
@@ -445,6 +483,9 @@ async function runExactRecord(
     if (input.archiveEligibility === undefined) {
       throw new ArchiveEligibilityGateMissingError();
     }
+    // Row-gate kaynakları (Kişisel Arşiv) DAİMA tenant-scoped'tur (shared capability YOK). SHARED bir
+    // satır buraya ULAŞAMAZ (üstteki eşleşme excluded-shared/tenant-mismatch verirdi); defansif narrow.
+    if (unit.tenantId === null) return reject("tenant-mismatch", fetched, summary, 0, 0);
     // unit.tenantId burada expectedTenantId ile birebir (üstteki guard); unit.sourceId === exactSourceId.
     const lookup = await input.archiveEligibility({
       tenantId: unit.tenantId,

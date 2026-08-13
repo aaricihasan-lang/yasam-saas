@@ -86,7 +86,8 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     const indexDeleteClient: IndexDeleteClient = {
       async deleteRows({ table, filters, count }) {
         let q = serverDb.from(table).delete({ count });
-        for (const [column, value] of filters) q = q.eq(column, value);
+        // Worker-v2: value === null → IS NULL (SHARED referans satırı deindex'i); aksi eşitlik.
+        for (const [column, value] of filters) q = value === null ? q.is(column, null) : q.eq(column, value);
         const { error, count: deleted } = await q;
         return { error: error !== null, count: typeof deleted === "number" ? deleted : null };
       },

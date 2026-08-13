@@ -24,6 +24,21 @@ import type { YhSourceModule } from "../config";
 export type IndexUnit = "record" | "section" | "row";
 
 /**
+ * WORKER-V2 AÇIK CAPABILITY MODELİ (BF-Worker-v2). Worker-v1 fail-closed kapıları GLOBAL olarak
+ * gevşetilmez; yalnız burada AÇIKÇA listelenen kaynak, ilgili worker kapısından geçebilir. Capability
+ * verilmemiş bir kaynak için tenant-shared / non-record-unit hâlâ FAIL-CLOSED reddedilir.
+ *   - "shared-optional-professional": tenant_id NULL satır SHARED professional referans olarak
+ *     indexlenir (allowSharedNull ile birlikte). YOKSA allowSharedNull kaynağı reddedilir (gate 6).
+ *   - "section-unit": unit=section worker tarafından yalnız BU kaynak için desteklenir (global değil).
+ *   - "parent-derived-scope": tenant/shared scope parent'tan authoritative çözülür + parent-side
+ *     BEFORE-DELETE capture (cascade-safe; child cascade sonrası silent-skip GHOST bırakmaz).
+ */
+export type WorkerCapability =
+  | "shared-optional-professional"
+  | "section-unit"
+  | "parent-derived-scope";
+
+/**
  * Tenant çözümleme:
  *   - column: tenant_id doğrudan kolonda (bazıları NULL=shared referans).
  *   - join:   tenant_id yok → parent tablodan FK ile çözülür.
@@ -36,6 +51,13 @@ export type TenantResolution =
       readonly parentTable: string;
       readonly parentTenantColumn: string;
       readonly allowSharedNull?: boolean;
+      /**
+       * Worker-v2 (parent-derived-scope): verilirse child'ın current-state eligibility'si parent'ın
+       * bu boolean kolonuna (ör. reference-sheets `is_active`) BAĞLIDIR. Parent bu kolonda true DEĞİL
+       * iken child current searchable state DIŞINA çıkar → exact read skipped-build → defensiveDeindex
+       * (stale child hit = 0). Parent aktiflik değişimi propagation'ı source-specific trigger'dadır.
+       */
+      readonly parentActiveColumn?: string;
     }
   /**
    * BF-14 Ertelenmiş Kaynaklar: global/canonical kaynak (tenant kolonu YOK; merkezî).
@@ -115,8 +137,18 @@ export interface SourceConfig {
    * güvenliği source-level flip'e DEĞİL, satır-bazlı reviewed+hash kapısına bağlıdır).
    */
   readonly requiresRowEligibilityGate?: boolean;
+  /**
+   * BF-Worker-v2: bu kaynağa AÇIKÇA atanmış worker capability'leri (yoksa/[] → yok). Yalnız burada
+   * listelenen capability için ilgili worker kapısı geçebilir; aksi FAIL-CLOSED (bkz. WorkerCapability).
+   */
+  readonly workerCapabilities?: readonly WorkerCapability[];
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
+}
+
+/** Kaynağın verilen worker-v2 capability'sine açıkça sahip olup olmadığı (SAF; fail-closed). */
+export function hasWorkerCapability(config: SourceConfig, cap: WorkerCapability): boolean {
+  return Array.isArray(config.workerCapabilities) && config.workerCapabilities.includes(cap);
 }
 
 /**
@@ -228,6 +260,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: null, // yalnız created_at var → content_hash
     activeColumn: null,
+    // Worker-v2: unit=section desteği + parent (healing_guides) türevi scope + parent-side capture.
+    workerCapabilities: ["section-unit", "parent-derived-scope"],
     enabled: true,
   },
 
@@ -414,6 +448,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["related_stones", "related_minerals"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı taş bilgi kütüphanesi).
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -471,6 +507,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["blends_well_with"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı yağ kütüphanesi).
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -489,6 +527,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı referans sheet); reference-rows parent'ı.
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -505,6 +545,7 @@ export const YH_INDEX_SOURCES = [
       parentTable: "aromatherapy_reference_sheets",
       parentTenantColumn: "tenant_id",
       allowSharedNull: true, // parent sheet tenant NULL ise shared miras alınır
+      parentActiveColumn: "is_active", // Worker-v2: parent sheet is_active=false → child current-state DIŞI
     },
     titleColumns: [], // başlık cells JSONB'den türetilir → builder
     searchTextColumns: ["cells"], // jsonb; hücre metni çıkarımı builder'da
@@ -513,6 +554,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: null, // yalnız created_at var → content_hash
     activeColumn: null,
+    // Worker-v2: parent (reference-sheets) türevi scope + shared-optional (parent sheet NULL→shared) + parent-side capture.
+    workerCapabilities: ["shared-optional-professional", "parent-derived-scope"],
     enabled: true,
   },
   {

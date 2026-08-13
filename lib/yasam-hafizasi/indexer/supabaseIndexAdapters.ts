@@ -30,7 +30,7 @@ import {
 } from "./indexWritePlan";
 import { parentTenantMapKey } from "./parentTenantLookup";
 import type { ParentTenantReader, SourceReader } from "./runSource";
-import type { SourceConfig } from "./sources";
+import { hasWorkerCapability, type SourceConfig } from "./sources";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 export const PARENT_CHUNK_SIZE = 200;
@@ -68,8 +68,11 @@ export interface IndexDbClient {
 // (from().delete({count}).eq()...) worker facade'ında UNSAFE CAST'SİZ delege edilir.
 export interface IndexDeleteQuery {
   readonly table: string;
-  /** Birlikte AND'lenecek eşitlik filtreleri (kolon, değer). */
-  readonly filters: ReadonlyArray<readonly [column: string, value: string]>;
+  /**
+   * Birlikte AND'lenecek filtreler (kolon, değer). Worker-v2: değer `null` ise IS NULL semantiği
+   * (SHARED satır deindex'i: tenant_id IS NULL); aksi eşitlik (`.eq`). Facade `.eq`/`.is` seçer.
+   */
+  readonly filters: ReadonlyArray<readonly [column: string, value: string | null]>;
   /** Silinen satır sayısı için `count: "exact"` zorunlu. */
   readonly count: "exact";
 }
@@ -172,6 +175,25 @@ export function createSupabaseParentTenantReader(db: IndexDbClient): ParentTenan
           if (typeof tenant === "string") map.set(key, tenant);
           else if (tenant === null) map.set(key, null);
           // aksi (beklenmedik tip): map'e girmez → found:false → parent-not-found (fail-closed)
+        }
+      }
+      return map;
+    },
+
+    // Worker-v2: parent aktiflik kolonunu toplu oku (id → kolon===true). Parent bulunamayan id
+    // map'te YER ALMAZ → çağıran fail-closed. Yalnız minimal (id + activeColumn) select; `*` yok.
+    readParentActive: async ({ parentTable, parentActiveColumn, parentIds }) => {
+      const map = new Map<string, boolean>();
+      for (const c of chunk(parentIds, PARENT_CHUNK_SIZE)) {
+        const { data, error } = await db
+          .from(parentTable)
+          .select(`id,${parentActiveColumn}`)
+          .in("id", c);
+        if (error) throw new Error("parent-active-read-failed"); // chunk hatası → FATAL
+        for (const row of data ?? []) {
+          const id = row["id"];
+          if (typeof id !== "string" || id.length === 0) continue;
+          map.set(id, row[parentActiveColumn] === true);
         }
       }
       return map;
@@ -348,7 +370,8 @@ export type DeindexStatus =
 export interface DeindexInput {
   readonly config: SourceConfig;
   readonly sourceId: string;
-  readonly tenantId: string;
+  /** Worker-v2: SHARED satır deindex'inde `null` (tenant_id IS NULL); tenant-scoped'ta UUID. */
+  readonly tenantId: string | null;
 }
 export interface DeindexResult {
   readonly status: DeindexStatus;
@@ -361,17 +384,28 @@ export interface IndexDeindexer {
 export function createSupabaseIndexDeindexer(db: IndexDeleteClient): IndexDeindexer {
   return {
     deindex: async ({ config, sourceId, tenantId }) => {
-      // Fail-closed model kapısı (okuma/silme yapılmadan): column|join (non-shared) + record|row.
-      // global-canonical + shared kaynak desteklenmez.
+      // Fail-closed model kapısı (okuma/silme yapılmadan): column|join + record|row VEYA Worker-v2
+      // capability (shared-optional-professional / section-unit). global-canonical desteklenmez;
+      // capability YOK ise shared/section hâlâ fail-closed.
+      const sharedCapable = hasWorkerCapability(config, "shared-optional-professional");
+      const sectionCapable = hasWorkerCapability(config, "section-unit");
       if (
         (config.tenant.mode !== "column" && config.tenant.mode !== "join") ||
-        config.tenant.allowSharedNull === true ||
-        (config.unit !== "record" && config.unit !== "row")
+        (config.tenant.allowSharedNull === true && !sharedCapable) ||
+        (config.unit !== "record" &&
+          config.unit !== "row" &&
+          !(config.unit === "section" && sectionCapable))
       ) {
         return { status: "tenant-model-unsupported", deleted: 0 };
       }
+      // SHARED (tenant NULL) event yalnız shared-capable kaynak için geçerli; aksi fail-closed
+      // (yanlışlıkla tüm tenant'ları IS NULL ile silmeyi ENGELLE).
+      if (tenantId === null && !sharedCapable) {
+        return { status: "tenant-model-unsupported", deleted: 0 };
+      }
 
-      // Tenant-scoped fiziksel silme (source_table + source_id + tenant_id birlikte).
+      // Fiziksel silme (source_table + source_id + tenant scope birlikte). Worker-v2: tenantId null →
+      // IS NULL (SHARED referans satırı); aksi tenant-scoped eşitlik. Facade `.is`/`.eq` seçer.
       const { error, count } = await db.deleteRows({
         table: YH_TABLES.index,
         filters: [
