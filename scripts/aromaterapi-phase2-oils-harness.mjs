@@ -82,6 +82,25 @@ check("Blend essential server typeahead: q(search) + abort signal",
 check("Blend carrier serbest-metin fallback (pickCarrier opsiyonel id-linkage; erişilemez değil)",
   /function pickCarrier/.test(BLEND) && /setCarrierId\(match \? match\.id : null\)/.test(BLEND));
 
+// --- Blend typeahead scope (kimlik-only arama; içerik-alan kirliliği YOK) ----
+check("fetchOilSearch typeahead qmode=name gönderir",
+  /export async function fetchOilSearch[\s\S]*?buildQuery\(\{[^}]*qmode:\s*"name"[^}]*\}\)/.test(DATA));
+check("fetchOilSearch boş-q'da sıralamayı değiştirmez (carrier lookup korunur)",
+  /const trimmed = q\.trim\(\);[\s\S]*?if \(!trimmed\) return \{ rows, error: null \}/.test(DATA));
+check("fetchOilSearch name-öncelikli sıralama (prefix>contains>latin/english, foldForSearch)",
+  /foldForSearch\(trimmed\)/.test(DATA) && /startsWith\(needle\)/.test(DATA) && /includes\(needle\)/.test(DATA));
+// Server: qmode=name → yalnız kimlik kolonları; default → search_norm (Yağlar Kütüphanesi).
+check("Route qmode=name branch → name/latin_name/english_name ILIKE (kimlik-only)",
+  /qmode"\)\s*===\s*"name"/.test(API) &&
+  /buildOrIlike\(\["name",\s*"latin_name",\s*"english_name"\]/.test(API));
+check("Route default arama search_norm (Yağlar Kütüphanesi DEĞİŞMEDİ)",
+  /buildSearchNormIlike\(p\.q\)/.test(API));
+// name-scope içerik kolonu SIZDIRMAZ (benefits/usage/aroma/safety/search_norm branch'te yok).
+const nameScopeCols = (API.match(/buildOrIlike\(\[([^\]]*)\]/) || ["", ""])[1];
+check("Route name-scope içerik alanı SIZDIRMAZ (benefits/usage/aroma/safety/search_norm YOK)",
+  !/benefits|usage|aroma|safety|search_norm|main_components|origin/.test(nameScopeCols),
+  `cols=${nameScopeCols}`);
+
 // --- OilsPage modern pipeline ----------------------------------------------
 const OILS = read("app/aromaterapi/_components/OilsPage.tsx");
 check("OilsPage useAromaterapiListQuery reuse", /useAromaterapiListQuery<OilListRow>/.test(OILS));
