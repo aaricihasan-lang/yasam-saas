@@ -332,6 +332,26 @@ export function foldForSearch(value: string): string {
   return normalizeForSearch(value);
 }
 
+/**
+ * FAZ 3 — "İçerikte geçiyor" rozet türetimi (Yağlar Kütüphanesi geniş araması).
+ * Kütüphane sunucuda `search_norm` (21 alan) ile eşleştirir; satır döndüyse sorgu bir
+ * yerde eşleşti. Sorgu 3 KİMLİK alanının (name/latin_name/english_name) hiçbirinde yoksa
+ * → yalnız İÇERİK alanında eşleşmiştir → kart "İçerikte geçiyor" rozeti gösterir.
+ * `normalizeForSearch` KULLANILIR (sunucu search_norm ile byte-eş; foldForSearch DEĞİL,
+ * ileride ayrışsa diye açık bağımlılık). Boş sorgu → false (rozet yok). Payload/DB/server
+ * match-context DEĞİŞMEZ — tümü mevcut projeksiyon alanlarından client-side türetilir.
+ */
+export function matchedOnlyInContent(
+  row: Pick<OilListRow, "name" | "latin_name" | "english_name">,
+  query: string,
+): boolean {
+  const qn = normalizeForSearch(query);
+  if (!qn) return false; // arama boş → rozet yok
+  // Array.join null/undefined'ı "" yapar → NULL-safe kimlik birleşimi.
+  const identity = normalizeForSearch([row.name, row.latin_name, row.english_name].join(" "));
+  return !identity.includes(qn); // kimlikte yok → içerik-only eşleşme
+}
+
 // Arama alanları — TEK ortak kaynak. matchesOilSearch (blend araması) ve
 // buildOilSearchBlob (OilsPage indeksi) aynı listeyi kullanır → alan listesi drift etmez.
 // Dizi alanları (therapeutic_properties, target_systems) düz string'lere açılır.

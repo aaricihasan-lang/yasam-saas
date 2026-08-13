@@ -9,6 +9,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,7 @@ import {
   fetchOilCounts,
   buildOilSearchBlob,
   foldForSearch,
+  matchedOnlyInContent,
   oilListRowPreview,
   oilTypeBadgeClass,
   oilTypeLabel,
@@ -31,6 +33,9 @@ import {
   type OilListRow,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
+import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { useDialogA11y } from "@/app/aromaterapi/_components/write/useDialogA11y";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadPagination } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { messageForCode, type ListResult } from "@/lib/aromaterapi/readClient";
@@ -287,6 +292,28 @@ function NewOilForm({
     [formTab],
   );
 
+  // FAZ 3 — GERÇEK dirty: form pristine (boş + defaultOilType) ile karşılaştırılır;
+  // yalnız gerçekten değişiklik varsa guard aktif (false-positive uyarı yok).
+  const pristine = useMemo<OilFormData>(
+    () => ({ ...EMPTY_OIL_FORM, oil_type: defaultOilType }),
+    [defaultOilType],
+  );
+  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(pristine), [form, pristine]);
+  useAromaterapiDirtyGuard(isDirty); // beforeunload (yenile/sekme kapat)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  function requestBack() { if (isDirty) setLeaveConfirmOpen(true); else onBack(); }
+
+  // Büyük-metin editörü erişilebilirliği — ESC + odak tuzağı + odak iadesi.
+  const largePanelRef = useRef<HTMLDivElement | null>(null);
+  const largeTextRef = useRef<HTMLTextAreaElement | null>(null);
+  const largeTitleId = useId();
+  useDialogA11y({
+    open: largeKey !== null,
+    onClose: () => setLargeKey(null),
+    panelRef: largePanelRef,
+    initialFocusRef: largeTextRef,
+  });
+
   function setField(key: keyof OilFormData, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -391,7 +418,7 @@ function NewOilForm({
         <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-amber-100/70 bg-white/80 px-5 shadow sm:px-6">
           <button
             type="button"
-            onClick={onBack}
+            onClick={requestBack}
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-300/55 bg-gradient-to-r from-amber-500 to-rose-400 px-3.5 text-[12px] font-black text-white shadow-md ring-1 ring-white/35 transition hover:brightness-105"
           >
             <span aria-hidden className="text-sm leading-none">←</span>
@@ -570,7 +597,7 @@ function NewOilForm({
               </button>
               <button
                 type="button"
-                onClick={onBack}
+                onClick={requestBack}
                 className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
               >
                 İptal
@@ -580,19 +607,28 @@ function NewOilForm({
         </div>
       </div>
 
-      {/* Büyük metin editörü */}
+      {/* Büyük metin editörü — erişilebilir diyalog (useDialogA11y: ESC/focus-trap/iade). */}
       {largeKey ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-4 backdrop-blur-sm">
-          <div className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl" role="dialog" aria-modal="true">
-            <h3 className="mb-4 text-[18px] font-black text-slate-950">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-4 backdrop-blur-sm"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setLargeKey(null); }}
+        >
+          <div
+            ref={largePanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={largeTitleId}
+            className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl"
+          >
+            <h3 id={largeTitleId} className="mb-4 text-[18px] font-black text-slate-950">
               {FIELD_META[largeKey]?.label ?? largeKey}
             </h3>
             <textarea
+              ref={largeTextRef}
               value={largeValue}
               onChange={(e) => setLargeValue(e.target.value)}
               placeholder={FIELD_META[largeKey]?.placeholder}
               className="h-[min(420px,52vh)] w-full resize-y rounded-2xl border border-amber-100 p-5 text-[15px] leading-7 text-slate-800 outline-none focus:ring-4 focus:ring-amber-100/70"
-              autoFocus
             />
             <div className="mt-4 flex gap-2">
               <button
@@ -613,6 +649,18 @@ function NewOilForm({
           </div>
         </div>
       ) : null}
+
+      {/* Kaydedilmemiş yeni kayıt — çıkış onayı (erişilebilir primitive). */}
+      <AromaterapiConfirmDialog
+        open={leaveConfirmOpen}
+        title="Kaydedilmemiş kayıt"
+        description="Bu yağ kaydını henüz kaydetmediniz. Çıkarsanız girdiğiniz bilgiler kaybolur."
+        confirmLabel="Kaydetmeden Çık"
+        cancelLabel="Düzenlemeye Dön"
+        tone="danger"
+        onConfirm={() => { setLeaveConfirmOpen(false); onBack(); }}
+        onCancel={() => setLeaveConfirmOpen(false)}
+      />
     </>
   );
 }
@@ -743,6 +791,8 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const totalCount = s.total;
   const search = s.qInput;
   const setSearch = s.setQInput;
+  // Rozet UYGULANMIŞ sorguya (satırları üreten s.q) göre — anlık s.qInput'a değil.
+  const appliedQuery = s.q;
   const typeFilter = fixedOilType ?? s.filters.type ?? "all";
   const setTypeFilter = (v: string) => s.setFilter("type", v === "all" ? "" : v);
   const errorMessage = bulkError || (s.errorCode ? messageForCode(s.errorCode) : "");
@@ -911,13 +961,14 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Yağ adı, özellik, etki veya menşei ara…"
+                aria-label="Yağ ara (ad, özellik, etki veya menşei)"
                 className={searchInput}
               />
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <button type="button" onClick={() => setViewMode("card")} className={`${viewBtn} ${viewMode === "card" ? viewBtnActive : viewBtnIdle}`}>Kart</button>
               <button type="button" onClick={() => setViewMode("list")} className={`${viewBtn} ${viewMode === "list" ? viewBtnActive : viewBtnIdle}`}>Liste</button>
-              <button type="button" onClick={() => refresh()} className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
+              <button type="button" onClick={() => refresh()} aria-label="Listeyi yenile" title="Listeyi yenile" className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
             </div>
           </div>
 
@@ -999,6 +1050,14 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black tracking-wide ${oilTypeBadgeClass(row.oil_type)}`}>
                       {oilTypeLabel(row.oil_type)}
                     </span>
+                    {matchedOnlyInContent(row, appliedQuery) ? (
+                      <span
+                        className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                        title="Arama, adında değil içerik alanlarında (fayda, kullanım vb.) eşleşti."
+                      >
+                        İçerikte geçiyor
+                      </span>
+                    ) : null}
                     {row.category.trim() ? (
                       <span className="inline-flex rounded-full border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                         {row.category}
@@ -1083,6 +1142,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(row.oil_type)}`}>
                           {oilTypeLabel(row.oil_type)}
                         </span>
+                        {matchedOnlyInContent(row, appliedQuery) ? (
+                          <span className="mt-0.5 block text-[10px] font-bold text-slate-500" title="Arama içerik alanlarında eşleşti.">İçerikte geçiyor</span>
+                        ) : null}
                         {row.is_photosensitive ? (
                           <span className="mt-0.5 block text-[10px] font-bold text-amber-600">☀️ Fotosensitif</span>
                         ) : null}

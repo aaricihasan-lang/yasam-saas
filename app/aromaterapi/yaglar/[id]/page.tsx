@@ -27,6 +27,8 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/demo/demoAromaterapi";
+import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -337,9 +339,18 @@ export default function OilDetailPage() {
   useEffect(() => { runInEffect(() => { void loadOil(); }); }, [loadOil]);
   useBfcacheRefresh();
 
+  // GERÇEK dirty: yalnız düzenleme AÇIK + taslak pristine'den (kaydedilmiş kayıt)
+  // farklıysa. Sadece editEnabled olması dirty saymaz → false-positive uyarı yok.
+  const isDirty = useMemo(
+    () => editEnabled && draft !== null && oil !== null
+      && JSON.stringify(draft) !== JSON.stringify(oilToFormData(oil)),
+    [editEnabled, draft, oil],
+  );
+  useAromaterapiDirtyGuard(isDirty); // beforeunload (yenile/sekme kapat)
+
   function handleNavigation(href: string) {
-    if (editEnabled) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
-    else router.push(href);
+    if (isDirty) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
+    else { setEditEnabled(false); router.push(href); }
   }
   function confirmLeave() { setLeaveConfirmOpen(false); setEditEnabled(false); if (pendingNavHref) router.push(pendingNavHref); setPendingNavHref(null); }
   function cancelLeave() { setLeaveConfirmOpen(false); setPendingNavHref(null); }
@@ -820,59 +831,38 @@ export default function OilDetailPage() {
 
       </div>
 
-      {/* Kaydedilmemiş değişiklik onayı */}
-      {leaveConfirmOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
-            <div className="mb-1 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
-              KAYDEDİLMEMİŞ DEĞİŞİKLİK
-            </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Değişiklikleriniz kaydedilmedi</h2>
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-              Düzenleme modunda kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?
-            </p>
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => { cancelLeave(); void handleSave(); }} disabled={saving}
-                className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 py-2.5 text-[12px] font-black text-white shadow hover:brightness-105 disabled:opacity-60">
-                Kaydet ve Çık
-              </button>
-              <button type="button" onClick={confirmLeave}
-                className="rounded-2xl bg-slate-100 px-4 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200">
-                Kaydetmeden Çık
-              </button>
-              <button type="button" onClick={cancelLeave}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-black text-slate-600 hover:bg-slate-50">
-                İptal
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* Kaydedilmemiş değişiklik onayı — erişilebilir diyalog primitifi (focus-trap/ESC). */}
+      <AromaterapiConfirmDialog
+        open={leaveConfirmOpen}
+        title="Değişiklikleriniz kaydedilmedi"
+        description="Düzenleme modunda kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?"
+        confirmLabel="Kaydet ve Çık"
+        cancelLabel="İptal"
+        confirmDisabled={saving}
+        onConfirm={() => { cancelLeave(); void handleSave(); }}
+        onCancel={cancelLeave}
+      >
+        <button
+          type="button"
+          onClick={confirmLeave}
+          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
+        >
+          Kaydetmeden Çık
+        </button>
+      </AromaterapiConfirmDialog>
 
-      {/* Silme onayı */}
-      {deleteConfirmOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
-            <div className="mb-1 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-rose-700 ring-1 ring-rose-100">
-              ONAY
-            </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Bu yağ kaydını silmek istiyor musunuz?</h2>
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-              Bu işlem geri alınamaz. <strong>{oil.name}</strong> kaydı kalıcı olarak silinecek.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}
-                className="rounded-2xl bg-slate-100 px-5 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200 disabled:opacity-50">
-                Vazgeç
-              </button>
-              <button type="button" onClick={() => void handleDelete()} disabled={deleting}
-                className="rounded-2xl bg-rose-600 px-5 py-2.5 text-[12px] font-black text-white shadow hover:bg-rose-700 disabled:opacity-60">
-                {deleting ? "Siliniyor…" : "Evet, Sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* Silme onayı — erişilebilir diyalog primitifi (danger tone). */}
+      <AromaterapiConfirmDialog
+        open={deleteConfirmOpen}
+        tone="danger"
+        title="Bu yağ kaydını silmek istiyor musunuz?"
+        description={<>Bu işlem geri alınamaz. <strong>{oil.name}</strong> kaydı kalıcı olarak silinecek.</>}
+        confirmLabel={deleting ? "Siliniyor…" : "Evet, Sil"}
+        cancelLabel="Vazgeç"
+        confirmDisabled={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </main>
   );
 }

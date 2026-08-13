@@ -9,6 +9,7 @@ import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecete
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import {
   fetchOilSearch,
   fetchOilDetail,
@@ -85,6 +86,13 @@ export default function KarisimOlusturucuPage() {
   const [printBlend, setPrintBlend] = useState<PrintableBlend | null>(null);
   const [printDate, setPrintDate] = useState("");
   const expertName = useMemo(() => getYasamUserDisplayName(readYasamUser()), []);
+
+  // FAZ 3 — kaydedilmemiş karışım koruması (beforeunload). Boş/pristine builder'da
+  // guard YOK (false-positive yok); ad/not/taşıyıcı/yağ girildiyse aktifleşir. Kayıt
+  // başarılı → resetForm() içerikleri temizler → isBlendDirty false olur.
+  const isBlendDirty =
+    name.trim() !== "" || notes.trim() !== "" || carrierName.trim() !== "" || items.length > 0;
+  useAromaterapiDirtyGuard(isBlendDirty);
 
   // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.
   useEffect(() => {
@@ -407,9 +415,9 @@ export default function KarisimOlusturucuPage() {
                       </p>
                       {it.latin_name.trim() ? <p className="truncate text-[10px] italic text-slate-400">{it.latin_name}</p> : null}
                     </div>
-                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, Number(e.target.value))} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
+                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, Number(e.target.value))} aria-label={`${it.oil_name} damla sayısı`} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
                     <span className="text-[10px] font-bold text-slate-400">damla</span>
-                    <button type="button" onClick={() => removeOil(it.oil_id, idx)} className="shrink-0 rounded-lg px-1.5 py-1 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
+                    <button type="button" onClick={() => removeOil(it.oil_id, idx)} aria-label={`${it.oil_name} karışımdan çıkar`} title="Çıkar" className="shrink-0 rounded-lg px-1.5 py-1 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
                 ))}
               </div>
@@ -460,7 +468,7 @@ export default function KarisimOlusturucuPage() {
                 <div key={b.id} className="rounded-xl border border-amber-100 bg-white/85 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 truncate text-[13px] font-black text-slate-900">{b.name}</p>
-                    <button type="button" onClick={() => void handleDeleteSaved(b)} className="shrink-0 rounded-lg px-1.5 py-0.5 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
+                    <button type="button" onClick={() => void handleDeleteSaved(b)} aria-label={`${b.name} karışımını sil`} title="Sil" className="shrink-0 rounded-lg px-1.5 py-0.5 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                     {b.bottle_ml} ml · %{b.dilution_percent} · {b.total_drops} damla · {b.items.length} yağ
