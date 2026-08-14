@@ -96,6 +96,45 @@ export function chakraBlockHasContent(b: ChakraContentBlock): boolean {
   return CONTENT_LAYER_KEYS.some((k) => (b[k] ?? "").trim().length > 0);
 }
 
+/**
+ * FAZ 3.3E — gizli kaynak-kanıtı block tipi. Bu satırlar normal Çakra detayında
+ * RENDER EDİLMEZ; yalnız sayfa sonundaki TEK Kaynakça'yı (distinct eser) besler.
+ */
+export const SOURCE_EVIDENCE_BLOCK_TYPE = "source-evidence";
+
+/** Görünür (uzman-facing) block mı? source-evidence → görünür DEĞİL. */
+export function isVisibleChakraBlock(b: ChakraContentBlock): boolean {
+  return b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE;
+}
+
+export type ChakraBibliographyEntry = { title: string; author: string | null };
+
+/**
+ * TEK Kaynakça — yalnız `source-evidence` satırlarından distinct (source_title,
+ * source_author). Boş/null başlık elenir; aynı eser tekrar gösterilmez. Ana
+ * içerikte kaynak adı gösterilmez; bibliyografya yalnız burada. (V4: 11 eser.)
+ */
+export function deriveChakraBibliography(
+  blocks: ChakraContentBlock[],
+): ChakraBibliographyEntry[] {
+  const seen = new Set<string>();
+  const out: ChakraBibliographyEntry[] = [];
+  for (const b of blocks) {
+    if (b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE) continue;
+    const title = (b.source_title ?? "").trim();
+    if (!title) continue;
+    const author = (b.source_author ?? "").trim();
+    const key = `${title}${author}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ title, author: author || null });
+  }
+  out.sort((a, b) =>
+    a.title < b.title ? -1 : a.title > b.title ? 1 : (a.author ?? "") < (b.author ?? "") ? -1 : 1,
+  );
+  return out;
+}
+
 const QUICK_FACT_LABELS: { key: keyof ChakraQuickFacts; label: string }[] = [
   { key: "sanskritName", label: "Sanskritçe Ad" },
   { key: "element", label: "Element" },
@@ -141,9 +180,12 @@ export function buildChakraWorkspace(
   const legacy = buildChakraSections(record, { stonesVisible: opts.stonesVisible });
   const legacyById = new Map<string, ChakraSection>(legacy.map((s) => [s.id, s]));
 
-  // 2) rich blokları section_key altında grupla (yalnız non-empty), sırala
+  // 2) rich blokları section_key altında grupla (yalnız GÖRÜNÜR + non-empty), sırala.
+  //    source-evidence (gizli kaynak-kanıtı) satırları ana içerikte gösterilmez;
+  //    yalnız sayfa sonundaki Kaynakça'yı besler (deriveChakraBibliography).
   const richBySection = new Map<string, ChakraContentBlock[]>();
   for (const b of blocks) {
+    if (!isVisibleChakraBlock(b)) continue;
     if (!chakraBlockHasContent(b)) continue;
     const arr = richBySection.get(b.section_key) ?? [];
     arr.push(b);
