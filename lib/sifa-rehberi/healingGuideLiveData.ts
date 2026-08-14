@@ -543,6 +543,101 @@ export async function fetchHealingGuideList(
 }
 
 /**
+ * EK FAZ 1 — server-side bounded arama/list sayfası.
+ *   Boş q → A–Z bounded liste; dolu q → tenant-bağlı substring arama (pg_trgm).
+ *   Tüm dataset ARTIK client'a inmez. AbortController ile stale-request iptali desteklenir.
+ */
+export type GuideSearchPage = {
+  rows: HealingGuideListRow[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  error: string | null;
+};
+
+export async function fetchGuideSearchPage(opts: {
+  q?: string;
+  category?: string | null;
+  limit?: number;
+  cursor?: string | null;
+  signal?: AbortSignal;
+}): Promise<GuideSearchPage> {
+  const sp = new URLSearchParams();
+  if (opts.q && opts.q.trim() !== "") sp.set("q", opts.q);
+  if (opts.category && opts.category.trim() !== "") sp.set("category", opts.category);
+  if (opts.limit) sp.set("limit", String(opts.limit));
+  if (opts.cursor) sp.set("cursor", opts.cursor);
+  const qs = sp.toString();
+
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides${qs ? `?${qs}` : ""}`, {
+      headers: authHeaders(),
+      signal: opts.signal,
+    });
+  } catch (e) {
+    // Abort → çağırana ilet (yarış koruması); diğer ağ hataları → kullanıcı mesajı.
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    return { rows: [], hasMore: false, nextCursor: null, error: "Sunucuya ulaşılamadı." };
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    rows?: unknown;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    error?: string;
+  };
+
+  if (!res.ok || json.ok !== true) {
+    return {
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+      error: json.error ?? `Kayıtlar alınamadı (HTTP ${res.status}).`,
+    };
+  }
+
+  const rawRows = (json.rows ?? []) as RawGuideRow[];
+  const rows = rawRows
+    .map((row) => mapListRow(row))
+    .filter((row): row is HealingGuideListRow => Boolean(row));
+
+  // SWR: sayfa satırlarının detayını seed et (mevcut davranış korunur).
+  for (const raw of rawRows) {
+    const d = mapRawRowToDetail(raw);
+    if (d.guide.id && !detailCache.has(d.guide.id)) {
+      detailCache.set(d.guide.id, { detail: d, ts: Date.now() });
+    }
+  }
+
+  return {
+    rows,
+    hasMore: json.hasMore === true,
+    nextCursor: json.nextCursor ?? null,
+    error: null,
+  };
+}
+
+/** Tenant kategori facet'i — /api/sifa-rehberi/guides/categories (GET). */
+export async function fetchGuideCategories(): Promise<{ categories: string[]; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/sifa-rehberi/guides/categories", { headers: authHeaders() });
+  } catch {
+    return { categories: [], error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    categories?: string[];
+    error?: string;
+  };
+  if (!res.ok || json.ok !== true) {
+    return { categories: [], error: json.error ?? "Kategoriler alınamadı." };
+  }
+  return { categories: Array.isArray(json.categories) ? json.categories : [], error: null };
+}
+
+/**
  * Detay — /api/sifa-rehberi/guides/[id] (GET). tenantId parametresi geriye-uyum
  * için korunur; sunucu gerçek tenant'ı session'dan zorlar.
  */

@@ -20,10 +20,10 @@ import {
   countListFilledSections,
   createHealingGuide,
   deleteHealingGuides,
-  fetchHealingGuideList,
+  fetchGuideSearchPage,
+  fetchGuideCategories,
   listRowPreview,
   matchesListSearch,
-  peekCachedList,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { SUGGESTED_CATEGORIES } from "@/lib/sifa-rehberi/categories";
@@ -360,36 +360,84 @@ function SifaRehberiContent() {
   const [lightbox, setLightbox] = useState<GuideImage | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
-  async function loadGuides(tenantId: string) {
-    setErrorMessage("");
-    setSuccessMessage("");
+  // EK FAZ 1 — server-side bounded arama + keyset "daha fazla yükle".
+  const PAGE_LIMIT = 50;
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [serverCategories, setServerCategories] = useState<string[]>([]);
+  // Yarış koruması: her yeni arama bir sequence alır; yalnız en güncel yanıt uygulanır.
+  const searchSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-    // Demo hesap — Supabase atlanır, zengin fixture bilgi bankası gösterilir.
+  /**
+   * Server araması (real hesap). append=false → yeni arama (rows replace, cursor reset,
+   * eski istek abort). append=true → "daha fazla yükle" (rows append, aynı q/category).
+   * Stale yanıt (sequence eskiyse) YOK SAYILIR → eski query yeni sonucu ezemez.
+   */
+  const runSearch = useCallback(
+    async (q: string, category: string, append: boolean) => {
+      if (isDemo) return; // demo: client-side filtre (fixture)
+
+      const seq = ++searchSeqRef.current;
+      if (!append) {
+        abortRef.current?.abort();
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      let page;
+      try {
+        page = await fetchGuideSearchPage({
+          q,
+          category: category.trim() === "" ? null : category,
+          limit: PAGE_LIMIT,
+          cursor: append ? nextCursor : null,
+          signal: controller.signal,
+        });
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return; // yeni arama devraldı
+        page = { rows: [], hasMore: false, nextCursor: null, error: "Sunucuya ulaşılamadı." };
+      }
+
+      // Stale guard: bu yanıt en güncel arama değilse uygulama.
+      if (seq !== searchSeqRef.current) return;
+
+      if (!append) setLoading(false);
+      else setLoadingMore(false);
+
+      if (page.error) {
+        if (!append) setErrorMessage(`Kayıtlar alınamadı: ${page.error}`);
+        return;
+      }
+
+      setErrorMessage("");
+      setHasMore(page.hasMore);
+      setNextCursor(page.nextCursor);
+      setRows((prev) => (append ? [...prev, ...page.rows] : page.rows));
+    },
+    [isDemo, nextCursor],
+  );
+
+  /** Mutasyon sonrası mevcut aramayı + kategori facet'ini tazele (ilk sayfa). */
+  async function loadGuides() {
     if (isDemo) {
       setRows(getDemoGuideListRows());
       setLoading(false);
       return;
     }
+    await runSearch(search, categoryFilter, false);
+    // Kategori facet'i (create/delete yeni/kayıp kategori üretmiş olabilir).
+    const { categories } = await fetchGuideCategories();
+    setServerCategories(categories);
+  }
 
-    // SWR: önbellekte liste varsa anında göster (spinner yok), sonra revalidate et.
-    const cached = peekCachedList();
-    if (cached) {
-      setRows(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-
-    const { rows: nextRows, error } = await fetchHealingGuideList(tenantId);
-
-    if (!cached) setLoading(false);
-
-    if (error) {
-      if (!cached) setErrorMessage(`Kayıtlar alınamadı: ${error}`);
-      return;
-    }
-
-    setRows(nextRows);
+  function loadMore() {
+    if (loadingMore || !hasMore) return;
+    void runSearch(search, categoryFilter, true);
   }
 
   useEffect(() => {
@@ -410,10 +458,24 @@ function SifaRehberiContent() {
           setRows([]);
           return;
         }
-        await loadGuides(tenantId);
+        // İlk sayfa + kategori facet'i, aşağıdaki debounce'lu arama efekti tarafından yüklenir.
+        const { categories } = await fetchGuideCategories();
+        setServerCategories(categories);
       })();
     });
-  }, []);
+  }, [isDemo]);
+
+  // Debounce'lu server araması: q/kategori değişince ilk sayfayı yeniden çeker (real hesap).
+  // Boş q → A–Z bounded liste; her tuşta DB'yi dövmez (~280ms). İlk yük de buradan gelir.
+  useEffect(() => {
+    if (isDemo || !queryTenantId) return;
+    const t = setTimeout(() => {
+      void runSearch(search, categoryFilter, false);
+    }, 280);
+    return () => clearTimeout(t);
+    // runSearch kasıtlı dışarıda: nextCursor değişimi yeniden aramayı tetiklemesin.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo, queryTenantId, search, categoryFilter]);
 
   useEffect(() => {
     const fromQuery = pageViewFromQueryParam(searchParams.get("view"));
@@ -441,7 +503,7 @@ function SifaRehberiContent() {
     }
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode === "all" ? "all" : "selected" };
+      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode };
       if (mode === "selected") {
         const arr = [...selectedForExport];
         if (!arr.length) {
@@ -450,12 +512,14 @@ function SifaRehberiContent() {
         }
         body.ids = arr;
       } else if (mode === "filtered") {
-        const arr = filteredRows.map((r) => r.id);
-        if (!arr.length) {
+        // KRİTİK: client id listesi GÖNDERİLMEZ (ilk sayfa 50 iken 240 eşleşme kesilirdi).
+        // Server aynı arama semantiğiyle TÜM eşleşen id'leri kendisi çözer.
+        if (rows.length === 0) {
           showToast({ title: "Uyarı", message: "Filtrelenmiş sonuç yok.", type: "warning" });
           return;
         }
-        body.ids = arr;
+        body.q = search;
+        body.category = categoryFilter.trim() === "" ? null : categoryFilter;
       }
       const res = await fetch("/api/sifa-rehberi/word-report", {
         method: "POST",
@@ -552,26 +616,31 @@ function SifaRehberiContent() {
     router.push("/sifa-rehberi?view=list");
   }
 
+  // Real hesap: rows ZATEN server-side filtrelenmiş + fold(name) A–Z sıralı gelir
+  // (keyset ile tutarlı). Client yeniden filtrelemez/sıralamaz — aksi hâlde sayfa
+  // sınırında yeniden sıralama olurdu. Demo: fixture üzerinde client-side filtre.
   const filteredRows = useMemo(() => {
+    if (!isDemo) return rows;
     const cat = categoryFilter.trim();
     const list = rows.filter(
       (row) =>
         matchesListSearch(row, search) &&
         (cat === "" || (row.category?.trim() ?? "") === cat),
     );
-    return [...list].sort((a, b) =>
-      (a.name || "").localeCompare(b.name || "", "tr-TR")
-    );
-  }, [rows, search, categoryFilter]);
+    return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr-TR"));
+  }, [isDemo, rows, search, categoryFilter]);
 
+  // Real hesap: kategori facet'i server'dan (ilk sayfada olmayan kategori kaybolmasın).
+  // Demo: fixture satırlarından türet.
   const categoryOptions = useMemo(() => {
+    if (!isDemo) return serverCategories;
     const set = new Set<string>();
     rows.forEach((r) => {
       const c = r.category?.trim();
       if (c) set.add(c);
     });
     return [...set].sort((a, b) => a.localeCompare(b, "tr-TR"));
-  }, [rows]);
+  }, [isDemo, rows, serverCategories]);
 
   // "0 Kategori" sayacı teknik olarak doğru kalır: dolu kategori sayısı.
   const categoryCount = categoryOptions.length;
@@ -681,7 +750,7 @@ function SifaRehberiContent() {
     }
 
     resetForm();
-    await loadGuides(queryTenantId);
+    await loadGuides();
     setPageView("list");
     router.push("/sifa-rehberi?view=list");
     // Başarı geri bildirimi toast ile verilir; loadGuides successMessage'ı
@@ -1183,7 +1252,7 @@ function SifaRehberiContent() {
               <button
                 type="button"
                 onClick={() => {
-                  if (queryTenantId) void loadGuides(queryTenantId);
+                  if (queryTenantId) void loadGuides();
                 }}
                 className={`${listViewBtn} ${uiViewBtnIdle}`}
               >
@@ -1202,8 +1271,8 @@ function SifaRehberiContent() {
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2.5">
             <p className="text-[11px] font-bold text-slate-400">
               {search.trim()
-                ? `${filteredRows.length} sonuç`
-                : `${filteredRows.length} kayıt (A–Z)`}
+                ? `${filteredRows.length}${hasMore ? "+" : ""} sonuç`
+                : `${filteredRows.length}${hasMore ? "+" : ""} kayıt (A–Z)`}
             </p>
             {loading && (
               <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
@@ -1369,6 +1438,20 @@ function SifaRehberiContent() {
               })}
             </div>
           )}
+
+          {/* Keyset "Daha Fazla Yükle" — server-side bounded liste (real hesap). */}
+          {!isDemo && !loading && filteredRows.length > 0 && hasMore ? (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn-secondary rounded-full px-6 py-2 text-sm font-black disabled:opacity-60"
+              >
+                {loadingMore ? "Yükleniyor..." : "Daha Fazla Yükle"}
+              </button>
+            </div>
+          ) : null}
         </section>
         ) : null}
       </div>
