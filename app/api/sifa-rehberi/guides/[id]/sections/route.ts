@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateSectionsBody } from "@/lib/sifa-rehberi/limits";
 import { normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
+import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
 export const runtime = "nodejs";
 
@@ -62,7 +63,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .maybeSingle();
 
   if (guideErr) {
-    return NextResponse.json({ ok: false, error: guideErr.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]/sections", action: "PUT.ownerCheck", tenantId, cause: guideErr });
   }
   if (!guideRow) {
     return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
@@ -77,15 +78,17 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   });
 
   if (rpcErr) {
-    const msg = rpcErr.message || "Bölümler kaydedilemedi.";
+    const msg = rpcErr.message || "";
     // RPC tenant binding hatası → 404 (cross-tenant sızıntısı yok).
     if (msg.includes("guide_not_found_for_tenant")) {
       return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
     }
-    const status = /invalid_section_type|sections_must_be_array|invalid_arguments/.test(msg)
-      ? 400
-      : 500;
-    return NextResponse.json({ ok: false, error: msg }, { status });
+    // Kontrollü doğrulama tokenları → güvenli 400 (ham RPC/Postgres metni SIZMAZ).
+    if (/invalid_section_type|sections_must_be_array|invalid_arguments/.test(msg)) {
+      return NextResponse.json({ ok: false, error: "Bölüm verisi geçersiz." }, { status: 400 });
+    }
+    // Beklenmeyen iç hata → sanitize 500 (+ sunucu diagnostiği).
+    return serverErrorResponse({ route: "sifa/guides/[id]/sections", action: "PUT.replace", tenantId, cause: rpcErr });
   }
 
   const result = (data ?? null) as ReplaceResult;

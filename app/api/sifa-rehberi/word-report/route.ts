@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { chunkIds, orderRowsByIds } from "@/lib/sifa-rehberi/idBatch";
 import {
   bodyText,
   buildFooter,
@@ -29,7 +31,7 @@ export const runtime = "nodejs";
 const C_SIFA = "059669";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ExportMode = "all" | "selected" | "single";
+type ExportMode = "all" | "selected" | "single" | "filtered";
 
 // ── Section tablosu yapısı ────────────────────────────────────────────────────
 type SectionRow = {
@@ -336,10 +338,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", ids, id, clientId, selectionGroupId } = body as {
+  const { exportMode = "all", ids, id, clientId, selectionGroupId, q, category } = body as {
     exportMode?: ExportMode;
     ids?: string[];
     id?: string;
+    // FAZ EK1: "filtered" export — server, mevcut arama semantiğiyle TÜM eşleşen id'leri
+    // çözer (UI ilk-sayfa limit'ine BAĞLI DEĞİL). Client yalnız {q, category} gönderir.
+    q?: string;
+    category?: string | null;
     // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
     clientId?: string;
     selectionGroupId?: string;
@@ -372,22 +378,70 @@ export async function POST(request: NextRequest): Promise<Response> {
     )
   `;
 
-  // Export sorgularında body tenantId değil, DB'den doğrulanmış verifiedTenantId kullanılır
-  let query = db.from("healing_guides")
-    .select(SELECT)
-    .eq("tenant_id", verifiedTenantId);
-
-  if (exportMode === "single" && id) {
-    query = query.eq("id", id);
-  } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
-    query = query.in("id", ids);
+  // "filtered": TÜM eşleşen guide id'lerini server-side çöz (arama semantiği = UI arama;
+  // UI ilk-sayfa limit'ine BAĞLI DEĞİL). Böylece 137 eşleşme varken 50/100 ile sınırlanmaz.
+  let filteredIds: string[] | null = null;
+  if (exportMode === "filtered") {
+    const { data: idRows, error: idErr } = await db.rpc("resolve_healing_guide_ids", {
+      p_tenant_id: verifiedTenantId,
+      p_q: typeof q === "string" ? q : "",
+      p_category: typeof category === "string" ? category : null,
+    });
+    if (idErr) {
+      return serverErrorResponse({ route: "sifa/word-report", action: "POST.resolve", tenantId: verifiedTenantId, cause: idErr });
+    }
+    filteredIds = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
+    if (filteredIds.length === 0) {
+      return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
+    }
   }
 
-  const { data, error } = await query.order("name", { ascending: true });
-  if (error)
-    return Response.json({ ok: false, error: `Şifa rehberi kayıtları okunamadı: ${error.message}` }, { status: 500 });
+  // Ölçek-güvenli id-liste getirme: TEK dev `.in()` (URL sınırı riski) yerine sabit
+  // GUIDE_FETCH_BATCH'lik parçalar. Tenant her batch'te bağlanır (cross-tenant leak yok).
+  async function fetchByIdsBatched(idList: string[]): Promise<GuideRaw[]> {
+    const out: GuideRaw[] = [];
+    for (const batch of chunkIds(idList)) {
+      const { data: bd, error: be } = await db
+        .from("healing_guides")
+        .select(SELECT)
+        .eq("tenant_id", verifiedTenantId)
+        .in("id", batch);
+      if (be) throw be;
+      out.push(...((bd ?? []) as GuideRaw[]));
+    }
+    return out;
+  }
 
-  const guides = (data || []) as GuideRaw[];
+  let guides: GuideRaw[];
+  try {
+    if (exportMode === "single" && id) {
+      const { data, error } = await db
+        .from("healing_guides").select(SELECT)
+        .eq("tenant_id", verifiedTenantId).eq("id", id)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      guides = (data ?? []) as GuideRaw[];
+    } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
+      // Kullanıcı seçimi (sayfa-sınırlı olsa da) batch fetch + ada göre sırala (önceki davranış).
+      const fetched = await fetchByIdsBatched(ids);
+      guides = fetched.sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr-TR"));
+    } else if (exportMode === "filtered" && filteredIds) {
+      // TÜM eşleşenler; resolver sırasını (fold(name), id) KORU.
+      const fetched = await fetchByIdsBatched(filteredIds);
+      guides = orderRowsByIds(fetched, filteredIds);
+    } else {
+      // "all": id listesi yok → tek sorgu (URL riski yok).
+      const { data, error } = await db
+        .from("healing_guides").select(SELECT)
+        .eq("tenant_id", verifiedTenantId)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      guides = (data ?? []) as GuideRaw[];
+    }
+  } catch (e) {
+    return serverErrorResponse({ route: "sifa/word-report", action: "POST.read", tenantId: verifiedTenantId, cause: e });
+  }
+
   if (!guides.length)
     return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
 
@@ -398,6 +452,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const exportLabel =
     isSingle ? `Tek Kayıt — ${guides[0]!.name || ""}` :
     exportMode === "selected" ? `Seçili Kayıtlar (${guides.length})` :
+    exportMode === "filtered" ? `Filtrelenmiş Kayıtlar (${guides.length})` :
     `Tüm Şifa Rehberi (${guides.length})`;
 
   const categories = new Set(guides.map((g) => txt(g.category)).filter(Boolean));
@@ -470,7 +525,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   const buffer = await Packer.toBuffer(doc);
   const modeSlug =
     isSingle && guides[0]?.name ? slugify(guides[0].name) :
-    exportMode === "selected" ? "secili" : "tumu";
+    exportMode === "selected" ? "secili" :
+    exportMode === "filtered" ? "filtreli" : "tumu";
   const filename = `sifa-rehberi-${modeSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {

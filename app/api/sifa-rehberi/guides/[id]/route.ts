@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
+import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
 export const runtime = "nodejs";
 
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "GET", tenantId, cause: error });
   }
 
   if (!data) {
@@ -185,7 +186,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "PATCH", tenantId, cause: error });
   }
 
   if (!data || data.length === 0) {
@@ -219,7 +220,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "DELETE", tenantId, cause: error });
   }
 
   if (!data || data.length === 0) {
