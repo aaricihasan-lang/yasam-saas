@@ -11,6 +11,7 @@ import {
   ImageRun,
   PageNumber,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
   TableOfContents,
@@ -66,20 +67,32 @@ export function h1Colored(text: string, color: string, pageBreak = false): Parag
   });
 }
 
+/**
+ * Optional heading layout controls. ADDITIVE — when omitted, output is byte-identical
+ * to the previous single-arg form (mevcut çağıranlar etkilenmez):
+ *   - pageBreakBefore: bölüm/kayıt yeni sayfadan başlasın.
+ *   - keepNext: başlık takip eden paragrafla aynı sayfada kalsın (orphan azalt).
+ */
+export type HeadingOptions = { pageBreakBefore?: boolean; keepNext?: boolean };
+
 /** Item heading — appears in TOC (depth 2) and Navigation Panel */
-export function h2(text: string): Paragraph {
+export function h2(text: string, opts?: HeadingOptions): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 360, after: 200 },
+    ...(opts?.pageBreakBefore ? { pageBreakBefore: true } : {}),
+    ...(opts?.keepNext ? { keepNext: true } : {}),
     children: [new TextRun({ text, font: REPORT_FONT })],
   });
 }
 
 /** Field section heading — Navigation Panel only (TOC limited to depth 1-2) */
-export function h3(text: string): Paragraph {
+export function h3(text: string, opts?: HeadingOptions): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_3,
     spacing: { before: 240, after: 100 },
+    ...(opts?.pageBreakBefore ? { pageBreakBefore: true } : {}),
+    ...(opts?.keepNext ? { keepNext: true } : {}),
     children: [new TextRun({ text, font: REPORT_FONT })],
   });
 }
@@ -461,4 +474,66 @@ export function embedImageParagraph(buf: Buffer, maxWidth = 400): Paragraph {
     children: [new ImageRun({ data: buf, transformation: { width: w, height: h }, type: detectImgType(buf) })],
     spacing: { after: 200 },
   });
+}
+
+// ─── Callout box (additive) ───────────────────────────────────────────────────
+
+/**
+ * Print-friendly single-cell callout — soft fill + left accent border + bold label.
+ * Uzman Notu / Dikkat Edilmesi Gerekenler gibi katmanları içerikten görsel olarak ayırır.
+ * ADDITIVE: yeni export; mevcut helper davranışları değişmez. Metin plain TextRun
+ * (docx XML-escape'ler → HTML injection yok). Nested/karmaşık layout kullanılmaz →
+ * Word/LibreOffice dayanıklı.
+ */
+export function calloutBox(
+  label: string,
+  body: string,
+  accentHex: string,
+  fillHex: string,
+): Table {
+  const thin = { style: BorderStyle.SINGLE, size: 2, color: "e2e8f0" } as const;
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: thin,
+      bottom: thin,
+      right: thin,
+      left: { style: BorderStyle.SINGLE, size: 18, color: accentHex },
+      insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+      insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { type: ShadingType.CLEAR, fill: fillHex, color: "auto" },
+            margins: { top: 80, bottom: 80, left: 160, right: 160 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: label, bold: true, size: 20, font: REPORT_FONT, color: accentHex, allCaps: true })],
+                spacing: { after: 60 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: body, size: 22, font: REPORT_FONT, color: C_DARK })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+// ─── XML-safe text (additive) ─────────────────────────────────────────────────
+
+/**
+ * OOXML'i bozan XML 1.0 ILLEGAL kontrol karakterlerini kaldırır. İzin verilenler
+ * (TAB \t, LF \n, CR \r) ve Türkçe/tüm normal Unicode KORUNUR. İçerik/anlam değişmez;
+ * yalnız belge XML güvenliği. (DB mutation YOK — bu yalnız render-boundary temizliğidir.)
+ */
+export function sanitizeXmlText(input: string): string {
+  // XML 1.0 gecersiz kontrol karakterleri (asagidaki aralik) kaldirilir; TAB/LF/CR ve
+  // Turkce dahil tum normal Unicode KORUNUR. RegExp ASCII-kaynak (literal kontrol char yok).
+  const XML_INVALID = new RegExp("[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]", "g");
+  return input.replace(XML_INVALID, "");
 }

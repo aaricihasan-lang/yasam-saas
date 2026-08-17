@@ -171,10 +171,14 @@ ok(/h-11/.test(editor) && /h-9/.test(editor), "editor: touch-friendly yükseklik
 ok(!editor.includes("SERVICE_ROLE"), "editor: browser'da service_role YOK");
 
 // ── STATIC: WORD LAYER SEPARATION ───────────────────────────────────────────────
+// EK FAZ 3 Premium Word: section-native render mantığı route'tan SAF builder'a TAŞINDI
+// (lib/sifa-rehberi/wordDocument.ts) ve premium'a yükseltildi (callout'lar + kaynak/kaynak
+// türü AYRI satır). Katman ayrımı sözleşmesi builder'da doğrulanır; route yalnız delege eder.
 const word = read("app/api/sifa-rehberi/word-report/route.ts");
-ok(word.includes("Uzman Notu:"), "word: Uzman Notu katmanı");
-ok(word.includes("Dikkat Edilmesi Gerekenler:"), "word: Dikkat katmanı");
-ok(/sourceLine/.test(word) && /hasAnySectionLayer/.test(word), "word: kaynak + katman ayrımı");
+const wordDoc = read("lib/sifa-rehberi/wordDocument.ts");
+ok(/calloutBox\(\s*["']Uzman Notu["']/.test(wordDoc), "word: Uzman Notu katmanı");
+ok(/calloutBox\(\s*["']Dikkat Edilmesi Gerekenler["']/.test(wordDoc), "word: Dikkat katmanı");
+ok(/buildSifaReportChildren/.test(word) && /Kaynak Türü: \$\{kind\}/.test(wordDoc) && /sectionHasAnyLayer/.test(wordDoc), "word: kaynak + katman ayrımı");
 ok(/sort_order/.test(word), "word: kalıcı sıra yansır");
 ok(!/\.slice\(0,\s*\d+\)/.test(word.split("buildFromSections")[1] ?? ""), "word: içerik truncate yok (buildFromSections)");
 // CONTENT DEDUP YOK: word-report'ta section içeriğini metin eşitliği/hash/Set ile düşüren
