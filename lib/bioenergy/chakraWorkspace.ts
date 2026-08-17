@@ -110,9 +110,44 @@ export function isVisibleChakraBlock(b: ChakraContentBlock): boolean {
 export type ChakraBibliographyEntry = { title: string; author: string | null };
 
 /**
+ * Biyoenerji yerel corpus'unun KANONİK editoryal kaynak sırası (source_title ile
+ * birebir). Bibliyografya sırası bu diziye göre DETERMİNİSTİK üretilir; böylece
+ * çıktı sorgu/DB satır dönüş sırasından BAĞIMSIZDIR. Bu genel bir corpus özelliğidir
+ * (belirli bir çakraya hardcode DEĞİL); listede olmayan kaynak alfabetik fallback'e
+ * düşer, diğer çakralar için regresyon üretmez. Kök Çakra V4 (11 eser) tam bu sırayı üretir.
+ */
+export const CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER: readonly string[] = [
+  "Gizli Enerji Terapileri",
+  "Aura ve Çakra Kullanma Kılavuzu",
+  "Chakralar-Reiki Enerji ve Kuantum Merkezi",
+  "Enerji Tıbbı",
+  "7 Gün 7 Çakra 7 Bioenerji Çalışması",
+  "Bilinçaltını Açan Anahtar: Kinesiyoloji",
+  "Biyoenerji",
+  "Ruhun 7 Kapısı",
+  "Kuantum Dokunuş: Şifa Verme Gücü",
+  "AURA'lar: Yorumlama ve Anlama",
+  "Titreşimini Yükselt Hayatın Değişsin",
+];
+
+const EDITORIAL_RANK: ReadonlyMap<string, number> = new Map(
+  CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER.map((t, i) => [t, i]),
+);
+
+/** Kanonik editoryal rank (yoksa +∞ → alfabetik fallback bölgesi). */
+function bibliographyRank(title: string): number {
+  const r = EDITORIAL_RANK.get(title);
+  return r === undefined ? Number.POSITIVE_INFINITY : r;
+}
+
+/**
  * TEK Kaynakça — yalnız `source-evidence` satırlarından distinct (source_title,
  * source_author). Boş/null başlık elenir; aynı eser tekrar gösterilmez. Ana
  * içerikte kaynak adı gösterilmez; bibliyografya yalnız burada. (V4: 11 eser.)
+ *
+ * Sıra DETERMİNİSTİK: önce KANONİK editoryal sıra
+ * (CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER), sonra listede olmayanlar alfabetik
+ * (title, sonra author). Girdi/DB satır sırasından bağımsızdır.
  */
 export function deriveChakraBibliography(
   blocks: ChakraContentBlock[],
@@ -129,9 +164,14 @@ export function deriveChakraBibliography(
     seen.add(key);
     out.push({ title, author: author || null });
   }
-  out.sort((a, b) =>
-    a.title < b.title ? -1 : a.title > b.title ? 1 : (a.author ?? "") < (b.author ?? "") ? -1 : 1,
-  );
+  out.sort((a, b) => {
+    const ra = bibliographyRank(a.title);
+    const rb = bibliographyRank(b.title);
+    if (ra !== rb) return ra - rb;
+    // eşit rank (ikisi de kanonik listede yok) → alfabetik title, sonra author
+    if (a.title !== b.title) return a.title < b.title ? -1 : 1;
+    return (a.author ?? "") < (b.author ?? "") ? -1 : (a.author ?? "") > (b.author ?? "") ? 1 : 0;
+  });
   return out;
 }
 

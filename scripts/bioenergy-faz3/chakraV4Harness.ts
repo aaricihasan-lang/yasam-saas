@@ -62,7 +62,10 @@ const bib = deriveChakraBibliography(blocks);
 check("Kaynakça 2 distinct eser (blank+dup elendi)", bib.length === 2, JSON.stringify(bib.map((x) => x.title)));
 check("Kaynakça blank başlık içermez", bib.every((x) => x.title.trim().length > 0));
 check("Kaynakça Dağıstanlı + Doğacı", bib.map((x) => x.author).sort().join(",") === "Dr. Şuayip Dağıstanlı,Kerimali Doğacı");
-check("Kaynakça deterministik sıralı (title asc)", bib[0]!.title <= bib[1]!.title);
+// Editoryal kanonik sıra: Biyoenerji (rank 6) < Ruhun 7 Kapısı (rank 7)
+check("Kaynakça editoryal deterministik sıra (Biyoenerji→Ruhun 7 Kapısı)",
+  bib[0]!.title === "Biyoenerji" && bib[1]!.title === "Ruhun 7 Kapısı",
+  JSON.stringify(bib.map((x) => x.title)));
 
 // 5) boş blocks → boş Kaynakça, workspace legacy davranışı korunur
 check("boş blocks → Kaynakça boş", deriveChakraBibliography([]).length === 0);
