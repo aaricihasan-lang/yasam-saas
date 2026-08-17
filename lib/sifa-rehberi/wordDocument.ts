@@ -1,34 +1,45 @@
 /**
  * Şifa Rehberi — Premium Word belge KURUCUSU (SAF; ağ/DB YOK → harness test edebilir).
  *
- * EK FAZ 3: mevcut section-native render mantığı buraya taşındı ve premium'a yükseltildi:
- *   - export-türüne göre kapak alt-başlığı
- *   - TOC/stats YALNIZ çok-kayıtta (tek kayıtta gürültü yok)
- *   - çok-kayıtta her guide yeni sayfadan (pageBreakBefore) + başlık keepNext (orphan azalt)
- *   - kaynak / kaynak türü ayrık; Uzman Notu (soft-purple) ve Dikkat (soft-amber) callout kutuları
- *   - opsiyonel meta gizleme (kategori boşsa satır yok)
- *   - guide/section görselleri (route güvenli getirir; burada yalnız embed)
- *   - tüm kullanıcı metni sanitizeXmlText'ten geçer (XML-güvenli; içerik/anlam değişmez)
+ * EK FAZ 3B (katalog-akışı revizyonu): İÇERİK ASLA özetlenmez/kısaltılmaz/truncate edilmez —
+ * yalnız yerleşim/sayfa-akışı iyileştirilir:
+ *   - "SİSTEM ÖZETİ" (stats page) TÜM export türlerinde KALDIRILDI (kapak zaten metadata taşır).
+ *   - Dinamik Word TOC KALDIRILDI → multi'de statik "KAYIT LİSTESİ" (Word açılışta hazır; güncelleme gerektirmez).
+ *   - Çoklu-kayıtta guide-başı ZORUNLU sayfa kırımı KALDIRILDI → kesintisiz katalog akışı (doğal pagination);
+ *     yeni guide yalnız ince divider + güçlü başlık ile ayrılır.
+ *   - "KAYIT #001" gibi label'lar KALDIRILDI (orphan kaynağıydı; sıra zaten deterministik).
+ *   - Guide metadata hafifletildi (full-width tablo yerine tek muted satır: tarih [+ kategori yalnız doluysa]).
+ *   - Sistem placeholder metinleri (isMeaningfulText) GİZLENİR (özetleme DEĞİL; gerçek-olmayan boş-durum metni).
+ *   - Sınırlı keepNext ile orphan kontrolü (tüm record keepTogether/cantSplit YOK → dev boşluk üretmez).
  *
- * DEĞİŞMEYEN SÖZLEŞMELER: section-native varsa section-first, yoksa legacy fallback
- * (asla ikisi birden → duplicate 0); sort_order + created_at deterministik sıra; içerik
- * TRUNCATE edilmez; internal enum yerine display label (sectionModel).
+ * DEĞİŞMEYEN SÖZLEŞMELER: section-native varsa section-first, yoksa legacy fallback (asla ikisi birden →
+ * duplicate 0); sort_order + created_at deterministik sıra; içerik TRUNCATE edilmez; provenance
+ * (source / source_kind / Uzman Notu / Dikkat) aynen korunur; internal enum yerine display label.
  */
+import {
+  BorderStyle,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  WidthType,
+  AlignmentType,
+} from "docx";
 import {
   bodyText,
   buildPremiumCover,
-  buildStatsPage,
-  buildTOCPage,
   calloutBox,
+  divider,
   embedImageParagraph,
   h1Colored,
   h2,
   h3,
   muted,
-  profileLabel,
   sanitizeXmlText,
   spacer,
-  twoColTable,
+  C_DARK,
+  REPORT_FONT,
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import {
@@ -37,6 +48,7 @@ import {
   SECTION_TYPE_ORDER,
   sectionHasAnyLayer,
 } from "@/lib/sifa-rehberi/sectionModel";
+import { isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
 
 const C_SIFA = "059669";
 // Callout renkleri (print-friendly, pastel dolgu + accent kenar).
@@ -104,6 +116,17 @@ function txt(v: string | null | undefined): string {
   return t ? sanitizeXmlText(t) : "";
 }
 
+/**
+ * ANLAMLI içerik → sanitize edilmiş metin; boş VEYA sistem-placeholder ise "".
+ * ÖNEMLİ: bu özetleme/kısaltma DEĞİLDİR — isMeaningfulText yalnız TAM eşleşen bilinen
+ * placeholder cümlelerini (ör. "Bu bölüm için henüz bilgi eklenmemiş.") eler; gerçek
+ * profesyonel içerik (uzun metin dahil) hiçbir zaman elenmez/kısalmaz.
+ */
+function meaningful(v: string | null | undefined): string {
+  const t = txt(v);
+  return t && isMeaningfulText(t) ? t : "";
+}
+
 function normKey(v: string | null | undefined): string {
   if (!v) return "";
   return v.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -132,30 +155,48 @@ function embedImages(out: ReportChild[], buffers: Buffer[] | undefined, maxWidth
   for (const buf of buffers) out.push(embedImageParagraph(buf, maxWidth));
 }
 
+/**
+ * Bir section'da GÖSTERİLEBİLİR (placeholder-olmayan) içerik var mı? Sistem placeholder'ı
+ * tek başına içerik SAYILMAZ (Word'e basılmaz). Provenance (source/source_kind) de içerik sayılır.
+ */
+function sectionRenderable(s: WordSectionRow): boolean {
+  // Önce paylaşılan boş-bölüm sözleşmesi (sectionHasAnyLayer): hiç katman yoksa render edilmez.
+  if (!sectionHasAnyLayer(s)) return false;
+  // Ardından refine: en az bir ANLAMLI (sistem-placeholder OLMAYAN) katman bulunmalı.
+  return Boolean(
+    meaningful(s.note) || txt(s.source) || txt(s.source_kind) ||
+    meaningful(s.expert_note) || meaningful(s.attention),
+  );
+}
+
 // ── legacy fallback (section yoksa) ─────────────────────────────────────────────
 function addLegacySection(out: ReportChild[], label: string, value: string | null | undefined) {
-  const t = txt(value);
+  const t = meaningful(value); // placeholder ise başlık da basılmaz
   if (!t) return;
   out.push(h3(label, { keepNext: true }));
   out.push(bodyText(t));
 }
 
+function anyMeaningful(...vals: (string | null | undefined)[]): boolean {
+  return vals.some((v) => meaningful(v));
+}
+
 function buildFromLegacy(out: ReportChild[], g: WordGuideRaw) {
+  // NOT: "Belirtiler" (symptoms) buildGuideChildren'da bir kez basılır → burada TEKRAR YOK (duplicate 0).
   addLegacySection(out, "Genel Özet", g.general_summary);
-  addLegacySection(out, "Belirtiler", g.symptoms);
-  if (g.medical_causes || g.subconscious_causes || g.temperament_causes || g.other_causes) {
+  if (anyMeaningful(g.medical_causes, g.subconscious_causes, g.temperament_causes, g.other_causes)) {
     out.push(h3("Nedenler / Sebepler", { keepNext: true }));
     addLegacySection(out, "Tıbbi Nedenler", g.medical_causes);
     addLegacySection(out, "Bilinçaltı Sebepleri", g.subconscious_causes);
     addLegacySection(out, "Mizaç Sebepleri", g.temperament_causes);
     addLegacySection(out, "Diğer Sebepler", g.other_causes);
   }
-  if (g.iridology_match || g.hand_analysis_match) {
+  if (anyMeaningful(g.iridology_match, g.hand_analysis_match)) {
     out.push(h3("Analiz Eşleştirmeleri", { keepNext: true }));
     addLegacySection(out, "İridoloji'de Karşılığı", g.iridology_match);
     addLegacySection(out, "El Analizinde Karşılığı", g.hand_analysis_match);
   }
-  if (g.cupping_leech || g.reflexology || g.diet_recommendations || g.herbal_methods) {
+  if (anyMeaningful(g.cupping_leech, g.reflexology, g.diet_recommendations, g.herbal_methods)) {
     out.push(h3("Uygulamalar ve Yöntemler", { keepNext: true }));
     addLegacySection(out, "Hacamat & Sülük", g.cupping_leech);
     addLegacySection(out, "Refleksoloji", g.reflexology);
@@ -165,8 +206,10 @@ function buildFromLegacy(out: ReportChild[], g: WordGuideRaw) {
   addLegacySection(out, "Doğaltaş Önerileri", g.stone_recommendations);
   addLegacySection(out, "Aromaterapi", g.aromatherapy);
   if (
-    g.meditation || g.breathwork || g.bioenergy || g.massage ||
-    g.daily_routine || g.sleep_routine || g.supportive_alternative_methods
+    anyMeaningful(
+      g.meditation, g.breathwork, g.bioenergy, g.massage,
+      g.daily_routine, g.sleep_routine, g.supportive_alternative_methods,
+    )
   ) {
     out.push(h3("Destekleyici Uygulamalar", { keepNext: true }));
     addLegacySection(out, "Meditasyon", g.meditation);
@@ -188,7 +231,7 @@ function pushSectionLayers(
   subLabel?: string,
 ) {
   if (subLabel) out.push(bodyText(`▸ ${sanitizeXmlText(subLabel)}`));
-  const content = txt(s.note);
+  const content = meaningful(s.note); // placeholder gizlenir; gerçek içerik TAM
   if (content) out.push(bodyText(content));
 
   // Kaynak bloğu — kaynak ve kaynak türü AYRI satır; boşsa satır yok; Uzman Notu'ndan ayrı.
@@ -198,11 +241,11 @@ function pushSectionLayers(
   if (kind) out.push(muted(`Kaynak Türü: ${kind}`));
 
   // Uzman Notu — soft-purple callout (boşsa yok).
-  const expert = txt(s.expert_note);
+  const expert = meaningful(s.expert_note);
   if (expert) out.push(calloutBox("Uzman Notu", expert, EXPERT_ACCENT, EXPERT_FILL));
 
   // Dikkat Edilmesi Gerekenler — OPSİYONEL, soft-amber callout (boşsa yok; otomatik metin YOK).
-  const attn = txt(s.attention);
+  const attn = meaningful(s.attention);
   if (attn) out.push(calloutBox("Dikkat Edilmesi Gerekenler", attn, ATTN_ACCENT, ATTN_FILL));
 
   // Section görselleri (deterministik sıra).
@@ -220,7 +263,7 @@ function buildFromSections(out: ReportChild[], sections: WordSectionRow[], secti
     ...Object.keys(grouped).filter((t) => !SECTION_TYPE_ORDER.includes(t) && grouped[t]?.length),
   ];
   for (const stype of orderedTypes) {
-    const rows = (grouped[stype] ?? []).filter((s) => sectionHasAnyLayer(s));
+    const rows = (grouped[stype] ?? []).filter(sectionRenderable); // placeholder-only bölümler elenir
     if (!rows.length) continue;
     const stypeLabel = SECTION_TYPE_LABEL[stype] ?? stype;
     if (rows.length === 1) {
@@ -239,8 +282,10 @@ function buildFromSections(out: ReportChild[], sections: WordSectionRow[], secti
 }
 
 function sortSections(sections: WordSectionRow[]): WordSectionRow[] {
+  // Render kararı GÖSTERİLEBİLİR (placeholder-olmayan) bölümlere göre → placeholder-only
+  // section'lar legacy fallback'i engellemez ve boş başlık üretmez.
   return sections
-    .filter((s) => sectionHasAnyLayer(s))
+    .filter(sectionRenderable)
     .slice()
     .sort((a, b) => {
       const ao = typeof a.sort_order === "number" ? a.sort_order : null;
@@ -252,32 +297,75 @@ function sortSections(sections: WordSectionRow[]): WordSectionRow[] {
     });
 }
 
-/** Tek guide'ın içeriği. `pageBreakBefore` yalnız çok-kayıtta ve ilk-olmayan guide'da true. */
+// ── Statik "KAYIT LİSTESİ" (dinamik Word TOC yerine; açılışta hazır) ─────────────
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
+
+function listCell(name: string): TableCell {
+  return new TableCell({
+    margins: { top: 40, bottom: 40, left: 80, right: 80 },
+    children: [
+      new Paragraph({
+        children: name
+          ? [
+              new TextRun({ text: "· ", size: 20, font: REPORT_FONT, color: C_SIFA }),
+              new TextRun({ text: name, size: 22, font: REPORT_FONT, color: C_DARK }),
+            ]
+          : [new TextRun({ text: "", size: 2 })],
+      }),
+    ],
+  });
+}
+
+/**
+ * Multi export'ta gerçek guide isimlerinden STATİK 2-sütun kayıt listesi. Yalnız navigation/index —
+ * özet/preview/snippet DEĞİL (içerik kaybı yok). Word açılışta hazır görünür (alan güncelleme gerektirmez).
+ */
+function buildRecordListChildren(names: string[]): ReportChild[] {
+  const heading = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [new TextRun({ text: "KAYIT LİSTESİ", bold: true, size: 36, font: REPORT_FONT, color: C_DARK })],
+    pageBreakBefore: true,
+    spacing: { before: 600, after: 400 },
+  });
+  const rows: TableRow[] = [];
+  for (let i = 0; i < names.length; i += 2) {
+    rows.push(new TableRow({ children: [listCell(names[i]!), listCell(names[i + 1] ?? "")] }));
+  }
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+      insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
+    },
+    rows,
+  });
+  return [heading, table];
+}
+
+/**
+ * Tek guide'ın içeriği. Katalog akışında guide'lar arası ZORUNLU sayfa kırımı YOK; `startOnNewPage`
+ * yalnız single export'ta (kapaktan sonra kayıt yeni sayfadan) true. "KAYIT #" label YOK; hafif meta.
+ */
 export function buildGuideChildren(
   guide: WordGuideRaw,
-  opts: { index: number; isMulti: boolean; guideImages: ImagesByKey; sectionImages: ImagesByKey },
+  opts: { startOnNewPage: boolean; guideImages: ImagesByKey; sectionImages: ImagesByKey },
 ): ReportChild[] {
   const out: ReportChild[] = [];
   const name = txt(guide.name) || "İsimsiz Kayıt";
 
-  if (opts.isMulti) {
-    out.push(profileLabel(`KAYIT #${String(opts.index + 1).padStart(3, "0")}`, C_SIFA));
-  }
-  // Çok-kayıtta her guide (ilk hariç) yeni sayfadan; başlık içeriğiyle birlikte kalsın.
-  out.push(h2(name, { pageBreakBefore: opts.isMulti && opts.index > 0, keepNext: true }));
+  // Güçlü guide başlığı; keepNext → başlık takip eden meta/ilk içerikle aynı sayfada kalsın (orphan azalt).
+  out.push(h2(name, { pageBreakBefore: opts.startOnNewPage, keepNext: true }));
 
-  // Meta — OPTIONAL HIDE: kategori boşsa satır yok; tarih anlamlı → her zaman.
-  const metaRows: [string, string][] = [];
+  // Hafif meta: tarih (+ kategori yalnız DOLUYSA). Full-width ağır tablo YOK; boşsa kategori satırı yok.
+  const dateStr = formatDateTR(guide.updated_at || guide.created_at);
   const cat = txt(guide.category);
-  if (cat) metaRows.push(["Kategori", cat]);
-  metaRows.push(["Tarih", formatDateTR(guide.updated_at || guide.created_at)]);
-  out.push(twoColTable(metaRows));
+  out.push(muted(cat ? `${dateStr} · Kategori: ${cat}` : dateStr));
 
   // Guide-seviye görseller (varsa) — meta sonrası.
   embedImages(out, opts.guideImages.get(guide.id), 420);
 
-  // Belirtiler (symptoms) — yalnız doluysa.
-  const symptoms = txt(guide.symptoms);
+  // Belirtiler — yalnız ANLAMLI içerik (sistem placeholder'ı gizlenir; başlık da basılmaz).
+  const symptoms = meaningful(guide.symptoms);
   if (symptoms) {
     out.push(h3("Belirtiler", { keepNext: true }));
     out.push(bodyText(symptoms));
@@ -315,8 +403,10 @@ function exportLabel(mode: SifaExportMode, guides: WordGuideRaw[]): string {
 }
 
 /**
- * Belge gövdesi (kapak → [çok-kayıtta stats+TOC] → guide'lar). SAF. Route bunu footer'lı
- * Document'e sarar ve (yalnız single-delivery'de) BF-14 snapshot ekini ekler.
+ * Belge gövdesi. SAF. Route bunu footer'lı Document'e sarar ve (yalnız single-delivery'de) BF-14
+ * snapshot ekini ekler.
+ *   single : Kapak → (yeni sayfa) TAM kayıt.  (Sistem Özeti / Kayıt Listesi / TOC YOK)
+ *   multi  : Kapak → (yeni sayfa) KAYIT LİSTESİ → (yeni sayfa) kesintisiz katalog (guide-başı break YOK).
  */
 export function buildSifaReportChildren(opts: {
   guides: WordGuideRaw[];
@@ -333,6 +423,7 @@ export function buildSifaReportChildren(opts: {
 
   const all: ReportChild[] = [];
 
+  // Kapak — metadata (kayıt sayısı / kategori / kapsam) YALNIZ burada. Ayrı "Sistem Özeti" YOK.
   all.push(
     ...buildPremiumCover({
       title1: "YAŞAM SİSTEMİ",
@@ -347,27 +438,23 @@ export function buildSifaReportChildren(opts: {
     }),
   );
 
-  // Stats + TOC yalnız çok-kayıtta (tek kayıtta gürültü/gereksiz TOC yok).
   if (isMulti) {
-    all.push(
-      ...buildStatsPage([
-        ["Kayıt Sayısı", String(guides.length)],
-        ["Kategori", String(categories.size)],
-        ["Kapsam", exportLabel(exportMode, guides)],
-      ]),
-    );
-    all.push(...buildTOCPage());
-  }
-
-  all.push(h1Colored("Şifa Rehberi Kayıtları", C_SIFA, true));
-  if (isMulti) {
+    // Statik Kayıt Listesi (dinamik TOC YOK) — kendi sayfasında.
+    all.push(...buildRecordListChildren(guides.map((g) => txt(g.name) || "İsimsiz Kayıt")));
+    // Katalog yeni sayfadan başlar (TEK break); guide'lar arası ZORUNLU break YOK.
+    all.push(h1Colored("Şifa Rehberi Kayıtları", C_SIFA, true));
     all.push(muted(`${guides.length} kayıt`));
     all.push(spacer());
+    guides.forEach((guide, i) => {
+      if (i > 0) all.push(divider()); // yeni guide: ince, print-friendly ayraç (dev boşluk yok)
+      all.push(...buildGuideChildren(guide, { startOnNewPage: false, guideImages, sectionImages }));
+    });
+  } else {
+    // Single: kapaktan sonra doğrudan TAM kayıt (yeni sayfada). Liste/özet/TOC YOK.
+    guides.forEach((guide) => {
+      all.push(...buildGuideChildren(guide, { startOnNewPage: true, guideImages, sectionImages }));
+    });
   }
-
-  guides.forEach((guide, i) => {
-    all.push(...buildGuideChildren(guide, { index: i, isMulti, guideImages, sectionImages }));
-  });
 
   return all;
 }

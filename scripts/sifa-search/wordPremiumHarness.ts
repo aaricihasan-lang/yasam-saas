@@ -189,10 +189,12 @@ async function main() {
     check(count(docXml, "w:pageBreakBefore") === 1, "05c single: yalnız 1 sayfa-sonu (h1) → gereksiz boş sayfa yok");
   }
   {
+    // EK FAZ 3B: dinamik Word TOC ve "SİSTEM ÖZETİ" KALDIRILDI → statik KAYIT LİSTESİ.
     const gs = [makeGuide({ name: "M1" }), makeGuide({ name: "M2" })];
     const { docXml } = await renderDoc(build(gs, "all"));
-    check(docXml.includes("İÇİNDEKİLER") && docXml.includes("TOC"), "06 multi'de TOC VAR");
-    check(docXml.includes("SİSTEM ÖZETİ"), "06b multi'de stats sayfası VAR");
+    check(!docXml.includes("İÇİNDEKİLER") && !/\bTOC\b/.test(docXml), "06 multi'de dinamik Word TOC YOK");
+    check(docXml.includes("KAYIT LİSTESİ") && docXml.includes("M1") && docXml.includes("M2"), "06b multi'de statik KAYIT LİSTESİ + tüm adlar");
+    check(!docXml.includes("SİSTEM ÖZETİ"), "06c multi'de Sistem Özeti sayfası YOK");
   }
 
   // ══ C. SIRA + SAYFA SONU + keepNext ══════════════════════════════════════════
@@ -202,10 +204,13 @@ async function main() {
     check(docXml.indexOf("ZetaBaslik") < docXml.indexOf("AlfaBaslik"), "07 filtered guide sırası giriş sırasını korur");
   }
   {
+    // EK FAZ 3B: çoklu-kayıtta guide-başı ZORUNLU sayfa kırımı YOK → kesintisiz katalog akışı.
     const two = await renderDoc(build([makeGuide({ name: "P1" }), makeGuide({ name: "P2" })], "all"));
     const three = await renderDoc(build([makeGuide({ name: "P1" }), makeGuide({ name: "P2" }), makeGuide({ name: "P3" })], "all"));
     const d = count(three.docXml, "w:pageBreakBefore") - count(two.docXml, "w:pageBreakBefore");
-    check(d === 1, "08 her ek guide TAM 1 sayfa-sonu ekler (multi yeni sayfa)");
+    check(d === 0, "08 ek guide 0 forced page-break ekler (per-guide break YOK)");
+    // forced break yalnız gerekli boundary'lerde: KAYIT LİSTESİ + katalog başlığı = 2.
+    check(count(two.docXml, "w:pageBreakBefore") === 2, "08a multi forced break yalnız liste+katalog başı (2)");
   }
   {
     const g = makeGuide({ name: "KN", symptoms: "belirti" });
@@ -213,13 +218,14 @@ async function main() {
     check(docXml.includes("w:keepNext"), "10 başlıklarda keepNext (orphan azalt)");
   }
 
-  // ══ D. OPSİYONEL META (kategori) ══════════════════════════════════════════════
+  // ══ D. HAFİF META (tarih + opsiyonel kategori; ağır tablo YOK) ═══════════════
   {
     const withCat = await renderDoc(build([makeGuide({ name: "C1", category: "BENZERSIZKAT" })], "single"));
-    check(withCat.docXml.includes("BENZERSIZKAT"), "11a kategori doluysa gösterilir");
+    check(withCat.docXml.includes("Kategori: BENZERSIZKAT"), "11a kategori doluysa hafif meta satırında gösterilir");
     const noCat = await renderDoc(build([makeGuide({ name: "C2", category: null })], "single"));
-    check(!noCat.docXml.includes("BENZERSIZKAT"), "11 kategori boşsa satır/deger YOK (boş hücre üretilmez)");
-    check(noCat.docXml.includes("Tarih"), "11b tarih satırı her zaman var");
+    check(!noCat.docXml.includes("BENZERSIZKAT"), "11 kategori boşsa değer YOK (satır üretilmez)");
+    const dated = await renderDoc(build([makeGuide({ name: "C3", created_at: "2026-03-15T00:00:00Z" })], "single"));
+    check(dated.docXml.includes("Mart"), "11b guide tarihi hafif meta satırında görünür");
   }
 
   // ══ E. KAYNAK / KAYNAK TÜRÜ (ayrık) ══════════════════════════════════════════
@@ -418,6 +424,78 @@ async function main() {
     check(res.status === 500, "37a error 500 statü");
     check(bodyText.includes("beklenmeyen") && !bodyText.includes("PGSECRETVALUE") && !bodyText.includes("23505"), "37 error-safety: generic TR + ham DB detayı/stack SIZMAZ");
     check(/"ref":"[0-9a-f-]{36}"/.test(bodyText), "37b opak ref üretilir (korelasyon)");
+  }
+
+  // ══ P. KATALOG AKIŞI (EK FAZ 3B) ══════════════════════════════════════════════
+  {
+    const single = await renderDoc(build([makeGuide({ name: "K1" })], "single"));
+    const multi = await renderDoc(build([makeGuide({ name: "K1" }), makeGuide({ name: "K2" })], "all"));
+    check(!/KAYIT #\d/.test(single.docXml), "41 single: 'KAYIT #' label YOK");
+    check(!/KAYIT #\d/.test(multi.docXml), "42 multi: 'KAYIT #' label YOK");
+    check(!single.docXml.includes("SİSTEM ÖZETİ") && !multi.docXml.includes("SİSTEM ÖZETİ"), "43 hiçbir modda Sistem Özeti YOK");
+    check(!single.docXml.includes("İÇİNDEKİLER") && !multi.docXml.includes("İÇİNDEKİLER") && !/\bTOC\b/.test(multi.docXml), "44 dinamik Word TOC YOK");
+    check(!multi.docXml.includes("İçindekileri Güncelle"), "45 'İçindekileri Güncelle' talimatı YOK");
+    check(multi.docXml.includes("KAYIT LİSTESİ"), "46 multi: statik KAYIT LİSTESİ VAR");
+    check(!single.docXml.includes("KAYIT LİSTESİ"), "47 single: KAYIT LİSTESİ YOK");
+  }
+  {
+    // Katalog: her ek guide TAM 1 ince divider (border) ekler; per-guide page break YOK.
+    const two = await renderDoc(build([makeGuide({ name: "D1" }), makeGuide({ name: "D2" })], "all"));
+    const three = await renderDoc(build([makeGuide({ name: "D1" }), makeGuide({ name: "D2" }), makeGuide({ name: "D3" })], "all"));
+    // <w:pBdr> = paragraf-border açılış etiketi (divider); tablo hücreleri <w:tcBorders> kullanır → gürültüsüz.
+    check(count(three.docXml, "<w:pBdr>") - count(two.docXml, "<w:pBdr>") === 1, "48 multi: her ek guide TAM 1 ince divider (dev boşluk yok)");
+  }
+  {
+    // Kayıt Listesi TÜM adları içerir (özet/snippet DEĞİL) — katalog başlığından ÖNCE.
+    const gs = [makeGuide({ name: "AKCIGER" }), makeGuide({ name: "ALERJI" }), makeGuide({ name: "ASTIM" })];
+    const { docXml } = await renderDoc(build(gs, "all"));
+    const listPart = docXml.split("Şifa Rehberi Kayıtları")[0];
+    check(["AKCIGER", "ALERJI", "ASTIM"].every((n) => listPart.includes(n)), "49 kayıt listesinde tüm guide adları");
+  }
+  {
+    // Placeholder Belirtiler gizli (özetleme DEĞİL); gerçek Belirtiler görünür.
+    const ph = await renderDoc(build([makeGuide({ name: "PH", symptoms: "Bu bölüm için henüz bilgi eklenmemiş." })], "single"));
+    check(!ph.docXml.includes("henüz bilgi eklenmemiş"), "50 placeholder Belirtiler Word'e basılmaz");
+    check(!ph.docXml.includes("Belirtiler"), "50a yalnız-placeholder başlık da gizli");
+    const real = await renderDoc(build([makeGuide({ name: "RS", symptoms: "GERCEK_BELIRTI" })], "single"));
+    check(real.docXml.includes("Belirtiler") && real.docXml.includes("GERCEK_BELIRTI"), "51 gerçek Belirtiler görünür");
+  }
+  {
+    // Placeholder-only section gizli; gerçek section görünür; symptoms tek kez (duplicate 0).
+    const g = makeGuide({ name: "PS", symptoms: "GERCEK_SEMPTOM", general_summary: "LEGACY_OZET_X", healing_guide_sections: [
+      makeSection({ section_type: "applications", note: "Bu bölüm için içerik henüz eklenmemiş." }),
+      makeSection({ section_type: "herbal", note: "GERCEK_SECTION" }),
+    ] });
+    const { docXml } = await renderDoc(build([g], "single"));
+    check(!docXml.includes("henüz eklenmemiş") && docXml.includes("GERCEK_SECTION"), "52 placeholder-only section gizli; gerçek section görünür");
+    check(!docXml.includes("LEGACY_OZET_X"), "52a section VARSA legacy basılmaz (duplicate 0)");
+    check(count(docXml, "GERCEK_SEMPTOM") === 1, "52b symptoms TAM 1 kez (legacy+guide çift-render YOK)");
+  }
+  {
+    // Legacy guide'da symptoms tek kez.
+    const g = makeGuide({ name: "LS", symptoms: "TEK_SEMPTOM", general_summary: "OZET", healing_guide_sections: null });
+    const { docXml } = await renderDoc(build([g], "single"));
+    check(count(docXml, "TEK_SEMPTOM") === 1, "52c legacy guide: symptoms TAM 1 kez");
+  }
+  {
+    // Uzun içerik multi katalog akışında da kayıpsız.
+    const big = "W".repeat(30_000);
+    const gs = [makeGuide({ name: "L1", healing_guide_sections: [makeSection({ note: big })] }), makeGuide({ name: "L2", symptoms: "kisa" })];
+    const { docXml } = await renderDoc(build(gs, "all"));
+    check(docXml.includes(big), "53 multi katalogda uzun içerik TRUNCATE edilmez");
+  }
+  {
+    // Single: kapaktan sonra kayıt yeni sayfada (tam 1 forced break) → gereksiz boş sayfa yok.
+    const { docXml } = await renderDoc(build([makeGuide({ name: "SB", symptoms: "x" })], "single"));
+    check(count(docXml, "w:pageBreakBefore") === 1, "54 single: tam 1 forced break (gereksiz boş sayfa yok)");
+    check(/w:keepNext/.test(docXml), "55 başlıklarda keepNext (orphan control)");
+  }
+  {
+    // İç yapı sadakati: iç boşluk (çift), noktalama, Türkçe, tekrarlar TAM korunur (yalnız boundary trim).
+    const structured = "Cümle bir.  Cümle iki — tire, virgül; nokta. ÇĞİŞÖÜ ıi tekrar tekrar tekrar açıklama.";
+    const g = makeGuide({ name: "WS", healing_guide_sections: [makeSection({ note: structured })] });
+    const { docXml } = await renderDoc(build([g], "single"));
+    check(docXml.includes(structured), "56 iç whitespace/noktalama/Türkçe/tekrar TAM korunur (boundary trim dışında kayıp yok)");
   }
 
   // ── sonuç ──────────────────────────────────────────────────────────────────
