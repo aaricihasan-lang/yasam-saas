@@ -96,6 +96,85 @@ export function chakraBlockHasContent(b: ChakraContentBlock): boolean {
   return CONTENT_LAYER_KEYS.some((k) => (b[k] ?? "").trim().length > 0);
 }
 
+/**
+ * FAZ 3.3E — gizli kaynak-kanıtı block tipi. Bu satırlar normal Çakra detayında
+ * RENDER EDİLMEZ; yalnız sayfa sonundaki TEK Kaynakça'yı (distinct eser) besler.
+ */
+export const SOURCE_EVIDENCE_BLOCK_TYPE = "source-evidence";
+
+/** Görünür (uzman-facing) block mı? source-evidence → görünür DEĞİL. */
+export function isVisibleChakraBlock(b: ChakraContentBlock): boolean {
+  return b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE;
+}
+
+export type ChakraBibliographyEntry = { title: string; author: string | null };
+
+/**
+ * Biyoenerji yerel corpus'unun KANONİK editoryal kaynak sırası (source_title ile
+ * birebir). Bibliyografya sırası bu diziye göre DETERMİNİSTİK üretilir; böylece
+ * çıktı sorgu/DB satır dönüş sırasından BAĞIMSIZDIR. Bu genel bir corpus özelliğidir
+ * (belirli bir çakraya hardcode DEĞİL); listede olmayan kaynak alfabetik fallback'e
+ * düşer, diğer çakralar için regresyon üretmez. Kök Çakra V4 (11 eser) tam bu sırayı üretir.
+ */
+export const CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER: readonly string[] = [
+  "Gizli Enerji Terapileri",
+  "Aura ve Çakra Kullanma Kılavuzu",
+  "Chakralar-Reiki Enerji ve Kuantum Merkezi",
+  "Enerji Tıbbı",
+  "7 Gün 7 Çakra 7 Bioenerji Çalışması",
+  "Bilinçaltını Açan Anahtar: Kinesiyoloji",
+  "Biyoenerji",
+  "Ruhun 7 Kapısı",
+  "Kuantum Dokunuş: Şifa Verme Gücü",
+  "AURA'lar: Yorumlama ve Anlama",
+  "Titreşimini Yükselt Hayatın Değişsin",
+];
+
+const EDITORIAL_RANK: ReadonlyMap<string, number> = new Map(
+  CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER.map((t, i) => [t, i]),
+);
+
+/** Kanonik editoryal rank (yoksa +∞ → alfabetik fallback bölgesi). */
+function bibliographyRank(title: string): number {
+  const r = EDITORIAL_RANK.get(title);
+  return r === undefined ? Number.POSITIVE_INFINITY : r;
+}
+
+/**
+ * TEK Kaynakça — yalnız `source-evidence` satırlarından distinct (source_title,
+ * source_author). Boş/null başlık elenir; aynı eser tekrar gösterilmez. Ana
+ * içerikte kaynak adı gösterilmez; bibliyografya yalnız burada. (V4: 11 eser.)
+ *
+ * Sıra DETERMİNİSTİK: önce KANONİK editoryal sıra
+ * (CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER), sonra listede olmayanlar alfabetik
+ * (title, sonra author). Girdi/DB satır sırasından bağımsızdır.
+ */
+export function deriveChakraBibliography(
+  blocks: ChakraContentBlock[],
+): ChakraBibliographyEntry[] {
+  const seen = new Set<string>();
+  const out: ChakraBibliographyEntry[] = [];
+  for (const b of blocks) {
+    if (b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE) continue;
+    const title = (b.source_title ?? "").trim();
+    if (!title) continue;
+    const author = (b.source_author ?? "").trim();
+    const key = `${title}${author}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ title, author: author || null });
+  }
+  out.sort((a, b) => {
+    const ra = bibliographyRank(a.title);
+    const rb = bibliographyRank(b.title);
+    if (ra !== rb) return ra - rb;
+    // eşit rank (ikisi de kanonik listede yok) → alfabetik title, sonra author
+    if (a.title !== b.title) return a.title < b.title ? -1 : 1;
+    return (a.author ?? "") < (b.author ?? "") ? -1 : (a.author ?? "") > (b.author ?? "") ? 1 : 0;
+  });
+  return out;
+}
+
 const QUICK_FACT_LABELS: { key: keyof ChakraQuickFacts; label: string }[] = [
   { key: "sanskritName", label: "Sanskritçe Ad" },
   { key: "element", label: "Element" },
@@ -141,9 +220,12 @@ export function buildChakraWorkspace(
   const legacy = buildChakraSections(record, { stonesVisible: opts.stonesVisible });
   const legacyById = new Map<string, ChakraSection>(legacy.map((s) => [s.id, s]));
 
-  // 2) rich blokları section_key altında grupla (yalnız non-empty), sırala
+  // 2) rich blokları section_key altında grupla (yalnız GÖRÜNÜR + non-empty), sırala.
+  //    source-evidence (gizli kaynak-kanıtı) satırları ana içerikte gösterilmez;
+  //    yalnız sayfa sonundaki Kaynakça'yı besler (deriveChakraBibliography).
   const richBySection = new Map<string, ChakraContentBlock[]>();
   for (const b of blocks) {
+    if (!isVisibleChakraBlock(b)) continue;
     if (!chakraBlockHasContent(b)) continue;
     const arr = richBySection.get(b.section_key) ?? [];
     arr.push(b);

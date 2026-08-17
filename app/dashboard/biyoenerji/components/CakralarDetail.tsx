@@ -25,12 +25,19 @@ import {
 } from "@/lib/bioenergy/chakrasListFetch";
 import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
 import {
-  buildChakraSections,
   partitionBedenSistemBlocks,
-  resolveActiveChakraSection,
   type ChakraSection,
   type ChakraSectionBlock,
 } from "@/lib/bioenergy/chakraSections";
+import {
+  buildChakraWorkspace,
+  deriveChakraBibliography,
+  type ChakraContentBlock,
+  type ChakraWorkspaceSection,
+} from "@/lib/bioenergy/chakraWorkspace";
+import { fetchChakraBlocks } from "@/lib/bioenergy/chakraBlocksFetch";
+import ChakraV4Content from "./ChakraV4Content";
+import ChakraBibliography from "./ChakraBibliography";
 import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "../biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
 import ChakraSectionNav from "./ChakraSectionNav";
@@ -256,6 +263,10 @@ export default function CakralarDetail({ id }: { id: string }) {
   const [stonesLoading, setStonesLoading] = useState(true);
   const [stonesError, setStonesError] = useState(false);
 
+  // FAZ 3.3E — rich içerik blokları (salt-okuma, tenant/IDOR-safe server route).
+  // Kayıtta blok yoksa boş → tüm mevcut kayıtlarda FAZ 3.1 davranışı DEĞİŞMEZ.
+  const [blocks, setBlocks] = useState<ChakraContentBlock[]>([]);
+
   const downloadWord = useCallback(async () => {
     if (!record) return;
     const tenantId = await getSyncedTenantId();
@@ -390,6 +401,20 @@ export default function CakralarDetail({ id }: { id: string }) {
     }
     void loadRecord();
   }, [loadRecord, id]);
+
+  // FAZ 3.3E — rich blokları çek (salt-okuma). Hata/boş → graceful boş liste;
+  // mevcut kayıtlarda (blok yok) hiçbir görsel değişiklik olmaz.
+  useEffect(() => {
+    const recordId = id.trim();
+    if (!recordId) return;
+    let cancelled = false;
+    void fetchChakraBlocks(recordId).then(({ blocks: rows }) => {
+      if (!cancelled) setBlocks(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // Doğaltaş taşları — oturum-içi tenant cache (her detayda yeniden çekme)
   useEffect(() => {
@@ -547,8 +572,22 @@ export default function CakralarDetail({ id }: { id: string }) {
   // stones metni varsa görünür; Doğaltaş ek-taş bloğu ayrıca (aşağıda) render
   // edilir (mevcut davranış korunur).
   const stonesVisible = Boolean(record.stones?.trim());
-  const visibleSections = buildChakraSections(record, { stonesVisible });
-  const activeSection = resolveActiveChakraSection(visibleSections, sectionParam);
+  // FAZ 3.3E — legacy + rich (V4) birleşik workspace. blocks=[] iken çıktı FAZ 3.1
+  // legacy davranışıyla birebir aynıdır (regresyon yok). source-evidence gizli.
+  const workspace = buildChakraWorkspace(record, blocks, {
+    stonesVisible,
+    quickFacts: {
+      sanskritName: record.sanskrit_name,
+      element: record.element,
+      location: record.location,
+      bijaMantra: record.bija_mantra,
+    },
+  });
+  const activeWs: ChakraWorkspaceSection | null =
+    (sectionParam ? workspace.find((s) => s.hash === sectionParam) : undefined) ??
+    workspace[0] ??
+    null;
+  const bibliography = deriveChakraBibliography(blocks);
 
   // Breadcrumb — son segment gerçek kayıt adı (generic "Kayıt detayı" değil).
   // Zincir IA sözlüğünden kurulur; link davranışı korunur (Çakralar → liste).
@@ -611,10 +650,19 @@ export default function CakralarDetail({ id }: { id: string }) {
     </div>
   );
 
-  const renderGenelMain = (section: ChakraSection): ReactNode => (
+  const renderGenelMain = (
+    blocksArg: ChakraSectionBlock[],
+    quickRows: { key: string; label: string; value: string }[],
+  ): ReactNode => (
     <div className="flex flex-col gap-3">
-      {section.blocks.map((b, i) => (
-        <div key={`${section.id}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {quickRows.map((r) => (
+        <div key={`qf-${r.key}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{r.label}</span>
+          <span className="text-[15px] font-semibold text-slate-800">{r.value}</span>
+        </div>
+      ))}
+      {blocksArg.map((b, i) => (
+        <div key={`gb-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {b.title ? (
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
               {b.title}
@@ -635,35 +683,59 @@ export default function CakralarDetail({ id }: { id: string }) {
     </div>
   );
 
+  // Aktif section içeriği: legacy (mevcut davranış) + rich V4 görünür bloklar.
+  // legacy renderer'lar activeWs.legacyBlocks ile beslenir (blocks=[] iken FAZ 3.1
+  // ile birebir). Rich bloklar ChakraV4Content ile; source-evidence zaten workspace'te
+  // elenmiştir (ana içerikte kaynak adı YOK).
   let sectionMain: ReactNode = null;
   let sectionContext: ReactNode = null;
 
-  if (activeSection) {
-    if (activeSection.kind === "stones") {
-      // Taşlar & Destekleyiciler — geniş tek kolon (chip grid'i bölme).
-      sectionMain = renderStonesMain();
-    } else if (activeSection.id === "genel-bakis") {
-      // Genel Bakış — yalnız mevcut gerçek veri (Renk). Bağlam paneli YOK:
-      // taş bilgisi "Taşlar & Destekleyiciler" domain'ine aittir, boşluk
-      // doldurmak için başka section'ın verisi ödünç alınmaz. Sade kabul edilir.
-      sectionMain = renderGenelMain(activeSection);
-    } else if (activeSection.id === "beden-sistem") {
-      // Fiziksel Etkiler = ana içerik; Organlar + Bezler = yapısal bağlam.
-      // İkisi de doluysa adaptif iki kolon; değilse tek kolon (boş panel yok).
-      const { primary, context } = partitionBedenSistemBlocks(activeSection);
+  if (activeWs) {
+    const legacyBlocks = activeWs.legacyBlocks;
+    let legacyNode: ReactNode = null;
+    if (activeWs.kind === "stones") {
+      legacyNode = renderStonesMain();
+    } else if (activeWs.id === "genel-bakis") {
+      legacyNode =
+        legacyBlocks.length > 0 || activeWs.quickFacts.length > 0
+          ? renderGenelMain(legacyBlocks, activeWs.quickFacts)
+          : null;
+    } else if (activeWs.id === "beden-sistem") {
+      const { primary, context } = partitionBedenSistemBlocks({
+        blocks: legacyBlocks,
+      } as ChakraSection);
       if (primary.length > 0 && context.length > 0) {
-        sectionMain = <ContentBlocks blocks={primary} typography={contentTypography} />;
+        legacyNode = <ContentBlocks blocks={primary} typography={contentTypography} />;
         sectionContext = (
           <ContextPanel>
             <ContentBlocks blocks={context} typography={contentTypography} />
           </ContextPanel>
         );
-      } else {
-        sectionMain = <ContentBlocks blocks={activeSection.blocks} typography={contentTypography} />;
+      } else if (legacyBlocks.length > 0) {
+        legacyNode = <ContentBlocks blocks={legacyBlocks} typography={contentTypography} />;
       }
-    } else {
-      sectionMain = <ContentBlocks blocks={activeSection.blocks} typography={contentTypography} />;
+    } else if (legacyBlocks.length > 0) {
+      legacyNode = <ContentBlocks blocks={legacyBlocks} typography={contentTypography} />;
     }
+
+    const richNode =
+      activeWs.richBlocks.length > 0 ? (
+        <div className="flex flex-col gap-6">
+          {activeWs.richBlocks.map((b) => (
+            <ChakraV4Content key={b.id} block={b} />
+          ))}
+        </div>
+      ) : null;
+
+    sectionMain =
+      legacyNode && richNode ? (
+        <div className="flex flex-col gap-6">
+          {legacyNode}
+          {richNode}
+        </div>
+      ) : (
+        legacyNode ?? richNode
+      );
   }
 
   return (
@@ -759,8 +831,8 @@ export default function CakralarDetail({ id }: { id: string }) {
       {/* FAZ 3.1 — ikinci-seviye editorial section nav (tek-section workspace) */}
       <div className="mt-4">
         <ChakraSectionNav
-          sections={visibleSections.map((s) => ({ hash: s.hash, title: s.title }))}
-          activeHash={activeSection?.hash ?? ""}
+          sections={workspace.map((s) => ({ hash: s.hash, title: s.title }))}
+          activeHash={activeWs?.hash ?? ""}
           onSelect={selectSection}
         />
       </div>
@@ -769,14 +841,14 @@ export default function CakralarDetail({ id }: { id: string }) {
         isProtected={isDemo}
         message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
       >
-        {activeSection ? (
+        {activeWs ? (
           // Editorial içerik yüzeyi — koca beyaz kart YOK; metin ana odak.
           // Sol accent + güçlü başlık. Bağlam paneli varsa masaüstünde adaptif
           // 8/4 iki kolon; yoksa doğal tek kolon (boş sağ rezerve YOK).
           <section className="pt-5 sm:pt-6">
             <h2 className="mb-4 flex items-center gap-2.5 text-xl font-black tracking-tight text-slate-900">
               <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-violet-400 to-cyan-400" aria-hidden />
-              <span className="min-w-0 break-words">{activeSection.title}</span>
+              <span className="min-w-0 break-words">{activeWs.title}</span>
             </h2>
 
             {sectionContext ? (
@@ -794,6 +866,9 @@ export default function CakralarDetail({ id }: { id: string }) {
             Bu kayıt için henüz içerik girilmemiş.
           </div>
         )}
+
+        {/* FAZ 3.3E — sayfa sonunda TEK Kaynakça (gizli source-evidence'tan distinct eser) */}
+        <ChakraBibliography entries={bibliography} />
       </DemoGate>
 
       <BiyoenerjiCrudFormModal
