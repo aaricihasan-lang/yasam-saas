@@ -469,7 +469,7 @@ async function run(): Promise<void> {
   add("D-no-shared-null", cohort.every((k) => cfg(k).tenant.mode === "column" && (cfg(k).tenant as { allowSharedNull?: boolean }).allowSharedNull !== true));
 
   // Migration statik sözleşme.
-  const MIG_NAME = "20261213000000_yh_professional_cohort_aroma_numeroloji_cdc.sql";
+  const MIG_NAME = "20261215000000_yh_professional_cohort_aroma_numeroloji_cdc.sql";
   const MIG = readFileSync(join(process.cwd(), "supabase/migrations", MIG_NAME), "utf8");
   const EXEC = MIG.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
   const has = (re: RegExp): boolean => re.test(EXEC);
