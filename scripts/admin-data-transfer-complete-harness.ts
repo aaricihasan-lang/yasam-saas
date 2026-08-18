@@ -60,7 +60,7 @@ const ROUTE = "app/api/admin/veri-paylasimi/transfer/route.ts";
 const HELPER = "lib/admin/veriPaylasimiTransfer.ts";
 const PAGE = "app/admin/veri-paylasimi/page.tsx";
 const BADGE = "components/provenance/AdminTransferBadge.tsx";
-const MIGRATION = "supabase/migrations/20260929000000_healing_guides_transfer_provenance.sql";
+const MIGRATION = "supabase/migrations/20261213000000_healing_guides_transfer_provenance.sql";
 
 /** Server route REGISTRY anahtar kümesini kaynak koddan çıkarır. */
 function serverRegistryKeys(routeSrc: string): string[] {
@@ -229,15 +229,26 @@ function run(): void {
     "migration: provenance FK/CASCADE YOK (additive)");
   ok(/ADD COLUMN IF NOT EXISTS/.test(mig) && /BEGIN;[\s\S]*COMMIT;/.test(mig),
     "migration: idempotent additive + tek BEGIN/COMMIT");
-  // timestamp tekil + en yüksek
+  // Feature migration version'ları güncel main karşısında ÇAKIŞMASIZ + en yüksek.
+  // (NOT: main'in kendi pre-existing duplicate timestamp'leri vardır — ör. 20260927/
+  //  20260930 birden çok dosya — bu benim kapsamım DIŞIdır; yalnız KENDİ feature
+  //  version'larımın tekil ve main'in en yükseğinden büyük olduğunu doğrularım.)
   const migFiles = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
   const ts = migFiles.map((f) => f.slice(0, 14));
-  ok(ts.filter((v) => v === "20260929000000").length === 1, "migration: 20260929000000 tekil");
-  ok(ts.filter((v) => v === "20260930000000").length === 1, "migration: 20260930000000 tekil");
-  // Bu turun iki migration'ı önceki tüm merged migration'lardan (<=20260928) sonra gelir.
-  const preExisting = ts.filter((v) => v !== "20260929000000" && v !== "20260930000000").sort().at(-1) ?? "0";
-  ok("20260929000000" > preExisting && "20260930000000" > preExisting,
-    `migration: yeni timestamp'ler mevcut en yüksekten büyük (${preExisting})`);
+  const MINE = ["20261213000000", "20261214000000"];
+  for (const v of MINE) {
+    ok(ts.filter((t) => t === v).length === 1, `migration: feature version ${v} tekil (çakışma yok)`);
+  }
+  const maxOther = ts.filter((v) => !MINE.includes(v)).sort().at(-1) ?? "0";
+  ok(MINE.every((v) => v > maxOther),
+    `migration: feature timestamp'leri mevcut en yüksekten büyük (${maxOther})`);
+  ok(migFiles.includes("20261213000000_healing_guides_transfer_provenance.sql"),
+    "migration: healing final adı 20261213");
+  ok(migFiles.includes("20261214000000_transfer_provenance_hd_bioenergy_blends.sql"),
+    "migration: hd/bioenergy/blends final adı 20261214");
+  ok(!migFiles.includes("20260929000000_healing_guides_transfer_provenance.sql") &&
+     !migFiles.includes("20260930000000_transfer_provenance_hd_bioenergy_blends.sql"),
+    "migration: eski çakışan feature adları KALDIRILDI");
 
   // ── K) SAF MANTIK: registry türetmeleri + sayım/özet ───────────────────────
   ok(Object.keys(emptyTransferCounts()).length === ALL_TRANSFER_GROUP_KEYS.length,
@@ -322,8 +333,8 @@ function run(): void {
   // page gerçekten registry'yi dinamik render ediyor (statik değil)
   ok(/TRANSFER_MODULES\.map/.test(page), "page: modülleri registry'den dinamik render eder");
   // Yeni provenance migration (4 hedef tablo)
-  const MIG2 = "supabase/migrations/20260930000000_transfer_provenance_hd_bioenergy_blends.sql";
-  ok(existsSync(MIG2), "migration: 20260930 (HD/bioenergy/blend provenance) mevcut");
+  const MIG2 = "supabase/migrations/20261214000000_transfer_provenance_hd_bioenergy_blends.sql";
+  ok(existsSync(MIG2), "migration: 20261214 (HD/bioenergy/blend provenance) mevcut");
   const mig2 = read(MIG2);
   for (const t of ["human_design_knowledge_records", "human_design_knowledge_sources", "bioenergy_sessions", "aromatherapy_blends"]) {
     ok(new RegExp(`'${t}'`).test(mig2), `migration 20260930: hedef ${t}`);
