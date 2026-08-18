@@ -498,6 +498,51 @@ async function main() {
     check(docXml.includes(structured), "56 iç whitespace/noktalama/Türkçe/tekrar TAM korunur (boundary trim dışında kayıp yok)");
   }
 
+  // ══ Q. EK FAZ 3C PAGINATION / ARTIFACT POLISH ════════════════════════════════
+  {
+    // Guide-header orphan fix: içerik VARSA meta satırı keepNext; İÇERİK YOKSA keepNext YOK.
+    const withContent = await renderDoc(build([makeGuide({ name: "WC", symptoms: "var içerik" })], "single"));
+    const noContent = await renderDoc(build([makeGuide({ name: "NC" })], "single")); // yalnız ad+tarih
+    check(count(noContent.docXml, "w:keepNext") === 1, "57 içeriksiz guide: meta keepNext YOK (yalnız başlık) → sonraki guide çekilmez");
+    check(count(withContent.docXml, "w:keepNext") >= 3, "58 içerikli guide: başlık→meta→ilk-içerik zinciri keepNext (header orphan fix)");
+  }
+  {
+    // Nested subsection heading (▸) keepNext → ilk içerik paragrafıyla kalır (subheading orphan fix).
+    const g = makeGuide({ name: "NS", healing_guide_sections: [
+      makeSection({ section_type: "reasons", title: "Mizaç Sebepleri", note: "AAA" }),
+      makeSection({ section_type: "reasons", title: "Tıbbi Nedenler", note: "BBB" }),
+    ] });
+    const { docXml } = await renderDoc(build([g], "single"));
+    const pBlocks = docXml.match(/<w:p>[\s\S]*?<\/w:p>/g) || [];
+    const subParas = pBlocks.filter((b) => b.includes("▸"));
+    check(subParas.length >= 2 && subParas.every((b) => b.includes("w:keepNext")), "59 nested ▸ alt-başlık paragrafı keepNext (subheading orphan)");
+  }
+  {
+    // Tüm-record kilitleme YOK (keepTogether/cantSplit) → katalog akışı korunur.
+    const gs = [makeGuide({ name: "K1", healing_guide_sections: [makeSection({ note: "n".repeat(2000) })] }), makeGuide({ name: "K2", symptoms: "x" })];
+    const { docXml } = await renderDoc(build(gs, "all"));
+    check(!/w:cantSplit/.test(docXml) && !/w:keepLines/.test(docXml), "60 tüm-record keepTogether/cantSplit/keepLines YOK");
+    check(count(docXml, "w:pageBreakBefore") === 2, "61 per-guide page break YOK (forced break yalnız liste+katalog başı)");
+  }
+  {
+    // U+FFFC (Object Replacement) artifact temizlenir; çevresi + Türkçe korunur; U+FFFD eklenmez.
+    const FFFC = String.fromCharCode(0xFFFC);
+    const g = makeGuide({ name: "FC", healing_guide_sections: [makeSection({ note: "önce" + FFFC + "sonra ŞİĞÖ" })] });
+    const { docXml } = await renderDoc(build([g], "single"));
+    check(!docXml.includes(FFFC), "62 U+FFFC Word çıktısından kaldırılır");
+    check(docXml.includes("öncesonra ŞİĞÖ"), "63 U+FFFC çevresi (öncesi+sonrası) + Türkçe TAM korunur");
+    check(!docXml.includes(String.fromCharCode(0xFFFD)), "64 indiscriminate U+FFFD stripping/ekleme YOK");
+  }
+  {
+    // Kapak category zero: size 0 → 'Kategori' satırı gizli; >0 → korunur.
+    const zero = await renderDoc(build([makeGuide({ name: "Z1", category: null }), makeGuide({ name: "Z2", category: null })], "all"));
+    check(!zero.docXml.includes("Kategori"), "65 kapak category=0 → 'Kategori' satırı gizli");
+    const nz = await renderDoc(build([makeGuide({ name: "N1", category: "Baş" }), makeGuide({ name: "N2", category: "Baş" })], "all"));
+    check(nz.docXml.includes("Kategori"), "66 kapak category>0 → 'Kategori' korunur");
+    // binding: Sistem Özeti hâlâ yok, statik liste hâlâ var (regression guard)
+    check(!zero.docXml.includes("SİSTEM ÖZETİ") && zero.docXml.includes("KAYIT LİSTESİ"), "67 Sistem Özeti YOK + statik KAYIT LİSTESİ korunur");
+  }
+
   // ── sonuç ──────────────────────────────────────────────────────────────────
   console.log(`\n${"=".repeat(60)}`);
   console.log(`PREMIUM WORD HARNESS: ${pass} PASS / ${fail} FAIL`);
