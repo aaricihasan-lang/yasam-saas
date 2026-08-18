@@ -31,7 +31,10 @@ export type TransferGroupKey =
   | "aromatherapy_oils_essential"
   | "aromatherapy_oils_carrier"
   | "aromatherapy_oils_maceration"
-  | "healing_guides";
+  | "aromatherapy_blends"
+  | "healing_guides"
+  | "hd_knowledge"
+  | "bioenergy_sessions";
 
 /**
  * UI alt bölümü. Bir görünür checkbox → 1+ transfer grup anahtarı.
@@ -95,6 +98,12 @@ export const TRANSFER_MODULES: TransferModuleMeta[] = [
         transferKeys: ["bioenergy_subconscious_causes"],
         active: true,
       },
+      {
+        key: "bioenergy_sessions",
+        label: "Biyoenerji Seansları (teknik/uygulama kütüphanesi)",
+        transferKeys: ["bioenergy_sessions"],
+        active: true,
+      },
     ],
   },
   {
@@ -155,6 +164,12 @@ export const TRANSFER_MODULES: TransferModuleMeta[] = [
         active: true,
         granular: true,
       },
+      {
+        key: "aromatherapy_blends",
+        label: "Blend / Formüller",
+        transferKeys: ["aromatherapy_blends"],
+        active: true,
+      },
     ],
   },
   {
@@ -165,6 +180,20 @@ export const TRANSFER_MODULES: TransferModuleMeta[] = [
         key: "healing_guides",
         label: "Rehberler (bölümleriyle birlikte)",
         transferKeys: ["healing_guides"],
+        active: true,
+      },
+    ],
+  },
+  {
+    key: "human_design",
+    label: "Human Design",
+    sections: [
+      {
+        // human_design_knowledge_records + child human_design_knowledge_sources
+        // (Tipler/Otoriteler/Kapılar/Kanallar dahil tüm HD bilgi bankası kategorileri).
+        key: "hd_knowledge",
+        label: "Bilgi Bankası (Tipler · Otoriteler · Kapılar · Kanallar)",
+        transferKeys: ["hd_knowledge"],
         active: true,
       },
     ],

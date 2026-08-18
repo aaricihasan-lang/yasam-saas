@@ -37,7 +37,10 @@ export const ALL_TRANSFER_GROUP_KEYS: TransferGroupKey[] = [
   "aromatherapy_oils_essential",
   "aromatherapy_oils_carrier",
   "aromatherapy_oils_maceration",
+  "aromatherapy_blends",
   "healing_guides",
+  "hd_knowledge",
+  "bioenergy_sessions",
 ];
 
 export type TransferTableName = TransferGroupKey;
@@ -89,8 +92,11 @@ export function emptyTransferCounts(): TransferResultCounts {
     aromatherapy_oils_essential: 0,
     aromatherapy_oils_carrier: 0,
     aromatherapy_oils_maceration: 0,
+    aromatherapy_blends: 0,
     stone_knowledge_articles: 0,
     healing_guides: 0,
+    hd_knowledge: 0,
+    bioenergy_sessions: 0,
   };
 }
 
@@ -152,7 +158,8 @@ function buildTransferSuccessMessage(
     (groups.includes("bioenergy_energy_bodies") ? counts.bioenergy_energy_bodies : 0) +
     (groups.includes("bioenergy_subconscious_causes")
       ? counts.bioenergy_subconscious_causes
-      : 0);
+      : 0) +
+    (groups.includes("bioenergy_sessions") ? counts.bioenergy_sessions : 0);
   if (bio > 0) lines.push(`${bio} Biyoenerji kaydı ${account} hesabına eklendi`);
 
   if (groups.includes("reflexology_protocols") && counts.reflexology_protocols > 0) {
@@ -176,12 +183,20 @@ function buildTransferSuccessMessage(
     (groups.includes("aromatherapy_oils_maceration") ? counts.aromatherapy_oils_maceration : 0);
   if (aro > 0) lines.push(`${aro} Aromaterapi yağ kaydı ${account} hesabına eklendi`);
 
+  if (groups.includes("aromatherapy_blends") && counts.aromatherapy_blends > 0) {
+    lines.push(`${counts.aromatherapy_blends} Aromaterapi blend kaydı ${account} hesabına eklendi`);
+  }
+
   if (groups.includes("stone_knowledge_articles") && counts.stone_knowledge_articles > 0) {
     lines.push(`${counts.stone_knowledge_articles} Taş bilgi kaydı ${account} hesabına eklendi`);
   }
 
   if (groups.includes("healing_guides") && counts.healing_guides > 0) {
     lines.push(`${counts.healing_guides} Şifa rehberi kaydı ${account} hesabına eklendi`);
+  }
+
+  if (groups.includes("hd_knowledge") && counts.hd_knowledge > 0) {
+    lines.push(`${counts.hd_knowledge} Human Design kaydı ${account} hesabına eklendi`);
   }
 
   if (lines.length === 0) return null;
@@ -305,7 +320,8 @@ export function sumBioenergyCounts(counts: TransferResultCounts): number {
     counts.bioenergy_imaginations +
     counts.bioenergy_chakras +
     counts.bioenergy_energy_bodies +
-    counts.bioenergy_subconscious_causes
+    counts.bioenergy_subconscious_causes +
+    counts.bioenergy_sessions
   );
 }
 
@@ -391,6 +407,22 @@ export function formatTransferResultLines(
       account
         ? `${counts.healing_guides} Şifa rehberi kaydı ${account} hesabına eklendi`
         : `${counts.healing_guides} Şifa rehberi`,
+    );
+  }
+
+  if (counts.hd_knowledge > 0) {
+    lines.push(
+      account
+        ? `${counts.hd_knowledge} Human Design kaydı ${account} hesabına eklendi`
+        : `${counts.hd_knowledge} Human Design`,
+    );
+  }
+
+  if (counts.aromatherapy_blends > 0) {
+    lines.push(
+      account
+        ? `${counts.aromatherapy_blends} Aromaterapi blend kaydı ${account} hesabına eklendi`
+        : `${counts.aromatherapy_blends} Aromaterapi blend`,
     );
   }
 

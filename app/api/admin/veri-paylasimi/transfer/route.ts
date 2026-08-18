@@ -82,6 +82,70 @@ const STONE_COPY_FIELDS = [
   "image_upload_failed",
 ] as const;
 
+/** Biyoenerji Seansları (teknik/uygulama kütüphanesi) kopya alanları. */
+const SESSION_COPY_FIELDS = ["title", "content", "category", "source", "note"] as const;
+
+/** Aromaterapi Blend/Formül kopya alanları (JSONB snapshot — child tablo yok). */
+const BLEND_COPY_FIELDS = [
+  "name",
+  "notes",
+  "carrier_oil_id",
+  "carrier_oil_name",
+  "bottle_ml",
+  "dilution_percent",
+  "drops_per_ml",
+  "total_drops",
+  "items",
+  "is_active",
+] as const;
+
+/** Human Design bilgi kaydı (parent) kopya alanları — expert_notes/user_id TAŞINMAZ. */
+const HD_RECORD_COPY_FIELDS = [
+  "category",
+  "title",
+  "code",
+  "content",
+  "keywords",
+  "related_gates",
+  "related_channels",
+  "related_centers",
+  "tags",
+  "sort_order",
+  "is_active",
+] as const;
+
+/** Human Design kaynak (child) kopya alanları — künye + haklar (default-deny korunur). */
+const HD_SOURCE_COPY_FIELDS = [
+  "source_name",
+  "source_type",
+  "author_or_organization",
+  "title",
+  "page_or_section",
+  "source_url",
+  "accessed_on",
+  "original_language_tag",
+  "original_text",
+  "faithful_translation_tr",
+  "source_specific_note",
+  "rights_status",
+  "permission_reference",
+  "private_use_allowed",
+  "client_report_allowed",
+  "expert_distribution_allowed",
+  "commercial_use_allowed",
+  "sort_order",
+] as const;
+
+/** Şifa Rehberi alt bölüm (child) kopya alanları. */
+const HEALING_SECTION_COPY_FIELDS = [
+  "section_type",
+  "mode",
+  "title",
+  "note",
+  "source",
+  "images",
+] as const;
+
 type SourceMode = "admin_tenant" | "canonical_null" | "admin_library";
 
 type GroupConfig = {
@@ -109,6 +173,10 @@ type GroupConfig = {
   childTable?: string;
   /** relational: child'ın parent'a bakan FK kolonu (ör. guide_id) — REMAP edilir. */
   childParentFk?: string;
+  /** relational: verilirse child yalnız bu alanlarla kopyalanır (yoksa SELECT * strip). */
+  childCopyFields?: readonly string[];
+  /** relational: child tablonun tenant_id kolonu var mı? true ise hedef tenant yazılır. */
+  childHasTenant?: boolean;
 };
 
 /** UI grup anahtarı → tablo + kopya davranışı. transferRegistry ile eş küme. */
@@ -121,6 +189,14 @@ const REGISTRY = {
   bioenergy_chakras: { table: "bioenergy_chakras" },
   bioenergy_energy_bodies: { table: "bioenergy_energy_bodies" },
   bioenergy_subconscious_causes: { table: "bioenergy_subconscious_causes" },
+  // Biyoenerji Seansları — profesyonel teknik/uygulama kütüphanesi (danışan seansı DEĞİL).
+  // Yalnız iş alanları (title/content/category/source/note) kopyalanır; kaynak
+  // tenant/id/user/created metadata TAŞINMAZ. NOT: repo veri envanterinde bu tablo
+  // "sınırda-PII" (serbest metin danışana atıf içerebilir) olarak işaretlidir; admin
+  // yalnız küratörlü teknik kütüphanesini gönderdiği varsayımıyla dahil edilmiştir.
+  bioenergy_sessions: {
+    table: "bioenergy_sessions", copyFields: SESSION_COPY_FIELDS,
+  },
   reflexology_protocols: { table: "reflexology_protocols" },
   numerology_knowledge_records: { table: "numerology_knowledge_records" },
   numerology_stone_assignments: { table: "numerology_stone_assignments" },
@@ -141,6 +217,13 @@ const REGISTRY = {
     sourceMode: "canonical_null", matchColumn: "oil_type", matchValue: "maceration",
     activeOnly: true,
   },
+  // Aromaterapi Blend/Formül — tenant-scoped, JSONB snapshot (child tablo YOK).
+  // Kaynak adminin kendi tenant'ı; tek satır kopya (yeni UUID + hedef tenant).
+  // items[].oil_id / carrier_oil_id snapshot mantıklı-ref'tir (FK YOK) — bilinçli korunur.
+  aromatherapy_blends: {
+    table: "aromatherapy_blends", copyFields: BLEND_COPY_FIELDS, requireField: "name",
+    sourceMode: "admin_tenant",
+  },
   // Taş Bilgi Kütüphanesi — kaynak sabit ADMIN_LIBRARY_TENANT_ID sentetik tenant.
   stone_knowledge_articles: {
     table: "stone_knowledge_articles", copyFields: KNOWLEDGE_COPY_FIELDS,
@@ -153,6 +236,19 @@ const REGISTRY = {
     table: "healing_guides", kind: "relational", requireField: "name",
     sourceMode: "admin_tenant",
     childTable: "healing_guide_sections", childParentFk: "guide_id",
+    childCopyFields: HEALING_SECTION_COPY_FIELDS, childHasTenant: false,
+  },
+  // Human Design bilgi bankası — RELATIONAL: human_design_knowledge_records (parent) +
+  // human_design_knowledge_sources (child, record_id FK, ON DELETE CASCADE). Kaynak
+  // adminin kendi tenant'ı; her kayıt yeni UUID + hedef tenant; child'ın record_id'si
+  // YENİ parent id'ye REMAP edilir. Child tablonun tenant_id'si VARDIR → hedef yazılır.
+  // expert_notes/user_id TAŞINMAZ (allowlist dışı). code per-tenant eşsizdir → çakışma
+  // olan kayıt (unit) atlanır, diğerleri aktarılır (per-unit atomik).
+  hd_knowledge: {
+    table: "human_design_knowledge_records", kind: "relational",
+    copyFields: HD_RECORD_COPY_FIELDS, requireField: "title", sourceMode: "admin_tenant",
+    childTable: "human_design_knowledge_sources", childParentFk: "record_id",
+    childCopyFields: HD_SOURCE_COPY_FIELDS, childHasTenant: true,
   },
 } as const satisfies Record<string, GroupConfig>;
 
@@ -313,11 +409,50 @@ async function cloneFlatGroup(
   return { requested: rows.length, inserted };
 }
 
+/** Relational child kopya payload'u (childCopyFields allowlist veya SELECT * strip). */
+function buildChildPayload(
+  cfg: GroupConfig,
+  kid: Record<string, unknown>,
+  childFk: string,
+  newParentId: string,
+  targetTenantId: string,
+  batchId: string,
+  nowIso: string,
+): Record<string, unknown> {
+  const copy: Record<string, unknown> = {};
+  if (cfg.childCopyFields) {
+    for (const key of cfg.childCopyFields) {
+      if (Object.prototype.hasOwnProperty.call(kid, key)) copy[key] = kid[key];
+    }
+  } else {
+    // SELECT * strip: teknik alanlar + parent FK + user_id çıkarılır.
+    const childStrip = new Set<string>([...STRIP, childFk, "user_id"]);
+    for (const [k, v] of Object.entries(kid)) {
+      if (!childStrip.has(k)) copy[k] = v;
+    }
+  }
+  // FK REMAP: child YENİ parent id'ye bağlanır (kaynak parent id'sine DEĞİL).
+  copy[childFk] = newParentId;
+  // Child tablonun tenant_id kolonu varsa hedef tenant yazılır (ör. HD sources).
+  if (cfg.childHasTenant) copy.tenant_id = targetTenantId;
+  // İç audit/rollback metadata (görünür origin_type/label YAZILMAZ — ürün kuralı).
+  copy.origin_source_id = typeof kid.id === "string" ? kid.id : null;
+  copy.origin_transfer_batch_id = batchId;
+  copy.transferred_at = nowIso;
+  return copy;
+}
+
 /**
- * Relational grubu kopyalar: parent (healing_guides) + child (healing_guide_sections).
- * Her rehber: parent INSERT → yeni id → o rehbere ait alt bölümler yeni guide_id ile
- * INSERT. Child FK KAYNAK parent id'sine DEĞİL, yeni target parent id'sine bağlanır.
- * Grup-atomik: patlarsa çağıran grup-scoped rollback ile tüm batch'i geri alır.
+ * Relational grubu kopyalar: parent + child (healing_guides/sections, hd records/sources).
+ *
+ * PER-UNIT ATOMİK: her (parent + kendi child'ları) BAĞIMSIZ bir birimdir. Bir birim
+ * patlarsa (ör. HD `code` per-tenant eşsizlik çakışması) YALNIZ o birim geri alınır
+ * (yeni parent silinir → child'lar ON DELETE CASCADE ile gider) ve diğer birimlere
+ * devam edilir. Bir parent'ın yarısı insert olup yarısı kalmaz (birim bütünlüğü).
+ * Child FK KAYNAK parent id'sine DEĞİL, YENİ target parent id'sine remap edilir.
+ *
+ * Sonuç: tüm birimler patlarsa (ve kaynak boş değilse) grup "failed" sayılsın diye
+ * TransferError fırlatır; en az bir birim başarılıysa {requested, inserted} döner.
  */
 async function cloneRelationalGroup(
   db: SupabaseClient,
@@ -358,54 +493,56 @@ async function cloneRelationalGroup(
     }
   }
 
-  // Child STRIP: teknik alanlar + parent FK (yeniden atanacak).
-  const childStrip = new Set<string>([...STRIP, childFk]);
-
   let requested = 0;
   let inserted = 0;
+  let unitsFailed = 0;
+  let unitsOk = 0;
 
-  // 3) Her rehberi ekle → yeni id al → alt bölümleri yeni id'ye remap ederek ekle.
+  // 3) Her birimi (parent + child'ları) BAĞIMSIZ ele al.
   for (const parent of parents) {
     const sourceId = typeof parent.id === "string" ? parent.id : null;
     const parentCopy = buildCopyPayload(cfg, group, parent, targetTenantId, batchId, nowIso);
-    if (!parentCopy) continue; // requireField boş → atla
-    requested += 1;
+    if (!parentCopy) continue; // requireField boş → atla (skip, hata değil)
 
-    const { data: insParent, error: insErr } = await db
-      .from(cfg.table)
-      .insert(parentCopy)
-      .select("id")
-      .single();
-    if (insErr || !insParent) throw new TransferError("insert", group);
-    inserted += 1;
-
-    const newParentId = String((insParent as { id: unknown }).id);
     const kids = sourceId ? childrenByParent.get(sourceId) ?? [] : [];
-    if (kids.length === 0) continue;
+    requested += 1 + kids.length;
 
-    const childPayloads: Record<string, unknown>[] = [];
-    for (const kid of kids) {
-      const copy: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(kid)) {
-        if (!childStrip.has(k)) copy[k] = v;
+    let newParentId: string | null = null;
+    try {
+      const { data: insParent, error: insErr } = await db
+        .from(cfg.table)
+        .insert(parentCopy)
+        .select("id")
+        .single();
+      if (insErr || !insParent) throw new TransferError("insert", group);
+      newParentId = String((insParent as { id: unknown }).id);
+
+      const childPayloads = kids.map((kid) =>
+        buildChildPayload(cfg, kid, childFk, newParentId!, targetTenantId, batchId, nowIso),
+      );
+      for (let off = 0; off < childPayloads.length; off += INSERT_BATCH) {
+        const batch = childPayloads.slice(off, off + INSERT_BATCH);
+        const { error: cInsErr } = await db.from(childTable).insert(batch);
+        if (cInsErr) throw new TransferError("insert", group);
       }
-      // FK REMAP: child yeni parent id'ye bağlanır (kaynak id'ye DEĞİL).
-      copy[childFk] = newParentId;
-      // İç audit/rollback metadata (görünür origin_type/label YAZILMAZ — ürün kuralı).
-      copy.origin_source_id = typeof kid.id === "string" ? kid.id : null;
-      copy.origin_transfer_batch_id = batchId;
-      copy.transferred_at = nowIso;
-      childPayloads.push(copy);
-      requested += 1;
-    }
 
-    for (let off = 0; off < childPayloads.length; off += INSERT_BATCH) {
-      const batch = childPayloads.slice(off, off + INSERT_BATCH);
-      const { error: cInsErr } = await db.from(childTable).insert(batch);
-      if (cInsErr) throw new TransferError("insert", group);
-      inserted += batch.length;
+      inserted += 1 + kids.length;
+      unitsOk += 1;
+    } catch {
+      // PER-UNIT ROLLBACK: yeni parent'ı sil → child'lar ON DELETE CASCADE ile gider.
+      if (newParentId) {
+        try {
+          await db.from(cfg.table).delete().eq("id", newParentId);
+        } catch {
+          /* best-effort birim geri alma */
+        }
+      }
+      unitsFailed += 1;
     }
   }
+
+  // Hiç birim başarılı olmadı ama kaynakta işlenecek birim vardı → grup başarısız.
+  if (unitsOk === 0 && unitsFailed > 0) throw new TransferError("insert", group);
 
   return { requested, inserted };
 }

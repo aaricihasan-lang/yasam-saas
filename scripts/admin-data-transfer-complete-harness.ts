@@ -139,14 +139,22 @@ function run(): void {
   ok(/async function cloneRelationalGroup\b/.test(route), "route: cloneRelationalGroup mevcut");
   ok(/kind:\s*"relational"/.test(route) && /childTable:\s*"healing_guide_sections"/.test(route) && /childParentFk:\s*"guide_id"/.test(route),
     "route: healing_guides relational config (child + FK kolonu)");
-  ok(/const childStrip = new Set<string>\(\[\.\.\.STRIP, childFk\]\)/.test(route),
-    "route: child STRIP parent FK'yı çıkarır (kaynak id kopyalanmaz)");
+  ok(/new Set<string>\(\[\.\.\.STRIP, childFk, "user_id"\]\)/.test(route),
+    "route: child STRIP parent FK + user_id çıkarır (kaynak id/user kopyalanmaz)");
   ok(/copy\[childFk\]\s*=\s*newParentId/.test(route),
     "route: FK REMAP — child yeni parent id'ye bağlanır");
   ok(/\.insert\(parentCopy\)[\s\S]{0,40}\.select\("id"\)[\s\S]{0,20}\.single\(\)/.test(route),
     "route: parent insert → yeni id alınır (remap kaynağı)");
   ok(/rollbackGroup[\s\S]*?cfg\.kind === "relational" && cfg\.childTable[\s\S]*?childTable\)\.delete\(\)\.eq\("origin_transfer_batch_id"/.test(routeCode),
     "route: relational rollback child'ı da batch_id ile siler");
+  // PER-UNIT atomik: her (parent+child'ları) bağımsız birim; birim patlarsa yeni parent
+  // silinir (cascade child) ve diğer birimlere devam; hepsi patlarsa grup failed.
+  ok(/delete\(\)\.eq\("id", newParentId\)/.test(routeCode),
+    "route: per-unit rollback (yeni parent silinir → child cascade)");
+  ok(/unitsOk === 0 && unitsFailed > 0.*throw new TransferError/.test(routeCode.replace(/\s+/g, " ")),
+    "route: tüm birimler patlarsa grup failed (unitsOk==0)");
+  ok(/childHasTenant/.test(route) && /copy\.tenant_id = targetTenantId/.test(route),
+    "route: child tenant_id (HD sources) hedef tenant'a yazılır");
 
   // ── E) INSERT-ONLY (upsert/replace/onConflict YOK) ─────────────────────────
   ok(!/\.upsert\(/.test(routeCode), "route: .upsert() YOK");
@@ -225,8 +233,11 @@ function run(): void {
   const migFiles = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
   const ts = migFiles.map((f) => f.slice(0, 14));
   ok(ts.filter((v) => v === "20260929000000").length === 1, "migration: 20260929000000 tekil");
-  const maxOther = ts.filter((v) => v !== "20260929000000").sort().at(-1) ?? "0";
-  ok("20260929000000" >= maxOther, `migration: timestamp mevcut en yüksek (${maxOther})`);
+  ok(ts.filter((v) => v === "20260930000000").length === 1, "migration: 20260930000000 tekil");
+  // Bu turun iki migration'ı önceki tüm merged migration'lardan (<=20260928) sonra gelir.
+  const preExisting = ts.filter((v) => v !== "20260929000000" && v !== "20260930000000").sort().at(-1) ?? "0";
+  ok("20260929000000" > preExisting && "20260930000000" > preExisting,
+    `migration: yeni timestamp'ler mevcut en yüksekten büyük (${preExisting})`);
 
   // ── K) SAF MANTIK: registry türetmeleri + sayım/özet ───────────────────────
   ok(Object.keys(emptyTransferCounts()).length === ALL_TRANSFER_GROUP_KEYS.length,
@@ -250,14 +261,21 @@ function run(): void {
   counts.reflexology_protocols = 1;
   counts.numerology_knowledge_records = 3;
   counts.healing_guides = 4;
-  ok(sumBioenergyCounts(counts) === 3, "sumBioenergyCounts doğru");
+  counts.hd_knowledge = 5;
+  counts.aromatherapy_blends = 2;
+  counts.bioenergy_sessions = 4;
+  ok(sumBioenergyCounts(counts) === 3 + 4, "sumBioenergyCounts sessions dahil doğru");
   ok(sumReflexologyCounts(counts) === 1, "sumReflexologyCounts doğru");
   ok(sumNumerologyCounts(counts) === 3, "sumNumerologyCounts doğru");
   const lines = formatTransferResultLines(counts, "uzman@x.com");
-  ok(lines.some((l) => /2 Doğaltaş/.test(l)) && lines.some((l) => /3 Biyoenerji/.test(l)),
-    "formatTransferResultLines: doğaltaş+biyoenerji satırları");
+  ok(lines.some((l) => /2 Doğaltaş/.test(l)) && lines.some((l) => /7 Biyoenerji/.test(l)),
+    "formatTransferResultLines: doğaltaş + biyoenerji (sessions dahil) satırları");
   ok(lines.some((l) => /4 Şifa rehberi/.test(l)),
     "formatTransferResultLines: healing_guides satırı");
+  ok(lines.some((l) => /5 Human Design/.test(l)),
+    "formatTransferResultLines: hd_knowledge satırı");
+  ok(lines.some((l) => /2 Aromaterapi blend/.test(l)),
+    "formatTransferResultLines: aromatherapy_blends satırı");
 
   // ── L) UI hiyerarşik seçim (Tümünü Seç / modül / indeterminate) ────────────
   ok(/Tüm Verileri Seç/.test(page), "page: 'Tüm Verileri Seç' global kontrol");
@@ -271,6 +289,47 @@ function run(): void {
   ok(/bağımsız kopya olarak eklenecek/.test(page), "page: bağımsız kopya onay metni");
   ok(/değiştirilmez, silinmez veya replace edilmez/.test(page),
     "page: yeni bağımsız kayıt / replace yok mesajı");
+
+  // ── M) YENİ KAPSAMLAR: HD + Biyoenerji Seansları + Aromaterapi Blend ───────
+  // Server REGISTRY yeni anahtarları içeriyor (drift setEq zaten kümece doğruladı)
+  for (const k of ["hd_knowledge", "bioenergy_sessions", "aromatherapy_blends"]) {
+    ok(srvKeys.includes(k), `route REGISTRY yeni anahtar: ${k}`);
+    ok((ALL_ACTIVE_GROUP_KEYS as unknown as string[]).includes(k), `registry aktif: ${k}`);
+  }
+  // HD relational config (records + sources, record_id FK, child tenant var)
+  ok(/hd_knowledge:\s*\{[\s\S]*?kind:\s*"relational"[\s\S]*?childTable:\s*"human_design_knowledge_sources"[\s\S]*?childParentFk:\s*"record_id"[\s\S]*?childHasTenant:\s*true/.test(route),
+    "route: hd_knowledge relational (records+sources, record_id FK, child tenant)");
+  ok(/HD_RECORD_COPY_FIELDS/.test(route) && !/expert_notes/.test(route.split("HD_RECORD_COPY_FIELDS")[1]?.split("]")[0] ?? ""),
+    "route: HD parent allowlist (expert_notes/user_id TAŞINMAZ)");
+  // Biyoenerji Seansları flat, iş-alanı allowlist
+  ok(/bioenergy_sessions:\s*\{\s*table:\s*"bioenergy_sessions", copyFields:\s*SESSION_COPY_FIELDS/.test(route),
+    "route: bioenergy_sessions flat + SESSION_COPY_FIELDS allowlist");
+  ok(/SESSION_COPY_FIELDS = \["title", "content", "category", "source", "note"\]/.test(route),
+    "route: bioenergy_sessions yalnız iş alanları (id/tenant/created taşınmaz)");
+  // Aromaterapi blend flat JSONB snapshot
+  ok(/aromatherapy_blends:\s*\{\s*table:\s*"aromatherapy_blends", copyFields:\s*BLEND_COPY_FIELDS/.test(route),
+    "route: aromatherapy_blends flat + BLEND_COPY_FIELDS (JSONB snapshot)");
+  // UI kaynağı registry'dir (page modülleri TRANSFER_MODULES'ten render eder).
+  const hdMod = TRANSFER_MODULES.find((m) => m.key === "human_design");
+  ok(!!hdMod && hdMod.sections.some((s) => s.key === "hd_knowledge" && s.active),
+    "registry: Human Design modülü + hd_knowledge aktif section");
+  const bioMod = TRANSFER_MODULES.find((m) => m.key === "bioenergy");
+  ok(!!bioMod && bioMod.sections.some((s) => s.key === "bioenergy_sessions" && s.active),
+    "registry: Biyoenerji Seansları aktif section");
+  const aroMod = TRANSFER_MODULES.find((m) => m.key === "aromatherapy");
+  ok(!!aroMod && aroMod.sections.some((s) => s.key === "aromatherapy_blends" && s.active),
+    "registry: Aromaterapi Blend aktif section");
+  // page gerçekten registry'yi dinamik render ediyor (statik değil)
+  ok(/TRANSFER_MODULES\.map/.test(page), "page: modülleri registry'den dinamik render eder");
+  // Yeni provenance migration (4 hedef tablo)
+  const MIG2 = "supabase/migrations/20260930000000_transfer_provenance_hd_bioenergy_blends.sql";
+  ok(existsSync(MIG2), "migration: 20260930 (HD/bioenergy/blend provenance) mevcut");
+  const mig2 = read(MIG2);
+  for (const t of ["human_design_knowledge_records", "human_design_knowledge_sources", "bioenergy_sessions", "aromatherapy_blends"]) {
+    ok(new RegExp(`'${t}'`).test(mig2), `migration 20260930: hedef ${t}`);
+  }
+  ok(/ADD COLUMN IF NOT EXISTS origin_transfer_batch_id uuid/.test(mig2) && !/REFERENCES/.test(stripSql(mig2)) && !/ON DELETE CASCADE/.test(stripSql(mig2)),
+    "migration 20260930: additive provenance, FK/CASCADE yok");
 
   console.log(`\nadmin-data-transfer-complete harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
