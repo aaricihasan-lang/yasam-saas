@@ -12,33 +12,48 @@
  */
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
+import type { TransferGroupKey } from "@/lib/admin/transferRegistry";
 
 export { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 export { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
+export type { TransferGroupKey } from "@/lib/admin/transferRegistry";
 
 export const TRANSFER_BATCH_SIZE = 100;
 
-/** UI seçim anahtarı → server registry ile aynı grup anahtarları. */
-export type TransferGroupKey =
-  | "stones"
-  | "minerals"
-  | "combinations"
-  | "bioenergy_symbols"
-  | "bioenergy_imaginations"
-  | "bioenergy_chakras"
-  | "bioenergy_energy_bodies"
-  | "bioenergy_subconscious_causes"
-  | "reflexology_protocols"
-  | "numerology_knowledge_records"
-  | "numerology_stone_assignments"
-  | "aromatherapy_oils_essential"
-  | "aromatherapy_oils_carrier"
-  | "aromatherapy_oils_maceration"
-  | "stone_knowledge_articles";
+/** Server registry ile birebir aynı grup anahtar seti (transferRegistry kaynak). */
+export const ALL_TRANSFER_GROUP_KEYS: TransferGroupKey[] = [
+  "stones",
+  "minerals",
+  "combinations",
+  "stone_knowledge_articles",
+  "bioenergy_symbols",
+  "bioenergy_imaginations",
+  "bioenergy_chakras",
+  "bioenergy_energy_bodies",
+  "bioenergy_subconscious_causes",
+  "reflexology_protocols",
+  "numerology_knowledge_records",
+  "numerology_stone_assignments",
+  "aromatherapy_oils_essential",
+  "aromatherapy_oils_carrier",
+  "aromatherapy_oils_maceration",
+  "healing_guides",
+];
 
 export type TransferTableName = TransferGroupKey;
 
 export type TransferResultCounts = Record<TransferGroupKey, number>;
+
+export type SectionStatus = "success" | "empty" | "failed";
+
+/** Sunucudan dönen bölüm-bazında sonuç. */
+export type TransferSectionOutcome = {
+  group: TransferGroupKey;
+  status: SectionStatus;
+  requested: number;
+  inserted: number;
+  errorCode?: string;
+};
 
 export type LibraryTransferResult = {
   counts: TransferResultCounts;
@@ -47,6 +62,12 @@ export type LibraryTransferResult = {
   successMessage?: string;
   /** İdempotent replay ise true (aynı batch ikinci kez kopya üretmedi). */
   replayed?: boolean;
+  /** Bölüm-bazında sonuç dizisi (kısmi başarı raporu için). */
+  sections?: TransferSectionOutcome[];
+  selectedSectionCount?: number;
+  successfulSectionCount?: number;
+  failedSectionCount?: number;
+  insertedCount?: number;
 };
 
 /** Her TransferGroupKey için opsiyonel id filtresi. Tanımsız bırakılırsa tüm kayıtlar kopyalanır. */
@@ -69,6 +90,7 @@ export function emptyTransferCounts(): TransferResultCounts {
     aromatherapy_oils_carrier: 0,
     aromatherapy_oils_maceration: 0,
     stone_knowledge_articles: 0,
+    healing_guides: 0,
   };
 }
 
@@ -158,6 +180,10 @@ function buildTransferSuccessMessage(
     lines.push(`${counts.stone_knowledge_articles} Taş bilgi kaydı ${account} hesabına eklendi`);
   }
 
+  if (groups.includes("healing_guides") && counts.healing_guides > 0) {
+    lines.push(`${counts.healing_guides} Şifa rehberi kaydı ${account} hesabına eklendi`);
+  }
+
   if (lines.length === 0) return null;
   return lines.join("\n");
 }
@@ -208,6 +234,11 @@ export async function runLibraryTransfer(
     error?: string;
     counts?: Partial<TransferResultCounts>;
     replayed?: boolean;
+    sections?: TransferSectionOutcome[];
+    selectedSectionCount?: number;
+    successfulSectionCount?: number;
+    failedSectionCount?: number;
+    insertedCount?: number;
   };
 
   if (!res.ok || json.ok === false) {
@@ -226,9 +257,33 @@ export async function runLibraryTransfer(
     }
   }
 
-  const totalInserted = sumSelectedCounts(counts, uniqueGroups);
-  if (totalInserted === 0 && !json.replayed) {
-    return { counts, error: EMPTY_SOURCE_ADMIN_MESSAGE, replayed: json.replayed };
+  const sections = Array.isArray(json.sections) ? json.sections : undefined;
+  const failedSectionCount = Number(json.failedSectionCount ?? 0);
+  const insertedCount =
+    typeof json.insertedCount === "number"
+      ? json.insertedCount
+      : sumSelectedCounts(counts, uniqueGroups);
+
+  const base = {
+    sections,
+    selectedSectionCount: json.selectedSectionCount ?? uniqueGroups.length,
+    successfulSectionCount: json.successfulSectionCount,
+    failedSectionCount,
+    insertedCount,
+    replayed: json.replayed,
+  };
+
+  // Hiç kayıt aktarılmadıysa: tüm bölümler başarısızsa hatayı yüzeye çıkar;
+  // yalnız "kaynak boş" durumunda bilgilendirici mesaj ver.
+  if (insertedCount === 0 && !json.replayed) {
+    if (failedSectionCount > 0) {
+      return {
+        counts,
+        error: "Seçili bölümlerin hiçbiri aktarılamadı. Ayrıntı için bölüm sonuçlarına bakın.",
+        ...base,
+      };
+    }
+    return { counts, error: EMPTY_SOURCE_ADMIN_MESSAGE, ...base };
   }
 
   const successMessage = buildTransferSuccessMessage(
@@ -240,7 +295,7 @@ export async function runLibraryTransfer(
   return {
     counts,
     successMessage: successMessage ?? undefined,
-    replayed: json.replayed,
+    ...base,
   };
 }
 
@@ -328,6 +383,14 @@ export function formatTransferResultLines(
       account
         ? `${counts.stone_knowledge_articles} Taş bilgi kaydı ${account} hesabına eklendi`
         : `${counts.stone_knowledge_articles} Taş bilgi`,
+    );
+  }
+
+  if (counts.healing_guides > 0) {
+    lines.push(
+      account
+        ? `${counts.healing_guides} Şifa rehberi kaydı ${account} hesabına eklendi`
+        : `${counts.healing_guides} Şifa rehberi`,
     );
   }
 

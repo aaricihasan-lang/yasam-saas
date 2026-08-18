@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Loader2,
@@ -15,11 +15,18 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 import {
+  collectActiveTransferGroups,
+  GRANULAR_GROUP_KEYS,
+  groupLabel,
+  TRANSFER_MODULES,
+  type TransferModuleMeta,
+  type TransferSectionMeta,
+} from "@/lib/admin/transferRegistry";
+import {
   type FilterMap,
   formatTransferResultLines,
   runLibraryTransfer,
-  type TransferGroupKey,
-  type TransferResultCounts,
+  type TransferSectionOutcome,
 } from "@/lib/admin/veriPaylasimiTransfer";
 import {
   clearYasamUser,
@@ -37,35 +44,12 @@ type ExpertOption = {
   tenantId: string | null;
 };
 
-type SubGroupDef = {
-  key: string;
-  label: string;
-  active: boolean;
-  /** Gerçek Supabase tablo anahtarları — uydurma tablo adı yok */
-  transferKeys?: TransferGroupKey[];
-  pendingNote?: string;
-};
-
-type ModuleDef = {
-  key: string;
-  label: string;
-  subGroups: SubGroupDef[];
-};
-
-const GRANULAR_KEYS = [
-  "stones",
-  "minerals",
-  "combinations",
-  "aromatherapy_oils_essential",
-  "aromatherapy_oils_carrier",
-  "aromatherapy_oils_maceration",
-  "stone_knowledge_articles",
-] as const;
+/** Granular (kayıt-seçmeli) grup anahtarları — registry'den türetilir (drift yok). */
+const GRANULAR_KEYS = GRANULAR_GROUP_KEYS;
 type GranularKey = (typeof GRANULAR_KEYS)[number];
 type SelectionMode = "all" | "selected";
 type RecordItem = { id: string; label: string };
 
-/** GRANULAR_KEYS'ten türetilen başlangıç durumu — anahtar seti drift etmez. */
 function initGranular<T>(value: T): Record<GranularKey, T> {
   return Object.fromEntries(GRANULAR_KEYS.map((k) => [k, value])) as Record<GranularKey, T>;
 }
@@ -73,6 +57,9 @@ function initGranularSets(): Record<GranularKey, Set<string>> {
   return Object.fromEntries(
     GRANULAR_KEYS.map((k) => [k, new Set<string>()]),
   ) as Record<GranularKey, Set<string>>;
+}
+function isGranularKey(k: string): k is GranularKey {
+  return (GRANULAR_KEYS as readonly string[]).includes(k);
 }
 
 /** Aromaterapi granular anahtarı → oil_type (admin kanonik listesi çekimi). */
@@ -82,157 +69,54 @@ const OIL_KEY_TO_TYPE: Partial<Record<GranularKey, string>> = {
   aromatherapy_oils_maceration: "maceration",
 };
 
-const MODULES: ModuleDef[] = [
-  {
-    key: "dogaltas",
-    label: "Doğaltaş",
-    subGroups: [
-      {
-        key: "stones",
-        label: "Doğaltaş Listesi",
-        active: true,
-        transferKeys: ["stones"],
-      },
-      {
-        key: "combinations",
-        label: "Kombinasyonlar",
-        active: true,
-        transferKeys: ["combinations"],
-      },
-      {
-        key: "minerals",
-        label: "Mineral Bankası",
-        active: true,
-        transferKeys: ["minerals"],
-      },
-      {
-        key: "stone_knowledge_articles",
-        label: "Taş Bilgi Kütüphanesi",
-        active: true,
-        transferKeys: ["stone_knowledge_articles"],
-      },
-    ],
-  },
-  {
-    key: "bioenergy",
-    label: "Biyoenerji",
-    subGroups: [
-      {
-        key: "bio_symbols",
-        label: "Sembol Dili",
-        active: true,
-        transferKeys: ["bioenergy_symbols"],
-      },
-      {
-        key: "bio_imag",
-        label: "İmajinasyonlar",
-        active: true,
-        transferKeys: ["bioenergy_imaginations"],
-      },
-      {
-        key: "bio_chakras",
-        label: "Çakralar",
-        active: true,
-        transferKeys: ["bioenergy_chakras"],
-      },
-      {
-        key: "bio_bodies",
-        label: "Enerji Bedenleri",
-        active: true,
-        transferKeys: ["bioenergy_energy_bodies"],
-      },
-      {
-        key: "bio_sub",
-        label: "Bilinçaltı Sebepleri",
-        active: true,
-        transferKeys: ["bioenergy_subconscious_causes"],
-      },
-    ],
-  },
-  {
-    key: "reflexology",
-    label: "Refleksoloji",
-    subGroups: [
-      {
-        key: "ref_proto",
-        label: "Protokoller",
-        active: true,
-        transferKeys: ["reflexology_protocols"],
-      },
-      {
-        key: "ref_atlas",
-        label: "Atlas",
-        active: false,
-        pendingNote: "Atlas verisi şu an tarayıcıda (localStorage)",
-      },
-      {
-        key: "ref_notes",
-        label: "Notlar",
-        active: false,
-        pendingNote: "Klinik notlar şu an tarayıcıda (localStorage)",
-      },
-    ],
-  },
-  {
-    key: "numerology",
-    label: "Numeroloji",
-    subGroups: [
-      {
-        key: "num_bank",
-        label: "Bilgi Bankası",
-        active: true,
-        transferKeys: [
-          "numerology_knowledge_records",
-          "numerology_stone_assignments",
-        ],
-      },
-    ],
-  },
-  {
-    key: "aromatherapy",
-    label: "Aromaterapi",
-    subGroups: [
-      {
-        key: "aromatherapy_oils_essential",
-        label: "Uçucu Yağlar",
-        active: true,
-        transferKeys: ["aromatherapy_oils_essential"],
-      },
-      {
-        key: "aromatherapy_oils_carrier",
-        label: "Sabit Yağlar",
-        active: true,
-        transferKeys: ["aromatherapy_oils_carrier"],
-      },
-      {
-        key: "aromatherapy_oils_maceration",
-        label: "Maserasyon Yağları",
-        active: true,
-        transferKeys: ["aromatherapy_oils_maceration"],
-      },
-    ],
-  },
-];
-
-function collectActiveTransferGroups(
-  checked: Record<string, boolean>,
-): TransferGroupKey[] {
-  const keys: TransferGroupKey[] = [];
-  for (const mod of MODULES) {
-    for (const sub of mod.subGroups) {
-      if (!sub.active || !sub.transferKeys?.length) continue;
-      if (!checked[sub.key]) continue;
-      keys.push(...sub.transferKeys);
-    }
-  }
-  return keys;
+/** Bir modülün aktif (transfer üreten) bölümleri. */
+function moduleActiveSections(mod: TransferModuleMeta): TransferSectionMeta[] {
+  return mod.sections.filter((s) => s.active && s.transferKeys.length > 0);
 }
+
+/** Tüm modüllerdeki aktif bölüm anahtarları. */
+const ALL_ACTIVE_SECTION_KEYS: string[] = TRANSFER_MODULES.flatMap((m) =>
+  moduleActiveSections(m).map((s) => s.key),
+);
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6";
 
 const navBtn =
   "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
+
+/** İki-durumlu ötesi (indeterminate) checkbox — parent/global seçim için. */
+function TriCheckbox({
+  checked,
+  indeterminate,
+  disabled,
+  onChange,
+  className,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate && !checked;
+  }, [indeterminate, checked]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onChange={onChange}
+      className={className}
+    />
+  );
+}
 
 function FlowStepBar({
   step1Done,
@@ -308,9 +192,11 @@ export default function VeriPaylasimiPage() {
   const [sourceAdminTenantId, setSourceAdminTenantId] = useState<string | null>(null);
   const [sourceTenantError, setSourceTenantError] = useState<string | null>(null);
   const [transferResult, setTransferResult] = useState<{
-    type: "success" | "error";
+    type: "success" | "partial" | "error";
     message: string;
     lines?: string[];
+    sections?: TransferSectionOutcome[];
+    stats?: { selected: number; success: number; failed: number; inserted: number };
   } | null>(null);
 
   const [selectionMode, setSelectionMode] = useState<Record<GranularKey, SelectionMode>>(
@@ -361,6 +247,21 @@ export default function VeriPaylasimiPage() {
     activeTransferGroups.length > 0 &&
     granularGroupsValid &&
     !transferring;
+
+  // ── Hiyerarşik seçim durumları ────────────────────────────────────────────
+  const allSelected =
+    ALL_ACTIVE_SECTION_KEYS.length > 0 &&
+    ALL_ACTIVE_SECTION_KEYS.every((k) => subChecked[k]);
+  const anySelected = ALL_ACTIVE_SECTION_KEYS.some((k) => subChecked[k]);
+
+  function moduleState(mod: TransferModuleMeta): "all" | "some" | "none" {
+    const keys = moduleActiveSections(mod).map((s) => s.key);
+    if (keys.length === 0) return "none";
+    const checkedCount = keys.filter((k) => subChecked[k]).length;
+    if (checkedCount === 0) return "none";
+    if (checkedCount === keys.length) return "all";
+    return "some";
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -574,15 +475,32 @@ export default function VeriPaylasimiPage() {
     [sourceAdminTenantId],
   );
 
-  function toggleSubGroup(sub: SubGroupDef) {
-    if (!sub.active) return;
-    const willBeUnchecked = !!subChecked[sub.key];
-    setSubChecked((prev) => ({ ...prev, [sub.key]: !prev[sub.key] }));
-    if (willBeUnchecked && (GRANULAR_KEYS as readonly string[]).includes(sub.key)) {
-      const gKey = sub.key as GranularKey;
-      setSelectionMode((p) => ({ ...p, [gKey]: "all" }));
-      setSelectedIds((p) => ({ ...p, [gKey]: new Set() }));
+  /** Bir bölümü belirli duruma ayarla (idempotent). */
+  const setSectionChecked = useCallback((sectionKey: string, value: boolean) => {
+    setSubChecked((prev) => {
+      if (!!prev[sectionKey] === value) return prev;
+      return { ...prev, [sectionKey]: value };
+    });
+    if (!value && isGranularKey(sectionKey)) {
+      setSelectionMode((p) => ({ ...p, [sectionKey]: "all" }));
+      setSelectedIds((p) => ({ ...p, [sectionKey]: new Set() }));
     }
+  }, []);
+
+  function toggleSection(sec: TransferSectionMeta) {
+    if (!sec.active || sec.transferKeys.length === 0) return;
+    setSectionChecked(sec.key, !subChecked[sec.key]);
+  }
+
+  function toggleModule(mod: TransferModuleMeta) {
+    const keys = moduleActiveSections(mod).map((s) => s.key);
+    const makeChecked = moduleState(mod) !== "all";
+    for (const k of keys) setSectionChecked(k, makeChecked);
+  }
+
+  function toggleAll() {
+    const makeChecked = !allSelected;
+    for (const k of ALL_ACTIVE_SECTION_KEYS) setSectionChecked(k, makeChecked);
   }
 
   function handleModeChange(key: GranularKey, mode: SelectionMode) {
@@ -618,12 +536,6 @@ export default function VeriPaylasimiPage() {
   }
 
   async function handleTransfer() {
-    console.log("[veri-paylasimi/ui] Aktar butonuna tıklandı", {
-      hedefTenant: selectedExpert?.tenantId ?? null,
-      gruplar: activeTransferGroups,
-      filterMap,
-    });
-
     if (!selectedExpert?.tenantId) {
       showToast({
         title: "İşlem başarısız",
@@ -651,21 +563,12 @@ export default function VeriPaylasimiPage() {
       tone: "info",
     });
 
-    if (!ok) {
-      console.log("[veri-paylasimi/ui] Aktarım iptal edildi");
-      return;
-    }
+    if (!ok) return;
 
     setTransferring(true);
     setTransferResult(null);
-    console.log("[veri-paylasimi/ui] Aktarım başlıyor", {
-      hedefTenant: selectedExpert.tenantId,
-      hedefEmail: selectedExpert.email,
-      gruplar: activeTransferGroups,
-      filterMap,
-    });
 
-    const { counts, error, successMessage } = await runLibraryTransfer(
+    const result = await runLibraryTransfer(
       activeTransferGroups,
       selectedExpert.id,
       selectedExpert.tenantId,
@@ -673,42 +576,48 @@ export default function VeriPaylasimiPage() {
       filterMap,
     );
     setTransferring(false);
-    console.log("[veri-paylasimi/ui] Aktarım sonucu", { counts, error, successMessage });
 
-    if (error) {
-      console.error("[veri-paylasimi/ui] Aktarım hatası:", error);
-      setTransferResult({ type: "error", message: error });
+    const stats = {
+      selected: result.selectedSectionCount ?? activeTransferGroups.length,
+      success: result.successfulSectionCount ?? 0,
+      failed: result.failedSectionCount ?? 0,
+      inserted: result.insertedCount ?? 0,
+    };
+
+    if (result.error) {
+      setTransferResult({
+        type: "error",
+        message: result.error,
+        sections: result.sections,
+        stats,
+      });
       showToast({
         title: "Aktarım tamamlanamadı",
-        message: error,
+        message: result.error,
         type: "error",
       });
       return;
     }
 
-    const summaryLines = formatTransferResultLines(
-      counts,
-      selectedExpert.email,
-    );
+    const summaryLines = formatTransferResultLines(result.counts, selectedExpert.email);
+    const isPartial = stats.failed > 0;
 
     setTransferResult({
-      type: "success",
+      type: isPartial ? "partial" : "success",
       message:
-        successMessage ??
+        result.successMessage ??
         (summaryLines.length > 0
           ? summaryLines.join("\n")
           : `Kayıtlar ${expertName} hesabına eklendi`),
       lines: summaryLines.length > 0 ? summaryLines : undefined,
+      sections: result.sections,
+      stats,
     });
 
     showToast({
-      title: "Veriler başarıyla aktarıldı",
-      message:
-        successMessage ??
-        (summaryLines.length > 0
-          ? summaryLines.join("\n")
-          : `Kayıtlar ${expertName} hesabına eklendi`),
-      type: "success",
+      title: isPartial ? "Aktarım kısmen tamamlandı" : "Veriler başarıyla aktarıldı",
+      message: `Başarılı: ${stats.success} · Başarısız: ${stats.failed} · Aktarılan kayıt: ${stats.inserted.toLocaleString("tr-TR")}`,
+      type: isPartial ? "warning" : "success",
     });
   }
 
@@ -776,10 +685,10 @@ export default function VeriPaylasimiPage() {
                 Admin · Kütüphane
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-                Veri Paylaşımı / Kütüphane Aktarım Merkezi
+                Veri Aktarım Merkezi
               </h1>
               <p className="mt-3 max-w-2xl text-base font-medium text-white/85">
-                Admin kütüphane verilerini seçili üyeye yeni kayıt olarak ekler.
+                Admin kütüphane verilerini seçili üyeye yeni bağımsız kayıt olarak ekler.
                 Üye verisi silinmez veya güncellenmez.
               </p>
               <p className="mt-3 rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 font-mono text-xs text-amber-100">
@@ -858,173 +767,210 @@ export default function VeriPaylasimiPage() {
         </section>
 
         <section className={`${panelClass} mt-6`}>
-          <h2 className="text-lg font-black text-slate-900">2. Aktarılacak Veriyi Seç</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Kaynak: admin kütüphane tenant — hedef: seçili üye tenant (yalnızca INSERT)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-slate-900">2. Aktarılacak Veriyi Seç</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Kaynak: admin kütüphane tenant — hedef: seçili üye tenant (yalnızca INSERT)
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-2xl border-2 border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-black text-violet-900 hover:bg-violet-100">
+              <TriCheckbox
+                checked={allSelected}
+                indeterminate={anySelected}
+                onChange={toggleAll}
+                ariaLabel="Tüm verileri seç"
+                className="h-5 w-5 rounded border-violet-400 text-violet-600 focus:ring-violet-400"
+              />
+              Tüm Verileri Seç
+            </label>
+          </div>
 
           <div className="mt-5 space-y-4">
-            {MODULES.map((mod) => (
-              <div
-                key={mod.key}
-                className="rounded-2xl border-2 border-slate-100 bg-slate-50/50 p-4"
-              >
-                <p className="text-sm font-black text-slate-900">{mod.label}</p>
-                <div className="mt-3 space-y-2">
-                  {mod.subGroups.map((sub) => {
-                    const disabled = !sub.active;
-                    const isGranular =
-                      !disabled &&
-                      (GRANULAR_KEYS as readonly string[]).includes(sub.key);
-                    const gKey = sub.key as GranularKey;
-                    const isChecked = !!subChecked[sub.key];
-                    const mode = isGranular ? selectionMode[gKey] : "all";
-                    return (
-                      <div key={sub.key}>
-                        <label
-                          className={`flex flex-wrap items-center gap-3 rounded-xl px-2 py-2 ${
-                            disabled
-                              ? "cursor-not-allowed opacity-65"
-                              : "cursor-pointer hover:bg-white/80"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            disabled={disabled}
-                            onChange={() => toggleSubGroup(sub)}
-                            className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
-                          />
-                          <span className="text-sm font-semibold text-slate-800">
-                            {sub.label}
-                          </span>
-                          {disabled ? (
-                            <span
-                              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500"
-                              title={sub.pendingNote}
-                            >
-                              Yakında
-                            </span>
-                          ) : null}
-                          {sub.pendingNote && disabled ? (
-                            <span className="w-full pl-8 text-xs font-medium text-slate-500">
-                              {sub.pendingNote}
-                            </span>
-                          ) : null}
-                        </label>
+            {TRANSFER_MODULES.map((mod) => {
+              const modActive = moduleActiveSections(mod);
+              const state = moduleState(mod);
+              return (
+                <div
+                  key={mod.key}
+                  className="rounded-2xl border-2 border-slate-100 bg-slate-50/50 p-4"
+                >
+                  <label
+                    className={`flex items-center gap-3 rounded-xl px-2 py-1.5 ${
+                      modActive.length > 0 ? "cursor-pointer hover:bg-white/80" : "opacity-70"
+                    }`}
+                  >
+                    <TriCheckbox
+                      checked={state === "all"}
+                      indeterminate={state === "some"}
+                      disabled={modActive.length === 0}
+                      onChange={() => toggleModule(mod)}
+                      ariaLabel={`${mod.label} tümünü seç`}
+                      className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
+                    />
+                    <span className="text-sm font-black text-slate-900">
+                      {mod.label}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-400">
+                      · Modülün tümünü seç
+                    </span>
+                  </label>
 
-                        {isGranular && isChecked ? (
-                          <div className="ml-8 mt-1.5 rounded-xl border border-violet-100 bg-violet-50/50 p-3">
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleModeChange(gKey, "all")}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                                  mode === "all"
-                                    ? "bg-violet-600 text-white shadow-sm"
-                                    : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
-                                }`}
+                  <div className="mt-2 space-y-2 pl-3">
+                    {mod.sections.map((sub) => {
+                      const disabled = !sub.active || sub.transferKeys.length === 0;
+                      const isGranular =
+                        !disabled && isGranularKey(sub.key);
+                      const gKey = sub.key as GranularKey;
+                      const isChecked = !!subChecked[sub.key];
+                      const mode = isGranular ? selectionMode[gKey] : "all";
+                      return (
+                        <div key={sub.key}>
+                          <label
+                            className={`flex flex-wrap items-center gap-3 rounded-xl px-2 py-2 ${
+                              disabled
+                                ? "cursor-not-allowed opacity-65"
+                                : "cursor-pointer hover:bg-white/80"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={disabled}
+                              onChange={() => toggleSection(sub)}
+                              className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
+                            />
+                            <span className="text-sm font-semibold text-slate-800">
+                              {sub.label}
+                            </span>
+                            {disabled ? (
+                              <span
+                                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                                title={sub.pendingNote}
                               >
-                                Tümünü aktar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleModeChange(gKey, "selected")}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                                  mode === "selected"
-                                    ? "bg-violet-600 text-white shadow-sm"
-                                    : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
-                                }`}
-                              >
-                                Seçili kayıtları aktar
-                              </button>
-                            </div>
-
-                            {mode === "selected" ? (
-                              <div className="mt-3">
-                                {groupRecordsLoading[gKey] ? (
-                                  <div className="flex justify-center py-4">
-                                    <Loader2
-                                      className="h-5 w-5 animate-spin text-violet-600"
-                                      aria-hidden
-                                    />
-                                  </div>
-                                ) : groupRecordErrors[gKey] ? (
-                                  <p className="text-xs font-semibold text-rose-600">
-                                    Yükleme hatası: {groupRecordErrors[gKey]}
-                                  </p>
-                                ) : groupRecords[gKey].length === 0 ? (
-                                  <p className="text-xs font-semibold text-slate-500">
-                                    Bu grup için admin kütüphanesinde kayıt bulunamadı.
-                                  </p>
-                                ) : (
-                                  <>
-                                    <div className="mb-2 flex flex-wrap items-center gap-3">
-                                      <button
-                                        type="button"
-                                        onClick={() => selectAll(gKey)}
-                                        className="text-xs font-bold text-violet-700 hover:underline"
-                                      >
-                                        Tümünü seç ({groupRecords[gKey].length})
-                                      </button>
-                                      <span
-                                        className="text-slate-300"
-                                        aria-hidden
-                                      >
-                                        ·
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => clearSelection(gKey)}
-                                        className="text-xs font-bold text-slate-500 hover:underline"
-                                      >
-                                        Seçimi temizle
-                                      </button>
-                                      {selectedIds[gKey].size > 0 ? (
-                                        <span className="ml-auto text-xs font-black text-violet-900">
-                                          {selectedIds[gKey].size} kayıt seçili
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-100 bg-white">
-                                      {groupRecords[gKey].map((record) => (
-                                        <label
-                                          key={record.id}
-                                          className="flex cursor-pointer items-center gap-2.5 border-b border-slate-50 px-3 py-2 last:border-b-0 hover:bg-violet-50/60"
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedIds[gKey].has(
-                                              record.id,
-                                            )}
-                                            onChange={() =>
-                                              toggleId(gKey, record.id)
-                                            }
-                                            className="h-4 w-4 shrink-0 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
-                                          />
-                                          <span className="text-sm text-slate-700">
-                                            {record.label}
-                                          </span>
-                                        </label>
-                                      ))}
-                                    </div>
-                                    {selectedIds[gKey].size === 0 ? (
-                                      <p className="mt-2 text-xs font-bold text-amber-700">
-                                        En az 1 kayıt seçin
-                                      </p>
-                                    ) : null}
-                                  </>
-                                )}
-                              </div>
+                                Yakında
+                              </span>
                             ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                            {sub.pendingNote && disabled ? (
+                              <span className="w-full pl-8 text-xs font-medium text-slate-500">
+                                {sub.pendingNote}
+                              </span>
+                            ) : null}
+                          </label>
+
+                          {isGranular && isChecked ? (
+                            <div className="ml-8 mt-1.5 rounded-xl border border-violet-100 bg-violet-50/50 p-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleModeChange(gKey, "all")}
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                                    mode === "all"
+                                      ? "bg-violet-600 text-white shadow-sm"
+                                      : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                  }`}
+                                >
+                                  Tümünü aktar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleModeChange(gKey, "selected")}
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                                    mode === "selected"
+                                      ? "bg-violet-600 text-white shadow-sm"
+                                      : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                  }`}
+                                >
+                                  Seçili kayıtları aktar
+                                </button>
+                              </div>
+
+                              {mode === "selected" ? (
+                                <div className="mt-3">
+                                  {groupRecordsLoading[gKey] ? (
+                                    <div className="flex justify-center py-4">
+                                      <Loader2
+                                        className="h-5 w-5 animate-spin text-violet-600"
+                                        aria-hidden
+                                      />
+                                    </div>
+                                  ) : groupRecordErrors[gKey] ? (
+                                    <p className="text-xs font-semibold text-rose-600">
+                                      Yükleme hatası: {groupRecordErrors[gKey]}
+                                    </p>
+                                  ) : groupRecords[gKey].length === 0 ? (
+                                    <p className="text-xs font-semibold text-slate-500">
+                                      Bu grup için admin kütüphanesinde kayıt bulunamadı.
+                                    </p>
+                                  ) : (
+                                    <>
+                                      <div className="mb-2 flex flex-wrap items-center gap-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => selectAll(gKey)}
+                                          className="text-xs font-bold text-violet-700 hover:underline"
+                                        >
+                                          Tümünü seç ({groupRecords[gKey].length})
+                                        </button>
+                                        <span
+                                          className="text-slate-300"
+                                          aria-hidden
+                                        >
+                                          ·
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => clearSelection(gKey)}
+                                          className="text-xs font-bold text-slate-500 hover:underline"
+                                        >
+                                          Seçimi temizle
+                                        </button>
+                                        {selectedIds[gKey].size > 0 ? (
+                                          <span className="ml-auto text-xs font-black text-violet-900">
+                                            {selectedIds[gKey].size} kayıt seçili
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+                                        {groupRecords[gKey].map((record) => (
+                                          <label
+                                            key={record.id}
+                                            className="flex cursor-pointer items-center gap-2.5 border-b border-slate-50 px-3 py-2 last:border-b-0 hover:bg-violet-50/60"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={selectedIds[gKey].has(
+                                                record.id,
+                                              )}
+                                              onChange={() =>
+                                                toggleId(gKey, record.id)
+                                              }
+                                              className="h-4 w-4 shrink-0 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
+                                            />
+                                            <span className="text-sm text-slate-700">
+                                              {record.label}
+                                            </span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                      {selectedIds[gKey].size === 0 ? (
+                                        <p className="mt-2 text-xs font-bold text-amber-700">
+                                          En az 1 kayıt seçin
+                                        </p>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -1037,7 +983,7 @@ export default function VeriPaylasimiPage() {
               {activeTransferGroups.length > 0 ? (
                 <span className="text-slate-500">
                   {" "}
-                  · {activeTransferGroups.length} tablo seçildi
+                  · {activeTransferGroups.length} bölüm seçildi
                 </span>
               ) : null}
             </p>
@@ -1049,8 +995,8 @@ export default function VeriPaylasimiPage() {
 
           <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm font-semibold text-violet-950">
             Aktarım modu:{" "}
-            <span className="font-black">Yeni kayıt olarak ekle</span> — silme,
-            güncelleme veya replace yok. Aynı başlıklı kayıtlar yan yana kalabilir.
+            <span className="font-black">Yeni bağımsız kayıtlar oluşturulur.</span>{" "}
+            Uzmanın mevcut verileri değiştirilmez, silinmez veya replace edilmez.
           </div>
 
           <button
@@ -1088,20 +1034,42 @@ export default function VeriPaylasimiPage() {
               className={`mt-5 rounded-2xl border-2 p-4 ${
                 transferResult.type === "success"
                   ? "border-emerald-200 bg-emerald-50"
-                  : "border-rose-200 bg-rose-50"
+                  : transferResult.type === "partial"
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-rose-200 bg-rose-50"
               }`}
             >
               <p
                 className={`text-sm font-black ${
                   transferResult.type === "success"
                     ? "text-emerald-900"
-                    : "text-rose-900"
+                    : transferResult.type === "partial"
+                      ? "text-amber-900"
+                      : "text-rose-900"
                 }`}
               >
                 {transferResult.type === "success"
                   ? "✓ Aktarım tamamlandı"
-                  : "✗ Aktarım başarısız"}
+                  : transferResult.type === "partial"
+                    ? "Aktarım kısmen tamamlandı"
+                    : "✗ Aktarım başarısız"}
               </p>
+
+              {transferResult.stats ? (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-700">
+                  <span>Seçilen bölüm: {transferResult.stats.selected}</span>
+                  <span className="text-emerald-700">
+                    Başarılı: {transferResult.stats.success}
+                  </span>
+                  <span className={transferResult.stats.failed > 0 ? "text-rose-700" : ""}>
+                    Başarısız: {transferResult.stats.failed}
+                  </span>
+                  <span>
+                    Aktarılan kayıt: {transferResult.stats.inserted.toLocaleString("tr-TR")}
+                  </span>
+                </div>
+              ) : null}
+
               {transferResult.lines && transferResult.lines.length > 0 ? (
                 <ul className="mt-2 space-y-1">
                   {transferResult.lines.map((line, i) => (
@@ -1116,14 +1084,29 @@ export default function VeriPaylasimiPage() {
               ) : (
                 <p
                   className={`mt-1 text-xs font-semibold ${
-                    transferResult.type === "success"
-                      ? "text-emerald-800"
-                      : "text-rose-800"
+                    transferResult.type === "error"
+                      ? "text-rose-800"
+                      : "text-slate-700"
                   }`}
                 >
                   {transferResult.message}
                 </p>
               )}
+
+              {transferResult.sections && transferResult.sections.some((s) => s.status === "failed") ? (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-white/70 p-3">
+                  <p className="text-xs font-black text-rose-800">Aktarılamayan bölümler:</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {transferResult.sections
+                      .filter((s) => s.status === "failed")
+                      .map((s) => (
+                        <li key={s.group} className="text-xs font-semibold text-rose-700">
+                          {groupLabel(s.group)}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>

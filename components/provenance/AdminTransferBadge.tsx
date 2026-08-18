@@ -1,56 +1,43 @@
 import type { CSSProperties } from "react";
 
 /**
- * FAZ 1 / P4 — Merkezî provenance rozeti.
+ * Merkezî provenance rozeti — NÖTRLENDİ (kalıcı olarak hiçbir şey render etmez).
  *
- * Admin kütüphanesinden uzmana BAĞIMSIZ KOPYA olarak gönderilen kayıtlar için
- * "Adminden gelen bilgi / Kaynak: Admin Kütüphanesi" etiketi. Yalnız köken
- * bilgisidir: kaydı KİLİTLEMEZ, düzenleme/silme ENGELLEMEZ, admin sahipliği
- * OLUŞTURMAZ, canlı senkron ANLAMINA GELMEZ. Admin UUID/e-posta GÖSTERMEZ.
+ * BAĞLAYICI ÜRÜN KURALI (Veri Aktarım Merkezi): admin kütüphanesinden uzmana
+ * aktarılmış kayıt, uzman tarafında "Admin'den geldi / Admin Kütüphanesi" benzeri
+ * HİÇBİR görünür köken etiketi taşımaz — kayıt uzmanın kendi normal kaydı gibi
+ * görünür (liste/detay/edit/rapor). Bu component eskiden 🎁 "Admin Kütüphanesi"
+ * chip'i gösteriyordu; ürün kuralı gereği artık her durumda `null` döner.
  *
- * Kullanım: <AdminTransferBadge originType={row.origin_type} />
- * (origin_type !== 'admin_transfer' ise hiçbir şey render etmez.)
+ * Aktarım route'u da GÖRÜNÜR origin_type='admin_transfer'/origin_label alanlarını
+ * ARTIK YAZMAZ (yalnız iç audit/rollback alanları). Böylece hem yeni aktarımlar
+ * hem de eski aktarılmış satırlar için hiçbir yerde admin köken rozeti görünmez.
+ *
+ * NOT: İmzalar (props/exports) geriye-uyum için korunur; 11 modül yüzeyi bu
+ * component'i import etmeye devam eder ama görünür çıktı üretmez.
  */
 
 export const ADMIN_TRANSFER_ORIGIN = "admin_transfer";
 
-/** Bir kaydın admin hediyesi (bağımsız kopya) olup olmadığını belirler. */
+/**
+ * Geriye-uyum export'u. Görünür rozet KALDIRILDIĞI için tüketiciler bu değeri
+ * yalnız iç mantıkta kullanabilir; UI'da köken göstermek için KULLANILMAMALIDIR.
+ */
 export function isAdminTransferOrigin(originType: unknown): boolean {
   return originType === ADMIN_TRANSFER_ORIGIN;
 }
 
 type Props = {
   originType?: unknown;
-  /** "chip" (varsayılan, listelerde) veya "inline" (detay başlıkları). */
   variant?: "chip" | "inline";
   className?: string;
   style?: CSSProperties;
 };
 
-export function AdminTransferBadge({
-  originType,
-  variant = "chip",
-  className,
-  style,
-}: Props) {
-  if (!isAdminTransferOrigin(originType)) return null;
-
-  const base =
-    "inline-flex max-w-full items-center gap-1 truncate rounded-full bg-violet-50 font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-200";
-  const size =
-    variant === "inline"
-      ? "px-2.5 py-1 text-[10px]"
-      : "px-2 py-0.5 text-[9px]";
-
-  return (
-    <span
-      className={`${base} ${size}${className ? ` ${className}` : ""}`}
-      style={style}
-      title="Bu kayıt Admin Kütüphanesi'nden bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-    >
-      🎁 Admin Kütüphanesi
-    </span>
-  );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function AdminTransferBadge(_props: Props) {
+  // Ürün kuralı: uzmana görünür admin köken etiketi YOK. Her zaman null.
+  return null;
 }
 
 export default AdminTransferBadge;

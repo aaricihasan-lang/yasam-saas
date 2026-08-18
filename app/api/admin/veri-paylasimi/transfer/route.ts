@@ -10,25 +10,35 @@ export const runtime = "nodejs";
 /**
  * POST /api/admin/veri-paylasimi/transfer
  *
- * FAZ 1 / P4 — Admin kütüphanesinden bir uzmana BAĞIMSIZ SNAPSHOT (hediye) kopyası.
+ * ADMIN → UZMAN VERİ AKTARIM MERKEZİ — BAĞIMSIZ SNAPSHOT (hediye) kopyası.
  *
- * KÖK NEDEN DÜZELTMESİ: Eski akış tarayıcıdan (anon/authenticated Supabase client)
- * doğrudan `stones` vb. tablolara INSERT ediyordu. 20260627120000_dogaltas_lock_anon
- * (+ modül lock migration'ları) anon/authenticated yazma yetkisini REVOKE ettiği için
- * bu `permission denied for table stones` veriyordu. Bu route yazmayı SUNUCU tarafına,
- * yalnız service_role'e taşır — numeroloji transfer route'unun kanıtlı modeli.
+ * KÖK NEDEN DÜZELTMESİ (çoklu/"tümünü seç" çalışmıyordu):
+ *   Eski akış TÜM seçili grupları tek try bloğunda işliyor; HERHANGİ bir grup
+ *   patlarsa `rollbackBatch` tüm grupların satırlarını siliyor ve genel 500
+ *   dönüyordu (all-or-nothing). Tek bölüm (ör. Biyoenerji/Çakralar) çalışıyordu
+ *   çünkü provenance-hazır + basit. "Tümünü seç" ise provenance migration'ı
+ *   HENÜZ PRODUCTION'A UYGULANMAMIŞ tablolar (aromatherapy_oils, healing_guides…)
+ *   içeriyor → o grubun INSERT'i "column ... does not exist" ile patlıyor →
+ *   TÜM batch geri alınıp sessizce başarısız oluyordu.
  *
- * BAĞLAYICI DAVRANIŞ:
- *   - Yalnız INSERT; UPSERT/REPLACE YOK; onConflict YOK. Aynı isimli kayıtlar yan yana.
+ * YENİ MODEL — BÖLÜM-BAZINDA ATOMİK + KISMİ BAŞARI:
+ *   - Her grup KENDİ try/catch'inde işlenir; biri patlarsa YALNIZ o grubun bu
+ *     batch'e ait satırları geri alınır (grup-scoped rollback) ve diğerlerine
+ *     devam edilir. Bir grubun hatası artık tüm aktarımı düşürmez.
+ *   - Sonuç bölüm-bazında outcome üretir: {group, status, requested, inserted}.
+ *   - Relational grup (healing_guides + healing_guide_sections) GRUP-ATOMİKtir:
+ *     tamamı başarılı olur ya da tamamı geri alınır (parent-child yarım kalmaz).
+ *     Child FK yeni parent id'ye REMAP edilir; kaynak parent id'sine bağlanmaz.
+ *
+ * BAĞLAYICI DAVRANIŞ (korunur):
+ *   - Yalnız INSERT; UPSERT/REPLACE/onConflict YOK. Aynı isimli kayıtlar yan yana.
  *   - Kaynak kayıt DEĞİŞMEZ/SİLİNMEZ; hedefin mevcut kayıtları DEĞİŞMEZ/SİLİNMEZ.
  *   - Kopya: yeni UUID (DB default) + hedef tenant + iş alanları + provenance.
  *     id/created_at/updated_at/kaynak tenant/soft-delete alanları TAŞINMAZ.
  *   - Tablo adı YALNIZ sabit REGISTRY'den; istemci string'i asla .from(...) içine geçmez.
- *   - Atomiklik: batch_id her satıra damgalanır; herhangi bir grup patlarsa
- *     bu batch_id'li tüm satırlar telafi-silme ile geri alınır (all-or-nothing).
  *   - İdempotency: batch_id PK'li ledger satırı atomik "claim"; aynı batch_id ile
  *     ikinci istek KOPYA ÜRETMEZ, önceki sonucu replay eder.
- *   - Hata sözleşmesi: ham `permission denied` / DB mesajı DÖNMEZ; genel güvenli mesaj.
+ *   - Hata sözleşmesi: ham `permission denied`/DB mesajı DÖNMEZ; güvenli kod/mesaj.
  */
 
 const UUID_RE =
@@ -72,31 +82,36 @@ const STONE_COPY_FIELDS = [
   "image_upload_failed",
 ] as const;
 
+type SourceMode = "admin_tenant" | "canonical_null" | "admin_library";
+
 type GroupConfig = {
   /** Gerçek public tablo adı (yalnız buradan gelir). */
   table: string;
+  /** "flat": düz tablo. "relational": parent + child (FK remap). Varsayılan flat. */
+  kind?: "flat" | "relational";
   /** Verilirse yalnız bu alanlar kopyalanır; yoksa SELECT * strip mantığı. */
   copyFields?: readonly string[];
   /** Kopyalanacak satırda dolu olması gereken iş alanı (boşsa satır atlanır). */
   requireField?: string;
   /**
    * Kaynak okuma modu:
-   *  - "admin_tenant" (varsayılan): kaynak satırlar adminin kendi tenant'ında
-   *    (.eq tenant_id = sourceTenantId). Doğaltaş/Biyoenerji/... master modeli.
-   *  - "canonical_null": kaynak satırlar kanonik/global havuzda (tenant_id IS NULL).
-   *    Aromaterapi yağ kütüphanesi bu modeldedir (admin yüklü içerik tenant_id=null).
-   *  - "admin_library": kaynak satırlar sabit ADMIN_LIBRARY_TENANT_ID sentetik
-   *    tenant'ında. Taş Bilgi Kütüphanesi bu modeldedir.
+   *  - "admin_tenant" (varsayılan): kaynak adminin kendi tenant'ında.
+   *  - "canonical_null": kaynak kanonik/global havuzda (tenant_id IS NULL).
+   *  - "admin_library": kaynak sabit ADMIN_LIBRARY_TENANT_ID sentetik tenant'ında.
    */
-  sourceMode?: "admin_tenant" | "canonical_null" | "admin_library";
+  sourceMode?: SourceMode;
   /** Kaynak okumada ek SABİT eşitlik filtresi (ör. oil_type). Dinamik değer YOK. */
   matchColumn?: string;
   matchValue?: string;
-  /** true ise kaynak yalnız is_active=true satırları okur (soft-inactive kopyalanmaz). */
+  /** true ise kaynak yalnız is_active=true satırları okur. */
   activeOnly?: boolean;
+  /** relational: child tablo (ör. healing_guide_sections). */
+  childTable?: string;
+  /** relational: child'ın parent'a bakan FK kolonu (ör. guide_id) — REMAP edilir. */
+  childParentFk?: string;
 };
 
-/** UI grup anahtarı → tablo + kopya davranışı. */
+/** UI grup anahtarı → tablo + kopya davranışı. transferRegistry ile eş küme. */
 const REGISTRY = {
   stones: { table: "stones", copyFields: STONE_COPY_FIELDS, requireField: "stone_name" },
   minerals: { table: "minerals" },
@@ -110,8 +125,7 @@ const REGISTRY = {
   numerology_knowledge_records: { table: "numerology_knowledge_records" },
   numerology_stone_assignments: { table: "numerology_stone_assignments" },
   // Aromaterapi yağları — tek tablo (aromatherapy_oils), oil_type ile 3 grup.
-  // Kaynak KANONİK (tenant_id IS NULL) yağ kütüphanesidir; kopya hedef uzman
-  // tenant'ına yeni UUID + provenance ile yazılır. Kanonik kaynak DEĞİŞMEZ.
+  // Kaynak KANONİK (tenant_id IS NULL). Kopya hedef uzman tenant'ına yazılır.
   aromatherapy_oils_essential: {
     table: "aromatherapy_oils", copyFields: OIL_COPY_FIELDS, requireField: "name",
     sourceMode: "canonical_null", matchColumn: "oil_type", matchValue: "essential",
@@ -128,16 +142,21 @@ const REGISTRY = {
     activeOnly: true,
   },
   // Taş Bilgi Kütüphanesi — kaynak sabit ADMIN_LIBRARY_TENANT_ID sentetik tenant.
-  // Kopya hedef uzman tenant'ına yeni UUID + provenance ile yazılır. Kaynak DEĞİŞMEZ.
   stone_knowledge_articles: {
     table: "stone_knowledge_articles", copyFields: KNOWLEDGE_COPY_FIELDS,
     requireField: "title", sourceMode: "admin_library", activeOnly: true,
   },
+  // Şifa Rehberi — RELATIONAL: healing_guides (parent) + healing_guide_sections (child).
+  // Kaynak adminin kendi tenant'ı. Kopya: her rehber yeni UUID alır, alt bölümlerin
+  // guide_id'si YENİ parent id'ye remap edilir (kaynak parent id'sine bağlanmaz).
+  healing_guides: {
+    table: "healing_guides", kind: "relational", requireField: "name",
+    sourceMode: "admin_tenant",
+    childTable: "healing_guide_sections", childParentFk: "guide_id",
+  },
 } as const satisfies Record<string, GroupConfig>;
 
 type GroupKey = keyof typeof REGISTRY;
-
-const GROUP_KEYS = Object.keys(REGISTRY) as GroupKey[];
 
 function isGroupKey(v: unknown): v is GroupKey {
   return typeof v === "string" && Object.prototype.hasOwnProperty.call(REGISTRY, v);
@@ -173,38 +192,105 @@ class TransferError extends Error {
   }
 }
 
+type SectionStatus = "success" | "empty" | "failed";
+type SectionOutcome = {
+  group: GroupKey;
+  status: SectionStatus;
+  requested: number;
+  inserted: number;
+  /** Yalnız güvenli kod (ham DB mesajı DEĞİL). */
+  errorCode?: string;
+};
+
 function jsonError(status: number, message: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ ok: false, error: message, ...(extra ?? {}) }, { status });
 }
 
-/** Tek grubu kopyalar (SELECT kaynak → snapshot payload → batch INSERT). */
-async function cloneGroup(
+/** Kaynak okuma sorgusunu grup moduna göre kurar (SELECT * + filtreler). */
+function buildReadQuery(
+  db: SupabaseClient,
+  cfg: GroupConfig,
+  sourceTenantId: string,
+  filterIds: string[] | undefined,
+) {
+  let q;
+  if (cfg.sourceMode === "canonical_null") {
+    q = db.from(cfg.table).select("*").is("tenant_id", null);
+  } else if (cfg.sourceMode === "admin_library") {
+    q = db.from(cfg.table).select("*").eq("tenant_id", ADMIN_LIBRARY_TENANT_ID);
+  } else {
+    q = db.from(cfg.table).select("*").eq("tenant_id", sourceTenantId);
+  }
+  if (cfg.matchColumn && cfg.matchValue != null) q = q.eq(cfg.matchColumn, cfg.matchValue);
+  if (cfg.activeOnly) q = q.eq("is_active", true);
+  if (filterIds && filterIds.length > 0) q = q.in("id", filterIds);
+  return q;
+}
+
+/** Kaynak satırdan hedef kopya payload'u üretir (strip/copyFields + provenance). */
+function buildCopyPayload(
+  cfg: GroupConfig,
+  group: GroupKey,
+  row: Record<string, unknown>,
+  targetTenantId: string | null,
+  batchId: string,
+  nowIso: string,
+): Record<string, unknown> | null {
+  const copy: Record<string, unknown> = {};
+
+  if (cfg.copyFields) {
+    for (const key of cfg.copyFields) {
+      if (Object.prototype.hasOwnProperty.call(row, key)) copy[key] = row[key];
+    }
+  } else {
+    for (const [key, value] of Object.entries(row)) {
+      if (!STRIP.has(key)) copy[key] = value;
+    }
+  }
+
+  if (cfg.requireField) {
+    const val = String(row[cfg.requireField] ?? row.name ?? "").trim();
+    if (!val) return null; // iş alanı boş → atla (skip)
+    copy[cfg.requireField] = val;
+  }
+
+  // Doğaltaş: null koleksiyon alanlarını güvenli default'a çek (kanıtlı davranış).
+  if (group === "stones") {
+    if (copy.images == null) copy.images = [];
+    if (copy.assignments == null) copy.assignments = {};
+    if (copy.warning_tags == null) copy.warning_tags = [];
+  }
+
+  // Ownership — hedef tenant'a bağımsız kopya.
+  // (healing_guide_sections'ın tenant_id kolonu YOKTUR → targetTenantId null geçilir.)
+  if (targetTenantId != null) copy.tenant_id = targetTenantId;
+
+  // İÇ (internal) audit/rollback metadata — KULLANICIYA GÖSTERİLMEZ.
+  //   BAĞLAYICI ÜRÜN KURALI: aktarılmış kayıt uzman tarafında "Admin'den geldi"
+  //   benzeri hiçbir görünür köken etiketi taşımaz. Bu yüzden GÖRÜNÜR olan
+  //   origin_type='admin_transfer' / origin_label='Admin Kütüphanesi' ARTIK
+  //   YAZILMAZ (kayıt uzmanın kendi kaydı gibi görünür). Yalnız iç izleme alanları:
+  //     - origin_transfer_batch_id: rollback + idempotency için ZORUNLU.
+  //     - origin_source_id / transferred_at: teknik audit (UI'da render edilmez).
+  copy.origin_source_id = typeof row.id === "string" ? row.id : null;
+  copy.origin_transfer_batch_id = batchId;
+  copy.transferred_at = nowIso;
+
+  return copy;
+}
+
+/** Düz (flat) grubu kopyalar: SELECT kaynak → payload → batch INSERT. */
+async function cloneFlatGroup(
   db: SupabaseClient,
   group: GroupKey,
+  cfg: GroupConfig,
   sourceTenantId: string,
   targetTenantId: string,
   batchId: string,
   nowIso: string,
   filterIds: string[] | undefined,
 ): Promise<{ requested: number; inserted: number }> {
-  const cfg: GroupConfig = REGISTRY[group];
-
-  // Kaynak okuma modu: kanonik null / sabit admin kütüphane tenant / adminin tenant'ı.
-  let readQ;
-  if (cfg.sourceMode === "canonical_null") {
-    readQ = db.from(cfg.table).select("*").is("tenant_id", null);
-  } else if (cfg.sourceMode === "admin_library") {
-    readQ = db.from(cfg.table).select("*").eq("tenant_id", ADMIN_LIBRARY_TENANT_ID);
-  } else {
-    readQ = db.from(cfg.table).select("*").eq("tenant_id", sourceTenantId);
-  }
-  // Sabit alt-tür filtresi (ör. oil_type) — değer REGISTRY'den, istemciden DEĞİL.
-  if (cfg.matchColumn && cfg.matchValue != null) {
-    readQ = readQ.eq(cfg.matchColumn, cfg.matchValue);
-  }
-  if (cfg.activeOnly) readQ = readQ.eq("is_active", true);
-  if (filterIds && filterIds.length > 0) readQ = readQ.in("id", filterIds);
-  const { data, error } = await readQ;
+  const { data, error } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
   if (error) throw new TransferError("read", group);
 
   const rows = (data ?? []) as Record<string, unknown>[];
@@ -212,40 +298,8 @@ async function cloneGroup(
 
   const payloads: Record<string, unknown>[] = [];
   for (const row of rows) {
-    const copy: Record<string, unknown> = {};
-
-    if (cfg.copyFields) {
-      for (const key of cfg.copyFields) {
-        if (Object.prototype.hasOwnProperty.call(row, key)) copy[key] = row[key];
-      }
-    } else {
-      for (const [key, value] of Object.entries(row)) {
-        if (!STRIP.has(key)) copy[key] = value;
-      }
-    }
-
-    if (cfg.requireField) {
-      const val = String(row[cfg.requireField] ?? row.name ?? "").trim();
-      if (!val) continue; // iş alanı boş → atla (skip)
-      copy[cfg.requireField] = val;
-    }
-
-    // Doğaltaş: null koleksiyon alanlarını güvenli default'a çek (kanıtlı davranış).
-    if (group === "stones") {
-      if (copy.images == null) copy.images = [];
-      if (copy.assignments == null) copy.assignments = {};
-      if (copy.warning_tags == null) copy.warning_tags = [];
-    }
-
-    // Ownership + provenance — hedef tenant'a bağımsız kopya.
-    copy.tenant_id = targetTenantId;
-    copy.origin_type = "admin_transfer";
-    copy.origin_label = "Admin Kütüphanesi";
-    copy.origin_source_id = typeof row.id === "string" ? row.id : null;
-    copy.origin_transfer_batch_id = batchId;
-    copy.transferred_at = nowIso;
-
-    payloads.push(copy);
+    const copy = buildCopyPayload(cfg, group, row, targetTenantId, batchId, nowIso);
+    if (copy) payloads.push(copy);
   }
 
   let inserted = 0;
@@ -259,17 +313,126 @@ async function cloneGroup(
   return { requested: rows.length, inserted };
 }
 
-/** Telafi-silme: bu batch_id'li tüm satırları hedef tablolardan kaldırır (best-effort). */
-async function rollbackBatch(db: SupabaseClient, batchId: string): Promise<void> {
-  for (const group of GROUP_KEYS) {
-    try {
-      await db
-        .from(REGISTRY[group].table)
-        .delete()
-        .eq("origin_transfer_batch_id", batchId);
-    } catch {
-      /* best-effort — batch_id-scoped delete; kısmi başarısızlık loglanmaz */
+/**
+ * Relational grubu kopyalar: parent (healing_guides) + child (healing_guide_sections).
+ * Her rehber: parent INSERT → yeni id → o rehbere ait alt bölümler yeni guide_id ile
+ * INSERT. Child FK KAYNAK parent id'sine DEĞİL, yeni target parent id'sine bağlanır.
+ * Grup-atomik: patlarsa çağıran grup-scoped rollback ile tüm batch'i geri alır.
+ */
+async function cloneRelationalGroup(
+  db: SupabaseClient,
+  group: GroupKey,
+  cfg: GroupConfig,
+  sourceTenantId: string,
+  targetTenantId: string,
+  batchId: string,
+  nowIso: string,
+  filterIds: string[] | undefined,
+): Promise<{ requested: number; inserted: number }> {
+  const childTable = cfg.childTable!;
+  const childFk = cfg.childParentFk!;
+
+  // 1) Kaynak parent'ları oku.
+  const { data: pData, error: pErr } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
+  if (pErr) throw new TransferError("read", group);
+  const parents = (pData ?? []) as Record<string, unknown>[];
+  if (parents.length === 0) return { requested: 0, inserted: 0 };
+
+  const sourceParentIds = parents
+    .map((p) => (typeof p.id === "string" ? p.id : null))
+    .filter((x): x is string => !!x);
+
+  // 2) Bu parent'lara ait TÜM child'ları tek okumada al, parent'a göre grupla.
+  const childrenByParent = new Map<string, Record<string, unknown>[]>();
+  if (sourceParentIds.length > 0) {
+    const { data: cData, error: cErr } = await db
+      .from(childTable)
+      .select("*")
+      .in(childFk, sourceParentIds);
+    if (cErr) throw new TransferError("read", group);
+    for (const c of (cData ?? []) as Record<string, unknown>[]) {
+      const pid = String(c[childFk] ?? "");
+      const arr = childrenByParent.get(pid) ?? [];
+      arr.push(c);
+      childrenByParent.set(pid, arr);
     }
+  }
+
+  // Child STRIP: teknik alanlar + parent FK (yeniden atanacak).
+  const childStrip = new Set<string>([...STRIP, childFk]);
+
+  let requested = 0;
+  let inserted = 0;
+
+  // 3) Her rehberi ekle → yeni id al → alt bölümleri yeni id'ye remap ederek ekle.
+  for (const parent of parents) {
+    const sourceId = typeof parent.id === "string" ? parent.id : null;
+    const parentCopy = buildCopyPayload(cfg, group, parent, targetTenantId, batchId, nowIso);
+    if (!parentCopy) continue; // requireField boş → atla
+    requested += 1;
+
+    const { data: insParent, error: insErr } = await db
+      .from(cfg.table)
+      .insert(parentCopy)
+      .select("id")
+      .single();
+    if (insErr || !insParent) throw new TransferError("insert", group);
+    inserted += 1;
+
+    const newParentId = String((insParent as { id: unknown }).id);
+    const kids = sourceId ? childrenByParent.get(sourceId) ?? [] : [];
+    if (kids.length === 0) continue;
+
+    const childPayloads: Record<string, unknown>[] = [];
+    for (const kid of kids) {
+      const copy: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(kid)) {
+        if (!childStrip.has(k)) copy[k] = v;
+      }
+      // FK REMAP: child yeni parent id'ye bağlanır (kaynak id'ye DEĞİL).
+      copy[childFk] = newParentId;
+      // İç audit/rollback metadata (görünür origin_type/label YAZILMAZ — ürün kuralı).
+      copy.origin_source_id = typeof kid.id === "string" ? kid.id : null;
+      copy.origin_transfer_batch_id = batchId;
+      copy.transferred_at = nowIso;
+      childPayloads.push(copy);
+      requested += 1;
+    }
+
+    for (let off = 0; off < childPayloads.length; off += INSERT_BATCH) {
+      const batch = childPayloads.slice(off, off + INSERT_BATCH);
+      const { error: cInsErr } = await db.from(childTable).insert(batch);
+      if (cInsErr) throw new TransferError("insert", group);
+      inserted += batch.length;
+    }
+  }
+
+  return { requested, inserted };
+}
+
+/**
+ * TEK grubun bu batch'e ait satırlarını geri alır (grup-scoped).
+ * Paylaşılan tabloda (aromatherapy_oils) yalnız bu grubun matchValue satırlarını
+ * siler → aynı batch'teki BAŞKA grubun (ör. essential) satırlarını YOK ETMEZ.
+ * Relational grupta child, parent silinince ON DELETE CASCADE ile gider; yine de
+ * child'ı da batch_id ile açıkça sileriz (belt-and-suspenders).
+ */
+async function rollbackGroup(
+  db: SupabaseClient,
+  cfg: GroupConfig,
+  batchId: string,
+): Promise<void> {
+  try {
+    if (cfg.kind === "relational" && cfg.childTable) {
+      await db.from(cfg.childTable).delete().eq("origin_transfer_batch_id", batchId);
+    }
+    let del = db.from(cfg.table).delete().eq("origin_transfer_batch_id", batchId);
+    if (cfg.matchColumn && cfg.matchValue != null) {
+      del = del.eq(cfg.matchColumn, cfg.matchValue);
+    }
+    await del;
+  } catch {
+    /* best-effort — grup-scoped telafi-silme; kısmi başarısızlık loglanmaz */
   }
 }
 
@@ -397,11 +560,21 @@ export async function POST(req: NextRequest): Promise<Response> {
         if (!(e instanceof AdminAuditError)) throw e;
       }
       const p = prior as { counts?: unknown; requested_count?: unknown; inserted_count?: unknown };
+      const priorCounts = (p.counts ?? {}) as Record<string, number>;
+      // Replay: bölüm outcome'larını sayımlardan en iyi çabayla yeniden kur.
+      const sections: SectionOutcome[] = groupKeys.map((g) => {
+        const ins = Number(priorCounts[g] ?? 0);
+        return { group: g, status: ins > 0 ? "success" : "empty", requested: ins, inserted: ins };
+      });
       return NextResponse.json({
         ok: true,
         replayed: true,
         batchId,
-        counts: (p.counts ?? {}) as Record<string, number>,
+        counts: priorCounts,
+        sections,
+        selectedSectionCount: groupKeys.length,
+        successfulSectionCount: sections.filter((s) => s.status !== "failed").length,
+        failedSectionCount: 0,
         requestedCount: Number(p.requested_count ?? 0),
         insertedCount: Number(p.inserted_count ?? 0),
       });
@@ -410,58 +583,54 @@ export async function POST(req: NextRequest): Promise<Response> {
     return jsonError(409, "Aktarım kimliği çakışması.");
   }
 
-  // ── İşle — herhangi bir grup patlarsa telafi-silme ile all-or-nothing ──────
+  // ── İşle — HER GRUP BAĞIMSIZ (bölüm-bazında atomik + kısmi başarı) ─────────
   const counts: Record<string, number> = {};
+  const sections: SectionOutcome[] = [];
   let requestedTotal = 0;
   let insertedTotal = 0;
   const nowIso = new Date().toISOString();
 
-  try {
-    for (const group of groupKeys) {
-      const { requested, inserted } = await cloneGroup(
-        db,
+  for (const group of groupKeys) {
+    const cfg: GroupConfig = REGISTRY[group];
+    try {
+      const result =
+        cfg.kind === "relational"
+          ? await cloneRelationalGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group])
+          : await cloneFlatGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group]);
+
+      counts[group] = result.inserted;
+      requestedTotal += result.requested;
+      insertedTotal += result.inserted;
+      sections.push({
         group,
-        sourceTenantId,
-        targetTenantId,
-        batchId,
-        nowIso,
-        filterMap[group],
-      );
-      counts[group] = inserted;
-      requestedTotal += requested;
-      insertedTotal += inserted;
-    }
-  } catch {
-    await rollbackBatch(db, batchId);
-    try {
-      await db
-        .from("admin_library_transfer_batches")
-        .update({ status: "failed", requested_count: requestedTotal, inserted_count: 0, counts: {} })
-        .eq("batch_id", batchId);
-    } catch {
-      /* ledger update best-effort */
-    }
-    try {
-      await writeAdminAudit(db, {
-        actorAdminId: adminId,
-        action: "library_transfer_failed",
-        targetUserId,
-        result: { batch_id: batchId, requested_count: requestedTotal, inserted_count: 0 },
-        context: { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId },
+        status: result.inserted > 0 ? "success" : "empty",
+        requested: result.requested,
+        inserted: result.inserted,
       });
-    } catch (e) {
-      if (!(e instanceof AdminAuditError)) throw e;
+    } catch (err) {
+      // YALNIZ bu grubun batch satırlarını geri al; diğer grupları etkileme.
+      await rollbackGroup(db, cfg, batchId);
+      counts[group] = 0;
+      sections.push({
+        group,
+        status: "failed",
+        requested: 0,
+        inserted: 0,
+        errorCode: err instanceof TransferError ? `${err.stage}_failed` : "unknown_error",
+      });
     }
-    // Ham DB/permission mesajı ASLA dışarı sızmaz.
-    return jsonError(500, "Aktarım tamamlanamadı. Hiçbir kayıt aktarılmadı.", { batchId });
   }
 
-  // Başarı — ledger'ı tamamla
+  const failedSectionCount = sections.filter((s) => s.status === "failed").length;
+  const successfulSectionCount = sections.filter((s) => s.status !== "failed").length;
+
+  // Ledger özetini tamamla (status: hiç kayıt yoksa failed, aksi halde completed).
+  const ledgerStatus = insertedTotal > 0 ? "completed" : "failed";
   try {
     await db
       .from("admin_library_transfer_batches")
       .update({
-        status: "completed",
+        status: ledgerStatus,
         requested_count: requestedTotal,
         inserted_count: insertedTotal,
         counts,
@@ -471,17 +640,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     /* veri kalıcı; ledger özet güncellemesi best-effort */
   }
 
-  // Audit — başarı yolunda best-effort (ledger zaten kalıcı köken kaydıdır).
+  // Audit — kısmi başarı da "completed" (≥1 kayıt) sayılır; hiç yoksa "failed".
   try {
     await writeAdminAudit(db, {
       actorAdminId: adminId,
-      action: "library_transfer_completed",
+      action: insertedTotal > 0 ? "library_transfer_completed" : "library_transfer_failed",
       targetUserId,
       result: {
         batch_id: batchId,
         requested_count: requestedTotal,
         inserted_count: insertedTotal,
         counts,
+        failed_sections: sections.filter((s) => s.status === "failed").map((s) => s.group),
       },
       context: { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId },
     });
@@ -493,6 +663,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     ok: true,
     batchId,
     counts,
+    sections,
+    selectedSectionCount: groupKeys.length,
+    successfulSectionCount,
+    failedSectionCount,
     requestedCount: requestedTotal,
     insertedCount: insertedTotal,
     skippedCount: Math.max(0, requestedTotal - insertedTotal),
