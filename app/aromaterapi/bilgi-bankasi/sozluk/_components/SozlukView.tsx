@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadListScreen } from "@/app/aromaterapi/_components/read/ReadListScreen";
+import { useReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   MetaChip,
   ReadFilterSelect,
@@ -25,9 +27,12 @@ export function SozlukView() {
     filterKeys: FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
+  const { showToast } = useToast();
+  const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/glossary/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
 
   return (
     <ReadListScreen<GlossaryTermListItem>
+      selection={selection}
       loading={s.loading}
       errorCode={s.errorCode}
       rows={s.rows}

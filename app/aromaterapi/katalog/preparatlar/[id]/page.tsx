@@ -41,6 +41,7 @@ export default function PreparatDetayPage() {
       breadcrumbLeaf="Preparat Detayı"
       backHref="/aromaterapi/katalog?tab=preparatlar"
       backLabel="Kataloğa dön"
+      wordExportUrl={id ? `/api/aromaterapi/preparations/${id}/word-report` : undefined}
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}

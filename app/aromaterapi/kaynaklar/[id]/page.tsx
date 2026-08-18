@@ -35,6 +35,7 @@ export default function KaynakDetayPage() {
       breadcrumbLeaf="Kaynak Detayı"
       backHref="/aromaterapi/kaynaklar"
       backLabel="Kaynaklara dön"
+      wordExportUrl={id ? `/api/aromaterapi/sources/${id}/word-report` : undefined}
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}
