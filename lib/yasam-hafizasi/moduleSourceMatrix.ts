@@ -103,16 +103,20 @@ export const YH_MODULE_SOURCE_MATRIX = [
     allow: ["bibliyografik kaynak (display_label/title/authors/kurum/notes)", "uzman bilgi-kaydı notu (body)"],
     deny: ["ad", "soyad", "doğum tarihi", "açık doğum verisi", "serbest kişisel/danışan metni", "isimden client eşleştirme", "danışan analiz sonucu"],
     rationale:
-      "Professional numeroloji WIRED (DORMANT): numerology_sources (bibliyografik kaynak) + " +
-      "numerology_knowledge_source_entries (uzman bilgi notu) tenant-scoped, client_id/PII YOK, " +
-      "repo migration'ında TAM CREATE TABLE ile doğrulandı → YH_INDEX_SOURCES'a enabled:false " +
-      "eklendi (config.YH_SOURCE_MODULES additif 'numeroloji' ailesi). numerology_knowledge_records " +
-      "CREATE TABLE repo'da YOK (migration şemayı VARSAYMIYOR) → bilinçli olarak bağlanmadı. " +
-      "Client-scoped numeroloji için doğrulanmış client_id tablo YOK + ad/doğum PII riski → client " +
-      "katmanı DEFERRED (isimden eşleştirme YASAK; danışan analiz sonucu professional'a girmez).",
+      "Professional numeroloji WIRED (DORMANT_READY, enabled:false): numerology_sources (bibliyografik " +
+      "kaynak) + numerology_knowledge_source_entries (uzman bilgi notu) tenant-scoped, client_id/PII YOK, " +
+      "repo migration'ında TAM CREATE TABLE ile doğrulandı → YH_INDEX_SOURCES'a enabled:false eklendi " +
+      "(config.YH_SOURCE_MODULES additif 'numeroloji' ailesi). Professional Cohort: CDC trigger (generic " +
+      "yh_cdc_enqueue) + migration + harness HAZIR ANCAK registry enabled:false KORUNUR — ÇİFT FAIL-CLOSED " +
+      "KAPI: (1) registry disabled → Kapı 4 permanent 'source-not-indexable', (2) DB is_active=false. Mevcut " +
+      "tenant satırları satış-öncesi TEST verisi → aktivasyon (enabled:true + is_active flip) temiz reset " +
+      "SONRASI AYRI ONAY. numerology_knowledge_records CREATE TABLE repo'da YOK (migration şemayı " +
+      "VARSAYMIYOR) → bilinçli olarak bağlanmadı. Client-scoped numeroloji için doğrulanmış client_id tablo " +
+      "YOK + ad/doğum PII riski → client katmanı DEFERRED (isimden eşleştirme YASAK; danışan analiz sonucu " +
+      "professional'a girmez).",
     activationPrerequisite:
-      "Professional: BF-11E (trigger + enabled:true + kontrollü backfill). " +
-      "Client: additive nullable client_id + kanıtlanmış semantik ilişki (heuristik değil).",
+      "Professional: temiz reset SONRASI (kod enabled:true + yh_source_activation_set is_active=true) (AYRI " +
+      "ONAY; kör backfill YASAK). Client: additive nullable client_id + kanıtlanmış semantik ilişki (heuristik değil).",
   },
   {
     moduleKey: "aromaterapi",
@@ -123,16 +127,23 @@ export const YH_MODULE_SOURCE_MATRIX = [
       "aromaterapi:reference-sheets",
       "aromaterapi:reference-rows",
       "aromaterapi:blends",
+      "aromaterapi:plant-taxa",
+      "aromaterapi:preparations",
+      "aromaterapi:method",
     ],
     clientSourceKeys: [],
-    allow: ["yağ/katalog başlığı", "referans satır hücreleri", "blend reçetesi (mesleki)", "katman etiketi + provenans"],
-    deny: ["kaynakta olmayan editoryal uyarıyı faithful translation/source text'e ekleme", "danışan PII"],
+    allow: ["yağ/katalog başlığı", "referans satır hücreleri", "blend reçetesi (mesleki)", "katman etiketi + provenans", "bitki/preparat kataloğu (verified|approved)", "verified üretim yöntemi (seri identity)"],
+    deny: ["kaynakta olmayan editoryal uyarıyı faithful translation/source text'e ekleme", "danışan PII", "draft/archived katalog veya draft/archived method revizyonu index"],
     rationale:
       "Yağ kataloğu, referans sheet/row ve uzman blend'leri professional index'te CANLI. Kilitli " +
       "kaynak katmanları (source passage / original text / faithful translation / editorial " +
       "explanation / editorial interpretation / expert overlay) tek düz metne EZİLMEZ; katman " +
-      "etiketi + provenans korunur. Gerçek client kullanım/öneri tablosu (client_id) YOK → client " +
-      "katmanı açılmaz.",
+      "etiketi + provenans korunur. Professional Cohort (Canonical V2): plant_taxa + preparations " +
+      "(current = status ∈ {verified, approved}; veri-sozlugu-v2 verified_content) + method (seri " +
+      "identity; current = status='verified' TEK revizyon, worker işleme anında çözer) FUTURE_ONLY_READY " +
+      "controlled eklendi (tenant column; is_active=false → OFF). aromatherapy_claims (verified/publish " +
+      "lifecycle YOK) ve HD (global-canonical) bu cohort'a GİRMEDİ. Gerçek client kullanım/öneri tablosu " +
+      "(client_id) YOK → client katmanı açılmaz.",
     activationPrerequisite: "Client katmanı için client_id'li gerçek danışan kullanım/öneri tablosu gerekir.",
   },
   {

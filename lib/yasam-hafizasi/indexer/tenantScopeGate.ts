@@ -22,6 +22,7 @@ import {
 import { ADMIN_LIBRARY_TENANT_ID } from "../../tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID } from "../config";
 import type { SourceConfig } from "./sources";
+import { METHOD_SOURCE_KEY } from "./methodSource";
 
 // ─── Taşınamaz kanıt (branded symbol; DIŞARI EXPORT EDİLMEZ) ──────────────────
 const VALIDATED_TENANT_SCOPE = Symbol("yh.validatedTenantScope");
@@ -56,6 +57,10 @@ export function isValidatedTenantScope(v: unknown): v is ValidatedTenantScope {
 export function supportsTenantScopedPage(config: SourceConfig): boolean {
   if (config.enabled !== true) return false;
   if (config.classification !== "safe-non-pii") return false;
+  // aromaterapi:method (SEÇENEK B): registry kolon adları SENTETIK'tir + eligibility "verified
+  // revizyon var mı" (kolon değil, IO-çözümlü). Generic tenant-scoped page/backfill uygulanamaz →
+  // FAIL-CLOSED (yalnız event-driven exact yol; kör backfill zaten YASAK).
+  if (config.sourceKey === METHOD_SOURCE_KEY) return false;
   // BF-11E ROW-GATED CONTROLLED (Kişisel Arşiv): satır-seviyesi eligibility kapısı gerektiren
   // kaynak, source-level 'safe-non-pii' olsa DAHİ kör tenant-scoped backfill/page'e AÇILMAZ
   // (blind bulk indexleme = PII sızma yüzeyi). Tek yol: CDC event + zorunlu row-gate. FAIL-CLOSED.

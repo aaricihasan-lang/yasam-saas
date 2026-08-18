@@ -130,9 +130,12 @@ async function run(): Promise<void> {
   add("A-new-energy-bodies-table", cfg("biyoenerji:energy-bodies").tableName === "bioenergy_energy_bodies");
   // Matris tenantMode registry tenant.mode ile hizalı.
   add("A-matrix-tenantmode-aligned", READY_KEYS.every((k) => entryOf(k)?.tenantMode === cfg(k).tenant.mode));
-  // Matris FUTURE_ONLY_READY professional = 11 worker-v1 READY + 5 worker-v2 graduate = 16 (drift yok).
+  // Matris FUTURE_ONLY_READY professional = 11 worker-v1 READY + 5 worker-v2 graduate + 3 Professional
+  // Cohort (aroma katalog/method) = 19 (drift yok). Professional Cohort 3 kaynağı bu harness kapsamı
+  // DIŞINDA ama global sayıya dahil → beklenen sete eklenir.
+  const PROFESSIONAL_COHORT_KEYS = ["aromaterapi:plant-taxa", "aromaterapi:preparations", "aromaterapi:method"];
   const futurePro = sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").sort();
-  add("A-matrix-future-pro-equals-16", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS].sort()), futurePro.join(","));
+  add("A-matrix-future-pro-equals-19", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS, ...PROFESSIONAL_COHORT_KEYS].sort()), futurePro.join(","));
 }
 
 // ═══ A2) WORKER-V2 GRADUATION (5 kaynak; DEFERRED_SHARED_WORKER_V2 → FUTURE_ONLY_READY) ══════════
@@ -218,21 +221,22 @@ async function run(): Promise<void> {
 
 // ═══ C) SOURCE COUNT ARİTMETİĞİ (exact) ══════════════════════════════════════
 {
-  add("C-professional-registry-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
-  add("C-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length));
+  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
+  // Professional Cohort: live 19 + 3 aroma = 22 (numeroloji enabled:false KORUNDU); dormant 2 numeroloji + 6 yebs = 8.
+  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length));
   add("C-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("C-keep-live-1-professional-stones", sourceKeysByClass("KEEP_LIVE").filter((k) => k === "dogaltas:stones").length === 1);
   // KEEP_LIVE class = 2 (stones + refleksoloji:notes pii no-op); professional-live-catalog = 1 (stones).
   add("C-keep-live-class-2", sourceKeysByClass("KEEP_LIVE").length === 2, sourceKeysByClass("KEEP_LIVE").join(","));
-  // FUTURE_ONLY_READY professional = 16 (11 worker-v1 Cohort A + 5 worker-v2 graduate).
-  add("C-future-only-controlled-16-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 16, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
-  // FUTURE_ONLY_READY total = 16 professional + 6 client = 22.
-  add("C-future-only-total-22", sourceKeysByClass("FUTURE_ONLY_READY").length === 22, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
+  // FUTURE_ONLY_READY professional = 19 (11 worker-v1 Cohort A + 5 worker-v2 graduate + 3 Professional Cohort aroma).
+  add("C-future-only-controlled-19-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 19, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
+  // FUTURE_ONLY_READY total = 19 professional + 6 client = 25.
+  add("C-future-only-total-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 25, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
   add("C-deferred-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("C-row-gated-1-archive", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
-  add("C-matrix-total-33", YH_ACTIVATION_MATRIX.length === 33, String(YH_ACTIVATION_MATRIX.length));
-  // Kohort dispozisyonu: COHORT_1_READY = 16 professional ready + 1 archive = 17; DEFERRED cohort = 0.
-  add("C-cohort1-ready-17", sourceKeysByCohort("COHORT_1_READY").length === 17, sourceKeysByCohort("COHORT_1_READY").join(","));
+  add("C-matrix-total-36", YH_ACTIVATION_MATRIX.length === 36, String(YH_ACTIVATION_MATRIX.length));
+  // Kohort dispozisyonu: COHORT_1_READY = 19 professional ready (16 + 3 Professional Cohort aroma) + 1 archive = 20; DEFERRED cohort = 0.
+  add("C-cohort1-ready-20", sourceKeysByCohort("COHORT_1_READY").length === 20, sourceKeysByCohort("COHORT_1_READY").join(","));
   add("C-deferred-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0);
 }
 
