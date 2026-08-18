@@ -3,310 +3,36 @@ import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { chunkIds, orderRowsByIds } from "@/lib/sifa-rehberi/idBatch";
+import { buildFooter, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+// EK FAZ 3 Premium Word: SAF belge kurucusu (render mantığı buraya taşındı; harness test eder).
 import {
-  bodyText,
-  buildFooter,
-  buildPremiumCover,
-  buildStatsPage,
-  buildTOCPage,
-  divider,
-  h1Colored,
-  h2,
-  h3,
-  muted,
-  profileLabel,
-  ReportChild,
-  spacer,
-  twoColTable,
-} from "@/lib/docx/reportHelpers";
+  buildSifaReportChildren,
+  sifaWordFilename,
+  type ImagesByKey,
+  type SifaExportMode,
+  type WordGuideRaw,
+} from "@/lib/sifa-rehberi/wordDocument";
+// EK FAZ 3 Premium Word: GÜVENLİ (SSRF-korumalı) uzak görsel getirme.
+import {
+  extractImageUrls,
+  fetchSafeImages,
+  storageHostFromEnv,
+} from "@/lib/sifa-rehberi/wordImages";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
-// FAZ 2: etiket haritaları tek merkezden (sectionModel) — duplication azaltıldı.
-import { MODE_LABEL, SECTION_TYPE_LABEL, SECTION_TYPE_ORDER, sectionHasAnyLayer } from "@/lib/sifa-rehberi/sectionModel";
 
 export const runtime = "nodejs";
 
-const C_SIFA = "059669";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ExportMode = "all" | "selected" | "single";
+// Export başına makul toplam görsel tavanı (maliyet-abuse + wall-clock koruması). Aşılırsa
+// FAZLA görseller sessizce atlanır (içerik metni ETKİLENMEZ) ve YALNIZ sayı loglanır.
+const MAX_TOTAL_IMAGES = 300;
 
-// ── Section tablosu yapısı ────────────────────────────────────────────────────
-type SectionRow = {
-  id: string;
-  guide_id: string;
-  section_type: string;
-  mode: string | null;
-  title: string | null;
-  note: string | null;
-  source: string | null;
-  // FAZ 2 — opsiyonel profesyonel bilgi katmanları + kalıcı sıra.
-  source_kind: string | null;
-  expert_note: string | null;
-  attention: string | null;
-  sort_order: number | null;
-  created_at: string;
-};
-
-// ── Ana guide satırı (legacy kolonlar + sections join) ────────────────────────
-type GuideRaw = {
-  id: string;
-  tenant_id: string;
-  name: string;
-  category: string | null;
-  symptoms: string | null;
-  created_at: string;
-  updated_at: string | null;
-  // Legacy kolonlar (eski kayıtlar için fallback)
-  general_summary: string | null;
-  medical_causes: string | null;
-  subconscious_causes: string | null;
-  temperament_causes: string | null;
-  other_causes: string | null;
-  iridology_match: string | null;
-  hand_analysis_match: string | null;
-  cupping_leech: string | null;
-  reflexology: string | null;
-  diet_recommendations: string | null;
-  herbal_methods: string | null;
-  stone_recommendations: string | null;
-  aromatherapy: string | null;
-  meditation: string | null;
-  breathwork: string | null;
-  bioenergy: string | null;
-  massage: string | null;
-  daily_routine: string | null;
-  sleep_routine: string | null;
-  supportive_alternative_methods: string | null;
-  islamic_recommendations: string | null;
-  // İlişkili sections
-  healing_guide_sections: SectionRow[] | null;
-};
-
-// MODE_LABEL / SECTION_TYPE_LABEL / SECTION_TYPE_ORDER → sectionModel'den import edilir.
-
-function normKey(v: string | null | undefined): string {
-  if (!v) return "";
-  return v.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-}
-
-function sectionDisplayLabel(section: SectionRow): string {
-  const mk = normKey(section.mode);
-  if (mk && MODE_LABEL[mk]) return MODE_LABEL[mk];
-  const tk = normKey(section.title);
-  if (tk && MODE_LABEL[tk]) return MODE_LABEL[tk];
-  if (section.title?.trim()) return section.title.trim();
-  if (mk && SECTION_TYPE_LABEL[mk]) return SECTION_TYPE_LABEL[mk];
-  return SECTION_TYPE_LABEL[section.section_type] ?? "İçerik";
-}
-
-function txt(v: string | null | undefined): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-  } catch { return d; }
-}
-
-function slugify(t: string): string {
-  return t.toLowerCase()
-    .replace(/ı/g,"i").replace(/İ/g,"i").replace(/ğ/g,"g").replace(/Ğ/g,"g")
-    .replace(/ü/g,"u").replace(/Ü/g,"u").replace(/ş/g,"s").replace(/Ş/g,"s")
-    .replace(/ö/g,"o").replace(/Ö/g,"o").replace(/ç/g,"c").replace(/Ç/g,"c")
-    .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-}
-
-// ── İçerik oluşturma ──────────────────────────────────────────────────────────
-
-function addLegacySection(
-  out: ReportChild[],
-  label: string,
-  value: string | null | undefined,
-) {
-  const t = txt(value);
-  if (!t) return;
-  out.push(h3(label));
-  out.push(bodyText(t));
-}
-
-/** Kaynak + kaynak türü tek satır. */
-function sourceLine(s: SectionRow): string {
-  const src = txt(s.source);
-  const kind = txt(s.source_kind);
-  if (src && kind) return `Kaynak (${kind}): ${src}`;
-  if (src) return `Kaynak: ${src}`;
-  if (kind) return `Kaynak Türü: ${kind}`;
-  return "";
-}
-
-/**
- * Bir section'da yazdırılabilir herhangi bir katman var mı? (merkezi sectionHasAnyLayer)
- * DİKKAT: bu YALNIZ boş-bölüm filtresidir; içerik EŞİTLİĞİNE bakmaz → aynı note'a sahip
- * iki FARKLI section asla birbirini düşürmez (semantic content dedup YOK).
- */
-function hasAnySectionLayer(s: SectionRow): boolean {
-  return sectionHasAnyLayer(s);
-}
-
-/**
- * FAZ 2 — bilgi KATMANLARINI birbirinden AÇIKÇA ayırarak yazar:
- *   Ana İçerik → Kaynak/Tür → Uzman Notu → Dikkat Edilmesi Gerekenler.
- * Boş katman basılmaz; uzun içerik truncate edilmez.
- */
-function pushSectionLayers(out: ReportChild[], s: SectionRow, subLabel?: string) {
-  if (subLabel) out.push(bodyText(`▸ ${subLabel}`));
-  const content = txt(s.note);
-  if (content) out.push(bodyText(content));
-  const src = sourceLine(s);
-  if (src) out.push(muted(src));
-  const expert = txt(s.expert_note);
-  if (expert) out.push(bodyText(`Uzman Notu: ${expert}`));
-  const attn = txt(s.attention);
-  if (attn) out.push(bodyText(`Dikkat Edilmesi Gerekenler: ${attn}`));
-}
-
-function buildFromSections(out: ReportChild[], sections: SectionRow[]) {
-  // section_type bazında grupla ve sırayla yaz (grup içi sort_order korunur —
-  // sections zaten sort_order/created_at ile sıralı gelir).
-  const grouped: Record<string, SectionRow[]> = {};
-  for (const s of sections) {
-    const key = s.section_type || "other";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(s);
-  }
-
-  const orderedTypes = [
-    ...SECTION_TYPE_ORDER.filter((t) => grouped[t]?.length),
-    ...Object.keys(grouped).filter((t) => !SECTION_TYPE_ORDER.includes(t) && grouped[t]?.length),
-  ];
-
-  for (const stype of orderedTypes) {
-    const rows = (grouped[stype] ?? []).filter(hasAnySectionLayer);
-    if (!rows.length) continue;
-
-    const stypeLabel = SECTION_TYPE_LABEL[stype] ?? stype;
-
-    if (rows.length === 1) {
-      const s = rows[0]!;
-      const label = sectionDisplayLabel(s);
-      out.push(h3(label !== stypeLabel ? label : stypeLabel));
-      pushSectionLayers(out, s);
-    } else {
-      out.push(h3(stypeLabel));
-      for (const s of rows) {
-        const label = sectionDisplayLabel(s);
-        pushSectionLayers(out, s, label !== stypeLabel ? label : undefined);
-      }
-    }
-  }
-}
-
-function buildFromLegacy(out: ReportChild[], guide: GuideRaw) {
-  // Genel özet
-  addLegacySection(out, "Genel Özet", guide.general_summary);
-
-  // Semptomlar
-  addLegacySection(out, "Belirtiler", guide.symptoms);
-
-  // Sebepler
-  const hasSebepler =
-    guide.medical_causes || guide.subconscious_causes ||
-    guide.temperament_causes || guide.other_causes;
-  if (hasSebepler) {
-    out.push(h3("Nedenler / Sebepler"));
-    addLegacySection(out, "Tıbbi Nedenler", guide.medical_causes);
-    addLegacySection(out, "Bilinçaltı Sebepleri", guide.subconscious_causes);
-    addLegacySection(out, "Mizaç Sebepleri", guide.temperament_causes);
-    addLegacySection(out, "Diğer Sebepler", guide.other_causes);
-  }
-
-  // Tanı
-  if (guide.iridology_match || guide.hand_analysis_match) {
-    out.push(h3("Analiz Eşleştirmeleri"));
-    addLegacySection(out, "İridoloji'de Karşılığı", guide.iridology_match);
-    addLegacySection(out, "El Analizinde Karşılığı", guide.hand_analysis_match);
-  }
-
-  // Uygulamalar
-  if (guide.cupping_leech || guide.reflexology ||
-      guide.diet_recommendations || guide.herbal_methods) {
-    out.push(h3("Uygulamalar ve Yöntemler"));
-    addLegacySection(out, "Hacamat & Sülük", guide.cupping_leech);
-    addLegacySection(out, "Refleksoloji", guide.reflexology);
-    addLegacySection(out, "Diyet Önerileri", guide.diet_recommendations);
-    addLegacySection(out, "Bitkisel Yöntemler", guide.herbal_methods);
-  }
-
-  addLegacySection(out, "Doğaltaş Önerileri", guide.stone_recommendations);
-  addLegacySection(out, "Aromaterapi", guide.aromatherapy);
-
-  // Destekleyici
-  if (guide.meditation || guide.breathwork || guide.bioenergy ||
-      guide.massage || guide.daily_routine || guide.sleep_routine ||
-      guide.supportive_alternative_methods) {
-    out.push(h3("Destekleyici Uygulamalar"));
-    addLegacySection(out, "Meditasyon", guide.meditation);
-    addLegacySection(out, "Nefes Çalışması", guide.breathwork);
-    addLegacySection(out, "Biyoenerji", guide.bioenergy);
-    addLegacySection(out, "Masaj", guide.massage);
-    addLegacySection(out, "Günlük Rutin", guide.daily_routine);
-    addLegacySection(out, "Uyku Düzeni", guide.sleep_routine);
-    addLegacySection(out, "Destekleyici / Alternatif", guide.supportive_alternative_methods);
-  }
-
-  addLegacySection(out, "İslami Öneriler", guide.islamic_recommendations);
-}
-
-function buildGuideContent(guide: GuideRaw, index: number, isSingle: boolean): ReportChild[] {
-  const out: ReportChild[] = [];
-  const name = txt(guide.name) || "İsimsiz Kayıt";
-
-  if (!isSingle) {
-    out.push(profileLabel(`KAYIT #${String(index + 1).padStart(3, "0")}`, C_SIFA));
-  }
-  out.push(h2(name));
-
-  out.push(twoColTable([
-    ["Kategori", txt(guide.category) || "Belirtilmemiş"],
-    ["Tarih",    formatDateTR(guide.updated_at || guide.created_at)],
-  ]));
-
-  // Belirtiler (symptoms alanı — her zaman kontrol et)
-  if (txt(guide.symptoms)) {
-    out.push(h3("Belirtiler"));
-    out.push(bodyText(txt(guide.symptoms)));
-  }
-
-  const sections = (Array.isArray(guide.healing_guide_sections)
-    ? guide.healing_guide_sections
-    : []
-  )
-    .filter((s) => hasAnySectionLayer(s)) // içerik / kaynak / uzman notu / dikkat olan bölümler
-    // FAZ 2: kalıcı sıra (sort_order dolu önce; null'lar created_at ile sona).
-    .slice()
-    .sort((a, b) => {
-      const ao = typeof a.sort_order === "number" ? a.sort_order : null;
-      const bo = typeof b.sort_order === "number" ? b.sort_order : null;
-      if (ao != null && bo != null) return ao - bo || a.created_at.localeCompare(b.created_at);
-      if (ao != null) return -1;
-      if (bo != null) return 1;
-      return a.created_at.localeCompare(b.created_at);
-    });
-
-  if (sections.length > 0) {
-    // Yeni yapı: section tablosundan içerik
-    buildFromSections(out, sections);
-  } else {
-    // Eski yapı: legacy kolonlar
-    buildFromLegacy(out, guide);
-  }
-
-  return out;
-}
+// DB satır tipleri = SAF builder tipleri + sunucuya özel tenant_id (yalnız fetch/scoping).
+type GuideRaw = WordGuideRaw & { tenant_id: string };
 
 // ── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest): Promise<Response> {
@@ -336,10 +62,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", ids, id, clientId, selectionGroupId } = body as {
-    exportMode?: ExportMode;
+  const { exportMode = "all", ids, id, clientId, selectionGroupId, q, category } = body as {
+    exportMode?: SifaExportMode;
     ids?: string[];
     id?: string;
+    // FAZ EK1: "filtered" export — server, mevcut arama semantiğiyle TÜM eşleşen id'leri
+    // çözer (UI ilk-sayfa limit'ine BAĞLI DEĞİL). Client yalnız {q, category} gönderir.
+    q?: string;
+    category?: string | null;
     // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
     clientId?: string;
     selectionGroupId?: string;
@@ -358,9 +88,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const db = createClient(supabaseUrl, supabaseKey);
 
-  // Hem legacy kolonlar hem sections join — hangi veri yapısı olursa olsun çalışır
+  // Hem legacy kolonlar hem sections join — hangi veri yapısı olursa olsun çalışır.
+  // `images` (guide + section) EK FAZ 3 Premium Word için eklendi (güvenli embed).
   const SELECT = `
-    id, tenant_id, name, category, symptoms, created_at, updated_at,
+    id, tenant_id, name, category, symptoms, created_at, updated_at, images,
     general_summary, medical_causes, subconscious_causes, temperament_causes,
     other_causes, iridology_match, hand_analysis_match, cupping_leech,
     reflexology, diet_recommendations, herbal_methods, stone_recommendations,
@@ -368,71 +99,125 @@ export async function POST(request: NextRequest): Promise<Response> {
     sleep_routine, supportive_alternative_methods, islamic_recommendations,
     healing_guide_sections (
       id, guide_id, section_type, mode, title, note, source,
-      source_kind, expert_note, attention, sort_order, created_at
+      source_kind, expert_note, attention, images, sort_order, created_at
     )
   `;
 
-  // Export sorgularında body tenantId değil, DB'den doğrulanmış verifiedTenantId kullanılır
-  let query = db.from("healing_guides")
-    .select(SELECT)
-    .eq("tenant_id", verifiedTenantId);
-
-  if (exportMode === "single" && id) {
-    query = query.eq("id", id);
-  } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
-    query = query.in("id", ids);
+  // "filtered": TÜM eşleşen guide id'lerini server-side çöz (arama semantiği = UI arama;
+  // UI ilk-sayfa limit'ine BAĞLI DEĞİL). Böylece 137 eşleşme varken 50/100 ile sınırlanmaz.
+  let filteredIds: string[] | null = null;
+  if (exportMode === "filtered") {
+    const { data: idRows, error: idErr } = await db.rpc("resolve_healing_guide_ids", {
+      p_tenant_id: verifiedTenantId,
+      p_q: typeof q === "string" ? q : "",
+      p_category: typeof category === "string" ? category : null,
+    });
+    if (idErr) {
+      return serverErrorResponse({ route: "sifa/word-report", action: "POST.resolve", tenantId: verifiedTenantId, cause: idErr });
+    }
+    filteredIds = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
+    if (filteredIds.length === 0) {
+      return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
+    }
   }
 
-  const { data, error } = await query.order("name", { ascending: true });
-  if (error)
-    return Response.json({ ok: false, error: `Şifa rehberi kayıtları okunamadı: ${error.message}` }, { status: 500 });
+  // Ölçek-güvenli id-liste getirme: TEK dev `.in()` (URL sınırı riski) yerine sabit
+  // GUIDE_FETCH_BATCH'lik parçalar. Tenant her batch'te bağlanır (cross-tenant leak yok).
+  async function fetchByIdsBatched(idList: string[]): Promise<GuideRaw[]> {
+    const out: GuideRaw[] = [];
+    for (const batch of chunkIds(idList)) {
+      const { data: bd, error: be } = await db
+        .from("healing_guides")
+        .select(SELECT)
+        .eq("tenant_id", verifiedTenantId)
+        .in("id", batch);
+      if (be) throw be;
+      out.push(...((bd ?? []) as unknown as GuideRaw[]));
+    }
+    return out;
+  }
 
-  const guides = (data || []) as GuideRaw[];
+  let guides: GuideRaw[];
+  try {
+    if (exportMode === "single" && id) {
+      const { data, error } = await db
+        .from("healing_guides").select(SELECT)
+        .eq("tenant_id", verifiedTenantId).eq("id", id)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      guides = (data ?? []) as unknown as GuideRaw[];
+    } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
+      // Kullanıcı seçimi (sayfa-sınırlı olsa da) batch fetch + ada göre sırala (önceki davranış).
+      const fetched = await fetchByIdsBatched(ids);
+      guides = fetched.sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr-TR"));
+    } else if (exportMode === "filtered" && filteredIds) {
+      // TÜM eşleşenler; resolver sırasını (fold(name), id) KORU.
+      const fetched = await fetchByIdsBatched(filteredIds);
+      guides = orderRowsByIds(fetched, filteredIds);
+    } else {
+      // "all": id listesi yok → tek sorgu (URL riski yok).
+      const { data, error } = await db
+        .from("healing_guides").select(SELECT)
+        .eq("tenant_id", verifiedTenantId)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      guides = (data ?? []) as unknown as GuideRaw[];
+    }
+  } catch (e) {
+    return serverErrorResponse({ route: "sifa/word-report", action: "POST.read", tenantId: verifiedTenantId, cause: e });
+  }
+
   if (!guides.length)
     return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
 
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
-  const isSingle = exportMode === "single" || (exportMode === "selected" && guides.length === 1);
 
-  const exportLabel =
-    isSingle ? `Tek Kayıt — ${guides[0]!.name || ""}` :
-    exportMode === "selected" ? `Seçili Kayıtlar (${guides.length})` :
-    `Tüm Şifa Rehberi (${guides.length})`;
+  // ── Güvenli görsel embedding (EK FAZ 3) ──────────────────────────────────────
+  // URL'ler YALNIZ Şifa'nın kendi Supabase Storage public host'undan getirilir (EXACT host;
+  // SSRF/localhost/private-IP/file/data/non-https reddedilir). Broken/oversize/bad-MIME/
+  // timeout/invalid-boyut → sessizce atlanır; TEK kötü görsel export'u bozmaz. İçerik/URL
+  // LOGLANMAZ. Belge sırası deterministik (guide görselleri → o guide'ın section görselleri).
+  const guideImages: ImagesByKey = new Map();
+  const sectionImages: ImagesByKey = new Map();
+  const allowedHost = storageHostFromEnv(supabaseUrl);
+  if (allowedHost) {
+    type ImgEntry = { kind: "guide" | "section"; key: string; url: string };
+    const entries: ImgEntry[] = [];
+    for (const g of guides) {
+      for (const u of extractImageUrls(g.images)) entries.push({ kind: "guide", key: g.id, url: u });
+      const secs = Array.isArray(g.healing_guide_sections) ? g.healing_guide_sections : [];
+      for (const s of secs) {
+        for (const u of extractImageUrls(s.images)) entries.push({ kind: "section", key: s.id, url: u });
+      }
+    }
+    // Sessiz-tavan DEĞİL: aşılırsa yalnız SAYI loglanır (içerik/URL yok), fazlası atlanır.
+    let capped = entries;
+    if (entries.length > MAX_TOTAL_IMAGES) {
+      console.warn(`[sifa/word-report] image count capped: ${entries.length} -> ${MAX_TOTAL_IMAGES}`);
+      capped = entries.slice(0, MAX_TOTAL_IMAGES);
+    }
+    if (capped.length) {
+      const fetched = await fetchSafeImages(capped.map((e) => e.url), allowedHost, { fetchFn: fetch });
+      capped.forEach((e, i) => {
+        const img = fetched[i];
+        if (!img) return;                              // broken/oversize/bad-MIME/timeout/disallowed
+        if (!getImgDimensions(img.data)) return;       // geçersiz boyut → atla (placeholder yok)
+        const map = e.kind === "guide" ? guideImages : sectionImages;
+        const arr = map.get(e.key) ?? [];
+        arr.push(img.data);                            // sıra korunur (deterministik)
+        map.set(e.key, arr);
+      });
+    }
+  }
 
-  const categories = new Set(guides.map((g) => txt(g.category)).filter(Boolean));
-
-  const all: ReportChild[] = [];
-
-  all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "ŞİFA REHBERİ RAPORU",
-    subtitle: isSingle && guides[0]
-      ? `${guides[0].name} — Şifa Rehberi`
-      : "Şifa Rehberi Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Kayıt Sayısı", value: String(guides.length) },
-      { label: "Kategori",     value: String(categories.size) },
-      { label: "Kapsam",       value: exportLabel },
-    ],
-  }));
-
-  all.push(...buildStatsPage([
-    ["Kayıt Sayısı", String(guides.length)],
-    ["Kategori",     String(categories.size)],
-    ["Kapsam",       exportLabel],
-  ]));
-
-  all.push(...buildTOCPage());
-
-  all.push(h1Colored("1. Şifa Rehberi Kayıtları", C_SIFA, true));
-  all.push(muted(`${guides.length} kayıt`));
-  all.push(spacer());
-
-  guides.forEach((guide, i) => {
-    if (i > 0) all.push(divider());
-    all.push(...buildGuideContent(guide, i, isSingle));
+  // Belge gövdesi — SAF builder (kapak → [çok-kayıtta stats+TOC] → guide'lar).
+  const children: ReportChild[] = buildSifaReportChildren({
+    guides,
+    exportMode,
+    today,
+    guideImages,
+    sectionImages,
   });
 
   // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
@@ -453,7 +238,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const snaps = await readSnapshotsForDelivery(db, {
         tenantId: verifiedTenantId, clientId, targetKind: "guide", targetRef: id, selectionGroup: selectionGroupId,
       });
-      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps));
+      if (snaps.length > 0) children.push(...buildSnapshotSection(snaps));
     } catch {
       /* regresyon güvenli: teslim seçimi eklenemezse mevcut rehber raporu korunur */
     }
@@ -463,15 +248,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     sections: [{
       properties: {},
       footers: { default: buildFooter("Şifa Rehberi Raporu · Yaşam Sistemi") },
-      children: all,
+      children,
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug =
-    isSingle && guides[0]?.name ? slugify(guides[0].name) :
-    exportMode === "selected" ? "secili" : "tumu";
-  const filename = `sifa-rehberi-${modeSlug}-${dateSlug}.docx`;
+  const filename = sifaWordFilename(exportMode, guides, dateSlug);
 
   return new Response(new Uint8Array(buffer), {
     headers: {
