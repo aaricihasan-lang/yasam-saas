@@ -39,6 +39,8 @@ import {
   sanitizeXmlText,
   spacer,
   C_DARK,
+  C_LIGHT,
+  C_MID,
   REPORT_FONT,
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
@@ -111,9 +113,13 @@ export type SifaExportMode = "all" | "selected" | "single" | "filtered";
 export type ImagesByKey = Map<string, Buffer[]>;
 
 // ── metin yardımcıları (hepsi XML-güvenli) ──────────────────────────────────────
+// U+FFFC (OBJECT REPLACEMENT CHARACTER) = anlamsız gömülü-nesne artifact'ı; Word'de görünür
+// kare/OBJ olarak render olur. YALNIZ bu karakteri kaldırırız — çevresindeki metin (öncesi +
+// sonrası) BYTE olarak korunur. Genel Unicode/U+FFFD/Türkçe temizliği YAPILMAZ.
 function txt(v: string | null | undefined): string {
   const t = typeof v === "string" ? v.trim() : "";
-  return t ? sanitizeXmlText(t) : "";
+  if (!t) return "";
+  return sanitizeXmlText(t).replace(new RegExp(String.fromCharCode(0xFFFC), "g"), "");
 }
 
 /**
@@ -153,6 +159,28 @@ function formatDateTR(d: string): string {
 function embedImages(out: ReportChild[], buffers: Buffer[] | undefined, maxWidth: number) {
   if (!buffers || buffers.length === 0) return;
   for (const buf of buffers) out.push(embedImageParagraph(buf, maxWidth));
+}
+
+// Hafif tarih/kategori meta satırı (muted stiliyle aynı). `keepNext` → ardından içerik geliyorsa
+// başlık→meta→ilk-içerik zincirinin sayfa sonunda kopmaması için (guide-header orphan control).
+// keepNext YALNIZ takip eden içerik varken verilir → tüm-record keepTogether/cantSplit DEĞİL.
+function metaLine(text: string, keepNext: boolean): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({ text, size: 20, font: REPORT_FONT, color: C_LIGHT, italics: true })],
+    spacing: { after: 220 },
+    ...(keepNext ? { keepNext: true } : {}),
+  });
+}
+
+// Nested alt-başlık (▸ Mizaç Sebepleri): bodyText stiliyle aynı + keepNext → ilk içerik
+// paragrafıyla birlikte kalsın (subsection-heading orphan). Alt-bölümün TAMAMI kilitlenmez.
+function subLabelLine(text: string): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({ text, size: 22, font: REPORT_FONT, color: C_MID })],
+    indent: { left: 360 },
+    spacing: { after: 140 },
+    keepNext: true,
+  });
 }
 
 /**
@@ -230,7 +258,7 @@ function pushSectionLayers(
   sectionImages: ImagesByKey,
   subLabel?: string,
 ) {
-  if (subLabel) out.push(bodyText(`▸ ${sanitizeXmlText(subLabel)}`));
+  if (subLabel) out.push(subLabelLine(`▸ ${sanitizeXmlText(subLabel)}`)); // keepNext → ilk içerikle kalsın
   const content = meaningful(s.note); // placeholder gizlenir; gerçek içerik TAM
   if (content) out.push(bodyText(content));
 
@@ -353,34 +381,37 @@ export function buildGuideChildren(
   const out: ReportChild[] = [];
   const name = txt(guide.name) || "İsimsiz Kayıt";
 
-  // Güçlü guide başlığı; keepNext → başlık takip eden meta/ilk içerikle aynı sayfada kalsın (orphan azalt).
-  out.push(h2(name, { pageBreakBefore: opts.startOnNewPage, keepNext: true }));
-
-  // Hafif meta: tarih (+ kategori yalnız DOLUYSA). Full-width ağır tablo YOK; boşsa kategori satırı yok.
-  const dateStr = formatDateTR(guide.updated_at || guide.created_at);
-  const cat = txt(guide.category);
-  out.push(muted(cat ? `${dateStr} · Kategori: ${cat}` : dateStr));
-
-  // Guide-seviye görseller (varsa) — meta sonrası.
-  embedImages(out, opts.guideImages.get(guide.id), 420);
-
+  // Guide gövdesini ÖNCE ayrı diz → meta satırının keepNext'ini "içerik var mı?" ile karar ver.
+  const rest: ReportChild[] = [];
+  embedImages(rest, opts.guideImages.get(guide.id), 420);
   // Belirtiler — yalnız ANLAMLI içerik (sistem placeholder'ı gizlenir; başlık da basılmaz).
   const symptoms = meaningful(guide.symptoms);
   if (symptoms) {
-    out.push(h3("Belirtiler", { keepNext: true }));
-    out.push(bodyText(symptoms));
+    rest.push(h3("Belirtiler", { keepNext: true }));
+    rest.push(bodyText(symptoms));
   }
-
   const sections = sortSections(
     Array.isArray(guide.healing_guide_sections) ? guide.healing_guide_sections : [],
   );
-
   // section-native VARSA section-first; YOKSA legacy fallback → asla ikisi birden (duplicate 0).
   if (sections.length > 0) {
-    buildFromSections(out, sections, opts.sectionImages);
+    buildFromSections(rest, sections, opts.sectionImages);
   } else {
-    buildFromLegacy(out, guide);
+    buildFromLegacy(rest, guide);
   }
+  const hasContent = rest.length > 0;
+
+  // Güçlü guide başlığı; keepNext → başlık meta satırıyla aynı sayfada kalsın.
+  out.push(h2(name, { pageBreakBefore: opts.startOnNewPage, keepNext: true }));
+
+  // Hafif meta: tarih (+ kategori yalnız DOLUYSA). Full-width ağır tablo YOK; boşsa kategori satırı yok.
+  // keepNext=hasContent → başlık→meta→ilk-içerik zinciri sayfa sonunda kopmaz (guide-header orphan fix);
+  // içerik yoksa keepNext YOK (sonraki guide'ı çekmesin). Tüm-record keepTogether/cantSplit YOK.
+  const dateStr = formatDateTR(guide.updated_at || guide.created_at);
+  const cat = txt(guide.category);
+  out.push(metaLine(cat ? `${dateStr} · Kategori: ${cat}` : dateStr, hasContent));
+
+  out.push(...rest);
   return out;
 }
 
@@ -423,18 +454,19 @@ export function buildSifaReportChildren(opts: {
 
   const all: ReportChild[] = [];
 
-  // Kapak — metadata (kayıt sayısı / kategori / kapsam) YALNIZ burada. Ayrı "Sistem Özeti" YOK.
+  // Kapak metadata (kayıt sayısı / [kategori] / kapsam) YALNIZ burada. Ayrı "Sistem Özeti" YOK.
+  // Kategori sayısı 0 ise "Kategori: 0" satırı GİZLENİR (presentation polish; içeriğe dokunmaz).
+  const coverStats = [{ label: "Kayıt Sayısı", value: String(guides.length) }];
+  if (categories.size > 0) coverStats.push({ label: "Kategori", value: String(categories.size) });
+  coverStats.push({ label: "Kapsam", value: exportLabel(exportMode, guides) });
+
   all.push(
     ...buildPremiumCover({
       title1: "YAŞAM SİSTEMİ",
       title2: "ŞİFA REHBERİ RAPORU",
       subtitle: coverSubtitle(exportMode, guides),
       date: `Oluşturulma Tarihi: ${sanitizeXmlText(today)}`,
-      stats: [
-        { label: "Kayıt Sayısı", value: String(guides.length) },
-        { label: "Kategori", value: String(categories.size) },
-        { label: "Kapsam", value: exportLabel(exportMode, guides) },
-      ],
+      stats: coverStats,
     }),
   );
 
