@@ -184,7 +184,7 @@ const baseDeps = (counters: { de: number; up: number }, over: Partial<EventProce
 // ═══ M) SOURCE GRADUATION + BELGE/VIDEO NON_SOURCE + KEEP_LIVE ════════════════
 {
   add("M-archive-graduated", activationEntryOf(KEY)?.activationClass === "ROW_GATED_CONTROLLED");
-  add("M-live-professional-19-enabled", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
+  add("M-live-professional-22-enabled", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
   add("M-belge-not-a-source", !YH_INDEX_SOURCES.some((s) => (s.sourceKey as string) === "belge_video:passages"));
   // Yalnız Kişisel Arşiv row-gated (başka kaynak requiresRowEligibilityGate taşımaz).
   add("M-only-archive-row-gated", (YH_INDEX_SOURCES as readonly SourceConfig[]).filter((s) => s.requiresRowEligibilityGate === true).length === 1);

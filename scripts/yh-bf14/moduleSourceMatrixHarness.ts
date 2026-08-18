@@ -75,11 +75,13 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("client-registry-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_INDEX_SOURCES.length));
   add("client-source-keys-unique", new Set(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_CLIENT_INDEX_SOURCES.length);
 
-  // LIVE_PROFESSIONAL: Cohort A ile 2 yeni Biyoenerji professional kaynağı eklendi (17→19 canlı).
-  add("existing-live-professional-19", live.length === 19, `live=${live.length}`);
-  // DORMANT professional: 2 numeroloji + 6 yebs = 8 (hepsi enabled:false). Registry toplam 25→27.
-  add("professional-registry-total-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
-  add("new-dormant-professional-9", dormantPro.length === 8 && dormantPro.every((s) => /^(numeroloji|yebs):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
+  // LIVE_PROFESSIONAL (enabled:true): 19 (Cohort A sonrası) + Professional Cohort 3 aroma (plant-taxa/
+  // preparations/method) = 22. (numeroloji enabled:false KORUNDU → çift fail-closed kapı.)
+  add("existing-live-professional-22", live.length === 22, `live=${live.length}`);
+  // DORMANT professional (enabled:false): 2 numeroloji + 6 yebs = 8. Registry toplam 27→30 (+3 aroma).
+  add("professional-registry-total-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
+  add("dormant-professional-8", dormantPro.length === 8 && dormantPro.every((s) => /^(numeroloji|yebs):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
+  // Professional Cohort: numeroloji registry enabled:false KORUNDU (çift kapı; runtime processing OFF).
   add("numerology-sources-enabled-false", num.length === 2 && num.every((s) => s.enabled === false), String(num.length));
   add("professional-source-keys-unique", new Set(YH_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_INDEX_SOURCES.length);
 }

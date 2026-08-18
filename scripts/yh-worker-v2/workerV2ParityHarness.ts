@@ -198,7 +198,7 @@ async function run(): Promise<void> {
   // DEFERRED_SHARED_WORKER_V2 artık BOŞ (5 kaynak READY'ye taşındı).
   add("D-deferred-worker-v2-empty", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   // Matris total DEĞİŞMEDİ (reclassification; entry sayısı sabit).
-  add("D-matrix-total-33", YH_ACTIVATION_MATRIX.length === 33, String(YH_ACTIVATION_MATRIX.length));
+  add("D-matrix-total-36", YH_ACTIVATION_MATRIX.length === 36, String(YH_ACTIVATION_MATRIX.length));
 }
 
 // ═══ E) MIGRATION STATIC CONTRACT (20261210000000) ════════════════════════════

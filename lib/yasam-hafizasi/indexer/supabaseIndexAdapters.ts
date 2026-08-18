@@ -31,6 +31,19 @@ import {
 import { parentTenantMapKey } from "./parentTenantLookup";
 import type { ParentTenantReader, SourceReader } from "./runSource";
 import { hasWorkerCapability, type SourceConfig } from "./sources";
+import {
+  METHOD_SOURCE_KEY,
+  METHOD_SERIES_TABLE,
+  METHOD_REVISIONS_TABLE,
+  METHOD_PREPARATIONS_TABLE,
+  METHOD_PLANT_TAXA_TABLE,
+  METHOD_SERIES_SELECT_COLUMNS,
+  METHOD_SERIES_READ_COLUMNS,
+  METHOD_REVISION_READ_COLUMNS,
+  METHOD_PREPARATION_READ_COLUMNS,
+  METHOD_TAXON_READ_COLUMNS,
+  composeMethodSyntheticRow,
+} from "./methodSource";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 export const PARENT_CHUNK_SIZE = 200;
@@ -95,6 +108,12 @@ function chunk<T>(arr: readonly T[], size: number): T[][] {
 
 /** Kaynak için gerekli MİNİMAL select kolon listesi (config allowlist; `*` yok). */
 export function sourceSelectColumns(config: SourceConfig): string[] {
+  // aromaterapi:method — config kolon listeleri SENTETIK satır anahtarlarıdır (series tablosunda
+  // bulunmaz). Generic select YALNIZ gerçek series kolonlarını döndürür; verified revizyon içeriği
+  // IO katmanında (readMethodSeriesExact) çözülür. Böylece reconcile-scan/smoke gibi generic
+  // çağrılar da geçerli bir SELECT üretir (var olmayan kolon hatası olmaz).
+  if (config.sourceKey === METHOD_SOURCE_KEY) return [...METHOD_SERIES_SELECT_COLUMNS];
+
   const cols = new Set<string>();
   cols.add(config.primaryKey);
   // Tenant kolonu: column → tenant kolonu; join → FK; global-canonical → tenant kolonu YOK.
@@ -113,10 +132,80 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
   return [...cols];
 }
 
+// ─── aromaterapi:method — SERİ-KİMLİKLİ verified-revizyon çözümleyici (IO) ─────
+//
+// source_id = series.id. Worker İŞLEME ANINDA current verified revizyonu source-of-truth'tan
+// çözer: seri + (status='verified' TEK revizyon) + preparat + takson → SENTETIK satır (registry
+// method kolon adlarıyla). Verified yoksa 0 satır → orchestrator not-found → defensiveDeindex
+// (ghost yok). Tablo/kolon adları STATIK (methodSource sabitleri; `*` yok; kullanıcı girdisi yok).
+async function readMethodSeriesExact(
+  db: IndexDbClient,
+  sourceId: string,
+): Promise<{ readonly rows: DbRow[] }> {
+  // 1) SERİ (id = source_id). PK tekil → ≤1; savunma amaçlı limit(2).
+  const seriesRes = await db
+    .from(METHOD_SERIES_TABLE)
+    .select(METHOD_SERIES_READ_COLUMNS.join(","))
+    .eq("id", sourceId)
+    .limit(2);
+  if (seriesRes.error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
+  const seriesRows = (seriesRes.data ?? []).map((r) => ({ ...r }));
+  if (seriesRows.length === 0) return { rows: [] }; // seri yok → not-found → deindex
+  if (seriesRows.length > 1) return { rows: seriesRows }; // >1 → orchestrator multiple-rows
+  const series = seriesRows[0];
+  const tenantId = series["tenant_id"];
+  const preparationId = series["preparation_id"];
+  if (typeof tenantId !== "string" || tenantId.length === 0) return { rows: [] }; // malformed → deindex
+
+  // 2) VERIFIED revizyon (seri başına ≤1; DB partial-unique). Yoksa → 0 satır → deindex (ghost yok).
+  const revRes = await db
+    .from(METHOD_REVISIONS_TABLE)
+    .select(METHOD_REVISION_READ_COLUMNS.join(","))
+    .eq("series_id", sourceId)
+    .eq("tenant_id", tenantId)
+    .eq("status", "verified")
+    .limit(2);
+  if (revRes.error) throw new Error("source-read-failed");
+  const revRows = (revRes.data ?? []).map((r) => ({ ...r }));
+  if (revRows.length === 0) return { rows: [] }; // verified yok → deindex
+  if (revRows.length > 1) return { rows: revRows }; // >1 imkansız (partial-unique) → multiple-rows
+  const verifiedRevision = revRows[0];
+
+  // 3) PREPARAT + 4) TAKSON — yalnız başlık zenginleştirme (FK RESTRICT → normalde vardır).
+  let preparation: DbRow | null = null;
+  let taxon: DbRow | null = null;
+  if (typeof preparationId === "string" && preparationId.length > 0) {
+    const prepRes = await db
+      .from(METHOD_PREPARATIONS_TABLE)
+      .select(METHOD_PREPARATION_READ_COLUMNS.join(","))
+      .eq("id", preparationId)
+      .eq("tenant_id", tenantId)
+      .limit(1);
+    if (prepRes.error) throw new Error("source-read-failed");
+    preparation = (prepRes.data ?? [])[0] ? { ...(prepRes.data ?? [])[0] } : null;
+    const taxonId = preparation?.["taxon_id"];
+    if (typeof taxonId === "string" && taxonId.length > 0) {
+      const taxonRes = await db
+        .from(METHOD_PLANT_TAXA_TABLE)
+        .select(METHOD_TAXON_READ_COLUMNS.join(","))
+        .eq("id", taxonId)
+        .eq("tenant_id", tenantId)
+        .limit(1);
+      if (taxonRes.error) throw new Error("source-read-failed");
+      taxon = (taxonRes.data ?? [])[0] ? { ...(taxonRes.data ?? [])[0] } : null;
+    }
+  }
+
+  return { rows: [composeMethodSyntheticRow({ series, verifiedRevision, preparation, taxon })] };
+}
+
 // ─── SourceReader (gerçek) ────────────────────────────────────────────────────
 export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
   return {
     readPage: async ({ config, afterId, limit, scopedTenantId }) => {
+      // aromaterapi:method broad/tenant-scoped SAYFA DESTEKLEMEZ (yalnız event-driven exact).
+      // Boş sayfa → backfill/broad yolları 0 unit üretir (kör backfill zaten YASAK; fail-closed).
+      if (config.sourceKey === METHOD_SOURCE_KEY) return { rows: [] };
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)
@@ -140,6 +229,8 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
     // genişletme YOK. PK tekil → en fazla 1 satır; savunma amaçlı limit(2) ile >1
     // sözleşme ihlali çağırana taşınır (indexSourcePage exact-guard multiple-rows sayar).
     readExactRecord: async ({ config, sourceId }) => {
+      // aromaterapi:method — seri-kimlikli verified revizyon çözümleyici (yukarıdaki helper).
+      if (config.sourceKey === METHOD_SOURCE_KEY) return readMethodSeriesExact(db, sourceId);
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)

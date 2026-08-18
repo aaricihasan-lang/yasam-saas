@@ -160,6 +160,16 @@ export const YH_ACTIVATION_MATRIX = [
   controlledV2("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
   controlled("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
 
+  // ── PROFESSIONAL COHORT (Aromaterapi Canonical V2 katalog + verified-method) ──
+  //   Hepsi tenant-scoped (column, NOT NULL) + record → worker-v1 kapsamında (capability YOK).
+  //   CDC trigger YENİ migration ile WIRED (generic yh_cdc_enqueue: plant_taxa/preparations;
+  //   yh_cdc_enqueue_method_series_v2: method — revizyon status değişimi → series-keyed coalesce).
+  //   Katalog current/publishable = status ∈ {verified, approved} (row-gate). Method current =
+  //   status='verified' TEK revizyon (seri identity; worker işleme anında çözer). Backfill false.
+  professionalCohort("aromaterapi:plant-taxa", "Aromaterapi", "aromatherapy_plant_taxa"),
+  professionalCohort("aromaterapi:preparations", "Aromaterapi", "aromatherapy_preparations"),
+  professionalCohort("aromaterapi:method", "Aromaterapi", "aromatherapy_preparation_method_series"),
+
   // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {
     sourceKey: "kisisel_arsiv:archives",
@@ -196,9 +206,11 @@ export const YH_ACTIVATION_MATRIX = [
     "blocked-test-data",
     "numerology-professional",
     "Tenant kaynakları büyük ölçüde satış-öncesi test verisidir → temiz reset (sistem-genel test-data temizliği) SONRASI FUTURE_ONLY_READY'ye yükseltilebilir; bu fazda aktive edilmez.",
-    "WAIT_FOR_CLEAN_RESET: numerology_sources tenant-scoped bibliyografik kaynak; mevcut tenant verisi test riski taşır. Trigger fizibl ama kör future-event bile test-tenant kayıtlarını indexler → temiz reset beklenir. Backfill YASAK.",
+    "WAIT_FOR_CLEAN_RESET: numerology_sources tenant-scoped bibliyografik kaynak; mevcut tenant verisi test riski taşır. Professional Cohort: CDC trigger + migration + harness HAZIR ANCAK registry enabled:false KORUNUR (ÇİFT KAPI: registry disabled + DB is_active=false). Yanlış DB flip'te bile enabled:false → işlenmez. Aktivasyon (enabled:true + is_active flip) temiz reset SONRASI AYRI ONAY. Kör future-event/backfill YASAK.",
     // triggerFeasibleNow: column + record + safe-non-pii → worker v1 kapsamında; teknik fizibl.
     true,
+    // registryEnabled: DORMANT (enabled:false) KORUNUR — çift fail-closed kapı; runtime processing gate kapalı.
+    false,
   ),
   dormantPro(
     "numeroloji:knowledge-entries",
@@ -211,8 +223,10 @@ export const YH_ACTIVATION_MATRIX = [
     "blocked-test-data",
     "numerology-professional",
     "Temiz reset sonrası FUTURE_ONLY_READY; bu fazda aktive edilmez.",
-    "WAIT_FOR_CLEAN_RESET: uzman bilgi-kaydı notu (professional overlay) tenant-scoped; mevcut veri test riski. Backfill YASAK; kör future-event bile temiz reset öncesi açılmaz.",
+    "WAIT_FOR_CLEAN_RESET: uzman bilgi-kaydı notu (professional overlay) tenant-scoped; mevcut veri test riski. Professional Cohort: CDC trigger + migration + harness HAZIR ANCAK registry enabled:false KORUNUR (ÇİFT KAPI: registry disabled + DB is_active=false); aktivasyon temiz reset SONRASI AYRI ONAY. Backfill YASAK.",
     true,
+    // registryEnabled: DORMANT (enabled:false) KORUNUR — çift fail-closed kapı; runtime processing gate kapalı.
+    false,
   ),
 
   // ── C) YEBS (CANONICAL_BACKFILL_CANDIDATE) — global-canonical, published-only, TEST DEĞİL ──
@@ -346,6 +360,40 @@ function controlledV2(
 // gelecekte worker tarafından işlenemeyen yeni bir kaynak çıkarsa fail-closed disposition için rezerve.
 // (Eski `deferredWorkerV2()` factory'si kaldırıldı; 5 kaynak controlledV2() ile READY.)
 
+/**
+ * PROFESSIONAL COHORT CONTROLLED (FUTURE_ONLY_READY): Aromaterapi Canonical V2 katalog + verified-method
+ * için controlled()'un eşi; CDC trigger YENİ Professional Cohort migration'ı ile WIRED (generic
+ * yh_cdc_enqueue: plant_taxa/preparations; yh_cdc_enqueue_method_series_v2: method — revizyon status
+ * değişimi → series-keyed coalesce). Row-gate = status-eligibility (katalog verified|approved;
+ * method verified). Tenant column + record → worker-v1 kapsamı; capability YOK. Backfill DEFAULT false.
+ */
+function professionalCohort(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+): ActivationMatrixEntry {
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "FUTURE_ONLY_READY",
+    sourceTable,
+    tenantMode: "column",
+    rowGate: "status-eligibility",
+    registryEnabled: true,
+    currentDataRisk: "none",
+    futureEventEligible: true,
+    backfillEligibility: "not-applicable",
+    triggerFeasibleNow: true,
+    activationPrerequisite:
+      "AYRI production kapıları: (1) Professional Cohort CDC trigger WIRED (yeni migration; enqueue AKTİVASYON-KAPILI — is_active YOKSA sessiz NO-OP; method = revizyon status→series-keyed coalesce), (2) yh_source_activation_set(<sourceKey>, true). Kaynak default OFF; kör backfill YASAK (yalnız future-event current-state).",
+    activationCohort: "professional-cohort",
+    rollbackBehavior: DORMANT_ROLLBACK,
+    recommendation:
+      "FUTURE_ONLY_READY (professional cohort): tenant-scoped katalog/method kaynağı; worker-v1 kapsamında. Katalog current = status ∈ {verified, approved}; method current = seri için status='verified' TEK revizyon (worker işleme anında source-of-truth'tan çözer; series identity → duplicate yok, verified yoksa deindex). CDC trigger WIRED ama production'da is_active=true olmadan NO-OP (default OFF). Backfill DEFAULT false. Aktivasyon ayrı production onayı.",
+  };
+}
+
 function dormantPro(
   sourceKey: string,
   module: string,
@@ -359,6 +407,10 @@ function dormantPro(
   activationPrerequisite: string,
   recommendation: string,
   triggerFeasibleNow: boolean,
+  // Professional Cohort: kod-enabled olabilir (registry enabled:true) FAKAT disposition
+  // WAIT_FOR_CLEAN_RESET korunur + DB is_active=false → production OFF. registryEnabled matris ↔
+  // registry `enabled` BİREBİR eşleşmeli (validateActivationMatrix drift kapısı).
+  registryEnabled: boolean,
 ): ActivationMatrixEntry {
   return {
     sourceKey,
@@ -368,7 +420,7 @@ function dormantPro(
     sourceTable,
     tenantMode,
     rowGate,
-    registryEnabled: false,
+    registryEnabled,
     currentDataRisk,
     futureEventEligible: true,
     backfillEligibility,

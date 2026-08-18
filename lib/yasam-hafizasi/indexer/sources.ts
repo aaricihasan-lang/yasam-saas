@@ -577,7 +577,106 @@ export const YH_INDEX_SOURCES = [
     enabled: true,
   },
 
-  // ── Numeroloji (BF-14 Birleşik Modül Kaynak Genişletme; DORMANT enabled:false) ──
+  // ── Aromaterapi Canonical V2 — Bitki & Preparat Kataloğu + Üretim Yöntemi ──────
+  // Professional Cohort: hepsi tenant-scoped (column, NOT NULL); shared/global YOK →
+  // worker-v1 kapsamında (capability GEREKMEZ). FUTURE_ONLY_READY controlled: trigger
+  // WIRED ama production'da is_active=true olmadan NO-OP; backfill DEFAULT false.
+  //
+  // Katalog current/publishable yüzeyi = docs/aromaterapi/veri-sozlugu-v2.md `verified_content`
+  // (status ∈ {verified, approved}; draft = WIP, indexlenmez). status downgrade + DELETE yolu
+  // uygulamada ULAŞILAMAZ (service_role SELECT-only + RESTRICT FK + no-demotion RPC); worker
+  // yine de status→ineligible / delete olayını defansif deindex ile ele alır.
+  {
+    sourceKey: "aromaterapi:plant-taxa",
+    classification: "safe-non-pii", // botanik takson kataloğu; danışan-bağımsız
+
+    sourceFamily: "aromaterapi",
+    tableName: "aromatherapy_plant_taxa",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["canonical_name", "primary_common_name_tr"],
+    searchTextColumns: ["canonical_name", "primary_common_name_tr", "genus", "species", "family", "author_citation"],
+    snippetColumns: ["canonical_name", "family"],
+    topicTagsColumns: ["taxon_rank", "family"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    // QC merdiveni draft→verified→approved; current/publishable = verified|approved (row-gate).
+    statusColumn: "status",
+    eligibleStatuses: ["verified", "approved"],
+    enabled: true,
+  },
+  {
+    sourceKey: "aromaterapi:preparations",
+    classification: "safe-non-pii", // preparat kataloğu; danışan-bağımsız
+
+    sourceFamily: "aromaterapi",
+    tableName: "aromatherapy_preparations",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["preparation_type"],
+    searchTextColumns: ["preparation_type", "plant_part", "chemotype"],
+    snippetColumns: ["preparation_type", "plant_part"],
+    topicTagsColumns: ["preparation_type", "plant_part"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "status",
+    eligibleStatuses: ["verified", "approved"],
+    enabled: true,
+  },
+  {
+    // SERİ-KİMLİKLİ method yüzeyi (SEÇENEK B). tableName = SERİ tablosu; source_id = series.id
+    // (immutable identity). Content = seri için status='verified' TEK revizyon; IO katmanı
+    // (supabaseIndexAdapters.readMethodSeriesExact) seri + verified revizyon + preparat + takson'u
+    // çözüp SENTETIK satır üretir (methodSource.composeMethodSyntheticRow). Verified yoksa 0 satır
+    // → not-found → defensiveDeindex (ghost yok). Aşağıdaki kolon adları SENTETIK satır anahtarlarıdır
+    // (gerçek series tablosu kolonları DEĞİL; bu yüzden sourceSelectColumns method'u özel-durumlar).
+    sourceKey: "aromaterapi:method",
+    classification: "safe-non-pii", // üretim/elde-ediliş yöntemi (verified); danışan-bağımsız
+
+    sourceFamily: "aromaterapi",
+    tableName: "aromatherapy_preparation_method_series",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title_text"],
+    searchTextColumns: [
+      "method_text",
+      "steps_text",
+      "plant_part_used",
+      "material_state",
+      "equipment",
+      "amount_ratio",
+      "solvent_carrier",
+      "duration_text",
+      "temperature_text",
+      "filtration",
+      "resting",
+      "storage",
+      "quality_notes",
+      "safety_notes",
+    ],
+    snippetColumns: ["method_text"],
+    topicTagsColumns: ["method_kind", "material_state", "preparation_type"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    // Savunma row-gate: sentetik satır yalnız verified revizyondan üretilir; yine de gate.
+    statusColumn: "status",
+    eligibleStatuses: ["verified"],
+    enabled: true,
+  },
+
+  // ── Numeroloji (Professional Cohort hazırlığı; DORMANT — enabled:false KORUNUR) ──
+  // ÇİFT FAIL-CLOSED KAPI (bağlayıcı güvenlik kararı): (1) registry enabled:false → processing gate
+  // KAPALI, (2) production DB is_active=false. CDC trigger + migration + harness HAZIR ama runtime
+  // registry processing AÇILMAZ: yanlışlıkla DB is_active=true yapılsa DAHİ (Kapı 4 isIndexableSource
+  // enabled:false → permanent 'source-not-indexable') test verisi Hafıza'ya İŞLENMEZ. Mevcut tenant
+  // satırları satış-öncesi TEST verisi; aktivasyon (enabled:true + DB is_active flip) temiz reset
+  // SONRASI AYRI ONAY. WAIT_FOR_CLEAN_RESET disposition korunur. Kör backfill/reconcile/historical YOK.
   // Professional bilgi/kaynak katalogu; danışan-bağımsız (client_id YOK, ad/doğum YOK).
   // Yalnız repository migration'ında TAM CREATE TABLE ile doğrulanmış tablolar bağlandı
   // (numerology_knowledge_records CREATE TABLE repo'da YOK → bilinçli olarak bağlanmadı).
@@ -597,7 +696,7 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: null,
-    enabled: false, // DORMANT — aktivasyon BF-11E
+    enabled: false, // WAIT_FOR_CLEAN_RESET: registry DISABLED (çift fail-closed kapı) + DB is_active=false; CDC trigger wired ama registry processing gate KAPALI → test verisi Hafıza'ya işlenmez
   },
   {
     sourceKey: "numeroloji:knowledge-entries",
@@ -615,7 +714,7 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: null,
-    enabled: false, // DORMANT — aktivasyon BF-11E
+    enabled: false, // WAIT_FOR_CLEAN_RESET: registry DISABLED (çift fail-closed kapı) + DB is_active=false; CDC trigger wired ama registry processing gate KAPALI → test verisi Hafıza'ya işlenmez
   },
 
   // ── YEBS (BF-14 Ertelenmiş Kaynaklar; GLOBAL-CANONICAL, published-only, DORMANT) ──

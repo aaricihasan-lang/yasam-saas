@@ -62,7 +62,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const cliKeys = new Set<string>(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey));
   const matrixKeys = YH_ACTIVATION_MATRIX.map((e) => e.sourceKey);
 
-  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 33, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
+  // Professional Cohort: registry 27→30 professional (+3 aroma) + 6 client = 36 matris kaydı.
+  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 36, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
   add("A-no-duplicate-key", new Set(matrixKeys).size === matrixKeys.length);
   add("A-no-unknown-source", matrixKeys.every((k) => proKeys.has(k) || cliKeys.has(k)));
   add("A-every-entry-has-class", YH_ACTIVATION_MATRIX.every((e) => (ACTIVATION_CLASSES as readonly string[]).includes(e.activationClass)));
@@ -78,8 +79,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("A-row-gated-controlled-1", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
   add("A-canonical-backfill-6-yebs", sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").length === 6 && sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").every((k) => k.startsWith("yebs:")));
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
-  // FUTURE_ONLY_READY = 16 professional controlled (11 worker-v1 Cohort A + 5 worker-v2) + 6 client = 22.
-  add("A-future-only-22", sourceKeysByClass("FUTURE_ONLY_READY").length === 22, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  // FUTURE_ONLY_READY = 19 professional controlled (11 worker-v1 Cohort A + 5 worker-v2 + 3 Professional
+  // Cohort aroma katalog/method) + 6 client = 25. (numeroloji WAIT_FOR_CLEAN_RESET; ayrı sınıf.)
+  add("A-future-only-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 25, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
   // DEFERRED_SHARED_WORKER_V2 = 0: Worker-v2 (migration 20261210000000) 5 kaynağa capability verdi → READY.
   add("A-deferred-shared-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("A-no-deferred-registry-entry", sourceKeysByClass("DEFERRED_HARD_BLOCKER").length === 0);
@@ -98,7 +100,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const dormant = YH_ACTIVATION_MATRIX.filter((e) => e.registryEnabled === false);
   const activeRuntime: SourceActivationRuntime = { isActive: true, backfillAllowed: false };
   add("B-merge-does-not-activate", dormant.every((e) => !ACTIVE(activeRuntime, toDesired(e))), "dormant registryEnabled=false → inactive");
-  // registryEnabled=false = 9 professional dormant (2 numeroloji + 6 yebs + 1 belge_video) + 6 client = 15.
+  // registryEnabled=false = 2 numeroloji + 6 yebs professional dormant + 6 client = 14. (Professional
+  // Cohort: numeroloji enabled:false KORUNDU → çift kapı; 3 aroma registryEnabled:true, dormant değil.)
   add("B-dormant-count-14", dormant.length === 14, String(dormant.length));
 
   // Default production activation OFF: runtime === null → her sınıf (grandfathered hariç) inactive.
@@ -110,7 +113,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("B-code-enabled-runtime-null-inactive", !evaluateProcessingGate(hypotheticalCodeEnabled, null).active);
   add("B-code-enabled-runtime-inactive-inactive", !evaluateProcessingGate(hypotheticalCodeEnabled, { isActive: false, backfillAllowed: false }).active);
   add("B-both-gates-required-active", evaluateProcessingGate(hypotheticalCodeEnabled, activeRuntime).active);
-  // DB flip alone (registryEnabled=false) yetmez.
+  // DB flip alone (registryEnabled=false) yetmez. numeroloji ÇİFT KAPI: registry enabled:false →
+  // DB is_active=true olsa DAHİ inactive (test verisi Hafıza'ya işlenmez). Professional Cohort'ta
+  // numeroloji registry enabled:false KORUNDU → bu çift-kapı örneği geçerli.
   add("B-db-flip-alone-insufficient", !ACTIVE(activeRuntime, toDesired(numSrc)));
 
   // No auto-backfill: default backfill false her dormant + hipotetik aktif kod için.
@@ -139,7 +144,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
   // Fail-closed: null source_id/tenant_id + desteklenmeyen TG_OP.
   add("C-fail-closed-null-ids", has(/IF v_source_id IS NULL THEN[\s\S]*RAISE EXCEPTION/) && has(/IF v_tenant_id IS NULL THEN[\s\S]*RAISE EXCEPTION/));
   add("C-fail-closed-unknown-op", has(/RAISE EXCEPTION 'yh_cdc_enqueue: desteklenmeyen TG_OP/));
-  // Dormant future-event: kaynak dormant iken future INSERT işlenmez (pure gate).
+  // Dormant future-event: registryEnabled=false kaynak DB is_active olsa bile işlenmez (çift kapı;
+  // numeroloji ÇİFT KAPI korundu → enabled:false → registry-disabled → inactive).
   add("C-dormant-future-not-processed", !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(entryOf("numeroloji:sources")!)));
 }
 
@@ -273,8 +279,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
 // ═══ K) MODÜL REGRESYON (registry sayıları / dormancy değişmedi) ═════════════
 {
-  add("K-professional-registry-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
-  add("K-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
+  add("K-professional-registry-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
+  // Professional Cohort: live 22 (19 + 3 aroma; numeroloji enabled:false KORUNDU); dormant 8 (2 numeroloji + 6 yebs).
+  add("K-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
   add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
   add("K-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
