@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
+import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 import {
   deleteOil,
   fetchOilDetail,
@@ -18,8 +19,6 @@ import {
   oilToFormData,
   parseTagsInput,
   parseImageUrls,
-  isAdminTransferOil,
-  ADMIN_TRANSFER_BADGE,
   OIL_TYPES,
   type AromatherapyOil,
   type OilFormData,
@@ -28,6 +27,9 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/demo/demoAromaterapi";
+import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -150,12 +152,10 @@ function tabHasData(t: DetailTab, draft: OilFormData): boolean {
 
 type BlendEntry = { id: string; name: string };
 
+// Ortak arama sözleşmesine delege (searchNormalize.ts) — eski elle katlama İ/ı
+// combining-dot bug'ı taşıyordu; artık server `search_norm` ile byte-eş.
 function normTR(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .trim();
+  return normalizeForSearch(s);
 }
 
 function stripYagSuffix(s: string): string {
@@ -242,7 +242,7 @@ function isSafeUrl(url: string): boolean {
 function ChemicalChips({ raw }: { raw: string }) {
   const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
   if (items.length < 2) {
-    return <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">{raw}</p>;
+    return <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-slate-800">{raw}</p>;
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -284,6 +284,17 @@ export default function OilDetailPage() {
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
+  const [exportingWord, setExportingWord] = useState(false);
+
+  // FAZ Word — tek yağ monografisi export (.docx). Çift-tık kilidi.
+  async function exportOilWord() {
+    if (exportingWord || !id) return;
+    setExportingWord(true);
+    const { ok, error } = await downloadWord(`/api/aromaterapi/oils/${id}/word-report`);
+    setExportingWord(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Yağ monografisi indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
 
@@ -293,8 +304,6 @@ export default function OilDetailPage() {
   }, [editEnabled, activeTab.fields, draft]);
 
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
-  // Admin'den bağımsız kopya olarak gelen kayıt (provenance rozeti için).
-  const isAdminTransfer = !!oil && isAdminTransferOil(oil);
   const { isDemo } = useDemoGuard();
   const isDemoProtectedTab = isDemo && DEMO_PROTECTED_TABS.has(tab);
 
@@ -342,9 +351,18 @@ export default function OilDetailPage() {
   useEffect(() => { runInEffect(() => { void loadOil(); }); }, [loadOil]);
   useBfcacheRefresh();
 
+  // GERÇEK dirty: yalnız düzenleme AÇIK + taslak pristine'den (kaydedilmiş kayıt)
+  // farklıysa. Sadece editEnabled olması dirty saymaz → false-positive uyarı yok.
+  const isDirty = useMemo(
+    () => editEnabled && draft !== null && oil !== null
+      && JSON.stringify(draft) !== JSON.stringify(oilToFormData(oil)),
+    [editEnabled, draft, oil],
+  );
+  useAromaterapiDirtyGuard(isDirty); // beforeunload (yenile/sekme kapat)
+
   function handleNavigation(href: string) {
-    if (editEnabled) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
-    else router.push(href);
+    if (isDirty) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
+    else { setEditEnabled(false); router.push(href); }
   }
   function confirmLeave() { setLeaveConfirmOpen(false); setEditEnabled(false); if (pendingNavHref) router.push(pendingNavHref); setPendingNavHref(null); }
   function cancelLeave() { setLeaveConfirmOpen(false); setPendingNavHref(null); }
@@ -468,7 +486,7 @@ export default function OilDetailPage() {
                     placeholder="Yağ adı"
                   />
                 ) : (
-                  <h1 className="text-[18px] font-black leading-tight tracking-tight text-slate-950 sm:text-[20px]">
+                  <h1 className="text-[20px] font-black leading-tight tracking-tight text-slate-950 sm:text-[22px]">
                     {oil.name}
                   </h1>
                 )}
@@ -488,14 +506,6 @@ export default function OilDetailPage() {
                   ) : null}
                   {oil.is_photosensitive ? (
                     <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">☀️ Fotosensitif</span>
-                  ) : null}
-                  {isAdminTransfer ? (
-                    <span
-                      className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700"
-                      title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-                    >
-                      {ADMIN_TRANSFER_BADGE}
-                    </span>
                   ) : null}
                 </div>
 
@@ -536,6 +546,11 @@ export default function OilDetailPage() {
                   </>
                 ) : (
                   <>
+                    <button type="button" onClick={() => void exportOilWord()} disabled={exportingWord}
+                      className={`${btnBase} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-60`}
+                      title="Bu yağın monografisini Word'e aktar">
+                      📄 {exportingWord ? "Hazırlanıyor…" : "Word'e Aktar"}
+                    </button>
                     <button type="button" onClick={startEdit}
                       className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
                       ✏️ Düzenle
@@ -554,11 +569,6 @@ export default function OilDetailPage() {
           {editEnabled && (
             <div className="border-t border-amber-100 bg-amber-50/70 px-4 py-1.5 text-[11px] font-semibold text-amber-700">
               ✏️ Düzenleme modundasınız — kaydetmeden çıkmak için Vazgeç&apos;e basın
-            </div>
-          )}
-          {isAdminTransfer && !editEnabled && (
-            <div className="border-t border-violet-100 bg-violet-50/60 px-4 py-1.5 text-[11px] font-medium text-violet-600">
-              🎁 Bu kayıt Admin&apos;den bağımsız kopya olarak eklendi. Size özeldir; düzenleyebilir veya silebilirsiniz.
             </div>
           )}
           {errorMessage ? (
@@ -652,7 +662,7 @@ export default function OilDetailPage() {
 
                   const inputCls    = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
                   const textareaCls = "w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-[13px] leading-[1.65] text-slate-900 shadow-inner outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
-                  const cardCls     = "rounded-xl border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/20 p-3.5 shadow-sm";
+                  const cardCls     = "rounded-lg border border-slate-100 bg-white p-3.5";
                   const labelCls    = "mb-2 block text-[10px] font-black uppercase tracking-[0.13em] text-amber-600";
 
                   if (meta.isBooleanToggle) {
@@ -715,7 +725,7 @@ export default function OilDetailPage() {
 
             ) : (
               /* ── Görünüm modu — gerçek hesap veya açık kimlik sekmesi ── */
-              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-0 sm:grid-cols-2">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
@@ -723,8 +733,8 @@ export default function OilDetailPage() {
                   const value       = typeof rawValue === "string" ? rawValue : "";
                   const isFullWidth = FULL_WIDTH_FIELDS.has(fieldKey as string);
 
-                  const itemCls  = `rounded-xl border border-slate-100/80 bg-white/70 px-4 py-3.5 shadow-[0_1px_4px_rgba(15,23,42,0.04)]${isFullWidth ? " col-span-full" : ""}`;
-                  const labelCls = "mb-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-amber-600/80";
+                  const itemCls  = `border-b border-slate-100/70 px-1 py-3.5${isFullWidth ? " col-span-full" : ""}`;
+                  const labelCls = "mb-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-amber-600/90";
 
                   if (meta.isBooleanToggle) {
                     return draft.is_photosensitive ? (
@@ -819,7 +829,7 @@ export default function OilDetailPage() {
                     return (
                       <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
-                        <dd className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">{value}</dd>
+                        <dd className="whitespace-pre-wrap text-[14px] leading-[1.75] text-slate-800">{value}</dd>
                       </div>
                     );
                   }
@@ -827,7 +837,7 @@ export default function OilDetailPage() {
                   return (
                     <div key={fieldKey} className={itemCls}>
                       <dt className={labelCls}>{meta.label}</dt>
-                      <dd className="text-[13px] font-medium text-slate-800">{value}</dd>
+                      <dd className="text-[14px] font-medium text-slate-800">{value}</dd>
                     </div>
                   );
                 })}
@@ -838,59 +848,38 @@ export default function OilDetailPage() {
 
       </div>
 
-      {/* Kaydedilmemiş değişiklik onayı */}
-      {leaveConfirmOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
-            <div className="mb-1 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
-              KAYDEDİLMEMİŞ DEĞİŞİKLİK
-            </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Değişiklikleriniz kaydedilmedi</h2>
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-              Düzenleme modunda kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?
-            </p>
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => { cancelLeave(); void handleSave(); }} disabled={saving}
-                className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 py-2.5 text-[12px] font-black text-white shadow hover:brightness-105 disabled:opacity-60">
-                Kaydet ve Çık
-              </button>
-              <button type="button" onClick={confirmLeave}
-                className="rounded-2xl bg-slate-100 px-4 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200">
-                Kaydetmeden Çık
-              </button>
-              <button type="button" onClick={cancelLeave}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-black text-slate-600 hover:bg-slate-50">
-                İptal
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* Kaydedilmemiş değişiklik onayı — erişilebilir diyalog primitifi (focus-trap/ESC). */}
+      <AromaterapiConfirmDialog
+        open={leaveConfirmOpen}
+        title="Değişiklikleriniz kaydedilmedi"
+        description="Düzenleme modunda kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?"
+        confirmLabel="Kaydet ve Çık"
+        cancelLabel="İptal"
+        confirmDisabled={saving}
+        onConfirm={() => { cancelLeave(); void handleSave(); }}
+        onCancel={cancelLeave}
+      >
+        <button
+          type="button"
+          onClick={confirmLeave}
+          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
+        >
+          Kaydetmeden Çık
+        </button>
+      </AromaterapiConfirmDialog>
 
-      {/* Silme onayı */}
-      {deleteConfirmOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
-            <div className="mb-1 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-rose-700 ring-1 ring-rose-100">
-              ONAY
-            </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Bu yağ kaydını silmek istiyor musunuz?</h2>
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-              Bu işlem geri alınamaz. <strong>{oil.name}</strong> kaydı kalıcı olarak silinecek.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}
-                className="rounded-2xl bg-slate-100 px-5 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200 disabled:opacity-50">
-                Vazgeç
-              </button>
-              <button type="button" onClick={() => void handleDelete()} disabled={deleting}
-                className="rounded-2xl bg-rose-600 px-5 py-2.5 text-[12px] font-black text-white shadow hover:bg-rose-700 disabled:opacity-60">
-                {deleting ? "Siliniyor…" : "Evet, Sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* Silme onayı — erişilebilir diyalog primitifi (danger tone). */}
+      <AromaterapiConfirmDialog
+        open={deleteConfirmOpen}
+        tone="danger"
+        title="Bu yağ kaydını silmek istiyor musunuz?"
+        description={<>Bu işlem geri alınamaz. <strong>{oil.name}</strong> kaydı kalıcı olarak silinecek.</>}
+        confirmLabel={deleting ? "Siliniyor…" : "Evet, Sil"}
+        cancelLabel="Vazgeç"
+        confirmDisabled={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </main>
   );
 }

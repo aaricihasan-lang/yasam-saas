@@ -17,7 +17,8 @@ export const YH_MODULE_LABELS: Record<YhSourceModule, string> = {
   kisisel_arsiv: "Kişisel Arşiv",
   numeroloji: "Numeroloji",
   yebs: "YEBS Canonical",
-  belge_video: "Belge / Video",
+  // NOT: 'belge_video' ÜRÜN KARARIYLA memory source ailesinden çıkarıldı (NON_SOURCE) →
+  //   memory modül etiketi/route'undan da kaldırıldı (Yaşam Hafızası kaynak linki üretmez).
 };
 
 /** Modül → uygulama-içi ALLOWLIST route (modül ana sayfası; per-record link değil). */
@@ -30,7 +31,6 @@ const YH_MODULE_ROUTES: Record<YhSourceModule, string> = {
   kisisel_arsiv: "/dashboard/kisisel-arsiv",
   numeroloji: "/numeroloji",
   yebs: "/yebs",
-  belge_video: "/dashboard/belge-video",
 };
 
 export function moduleLabel(module: string): string {

@@ -1,0 +1,7 @@
+# Üretilen doğrulama artefaktları — commit edilmez (yeniden üretilebilir)
+timeline-prod.json
+swe-timeline.json
+# Ekran görüntüleri ve loglar
+*.png
+*.log
+.*.log

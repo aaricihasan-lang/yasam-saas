@@ -1,5 +1,6 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
+import { foldedIncludes, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
 
 /**
  * healing_guides tablosuna tarayıcıdan doğrudan (anon/publishable) erişim
@@ -52,6 +53,12 @@ export type HealingGuideSectionRow = {
   title: string | null;
   note: string | null;
   source: string | null;
+  /** FAZ 2 — opsiyonel profesyonel bilgi katmanları (hepsi null olabilir). */
+  source_kind: string | null;
+  expert_note: string | null;
+  attention: string | null;
+  /** FAZ 2 — kalıcı sıra (null ise created_at fallback). */
+  sort_order: number | null;
   images: unknown[] | null;
   created_at: string;
 };
@@ -284,6 +291,14 @@ function mapSectionRow(row: RawSectionRow): HealingGuideSectionRow | null {
   const id = textValue(row.id);
   if (!id || !guideId) return null;
 
+  const rawSort = row.sort_order;
+  const sortOrder =
+    typeof rawSort === "number"
+      ? rawSort
+      : typeof rawSort === "string" && rawSort.trim() !== "" && !Number.isNaN(Number(rawSort))
+        ? Number(rawSort)
+        : null;
+
   return {
     id,
     guide_id: guideId,
@@ -292,6 +307,10 @@ function mapSectionRow(row: RawSectionRow): HealingGuideSectionRow | null {
     title: textValue(row.title) || null,
     note: textValue(row.note) || null,
     source: textValue(row.source) || null,
+    source_kind: textValue(row.source_kind) || null,
+    expert_note: textValue(row.expert_note) || null,
+    attention: textValue(row.attention) || null,
+    sort_order: sortOrder,
     images: normalizeImages(row.images),
     created_at: textValue(row.created_at) || new Date().toISOString(),
   };
@@ -314,7 +333,17 @@ export function hasLegacyDetailContent(legacy: Record<string, string | null>): b
 }
 
 function sectionSnippet(section: HealingGuideSectionRow): string {
-  return [section.title, section.note, section.mode, section.source]
+  // FAZ 3: arama haystack'i Faz2 profesyonel katmanlarını da kapsar
+  // (source_kind / expert_note / attention). Türkçe fold ile aranabilir olur.
+  return [
+    section.title,
+    section.note,
+    section.mode,
+    section.source,
+    section.source_kind,
+    section.expert_note,
+    section.attention,
+  ]
     .map((part) => textValue(part))
     .filter(Boolean)
     .join(" · ");
@@ -323,15 +352,17 @@ function sectionSnippet(section: HealingGuideSectionRow): string {
 export function listRowPreview(row: HealingGuideListRow, limit = 140): string {
   const clamp = (s: string) => (s.length > limit ? `${s.slice(0, limit)}…` : s);
 
-  const fromSymptoms = row.symptoms?.trim();
-  if (fromSymptoms) return clamp(fromSymptoms);
+  // symptoms YALNIZ gerçek içerikse kullanılır. Kök neden (production): bazı
+  // kayıtların symptoms'ında "Bu bölüm için henüz bilgi eklenmemiş." placeholder'ı
+  // var ve gerçek section içeriğini gölgeliyordu. isMeaningfulText bunu eler →
+  // gerçek section/özet içeriği asla placeholder tarafından gizlenmez.
+  if (isMeaningfulText(row.symptoms)) return clamp(row.symptoms!.trim());
 
-  // Manuel kayıt: düz-kolon özeti (öncelik general_summary)
-  const fromLegacy = row.legacyPreview?.trim();
-  if (fromLegacy) return clamp(fromLegacy);
+  // Manuel/legacy kayıt: düz-kolon özeti (öncelik general_summary)
+  if (isMeaningfulText(row.legacyPreview)) return clamp(row.legacyPreview!.trim());
 
-  const fromSection = row.sectionSnippets.find((s) => s.length > 0);
-  if (fromSection) return clamp(fromSection);
+  const fromSection = row.sectionSnippets.find((s) => isMeaningfulText(s));
+  if (fromSection) return clamp(fromSection.trim());
 
   if (row.sectionCount > 0) {
     return `${row.sectionCount} alt içerik kaydı mevcut.`;
@@ -347,20 +378,17 @@ export function countListFilledSections(row: HealingGuideListRow): number {
 }
 
 export function matchesListSearch(row: HealingGuideListRow, query: string): boolean {
-  const q = query.trim().toLocaleLowerCase("tr-TR");
-  if (!q) return true;
-
+  // Türkçe deterministik normalizasyon: astım↔astim, siğil↔sigil eşitlenir.
+  // Placeholder symptoms haystack'i kirletmesin diye yalnız anlamlıysa eklenir.
   const haystack = [
     row.name,
     row.category ?? "",
-    row.symptoms ?? "",
+    isMeaningfulText(row.symptoms) ? row.symptoms ?? "" : "",
     row.legacyText ?? "",
     ...row.sectionSnippets,
-  ]
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+  ].join(" ");
 
-  return haystack.includes(q);
+  return foldedIncludes(haystack, query);
 }
 
 function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
@@ -418,7 +446,16 @@ export function mapRawRowToDetail(row: RawGuideRow): HealingGuideDetail {
   const sections = rawSections
     .map((entry) => mapSectionRow(entry))
     .filter((entry): entry is HealingGuideSectionRow => Boolean(entry))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    // FAZ 2: kalıcı sıra. sort_order dolu olanlar önce ve ona göre; null olanlar
+    // sona ve created_at'e göre (mevcut deterministik davranış fallback).
+    .sort((a, b) => {
+      const ao = a.sort_order;
+      const bo = b.sort_order;
+      if (ao != null && bo != null) return ao - bo || a.created_at.localeCompare(b.created_at);
+      if (ao != null) return -1;
+      if (bo != null) return 1;
+      return a.created_at.localeCompare(b.created_at);
+    });
 
   return {
     guide: {
@@ -503,6 +540,101 @@ export async function fetchHealingGuideList(
   }
 
   return { rows, error: null };
+}
+
+/**
+ * EK FAZ 1 — server-side bounded arama/list sayfası.
+ *   Boş q → A–Z bounded liste; dolu q → tenant-bağlı substring arama (pg_trgm).
+ *   Tüm dataset ARTIK client'a inmez. AbortController ile stale-request iptali desteklenir.
+ */
+export type GuideSearchPage = {
+  rows: HealingGuideListRow[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  error: string | null;
+};
+
+export async function fetchGuideSearchPage(opts: {
+  q?: string;
+  category?: string | null;
+  limit?: number;
+  cursor?: string | null;
+  signal?: AbortSignal;
+}): Promise<GuideSearchPage> {
+  const sp = new URLSearchParams();
+  if (opts.q && opts.q.trim() !== "") sp.set("q", opts.q);
+  if (opts.category && opts.category.trim() !== "") sp.set("category", opts.category);
+  if (opts.limit) sp.set("limit", String(opts.limit));
+  if (opts.cursor) sp.set("cursor", opts.cursor);
+  const qs = sp.toString();
+
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides${qs ? `?${qs}` : ""}`, {
+      headers: authHeaders(),
+      signal: opts.signal,
+    });
+  } catch (e) {
+    // Abort → çağırana ilet (yarış koruması); diğer ağ hataları → kullanıcı mesajı.
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    return { rows: [], hasMore: false, nextCursor: null, error: "Sunucuya ulaşılamadı." };
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    rows?: unknown;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    error?: string;
+  };
+
+  if (!res.ok || json.ok !== true) {
+    return {
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+      error: json.error ?? `Kayıtlar alınamadı (HTTP ${res.status}).`,
+    };
+  }
+
+  const rawRows = (json.rows ?? []) as RawGuideRow[];
+  const rows = rawRows
+    .map((row) => mapListRow(row))
+    .filter((row): row is HealingGuideListRow => Boolean(row));
+
+  // SWR: sayfa satırlarının detayını seed et (mevcut davranış korunur).
+  for (const raw of rawRows) {
+    const d = mapRawRowToDetail(raw);
+    if (d.guide.id && !detailCache.has(d.guide.id)) {
+      detailCache.set(d.guide.id, { detail: d, ts: Date.now() });
+    }
+  }
+
+  return {
+    rows,
+    hasMore: json.hasMore === true,
+    nextCursor: json.nextCursor ?? null,
+    error: null,
+  };
+}
+
+/** Tenant kategori facet'i — /api/sifa-rehberi/guides/categories (GET). */
+export async function fetchGuideCategories(): Promise<{ categories: string[]; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/sifa-rehberi/guides/categories", { headers: authHeaders() });
+  } catch {
+    return { categories: [], error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    categories?: string[];
+    error?: string;
+  };
+  if (!res.ok || json.ok !== true) {
+    return { categories: [], error: json.error ?? "Kategoriler alınamadı." };
+  }
+  return { categories: Array.isArray(json.categories) ? json.categories : [], error: null };
 }
 
 /**
@@ -650,6 +782,33 @@ export async function deleteHealingGuides(
   for (const gid of deletedIds) detailCache.delete(gid); // silinenlerin önbelleğini düşür
   listCache = null;
   return { deletedIds, error: null };
+}
+
+/**
+ * Form-şekilli kaydın section'larını topluca değiştirir (canonical edit yolu).
+ * Sunucu kayıp-güvenli sıra ile (önce ekle, sonra eskileri sil) uygular.
+ */
+export async function replaceHealingGuideSections(
+  guideId: string,
+  sections: unknown[],
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}/sections`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ sections }),
+    });
+  } catch {
+    return { error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || json.ok !== true) {
+    return { error: json.error ?? `Bölümler kaydedilemedi (HTTP ${res.status}).` };
+  }
+  detailCache.delete(guideId);
+  listCache = null;
+  return { error: null };
 }
 
 export function groupSectionsByType(

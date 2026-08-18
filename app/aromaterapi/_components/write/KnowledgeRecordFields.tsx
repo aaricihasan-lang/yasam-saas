@@ -124,7 +124,7 @@ export function TextField({
           className={cls}
         />
       )}
-      {hint ? <p className="mt-1 text-[11px] font-medium text-slate-400">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-[12px] font-medium text-slate-500">{hint}</p> : null}
       <AromaterapiFieldError message={error} />
     </div>
   );
@@ -150,7 +150,7 @@ export function NumberField({
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="block text-[11px] font-black uppercase tracking-wide text-slate-400">
+      <label htmlFor={id} className="block text-[12px] font-black uppercase tracking-wide text-slate-500">
         {label}
       </label>
       <input
@@ -190,13 +190,13 @@ export function ChildGroupShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-white/70 p-3.5">
+    <div className="rounded-lg bg-slate-50/50 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h4 className="text-[13px] font-black text-slate-800">
             {title} {count > 0 ? <span className="text-slate-400">({count})</span> : null}
           </h4>
-          {hint ? <p className="text-[11.5px] font-medium text-slate-400">{hint}</p> : null}
+          {hint ? <p className="text-[12px] font-medium text-slate-500">{hint}</p> : null}
         </div>
         {!disabled ? (
           <button
@@ -222,7 +222,7 @@ export function ChildGroupShell({
 
 export function RowShell({ onRemove, disabled, children }: { onRemove: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-slate-100 bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1 space-y-2">{children}</div>
         {!disabled ? (

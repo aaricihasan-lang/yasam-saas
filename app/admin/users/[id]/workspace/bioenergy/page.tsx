@@ -303,6 +303,44 @@ function adminHeaders(adminId: string | undefined, json = false): Record<string,
   return h;
 }
 
+/**
+ * FAZ1 güvenlik: bioenergy_sessions okuması artık service-role admin endpoint'inden
+ * gelir (publishable SELECT kaldırıldı). Yalnız "seanslar" sekmesi için; legacy 5
+ * workspace sekmesi (chakra_notes/symbols_view/…) KAPSAM DIŞI ve değişmez.
+ */
+async function fetchAdminBioSessionCount(tenantId: string): Promise<number | null> {
+  const adminId = readYasamUser()?.id;
+  const res = await fetch(
+    `/api/admin/biyoenerji/sessions?mode=count&tenantId=${encodeURIComponent(tenantId)}`,
+    { headers: adminHeaders(adminId) },
+  );
+  if (!res.ok) return null;
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; count?: number };
+  return json.ok ? Number(json.count ?? 0) : null;
+}
+
+async function fetchAdminBioSessionRows(
+  tenantId: string,
+): Promise<{ rows: Record<string, unknown>[]; error: string | null }> {
+  const adminId = readYasamUser()?.id;
+  const res = await fetch(
+    `/api/admin/biyoenerji/sessions?mode=list&tenantId=${encodeURIComponent(tenantId)}`,
+    { headers: adminHeaders(adminId) },
+  );
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    rows?: unknown;
+    error?: string;
+  };
+  if (!res.ok || !json.ok) {
+    return { rows: [], error: String(json.error ?? `HTTP ${res.status}`) };
+  }
+  return {
+    rows: Array.isArray(json.rows) ? (json.rows as Record<string, unknown>[]) : [],
+    error: null,
+  };
+}
+
 export default function AdminWorkspaceBioenergyPage() {
   useBfcacheRefresh();
   const params = useParams();
@@ -368,6 +406,13 @@ export default function AdminWorkspaceBioenergyPage() {
 
     await Promise.all(
       BIO_SECTIONS.map(async (section) => {
+        // FAZ1: bioenergy_sessions sayımı service-role admin endpoint'inden gelir.
+        if (section.table === "bioenergy_sessions") {
+          const count = await fetchAdminBioSessionCount(tenantId);
+          if (count != null) next[section.id] = count;
+          return;
+        }
+
         const { count, error } = await supabase
           .from(section.table)
           .select("*", { count: "exact", head: true })
@@ -450,6 +495,20 @@ export default function AdminWorkspaceBioenergyPage() {
       setSectionRows([]);
       setSelectedRowId(null);
       setSearch("");
+
+      // FAZ1: bioenergy_sessions listesi service-role admin endpoint'inden gelir.
+      if (meta.table === "bioenergy_sessions") {
+        const { rows, error } = await fetchAdminBioSessionRows(tenantId);
+        setSectionLoading(false);
+        if (error) {
+          console.error(`Biyoenerji ${meta.label} listesi:`, error);
+          setSectionError(error);
+          setSectionRows([]);
+          return;
+        }
+        setSectionRows(rows);
+        return;
+      }
 
       const { data, error } = await supabase
         .from(meta.table)

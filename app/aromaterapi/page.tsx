@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
+import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { getDemoOilStats } from "@/lib/demo/demoAromaterapi";
@@ -68,6 +70,17 @@ export default function AromaTerapiHubPage() {
 
   useBfcacheRefresh();
 
+  const { showToast } = useToast();
+  const [exportingGeneral, setExportingGeneral] = useState(false);
+  async function exportGeneralWord() {
+    if (exportingGeneral) return;
+    setExportingGeneral(true);
+    const { ok, error } = await downloadWord("/api/aromaterapi/word-report", {});
+    setExportingGeneral(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Aromaterapi genel katalog raporu indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
+
   const statTiles = [
     { label: "Toplam", value: stats.total, cls: "text-slate-950" },
     { label: "Uçucu", value: stats.essential, cls: "text-amber-700" },
@@ -89,17 +102,31 @@ export default function AromaTerapiHubPage() {
         ) : undefined
       }
       actions={
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {statTiles.map((s) => (
-            <div key={s.label} className={statCard}>
-              <div className={`text-lg font-black sm:text-xl ${s.cls}`}>
-                {loading ? "—" : s.value}
+        <div className="flex flex-col gap-2">
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={() => void exportGeneralWord()}
+              disabled={exportingGeneral}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-[12px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105 disabled:opacity-60"
+              title="Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir"
+            >
+              <span aria-hidden>📄</span>
+              {exportingGeneral ? "Hazırlanıyor…" : "Aromaterapi Kataloğunu Word'e Aktar"}
+            </button>
+          )}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {statTiles.map((s) => (
+              <div key={s.label} className={statCard}>
+                <div className={`text-lg font-black sm:text-xl ${s.cls}`}>
+                  {loading ? "—" : s.value}
+                </div>
+                <div className="mt-0.5 text-[10px] font-bold text-slate-500">
+                  {s.label}
+                </div>
               </div>
-              <div className="mt-0.5 text-[10px] font-bold text-slate-500">
-                {s.label}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       }
     >

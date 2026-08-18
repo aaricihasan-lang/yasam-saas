@@ -41,6 +41,7 @@ export default function BitkiDetayPage() {
       breadcrumbLeaf="Bitki Detayı"
       backHref="/aromaterapi/katalog"
       backLabel="Kataloğa dön"
+      wordExportUrl={id ? `/api/aromaterapi/plant-taxa/${id}/word-report` : undefined}
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}

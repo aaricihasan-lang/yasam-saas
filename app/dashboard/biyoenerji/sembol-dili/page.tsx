@@ -6,6 +6,7 @@ export default function SembolDiliPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
+      activeSection="sembol-dili"
       badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
       title="Sembol Dili Kütüphanesi"
       subtitle="Semboller, anlamlar ve bilinçaltı mesajları"

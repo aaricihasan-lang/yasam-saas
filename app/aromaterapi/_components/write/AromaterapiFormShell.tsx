@@ -5,6 +5,7 @@ import {
   AROMATERAPI_REASON_MAX_LEN,
   type AromaterapiFormMode,
 } from "@/lib/aromaterapi/writeTypes";
+import { useUnsavedChangesGuard } from "@/app/aromaterapi/_components/write/useUnsavedChangesGuard";
 
 /**
  * Aromaterapi V2 — C3D reusable yazma formu ve güvenlik UI temeli.
@@ -36,9 +37,9 @@ export type AromaterapiFormShellProps = {
   errorMessage?: string | null;
   submitLabel?: string;
   /**
-   * Kontrollü full-width düzen (C3D-B2B). Varsayılan false → mevcut max-w-2xl
-   * (C3D-D formları değişmez). true → masaüstünde daha geniş (max-w-4xl), form
-   * bölümleri 2-kolonlu ızgaralar kurabilsin diye. Mobilde her iki değerde tek kolon.
+   * Kontrollü full-width düzen (C3D-B2B). Varsayılan false → rahat okunur tek-kolon
+   * genişlik (max-w-3xl). true → masaüstünde daha geniş (max-w-5xl), form bölümleri
+   * 2-kolonlu ızgaralar kurabilsin diye. Mobilde her iki değerde tek kolon.
    */
   wide?: boolean;
 };
@@ -62,12 +63,21 @@ export function AromaterapiFormShell({
   const errId = useId();
   const defaultLabel = mode === "create" ? "Kaydet" : "Değişiklikleri kaydet";
 
+  // Uygulama-içi dirty navigasyon koruması (Cancel/Vazgeç → onay diyaloğu).
+  // beforeUnload: false → sekme-kapat uyarısını çağıran form kendi
+  // useAromaterapiDirtyGuard'ı ile yönetir (çift listener önlenir).
+  const { guard, guardDialog } = useUnsavedChangesGuard(Boolean(dirty) && !isDemo, {
+    beforeUnload: false,
+  });
+  const guardedCancel = onCancel ? () => guard(onCancel) : undefined;
+
   return (
+    <>
     <form
       onSubmit={onSubmit}
       noValidate
       aria-describedby={errorMessage ? errId : undefined}
-      className={`mx-auto w-full space-y-4 ${wide ? "max-w-4xl" : "max-w-2xl"}`}
+      className={`mx-auto w-full space-y-4 ${wide ? "max-w-5xl" : "max-w-3xl"}`}
     >
       <header className="min-w-0">
         <h2 className="text-lg font-black tracking-tight text-slate-900">{title}</h2>
@@ -106,13 +116,15 @@ export function AromaterapiFormShell({
 
       <AromaterapiFormActions
         mode={mode}
-        onCancel={onCancel}
+        onCancel={guardedCancel}
         submitting={submitting}
         isDemo={isDemo}
         dirty={dirty}
         submitLabel={submitLabel ?? defaultLabel}
       />
     </form>
+    {guardDialog}
+    </>
   );
 }
 
@@ -130,7 +142,7 @@ export function AromaterapiFormSection({
   return (
     <fieldset className="rounded-[20px] border border-amber-100/70 bg-white/85 p-4 shadow-sm sm:p-5">
       <legend className="px-1 text-[13px] font-black tracking-tight text-slate-800">{title}</legend>
-      {hint ? <p className="mb-2 mt-0.5 px-1 text-[12px] font-medium text-slate-400">{hint}</p> : null}
+      {hint ? <p className="mb-2 mt-0.5 px-1 text-[12px] font-medium text-slate-500">{hint}</p> : null}
       <div className="space-y-3">{children}</div>
     </fieldset>
   );

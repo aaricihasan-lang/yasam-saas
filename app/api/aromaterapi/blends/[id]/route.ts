@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
 
@@ -85,7 +86,7 @@ export async function PATCH(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydı güncellenemez
     .select("*");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
@@ -109,14 +110,19 @@ export async function DELETE(
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
+  // FAZ 3: SOFT delete — fiziksel .delete() yerine is_active=false. Okuma/liste zaten
+  // is_active=true filtreler (blends GET .eq("is_active", true)) → kayıt aktif listeden
+  // düşer ama DB satırı korunur (reçete/geçmiş kaybı yok). tenant scope + IDOR aynı;
+  // yeni lifecycle/audit/şema YOK. Zaten pasif kayıt idempotent (0 satır → 404).
   const { data, error } = await db
     .from("aromatherapy_blends")
-    .delete()
+    .update({ is_active: false })
     .eq("id", id)
     .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydına dokunamaz
+    .eq("is_active", true) // yalnız aktif kaydı pasifleştir (idempotent)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return legacyDbErrorResponse("blends.delete", error, "Karışım silinemedi.");
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },

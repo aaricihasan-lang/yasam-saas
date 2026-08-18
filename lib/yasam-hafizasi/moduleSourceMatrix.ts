@@ -67,6 +67,8 @@ export const YH_MODULE_SOURCE_MATRIX = [
       "biyoenerji:symbols",
       "biyoenerji:chakras",
       "biyoenerji:imaginations",
+      "biyoenerji:sessions",
+      "biyoenerji:energy-bodies",
     ],
     clientSourceKeys: [],
     allow: ["başlık", "sembol/anlam", "kategori", "yapılandırılmış içerik", "kaynak"],
@@ -241,33 +243,36 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "belge_video",
     label: "Belge / Video İçerikleri",
-    classification: "DORMANT_READY",
-    professionalSourceKeys: ["belge_video:passages"],
+    classification: "NOT_MEMORY_SOURCE",
+    professionalSourceKeys: [],
     clientSourceKeys: [],
-    allow: ["promoted durable passage (yalnız safe-non-pii)", "ordered ordinal + locator + hash + provenans"],
-    deny: ["transient job doğrudan index", "arbitrary/serbest client text", "unclassified/pii passage", "original filename", "Storage secret/URL", "başka tenant job"],
+    allow: [],
+    deny: ["transient işleme/export çıktısı", "belge dönüştürme/çeviri/transkript ara ürünü", "ders notu üretim artefaktı", "arbitrary/serbest client text"],
     rationale:
-      "WIRED (DORMANT): belge_video:passages source enabled:false (kaynak = promoted durable " +
-      "yh_document_passages; transient job DEĞİL). tenant join → yh_document_sources; row-eligibility " +
-      "rowClassificationColumn='classification' → yalnız safe-non-pii passage (unclassified/pii/" +
-      "restricted fail-closed). Additive migration (yh_document_sources + yh_document_passages) + " +
-      "promotion API (job ownership + server-derived deterministic chunk). enabled:false → " +
-      "source-guard 'disabled' → event/reconcile no-op.",
-    activationPrerequisite: "BF-11E: enabled:true + safe-non-pii passage sınıflandırması + kontrollü index (ayrı onay).",
+      "ÜRÜN KARARI (NON_SOURCE): Dijital İçerik Merkezi'nin belge/video/ders-notu işleme alanı " +
+      "TRANSIENT PROCESSING / EXPORT WORKSPACE'tir (belge dönüştür, transkript üret, çevir, Word/PDF/" +
+      "ders notu üret). Uzman nihai çıktıyı indirir VEYA gerçek ait olduğu profesyonel modüle aktarır; " +
+      "Yaşam Hafızası bilgiyi bu geçici işleme merkezinden DEĞİL nihai kalıcı modülden öğrenir " +
+      "(çift ingestion engeli). belge_video:passages source registry/activation/matrix'ten ÇIKARILDI. " +
+      "PR#128 join+row REUSABLE indexer/worker yeteneği korunur; foundation tabloları DROP EDİLMEZ.",
+    activationPrerequisite: "Yok (source değil). Nihai bilgi ilgili profesyonel modülden öğrenilir.",
   },
   {
     moduleKey: "kisisel_arsiv",
     label: "Kişisel Arşiv",
-    classification: "DEFERRED_FOR_SAFETY",
-    professionalSourceKeys: [],
+    classification: "FOUNDATION_READY",
+    professionalSourceKeys: ["kisisel_arsiv:archives"],
     clientSourceKeys: [],
-    allow: [],
-    deny: ["serbest-form kişisel arşiv metni", "PII"],
+    allow: ["yalnız yetkili review ile safe-non-pii işaretlenmiş + server-türetimli current-hash geçen kayıt (title/note/category/tags)"],
+    deny: ["mevcut kayıtları otomatik safe sayma", "kör backfill", "pii/restricted/unclassified/stale-hash index", "cross-tenant classification", "client memory yönlendirme"],
     rationale:
-      "personal_archives professional registry'de classification='unclassified' (fail-closed; ana " +
-      "index'e girmez). Serbest-form kişisel içerik F5/PII sınıflandırmasına ertelenmiştir → " +
-      "DEFERRED_FOR_SAFETY.",
-    activationPrerequisite: "Ayrı PII sınıflandırması + redaction contract.",
+      "ROW-GATED CONTROLLED (BF-11E): kisisel_arsiv:archives source-level 'safe-non-pii' fakat güvenlik " +
+      "satır-bazlı row-gate'e dayanır (requiresRowEligibilityGate). Her kayıt ayrı yh_archive_classifications " +
+      "tablosunda safe-non-pii + reviewed_content_hash === server-türetimli unit.contentHash ister; aksi " +
+      "fail-closed. Kör tenant-scoped backfill KAPALI; controlled activation (DB is_active) ZORUNLU → " +
+      "FOUNDATION_READY (foundation WIRED; gerçek aktivasyon ayrı production kapısı).",
+    activationPrerequisite:
+      "AYRI production kapısı: migration apply (UNIQUE(tenant_id,id) + classification FK + archive/classification CDC trigger) + yh_source_activation_set('kisisel_arsiv:archives', true). Backfill DEFAULT false.",
   },
 ] as const satisfies readonly ModuleMatrixEntry[];
 
@@ -307,11 +312,14 @@ export function validateModuleSourceMatrix(): void {
       if (!cliSet.has(k)) throw new Error(`Bilinmeyen client sourceKey: ${m.moduleKey} → ${k}`);
     }
     // Kaynak referansı olan modül için sınıf tutarlılığı (fail-closed kategoriler kaynak taşımaz).
+    // cls MemoryClassification'a genişletilir → gelecekteki fail-closed sınıflar için defensive
+    // guard literal-narrowing'e takılmaz (şu an DEFERRED_FOR_SAFETY entry yok ama invariant korunur).
+    const cls: string = m.classification;
     const hasSources = m.professionalSourceKeys.length + m.clientSourceKeys.length > 0;
-    if (m.classification === "NOT_MEMORY_SOURCE" && hasSources) {
+    if (cls === "NOT_MEMORY_SOURCE" && hasSources) {
       throw new Error(`NOT_MEMORY_SOURCE kaynak taşıyamaz: ${m.moduleKey}`);
     }
-    if (m.classification === "DEFERRED_FOR_SAFETY" && hasSources) {
+    if (cls === "DEFERRED_FOR_SAFETY" && hasSources) {
       throw new Error(`DEFERRED_FOR_SAFETY kaynak taşıyamaz: ${m.moduleKey}`);
     }
   }

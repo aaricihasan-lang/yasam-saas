@@ -1,4 +1,6 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
+import { getList, buildQuery, type ListResult } from "@/lib/aromaterapi/readClient";
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -114,17 +116,11 @@ export type AromatherapyOil = {
   updated_at: string | null;
 
   // Provenance (P4 admin→uzman snapshot). Legacy/kendi kayıtta null.
+  // NOT: Yalnız teknik/audit iz sürme içindir; uzman UI'sında GÖRSEL ETİKET GÖSTERİLMEZ
+  // (ürün kararı 2026-08-11).
   origin_type?: string | null;
   origin_label?: string | null;
 };
-
-/** Kayıt admin kütüphanesinden bağımsız kopya olarak mı geldi? */
-export function isAdminTransferOil(row: { origin_type?: string | null }): boolean {
-  return row.origin_type === "admin_transfer";
-}
-
-/** Uzman-facing provenance etiketi (admin kaynağı gizlenir; yalnız "hediye" bilgisi). */
-export const ADMIN_TRANSFER_BADGE = "🎁 Adminden Gelen Bilgi";
 
 // -------------------------------------------------------
 // Liste Satırı
@@ -172,15 +168,56 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 
 // İmza korunur: tenantId parametresi geriye dönük uyumluluk için durur; gerçek
 // tenant server tarafında oturumdan belirlenir (istemci değeri güvenilmez).
-export async function fetchOilList(
-  _tenantId: string,
-  oilType?: string,
+/**
+ * FAZ 2 — server-side paginated liste fetcher (useAromaterapiListQuery uyumlu).
+ * `params` q/sort/page/limit/type taşır; modern `{ok,rows,page,limit,total}` envelope.
+ * fetch-all KALDIRILDI.
+ */
+export async function fetchOilListPage(
+  params: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<ListResult<OilListRow>> {
+  return getList<OilListRow>(`/api/aromaterapi/oils?${params.toString()}`, signal);
+}
+
+/**
+ * FAZ 2 — Blend typeahead / carrier datalist için KÜÇÜK sonuç kümesi (server-side
+ * arama + oil_type; fetch-all YOK). Aynı liste endpoint'ini `limit` ile paylaşır →
+ * ayrı duplicate endpoint yok.
+ *
+ * KAPSAM: Karışım Oluşturucu typeahead'i yalnız KİMLİK alanlarında arar (qmode=name →
+ * server name/latin_name/english_name ILIKE). İçerik alanları (benefits/usage/aroma…)
+ * DAHİL DEĞİL → "lav" yalnız isimde geçen yağları getirir, içerikte geçenleri değil.
+ * Yağlar Kütüphanesi'nin geniş search_norm araması AYRIDIR ve değişmez (fetchOilListPage).
+ * Boş q (carrier datalist lookup) arama dalını atlar → qmode etkisizdir, davranış aynı.
+ */
+export async function fetchOilSearch(
+  q: string,
+  oilType: string,
+  limit = 40,
+  signal?: AbortSignal,
 ): Promise<{ rows: OilListRow[]; error: string | null }> {
-  const qs = oilType ? `?type=${encodeURIComponent(oilType)}` : "";
-  const res = await fetch(`/api/aromaterapi/oils${qs}`, { headers: authHeaders() });
-  const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { rows: [], error: String(j.error ?? `HTTP ${res.status}`) };
-  return { rows: (j.rows as OilListRow[]) ?? [], error: null };
+  const qs = buildQuery({ q, type: oilType, limit, page: 1, qmode: "name" });
+  const res = await getList<OilListRow>(`/api/aromaterapi/oils${qs}`, signal);
+  if (!res.ok) {
+    if (res.errorCode === null) return { rows: [], error: null }; // abort → sessiz
+    return { rows: [], error: res.errorCode };
+  }
+  const rows = res.envelope?.rows ?? [];
+  const trimmed = q.trim();
+  if (!trimmed) return { rows, error: null }; // carrier boş-q lookup: sıra değişmez (server A–Z)
+
+  // Seçim UX önceliği: (a) name prefix, (b) name contains, (c) yalnız latin/english eşleşmesi.
+  // Küçük küme (≤limit); yeni SQL/migration YOK. Array.sort stabil → aynı rütbede server
+  // A–Z sırası korunur. Türkçe-güvenli karşılaştırma için foldForSearch.
+  const needle = foldForSearch(trimmed);
+  const rank = (o: OilListRow): number => {
+    const n = foldForSearch(o.name);
+    if (n.startsWith(needle)) return 0;
+    if (n.includes(needle)) return 1;
+    return 2; // isimde yok → latin/english üzerinden eşleşmiş (server zaten döndürdü)
+  };
+  return { rows: [...rows].sort((a, b) => rank(a) - rank(b)), error: null };
 }
 
 export async function fetchOilDetail(
@@ -195,16 +232,26 @@ export async function fetchOilDetail(
   return { oil: (j.oil as AromatherapyOil) ?? null, error: null, notFound: false };
 }
 
-// Hub sayaçları — tek çağrıda toplam/uçucu/sabit/maserasyon.
+// Hub/facet sayaçları — tek çağrıda toplam + 6 oil_type (UI OIL_TYPES ile birebir).
+export type OilTypeCounts = {
+  total: number;
+  essential: number;
+  carrier: number;
+  maceration: number;
+  hydrosol: number;
+  resin: number;
+  absolute: number;
+};
+
 export async function fetchOilCounts(): Promise<{
-  counts: { total: number; essential: number; carrier: number; maceration: number } | null;
+  counts: OilTypeCounts | null;
   error: string | null;
 }> {
   const res = await fetch(`/api/aromaterapi/oils?count=1`, { headers: authHeaders() });
   const j = await readJson(res);
   if (!res.ok || j.ok !== true) return { counts: null, error: String(j.error ?? `HTTP ${res.status}`) };
   return {
-    counts: j.counts as { total: number; essential: number; carrier: number; maceration: number },
+    counts: j.counts as OilTypeCounts,
     error: null,
   };
 }
@@ -277,19 +324,32 @@ export async function deleteOils(
 // Yardımcılar
 // -------------------------------------------------------
 
-// Türkçe İ/ı/I/i arama eşleştirmesi.
-// JS'in `toLowerCase()`'i "İ" harfini "i" + birleşik nokta (U+0307) yapar ve
-// noktasız "ı" ile noktalı "i" ayrık kalır; bu yüzden "BİBERİYE" araması
-// "Biberiye" kaydını kaçırır. Bu fonksiyon dört I türevini de tek "i"ye indirger.
-// Sonuç: "BİBERİYE" = "Biberiye" = "biberiye", "İNCELE" = "İncele" = "incele".
-const COMBINING_DOT_ABOVE = String.fromCharCode(0x0307);
-
+// Türkçe arama eşleştirmesi — TEK sözleşme (lib/aromaterapi/searchNormalize.ts;
+// sunucu `search_norm` ile byte-eş). Dört I türevi (İ/I/ı/i)→i, Türkçe diakritik
+// (ş/ğ/ü/ö/ç)→ASCII, U+0307 silme, whitespace collapse. Böylece istemci Oils/blend
+// araması ile sunucu araması AYNI davranır: "BİBERİYE"="biberiye", "cay"="Çay".
 export function foldForSearch(value: string): string {
-  return value
-    .replace(/[İIıi]/g, "i") // dört I türevi → i (toLowerCase'in noktalı-i sorununu atlar)
-    .toLowerCase() // kalan harfleri küçült (ş, ğ, ü, ö, ç...)
-    .split(COMBINING_DOT_ABOVE)
-    .join(""); // olası birleşik nokta (U+0307) temizlenir
+  return normalizeForSearch(value);
+}
+
+/**
+ * FAZ 3 — "İçerikte geçiyor" rozet türetimi (Yağlar Kütüphanesi geniş araması).
+ * Kütüphane sunucuda `search_norm` (21 alan) ile eşleştirir; satır döndüyse sorgu bir
+ * yerde eşleşti. Sorgu 3 KİMLİK alanının (name/latin_name/english_name) hiçbirinde yoksa
+ * → yalnız İÇERİK alanında eşleşmiştir → kart "İçerikte geçiyor" rozeti gösterir.
+ * `normalizeForSearch` KULLANILIR (sunucu search_norm ile byte-eş; foldForSearch DEĞİL,
+ * ileride ayrışsa diye açık bağımlılık). Boş sorgu → false (rozet yok). Payload/DB/server
+ * match-context DEĞİŞMEZ — tümü mevcut projeksiyon alanlarından client-side türetilir.
+ */
+export function matchedOnlyInContent(
+  row: Pick<OilListRow, "name" | "latin_name" | "english_name">,
+  query: string,
+): boolean {
+  const qn = normalizeForSearch(query);
+  if (!qn) return false; // arama boş → rozet yok
+  // Array.join null/undefined'ı "" yapar → NULL-safe kimlik birleşimi.
+  const identity = normalizeForSearch([row.name, row.latin_name, row.english_name].join(" "));
+  return !identity.includes(qn); // kimlikte yok → içerik-only eşleşme
 }
 
 // Arama alanları — TEK ortak kaynak. matchesOilSearch (blend araması) ve

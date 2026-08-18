@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",
+    "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
@@ -21,7 +22,16 @@
     "yh:bf14:closure:harness": "tsx scripts/yh-bf14/deferredClosureHarness.ts",
     "yh:bf11e:harness": "tsx scripts/yh-bf11e/activationHarness.ts",
     "yh:bf11e:preflight": "tsx scripts/yh-bf11e/preflight.ts",
-    "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts"
+    "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts",
+    "sifa:search:harness": "tsx scripts/sifa-search/harness.ts",
+    "sifa:word:scale:harness": "tsx scripts/sifa-search/wordScaleHarness.ts",
+    "sifa:word:premium:harness": "tsx scripts/sifa-search/wordPremiumHarness.ts",
+    "yh:bf11e:belge:harness": "tsx scripts/yh-bf11e/belgeVideoHarness.ts",
+    "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
+    "yh:bf11e:archive:security:harness": "tsx scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
+    "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
+    "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts",
+    "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

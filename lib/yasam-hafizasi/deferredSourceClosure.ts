@@ -99,53 +99,54 @@ export const YH_DEFERRED_SOURCE_CLOSURE = [
   {
     domain: "belge_video_ingestion",
     label: "Belge/Video Provenanslı Ingestion",
-    result: "WIRED_DORMANT",
+    // ÜRÜN KARARI SONRASI: PRODUCT_DECISION_NON_SOURCE. Belge/Video işleme alanı Yaşam Hafızası
+    // source DOMAIN'İ DEĞİLDİR → ertelenmiş-source değil, KAPSAM DIŞI (NOT_APPLICABLE).
+    result: "NOT_APPLICABLE",
     productDecision:
-      "Transient job tabloları doğrudan source DEĞİLDİR. Kalıcı, tenant-owned, provenanslı " +
-      "source + ordered passage + explicit promotion; başlangıç classification 'unclassified'.",
+      "PRODUCT_DECISION_NON_SOURCE: Dijital İçerik Merkezi'nin belge/video/ders-notu işleme alanı " +
+      "TRANSIENT PROCESSING / EXPORT WORKSPACE'tir (belge dönüştür, transkript/çeviri/Word/PDF/ders " +
+      "notu üret). Yaşam Hafızası bilgiyi bu geçici işleme merkezinden DEĞİL, uzmanın aktardığı nihai " +
+      "kalıcı profesyonel modülden öğrenir (çift ingestion engeli).",
     foundationTables: ["yh_document_sources", "yh_document_passages"],
     foundationApis: ["POST /api/yasam-hafizasi/documents/promote"],
-    registrySourceKeys: ["belge_video:passages"],
-    allow: ["promoted durable source", "ordered passages (deterministic ordinal + locator + hash)", "provenans meta", "server-derived job metni", "yalnız safe-non-pii sınıflandırılmış passage"],
-    deny: ["arbitrary client text trusted source", "transient job'ı doğrudan indexleme", "başka tenant job promote", "unclassified/pii index", "original filename index", "Storage secret/URL index", "raw dosya binary"],
+    // Source değil → registry key YOK (belge_video:passages source registry'den çıkarıldı).
+    registrySourceKeys: [],
+    allow: [],
+    deny: ["Yaşam Hafızası source taraması", "activation/CDC/backfill/reconcile source path", "query/search/filter source domain", "geçici işleme çıktısını hafızaya alma"],
     hardBlockerEvidence: [],
     rationale:
-      "WIRED (DORMANT): belge_video:passages source YH_INDEX_SOURCES'a enabled:false eklendi " +
-      "(kaynak = promoted durable yh_document_passages; transient job DEĞİL). tenant join → " +
-      "yh_document_sources. Row-eligibility rowClassificationColumn='classification' → yalnız " +
-      "safe-non-pii passage indexlenebilir (unclassified/pii/restricted fail-closed). Additive " +
-      "migration (yh_document_sources + yh_document_passages; default 'unclassified'; content/text " +
-      "hash) + promotion API (job ownership + server-derived deterministic chunk; arbitrary text yok). " +
-      "enabled:false + source-guard 'disabled' → event/reconcile no-op. Belge dosya-ayrıştırma " +
-      "(YH_DOC_KIND_NOT_SUPPORTED_YET) ayrı path.",
-    activationPrerequisite:
-      "BF-11E: enabled:true + promoted passage'ların safe-non-pii sınıflandırılması + kontrollü " +
-      "index (ayrı onay). Belge dosya-ayrıştırma path'i ayrı.",
+      "NOT_APPLICABLE (retirement): belge_video:passages source registry/activationMatrix/module " +
+      "matrix'ten ÇIKARILDI; moduleSourceMatrix'te NOT_MEMORY_SOURCE. Foundation tabloları " +
+      "(yh_document_sources/passages) ve promotion API mevcut kalır (Dijital İçerik feature'ı) ama " +
+      "Yaşam Hafızası SOURCE değildir → cleanup-candidate (DROP ayrı sistem-genel risk kapısı). " +
+      "PR#129 (20260929000000) trigger foundation ayrı retirement migration ile DROP edilir → nihai " +
+      "Belge/Video CDC trigger desired-state = 0. Historical migration/documentation korunur.",
+    activationPrerequisite: "Yok (source değil). Nihai bilgi ilgili profesyonel modülden öğrenilir.",
   },
   {
     domain: "kisisel_arsiv_classification",
     label: "Kişisel Arşiv Sınıflandırma",
-    result: "EXISTING_FAIL_CLOSED",
+    result: "FOUNDATION_READY",
     productDecision:
       "Kişisel Arşiv'i otomatik safe YAPMA. Kayıt-bazlı explicit classification; varsayılan " +
-      "unclassified; stale-content (hash) guard; yalnız yetkili review ile safe-non-pii.",
+      "unclassified; server-türetimli current-hash stale guard; yalnız yetkili review ile safe-non-pii.",
     foundationTables: ["yh_archive_classifications"],
     foundationApis: ["POST /api/yasam-hafizasi/archive-classification"],
-    // Mevcut kaynak; YENİ entry eklenmedi (duplicate yok) → EXISTING_FAIL_CLOSED.
     registrySourceKeys: ["kisisel_arsiv:archives"],
-    allow: ["yetkili review ile safe-non-pii işaretleme (reason + reviewedContentHash zorunlu)"],
-    deny: ["mevcut kayıtları otomatik safe sayma", "backfill", "pii/unclassified index", "stale hash index", "cross-tenant classification", "AI auto-classification", "classification bypass"],
+    allow: ["yetkili review ile safe-non-pii işaretleme (reason zorunlu; reviewed_content_hash SERVER-türetimli)"],
+    deny: ["mevcut kayıtları otomatik safe sayma", "kör backfill", "pii/unclassified/restricted index", "stale hash index", "cross-tenant classification", "AI auto-classification", "client-supplied hash authority", "classification bypass"],
     hardBlockerEvidence: [],
     rationale:
-      "Mevcut kisisel_arsiv:archives kaynağı classification=unclassified → source-guard FAIL-CLOSED " +
-      "(index unit üretmez; harness doğruladı). Additive yh_archive_classifications (standalone; " +
-      "personal_archives tracked olmadığı için app-layer (tenant_id, archive_id); default " +
-      "unclassified; reviewedContentHash stale guard) + classification API. Row-level index " +
-      "eligibility isArchiveRowIndexable ile SAF: yalnız safe-non-pii + hash eşleşmesi. Mevcut " +
-      "kayıtlar update/backfill EDİLMEDİ; live source davranışı fail-closed KORUNDU.",
+      "ROW-GATED CONTROLLED (BF-11E implementation): kisisel_arsiv:archives kaynağı row-gate " +
+      "runtime'a WIRED (requiresRowEligibilityGate; runExactRecord chokepoint) + server-türetimli " +
+      "canonical hash = buildIndexUnit().contentHash (client hash authoritative DEĞİL) + kör " +
+      "tenant-scoped backfill FAIL-CLOSED (supportsTenantScopedPage=false) + controlled activation " +
+      "(ROW_GATED_CONTROLLED; DB is_active ZORUNLU, default OFF) + archive/classification CDC (source " +
+      "identity=archive_id). Additive migration: composite UNIQUE(tenant_id,id) + classification FK + " +
+      "2 CDC trigger. Foundation WIRED → FOUNDATION_READY; gerçek aktivasyon AYRI production kapısı.",
     activationPrerequisite:
-      "row-level classification gate'inin indexer'a bağlanması (safe-non-pii + current hash) — " +
-      "mevcut kisisel_arsiv:archives fail-closed davranışı korunarak.",
+      "AYRI production kapısı: migration apply + yh_source_activation_set('kisisel_arsiv:archives', true). " +
+      "Mevcut kayıtlar OTOMATİK safe DEĞİL (yalnız yetkili review + hash); backfill DEFAULT false.",
   },
 ] as const satisfies readonly ClosureDomain[];
 

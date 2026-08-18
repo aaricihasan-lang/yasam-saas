@@ -19,6 +19,8 @@ import {
   type ValidatedAdminIndexRequest,
 } from "@/lib/yasam-hafizasi/indexer/adminIndexRequest";
 import { indexSourcePage } from "@/lib/yasam-hafizasi/indexer/indexSourcePage";
+import { createSupabaseArchiveEligibilityPort } from "@/lib/yasam-hafizasi/indexer/archiveEligibility";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IndexDbClient } from "@/lib/yasam-hafizasi/indexer/supabaseIndexAdapters";
 import type { ValidatedTenantScope } from "@/lib/yasam-hafizasi/indexer/tenantScopeGate";
 import {
@@ -76,6 +78,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         expectedTenantId: v.expectedTenantId,
         // BF-4B tenant-scoped backfill: doğrulanmış tenant kanıtı (yalnız scoped modda).
         validatedTenantScope: scope,
+        // BF-11E ROW-GATE: requiresRowEligibilityGate kaynakta (Kişisel Arşiv) zorunlu satır kapısı;
+        // admin exact-index yolu da bypass edemez (gate yok → fail-closed).
+        archiveEligibility: createSupabaseArchiveEligibilityPort(db as unknown as SupabaseClient),
         db: db as unknown as IndexDbClient,
       }),
 

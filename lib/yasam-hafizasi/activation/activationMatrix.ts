@@ -23,7 +23,7 @@
  * (dormant için) kod `enabled:true` ister — hepsi AYRI production kapılarıdır.
  */
 
-import { YH_INDEX_SOURCES } from "../indexer/sources";
+import { YH_INDEX_SOURCES, hasWorkerCapability } from "../indexer/sources";
 import { YH_CLIENT_INDEX_SOURCES } from "../client/clientSources";
 import {
   ACTIVATION_CLASS_POLICY,
@@ -59,6 +59,7 @@ export type BackfillEligibility =
   | "not-applicable" // zaten canlı; backfill kavramı geçerli değil
   | "blocked-test-data" // mevcut veri test riski → backfill YASAK (temiz reset sonrası)
   | "blocked-pii" // PII/row-gate riski → backfill YASAK
+  | "blocked-worker-unsupported" // worker v1 kaynağı hiç işleyemez (shared/global tenant VEYA non-record unit) → backfill YASAK
   | "candidate-with-approval"; // yalnız güvenli canonical veri; ayrı onay + preflight ile
 
 export interface ActivationMatrixEntry {
@@ -104,8 +105,18 @@ const DORMANT_ROLLBACK =
 const SEP_APPROVAL = "AYRI production onayı (kod enabled:true + DB is_active flip + preflight PASS).";
 
 export const YH_ACTIVATION_MATRIX = [
-  // ── A) EXISTING LIVE PROFESSIONAL (KEEP_LIVE) — mevcut 16 canlı; davranış DEĞİŞMEZ ──
-  keepLive("refleksoloji:protocols", "Refleksoloji", "reflexology_protocols", "column", "source-classification"),
+  // ── A) COHORT A PROFESSIONAL — worker-v1-supported (record + column/join, non-shared) kaynaklar.
+  //   dogaltas:stones + refleksoloji:notes KEEP_LIVE (grandfathered CANLI; davranış DEĞİŞMEZ).
+  //   11 worker-v1-supported kaynak FUTURE_ONLY_READY (controlled): CDC trigger WIRED
+  //   (migration 20261004000000; 11 generic) ama production'da is_active=true olmadan NO-OP
+  //   (default OFF; CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED).
+  //   PRE-MERGE REVIEW DÜZELTMESİ: 5 kaynak worker v1 (eventProcessor) tarafından İŞLENEMEZ ve
+  //   Cohort A'dan ÇIKARILDI → DEFERRED_SHARED_WORKER_V2 (aşağıda F bölümü):
+  //     - dogaltas:knowledge, aromaterapi:oils/reference-sheets/reference-rows (allowSharedNull=true
+  //       → Kapı 6 permanent 'shared-source-unsupported')
+  //     - sifa_rehberi:guide-sections (unit=section → Kapı 7 permanent 'non-record-unit-unsupported').
+  //   Bu 5 kaynağa CDC trigger BAĞLANMAZ; registry `enabled:true` KORUNUR (arama semantiği bozulmaz). ──
+  controlled("refleksoloji:protocols", "Refleksoloji", "reflexology_protocols", "column", "source-classification"),
   {
     // refleksoloji:notes registry'de enabled:true ANCAK classification=pii → guard fail-closed
     // (index no-op). "KEEP_LIVE" = mevcut davranışı KORU (pii no-op) demektir; değiştirilmez.
@@ -127,27 +138,34 @@ export const YH_ACTIVATION_MATRIX = [
     recommendation:
       "KEEP_LIVE: classification=pii → source-guard fail-closed (index no-op). Mevcut davranış KORUNUR; PII ana index'e girmez.",
   },
-  keepLive("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
-  keepLive("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
-  keepLive("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
-  keepLive("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
-  keepLive("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),
-  keepLive("biyoenerji:imaginations", "Biyoenerji", "bioenergy_imaginations", "column", "source-classification"),
+  controlled("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
+  // guide-sections unit=section → Worker-v2 'section-unit' + 'parent-derived-scope' capability ile READY.
+  controlledV2("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
+  controlled("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
+  controlled("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
+  controlled("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),
+  controlled("biyoenerji:imaginations", "Biyoenerji", "bioenergy_imaginations", "column", "source-classification"),
+  // BF-CohortA yeni Biyoenerji professional kaynakları (migration 20261004000000 ile trigger WIRED).
+  controlled("biyoenerji:sessions", "Biyoenerji", "bioenergy_sessions", "column", "source-classification"),
+  controlled("biyoenerji:energy-bodies", "Biyoenerji", "bioenergy_energy_bodies", "column", "source-classification"),
+  // dogaltas:stones KEEP_LIVE (grandfathered CANLI; mevcut koşulsuz outbox trigger — DEĞİŞMEZ).
   keepLive("dogaltas:stones", "Doğaltaş", "stones", "column", "source-classification"),
-  keepLive("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
-  keepLive("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
-  keepLive("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
-  keepLive("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
-  keepLive("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
-  keepLive("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
-  keepLive("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
+  controlled("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
+  // dogaltas:knowledge allowSharedNull=true → Worker-v2 'shared-optional-professional' capability ile READY.
+  controlledV2("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
+  controlled("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
+  // aromaterapi:oils/reference-sheets shared-optional; reference-rows shared + parent-derived → Worker-v2 READY.
+  controlledV2("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
+  controlledV2("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
+  controlledV2("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
+  controlled("aromaterapi:blends", "Aromaterapi", "aromatherapy_blends", "column", "source-classification"),
 
-  // ── E) KİŞİSEL ARŞİV (ROW_GATED_READY) — enabled:true ama unclassified → fail-closed ──
+  // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {
     sourceKey: "kisisel_arsiv:archives",
     module: "Kişisel Arşiv",
     scope: "professional",
-    activationClass: "ROW_GATED_READY",
+    activationClass: "ROW_GATED_CONTROLLED",
     sourceTable: "personal_archives",
     tenantMode: "column",
     rowGate: "row-classification-hash",
@@ -155,14 +173,15 @@ export const YH_ACTIVATION_MATRIX = [
     currentDataRisk: "pii-freeform",
     futureEventEligible: true,
     backfillEligibility: "blocked-pii",
-    triggerFeasibleNow: false,
+    // Row-gate runtime'a bağlı + column-tenant + record → CDC trigger + worker exact-write teknik fizibl.
+    triggerFeasibleNow: true,
     activationPrerequisite:
-      "Row-level classification gate'inin indexer'a bağlanması (safe-non-pii + current reviewed hash). Production yh_archive_classifications şu an 0 satır → mevcut kayıtlar OTOMATİK SAFE DEĞİL.",
+      "AYRI production kapısı: (1) migration apply (composite UNIQUE(tenant_id,id) + classification FK + archive & classification CDC trigger), (2) yh_source_activation_set('kisisel_arsiv:archives', true) — CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Row-gate indexer'a WIRED; kör backfill YASAK; mevcut kayıtlar OTOMATİK SAFE DEĞİL (yalnız yetkili review + hash eşleşmesi).",
     activationCohort: "row-gated-archive",
     rollbackBehavior:
-      "Mevcut kaynak (enabled:true) fail-closed KORUNUR: classification=unclassified → index no-op. Rollback = classification satırlarını safe-non-pii yapmayı durdurmak; index satırları korunur.",
+      "yh_source_deactivate('kisisel_arsiv:archives') (kill-switch) → yeni olay işlenmez; existing index KORUNUR. Trigger drop güvenli. Row classification safe→unsafe/edit → sonraki event tombstone.",
     recommendation:
-      "ROW_GATED_READY: Kaynak canlı ama YALNIZ safe-non-pii + current-hash geçen satır indexlenebilir. Mevcut unclassified kayıtlar (0 classification satırı) index ÜRETMEZ; kör backfill YASAK.",
+      "ROW_GATED_CONTROLLED: kaynak kod-enabled + row-gate WIRED ama production'da DB is_active=true olmadan NO-OP. YALNIZ safe-non-pii + server-türetimli current-hash geçen satır indexlenir; kör tenant backfill FAIL-CLOSED. Aktivasyon ayrı onay.",
   },
 
   // ── D) NUMEROLOJİ PROFESSIONAL (WAIT_FOR_CLEAN_RESET) — tenant test-data riski ──
@@ -204,27 +223,11 @@ export const YH_ACTIVATION_MATRIX = [
   yebs("yebs:claims", "yebs_claims"),
   yebs("yebs:concept-relations", "yebs_concept_relations"),
 
-  // ── E'/F) BELGE / VİDEO (FUTURE_ONLY_READY) — foundation BOŞ; yalnız gelecekte promoted safe passage ──
-  {
-    sourceKey: "belge_video:passages",
-    module: "Belge / Video İçerikleri",
-    scope: "professional",
-    activationClass: "FUTURE_ONLY_READY",
-    sourceTable: "yh_document_passages",
-    tenantMode: "join",
-    rowGate: "row-classification",
-    registryEnabled: false,
-    currentDataRisk: "empty-foundation",
-    futureEventEligible: true,
-    backfillEligibility: "blocked-pii",
-    triggerFeasibleNow: false,
-    activationPrerequisite:
-      "BF-11E: enabled:true + safe-non-pii passage sınıflandırması + worker join/row-unit kapsam genişletmesi + kontrollü index. Production foundation tabloları ŞU AN BOŞ.",
-    activationCohort: "document-video",
-    rollbackBehavior: DORMANT_ROLLBACK,
-    recommendation:
-      "FUTURE_ONLY_READY: Kaynak = promoted durable yh_document_passages (transient job DEĞİL). Yalnız GELECEKTE explicit promote + safe-non-pii + tenant-owned + hash-valid passage indexlenebilir. Mevcut transient job'lar ASLA backfill edilmez. Foundation boş → aktivasyon yapılsa dahi index üretmez.",
-  },
+  // ── BELGE / VİDEO: EMEKLİYE AYRILDI (ÜRÜN KARARI — NON_SOURCE) ──────────────────
+  // belge_video:passages source registry'den (YH_INDEX_SOURCES) çıkarıldığından aktivasyon
+  // matrisinde de YER ALMAZ (Yaşam Hafızası source DOMAIN'İ değil; Dijital İçerik işleme alanı
+  // transient workspace). moduleSourceMatrix NOT_MEMORY_SOURCE + deferredSourceClosure
+  // NOT_APPLICABLE ile tutarlı. Query/search/filter/CDC/backfill/reconcile source path YOK.
 
   // ── B) CLIENT SOURCES (FUTURE_ONLY_READY) — ayrı client index/RPC; test-data riski → kör backfill YASAK ──
   client("danisan:stones", "Danışan Taşı", "client_stones"),
@@ -266,6 +269,82 @@ function keepLive(
       "KEEP_LIVE: Mevcut canlı professional bilgi/katalog kaynağı. Yeni aktivasyon kapısı bu kaynağı DEĞİŞTİRMEZ; regresyonla korunur.",
   };
 }
+
+/**
+ * COHORT A CONTROLLED (FUTURE_ONLY_READY): keepLive'in eşi ancak grandfathered DEĞİL — CDC
+ * trigger migration 20261004000000 ile WIRED, fakat production'da yh_source_activation.is_active=true
+ * olmadan NO-OP (default OFF). registryEnabled:true TEK BAŞINA aktive etmez (çift kapı). Backfill
+ * YASAK (blind bulk); yalnız INSERT/UPDATE/DELETE future-event current-state indexlenir.
+ */
+function controlled(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+  tenantMode: ActivationTenantMode,
+  rowGate: ActivationRowGate,
+): ActivationMatrixEntry {
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "FUTURE_ONLY_READY",
+    sourceTable,
+    tenantMode,
+    rowGate,
+    registryEnabled: true,
+    currentDataRisk: "none",
+    futureEventEligible: true,
+    backfillEligibility: "not-applicable",
+    triggerFeasibleNow: true,
+    activationPrerequisite:
+      "AYRI production kapıları: (1) CDC trigger WIRED (migration 20261004000000; enqueue AKTİVASYON-KAPILI — is_active YOKSA sessiz NO-OP), (2) yh_source_activation_set(<sourceKey>, true) — CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Kaynak default OFF; kör backfill YASAK (yalnız future-event current-state).",
+    activationCohort: "cohort-a-professional",
+    rollbackBehavior: DORMANT_ROLLBACK,
+    recommendation:
+      "FUTURE_ONLY_READY (controlled): CDC trigger migration 20261004000000 ile WIRED ama production'da yh_source_activation.is_active=true olmadan NO-OP (default OFF). registryEnabled:true TEK BAŞINA aktive etmez (çift kapı: kod + DB flip). Backfill DEFAULT false (blind bulk YASAK); yalnız INSERT→upsert / UPDATE→refresh / DELETE→deindex future-event indexlenir. Aktivasyon ayrı production onayı.",
+  };
+}
+
+/**
+ * WORKER-V2 CONTROLLED (FUTURE_ONLY_READY): controlled()'un eşi ama worker-v2 capability kaynakları için
+ * (shared-optional / section / parent-derived). CDC trigger migration 20261210000000 ile WIRED
+ * (shared-aware + parent-side capture); production'da is_active=true olmadan NO-OP (default OFF).
+ * Worker-v1 tarafından İŞLENEMEZ ama açık capability ile worker-v2 tarafından işlenir (eventProcessor
+ * kapıları capability-gated). Backfill YASAK. capability kanıtı: sources.ts workerCapabilities + harness.
+ */
+function controlledV2(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+  tenantMode: ActivationTenantMode,
+  rowGate: ActivationRowGate,
+): ActivationMatrixEntry {
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "FUTURE_ONLY_READY",
+    sourceTable,
+    tenantMode,
+    rowGate,
+    registryEnabled: true,
+    currentDataRisk: "none",
+    futureEventEligible: true,
+    backfillEligibility: "not-applicable",
+    triggerFeasibleNow: true,
+    activationPrerequisite:
+      "AYRI production kapıları: (1) Worker-v2 CDC trigger WIRED (migration 20261210000000; shared-aware + parent-side capture; enqueue AKTİVASYON-KAPILI — is_active YOKSA sessiz NO-OP), (2) yh_source_activation_set(<sourceKey>, true). Kaynak default OFF; kör backfill YASAK. Cascade/trigger-order EXACT doğrulaması production apply öncesi preflight gate'te (scripts/yh-worker-v2/preflight.sql).",
+    activationCohort: "worker-v2-shared-section",
+    rollbackBehavior: DORMANT_ROLLBACK,
+    recommendation:
+      "FUTURE_ONLY_READY (worker-v2 controlled): shared-optional / section / parent-derived kaynak; worker-v2 capability ile işlenir (eventProcessor capability-gated; worker-v1 GLOBAL gevşetmesi YOK). CDC trigger migration 20261210000000 ile WIRED ama production'da is_active=true olmadan NO-OP (default OFF). Backfill DEFAULT false; INSERT→upsert / UPDATE→refresh / DELETE→deindex (parent-side capture cascade-safe). Aktivasyon ayrı production onayı.",
+  };
+}
+
+// DEFERRED_SHARED_WORKER_V2 sınıfı KORUNUR (ACTIVATION_CLASSES + policy + assessCohort) ancak Worker-v2
+// (migration 20261210000000) 5 kaynağa capability verdiğinden ARTIK ÜYESİ YOKTUR (0 kaynak). Sınıf,
+// gelecekte worker tarafından işlenemeyen yeni bir kaynak çıkarsa fail-closed disposition için rezerve.
+// (Eski `deferredWorkerV2()` factory'si kaldırıldı; 5 kaynak controlledV2() ile READY.)
 
 function dormantPro(
   sourceKey: string,
@@ -399,8 +478,10 @@ export function resolveProcessingActive(
 export type CohortDisposition =
   | "KEEP_LIVE" // grandfathered CANLI; kohort kavramı dışı (davranış değişmez)
   | "COHORT_1_BLOCKED" // Cohort-1 adayı; aktivasyon için exact kod önkoşulu var
+  | "COHORT_1_READY" // kod önkoşulları ÇÖZÜLDÜ (row-gate WIRED); yalnız production trigger apply + activation kaldı
   | "WAIT_FOR_CLEAN_RESET" // mevcut production verisi test-data riski → temiz reset öncesi aktive edilmez
   | "COHORT_2" // canonical/client; ayrı worker/CDC genişletmesi gerektiren sonraki faz
+  | "DEFERRED_SHARED_WORKER_V2" // worker v1 kaynağı işleyemez (shared/global tenant VEYA non-record unit); worker v2 kohortu
   | "DEFERRED_HARD_BLOCKER"; // güvenli ownership yok (matriste registry kaydı da yok)
 
 export interface CohortAssessment {
@@ -427,6 +508,11 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
           "row-level classification gate (isArchiveRowIndexable) runtime indexer'a bağlı DEĞİL + " +
           "personal_archives mevcut PII verisi → source-level safe-non-pii + row-gate wiring önkoşulu.",
       };
+    case "ROW_GATED_CONTROLLED":
+      // Kod önkoşulları çözüldü: row-gate runExactRecord'a WIRED (requiresRowEligibilityGate),
+      // server-türetimli hash (unit.contentHash), backfill-deny, classification/archive CDC.
+      // Kalan yalnız AYRI production kapıları: migration apply + trigger + is_active flip.
+      return { cohort: "COHORT_1_READY", readyGap: "" };
     case "CANONICAL_BACKFILL_CANDIDATE":
       return {
         cohort: "COHORT_2",
@@ -436,21 +522,28 @@ export function assessCohort(entry: ActivationMatrixEntry): CohortAssessment {
       };
     case "WAIT_FOR_CLEAN_RESET":
       return { cohort: "WAIT_FOR_CLEAN_RESET", readyGap: "sistem-genel test-data temiz reset (mevcut tenant verisi risk)." };
-    case "FUTURE_ONLY_READY":
-      if (entry.scope === "client") {
-        return {
-          cohort: "COHORT_2",
-          readyGap:
-            "client index (yasam_hafizasi_client_index) worker/CDC pipeline: outbox client_id taşımıyor + " +
-            "runExactUpsert client-index hedefi yok → ayrı kohort.",
-        };
-      }
-      // belge_video:passages (professional, join/row): tek test-data-siz (empty foundation) aday.
+    case "DEFERRED_SHARED_WORKER_V2":
+      // Worker v1 (eventProcessor) bu kaynağı hiç işleyemez (shared/global tenant VEYA non-record unit).
+      // Cohort A'da trigger BAĞLANMAZ; aktivasyona hazır DEĞİL → ayrı worker v2 kohortu (readyGap dolu).
       return {
-        cohort: "COHORT_1_BLOCKED",
+        cohort: "DEFERRED_SHARED_WORKER_V2",
         readyGap:
-          "indexer/indexSourcePage runExactRecord join-tenant + row-unit desteği (şu an column-only " +
-          "'tenant-model-unsupported') + eventProcessor tenant-model/unit gate genişletmesi.",
+          "worker v2: shared/global tenant (outbox tenant_id NULL + allowShared) VEYA non-record (section) unit " +
+          "desteği + doğru CDC/update/delete/deindex; ayrı kohort.",
+      };
+    case "FUTURE_ONLY_READY":
+      // COHORT A PROFESSIONAL: kod önkoşulları ÇÖZÜLDÜ (registry + matris + CDC trigger WIRED
+      // migration 20261004000000). Kalan yalnız AYRI production kapıları: trigger apply + is_active
+      // flip → COHORT_1_READY (readyGap boş; belge_video ÜRÜN KARARIYLA NON_SOURCE, matriste yok).
+      if (entry.scope === "professional") {
+        return { cohort: "COHORT_1_READY", readyGap: "" };
+      }
+      // CLIENT: ayrı client index (yasam_hafizasi_client_index) worker/CDC pipeline gerektirir.
+      return {
+        cohort: "COHORT_2",
+        readyGap:
+          "client index (yasam_hafizasi_client_index) worker/CDC pipeline: outbox client_id taşımıyor + " +
+          "runExactUpsert client-index hedefi yok → ayrı kohort.",
       };
     case "DEFERRED_HARD_BLOCKER":
       return { cohort: "DEFERRED_HARD_BLOCKER", readyGap: "güvenli client-owned entity yok (registry kaydı da yok)." };
@@ -465,6 +558,40 @@ export function sourceKeysByCohort(cohort: CohortDisposition): string[] {
 }
 
 // ─── Bütünlük doğrulaması (import-zamanı güvenlik + harness) ──────────────────
+
+/**
+ * eventProcessor (worker v1) Kapı 5/6/7'nin SAF aynası: bir registry kaynağı worker v1 tarafından
+ * exact-record CDC ile işlenebilir mi. (Kapı 5) tenant modeli column|join, (Kapı 6) allowSharedNull
+ * DEĞİL, (Kapı 7) unit record|row. Herhangi biri sağlanmazsa worker v1 permanent reject → DEFERRED.
+ * Bu SAF ayna import-zamanı invariant içindir; harness ayrıca GERÇEK processOutboxEvent ile kanıtlar.
+ */
+function isWorkerV1ProcessableConfig(src: (typeof YH_INDEX_SOURCES)[number]): boolean {
+  const t = src.tenant;
+  const allowShared = (t as { allowSharedNull?: boolean }).allowSharedNull === true;
+  const tenantOk = (t.mode === "column" || t.mode === "join") && !allowShared;
+  const unitOk = src.unit === "record" || src.unit === "row";
+  return tenantOk && unitOk;
+}
+
+/**
+ * WORKER-V2 kapsamı: shared-optional / section / parent-derived kaynak, açık capability ile worker-v2
+ * (capability-gated eventProcessor) tarafından işlenir. Worker-v2-processable = column|join tenant modeli
+ * VE en az bir worker capability (shared-optional-professional / section-unit / parent-derived-scope).
+ * global-canonical worker-v2 kapsamında DEĞİL (YEBS ayrı kohort).
+ */
+function isWorkerV2ProcessableConfig(src: (typeof YH_INDEX_SOURCES)[number]): boolean {
+  if (src.tenant.mode !== "column" && src.tenant.mode !== "join") return false;
+  return (
+    hasWorkerCapability(src, "shared-optional-professional") ||
+    hasWorkerCapability(src, "section-unit") ||
+    hasWorkerCapability(src, "parent-derived-scope")
+  );
+}
+
+/** Worker (v1 VEYA v2 capability) tarafından işlenebilir mi (readiness invariant çekirdeği). */
+function isWorkerProcessableConfig(src: (typeof YH_INDEX_SOURCES)[number]): boolean {
+  return isWorkerV1ProcessableConfig(src) || isWorkerV2ProcessableConfig(src);
+}
 
 const KNOWN_TENANT_MODES: readonly ActivationTenantMode[] = ["column", "join", "global-canonical"];
 const KNOWN_ROW_GATES: readonly ActivationRowGate[] = [
@@ -498,6 +625,10 @@ export function validateActivationMatrix(): void {
       // DEFERRED_HARD_BLOCKER kaynağın registry'de KAYDI OLMAMALI → matriste de yer almaz.
       throw new Error(`DEFERRED_HARD_BLOCKER matriste kaynak taşıyamaz: ${e.sourceKey}`);
     }
+    if (e.activationClass === "DEFERRED_SHARED_WORKER_V2" && e.scope !== "professional") {
+      // Worker v1 shared/non-record deferral yalnız professional index kaynaklarına aittir.
+      throw new Error(`DEFERRED_SHARED_WORKER_V2 yalnız professional olabilir: ${e.sourceKey}`);
+    }
     if (!KNOWN_TENANT_MODES.includes(e.tenantMode)) {
       throw new Error(`Geçersiz tenant modu: ${e.sourceKey} → ${e.tenantMode}`);
     }
@@ -514,6 +645,18 @@ export function validateActivationMatrix(): void {
       }
       if (src.enabled !== e.registryEnabled) {
         throw new Error(`registryEnabled drift: ${e.sourceKey} (matris ${e.registryEnabled} ≠ registry ${src.enabled})`);
+      }
+      // WORKER-V1 PARİTE İNVARYANTI (code=runtime): FUTURE_ONLY_READY professional kaynak worker v1
+      // tarafından GERÇEKTEN işlenebilir olmalı; DEFERRED_SHARED_WORKER_V2 kaynak GERÇEKTEN işlenemez
+      // olmalı (aksi = yanlış readiness/defer iddiası). eventProcessor Kapı 5/6/7 aynası.
+      // WORKER PARİTE İNVARYANTI (code=runtime): FUTURE_ONLY_READY professional kaynak worker (v1 VEYA
+      // v2 capability) tarafından GERÇEKTEN işlenebilir olmalı; DEFERRED_SHARED_WORKER_V2 kaynak hâlâ
+      // işlenemez olmalı (worker-v2 capability atanmışsa READY'ye taşınmalıydı).
+      if (e.activationClass === "FUTURE_ONLY_READY" && !isWorkerProcessableConfig(src)) {
+        throw new Error(`FUTURE_ONLY_READY ama worker (v1/v2) işleyemez: ${e.sourceKey}`);
+      }
+      if (e.activationClass === "DEFERRED_SHARED_WORKER_V2" && isWorkerProcessableConfig(src)) {
+        throw new Error(`DEFERRED_SHARED_WORKER_V2 ama worker işleyebilir (capability ile READY olmalı): ${e.sourceKey}`);
       }
     } else {
       const src = cliByKey.get(e.sourceKey);

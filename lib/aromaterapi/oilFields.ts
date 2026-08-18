@@ -6,14 +6,17 @@
  * yalnız aşağıdaki yazılabilir alanlar DB'ye geçer (tenant_id daima oturumdan).
  */
 
-// Liste görünümünde çekilen hafif projeksiyon (OilListRow ile birebir).
-// origin_type → uzman UI'da "🎁 Adminden Gelen Bilgi" rozeti için (provenance).
+// FAZ 2 — SLIM liste projeksiyonu. Arama server-side `search_norm`'a taşındığı için
+// listeye artık 21 aranabilir alanın tamamını göndermeye gerek YOK; yalnız kartın +
+// önizlemenin (oilListRowPreview: physical/emotional_benefits/benefits/aroma_profile) +
+// blend typeahead'in (name/latin_name/is_photosensitive) gerçekten kullandığı alanlar
+// çekilir → satır payload'u ~yarıya iner. Ağır detay/arama-only metin alanları
+// (main_components, skin/spiritual_benefits, diffuser/massage/usage_methods, safety_notes,
+// origin, plant_part, chakra/element_connection, therapeutic_properties[], target_systems[])
+// yalnız DETAY'da (fetchOilDetail full-row) gelir. origin_type teknik provenance için küçük tutulur.
 export const OIL_LIST_SELECT =
-  "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
-  "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +
-  "spiritual_benefits,diffuser_usage,massage_usage,usage_methods,safety_notes," +
-  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
-  "origin_type";
+  "id,tenant_id,name,latin_name,english_name,oil_type,category,is_photosensitive,origin_type," +
+  "aroma_profile,physical_benefits,emotional_benefits,benefits";
 
 const OIL_STRING_FIELDS = [
   "name", "latin_name", "english_name", "oil_type", "category",

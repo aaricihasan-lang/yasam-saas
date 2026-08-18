@@ -56,6 +56,10 @@ export function isValidatedTenantScope(v: unknown): v is ValidatedTenantScope {
 export function supportsTenantScopedPage(config: SourceConfig): boolean {
   if (config.enabled !== true) return false;
   if (config.classification !== "safe-non-pii") return false;
+  // BF-11E ROW-GATED CONTROLLED (Kişisel Arşiv): satır-seviyesi eligibility kapısı gerektiren
+  // kaynak, source-level 'safe-non-pii' olsa DAHİ kör tenant-scoped backfill/page'e AÇILMAZ
+  // (blind bulk indexleme = PII sızma yüzeyi). Tek yol: CDC event + zorunlu row-gate. FAIL-CLOSED.
+  if (config.requiresRowEligibilityGate === true) return false;
   if (config.tenant.mode !== "column") return false;
   if (config.tenant.allowSharedNull === true) return false;
   if (typeof config.tenant.column !== "string" || config.tenant.column.trim().length === 0) {

@@ -35,8 +35,14 @@ import {
 import type { ParentPreloadStats, RunSourceResult } from "./runSource";
 import { runSource, TenantFilterMismatchError } from "./runSource";
 import { runIndexUnit, summarizeRunResults, type RunSummary } from "./runIndexUnit";
-import type { SourceConfig } from "./sources";
+import { makeParentTenantLookup } from "./parentTenantLookup";
+import type { ParentTenantLookup } from "./tenantResolve";
+import { hasWorkerCapability, type SourceConfig } from "./sources";
 import { isIndexableSource } from "./sourceGuard";
+import {
+  decideArchiveEligibility,
+  type ArchiveEligibilityPort,
+} from "./archiveEligibility";
 import {
   isValidatedTenantScope,
   supportsTenantScopedPage,
@@ -60,7 +66,8 @@ export type ExactWriteStatus =
   | "excluded-synthetic" // sentetik (ADMIN_LIBRARY) tenant
   | "excluded-shared" // tenant_id NULL (shared) → exact pilotta reddedilir
   | "source-id-mismatch" // üretilen unit.sourceId ≠ exactSourceId
-  | "tenant-mismatch"; // üretilen unit.tenantId ≠ expectedTenantId
+  | "tenant-mismatch" // üretilen unit.tenantId ≠ expectedTenantId
+  | "row-ineligible"; // BF-11E row-gate: safe-non-pii + current-hash geçmeyen kayıt (tombstone yolu)
 
 /**
  * BF-0 son savunma hatası (INV-PII): route dışından doğrudan çağrılıp `safe-non-pii`
@@ -100,6 +107,19 @@ export class SourceTenantScopeUnsupportedError extends Error {
 }
 
 /**
+ * BF-11E ROW-GATE FAIL-CLOSED: `requiresRowEligibilityGate` kaynak için eligibility portu
+ * ENJEKTE EDİLMEMİŞSE (yanlış-wiring), yazma öncesi fırlatılır. Bilinen "ineligible" DEĞİLDİR
+ * (iyi veriyi tombstone ETMEZ); worker bunu GEÇİCİ hata olarak ele alır (yazma/silme YOK).
+ * Production worker + admin route DAİMA portu enjekte eder.
+ */
+export class ArchiveEligibilityGateMissingError extends Error {
+  constructor() {
+    super("archive-eligibility-gate-missing");
+    this.name = "ArchiveEligibilityGateMissingError";
+  }
+}
+
+/**
  * Girdi. `config` statik allowlist'ten (`YH_INDEX_SOURCES`) gelmelidir; mevcut
  * `sources.ts` sourceKey→config registry export etmediğinden ve o dosya korunan
  * olduğundan, config caller tarafından statik olarak verilir (registry uydurulmaz).
@@ -127,6 +147,13 @@ export interface IndexSourcePageInput {
    * (çağıran/validate katmanı garanti eder).
    */
   readonly validatedTenantScope?: ValidatedTenantScope;
+  /**
+   * BF-11E ROW-GATE (Kişisel Arşiv): `config.requiresRowEligibilityGate === true` kaynaklarda
+   * ZORUNLU. exact-record yazma öncesi built unit'in server-türetimli contentHash'i ile ayrı
+   * classification tablosundaki (safe-non-pii + reviewed_content_hash) karşılaştırılır. Enjekte
+   * EDİLMEZSE ilgili kaynakta yazma fail-closed durur (ArchiveEligibilityGateMissingError).
+   */
+  readonly archiveEligibility?: ArchiveEligibilityPort;
 }
 
 /** Sonuç — yalnız güvenli sayılar/özet; ham unit veya demo içeriği taşımaz. */
@@ -356,8 +383,16 @@ async function runExactRecord(
     exactStatus: status,
   });
 
-  // Exact pilot YALNIZ column-mode + non-shared kaynak (join/shared fail-closed).
-  if (config.tenant.mode !== "column" || config.tenant.allowSharedNull === true) {
+  // Exact write: column|join. global-canonical fail-closed. Worker-v2: shared (allowSharedNull)
+  // YALNIZ 'shared-optional-professional' capability ile; aksi fail-closed. Section (unit) build
+  // yolunda değerlendirilir (runIndexUnit); burada model kapısı yalnız tenant modelidir.
+  if (config.tenant.mode === "global-canonical") {
+    return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
+  }
+  if (
+    config.tenant.allowSharedNull === true &&
+    !hasWorkerCapability(config, "shared-optional-professional")
+  ) {
     return reject("tenant-model-unsupported", 0, ZERO_SUMMARY, 0, 0);
   }
 
@@ -373,21 +408,92 @@ async function runExactRecord(
   if (fetched === 0) return reject("not-found", 0, ZERO_SUMMARY, 0, 0);
   if (fetched > 1) return reject("multiple-rows", fetched, ZERO_SUMMARY, 0, 0);
 
-  // Tek satır → saf çekirdek (S2.08). Column mode: parentLookup gerekmez.
-  const runRes = runIndexUnit({ config, row: page.rows[0] });
+  // Join-mode: parent (yh_document_sources) üzerinden tenant sahipliğini SERVER-SIDE çöz
+  //   (composite ownership; body/input tenant'a güvenilmez). Column-mode: parentLookup gerekmez.
+  //   FK eksik/parent yok → resolveTenant fail-closed → skipped-build → defensiveDeindex (stale temizlenir).
+  let parentLookup: ParentTenantLookup | undefined;
+  if (config.tenant.mode === "join") {
+    const fkRaw = page.rows[0][config.tenant.fkColumn];
+    const parentIds = typeof fkRaw === "string" && fkRaw.length > 0 ? [fkRaw] : [];
+    const parentReader = createSupabaseParentTenantReader(db);
+    const map = await parentReader.readParentTenants({
+      parentTable: config.tenant.parentTable,
+      parentTenantColumn: config.tenant.parentTenantColumn,
+      parentIds,
+    });
+    parentLookup = makeParentTenantLookup(map);
+
+    // Worker-v2 PARENT ELIGIBILITY (parentActiveColumn; ör. reference-rows → sheet.is_active):
+    // Child'ın current-state eligibility'si parent aktifliğine BAĞLI. Parent is_active=true DEĞİL
+    // (inactive / bulunamadı / reader desteklemiyor) → skipped-build → defensiveDeindex (stale child = 0).
+    // Tenant/shared scope aynı parent join'inden çözüldüğü için scope'tan BAĞIMSIZ (tenant + shared).
+    if (config.tenant.parentActiveColumn) {
+      if (parentIds.length === 0 || typeof parentReader.readParentActive !== "function") {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+      const activeMap = await parentReader.readParentActive({
+        parentTable: config.tenant.parentTable,
+        parentActiveColumn: config.tenant.parentActiveColumn,
+        parentIds,
+      });
+      if (activeMap.get(parentIds[0]) !== true) {
+        return reject("skipped-build", fetched, ZERO_SUMMARY, 0, 0);
+      }
+    }
+  }
+
+  // Tek satır → saf çekirdek (S2.08). Row-unit + join tenant (varsa) burada değerlendirilir.
+  const runRes = runIndexUnit({ config, row: page.rows[0], parentLookup });
   const summary = summarizeRunResults([runRes]);
   if (runRes.status !== "unit") {
     return reject("skipped-build", fetched, summary, 0, 0);
   }
   const unit = runRes.unit;
 
-  // Dışlama + exact eşleşme (fail-closed sıra: demo → sentetik → shared → id → tenant).
+  // Dışlama + exact eşleşme (fail-closed sıra: demo → sentetik → id → shared/tenant).
   if (unit.tenantId === YH_DEMO_TENANT_ID) return reject("excluded-demo", fetched, summary, 1, 0);
-  if (isSyntheticTenantId(unit.tenantId)) return reject("excluded-synthetic", fetched, summary, 0, 1);
-  if (unit.tenantId === null) return reject("excluded-shared", fetched, summary, 0, 0);
+  if (unit.tenantId !== null && isSyntheticTenantId(unit.tenantId)) {
+    return reject("excluded-synthetic", fetched, summary, 0, 1);
+  }
   if (unit.sourceId !== exactSourceId) return reject("source-id-mismatch", fetched, summary, 0, 0);
-  if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
+  // Worker-v2 shared/tenant eşleşmesi:
+  //   - SHARED satır (tenant NULL): yalnız shared-capable kaynak + SHARED olay (expectedTenantId NULL).
+  //     capability yoksa excluded-shared (v1 davranışı); olay tenant-scoped ise tenant-mismatch.
+  //   - TENANT satır: SHARED olay (expected NULL) bir tenant satırıyla eşleşemez → tenant-mismatch;
+  //     aksi expectedTenantId birebir eşleşmeli.
+  if (unit.tenantId === null) {
+    if (!hasWorkerCapability(config, "shared-optional-professional")) {
+      return reject("excluded-shared", fetched, summary, 0, 0);
+    }
+    if (expectedTenantId !== null) {
+      return reject("tenant-mismatch", fetched, summary, 0, 0);
+    }
+  } else if (expectedTenantId === null || unit.tenantId !== expectedTenantId) {
     return reject("tenant-mismatch", fetched, summary, 0, 0);
+  }
+
+  // BF-11E ROW-GATE (Kişisel Arşiv; requiresRowEligibilityGate): source-level guard'ları geçen
+  // kayıt YALNIZ ayrı classification tablosunda safe-non-pii + server-türetimli current content
+  // hash (unit.contentHash) eşleşiyorsa yazılır. Bu chokepoint TÜM exact yolları (event + reconcile
+  // apply, aynı worker) kapsar; bypass yolu YOKTUR.
+  //   - port yok (yanlış-wiring)         → THROW (fail-closed transient; yazma/silme YOK)
+  //   - port GERÇEK DB hatası            → THROW (transient; iyi veri tombstone EDİLMEZ)
+  //   - lookup missing / unsafe / stale  → "row-ineligible" → defensiveDeindex (stale tombstone)
+  if (config.requiresRowEligibilityGate === true) {
+    if (input.archiveEligibility === undefined) {
+      throw new ArchiveEligibilityGateMissingError();
+    }
+    // Row-gate kaynakları (Kişisel Arşiv) DAİMA tenant-scoped'tur (shared capability YOK). SHARED bir
+    // satır buraya ULAŞAMAZ (üstteki eşleşme excluded-shared/tenant-mismatch verirdi); defansif narrow.
+    if (unit.tenantId === null) return reject("tenant-mismatch", fetched, summary, 0, 0);
+    // unit.tenantId burada expectedTenantId ile birebir (üstteki guard); unit.sourceId === exactSourceId.
+    const lookup = await input.archiveEligibility({
+      tenantId: unit.tenantId,
+      archiveId: unit.sourceId,
+    });
+    if (!decideArchiveEligibility(lookup, unit.contentHash)) {
+      return reject("row-ineligible", fetched, summary, 0, 0);
+    }
   }
 
   // Tüm exact guard'lar PASS → tam 1 eligible unit. Yalnız write modunda writer çağrılır.

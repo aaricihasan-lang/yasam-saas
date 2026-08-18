@@ -13,6 +13,7 @@ import {
   READ_MAX_LIMIT,
   READ_MAX_Q_LEN,
 } from "@/lib/aromaterapi/readTypes";
+import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 
 export const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -154,4 +155,31 @@ export function safeIlikePattern(q: string): string {
 export function buildOrIlike(columns: readonly string[], q: string): string {
   const pattern = safeIlikePattern(q);
   return columns.map((c) => `${c}.ilike.${pattern}`).join(",");
+}
+
+/**
+ * Türkçe-normalize arama: kullanıcı q'sunu ARAMA sözleşmesiyle (searchNormalize.ts,
+ * SQL `aromatherapy_search_normalize` ile byte-eş) normalize eder ve tablonun
+ * generated `search_norm` kolonu üzerinde PostgREST `.or(...ilike...)` ifadesi üretir.
+ *
+ * `search_norm` zaten SEARCH_COLS kapsamının normalize birleşimidir → tek kolon
+ * araması eski çok-kolon `.ilike` kapsamını DARALTMAZ. q önce normalize, sonra
+ * `safeIlikePattern` ile PostgREST kontrol karakterlerine karşı sanitize edilir
+ * (enjeksiyon güvenliği korunur). Boş/yalnız-sembol q → boş pattern (`**`), tüm
+ * satırlar eşleşir; çağıran zaten yalnız `p.q` doluyken uygular.
+ */
+export function buildSearchNormIlike(q: string): string {
+  return buildOrIlike(["search_norm"], normalizeForSearch(q));
+}
+
+/**
+ * Türkçe-normalize KİMLİK araması (Karışım Oluşturucu identity-only typeahead).
+ * `identity_norm` generated kolonu (name+latin_name+english_name normalize birleşimi;
+ * migration 20261005000000) üzerinde arar → ham ILIKE'in Türkçe-fold boşluğunu kapatır
+ * ("adacayi"→"Adaçayı", "corek"→"Çörek", "isirgan"→"Isırgan"). İçerik alanları KAPSAM
+ * DIŞI (search_norm'dan ayrı) → typeahead'in identity-only sözleşmesi korunur. q önce
+ * `normalizeForSearch` (SQL normalizer ile byte-eş), sonra `safeIlikePattern` ile sanitize.
+ */
+export function buildIdentityNormIlike(q: string): string {
+  return buildOrIlike(["identity_norm"], normalizeForSearch(q));
 }

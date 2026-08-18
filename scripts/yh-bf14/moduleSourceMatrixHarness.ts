@@ -75,11 +75,11 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("client-registry-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_INDEX_SOURCES.length));
   add("client-source-keys-unique", new Set(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_CLIENT_INDEX_SOURCES.length);
 
-  // EXISTING_LIVE_PROFESSIONAL: mevcut 17 canlı kaynak DEĞİŞMEDİ (enabled:true sayısı 17).
-  add("existing-live-professional-17", live.length === 17, `live=${live.length}`);
-  // DORMANT professional: 2 numeroloji + 6 yebs + 1 belge_video = 9 (hepsi enabled:false).
-  add("professional-registry-total-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
-  add("new-dormant-professional-9", dormantPro.length === 9 && dormantPro.every((s) => /^(numeroloji|yebs|belge_video):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
+  // LIVE_PROFESSIONAL: Cohort A ile 2 yeni Biyoenerji professional kaynağı eklendi (17→19 canlı).
+  add("existing-live-professional-19", live.length === 19, `live=${live.length}`);
+  // DORMANT professional: 2 numeroloji + 6 yebs = 8 (hepsi enabled:false). Registry toplam 25→27.
+  add("professional-registry-total-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("new-dormant-professional-9", dormantPro.length === 8 && dormantPro.every((s) => /^(numeroloji|yebs):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
   add("numerology-sources-enabled-false", num.length === 2 && num.every((s) => s.enabled === false), String(num.length));
   add("professional-source-keys-unique", new Set(YH_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_INDEX_SOURCES.length);
 }
@@ -103,8 +103,8 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // numerology_knowledge_records (repo'da CREATE TABLE yok) BAĞLANMADI.
   add("num-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));
   // Family additif genişledi (mevcut 6 korunur + numeroloji).
-  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 9);
-  add("family-has-yebs-belge", (YH_SOURCE_MODULES as readonly string[]).includes("yebs") && (YH_SOURCE_MODULES as readonly string[]).includes("belge_video"));
+  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 8);
+  add("family-has-yebs-excludes-belge", (YH_SOURCE_MODULES as readonly string[]).includes("yebs") && !(YH_SOURCE_MODULES as readonly string[]).includes("belge_video"));
   add("family-preserves-existing", ["refleksoloji", "sifa_rehberi", "biyoenerji", "dogaltas", "aromaterapi", "kisisel_arsiv"].every((m) => (YH_SOURCE_MODULES as readonly string[]).includes(m)));
   add("numeroloji-module-label", YH_MODULE_LABELS.numeroloji === "Numeroloji");
 }
@@ -144,10 +144,11 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("kozmik-not-memory", entry("kozmik_ajanda")?.classification === "NOT_MEMORY_SOURCE" && (entry("kozmik_ajanda")?.professionalSourceKeys.length ?? 1) === 0 && (entry("kozmik_ajanda")?.clientSourceKeys.length ?? 1) === 0);
 
   // Belge/Video: DEFERRED, kaynak yok, arbitrary indexleme yasağı.
-  add("belge-wired-dormant", entry("belge_video")?.classification === "DORMANT_READY" && ((entry("belge_video")?.professionalSourceKeys ?? []) as readonly string[]).includes("belge_video:passages") && denyHas("belge_video", "transient job"));
+  // belge_video ÜRÜN KARARIYLA NON_MEMORY_SOURCE'a taşındı (retirement); kaynak taşımaz.
+  add("belge-not-memory-source", entry("belge_video")?.classification === "NOT_MEMORY_SOURCE" && (entry("belge_video")?.professionalSourceKeys.length ?? 1) === 0 && (entry("belge_video")?.clientSourceKeys.length ?? 1) === 0);
 
-  // Kişisel Arşiv: DEFERRED.
-  add("kisisel-arsiv-deferred", entry("kisisel_arsiv")?.classification === "DEFERRED_FOR_SAFETY");
+  // Kişisel Arşiv: BF-11E ROW-GATED CONTROLLED → FOUNDATION_READY (foundation WIRED; aktivasyon ayrı kapı).
+  add("kisisel-arsiv-foundation-ready", entry("kisisel_arsiv")?.classification === "FOUNDATION_READY" && ((entry("kisisel_arsiv")?.professionalSourceKeys as readonly string[] | undefined)?.includes("kisisel_arsiv:archives") ?? false));
 }
 
 // ── 5) DORMANT_READY tutarlılığı: en az bir gerçek kaynak referansı ──

@@ -126,14 +126,22 @@ for (const key of [
 check("G aromaterapi başarı satırı", clientTransfer.includes("Aromaterapi yağ"));
 check("G sumAromatherapyOilCounts export", clientTransfer.includes("export function sumAromatherapyOilCounts"));
 
-// ── H) Provenance sunumu — uzman UI ──────────────────────────────────────────
-check("H isAdminTransferOil export", dataLib.includes("export function isAdminTransferOil"));
-check("H ADMIN_TRANSFER_BADGE export", dataLib.includes("export const ADMIN_TRANSFER_BADGE"));
-check("H badge metni 'Adminden Gelen Bilgi'", dataLib.includes("Adminden Gelen Bilgi"));
-check("H OilListRow origin_type içerir", dataLib.includes('| "origin_type"'));
-check("H OIL_LIST_SELECT origin_type çeker", oilFields.includes("origin_type"));
-check("H OilsPage provenance rozeti", oilsPage.includes("isAdminTransferOil(row)"));
-check("H detay provenance rozeti", detailPage.includes("isAdminTransfer"));
+// ── H) Provenance ETİKETİ KALDIRILDI — uzman UI (ürün kararı 2026-08-11) ──────
+// Görsel/tekst provenance rozeti GÖSTERİLMEZ; ama backend provenance verisi +
+// snapshot mantığı + edit/delete KORUNUR.
+const badgeComponent = read("components/provenance/AdminTransferBadge.tsx");
+check("H1 isAdminTransferOil helper kaldırıldı", !dataLib.includes("export function isAdminTransferOil"));
+check("H2 ADMIN_TRANSFER_BADGE kaldırıldı", !dataLib.includes("ADMIN_TRANSFER_BADGE"));
+check("H3 'Adminden Gelen Bilgi' metni yok (dataLib)", !dataLib.includes("Adminden Gelen Bilgi"));
+check("H4 OilListRow origin_type ALANI KORUNDU", dataLib.includes('| "origin_type"'));
+check("H5 OIL_LIST_SELECT origin_type KORUNDU (contract)", oilFields.includes("origin_type"));
+check("H6 OilsPage provenance rozeti kaldırıldı",
+  !oilsPage.includes("isAdminTransferOil(row)") && !oilsPage.includes("ADMIN_TRANSFER_BADGE"));
+check("H7 detay provenance rozeti/banner kaldırıldı",
+  !detailPage.includes("ADMIN_TRANSFER_BADGE") && !detailPage.includes("isAdminTransfer"));
+check("H8 merkezî AdminTransferBadge null render eder",
+  /return null;/.test(badgeComponent) && !badgeComponent.includes("🎁"));
+check("H9 merkezî bileşen çağrı kontratı korundu (Props)", badgeComponent.includes("type Props"));
 
 // ── I) Kütüphane framing kaldırıldı — uzman UI ───────────────────────────────
 check("I detay 'Paylaşımlı' rozeti kaldırıldı", !detailPage.includes("🔒 Paylaşımlı"));
@@ -185,9 +193,9 @@ check("L16 admin UI stone_knowledge_articles aktif", adminUi.includes('key: "sto
 check("L17 admin UI granular knowledge anahtarı", adminUi.includes('key === "stone_knowledge_articles"'));
 check("L18 admin UI 'Henüz tenant tablosu' placeholder kaldırıldı",
   !adminUi.includes("Henüz tenant tablosu tanımlı değil"));
-// Uzman UI provenance
-check("L19 knowledge Article origin_type alanı", knowledgePage.includes("origin_type"));
-check("L20 knowledge provenance rozeti", knowledgePage.includes("Adminden Gelen Bilgi"));
+// Uzman UI provenance — veri KORUNUR, görsel ETİKET KALDIRILDI
+check("L19 knowledge Article origin_type alanı KORUNDU", knowledgePage.includes("origin_type"));
+check("L20 knowledge provenance rozeti KALDIRILDI", !knowledgePage.includes("Adminden Gelen Bilgi"));
 check("L21 knowledge 'kütüphane kaydı atlandı' framing kaldırıldı",
   !knowledgePage.includes("kütüphane kaydı atlandı"));
 // Migration

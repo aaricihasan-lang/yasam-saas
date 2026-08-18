@@ -1,0 +1,260 @@
+/**
+ * BİYOENERJİ FAZ 3.2C — Çakra workspace merge (UI-only, saf çekirdek).
+ *
+ * FAZ 3.1 legacy section modeli (`buildChakraSections`) ile FAZ 3.2 rich child
+ * bloklarını (`bioenergy_chakra_blocks`) + parent quick fact'leri DETERMİNİSTİK
+ * birleştirir. Veri yazma/dönüşüm YOK; yalnız sunum birleştirmesi.
+ *
+ * Kilitli sözleşme (FAZ 3.2B):
+ *  - authority: legacy/parent = atomik fact; rich = elaborasyon (duplicate YOK)
+ *  - görünürlük: section görünür ⟺ legacy içerik VEYA ≥1 non-empty rich block
+ *    VEYA (yalnız Genel Bakış) quick fact — placeholder YOK
+ *  - future section'lar (enerji-anatomisi, uygulamalar) yalnız blok gelince görünür
+ *  - rich sıralama: sort_order ASC → created_at ASC → id ASC (deterministik)
+ *  - içerik katmanları AYRI korunur (kaynak ≠ çeviri ≠ açıklama ≠ yorum ≠ not)
+ */
+import {
+  buildChakraSections,
+  CHAKRA_SECTION_DICTIONARY,
+  type ChakraSection,
+  type ChakraSectionBlock,
+  type ChakraSectionId,
+  type ChakraSectionInput,
+} from "./chakraSections";
+
+/** Genel Bakış dahil tüm kanonik section anahtarları (future 2 dahil). */
+export type ChakraWorkspaceSectionKey =
+  | ChakraSectionId
+  | "enerji-anatomisi"
+  | "uygulamalar";
+
+/** DB satırı → rich content block (read API'nin döndürdüğü güvenli alanlar). */
+export type ChakraContentBlock = {
+  id: string;
+  section_key: string;
+  block_type: string | null;
+  block_title: string | null;
+  sort_order: number;
+  source_excerpt: string | null;
+  source_translation: string | null;
+  editorial_explanation: string | null;
+  editorial_interpretation: string | null;
+  expert_note: string | null;
+  source_title: string | null;
+  source_author: string | null;
+  source_ref: string | null;
+  source_url: string | null;
+  tradition_frame: string | null;
+  created_at: string | null;
+};
+
+/** Parent additive quick facts (yalnız Genel Bakış). */
+export type ChakraQuickFacts = {
+  sanskritName: string | null;
+  element: string | null;
+  location: string | null;
+  bijaMantra: string | null;
+};
+
+export type ChakraQuickFactRow = { key: string; label: string; value: string };
+
+export type ChakraWorkspaceSection = {
+  id: ChakraWorkspaceSectionKey;
+  hash: string;
+  title: string;
+  kind: "content" | "stones";
+  /** legacy-preserved bloklar (buildChakraSections'tan; DEĞİŞMEZ) */
+  legacyBlocks: ChakraSectionBlock[];
+  /** yalnız Genel Bakış — gerçek değer taşıyan parent quick facts */
+  quickFacts: ChakraQuickFactRow[];
+  /** rich child blocks — yalnız non-empty, deterministik sıralı */
+  richBlocks: ChakraContentBlock[];
+};
+
+/** Kanonik section sırası (CHAKRA_SECTION_DICTIONARY ile birebir). */
+export const CHAKRA_WORKSPACE_ORDER: ChakraWorkspaceSectionKey[] = [
+  "genel-bakis",
+  "enerji-anatomisi",
+  "nedenler-blokajlar",
+  "beden-sistem",
+  "duygusal-zihinsel",
+  "uygulamalar",
+  "taslar-destekleyiciler",
+  "notlar-kaynaklar",
+];
+
+const CONTENT_LAYER_KEYS = [
+  "source_excerpt",
+  "source_translation",
+  "editorial_explanation",
+  "editorial_interpretation",
+  "expert_note",
+] as const;
+
+/** Bir block en az bir non-empty içerik katmanı taşıyor mu? (boş block gizli) */
+export function chakraBlockHasContent(b: ChakraContentBlock): boolean {
+  return CONTENT_LAYER_KEYS.some((k) => (b[k] ?? "").trim().length > 0);
+}
+
+/**
+ * FAZ 3.3E — gizli kaynak-kanıtı block tipi. Bu satırlar normal Çakra detayında
+ * RENDER EDİLMEZ; yalnız sayfa sonundaki TEK Kaynakça'yı (distinct eser) besler.
+ */
+export const SOURCE_EVIDENCE_BLOCK_TYPE = "source-evidence";
+
+/** Görünür (uzman-facing) block mı? source-evidence → görünür DEĞİL. */
+export function isVisibleChakraBlock(b: ChakraContentBlock): boolean {
+  return b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE;
+}
+
+export type ChakraBibliographyEntry = { title: string; author: string | null };
+
+/**
+ * Biyoenerji yerel corpus'unun KANONİK editoryal kaynak sırası (source_title ile
+ * birebir). Bibliyografya sırası bu diziye göre DETERMİNİSTİK üretilir; böylece
+ * çıktı sorgu/DB satır dönüş sırasından BAĞIMSIZDIR. Bu genel bir corpus özelliğidir
+ * (belirli bir çakraya hardcode DEĞİL); listede olmayan kaynak alfabetik fallback'e
+ * düşer, diğer çakralar için regresyon üretmez. Kök Çakra V4 (11 eser) tam bu sırayı üretir.
+ */
+export const CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER: readonly string[] = [
+  "Gizli Enerji Terapileri",
+  "Aura ve Çakra Kullanma Kılavuzu",
+  "Chakralar-Reiki Enerji ve Kuantum Merkezi",
+  "Enerji Tıbbı",
+  "7 Gün 7 Çakra 7 Bioenerji Çalışması",
+  "Bilinçaltını Açan Anahtar: Kinesiyoloji",
+  "Biyoenerji",
+  "Ruhun 7 Kapısı",
+  "Kuantum Dokunuş: Şifa Verme Gücü",
+  "AURA'lar: Yorumlama ve Anlama",
+  "Titreşimini Yükselt Hayatın Değişsin",
+];
+
+const EDITORIAL_RANK: ReadonlyMap<string, number> = new Map(
+  CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER.map((t, i) => [t, i]),
+);
+
+/** Kanonik editoryal rank (yoksa +∞ → alfabetik fallback bölgesi). */
+function bibliographyRank(title: string): number {
+  const r = EDITORIAL_RANK.get(title);
+  return r === undefined ? Number.POSITIVE_INFINITY : r;
+}
+
+/**
+ * TEK Kaynakça — yalnız `source-evidence` satırlarından distinct (source_title,
+ * source_author). Boş/null başlık elenir; aynı eser tekrar gösterilmez. Ana
+ * içerikte kaynak adı gösterilmez; bibliyografya yalnız burada. (V4: 11 eser.)
+ *
+ * Sıra DETERMİNİSTİK: önce KANONİK editoryal sıra
+ * (CHAKRA_BIBLIOGRAPHY_EDITORIAL_ORDER), sonra listede olmayanlar alfabetik
+ * (title, sonra author). Girdi/DB satır sırasından bağımsızdır.
+ */
+export function deriveChakraBibliography(
+  blocks: ChakraContentBlock[],
+): ChakraBibliographyEntry[] {
+  const seen = new Set<string>();
+  const out: ChakraBibliographyEntry[] = [];
+  for (const b of blocks) {
+    if (b.block_type !== SOURCE_EVIDENCE_BLOCK_TYPE) continue;
+    const title = (b.source_title ?? "").trim();
+    if (!title) continue;
+    const author = (b.source_author ?? "").trim();
+    const key = `${title}${author}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ title, author: author || null });
+  }
+  out.sort((a, b) => {
+    const ra = bibliographyRank(a.title);
+    const rb = bibliographyRank(b.title);
+    if (ra !== rb) return ra - rb;
+    // eşit rank (ikisi de kanonik listede yok) → alfabetik title, sonra author
+    if (a.title !== b.title) return a.title < b.title ? -1 : 1;
+    return (a.author ?? "") < (b.author ?? "") ? -1 : (a.author ?? "") > (b.author ?? "") ? 1 : 0;
+  });
+  return out;
+}
+
+const QUICK_FACT_LABELS: { key: keyof ChakraQuickFacts; label: string }[] = [
+  { key: "sanskritName", label: "Sanskritçe Ad" },
+  { key: "element", label: "Element" },
+  { key: "location", label: "Konum" },
+  { key: "bijaMantra", label: "Bija Mantra" },
+];
+
+/** Yalnız gerçek (non-empty) quick fact'leri satıra çevirir; uydurma YOK. */
+export function chakraQuickFactRows(
+  qf: ChakraQuickFacts | null | undefined,
+): ChakraQuickFactRow[] {
+  if (!qf) return [];
+  const rows: ChakraQuickFactRow[] = [];
+  for (const { key, label } of QUICK_FACT_LABELS) {
+    const v = (qf[key] ?? "").trim();
+    if (v) rows.push({ key: String(key), label, value: v });
+  }
+  return rows;
+}
+
+/** Deterministik sıralama: sort_order → created_at → id. */
+function sortRichBlocks(blocks: ChakraContentBlock[]): ChakraContentBlock[] {
+  return [...blocks].sort((a, b) => {
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+    const ca = a.created_at ?? "";
+    const cb = b.created_at ?? "";
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
+/**
+ * Legacy + rich + quick fact birleşimini kanonik sırada üretir.
+ * `blocks` boş verilirse çıktı FAZ 3.1 davranışının bire bir üst kümesidir
+ * (legacy section'lar aynı; future section YOK, quick fact YOK).
+ */
+export function buildChakraWorkspace(
+  record: ChakraSectionInput,
+  blocks: ChakraContentBlock[],
+  opts: { stonesVisible: boolean; quickFacts?: ChakraQuickFacts | null },
+): ChakraWorkspaceSection[] {
+  // 1) legacy section modeli — mevcut davranış DEĞİŞMEZ
+  const legacy = buildChakraSections(record, { stonesVisible: opts.stonesVisible });
+  const legacyById = new Map<string, ChakraSection>(legacy.map((s) => [s.id, s]));
+
+  // 2) rich blokları section_key altında grupla (yalnız GÖRÜNÜR + non-empty), sırala.
+  //    source-evidence (gizli kaynak-kanıtı) satırları ana içerikte gösterilmez;
+  //    yalnız sayfa sonundaki Kaynakça'yı besler (deriveChakraBibliography).
+  const richBySection = new Map<string, ChakraContentBlock[]>();
+  for (const b of blocks) {
+    if (!isVisibleChakraBlock(b)) continue;
+    if (!chakraBlockHasContent(b)) continue;
+    const arr = richBySection.get(b.section_key) ?? [];
+    arr.push(b);
+    richBySection.set(b.section_key, arr);
+  }
+  for (const [k, arr] of richBySection) richBySection.set(k, sortRichBlocks(arr));
+
+  // 3) quick facts — yalnız Genel Bakış
+  const quickRows = chakraQuickFactRows(opts.quickFacts);
+
+  // 4) kanonik sırada birleştir; görünürlük kuralı
+  const out: ChakraWorkspaceSection[] = [];
+  for (const id of CHAKRA_WORKSPACE_ORDER) {
+    const legacySec = legacyById.get(id);
+    const rich = richBySection.get(id) ?? [];
+    const isGenel = id === "genel-bakis";
+    const visible =
+      Boolean(legacySec) || rich.length > 0 || (isGenel && quickRows.length > 0);
+    if (!visible) continue;
+    const dict = CHAKRA_SECTION_DICTIONARY.find((d) => d.id === id);
+    out.push({
+      id,
+      hash: id,
+      title: legacySec?.title ?? dict?.title ?? id,
+      kind: legacySec?.kind ?? "content",
+      legacyBlocks: legacySec?.blocks ?? [],
+      quickFacts: isGenel ? quickRows : [],
+      richBlocks: rich,
+    });
+  }
+  return out;
+}

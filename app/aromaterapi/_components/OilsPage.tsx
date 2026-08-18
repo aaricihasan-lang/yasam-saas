@@ -9,6 +9,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -17,9 +18,11 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import {
   createOil,
   deleteOils,
-  fetchOilList,
+  fetchOilListPage,
+  fetchOilCounts,
   buildOilSearchBlob,
   foldForSearch,
+  matchedOnlyInContent,
   oilListRowPreview,
   oilTypeBadgeClass,
   oilTypeLabel,
@@ -27,14 +30,19 @@ import {
   parseTagsInput,
   parseImageUrls,
   EMPTY_OIL_FORM,
-  isAdminTransferOil,
-  ADMIN_TRANSFER_BADGE,
   type OilListRow,
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
+import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { useDialogA11y } from "@/app/aromaterapi/_components/write/useDialogA11y";
+import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
+import { ReadPagination } from "@/app/aromaterapi/_components/read/ReadPrimitives";
+import { messageForCode, type ListResult } from "@/lib/aromaterapi/readClient";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -285,6 +293,28 @@ function NewOilForm({
     [formTab],
   );
 
+  // FAZ 3 — GERÇEK dirty: form pristine (boş + defaultOilType) ile karşılaştırılır;
+  // yalnız gerçekten değişiklik varsa guard aktif (false-positive uyarı yok).
+  const pristine = useMemo<OilFormData>(
+    () => ({ ...EMPTY_OIL_FORM, oil_type: defaultOilType }),
+    [defaultOilType],
+  );
+  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(pristine), [form, pristine]);
+  useAromaterapiDirtyGuard(isDirty); // beforeunload (yenile/sekme kapat)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  function requestBack() { if (isDirty) setLeaveConfirmOpen(true); else onBack(); }
+
+  // Büyük-metin editörü erişilebilirliği — ESC + odak tuzağı + odak iadesi.
+  const largePanelRef = useRef<HTMLDivElement | null>(null);
+  const largeTextRef = useRef<HTMLTextAreaElement | null>(null);
+  const largeTitleId = useId();
+  useDialogA11y({
+    open: largeKey !== null,
+    onClose: () => setLargeKey(null),
+    panelRef: largePanelRef,
+    initialFocusRef: largeTextRef,
+  });
+
   function setField(key: keyof OilFormData, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -380,7 +410,7 @@ function NewOilForm({
     "min-h-[80px] max-h-[120px] w-full cursor-pointer resize-none rounded-xl border border-amber-100/90 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-amber-100/80";
 
   const miniCard =
-    "rounded-2xl border border-amber-100/80 bg-gradient-to-b from-white to-amber-50/30 p-4 shadow-[0_6px_20px_-10px_rgba(245,158,11,0.2)]";
+    "rounded-xl border border-slate-100 bg-white p-4";
 
   return (
     <>
@@ -389,7 +419,7 @@ function NewOilForm({
         <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-amber-100/70 bg-white/80 px-5 shadow sm:px-6">
           <button
             type="button"
-            onClick={onBack}
+            onClick={requestBack}
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-300/55 bg-gradient-to-r from-amber-500 to-rose-400 px-3.5 text-[12px] font-black text-white shadow-md ring-1 ring-white/35 transition hover:brightness-105"
           >
             <span aria-hidden className="text-sm leading-none">←</span>
@@ -568,7 +598,7 @@ function NewOilForm({
               </button>
               <button
                 type="button"
-                onClick={onBack}
+                onClick={requestBack}
                 className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
               >
                 İptal
@@ -578,19 +608,28 @@ function NewOilForm({
         </div>
       </div>
 
-      {/* Büyük metin editörü */}
+      {/* Büyük metin editörü — erişilebilir diyalog (useDialogA11y: ESC/focus-trap/iade). */}
       {largeKey ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-4 backdrop-blur-sm">
-          <div className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl" role="dialog" aria-modal="true">
-            <h3 className="mb-4 text-[18px] font-black text-slate-950">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-4 backdrop-blur-sm"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setLargeKey(null); }}
+        >
+          <div
+            ref={largePanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={largeTitleId}
+            className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl"
+          >
+            <h3 id={largeTitleId} className="mb-4 text-[18px] font-black text-slate-950">
               {FIELD_META[largeKey]?.label ?? largeKey}
             </h3>
             <textarea
+              ref={largeTextRef}
               value={largeValue}
               onChange={(e) => setLargeValue(e.target.value)}
               placeholder={FIELD_META[largeKey]?.placeholder}
               className="h-[min(420px,52vh)] w-full resize-y rounded-2xl border border-amber-100 p-5 text-[15px] leading-7 text-slate-800 outline-none focus:ring-4 focus:ring-amber-100/70"
-              autoFocus
             />
             <div className="mt-4 flex gap-2">
               <button
@@ -611,6 +650,18 @@ function NewOilForm({
           </div>
         </div>
       ) : null}
+
+      {/* Kaydedilmemiş yeni kayıt — çıkış onayı (erişilebilir primitive). */}
+      <AromaterapiConfirmDialog
+        open={leaveConfirmOpen}
+        title="Kaydedilmemiş kayıt"
+        description="Bu yağ kaydını henüz kaydetmediniz. Çıkarsanız girdiğiniz bilgiler kaybolur."
+        confirmLabel="Kaydetmeden Çık"
+        cancelLabel="Düzenlemeye Dön"
+        tone="danger"
+        onConfirm={() => { setLeaveConfirmOpen(false); onBack(); }}
+        onCancel={() => setLeaveConfirmOpen(false)}
+      />
     </>
   );
 }
@@ -625,6 +676,35 @@ function viewFromParam(v: string | null): PageView {
   return v === "new" ? "new" : "list";
 }
 
+// FAZ 2 — server list sayfa boyutu (modern read pipeline standardı: 24 kart yoğunluğu).
+const OILS_PAGE_SIZE = 24;
+
+/**
+ * Demo listesi client-side sayfalayıcı — gerçek server sözleşmesini (q/type/page/limit,
+ * name,id sort, search_norm-eş arama) DEMO_SEED_OILS üzerinde taklit eder. Böylece
+ * useAromaterapiListQuery demo ve gerçek path'te AYNI şekilde kullanılır (koşullu hook yok).
+ * Arama demo'da da ortak sözleşmeyle (foldForSearch = normalizeForSearch) çalışır → parity.
+ */
+function demoListResult(all: OilListRow[], params: URLSearchParams): ListResult<OilListRow> {
+  const q = foldForSearch((params.get("q") ?? "").trim());
+  const type = (params.get("type") ?? "").trim();
+  const page = Math.max(1, Number(params.get("page") ?? 1) || 1);
+  const limit = Math.max(1, Number(params.get("limit") ?? OILS_PAGE_SIZE) || OILS_PAGE_SIZE);
+
+  let filtered = all;
+  if (type) filtered = filtered.filter((o) => o.oil_type === type);
+  if (q) filtered = filtered.filter((o) => buildOilSearchBlob(o).includes(q));
+  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
+
+  const total = filtered.length;
+  const start = (page - 1) * limit;
+  return {
+    ok: true,
+    envelope: { rows: filtered.slice(start, start + limit), page, limit, total },
+    errorCode: null,
+  };
+}
+
 function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, pageDescription }: OilsPageConfig) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -632,111 +712,116 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
-  const [rows, setRows] = useState<OilListRow[]>(() =>
-    isDemo ? (fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS) : [],
+  // FAZ 2 — server-side paginated okuma (useAromaterapiListQuery). fetch-all KALDIRILDI.
+  // Demo: client-side seed (fetcher demoListResult ile sayfalar/filtreler). Gerçek:
+  // fetchOilListPage (search_norm arama + oil_type + name,id sort + range pagination).
+  const demoRows = useMemo<OilListRow[]>(
+    () =>
+      isDemo
+        ? fixedOilType
+          ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType)
+          : DEMO_SEED_OILS
+        : [],
+    [isDemo, fixedOilType],
   );
+
+  const fetcher = useCallback(
+    (params: URLSearchParams, signal: AbortSignal): Promise<ListResult<OilListRow>> => {
+      if (isDemo) return Promise.resolve(demoListResult(demoRows, params));
+      if (fixedOilType) params.set("type", fixedOilType); // typed route → sabit oil_type
+      return fetchOilListPage(params, signal);
+    },
+    [isDemo, demoRows, fixedOilType],
+  );
+
+  const s = useAromaterapiListQuery<OilListRow>({
+    fetcher,
+    filterKeys: fixedOilType ? [] : ["type"],
+    limit: OILS_PAGE_SIZE,
+  });
+
   const [tenantId, setTenantId] = useState<string | null>(isDemo ? "demo" : null);
-  const [loading, setLoading] = useState(!isDemo);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>(fixedOilType ?? "all");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
-  const [errorMessage, setErrorMessage] = useState("");
-  // Sonsuz kaydırma: tüm veri bellekte tutulur (arama/sayaç doğru kalsın diye),
-  // ama DOM'a bir seferde yalnızca `visibleCount` kadar kart basılır. Böylece
-  // 1500+ kayıtta bile mobil render performansı korunur.
-  const RENDER_PAGE = 60;
-  const [visibleCount, setVisibleCount] = useState(RENDER_PAGE);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
-  const loadOils = useCallback(async (tid: string) => {
-    if (isDemo) {
-      setRows(fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS);
-      return;
-    }
-    setLoading(true);
-    setErrorMessage("");
-    const { rows: nextRows, error } = await fetchOilList(tid, fixedOilType);
-    setLoading(false);
-    if (error) { setErrorMessage(`Yağlar yüklenemedi: ${error}`); return; }
-    setRows(nextRows);
-  }, [fixedOilType, isDemo]);
+  // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
+  async function runOilExport(body: Record<string, unknown>) {
+    if (exporting) return;
+    setExporting(true);
+    const { ok, error } = await downloadWord("/api/aromaterapi/oils/word-report", body);
+    setExporting(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Rapor indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
+  const exportAllBody = () => (fixedOilType ? { mode: "all", oilType: fixedOilType } : { mode: "all" });
+  const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
+
+  // Tip sayaçları — gerçek: server head-count (client artık tüm dataset'e sahip değil,
+  // async fetch → state await SONRASI set edilir, effect'te senkron setState yok).
+  // Demo: demoRows'tan render sırasında türetilir (effect yok).
+  const [serverTypeCounts, setServerTypeCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (isDemo || fixedOilType) return; // typed route'da tip filtresi UI'ı yok
+    void (async () => {
+      const { counts } = await fetchOilCounts();
+      if (counts) {
+        setServerTypeCounts({
+          all: counts.total,
+          essential: counts.essential,
+          carrier: counts.carrier,
+          maceration: counts.maceration,
+          hydrosol: counts.hydrosol,
+          resin: counts.resin,
+          absolute: counts.absolute,
+        });
+      }
+    })();
+  }, [isDemo, fixedOilType]);
+  const typeCounts = useMemo(() => {
+    if (!isDemo) return serverTypeCounts;
+    const map: Record<string, number> = { all: demoRows.length };
+    for (const r of demoRows) map[r.oil_type] = (map[r.oil_type] ?? 0) + 1;
+    return map;
+  }, [isDemo, demoRows, serverTypeCounts]);
 
   useEffect(() => {
     if (isDemo) return;
     runInEffect(() => {
       void (async () => {
-        const tid = await getSyncedTenantId();
-        setTenantId(tid);
-        if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
-        await loadOils(tid);
+        setTenantId(await getSyncedTenantId());
       })();
     });
-  }, [loadOils, isDemo]);
+  }, [isDemo]);
 
   useBfcacheRefresh();
 
-  // PERF-2C: sıralama yalnız `rows` değiştiğinde çalışır (localeCompare arama/tip
-  // filtresi değişince yeniden koşmaz). Önce sırala → sonra filtrele; filtre sırayı
-  // koruduğu için çıktı, route'un name,id sırasıyla birebir aynı kalır.
-  const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => a.name.localeCompare(b.name, "tr-TR")),
-    [rows],
-  );
+  // Sunucu zaten filtreler + sıralar (name,id) + sayfalar → client sort/search/windowing YOK.
+  const rows = s.rows;
+  const loading = s.loading;
+  const totalCount = s.total;
+  const search = s.qInput;
+  const setSearch = s.setQInput;
+  // Rozet UYGULANMIŞ sorguya (satırları üreten s.q) göre — anlık s.qInput'a değil.
+  const appliedQuery = s.q;
+  const typeFilter = fixedOilType ?? s.filters.type ?? "all";
+  const setTypeFilter = (v: string) => s.setFilter("type", v === "all" ? "" : v);
+  const errorMessage = bulkError || (s.errorCode ? messageForCode(s.errorCode) : "");
+  const filteredRows = rows; // render uyumluluğu (sunucu = filtrelenmiş sayfa)
+  const visibleRows = rows; // DOM windowing kaldırıldı (page_size render'ı sınırlar)
+  const refresh = s.retry;
 
-  // PERF-2B: satır başına fold'lanmış arama blob'u yalnız `rows` değiştiğinde üretilir.
-  // Her tuş vuruşunda yalnız sorgu bir kez fold'lanır + kayıt başına tek `includes`.
-  const searchIndex = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of rows) map.set(r.id, buildOilSearchBlob(r));
-    return map;
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    const q = foldForSearch(search.trim());
-    return sortedRows.filter(
-      (r) =>
-        (typeFilter === "all" || r.oil_type === typeFilter) &&
-        (q === "" || (searchIndex.get(r.id) ?? "").includes(q)),
-    );
-  }, [sortedRows, searchIndex, search, typeFilter]);
-
-  // Görünen (DOM'a basılan) alt küme. filteredRows.length her zaman gerçek toplamı verir.
-  const visibleRows = useMemo(
-    () => filteredRows.slice(0, visibleCount),
-    [filteredRows, visibleCount],
-  );
-  const hasMore = visibleCount < filteredRows.length;
-
-  // Arama/filtre/görünüm değişince pencereyi başa sar.
-  useEffect(() => {
-    setVisibleCount(RENDER_PAGE);
-  }, [search, typeFilter, viewMode, rows]);
-
-  // Sentinel görünür olunca bir sonraki grubu yükle (sonsuz kaydırma).
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length));
-        }
-      },
-      { rootMargin: "800px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, filteredRows.length, visibleCount]);
-
-  const typeCounts = useMemo(() => {
-    const map: Record<string, number> = { all: rows.length };
-    for (const r of rows) map[r.oil_type] = (map[r.oil_type] ?? 0) + 1;
-    return map;
-  }, [rows]);
+  // Sayfa/filtre/arama değişince seçim temizlenir (bulk yalnız GÖRÜNÜR sayfayı kapsar).
+  // React'in önerdiği "anahtar değişince state sıfırla" kalıbı (render sırasında,
+  // effect DEĞİL) — useAromaterapiListQuery'nin prevUrlQ kalıbıyla aynı.
+  const selectionKey = `${s.page}|${s.q}|${s.filters.type ?? ""}`;
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setSelectedIds(new Set());
+  }
 
   const toggleOilSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -779,20 +864,20 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     setDeleteLoading(false);
 
     if (deleteError) {
-      setErrorMessage(`Seçili kayıtlar silinemedi: ${deleteError}`);
+      setBulkError(`Seçili kayıtlar silinemedi: ${deleteError}`);
       return;
     }
 
     const deletedCount = deletedIds.length;
     if (deletedCount === 0) {
-      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      setBulkError("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
       return;
     }
 
-    const deletedIdSet = new Set(deletedIds);
-    setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
     setSelectedIds(new Set());
+    setBulkError("");
     showToast({ title: "Başarılı", message: `${deletedCount} yağ kaydı başarıyla silindi.`, type: "success" });
+    refresh(); // sunucudan geçerli sayfayı tazele (optimistik client-mutation yerine)
   }
 
   function goToList() { router.replace(`${basePath}?view=list`); }
@@ -800,7 +885,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   function handleSaved() {
     goToList();
-    if (tenantId) void loadOils(tenantId);
+    refresh();
   }
 
   if (pageView === "new" && !isDemo) {
@@ -872,7 +957,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     }`}
                   >
                     {t.label}
-                    <span className={`rounded-full px-1 text-[9px] font-black ${active ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"}`}>
+                    <span className={`rounded-full px-1 text-[10px] font-black ${active ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"}`}>
                       {count}
                     </span>
                   </button>
@@ -889,21 +974,22 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Yağ adı, özellik, etki veya menşei ara…"
+                aria-label="Yağ ara (ad, özellik, etki veya menşei)"
                 className={searchInput}
               />
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <button type="button" onClick={() => setViewMode("card")} className={`${viewBtn} ${viewMode === "card" ? viewBtnActive : viewBtnIdle}`}>Kart</button>
               <button type="button" onClick={() => setViewMode("list")} className={`${viewBtn} ${viewMode === "list" ? viewBtnActive : viewBtnIdle}`}>Liste</button>
-              <button type="button" onClick={() => { if (tenantId) void loadOils(tenantId); }} className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
+              <button type="button" onClick={() => refresh()} aria-label="Listeyi yenile" title="Listeyi yenile" className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
             </div>
           </div>
 
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2">
             <p className="text-[11px] font-bold text-slate-400">
               {search.trim() || (!fixedOilType && typeFilter !== "all")
-                ? `${filteredRows.length} sonuç`
-                : `${filteredRows.length} yağ (A–Z)`}
+                ? `${totalCount} sonuç`
+                : `${totalCount} yağ (A–Z)`}
             </p>
             {loading && (
               <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-100">
@@ -917,15 +1003,19 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           <BulkExportBar
             compact
             selectedCount={selectedIds.size}
-            totalCount={rows.length}
-            filteredCount={filteredRows.length}
-            selectAllLabel="Kendi Kayıtlarımı Seç"
+            totalCount={totalCount}
+            filteredCount={totalCount}
+            selectAllLabel="Bu Sayfadaki Kayıtlarımı Seç"
             selectAllCount={ownFilteredRows.length}
             hasActiveFilter={Boolean(search.trim() || (!fixedOilType && typeFilter !== "all"))}
             onSelectAll={selectAllFiltered}
             onClearSelection={clearSelection}
             onDeleteSelected={() => void handleBulkDelete()}
             isDeleting={deleteLoading}
+            isExporting={exporting}
+            exportSelectedLabel={selectedIds.size === 1 ? "Seçili Kaydı Word'e Aktar" : "Seçili Kayıtları Word'e Aktar"}
+            onExportSelected={selectedIds.size > 0 ? () => void runOilExport({ mode: "selected", ids: [...selectedIds] }) : undefined}
+            onExportAll={() => void runOilExport(exportAllBody())}
           />
         ) : null}
 
@@ -977,22 +1067,22 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black tracking-wide ${oilTypeBadgeClass(row.oil_type)}`}>
                       {oilTypeLabel(row.oil_type)}
                     </span>
+                    {matchedOnlyInContent(row, appliedQuery) ? (
+                      <span
+                        className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                        title="Arama, adında değil içerik alanlarında (fayda, kullanım vb.) eşleşti."
+                      >
+                        İçerikte geçiyor
+                      </span>
+                    ) : null}
                     {row.category.trim() ? (
                       <span className="inline-flex rounded-full border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                         {row.category}
                       </span>
                     ) : null}
                     {row.is_photosensitive ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                      <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
                         ☀️ Fotosensitif
-                      </span>
-                    ) : null}
-                    {isAdminTransferOil(row) ? (
-                      <span
-                        className="inline-flex items-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-bold text-violet-700"
-                        title="Bu kayıt Admin'den bağımsız kopya olarak eklendi. Düzenleyebilir veya silebilirsiniz."
-                      >
-                        {ADMIN_TRANSFER_BADGE}
                       </span>
                     ) : null}
                   </div>
@@ -1069,13 +1159,11 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(row.oil_type)}`}>
                           {oilTypeLabel(row.oil_type)}
                         </span>
-                        {row.is_photosensitive ? (
-                          <span className="mt-0.5 block text-[9px] font-bold text-amber-600">☀️ Fotosensitif</span>
+                        {matchedOnlyInContent(row, appliedQuery) ? (
+                          <span className="mt-0.5 block text-[10px] font-bold text-slate-500" title="Arama içerik alanlarında eşleşti.">İçerikte geçiyor</span>
                         ) : null}
-                        {isAdminTransferOil(row) ? (
-                          <span className="mt-0.5 block text-[9px] font-bold text-violet-600" title="Admin'den bağımsız kopya">
-                            {ADMIN_TRANSFER_BADGE}
-                          </span>
+                        {row.is_photosensitive ? (
+                          <span className="mt-0.5 block text-[10px] font-bold text-amber-600">☀️ Fotosensitif</span>
                         ) : null}
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>
@@ -1101,23 +1189,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           )}
         </section>
 
-        {/* Sonsuz kaydırma sentinel'i + manuel fallback buton */}
-        {!loading && filteredRows.length > 0 && hasMore ? (
-          <div ref={sentinelRef} className="flex flex-col items-center gap-1 py-3">
-            <button
-              type="button"
-              onClick={() => setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length))}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-5 py-2 text-[12px] font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
-            >
-              Daha Fazla Göster
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
-                {filteredRows.length - visibleCount} kayıt daha
-              </span>
-            </button>
-            <p className="text-[10px] font-bold text-slate-400">
-              {visibleCount} / {filteredRows.length} gösteriliyor
-            </p>
-          </div>
+        {/* FAZ 2 — server pagination (sonsuz kaydırma/DOM windowing kaldırıldı). */}
+        {!loading ? (
+          <ReadPagination page={s.page} limit={s.limit} total={totalCount} onPage={s.goToPage} />
         ) : null}
       </div>
     </main>

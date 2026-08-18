@@ -22,7 +22,7 @@
 import { OUTBOX_OPERATIONS } from "./outboxState";
 import type { ClaimedOutboxEvent } from "./outboxRpcClient";
 import { isIndexableSource } from "../indexer/sourceGuard";
-import type { SourceConfig } from "../indexer/sources";
+import { hasWorkerCapability, type SourceConfig } from "../indexer/sources";
 import type { ExactWriteStatus, IndexSourcePageResult } from "../indexer/indexSourcePage";
 import type { DeindexInput, DeindexResult } from "../indexer/supabaseIndexAdapters";
 
@@ -46,7 +46,11 @@ const transient = (code: string): ProcessDirective => ({ action: "fail", retryCl
 export interface RunExactUpsertInput {
   readonly config: SourceConfig;
   readonly exactSourceId: string;
-  readonly expectedTenantId: string;
+  /**
+   * Beklenen tenant. Worker-v2 shared-optional-professional kaynakta SHARED olay için `null`
+   * (paylaşımlı referans satırı; tenant_id IS NULL). Tenant-scoped olayda geçerli UUID.
+   */
+  readonly expectedTenantId: string | null;
 }
 export interface EventProcessorDeps {
   /** Statik registry çözümü (resolveYhSourceConfig). */
@@ -98,14 +102,37 @@ export async function processOutboxEvent(
       return complete("inactive-source-noop");
     }
   }
-  // Kapı 5: tenant modeli column mı?
-  if (config.tenant.mode !== "column") return permanent("tenant-model-unsupported");
-  // Kapı 6: shared davranışı kapalı mı?
-  if (config.tenant.allowSharedNull === true) return permanent("shared-source-unsupported");
-  // Kapı 7: unit record mı?
-  if (config.unit !== "record") return permanent("non-record-unit-unsupported");
-  // Kapı 8: tenant_id + source_id geçerli UUID mi?
-  if (!isUuid(event.tenantId) || !isUuid(event.sourceId)) {
+  // Kapı 5: tenant modeli column VEYA join mı? (BF-11E Belge/Video join+row desteği;
+  //   global-canonical HENÜZ desteklenmez → fail-closed).
+  if (config.tenant.mode !== "column" && config.tenant.mode !== "join") {
+    return permanent("tenant-model-unsupported");
+  }
+  // Kapı 6: shared (allowSharedNull) — Worker-v2 'shared-optional-professional' capability YOKSA
+  //   fail-closed (global gevşetme YOK; yalnız açıkça capability atanmış kaynak geçer).
+  if (
+    config.tenant.allowSharedNull === true &&
+    !hasWorkerCapability(config, "shared-optional-professional")
+  ) {
+    return permanent("shared-source-unsupported");
+  }
+  // Kapı 7: unit record/row VEYA (section + 'section-unit' capability). Aksi fail-closed
+  //   (unit=section GLOBAL değil; yalnız capability atanmış kaynak için desteklenir).
+  if (
+    config.unit !== "record" &&
+    config.unit !== "row" &&
+    !(config.unit === "section" && hasWorkerCapability(config, "section-unit"))
+  ) {
+    return permanent("non-record-unit-unsupported");
+  }
+  // Kapı 8: source_id her zaman UUID. tenant_id UUID VEYA (null + shared-optional-professional).
+  //   NULL tenant YALNIZ shared-capable kaynak için geçerli (shared professional referans); aksi
+  //   herhangi bir column-tenant kaynağında NULL hâlâ FAIL-CLOSED.
+  if (!isUuid(event.sourceId)) return permanent("invalid-event-contract");
+  if (event.tenantId === null) {
+    if (!hasWorkerCapability(config, "shared-optional-professional")) {
+      return permanent("shared-source-unsupported");
+    }
+  } else if (!isUuid(event.tenantId)) {
     return permanent("invalid-event-contract");
   }
 
@@ -147,12 +174,15 @@ async function handleUpsert(
       }
       return complete("upsert-ok");
     }
-    // Kaynak yok / indekslenebilir içerik yok / demo / sentetik →
-    // DEFENSIVE DEINDEX + COMPLETE (dead-letter'ı doldurma; index'i tutarlı bırak).
+    // Kaynak yok / indekslenebilir içerik yok / demo / sentetik / BF-11E row-gate ineligible →
+    // DEFENSIVE DEINDEX + COMPLETE (dead-letter'ı doldurma; index'i tutarlı bırak). "row-ineligible"
+    // = classification safe→unsafe/unclassified/missing veya content edit sonrası stale hash →
+    // eski index STALE ise tombstone (var olan güvensiz kaydı bırakmaz).
     case "not-found":
     case "skipped-build":
     case "excluded-demo":
     case "excluded-synthetic":
+    case "row-ineligible":
       return defensiveDeindex(event, config, deps, status);
     // v1 gate column+non-shared garanti eder; shared burada imkânsız → fail-closed.
     case "excluded-shared":

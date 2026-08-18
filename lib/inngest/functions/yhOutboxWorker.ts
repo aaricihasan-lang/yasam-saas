@@ -21,6 +21,7 @@ import { inngest } from "@/lib/inngest/client";
 import { getServerDb } from "@/lib/supabase-server";
 import { resolveYhSourceConfig } from "@/lib/yasam-hafizasi/indexer/adminIndexRequest";
 import { indexSourcePage } from "@/lib/yasam-hafizasi/indexer/indexSourcePage";
+import { createSupabaseArchiveEligibilityPort } from "@/lib/yasam-hafizasi/indexer/archiveEligibility";
 import {
   createSupabaseIndexDeindexer,
   type IndexDeleteClient,
@@ -85,12 +86,17 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     const indexDeleteClient: IndexDeleteClient = {
       async deleteRows({ table, filters, count }) {
         let q = serverDb.from(table).delete({ count });
-        for (const [column, value] of filters) q = q.eq(column, value);
+        // Worker-v2: value === null → IS NULL (SHARED referans satırı deindex'i); aksi eşitlik.
+        for (const [column, value] of filters) q = value === null ? q.is(column, null) : q.eq(column, value);
         const { error, count: deleted } = await q;
         return { error: error !== null, count: typeof deleted === "number" ? deleted : null };
       },
     };
     const deindexer = createSupabaseIndexDeindexer(indexDeleteClient);
+    // BF-11E ROW-GATE: requiresRowEligibilityGate kaynaklar (Kişisel Arşiv) için zorunlu satır
+    // eligibility portu (ayrı classification tablosu + server-türetimli hash). Enjekte edilmezse
+    // ilgili kaynakta yazma fail-closed durur (ArchiveEligibilityGateMissingError → transient).
+    const archiveEligibility = createSupabaseArchiveEligibilityPort(serverDb);
 
     // Gerçek RPC/DB geri çağrılarını + exact indexing zincirini enjekte et; pure
     // orkestratör (sweep→claim→seri işle→complete/fail) eventProcessor'dadır.
@@ -107,6 +113,7 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
           mode: "write",
           exactSourceId,
           expectedTenantId,
+          archiveEligibility,
         }),
       deindex: (input) => deindexer.deindex(input),
       worker,

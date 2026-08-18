@@ -100,6 +100,16 @@ export interface ParentTenantReader {
     readonly parentTenantColumn: string;
     readonly parentIds: readonly string[];
   }): Promise<ParentTenantMap>;
+  /**
+   * Worker-v2 (parent-derived-scope): parent'ın boolean aktiflik kolonunu (parentActiveColumn) toplu
+   * okur. Değer: parentId → (kolon === true). Giriş yoksa (parent bulunamadı) map'te YER ALMAZ →
+   * çağıran fail-closed (aktif değil kabul eder). Yalnız parentActiveColumn tanımlı kaynaklarda çağrılır.
+   */
+  readParentActive?(input: {
+    readonly parentTable: string;
+    readonly parentActiveColumn: string;
+    readonly parentIds: readonly string[];
+  }): Promise<ReadonlyMap<string, boolean>>;
 }
 
 // ─── Girdi / çıktı sözleşmeleri ───────────────────────────────────────────────

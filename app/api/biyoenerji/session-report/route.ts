@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
+  reportRateLimit,
+  capSelectedIds,
+  MAX_EXPORT_RECORDS,
+  EXPORT_TRUNCATED_NOTE,
+} from "@/lib/biyoenerji/reportSecurity";
+import {
   bodyText,
   buildFooter,
   buildPremiumCover,
@@ -64,6 +70,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (guard.is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
+  // FAZ1: best-effort rate-limit (asıl koruma aşağıdaki HARD CAP'tir).
+  const rl = reportRateLimit("session", tenantId);
+  if (rl) return rl;
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
@@ -86,12 +96,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (exportMode === "single" && sessionId) {
     query = query.eq("id", sessionId);
   } else if (exportMode === "selected" && Array.isArray(sessionIds) && sessionIds.length > 0) {
-    query = query.in("id", sessionIds);
+    query = query.in("id", capSelectedIds(sessionIds));
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error)
-    return Response.json({ ok: false, error: `Seanslar okunamadı: ${error.message}` }, { status: 500 });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
+  if (error) {
+    console.error("[session-report] read failed:", error);
+    return Response.json({ ok: false, error: "Seanslar okunamadı." }, { status: 500 });
+  }
 
   const sessions = (data || []) as SessionRow[];
   if (!sessions.length)
@@ -131,6 +143,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   ]));
 
   all.push(...buildTOCPage());
+
+  if (sessions.length >= MAX_EXPORT_RECORDS) {
+    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
+  }
 
   all.push(h1Colored("1. Seans Listesi", C_SEANS, true));
   all.push(muted(`${sessions.length} seans kaydı`));

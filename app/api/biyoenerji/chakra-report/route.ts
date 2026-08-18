@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
+  reportRateLimit,
+  capSelectedIds,
+  MAX_EXPORT_RECORDS,
+  EXPORT_TRUNCATED_NOTE,
+} from "@/lib/biyoenerji/reportSecurity";
+import {
   bodyText,
   buildFooter,
   buildPremiumCover,
@@ -68,6 +74,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (guard.is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
+  // FAZ1: best-effort rate-limit (asıl koruma aşağıdaki HARD CAP'tir).
+  const rl = reportRateLimit("chakra", tenantId);
+  if (rl) return rl;
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
@@ -92,12 +102,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (exportMode === "single" && chakraId) {
     query = query.eq("id", chakraId);
   } else if (exportMode === "selected" && Array.isArray(chakraIds) && chakraIds.length > 0) {
-    query = query.in("id", chakraIds);
+    query = query.in("id", capSelectedIds(chakraIds));
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error)
-    return Response.json({ ok: false, error: `Çakra kayıtları okunamadı: ${error.message}` }, { status: 500 });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
+  if (error) {
+    console.error("[chakra-report] read failed:", error);
+    return Response.json({ ok: false, error: "Çakra kayıtları okunamadı." }, { status: 500 });
+  }
 
   const chakras = (data || []) as ChakraRow[];
   if (!chakras.length)
@@ -133,6 +145,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   ]));
 
   all.push(...buildTOCPage());
+
+  if (chakras.length >= MAX_EXPORT_RECORDS) {
+    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
+  }
 
   all.push(h1Colored("1. Çakra Kütüphanesi", C_CAKRA, true));
   all.push(muted(`${chakras.length} kayıt`));

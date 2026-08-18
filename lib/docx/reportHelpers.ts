@@ -6,11 +6,15 @@
 import {
   AlignmentType,
   BorderStyle,
+  ExternalHyperlink,
   Footer,
+  Header,
   HeadingLevel,
   ImageRun,
+  LevelFormat,
   PageNumber,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
   TableOfContents,
@@ -49,6 +53,8 @@ export function h1(text: string, pageBreak = false): Paragraph {
     heading: HeadingLevel.HEADING_1,
     spacing: { before: 480, after: 300 },
     pageBreakBefore: pageBreak,
+    keepNext: true,
+    keepLines: true,
     children: [new TextRun({ text, font: REPORT_FONT })],
   });
 }
@@ -62,24 +68,41 @@ export function h1Colored(text: string, color: string, pageBreak = false): Parag
     heading: HeadingLevel.HEADING_1,
     spacing: { before: 480, after: 300 },
     pageBreakBefore: pageBreak,
+    keepNext: true,
+    keepLines: true,
     children: [new TextRun({ text, bold: true, size: 32, font: REPORT_FONT, color })],
   });
 }
 
+/**
+ * Optional heading layout controls. ADDITIVE — when omitted, output is byte-identical
+ * to the previous single-arg form (mevcut çağıranlar etkilenmez):
+ *   - pageBreakBefore: bölüm/kayıt yeni sayfadan başlasın.
+ *   - keepNext: başlık takip eden paragrafla aynı sayfada kalsın (orphan azalt).
+ *   - keepLines: başlık satırları bölünmesin (Aromaterapi orphan/pagination ihtiyacı).
+ */
+export type HeadingOptions = { pageBreakBefore?: boolean; keepNext?: boolean; keepLines?: boolean };
+
 /** Item heading — appears in TOC (depth 2) and Navigation Panel */
-export function h2(text: string): Paragraph {
+export function h2(text: string, opts?: HeadingOptions): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 360, after: 200 },
+    ...(opts?.pageBreakBefore ? { pageBreakBefore: true } : {}),
+    ...(opts?.keepNext ? { keepNext: true } : {}),
+    ...(opts?.keepLines ? { keepLines: true } : {}),
     children: [new TextRun({ text, font: REPORT_FONT })],
   });
 }
 
 /** Field section heading — Navigation Panel only (TOC limited to depth 1-2) */
-export function h3(text: string): Paragraph {
+export function h3(text: string, opts?: HeadingOptions): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_3,
     spacing: { before: 240, after: 100 },
+    ...(opts?.pageBreakBefore ? { pageBreakBefore: true } : {}),
+    ...(opts?.keepNext ? { keepNext: true } : {}),
+    ...(opts?.keepLines ? { keepLines: true } : {}),
     children: [new TextRun({ text, font: REPORT_FONT })],
   });
 }
@@ -106,20 +129,38 @@ export function fieldInline(label: string, value: string): Paragraph {
   });
 }
 
+/**
+ * Inline liste tipografisi — SUNUM-ONLY separator düzeltmesi. Virgül/noktalı-virgülle
+ * ayrılmış "a,b, c" gibi bitişik değerleri "a, b, c" biçimine getirir; TOKEN/DEĞER
+ * DEĞİŞTİRMEZ (yalnız ayırıcı boşluğu normalleştirir). main_components vb. list-string alanlar için.
+ */
+export function tidyInlineList(text: string): string {
+  return text
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s*;\s*/g, "; ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Body paragraph with left indent */
 export function bodyText(text: string, size = 22): Paragraph {
   return new Paragraph({
     children: [new TextRun({ text, size, font: REPORT_FONT, color: C_MID })],
     indent: { left: 360 },
     spacing: { after: 140 },
+    widowControl: true,
   });
 }
 
-/** Italic muted caption */
+/**
+ * Italic muted caption. keepNext:true — record-start Latince/altbaşlık satırı
+ * kendinden sonraki içerikle (tablo/paragraf) birlikte kalır, sayfa dibinde yalnız kalmaz.
+ */
 export function muted(text: string): Paragraph {
   return new Paragraph({
     children: [new TextRun({ text, size: 20, font: REPORT_FONT, color: C_LIGHT, italics: true })],
     spacing: { after: 220 },
+    keepNext: true,
   });
 }
 
@@ -144,6 +185,7 @@ export function profileLabel(text: string, color: string): Paragraph {
   return new Paragraph({
     children: [new TextRun({ text, size: 18, font: REPORT_FONT, color, bold: true, allCaps: true })],
     spacing: { before: 360, after: 60 },
+    keepNext: true,
   });
 }
 
@@ -169,6 +211,203 @@ export function arraySection(label: string, arr: string[] | null): Paragraph[] {
   ];
 }
 
+// ─── Hyperlinks / DOI (additive, FAZ Word) ────────────────────────────────────
+
+const C_LINK = "1d4ed8"; // blue-700
+
+/** Yalnız http/https kabul edilir; başka şema (javascript:, data:) reddedilir. */
+export function isSafeUrl(url: unknown): url is string {
+  if (typeof url !== "string") return false;
+  const t = url.trim();
+  return /^https?:\/\//i.test(t) && !/[\s<>"']/.test(t);
+}
+
+/**
+ * Güvenli dış bağlantı satırı: "Label: <hyperlink>". Güvensiz/boş URL → düz metin
+ * (execution taşımaz). Word'de gerçek tıklanabilir ExternalHyperlink relationship üretir.
+ */
+export function linkField(label: string, url: string | null | undefined, display?: string): Paragraph[] {
+  const u = (url ?? "").trim();
+  if (!u) return [];
+  const labelRun = new TextRun({ text: `${label}: `, bold: true, size: 22, font: REPORT_FONT, color: C_DARK });
+  if (!isSafeUrl(u)) {
+    return [new Paragraph({ children: [labelRun, new TextRun({ text: display ?? u, size: 22, font: REPORT_FONT, color: C_MID })], spacing: { after: 100 } })];
+  }
+  return [new Paragraph({
+    children: [
+      labelRun,
+      new ExternalHyperlink({
+        link: u,
+        children: [new TextRun({ text: display ?? u, size: 22, font: REPORT_FONT, color: C_LINK, underline: {} })],
+      }),
+    ],
+    spacing: { after: 100 },
+  })];
+}
+
+/** DOI → https://doi.org/<doi> tıklanabilir bağlantı. */
+export function doiField(doi: string | null | undefined): Paragraph[] {
+  const d = (doi ?? "").trim().replace(/^doi:\s*/i, "").replace(/^https?:\/\/doi\.org\//i, "");
+  if (!d) return [];
+  return linkField("DOI", `https://doi.org/${d}`, d);
+}
+
+// ─── Real bullet / numbered lists (additive) ───────────────────────────────────
+
+/** Tek gerçek Word madde-imi (numPr → varsayılan bullet). */
+export function bulletItem(text: string): Paragraph {
+  return new Paragraph({
+    bullet: { level: 0 },
+    children: [new TextRun({ text: text.trim(), size: 22, font: REPORT_FONT, color: C_MID })],
+    spacing: { after: 60 },
+  });
+}
+
+/** H3 başlık + gerçek madde-imli liste. Boş → [] (çağıran spread eder). */
+export function bulletList(label: string, items: (string | null | undefined)[]): Paragraph[] {
+  const clean = items.map((s) => (s ?? "").trim()).filter(Boolean);
+  if (!clean.length) return [];
+  return [h3(label), ...clean.map(bulletItem)];
+}
+
+/**
+ * Gerçek Word numbered-list için ortak abstract-numbering referansı.
+ * Document({ numbering: { config: [stepsNumberingConfig()] } }) ile kaydedilir;
+ * her adım paragrafı numbering:{reference, level:0, instance} kullanır → Word "1. 2. 3."
+ * biçimini KENDİ üretir (metinde manuel "1. " prefix YOK → çift-numaralama olmaz).
+ */
+export const STEP_NUMBERING_REF = "aroma-ordered-steps";
+
+/** Document.numbering.config'e verilecek tek düzeyli ondalık (1. 2. 3.) tanım. */
+export function stepsNumberingConfig() {
+  return {
+    reference: STEP_NUMBERING_REF,
+    levels: [{
+      level: 0,
+      format: LevelFormat.DECIMAL,
+      text: "%1.",
+      alignment: AlignmentType.LEFT,
+      start: 1,
+      style: { paragraph: { indent: { left: 640, hanging: 320 } } },
+    }],
+  };
+}
+
+/**
+ * Sıralı adım listesi (order,text) → GERÇEK Word numbered list.
+ * `instance` her ayrı liste için farklı verilirse Word numaralamayı 1'den yeniden başlatır
+ * (aynı doküman içinde çok liste varsa devam-numaralama olmaz). Manuel numara prefix YOK.
+ */
+export function orderedSteps(
+  label: string,
+  steps: { order: number; text: string }[] | null | undefined,
+  instance = 0,
+): Paragraph[] {
+  const clean = (steps ?? []).filter((s) => s && (s.text ?? "").trim());
+  if (!clean.length) return [];
+  const sorted = [...clean].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return [
+    h3(label, { keepNext: true, keepLines: true }), // aromaterapi: "Uygulama Adımları" başlığı listeyle kalsın
+    ...sorted.map((s) =>
+      new Paragraph({
+        numbering: { reference: STEP_NUMBERING_REF, level: 0, instance },
+        children: [new TextRun({ text: s.text.trim(), size: 22, font: REPORT_FONT, color: C_MID })],
+        spacing: { after: 60 },
+        widowControl: true,
+      }),
+    ),
+  ];
+}
+
+// ─── Repeating-header table (additive) ─────────────────────────────────────────
+
+/**
+ * Çok satırlı tablo; başlık satırı her yeni sayfada TEKRARLAR (tableHeader:true).
+ * widths: yüzde toplamı ~100. Boş rows → [] (çağıran atlar).
+ */
+export function repeatingHeaderTable(headers: string[], widthsPct: number[], rows: string[][]): Table[] {
+  if (!rows.length) return [];
+  const headerRow = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: headers.map((h, i) =>
+      new TableCell({
+        width: { size: widthsPct[i] ?? Math.floor(100 / headers.length), type: WidthType.PERCENTAGE },
+        shading: { fill: "f1f5f9" },
+        children: [new Paragraph({
+          children: [new TextRun({ text: h, bold: true, size: 20, font: REPORT_FONT, color: C_DARK })],
+          spacing: { before: 80, after: 80 }, indent: { left: 100 },
+          // Başlık satırı en az ilk veri satırıyla birlikte kalsın (tek başına orphan olmasın).
+          keepNext: true,
+        })],
+      }),
+    ),
+  });
+  const bodyRows = rows.map((cells) =>
+    new TableRow({
+      cantSplit: true,
+      children: cells.map((c, i) =>
+        new TableCell({
+          width: { size: widthsPct[i] ?? Math.floor(100 / headers.length), type: WidthType.PERCENTAGE },
+          children: [new Paragraph({
+            children: [new TextRun({ text: c ?? "", size: 20, font: REPORT_FONT, color: C_MID })],
+            spacing: { before: 60, after: 60 }, indent: { left: 100 },
+          })],
+        }),
+      ),
+    }),
+  );
+  return [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] })];
+}
+
+// ─── Keep-together card (additive) ─────────────────────────────────────────────
+
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
+
+/**
+ * "Kayıt-başı birlikte-kalma" sarmalayıcısı — kenarlıksız, sıfır-kenar-boşluklu,
+ * TEK satır + TEK hücreli, cantSplit:true bir tablo. İçindeki karışık paragraf/tablo
+ * bloğu (ör. karışım adı + künye + "Formül" + formül tablosu) mevcut sayfaya sığmazsa
+ * BÜTÜN olarak sonraki sayfaya iner (Word'ün tablo→paragraf keepNext'i güvenilir DEĞİL;
+ * cantSplit satır güvenilirdir). Görünmez: kenarlık/gölge yok, içerik aynen render olur.
+ *
+ * NOT: Yalnız küçük/orta blok için kullanılır (çağıran boyut kararını verir). Bir sayfadan
+ * uzun içerik verilirse Word cantSplit satırı yine de böler (kilitleme YOK) — güvenli degrade.
+ * Hücre bir tabloyla bitemez (OOXML) → gerekirse minik (görünmez) kapanış paragrafı eklenir.
+ */
+export function keepTogetherCard(children: (Paragraph | Table)[]): Table {
+  const kids: (Paragraph | Table)[] =
+    children.length && children[children.length - 1] instanceof Paragraph
+      ? children
+      : [...children, new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: "", size: 2 })] })];
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+    margins: { marginUnitType: WidthType.DXA, top: 0, bottom: 0, left: 0, right: 0 },
+    rows: [new TableRow({
+      cantSplit: true,
+      children: [new TableCell({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        margins: { marginUnitType: WidthType.DXA, top: 0, bottom: 0, left: 0, right: 0 },
+        borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER },
+        children: kids,
+      })],
+    })],
+  });
+}
+
+// ─── Running header (additive) ─────────────────────────────────────────────────
+
+export function buildHeader(text: string): Header {
+  return new Header({
+    children: [new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: "e2e8f0" } },
+      children: [new TextRun({ text, size: 16, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
+    })],
+  });
+}
+
 /** Inline runs supporting ^^bold^^ markers */
 export function inlineRuns(text: string, size = 22): TextRun[] {
   return text.split("^^").flatMap((part, i) => {
@@ -179,11 +418,18 @@ export function inlineRuns(text: string, size = 22): TextRun[] {
 
 // ─── Table builder ────────────────────────────────────────────────────────────
 
-export function twoColTable(rows: [string, string][]): Table {
+/**
+ * İki sütunlu künye tablosu. keepNext:true → hücre paragrafları kendinden sonraki
+ * blokla (ör. karışım künyesi → "Formül" başlığı → formül tablosu) birlikte kalır;
+ * küçük/orta blok sayfa dibinde ikiye BÖLÜNMEZ, bütün olarak sonraki sayfaya iner.
+ */
+export function twoColTable(rows: [string, string][], opts?: { keepNext?: boolean }): Table {
+  const kn = opts?.keepNext ?? false;
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: rows.map(([label, value]) =>
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             width: { size: 3000, type: WidthType.DXA },
@@ -191,6 +437,7 @@ export function twoColTable(rows: [string, string][]): Table {
               children: [new TextRun({ text: label, bold: true, size: 22, font: REPORT_FONT, color: C_DARK })],
               spacing: { before: 100, after: 100 },
               indent: { left: 120 },
+              keepNext: kn,
             })],
           }),
           new TableCell({
@@ -199,6 +446,7 @@ export function twoColTable(rows: [string, string][]): Table {
               children: [new TextRun({ text: value, size: 22, font: REPORT_FONT, color: C_MID })],
               spacing: { before: 100, after: 100 },
               indent: { left: 120 },
+              keepNext: kn,
             })],
           }),
         ],
@@ -277,7 +525,8 @@ export function buildPremiumCover(opts: PremiumCoverOptions): ReportChild[] {
 // ─── Stats page ───────────────────────────────────────────────────────────────
 
 /**
- * "SİSTEM ÖZETİ" page — appears between cover and TOC.
+ * "RAPOR ÖZETİ" page — appears between cover and TOC (büyük/genel rapor).
+ * Terminoloji compact front-matter ile birleşiktir (her ikisi de "RAPOR ÖZETİ").
  * rows: [label, value] pairs for the summary table.
  * extras: optional additional lines below the table.
  */
@@ -285,7 +534,7 @@ export function buildStatsPage(rows: [string, string][], extras?: string[]): Rep
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "SİSTEM ÖZETİ", bold: true, size: 44, font: REPORT_FONT, color: C_DARK, allCaps: true })],
+      children: [new TextRun({ text: "RAPOR ÖZETİ", bold: true, size: 44, font: REPORT_FONT, color: C_DARK, allCaps: true })],
       pageBreakBefore: true,
       spacing: { before: 800, after: 640 },
     }),
@@ -298,6 +547,45 @@ export function buildStatsPage(rows: [string, string][], extras?: string[]): Rep
       })),
     ] : []),
   ];
+}
+
+/**
+ * Kompakt front-matter — küçük seçili rapor (2–10 kayıt) için TEK sayfa:
+ * "RAPOR ÖZETİ" (özet tablosu) + altında "İçindekiler" (gerçek TOC field).
+ * TEK pageBreakBefore (başlıkta); araya ikinci sayfa kırılması KOYMAZ → özet+TOC ayrı
+ * boş sayfalar oluşmaz. Başlıklar Heading STİLİ DEĞİL (düz paragraf) → TOC'a kendini eklemez.
+ */
+export function buildCompactFrontMatter(rows: [string, string][], includeTOC: boolean): ReportChild[] {
+  const out: ReportChild[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "RAPOR ÖZETİ", bold: true, size: 40, font: REPORT_FONT, color: C_DARK, allCaps: true })],
+      pageBreakBefore: true,
+      keepNext: true,
+      spacing: { before: 480, after: 360 },
+    }),
+    twoColTable(rows),
+  ];
+  if (includeTOC) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "İÇİNDEKİLER", bold: true, size: 30, font: REPORT_FONT, color: C_DARK })],
+        keepNext: true,
+        spacing: { before: 520, after: 260 },
+      }),
+      new TableOfContents("İçindekiler", { hyperlink: true, headingStyleRange: "1-2" }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({
+          text: "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
+          size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
+        })],
+        spacing: { before: 240, after: 0 },
+      }),
+    );
+  }
+  return out;
 }
 
 // ─── Section divider page ─────────────────────────────────────────────────────
@@ -352,7 +640,7 @@ export function buildTOCPage(): ReportChild[] {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [new TextRun({
-        text: "ℹ  Word'de açtıktan sonra: Başvurular → İçindekileri Güncelle",
+        text: "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
         size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
       })],
       spacing: { before: 320, after: 0 },
@@ -461,4 +749,66 @@ export function embedImageParagraph(buf: Buffer, maxWidth = 400): Paragraph {
     children: [new ImageRun({ data: buf, transformation: { width: w, height: h }, type: detectImgType(buf) })],
     spacing: { after: 200 },
   });
+}
+
+// ─── Callout box (additive) ───────────────────────────────────────────────────
+
+/**
+ * Print-friendly single-cell callout — soft fill + left accent border + bold label.
+ * Uzman Notu / Dikkat Edilmesi Gerekenler gibi katmanları içerikten görsel olarak ayırır.
+ * ADDITIVE: yeni export; mevcut helper davranışları değişmez. Metin plain TextRun
+ * (docx XML-escape'ler → HTML injection yok). Nested/karmaşık layout kullanılmaz →
+ * Word/LibreOffice dayanıklı.
+ */
+export function calloutBox(
+  label: string,
+  body: string,
+  accentHex: string,
+  fillHex: string,
+): Table {
+  const thin = { style: BorderStyle.SINGLE, size: 2, color: "e2e8f0" } as const;
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: thin,
+      bottom: thin,
+      right: thin,
+      left: { style: BorderStyle.SINGLE, size: 18, color: accentHex },
+      insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+      insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { type: ShadingType.CLEAR, fill: fillHex, color: "auto" },
+            margins: { top: 80, bottom: 80, left: 160, right: 160 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: label, bold: true, size: 20, font: REPORT_FONT, color: accentHex, allCaps: true })],
+                spacing: { after: 60 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: body, size: 22, font: REPORT_FONT, color: C_DARK })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+// ─── XML-safe text (additive) ─────────────────────────────────────────────────
+
+/**
+ * OOXML'i bozan XML 1.0 ILLEGAL kontrol karakterlerini kaldırır. İzin verilenler
+ * (TAB \t, LF \n, CR \r) ve Türkçe/tüm normal Unicode KORUNUR. İçerik/anlam değişmez;
+ * yalnız belge XML güvenliği. (DB mutation YOK — bu yalnız render-boundary temizliğidir.)
+ */
+export function sanitizeXmlText(input: string): string {
+  // XML 1.0 gecersiz kontrol karakterleri (asagidaki aralik) kaldirilir; TAB/LF/CR ve
+  // Turkce dahil tum normal Unicode KORUNUR. RegExp ASCII-kaynak (literal kontrol char yok).
+  const XML_INVALID = new RegExp("[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]", "g");
+  return input.replace(XML_INVALID, "");
 }

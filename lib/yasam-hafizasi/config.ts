@@ -30,11 +30,12 @@ export const YH_SOURCE_MODULES = [
   // bankası / kaynak katalogu). Yalnız DORMANT (enabled:false) source contract; mevcut
   // 6 aile ve davranışları DEĞİŞMEZ. source_module DB CHECK'i length>0 (enum yok).
   "numeroloji",
-  // BF-14 Ertelenmiş Kaynaklar Kapanışı: ADDİTİF dormant aileler.
-  //   yebs        → global-canonical professional bilgi (tenant-siz; published-only).
-  //   belge_video → promoted durable belge/video passage kaynağı (row-classification gated).
+  // BF-14 Ertelenmiş Kaynaklar Kapanışı: ADDİTİF dormant aile.
+  //   yebs → global-canonical professional bilgi (tenant-siz; published-only).
+  // NOT: 'belge_video' ailesi ÜRÜN KARARIYLA EMEKLİYE AYRILDI (NON_SOURCE): Dijital İçerik
+  //   Merkezi belge/video/ders-notu işleme alanı transient workspace'tir, Yaşam Hafızası source
+  //   değildir → source_module ailesinden çıkarıldı (bkz sources.ts / moduleSourceMatrix).
   "yebs",
-  "belge_video",
 ] as const;
 export type YhSourceModule = (typeof YH_SOURCE_MODULES)[number];
 

@@ -25,7 +25,7 @@ import {
   type SourceActivationRuntime,
 } from "@/lib/yasam-hafizasi/activation/activationState";
 import { buildPreflightSql, buildActivationTemplate } from "@/lib/yasam-hafizasi/activation/activationPlan";
-import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
+import { YH_INDEX_SOURCES, type SourceConfig } from "@/lib/yasam-hafizasi/indexer/sources";
 import {
   YH_CLIENT_INDEX_SOURCES,
   validateAllClientSources,
@@ -36,6 +36,7 @@ import {
 } from "@/lib/yasam-hafizasi/deferredSourceClosure";
 import { validateModuleSourceMatrix } from "@/lib/yasam-hafizasi/moduleSourceMatrix";
 import { evaluateSourceGuard } from "@/lib/yasam-hafizasi/indexer/sourceGuard";
+import { supportsTenantScopedPage } from "@/lib/yasam-hafizasi/indexer/tenantScopeGate";
 import { evaluateRowEligibility } from "@/lib/yasam-hafizasi/indexer/rowEligibility";
 import {
   parseArchiveClassification,
@@ -61,19 +62,26 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const cliKeys = new Set<string>(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey));
   const matrixKeys = YH_ACTIVATION_MATRIX.map((e) => e.sourceKey);
 
-  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 32, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
+  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 33, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
   add("A-no-duplicate-key", new Set(matrixKeys).size === matrixKeys.length);
   add("A-no-unknown-source", matrixKeys.every((k) => proKeys.has(k) || cliKeys.has(k)));
   add("A-every-entry-has-class", YH_ACTIVATION_MATRIX.every((e) => (ACTIVATION_CLASSES as readonly string[]).includes(e.activationClass)));
   add("A-every-registry-pro-covered", [...proKeys].every((k) => matrixKeys.includes(k)));
   add("A-every-registry-client-covered", [...cliKeys].every((k) => matrixKeys.includes(k)));
 
-  // Sınıf dağılımı (deterministik beklenti).
-  add("A-keep-live-16", sourceKeysByClass("KEEP_LIVE").length === 16, String(sourceKeysByClass("KEEP_LIVE").length));
-  add("A-row-gated-1", sourceKeysByClass("ROW_GATED_READY").length === 1 && sourceKeysByClass("ROW_GATED_READY")[0] === "kisisel_arsiv:archives");
+  // Sınıf dağılımı (deterministik beklenti). Cohort A (PRE-MERGE REVIEW DÜZELTMESİ): worker-v1-supported
+  // 11 professional kaynak (9 mevcut graduate + 2 yeni Biyoenerji) → FUTURE_ONLY_READY (controlled);
+  // 5 kaynak worker v1 kapsamı dışı (4 shared + guide-sections section) → DEFERRED_SHARED_WORKER_V2;
+  // KEEP_LIVE = 2 grandfathered (dogaltas:stones + refleksoloji:notes).
+  add("A-keep-live-2", sourceKeysByClass("KEEP_LIVE").length === 2 && sourceKeysByClass("KEEP_LIVE").every((k) => k === "dogaltas:stones" || k === "refleksoloji:notes"), sourceKeysByClass("KEEP_LIVE").join(","));
+  add("A-row-gated-ready-0", sourceKeysByClass("ROW_GATED_READY").length === 0);
+  add("A-row-gated-controlled-1", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
   add("A-canonical-backfill-6-yebs", sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").length === 6 && sourceKeysByClass("CANONICAL_BACKFILL_CANDIDATE").every((k) => k.startsWith("yebs:")));
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
-  add("A-future-only-7", sourceKeysByClass("FUTURE_ONLY_READY").length === 7, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  // FUTURE_ONLY_READY = 16 professional controlled (11 worker-v1 Cohort A + 5 worker-v2) + 6 client = 22.
+  add("A-future-only-22", sourceKeysByClass("FUTURE_ONLY_READY").length === 22, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  // DEFERRED_SHARED_WORKER_V2 = 0: Worker-v2 (migration 20261210000000) 5 kaynağa capability verdi → READY.
+  add("A-deferred-shared-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("A-no-deferred-registry-entry", sourceKeysByClass("DEFERRED_HARD_BLOCKER").length === 0);
 
   // Numeroloji CLIENT hard blocker KORUNUR (registry'de yok + closure DEFERRED_HARD_BLOCKER).
@@ -91,7 +99,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const activeRuntime: SourceActivationRuntime = { isActive: true, backfillAllowed: false };
   add("B-merge-does-not-activate", dormant.every((e) => !ACTIVE(activeRuntime, toDesired(e))), "dormant registryEnabled=false → inactive");
   // registryEnabled=false = 9 professional dormant (2 numeroloji + 6 yebs + 1 belge_video) + 6 client = 15.
-  add("B-dormant-count-15", dormant.length === 15, String(dormant.length));
+  add("B-dormant-count-14", dormant.length === 14, String(dormant.length));
 
   // Default production activation OFF: runtime === null → her sınıf (grandfathered hariç) inactive.
   const numSrc = entryOf("numeroloji:sources")!;
@@ -132,7 +140,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("C-fail-closed-null-ids", has(/IF v_source_id IS NULL THEN[\s\S]*RAISE EXCEPTION/) && has(/IF v_tenant_id IS NULL THEN[\s\S]*RAISE EXCEPTION/));
   add("C-fail-closed-unknown-op", has(/RAISE EXCEPTION 'yh_cdc_enqueue: desteklenmeyen TG_OP/));
   // Dormant future-event: kaynak dormant iken future INSERT işlenmez (pure gate).
-  add("C-dormant-future-not-processed", !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(entryOf("belge_video:passages")!)));
+  add("C-dormant-future-not-processed", !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(entryOf("numeroloji:sources")!)));
 }
 
 // ═══ D) CLIENT (tenant+client izolasyon; PII denylist; disabled no-op) ════════
@@ -182,43 +190,36 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("E-yebs-backfill-default-false", yebs.every((e) => !evaluateBackfillGate(toDesired(e), { isActive: false, backfillAllowed: false }).allowed));
 }
 
-// ═══ F) BELGE / VIDEO (durable promoted passage only; row-classification gated) ═
+// ═══ F) BELGE / VIDEO: EMEKLİYE AYRILDI (NON_SOURCE; retirement) ═══
 {
-  const doc = entryOf("belge_video:passages")!;
-  add("F-belge-future-only", doc.activationClass === "FUTURE_ONLY_READY");
-  add("F-belge-durable-passages", doc.sourceTable === "yh_document_passages");
-  add("F-belge-row-classification-gate", doc.rowGate === "row-classification");
-  add("F-belge-empty-foundation", doc.currentDataRisk === "empty-foundation");
-  add("F-belge-no-historical-backfill", doc.backfillEligibility === "blocked-pii" && /transient job/i.test(doc.recommendation));
-  // Registry row-eligibility: yalnız safe-non-pii passage; unclassified/pii/restricted no-op.
-  const docSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "belge_video:passages")!;
-  add("F-doc-safe-eligible", evaluateRowEligibility(docSrc, { classification: "safe-non-pii" }).eligible === true);
-  add("F-doc-unclassified-noop", evaluateRowEligibility(docSrc, { classification: "unclassified" }).eligible === false);
-  add("F-doc-pii-noop", evaluateRowEligibility(docSrc, { classification: "pii" }).eligible === false);
-  add("F-doc-restricted-noop", evaluateRowEligibility(docSrc, { classification: "restricted" }).eligible === false);
-  add("F-doc-missing-class-noop", evaluateRowEligibility(docSrc, {}).eligible === false);
-  // Passage content outbox payload'a girmez (migration statik: passage_text yok).
+  // belge_video:passages source registry/activation matrisinden çıkarıldı → aktivasyon adayı değil.
+  add("F-belge-not-in-matrix", !YH_ACTIVATION_MATRIX.some((e) => e.sourceKey === "belge_video:passages"));
+  add("F-belge-not-in-registry", !YH_INDEX_SOURCES.some((s) => (s.sourceKey as string) === "belge_video:passages"));
+  add("F-belge-entry-of-null", entryOf("belge_video:passages") === undefined);
+  add("F-belge-no-passages-table-source", !YH_ACTIVATION_MATRIX.some((e) => e.sourceTable === "yh_document_passages"));
+  // Passage content outbox payload'a girmez (activation-control migration statik: passage_text yok).
   add("F-passage-text-not-in-payload", !/passage_text/i.test(MIG));
-  // Dormant: guard disabled.
-  add("F-belge-guard-disabled", evaluateSourceGuard(docSrc).indexable === false);
 }
 
 // ═══ G) KİŞİSEL ARŞİV (safe-non-pii + current hash only; classification bypass yok) ═
 {
   const arc = entryOf("kisisel_arsiv:archives")!;
-  add("G-archive-row-gated", arc.activationClass === "ROW_GATED_READY" && arc.rowGate === "row-classification-hash");
+  add("G-archive-row-gated", arc.activationClass === "ROW_GATED_CONTROLLED" && arc.rowGate === "row-classification-hash");
   const HASH = "a".repeat(64);
   add("G-safe-hash-match-indexable", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, HASH) === true);
   add("G-missing-classification-noop", isArchiveRowIndexable({ classification: "unclassified", reviewedContentHash: HASH }, HASH) === false);
   add("G-pii-noop", isArchiveRowIndexable({ classification: "pii", reviewedContentHash: HASH }, HASH) === false);
   add("G-stale-hash-noop", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, "b".repeat(64)) === false);
   add("G-no-hash-noop", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: null }, HASH) === false);
-  // safe-non-pii işaretleme reason + hash ZORUNLU (classification bypass yok).
-  add("G-safe-requires-reason-hash", !parseArchiveClassification({ archiveId: "11111111-1111-4111-1111-111111111111", classification: "safe-non-pii" }).ok);
-  // Mevcut kaynak registry'de unclassified (fail-closed; değişmedi).
-  const arcSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives")!;
-  add("G-archive-source-unclassified", arcSrc.classification === "unclassified");
-  add("G-archive-guard-fail-closed", evaluateSourceGuard(arcSrc).indexable === false);
+  // safe-non-pii işaretleme reason ZORUNLU (classification bypass yok; hash SERVER-türetimli).
+  add("G-safe-requires-reason", !parseArchiveClassification({ archiveId: "11111111-1111-4111-1111-111111111111", classification: "safe-non-pii" }).ok);
+  // BF-11E ROW-GATED CONTROLLED: source-level safe-non-pii + requiresRowEligibilityGate + backfill-deny.
+  const arcSrc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives")! as SourceConfig;
+  add("G-archive-source-safe-non-pii", arcSrc.classification === "safe-non-pii" && arcSrc.requiresRowEligibilityGate === true);
+  // Source guard artık kaynağı erişilebilir bulur (satır güvenliği row-gate'te; sourceGuard değil).
+  add("G-archive-guard-indexable", evaluateSourceGuard(arcSrc).indexable === true);
+  // Kör tenant-scoped backfill FAIL-CLOSED (safe-non-pii olsa DAHİ).
+  add("G-archive-backfill-denied", supportsTenantScopedPage(arcSrc) === false);
 }
 
 // ═══ H) BACKFILL ayrımı (default false; explicit allowlist; activation != backfill) ═
@@ -272,9 +273,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
 // ═══ K) MODÜL REGRESYON (registry sayıları / dormancy değişmedi) ═════════════
 {
-  add("K-professional-registry-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
-  add("K-live-professional-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
-  add("K-dormant-professional-9", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 9);
+  add("K-professional-registry-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("K-live-professional-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
+  add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
   add("K-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
   add("K-numerology-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));

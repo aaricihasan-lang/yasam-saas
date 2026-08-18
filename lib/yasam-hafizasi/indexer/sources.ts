@@ -24,6 +24,21 @@ import type { YhSourceModule } from "../config";
 export type IndexUnit = "record" | "section" | "row";
 
 /**
+ * WORKER-V2 AÇIK CAPABILITY MODELİ (BF-Worker-v2). Worker-v1 fail-closed kapıları GLOBAL olarak
+ * gevşetilmez; yalnız burada AÇIKÇA listelenen kaynak, ilgili worker kapısından geçebilir. Capability
+ * verilmemiş bir kaynak için tenant-shared / non-record-unit hâlâ FAIL-CLOSED reddedilir.
+ *   - "shared-optional-professional": tenant_id NULL satır SHARED professional referans olarak
+ *     indexlenir (allowSharedNull ile birlikte). YOKSA allowSharedNull kaynağı reddedilir (gate 6).
+ *   - "section-unit": unit=section worker tarafından yalnız BU kaynak için desteklenir (global değil).
+ *   - "parent-derived-scope": tenant/shared scope parent'tan authoritative çözülür + parent-side
+ *     BEFORE-DELETE capture (cascade-safe; child cascade sonrası silent-skip GHOST bırakmaz).
+ */
+export type WorkerCapability =
+  | "shared-optional-professional"
+  | "section-unit"
+  | "parent-derived-scope";
+
+/**
  * Tenant çözümleme:
  *   - column: tenant_id doğrudan kolonda (bazıları NULL=shared referans).
  *   - join:   tenant_id yok → parent tablodan FK ile çözülür.
@@ -36,6 +51,13 @@ export type TenantResolution =
       readonly parentTable: string;
       readonly parentTenantColumn: string;
       readonly allowSharedNull?: boolean;
+      /**
+       * Worker-v2 (parent-derived-scope): verilirse child'ın current-state eligibility'si parent'ın
+       * bu boolean kolonuna (ör. reference-sheets `is_active`) BAĞLIDIR. Parent bu kolonda true DEĞİL
+       * iken child current searchable state DIŞINA çıkar → exact read skipped-build → defensiveDeindex
+       * (stale child hit = 0). Parent aktiflik değişimi propagation'ı source-specific trigger'dadır.
+       */
+      readonly parentActiveColumn?: string;
     }
   /**
    * BF-14 Ertelenmiş Kaynaklar: global/canonical kaynak (tenant kolonu YOK; merkezî).
@@ -105,14 +127,36 @@ export interface SourceConfig {
    * Verilirse yalnız 'safe-non-pii' satırlar indexlenebilir (unclassified/pii/restricted → skip).
    */
   readonly rowClassificationColumn?: string | null;
+  /**
+   * BF-11E Kişisel Arşiv (ROW-GATED CONTROLLED): bu kaynak YALNIZ satır-seviyesi eligibility
+   * kapısından (ayrı classification tablosu + server-türetimli current content hash eşleşmesi;
+   * `archiveEligibility.ts`) geçen kayıtları indexler. true ise:
+   *   (a) `supportsTenantScopedPage` FALSE döner → kör tenant-scoped backfill KAPALI;
+   *   (b) `runExactRecord` yazma öncesi zorunlu row-gate uygular (port yok/erişilemez → fail-closed).
+   * Source-level classification 'safe-non-pii' olsa dahi güvenlik row-gate'e dayanır (kaynak
+   * güvenliği source-level flip'e DEĞİL, satır-bazlı reviewed+hash kapısına bağlıdır).
+   */
+  readonly requiresRowEligibilityGate?: boolean;
+  /**
+   * BF-Worker-v2: bu kaynağa AÇIKÇA atanmış worker capability'leri (yoksa/[] → yok). Yalnız burada
+   * listelenen capability için ilgili worker kapısı geçebilir; aksi FAIL-CLOSED (bkz. WorkerCapability).
+   */
+  readonly workerCapabilities?: readonly WorkerCapability[];
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
 }
 
+/** Kaynağın verilen worker-v2 capability'sine açıkça sahip olup olmadığı (SAF; fail-closed). */
+export function hasWorkerCapability(config: SourceConfig, cap: WorkerCapability): boolean {
+  return Array.isArray(config.workerCapabilities) && config.workerCapabilities.includes(cap);
+}
+
 /**
  * Kilitli 17 kaynak (Sprint 2 başlangıç kapsamı).
- * Kapsam dışı 5 tablo (refleksoloji atlası, enerji bedenleri, arşiv dosyaları,
- * aromaterapi bilgi makaleleri ve taş dışlama filtresi) bu listede YER ALMAZ.
+ * Kapsam dışı 3 tablo (refleksoloji atlası, arşiv dosyaları ve taş dışlama filtresi)
+ * bu listede YER ALMAZ. NOT: Biyoenerji "Enerji Bedenleri" (bioenergy_energy_bodies) ve
+ * "Teknikler & Uygulamalar / Seanslar" (bioenergy_sessions) ARTIK professional kaynaktır
+ * (Cohort A event-driven parity; migration 20261004000000) → aşağıda kayıtlıdır.
  */
 export const YH_INDEX_SOURCES = [
   // ── Refleksoloji ──────────────────────────────────────────────────────────
@@ -216,6 +260,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: null, // yalnız created_at var → content_hash
     activeColumn: null,
+    // Worker-v2: unit=section desteği + parent (healing_guides) türevi scope + parent-side capture.
+    workerCapabilities: ["section-unit", "parent-derived-scope"],
     enabled: true,
   },
 
@@ -287,6 +333,42 @@ export const YH_INDEX_SOURCES = [
     searchTextColumns: ["text", "notes", "source"],
     snippetColumns: ["text"],
     topicTagsColumns: ["category"],
+    relationColumns: [],
+    updatedAtColumn: null,
+    activeColumn: null,
+    enabled: true,
+  },
+  {
+    sourceKey: "biyoenerji:sessions",
+    classification: "safe-non-pii", // Teknikler & Uygulamalar; danışan-bağımsız (client_id yok)
+
+    sourceFamily: "biyoenerji",
+    tableName: "bioenergy_sessions",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["content", "category", "source", "note"],
+    snippetColumns: ["content"],
+    topicTagsColumns: ["category"],
+    relationColumns: [],
+    updatedAtColumn: null,
+    activeColumn: null,
+    enabled: true,
+  },
+  {
+    sourceKey: "biyoenerji:energy-bodies",
+    classification: "safe-non-pii", // Enerji Bedenleri; danışan-bağımsız
+
+    sourceFamily: "biyoenerji",
+    tableName: "bioenergy_energy_bodies",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["source_uid"],
+    searchTextColumns: ["genel_tanim", "gorevi", "bozulma", "onerilen_taslar", "not_text"],
+    snippetColumns: ["genel_tanim"],
+    topicTagsColumns: [],
     relationColumns: [],
     updatedAtColumn: null,
     activeColumn: null,
@@ -366,6 +448,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["related_stones", "related_minerals"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı taş bilgi kütüphanesi).
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -423,6 +507,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["blends_well_with"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı yağ kütüphanesi).
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -441,6 +527,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
+    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı referans sheet); reference-rows parent'ı.
+    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -457,6 +545,7 @@ export const YH_INDEX_SOURCES = [
       parentTable: "aromatherapy_reference_sheets",
       parentTenantColumn: "tenant_id",
       allowSharedNull: true, // parent sheet tenant NULL ise shared miras alınır
+      parentActiveColumn: "is_active", // Worker-v2: parent sheet is_active=false → child current-state DIŞI
     },
     titleColumns: [], // başlık cells JSONB'den türetilir → builder
     searchTextColumns: ["cells"], // jsonb; hücre metni çıkarımı builder'da
@@ -465,6 +554,8 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: null, // yalnız created_at var → content_hash
     activeColumn: null,
+    // Worker-v2: parent (reference-sheets) türevi scope + shared-optional (parent sheet NULL→shared) + parent-side capture.
+    workerCapabilities: ["shared-optional-professional", "parent-derived-scope"],
     enabled: true,
   },
   {
@@ -653,38 +744,25 @@ export const YH_INDEX_SOURCES = [
     enabled: false,
   },
 
-  // ── Belge/Video (BF-14; promoted durable passage; row-classification gated; DORMANT) ──
-  // Kaynak = yh_document_passages (promoted durable). Transient job'lar DEĞİL. tenant join →
-  // yh_document_sources. Yalnız safe-non-pii sınıflandırılmış passage indexlenebilir.
-  {
-    sourceKey: "belge_video:passages",
-    classification: "safe-non-pii",
+  // ── Belge/Video: EMEKLİYE AYRILDI (ÜRÜN KARARI — NON_SOURCE) ────────────────────
+  // Dijital İçerik Merkezi'nin belge/video/ders-notu işleme alanı TRANSIENT PROCESSING /
+  // EXPORT WORKSPACE'tir; Yaşam Hafızası SOURCE DOMAIN'İ DEĞİLDİR. Nihai bilgi geçici işleme
+  // merkezinden DEĞİL, uzmanın aktardığı nihai profesyonel modülden öğrenilir (çift ingestion
+  // engeli). Bu nedenle belge_video:passages source registry'den ÇIKARILDI (activationMatrix +
+  // moduleSourceMatrix NOT_MEMORY_SOURCE + deferredSourceClosure NOT_APPLICABLE ile tutarlı).
+  // yh_document_passages join+row REUSABLE indexer/worker yeteneği (PR#128) korunur; yalnız bu
+  // kaynak-özel kayıt emekliye ayrılmıştır. Foundation tabloları (yh_document_sources/passages)
+  // DROP EDİLMEZ (cleanup-candidate; ayrı sistem-genel risk kapısı).
 
-    sourceFamily: "belge_video",
-    tableName: "yh_document_passages",
-    primaryKey: "id",
-    unit: "row",
-    tenant: {
-      mode: "join",
-      fkColumn: "document_id",
-      parentTable: "yh_document_sources",
-      parentTenantColumn: "tenant_id",
-    },
-    titleColumns: [],
-    searchTextColumns: ["passage_text"],
-    snippetColumns: ["passage_text"],
-    topicTagsColumns: [],
-    relationColumns: [],
-    updatedAtColumn: "source_updated_at",
-    activeColumn: null,
-    rowClassificationColumn: "classification",
-    enabled: false,
-  },
-
-  // ── Kişisel Arşiv ─────────────────────────────────────────────────────────
+  // ── Kişisel Arşiv (ROW-GATED CONTROLLED; BF-11E) ──────────────────────────
+  // Source-level 'safe-non-pii' YALNIZ requiresRowEligibilityGate + backfill-deny + controlled
+  // activation (ROW_GATED_CONTROLLED) ile BİRLİKTE anlamlıdır: her satır ayrı classification
+  // tablosunda safe-non-pii + server-türetimli current content hash eşleşmesi ister (fail-closed).
+  // Kör backfill KAPALI (supportsTenantScopedPage=false); production'da DB is_active=true olmadan
+  // hiçbir olay indexlemez. Serbest-form kişisel içerik row-gate'siz index ÜRETMEZ.
   {
     sourceKey: "kisisel_arsiv:archives",
-    classification: "unclassified", // serbest-form kişisel arşiv; F5'e ertelendi; reddedilir
+    classification: "safe-non-pii", // güvenlik row-gate'e dayanır (bkz. requiresRowEligibilityGate)
 
     sourceFamily: "kisisel_arsiv",
     tableName: "personal_archives",
@@ -698,6 +776,7 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: null,
+    requiresRowEligibilityGate: true, // per-row classification + current-hash gate ZORUNLU
     enabled: true,
   },
 ] as const satisfies readonly SourceConfig[];

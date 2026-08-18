@@ -50,6 +50,7 @@ export default function BilgiKaydiDetayPage() {
       breadcrumbLeaf="Bilgi Kaydı"
       backHref="/aromaterapi/bilgi-kayitlari"
       backLabel="Bilgi Kayıtlarına dön"
+      wordExportUrl={id ? `/api/aromaterapi/claims/${id}/word-report` : undefined}
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}

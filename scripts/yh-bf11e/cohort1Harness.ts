@@ -48,13 +48,14 @@ async function run(): Promise<void> {
   add("A-keep-live-active-null", resolveProcessingActive("dogaltas:stones", null) === true);
   add("A-keep-live-active-ignores-runtime", resolveProcessingActive("dogaltas:stones", { isActive: false, backfillAllowed: false }) === true);
   // CONTROLLED dormant (registryEnabled=false): DB is_active=true olsa DAHI inactive.
-  add("A-controlled-dormant-inactive-db-true", resolveProcessingActive("belge_video:passages", { isActive: true, backfillAllowed: false }) === false);
-  add("A-controlled-dormant-inactive-null", resolveProcessingActive("belge_video:passages", null) === false);
-  // Bilinmeyen key → fail-closed false.
+  add("A-controlled-dormant-inactive-db-true", resolveProcessingActive("numeroloji:sources", { isActive: true, backfillAllowed: false }) === false);
+  add("A-controlled-dormant-inactive-null", resolveProcessingActive("numeroloji:sources", null) === false);
+  // Bilinmeyen key (belge_video:passages ARTIK source değil → retired) → fail-closed false.
   add("A-unknown-key-false", resolveProcessingActive("nope:x", { isActive: true, backfillAllowed: false }) === false);
+  add("A-retired-belge-false", resolveProcessingActive("belge_video:passages", { isActive: true, backfillAllowed: false }) === false);
 
   // ÇİFT KAPI ispatı: hipotetik kod enabled:true bir CONTROLLED kaynak TEK BAŞINA aktive olmaz.
-  const hyp: SourceActivationDesired = { sourceKey: "belge_video:passages", scope: "professional", activationClass: "FUTURE_ONLY_READY", registryEnabled: true };
+  const hyp: SourceActivationDesired = { sourceKey: "danisan:sessions", scope: "client", activationClass: "FUTURE_ONLY_READY", registryEnabled: true };
   add("A-code-enabled-runtime-null-inactive", evaluateProcessingGate(hyp, null).active === false);
   add("A-code-enabled-runtime-false-inactive", evaluateProcessingGate(hyp, { isActive: false, backfillAllowed: false }).active === false);
   add("A-both-gates-active", evaluateProcessingGate(hyp, { isActive: true, backfillAllowed: false }).active === true);
@@ -129,13 +130,23 @@ async function run(): Promise<void> {
   add("D-matrix-validate", ok, detail);
   // Her kaynak bir kohort dispozisyonu alır (fail-closed default yok).
   add("D-every-entry-cohort", YH_ACTIVATION_MATRIX.every((e) => assessCohort(e).cohort.length > 0));
-  // KEEP_LIVE 16 (grandfathered) + ROW_GATED_READY archive COHORT_1_BLOCKED.
-  add("D-keep-live-16", sourceKeysByCohort("KEEP_LIVE").length === 16);
-  add("D-archive-cohort1-blocked", sourceKeysByCohort("COHORT_1_BLOCKED").includes("kisisel_arsiv:archives"));
-  add("D-belge-cohort1-blocked", sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
-  // Cohort-1 adayları GAP taşır (bu turda hiçbiri "hazır (gap yok)" değil).
-  const cohort1 = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_BLOCKED");
-  add("D-cohort1-all-have-gap", cohort1.length === 2 && cohort1.every((e) => assessCohort(e).readyGap.length > 20), cohort1.map((e) => e.sourceKey).join(","));
+  // KEEP_LIVE 2 (grandfathered: dogaltas:stones + refleksoloji:notes). Cohort A (PRE-MERGE REVIEW
+  // DÜZELTMESİ): worker-v1-supported 11 professional → FUTURE_ONLY_READY → COHORT_1_READY (archive dahil);
+  // 5 worker-v1 kapsamı dışı kaynak → DEFERRED_SHARED_WORKER_V2 kohortu (aktivasyona hazır DEĞİL).
+  add("D-keep-live-2", sourceKeysByCohort("KEEP_LIVE").length === 2 && sourceKeysByCohort("KEEP_LIVE").every((k) => k === "dogaltas:stones" || k === "refleksoloji:notes"), sourceKeysByCohort("KEEP_LIVE").join(","));
+  add("D-archive-cohort1-ready", sourceKeysByCohort("COHORT_1_READY").includes("kisisel_arsiv:archives"));
+  // COHORT_1_BLOCKED artık BOŞ (archive graduate; belge retired → source değil).
+  add("D-cohort1-blocked-empty", sourceKeysByCohort("COHORT_1_BLOCKED").length === 0);
+  add("D-belge-retired-not-cohort1", !sourceKeysByCohort("COHORT_1_BLOCKED").includes("belge_video:passages"));
+  // COHORT_1_READY = kisisel_arsiv:archives (ROW_GATED_CONTROLLED) + 11 worker-v1-supported Cohort-A
+  // professional FUTURE_ONLY_READY = 12; kod önkoşulları çözüldü → readyGap BOŞ.
+  // COHORT_1_READY = archive (ROW_GATED_CONTROLLED) + 16 professional FUTURE_ONLY_READY (11 worker-v1
+  // Cohort A + 5 worker-v2) = 17; kod önkoşulları çözüldü → readyGap BOŞ.
+  const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
+  add("D-cohort1-ready-17-no-gap", cohort1Ready.length === 17 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-includes-archive", cohort1Ready.some((e) => e.sourceKey === "kisisel_arsiv:archives"));
+  // DEFERRED_SHARED_WORKER_V2 kohortu = 0: Worker-v2 5 kaynağa capability verdi → COHORT_1_READY'ye taşındı.
+  add("D-deferred-worker-v2-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").join(","));
   // YEBS(6) + client(6) → COHORT_2.
   add("D-yebs-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("yebs:")).length === 6);
   add("D-client-cohort2", sourceKeysByCohort("COHORT_2").filter((k) => k.startsWith("danisan:")).length === 6);
@@ -143,11 +154,12 @@ async function run(): Promise<void> {
   add("D-numerology-wait-reset", sourceKeysByCohort("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByCohort("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
 }
 
-// ═══ E) KEEP_LIVE COMPATIBILITY (17 canlı registry kaynak DEĞİŞMEDİ) ═══
+// ═══ E) KEEP_LIVE COMPATIBILITY (Cohort A: 19 canlı registry kaynak) ═══
 {
-  add("E-live-count-17", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
-  // Bu turda registry enabled DEĞİŞMEDİ: dormant professional 9, client 6.
-  add("E-dormant-professional-9", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 9);
+  // Cohort A: 2 yeni Biyoenerji professional kaynağı enabled:true → live 17→19.
+  add("E-live-count-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
+  // dormant professional 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; client 6 dormant.
+  add("E-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("E-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
   // KEEP_LIVE kaynaklar runtime gate'te DB gerektirmez (grandfathered → null runtime aktif).
   const keepLive = YH_ACTIVATION_MATRIX.filter((e) => e.activationClass === "KEEP_LIVE");

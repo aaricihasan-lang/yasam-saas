@@ -11,7 +11,8 @@ import {
   getMonthPhaseEvents, getUpcomingPhaseEvents,
   type UpcomingPhaseEvent,
 } from "@/lib/cosmic/moon";
-import { getPlanetaryHour, getDayRuler, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
+import { getPlanetaryHour, getDayRuler } from "@/lib/cosmic/planetary-hours";
+import { toDateParam } from "./planetary-hours/plannerData";
 import {
   getActiveRetros, getUpcomingRetros, getNextRetro, parseRetroDate,
   RETRO_PERIODS,
@@ -21,6 +22,7 @@ import { getPlanetSigns } from "@/lib/cosmic/planets";
 import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
+import { getExactAspectsInRange, type ExactAspectHit } from "@/lib/cosmic/exactAspects";
 import {
   getAllEclipses, getSolarCityVisibility, getLunarCityVisibility,
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
@@ -29,7 +31,7 @@ import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref, saveUserLocationPref } from "@/lib/location/userLocationPref";
-import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes } from "@/lib/location/tz";
+import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -70,6 +72,22 @@ function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: stri
 
 const motionDirTR = (d: AspectMotionState["direction"]): string =>
   d === "applying" ? "Yaklaşıyor" : d === "separating" ? "Ayrılıyor" : "Tam";
+
+// ─── Günün Exact Açıları (timeline) yardımcıları ───────────────────────────────
+// Timeline, seçili gün için [00:00, ertesi 00:00) SEÇİLİ KONUM saat diliminde exact
+// major açıların kronolojik listesidir (snapshot DEĞİL). Global selectedDate DEĞİŞMEZ.
+
+/** Bir exact olayın gösterim saati: dakika hassasiyetinde tz-aware HH:mm; "date"te saat YOK. */
+function timelineClock(hit: ExactAspectHit, tz: string): { time: string | null; note: string } {
+  if (hit.displayPrecision === "date") return { time: null, note: "gün içinde" };
+  return { time: formatInTimeZone(hit.exactAt, tz), note: "" };
+}
+
+/** Exact çözücünün güven düzeyi — insan-okur (yalnız uzman modda gösterilir). */
+const confidenceTR = (c: ExactAspectHit["confidence"]): string =>
+  c === "high" ? "yüksek güven" : c === "medium" ? "orta güven" : "konum güveni";
+
+const timelineIncludesMoon = (h: ExactAspectHit): boolean => h.bodyA === "Ay" || h.bodyB === "Ay";
 
 // ─── Void of Course Moon (FAZ 3B Adım 3 — normal kullanıcı) ────────────────────
 // Yalnız production voidMoon engine verisi. Teknik alanlar (source/validation/id) gizli.
@@ -884,6 +902,7 @@ export default function CosmicCalendarPage() {
   const [showFilters,      setShowFilters]      = useState(false);  // filtre paneli aç/kapa
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
+  const [timelineMoon,     setTimelineMoon]     = useState(true);   // Günün Exact Açıları: Ay dahil (varsayılan açık — Ay olayların çoğu)
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
   const [showAllEclipses,  setShowAllEclipses]  = useState(false);   // normal görünüm: tüm yaklaşan tutulmalar
   const [showPastEclipses, setShowPastEclipses] = useState(false);   // normal görünüm: geçmiş tutulmalar (varsayılan kapalı)
@@ -906,6 +925,11 @@ export default function CosmicCalendarPage() {
   const [lunarExpert,      setLunarExpert]      = useState(false);   // Ay Yörüngesi uzman modu
   const [lunarFilters,     setLunarFilters]     = useState<LunarFilterState>(DEFAULT_LUNAR_FILTERS);
   const [lunarDetail,      setLunarDetail]      = useState<LunarItem | null>(null);
+  // Gezegen Saati — "Şimdi" (realNow, yalnız bugün) vs "Seçili saat" (selectedDate + saat)
+  const [phMode,           setPhMode]           = useState<"now" | "custom">("now");
+  const [phTime,           setPhTime]           = useState("12:00");   // "HH:MM" — deterministik (hydration-safe)
+  // Gezegen Saati Planlayıcısı AYRI sayfaya taşındı (/cosmic-calendar/planetary-hours).
+  // Ana sayfada yalnız Gezegen Saati kutusundaki giriş noktası kalır (aşağıda Link).
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -998,10 +1022,26 @@ export default function CosmicCalendarPage() {
 
   const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
 
-  // Şu an (realNow) aktif retro gezegenleri — "Şu An Gökyüzünde" önceliği (madde 7/8) ve
-  // gezegen satırı retro rozeti (madde 19) için. Yeni hesap YOK; getActiveRetros türevi.
+  // Şu an (realNow) aktif retro gezegenleri — yalnız "Şu An Gökyüzünde" hero'su (realNow) için.
+  // Panel retro rozeti artık selectedDate bağlamındadır (panelRetroSet). Yeni hesap YOK.
   const activeRetrosNow = useMemo(() => getActiveRetros(realNow), [realNow]);
-  const retroPlanetSet  = useMemo(() => new Set(activeRetrosNow.map(r => r.planet)), [activeRetrosNow]);
+
+  // ── Gezegen Konumları Paneli — SEÇİLİ TARİHE bağlı (Şu An Gökyüzünde hero realNow'da kalır) ──
+  // Bugün seçiliyse bugünün konumları; ileri/geri desteklenen tarih seçiliyse o tarihin.
+  // Ay ve retro rozetleri de AYNI selectedDate bağlamındadır (karışım yok).
+  const panelMoonSign = useMemo(() => getMoonSign(selectedDate),   [selectedDate]);
+  const panelPlanets  = useMemo(() => getPlanetSigns(selectedDate), [selectedDate]);
+  const panelRows = useMemo(() => {
+    const sun = panelPlanets[0];
+    const rest = panelPlanets.slice(1);
+    return [
+      ...(sun ? [sun] : []),
+      { key: "Ay" as const, symbol: "☽", sign: panelMoonSign.name, signSymbol: panelMoonSign.emoji, outOfRange: false },
+      ...rest,
+    ];
+  }, [panelPlanets, panelMoonSign]);
+  // Panel retro rozeti = seçili tarihin aktif retroları (activeRetros = getActiveRetros(selectedDate)).
+  const panelRetroSet = useMemo(() => new Set(activeRetros.map(r => r.planet)), [activeRetros]);
 
   // ── Gökyüzü Açıları — seçili güne göre majör aspect'ler (FAZ 2B) ──────────────
   // Ay açıları (includesMoon) ve background gizli; yalnız very-strong/strong, maks 5.
@@ -1056,16 +1096,30 @@ export default function CosmicCalendarPage() {
     !filters.applying || !filters.separating || filters.onlyExact || filters.stationOnly || filters.tripleOnly;
 
   // ── Tutulmalar (FAZ 3A) — yalnız production engine; şehir bağımsız zenginleştirme ──
+  // Feature D: referans tarih = SEÇİLİ GÜN (realNow değil). Bugün seçiliyse davranış eşdeğer;
+  // ileri tarih (ör. 2028) seçilince liste 2026'dan değil seçili günden başlar. 10-limit ve
+  // 2050 hard cap korunur; astronomik motor (getAllEclipses, 2026–2050) DEĞİŞMEZ.
   const eclipseData = useMemo<EclipseRow[]>(() => {
-    const now = realNow.getTime();
+    const ref = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
     const all = getAllEclipses();
-    const upcoming = all.filter(e => Date.parse(e.peakUTC) >= now).slice(0, 10);
-    const past = all.filter(e => Date.parse(e.peakUTC) < now).slice(-6).reverse();
+    const upcoming = all.filter(e => Date.parse(e.peakUTC) >= ref).slice(0, 10);
+    const past = all.filter(e => Date.parse(e.peakUTC) < ref).slice(-6).reverse();
     const enrich = (e: AnyEclipse, period: EclipsePeriod): EclipseRow => {
       const vis = e.kind === "solar" ? getSolarCityVisibility(e.id) : getLunarCityVisibility(e.id);
       return { e, period, vis, visibleCount: vis.filter(v => v.visible).length, totalCities: vis.length };
     };
     return [...upcoming.map(e => enrich(e, "upcoming")), ...past.map(e => enrich(e, "past"))];
+  }, [selectedDate]);
+
+  // criticalNow (realNow kritik olay şeridi) tutulma kontrolü — DISPLAY referansından (selectedDate)
+  // BAĞIMSIZ olmalı. Bu yüzden şeridin bugünkü/yaklaşan tutulmasını doğrudan realNow'a göre türet.
+  const realNowEclipses = useMemo(() => {
+    const all = getAllEclipses();
+    const nowMs = realNow.getTime();
+    return {
+      today:        all.find(e => isSameDay(new Date(Date.parse(e.peakUTC)), realNow)) ?? null,
+      nextUpcoming: all.find(e => Date.parse(e.peakUTC) >= nowMs) ?? null,
+    };
   }, [realNow]);
 
   // Konum cache'i (id → Location). ECLIPSE_LOCATIONS ile tohumlanır; global API'den gelen gn-*
@@ -1085,6 +1139,25 @@ export default function CosmicCalendarPage() {
   const eclipseCity = selEclipseLoc?.name ?? "Ankara";
   const eclipseTz = selEclipseLoc?.tz ?? TR_TZ;
 
+  // ── Günün Exact Açıları (timeline) — FAZ 2C sunum katmanı ─────────────────────
+  // Snapshot (getDailyAspects) DEĞİŞMEZ; bu AYRI bir semantik: seçili günün
+  // [00:00, ertesi 00:00) SEÇİLİ KONUM saat dilimindeki TÜM exact major açıları.
+  // Global selectedDate dokunulmaz — yalnız Y/M/D + eclipseTz'den tz-aware pencere türetilir.
+  // Motor yeniden yazılmadı: getZonedDayRange (tz) + getExactAspectsInRange (mevcut çözücü).
+  const dayTimeline = useMemo(() => {
+    const { start, end } = getZonedDayRange(
+      selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), eclipseTz,
+    );
+    return { start, end, events: getExactAspectsInRange(start, end) };
+  }, [selectedDate, eclipseTz]);
+
+  // Ay filtresi client-side; yeni astronomik hesap YAPMAZ (hazır liste süzülür).
+  const timelineView = useMemo<ExactAspectHit[]>(
+    () => (timelineMoon ? dayTimeline.events : dayTimeline.events.filter(h => !timelineIncludesMoon(h))),
+    [dayTimeline, timelineMoon],
+  );
+  const timelineMoonCount = useMemo(() => dayTimeline.events.filter(timelineIncludesMoon).length, [dayTimeline]);
+
   // P5g — Gezegen Saati / Gün Yöneticisi SEÇİLİ KONUMA göre: koordinat + IANA tz'nin DST-doğru
   // offset'i (getTimeZoneOffsetMinutes, lib/location/tz.ts salt kullanım). Motor default UTC+3 →
   // İstanbul/TR birebir korunur; global şehirde yerel gün doğumu/batımı + haftanın günü doğru olur.
@@ -1095,6 +1168,25 @@ export default function CosmicCalendarPage() {
     () => getPlanetaryHour(realNow, selEclipseLoc?.lat, selEclipseLoc?.lon, eclipseOffsetNow),
     [realNow, selEclipseLoc, eclipseOffsetNow],
   );
+
+  // ── Gezegen Saati "Seçili saat" modu (Feature B) ──────────────────────────────
+  // Bugün DIŞINDA bir gün seçiliyse "Şimdi" anlamsız → daima custom. Bugünse kullanıcı seçer.
+  const phEffectiveMode: "now" | "custom" = isSelectedToday ? phMode : "custom";
+  // Hedef an = seçili gün + seçilen HH:MM (yerel). Offset HEDEF TARİHE göre (DST-doğru); realNow
+  // offset'i gelecekteki güne TAŞINMAZ. Türkiye Europe/Istanbul için +03 sabit kalır.
+  const phTarget = useMemo(() => {
+    if (phEffectiveMode === "now") return null;
+    const [hhRaw, mmRaw] = phTime.split(":");
+    const hh = Number.parseInt(hhRaw ?? "12", 10);
+    const mm = Number.parseInt(mmRaw ?? "0", 10);
+    const target = new Date(
+      selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(),
+      Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, 0, 0,
+    );
+    const offset = getTimeZoneOffsetMinutes(target, eclipseTz);
+    const result = getPlanetaryHour(target, selEclipseLoc?.lat, selEclipseLoc?.lon, offset);
+    return { target, result };
+  }, [phEffectiveMode, phTime, selectedDate, eclipseTz, selEclipseLoc]);
 
   // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → durum satırı).
   const eclipseCityHasQuery = eclipseCityQuery.trim() !== "";
@@ -1424,8 +1516,8 @@ export default function CosmicCalendarPage() {
     const todayIso = `${todayYear}-${String(todayMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
 
     // 1. Bugünkü tutulma
-    const eclToday = eclipseData.find(r => r.period === "upcoming" && isSameDay(new Date(Date.parse(r.e.peakUTC)), realNow));
-    if (eclToday) return { icon: eclToday.e.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclToday.e), detail: "Bugün", tone: "amber" };
+    const eclToday = realNowEclipses.today;
+    if (eclToday) return { icon: eclToday.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclToday), detail: "Bugün", tone: "amber" };
 
     // 2. Bugünkü Yeni Ay / Dolunay
     const moonToday = cosmicEvents.find(e => (e.type === "new_moon" || e.type === "full_moon") && e.date === todayIso);
@@ -1447,13 +1539,13 @@ export default function CosmicCalendarPage() {
       return { icon: "🌙", label: `Ay boşluğu bugün · ${vocData.cur.moonSign} → ${vocData.cur.nextMoonSign}`, detail: `${vocDateTime(vocData.cur.voidStartTR)} → ${vocDateTime(vocData.cur.voidEndTR)}`, tone: "violet" };
 
     // 7. En fazla 2 gün içindeki tutulma
-    const eclNear = eclipseData.find(r => r.period === "upcoming");
+    const eclNear = realNowEclipses.nextUpcoming;
     if (eclNear) {
-      const days = Math.round((Date.parse(eclNear.e.peakUTC) - new Date(todayYear, todayMonth, todayDay).getTime()) / 86_400_000);
-      if (days >= 0 && days <= 2) return { icon: eclNear.e.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclNear.e), detail: days === 0 ? "Bugün" : days === 1 ? "Yarın" : `${days} gün içinde`, tone: "amber" };
+      const days = Math.round((Date.parse(eclNear.peakUTC) - new Date(todayYear, todayMonth, todayDay).getTime()) / 86_400_000);
+      if (days >= 0 && days <= 2) return { icon: eclNear.kind === "solar" ? "☀️" : "🌙", label: eclipseTitleTR(eclNear), detail: days === 0 ? "Bugün" : days === 1 ? "Yarın" : `${days} gün içinde`, tone: "amber" };
     }
     return null;
-  }, [eclipseData, cosmicEvents, vocData, realNow, todayYear, todayMonth, todayDay]);
+  }, [realNowEclipses, cosmicEvents, vocData, realNow, todayYear, todayMonth, todayDay]);
 
   // ── Tutulma gruplama (normal görünüm ilk-görünüm daraltma) ──
   const eclipseUpcoming = useMemo(() => eclipseData.filter(r => r.period === "upcoming"), [eclipseData]);
@@ -1954,35 +2046,99 @@ export default function CosmicCalendarPage() {
           {/* ── Sağ Kolon (günlük bilgi paneli) ── */}
           <div id="gezegen-saati" className="flex scroll-mt-4 flex-col gap-3">
 
-            {/* Gezegen Saati mini — konum tercihi çözülene kadar Ankara fallback GÖSTERİLMEZ */}
-            {isSelectedToday && !locPrefLoaded && (
+            {/* Gezegen Saati — konum tercihi çözülene kadar Ankara fallback GÖSTERİLMEZ.
+                İleri/geri tarih seçilince KAYBOLMAZ: "Şimdi" (yalnız bugün) veya "Seçili saat". */}
+            {!locPrefLoaded && (
               <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
                 <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
                 <p className="text-[11px] font-semibold text-slate-400">📍 Konum yükleniyor…</p>
               </div>
             )}
-            {isSelectedToday && locPrefLoaded && (
+            {locPrefLoaded && (
               <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
-                <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{ph.aktifGezegen.symbol}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
-                    <p className="text-xs text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] text-slate-400">Sonraki</p>
-                    <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
-                  </div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
+                  {isSelectedToday ? (
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => setPhMode("now")} aria-pressed={phMode === "now"}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${phMode === "now" ? "border-indigo-400 bg-indigo-600 text-white" : "border-indigo-200/70 bg-white/70 text-indigo-500 hover:bg-white"}`}>Şimdi</button>
+                      <button type="button" onClick={() => setPhMode("custom")} aria-pressed={phMode === "custom"}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${phMode === "custom" ? "border-indigo-400 bg-indigo-600 text-white" : "border-indigo-200/70 bg-white/70 text-indigo-500 hover:bg-white"}`}>Saat seç</button>
+                    </div>
+                  ) : (
+                    <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2 py-0.5 text-[10px] font-bold text-indigo-500">{miladiDate}</span>
+                  )}
                 </div>
-                <p className="mt-2 text-[10px] text-indigo-400/70">📍 {eclipseCity} konumuna göre hesaplanmaktadır</p>
-                {ph.isFallback && (
-                  <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
-                    Bu enlemde bugün gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
-                  </p>
+
+                {/* Seçili saat modunda saat girişi (tek kaynak: ana takvim tarihi + bu saat) */}
+                {phEffectiveMode === "custom" && (
+                  <div className="mb-2 flex items-center gap-2">
+                    <label htmlFor="ph-time" className="text-[11px] font-semibold text-slate-500">Saat</label>
+                    <input id="ph-time" type="time" value={phTime}
+                      onChange={(e) => setPhTime(e.target.value || "12:00")}
+                      className="rounded-lg border border-indigo-200 bg-white px-2 py-1 text-xs font-bold tabular-nums text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    <span className="text-[10px] font-semibold text-slate-400">{miladiDate}</span>
+                  </div>
                 )}
+
+                {phEffectiveMode === "now" ? (
+                  <>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{ph.aktifGezegen.symbol}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
+                        <p className="text-xs text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[10px] text-slate-400">Sonraki</p>
+                        <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
+                      </div>
+                    </div>
+                    {ph.isFallback && (
+                      <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+                        Bu enlemde bugün gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
+                      </p>
+                    )}
+                  </>
+                ) : phTarget && (
+                  <>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{phTarget.result.aktifGezegen.symbol}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-slate-900">{phTarget.result.aktifGezegen.name} Saati</p>
+                        {/* Gelecek/seçili saat: "kalan dk" YERİNE gerçek interval göster */}
+                        <p className="text-xs text-slate-500 tabular-nums">
+                          {phTarget.result.isDayHour ? "Gündüz" : "Gece"} · {formatInTimeZone(phTarget.result.hourStart, eclipseTz)}–{formatInTimeZone(phTarget.result.hourEnd, eclipseTz)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[10px] text-slate-400">Sonraki</p>
+                        <p className="text-xs font-black text-slate-700">{phTarget.result.sonrakiGezegen.symbol} {phTarget.result.sonrakiGezegen.name}</p>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-[10px] font-semibold text-slate-400 tabular-nums">Seçili an: {miladiDate} · {phTime}</p>
+                    {phTarget.result.isFallback && (
+                      <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+                        Bu enlemde bu tarihte gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                <p className="mt-2 text-[10px] text-indigo-400/70">📍 {eclipseCity} konumuna göre hesaplanmaktadır</p>
                 <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                   Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
+                </p>
+
+                {/* Planlayıcı giriş noktası — ayrı planlama sayfasına gider (seçili tarih taşınır) */}
+                <Link
+                  href={`/cosmic-calendar/planetary-hours?date=${toDateParam(selectedDate)}`}
+                  className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-white/80 px-3 py-1.5 text-[11px] font-black text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  🗓️ İleri günleri planla →
+                </Link>
+                <p className="mt-1 text-center text-[10px] leading-snug text-slate-400">
+                  Seçili günden ileri Merkür/Mars vb. gezegen saatlerini ayrı sayfada listeler.
                 </p>
               </div>
             )}
@@ -2040,18 +2196,20 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Gezegenlerin Güncel Burç Konumları ── */}
+        {/* ── Gezegenlerin Burç Konumları (SEÇİLİ TARİHE göre) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
 
-          {/* Başlık */}
+          {/* Başlık — bugün seçiliyse "Güncel", aksi halde nötr; rozet seçili tarihi gösterir */}
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Gezegenlerin Güncel Burç Konumları</p>
-            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{todayMiladi}</span>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">
+              🪐 {isSelectedToday ? "Gezegenlerin Güncel Burç Konumları" : "Gezegenlerin Burç Konumları"}
+            </p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
           </div>
 
-          {/* Gezegen grid — retro rozeti getActiveRetros(realNow) türevidir (yeni hesap yok) */}
+          {/* Gezegen grid — konumlar + retro rozeti AYNI selectedDate bağlamında (panelRetroSet) */}
           <div className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-2">
-            {gokyuzuRows.map(({ key, symbol, sign, signSymbol, outOfRange }) => (
+            {panelRows.map(({ key, symbol, sign, signSymbol, outOfRange }) => (
               <div key={key} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/50">
                 <span className="w-5 shrink-0 text-center text-[18px] leading-none text-indigo-500">{symbol}</span>
                 <span className="w-[4.5rem] shrink-0 text-xs font-semibold text-slate-700">{key}</span>
@@ -2060,14 +2218,17 @@ export default function CosmicCalendarPage() {
                   ? <span className="text-xs font-semibold text-amber-500">⚠ Veri yok</span>
                   : <span className="text-sm font-black text-slate-900">{signSymbol} {sign} Burcunda</span>
                 }
-                {retroPlanetSet.has(key as PlanetName) && (
-                  <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-600" title={`${key} şu an retrograd`}>℞ Retro</span>
+                {panelRetroSet.has(key as PlanetName) && (
+                  <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-600" title={isSelectedToday ? `${key} şu an retrograd` : `${key} bu tarihte retrograd`}>℞ Retro</span>
                 )}
               </div>
             ))}
           </div>
 
         </section>
+
+        {/* Gezegen Saati Planlayıcısı AYRI sayfaya taşındı: /cosmic-calendar/planetary-hours
+            (giriş noktası: sağdaki Gezegen Saati kutusundaki "İleri günleri planla" bağlantısı). */}
 
         {/* ── Gökyüzü Açıları (FAZ 2B + 2C Uzman Modu) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
@@ -2279,6 +2440,75 @@ export default function CosmicCalendarPage() {
             Bu bölüm gezegenlerin gökyüzündeki açısal konumlarını gösterir. Astronomik veriye dayanır; yorum içermez.
           </p>
 
+          {/* ── GÜNÜN EXACT AÇILARI (timeline) — snapshot'tan AYRI semantik ── */}
+          <div className="mt-4 border-t border-indigo-100/70 pt-3">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-600">
+                  {isSelectedToday ? "🕒 Bugünün Exact Açıları" : "🕒 Günün Exact Açıları"}
+                </p>
+                <span className="rounded-full border border-violet-200/70 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-violet-600">{miladiDate}</span>
+                {isSelectedToday && <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Bugün</span>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setTimelineMoon(v => !v)}
+                aria-pressed={timelineMoon}
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                  timelineMoon ? "border-cyan-300 bg-cyan-600 text-white" : "border-slate-200 bg-white/70 text-slate-500 hover:bg-white"
+                }`}
+              >
+                ☽ Ay {timelineMoon ? "dahil" : "hariç"}{timelineMoonCount ? ` (${timelineMoonCount})` : ""}
+              </button>
+            </div>
+            <p className="mb-2.5 text-[11px] leading-snug text-slate-500">
+              Seçili gün boyunca <span className="font-semibold text-slate-600">tam (exact)</span> olan majör açıların,
+              seçili konum saatine ({eclipseTz}) göre kronolojik listesi. Bu bir anlık görüntü değildir.
+            </p>
+
+            {timelineView.length === 0 ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
+                Bu gün için seçili filtrelerde exact majör açı bulunamadı{timelineMoon ? "" : " (Ay hariç)"}.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-1.5">
+                {timelineView.map((h) => {
+                  const { time, note } = timelineClock(h, eclipseTz);
+                  const isMoon = timelineIncludesMoon(h);
+                  const retroBodies = [h.retroA ? h.bodyA : null, h.retroB ? h.bodyB : null].filter(Boolean).join(", ");
+                  return (
+                    <div key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-violet-100/70 bg-white/70 px-3 py-2">
+                      <span className="w-12 shrink-0 text-sm font-black tabular-nums text-violet-700">
+                        {time ?? <span className="text-[11px] font-semibold text-slate-400">gün içi</span>}
+                      </span>
+                      <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-900">
+                        <span className="text-indigo-500">{h.bodyASymbol}</span>
+                        <span className="truncate">{h.bodyA}</span>
+                        <span className="shrink-0 px-0.5 text-base text-indigo-400">{h.aspectSymbol}</span>
+                        <span className="text-indigo-500">{h.bodyBSymbol}</span>
+                        <span className="truncate">{h.bodyB}</span>
+                      </span>
+                      {isMoon && <span className="rounded-full bg-cyan-50 px-1.5 py-px text-[10px] font-bold text-cyan-600">☽ Ay</span>}
+                      {retroBodies && <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold text-amber-700">℞ {retroBodies}</span>}
+                      {note && <span className="rounded-full bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-500">{note}</span>}
+                      {expertMode && (
+                        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[10px] font-semibold text-slate-400">
+                          <span>{confidenceTR(h.confidence)}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="tabular-nums">{h.relativeSpeed.toFixed(2)}°/gün</span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-[10px] leading-snug text-slate-400">
+              Exact = açının tam olduğu an (yaklaşan/ayrılan değil). Saatler seçili konum diliminde; hızlı çiftlerde (Ay) dakika güvenilir,
+              yavaş çiftlerde tarih düzeyinde gösterilir. Astronomik veriye dayanır; yorum içermez.
+            </p>
+          </div>
+
           {/* ── Aspect Detay Penceresi (yalnız doğrulanmış astronomik alanlar) ── */}
           {detailRow && (
             <div
@@ -2472,7 +2702,11 @@ export default function CosmicCalendarPage() {
               {eclipseExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
             </button>
           </div>
-          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Yaklaşan ve geçmiş doğrulanmış Güneş ve Ay tutulmaları.</p>
+          <p className="mb-1 mt-0.5 text-[11px] text-slate-500">Yaklaşan ve geçmiş doğrulanmış Güneş ve Ay tutulmaları.</p>
+          {!isSelectedToday && (
+            <p className="mb-3 text-[10px] font-semibold text-amber-600">📅 Seçili tarihe ({miladiDate}) göre listeleniyor.</p>
+          )}
+          {isSelectedToday && <div className="mb-3" />}
 
           {!locPrefLoaded ? (
             /* Konum tercihi çözülmeden Ankara fallback görünürlüğü render EDİLMEZ */

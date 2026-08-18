@@ -3,12 +3,14 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
 /**
- * Aromaterapi V2 — C3D erişilebilir onay diyaloğu primitifi.
+ * Aromaterapi V2 — erişilebilir onay diyaloğu primitifi.
  *
- * İleriki tekli/toplu/purge silme akışlarının güçlü onay adımı için temeldir.
- * SALT SUNUM: gerçek silme/mutation YOKTUR (C3D-A). Erişilebilirlik: role="dialog"
- * + aria-modal, odak tuzağı (Tab döngüsü), Escape ile kapatma, açılışta güvenli
- * varsayılan odak (Vazgeç — yıkıcı eylem varsayılan odaklı DEĞİL), 44px hedefler.
+ * Kendisi mutation YAPMAZ (yalnız onay UI'si); çağıran eylemi onay sonrası yürütür.
+ * FAZ 1'de kaydedilmemiş değişiklik navigasyon koruması (useUnsavedChangesGuard)
+ * tarafından aktif kullanılır; ileride tekli/toplu silme akışlarının onay adımına
+ * da hizmet eder. Erişilebilirlik: role="dialog" + aria-modal, odak tuzağı (Tab
+ * döngüsü), Escape ile kapatma, açılışta güvenli varsayılan odak (Vazgeç — yıkıcı
+ * eylem varsayılan odaklı DEĞİL), 44px hedefler.
  */
 
 export type AromaterapiConfirmDialogProps = {

@@ -70,7 +70,7 @@ const STONES = resolveYhSourceConfig("dogaltas:stones"); // column, record, safe
 const KNOWLEDGE = resolveYhSourceConfig("dogaltas:knowledge"); // allowSharedNull: true
 const GUIDE_SECTIONS = resolveYhSourceConfig("sifa_rehberi:guide-sections"); // join + section
 const NOTES = resolveYhSourceConfig("refleksoloji:notes"); // pii
-const ARCHIVES = resolveYhSourceConfig("kisisel_arsiv:archives"); // unclassified
+const ARCHIVES = resolveYhSourceConfig("kisisel_arsiv:archives"); // BF-11E ROW-GATED CONTROLLED (safe-non-pii + row-gate)
 
 function claimRow(over = {}) {
   return {
@@ -210,12 +210,19 @@ async function main() {
     check("B", "18 PII source → permanent (source-not-indexable)", d.action === "fail" && d.retryClass === "permanent" && d.code === "source-not-indexable");
   }
   {
-    const d = await processOutboxEvent(ev({ sourceKey: "kisisel_arsiv:archives", sourceTable: ARCHIVES.tableName }), upsertDeps());
-    check("B", "19 unclassified source → permanent (source-not-indexable)", d.action === "fail" && d.code === "source-not-indexable");
+    // BF-11E: archive artık safe-non-pii (source guard geçer). Row-gate ineligible (safe→unsafe/stale/
+    // missing) → runExactRecord "row-ineligible" → defensiveDeindex → complete (stale tombstone).
+    let deindexCalled = false;
+    const d = await processOutboxEvent(
+      ev({ sourceKey: "kisisel_arsiv:archives", sourceTable: ARCHIVES.tableName }),
+      upsertDeps({ runExactUpsert: async () => exactResult("row-ineligible"), deindex: async () => { deindexCalled = true; return { status: "ok", deleted: 1 }; } }),
+    );
+    check("B", "19 archive row-ineligible → defensive deindex → complete (tombstone)", d.action === "complete" && deindexCalled && d.note.includes("defensive-deindex:row-ineligible"));
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "sifa_rehberi:guide-sections", sourceTable: GUIDE_SECTIONS.tableName }), upsertDeps());
-    check("B", "20 join tenant model → permanent (tenant-model-unsupported)", d.action === "fail" && d.code === "tenant-model-unsupported");
+    // BF-11E: join tenant ARTIK desteklenir; guide-sections unit "section" olduğu için Kapı 7 reddeder.
+    check("B", "20 join+section unit → permanent (non-record-unit-unsupported)", d.action === "fail" && d.code === "non-record-unit-unsupported");
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "dogaltas:knowledge", sourceTable: KNOWLEDGE.tableName }), upsertDeps());

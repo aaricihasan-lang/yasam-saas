@@ -8,7 +8,7 @@ import type {
   PreparationListItem,
 } from "@/lib/aromaterapi/readTypes";
 import {
-  buildOrIlike,
+  buildSearchNormIlike,
   type ParsedListParams,
 } from "@/lib/aromaterapi/service/readValidation";
 
@@ -45,13 +45,9 @@ export const PREPARATION_TYPES = [
   "other",
 ] as const;
 
-const TAXA_SEARCH_COLS = [
-  "canonical_name",
-  "genus",
-  "species",
-  "family",
-  "author_citation",
-] as const;
+// Arama: generated `search_norm` = normalize(genus, species, infraspecific_epithet,
+// family, author_citation) — canonical_name'in tüm token'larını kapsar. Migration
+// 20261003000000. Eski çok-kolon .ilike kapsamı korunur.
 
 const TAXA_LIST_COLS =
   "id, canonical_name, genus, species, taxon_rank, family, author_citation, is_hybrid, status, updated_at";
@@ -73,7 +69,7 @@ export async function listPlantTaxa(
     .select(TAXA_LIST_COLS, { count: "exact" })
     .eq("tenant_id", tenantId);
 
-  if (p.q) query = query.or(buildOrIlike(TAXA_SEARCH_COLS, p.q));
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   for (const [col, val] of Object.entries(p.equals)) query = query.eq(col, val);
 
   const { data, error, count } = await query
@@ -139,7 +135,8 @@ export async function listPreparations(
     .eq("tenant_id", tenantId);
 
   if (taxonId) query = query.eq("taxon_id", taxonId);
-  if (p.q) query = query.or(buildOrIlike(["preparation_type", "plant_part", "chemotype"], p.q));
+  // search_norm = normalize(preparation_type, plant_part, chemotype) — migration 20261003000000
+  if (p.q) query = query.or(buildSearchNormIlike(p.q));
   for (const [col, val] of Object.entries(p.equals)) query = query.eq(col, val);
 
   const { data, error, count } = await query

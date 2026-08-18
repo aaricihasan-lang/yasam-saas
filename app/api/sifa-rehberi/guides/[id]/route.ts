@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
+import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
 export const runtime = "nodejs";
 
@@ -56,6 +58,10 @@ const GUIDE_DETAIL_SELECT = `
     title,
     note,
     source,
+    source_kind,
+    expert_note,
+    attention,
+    sort_order,
     images,
     created_at
   )
@@ -121,7 +127,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "GET", tenantId, cause: error });
   }
 
   if (!data) {
@@ -163,6 +169,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     body.name = name;
   }
 
+  // Girdi sertleştirme: alan uzunluk/şekil sınırları.
+  const bodyError = validateGuideBody(body);
+  if (bodyError) {
+    return NextResponse.json({ ok: false, error: bodyError }, { status: 400 });
+  }
+
   const fields = pickWritableFields(body);
   fields.updated_at = new Date().toISOString();
 
@@ -174,7 +186,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "PATCH", tenantId, cause: error });
   }
 
   if (!data || data.length === 0) {
@@ -208,7 +220,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "sifa/guides/[id]", action: "DELETE", tenantId, cause: error });
   }
 
   if (!data || data.length === 0) {

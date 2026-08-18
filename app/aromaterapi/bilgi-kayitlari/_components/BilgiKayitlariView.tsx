@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useId } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadListScreen } from "@/app/aromaterapi/_components/read/ReadListScreen";
+import { useReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   MetaChip,
   ReadFilterSelect,
@@ -46,6 +48,8 @@ export function BilgiKayitlariView() {
     filterKeys: FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
+  const { showToast } = useToast();
+  const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/claims/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
   const prepFilter = s.filters.preparation_id;
 
   return (
@@ -65,18 +69,8 @@ export function BilgiKayitlariView() {
         </div>
       ) : null}
 
-      {/* C3D-D: Yeni Bilgi Kaydı aksiyonu (görünür, baskın olmayan CTA). */}
-      <div className="flex justify-end">
-        <Link
-          href="/aromaterapi/bilgi-kayitlari/yeni"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-        >
-          <span aria-hidden>＋</span>
-          Yeni Bilgi Kaydı
-        </Link>
-      </div>
-
       <ReadListScreen<KnowledgeRecordListItem>
+        selection={selection}
         loading={s.loading}
         errorCode={s.errorCode}
         rows={s.rows}
@@ -88,7 +82,16 @@ export function BilgiKayitlariView() {
         onRetry={s.retry}
         emptyTitle="Henüz bilgi kaydı yok"
         emptyMessage="Bu tenant kütüphanesinde kaynağa dayalı bilgi kaydı bulunmuyor."
-        gridClassName="grid grid-cols-1 gap-3 lg:grid-cols-2"
+        gridClassName="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+        action={
+          <Link
+            href="/aromaterapi/bilgi-kayitlari/yeni"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+          >
+            <span aria-hidden>＋</span>
+            Yeni Bilgi Kaydı
+          </Link>
+        }
         search={
           <ReadSearchBar
             value={s.qInput}
@@ -102,7 +105,11 @@ export function BilgiKayitlariView() {
               label="Kayıt türü"
               value={s.filters.claim_type ?? ""}
               options={opts(CLAIM_TYPE_TR)}
-              onChange={(v) => s.setFilter("claim_type", v)}
+              // safety_topic kontrolü yalnız claim_type=safety iken görünür; başka
+              // türe geçince bağımlı param'ı da atomik temizle (ghost filter fix).
+              onChange={(v) =>
+                s.setFilter("claim_type", v, v === "safety" ? undefined : ["safety_topic"])
+              }
             />
             <ReadFilterSelect
               label="Kanıt katmanı"

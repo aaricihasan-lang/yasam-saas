@@ -9,10 +9,11 @@ import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecete
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import {
-  fetchOilList,
+  fetchOilSearch,
   fetchOilDetail,
-  matchesOilSearch,
   type OilListRow,
 } from "@/lib/aromaterapi/aromatherapyData";
 import {
@@ -68,8 +69,8 @@ export default function KarisimOlusturucuPage() {
   const [bottleMl, setBottleMl] = useState<number>(30);
   const [dilution, setDilution] = useState<number>(2);
 
-  // Orta panel (uçucu yağ arama)
-  const [essentialOils, setEssentialOils] = useState<OilListRow[]>([]);
+  // Orta panel (uçucu yağ arama) — FAZ 2: server typeahead (fetch-all YOK).
+  const [searchResults, setSearchResults] = useState<OilListRow[]>([]);
   const [carrierOils, setCarrierOils] = useState<OilListRow[]>([]);
   const [search, setSearch] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -86,6 +87,24 @@ export default function KarisimOlusturucuPage() {
   const [printBlend, setPrintBlend] = useState<PrintableBlend | null>(null);
   const [printDate, setPrintDate] = useState("");
   const expertName = useMemo(() => getYasamUserDisplayName(readYasamUser()), []);
+
+  // FAZ 3 — kaydedilmemiş karışım koruması (beforeunload). Boş/pristine builder'da
+  // guard YOK (false-positive yok); ad/not/taşıyıcı/yağ girildiyse aktifleşir. Kayıt
+  // başarılı → resetForm() içerikleri temizler → isBlendDirty false olur.
+  const isBlendDirty =
+    name.trim() !== "" || notes.trim() !== "" || carrierName.trim() !== "" || items.length > 0;
+  useAromaterapiDirtyGuard(isBlendDirty);
+
+  // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi.
+  const [blendExporting, setBlendExporting] = useState(false);
+  async function exportBlendWord(url: string, body?: unknown) {
+    if (blendExporting) return;
+    setBlendExporting(true);
+    const { ok, error } = await downloadWord(url, body);
+    setBlendExporting(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Karışım raporu indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
 
   // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.
   useEffect(() => {
@@ -129,22 +148,27 @@ export default function KarisimOlusturucuPage() {
         const tid = await getSyncedTenantId();
         setTenantId(tid);
         if (!tid) { setErrorMsg(MISSING_SESSION_TENANT_MESSAGE); return; }
-        const [ess, car] = await Promise.all([
-          fetchOilList(tid, "essential"),
-          fetchOilList(tid, "carrier"),
-        ]);
-        setEssentialOils(ess.rows);
+        // Taşıyıcı (sabit) yağlar tipik olarak azdır → tek çağrı (limit 100) datalist için yeterli.
+        const car = await fetchOilSearch("", "carrier", 100);
         setCarrierOils(car.rows);
         await loadSaved();
       })();
     });
   }, [loadSaved]);
 
-  const searchResults = useMemo(() => {
-    const q = search.trim();
-    const base = q ? essentialOils.filter((o) => matchesOilSearch(o, q)) : essentialOils;
-    return base.slice(0, 40);
-  }, [essentialOils, search]);
+  // FAZ 2 — uçucu yağ typeahead: server-side arama (search_norm), 300ms debounce,
+  // stale-response abort, en fazla 40 sonuç. Boş sorgu → ilk 40 (başlangıç listesi).
+  useEffect(() => {
+    if (!tenantId) return;
+    const controller = new AbortController();
+    const h = window.setTimeout(() => {
+      void (async () => {
+        const { rows } = await fetchOilSearch(search.trim(), "essential", 40, controller.signal);
+        if (!controller.signal.aborted) setSearchResults(rows);
+      })();
+    }, 300);
+    return () => { window.clearTimeout(h); controller.abort(); };
+  }, [search, tenantId]);
 
   async function addOil(row: OilListRow) {
     if (items.some((it) => it.oil_id === row.id)) {
@@ -403,9 +427,9 @@ export default function KarisimOlusturucuPage() {
                       </p>
                       {it.latin_name.trim() ? <p className="truncate text-[10px] italic text-slate-400">{it.latin_name}</p> : null}
                     </div>
-                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, Number(e.target.value))} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
+                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, Number(e.target.value))} aria-label={`${it.oil_name} damla sayısı`} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
                     <span className="text-[10px] font-bold text-slate-400">damla</span>
-                    <button type="button" onClick={() => removeOil(it.oil_id, idx)} className="shrink-0 rounded-lg px-1.5 py-1 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
+                    <button type="button" onClick={() => removeOil(it.oil_id, idx)} aria-label={`${it.oil_name} karışımdan çıkar`} title="Çıkar" className="shrink-0 rounded-lg px-1.5 py-1 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
                 ))}
               </div>
@@ -447,7 +471,16 @@ export default function KarisimOlusturucuPage() {
 
         {/* KAYDEDİLEN KARIŞIMLAR */}
         <section className={panel}>
-          <h2 className="mb-3 text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
+            {saved.length > 0 ? (
+              <button type="button" onClick={() => void exportBlendWord("/api/aromaterapi/blends/word-report", { mode: "all" })} disabled={blendExporting}
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                title="Tüm karışımları Word'e aktar">
+                📄 {blendExporting ? "…" : "Tümünü Word'e Aktar"}
+              </button>
+            ) : null}
+          </div>
           {saved.length === 0 ? (
             <p className="py-6 text-center text-xs font-bold text-slate-400">Henüz kayıtlı karışım yok.</p>
           ) : (
@@ -456,7 +489,7 @@ export default function KarisimOlusturucuPage() {
                 <div key={b.id} className="rounded-xl border border-amber-100 bg-white/85 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 truncate text-[13px] font-black text-slate-900">{b.name}</p>
-                    <button type="button" onClick={() => void handleDeleteSaved(b)} className="shrink-0 rounded-lg px-1.5 py-0.5 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
+                    <button type="button" onClick={() => void handleDeleteSaved(b)} aria-label={`${b.name} karışımını sil`} title="Sil" className="shrink-0 rounded-lg px-1.5 py-0.5 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                     {b.bottle_ml} ml · %{b.dilution_percent} · {b.total_drops} damla · {b.items.length} yağ
@@ -473,7 +506,10 @@ export default function KarisimOlusturucuPage() {
                     <button type="button" onClick={() => loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
                     <button type="button" onClick={() => void copyBlend(b)} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">Kopyala</button>
                   </div>
-                  <button type="button" onClick={() => printReceteFor(b)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Reçete / Yazdır</button>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <button type="button" onClick={() => printReceteFor(b)} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
+                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
+                  </div>
                 </div>
               ))}
             </div>

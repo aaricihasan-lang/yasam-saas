@@ -106,48 +106,48 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   add("chunk-hash-64", chunks[0]!.textHash.length === 64 && contentHash("x").length === 64);
   const big = chunkText("x".repeat(9000));
   add("chunk-bounded", big.every((c) => c.text.length <= 4000) && big.length >= 2);
-  add("belge-domain-wired-dormant", dom("belge_video_ingestion")?.result === "WIRED_DORMANT" && (dom("belge_video_ingestion")?.foundationTables.length ?? 0) === 2 && (dom("belge_video_ingestion")?.registrySourceKeys.length ?? 0) === 1);
+  // belge_video ÜRÜN KARARIYLA emekliye ayrıldı (NON_SOURCE): closure NOT_APPLICABLE, registry key 0.
+  // Foundation tabloları (cleanup-candidate) kayıtlı kalır; promotion API + chunkText (yukarıda) korunur.
+  add("belge-domain-not-applicable", dom("belge_video_ingestion")?.result === "NOT_APPLICABLE" && (dom("belge_video_ingestion")?.foundationTables.length ?? 0) === 2 && (dom("belge_video_ingestion")?.registrySourceKeys.length ?? 1) === 0);
 }
 
 // ── 6) Kişisel Arşiv: classification validation + row-level fail-closed ──
 {
   add("arc-ok", parseArchiveClassification({ archiveId: U1, classification: "pii" }).ok);
   add("arc-bad-class", !parseArchiveClassification({ archiveId: U1, classification: "safe" }).ok);
-  add("arc-safe-needs-hash", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "ok" }).ok);
-  add("arc-safe-needs-reason", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reviewedContentHash: HASH }).ok);
-  add("arc-safe-ok", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "incelendi", reviewedContentHash: HASH }).ok);
+  // BF-11E: reviewed hash CLIENT'tan alınmaz (server türetir) → safe-non-pii yalnız reason ister.
+  add("arc-safe-no-client-hash-needed", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "ok" }).ok);
+  add("arc-safe-needs-reason", !parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii" }).ok);
+  add("arc-safe-client-hash-ignored", parseArchiveClassification({ archiveId: U1, classification: "safe-non-pii", reason: "incelendi", reviewedContentHash: HASH }).ok);
   // Row-level index eligibility fail-closed:
   add("arc-index-safe-hash-match", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, HASH) === true);
   add("arc-index-unclassified-no", isArchiveRowIndexable({ classification: "unclassified", reviewedContentHash: HASH }, HASH) === false);
   add("arc-index-pii-no", isArchiveRowIndexable({ classification: "pii", reviewedContentHash: HASH }, HASH) === false);
   add("arc-index-stale-hash-no", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: HASH }, "b".repeat(64)) === false);
   add("arc-index-no-hash-no", isArchiveRowIndexable({ classification: "safe-non-pii", reviewedContentHash: null }, HASH) === false);
-  add("archive-domain-fail-closed", dom("kisisel_arsiv_classification")?.result === "EXISTING_FAIL_CLOSED");
+  add("archive-domain-foundation-ready", dom("kisisel_arsiv_classification")?.result === "FOUNDATION_READY");
 }
 
 // ── 7) Registry wiring: YEBS + Belge/Video DORMANT bağlı; mevcut/live değişmedi ──
 {
   const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
-  // Mevcut kisisel_arsiv:archives kaynağı fail-closed (unclassified; değişmedi; duplicate yok).
-  add("existing-archive-source-unclassified", byKey.get("kisisel_arsiv:archives")?.classification === "unclassified", byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
-  // 17 canlı + 9 dormant (2 numeroloji + 6 yebs + 1 belge_video).
-  add("registry-count-26", YH_INDEX_SOURCES.length === 26, String(YH_INDEX_SOURCES.length));
-  add("live-count-17-unchanged", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 17);
+  // BF-11E: kisisel_arsiv:archives ROW-GATED CONTROLLED (safe-non-pii + requiresRowEligibilityGate; duplicate yok).
+  add("existing-archive-source-row-gated", byKey.get("kisisel_arsiv:archives")?.classification === "safe-non-pii" && byKey.get("kisisel_arsiv:archives")?.requiresRowEligibilityGate === true, byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
+  // Cohort A: 19 canlı + 8 dormant (2 numeroloji + 6 yebs) = 27 kaynak.
+  add("registry-count-27", YH_INDEX_SOURCES.length === 27, String(YH_INDEX_SOURCES.length));
+  add("live-count-19", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 19);
   // WIRED_DORMANT closure key'leri GERÇEKTEN registry'de ve HEPSİ enabled:false.
   const wired = wiredDormantRegistryKeys();
-  add("closure-wired-keys-in-registry", wired.length === 7 && wired.every((k) => byKey.has(k)), wired.join(","));
+  add("closure-wired-keys-in-registry", wired.length === 6 && wired.every((k) => byKey.has(k)), wired.join(","));
   add("closure-wired-keys-all-dormant", wired.every((k) => byKey.get(k)?.enabled === false));
   // YEBS: 6 global-canonical + published-only.
   const yebs = YH_INDEX_SOURCES.filter((s) => s.sourceKey.startsWith("yebs:")) as SourceConfig[];
   add("yebs-6-global-canonical", yebs.length === 6 && yebs.every((s) => s.tenant.mode === "global-canonical" && s.enabled === false));
   add("yebs-published-only", yebs.every((s) => s.statusColumn === "status" && JSON.stringify(s.eligibleStatuses) === JSON.stringify(["published"])));
   add("yebs-safe-non-pii", yebs.every((s) => s.classification === "safe-non-pii"));
-  // Belge/Video: durable passages, row-classification gated, join tenant.
-  const doc = byKey.get("belge_video:passages");
-  add("belge-passages-durable", doc?.tableName === "yh_document_passages" && doc?.enabled === false);
-  add("belge-passages-row-gate", doc?.rowClassificationColumn === "classification");
-  add("belge-passages-join-tenant", doc?.tenant.mode === "join");
-  // Guard: her yeni dormant source enabled:false → source-guard 'disabled' (event/reconcile no-op).
+  // Belge/Video ÜRÜN KARARIYLA emekliye ayrıldı (NON_SOURCE): registry'de YOK.
+  add("belge-passages-retired-not-in-registry", byKey.get("belge_video:passages") === undefined && !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "yh_document_passages"));
+  // Guard: her wired dormant source enabled:false → source-guard 'disabled' (event/reconcile no-op).
   add("new-dormant-guard-disabled", wired.every((k) => { const s = byKey.get(k)!; return s.enabled === false; }));
 }
 
@@ -155,7 +155,6 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
 {
   const byKey = new Map<string, SourceConfig>(YH_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
   const yebsTrad = byKey.get("yebs:traditions")!;
-  const docPass = byKey.get("belge_video:passages")!;
 
   // global-canonical → tenant DAİMA shared (null); synthetic tenant yok.
   const gt = resolveTenant(yebsTrad, { id: U1, status: "published" });
@@ -167,11 +166,8 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   add("fn-yebs-approved-skip", evaluateRowEligibility(yebsTrad, { status: "approved" }).eligible === false);
   add("fn-yebs-missing-status-skip", evaluateRowEligibility(yebsTrad, {}).eligible === false);
 
-  // Belge/Video row-eligibility: yalnız safe-non-pii passage; unclassified/pii fail-closed.
-  add("fn-doc-safe-eligible", evaluateRowEligibility(docPass, { classification: "safe-non-pii" }).eligible === true);
-  add("fn-doc-unclassified-skip", evaluateRowEligibility(docPass, { classification: "unclassified" }).eligible === false);
-  add("fn-doc-pii-skip", evaluateRowEligibility(docPass, { classification: "pii" }).eligible === false);
-  add("fn-doc-missing-class-skip", evaluateRowEligibility(docPass, {}).eligible === false);
+  // Belge/Video ÜRÜN KARARIYLA emekliye ayrıldı: registry'de rowClassificationColumn taşıyan kaynak YOK.
+  add("fn-no-row-classification-source", !YH_INDEX_SOURCES.some((s) => { const rcc = (s as SourceConfig).rowClassificationColumn; return typeof rcc === "string" && rcc.length > 0; }));
 
   // Mevcut kaynaklar (no eligibility gate) → daima eligible (davranış değişmez).
   const live = YH_INDEX_SOURCES.find((s) => s.sourceKey === "refleksoloji:protocols")!;
@@ -179,7 +175,6 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
 
   // Guard: yeni dormant kaynaklar 'disabled' → event/reconcile no-op (index write yok).
   add("fn-yebs-guard-disabled", evaluateSourceGuard(yebsTrad).indexable === false);
-  add("fn-doc-guard-disabled", evaluateSourceGuard(docPass).indexable === false);
   // Mevcut canlı kaynak hâlâ indexable (regresyon yok).
   add("fn-live-guard-indexable", evaluateSourceGuard(live).indexable === true);
 }

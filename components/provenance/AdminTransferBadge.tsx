@@ -1,42 +1,40 @@
 import type { CSSProperties } from "react";
 
 /**
- * Merkezî provenance rozeti — NÖTRLENDİ (kalıcı olarak hiçbir şey render etmez).
+ * FAZ 1 / P4 — Merkezî provenance rozeti (ARTIK GÖRSEL ETİKET RENDER ETMEZ).
  *
- * BAĞLAYICI ÜRÜN KURALI (Veri Aktarım Merkezi): admin kütüphanesinden uzmana
- * aktarılmış kayıt, uzman tarafında "Admin'den geldi / Admin Kütüphanesi" benzeri
- * HİÇBİR görünür köken etiketi taşımaz — kayıt uzmanın kendi normal kaydı gibi
- * görünür (liste/detay/edit/rapor). Bu component eskiden 🎁 "Admin Kütüphanesi"
- * chip'i gösteriyordu; ürün kuralı gereği artık her durumda `null` döner.
+ * ÜRÜN KARARI (2026-08-11): Admin → uzman transfer edilen kayıtlar uzman
+ * tarafında HİÇBİR görsel/tekst provenance etiketi göstermez. Bu bileşen tüm
+ * çağrı yerlerinde artık `null` render eder — hedef kayıt uzmanın kendi bağımsız
+ * kaydı gibi görünür.
  *
- * Aktarım route'u da GÖRÜNÜR origin_type='admin_transfer'/origin_label alanlarını
- * ARTIK YAZMAZ (yalnız iç audit/rollback alanları). Böylece hem yeni aktarımlar
- * hem de eski aktarılmış satırlar için hiçbir yerde admin köken rozeti görünmez.
+ * DEĞİŞMEYEN: origin_type / origin_label / origin_source_id /
+ * origin_transfer_batch_id / transferred_at alanları DB'de + audit/rollback/teknik
+ * iz sürme için KORUNUR. Transfer snapshot mantığı, edit/delete davranışı ve çağrı
+ * yerleri (props kontratı) DEĞİŞMEZ; yalnız görsel rozet kaldırılmıştır.
  *
- * NOT: İmzalar (props/exports) geriye-uyum için korunur; 11 modül yüzeyi bu
- * component'i import etmeye devam eder ama görünür çıktı üretmez.
+ * Admin paneli / transfer / audit ekranları bu karardan ETKİLENMEZ (bunlar bu
+ * bileşeni kullanmaz; kaynağı teknik olarak görmeye devam eder).
  */
 
 export const ADMIN_TRANSFER_ORIGIN = "admin_transfer";
 
-/**
- * Geriye-uyum export'u. Görünür rozet KALDIRILDIĞI için tüketiciler bu değeri
- * yalnız iç mantıkta kullanabilir; UI'da köken göstermek için KULLANILMAMALIDIR.
- */
+/** Bir kaydın admin hediyesi (bağımsız kopya) olup olmadığını belirler (mantık; görsel değil). */
 export function isAdminTransferOrigin(originType: unknown): boolean {
   return originType === ADMIN_TRANSFER_ORIGIN;
 }
 
 type Props = {
   originType?: unknown;
+  /** "chip" (varsayılan, listelerde) veya "inline" (detay başlıkları). */
   variant?: "chip" | "inline";
   className?: string;
   style?: CSSProperties;
 };
 
+// Props kontratı korunur (çağrı yerleri tip-güvenli kalsın); görsel çıktı yoktur.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function AdminTransferBadge(_props: Props) {
-  // Ürün kuralı: uzmana görünür admin köken etiketi YOK. Her zaman null.
   return null;
 }
 
