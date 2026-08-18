@@ -29,6 +29,7 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/demo/demoAromaterapi";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -283,6 +284,17 @@ export default function OilDetailPage() {
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
+  const [exportingWord, setExportingWord] = useState(false);
+
+  // FAZ Word — tek yağ monografisi export (.docx). Çift-tık kilidi.
+  async function exportOilWord() {
+    if (exportingWord || !id) return;
+    setExportingWord(true);
+    const { ok, error } = await downloadWord(`/api/aromaterapi/oils/${id}/word-report`);
+    setExportingWord(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Yağ monografisi indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
 
@@ -534,6 +546,11 @@ export default function OilDetailPage() {
                   </>
                 ) : (
                   <>
+                    <button type="button" onClick={() => void exportOilWord()} disabled={exportingWord}
+                      className={`${btnBase} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-60`}
+                      title="Bu yağın monografisini Word'e aktar">
+                      📄 {exportingWord ? "Hazırlanıyor…" : "Word'e Aktar"}
+                    </button>
                     <button type="button" onClick={startEdit}
                       className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
                       ✏️ Düzenle

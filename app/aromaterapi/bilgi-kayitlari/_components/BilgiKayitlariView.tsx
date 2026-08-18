@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useId } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadListScreen } from "@/app/aromaterapi/_components/read/ReadListScreen";
+import { useReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   MetaChip,
   ReadFilterSelect,
@@ -46,6 +48,8 @@ export function BilgiKayitlariView() {
     filterKeys: FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
+  const { showToast } = useToast();
+  const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/claims/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
   const prepFilter = s.filters.preparation_id;
 
   return (
@@ -66,6 +70,7 @@ export function BilgiKayitlariView() {
       ) : null}
 
       <ReadListScreen<KnowledgeRecordListItem>
+        selection={selection}
         loading={s.loading}
         errorCode={s.errorCode}
         rows={s.rows}

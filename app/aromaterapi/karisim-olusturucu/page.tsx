@@ -10,6 +10,7 @@ import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiM
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import {
   fetchOilSearch,
   fetchOilDetail,
@@ -93,6 +94,17 @@ export default function KarisimOlusturucuPage() {
   const isBlendDirty =
     name.trim() !== "" || notes.trim() !== "" || carrierName.trim() !== "" || items.length > 0;
   useAromaterapiDirtyGuard(isBlendDirty);
+
+  // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi.
+  const [blendExporting, setBlendExporting] = useState(false);
+  async function exportBlendWord(url: string, body?: unknown) {
+    if (blendExporting) return;
+    setBlendExporting(true);
+    const { ok, error } = await downloadWord(url, body);
+    setBlendExporting(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Karışım raporu indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
 
   // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.
   useEffect(() => {
@@ -459,7 +471,16 @@ export default function KarisimOlusturucuPage() {
 
         {/* KAYDEDİLEN KARIŞIMLAR */}
         <section className={panel}>
-          <h2 className="mb-3 text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
+            {saved.length > 0 ? (
+              <button type="button" onClick={() => void exportBlendWord("/api/aromaterapi/blends/word-report", { mode: "all" })} disabled={blendExporting}
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                title="Tüm karışımları Word'e aktar">
+                📄 {blendExporting ? "…" : "Tümünü Word'e Aktar"}
+              </button>
+            ) : null}
+          </div>
           {saved.length === 0 ? (
             <p className="py-6 text-center text-xs font-bold text-slate-400">Henüz kayıtlı karışım yok.</p>
           ) : (
@@ -485,7 +506,10 @@ export default function KarisimOlusturucuPage() {
                     <button type="button" onClick={() => loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
                     <button type="button" onClick={() => void copyBlend(b)} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">Kopyala</button>
                   </div>
-                  <button type="button" onClick={() => printReceteFor(b)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Reçete / Yazdır</button>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <button type="button" onClick={() => printReceteFor(b)} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
+                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadListScreen } from "@/app/aromaterapi/_components/read/ReadListScreen";
+import { useReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   MetaChip,
   ReadFilterSelect,
@@ -102,9 +104,12 @@ function PlantTaxaSection() {
     filterKeys: TAXA_FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
+  const { showToast } = useToast();
+  const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/plant-taxa/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
 
   return (
       <ReadListScreen<PlantTaxonListItem>
+        selection={selection}
         loading={s.loading}
       errorCode={s.errorCode}
       rows={s.rows}
@@ -190,14 +195,17 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
 // ---------------- Preparatlar ----------------
 
 function PreparationSection() {
+  const { showToast } = useToast();
   const s = useAromaterapiListQuery<PreparationListItem>({
     fetcher: fetchPreparationList,
     filterKeys: PREP_FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
+  const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/preparations/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
 
   return (
       <ReadListScreen<PreparationListItem>
+        selection={selection}
         loading={s.loading}
       errorCode={s.errorCode}
       rows={s.rows}

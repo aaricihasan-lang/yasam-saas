@@ -42,6 +42,7 @@ import { messageForCode, type ListResult } from "@/lib/aromaterapi/readClient";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -744,6 +745,18 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
+  async function runOilExport(body: Record<string, unknown>) {
+    if (exporting) return;
+    setExporting(true);
+    const { ok, error } = await downloadWord("/api/aromaterapi/oils/word-report", body);
+    setExporting(false);
+    if (ok) showToast({ title: "Word hazırlandı", message: "Rapor indiriliyor.", type: "success" });
+    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+  }
+  const exportAllBody = () => (fixedOilType ? { mode: "all", oilType: fixedOilType } : { mode: "all" });
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
 
   // Tip sayaçları — gerçek: server head-count (client artık tüm dataset'e sahip değil,
@@ -999,6 +1012,10 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             onClearSelection={clearSelection}
             onDeleteSelected={() => void handleBulkDelete()}
             isDeleting={deleteLoading}
+            isExporting={exporting}
+            exportSelectedLabel={selectedIds.size === 1 ? "Seçili Kaydı Word'e Aktar" : "Seçili Kayıtları Word'e Aktar"}
+            onExportSelected={selectedIds.size > 0 ? () => void runOilExport({ mode: "selected", ids: [...selectedIds] }) : undefined}
+            onExportAll={() => void runOilExport(exportAllBody())}
           />
         ) : null}
 
