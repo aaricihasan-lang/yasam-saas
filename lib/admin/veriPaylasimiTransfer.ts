@@ -41,6 +41,13 @@ export const ALL_TRANSFER_GROUP_KEYS: TransferGroupKey[] = [
   "healing_guides",
   "hd_knowledge",
   "bioenergy_sessions",
+  "cupping_points",
+  "cupping_topics",
+  "cupping_techniques",
+  "cupping_knowledge",
+  "cupping_sources",
+  "cupping_safety",
+  "cupping_point_topics",
 ];
 
 export type TransferTableName = TransferGroupKey;
@@ -97,7 +104,27 @@ export function emptyTransferCounts(): TransferResultCounts {
     healing_guides: 0,
     hd_knowledge: 0,
     bioenergy_sessions: 0,
+    cupping_points: 0,
+    cupping_topics: 0,
+    cupping_techniques: 0,
+    cupping_knowledge: 0,
+    cupping_sources: 0,
+    cupping_safety: 0,
+    cupping_point_topics: 0,
   };
+}
+
+/** Seçili gruplardaki Kupa & Hacamat kayıt toplamı. */
+export function sumCuppingCounts(counts: TransferResultCounts): number {
+  return (
+    counts.cupping_points +
+    counts.cupping_topics +
+    counts.cupping_techniques +
+    counts.cupping_knowledge +
+    counts.cupping_sources +
+    counts.cupping_safety +
+    counts.cupping_point_topics
+  );
 }
 
 /** Seçili gruplardaki aromaterapi yağ toplamı (3 oil_type). */
@@ -198,6 +225,18 @@ function buildTransferSuccessMessage(
   if (groups.includes("hd_knowledge") && counts.hd_knowledge > 0) {
     lines.push(`${counts.hd_knowledge} Human Design kaydı ${account} hesabına eklendi`);
   }
+
+  const cup = sumCuppingCounts({
+    ...emptyTransferCounts(),
+    cupping_points: groups.includes("cupping_points") ? counts.cupping_points : 0,
+    cupping_topics: groups.includes("cupping_topics") ? counts.cupping_topics : 0,
+    cupping_techniques: groups.includes("cupping_techniques") ? counts.cupping_techniques : 0,
+    cupping_knowledge: groups.includes("cupping_knowledge") ? counts.cupping_knowledge : 0,
+    cupping_sources: groups.includes("cupping_sources") ? counts.cupping_sources : 0,
+    cupping_safety: groups.includes("cupping_safety") ? counts.cupping_safety : 0,
+    cupping_point_topics: groups.includes("cupping_point_topics") ? counts.cupping_point_topics : 0,
+  });
+  if (cup > 0) lines.push(`${cup} Kupa & Hacamat kaydı ${account} hesabına eklendi`);
 
   if (lines.length === 0) return null;
   return lines.join("\n");
@@ -423,6 +462,15 @@ export function formatTransferResultLines(
       account
         ? `${counts.aromatherapy_blends} Aromaterapi blend kaydı ${account} hesabına eklendi`
         : `${counts.aromatherapy_blends} Aromaterapi blend`,
+    );
+  }
+
+  const cup = sumCuppingCounts(counts);
+  if (cup > 0) {
+    lines.push(
+      account
+        ? `${cup} Kupa & Hacamat kaydı ${account} hesabına eklendi`
+        : `${cup} Kupa & Hacamat`,
     );
   }
 

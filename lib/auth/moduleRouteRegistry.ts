@@ -24,6 +24,7 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/ders-notu", key: "ders_notu" },
   { prefix: "app/api/appointments", key: "appointments" },
   { prefix: "app/api/ajanda", key: "appointments" },
+  { prefix: "app/api/kupa", key: "cupping" },
 ];
 
 /**

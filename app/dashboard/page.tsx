@@ -138,6 +138,13 @@ export default function DashboardPage() {
       desc: "Uçucu ve sabit yağ sistemi",
       icon: "🌿",
     },
+    {
+      title: "Kupa & Hacamat Terapisi",
+      desc: "Vücut nokta atlası, amaç rehberi, teknik ve güvenlik sistemi",
+      icon: "🫙",
+      href: "/dashboard/kupa",
+      badge: "Yeni",
+    },
   ];
 
   return (
