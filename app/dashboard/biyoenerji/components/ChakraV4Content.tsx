@@ -54,6 +54,17 @@ export default function ChakraV4Content({ block }: { block: ChakraContentBlock }
     const line = raw.trim();
     if (line === "") { flushBullets(); continue; }
     if (line === "---" || line === "***") { flushBullets(); nodes.push(<hr key={`hr-${key++}`} className="my-1 border-slate-200/60" />); continue; }
+    // Raw markdown başlığı (### …) düz metin olarak SIZMASIN → alt başlık olarak render.
+    const heading = line.match(/^#{1,6}\s+(.*)$/);
+    if (heading) {
+      flushBullets();
+      nodes.push(
+        <p key={`h-${key++}`} className="mt-1 text-[13.5px] font-bold text-slate-800">
+          {renderInline(heading[1] ?? "")}
+        </p>,
+      );
+      continue;
+    }
     if (line.startsWith("- ")) { bullets.push(line.slice(2).trim()); continue; }
     flushBullets();
     nodes.push(
@@ -64,8 +75,18 @@ export default function ChakraV4Content({ block }: { block: ChakraContentBlock }
   }
   flushBullets();
 
+  // Block-type görsel aksanı (SUNUM-ONLY; metin/iddia gücü değişmez).
+  const accent: Record<string, string> = {
+    state: "border-l-2 border-emerald-200 pl-3",
+    "variation-summary": "border-l-2 border-slate-200 pl-3",
+    "claim-summary": "border-l-2 border-amber-200 pl-3",
+    application: "border-l-2 border-violet-200 pl-3",
+    "supporter-note": "border-l-2 border-cyan-200 pl-3",
+  };
+  const variant = accent[block.block_type ?? ""] ?? "";
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className={`flex flex-col gap-3 ${variant}`}>
       {block.block_title ? (
         <h3 className="text-[15px] font-black tracking-tight text-slate-900">{block.block_title}</h3>
       ) : null}

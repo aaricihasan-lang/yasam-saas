@@ -24,6 +24,13 @@ export type ChakraListItem = {
   created_at: string;
   /** P4 provenance — 'admin_transfer' ise "Admin Kütüphanesi" rozeti. */
   origin_type?: string | null;
+  /**
+   * FAZ 2 — premium kart quick-fact'leri. Liste GET `select("*")` döndürdüğü için
+   * kolon varsa gelir; yoksa (dormant/legacy) null. Kartta yalnız non-null gösterilir.
+   */
+  sanskrit_name: string | null;
+  element: string | null;
+  bija_mantra: string | null;
 };
 
 export type ChakraDetailItem = ChakraListItem & {
@@ -64,7 +71,26 @@ export function mapChakraListRow(row: Record<string, unknown>): ChakraListItem {
     causes: row.causes != null ? String(row.causes) : null,
     notes: row.notes != null ? String(row.notes) : null,
     created_at: String(row.created_at ?? ""),
+    origin_type: row.origin_type != null ? String(row.origin_type) : null,
+    sanskrit_name: row.sanskrit_name != null ? String(row.sanskrit_name) : null,
+    element: row.element != null ? String(row.element) : null,
+    bija_mantra: row.bija_mantra != null ? String(row.bija_mantra) : null,
   };
+}
+
+/** Premium kart quick-fact chip'leri — yalnız gerçek (non-null) alanlar; placeholder YOK. */
+export type ChakraQuickFactChip = { key: string; label: string; value: string };
+export function chakraQuickFactChips(
+  row: Pick<ChakraListItem, "sanskrit_name" | "element" | "bija_mantra">,
+): ChakraQuickFactChip[] {
+  const out: ChakraQuickFactChip[] = [];
+  const s = row.sanskrit_name?.trim();
+  const e = row.element?.trim();
+  const m = row.bija_mantra?.trim();
+  if (s) out.push({ key: "sanskrit", label: "Sanskritçe", value: s });
+  if (e) out.push({ key: "element", label: "Element", value: e });
+  if (m) out.push({ key: "mantra", label: "Mantra", value: m });
+  return out;
 }
 
 export function mapChakraDetailRow(row: Record<string, unknown>): ChakraDetailItem {
@@ -89,14 +115,16 @@ export function chakraCardBadge(row: Pick<ChakraListItem, "color" | "organs">) {
   return row.color?.trim() || row.organs?.trim() || "";
 }
 
+/**
+ * FAZ 2 — legacy metin önizlemesi (yalnız eski, rich-block'suz kayıtlar için).
+ * Boşsa "" döner (placeholder "Önizleme yok." KALDIRILDI); kart boş preview'i render etmez.
+ */
 export function previewChakraText(...parts: (string | null | undefined)[]): string {
-  const combined = parts
+  return parts
     .filter((p) => p?.trim())
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
-  if (!combined) return "Önizleme yok.";
-  return combined;
 }
 
 export type ChakrasFetchResult<T> = {

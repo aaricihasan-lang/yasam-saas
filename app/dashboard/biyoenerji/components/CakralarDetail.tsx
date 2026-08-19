@@ -36,6 +36,7 @@ import {
   type ChakraWorkspaceSection,
 } from "@/lib/bioenergy/chakraWorkspace";
 import { fetchChakraBlocks } from "@/lib/bioenergy/chakraBlocksFetch";
+import { fetchChakraBlockCounts } from "@/lib/bioenergy/chakraBlocksCrudClient";
 import ChakraV4Content from "./ChakraV4Content";
 import ChakraBibliography from "./ChakraBibliography";
 import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "../biyoenerjiFolderConfig";
@@ -310,6 +311,8 @@ export default function CakralarDetail({ id }: { id: string }) {
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // FAZ 2 — silme güvenliği: cascade ile silinecek child block sayısı.
+  const [deleteCounts, setDeleteCounts] = useState<{ total: number; visible: number; evidence: number } | null>(null);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -394,6 +397,7 @@ export default function CakralarDetail({ id }: { id: string }) {
 
   useEffect(() => {
     if (!id.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       setErrorMessage("Geçersiz kayıt bağlantısı.");
       setRecord(null);
@@ -424,6 +428,7 @@ export default function CakralarDetail({ id }: { id: string }) {
     // Cache hit → anında kullan; mode=extended çağrısı yapma
     const cached = getCachedDogaltasStones(tenantId);
     if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDogaltasStones(cached);
       setStonesError(false);
       setStonesLoading(false);
@@ -523,6 +528,15 @@ export default function CakralarDetail({ id }: { id: string }) {
     setFormModalOpen(false);
     await loadRecord();
     showSoft("ok", "Kayıt güncellendi.");
+  }
+
+  // FAZ 2 — silme onayını açmadan önce child block sayısını çek (cascade uyarısı).
+  async function openDeleteConfirm() {
+    if (!record) return;
+    setDeleteCounts(null);
+    setDeleteConfirmOpen(true);
+    const c = await fetchChakraBlockCounts(record.id);
+    if (!c.error) setDeleteCounts({ total: c.total, visible: c.visible, evidence: c.evidence });
   }
 
   async function executeDelete() {
@@ -809,11 +823,11 @@ export default function CakralarDetail({ id }: { id: string }) {
           {!isDemo && (
             <>
               <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtnPrimary}>
+              <button type="button" onClick={() => router.push(`${CHAKRAS_LIST_PATH}/${record.id}/duzenle`)} className={tbBtnPrimary}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Düzenle
+                Çakrayı Düzenle
               </button>
-              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
+              <button type="button" disabled={saving} onClick={() => void openDeleteConfirm()} className={tbBtnDanger}>
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Sil
               </button>
@@ -993,7 +1007,13 @@ export default function CakralarDetail({ id }: { id: string }) {
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
         title="Bu çakra kaydını silmek istediğinizden emin misiniz?"
-        message="Bu işlem geri alınamaz."
+        message={
+          deleteCounts === null
+            ? "İçerik sayısı hesaplanıyor… Bu işlem geri alınamaz."
+            : deleteCounts.total > 0
+              ? `Bu çakra ve ona bağlı ${deleteCounts.total} içerik/kaynak bloğu (${deleteCounts.visible} görünür + ${deleteCounts.evidence} kaynak-kanıt) KALICI olarak silinecek. Bu işlem geri alınamaz.`
+              : "Bu çakra kalıcı olarak silinecek. Bu işlem geri alınamaz."
+        }
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void executeDelete()}
