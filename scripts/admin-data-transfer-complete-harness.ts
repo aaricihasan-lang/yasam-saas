@@ -229,19 +229,16 @@ function run(): void {
     "migration: provenance FK/CASCADE YOK (additive)");
   ok(/ADD COLUMN IF NOT EXISTS/.test(mig) && /BEGIN;[\s\S]*COMMIT;/.test(mig),
     "migration: idempotent additive + tek BEGIN/COMMIT");
-  // Feature migration version'ları güncel main karşısında ÇAKIŞMASIZ + en yüksek.
-  // (NOT: main'in kendi pre-existing duplicate timestamp'leri vardır — ör. 20260927/
-  //  20260930 birden çok dosya — bu benim kapsamım DIŞIdır; yalnız KENDİ feature
-  //  version'larımın tekil ve main'in en yükseğinden büyük olduğunu doğrularım.)
+  // Feature migration version'ları güncel main karşısında ÇAKIŞMASIZ (tekil).
+  // (NOT: main bu iki migration'ı PR#163 ile ZATEN aldı ve sonra DAHA İLERİ gitti —
+  //  bu turda YENİ migration eklenmiyor; yalnız iki mevcut feature version'ının
+  //  hâlâ tekil/çakışmasız olduğunu doğrularım. "En yüksek olma" artık geçerli değil.)
   const migFiles = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
   const ts = migFiles.map((f) => f.slice(0, 14));
   const MINE = ["20261213000000", "20261214000000"];
   for (const v of MINE) {
     ok(ts.filter((t) => t === v).length === 1, `migration: feature version ${v} tekil (çakışma yok)`);
   }
-  const maxOther = ts.filter((v) => !MINE.includes(v)).sort().at(-1) ?? "0";
-  ok(MINE.every((v) => v > maxOther),
-    `migration: feature timestamp'leri mevcut en yüksekten büyük (${maxOther})`);
   ok(migFiles.includes("20261213000000_healing_guides_transfer_provenance.sql"),
     "migration: healing final adı 20261213");
   ok(migFiles.includes("20261214000000_transfer_provenance_hd_bioenergy_blends.sql"),
@@ -341,6 +338,41 @@ function run(): void {
   }
   ok(/ADD COLUMN IF NOT EXISTS origin_transfer_batch_id uuid/.test(mig2) && !/REFERENCES/.test(stripSql(mig2)) && !/ON DELETE CASCADE/.test(stripSql(mig2)),
     "migration 20260930: additive provenance, FK/CASCADE yok");
+
+  // ── N) BİYOENERJİ ÇAKRA RELATIONAL COMPLETENESS (parent + rich blocks) ─────
+  // Çakralar artık relational: bioenergy_chakras + bioenergy_chakra_blocks.
+  ok(/bioenergy_chakras:\s*\{[\s\S]*?kind:\s*"relational"[\s\S]*?childTable:\s*"bioenergy_chakra_blocks"[\s\S]*?childParentFk:\s*"chakra_id"[\s\S]*?childHasTenant:\s*true/.test(route),
+    "route: bioenergy_chakras relational (blocks child, chakra_id FK, child tenant)");
+  ok(/childCopyFields:\s*CHAKRA_BLOCK_COPY_FIELDS/.test(route),
+    "route: çakra child açık allowlist (CHAKRA_BLOCK_COPY_FIELDS)");
+  // Allowlist expert read graph (BLOCK_COLUMNS) iş alanlarını kapsıyor; teknik/FK YOK
+  const chakraFieldsBlock = route.split("CHAKRA_BLOCK_COPY_FIELDS = [")[1]?.split("]")[0] ?? "";
+  for (const f of ["section_key", "block_title", "editorial_explanation", "editorial_interpretation", "expert_note", "source_url", "tradition_frame"]) {
+    ok(new RegExp(`"${f}"`).test(chakraFieldsBlock), `route: çakra allowlist içerir ${f}`);
+  }
+  for (const bad of ["\"id\"", "\"chakra_id\"", "\"tenant_id\"", "\"created_at\"", "\"origin_"]) {
+    ok(!new RegExp(bad).test(chakraFieldsBlock), `route: çakra allowlist teknik alan taşımaz (${bad})`);
+  }
+  // Graceful dormancy: child tablo yoksa (prod DORMANT) unit fail ETMEZ; gerçek hata eder
+  ok(/function isMissingTableError\b/.test(route) && /isMissingTableError\(cErr\)/.test(route),
+    "route: child tablo DORMANT (relation does not exist) → graceful boş; gerçek hata unit'i düşürür");
+  ok(/if \(!isMissingTableError\(cErr\)\) throw new TransferError\("read", group\)/.test(route),
+    "route: yalnız GERÇEK child okuma hatası TransferError; tablo yok değil");
+  // Çakralar flat DEĞİL artık (parent-only success mümkün değil — child insert fail unit'i düşürür)
+  ok(!/bioenergy_chakras:\s*\{\s*table:\s*"bioenergy_chakras"\s*\}/.test(route),
+    "route: bioenergy_chakras artık düz flat DEĞİL (regresyon guard)");
+  // Diğer 5 Biyoenerji bölümü FLAT kalıyor (read graph tek tablo — regresyon yok)
+  for (const flat of ["bioenergy_symbols", "bioenergy_imaginations", "bioenergy_energy_bodies", "bioenergy_subconscious_causes"]) {
+    ok(new RegExp(`${flat}:\\s*\\{\\s*table:\\s*"${flat}"\\s*\\}`).test(route), `route: ${flat} flat korunuyor`);
+  }
+  ok(/bioenergy_sessions:\s*\{\s*table:\s*"bioenergy_sessions", copyFields:\s*SESSION_COPY_FIELDS/.test(route),
+    "route: bioenergy_sessions flat + allowlist korunuyor");
+  // Çakra child provenance kolonları migration'da mevcut → yeni migration gerekmez
+  ok(existsSync("supabase/migrations/20261203000000_bioenergy_chakra_rich_foundation.sql"),
+    "migration: bioenergy_chakra_blocks (+origin_* provenance) foundation mevcut — yeni migration gerekmez");
+  const chakraMig = read("supabase/migrations/20261203000000_bioenergy_chakra_rich_foundation.sql");
+  ok(/origin_transfer_batch_id/.test(chakraMig) && /chakra_id/.test(chakraMig),
+    "migration: child origin_* + chakra_id FK foundation'da");
 
   console.log(`\nadmin-data-transfer-complete harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
