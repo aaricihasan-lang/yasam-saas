@@ -22,7 +22,7 @@ const GROUP_TITLE: Record<BiyoenerjiGroupId, string> = BIOENERJI_GROUP_ORDER.red
 
 export default function BiyoenerjiFolderCards() {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
       {BIOENERJI_SECTIONS_IN_ORDER.map((card) => {
         const { Icon } = card;
         return (

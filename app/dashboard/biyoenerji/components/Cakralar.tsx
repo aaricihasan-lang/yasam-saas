@@ -134,8 +134,10 @@ function formatDate(iso: string | null) {
 const loadMoreBtnClass =
   "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
 
+// İkincil aksiyon: sağa hizalı sade "Detayı Aç →" (koyu full-width CTA DEĞİL;
+// kart adı/bilgileri butondan daha baskın kalır).
 const detailOpenBtnClass =
-  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
+  "relative z-10 mt-auto flex shrink-0 items-center justify-end gap-1 self-end rounded-lg px-2.5 py-1 text-[12.5px] font-bold text-violet-700 transition duration-200 group-hover:bg-violet-50 group-hover:text-violet-800 group-focus-visible:bg-violet-50";
 
 export default function Cakralar() {
   const { isDemo } = useDemoGuard();
@@ -438,7 +440,7 @@ export default function Cakralar() {
           </div>
         </div>
       )}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         {!isDemo && (
           <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnClass}>
             + Yeni Kayıt
@@ -446,30 +448,30 @@ export default function Cakralar() {
         )}
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
-          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
+          <p className="mt-0.5 truncate text-lg font-black tabular-nums tracking-tight text-violet-700">
             {statsReady ? totalInDb : "…"}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
             {isSearchActive ? "Arama sonucu" : "Görünen sonuç"}
           </p>
-          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
+          <p className="mt-0.5 truncate text-lg font-black tabular-nums tracking-tight text-violet-700">
             {statsReady ? searchResultCount : "…"}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Son kayıt</p>
-          <p className="mt-0.5 truncate text-base font-black tracking-tight text-cyan-800">
+          <p className="mt-0.5 truncate text-[15px] font-black tracking-tight text-cyan-800">
             {formatDate(lastCreatedAt)}
           </p>
         </div>
       </div>
 
-      <label className="mb-4 block w-full xl:max-w-sm">
+      <label className="mb-3 block w-full xl:max-w-sm">
         <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kütüphane araması</span>
         <input
           type="search"
@@ -574,7 +576,7 @@ export default function Cakralar() {
                   )}
                 <Link
                   href={detailHref}
-                  className={`group relative flex min-h-[136px] flex-col overflow-hidden rounded-2xl border border-l-4 p-3.5 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.16)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex min-h-[172px] flex-col overflow-hidden rounded-2xl border border-l-4 p-4 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.16)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {/* İlk görsel hiyerarşi doğrudan çakra adı (dekoratif "Çakra" badge KALDIRILDI). */}
                   <h2 className="line-clamp-2 pr-6 text-[15px] font-black leading-snug text-slate-950">

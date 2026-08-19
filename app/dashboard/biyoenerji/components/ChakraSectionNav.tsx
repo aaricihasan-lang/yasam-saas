@@ -58,23 +58,22 @@ export default function ChakraSectionNav({
         </ul>
       </details>
 
-      {/* Masaüstü: premium editorial ikinci-seviye nav (sakin underline + hafif
-          violet tint active). Büyük SaaS pill / gradient / ağır shadow YOK. */}
-      <nav aria-label="Çakra bölümleri" className="hidden border-b border-slate-200/80 lg:block">
-        {/* Tek satır: taşarsa yatay scroll (2 dağınık satıra bölünmez). */}
-        <ul className="flex flex-nowrap gap-x-0.5 overflow-x-auto [scrollbar-width:thin]">
+      {/* Masaüstü: dengeli segmented grid (4×2). GÖRÜNÜR yatay scrollbar YOK;
+          tesadüfi wrap değil, bilinçli 4+4 düzen. */}
+      <nav aria-label="Çakra bölümleri" className="hidden lg:block">
+        <ul className="grid grid-cols-4 gap-1.5">
           {sections.map((s) => {
             const isActive = s.hash === active.hash;
             return (
-              <li key={s.hash} className="shrink-0">
+              <li key={s.hash}>
                 <button
                   type="button"
                   onClick={() => onSelect(s.hash)}
                   aria-current={isActive ? "true" : undefined}
-                  className={`-mb-px inline-flex min-h-[42px] items-center whitespace-nowrap rounded-t-lg border-b-2 px-3 text-[12.5px] font-bold tracking-tight transition ${
+                  className={`flex min-h-[40px] w-full items-center justify-center rounded-lg px-2 py-1.5 text-center text-[12px] font-bold leading-tight tracking-tight transition ${
                     isActive
-                      ? "border-violet-500 bg-violet-50/60 text-violet-900"
-                      : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-violet-700"
+                      ? "bg-violet-100 text-violet-900 ring-1 ring-violet-300"
+                      : "bg-white/60 text-slate-500 ring-1 ring-slate-200/70 hover:bg-slate-50 hover:text-violet-700"
                   }`}
                 >
                   {s.title}
