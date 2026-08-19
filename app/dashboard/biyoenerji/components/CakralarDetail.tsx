@@ -669,12 +669,17 @@ export default function CakralarDetail({ id }: { id: string }) {
     quickRows: { key: string; label: string; value: string }[],
   ): ReactNode => (
     <div className="flex flex-col gap-3">
-      {quickRows.map((r) => (
-        <div key={`qf-${r.key}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{r.label}</span>
-          <span className="text-[15px] font-semibold text-slate-800">{r.value}</span>
+      {/* Premium compact quick-fact chip'leri (yalnız non-null; placeholder YOK) */}
+      {quickRows.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {quickRows.map((r) => (
+            <div key={`qf-${r.key}`} className="min-w-[104px] rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{r.label}</div>
+              <div className="mt-0.5 text-[14px] font-bold text-slate-800">{r.value}</div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
       {blocksArg.map((b, i) => (
         <div key={`gb-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {b.title ? (

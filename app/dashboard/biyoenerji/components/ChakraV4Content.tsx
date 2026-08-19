@@ -68,27 +68,29 @@ export default function ChakraV4Content({ block }: { block: ChakraContentBlock }
     if (line.startsWith("- ")) { bullets.push(line.slice(2).trim()); continue; }
     flushBullets();
     nodes.push(
-      <p key={`p-${key++}`} className="max-w-3xl text-[13.5px] leading-relaxed text-slate-700">
+      <p key={`p-${key++}`} className="max-w-4xl text-[13.5px] leading-relaxed text-slate-700">
         {renderInline(line)}
       </p>,
     );
   }
   flushBullets();
 
-  // Block-type görsel aksanı (SUNUM-ONLY; metin/iddia gücü değişmez).
-  const accent: Record<string, string> = {
-    state: "border-l-2 border-emerald-200 pl-3",
-    "variation-summary": "border-l-2 border-slate-200 pl-3",
-    "claim-summary": "border-l-2 border-amber-200 pl-3",
-    application: "border-l-2 border-violet-200 pl-3",
-    "supporter-note": "border-l-2 border-cyan-200 pl-3",
+  // Hafif profesyonel bilgi bloğu paneli (SUNUM-ONLY; metin/iddia gücü değişmez).
+  // overview en sade; diğer tipler ince sol-aksan + hafif tint. Aşırı-tasarım YOK.
+  const PANEL: Record<string, string> = {
+    overview: "border-slate-200/60 bg-white/45",
+    state: "border-slate-200/60 border-l-[3px] border-l-emerald-300 bg-emerald-50/30",
+    "variation-summary": "border-slate-200/60 border-l-[3px] border-l-slate-300 bg-slate-50/50",
+    "claim-summary": "border-slate-200/60 border-l-[3px] border-l-amber-300 bg-amber-50/30",
+    application: "border-slate-200/60 border-l-[3px] border-l-violet-300 bg-violet-50/30",
+    "supporter-note": "border-slate-200/60 border-l-[3px] border-l-cyan-300 bg-cyan-50/30",
   };
-  const variant = accent[block.block_type ?? ""] ?? "";
+  const panel = PANEL[block.block_type ?? ""] ?? PANEL.overview;
 
   return (
-    <div className={`flex flex-col gap-3 ${variant}`}>
+    <div className={`flex flex-col gap-2.5 rounded-xl border p-4 ${panel}`}>
       {block.block_title ? (
-        <h3 className="text-[15px] font-black tracking-tight text-slate-900">{block.block_title}</h3>
+        <h3 className="text-[14.5px] font-black tracking-tight text-slate-900">{block.block_title}</h3>
       ) : null}
       {nodes}
     </div>

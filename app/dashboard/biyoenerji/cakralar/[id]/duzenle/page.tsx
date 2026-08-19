@@ -19,7 +19,7 @@ export default function ChakraEditorPage() {
       title="Çakrayı Düzenle"
       subtitle="Temel bilgiler + 8 bölüm gerçek içerik editörü"
     >
-      <div className="w-full min-w-0 max-w-5xl">
+      <div className="w-full min-w-0 max-w-6xl">
         <ChakraContentEditor id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

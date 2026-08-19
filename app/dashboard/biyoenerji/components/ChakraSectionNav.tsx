@@ -61,16 +61,17 @@ export default function ChakraSectionNav({
       {/* Masaüstü: premium editorial ikinci-seviye nav (sakin underline + hafif
           violet tint active). Büyük SaaS pill / gradient / ağır shadow YOK. */}
       <nav aria-label="Çakra bölümleri" className="hidden border-b border-slate-200/80 lg:block">
-        <ul className="flex flex-wrap gap-x-0.5">
+        {/* Tek satır: taşarsa yatay scroll (2 dağınık satıra bölünmez). */}
+        <ul className="flex flex-nowrap gap-x-0.5 overflow-x-auto [scrollbar-width:thin]">
           {sections.map((s) => {
             const isActive = s.hash === active.hash;
             return (
-              <li key={s.hash}>
+              <li key={s.hash} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => onSelect(s.hash)}
                   aria-current={isActive ? "true" : undefined}
-                  className={`-mb-px inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 px-3.5 text-[13px] font-bold tracking-tight transition ${
+                  className={`-mb-px inline-flex min-h-[42px] items-center whitespace-nowrap rounded-t-lg border-b-2 px-3 text-[12.5px] font-bold tracking-tight transition ${
                     isActive
                       ? "border-violet-500 bg-violet-50/60 text-violet-900"
                       : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-violet-700"
