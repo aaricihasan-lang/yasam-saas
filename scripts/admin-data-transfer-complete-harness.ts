@@ -374,6 +374,38 @@ function run(): void {
   ok(/origin_transfer_batch_id/.test(chakraMig) && /chakra_id/.test(chakraMig),
     "migration: child origin_* + chakra_id FK foundation'da");
 
+  // ── O) ÇAKRA UAT FIX: child transferred_at kolon-drift + failure detail UI ──
+  // Kök neden: bioenergy_chakra_blocks provenance mirror'ında transferred_at YOK
+  // (20261203 → 4 kolon); child payload transferred_at yazınca insert fail → çakra
+  // section fail → per-unit rollback → expert 0 çakra. Fix: childHasTransferredAt:false.
+  ok(/childHasTransferredAt\?:\s*boolean/.test(route),
+    "route: GroupConfig childHasTransferredAt flag mevcut");
+  ok(/bioenergy_chakras:\s*\{[\s\S]*?childHasTransferredAt:\s*false/.test(route),
+    "route: bioenergy_chakras childHasTransferredAt=false (block'ta transferred_at YOK)");
+  ok(/if \(cfg\.childHasTransferredAt !== false\) copy\.transferred_at = nowIso/.test(route),
+    "route: child transferred_at YALNIZ kolon varsa yazılır (koşullu)");
+  // origin_transfer_batch_id (rollback) + origin_source_id child'da HÂLÂ yazılıyor
+  ok(/copy\.origin_transfer_batch_id = batchId/.test(route.split("function buildChildPayload")[1]?.split("return copy")[0] ?? ""),
+    "route: child origin_transfer_batch_id (rollback) korunuyor");
+  // Migration'da gerçekten transferred_at YOK ama batch_id VAR (kanıt)
+  const chMig = read("supabase/migrations/20261203000000_bioenergy_chakra_rich_foundation.sql");
+  ok(/origin_transfer_batch_id/.test(chMig) && !/transferred_at/.test(chMig),
+    "migration: bioenergy_chakra_blocks origin_transfer_batch_id VAR, transferred_at YOK (drift kanıtı)");
+  // Response bölüm-bazında errorCode üretiyor (UI güvenli mesaj için)
+  ok(/errorCode:\s*err instanceof TransferError \? `\$\{err\.stage\}_failed`/.test(route),
+    "route: failed section güvenli errorCode (read_failed/insert_failed)");
+  ok(!/error\.message|insErr\.message|cErr\.message|pErr\.message/.test(routeCode),
+    "route: ham DB error.message UI'a DÖNMEZ (güvenli sözleşme korunuyor)");
+  // Failure detail UI: safe message + failed section adı + başarılı bölüm dökümü
+  ok(/function safeSectionErrorMessage/.test(page) && /insert_failed/.test(page) && /read_failed/.test(page),
+    "page: safeSectionErrorMessage (errorCode→güvenli TR mesaj)");
+  ok(/Aktarılamayan bölümler:/.test(page) && /safeSectionErrorMessage\(s\.errorCode\)/.test(page),
+    "page: başarısız bölüm adı + güvenli hata mesajı render ediliyor");
+  ok(/Aktarılan bölümler:/.test(page) && /s\.inserted\.toLocaleString/.test(page),
+    "page: başarılı bölümler + kayıt sayısı dökümü");
+  ok(!/error\.message|stack|service_role|postgres|PGRST/i.test(stripTs(page).split("safeSectionErrorMessage")[1]?.split("}")[0] ?? ""),
+    "page: güvenli mesajda ham DB/stack/service_role sızıntısı yok");
+
   console.log(`\nadmin-data-transfer-complete harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
