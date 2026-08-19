@@ -34,7 +34,14 @@ export type TransferGroupKey =
   | "aromatherapy_blends"
   | "healing_guides"
   | "hd_knowledge"
-  | "bioenergy_sessions";
+  | "bioenergy_sessions"
+  | "cupping_points"
+  | "cupping_topics"
+  | "cupping_techniques"
+  | "cupping_knowledge"
+  | "cupping_sources"
+  | "cupping_safety"
+  | "cupping_point_topics";
 
 /**
  * UI alt bölümü. Bir görünür checkbox → 1+ transfer grup anahtarı.
@@ -194,6 +201,64 @@ export const TRANSFER_MODULES: TransferModuleMeta[] = [
         key: "hd_knowledge",
         label: "Bilgi Bankası (Tipler · Otoriteler · Kapılar · Kanallar)",
         transferKeys: ["hd_knowledge"],
+        active: true,
+      },
+    ],
+  },
+  {
+    key: "cupping",
+    label: "Kupa & Hacamat Terapisi",
+    sections: [
+      {
+        // cupping_points (parent) + cupping_point_placements (child, point_id FK REMAP).
+        // Noktalar haritadaki yerleşimleriyle birlikte tek birim olarak aktarılır.
+        key: "cupping_points",
+        label: "Nokta Atlası (nokta + harita yerleşimleri)",
+        transferKeys: ["cupping_points"],
+        active: true,
+      },
+      {
+        key: "cupping_topics",
+        label: "Amaç / Rahatsızlık Rehberi",
+        transferKeys: ["cupping_topics"],
+        active: true,
+        granular: true,
+      },
+      {
+        key: "cupping_techniques",
+        label: "Kupa Teknikleri",
+        transferKeys: ["cupping_techniques"],
+        active: true,
+        granular: true,
+      },
+      {
+        key: "cupping_knowledge",
+        label: "Bilgi & Eğitim Kütüphanesi",
+        transferKeys: ["cupping_knowledge"],
+        active: true,
+        granular: true,
+      },
+      {
+        key: "cupping_sources",
+        label: "Kaynaklar",
+        transferKeys: ["cupping_sources"],
+        active: true,
+        granular: true,
+      },
+      {
+        key: "cupping_safety",
+        label: "Güvenlik / Kontrendikasyonlar",
+        transferKeys: ["cupping_safety"],
+        active: true,
+        granular: true,
+      },
+      {
+        // Konu ↔ nokta ilişkisi (cupping_point_topics) — JUNCTION: iki FK de (point/topic)
+        // aynı batch'teki hedef kayıtlara remap edilir (server route cloneJunctionGroup).
+        // Referential bütünlük korunur; iki parent'tan biri batch'te yoksa ilişki atlanır.
+        key: "cupping_point_topics",
+        label: "Konu ↔ Nokta İlişkileri",
+        transferKeys: ["cupping_point_topics"],
         active: true,
       },
     ],

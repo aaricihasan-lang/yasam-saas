@@ -34,7 +34,8 @@ export type ModuleGateKey =
   | "ders_notu"
   | "human_design"
   | "digital_content"
-  | "cosmic_calendar";
+  | "cosmic_calendar"
+  | "cupping";
 
 /** Kanonik anahtar → kabul edilen alias'lar (DB'de her iki biçim de saklanabilir). */
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -48,6 +49,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   personal_archive: ["kisisel_arsiv"],
   reflexology: ["refleksoloji"],
   aromatherapy: ["aromaterapi"],
+  cupping: ["kupa", "hacamat_terapi"],
   video_ceviri: [],
   belge_ceviri: [],
   ders_notu: [],

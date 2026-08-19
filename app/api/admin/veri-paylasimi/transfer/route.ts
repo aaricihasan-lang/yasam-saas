@@ -4,6 +4,17 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
 import { OIL_COPY_FIELDS } from "@/lib/aromaterapi/oilFields";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
+import { remapJunctionRows } from "@/lib/admin/transferJunction";
+import {
+  CUPPING_POINT_COPY_FIELDS,
+  CUPPING_PLACEMENT_COPY_FIELDS,
+  CUPPING_TOPIC_COPY_FIELDS,
+  CUPPING_TECHNIQUE_COPY_FIELDS,
+  CUPPING_KNOWLEDGE_COPY_FIELDS,
+  CUPPING_SOURCE_COPY_FIELDS,
+  CUPPING_SAFETY_COPY_FIELDS,
+  CUPPING_POINT_TOPIC_COPY_FIELDS,
+} from "@/lib/cupping/transferFields";
 
 export const runtime = "nodejs";
 
@@ -174,8 +185,11 @@ type SourceMode = "admin_tenant" | "canonical_null" | "admin_library";
 type GroupConfig = {
   /** Gerçek public tablo adı (yalnız buradan gelir). */
   table: string;
-  /** "flat": düz tablo. "relational": parent + child (FK remap). Varsayılan flat. */
-  kind?: "flat" | "relational";
+  /**
+   * "flat": düz tablo. "relational": parent + child (tek FK remap). "junction": M:N ara
+   * tablo (İKİ FK de aynı batch'te oluşturulan hedef kayıtlara remap). Varsayılan flat.
+   */
+  kind?: "flat" | "relational" | "junction";
   /** Verilirse yalnız bu alanlar kopyalanır; yoksa SELECT * strip mantığı. */
   copyFields?: readonly string[];
   /** Kopyalanacak satırda dolu olması gereken iş alanı (boşsa satır atlanır). */
@@ -208,6 +222,14 @@ type GroupConfig = {
    * ile child insert'i düşürürdü (canlı UAT'ta Çakralar fail → per-unit rollback → 0).
    */
   childHasTransferredAt?: boolean;
+  /** junction: birinci FK kolonu (remap edilir). */
+  junctionFkA?: string;
+  /** junction: birinci FK'nin remap için okunacağı hedef tablo (bu batch'te oluşturulanlar). */
+  junctionViaTableA?: string;
+  /** junction: ikinci FK kolonu (remap edilir). */
+  junctionFkB?: string;
+  /** junction: ikinci FK'nin remap için okunacağı hedef tablo. */
+  junctionViaTableB?: string;
 };
 
 /** UI grup anahtarı → tablo + kopya davranışı. transferRegistry ile eş küme. */
@@ -295,6 +317,52 @@ const REGISTRY = {
     copyFields: HD_RECORD_COPY_FIELDS, requireField: "title", sourceMode: "admin_tenant",
     childTable: "human_design_knowledge_sources", childParentFk: "record_id",
     childCopyFields: HD_SOURCE_COPY_FIELDS, childHasTenant: true,
+  },
+  // Kupa & Hacamat — RELATIONAL: cupping_points (parent) + cupping_point_placements
+  // (child, point_id FK, ON DELETE CASCADE). Kaynak adminin kendi tenant'ı; her nokta
+  // yeni UUID + hedef tenant; child'ın point_id'si YENİ parent id'ye REMAP edilir; child
+  // tenant_id VARDIR → hedef yazılır. code per-tenant eşsizdir → çakışan nokta (unit)
+  // atlanır, diğerleri aktarılır (per-unit atomik). NOT: cupping_point_topics (çift-FK
+  // join) generic tek-parent-remap motoruyla taşınamaz → V1 aktarımına DAHİL DEĞİL
+  // (follow-up). Aktarım öncesi admin uzmana noktalar + yerleşimleri gönderir; uzman
+  // konu ilişkilerini kendi tarafında kurar.
+  cupping_points: {
+    table: "cupping_points", kind: "relational",
+    copyFields: CUPPING_POINT_COPY_FIELDS, requireField: "name", sourceMode: "admin_tenant",
+    childTable: "cupping_point_placements", childParentFk: "point_id",
+    childCopyFields: CUPPING_PLACEMENT_COPY_FIELDS, childHasTenant: true,
+  },
+  cupping_topics: {
+    table: "cupping_topics", copyFields: CUPPING_TOPIC_COPY_FIELDS,
+    requireField: "title", sourceMode: "admin_tenant",
+  },
+  cupping_techniques: {
+    table: "cupping_techniques", copyFields: CUPPING_TECHNIQUE_COPY_FIELDS,
+    requireField: "name", sourceMode: "admin_tenant",
+  },
+  cupping_knowledge: {
+    table: "cupping_knowledge_records", copyFields: CUPPING_KNOWLEDGE_COPY_FIELDS,
+    requireField: "title", sourceMode: "admin_tenant",
+  },
+  cupping_sources: {
+    table: "cupping_sources", copyFields: CUPPING_SOURCE_COPY_FIELDS,
+    requireField: "source_name", sourceMode: "admin_tenant",
+  },
+  cupping_safety: {
+    table: "cupping_safety_notes", copyFields: CUPPING_SAFETY_COPY_FIELDS,
+    requireField: "title", sourceMode: "admin_tenant",
+  },
+  // Kupa & Hacamat — JUNCTION (M:N): konu ↔ nokta ilişkisi. İki FK de (point_id/topic_id)
+  // AYNI batch'te oluşturulan uzman noktalarının/konularının id'lerine REMAP edilir; kaynak
+  // UUID hedefte kalmaz. Remap haritaları, cupping_points/cupping_topics kayıtlarının bu
+  // batch'teki hedef readback'inden (origin_transfer_batch_id + origin_source_id) kurulur.
+  // İki parent'tan biri batch'te yoksa ilişki ATLANIR (dangling/cross-tenant üretilmez).
+  // Junction daima nokta/konu gruplarından SONRA işlenir (groupKeys sort).
+  cupping_point_topics: {
+    table: "cupping_point_topics", kind: "junction",
+    copyFields: CUPPING_POINT_TOPIC_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "point_id", junctionViaTableA: "cupping_points",
+    junctionFkB: "topic_id", junctionViaTableB: "cupping_topics",
   },
 } as const satisfies Record<string, GroupConfig>;
 
@@ -620,6 +688,86 @@ async function cloneRelationalGroup(
 }
 
 /**
+ * Bu batch'te BELİRLİ bir hedef tabloya yazılmış kayıtların kaynak→hedef id haritası.
+ * Provenance kolonlarını (origin_source_id + origin_transfer_batch_id) kullanır — ekstra
+ * mapping altyapısı YOK; junction FK remap bu readback'ten beslenir.
+ */
+async function buildBatchIdMap(
+  db: SupabaseClient,
+  viaTable: string,
+  targetTenantId: string,
+  batchId: string,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const { data, error } = await db
+    .from(viaTable)
+    .select("id, origin_source_id")
+    .eq("tenant_id", targetTenantId)
+    .eq("origin_transfer_batch_id", batchId);
+  if (error) return map; // harita boş → ilişkiler güvenle atlanır (dangling üretilmez)
+  for (const row of (data ?? []) as { id: unknown; origin_source_id: unknown }[]) {
+    if (typeof row.id === "string" && typeof row.origin_source_id === "string") {
+      map.set(row.origin_source_id, row.id);
+    }
+  }
+  return map;
+}
+
+/**
+ * JUNCTION (M:N) grubu kopyalar: cupping_point_topics gibi çift-FK ara tablo.
+ *
+ * Her iki FK de bu batch'te oluşturulan hedef parent'lara REMAP edilir (kaynak UUID hedefte
+ * kalmaz). Remap haritaları buildBatchIdMap ile parent hedef tablolarından okunur. İki
+ * parent'tan biri batch'te yoksa ilişki ATLANIR (dangling/cross-tenant/source-UUID YOK) —
+ * mevcut relational-child fk-remap ilkesinin M:N uzantısı. INSERT-only; duplicate hedef
+ * unique (tenant_id, point_id, topic_id) ile önlenir; rollback batch-scoped (rollbackGroup).
+ */
+async function cloneJunctionGroup(
+  db: SupabaseClient,
+  group: GroupKey,
+  cfg: GroupConfig,
+  sourceTenantId: string,
+  targetTenantId: string,
+  batchId: string,
+  nowIso: string,
+  filterIds: string[] | undefined,
+): Promise<{ requested: number; inserted: number }> {
+  const { data, error } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
+  if (error) throw new TransferError("read", group);
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) return { requested: 0, inserted: 0 };
+
+  // İki parent grubun bu batch'teki kaynak→hedef id haritaları (provenance readback).
+  const [mapA, mapB] = await Promise.all([
+    buildBatchIdMap(db, cfg.junctionViaTableA!, targetTenantId, batchId),
+    buildBatchIdMap(db, cfg.junctionViaTableB!, targetTenantId, batchId),
+  ]);
+
+  const { payloads } = remapJunctionRows({
+    rows,
+    copyFields: cfg.copyFields ?? [],
+    fkA: cfg.junctionFkA!,
+    fkB: cfg.junctionFkB!,
+    mapA,
+    mapB,
+    targetTenantId,
+    batchId,
+    nowIso,
+  });
+
+  let inserted = 0;
+  for (let off = 0; off < payloads.length; off += INSERT_BATCH) {
+    const batch = payloads.slice(off, off + INSERT_BATCH);
+    const { error: insErr } = await db.from(cfg.table).insert(batch);
+    if (insErr) throw new TransferError("insert", group);
+    inserted += batch.length;
+  }
+
+  // requested = tüm kaynak ilişki; inserted = remap edilebilen (atlananlar skippedCount'a yansır).
+  return { requested: rows.length, inserted };
+}
+
+/**
  * TEK grubun bu batch'e ait satırlarını geri alır (grup-scoped).
  * Paylaşılan tabloda (aromatherapy_oils) yalnız bu grubun matchValue satırlarını
  * siler → aynı batch'teki BAŞKA grubun (ör. essential) satırlarını YOK ETMEZ.
@@ -685,6 +833,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!isGroupKey(g)) return jsonError(400, "Geçersiz veri grubu.");
   }
   const groupKeys = groups as GroupKey[];
+
+  // Junction (M:N) grupları, FK remap için parent gruplarının (nokta/konu) hedef kayıtlarına
+  // ihtiyaç duyar → daima EN SONA sıralanır (aynı batch'te önce parent'lar insert edilir).
+  groupKeys.sort((a, b) => {
+    const ra = (REGISTRY[a] as GroupConfig).kind === "junction" ? 1 : 0;
+    const rb = (REGISTRY[b] as GroupConfig).kind === "junction" ? 1 : 0;
+    return ra - rb;
+  });
 
   // filterMap: yalnız string uuid dizileri, sınırlı
   const filterMap: Partial<Record<GroupKey, string[]>> = {};
@@ -805,7 +961,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       const result =
         cfg.kind === "relational"
           ? await cloneRelationalGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group])
-          : await cloneFlatGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group]);
+          : cfg.kind === "junction"
+            ? await cloneJunctionGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group])
+            : await cloneFlatGroup(db, group, cfg, sourceTenantId, targetTenantId, batchId, nowIso, filterMap[group]);
 
       counts[group] = result.inserted;
       requestedTotal += result.requested;
