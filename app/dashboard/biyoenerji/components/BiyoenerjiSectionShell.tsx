@@ -24,6 +24,13 @@ type BiyoenerjiSectionShellProps = {
   activeSection?: BiyoenerjiSectionKey;
   /** detail varyantında son (geçerli) breadcrumb öğesi — örn. "Kayıt detayı". */
   detailCrumb?: string;
+  /**
+   * FAZ UX-Polish — verildiğinde üst modül navigasyonu (Biyoenerji/Enerji&Beden
+   * geri butonları + breadcrumb + 6-modül sekme kümesi) GİZLENİR. Yalnız ilgili
+   * sayfa (ör. Çakra Kütüphanesi) temiz hero ile başlar. Diğer modüller prop
+   * geçmez → mevcut navigasyon aynen korunur.
+   */
+  hideModuleNav?: boolean;
 };
 
 /** activeSection'dan breadcrumb zinciri kurar. */
@@ -56,11 +63,12 @@ export default function BiyoenerjiSectionShell({
   headerVariant = "default",
   activeSection,
   detailCrumb,
+  hideModuleNav = false,
 }: BiyoenerjiSectionShellProps) {
   const premium = headerVariant === "premium";
   const detail = headerVariant === "detail";
 
-  const nav = activeSection ? (
+  const nav = activeSection && !hideModuleNav ? (
     <div className="flex flex-col gap-2.5">
       <BiyoenerjiBreadcrumb
         items={buildCrumbs(activeSection, detail ? "detail" : "list", detailCrumb)}
@@ -96,22 +104,24 @@ export default function BiyoenerjiSectionShell({
           }`}
         >
           <div className="flex flex-col gap-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={BIOENERJI_FOLDER_BASE}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-violet-700"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                Biyoenerji
-              </Link>
-              <Link
-                href="/enerji-beden"
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-cyan-700"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                Enerji &amp; Beden
-              </Link>
-            </div>
+            {!hideModuleNav && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={BIOENERJI_FOLDER_BASE}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-violet-700"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                  Biyoenerji
+                </Link>
+                <Link
+                  href="/enerji-beden"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-cyan-700"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                  Enerji &amp; Beden
+                </Link>
+              </div>
+            )}
 
             {nav}
 

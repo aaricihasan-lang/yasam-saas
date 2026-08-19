@@ -475,7 +475,7 @@ export default function Cakralar() {
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Çakra adı, organ, renk, neden veya not içinde ara..."
+          placeholder="Çakra adı veya kayıt bilgilerinde ara…"
           className={bioSearchInputClass}
         />
         {listBusy ? (
@@ -574,17 +574,10 @@ export default function Cakralar() {
                   )}
                 <Link
                   href={detailHref}
-                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex min-h-[136px] flex-col overflow-hidden rounded-2xl border border-l-4 p-3.5 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.16)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
-                  {/* Dekoratif tema aksanı (canonical color DEĞİL) */}
-                  <span
-                    className={`mb-2 inline-flex w-fit items-center gap-2 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${theme.badge}`}
-                  >
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-current opacity-70" aria-hidden />
-                    Çakra
-                  </span>
-
-                  <h2 className="line-clamp-2 text-[15px] font-black leading-snug text-slate-950">
+                  {/* İlk görsel hiyerarşi doğrudan çakra adı (dekoratif "Çakra" badge KALDIRILDI). */}
+                  <h2 className="line-clamp-2 pr-6 text-[15px] font-black leading-snug text-slate-950">
                     {displayTitle}
                   </h2>
                   <AdminTransferBadge originType={row.origin_type} className="mt-1" />
@@ -607,12 +600,12 @@ export default function Cakralar() {
                   {/* Legacy metin önizlemesi yalnız gerçekten varsa (eski kayıtlar); "yok" YOK */}
                   {preview ? (
                     <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
-                      <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">
+                      <p className="line-clamp-2 text-[12.5px] leading-relaxed text-slate-700/90">
                         {preview}
                       </p>
                     </DemoBlur>
                   ) : (
-                    <div className="flex-1" aria-hidden />
+                    <div className="mt-2 flex-1" aria-hidden />
                   )}
 
                   <span className={detailOpenBtnClass}>
