@@ -56,7 +56,12 @@ export const BIO_RESOURCES: Record<string, BioResourceConfig> = {
     search: ["name", "organs", "glands", "color", "stones", "causes", "physical", "mental", "notes"],
     orderCol: "name",
     orderAsc: true,
-    write: ["source_uid", "name", "organs", "glands", "color", "stones", "causes", "physical", "mental", "notes"],
+    // FAZ 2 — quick-fact kolonları (sanskrit_name/element/location/bija_mantra) yazılabilir
+    // eklendi (kolonlar DB'de mevcut; migration YOK). Legacy alanlar backward-compat için korunur.
+    write: [
+      "source_uid", "name", "organs", "glands", "color", "stones", "causes", "physical", "mental", "notes",
+      "sanskrit_name", "element", "location", "bija_mantra",
+    ],
   },
 };
 

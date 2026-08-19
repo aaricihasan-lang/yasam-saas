@@ -74,6 +74,22 @@ function moduleActiveSections(mod: TransferModuleMeta): TransferSectionMeta[] {
   return mod.sections.filter((s) => s.active && s.transferKeys.length > 0);
 }
 
+/**
+ * Başarısız bir bölüm için KULLANICIYA gösterilecek GÜVENLİ açıklama.
+ * Yalnız güvenli errorCode → sabit TR mesaj; ham Postgres/SQL/service_role detayı
+ * ASLA gösterilmez (o bilgi backend'de kalır).
+ */
+function safeSectionErrorMessage(errorCode?: string): string {
+  switch (errorCode) {
+    case "insert_failed":
+      return "Bu bölümün içeriği kaydedilirken bir hata oluştu. Kayıtlar aktarılmadı.";
+    case "read_failed":
+      return "Bu bölümün kaynağı okunurken bir hata oluştu.";
+    default:
+      return "Bu bölüm aktarılırken bir hata oluştu.";
+  }
+}
+
 /** Tüm modüllerdeki aktif bölüm anahtarları. */
 const ALL_ACTIVE_SECTION_KEYS: string[] = TRANSFER_MODULES.flatMap((m) =>
   moduleActiveSections(m).map((s) => s.key),
@@ -1096,12 +1112,32 @@ export default function VeriPaylasimiPage() {
               {transferResult.sections && transferResult.sections.some((s) => s.status === "failed") ? (
                 <div className="mt-3 rounded-xl border border-rose-200 bg-white/70 p-3">
                   <p className="text-xs font-black text-rose-800">Aktarılamayan bölümler:</p>
-                  <ul className="mt-1 space-y-0.5">
+                  <ul className="mt-2 space-y-2">
                     {transferResult.sections
                       .filter((s) => s.status === "failed")
                       .map((s) => (
-                        <li key={s.group} className="text-xs font-semibold text-rose-700">
-                          {groupLabel(s.group)}
+                        <li key={s.group} className="flex flex-col gap-0.5">
+                          <span className="text-xs font-black text-rose-800">
+                            ✗ {groupLabel(s.group)}
+                          </span>
+                          <span className="text-xs font-semibold text-rose-600">
+                            {safeSectionErrorMessage(s.errorCode)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {transferResult.sections && transferResult.sections.some((s) => s.status !== "failed" && s.inserted > 0) ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-white/70 p-3">
+                  <p className="text-xs font-black text-emerald-800">Aktarılan bölümler:</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {transferResult.sections
+                      .filter((s) => s.status !== "failed" && s.inserted > 0)
+                      .map((s) => (
+                        <li key={s.group} className="text-xs font-semibold text-emerald-700">
+                          ✓ {groupLabel(s.group)} — {s.inserted.toLocaleString("tr-TR")} kayıt
                         </li>
                       ))}
                   </ul>

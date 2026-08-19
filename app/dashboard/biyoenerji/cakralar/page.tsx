@@ -6,10 +6,10 @@ export default function CakralarPage() {
   return (
     <BiyoenerjiSectionShell
       headerVariant="premium"
-      activeSection="cakralar"
+      hideModuleNav
       badge="BİYOENERJİ · ÇAKRA KÜTÜPHANESİ"
       title="Çakra Kütüphanesi"
-      subtitle="Enerji merkezleri, organlar, renkler ve çakra notları"
+      subtitle="Çakralara ait temel bilgiler ve uzman içerikleri"
     >
       <BfcacheRefreshHandler />
       <div className="w-full min-w-0 max-w-none px-0 sm:px-6 lg:px-8">

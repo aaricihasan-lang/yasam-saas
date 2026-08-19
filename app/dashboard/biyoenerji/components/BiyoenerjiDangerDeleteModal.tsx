@@ -16,6 +16,12 @@ type BiyoenerjiDangerDeleteModalProps = {
   isDeleting: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  /**
+   * OPSİYONEL (yalnız Çakralar) — parent delete ON DELETE CASCADE ile silinecek
+   * child block sayıları. undefined → gösterilmez (diğer modüller etkilenmez).
+   * null → "hesaplanıyor…". Nesne → cascade uyarısı gösterilir.
+   */
+  childCounts?: { total: number; visible: number; evidence: number } | null;
 };
 
 /** SIL-XXXX biçiminde, karıştırılması zor (I/O/0/1 hariç) rastgele doğrulama kodu üretir. */
@@ -45,6 +51,7 @@ export function BiyoenerjiDangerDeleteModal({
   isDeleting,
   onClose,
   onConfirm,
+  childCounts,
 }: BiyoenerjiDangerDeleteModalProps) {
   // Aşama: 1 = ilk uyarı, 2 = geri alınamaz uyarısı, 3 = doğrulama kodu
   const [stage, setStage] = useState(1);
@@ -55,6 +62,7 @@ export function BiyoenerjiDangerDeleteModal({
   // Modal her açıldığında baştan başlat + yeni kod üret
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStage(1);
     setCodeInput("");
     setVerifyCode(generateVerifyCode());
@@ -96,6 +104,22 @@ export function BiyoenerjiDangerDeleteModal({
   const codeMatches = codeInput.trim().toUpperCase() === verifyCode;
   const isAll = mode === "all";
 
+  // OPSİYONEL cascade uyarısı (yalnız childCounts sağlanınca; diğer modüllerde undefined).
+  const cascadeWarning =
+    childCounts === undefined ? null : (
+      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-medium text-amber-800">
+        {childCounts === null ? (
+          "İçerik blokları hesaplanıyor…"
+        ) : childCounts.total > 0 ? (
+          <>
+            Bu işlem ayrıca toplam <b>{childCounts.total}</b> içerik/kaynak bloğunu (<b>{childCounts.visible}</b> görünür + <b>{childCounts.evidence}</b> kaynak-kanıt) kalıcı olarak silecektir.
+          </>
+        ) : (
+          "Bu kayıt(lar)a bağlı içerik bloğu yok."
+        )}
+      </div>
+    );
+
   const titleText = isAll
     ? "Tüm Kayıtları Sil"
     : `Seçili ${count} Kaydı Sil`;
@@ -112,6 +136,7 @@ export function BiyoenerjiDangerDeleteModal({
         <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
           Bu işlem geri alınamaz. Seçtiğiniz kayıtlar <b>{resourceLabel}</b> listesinden kalıcı olarak silinir.
         </p>
+        {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
@@ -131,6 +156,7 @@ export function BiyoenerjiDangerDeleteModal({
         <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
           <b>{resourceLabel}</b> modülündeki <b>{count}</b> kayıt etkilenecek.
         </p>
+        {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
@@ -151,6 +177,7 @@ export function BiyoenerjiDangerDeleteModal({
           Bu modüldeki <b>tüm kayıtlar ({count})</b> kalıcı olarak silinecek. Silinen veriler geri getirilemez.
           Devam etmeden önce yedek aldığınızdan emin olun.
         </p>
+        {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç

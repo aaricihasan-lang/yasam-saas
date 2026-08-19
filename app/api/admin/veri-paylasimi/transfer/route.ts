@@ -157,6 +157,29 @@ const HEALING_SECTION_COPY_FIELDS = [
   "images",
 ] as const;
 
+/**
+ * Biyoenerji Çakra zengin-içerik bloğu (child) kopya alanları.
+ * Uzman detay ekranının okuduğu iş alanlarıyla birebir (bkz.
+ * app/api/biyoenerji/chakra-blocks/route.ts BLOCK_COLUMNS). id/chakra_id/tenant_id/
+ * created_at/updated_at/origin_* TAŞINMAZ (FK remap + tenant + provenance handler'da).
+ */
+const CHAKRA_BLOCK_COPY_FIELDS = [
+  "section_key",
+  "block_type",
+  "block_title",
+  "sort_order",
+  "source_excerpt",
+  "source_translation",
+  "editorial_explanation",
+  "editorial_interpretation",
+  "expert_note",
+  "source_title",
+  "source_author",
+  "source_ref",
+  "source_url",
+  "tradition_frame",
+] as const;
+
 type SourceMode = "admin_tenant" | "canonical_null" | "admin_library";
 
 type GroupConfig = {
@@ -191,6 +214,14 @@ type GroupConfig = {
   childCopyFields?: readonly string[];
   /** relational: child tablonun tenant_id kolonu var mı? true ise hedef tenant yazılır. */
   childHasTenant?: boolean;
+  /**
+   * relational: child tablonun `transferred_at` kolonu VAR MI? Varsayılan true.
+   * false ise child payload'a transferred_at YAZILMAZ. bioenergy_chakra_blocks'un
+   * provenance mirror'ı bilinçli SUBSET'tir (origin_type/label/source_id/batch_id
+   * var ama transferred_at YOK — bkz. 20261203). Bu alanı yazmak "column not found"
+   * ile child insert'i düşürürdü (canlı UAT'ta Çakralar fail → per-unit rollback → 0).
+   */
+  childHasTransferredAt?: boolean;
   /** junction: birinci FK kolonu (remap edilir). */
   junctionFkA?: string;
   /** junction: birinci FK'nin remap için okunacağı hedef tablo (bu batch'te oluşturulanlar). */
@@ -208,7 +239,22 @@ const REGISTRY = {
   combinations: { table: "combinations" },
   bioenergy_symbols: { table: "bioenergy_symbols" },
   bioenergy_imaginations: { table: "bioenergy_imaginations" },
-  bioenergy_chakras: { table: "bioenergy_chakras" },
+  // Çakralar — RELATIONAL: bioenergy_chakras (parent) + bioenergy_chakra_blocks
+  // (child, chakra_id FK, ON DELETE CASCADE). Kaynak adminin kendi tenant'ı; her
+  // çakra yeni UUID + hedef tenant; child'ın chakra_id'si YENİ parent id'ye REMAP
+  // edilir; child tablonun tenant_id'si VARDIR → hedef yazılır. Parent düz alanları
+  // (element/bija_mantra/…) SELECT * strip ile taşınır (base şema repo dışı); child
+  // rich bloklar açık allowlist ile. NOT: child tablo prod'da DORMANT olabilir →
+  // child okuma "tablo yok" hatasında graceful boş kabul edilir (parent-only doğru
+  // ve tam sonuçtur çünkü taşınacak rich veri yoktur). Provenance kolonları her iki
+  // tabloda mevcut (parent: 20260925 → 5 kolon; child: 20261203 → 4 kolon, transferred_at
+  // YOK) → yeni migration GEREKMEZ ama child'a transferred_at YAZILMAZ (childHasTransferredAt:false).
+  bioenergy_chakras: {
+    table: "bioenergy_chakras", kind: "relational", sourceMode: "admin_tenant",
+    childTable: "bioenergy_chakra_blocks", childParentFk: "chakra_id",
+    childCopyFields: CHAKRA_BLOCK_COPY_FIELDS, childHasTenant: true,
+    childHasTransferredAt: false,
+  },
   bioenergy_energy_bodies: { table: "bioenergy_energy_bodies" },
   bioenergy_subconscious_causes: { table: "bioenergy_subconscious_causes" },
   // Biyoenerji Seansları — profesyonel teknik/uygulama kütüphanesi (danışan seansı DEĞİL).
@@ -370,6 +416,20 @@ function jsonError(status: number, message: string, extra?: Record<string, unkno
   return NextResponse.json({ ok: false, error: message, ...(extra ?? {}) }, { status });
 }
 
+/**
+ * Bir Supabase/PostgREST hatasının "tablo yok" (undefined_table) anlamına gelip
+ * gelmediğini belirler. Relational child tablo prod'da DORMANT olabilir; bu durumda
+ * child okuma başarısız olur ama bu bir transfer hatası DEĞİLdir (taşınacak veri yok).
+ *   - Postgres undefined_table SQLSTATE = 42P01
+ *   - PostgREST şema-cache "tablo bulunamadı" = PGRST205
+ */
+function isMissingTableError(err: unknown): boolean {
+  const e = err as { code?: unknown; message?: unknown } | null;
+  const code = String(e?.code ?? "");
+  const msg = String(e?.message ?? "").toLowerCase();
+  return code === "42P01" || code === "PGRST205" || /does not exist|could not find the table|not find the table/.test(msg);
+}
+
 /** Kaynak okuma sorgusunu grup moduna göre kurar (SELECT * + filtreler). */
 function buildReadQuery(
   db: SupabaseClient,
@@ -506,7 +566,10 @@ function buildChildPayload(
   // İç audit/rollback metadata (görünür origin_type/label YAZILMAZ — ürün kuralı).
   copy.origin_source_id = typeof kid.id === "string" ? kid.id : null;
   copy.origin_transfer_batch_id = batchId;
-  copy.transferred_at = nowIso;
+  // transferred_at yalnız child tabloda bu kolon VARSA yazılır. Bazı child provenance
+  // mirror'ları subset'tir (ör. bioenergy_chakra_blocks'ta transferred_at YOK);
+  // yazmak "column not found" ile insert'i düşürürdü.
+  if (cfg.childHasTransferredAt !== false) copy.transferred_at = nowIso;
   return copy;
 }
 
@@ -546,18 +609,27 @@ async function cloneRelationalGroup(
     .filter((x): x is string => !!x);
 
   // 2) Bu parent'lara ait TÜM child'ları tek okumada al, parent'a göre grupla.
+  //    GRACEFUL DORMANCY: child tablo prod'da henüz yoksa (ör. bioenergy_chakra_blocks
+  //    migration DORMANT) child okuma "relation does not exist" verir. Bu durumda
+  //    child YOK kabul edilir → parent-only kopya TAM ve doğrudur (taşınacak rich veri
+  //    zaten mevcut değildir). Yalnız GERÇEK okuma hatası (tablo var ama patladı) unit'i
+  //    düşürür. Böylece "child var ama fail" ≠ "child tablosu yok".
   const childrenByParent = new Map<string, Record<string, unknown>[]>();
   if (sourceParentIds.length > 0) {
     const { data: cData, error: cErr } = await db
       .from(childTable)
       .select("*")
       .in(childFk, sourceParentIds);
-    if (cErr) throw new TransferError("read", group);
-    for (const c of (cData ?? []) as Record<string, unknown>[]) {
-      const pid = String(c[childFk] ?? "");
-      const arr = childrenByParent.get(pid) ?? [];
-      arr.push(c);
-      childrenByParent.set(pid, arr);
+    if (cErr) {
+      if (!isMissingTableError(cErr)) throw new TransferError("read", group);
+      // tablo dormant → child'sız devam (parent-only tam sonuç)
+    } else {
+      for (const c of (cData ?? []) as Record<string, unknown>[]) {
+        const pid = String(c[childFk] ?? "");
+        const arr = childrenByParent.get(pid) ?? [];
+        arr.push(c);
+        childrenByParent.set(pid, arr);
+      }
     }
   }
 

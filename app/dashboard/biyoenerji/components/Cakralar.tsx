@@ -14,17 +14,17 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { chakraColorDot } from "@/lib/bioenergy/chakraColorUtils";
 import { getChakraCardTheme } from "@/lib/bioenergy/chakrasCardTheme";
 import {
-  chakraCardBadge,
   chakraDisplayName,
+  chakraQuickFactChips,
   fetchChakrasCount,
   fetchChakrasPage,
   previewChakraText,
   type ChakraListItem,
 } from "@/lib/bioenergy/chakrasListFetch";
 import { chakraDetailHref } from "@/lib/bioenergy/chakrasRoutes";
+import { fetchChakraBlockCountsBulk } from "@/lib/bioenergy/chakraBlocksCrudClient";
 import {
   authHeaders,
   bioApiCreate,
@@ -172,6 +172,17 @@ export default function Cakralar() {
     mode: "selected",
   });
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  // FAZ 2 — toplu silme cascade uyarısı: null=hesaplanıyor, nesne=hazır.
+  const [deleteCascade, setDeleteCascade] = useState<{ total: number; visible: number; evidence: number } | null>(null);
+
+  // Danger modalını açarken cascade child sayılarını (server-side, tenant-scoped) çek.
+  const openDanger = useCallback(async (mode: DangerDeleteMode) => {
+    setDeleteCascade(null);
+    setDanger({ open: true, mode });
+    const arg = mode === "all" ? ({ all: true } as const) : ({ chakraIds: [...selectedForExport] });
+    const c = await fetchChakraBlockCountsBulk(arg);
+    if (!c.error) setDeleteCascade({ total: c.total, visible: c.visible, evidence: c.evidence });
+  }, [selectedForExport]);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -312,11 +323,13 @@ export default function Cakralar() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void resolveTenant();
   }, [resolveTenant]);
 
   useEffect(() => {
     if (!queryTenantId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchList({ reset: true });
   }, [queryTenantId, debouncedSearch, fetchList]);
 
@@ -462,7 +475,7 @@ export default function Cakralar() {
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Çakra adı, organ, renk, neden veya not içinde ara..."
+          placeholder="Çakra adı veya kayıt bilgilerinde ara…"
           className={bioSearchInputClass}
         />
         {listBusy ? (
@@ -521,19 +534,20 @@ export default function Cakralar() {
               onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
-              onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+              onDeleteSelected={() => void openDanger("selected")}
               isDeleting={isBulkDeleting}
-              onDeleteAll={() => setDanger({ open: true, mode: "all" })}
+              onDeleteAll={() => void openDanger("all")}
             />
           </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {orderedRows.map((row, index) => {
               const detailHref = chakraDetailHref(row.id);
+              // Legacy önizleme yalnız eski (rich-block'suz) kayıtlar için; boşsa gösterilmez.
               const preview = previewChakraText(row.organs, row.causes, row.notes);
               const theme = getChakraCardTheme(index);
-              const badge = chakraCardBadge(row);
+              // Premium quick-fact chip'leri (yalnız non-null); canonical color UI için doldurulmaz.
+              const quickFacts = chakraQuickFactChips(row);
               const displayTitle = chakraDisplayName(row);
-              const dotColor = chakraColorDot(row.color);
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
@@ -560,37 +574,39 @@ export default function Cakralar() {
                   )}
                 <Link
                   href={detailHref}
-                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex min-h-[136px] flex-col overflow-hidden rounded-2xl border border-l-4 p-3.5 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.16)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
-                  {badge ? (
-                    <span
-                      className={`mb-2 inline-flex w-fit max-w-full items-center gap-2 truncate rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${theme.badge}`}
-                    >
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white/80"
-                        style={{ backgroundColor: dotColor }}
-                        aria-hidden
-                      />
-                      {badge}
-                    </span>
-                  ) : (
-                    <span
-                      className={`mb-2 inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold ${theme.badgeMuted}`}
-                    >
-                      Renk / organ yok
-                    </span>
-                  )}
-
-                  <h2 className="line-clamp-2 text-[15px] font-black leading-snug text-slate-950">
+                  {/* İlk görsel hiyerarşi doğrudan çakra adı (dekoratif "Çakra" badge KALDIRILDI). */}
+                  <h2 className="line-clamp-2 pr-6 text-[15px] font-black leading-snug text-slate-950">
                     {displayTitle}
                   </h2>
                   <AdminTransferBadge originType={row.origin_type} className="mt-1" />
 
-                  <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
-                    <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">
-                      {preview}
-                    </p>
-                  </DemoBlur>
+                  {/* Quick-fact chip'leri — yalnız gerçek (non-null) alanlar; placeholder YOK */}
+                  {quickFacts.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {quickFacts.map((f) => (
+                        <span
+                          key={f.key}
+                          className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200/80"
+                        >
+                          <span className="text-slate-400">{f.label}</span>
+                          <span className="min-w-0 truncate text-slate-800">{f.value}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Legacy metin önizlemesi yalnız gerçekten varsa (eski kayıtlar); "yok" YOK */}
+                  {preview ? (
+                    <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
+                      <p className="line-clamp-2 text-[12.5px] leading-relaxed text-slate-700/90">
+                        {preview}
+                      </p>
+                    </DemoBlur>
+                  ) : (
+                    <div className="mt-2 flex-1" aria-hidden />
+                  )}
 
                   <span className={detailOpenBtnClass}>
                     Detayı Aç
@@ -743,6 +759,7 @@ export default function Cakralar() {
         open={danger.open}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        childCounts={deleteCascade}
         resourceLabel="Çakralar"
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
