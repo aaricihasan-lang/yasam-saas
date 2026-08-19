@@ -200,6 +200,14 @@ type GroupConfig = {
   childCopyFields?: readonly string[];
   /** relational: child tablonun tenant_id kolonu var mı? true ise hedef tenant yazılır. */
   childHasTenant?: boolean;
+  /**
+   * relational: child tablonun `transferred_at` kolonu VAR MI? Varsayılan true.
+   * false ise child payload'a transferred_at YAZILMAZ. bioenergy_chakra_blocks'un
+   * provenance mirror'ı bilinçli SUBSET'tir (origin_type/label/source_id/batch_id
+   * var ama transferred_at YOK — bkz. 20261203). Bu alanı yazmak "column not found"
+   * ile child insert'i düşürürdü (canlı UAT'ta Çakralar fail → per-unit rollback → 0).
+   */
+  childHasTransferredAt?: boolean;
 };
 
 /** UI grup anahtarı → tablo + kopya davranışı. transferRegistry ile eş küme. */
@@ -217,11 +225,13 @@ const REGISTRY = {
   // rich bloklar açık allowlist ile. NOT: child tablo prod'da DORMANT olabilir →
   // child okuma "tablo yok" hatasında graceful boş kabul edilir (parent-only doğru
   // ve tam sonuçtur çünkü taşınacak rich veri yoktur). Provenance kolonları her iki
-  // tabloda mevcut (parent: 20260925, child: 20261203) → yeni migration GEREKMEZ.
+  // tabloda mevcut (parent: 20260925 → 5 kolon; child: 20261203 → 4 kolon, transferred_at
+  // YOK) → yeni migration GEREKMEZ ama child'a transferred_at YAZILMAZ (childHasTransferredAt:false).
   bioenergy_chakras: {
     table: "bioenergy_chakras", kind: "relational", sourceMode: "admin_tenant",
     childTable: "bioenergy_chakra_blocks", childParentFk: "chakra_id",
     childCopyFields: CHAKRA_BLOCK_COPY_FIELDS, childHasTenant: true,
+    childHasTransferredAt: false,
   },
   bioenergy_energy_bodies: { table: "bioenergy_energy_bodies" },
   bioenergy_subconscious_causes: { table: "bioenergy_subconscious_causes" },
@@ -488,7 +498,10 @@ function buildChildPayload(
   // İç audit/rollback metadata (görünür origin_type/label YAZILMAZ — ürün kuralı).
   copy.origin_source_id = typeof kid.id === "string" ? kid.id : null;
   copy.origin_transfer_batch_id = batchId;
-  copy.transferred_at = nowIso;
+  // transferred_at yalnız child tabloda bu kolon VARSA yazılır. Bazı child provenance
+  // mirror'ları subset'tir (ör. bioenergy_chakra_blocks'ta transferred_at YOK);
+  // yazmak "column not found" ile insert'i düşürürdü.
+  if (cfg.childHasTransferredAt !== false) copy.transferred_at = nowIso;
   return copy;
 }
 
