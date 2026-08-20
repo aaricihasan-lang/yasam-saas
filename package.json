@@ -16,6 +16,7 @@
     "yh:bf12b:harness": "tsx scripts/yh-bf12b/harness.ts",
     "yh:bf13:harness": "tsx scripts/yh-bf13/harness.ts",
     "yh:bf14:harness": "tsx scripts/yh-bf14/harness.ts",
+    "yh:bf14:client-worker:harness": "tsx scripts/yh-bf14/clientWorkerHarness.ts",
     "yh:bf14:delivery:harness": "tsx scripts/yh-bf14/deliveryHarness.ts",
     "yh:bf14:matrix:harness": "tsx scripts/yh-bf14/moduleSourceMatrixHarness.ts",
     "yh:bf14:closure:harness": "tsx scripts/yh-bf14/deferredClosureHarness.ts",

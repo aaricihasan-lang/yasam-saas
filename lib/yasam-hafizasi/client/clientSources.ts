@@ -1,13 +1,20 @@
 /**
- * BF-14 Paket 1 — Client-scoped kaynak kaydı (DORMANT; SAF).
+ * BF-14 / PRIVATE MEMORY — Client-scoped kaynak kaydı (DORMANT; SAF).
  *
  * BAĞLAYICI: professional YH_INDEX_SOURCES'a DOKUNMAZ (ayrı kayıt). Tüm girdiler
  * `enabled: false` (trigger yok, event yok, indexleme yok — aktivasyon BF-11E).
  *
- * PII SÖZLEŞMESİ: yalnız PII-siz etiket/kod/tarih kolonları indexlenebilir.
- * `piiDenylist` alanları title/snippet/searchText/topic'e ASLA girmez (validator
- * bunu zorlar). Serbest sağlık/terapi metni ve ad/soyad/telefon/adres/doğum/kan
- * indexlenmez (SNAPSHOT_ONLY / EXCLUDE — BF-14A matrisine göre).
+ * GİZLİLİK SÖZLEŞMESİ (Private Memory Politika Kilidi):
+ *   - Bu index tamamen PRIVATE / SENSITIVE kabul edilir. "PII-free index" varsayımı
+ *     KALDIRILDI: danışan klinik SERBEST METNİ (seans notu, sağlık notu, öneri, ödev
+ *     açıklaması, randevu notu, taş notu...) searchText'e BİLEREK dahil edilir ve
+ *     aranabilir olur. Güvenlik REDACTION'a değil AUTHORIZATION'a dayanır (tenant+client
+ *     fail-closed; ad index'e kopyalanmaz, query-time resolve edilir).
+ *   - `piiDenylist` yalnızca DOĞRUDAN KİMLİK/İLETİŞİM kolonlarını (ad/soyad/telefon/
+ *     adres/e-posta/doğum) veya anlamsız sayısal alanları kapsar; bunlar title/snippet/
+ *     searchText/topic'e ASLA girmez (validator zorlar). Doğrudan kimlik kolonları zaten
+ *     danışan ana kaydında (clients) yaşar ve kaynak değildir; kohort kaynaklarındaki tek
+ *     doğrudan-kimlik kolonu client_notes.adres'tir (denylist'te).
  */
 
 /** Client-scoped modül etiketi (professional YhSourceModule'den AYRI). */
@@ -16,6 +23,7 @@ export type ClientSourceModule =
   | "danisan_tas"
   | "danisan_seans"
   | "danisan_odev"
+  | "danisan_not"
   | "randevu"
   | "human_design";
 
@@ -24,6 +32,7 @@ export const CLIENT_MODULE_LABELS: Record<ClientSourceModule, string> = {
   danisan_tas: "Danışan Taşı",
   danisan_seans: "Seans",
   danisan_odev: "Ödev",
+  danisan_not: "Not",
   randevu: "Randevu",
   human_design: "Human Design",
 };
@@ -34,6 +43,7 @@ export const CLIENT_MODULE_ROUTES: Record<ClientSourceModule, string> = {
   danisan_tas: "/dogaltas",
   danisan_seans: "/danisan-yolculugu",
   danisan_odev: "/danisan-yolculugu",
+  danisan_not: "/danisan-yolculugu",
   randevu: "/danisan-yolculugu",
   human_design: "/human-design",
 };
@@ -55,15 +65,20 @@ export interface ClientSourceConfig {
   readonly searchTextColumns: readonly string[];
   readonly snippetColumns: readonly string[];
   readonly topicTagsColumns: readonly string[];
-  /** İNDEKSLENMESİ YASAK kolonlar (PII/serbest-metin). Validator zorlar. */
+  /** İNDEKSLENMESİ YASAK kolonlar (doğrudan kimlik/iletişim veya anlamsız sayısal). Validator zorlar. */
   readonly piiDenylist: readonly string[];
   /** DORMANT — aktivasyon BF-11E'de. */
   readonly enabled: boolean;
 }
 
 /**
- * İlk-satış güvenli client kaynak seti (BF-14A matrisi). Hepsi enabled:false.
- * Yalnız PII-siz etiket/kod/tarih; serbest-metin/isim daima piiDenylist'te.
+ * Private Memory ilk cohort (Politika Kilidi md.12): 6 danışan kaynağı. Klinik serbest
+ * metin searchText'e dahildir; doğrudan kimlik/iletişim kolonları daima piiDenylist'te.
+ * Hepsi enabled:false (DORMANT; aktivasyon BF-11E). Sıra harness ile hizalıdır
+ * (index [2] = danisan:sessions).
+ *
+ * DEFER (md.13): human_design_charts (ayrı hassas alan) + client_analyses → kaynak DEĞİL.
+ * EXCLUDE: photos/media, DOCX, report_snapshots.
  */
 export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
   {
@@ -76,10 +91,10 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     occurredAtColumn: "created_at",
     updatedAtColumn: "updated_at",
     titleColumns: ["name"],
-    searchTextColumns: ["stones_text", "notes_text", "notes_text_2"],
+    searchTextColumns: ["stones_text", "notes_text", "notes_text_2", "note", "description"],
     snippetColumns: ["stones_text"],
     topicTagsColumns: [],
-    piiDenylist: ["note", "description"],
+    piiDenylist: [],
     enabled: false,
   },
   {
@@ -92,10 +107,10 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     occurredAtColumn: "stone_date",
     updatedAtColumn: null,
     titleColumns: ["stone_name"],
-    searchTextColumns: ["stone_type", "usage_area", "combination_text"],
-    snippetColumns: ["stone_type"],
+    searchTextColumns: ["stone_type", "usage_area", "combination_text", "note", "other_notes", "warning_text"],
+    snippetColumns: ["usage_area"],
     topicTagsColumns: ["stone_type"],
-    piiDenylist: ["note", "other_notes", "warning_text"],
+    piiDenylist: [],
     enabled: false,
   },
   {
@@ -108,10 +123,12 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     occurredAtColumn: "session_date",
     updatedAtColumn: null,
     titleColumns: ["session_type"],
-    searchTextColumns: ["session_type"],
-    snippetColumns: ["session_type"],
+    // Klinik serbest metin ARANABİLİR (Politika Kilidi md.1): seans notu + eylemler + öneri + plan.
+    searchTextColumns: ["session_type", "session_note", "actions_done", "suggestions", "next_plan"],
+    snippetColumns: ["session_note"],
     topicTagsColumns: ["session_type"],
-    piiDenylist: ["session_note", "actions_done", "suggestions", "next_plan", "fee", "duration_minutes"],
+    // Sayısal/klinik-dışı alanlar (kimlik değil, arama gürültüsü) → index dışı.
+    piiDenylist: ["fee", "duration_minutes"],
     enabled: false,
   },
   {
@@ -123,12 +140,12 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     tenantColumn: "tenant_id",
     occurredAtColumn: "start_date",
     updatedAtColumn: null,
-    // NOT: serbest `title` isim taşıyabilir → indexlenmez (denylist). Kart başlığı = tür.
+    // Kart başlığı = tür; serbest ödev başlığı/açıklaması/notu klinik metin olarak ARANABİLİR.
     titleColumns: ["homework_type"],
-    searchTextColumns: ["homework_type", "status"],
-    snippetColumns: ["status"],
-    topicTagsColumns: ["homework_type"],
-    piiDenylist: ["title", "description", "expert_note", "client_feedback"],
+    searchTextColumns: ["homework_type", "title", "description", "expert_note", "client_feedback", "status"],
+    snippetColumns: ["description"],
+    topicTagsColumns: ["homework_type", "status"],
+    piiDenylist: [],
     enabled: false,
   },
   {
@@ -140,28 +157,31 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     tenantColumn: "tenant_id",
     occurredAtColumn: "appointment_date",
     updatedAtColumn: null,
-    // serbest `title` isim taşıyabilir + `notes` PII → indexlenmez. Yalnız status.
-    titleColumns: [],
-    searchTextColumns: ["status"],
-    snippetColumns: [],
+    // Randevu konusu/notu klinik bağlam taşır → ARANABİLİR.
+    titleColumns: ["title"],
+    searchTextColumns: ["title", "notes", "status"],
+    snippetColumns: ["notes"],
     topicTagsColumns: ["status"],
-    piiDenylist: ["title", "notes"],
+    piiDenylist: [],
     enabled: false,
   },
   {
-    sourceKey: "danisan:hd-charts",
-    sourceModule: "human_design",
-    tableName: "human_design_charts",
+    sourceKey: "danisan:notes",
+    sourceModule: "danisan_not",
+    tableName: "client_notes",
     primaryKey: "id",
     clientColumn: "client_id",
     tenantColumn: "tenant_id",
-    occurredAtColumn: "created_at",
-    updatedAtColumn: "updated_at",
-    titleColumns: ["type_code"],
-    searchTextColumns: ["type_code", "authority_code", "profile_code", "definition_code"],
-    snippetColumns: ["authority_code"],
-    topicTagsColumns: ["active_centers", "gates", "channels"],
-    piiDenylist: ["client_name", "birth_date", "birth_time", "birth_place", "notes"],
+    // client_notes danışan başına tek satır (upsert); doğal olay tarihi yok.
+    occurredAtColumn: null,
+    updatedAtColumn: null,
+    titleColumns: [],
+    // Birincil klinik serbest metin: sağlık notu + öneriler + genel notlar (Politika Kilidi md.1).
+    searchTextColumns: ["saglik_notu", "oneriler", "notlar"],
+    snippetColumns: ["saglik_notu"],
+    topicTagsColumns: [],
+    // adres = doğrudan iletişim/kimlik kolonu (Politika Kilidi md.3) → index dışı.
+    piiDenylist: ["adres"],
     enabled: false,
   },
 ];
@@ -177,7 +197,7 @@ export function assertNoDenylistedIndexColumns(config: ClientSourceConfig): void
   for (const denied of config.piiDenylist) {
     if (indexed.has(denied)) {
       throw new Error(
-        `PII ihlali: '${config.sourceKey}' index kolonu denylist alanı içeriyor: ${denied}`,
+        `Denylist ihlali: '${config.sourceKey}' index kolonu denylist alanı içeriyor: ${denied}`,
       );
     }
   }

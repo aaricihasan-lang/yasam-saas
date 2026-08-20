@@ -136,20 +136,20 @@ export const YH_MODULE_SOURCE_MATRIX = [
   {
     moduleKey: "human_design",
     label: "Human Design",
-    classification: "DORMANT_READY",
+    classification: "DEFERRED_FOR_SAFETY",
     professionalSourceKeys: [],
-    clientSourceKeys: ["danisan:hd-charts"],
-    allow: ["(client) tip", "otorite", "profil", "tanım", "merkezler", "kanallar", "kapı kodları (PII'siz)"],
+    clientSourceKeys: [],
+    allow: [],
     deny: ["ad-soyad", "doğum tarihi", "doğum saati", "doğum yeri", "koordinat", "ham hesaplama request'i", "chart sahibi serbest metni"],
     rationale:
-      "Client HD chart kaynağı (human_design_charts) BF-14 P1'de DORMANT (enabled:false) kayıtlı; " +
-      "yalnız türetilmiş PII'siz kod alanları indexlenir, birth data denylist. Frozen HD hesaplama/" +
-      "bodygraph motoruna DOKUNULMAZ. Professional canonical katman (hd_canonical_types/authorities/" +
-      "gates/channels/entities + hd_source_passages/original_texts/faithful_translations) tablo " +
-      "olarak mevcut ancak professional aile kümesinde değil → FOUNDATION (uydurma wiring yok).",
+      "Private Memory Politika Kilidi md.13: human_design_charts client kaynağı DEFER edildi → ilk " +
+      "cohort DIŞINDA (kaynak kaydı kaldırıldı). Frozen HD hesaplama/bodygraph motoruna DOKUNULMAZ; " +
+      "doğum verisi her hâlükârda denylist. Professional canonical katman (hd_canonical_types/" +
+      "authorities/gates/channels/entities + hd_source_passages/original_texts/faithful_translations) " +
+      "tablo olarak mevcut ancak professional aile kümesinde değil → FOUNDATION (uydurma wiring yok).",
     activationPrerequisite:
-      "Client: BF-11E aktivasyonu. Professional canonical: YH_SOURCE_MODULES aile genişletmesi + " +
-      "entitlement/overlay görünürlük contract.",
+      "Client: ayrı DEFER turu (BF-11E aktivasyonundan önce PII/kod ayrımı + kaynak kaydı geri ekleme). " +
+      "Professional canonical: YH_SOURCE_MODULES aile genişletmesi + entitlement/overlay görünürlük contract.",
   },
   {
     moduleKey: "dogaltas",
@@ -157,8 +157,8 @@ export const YH_MODULE_SOURCE_MATRIX = [
     classification: "DORMANT_READY",
     professionalSourceKeys: ["dogaltas:stones", "dogaltas:minerals", "dogaltas:knowledge", "dogaltas:combinations"],
     clientSourceKeys: ["danisan:stones", "danisan:combinations"],
-    allow: ["(pro) taş/mineral/bilgi/kombinasyon katalog içeriği + provenans", "(client) taş adı, yapılandırılmış seçim, güvenli not"],
-    deny: ["danışan hassas sağlık/kişisel notları (allowlist dışı)"],
+    allow: ["(pro) taş/mineral/bilgi/kombinasyon katalog içeriği + provenans", "(client) taş adı, kullanım alanı, kombinasyon ve klinik not (tenant+client authz-korumalı, aranabilir)"],
+    deny: ["danışan ana kaydı kimlik kolonları (ad-soyad/telefon/adres)"],
     rationale:
       "Professional taş/mineral/knowledge/combination kaynakları CANLI; admin/shared ve uzman-owned " +
       "kopyalar AYRI source olarak kalır (otomatik birleştirme YOK; 'adminden gelen bilgi' provenans " +
@@ -183,14 +183,17 @@ export const YH_MODULE_SOURCE_MATRIX = [
     label: "Danışan Yolculuğu",
     classification: "DORMANT_READY",
     professionalSourceKeys: [],
-    clientSourceKeys: ["danisan:sessions", "danisan:homeworks", "danisan:appointments"],
-    allow: ["kayıt türü", "yapılandırılmış durum", "tarih", "PII'siz kategori"],
-    deny: ["seans serbest metin notu", "sağlık öyküsü", "telefon", "e-posta", "adres", "ad-soyad", "danışan kişisel anlatımı", "hassas değerlendirme"],
+    clientSourceKeys: ["danisan:sessions", "danisan:homeworks", "danisan:appointments", "danisan:notes"],
+    allow: ["klinik serbest metin (tenant+client authz-korumalı, aranabilir)", "kayıt türü", "yapılandırılmış durum", "tarih", "kategori"],
+    deny: ["ad-soyad", "telefon", "e-posta", "adres", "doğum bilgisi", "danışan ana kaydı kimlik kolonları"],
     rationale:
-      "client_sessions / client_homeworks / appointments doğrudan tenant_id+client_id taşır; BF-14 " +
-      "P1'de DORMANT. YALNIZ allowlist (tür/durum/tarih/PII'siz kategori) indexlenir; serbest metin " +
-      "alanları denylist (ayrı PII-redaction + açık karar olmadan indexlenmez).",
-    activationPrerequisite: "BF-11E aktivasyonu (allowlist genişlemesi ayrı karar).",
+      "client_sessions / client_homeworks / appointments / client_notes doğrudan tenant_id+client_id " +
+      "taşır; BF-14 P1'de DORMANT. Private Memory Politika Kilidi md.1/md.2: klinik SERBEST METİN " +
+      "(seans notu, sağlık notu, öneri, ödev açıklaması, randevu notu) searchText'e dahildir ve " +
+      "aranabilir; index PRIVATE/SENSITIVE kabul edilir. Güvenlik authorization'a dayanır (tenant+client " +
+      "fail-closed). YALNIZCA doğrudan kimlik/iletişim kolonları (ad-soyad/telefon/e-posta/adres/doğum) " +
+      "denylist (md.3); danışan adı index'e kopyalanmaz (query-time resolve).",
+    activationPrerequisite: "BF-11E aktivasyonu (client index CDC/worker kapsamı + kill-switch).",
   },
   {
     moduleKey: "sifa_rehberi",
