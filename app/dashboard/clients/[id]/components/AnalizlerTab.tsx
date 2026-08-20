@@ -391,9 +391,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       const fd = new FormData();
       fd.append("file", blob, "analysis.png");
       fd.append("analysisId", analysisId);
-      fd.append("tenantId", tenantId!);
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
       const res = await fetch(`/api/clients/${clientId}/analyses/upload-image`, {
         method: "POST",
+        headers: {
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
         body: fd,
       });
       if (!res.ok) {
@@ -422,12 +427,15 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     }
     try {
       setExportingWord(true);
+      const sessionToken = readSessionToken();
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
         body: JSON.stringify({
-          tenantId,
-          userId,
           exportMode: "single-analysis",
           analysisId: openedAnalysisId,
         }),

@@ -662,10 +662,15 @@ export default function DanisanListePage() {
       }
 
       const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
       const res = await fetch("/api/clients/word-report-bulk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: mode, clientIds }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
+        body: JSON.stringify({ exportMode: mode, clientIds }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
