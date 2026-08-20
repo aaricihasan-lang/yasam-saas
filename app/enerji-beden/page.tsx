@@ -45,6 +45,17 @@ const energyFolders = [
     accent: "text-green-900",
     button: "bg-green-800/90 text-white hover:bg-green-900",
   },
+  {
+    title: "Kupa & Hacamat Terapisi",
+    desc: "Vücut nokta atlası, amaç rehberi, kupa teknikleri ve güvenlik sistemi",
+    href: "/dashboard/kupa",
+    icon: "🫙",
+    badge: "Kupa",
+    gradient: "from-rose-200 to-amber-100",
+    border: "border-rose-200/70",
+    accent: "text-rose-900",
+    button: "bg-rose-900/90 text-white hover:bg-rose-950",
+  },
 ] as const;
 
 export default function EnerjiBedenPage() {
@@ -68,7 +79,7 @@ export default function EnerjiBedenPage() {
             Enerji &amp; Beden
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
-            Biyoenerji, Refleksoloji, Aromaterapi ve Şifa Rehberi çalışma alanları
+            Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa &amp; Hacamat çalışma alanları
           </p>
           <div
             className="mx-auto mt-4 h-1 w-full max-w-sm rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent"
@@ -76,7 +87,7 @@ export default function EnerjiBedenPage() {
           />
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-5 pb-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-5 pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {energyFolders.map((folder) => (
             <Link
               key={folder.title}

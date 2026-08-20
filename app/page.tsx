@@ -311,7 +311,7 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     title: "Enerji & Beden",
-    desc: "Biyoenerji, Refleksoloji, Aromaterapi ve Şifa Rehberi çalışma alanları",
+    desc: "Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa & Hacamat çalışma alanları",
     count: "Aktif",
     badge: "Modül",
     href: "/enerji-beden",
