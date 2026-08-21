@@ -41,7 +41,13 @@ export type TransferGroupKey =
   | "cupping_knowledge"
   | "cupping_sources"
   | "cupping_safety"
-  | "cupping_point_topics";
+  | "cupping_point_topics"
+  | "cupping_point_sources"
+  | "cupping_topic_sources"
+  | "cupping_technique_sources"
+  | "cupping_knowledge_sources"
+  | "cupping_safety_sources"
+  | "cupping_point_topic_sources";
 
 /**
  * UI alt bölümü. Bir görünür checkbox → 1+ transfer grup anahtarı.
@@ -259,6 +265,23 @@ export const TRANSFER_MODULES: TransferModuleMeta[] = [
         key: "cupping_point_topics",
         label: "Konu ↔ Nokta İlişkileri",
         transferKeys: ["cupping_point_topics"],
+        active: true,
+      },
+      {
+        // FAZ 1.5 — Kaynak atıfları (6 tipli citation junction). Her citation çift-FK
+        // (source_id + entity_id) aynı batch'te remap edilir. point_topic_sources,
+        // cupping_point_topics'e bağlı olduğundan transferOrder=2 ile en sona alınır.
+        // İçeriğin kaynaklandırması içerikle birlikte tek snapshot'ta taşınır.
+        key: "cupping_citations",
+        label: "Kaynak Atıfları (Citations)",
+        transferKeys: [
+          "cupping_point_sources",
+          "cupping_topic_sources",
+          "cupping_technique_sources",
+          "cupping_knowledge_sources",
+          "cupping_safety_sources",
+          "cupping_point_topic_sources",
+        ],
         active: true,
       },
     ],

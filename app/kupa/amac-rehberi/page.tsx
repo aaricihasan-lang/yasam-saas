@@ -17,6 +17,7 @@ import {
   kupaPill,
   kupaPillActive,
 } from "../components/KupaShell";
+import { CuppingCitationManager } from "../components/CitationManager";
 import { BodySilhouette } from "../maps/Silhouettes";
 import {
   createPointTopic,
@@ -43,6 +44,7 @@ export default function AmacRehberiPage() {
   const [placements, setPlacements] = useState<CuppingPlacement[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [linkPointId, setLinkPointId] = useState("");
+  const [citeRelId, setCiteRelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -246,16 +248,34 @@ export default function AmacRehberiPage() {
                   relations.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                     >
-                      <span className="truncate text-sm font-medium text-slate-700">{pointName(r.point_id)}</span>
-                      <button type="button" onClick={() => handleUnlink(r.id)} className="shrink-0 text-[11px] font-semibold text-rose-600 transition hover:text-rose-700">
-                        kaldır
-                      </button>
+                      <div className="flex items-center justify-between">
+                        <span className="truncate text-sm font-medium text-slate-700">{pointName(r.point_id)}</span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCiteRelId((cur) => (cur === r.id ? null : r.id))}
+                            aria-expanded={citeRelId === r.id}
+                            className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
+                          >
+                            kaynaklar
+                          </button>
+                          <button type="button" onClick={() => handleUnlink(r.id)} className="text-[11px] font-semibold text-rose-600 transition hover:text-rose-700">
+                            kaldır
+                          </button>
+                        </div>
+                      </div>
+                      {citeRelId === r.id ? (
+                        <CuppingCitationManager entity="point-topic" entityId={r.id} />
+                      ) : null}
                     </div>
                   ))
                 )}
               </div>
+
+              {/* Konunun kendi kaynak atıfları */}
+              <CuppingCitationManager entity="topic" entityId={selectedTopicId} />
             </div>
           ) : null}
         </div>

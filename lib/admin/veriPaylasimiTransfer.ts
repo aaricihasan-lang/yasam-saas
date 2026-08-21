@@ -48,6 +48,12 @@ export const ALL_TRANSFER_GROUP_KEYS: TransferGroupKey[] = [
   "cupping_sources",
   "cupping_safety",
   "cupping_point_topics",
+  "cupping_point_sources",
+  "cupping_topic_sources",
+  "cupping_technique_sources",
+  "cupping_knowledge_sources",
+  "cupping_safety_sources",
+  "cupping_point_topic_sources",
 ];
 
 export type TransferTableName = TransferGroupKey;
@@ -111,10 +117,16 @@ export function emptyTransferCounts(): TransferResultCounts {
     cupping_sources: 0,
     cupping_safety: 0,
     cupping_point_topics: 0,
+    cupping_point_sources: 0,
+    cupping_topic_sources: 0,
+    cupping_technique_sources: 0,
+    cupping_knowledge_sources: 0,
+    cupping_safety_sources: 0,
+    cupping_point_topic_sources: 0,
   };
 }
 
-/** Seçili gruplardaki Kupa & Hacamat kayıt toplamı. */
+/** Seçili gruplardaki Kupa & Hacamat kayıt toplamı (citation junction'ları dahil). */
 export function sumCuppingCounts(counts: TransferResultCounts): number {
   return (
     counts.cupping_points +
@@ -123,7 +135,13 @@ export function sumCuppingCounts(counts: TransferResultCounts): number {
     counts.cupping_knowledge +
     counts.cupping_sources +
     counts.cupping_safety +
-    counts.cupping_point_topics
+    counts.cupping_point_topics +
+    counts.cupping_point_sources +
+    counts.cupping_topic_sources +
+    counts.cupping_technique_sources +
+    counts.cupping_knowledge_sources +
+    counts.cupping_safety_sources +
+    counts.cupping_point_topic_sources
   );
 }
 

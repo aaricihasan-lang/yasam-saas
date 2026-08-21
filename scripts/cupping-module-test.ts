@@ -13,7 +13,11 @@ import {
   PLACEMENT_WRITABLE,
   SAFETY_WRITABLE,
   CUPPING_TABLES,
+  CITATION_SPECS,
+  isCitationEntity,
 } from "../lib/cupping/fields";
+import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
+import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/moduleRouteRegistry";
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
@@ -49,12 +53,19 @@ function run(): void {
   ok(routes.length >= 14, `kupa route sayısı okundu (${routes.length})`);
   for (const rel of routes) {
     const src = read(rel);
-    ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(src), `gate: ${rel} requireModuleAccess("cupping")`);
+    // Citation route'ları paylaşılan fabrikaya delege eder (makeCitation*); gate/tenant/demo
+    // sözleşmesi fabrikada (aşağıda J bölümünde ayrıca doğrulanır). Diğer route'lar inline.
+    const isCitationFactory = /makeCitation(Collection|Item)\(/.test(src);
+    if (isCitationFactory) {
+      ok(true, `gate(fabrika): ${rel} citation fabrikasına delege`);
+    } else {
+      ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(src), `gate: ${rel} requireModuleAccess("cupping")`);
+    }
     ok(/runtime\s*=\s*"nodejs"/.test(src), `runtime: ${rel} nodejs`);
     // Ham DB error.message SIZMAZ (route'lar sabit mesajlı api helper kullanır)
     ok(!/error\.message/.test(src), `güvenli-hata: ${rel} ham error.message DÖNMEZ`);
-    // Yazma yapan route'lar demo short-circuit içerir
-    if (/export async function (POST|PATCH|DELETE)/.test(src)) {
+    // Yazma yapan route'lar demo short-circuit içerir (fabrika route'ları hariç — J'de test edilir)
+    if (!isCitationFactory && /export async function (POST|PATCH|DELETE)/.test(src)) {
       ok(/is_demo_account/.test(src), `demo: ${rel} demo persist yok`);
     }
   }
@@ -185,6 +196,64 @@ function run(): void {
   // ── H) İZOLASYON — refleksoloji/hacamat namespace'ine sızma yok ───────────────
   ok(CUPPING_TABLES.points === "cupping_points" && CUPPING_TABLES.placements === "cupping_point_placements", "tablolar cupping_* namespace");
   ok(!routes.some((r) => /hacamat/.test(r)), "route: kozmik 'hacamat' namespace'i KULLANILMAZ");
+
+  // ══ J) FAZ 1.5 — CONTENT FOUNDATION / CITATION (tipli junction) ════════════════
+  const cf = read("supabase/migrations/20261217000000_cupping_content_foundation.sql");
+  const factory = read("lib/cupping/citationApi.ts");
+  const citTables = [
+    "cupping_point_sources", "cupping_topic_sources", "cupping_point_topic_sources",
+    "cupping_technique_sources", "cupping_knowledge_sources", "cupping_safety_sources",
+  ];
+  // [10] TİPLİ junction — 6 tablo, polimorfik entity_type YOK
+  for (const t of citTables) ok(new RegExp(`CREATE TABLE IF NOT EXISTS public\\.%1\\$I`).test(cf) || cf.includes(`'${t}'`), `citation[10]: ${t} tanımlı`);
+  ok(!/entity_type/.test(cf), "citation[10b]: polimorfik entity_type YOK (tipli FK)");
+  ok(citTables.length === 6 && Object.keys(CITATION_SPECS).length === 6, "citation: 6 tipli citation entity");
+  ok(isCitationEntity("point") && !isCitationEntity("uydurma"), "citation: entity guard");
+  // [1] create valid — fabrika insertEntity + entity FK map
+  ok(/insertEntity\(db,\s*spec\.table/.test(factory) && /fields\[spec\.entityFk\]\s*=/.test(factory), "citation[1]: create fabrika insert + entity FK map");
+  // [2]/[18] duplicate guard + idempotency — UNIQUE citation key
+  ok(/_unique UNIQUE \(tenant_id, source_id, %2\$I, locator\)/.test(cf), "citation[2/18]: UNIQUE(tenant,source,entity,locator) duplicate guard");
+  // [3] invalid source + [4] invalid entity — çift assertOwnedRef
+  ok(/assertOwnedRef\(db,\s*CUPPING_TABLES\.sources/.test(factory), "citation[3]: kaynak varlık doğrulaması (assertOwnedRef)");
+  ok(/assertOwnedRef\(db,\s*spec\.entityTable/.test(factory), "citation[4]: hedef entity varlık doğrulaması (assertOwnedRef)");
+  // [5] cross-tenant source + [6] cross-tenant entity — composite tenant-safe FK
+  ok(/_source_fk[\s\S]{0,80}FOREIGN KEY \(tenant_id, source_id\) REFERENCES public\.cupping_sources \(tenant_id, id\)/.test(cf), "citation[5]: composite FK (tenant,source)→cupping_sources (cross-tenant DB engeli)");
+  ok(/_entity_fk[\s\S]{0,80}FOREIGN KEY \(tenant_id, %2\$I\) REFERENCES public\.%3\$I \(tenant_id, id\)/.test(cf), "citation[6]: composite FK (tenant,entity)→parent (cross-tenant DB engeli)");
+  ok(/ADD CONSTRAINT %I UNIQUE \(tenant_id, id\)/.test(cf), "citation: composite FK hedefi UNIQUE(tenant_id,id) parent'larda");
+  // [7]/[8] delete cascade
+  ok((cf.match(/ON DELETE CASCADE/g) ?? []).length >= 2, "citation[7/8]: source + entity FK ON DELETE CASCADE");
+  // [9] evidence_class invalid — CHECK + fabrika doğrulaması
+  ok(/_evidence_chk[\s\S]{0,140}CHECK \(evidence_class IS NULL OR evidence_class IN/.test(cf), "citation[9]: evidence_class CHECK (migration)");
+  ok(/evidenceOk\(/.test(factory) && /isEvidenceClass/.test(factory), "citation[9b]: evidence_class fabrika doğrulaması (400)");
+  ok(CUPPING_EVIDENCE_CLASSES.length === 6 && (CUPPING_EVIDENCE_CLASSES as readonly string[]).includes("systematic_review"), "citation: evidence vocab (geleneksel≠klinik ayrık)");
+  // [11]/[12] anon/auth direct DB blocked; [13] service-role (RLS enable, FORCE yok)
+  ok(/REVOKE ALL PRIVILEGES ON TABLE public\.%I FROM anon, authenticated/.test(cf), "citation[11/12]: anon/auth CRUD REVOKE");
+  ok(/ENABLE ROW LEVEL SECURITY/.test(cf) && !/FORCE ROW LEVEL SECURITY/.test(cf), "citation[13]: RLS ENABLE, FORCE YOK (service-role)");
+  ok(!/CREATE POLICY/.test(cf), "citation: permissive policy YOK (REVOKE-only)");
+  // [14]/[15] transfer source + entity remap (6 junction)
+  for (const t of citTables) {
+    ok(new RegExp(`${t}:\\s*\\{[\\s\\S]*?kind:\\s*"junction"[\\s\\S]*?junctionFkA:\\s*"source_id"[\\s\\S]*?junctionViaTableA:\\s*"cupping_sources"`).test(transferRoute), `citation[14]: ${t} source_id remap (via cupping_sources)`);
+    ok((ALL_ACTIVE_GROUP_KEYS as unknown as string[]).includes(t) && (ALL_TRANSFER_GROUP_KEYS as unknown as string[]).includes(t), `citation drift: ${t} manifest + helper`);
+    ok(Object.prototype.hasOwnProperty.call(emptyTransferCounts(), t), `citation drift: ${t} counts`);
+  }
+  ok(/cupping_point_sources:[\s\S]*?junctionFkB:\s*"point_id"[\s\S]*?junctionViaTableB:\s*"cupping_points"/.test(transferRoute), "citation[15]: point_sources entity_id remap (via cupping_points)");
+  // [16] point_topic_sources DEPENDENCY: point_topics junction'a bağlı → transferOrder=2
+  ok(/cupping_point_topic_sources:\s*\{[\s\S]*?transferOrder:\s*2[\s\S]*?junctionViaTableB:\s*"cupping_point_topics"/.test(transferRoute), "citation[16]: point_topic_sources → point_topics bağımlılığı (transferOrder=2, en sona)");
+  ok(/const orderOf\s*=/.test(transferRoute) && /transferOrder \?\?/.test(transferRoute), "citation[16b]: sıralama transferOrder'ı kullanır (via-table readback dolu)");
+  // [17] INSERT-only — citation copyFields yalnız meta (id/tenant/FK YOK)
+  ok(!(CUPPING_CITATION_COPY_FIELDS as readonly string[]).some((f) => /^(id|tenant_id|source_id|.*_id|origin_)/.test(f) && f !== "sort_order"), "citation[17]: copyFields yalnız meta (INSERT-only; FK ayrı remap)");
+  ok((CUPPING_CITATION_COPY_FIELDS as readonly string[]).includes("evidence_class") && (CUPPING_CITATION_COPY_FIELDS as readonly string[]).includes("locator"), "citation[17b]: copyFields locator/evidence_class taşır");
+  // [19] no raw DB leak + [20] demo persist=0 (fabrika)
+  ok(!/error\.message/.test(factory), "citation[19]: fabrika ham DB error.message DÖNMEZ");
+  ok(/is_demo_account/.test(factory) && /demo:\s*true/.test(factory), "citation[20]: demo persist=0 (fabrika short-circuit)");
+  ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(factory), "citation: fabrika requireModuleAccess('cupping')");
+  // additive kolonlar + NOT VALID (mevcut kolon CHECK apply-safe)
+  ok(/ADD COLUMN IF NOT EXISTS synonyms\s+text\[\]/.test(cf) && /ADD COLUMN IF NOT EXISTS laterality/.test(cf), "foundation: points synonyms + laterality additive");
+  ok(/ADD COLUMN IF NOT EXISTS technique_type/.test(cf) && /ADD COLUMN IF NOT EXISTS movement_style/.test(cf), "foundation: technique çok-eksenli additive");
+  ok(/ADD COLUMN IF NOT EXISTS contraindication_class/.test(cf), "foundation: safety contraindication_class additive");
+  ok(/ADD COLUMN IF NOT EXISTS year\s+integer/.test(cf) && /ADD COLUMN IF NOT EXISTS identifier/.test(cf), "foundation: source bibliyografik additive");
+  ok(/relation_strength[\s\S]{0,160}NOT VALID/.test(cf) && /source_type[\s\S]{0,220}NOT VALID/.test(cf), "foundation: mevcut kolon CHECK NOT VALID (apply-safe, legacy korunur)");
+  ok(!/DROP TABLE|DROP COLUMN/.test(cf.replace(/--[^\n]*/g, "")), "foundation: destructive DDL YOK (additive)");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
