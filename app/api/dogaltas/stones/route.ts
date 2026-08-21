@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
+import { validateStoneStructuredFields } from "@/lib/dogaltas/validation";
 import {
   STONES_LIST_SELECT,
   STONES_LIST_EXTENDED_SELECT,
@@ -191,6 +192,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const payload = pick(body, STONE_WRITABLE);
   payload.stone_name = name;
+
+  // F-004: structured alan tip zorlaması — chakras/warning_tags string[]; assignments
+  // düz nesne olmalı. Yanlış tip DB'ye YAZILMAZ (rapor 500 landmine'ını beslemez).
+  const structured = validateStoneStructuredFields(payload);
+  if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
 
   // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
   if ("assignments" in payload) {

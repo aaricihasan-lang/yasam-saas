@@ -1,7 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import type { NextRequest } from "next/server";
+import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
 import { Document, Packer, Paragraph, TextRun } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -146,9 +146,9 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
       if (a.source?.trim())         out.push(fieldInline("Kaynak", a.source.trim()));
       if (a.source_section?.trim() && a.source_section !== a.title)
                                     out.push(fieldInline("Kaynak Bölüm", a.source_section.trim()));
-      if (a.tags?.length)           out.push(fieldInline("Etiketler", a.tags.join(", ")));
-      if (a.related_stones?.length) out.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
-      if (a.related_minerals?.length) out.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
+      if (safeLen(a.tags))           out.push(fieldInline("Etiketler", safeJoin(a.tags)));
+      if (safeLen(a.related_stones)) out.push(fieldInline("İlgili Taşlar", safeJoin(a.related_stones)));
+      if (safeLen(a.related_minerals)) out.push(fieldInline("İlgili Mineraller", safeJoin(a.related_minerals)));
 
       if (a.content?.trim()) { out.push(spacer()); out.push(...parseContent(a.content)); }
       if (a.notes?.trim())   { out.push(h3("Notlar")); out.push(bodyText(a.notes.trim())); }
@@ -160,45 +160,21 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
 
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
+  // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
+  const auth = await requireDogaltasReportAccess(req);
+  if (!auth.ok) return auth.response;
+  const { db, tenantId } = auth;
+
   let body: unknown;
-  try { body = await request.json(); }
+  try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", categoryName, articleIds } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { exportMode = "all", categoryName, articleIds } = body as {
     exportMode?: ExportMode;
     categoryName?: string;
     articleIds?: string[];
   };
-
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // IDOR koruması: userId bu tenant'a gerçekten ait mi? — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "stones");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // Shared-library kaldırma: rapor YALNIZ uzmanın kendi tenant kayıtlarını içerir
   // (admin kütüphanesi UNION edilmez — liste görünümüyle tutarlı).

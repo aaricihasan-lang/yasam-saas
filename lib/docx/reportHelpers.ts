@@ -194,7 +194,10 @@ export function profileLabel(text: string, color: string): Paragraph {
  * Returns [] if arr is null/empty — caller can spread directly.
  */
 export function arraySection(label: string, arr: string[] | null): Paragraph[] {
-  const items = arr?.filter(Boolean) ?? [];
+  // Defensive: legacy/transfer rows may store a non-array JSONB value in a field
+  // typed as string[] | null. A raw .filter on a non-array throws and can 500 the
+  // whole report; treat any non-array as empty (report degrades, never crashes).
+  const items = (Array.isArray(arr) ? arr : []).filter(Boolean);
   if (!items.length) return [];
   return [
     h3(label),
@@ -674,6 +677,42 @@ export function extractFirstImageUrl(images: unknown): string | null {
   if (!first || typeof first !== "object") return null;
   const url = (first as Record<string, unknown>).url;
   return typeof url === "string" && url.trim() ? url.trim() : null;
+}
+
+/**
+ * Extract first image reference (url + file_path) from stones.images.
+ * F-016: private-bucket geçişinde file_path service_role ile download edilir;
+ * url yalnız legacy/public fallback.
+ */
+export function extractFirstImageRef(
+  images: unknown,
+): { url: string | null; file_path: string | null } | null {
+  if (!Array.isArray(images) || !images.length) return null;
+  const first = images[0];
+  if (!first || typeof first !== "object") return null;
+  const rec = first as Record<string, unknown>;
+  const url = typeof rec.url === "string" && rec.url.trim() ? rec.url.trim() : null;
+  const file_path = typeof rec.file_path === "string" && rec.file_path.trim() ? rec.file_path.trim() : null;
+  return url || file_path ? { url, file_path } : null;
+}
+
+/**
+ * Storage objesini service_role ile indirir (public URL fetch gerektirmez).
+ * F-016 (§8E): DOCX görsel embed'i, bucket private olsa dahi file_path ile çalışır.
+ * `db` minimal storage arayüzü (SupabaseClient uyumlu). Hata → null (rapor çökmez).
+ */
+export async function fetchStorageImageBuffer(
+  db: { storage: { from: (b: string) => { download: (p: string) => Promise<{ data: Blob | null; error: unknown }> } } },
+  bucket: string,
+  path: string,
+): Promise<Buffer | null> {
+  try {
+    const { data, error } = await db.storage.from(bucket).download(path);
+    if (error || !data) return null;
+    return Buffer.from(await data.arrayBuffer());
+  } catch {
+    return null;
+  }
 }
 
 /** Fetch image bytes from URL with 5s timeout. Returns null on any error. */

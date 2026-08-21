@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   getSyncedTenantId,
@@ -137,6 +137,19 @@ export default function MineralBankasiPage() {
   const router = useRouter();
   // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
   const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
+
+  // F-017: kaydedilmemiş değişiklik koruması (native beforeunload; iç-nav hack yok).
+  const isDirty = useMemo(() => {
+    if (!showForm || saving) return false;
+    return JSON.stringify(form) !== JSON.stringify(emptyForm);
+  }, [showForm, saving, form]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
   const [dupChecking, setDupChecking] = useState(false);
 
   const activeSectionInfo = useMemo(

@@ -1,7 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import type { NextRequest } from "next/server";
+import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { isUuid } from "@/lib/dogaltas/validation";
+import { asStringArray, safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
+import { STONE_PHOTO_BUCKET } from "@/lib/dogaltas/stonePhoto";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -11,8 +13,9 @@ import {
   buildTOCPage,
   divider,
   embedImageParagraph,
-  extractFirstImageUrl,
+  extractFirstImageRef,
   fetchImageBuffer,
+  fetchStorageImageBuffer,
   fieldInline,
   h1Colored,
   h2,
@@ -77,20 +80,24 @@ function countFilledSections(stone: StoneRow): number {
     stone.warning_text, stone.feng_shui, stone.meditation, stone.care, stone.application,
   ];
   const arrays = [stone.chakras, stone.warning_tags];
-  const hasAssignments = stone.assignments && Object.keys(stone.assignments).length > 0;
+  const hasAssignments = stone.assignments && typeof stone.assignments === "object" &&
+    !Array.isArray(stone.assignments) && Object.keys(stone.assignments).length > 0;
   return fields.filter((f) => f?.trim()).length +
-    arrays.filter((a) => a && a.length > 0).length +
+    arrays.filter((a) => safeLen(a) > 0).length +
     (hasAssignments ? 1 : 0);
 }
 
 function buildAssignmentSections(assignments: Record<string, string[][]> | null): ReportChild[] {
-  if (!assignments) return [];
+  // F-011: assignments legacy/transfer satırlarında beklenen nested-array yapısı yerine
+  // string/obje olabilir. Her seviyede Array.isArray guard → rapor çökmez.
+  if (!assignments || typeof assignments !== "object" || Array.isArray(assignments)) return [];
   const out: ReportChild[] = [];
   for (const [category, rows] of Object.entries(assignments)) {
-    if (!rows || rows.length === 0) continue;
+    if (!Array.isArray(rows) || rows.length === 0) continue;
     const items = rows
-      .filter((row) => row.length > 0)
-      .map((row) => row.filter(Boolean).join(" / "));
+      .filter((row) => Array.isArray(row) && row.length > 0)
+      .map((row) => asStringArray(row).join(" / "))
+      .filter(Boolean);
     if (items.length === 0) continue;
     out.push(...arraySection(category, items));
   }
@@ -98,43 +105,18 @@ function buildAssignmentSections(assignments: Record<string, string[][]> | null)
 }
 
 export async function POST(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: stoneId } = await params;
+  // F-019: geçersiz UUID DB'ye gitmeden reddedilir (ham PG hatası sızmaz).
+  if (!isUuid(stoneId))
+    return Response.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
-
-  const { tenantId, userId } = body as { tenantId?: string; userId?: string };
-
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // IDOR koruması: userId bu tenant'a gerçekten ait mi? — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "stones");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
+  const auth = await requireDogaltasReportAccess(req);
+  if (!auth.ok) return auth.response;
+  const { db, tenantId } = auth;
 
   // Kütüphane taşları da dahil et
   const tenantIds = tenantId === ADMIN_LIBRARY_TENANT_ID
@@ -160,14 +142,15 @@ export async function POST(
   const dateSlug = new Date().toISOString().slice(0, 10);
   const nameSlug = slugify(stoneName);
 
-  // Resim
-  const imageUrl = extractFirstImageUrl(stone.images);
+  // Resim — F-016: önce file_path (service_role download, private-ready), sonra url (legacy).
+  const imgRef = extractFirstImageRef(stone.images);
   let imageBuf: Buffer | null = null;
-  if (imageUrl) imageBuf = await fetchImageBuffer(imageUrl).catch(() => null);
+  if (imgRef?.file_path) imageBuf = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, imgRef.file_path);
+  if (!imageBuf && imgRef?.url) imageBuf = await fetchImageBuffer(imgRef.url).catch(() => null);
 
   const filledSections = countFilledSections(stone);
   const imageCount = Array.isArray(stone.images) ? stone.images.filter((img) => img.url?.trim()).length : 0;
-  const chakraCount = stone.chakras?.filter(Boolean).length ?? 0;
+  const chakraCount = asStringArray(stone.chakras).length; // F-011 guard
   const isLibrary = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
 
   const all: ReportChild[] = [];
@@ -192,7 +175,7 @@ export async function POST(
     ["Taş Adı",       stoneName],
     ["Dolu Bölüm",    `${filledSections} bölüm`],
     ["Görsel Sayısı", `${imageCount} görsel`],
-    ["Çakra",         chakraCount > 0 ? (stone.chakras ?? []).filter(Boolean).join(", ") : "Belirtilmemiş"],
+    ["Çakra",         chakraCount > 0 ? safeJoin(stone.chakras) : "Belirtilmemiş"],
     ["Kayıt Tarihi",  stone.created_at ? new Date(stone.created_at).toLocaleDateString("tr-TR") : "-"],
   ]));
 
@@ -234,10 +217,10 @@ export async function POST(
   if (stone.spiritual_effects?.trim()) { all.push(h2("Ruhsal Etkiler"));   all.push(bodyText(stone.spiritual_effects.trim())); }
   if (stone.other_effects?.trim()) { all.push(h2("Diğer Etkiler"));        all.push(bodyText(stone.other_effects.trim())); }
   if (stone.warning_text?.trim()) { all.push(h2("Uyarılar ve Hassasiyetler")); all.push(bodyText(stone.warning_text.trim())); }
-  all.push(...arraySection("Uyarı Etiketleri", stone.warning_tags ?? null));
+  all.push(...arraySection("Uyarı Etiketleri", asStringArray(stone.warning_tags)));
 
   if (!stone.physical_effects?.trim() && !stone.spiritual_effects?.trim() &&
-      !stone.other_effects?.trim() && !stone.warning_text?.trim() && !stone.warning_tags?.length) {
+      !stone.other_effects?.trim() && !stone.warning_text?.trim() && !safeLen(stone.warning_tags)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
 
@@ -260,10 +243,11 @@ export async function POST(
   all.push(profileLabel("BÖLÜM 4", C_STONE));
   all.push(h1Colored("4. Çakralar ve Atamalar", C_STONE));
 
-  all.push(...arraySection("Çakralar", stone.chakras ?? null));
+  all.push(...arraySection("Çakralar", asStringArray(stone.chakras)));
   all.push(...buildAssignmentSections(stone.assignments));
 
-  if (!stone.chakras?.length && (!stone.assignments || Object.keys(stone.assignments).length === 0)) {
+  if (!safeLen(stone.chakras) && (!stone.assignments || typeof stone.assignments !== "object" ||
+      Array.isArray(stone.assignments) || Object.keys(stone.assignments).length === 0)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
 

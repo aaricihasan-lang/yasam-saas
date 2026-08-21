@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
 
+  // F-016 (§8D): silmeden ÖNCE görsel file_path'lerini oku (orphan temizliği için).
+  const { data: preRows } = await db
+    .from("stones").select("images")
+    .in("id", ids).eq("tenant_id", tenantId);
+
   const { data, error } = await db
     .from("stones").delete()
     .in("id", ids).eq("tenant_id", tenantId) // tenant guard — cross-tenant delete engellenir
@@ -36,5 +42,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   const deletedIds = (data ?? []).map((r: { id: string }) => r.id);
-  return NextResponse.json({ ok: true, deletedIds, deleted: deletedIds.length });
+
+  // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz, dürüst raporlanır).
+  let storageCleaned = true;
+  const paths = collectStonePhotoPaths((preRows ?? []).map((r) => (r as { images?: unknown }).images), tenantId);
+  if (paths.length > 0) {
+    const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
+    if (rmErr) { storageCleaned = false; console.error("[stones/bulk-delete] orphan temizliği hatası:", rmErr.message); }
+  }
+  return NextResponse.json({ ok: true, deletedIds, deleted: deletedIds.length, storageCleaned });
 }

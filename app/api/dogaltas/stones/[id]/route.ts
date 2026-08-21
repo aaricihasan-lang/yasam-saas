@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
+import { validateStoneStructuredFields, isUuid } from "@/lib/dogaltas/validation";
+import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 
 export const runtime = "nodejs";
 
@@ -33,6 +35,7 @@ export async function GET(
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   // Detay (read-only) kütüphane taşını da id ile gösterebilir (mevcut sayfa davranışı).
   // Düzenleme/silme PATCH/DELETE'te .eq(tenant_id) ile yalnız kendi taşına izinli.
@@ -56,6 +59,7 @@ export async function PATCH(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -67,6 +71,10 @@ export async function PATCH(
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
+
+  // F-004: structured alan tip zorlaması (PATCH kısmi — yalnız gönderilen alanlar).
+  const structured = validateStoneStructuredFields(fields);
+  if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
 
   // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
   if ("assignments" in fields) {
@@ -98,8 +106,14 @@ export async function DELETE(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+
+  // F-016 (§8D): silmeden ÖNCE görsel file_path'lerini oku (orphan temizliği için).
+  const { data: preRow } = await db
+    .from("stones").select("images")
+    .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
 
   const { data, error } = await db
     .from("stones").delete()
@@ -110,5 +124,14 @@ export async function DELETE(
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, id });
+
+  // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz ama
+  // sessiz gizlenmez → yanıt storageCleaned bayrağıyla dürüst raporlanır).
+  let storageCleaned = true;
+  const paths = collectStonePhotoPaths([(preRow as { images?: unknown } | null)?.images], tenantId);
+  if (paths.length > 0) {
+    const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
+    if (rmErr) { storageCleaned = false; console.error("[stones/[id]] orphan temizliği hatası:", rmErr.message); }
+  }
+  return NextResponse.json({ ok: true, id, storageCleaned });
 }

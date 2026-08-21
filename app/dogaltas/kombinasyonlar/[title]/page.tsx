@@ -12,10 +12,11 @@ import {
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
+import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -360,6 +361,7 @@ function StonesBlock({
   extraTextStones,
   stockMap,
   stockLoading,
+  knownStoneKeys,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
@@ -367,6 +369,7 @@ function StonesBlock({
   extraTextStones: string[];
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
+  knownStoneKeys: Set<string> | null;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
 }) {
@@ -427,28 +430,47 @@ function StonesBlock({
               }
               const inStock = stockKey !== null;
               const canonical_ = canonical ?? null;
-              return inStock ? (
-                <span
-                  key={`c-${idx}`}
-                  title="Stokta var"
-                  className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
-                >
-                  <span className="text-[10px] font-black text-emerald-600">✓</span>
-                  {canonical_
-                    ? canonical_
-                    : highlightQuery.trim()
-                      ? renderHighlightedText(stone, highlightQuery)
-                      : stone}
-                </span>
-              ) : (
+              // F-007: stok'ta yoksa iki ayrı durum — (a) gerçek taş ama stokta yok,
+              // (b) GHOST: artık taş listesinde olmayan token (silinmiş/eski kayıt).
+              // knownStoneKeys henüz yüklenmediyse (null) ghost işaretlenmez (yanlış-pozitif önlenir).
+              const isGhost =
+                !inStock &&
+                knownStoneKeys !== null &&
+                !knownStoneKeys.has(normalizeForMatch(stone));
+              const chipLabel = highlightQuery.trim()
+                ? renderHighlightedText(stone, highlightQuery)
+                : stone;
+              if (inStock) {
+                return (
+                  <span
+                    key={`c-${idx}`}
+                    title="Stokta var"
+                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                  >
+                    <span className="text-[10px] font-black text-emerald-600">✓</span>
+                    {canonical_ ? canonical_ : chipLabel}
+                  </span>
+                );
+              }
+              if (isGhost) {
+                return (
+                  <span
+                    key={`c-${idx}`}
+                    title="Bu taş artık taş listesinde yok (silinmiş / eski kayıt)"
+                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-dashed border-amber-400 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 line-through decoration-amber-400/70"
+                  >
+                    <span className="text-[10px] font-black text-amber-600 no-underline">⚠</span>
+                    {chipLabel}
+                  </span>
+                );
+              }
+              return (
                 <span
                   key={`c-${idx}`}
                   title="Stokta yok"
                   className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
                 >
-                  {highlightQuery.trim()
-                    ? renderHighlightedText(stone, highlightQuery)
-                    : stone}
+                  {chipLabel}
                 </span>
               );
             })}
@@ -854,6 +876,7 @@ function VariantCard({
   fieldMatches,
   stockMap,
   stockLoading,
+  knownStoneKeys,
   isCalcOpen,
   onToggleCalc,
   applicabilityPct,
@@ -873,6 +896,7 @@ function VariantCard({
   };
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
+  knownStoneKeys: Set<string> | null;
   isCalcOpen: boolean;
   onToggleCalc: () => void;
   applicabilityPct?: number;
@@ -1169,6 +1193,7 @@ function VariantCard({
           extraTextStones={extraTextStones}
           stockMap={stockMap}
           stockLoading={stockLoading}
+          knownStoneKeys={knownStoneKeys}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
@@ -1271,6 +1296,10 @@ function KombinasyonDetayPageContent() {
   const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
   const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
+  // F-007: tenant'ın MEVCUT taş adları (normalize) — kombinasyon token'ı stok'ta yoksa
+  // "gerçek taş ama stokta yok" mu yoksa "artık taş listesinde yok (silinmiş/eski)" mu
+  // ayrımı için. null = henüz yüklenmedi (o ana kadar ghost işaretlenmez).
+  const [knownStoneKeys, setKnownStoneKeys] = useState<Set<string> | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
   const router = useRouter();
@@ -1281,12 +1310,18 @@ function KombinasyonDetayPageContent() {
     if (!tenantId) return;
     const userId = readYasamUser()?.id;
     if (!userId) return;
+    const sessionToken = readSessionToken();
     setWordBusy(true);
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/combinations/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", combinationTitle: decodedIssue }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ exportMode: "single", combinationTitle: decodedIssue }),
       });
       if (!res.ok) return;
       const blob = await res.blob();
@@ -1388,9 +1423,22 @@ function KombinasyonDetayPageContent() {
     }
   }, []);
 
+  const loadKnownStones = useCallback(async () => {
+    // F-007: mevcut taş adlarını (normalize) yükle — ghost token ayrımı için.
+    const tid = await getSyncedTenantId();
+    if (!tid) return;
+    const { rows } = await fetchAllStonesExtended(tid);
+    const keys = new Set<string>();
+    for (const r of rows) {
+      const n = String((r as { stone_name?: unknown }).stone_name ?? "").trim();
+      if (n) keys.add(normalizeForMatch(n));
+    }
+    setKnownStoneKeys(keys);
+  }, []);
+
   const handleRefresh = useCallback(async () => {
-    await Promise.all([loadRows(), loadStockNames()]);
-  }, [loadRows, loadStockNames]);
+    await Promise.all([loadRows(), loadStockNames(), loadKnownStones()]);
+  }, [loadRows, loadStockNames, loadKnownStones]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -1566,6 +1614,7 @@ function KombinasyonDetayPageContent() {
                 }
                 stockMap={stockMap}
                 stockLoading={stockLoading}
+                knownStoneKeys={knownStoneKeys}
                 applicabilityPct={variantSummaries?.[index]?.applicabilityPct}
                 isCalcOpen={openCalcIds.has(row.id)}
                 isDemo={isDemo}

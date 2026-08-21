@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  getStoneImageUrls,
-  type StoneListItemExtended,
-} from "@/lib/dogaltas/stonesListFetch";
+import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import {
+  useSignedStoneImageUrls,
+  imageFilePath,
+  resolveImageSrc,
+} from "@/lib/dogaltas/stoneImageClient";
 
 type StoneDetailDrawerProps = {
   open: boolean;
@@ -117,7 +119,26 @@ export function StoneDetailDrawer({
     setPreview(null);
   }, [stone?.id]);
 
-  const images = useMemo(() => getStoneImageUrls(stone?.images), [stone?.images]);
+  // F-016: private-read — görselleri file_path'ten batch signed URL ile çöz (legacy url fallback).
+  const imageFilePaths = useMemo(
+    () => (Array.isArray(stone?.images)
+      ? (stone!.images as unknown[]).map((im) => imageFilePath(im)).filter(Boolean) as string[]
+      : []),
+    [stone?.images],
+  );
+  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
+  const images = useMemo(() => {
+    if (!Array.isArray(stone?.images)) return [] as { url: string; name: string }[];
+    return (stone!.images as unknown[])
+      .map((im, index) => {
+        const src = resolveImageSrc(im, signedImageUrls);
+        if (!src) return null;
+        const rec = im && typeof im === "object" ? (im as Record<string, unknown>) : null;
+        const name = rec && typeof rec.name === "string" && rec.name.trim() ? rec.name : `Görsel ${index + 1}`;
+        return { url: src, name };
+      })
+      .filter(Boolean) as { url: string; name: string }[];
+  }, [stone?.images, signedImageUrls]);
   const assignments = useMemo(
     () => normalizeAssignments(stone?.assignments),
     [stone?.assignments],

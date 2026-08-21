@@ -16,7 +16,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
-import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   ADMIN_LIBRARY_TENANT_ID,
   getSessionTenantId,
@@ -28,13 +28,18 @@ import {
   fetchAllStonesExtended,
   fetchStoneExclusions,
   fetchStonesListPage,
-  getFirstStoneImageUrl,
   stoneListImageCount,
   stonesListCacheKey,
   type SearchMode,
   type StoneListItem,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import {
+  useSignedStoneImageUrls,
+  imageFilePath,
+  firstStoneImage,
+  resolveImageSrc,
+} from "@/lib/dogaltas/stoneImageClient";
 import {
   fetchStonesListDeduped,
   readStonesList,
@@ -233,6 +238,7 @@ const uiRowCheckbox =
 // markup birebir korunur; çift DOM (mobil+masaüstü) bilinçli olarak değişmedi.
 type StoneRowSharedProps = {
   stone: StoneListItem;
+  coverImageUrl: string | null;
   isSelected: boolean;
   isViewedInSearch: boolean;
   isLastViewed: boolean;
@@ -247,6 +253,7 @@ type StoneRowSharedProps = {
 
 const StoneCard = memo(function StoneCard({
   stone,
+  coverImageUrl,
   isSelected,
   isViewedInSearch,
   isLastViewed,
@@ -259,7 +266,7 @@ const StoneCard = memo(function StoneCard({
   onDelete,
 }: StoneRowSharedProps) {
   const imageCount = stoneListImageCount(stone.images);
-  const coverImageUrl = getFirstStoneImageUrl(stone.images);
+  // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
   const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
   const displayName = stone.stone_name || "İsimsiz taş";
@@ -398,7 +405,9 @@ const StoneCard = memo(function StoneCard({
               event.stopPropagation();
               onDelete(stone);
             }}
-            className="btn-danger shrink-0 !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
+            aria-label={`${stone.stone_name || "İsimsiz taş"} kaydını sil`}
+            // F-015a: destructive dokunma hedefi ~44×44px (mobil erişilebilirlik).
+            className="btn-danger shrink-0 !min-h-[44px] !min-w-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
           >
             Sil
           </button>
@@ -594,6 +603,10 @@ function DogaltasListesiPageContent() {
       setStones((current) => current.filter((stone) => stone.id !== stoneId));
       setDetailData((prev) => (prev ? prev.filter((s) => s.id !== stoneId) : null));
     }
+
+    // F-005: tekil silme sonrası "Toplam kayıt" sayacı oturum-içi güncellenir
+    // (yenileme beklemeden doğru). Bulk delete zaten fetchList ile tazeliyor.
+    setTotalCount((c) => Math.max(0, c - 1));
 
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -846,6 +859,14 @@ function DogaltasListesiPageContent() {
     excludedStoneIds,
   ]);
 
+  // F-016: görünen taşların kapak file_path'leri için TOPLU signed URL (private-read).
+  // Liste lazy-load ile büyüdükçe yalnız eksik path'ler istenir → N+1 yok.
+  const coverFilePaths = useMemo(
+    () => (filteredStones.map((s) => imageFilePath(firstStoneImage(s.images))).filter(Boolean) as string[]),
+    [filteredStones],
+  );
+  const signedCoverUrls = useSignedStoneImageUrls(coverFilePaths);
+
   const hasMore = !needsFullLoad && stones.length < totalCount;
   const listBusy =
     listLoading ||
@@ -959,6 +980,7 @@ function DogaltasListesiPageContent() {
     if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
     const userId = readYasamUser()?.id;
     if (!userId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    const sessionToken = readSessionToken();
 
     setWordBusy(true);
     try {
@@ -971,9 +993,8 @@ function DogaltasListesiPageContent() {
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: "Filtrelenmiş sonuç yok." }); return; }
       }
 
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const body: Record<string, unknown> = {
-        tenantId,
-        userId,
         sections: { stones: true },
         includeImages: false,
       };
@@ -981,7 +1002,11 @@ function DogaltasListesiPageContent() {
 
       const res = await fetch("/api/dogaltas/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -1085,6 +1110,12 @@ function DogaltasListesiPageContent() {
                   </span>
                   <input
                     type="search"
+                    // F-015b: yalnız placeholder erişilebilir ad değildir → aria-label.
+                    aria-label={
+                      searchMode === "name"
+                        ? "Taş adında ara"
+                        : "Açıklama ve içerikte ara"
+                    }
                     value={searchTerm}
                     onChange={(event) => handleSearchChange(event.target.value)}
                     onKeyDown={(event) => {
@@ -1312,6 +1343,7 @@ function DogaltasListesiPageContent() {
                 <StoneCard
                   key={stone.id}
                   stone={stone}
+                  coverImageUrl={resolveImageSrc(firstStoneImage(stone.images), signedCoverUrls)}
                   isSelected={selectedIds.has(stone.id)}
                   isViewedInSearch={isSearchActive && viewedStoneIds.has(stone.id)}
                   isLastViewed={stone.id === lastViewedStoneId}

@@ -549,13 +549,17 @@ export default function TasBilgiKutuphanesiPage() {
     setWordReportError("");
     setWordReportSuccess("");
 
+    const sessionToken = readSessionToken();
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/knowledge-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": uid,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify({
-          tenantId: tid,
-          userId: uid,
           exportMode: wordExportMode,
           categoryName: wordExportMode === "category" ? wordExportCategory : undefined,
           articleIds,

@@ -16,7 +16,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
@@ -195,49 +195,10 @@ type MonthTrendBucket = {
   heightPct: number;
 };
 
-const STOCK_PRICE_FIELD_CANDIDATES: [string, string][] = [
-  ["stock_qty", "unit_price"],
-  ["stock_quantity", "price"],
-  ["quantity", "price"],
-  ["adet", "fiyat"],
-  ["stok", "fiyat"],
-  ["stock", "price"],
-  ["qty", "unit_price"],
-];
-
-function parseNumeric(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function detectStockValueFields(rows: Record<string, unknown>[]): [string, string] | null {
-  if (rows.length === 0) return null;
-
-  for (const [qtyKey, priceKey] of STOCK_PRICE_FIELD_CANDIDATES) {
-    const hasPair = rows.some((row) => {
-      const qty = parseNumeric(row[qtyKey]);
-      const price = parseNumeric(row[priceKey]);
-      return qty != null && price != null && (qty > 0 || price > 0);
-    });
-    if (hasPair) return [qtyKey, priceKey];
-  }
-
-  return null;
-}
-
-function computeStockValue(rows: Record<string, unknown>[], keys: [string, string]): number {
-  const [qtyKey, priceKey] = keys;
-  return rows.reduce((sum, row) => {
-    const qty = parseNumeric(row[qtyKey]) ?? 0;
-    const price = parseNumeric(row[priceKey]) ?? 0;
-    return sum + qty * price;
-  }, 0);
-}
+// F-013: "Stok Değeri" ölü widget'ı kaldırıldı — Doğaltaş'ta fiyat/stok kolonu yok,
+// widget her müşteride kalıcı boş placeholder gösteriyordu. Fatura/POS/stok sistemi
+// EKLENMEDİ (ürün kararı). İlgili tespit/hesap makinesi (parseNumeric/detectStockValueFields/
+// computeStockValue/formatTry) de kaldırıldı.
 
 function buildLast6MonthTrend(createdAts: string[]): MonthTrendBucket[] {
   const now = new Date();
@@ -278,13 +239,6 @@ function formatCount(value: number | null, loading: boolean): string {
   return value.toLocaleString("tr-TR");
 }
 
-function formatTry(amount: number): string {
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 /** Aylık trend + stok değeri için ham taş satırları (server API, kullanıcı tenant'ı). */
 async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; error: string | null }> {
@@ -314,8 +268,6 @@ function DogaltasPageContent() {
   const [mineralsCount, setMineralsCount] = useState<number | null>(null);
   const [combinationsCount, setCombinationsCount] = useState<number | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthTrendBucket[]>([]);
-  const [stockValue, setStockValue] = useState<number | null>(null);
-  const [stockValueMessage, setStockValueMessage] = useState<string | null>(null);
   // Word raporu modal
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportSections, setReportSections] = useState({
@@ -337,8 +289,6 @@ function DogaltasPageContent() {
       setMineralsCount(null);
       setCombinationsCount(null);
       setMonthlyTrend([]);
-      setStockValue(null);
-      setStockValueMessage(null);
       return;
     }
 
@@ -384,26 +334,16 @@ function DogaltasPageContent() {
       setMineralsCount(mineralsCountRes.count);
     }
 
-    // Aylık trend + stok değeri — kullanıcı tenant'ı ham satırları (mevcut davranış).
+    // Aylık trend — kullanıcı tenant'ı ham satırlarından created_at (mevcut davranış).
     const rows = (stonesRowsRes.data ?? []) as Record<string, unknown>[];
     if (stonesRowsRes.error) {
-      console.error("[dogaltas/dashboard] Taş satırları (trend/stok) hatası:", stonesRowsRes.error);
+      console.error("[dogaltas/dashboard] Taş satırları (trend) hatası:", stonesRowsRes.error);
     }
 
     const createdAts = rows
       .map((row) => (row.created_at != null ? String(row.created_at) : ""))
       .filter(Boolean);
     setMonthlyTrend(buildLast6MonthTrend(createdAts));
-
-    const stockFields = detectStockValueFields(rows);
-    if (stockFields) {
-      const total = computeStockValue(rows, stockFields);
-      setStockValue(total);
-      setStockValueMessage(null);
-    } else {
-      setStockValue(null);
-      setStockValueMessage("Stok değeri için fiyat/stok verisi bekleniyor");
-    }
 
     if (failed.length > 0) {
       setErrorMessage(`Bazı sayaçlar okunamadı (${failed.join(", ")}). Lütfen sayfayı yenileyin.`);
@@ -538,16 +478,6 @@ function DogaltasPageContent() {
     setViewedStoneIds(readViewedStoneIds());
   }, []);
 
-  const stockValueDisplay = useMemo(() => {
-    if (loading) return "Yükleniyor...";
-    if (stockValueMessage) return stockValueMessage;
-    if (stockValue != null && stockValue > 0) return formatTry(stockValue);
-    if (stockValue === 0) return formatTry(0);
-    return "Stok değeri için fiyat/stok verisi bekleniyor";
-  }, [loading, stockValue, stockValueMessage]);
-
-  const stockValueIsMessage = !loading && Boolean(stockValueMessage || stockValue == null);
-
   // ─── Word raporu ─────────────────────────────────────────────────────────────
 
   const allReportSelected = Object.values(reportSections).every(Boolean);
@@ -566,14 +496,20 @@ function DogaltasPageContent() {
     if (!tid) { setReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
     const uid = readYasamUser()?.id;
     if (!uid) { setReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    const sessionToken = readSessionToken();
     setReportLoading(true);
     setReportError("");
     setReportSuccess("");
     try {
+      // F-018: kimlik doğrulanmış oturum header'ıyla taşınır; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, userId: uid, sections: reportSections }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": uid,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ sections: reportSections }),
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };
@@ -698,6 +634,7 @@ function DogaltasPageContent() {
                   </span>
                   <input
                     type="search"
+                    aria-label="Taş adı veya içerikte ara"
                     value={searchInput}
                     onChange={(event) => handleSearchInputChange(event.target.value)}
                     placeholder={
@@ -832,19 +769,9 @@ function DogaltasPageContent() {
                 </p>
               ) : null}
 
-              <div className="grid shrink-0 grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
-                  <p className="text-sm font-black text-slate-800">Stok Değeri</p>
-                  <p className="text-[11px] text-slate-500">Stones tablosu fiyat × stok</p>
-                  <h3
-                    className={`mt-auto pt-2 font-black text-slate-950 ${
-                      stockValueIsMessage ? "text-sm leading-snug" : "text-2xl"
-                    }`}
-                  >
-                    {stockValueDisplay}
-                  </h3>
-                </div>
-
+              {/* F-013: Ölü widget'lar ("Stok Değeri", "En Çok Satılan Taşlar") kaldırıldı;
+                  gerçek veriyle beslenen "Aylık Kayıt Trendi" tam genişliğe alındı. */}
+              <div className="grid shrink-0 grid-cols-1 gap-2.5">
                 <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
                   <p className="text-sm font-black text-slate-800">Aylık Kayıt Trendi</p>
                   <p className="text-[11px] text-slate-500">Son 6 ay · stones.created_at</p>
@@ -876,14 +803,6 @@ function DogaltasPageContent() {
                       </div>
                     </>
                   )}
-                </div>
-
-                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
-                  <p className="text-sm font-black text-slate-800">En Çok Satılan Taşlar</p>
-                  <p className="text-[11px] text-slate-500">Satış hareket tablosu</p>
-                  <p className="mt-auto text-sm font-semibold leading-relaxed text-slate-600">
-                    {loading ? "Yükleniyor..." : "Henüz satış verisi yok"}
-                  </p>
                 </div>
               </div>
 

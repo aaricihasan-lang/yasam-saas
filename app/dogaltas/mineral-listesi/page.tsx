@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -363,12 +363,18 @@ function MineralListesiPageContent() {
     if (!tid) return;
     const uid = readYasamUser()?.id;
     if (!uid) return;
+    const sessionToken = readSessionToken();
     setMineralWordBusy(true);
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/mineral-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: "selected", mineralIds: ids }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": uid,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ exportMode: "selected", mineralIds: ids }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
@@ -447,11 +453,17 @@ function MineralListesiPageContent() {
     setWordReportError("");
     setWordReportSuccess("");
 
+    const sessionToken = readSessionToken();
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/mineral-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: wordExportMode, mineralIds }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": uid,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };

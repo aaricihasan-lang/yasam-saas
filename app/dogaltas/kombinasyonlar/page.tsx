@@ -475,11 +475,17 @@ export default function KombinasyonlarPage() {
         issues = groups.map((g) => g.issue);
         if (!issues.length) return;
       }
-      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode };
+      const sessionToken = readSessionToken();
+      const body: Record<string, unknown> = { exportMode: mode };
       if (issues) body.issues = issues;
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch("/api/dogaltas/combinations/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
