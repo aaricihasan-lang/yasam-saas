@@ -466,7 +466,7 @@ function client(sourceKey: string, module: string, sourceTable: string): Activat
     sourceTable,
     tenantMode: "column",
     rowGate: "pii-denylist",
-    registryEnabled: false,
+    registryEnabled: true,
     currentDataRisk: "test-data",
     futureEventEligible: true,
     backfillEligibility: "blocked-test-data",

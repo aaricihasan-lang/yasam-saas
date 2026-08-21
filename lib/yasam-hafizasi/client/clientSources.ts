@@ -1,8 +1,11 @@
 /**
- * BF-14 / PRIVATE MEMORY — Client-scoped kaynak kaydı (DORMANT; SAF).
+ * BF-14 / PRIVATE MEMORY — Client-scoped kaynak kaydı (CODE GATE AÇIK; SAF).
  *
  * BAĞLAYICI: professional YH_INDEX_SOURCES'a DOKUNMAZ (ayrı kayıt). Tüm girdiler
- * `enabled: false` (trigger yok, event yok, indexleme yok — aktivasyon BF-11E).
+ * `enabled: true` (compile-time/registry kapısı açık — activationMatrix registryEnabled ile
+ * BİREBİR). Ancak processing hâlâ ÇİFT KAPI ile fail-closed: registryEnabled tek başına
+ * aktive ETMEZ; runtime `public.yh_source_activation` is_active=true (BF-11E) + worker env
+ * `YH_CLIENT_OUTBOX_WORKER_ENABLED=true` gerekir. DB row yok / is_active=false → INACTIVE.
  *
  * GİZLİLİK SÖZLEŞMESİ (Private Memory Politika Kilidi):
  *   - Bu index tamamen PRIVATE / SENSITIVE kabul edilir. "PII-free index" varsayımı
@@ -95,7 +98,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     snippetColumns: ["stones_text"],
     topicTagsColumns: [],
     piiDenylist: [],
-    enabled: false,
+    enabled: true,
   },
   {
     sourceKey: "danisan:stones",
@@ -111,7 +114,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     snippetColumns: ["usage_area"],
     topicTagsColumns: ["stone_type"],
     piiDenylist: [],
-    enabled: false,
+    enabled: true,
   },
   {
     sourceKey: "danisan:sessions",
@@ -129,7 +132,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     topicTagsColumns: ["session_type"],
     // Sayısal/klinik-dışı alanlar (kimlik değil, arama gürültüsü) → index dışı.
     piiDenylist: ["fee", "duration_minutes"],
-    enabled: false,
+    enabled: true,
   },
   {
     sourceKey: "danisan:homeworks",
@@ -146,7 +149,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     snippetColumns: ["description"],
     topicTagsColumns: ["homework_type", "status"],
     piiDenylist: [],
-    enabled: false,
+    enabled: true,
   },
   {
     sourceKey: "danisan:appointments",
@@ -163,7 +166,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     snippetColumns: ["notes"],
     topicTagsColumns: ["status"],
     piiDenylist: [],
-    enabled: false,
+    enabled: true,
   },
   {
     sourceKey: "danisan:notes",
@@ -182,7 +185,7 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     topicTagsColumns: [],
     // adres = doğrudan iletişim/kimlik kolonu (Politika Kilidi md.3) → index dışı.
     piiDenylist: ["adres"],
-    enabled: false,
+    enabled: true,
   },
 ];
 

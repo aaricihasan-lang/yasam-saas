@@ -37,7 +37,7 @@ const add = (name: string, ok: boolean, detail = ""): void => {
 };
 
 // ── clientSources + PII denylist ──
-add("sources-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false), "");
+add("sources-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true), "");
 add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_INDEX_SOURCES.length));
 {
   let ok = true;

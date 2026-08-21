@@ -70,7 +70,7 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   const numKeys = ["numeroloji:sources", "numeroloji:knowledge-entries"];
   const num = YH_INDEX_SOURCES.filter((s) => numKeys.includes(s.sourceKey));
 
-  add("client-sources-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false), "");
+  add("client-sources-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true), "");
   // BF-14 P1 6 client source; bu paket YENİ client source EKLEMEDİ (duplicate yok).
   add("client-registry-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_INDEX_SOURCES.length));
   add("client-source-keys-unique", new Set(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceKey)).size === YH_CLIENT_INDEX_SOURCES.length);
@@ -164,9 +164,9 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
 {
   const dormantReady = YH_MODULE_SOURCE_MATRIX.filter((m) => m.classification === "DORMANT_READY");
   add("dormant-ready-have-sources", dormantReady.every((m) => m.professionalSourceKeys.length + m.clientSourceKeys.length > 0), dormantReady.map((m) => m.moduleKey).join(","));
-  // Her DORMANT_READY client source gerçekten dormant (enabled:false).
+  // Her DORMANT_READY client source code-gate AÇIK (enabled:true); processing hâlâ DB is_active ile gated.
   const cliEnabled = new Map(YH_CLIENT_INDEX_SOURCES.map((s) => [s.sourceKey, s.enabled] as const));
-  add("dormant-ready-client-sources-disabled", dormantReady.every((m) => m.clientSourceKeys.every((k) => cliEnabled.get(k) === false)));
+  add("dormant-ready-client-sources-code-gate-open", dormantReady.every((m) => m.clientSourceKeys.every((k) => cliEnabled.get(k) === true)));
 }
 
 // ── 6) Modül etiketi tutarlılığı: client source key → bilinen client modül etiketi ──

@@ -161,9 +161,9 @@ async function run(): Promise<void> {
 {
   // Professional Cohort: live 19 → 22 (+3 aroma; numeroloji enabled:false KORUNDU).
   add("E-live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
-  // dormant professional 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; client 6 dormant.
+  // dormant professional 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; client 6 code-gate AÇIK (DB is_active ile gated).
   add("E-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
-  add("E-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
+  add("E-client-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true));
   // KEEP_LIVE kaynaklar runtime gate'te DB gerektirmez (grandfathered → null runtime aktif).
   const keepLive = YH_ACTIVATION_MATRIX.filter((e) => e.activationClass === "KEEP_LIVE");
   add("E-keep-live-no-db-needed", keepLive.every((e) => resolveProcessingActive(e.sourceKey, null) === true));
