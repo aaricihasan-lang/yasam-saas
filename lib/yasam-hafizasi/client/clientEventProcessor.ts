@@ -1,0 +1,295 @@
+/**
+ * PRIVATE MEMORY — Client Outbox Event Processor + Batch (saf-yakın; DI).
+ * ====================================================================
+ *
+ * Tek bir claimed CLIENT outbox olayını doğrular, client kaynak registry'sini çözer,
+ * fail-closed authorization/ownership kapılarını uygular ve upsert/deindex akışını
+ * yürütür. Çıktı yalnız bir DIREKTIF'tir (professional eventProcessor ile AYNI
+ * ProcessDirective türü + retry mapping): worker bunu client complete/fail RPC'sine çevirir.
+ *
+ * BAĞLAYICI (rule 14 / "professional worker davranışını bozma"):
+ *   - Professional eventProcessor/index DEĞİŞMEZ; bu AYRI client yol.
+ *   - Reliability modeli BF-11B ile birebir: pending/processing/succeeded/dead,
+ *     lease/backoff/coalescing/requeue RPC'de; permanent→maxAttempts=1, transient→N.
+ *   - DORMANT: activation gate (isSourceProcessingActive) inactive dönerse index YAZILMAZ
+ *     ve deindex YAPILMAZ; olay COMPLETE no-op ile kuyruktan düşürülür (dead-letter YOK).
+ *     Client kaynakları BF-11E activation matrisinde FUTURE_ONLY_READY/registryEnabled:false
+ *     → gate her zaman inactive → merge tek başına HİÇBİR şey indexlemez.
+ *
+ * PRIVATE MEMORY authorization (Politika Kilidi):
+ *   - tenant_id + client_id ZORUNLU (UUID); demo/synthetic tenant indexlenmez.
+ *   - fetchSourceRow tenant+client ile SCOPED okur → kaynak artık tenant+client'a ait
+ *     değilse (silinmiş/taşınmış) null → DEFENSIVE DEINDEX (ghost recreate YOK).
+ *   - Builder yalnız allowlisted alanları kullanır (clientIndexUnit); doğrudan kimlik
+ *     kolonları fetch edilmez → index'e SIZAMAZ. client name index'e yazılmaz.
+ *   - UPDATE → aynı source identity upsert (onConflict source_table,source_id,section_ref)
+ *     → duplicate 0. DELETE → tenant+client scoped deindex.
+ */
+import { OUTBOX_OPERATIONS } from "../outbox/outboxState";
+import type { ProcessDirective } from "../outbox/eventProcessor";
+import type { ClaimedClientOutboxEvent } from "../outbox/clientOutboxRpcClient";
+import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
+import { buildClientIndexUnit, toClientIndexDbRow } from "./clientIndexUnit";
+import type { ClientSourceConfig } from "./clientSources";
+
+/** Demo tenant (client index'e ASLA girmez; RPC read tarafıyla hizalı). */
+export const YH_CLIENT_DEMO_TENANT = "40f842a0-e3e8-448c-8971-9a938e1faccb";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v);
+}
+
+const complete = (note: string): ProcessDirective => ({ action: "complete", note });
+const permanent = (code: string): ProcessDirective => ({ action: "fail", retryClass: "permanent", code });
+const transient = (code: string): ProcessDirective => ({ action: "fail", retryClass: "transient", code });
+
+// ─── Client deindex sonucu (supabaseIndexAdapters DeindexStatus alt kümesi) ───
+export type ClientDeindexStatus = "ok" | "no-op" | "multi-row-anomaly" | "delete-failed";
+export interface ClientDeindexResult {
+  readonly status: ClientDeindexStatus;
+}
+
+// ─── Enjekte bağımlılıklar (test edilebilirlik) ──────────────────────────────
+export interface ClientOwnershipKey {
+  readonly config: ClientSourceConfig;
+  readonly sourceId: string;
+  readonly tenantId: string;
+  readonly clientId: string;
+}
+export interface ClientEventProcessorDeps {
+  /** Client registry çözümü (sourceKey → ClientSourceConfig | null). */
+  readonly resolveConfig: (sourceKey: string) => ClientSourceConfig | null;
+  /** tenant+client SCOPED kaynak satırı (yoksa null; IO hatası throw). Yalnız allowlist kolonları. */
+  readonly fetchSourceRow: (key: ClientOwnershipKey) => Promise<Record<string, unknown> | null>;
+  /** Client index upsert (onConflict source_table,source_id,section_ref → identity refresh). */
+  readonly upsertUnit: (dbRow: Record<string, unknown>) => Promise<{ ok: boolean }>;
+  /** tenant+client scoped fiziksel deindex. */
+  readonly deindex: (key: ClientOwnershipKey) => Promise<ClientDeindexResult>;
+  /** BF-11E RUNTIME ACTIVATION GATE (server enjekte eder). Enjekte edilmezse (harness) atlanır. */
+  readonly isSourceProcessingActive?: (sourceKey: string) => Promise<boolean>;
+}
+
+// ─── Ana işleyici ─────────────────────────────────────────────────────────────
+export async function processClientOutboxEvent(
+  event: ClaimedClientOutboxEvent,
+  deps: ClientEventProcessorDeps,
+): Promise<ProcessDirective> {
+  // Kapı 1: operation geçerli mi?
+  if (!(OUTBOX_OPERATIONS as readonly string[]).includes(event.operation)) {
+    return permanent("invalid-operation");
+  }
+  // Kapı 2: source_key client registry'de mi?
+  const config = deps.resolveConfig(event.sourceKey);
+  if (config === null) return permanent("unknown-source");
+  // Kapı 3: event.source_table === config.tableName?
+  if (event.sourceTable !== config.tableName) return permanent("source-table-mismatch");
+  // Kapı 4: tenant_id + client_id + source_id geçerli UUID mi? (client bağlamı: client_id ZORUNLU)
+  if (!isUuid(event.tenantId) || !isUuid(event.clientId) || !isUuid(event.sourceId)) {
+    return permanent("invalid-event-contract");
+  }
+  // Kapı 5 (BF-11E RUNTIME ACTIVATION GATE): inactive → COMPLETE no-op (dormant drain;
+  //   index YAZILMAZ, deindex YAPILMAZ). Client kaynakları merge sonrası burada durur.
+  if (deps.isSourceProcessingActive !== undefined) {
+    let active: boolean;
+    try {
+      active = await deps.isSourceProcessingActive(event.sourceKey);
+    } catch {
+      return transient("activation-check-error"); // fail-closed; sessiz aktif YOK
+    }
+    if (!active) return complete("inactive-source-noop");
+  }
+  // Kapı 6: demo/synthetic tenant → ASLA indexlenmez (defensive deindex + complete).
+  if (event.tenantId === YH_CLIENT_DEMO_TENANT) {
+    return defensiveDeindex(event, config, deps, "excluded-demo");
+  }
+  if (isSyntheticTenantId(event.tenantId)) {
+    return defensiveDeindex(event, config, deps, "excluded-synthetic");
+  }
+
+  if (event.operation === "delete") {
+    return handleDelete(event, config, deps);
+  }
+  return handleUpsert(event, config, deps);
+}
+
+async function handleUpsert(
+  event: ClaimedClientOutboxEvent,
+  config: ClientSourceConfig,
+  deps: ClientEventProcessorDeps,
+): Promise<ProcessDirective> {
+  const key: ClientOwnershipKey = {
+    config,
+    sourceId: event.sourceId,
+    tenantId: event.tenantId,
+    clientId: event.clientId,
+  };
+
+  let row: Record<string, unknown> | null;
+  try {
+    row = await deps.fetchSourceRow(key);
+  } catch {
+    return transient("index-io-error");
+  }
+  // Kaynak artık tenant+client'a ait değil/silinmiş → GHOST recreate YOK; defensive deindex.
+  if (row === null) return defensiveDeindex(event, config, deps, "not-found");
+
+  const unit = buildClientIndexUnit(config, row, { tenantId: event.tenantId, clientId: event.clientId });
+  // İndekslenebilir içerik yok (evidence gate) → defensive deindex (tutarlı index).
+  if (unit === null) return defensiveDeindex(event, config, deps, "skipped-build");
+
+  const dbRow = toClientIndexDbRow(unit);
+  let res: { ok: boolean };
+  try {
+    res = await deps.upsertUnit(dbRow);
+  } catch {
+    return transient("index-io-error");
+  }
+  if (!res.ok) return transient("index-write-error");
+  return complete("upsert-ok");
+}
+
+async function handleDelete(
+  event: ClaimedClientOutboxEvent,
+  config: ClientSourceConfig,
+  deps: ClientEventProcessorDeps,
+): Promise<ProcessDirective> {
+  let d: ClientDeindexResult;
+  try {
+    d = await deps.deindex({ config, sourceId: event.sourceId, tenantId: event.tenantId, clientId: event.clientId });
+  } catch {
+    return transient("deindex-io-error");
+  }
+  switch (d.status) {
+    case "ok":
+      return complete("delete-one");
+    case "no-op":
+      return complete("delete-none");
+    case "multi-row-anomaly":
+      return permanent("deindex-multi-row");
+    case "delete-failed":
+      return transient("deindex-db-error");
+    default: {
+      const _exhaustive: never = d.status;
+      return permanent(`deindex-unknown:${String(_exhaustive)}`);
+    }
+  }
+}
+
+async function defensiveDeindex(
+  event: ClaimedClientOutboxEvent,
+  config: ClientSourceConfig,
+  deps: ClientEventProcessorDeps,
+  reason: string,
+): Promise<ProcessDirective> {
+  let d: ClientDeindexResult;
+  try {
+    d = await deps.deindex({ config, sourceId: event.sourceId, tenantId: event.tenantId, clientId: event.clientId });
+  } catch {
+    return transient("deindex-io-error");
+  }
+  switch (d.status) {
+    case "ok":
+    case "no-op":
+      return complete(`defensive-deindex:${reason}`);
+    case "multi-row-anomaly":
+      return permanent("deindex-multi-row");
+    case "delete-failed":
+      return transient("deindex-db-error");
+    default: {
+      const _exhaustive: never = d.status;
+      return permanent(`deindex-unknown:${String(_exhaustive)}`);
+    }
+  }
+}
+
+// ─── Batch orkestratörü (saf; professional runOutboxBatch ile AYNI şekil) ──────
+export type ClientCompleteRpcResult = "succeeded" | "requeued_newer_event";
+export type ClientFailRpcResult = "retry_scheduled" | "dead" | "requeued_newer_event";
+
+export interface ClientOutboxBatchDeps extends ClientEventProcessorDeps {
+  readonly worker: string;
+  readonly claimBatch: number;
+  readonly leaseSeconds: number;
+  readonly permanentMaxAttempts: number;
+  readonly transientMaxAttempts: number;
+  readonly baseDelaySeconds: number;
+  readonly maxDelaySeconds: number;
+  readonly sweep: (leaseSeconds: number, batch: number) => Promise<ReadonlyArray<unknown>>;
+  readonly claim: (worker: string, batch: number) => Promise<readonly ClaimedClientOutboxEvent[]>;
+  readonly complete: (id: string, worker: string, version: number) => Promise<ClientCompleteRpcResult>;
+  readonly fail: (
+    id: string,
+    worker: string,
+    version: number,
+    code: string,
+    maxAttempts: number,
+    baseDelay: number,
+    maxDelay: number,
+  ) => Promise<ClientFailRpcResult>;
+}
+
+export interface ClientOutboxBatchSummary {
+  readonly swept: number;
+  readonly claimed: number;
+  readonly completed: number;
+  readonly requeued: number;
+  readonly failedPermanent: number;
+  readonly failedTransient: number;
+  readonly transportErrors: number;
+}
+
+export async function runClientOutboxBatch(deps: ClientOutboxBatchDeps): Promise<ClientOutboxBatchSummary> {
+  const swept = await deps.sweep(deps.leaseSeconds, deps.claimBatch);
+  const claimed = await deps.claim(deps.worker, deps.claimBatch);
+
+  let completed = 0;
+  let requeued = 0;
+  let failedPermanent = 0;
+  let failedTransient = 0;
+  let transportErrors = 0;
+
+  for (const ev of claimed) {
+    let directive: ProcessDirective;
+    try {
+      directive = await processClientOutboxEvent(ev, deps);
+    } catch {
+      directive = { action: "fail", retryClass: "transient", code: "unexpected-processor-error" };
+    }
+
+    try {
+      if (directive.action === "complete") {
+        const r = await deps.complete(ev.id, deps.worker, ev.eventVersion);
+        if (r === "requeued_newer_event") requeued += 1;
+        else completed += 1;
+      } else {
+        const maxAttempts =
+          directive.retryClass === "permanent" ? deps.permanentMaxAttempts : deps.transientMaxAttempts;
+        const r = await deps.fail(
+          ev.id,
+          deps.worker,
+          ev.eventVersion,
+          directive.code,
+          maxAttempts,
+          deps.baseDelaySeconds,
+          deps.maxDelaySeconds,
+        );
+        if (r === "requeued_newer_event") requeued += 1;
+        else if (directive.retryClass === "permanent") failedPermanent += 1;
+        else failedTransient += 1;
+      }
+    } catch {
+      transportErrors += 1; // olay processing'de kalır → sweep kurtarır
+    }
+  }
+
+  return {
+    swept: swept.length,
+    claimed: claimed.length,
+    completed,
+    requeued,
+    failedPermanent,
+    failedTransient,
+    transportErrors,
+  };
+}

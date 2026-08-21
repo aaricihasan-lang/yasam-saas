@@ -249,7 +249,7 @@ export const YH_ACTIVATION_MATRIX = [
   client("danisan:sessions", "Seans", "client_sessions"),
   client("danisan:homeworks", "Ödev", "client_homeworks"),
   client("danisan:appointments", "Randevu", "appointments"),
-  client("danisan:hd-charts", "Human Design", "human_design_charts"),
+  client("danisan:notes", "Not", "client_notes"),
 ] as const satisfies readonly ActivationMatrixEntry[];
 
 export type ActivationMatrixSourceKey = (typeof YH_ACTIVATION_MATRIX)[number]["sourceKey"];
@@ -472,11 +472,11 @@ function client(sourceKey: string, module: string, sourceTable: string): Activat
     backfillEligibility: "blocked-test-data",
     triggerFeasibleNow: false,
     activationPrerequisite:
-      "BF-11E: enabled:true + client index (yasam_hafizasi_client_index) worker/CDC kapsamı + PII denylist enforcement + kontrollü index. Mevcut client verisi test-data riski → kör backfill YASAK. " + SEP_APPROVAL,
+      "BF-11E: enabled:true + client index (yasam_hafizasi_client_index) worker/CDC kapsamı + doğrudan-kimlik denylist enforcement + kontrollü index. Mevcut client verisi test-data riski → kör backfill YASAK. " + SEP_APPROVAL,
     activationCohort: "client-memory",
     rollbackBehavior: DORMANT_ROLLBACK,
     recommendation:
-      "FUTURE_ONLY_READY (client): AYRI client index/RPC (professional havuzuna GİRMEZ). Yalnız PII'siz kod/etiket/tarih; serbest metin/isim denylist. Foundation hazırlanabilir ama merge production'da OTOMATİK index üretmez; mevcut test-tenant verisi backfill EDİLMEZ; production aktivasyonu ayrı onay.",
+      "FUTURE_ONLY_READY (client): AYRI PRIVATE/SENSITIVE client index/RPC (professional havuzuna GİRMEZ). Private Memory Politika Kilidi: klinik serbest metin ARANABİLİR; yalnız doğrudan kimlik/iletişim kolonları (ad-soyad/telefon/adres/e-posta/doğum) denylist; güvenlik authorization'a dayanır (tenant+client fail-closed), danışan adı index'e kopyalanmaz. Foundation hazırlanabilir ama merge production'da OTOMATİK index üretmez; mevcut test-tenant verisi backfill EDİLMEZ; production aktivasyonu ayrı onay.",
   };
 }
 

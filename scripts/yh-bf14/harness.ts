@@ -30,7 +30,6 @@ const CLIENT = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
 const SID = "cccccccc-cccc-4ccc-cccc-cccccccccccc";
 const ACTOR = "dddddddd-dddd-4ddd-dddd-dddddddddddd";
 const SEL = "eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee";
-const PII = "SESSION_PII_SENTINEL_9x";
 
 const checks: { name: string; ok: boolean; detail: string }[] = [];
 const add = (name: string, ok: boolean, detail = ""): void => {
@@ -60,36 +59,53 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   add("sources-denylist-violation-throws", threw, "");
 }
 
-// ── clientIndexUnit (PII-safe by construction) ──
+// ── clientIndexUnit (Private Memory: klinik metin ARANABİLİR; kimlik index DIŞI) ──
 {
   const cfg = YH_CLIENT_INDEX_SOURCES.find((s) => s.sourceKey === "danisan:sessions") as ClientSourceConfig;
+  const CLINICAL = "bas_agrisi_klinik_sentinel";
   const row = {
     id: SID,
     client_id: CLIENT,
     tenant_id: TENANT,
     session_type: "Refleksoloji Seansı",
     session_date: "2026-01-15",
-    session_note: PII,
-    suggestions: PII,
+    session_note: CLINICAL,
+    suggestions: "oneri_" + CLINICAL,
     fee: 500,
+    duration_minutes: 45,
   };
   const unit = buildClientIndexUnit(cfg, row, { tenantId: TENANT, clientId: CLIENT });
   add("unit-built", unit !== null, "");
   add("unit-scope", unit?.tenantId === TENANT && unit?.clientId === CLIENT, "");
   add("unit-title-safe", unit?.title === "Refleksoloji Seansı", unit?.title ?? "");
   add("unit-occurred", unit?.occurredAt === "2026-01-15", unit?.occurredAt ?? "");
-  add("unit-no-pii-leak", unit !== null && !JSON.stringify(unit).includes(PII), "PII sızıntısı!");
+  // md.1: klinik serbest metin (seans notu) searchText'te ARANABİLİR.
+  add("unit-clinical-indexed", unit !== null && (unit.searchText ?? "").includes(CLINICAL), "klinik metin indexlenmeli");
   const dbrow = unit ? toClientIndexDbRow(unit) : {};
   add("dbrow-is_client_pii-false", (dbrow as Record<string, unknown>).is_client_pii === false, "");
-  add("dbrow-no-pii-leak", !JSON.stringify(dbrow).includes(PII), "");
   // determinism
   const unit2 = buildClientIndexUnit(cfg, row, { tenantId: TENANT, clientId: CLIENT });
   add("unit-hash-deterministic", unit?.contentHash === unit2?.contentHash, "");
-  // Evidence Gate: no indexable content → null
-  const empty = buildClientIndexUnit(cfg, { id: SID, session_note: PII }, { tenantId: TENANT, clientId: CLIENT });
+  // Evidence Gate: indexlenebilir içerik yok (yalnız denylist fee) → null
+  const empty = buildClientIndexUnit(cfg, { id: SID, fee: 500 }, { tenantId: TENANT, clientId: CLIENT });
   add("unit-evidence-gate-null", empty === null, "");
   // bad uuid → null
   add("unit-bad-uuid-null", buildClientIndexUnit(cfg, { id: "nope", session_type: "x" }, { tenantId: TENANT, clientId: CLIENT }) === null, "");
+}
+
+// ── notes: klinik metin ARANABİLİR; adres (doğrudan kimlik, md.3) index DIŞI ──
+{
+  const notesCfg = YH_CLIENT_INDEX_SOURCES.find((s) => s.sourceKey === "danisan:notes") as ClientSourceConfig;
+  const CLIN = "bas_agrisi_saglik_notu";
+  const IDN = "MAH_SOKAK_NO5_ADRES_SENTINEL";
+  const nrow = { id: SID, client_id: CLIENT, tenant_id: TENANT, saglik_notu: CLIN, adres: IDN, oneriler: "duzenli_su", notlar: "" };
+  const nunit = buildClientIndexUnit(notesCfg, nrow, { tenantId: TENANT, clientId: CLIENT });
+  add("notes-built", nunit !== null, "");
+  add("notes-module", nunit?.sourceModule === "danisan_not", nunit?.sourceModule ?? "");
+  add("notes-clinical-indexed", nunit !== null && (nunit.searchText ?? "").includes(CLIN), "sağlık notu indexlenmeli");
+  add("notes-identity-denylist-unit", nunit !== null && !JSON.stringify(nunit).includes(IDN), "adres index'e SIZAMAZ");
+  const ndb = nunit ? toClientIndexDbRow(nunit) : {};
+  add("notes-identity-denylist-dbrow", !JSON.stringify(ndb).includes(IDN), "");
 }
 
 // ── request parse (tenant/client body ignored) ──
@@ -194,10 +210,91 @@ function migrationChecks(): void {
   add("mig-no-data-dml", !/\bINSERT\s+INTO\b/i.test(sql) && !/\bDELETE\s+FROM\b/i.test(sql) && !/\bUPDATE\s+public\./i.test(sql) && !/\bSELECT[\s\S]*FROM public\.client_/i.test(sql), "");
 }
 
+// ── Private Memory yeni migration'ları (Delta A/C/E) statik denetimi ──
+function privateMemoryMigrationChecks(): void {
+  const read = (f: string): string => readFileSync(join(process.cwd(), "supabase/migrations/" + f), "utf8");
+
+  // Delta A — private reclassify + per-client RPC (is_client_pii filtresi kalkar)
+  const a = read("20261217000000_yh_client_index_private_reclassify.sql");
+  // SQL yorumlarını at (yalnız gerçek predicate'i denetle; açıklama yorumları yanıltmasın).
+  const aSql = a.replace(/--[^\n]*/g, "");
+  add("A-drop-pii-check", /DROP CONSTRAINT IF EXISTS yhci_no_pii_chk/.test(a), "");
+  add("A-rpc-replace", /CREATE OR REPLACE FUNCTION public\.yh_search_client_candidates/.test(a), "");
+  add("A-rpc-no-pii-filter", !/is_client_pii = false/.test(aSql), "PII filtresi (gerçek predicate) kaldırılmalı");
+  add("A-rpc-invoker", /SECURITY INVOKER/.test(a) && /SET search_path = public, pg_catalog/.test(a), "");
+  add(
+    "A-rpc-service-role-only",
+    /REVOKE ALL ON FUNCTION public\.yh_search_client_candidates[\s\S]*FROM PUBLIC, anon, authenticated/.test(a) &&
+      /GRANT EXECUTE ON FUNCTION public\.yh_search_client_candidates[\s\S]*TO service_role/.test(a),
+    "",
+  );
+  add(
+    "A-professional-untouched",
+    !/CREATE OR REPLACE FUNCTION public\.yh_search_candidates\b/.test(a) &&
+      !/(ALTER|DROP|CREATE)\s+(TABLE|TRIGGER)[^\n;]*public\.yasam_hafizasi_index\b/i.test(a),
+    "",
+  );
+  add("A-no-data-dml", !/\bINSERT\s+INTO\b/i.test(a) && !/\bDELETE\s+FROM\b/i.test(a), "");
+
+  // Delta C — tenant-wide RPC (client_id filtresi YOK; client_id döner)
+  const c = read("20261217000100_yh_search_tenant_client_candidates.sql");
+  add("C-rpc-create", /CREATE OR REPLACE FUNCTION public\.yh_search_tenant_client_candidates/.test(c), "");
+  add("C-rpc-returns-client-id", /RETURNS TABLE[\s\S]*client_id\s+uuid/.test(c), "");
+  add("C-rpc-no-client-filter", !/i\.client_id = /.test(c), "tenant-wide: client filtresi olmamalı");
+  add("C-rpc-tenant-required", /p_session_tenant IS NULL/.test(c) && /i\.tenant_id = p_session_tenant/.test(c), "");
+  add("C-rpc-demo-excluded", /IS DISTINCT FROM c_demo_tenant/.test(c), "");
+  add(
+    "C-rpc-invoker-service-role",
+    /SECURITY INVOKER/.test(c) &&
+      /GRANT EXECUTE ON FUNCTION public\.yh_search_tenant_client_candidates[\s\S]*TO service_role/.test(c),
+    "",
+  );
+  add(
+    "C-professional-untouched",
+    !/CREATE OR REPLACE FUNCTION public\.yh_search_candidates\b/.test(c) &&
+      !/(ALTER|DROP|CREATE)\s+(TABLE|TRIGGER)[^\n;]*public\.yasam_hafizasi_index\b/i.test(c),
+    "",
+  );
+
+  // Delta E — client CDC outbox + 6 trigger (client_id yakalar; coalescing; kilitli)
+  const e = read("20261217000200_yh_client_cdc_outbox.sql");
+  add("E-outbox-table", /CREATE TABLE IF NOT EXISTS public\.yasam_hafizasi_client_outbox/.test(e), "");
+  add("E-outbox-has-client-id", /client_id\s+uuid\s+NOT NULL/.test(e), "");
+  add(
+    "E-enqueue-fn-definer",
+    /CREATE OR REPLACE FUNCTION public\.yh_client_outbox_enqueue/.test(e) &&
+      /SECURITY DEFINER/.test(e) &&
+      /SET search_path = public, pg_catalog/.test(e),
+    "",
+  );
+  add("E-enqueue-captures-client", /v_client_id := NEW\.client_id/.test(e) && /v_client_id := OLD\.client_id/.test(e), "");
+  add("E-enqueue-fail-closed-client", /client_id null/.test(e), "");
+  add("E-coalescing", /ON CONFLICT \(source_key, source_id\) DO UPDATE/.test(e), "");
+  const cohort = ["client_combinations", "client_stones", "client_sessions", "client_homeworks", "appointments", "client_notes"];
+  add("E-6-triggers", cohort.every((t) => new RegExp(`CREATE TRIGGER[\\s\\S]*ON public\\.${t}\\b`).test(e)), cohort.filter((t) => !new RegExp(`CREATE TRIGGER[\\s\\S]*ON public\\.${t}\\b`).test(e)).join(","));
+  add(
+    "E-outbox-anon-locked",
+    /REVOKE ALL PRIVILEGES ON TABLE public\.yasam_hafizasi_client_outbox FROM anon, authenticated/.test(e) &&
+      /ENABLE ROW LEVEL SECURITY/.test(e),
+    "",
+  );
+  add("E-enqueue-execute-locked", /REVOKE ALL ON FUNCTION public\.yh_client_outbox_enqueue\(\) FROM PUBLIC, anon, authenticated/.test(e), "");
+  // NO backfill (kaynak client_ tablolarından INSERT..SELECT tarama YOK):
+  add("E-no-backfill", !/INSERT[\s\S]{0,40}SELECT[\s\S]{0,120}FROM public\.client_/i.test(e), "");
+  // Professional outbox MUTASYONU yok (yalnız yorumda adı geçebilir).
+  add(
+    "E-professional-outbox-untouched",
+    !/(ALTER|DROP|CREATE)\s+(TABLE|TRIGGER)[^\n;]*public\.yasam_hafizasi_outbox\b/i.test(e) &&
+      !/ON public\.yasam_hafizasi_outbox\b/i.test(e),
+    "",
+  );
+}
+
 async function main(): Promise<void> {
   await retrievalChecks();
   snapshotChecks();
   migrationChecks();
+  privateMemoryMigrationChecks();
 
   const failed = checks.filter((c) => !c.ok);
   for (const c of checks) process.stdout.write(`${c.ok ? "PASS" : "FAIL"}  ${c.name}${c.ok ? "" : "  → " + c.detail}\n`);

@@ -161,10 +161,11 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("D-client-all-dormant", clientEntries.every((e) => e.registryEnabled === false));
   // Her client kaynağında client_id + tenant_id kolonu ZORUNLU (tenant+client izolasyon).
   add("D-client-has-client-and-tenant-col", YH_CLIENT_INDEX_SOURCES.every((s) => s.clientColumn === "client_id" && s.tenantColumn === "tenant_id"));
-  // PII/serbest metin index kolonlarında YOK (spoof/PII sızıntısı yok).
-  const piiFields = ["note", "notes", "session_note", "client_name", "birth_date", "title", "description", "client_feedback"];
+  // Private Memory Politika Kilidi md.1/md.3: klinik serbest metin (note/session_note/
+  // description/title...) ARANABİLİR; YALNIZ doğrudan kimlik/iletişim kolonları index DIŞI.
+  const identityFields = ["ad", "soyad", "client_name", "telefon", "phone", "adres", "address", "email", "e_posta", "eposta", "dogum", "birth_date", "birth_time", "birth_place", "tc_no", "kimlik_no"];
   const clientIndexedCols = YH_CLIENT_INDEX_SOURCES.flatMap((s) => [...s.titleColumns, ...s.searchTextColumns, ...s.snippetColumns, ...s.topicTagsColumns]);
-  add("D-no-pii-in-client-index", !clientIndexedCols.some((c) => piiFields.includes(c)), clientIndexedCols.join(","));
+  add("D-no-identity-in-client-index", !clientIndexedCols.some((c) => identityFields.includes(c)), clientIndexedCols.join(","));
   // Disabled source no-op: aktive edilmiş runtime bile registryEnabled=false → inactive.
   add("D-client-disabled-no-op", clientEntries.every((e) => !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(e))));
   // Drift: client kaynak aktif ama scope client değilse yakalanır.
