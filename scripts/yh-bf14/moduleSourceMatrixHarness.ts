@@ -120,10 +120,10 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   add("numeroloji-professional-dormant-ready", entry("numeroloji")?.classification === "DORMANT_READY" && entry("numeroloji")?.professionalSourceKeys.length === 2 && entry("numeroloji")?.clientSourceKeys.length === 0);
   add("numeroloji-deny-client-result", denyHas("numeroloji", "danışan analiz sonucu"));
 
-  // Human Design: birth data denied; frozen engine; client dormant chart.
+  // Human Design: birth data denied; frozen engine; Private Memory Politika Kilidi md.13 → client chart DEFER.
   add("hd-deny-birthdata", denyHas("human_design", "doğum tarihi") && denyHas("human_design", "doğum saati") && denyHas("human_design", "koordinat"));
   add("hd-frozen-engine-noted", rationaleHas("human_design", "frozen") || rationaleHas("human_design", "dokunulmaz"));
-  add("hd-client-dormant-chart", cliKeysOf("human_design").includes("danisan:hd-charts"));
+  add("hd-client-deferred", cliKeysOf("human_design").length === 0 && entry("human_design")?.classification === "DEFERRED_FOR_SAFETY");
 
   // Aromaterapi: katman koruması.
   add("aroma-layer-protection", rationaleHas("aromaterapi", "katman") && (denyHas("aromaterapi", "faithful translation") || rationaleHas("aromaterapi", "faithful translation")));
@@ -131,8 +131,15 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // Doğaltaş: admin/uzman ayrı; birleştirme yok.
   add("dogaltas-admin-uzman-separate", rationaleHas("dogaltas", "ayrı source") || rationaleHas("dogaltas", "birleştirme yok") || rationaleHas("dogaltas", "otomatik birleştirme yok"));
 
-  // Danışan Yolculuğu: serbest metin/PII denylist.
-  add("dy-freetext-denied", denyHas("danisan_yolculugu", "serbest metin") && denyHas("danisan_yolculugu", "sağlık öyküsü"));
+  // Danışan Yolculuğu: Private Memory Politika Kilidi → klinik serbest metin ARANABİLİR;
+  // yalnız doğrudan kimlik kolonları denied; client_notes cohort'a dahil.
+  add(
+    "dy-clinical-searchable",
+    (entry("danisan_yolculugu")?.allow ?? []).some((a) => a.toLowerCase().includes("klinik serbest metin")) &&
+      denyHas("danisan_yolculugu", "ad-soyad") &&
+      denyHas("danisan_yolculugu", "telefon") &&
+      cliKeysOf("danisan_yolculugu").includes("danisan:notes"),
+  );
 
   // Şifa Rehberi: snapshot recursive source yasağı.
   add("sifa-no-recursive-snapshot", denyHas("sifa_rehberi", "snapshot") && entry("sifa_rehberi")?.clientSourceKeys.length === 0);

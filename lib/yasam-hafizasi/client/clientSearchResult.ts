@@ -96,6 +96,7 @@ const KNOWN_CLIENT_MODULES: Record<string, 1> = {
   danisan_tas: 1,
   danisan_seans: 1,
   danisan_odev: 1,
+  danisan_not: 1,
   randevu: 1,
   human_design: 1,
 };
