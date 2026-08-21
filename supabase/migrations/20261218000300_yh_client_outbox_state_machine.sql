@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20261217000300_yh_client_outbox_state_machine.sql
+-- 20261218000300_yh_client_outbox_state_machine.sql
 --
 -- YAŞAM HAFIZASI™ — PRIVATE MEMORY: CLIENT OUTBOX DURUM MAKİNESİ (claim/complete/fail/sweep)
 --

@@ -284,7 +284,7 @@ async function run(): Promise<void> {
     add("client-processor-no-professional-index", !/yasam_hafizasi_index\b/.test(cep), "");
 
     // Client state-machine migration: client_id döner + DEFINER + service_role + professional untouched.
-    const mig = read("supabase/migrations/20261217000300_yh_client_outbox_state_machine.sql");
+    const mig = read("supabase/migrations/20261218000300_yh_client_outbox_state_machine.sql");
     add("client-rpc-claim-returns-client-id", /RETURNS TABLE[\s\S]*client_id\s+uuid/.test(mig), "");
     add("client-rpc-definer-service-role", /SECURITY DEFINER/.test(mig) && /GRANT EXECUTE ON FUNCTION public\.yh_client_outbox_claim[\s\S]*TO service_role/.test(mig), "");
     add(

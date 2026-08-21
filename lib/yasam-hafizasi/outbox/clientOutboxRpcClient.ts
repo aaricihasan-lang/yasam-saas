@@ -2,7 +2,7 @@
  * PRIVATE MEMORY — Client Outbox RPC Client (framework-bağımsız; DI).
  * ====================================================================
  *
- * public.yasam_hafizasi_client_outbox durum makinesinin (migration 20261217000300)
+ * public.yasam_hafizasi_client_outbox durum makinesinin (migration 20261218000300)
  * dört RPC'sine dar, test edilebilir erişim (BF-11B outboxRpcClient'ın client karşılığı):
  *   yh_client_outbox_claim / _complete / _fail / _sweep_expired
  *

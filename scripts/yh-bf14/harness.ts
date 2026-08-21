@@ -215,7 +215,7 @@ function privateMemoryMigrationChecks(): void {
   const read = (f: string): string => readFileSync(join(process.cwd(), "supabase/migrations/" + f), "utf8");
 
   // Delta A — private reclassify + per-client RPC (is_client_pii filtresi kalkar)
-  const a = read("20261217000000_yh_client_index_private_reclassify.sql");
+  const a = read("20261218000000_yh_client_index_private_reclassify.sql");
   // SQL yorumlarını at (yalnız gerçek predicate'i denetle; açıklama yorumları yanıltmasın).
   const aSql = a.replace(/--[^\n]*/g, "");
   add("A-drop-pii-check", /DROP CONSTRAINT IF EXISTS yhci_no_pii_chk/.test(a), "");
@@ -237,7 +237,7 @@ function privateMemoryMigrationChecks(): void {
   add("A-no-data-dml", !/\bINSERT\s+INTO\b/i.test(a) && !/\bDELETE\s+FROM\b/i.test(a), "");
 
   // Delta C — tenant-wide RPC (client_id filtresi YOK; client_id döner)
-  const c = read("20261217000100_yh_search_tenant_client_candidates.sql");
+  const c = read("20261218000100_yh_search_tenant_client_candidates.sql");
   add("C-rpc-create", /CREATE OR REPLACE FUNCTION public\.yh_search_tenant_client_candidates/.test(c), "");
   add("C-rpc-returns-client-id", /RETURNS TABLE[\s\S]*client_id\s+uuid/.test(c), "");
   add("C-rpc-no-client-filter", !/i\.client_id = /.test(c), "tenant-wide: client filtresi olmamalı");
@@ -257,7 +257,7 @@ function privateMemoryMigrationChecks(): void {
   );
 
   // Delta E — client CDC outbox + 6 trigger (client_id yakalar; coalescing; kilitli)
-  const e = read("20261217000200_yh_client_cdc_outbox.sql");
+  const e = read("20261218000200_yh_client_cdc_outbox.sql");
   add("E-outbox-table", /CREATE TABLE IF NOT EXISTS public\.yasam_hafizasi_client_outbox/.test(e), "");
   add("E-outbox-has-client-id", /client_id\s+uuid\s+NOT NULL/.test(e), "");
   add(

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20261217000200_yh_client_cdc_outbox.sql
+-- 20261218000200_yh_client_cdc_outbox.sql
 --
 -- YAŞAM HAFIZASI™ — PRIVATE MEMORY: CLIENT CDC OUTBOX + ENQUEUE TRIGGERS
 --
