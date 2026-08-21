@@ -9,7 +9,14 @@ import {
   getCuppingMap,
   type CuppingMapGroup,
 } from "@/lib/cupping/maps";
-import { KupaShell, kupaBtnPrimary, kupaCard, kupaInput } from "../components/KupaShell";
+import {
+  KupaShell,
+  kupaBtnPrimary,
+  kupaCard,
+  kupaInput,
+  kupaPill,
+  kupaPillActive,
+} from "../components/KupaShell";
 import { BodySilhouette } from "../maps/Silhouettes";
 import {
   createPointTopic,
@@ -164,17 +171,17 @@ export default function AmacRehberiPage() {
       breadcrumb={[{ label: "Amaç / Rahatsızlık Rehberi" }]}
     >
       {error ? (
-        <div className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
           {error}
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[300px_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
         {/* SOL: konular + ilişki yönetimi */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className={kupaCard}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Konular</h3>
-            <div className="mb-2 flex gap-1.5">
+            <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Konular</h3>
+            <div className="mb-2.5 flex gap-1.5">
               <input
                 value={newTopic}
                 onChange={(e) => setNewTopic(e.target.value)}
@@ -182,25 +189,27 @@ export default function AmacRehberiPage() {
                 placeholder="Yeni konu…"
                 className={kupaInput}
               />
-              <button type="button" onClick={handleCreateTopic} disabled={!newTopic.trim()} className={kupaBtnPrimary}>
+              <button type="button" onClick={handleCreateTopic} disabled={!newTopic.trim()} className={kupaBtnPrimary} aria-label="Konu ekle">
                 +
               </button>
             </div>
-            <div className="max-h-64 space-y-1 overflow-y-auto">
+            <div className="max-h-72 space-y-1.5 overflow-y-auto pr-0.5">
               {loading ? (
-                <p className="text-xs text-slate-500">Yükleniyor…</p>
+                <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
               ) : topics.length === 0 ? (
-                <p className="text-xs text-slate-500">Henüz konu yok.</p>
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
+                  <p className="text-xs text-slate-500">Henüz konu yok.</p>
+                </div>
               ) : (
                 topics.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setSelectedTopicId(t.id)}
-                    className={`block w-full truncate rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
+                    className={`block w-full truncate rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
                       selectedTopicId === t.id
-                        ? "border-amber-400/50 bg-amber-500/20 text-amber-100"
-                        : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
+                        ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50/50"
                     }`}
                   >
                     {t.title}
@@ -212,10 +221,10 @@ export default function AmacRehberiPage() {
 
           {selectedTopicId ? (
             <div className={kupaCard}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 İlişkili Noktalar
               </h3>
-              <div className="mb-2 flex gap-1.5">
+              <div className="mb-2.5 flex gap-1.5">
                 <select value={linkPointId} onChange={(e) => setLinkPointId(e.target.value)} className={kupaInput}>
                   <option value="">— nokta bağla —</option>
                   {points
@@ -230,17 +239,17 @@ export default function AmacRehberiPage() {
                   Bağla
                 </button>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {relations.length === 0 ? (
-                  <p className="text-xs text-slate-500">Bu konuya bağlı nokta yok.</p>
+                  <p className="px-1 text-xs text-slate-400">Bu konuya bağlı nokta yok.</p>
                 ) : (
                   relations.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
+                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
                     >
-                      <span className="truncate text-xs text-slate-200">{pointName(r.point_id)}</span>
-                      <button type="button" onClick={() => handleUnlink(r.id)} className="text-[11px] text-rose-300 hover:text-rose-200">
+                      <span className="truncate text-sm font-medium text-slate-700">{pointName(r.point_id)}</span>
+                      <button type="button" onClick={() => handleUnlink(r.id)} className="shrink-0 text-[11px] font-semibold text-rose-600 transition hover:text-rose-700">
                         kaldır
                       </button>
                     </div>
@@ -252,8 +261,8 @@ export default function AmacRehberiPage() {
         </div>
 
         {/* SAĞ: harita */}
-        <div className={`${kupaCard} min-h-[60vh]`}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className={kupaCard}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap gap-1.5">
               {GROUP_ORDER.flatMap((g) =>
                 CUPPING_BODY_MAPS.filter((m) => m.group === g).map((m) => (
@@ -262,23 +271,23 @@ export default function AmacRehberiPage() {
                     type="button"
                     onClick={() => setMapKey(m.key)}
                     title={CUPPING_MAP_GROUP_LABELS[g]}
-                    className={`rounded-lg border px-2 py-1 text-[10px] transition ${
-                      mapKey === m.key
-                        ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
-                        : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                    }`}
+                    aria-pressed={mapKey === m.key}
+                    className={mapKey === m.key ? kupaPillActive : kupaPill}
                   >
                     {m.label}
                   </button>
                 )),
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
-              {shownOnMap} nokta bu haritada
-              {relatedButNotOnMap > 0 ? ` · ${relatedButNotOnMap} nokta bu haritada yerleşimsiz` : ""}
+            <p className="text-[11px] font-medium text-slate-500">
+              <span className="font-bold text-amber-800">{shownOnMap}</span> nokta bu haritada
+              {relatedButNotOnMap > 0 ? ` · ${relatedButNotOnMap} yerleşimsiz` : ""}
             </p>
           </div>
-          <div className="relative w-full rounded-xl border border-white/10 bg-[#0b1330]" style={{ height: "min(70vh, 640px)" }}>
+          <div
+            className="relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-amber-50/40 shadow-inner"
+            style={{ height: "min(74vh, 760px)" }}
+          >
             <BodyMapCanvas
               mapKey={mapKey}
               marks={marks}
