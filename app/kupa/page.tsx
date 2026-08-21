@@ -10,37 +10,37 @@ const AREAS: { title: string; desc: string; icon: string; href: string }[] = [
     title: "Vücut & Nokta Atlası",
     desc: "Haritada nokta yerleşimlerini işaretle, taşı, boyutlandır ve kaydet.",
     icon: "🫙",
-    href: "/dashboard/kupa/nokta-atlasi",
+    href: "/kupa/nokta-atlasi",
   },
   {
     title: "Hacamat Noktaları",
     desc: "Nokta kayıtları: ad, kod, anatomik bölge, geleneksel kullanım, güvenlik.",
     icon: "📍",
-    href: "/dashboard/kupa/noktalar",
+    href: "/kupa/noktalar",
   },
   {
     title: "Amaç / Rahatsızlık Rehberi",
     desc: "Konu ↔ nokta ilişkisi; konuyu aç, ilgili noktaları haritada birlikte gör.",
     icon: "🎯",
-    href: "/dashboard/kupa/amac-rehberi",
+    href: "/kupa/amac-rehberi",
   },
   {
     title: "Kupa Teknikleri",
     desc: "Kuru, yaş (hacamat), sabit ve hareketli/kaydırmalı teknik kayıtları.",
     icon: "🌀",
-    href: "/dashboard/kupa/teknikler",
+    href: "/kupa/teknikler",
   },
   {
     title: "Bilgi & Eğitim Kütüphanesi",
     desc: "Uzun profesyonel bilgi ve eğitim kayıtları.",
     icon: "📚",
-    href: "/dashboard/kupa/bilgi-kutuphanesi",
+    href: "/kupa/bilgi-kutuphanesi",
   },
   {
     title: "Güvenlik & Kontrendikasyonlar",
     desc: "Bağımsız güvenlik/kontrendikasyon kayıtları (açıklamaya gömülü değil).",
     icon: "⚠️",
-    href: "/dashboard/kupa/guvenlik",
+    href: "/kupa/guvenlik",
   },
 ];
 
