@@ -104,3 +104,15 @@ export const CUPPING_POINT_TOPIC_COPY_FIELDS = [
   "source_note",
   "relation_strength",
 ] as const;
+
+/**
+ * FAZ 1.5 — citation junction META alanları. Her citation tablosu için ORTAK
+ * (source_id + entity FK motor tarafından junctionFkA/junctionFkB ile ayrıca remap
+ * edilir; bunlar yalnız iş alanları). Tek allowlist 6 tabloda paylaşılır.
+ */
+export const CUPPING_CITATION_COPY_FIELDS = [
+  "locator",
+  "evidence_class",
+  "note",
+  "sort_order",
+] as const;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
 
 /**
@@ -33,6 +33,8 @@ type CrudManagerProps<T extends Rec> = {
   remove: (id: string) => Promise<number>;
   emptyLabel: string;
   addLabel: string;
+  /** Kayıtlı bir kayıt seçiliyken form altında ek panel (ör. Kaynaklar/citation). */
+  renderExtra?: (record: T) => ReactNode;
 };
 
 function toFormValue(v: unknown, type: FieldType): string | boolean {
@@ -67,6 +69,7 @@ export function CrudManager<T extends Rec>({
   remove,
   emptyLabel,
   addLabel,
+  renderExtra,
 }: CrudManagerProps<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -287,6 +290,9 @@ export function CrudManager<T extends Rec>({
                   </button>
                 ) : null}
               </div>
+              {!creating && selectedId && renderExtra
+                ? renderExtra(items.find((i) => i.id === selectedId) as T)
+                : null}
             </>
           )}
         </div>

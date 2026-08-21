@@ -2,6 +2,7 @@
 
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
+import { CuppingCitationManager } from "../components/CitationManager";
 import { createKnowledge, deleteKnowledge, listKnowledge, updateKnowledge, type CuppingKnowledge } from "../lib/api";
 
 const FIELDS: FieldDef[] = [
@@ -34,6 +35,7 @@ export default function BilgiKutuphanesiPage() {
         remove={deleteKnowledge}
         emptyLabel="Henüz bilgi kaydı yok. Yeni ekleyin."
         addLabel="Kayıt"
+        renderExtra={(rec) => <CuppingCitationManager entity="knowledge" entityId={rec.id} />}
       />
     </KupaShell>
   );

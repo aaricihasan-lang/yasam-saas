@@ -26,6 +26,8 @@ export type CuppingPoint = {
   safety_note?: string | null;
   source_note?: string | null;
   professional_note?: string | null;
+  synonyms?: string[] | null;
+  laterality?: string | null;
   sort_order?: number;
   is_active?: boolean;
 };
@@ -68,6 +70,8 @@ export type CuppingTechnique = {
   id: string;
   name: string;
   kind?: string | null;
+  technique_type?: string | null;
+  movement_style?: string | null;
   description?: string | null;
   application_info?: string | null;
   safety_note?: string | null;
@@ -100,6 +104,10 @@ export type CuppingSource = {
   source_url?: string | null;
   accessed_on?: string | null;
   note?: string | null;
+  year?: number | null;
+  identifier?: string | null;
+  publication?: string | null;
+  language?: string | null;
   sort_order?: number;
 };
 
@@ -108,11 +116,31 @@ export type CuppingSafetyNote = {
   title: string;
   content?: string | null;
   severity: "info" | "warning" | "contraindication";
+  contraindication_class?: string | null;
   scope_tags?: string[] | null;
   source_note?: string | null;
   sort_order?: number;
   is_active?: boolean;
 };
+
+/** Tipli citation junction kaydı (6 entity için ortak şekil). */
+export type CuppingCitation = {
+  id: string;
+  source_id: string;
+  locator?: string | null;
+  evidence_class?: string | null;
+  note?: string | null;
+  sort_order?: number;
+} & Record<string, unknown>;
+
+/** UI'da citation eklenebilen entity anahtarları (route segmentleriyle birebir). */
+export type CuppingCitationEntity =
+  | "point"
+  | "topic"
+  | "point-topic"
+  | "technique"
+  | "knowledge"
+  | "safety";
 
 type ApiOk = { ok: true; [k: string]: unknown };
 
@@ -210,3 +238,29 @@ export const updateSafety = (id: string, body: Partial<CuppingSafetyNote>) =>
   call<CuppingSafetyNote>(`${BASE}/safety/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "note");
 export const deleteSafety = (id: string) =>
   call<number>(`${BASE}/safety/${id}`, { method: "DELETE" }, "deleted");
+
+// ─── Citations (tipli junction; tek generic client adaptörü) ─────────────────
+export const listCitations = (entity: CuppingCitationEntity, entityId: string) =>
+  call<CuppingCitation[]>(
+    `${BASE}/citations/${entity}?entityId=${encodeURIComponent(entityId)}`,
+    { method: "GET" },
+    "citations",
+  );
+export const createCitation = (entity: CuppingCitationEntity, body: Record<string, unknown>) =>
+  call<CuppingCitation>(
+    `${BASE}/citations/${entity}`,
+    { method: "POST", body: JSON.stringify(body) },
+    "citation",
+  );
+export const updateCitation = (
+  entity: CuppingCitationEntity,
+  id: string,
+  body: Record<string, unknown>,
+) =>
+  call<CuppingCitation>(
+    `${BASE}/citations/${entity}/${id}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    "citation",
+  );
+export const deleteCitation = (entity: CuppingCitationEntity, id: string) =>
+  call<number>(`${BASE}/citations/${entity}/${id}`, { method: "DELETE" }, "deleted");

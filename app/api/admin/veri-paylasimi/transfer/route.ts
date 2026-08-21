@@ -14,6 +14,7 @@ import {
   CUPPING_SOURCE_COPY_FIELDS,
   CUPPING_SAFETY_COPY_FIELDS,
   CUPPING_POINT_TOPIC_COPY_FIELDS,
+  CUPPING_CITATION_COPY_FIELDS,
 } from "@/lib/cupping/transferFields";
 
 export const runtime = "nodejs";
@@ -230,6 +231,13 @@ type GroupConfig = {
   junctionFkB?: string;
   /** junction: ikinci FK'nin remap için okunacağı hedef tablo. */
   junctionViaTableB?: string;
+  /**
+   * Aktarım sıra rütbesi (küçük önce). Verilmezse: junction=1, diğer=0. Bir junction
+   * BAŞKA bir junction'ın hedef kayıtlarına remap için ihtiyaç duyuyorsa (ör. citation
+   * → cupping_point_topics), o junction'dan SONRA çalışması için transferOrder=2 verilir.
+   * Böylece via-table batch readback'i (buildBatchIdMap) dolu olur.
+   */
+  transferOrder?: number;
 };
 
 /** UI grup anahtarı → tablo + kopya davranışı. transferRegistry ile eş küme. */
@@ -363,6 +371,48 @@ const REGISTRY = {
     copyFields: CUPPING_POINT_TOPIC_COPY_FIELDS, sourceMode: "admin_tenant",
     junctionFkA: "point_id", junctionViaTableA: "cupping_points",
     junctionFkB: "topic_id", junctionViaTableB: "cupping_topics",
+  },
+  // Kupa & Hacamat — FAZ 1.5 CITATION JUNCTION'ları (tipli; polimorfik DEĞİL). Her biri
+  // çift-FK: source_id (→cupping_sources) + entity_id (→ilgili parent), ikisi de bu batch'te
+  // remap edilir. Parent yoksa satır ATLANIR (dangling üretilmez). Junction oldukları için
+  // parent (flat/relational) gruplardan SONRA çalışırlar (transferOrder default=1 > 0).
+  cupping_point_sources: {
+    table: "cupping_point_sources", kind: "junction",
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "point_id", junctionViaTableB: "cupping_points",
+  },
+  cupping_topic_sources: {
+    table: "cupping_topic_sources", kind: "junction",
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "topic_id", junctionViaTableB: "cupping_topics",
+  },
+  cupping_technique_sources: {
+    table: "cupping_technique_sources", kind: "junction",
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "technique_id", junctionViaTableB: "cupping_techniques",
+  },
+  cupping_knowledge_sources: {
+    table: "cupping_knowledge_sources", kind: "junction",
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "knowledge_id", junctionViaTableB: "cupping_knowledge_records",
+  },
+  cupping_safety_sources: {
+    table: "cupping_safety_sources", kind: "junction",
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "safety_id", junctionViaTableB: "cupping_safety_notes",
+  },
+  // point_topic_sources'un entity FK'si cupping_point_topics'e (bir JUNCTION) bakar → o
+  // junction'ın hedef kayıtları ÖNCE oluşmalı. transferOrder=2 ile en sona alınır.
+  cupping_point_topic_sources: {
+    table: "cupping_point_topic_sources", kind: "junction", transferOrder: 2,
+    copyFields: CUPPING_CITATION_COPY_FIELDS, sourceMode: "admin_tenant",
+    junctionFkA: "source_id", junctionViaTableA: "cupping_sources",
+    junctionFkB: "point_topic_id", junctionViaTableB: "cupping_point_topics",
   },
 } as const satisfies Record<string, GroupConfig>;
 
@@ -834,13 +884,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   const groupKeys = groups as GroupKey[];
 
-  // Junction (M:N) grupları, FK remap için parent gruplarının (nokta/konu) hedef kayıtlarına
-  // ihtiyaç duyar → daima EN SONA sıralanır (aynı batch'te önce parent'lar insert edilir).
-  groupKeys.sort((a, b) => {
-    const ra = (REGISTRY[a] as GroupConfig).kind === "junction" ? 1 : 0;
-    const rb = (REGISTRY[b] as GroupConfig).kind === "junction" ? 1 : 0;
-    return ra - rb;
-  });
+  // Junction (M:N) grupları, FK remap için parent gruplarının hedef kayıtlarına ihtiyaç
+  // duyar → parent'lardan SONRA sıralanır. transferOrder açık verilirse onu kullan; yoksa
+  // junction=1, diğer=0. Bir junction başka bir junction'a bağlıysa (citation → point_topics)
+  // transferOrder=2 ile daha da sona alınır (via-table batch readback dolu olsun).
+  const orderOf = (k: GroupKey): number => {
+    const cfg = REGISTRY[k] as GroupConfig;
+    return cfg.transferOrder ?? (cfg.kind === "junction" ? 1 : 0);
+  };
+  groupKeys.sort((a, b) => orderOf(a) - orderOf(b));
 
   // filterMap: yalnız string uuid dizileri, sınırlı
   const filterMap: Partial<Record<GroupKey, string[]>> = {};

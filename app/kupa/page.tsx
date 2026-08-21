@@ -45,6 +45,12 @@ const SECONDARY: Area[] = [
     icon: "⚠️",
     href: "/kupa/guvenlik",
   },
+  {
+    title: "Kaynak Kataloğu",
+    desc: "Kaynak künyeleri; içerik atıfları (Kaynaklar bölümleri) bu kayıtlara bağlanır.",
+    icon: "📖",
+    href: "/kupa/kaynaklar",
+  },
 ];
 
 export default function KupaLandingPage() {
