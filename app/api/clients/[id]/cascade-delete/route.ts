@@ -1,43 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
 /**
- * Danışan silme — alt kayıt cascade temizliği (Faz 1E cleanup).
- *
- * Amaç: handleDeleteClient içindeki tarayıcı tarafı dinamik supabase.from(table)
- *       silme döngüsünü kaldırmak. Alt kayıt silme artık service_role'lü bu route'tan.
+ * Danışan silme — ATOMİK DB cascade + sonrası storage temizliği (FAZ 2 F5).
  *
  * Güvenlik:
  *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA user kaydından alınır; client'tan gelen tenant_id'ye GÜVENİLMEZ.
  *   - client_id'nin bu tenant'a ait olduğu doğrulanır.
- *   - Tüm silmeler tenant_id + client_id kapsamıyla yapılır.
  *   - Demo hesap: hiçbir DB DELETE yapılmaz.
  *
- * NOT: Bu route artık TAM silme yapar — tüm alt kayıtlar + client_stones + ana
- *      `clients` kaydı silinir (C2-B1b: tarayıcı tarafı supabase silmeleri kaldırıldı).
- *      Tekil ve toplu danışan silme bu route üzerinden yürütülür.
+ * ATOMİKLİK (F5):
+ *   Tüm alt tablolar clients'a `ON DELETE CASCADE` FK ile bağlıdır — client_homeworks
+ *   ve client_analyses dahil (migration 20261219000000). Bu nedenle TEK
+ *   `DELETE FROM clients WHERE id=? AND tenant_id=?` ifadesi, tüm child satırlarını
+ *   AYNI DB transaction'ında (Postgres FK cascade) atomik siler. Manuel child DELETE
+ *   YOK → ara-adım yarım kalması/yetim satır yok.
  *
- * PERF-3: Alt tabloların çoğu clients'a ON DELETE CASCADE ile bağlı (production FK
- *      metadata ile doğrulandı). Bu tablolar için manuel DELETE kaldırıldı; tek ana
- *      `clients` DELETE'i DB içinde otomatik cascade tetikler:
- *        client_stones · client_stone_photos(→stones) · client_notes ·
- *        client_sessions · appointments · client_combinations.
- *      Yalnız clients'a FK'siz iki tablo (client_homeworks, client_analyses) manuel
- *      silinir; ayrıca storage dosyaları (DB cascade storage'a dokunmaz) manuel
- *      temizlenir. Bu üç bağımsız iş tek Promise.all'da paralel çalışır.
+ *   ⚠️ DEPLOY SIRASI: Bu route FK cascade'e dayanır. Migration 20261219000000
+ *   (client_homeworks + client_analyses FK) PRODUCTION'a UYGULANDIKTAN SONRA
+ *   deploy edilmelidir; aksi halde FK'siz bu iki tablo cascade edilmez. Migration
+ *   additive'dir ve eski route ile de uyumludur → önce migration, sonra kod.
+ *
+ * STORAGE (DB dışı, transaction'a giremez):
+ *   Storage bir DB transaction içine alınamaz. Bu yüzden DB-FIRST çalışılır:
+ *     1) silmeden ÖNCE silinecek storage object path'leri toplanır,
+ *     2) atomik DB delete COMMIT olur,
+ *     3) COMMIT sonrası storage objeleri (best-effort, idempotent) silinir.
+ *   Sıra DB-first'tür çünkü storage önce silinip DB delete fail ederse YAŞAYAN
+ *   danışanın dosyası kaybolurdu. DB-first'te en kötü ihtimal yalnız yetim blob'tur
+ *   (tekrar temizlenebilir; kullanıcı veri kaybı değildir).
+ *   İki bucket: taş fotoğrafları + analiz görselleri.
  */
 
-// Taş fotoğrafları storage bucket'ı (StonesTab / stones route ile aynı).
 const STONE_PHOTO_BUCKET = "stone-photos";
+const ANALYSIS_IMAGE_BUCKET = "client-analysis-images";
 
-// clients'a FK'si BULUNMAYAN alt tablolar — ON DELETE CASCADE çalışmayacağından
-// ana clients DELETE'inden önce manuel silinir (yetim kayıt bırakmamak için).
-// Diğer alt tablolar (client_stones→client_stone_photos, client_notes, client_sessions,
-// appointments, client_combinations) clients DELETE ile DB-içi CASCADE üzerinden silinir.
-const MANUAL_DELETE_TABLES = ["client_homeworks", "client_analyses"] as const;
+/** Taş fotoğrafı storage path'leri (silmeden ÖNCE toplanır; DB cascade storage'a dokunmaz). */
+async function collectStonePhotoPaths(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<string[]> {
+  const { data, error } = await db
+    .from("client_stone_photos")
+    .select("file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (error) {
+    logServerError({ route: "clients/[id]/cascade-delete", action: "collectStonePhotoPaths", tenantId, cause: error });
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => (r as { file_path?: unknown }).file_path)
+    .filter((p): p is string => typeof p === "string" && p.length > 0);
+}
+
+/**
+ * Analiz görseli storage path'leri. Görsel deterministik path'te tutulur:
+ * `{tenant}/{client}/{analysisId}.png` (upload-image route ile aynı; eski absolute-URL
+ * satırları da aynı objeye işaret eder). image_url dolu her analiz için path üretilir.
+ */
+async function collectAnalysisImagePaths(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<string[]> {
+  const { data, error } = await db
+    .from("client_analyses")
+    .select("id,image_url")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .not("image_url", "is", null);
+  if (error) {
+    logServerError({ route: "clients/[id]/cascade-delete", action: "collectAnalysisImagePaths", tenantId, cause: error });
+    return [];
+  }
+  return (data ?? [])
+    .filter((r) => {
+      const u = (r as { image_url?: unknown }).image_url;
+      return typeof u === "string" && u.trim().length > 0;
+    })
+    .map((r) => `${tenantId}/${clientId}/${(r as { id: string }).id}.png`);
+}
 
 export async function DELETE(
   req: NextRequest,
@@ -58,7 +107,7 @@ export async function DELETE(
     return NextResponse.json({ ok: true, demo: true });
   }
 
-  // client_id gerçekten bu tenant'a mı ait?
+  // client_id gerçekten bu tenant'a mı ait? (IDOR + ownership)
   const { data: cli, error: cliErr } = await db
     .from("clients")
     .select("id")
@@ -66,69 +115,45 @@ export async function DELETE(
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  if (cliErr || !cli) {
+  if (cliErr) {
+    return serverErrorResponse({ route: "clients/[id]/cascade-delete", action: "ownership", tenantId, cause: cliErr });
+  }
+  if (!cli) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  const warnings: string[] = [];
+  // 1) Silmeden ÖNCE storage object path'lerini topla (DB satırları cascade ile gidecek).
+  const [stonePhotoPaths, analysisImagePaths] = await Promise.all([
+    collectStonePhotoPaths(db, tenantId, clientId),
+    collectAnalysisImagePaths(db, tenantId, clientId),
+  ]);
 
-  // O-6: taş fotoğraflarının storage dosya yollarını, DB satırları (clients CASCADE ile)
-  // silinmeden ÖNCE topla → danışan silmede yetim storage dosyası kalmaz (tekil taş
-  // silmeyle tutarlı). NOT: DB cascade yalnız satırları siler; storage'a dokunmaz.
-  let photoPaths: string[] = [];
-  const { data: photoRows, error: photoSelErr } = await db
-    .from("client_stone_photos")
-    .select("file_path")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (photoSelErr) {
-    warnings.push(`client_stone_photos(select): ${photoSelErr.message}`);
-  } else {
-    photoPaths = (photoRows ?? [])
-      .map((r) => (r as { file_path?: unknown }).file_path)
-      .filter((p): p is string => typeof p === "string" && p.length > 0);
-  }
-
-  // Bağımsız temizlik işleri paralel: FK'siz alt tablo DELETE'leri + storage remove.
-  // Tek işin hatası tümünü bozmasın (orijinal davranışla uyumlu); hangisinin başarısız
-  // olduğunu warnings ile raporla. Promise.all yalnız gerçek exception'da reject olur;
-  // Supabase error nesnesi rejection değildir → her sonucun .error'ı ayrı kontrol edilir.
-  const parallelOps: Array<PromiseLike<{ label: string; error: { message: string } | null }>> =
-    MANUAL_DELETE_TABLES.map((table) =>
-      db
-        .from(table)
-        .delete()
-        .eq("tenant_id", tenantId)
-        .eq("client_id", clientId)
-        .then(({ error }) => ({ label: table, error })),
-    );
-  if (photoPaths.length > 0) {
-    parallelOps.push(
-      db.storage
-        .from(STONE_PHOTO_BUCKET)
-        .remove(photoPaths)
-        .then(({ error }) => ({ label: `storage(${STONE_PHOTO_BUCKET})`, error })),
-    );
-  }
-  const results = await Promise.all(parallelOps);
-  for (const r of results) {
-    if (r.error) warnings.push(`${r.label}: ${r.error.message}`);
-  }
-
-  // Ana danışan kaydını sil (tam silme — tenant + id kapsamlı). Bu tek DELETE, CASCADE'li
-  // alt tabloları (stones→photos satırları, notes, sessions, appointments, combinations)
-  // DB içinde otomatik siler.
+  // 2) Ana danışan kaydını sil — TEK ifade; tüm child'lar DB içinde ATOMİK cascade edilir.
   const { error: clientDelErr } = await db
     .from("clients")
     .delete()
     .eq("id", clientId)
     .eq("tenant_id", tenantId);
 
+  // DB delete başarısızsa ASLA ok:true dönme (storage'a da dokunulmadı).
   if (clientDelErr) {
-    return NextResponse.json(
-      { ok: false, error: clientDelErr.message, warnings },
-      { status: 500 },
-    );
+    return serverErrorResponse({ route: "clients/[id]/cascade-delete", action: "DELETE", tenantId, cause: clientDelErr });
+  }
+
+  // 3) DB COMMIT sonrası storage temizliği (best-effort, idempotent). Hata → sunucu
+  //    logu + GÜVENLİ (ham mesaj içermeyen) uyarı; danışan zaten silinmiştir.
+  const warnings: string[] = [];
+  const removals: Array<{ bucket: string; paths: string[] }> = [
+    { bucket: STONE_PHOTO_BUCKET, paths: stonePhotoPaths },
+    { bucket: ANALYSIS_IMAGE_BUCKET, paths: analysisImagePaths },
+  ];
+  for (const { bucket, paths } of removals) {
+    if (paths.length === 0) continue;
+    const { error } = await db.storage.from(bucket).remove(paths);
+    if (error) {
+      logServerError({ route: "clients/[id]/cascade-delete", action: `storage-remove:${bucket}`, tenantId, cause: error });
+      warnings.push("Danışan silindi ancak bazı ek dosyaların temizliği tamamlanamadı.");
+    }
   }
 
   return NextResponse.json({ ok: true, warnings });

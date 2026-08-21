@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -99,7 +100,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/combinations/[combinationId]", action: "PATCH", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json(
@@ -145,7 +146,7 @@ export async function DELETE(
     .eq("client_id", clientId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/combinations/[combinationId]", action: "DELETE", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true });

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { computeBurc } from "@/lib/danisan/burc";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -46,7 +48,7 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]", action: "GET", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json(
@@ -85,6 +87,16 @@ export async function PATCH(
   }
 
   const fields = sanitizePayload(body);
+
+  // F7: burç server-authoritative. `dogum` gönderildiyse burç yeniden hesaplanır
+  // (dogum boş/null → burç null); `dogum` gönderilmediyse burç DEĞİŞMEZ ve client'ın
+  // doğrudan gönderdiği `burc` yok sayılır (strip).
+  if (Object.prototype.hasOwnProperty.call(fields, "dogum")) {
+    fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
+  } else {
+    delete fields.burc;
+  }
+
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
@@ -98,7 +110,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]", action: "PATCH", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json(

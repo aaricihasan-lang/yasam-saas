@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { odevDurumLabel, odevDurumClass } from "@/lib/odevStatus";
+import { odevDurumLabel, odevDurumClass, aggregateHomeworks } from "@/lib/odevStatus";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -408,20 +408,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  const activeCount = useMemo(
-    () => homeworks.filter((item) => item.status === "devam").length,
-    [homeworks]
-  );
-
-  const completedCount = useMemo(
-    () => homeworks.filter((item) => item.status === "tamamlandi").length,
-    [homeworks]
-  );
-
-  const lateCount = useMemo(
-    () => homeworks.filter((item) => item.status === "gecikti").length,
-    [homeworks]
-  );
+  // FAZ 2 F3: sayımlar canonical helper'dan (overview/liste-uyarıları ile TEK model).
+  // active=devam, completed=tamamlandi, late=gecikti (açık statü) — davranış birebir aynı.
+  const hwAgg = useMemo(() => aggregateHomeworks(homeworks, todayISO()), [homeworks]);
+  const activeCount = hwAgg.active;
+  const completedCount = hwAgg.completed;
+  const lateCount = hwAgg.late;
 
   const nearestEndDate = useMemo(() => {
     const dates = homeworks

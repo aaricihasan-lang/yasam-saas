@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -68,7 +69,7 @@ export async function GET(
     .order("appointment_date", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/appointments", action: "GET", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, appointments: data ?? [] });
@@ -116,7 +117,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/appointments", action: "POST", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, appointment: data });
