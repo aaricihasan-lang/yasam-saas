@@ -8,11 +8,15 @@ import { getCuppingMap } from "@/lib/cupping/maps";
  * Profesyonel, sade çalışma zemini. Her siluet, ilgili map_key'in contentWidth×Height
  * viewBox'ına çizilir; BodyMapCanvas contain-rect'e yerleştirir. Yeni harita eklemek =
  * registry'ye satır + buraya bir case (motor değişmez).
+ *
+ * GÖRSEL: açık/premium çalışma zeminine göre ayarlanmış sıcak-slate kontur + yumuşak
+ * anatomik dolgu. viewBox ve path KOORDİNATLARI DEĞİŞMEZ (normalized placement
+ * kontratı korunur) — yalnız stroke/fill treatment.
  */
 
-const STROKE = "#94a3b8"; // slate-400 — koyu zeminde okunur
-const FILL = "rgba(148,163,184,0.10)";
-const CENTER = "rgba(148,163,184,0.25)";
+const STROKE = "#7c6f63"; // sıcak slate/taupe — açık zeminde net okunur
+const FILL = "rgba(148,127,105,0.08)"; // yumuşak anatomik dolgu (hacim hissi)
+const CENTER = "rgba(124,111,99,0.30)"; // orta çizgi / yardımcı bölge
 
 function FullBody({ back }: { back: boolean }) {
   // 480 x 820 şematik tam vücut (ön/arka aynı dış hat; arka = orta çizgi + omurga iması).

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaCard, kupaInput } from "./KupaShell";
+import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
 
 /**
  * KUPA & HACAMAT — generic içerik CRUD yöneticisi (liste + form). Nokta/teknik/bilgi/
@@ -161,41 +161,43 @@ export function CrudManager<T extends Rec>({
   return (
     <>
       {error ? (
-        <div className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
           {error}
         </div>
       ) : null}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[320px_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
         {/* LİSTE */}
         <div className={kupaCard}>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Kayıtlar</h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Kayıtlar</h3>
             <button type="button" onClick={openNew} className={kupaBtnPrimary}>
               + {addLabel}
             </button>
           </div>
-          <div className="max-h-[60vh] space-y-1 overflow-y-auto">
+          <div className="max-h-[62vh] space-y-1.5 overflow-y-auto pr-0.5">
             {loading ? (
-              <p className="text-xs text-slate-500">Yükleniyor…</p>
+              <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
             ) : items.length === 0 ? (
-              <p className="text-xs text-slate-500">{emptyLabel}</p>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
+                <p className="text-xs text-slate-500">{emptyLabel}</p>
+              </div>
             ) : (
               items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => openEdit(item)}
-                  className={`block w-full rounded-lg border px-2.5 py-1.5 text-left transition ${
+                  className={`block w-full rounded-xl border px-3 py-2 text-left transition ${
                     selectedId === item.id
-                      ? "border-amber-400/50 bg-amber-500/20"
-                      : "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+                      ? "border-amber-300 bg-amber-50 shadow-sm"
+                      : "border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/50"
                   }`}
                 >
-                  <span className="block truncate text-xs font-medium text-slate-100">
+                  <span className="block truncate text-sm font-semibold text-slate-800">
                     {String(item[titleKey] ?? "—")}
                   </span>
                   {subtitleKey && item[subtitleKey] ? (
-                    <span className="block truncate text-[10px] text-slate-500">
+                    <span className="block truncate text-[11px] text-slate-400">
                       {String(item[subtitleKey])}
                     </span>
                   ) : null}
@@ -208,15 +210,18 @@ export function CrudManager<T extends Rec>({
         {/* FORM */}
         <div className={kupaCard}>
           {!editing ? (
-            <p className="text-sm text-slate-500">Düzenlemek için soldan bir kayıt seçin veya yeni ekleyin.</p>
+            <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center">
+              <span className="text-2xl" aria-hidden>📝</span>
+              <p className="text-sm text-slate-500">Düzenlemek için soldan bir kayıt seçin veya yeni ekleyin.</p>
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {fields.map((f) => (
                   <div key={f.key} className={f.full || f.type === "textarea" ? "sm:col-span-2" : ""}>
-                    <label className="mb-1 block text-[11px] font-medium text-slate-400">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">
                       {f.label}
-                      {f.required ? <span className="text-rose-300"> *</span> : null}
+                      {f.required ? <span className="text-rose-500"> *</span> : null}
                     </label>
                     {f.type === "textarea" ? (
                       <textarea
@@ -227,7 +232,7 @@ export function CrudManager<T extends Rec>({
                         className={kupaInput}
                       />
                     ) : f.type === "boolean" ? (
-                      <label className="flex items-center gap-2 text-xs text-slate-300">
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
                         <input
                           type="checkbox"
                           checked={form[f.key] === true}
@@ -261,8 +266,8 @@ export function CrudManager<T extends Rec>({
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={handleSave} disabled={busy} className={kupaBtnPrimary}>
+              <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                <button type="button" onClick={handleSave} disabled={busy} className={kupaBtnSuccess}>
                   {creating ? "Ekle" : "Kaydet"}
                 </button>
                 <button

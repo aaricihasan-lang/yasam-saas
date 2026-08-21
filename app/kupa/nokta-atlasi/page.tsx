@@ -9,7 +9,15 @@ import {
   getCuppingMap,
   type CuppingMapGroup,
 } from "@/lib/cupping/maps";
-import { KupaShell, kupaBtnGhost, kupaBtnPrimary, kupaCard, kupaInput } from "../components/KupaShell";
+import {
+  KupaShell,
+  kupaBtnGhost,
+  kupaBtnPrimary,
+  kupaCard,
+  kupaInput,
+  kupaPill,
+  kupaPillActive,
+} from "../components/KupaShell";
 import { BodySilhouette } from "../maps/Silhouettes";
 import {
   createPlacement,
@@ -193,20 +201,20 @@ export default function NoktaAtlasiPage() {
       breadcrumb={[{ label: "Vücut & Nokta Atlası" }]}
     >
       {error ? (
-        <div className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
           {error}
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr]">
-        {/* SOL PANEL */}
-        <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
+        {/* SOL KONTROL RAYI */}
+        <div className="flex flex-col gap-4">
           <div className={kupaCard}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Harita</h3>
-            <div className="flex flex-col gap-2">
+            <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Harita</h3>
+            <div className="flex flex-col gap-2.5">
               {GROUP_ORDER.map((g) => (
                 <div key={g}>
-                  <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">
                     {CUPPING_MAP_GROUP_LABELS[g]}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -215,11 +223,8 @@ export default function NoktaAtlasiPage() {
                         key={m.key}
                         type="button"
                         onClick={() => setMapKey(m.key)}
-                        className={`rounded-lg border px-2 py-1 text-[11px] transition ${
-                          mapKey === m.key
-                            ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
-                            : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                        }`}
+                        aria-pressed={mapKey === m.key}
+                        className={mapKey === m.key ? kupaPillActive : kupaPill}
                       >
                         {m.label}
                       </button>
@@ -231,7 +236,7 @@ export default function NoktaAtlasiPage() {
           </div>
 
           <div className={kupaCard}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
               Aktif Nokta
             </h3>
             <select
@@ -247,10 +252,11 @@ export default function NoktaAtlasiPage() {
                 </option>
               ))}
             </select>
-            <p className="mt-1.5 text-[10px] text-slate-500">
-              Yeni yerleşim bu noktaya bağlanır. Bu noktanın bu haritada {placementsForActivePoint} yerleşimi var.
+            <p className="mt-2 rounded-lg bg-amber-50/70 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-600">
+              Yeni yerleşim bu noktaya bağlanır. Bu noktanın bu haritada{" "}
+              <span className="font-bold text-amber-800">{placementsForActivePoint}</span> yerleşimi var.
             </p>
-            <div className="mt-2 flex gap-1.5">
+            <div className="mt-2.5 flex gap-1.5">
               <input
                 value={newPointName}
                 onChange={(e) => setNewPointName(e.target.value)}
@@ -265,6 +271,7 @@ export default function NoktaAtlasiPage() {
                 onClick={handleQuickAddPoint}
                 disabled={busy || !newPointName.trim()}
                 className={kupaBtnPrimary}
+                aria-label="Hızlı nokta ekle"
               >
                 +
               </button>
@@ -272,34 +279,30 @@ export default function NoktaAtlasiPage() {
           </div>
 
           <div className={kupaCard}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Araç</h3>
+            <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Araç</h3>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">Mod</p>
             <div className="flex flex-wrap gap-1.5">
               {(["add", "select", "move"] as MarkToolMode[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setToolMode(t)}
-                  className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
-                    toolMode === t
-                      ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
-                      : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                  }`}
+                  aria-pressed={toolMode === t}
+                  className={toolMode === t ? kupaPillActive : kupaPill}
                 >
                   {t === "add" ? "İşaretle" : t === "select" ? "Seç" : "Taşı/Düzenle"}
                 </button>
               ))}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <p className="mb-1.5 mt-3 text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">Şekil</p>
+            <div className="flex flex-wrap gap-1.5">
               {(["oval", "rect"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setDrawShape(s)}
-                  className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
-                    drawShape === s
-                      ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
-                      : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                  }`}
+                  aria-pressed={drawShape === s}
+                  className={drawShape === s ? kupaPillActive : kupaPill}
                 >
                   {s === "oval" ? "Nokta (oval)" : "Kutu"}
                 </button>
@@ -309,25 +312,27 @@ export default function NoktaAtlasiPage() {
               type="button"
               onClick={handleDeleteSelected}
               disabled={!selectedId}
-              className={`${kupaBtnGhost} mt-2 w-full justify-center disabled:opacity-40`}
+              className={`${kupaBtnGhost} mt-3 w-full justify-center disabled:opacity-40`}
             >
               Seçili yerleşimi sil
             </button>
           </div>
         </div>
 
-        {/* HARİTA */}
-        <div className={`${kupaCard} min-h-[60vh]`}>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-200">{mapDef?.label ?? mapKey}</p>
-            <p className="text-[11px] text-slate-500">{placements.length} yerleşim</p>
+        {/* ANA ÇALIŞMA ALANI — HARİTA */}
+        <div className={kupaCard}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-base font-bold text-slate-800">{mapDef?.label ?? mapKey}</p>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+              {placements.length} yerleşim
+            </span>
           </div>
           <div
-            className="relative w-full rounded-xl border border-white/10 bg-[#0b1330]"
-            style={{ height: "min(70vh, 640px)" }}
+            className="relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-amber-50/40 shadow-inner"
+            style={{ height: "min(74vh, 760px)" }}
           >
             {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
                 Yükleniyor…
               </div>
             ) : (
@@ -346,7 +351,7 @@ export default function NoktaAtlasiPage() {
               />
             )}
           </div>
-          <p className="mt-2 text-[11px] text-slate-500">
+          <p className="mt-2.5 text-[11px] leading-relaxed text-slate-400">
             İşaretle modunda haritaya tıkla/sürükle → aktif noktaya yerleşim eklenir. Aynı nokta
             farklı haritalarda farklı yerleşimler taşıyabilir (nokta ≠ yerleşim).
           </p>
