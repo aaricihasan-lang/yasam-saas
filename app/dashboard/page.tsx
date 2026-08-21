@@ -142,7 +142,7 @@ export default function DashboardPage() {
       title: "Kupa & Hacamat Terapisi",
       desc: "Vücut nokta atlası, amaç rehberi, teknik ve güvenlik sistemi",
       icon: "🫙",
-      href: "/dashboard/kupa",
+      href: "/kupa",
       badge: "Yeni",
     },
   ];

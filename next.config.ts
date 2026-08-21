@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/cosmic-calendar/power-days",       destination: "/cosmic-calendar/power-days",       permanent: true },
       { source: "/dashboard/cosmic-calendar/retro-calendar",   destination: "/cosmic-calendar/retro-calendar",   permanent: true },
       { source: "/dashboard/cosmic-calendar/transits/:planet", destination: "/cosmic-calendar/transits/:planet", permanent: true },
+      { source: "/dashboard/kupa",         destination: "/kupa",         permanent: true },
+      { source: "/dashboard/kupa/:path*",  destination: "/kupa/:path*",  permanent: true },
     ];
   },
   // unpdf uses dynamic import('unpdf/pdfjs') internally (1.6MB ESM bundle).

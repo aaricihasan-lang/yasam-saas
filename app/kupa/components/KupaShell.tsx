@@ -30,7 +30,7 @@ export function KupaShell({
           <span aria-hidden>›</span>
           {breadcrumb?.length ? (
             <>
-              <Link href="/dashboard/kupa" className="text-inherit no-underline transition hover:text-slate-200">
+              <Link href="/kupa" className="text-inherit no-underline transition hover:text-slate-200">
                 Kupa &amp; Hacamat
               </Link>
               {breadcrumb.map((b) => (

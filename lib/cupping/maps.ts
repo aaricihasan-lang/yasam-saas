@@ -4,7 +4,7 @@
  * Harita listesi motora hard-code DAĞITILMAZ; burada merkezî tanımlanır. Yeni bir
  * görünüm eklemek = bu diziye bir satır + bir silhouette component eklemek (motor/DB
  * değişmez). placement.map_key serbest metindir; bu registry görüntüleme/doğrulama
- * içindir. Silhouette çizimleri UI katmanındadır (app/dashboard/kupa/maps).
+ * içindir. Silhouette çizimleri UI katmanındadır (app/kupa/maps).
  *
  * SVG/vektörel sabit anatomik zemin kullanılır — FOTOĞRAF DEĞİL.
  */

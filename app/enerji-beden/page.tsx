@@ -48,7 +48,7 @@ const energyFolders = [
   {
     title: "Kupa & Hacamat Terapisi",
     desc: "Vücut nokta atlası, amaç rehberi, kupa teknikleri ve güvenlik sistemi",
-    href: "/dashboard/kupa",
+    href: "/kupa",
     icon: "🫙",
     badge: "Kupa",
     gradient: "from-rose-200 to-amber-100",
