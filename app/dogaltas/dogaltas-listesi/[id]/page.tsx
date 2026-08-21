@@ -17,8 +17,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
@@ -33,8 +32,7 @@ import {
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
-
-const STONE_BUCKET = "stone-photos";
+import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
 
 
 function SearchMatchBadge() {
@@ -196,17 +194,20 @@ function normalizeAssignments(raw: unknown): Record<string, string[][]> {
   return result;
 }
 
-function normalizeImages(raw: unknown): StoneImageItem[] {
+function normalizeImages(raw: unknown, signed: Record<string, string> = {}): StoneImageItem[] {
   if (!Array.isArray(raw)) return [];
 
   return raw.map((item, index) => {
     if (typeof item === "string") {
       const path = item.trim();
+      // F-016: file_path'i olan string legacy → signed URL ile çözülebilir.
+      const resolved = path && signed[path] ? signed[path] : undefined;
       return {
         id: `legacy-${index}`,
         name: path.split(/[/\\]/).pop() || `Görsel ${index + 1}`,
+        url: resolved,
         file_path: path || undefined,
-        displayable: false,
+        displayable: Boolean(resolved),
       };
     }
 
@@ -219,17 +220,21 @@ function normalizeImages(raw: unknown): StoneImageItem[] {
     }
 
     const record = item as Record<string, unknown>;
-    const url = typeof record.url === "string" ? record.url.trim() : "";
+    const legacyUrl = typeof record.url === "string" ? record.url.trim() : "";
     const filePath =
       typeof record.file_path === "string" ? record.file_path.trim() : "";
-    const displayable = isWebImageUrl(url);
+    // F-016: önce private signed URL (file_path), sonra legacy public url (dual-read).
+    const resolved =
+      (filePath && signed[filePath]) ||
+      (isWebImageUrl(legacyUrl) ? legacyUrl : "");
+    const displayable = Boolean(resolved);
 
     return {
       id: String(record.id ?? `img-${index}`),
       name: String(
-        record.name ?? filePath.split(/[/\\]/).pop() ?? url ?? `Görsel ${index + 1}`,
+        record.name ?? filePath.split(/[/\\]/).pop() ?? legacyUrl ?? `Görsel ${index + 1}`,
       ),
-      url: displayable ? url : undefined,
+      url: displayable ? resolved : undefined,
       file_path: filePath || undefined,
       displayable,
     };
@@ -786,12 +791,18 @@ function StoneDetailPage() {
     if (!tenantId) return;
     const userId = readYasamUser()?.id;
     if (!userId) return;
+    const sessionToken = readSessionToken();
     setWordBusy(true);
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch(`/api/dogaltas/stones/${safeStone.id}/word-report`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -860,40 +871,40 @@ function StoneDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setImageBusy(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
-    const additions: { id: string; name: string; url: string; file_path: string }[] = [];
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    // F-016: DB source-of-truth = file_path (kalıcı public URL yok). Render sonra signed URL çözer.
+    const additions: { id: string; name: string; file_path: string }[] = [];
     const baseImages = [...(currentStone.images || [])];
 
     for (const file of files) {
-      const cleanName = safeFileName(file.name);
-      const filePath = `catalog/${tenantId}/${currentStone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(STONE_BUCKET)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
+      // F-016: SUNUCU-YETKİLİ yükleme — tip/boyut/path server'da doğrulanır, tenant oturumdan.
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("name", file.name);
+      const res = await fetch("/api/dogaltas/stones/photos", {
+        method: "POST",
+        headers: {
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: fd,
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean; demo?: boolean;
+        image?: { id: string; name: string; file_path: string };
+      };
+      if (json.demo) { setImageBusy(false); return; }
+      if (!res.ok || !json.ok || !json.image) {
         setImageBusy(false);
-        setErrorMessage(`Görsel yüklenemedi: ${uploadError.message}`);
+        setErrorMessage("Görsel yüklenemedi. Lütfen tekrar deneyin.");
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage.from(STONE_BUCKET).getPublicUrl(filePath);
-
       additions.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: file.name,
-        url: publicUrlData.publicUrl,
-        file_path: filePath,
+        name: json.image.name || file.name,
+        file_path: json.image.file_path,
       });
     }
 
@@ -928,21 +939,27 @@ function StoneDetailPage() {
     });
     if (!confirmed) return;
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
     setImageBusy(true);
     setErrorMessage("");
     setSuccessMessage("");
 
     if (image.file_path) {
-      const { error: removeError } = await supabase.storage.from(STONE_BUCKET).remove([image.file_path]);
-      if (removeError) {
+      // F-016: SUNUCU-YETKİLİ silme — ownership (tenant öneki) server'da doğrulanır.
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const res = await fetch("/api/dogaltas/stones/photos", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ file_path: image.file_path }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean };
+      if (!res.ok || (!json.ok && !json.demo)) {
         setImageBusy(false);
-        setErrorMessage(`Depolama temizlenemedi: ${removeError.message}`);
+        setErrorMessage("Depolama temizlenemedi. Lütfen tekrar deneyin.");
         return;
       }
     }
@@ -1058,6 +1075,12 @@ function StoneDetailPage() {
 
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
+  // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
+  const imageFilePaths = useMemo(
+    () => (safeImages.map((im) => imageFilePath(im)).filter(Boolean) as string[]),
+    [safeImages],
+  );
+  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
   const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
 
   const safeAssignments: Record<string, string[][]> =
@@ -1069,7 +1092,7 @@ function StoneDetailPage() {
 
   const hasAssignments = Object.keys(safeAssignments).length > 0;
 
-  const images = normalizeImages(safeImages);
+  const images = normalizeImages(safeImages, signedImageUrls);
   const imagesWithUrl = images.filter((img) => img.displayable && img.url);
   const imagesNotWebFormat = images.filter((img) => !img.displayable);
 

@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import type { NextRequest } from "next/server";
+import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { isUuid } from "@/lib/dogaltas/validation";
+import { safeLen } from "@/lib/dogaltas/reportSafe";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -59,47 +60,22 @@ function countFilledArrays(mineral: MineralRow): number {
     mineral.eksiklik_belirtileri, mineral.fazlalik_belirtileri,
     mineral.doz_asimi, mineral.iceren_taslar, mineral.organ_etkileri, mineral.cakralar,
   ];
-  return arrays.filter((a) => a && a.length > 0).length;
+  return arrays.filter((a) => safeLen(a) > 0).length;
 }
 
 export async function POST(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: mineralId } = await params;
+  // F-019: geçersiz UUID DB'ye gitmeden reddedilir.
+  if (!isUuid(mineralId))
+    return Response.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
-
-  const { tenantId, userId } = body as { tenantId?: string; userId?: string };
-
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // IDOR koruması: userId bu tenant'a gerçekten ait mi? — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "stones");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
+  const auth = await requireDogaltasReportAccess(req);
+  if (!auth.ok) return auth.response;
+  const { db, tenantId } = auth;
 
   const SELECT =
     "id, name, aciklama, kategori, source_id, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar, created_at";

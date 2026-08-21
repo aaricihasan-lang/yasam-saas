@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -20,8 +20,6 @@ import {
   DOGALTAS_LABEL_CLASS,
   DOGALTAS_TEXTAREA_CLASS,
 } from "@/lib/dogaltas/formStyles";
-const STONE_BUCKET = "stone-photos";
-
 const chakraOptions = [
   "Kök Çakra",
   "Sakral Çakra",
@@ -309,6 +307,29 @@ export default function DogaltasKayitPage() {
 
   const activeAssignment = assignmentSections.find((item) => item.title === assignmentTitle);
 
+  // F-017: kaydedilmemiş değişiklik koruması. Form açık ve girilmiş veri varsa
+  // (kaydetme sırasında hariç), sekme yenileme/kapatma öncesi tarayıcı uyarısı verilir.
+  // Next 16 App Router iç-navigasyonu için monkey-patch YAPILMAZ (güvenilir değil);
+  // yalnız native beforeunload ile refresh/close korunur.
+  const isDirty = useMemo(() => {
+    if (!showForm || isSaving) return false;
+    return (
+      JSON.stringify(formData) !== JSON.stringify(emptyFormData) ||
+      selectedChakras.length > 0 ||
+      selectedWarnings.length > 0 ||
+      images.length > 0 ||
+      JSON.stringify(assignmentRows) !== JSON.stringify(emptyAssignmentRows) ||
+      JSON.stringify(assignmentInputs) !== JSON.stringify(emptyAssignmentInputs)
+    );
+  }, [showForm, isSaving, formData, selectedChakras, selectedWarnings, images, assignmentRows, assignmentInputs]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   function showMessage(message: string) {
     setSavedMessage(message);
     setErrorMessage("");
@@ -440,40 +461,46 @@ export default function DogaltasKayitPage() {
     }
 
     const uploaded: UploadedImage[] = [];
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
 
     for (const file of files) {
+      // F-016: yükleme SUNUCU-YETKİLİ route üzerinden — client-direct storage bypass yok.
+      // Path + tip/boyut doğrulaması server'da; tenant oturumdan türetilir.
       const compressed = await compressImageFileToWebp(file);
-      const cleanName = safeFileName(compressed.name);
-      const tenantId = await getSyncedTenantId();
-      if (!tenantId) {
-        showError(MISSING_SESSION_TENANT_MESSAGE);
-        return;
-      }
-      const filePath = `catalog/${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+      const fd = new FormData();
+      fd.append("file", compressed);
+      fd.append("name", file.name);
 
-      const { error: uploadError } = await supabase.storage
-        .from(STONE_BUCKET)
-        .upload(filePath, compressed, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      const res = await fetch("/api/dogaltas/stones/photos", {
+        method: "POST",
+        headers: {
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: fd,
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean; demo?: boolean;
+        image?: { id: string; name: string; file_path: string };
+        previewUrl?: string | null;
+      };
 
-      if (uploadError) {
+      if (json.demo) { showMessage("Demo modunda görsel yüklenmez."); return; }
+      if (!res.ok || !json.ok || !json.image) {
         // FAZ-2B: Ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
-        console.error("[dogaltas-kayit] görsel yükleme hatası:", uploadError);
+        console.error("[dogaltas-kayit] görsel yükleme hatası:", `HTTP ${res.status}`);
         showError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from(STONE_BUCKET)
-        .getPublicUrl(filePath);
-
+      // F-016: DB source-of-truth = file_path. `url` yalnız OTURUM önizlemesi (kısa ömürlü
+      // signed previewUrl); kaydederken SIYRILIR (persist edilmez) → kalıcı public URL yok.
       uploaded.push({
         id: `${file.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: file.name,
-        url: publicUrlData.publicUrl,
-        file_path: filePath,
+        name: json.image.name || file.name,
+        url: json.previewUrl ?? "",
+        file_path: json.image.file_path,
       });
     }
 
@@ -507,10 +534,22 @@ export default function DogaltasKayitPage() {
 
     setRemovingImageId(id);
     try {
-      const { error } = await supabase.storage.from(STONE_BUCKET).remove([image.file_path]);
-      if (error) {
+      // F-016: silme SUNUCU-YETKİLİ route üzerinden — ownership (tenant öneki) server'da doğrulanır.
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const res = await fetch("/api/dogaltas/stones/photos", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({ file_path: image.file_path }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean };
+      if (!res.ok || (!json.ok && !json.demo)) {
         // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
-        console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", error);
+        console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", `HTTP ${res.status}`);
         showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
         return;
       }
@@ -565,10 +604,11 @@ export default function DogaltasKayitPage() {
       application: formData.application,
       chakras: selectedChakras,
       assignments: assignmentRows,
+      // F-016: yalnız file_path persist edilir (canonical). Kısa ömürlü signed preview url
+      // KAYDEDİLMEZ → DB'de kalıcı public/expired URL kalmaz.
       images: images.map((image) => ({
         id: image.id,
         name: image.name,
-        url: image.url,
         file_path: image.file_path,
       })),
       updated_at: new Date().toISOString(),

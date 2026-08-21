@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { isUuid } from "@/lib/dogaltas/validation";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,7 @@ export async function GET(
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   const { data, error } = await db
     .from("minerals").select("*")
@@ -46,6 +48,7 @@ export async function PATCH(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -84,6 +87,7 @@ export async function DELETE(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 

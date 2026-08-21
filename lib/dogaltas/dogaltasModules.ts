@@ -36,7 +36,7 @@ export const DOGALTAS_MODULES: DogaltasModule[] = [
   {
     slug: "mineral-bankasi",
     title: "Mineral Bankası",
-    subtitle: "Mineral veri kayıtları.",
+    subtitle: "Yeni mineral kaydı ekle.",
     icon: "🧪",
     href: "/dogaltas/mineral-bankasi",
     accent: "amber",
@@ -44,7 +44,7 @@ export const DOGALTAS_MODULES: DogaltasModule[] = [
   {
     slug: "mineral-listesi",
     title: "Mineral Listesi",
-    subtitle: "Filtrele ve düzenle.",
+    subtitle: "Mineralleri görüntüle ve yönet.",
     icon: "📋",
     href: "/dogaltas/mineral-listesi",
     accent: "teal",

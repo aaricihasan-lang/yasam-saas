@@ -16,7 +16,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { ensureMineralStringArray, getDemoReferenceMineralId } from "@/lib/dogaltas/mineralsListFetch";
 import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
@@ -538,12 +538,18 @@ function MineralDetailPageContent() {
     if (!tenantId) return;
     const userId = readYasamUser()?.id;
     if (!userId) return;
+    const sessionToken = readSessionToken();
     setWordBusy(true);
     try {
+      // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
       const res = await fetch(`/api/dogaltas/minerals/${mineral.id}/word-report`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({}),
       });
       if (!res.ok) return;
       const blob = await res.blob();

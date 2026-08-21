@@ -15,9 +15,14 @@ import {
 } from "@/lib/auth/sessionTenant";
 import {
   fetchAllStonesExtended,
-  getFirstStoneImageUrl,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import {
+  useSignedStoneImageUrls,
+  imageFilePath,
+  firstStoneImage,
+  resolveImageSrc,
+} from "@/lib/dogaltas/stoneImageClient";
 import { dogaltasApiGet, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
@@ -140,7 +145,12 @@ export default function KombinasyonOlusturPage() {
   const [manualName, setManualName] = useState("");
 
   function addToCart(item: CartStone) {
-    setCart((prev) => (prev.some((c) => c.id === item.id) ? prev : [...prev, item]));
+    // F-007: aynı taş iki kez eklenemez — id VE Türkçe-duyarsız normalize ad ile dedupe.
+    // (Farklı id ama aynı isimli iki kayıt da tek çip olarak kalır; ghost/duplicate önlenir.)
+    const norm = normalizeTr(item.name || "");
+    setCart((prev) =>
+      prev.some((c) => c.id === item.id || normalizeTr(c.name || "") === norm) ? prev : [...prev, item],
+    );
   }
   function removeFromCart(id: string) {
     setCart((prev) => prev.filter((c) => c.id !== id));
@@ -301,6 +311,13 @@ export default function KombinasyonOlusturPage() {
     });
     return list;
   }, [stones, conditions, activeConditions.length, stockMatcher]);
+
+  // F-016: sonuç kartlarının kapak file_path'leri için TOPLU signed URL (private-read, N+1'siz).
+  const resultCoverPaths = useMemo(
+    () => (results.map((r) => imageFilePath(firstStoneImage(r.stone.images))).filter(Boolean) as string[]),
+    [results],
+  );
+  const signedCoverUrls = useSignedStoneImageUrls(resultCoverPaths);
 
   const inStockMatched = results.filter((r) => r.inStock).length;
   const anyThreshold = activeConditions.some(
@@ -679,7 +696,7 @@ export default function KombinasyonOlusturPage() {
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {results.map(({ stone, evaluation, inStock }) => {
-                  const cover = getFirstStoneImageUrl(stone.images);
+                  const cover = resolveImageSrc(firstStoneImage(stone.images), signedCoverUrls);
                   // Eşleşen koşulları tür bilgisiyle birlikte etiketle (mineral dışı türler de).
                   const matchChips = evaluation.perCondition
                     .filter((p) => p.matchedNames.length > 0)

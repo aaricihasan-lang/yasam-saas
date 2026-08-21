@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { isUuid } from "@/lib/dogaltas/validation";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,7 @@ export async function PATCH(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   let body: Record<string, unknown>;
   try {

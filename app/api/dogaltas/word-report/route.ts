@@ -1,7 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import type { NextRequest } from "next/server";
+import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
+import { STONE_PHOTO_BUCKET } from "@/lib/dogaltas/stonePhoto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -15,8 +17,9 @@ import {
   C_MID,
   divider,
   embedImageParagraph,
-  extractFirstImageUrl,
-  fetchImagesBatch,
+  extractFirstImageRef,
+  fetchImageBuffer,
+  fetchStorageImageBuffer,
   fieldInline,
   h1Colored,
   h2,
@@ -189,8 +192,9 @@ function buildStonesSection(
 
     // Short metadata
     if (s.source_note?.trim())  result.push(fieldInline("Kaynak Not", s.source_note.trim()));
-    if (s.chakras?.length)      result.push(fieldInline("Çakra Sayısı", String(s.chakras.length)));
-    if (s.warning_tags?.length) result.push(fieldInline("Uyarı Etiketleri", s.warning_tags.join(", ")));
+    // F-011: chakras/warning_tags legacy/transfer satırlarında non-array olabilir → guard'lı okuma.
+    if (safeLen(s.chakras))      result.push(fieldInline("Çakra Sayısı", String(safeLen(s.chakras))));
+    if (safeLen(s.warning_tags)) result.push(fieldInline("Uyarı Etiketleri", safeJoin(s.warning_tags)));
 
     // Content sections (H3 — Navigation Panel)
     if (s.short_description?.trim()) result.push(bodyText(s.short_description.trim()));
@@ -203,9 +207,9 @@ function buildStonesSection(
     if (s.care?.trim())              { result.push(h3("Bakım"));            result.push(bodyText(s.care.trim())); }
     if (s.application?.trim())       { result.push(h3("Kullanım"));         result.push(bodyText(s.application.trim())); }
 
-    if (s.chakras?.length) {
+    if (safeLen(s.chakras)) {
       result.push(h3("Çakralar"));
-      result.push(bodyText(s.chakras.join(", ")));
+      result.push(bodyText(safeJoin(s.chakras)));
     }
     const asgn = fmtAssignments(s.assignments);
     if (asgn) {
@@ -295,9 +299,10 @@ function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild
       result.push(h2(a.title || "Başlıksız Makale"));
       if (a.sub_category?.trim())     result.push(fieldInline("Alt Kategori", a.sub_category.trim()));
       if (a.source?.trim())           result.push(fieldInline("Kaynak", a.source.trim()));
-      if (a.tags?.length)             result.push(fieldInline("Etiketler", a.tags.join(", ")));
-      if (a.related_stones?.length)   result.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
-      if (a.related_minerals?.length) result.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
+      // F-011: tags/related_* legacy satırlarında non-array olabilir → guard'lı okuma.
+      if (safeLen(a.tags))             result.push(fieldInline("Etiketler", safeJoin(a.tags)));
+      if (safeLen(a.related_stones))   result.push(fieldInline("İlgili Taşlar", safeJoin(a.related_stones)));
+      if (safeLen(a.related_minerals)) result.push(fieldInline("İlgili Mineraller", safeJoin(a.related_minerals)));
       if (a.content?.trim())          result.push(...parseKnowledgeContent(a.content));
       if (a.notes?.trim())            { result.push(h3("Notlar")); result.push(bodyText(a.notes.trim())); }
     }
@@ -323,49 +328,55 @@ function buildAnalyticsSection(counts: Record<string, number>, n: number): Repor
   ];
 }
 
+/**
+ * Taş görsel buffer'larını çözer — F-016: önce file_path (service_role download),
+ * sonra url (legacy public). 15'li batch (Promise.allSettled) → ölçeklenebilir, N+1 yok.
+ */
+async function resolveStoneImageBuffers(
+  db: SupabaseClient,
+  stones: StoneRow[],
+): Promise<(Buffer | null)[]> {
+  const refs = stones.map((s) => extractFirstImageRef(s.images));
+  const BATCH = 15;
+  const out: (Buffer | null)[] = new Array(refs.length).fill(null);
+  for (let i = 0; i < refs.length; i += BATCH) {
+    const slice = refs.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(
+      slice.map(async (r) => {
+        if (!r) return null;
+        if (r.file_path) {
+          const b = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, r.file_path);
+          if (b) return b;
+        }
+        if (r.url) return await fetchImageBuffer(r.url);
+        return null;
+      }),
+    );
+    settled.forEach((res, j) => { out[i + j] = res.status === "fulfilled" ? res.value : null; });
+  }
+  return out;
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
+  // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
+  const auth = await requireDogaltasReportAccess(req);
+  if (!auth.ok) return auth.response;
+  const { db, tenantId } = auth;
+
   let body: unknown;
-  try { body = await request.json(); }
+  try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, sections, selectedStoneIds, includeImages = true } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { sections, selectedStoneIds, includeImages = true } = body as {
     sections?: Sections;
     selectedStoneIds?: string[];
     includeImages?: boolean;
   };
 
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
   if (!sections || !Object.values(sections).some(Boolean))
     return Response.json({ ok: false, error: "En az bir bölüm seçilmeli." }, { status: 400 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // IDOR koruması: userId bu tenant'a gerçekten ait mi? — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "stones");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // Shared-library kaldırma: bilgi bölümü YALNIZ uzmanın kendi tenant kayıtları
   // (admin kütüphanesi UNION edilmez — stones/minerals/combinations ile tutarlı).
@@ -411,11 +422,11 @@ export async function POST(request: Request): Promise<Response> {
   if (sections.combinations) counts.combinations = comboRows.length;
   if (sections.knowledge)    counts.knowledge    = knowledgeRows.length;
 
-  // Fetch stone images in parallel batches (non-blocking — failures → null)
+  // Fetch stone images (non-blocking — failures → null). F-016: önce file_path
+  // (service_role download, private-ready), sonra url (legacy). 15'li batch → N+1 yok.
   let stoneImageBuffers: (Buffer | null)[] = stonesRows.map(() => null);
   if (sections.stones && stonesRows.length > 0 && includeImages !== false) {
-    const urls = stonesRows.map((s) => extractFirstImageUrl(s.images));
-    stoneImageBuffers = await fetchImagesBatch(urls);
+    stoneImageBuffers = await resolveStoneImageBuffers(db, stonesRows);
   }
 
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
