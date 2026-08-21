@@ -100,9 +100,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const dormant = YH_ACTIVATION_MATRIX.filter((e) => e.registryEnabled === false);
   const activeRuntime: SourceActivationRuntime = { isActive: true, backfillAllowed: false };
   add("B-merge-does-not-activate", dormant.every((e) => !ACTIVE(activeRuntime, toDesired(e))), "dormant registryEnabled=false → inactive");
-  // registryEnabled=false = 2 numeroloji + 6 yebs professional dormant + 6 client = 14. (Professional
-  // Cohort: numeroloji enabled:false KORUNDU → çift kapı; 3 aroma registryEnabled:true, dormant değil.)
-  add("B-dormant-count-14", dormant.length === 14, String(dormant.length));
+  // registryEnabled=false = 2 numeroloji + 6 yebs professional dormant = 8. (Client 6 artık code-gate
+  // AÇIK: registryEnabled=true; processing hâlâ DB is_active=true ile gated — çift kapı, aşağıda D.)
+  add("B-dormant-count-8", dormant.length === 8, String(dormant.length));
 
   // Default production activation OFF: runtime === null → her sınıf (grandfathered hariç) inactive.
   const numSrc = entryOf("numeroloji:sources")!;
@@ -158,7 +158,8 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const clientEntries = YH_ACTIVATION_MATRIX.filter((e) => e.scope === "client");
   add("D-client-6", clientEntries.length === 6);
   add("D-client-all-future-only", clientEntries.every((e) => e.activationClass === "FUTURE_ONLY_READY"));
-  add("D-client-all-dormant", clientEntries.every((e) => e.registryEnabled === false));
+  // Code gate AÇIK: client entries registryEnabled=true (clientSources.enabled ile BİREBİR).
+  add("D-client-code-gate-open", clientEntries.every((e) => e.registryEnabled === true));
   // Her client kaynağında client_id + tenant_id kolonu ZORUNLU (tenant+client izolasyon).
   add("D-client-has-client-and-tenant-col", YH_CLIENT_INDEX_SOURCES.every((s) => s.clientColumn === "client_id" && s.tenantColumn === "tenant_id"));
   // Private Memory Politika Kilidi md.1/md.3: klinik serbest metin (note/session_note/
@@ -166,8 +167,13 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const identityFields = ["ad", "soyad", "client_name", "telefon", "phone", "adres", "address", "email", "e_posta", "eposta", "dogum", "birth_date", "birth_time", "birth_place", "tc_no", "kimlik_no"];
   const clientIndexedCols = YH_CLIENT_INDEX_SOURCES.flatMap((s) => [...s.titleColumns, ...s.searchTextColumns, ...s.snippetColumns, ...s.topicTagsColumns]);
   add("D-no-identity-in-client-index", !clientIndexedCols.some((c) => identityFields.includes(c)), clientIndexedCols.join(","));
-  // Disabled source no-op: aktive edilmiş runtime bile registryEnabled=false → inactive.
-  add("D-client-disabled-no-op", clientEntries.every((e) => !ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(e))));
+  // ÇİFT KAPI (code gate açık AMA processing hâlâ DB is_active'e bağlı — fail-closed):
+  //   CASE 1 runtime yok → inactive; CASE 2 is_active=false → inactive; CASE 3 is_active=true → ACTIVE;
+  //   CASE 4 FUTURE_ONLY_READY backfill ASLA açılmaz (is_active+backfill_allowed=true olsa bile).
+  add("D-client-runtime-null-inactive", clientEntries.every((e) => !ACTIVE(null, toDesired(e))));
+  add("D-client-runtime-inactive-inactive", clientEntries.every((e) => !ACTIVE({ isActive: false, backfillAllowed: false }, toDesired(e))));
+  add("D-client-runtime-active-active", clientEntries.every((e) => ACTIVE({ isActive: true, backfillAllowed: false }, toDesired(e))));
+  add("D-client-backfill-never-allowed", clientEntries.every((e) => !evaluateBackfillGate(toDesired(e), { isActive: true, backfillAllowed: true }).allowed));
   // Drift: client kaynak aktif ama scope client değilse yakalanır.
   const spoofed: SourceActivationDesired = { sourceKey: "danisan:sessions", scope: "professional", activationClass: "FUTURE_ONLY_READY", registryEnabled: true };
   const drift = detectActivationDrift({ desired: spoofed, runtime: { isActive: true, backfillAllowed: false }, triggerInstalled: true, hasRowLevelGate: true });
@@ -285,7 +291,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("K-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
   add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
-  add("K-client-all-dormant", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === false));
+  add("K-client-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true));
   add("K-numerology-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));
 }
 
