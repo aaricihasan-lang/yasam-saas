@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { istanbulMonthRange, istanbulNow } from "@/lib/danisan/istanbulTime";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -9,9 +11,14 @@ export const runtime = "nodejs";
  * Amaç: tüm danışan + randevu satırlarını indirmeden (ana sayfa eskiden iki tam
  * tablo çekiyordu) sunucuda sayım yapmak. Yanıt yalnızca 6 sayı/tarih içerir.
  *
- * TZ tutarlılığı: ay sınırları ve "şimdi" istemcinin YEREL saat diliminde
- * hesaplanıp ISO olarak gelir; sunucu bunları timestamptz karşılaştırmasında
- * kullanır. Böylece "bu ay" sayımı tarayıcıdaki eski hesapla birebir aynı kalır.
+ * TZ tutarlılığı (FAZ 2 F6): ay sınırları ve "şimdi" SUNUCUDA Europe/Istanbul'a
+ * göre deterministik üretilir. Tarayıcı/Vercel runtime saat dilimi sonucu ETKİLEMEZ;
+ * istemciden tarih parametresi ALINMAZ.
+ *
+ * Randevu semantiği (FAZ 2 F1/F2):
+ *   - "Bu Ay Randevu": bu ay içindeki randevular, iptal HARİÇ (bekliyor+tamamlandi+null).
+ *   - "En Yakın Randevu": now sonrası EN ERKEN AKTİF randevu (bekliyor+null;
+ *     iptal VE tamamlandi hariç).
  *
  * Güvenlik: requireModuleAccess → tenant_id sunucuda; tüm sorgular tenant'a bağlı.
  */
@@ -20,14 +27,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
-  const url = new URL(req.url);
-  const monthStart = url.searchParams.get("monthStart");
-  const monthEnd = url.searchParams.get("monthEnd");
-  const now = url.searchParams.get("now");
 
-  if (!monthStart || !monthEnd || !now) {
-    return NextResponse.json({ ok: false, error: "Zaman aralığı parametreleri gerekli." }, { status: 400 });
-  }
+  // Canonical Europe/Istanbul ay penceresi + "şimdi" (server-side, deterministik).
+  const { monthStart, monthEnd } = istanbulMonthRange();
+  const now = istanbulNow().toISOString();
 
   const [
     totalRes,
@@ -45,12 +48,14 @@ export async function GET(req: NextRequest): Promise<Response> {
     // Son kayıt tarihi
     db.from("clients").select("created_at").eq("tenant_id", tenantId)
       .order("created_at", { ascending: false }).limit(1),
-    // Bu ay randevu
+    // Bu ay randevu — iptal HARİÇ (bekliyor + tamamlandi + legacy null dahil). F1
     db.from("appointments").select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId).gte("appointment_date", monthStart).lt("appointment_date", monthEnd),
-    // En yakın (gelecek, iptal olmayan) randevu — NULL statü de dahil (istemci mantığıyla aynı)
+      .eq("tenant_id", tenantId)
+      .or("status.is.null,status.neq.iptal")
+      .gte("appointment_date", monthStart).lt("appointment_date", monthEnd),
+    // En yakın AKTİF (gelecek) randevu — bekliyor + legacy null; iptal VE tamamlandi hariç. F2
     db.from("appointments").select("appointment_date").eq("tenant_id", tenantId)
-      .or("status.is.null,status.neq.iptal").gt("appointment_date", now)
+      .or("status.is.null,and(status.neq.iptal,status.neq.tamamlandi)").gt("appointment_date", now)
       .order("appointment_date", { ascending: true }).limit(1),
     // Bu ay tamamlanan randevu
     db.from("appointments").select("id", { count: "exact", head: true })
@@ -62,7 +67,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     totalRes.error || monthClientsRes.error || lastClientRes.error ||
     monthApptsRes.error || nextApptRes.error || completedRes.error;
   if (err) {
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/stats", action: "GET", tenantId, cause: err });
   }
 
   return NextResponse.json({

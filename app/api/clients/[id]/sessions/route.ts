@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -66,7 +67,7 @@ export async function GET(
     .eq("client_id", clientId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/sessions", action: "GET", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, sessions: data ?? [] });
 }
@@ -107,7 +108,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/sessions", action: "POST", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, session: data });
 }
@@ -160,7 +161,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/sessions", action: "PATCH", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
@@ -209,7 +210,7 @@ export async function DELETE(
 
   const { data, error } = await query.select("id");
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/sessions", action: "DELETE", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

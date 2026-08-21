@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { computeBurc } from "@/lib/danisan/burc";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -65,7 +67,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const { data, error, count } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients", action: "GET", tenantId, cause: error });
   }
 
   return NextResponse.json({
@@ -95,6 +97,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const fields = sanitizePayload(body);
 
+  // F7: Burç SUNUCUDA doğum tarihinden türetilir (canonical, giriş yolundan bağımsız).
+  // Client'ın gönderdiği `burc` authoritative DEĞİL → overwrite. dogum yoksa burç null.
+  fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
+
   const { data, error } = await db
     .from("clients")
     .insert({ ...fields, tenant_id: tenantId })
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients", action: "POST", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, client: data });

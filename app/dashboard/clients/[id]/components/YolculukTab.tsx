@@ -10,7 +10,7 @@ import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
-import { odevDurumLabel, odevDurumColor } from "@/lib/odevStatus";
+import { odevDurumLabel, odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
@@ -1542,11 +1542,14 @@ export default function YolculukTab({
         // ── Ödev takibi hesabı ─────────────────────────────────────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const hwList = homeworksData as any[];
-        const hwTamamlanan = hwList.filter((h) => h.status === "tamamlandi");
-        const hwGecikti    = hwList.filter((h) => h.status === "gecikti");
-        const hwDevam = hwList.filter((h) => h.status !== "tamamlandi");
-        const hwTotal = hwList.length;
-        const hwYuzde = hwTotal === 0 ? 0 : Math.round((hwTamamlanan.length / hwTotal) * 100);
+        // FAZ 2 F3: canonical toplama (lib/odevStatus). "Devam Eden" = yalnız `devam`
+        // (iptal/gecikti/bekliyor DEĞİL); tamamlanma paydasından yalnız iptal çıkar;
+        // "gecikti" = canonical overdue (gecikti VEYA devam+geçmiş end_date, İstanbul).
+        const hwAgg = aggregateHomeworks(hwList, istanbulToday());
+        const hwTotal = hwAgg.total;
+        const hwYuzde = hwAgg.completionPercent;
+        // Aktif ödev başlığı: yalnız `devam` statülü ödevlerden en yenisi.
+        const hwDevamList = hwList.filter((h) => h.status === "devam");
 
         const hwSonTarih =
           hwList
@@ -1556,7 +1559,7 @@ export default function YolculukTab({
             .reverse()[0] ?? null;
 
         const hwAktifBaslik =
-          hwDevam.sort((a, b) => {
+          hwDevamList.sort((a, b) => {
             const da = a.start_date || a.created_at || "";
             const db = b.start_date || b.created_at || "";
             return db > da ? 1 : -1;
@@ -1571,9 +1574,9 @@ export default function YolculukTab({
 
         setHomeworkProcess({
           total: hwTotal,
-          tamamlanan: hwTamamlanan.length,
-          devamEden: hwDevam.length,
-          gecikti: hwGecikti.length,
+          tamamlanan: hwAgg.completed,
+          devamEden: hwAgg.active,
+          gecikti: hwAgg.overdue,
           yuzde: hwYuzde,
           sonOdevTarihi: hwSonTarih ? isoToTR(hwSonTarih) : null,
           aktifOdevBaslik: hwAktifBaslik,

@@ -238,20 +238,10 @@ export default function DanisanYolculuguPage() {
         ...(token ? { "x-session-token": token } : {}),
       };
 
-      const now = new Date();
-
-      // Ay sınırları
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
       // Hafif özet endpoint'i — satırları indirmeden sunucuda sayım.
-      // Ay sınırları + "şimdi" yerel saat diliminde hesaplanıp ISO gönderilir.
-      const qs = new URLSearchParams({
-        monthStart: startOfMonth.toISOString(),
-        monthEnd: startOfNextMonth.toISOString(),
-        now: now.toISOString(),
-      });
-      const res = await fetch(`/api/clients/stats?${qs.toString()}`, { headers });
+      // FAZ 2 F6: ay sınırları + "şimdi" artık SUNUCUDA Europe/Istanbul'a göre
+      // üretilir; tarayıcı saat dilimi parametresi GÖNDERİLMEZ.
+      const res = await fetch(`/api/clients/stats`, { headers });
       if (cancelled) return;
       if (!res.ok) {
         setLoading(false);

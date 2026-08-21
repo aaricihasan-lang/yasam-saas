@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { istanbulToday } from "@/lib/danisan/istanbulTime";
+import { isHomeworkOverdue } from "@/lib/odevStatus";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
 /**
- * client_homeworks — tenant geneli "süresi geçmiş ödev" uyarı özeti (Faz 1C).
+ * client_homeworks — tenant geneli "geciken ödev" uyarı özeti (Faz 1C).
  *
- * danisan-yolculugu/liste sayfası, danışan başına süresi dolmuş aktif ödev
- * sayısını gösterir. Bu sorgu client_id'ye değil tenant'a göredir
- * (uzmanın tüm danışanları), bu yüzden /api/clients/[id]/homeworks yerine
- * ayrı bir özet endpoint kullanılır.
+ * danisan-yolculugu/liste sayfası, danışan başına geciken ödev sayısını gösterir.
+ * Bu sorgu client_id'ye değil tenant'a göredir (uzmanın tüm danışanları).
+ *
+ * FAZ 2 F3/F6: "geciken" TEK canonical model ile hesaplanır (overview/detay ile
+ * aynı) → açık `gecikti` statüsü VEYA (`devam` && end_date ≤ Istanbul bugünü).
+ * "bugün" SUNUCUDA Europe/Istanbul'a göre üretilir (eski UTC gün kayması giderildi).
+ * Dahil edilecek adaylar `devam`+`gecikti`; kullanıcı tarafından kapatılmış
+ * (alert_dismissed_at) uyarılar sayılmaz.
  *
  * Güvenlik:
  *   - requireModuleAccess → x-user-id + x-session-token + binding.
  *   - tenant_id SUNUCUDA user kaydından alınır.
  *   - Sorgu yalnızca bu tenant'ın kayıtlarını döndürür.
- *   - "bugün" sunucuda hesaplanır (client'tan tarih alınmaz).
  *
  * Dönüş: { ok, alerts: { [clientId]: adet } }
  */
@@ -24,24 +30,27 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
 
   const { db, tenantId } = guard;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istanbulToday();
 
   const { data, error } = await db
     .from("client_homeworks")
     .select("client_id,end_date,status,alert_dismissed_at")
     .eq("tenant_id", tenantId)
-    .eq("status", "devam")
-    .is("alert_dismissed_at", null)
-    .not("end_date", "is", null)
-    .lte("end_date", today);
+    .in("status", ["devam", "gecikti"])
+    .is("alert_dismissed_at", null);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/homeworks-alerts", action: "GET", tenantId, cause: error });
   }
 
   const alerts: Record<string, number> = {};
-  for (const row of (data ?? []) as { client_id?: string | null }[]) {
+  for (const row of (data ?? []) as {
+    client_id?: string | null;
+    status?: string | null;
+    end_date?: string | null;
+  }[]) {
     if (!row.client_id) continue;
+    if (!isHomeworkOverdue(row, today)) continue;
     alerts[row.client_id] = (alerts[row.client_id] || 0) + 1;
   }
 

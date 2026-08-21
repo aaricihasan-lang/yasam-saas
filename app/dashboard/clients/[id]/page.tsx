@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
+import { computeBurc } from "@/lib/danisan/burc";
 import NotesTab from "./components/NotesTab";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -305,7 +306,9 @@ export default function ClientDetailPage() {
       return;
     }
 
-    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
+    // F7: burç doğum tarihinden türetilir (sunucu authoritative). Optimistik yerel
+    // state'i AYNI canonical helper'la güncelle → düzenleme sonrası bayat burç kalmaz.
+    setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined, burc: computeBurc(editDogum || null) ?? undefined } : prev);
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -523,6 +526,11 @@ export default function ClientDetailPage() {
         showToast({ title: "İşlem başarısız", message: "Danışan silinemedi", type: "error" });
         setDeletingClient(false);
         return;
+      }
+      // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir (warnings).
+      const cascadeJson = (await cascadeRes.json().catch(() => ({}))) as { warnings?: string[] };
+      if (Array.isArray(cascadeJson.warnings) && cascadeJson.warnings.length > 0) {
+        showToast({ title: "Danışan silindi", message: "Bazı ek dosyaların temizliği tamamlanamadı.", type: "warning" });
       }
     }
 

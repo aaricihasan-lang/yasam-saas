@@ -615,12 +615,18 @@ export default function DanisanListePage() {
       ...(bulkToken ? { "x-session-token": bulkToken } : {}),
     };
     const deletedIds: string[] = [];
+    let anyStorageWarning = false;
     for (const id of ids) {
       const res = await fetch(`/api/clients/${id}/cascade-delete`, {
         method: "DELETE",
         headers: bulkHeaders,
       });
-      if (res.ok) deletedIds.push(id);
+      if (res.ok) {
+        deletedIds.push(id);
+        // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir.
+        const j = (await res.json().catch(() => ({}))) as { warnings?: string[] };
+        if (Array.isArray(j.warnings) && j.warnings.length > 0) anyStorageWarning = true;
+      }
     }
 
     setDeleteLoading(false);
@@ -628,6 +634,10 @@ export default function DanisanListePage() {
     if (deletedIds.length === 0) {
       showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
       return;
+    }
+
+    if (anyStorageWarning) {
+      showToast({ title: "Danışanlar silindi", message: "Bazı ek dosyaların temizliği tamamlanamadı.", type: "warning" });
     }
 
     const deletedIdSet = new Set(deletedIds);

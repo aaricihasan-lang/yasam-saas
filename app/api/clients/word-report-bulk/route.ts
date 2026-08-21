@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { Document, Packer } from "docx";
 import {
   bodyText,
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { data: clientData, error: clientError } = await clientQuery;
   if (clientError)
-    return Response.json({ ok: false, error: `Danışanlar okunamadı: ${clientError.message}` }, { status: 500 });
+    return serverErrorResponse({ route: "clients/word-report-bulk", action: "POST", tenantId, cause: clientError });
 
   const clients = (clientData || []) as ClientRow[];
   if (!clients.length)

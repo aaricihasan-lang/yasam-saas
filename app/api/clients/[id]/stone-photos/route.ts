@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -69,7 +70,7 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "GET", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, photos: data ?? [] });
@@ -129,7 +130,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "POST", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, photo: data });
@@ -186,7 +187,7 @@ export async function DELETE(
   const { error } = await query;
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true });

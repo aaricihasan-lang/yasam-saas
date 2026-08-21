@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -86,7 +87,7 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/combinations", action: "GET", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, rows: data ?? [] });
@@ -158,7 +159,7 @@ export async function POST(
     .eq("tenant_id", tenantId)
     .eq("client_id", clientId);
   if (existErr) {
-    return NextResponse.json({ ok: false, error: existErr.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/combinations", action: "POST", tenantId, cause: existErr });
   }
   const targetNorm = normComboName(name);
   const isDuplicate = (existing ?? []).some(
@@ -193,7 +194,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/combinations", action: "POST", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, id: data?.id ?? null });
