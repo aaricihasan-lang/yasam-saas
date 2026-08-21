@@ -390,9 +390,15 @@ export default function ClientDetailPage() {
     setGeneratingReport(true);
     try {
       const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
+        body: JSON.stringify({ ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -421,9 +427,15 @@ export default function ClientDetailPage() {
     setDrBusy(true);
     try {
       const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
+        body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -450,9 +462,15 @@ export default function ClientDetailPage() {
     setTabWordBusy(true);
     try {
       const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "tab", tabName: tab }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          "x-session-token": sessionToken ?? "",
+        },
+        body: JSON.stringify({ exportMode: "tab", tabName: tab }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();

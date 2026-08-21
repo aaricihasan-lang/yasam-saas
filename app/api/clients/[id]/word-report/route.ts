@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import { NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   AlignmentType,
   BorderStyle,
@@ -22,7 +23,6 @@ import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { odevDurumLabel } from "@/lib/odevStatus";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import { notesToPlainText } from "@/lib/clientNotes";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 import {
@@ -38,7 +38,6 @@ import {
   divider,
   embedImageParagraph,
   fetchImageBuffer,
-  fetchImagesBatch,
   fieldInline,
   h1Colored,
   h2,
@@ -932,52 +931,82 @@ function buildAnalysisTables(an: ClientAnalysisRow): ReportChild[] | null {
   return null;
 }
 
+// ─── Analiz görseli okuma (PRIVATE bucket, service_role) ─────────────────────
+// Görsel PRIVATE bucket'ta tutulur; okuma yalnız server-side service_role ile,
+// DETERMINISTIK object path üzerinden yapılır: {tenantId}/{clientId}/{analysisId}.png.
+// image_url alanı yalnız "görsel var mı" göstergesi olarak kullanılır (path/URL fark
+// etmez) → eski (absolute public URL) ve yeni (object path) satırlar TEK yoldan okunur,
+// public URL'ye bağımlılık kalmaz. Bucket public de olsa private de olsa çalışır.
+const ANALYSIS_IMAGE_BUCKET = "client-analysis-images";
+
+async function downloadAnalysisImage(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  analysisId: string,
+): Promise<Buffer | null> {
+  try {
+    const path = `${tenantId}/${clientId}/${analysisId}.png`;
+    const { data, error } = await db.storage.from(ANALYSIS_IMAGE_BUCKET).download(path);
+    if (error || !data) return null;
+    return Buffer.from(await data.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/** analyses sırasıyla hizalı (Buffer|null)[]; yalnız image_url dolu kayıtlar indirilir. */
+async function fetchAnalysisImages(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  analyses: ClientAnalysisRow[],
+): Promise<(Buffer | null)[]> {
+  const BATCH = 15;
+  const out: (Buffer | null)[] = new Array(analyses.length).fill(null);
+  for (let i = 0; i < analyses.length; i += BATCH) {
+    const slice = analyses.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(
+      slice.map((a) =>
+        a.image_url?.trim()
+          ? downloadAnalysisImage(db, tenantId, clientId, a.id)
+          : Promise.resolve(null),
+      ),
+    );
+    settled.forEach((r, j) => {
+      out[i + j] = r.status === "fulfilled" ? r.value : null;
+    });
+  }
+  return out;
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  // Kanonik oturum + modül kapısı: x-user-id + x-session-token + token↔user binding.
+  // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.
+  const guard = await requireModuleAccess(req, "clients");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId, is_demo_account } = guard;
+
   const { id: clientId } = await params;
 
   let body: unknown;
-  try { body = await request.json(); }
+  try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "full", tabName, dateRange, selectionGroupId } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { exportMode = "full", tabName, dateRange, selectionGroupId } = body as {
     exportMode?: string;
     tabName?: string;
     dateRange?: { start: string; end: string };
     selectionGroupId?: string;
   };
 
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması) — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "clients");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
   // Demo hesap: tüm export işlemleri sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
+  if (is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // ─── Tab mode early-return ────────────────────────────────────────────────
@@ -1159,9 +1188,7 @@ export async function POST(
     else if (tab === "analizler") {
       const analyses = extraRows as ClientAnalysisRow[];
       all.push(muted(`Toplam ${count} analiz kaydı`));
-      const tabAnalysisImages = await fetchImagesBatch(
-        analyses.map((a) => a.image_url?.trim() || null),
-      );
+      const tabAnalysisImages = await fetchAnalysisImages(db, tenantId, clientId, analyses);
       if (analyses.length === 0) {
         all.push(muted("Henüz analiz kaydı yok."));
       } else {
@@ -1250,7 +1277,7 @@ export async function POST(
     all.push(twoColTable([["Danışan", saFullName], ["Analiz Tarihi", formatDateTimeTR(an.created_at)]]));
 
     const saTables = buildAnalysisTables(an);
-    const saImgBuf = an.image_url?.trim() ? await fetchImageBuffer(an.image_url.trim()) : null;
+    const saImgBuf = an.image_url?.trim() ? await downloadAnalysisImage(db, tenantId, clientId, an.id) : null;
     if (saTables) {
       all.push(...saTables);
     } else if (saImgBuf) {
@@ -1345,9 +1372,7 @@ export async function POST(
     }
 
     // Analiz görselleri
-    const drAnalysisImages = await fetchImagesBatch(
-      drAn.map((a) => a.image_url?.trim() || null),
-    );
+    const drAnalysisImages = await fetchAnalysisImages(db, tenantId, clientId, drAn);
 
     const all: ReportChild[] = [];
 
@@ -1557,9 +1582,7 @@ export async function POST(
   }
 
   // Analiz görselleri (paralel fetch)
-  const analysisImages = await fetchImagesBatch(
-    analyses.map((a) => a.image_url?.trim() || null),
-  );
+  const analysisImages = await fetchAnalysisImages(db, tenantId, clientId, analyses);
 
   // ─── Yolculuk olayları ────────────────────────────────────────────────────
   const journeyEvents: TimelineEvent[] = [];

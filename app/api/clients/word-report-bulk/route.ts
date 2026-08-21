@@ -1,7 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import { NextRequest } from "next/server";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -68,43 +67,24 @@ function titleCaseTR(text: string): string {
     .join(" ");
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
+  // Kanonik oturum + modül kapısı: x-user-id + x-session-token + token↔user binding.
+  // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.
+  const guard = await requireModuleAccess(req, "clients");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId, is_demo_account } = guard;
+
   let body: unknown;
-  try { body = await request.json(); }
+  try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", clientIds } = body as {
-    tenantId?: string;
-    userId?: string;
+  const { exportMode = "all", clientIds } = body as {
     exportMode?: ExportMode;
     clientIds?: string[];
   };
 
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması) — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "clients");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
   // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
+  if (is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // ── Danışan çekimi
