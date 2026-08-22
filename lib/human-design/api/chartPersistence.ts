@@ -116,6 +116,30 @@ export async function getComputedChart(
   return { row: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
+/**
+ * Chart→Canonical kişisel bilgi paneli için TENANT-GÜVENLİ kaynak okuma.
+ * Kaynak (manual/computed) FARK ETMEZ — yalnız tenant + id ile eşleşir (cross-tenant
+ * IDOR yok). Yalnız normalizeChart/personalKnowledge için gereken scalar kolonlar
+ * döner; computed_result jsonb çekilmez (derived scalars yeterlidir).
+ */
+export async function getChartKnowledgeSource(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{
+  row: { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null;
+  error: string | null;
+}> {
+  const { data, error } = await db
+    .from(TABLE)
+    .select("id, source, type_code, authority_code, gates, channels")
+    .eq("tenant_id", tenantId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { row: null, error: error.message };
+  return { row: (data as { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null) ?? null, error: null };
+}
+
 export async function deleteComputedChart(
   db: SupabaseClient,
   tenantId: string,

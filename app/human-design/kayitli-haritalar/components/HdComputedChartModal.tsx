@@ -14,6 +14,7 @@ import {
   deleteComputedChart,
   type ComputedChartDetail,
 } from "@/lib/human-design/api/chartsClient";
+import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 
 type Props = {
   id: string;
@@ -48,6 +49,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
 
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- id başına yeniden yükleme (mevcut davranış korunur)
     setLoading(true);
     setLoadError("");
     getComputedChart(id).then(({ row: r, error }) => {
@@ -113,6 +115,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
               {loadError}
             </p>
           ) : result ? (
+            <div className="space-y-5">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
               <div className="flex items-start justify-center overflow-hidden rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm">
                 <BodyGraph result={result} />
@@ -137,6 +140,11 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
                   </p>
                   <p className="text-slate-700">{result.channels.map((c) => c.name).join(", ") || "—"}</p>
                 </div>
+              </div>
+            </div>
+              <div className="border-t border-indigo-100/80 pt-5">
+                <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin Human Design Bilgileri</p>
+                <HdPersonalKnowledgePanel chartId={id} />
               </div>
             </div>
           ) : (

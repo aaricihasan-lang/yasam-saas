@@ -249,3 +249,33 @@ export async function getPublishedEntityDetail(
     },
   };
 }
+
+/**
+ * BATCHED published-only içerik okuma (N+1 önler). Bir canonical anahtar kümesi için
+ * YALNIZ status='published' içerik döner; yayınlanmamış/eksik anahtar → null.
+ * Tek DB sorgusu (hd_canonical_content.canonical_key + status). Kaynak tam metni
+ * (rights-gated) BU projeksiyona dahil DEĞİLDİR — panel canonical prose odaklıdır.
+ * Chart→Canonical kişisel bilgi paneli tüketir; taslak ASLA sızmaz (fail-closed).
+ */
+export async function getPublishedContentByKeys(
+  db: SupabaseClient,
+  canonicalKeys: readonly string[],
+): Promise<HdKnowledgeReadResult<Map<string, HdKnowledgeContent | null>>> {
+  const keys = Array.from(new Set(canonicalKeys.filter((k) => typeof k === "string" && k.length > 0)));
+  const map = new Map<string, HdKnowledgeContent | null>();
+  for (const k of keys) map.set(k, null); // varsayılan: yayınlanmamış/eksik → null
+  if (keys.length === 0) return { ok: true, data: map };
+
+  const { data, error } = await db
+    .from("hd_canonical_content")
+    .select("*")
+    .in("canonical_key", keys)
+    .eq("status", PUBLISHED);
+  if (error) return { ok: false, error: { code: "db_error", message: error.message } };
+
+  for (const row of data ?? []) {
+    const r = row as HdCanonicalContentRow;
+    map.set(r.canonical_key, toContentDTO(r));
+  }
+  return { ok: true, data: map };
+}
