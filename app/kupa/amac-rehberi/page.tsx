@@ -1,55 +1,55 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BodyMapCanvas, type BodyMark } from "@/lib/bodymap";
-import {
-  CUPPING_BODY_MAPS,
-  CUPPING_MAP_GROUP_LABELS,
-  DEFAULT_CUPPING_MAP_KEY,
-  getCuppingMap,
-  type CuppingMapGroup,
-} from "@/lib/cupping/maps";
 import {
   KupaShell,
   kupaBtnPrimary,
   kupaCard,
   kupaInput,
-  kupaPill,
-  kupaPillActive,
 } from "../components/KupaShell";
 import { CuppingCitationManager } from "../components/CitationManager";
-import { BodySilhouette } from "../maps/Silhouettes";
 import {
   createPointTopic,
   createTopic,
   deletePointTopic,
-  listPlacements,
   listPoints,
   listPointTopics,
   listTopics,
-  type CuppingPlacement,
   type CuppingPoint,
   type CuppingPointTopic,
   type CuppingTopic,
 } from "../lib/api";
 
-const GROUP_ORDER: CuppingMapGroup[] = ["govde", "bas", "bacak"];
-
+/**
+ * AMAÇ / RAHATSIZLIK REHBERİ — konu ↔ nokta ilişki + kaynak yönetimi.
+ *
+ * V1 kapsamı: görsel vücut haritası (silhouette/placement) bu ekrandan ÇIKARILDI
+ * (Vücut & Nokta Atlası ileri versiyona ertelendi). Konu→ilişkili noktalar ilişkisi
+ * ve kaynaklandırma korunur; profesyonel liste/detay düzeni.
+ */
 export default function AmacRehberiPage() {
   const [topics, setTopics] = useState<CuppingTopic[]>([]);
   const [points, setPoints] = useState<CuppingPoint[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [relations, setRelations] = useState<CuppingPointTopic[]>([]);
-  const [mapKey, setMapKey] = useState<string>(DEFAULT_CUPPING_MAP_KEY);
-  const [placements, setPlacements] = useState<CuppingPlacement[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [linkPointId, setLinkPointId] = useState("");
   const [citeRelId, setCiteRelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const mapDef = getCuppingMap(mapKey);
-  const pointName = useCallback((id: string) => points.find((p) => p.id === id)?.name ?? "?", [points]);
+  const pointName = useCallback(
+    (id: string) => points.find((p) => p.id === id)?.name ?? "?",
+    [points],
+  );
+  const pointMeta = useCallback(
+    (id: string) => points.find((p) => p.id === id) ?? null,
+    [points],
+  );
+  const selectedTopic = useMemo(
+    () => topics.find((t) => t.id === selectedTopicId) ?? null,
+    [topics, selectedTopicId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -91,43 +91,7 @@ export default function AmacRehberiPage() {
     };
   }, [selectedTopicId]);
 
-  // Seçili harita → yerleşimler
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const pl = await listPlacements({ mapKey });
-        if (!cancelled) setPlacements(pl);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Harita yükleme hatası.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [mapKey]);
-
   const relatedPointIds = useMemo(() => new Set(relations.map((r) => r.point_id)), [relations]);
-
-  // İMZA ÖZELLİĞİ: seçili konunun ilişkili noktalarının bu haritadaki yerleşimlerini birlikte göster.
-  const marks: BodyMark[] = useMemo(
-    () =>
-      placements
-        .filter((p) => relatedPointIds.has(p.point_id))
-        .map((p) => ({
-          id: p.id,
-          label: pointName(p.point_id),
-          mapKey: p.map_key,
-          shape: p.shape,
-          cx: p.cx,
-          cy: p.cy,
-          rx: p.rx,
-          ry: p.ry,
-          angle: p.angle ?? 0,
-          meta: { pointId: p.point_id },
-        })),
-    [placements, relatedPointIds, pointName],
-  );
 
   const handleCreateTopic = useCallback(async () => {
     const title = newTopic.trim();
@@ -163,13 +127,10 @@ export default function AmacRehberiPage() {
     }
   }, []);
 
-  const shownOnMap = marks.length;
-  const relatedButNotOnMap = relations.length - new Set(marks.map((m) => (m.meta as { pointId: string }).pointId)).size;
-
   return (
     <KupaShell
       title="Amaç / Rahatsızlık Rehberi"
-      subtitle="Konuyu seç → ilişkili noktaları haritada birlikte gör. (İlişki bilgisidir; 'tedavi eder' anlamı taşımaz.)"
+      subtitle="Konuyu seç → ilişkili hacamat noktalarını ve kaynaklarını gör. (İlişki bilgisidir; 'tedavi eder' anlamı taşımaz.)"
       breadcrumb={[{ label: "Amaç / Rahatsızlık Rehberi" }]}
     >
       {error ? (
@@ -178,146 +139,149 @@ export default function AmacRehberiPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
-        {/* SOL: konular + ilişki yönetimi */}
-        <div className="flex flex-col gap-4">
-          <div className={kupaCard}>
-            <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Konular</h3>
-            <div className="mb-2.5 flex gap-1.5">
-              <input
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateTopic()}
-                placeholder="Yeni konu…"
-                className={kupaInput}
-              />
-              <button type="button" onClick={handleCreateTopic} disabled={!newTopic.trim()} className={kupaBtnPrimary} aria-label="Konu ekle">
-                +
-              </button>
-            </div>
-            <div className="max-h-72 space-y-1.5 overflow-y-auto pr-0.5">
-              {loading ? (
-                <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
-              ) : topics.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
-                  <p className="text-xs text-slate-500">Henüz konu yok.</p>
-                </div>
-              ) : (
-                topics.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTopicId(t.id)}
-                    className={`block w-full truncate rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
-                      selectedTopicId === t.id
-                        ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50/50"
-                    }`}
-                  >
-                    {t.title}
-                  </button>
-                ))
-              )}
-            </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        {/* SOL: konu listesi */}
+        <div className={kupaCard}>
+          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Konular</h3>
+          <div className="mb-2.5 flex gap-1.5">
+            <input
+              value={newTopic}
+              onChange={(e) => setNewTopic(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateTopic()}
+              placeholder="Yeni konu…"
+              className={kupaInput}
+            />
+            <button type="button" onClick={handleCreateTopic} disabled={!newTopic.trim()} className={kupaBtnPrimary} aria-label="Konu ekle">
+              +
+            </button>
           </div>
-
-          {selectedTopicId ? (
-            <div className={kupaCard}>
-              <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                İlişkili Noktalar
-              </h3>
-              <div className="mb-2.5 flex gap-1.5">
-                <select value={linkPointId} onChange={(e) => setLinkPointId(e.target.value)} className={kupaInput}>
-                  <option value="">— nokta bağla —</option>
-                  {points
-                    .filter((p) => !relatedPointIds.has(p.id))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-                <button type="button" onClick={handleLink} disabled={!linkPointId} className={kupaBtnPrimary}>
-                  Bağla
+          <div className="max-h-[70vh] space-y-1.5 overflow-y-auto pr-0.5">
+            {loading ? (
+              <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
+            ) : topics.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
+                <p className="text-xs text-slate-500">Henüz konu yok.</p>
+              </div>
+            ) : (
+              topics.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedTopicId(t.id)}
+                  className={`block w-full truncate rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
+                    selectedTopicId === t.id
+                      ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50/50"
+                  }`}
+                >
+                  {t.title}
                 </button>
-              </div>
-              <div className="space-y-1.5">
-                {relations.length === 0 ? (
-                  <p className="px-1 text-xs text-slate-400">Bu konuya bağlı nokta yok.</p>
-                ) : (
-                  relations.map((r) => (
-                    <div
-                      key={r.id}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate text-sm font-medium text-slate-700">{pointName(r.point_id)}</span>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCiteRelId((cur) => (cur === r.id ? null : r.id))}
-                            aria-expanded={citeRelId === r.id}
-                            className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
-                          >
-                            kaynaklar
-                          </button>
-                          <button type="button" onClick={() => handleUnlink(r.id)} className="text-[11px] font-semibold text-rose-600 transition hover:text-rose-700">
-                            kaldır
-                          </button>
-                        </div>
-                      </div>
-                      {citeRelId === r.id ? (
-                        <CuppingCitationManager entity="point-topic" entityId={r.id} />
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Konunun kendi kaynak atıfları */}
-              <CuppingCitationManager entity="topic" entityId={selectedTopicId} />
-            </div>
-          ) : null}
+              ))
+            )}
+          </div>
         </div>
 
-        {/* SAĞ: harita */}
-        <div className={kupaCard}>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-1.5">
-              {GROUP_ORDER.flatMap((g) =>
-                CUPPING_BODY_MAPS.filter((m) => m.group === g).map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setMapKey(m.key)}
-                    title={CUPPING_MAP_GROUP_LABELS[g]}
-                    aria-pressed={mapKey === m.key}
-                    className={mapKey === m.key ? kupaPillActive : kupaPill}
-                  >
-                    {m.label}
-                  </button>
-                )),
-              )}
+        {/* SAĞ: seçili konu detayı — açıklama + ilişkili noktalar + kaynaklar */}
+        <div className="flex flex-col gap-4">
+          {!selectedTopicId ? (
+            <div className={`${kupaCard} flex min-h-[240px] items-center justify-center`}>
+              <p className="text-sm text-slate-400">Soldan bir konu seçin.</p>
             </div>
-            <p className="text-[11px] font-medium text-slate-500">
-              <span className="font-bold text-amber-800">{shownOnMap}</span> nokta bu haritada
-              {relatedButNotOnMap > 0 ? ` · ${relatedButNotOnMap} yerleşimsiz` : ""}
-            </p>
-          </div>
-          <div
-            className="relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-amber-50/40 shadow-inner"
-            style={{ height: "min(74vh, 760px)" }}
-          >
-            <BodyMapCanvas
-              mapKey={mapKey}
-              marks={marks}
-              background={<BodySilhouette mapKey={mapKey} />}
-              contentWidth={mapDef?.contentWidth ?? 480}
-              contentHeight={mapDef?.contentHeight ?? 800}
-              toolMode="select"
-              readOnly
-            />
-          </div>
+          ) : (
+            <>
+              {selectedTopic ? (
+                <div className={kupaCard}>
+                  <h2 className="text-lg font-black tracking-tight text-slate-900">{selectedTopic.title}</h2>
+                  {selectedTopic.description ? (
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{selectedTopic.description}</p>
+                  ) : null}
+                  {selectedTopic.category ? (
+                    <span className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                      {selectedTopic.category}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className={kupaCard}>
+                <div className="mb-2.5 flex items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">İlişkili Noktalar</h3>
+                  <span className="text-[11px] font-medium text-slate-500">
+                    <span className="font-bold text-amber-800">{relations.length}</span> nokta
+                  </span>
+                </div>
+                <div className="mb-3 flex gap-1.5">
+                  <select value={linkPointId} onChange={(e) => setLinkPointId(e.target.value)} className={kupaInput}>
+                    <option value="">— nokta bağla —</option>
+                    {points
+                      .filter((p) => !relatedPointIds.has(p.id))
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                          {p.code ? ` (${p.code})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                  <button type="button" onClick={handleLink} disabled={!linkPointId} className={kupaBtnPrimary}>
+                    Bağla
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {relations.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
+                      <p className="text-xs text-slate-500">Bu konuya bağlı nokta yok.</p>
+                    </div>
+                  ) : (
+                    relations.map((r) => {
+                      const p = pointMeta(r.point_id);
+                      return (
+                        <div key={r.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="truncate text-sm font-semibold text-slate-800">{pointName(r.point_id)}</span>
+                                {p?.code ? (
+                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{p.code}</span>
+                                ) : null}
+                                {r.relation_strength ? (
+                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{r.relation_strength}</span>
+                                ) : null}
+                              </div>
+                              {p?.anatomical_region ? (
+                                <p className="mt-0.5 text-[11px] text-slate-400">{p.anatomical_region}</p>
+                              ) : null}
+                              {r.note ? (
+                                <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{r.note}</p>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCiteRelId((cur) => (cur === r.id ? null : r.id))}
+                                aria-expanded={citeRelId === r.id}
+                                className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
+                              >
+                                kaynaklar
+                              </button>
+                              <button type="button" onClick={() => handleUnlink(r.id)} className="text-[11px] font-semibold text-rose-600 transition hover:text-rose-700">
+                                kaldır
+                              </button>
+                            </div>
+                          </div>
+                          {citeRelId === r.id ? (
+                            <CuppingCitationManager entity="point-topic" entityId={r.id} />
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Konunun kendi kaynak atıfları */}
+                <CuppingCitationManager entity="topic" entityId={selectedTopicId} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </KupaShell>
