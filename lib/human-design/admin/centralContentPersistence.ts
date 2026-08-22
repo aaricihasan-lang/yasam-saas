@@ -204,6 +204,35 @@ export async function deleteContent(
   return { ok: true, data: { id } };
 }
 
+/**
+ * TOPLU içerik silme (entity_id listesiyle). Yalnız hd_canonical_content satırları
+ * silinir; bağlı hd_content_evidence FK CASCADE ile birlikte gider. Canonical KİMLİK
+ * (hd_canonical_entities), passage ve source DOKUNULMAZ.
+ *
+ * FAIL-CLOSED: silme TEK atomic DB statement'tır (.in("entity_id", ids)); kısmi başarı
+ * yoktur (ya hepsi ya hiç). Audit satır başına ayrı yazılır (fail-closed). İçeriği
+ * olmayan entity'ler sessizce atlanır (silinecek satır yok) ve raporlanır.
+ */
+export async function deleteContentsByEntityIds(
+  db: SupabaseClient,
+  actorAdminId: string,
+  entityIds: string[],
+): Promise<HdPersistResult<{ deleted: { id: string; entity_id: string; canonical_key: string }[] }>> {
+  const { data, error } = await db
+    .from("hd_canonical_content")
+    .delete()
+    .in("entity_id", entityIds)
+    .select("id, entity_id, canonical_key");
+  if (error) return mapError(error);
+  const rows = (data ?? []) as { id: string; entity_id: string; canonical_key: string }[];
+  for (const r of rows) {
+    await audit(db, actorAdminId, "deleted", "canonical_content", r.id, {
+      canonicalEntityId: r.entity_id, canonicalKey: r.canonical_key, context: { bulk: true },
+    });
+  }
+  return { ok: true, data: { deleted: rows } };
+}
+
 // ── Generic kaynak-katmanı CRUD (source / passage / original_text) ──────────
 async function genericDelete(
   db: SupabaseClient,
