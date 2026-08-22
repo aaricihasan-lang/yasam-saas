@@ -39,9 +39,9 @@ export function KupaShell({
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500">
+        <nav className="mb-2 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500">
           <Link href="/" className="no-underline transition hover:text-amber-700">
             Ana Sayfa
           </Link>
@@ -80,7 +80,7 @@ export function KupaShell({
         </nav>
 
         {/* Header */}
-        <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <header className="mb-2 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             {badge ? (
               <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">
