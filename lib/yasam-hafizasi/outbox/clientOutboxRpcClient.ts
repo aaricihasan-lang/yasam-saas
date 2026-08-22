@@ -33,11 +33,14 @@ function isPosInt(v: unknown): v is number {
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
+function isBoolean(v: unknown): v is boolean {
+  return typeof v === "boolean";
+}
 function isOperation(v: unknown): v is OutboxOperation {
   return typeof v === "string" && (OUTBOX_OPERATIONS as readonly string[]).includes(v);
 }
 
-/** Client claim satırı (professional + client_id). */
+/** Client claim satırı (professional + client_id + event-time aktivasyon damgası). */
 export interface ClaimedClientOutboxEvent {
   readonly id: string;
   readonly sourceKey: string;
@@ -48,6 +51,13 @@ export interface ClaimedClientOutboxEvent {
   readonly operation: OutboxOperation;
   readonly attempts: number;
   readonly eventVersion: number;
+  /**
+   * Olayın ENQUEUE/COALESCE anındaki aktivasyon durumu (yh_source_activation.is_active IS TRUE).
+   * Event-time boundary gate: pre-activation olaylar (false) worker sonradan işlese bile
+   * ASLA index üretmez (BF-11E race hardening). false GEÇERLİ değerdir; missing/null KABUL EDİLMEZ
+   * (strict fail-closed — migration 20261220000000 uygulanmadan V2 claim deploy edilmemeli).
+   */
+  readonly enqueuedActive: boolean;
 }
 
 export type ClientCompleteResult = "succeeded" | "requeued_newer_event";
@@ -85,7 +95,9 @@ export async function claimClientEvents(
   worker: string,
   batch: number,
 ): Promise<ClaimedClientOutboxEvent[]> {
-  const data = await callRpc(db, "yh_client_outbox_claim", { p_worker: worker, p_batch: batch });
+  // V2: V1 semantiği birebir + enqueued_active döner (event-time boundary gate için).
+  // V1 (yh_client_outbox_claim) migration'da KORUNUR; production rollout migration-first'tür.
+  const data = await callRpc(db, "yh_client_outbox_claim_v2", { p_worker: worker, p_batch: batch });
   if (data === null || data === undefined) return [];
   if (!Array.isArray(data)) throw new OutboxRpcInvariantError("client-claim-not-array");
   return data.map(mapClaimRow);
@@ -93,7 +105,7 @@ export async function claimClientEvents(
 
 function mapClaimRow(row: unknown): ClaimedClientOutboxEvent {
   if (!isRecord(row)) throw new OutboxRpcInvariantError("client-claim-row-not-object");
-  const { id, source_key, source_table, source_id, tenant_id, client_id, operation, attempts, event_version } = row;
+  const { id, source_key, source_table, source_id, tenant_id, client_id, operation, attempts, event_version, enqueued_active } = row;
   if (!isUuid(id)) throw new OutboxRpcInvariantError("client-claim-invalid-id");
   if (!isNonEmptyString(source_key)) throw new OutboxRpcInvariantError("client-claim-invalid-source-key");
   if (!isNonEmptyString(source_table)) throw new OutboxRpcInvariantError("client-claim-invalid-source-table");
@@ -103,6 +115,9 @@ function mapClaimRow(row: unknown): ClaimedClientOutboxEvent {
   if (!isOperation(operation)) throw new OutboxRpcInvariantError("client-claim-invalid-operation");
   if (!isNonNegInt(attempts)) throw new OutboxRpcInvariantError("client-claim-invalid-attempts");
   if (!isPosInt(event_version)) throw new OutboxRpcInvariantError("client-claim-invalid-event-version");
+  // STRICT fail-closed: enqueued_active kesin boolean olmalı; missing/null → invariant error
+  // (V2 claim yalnız migration 20261220000000 uygulandıktan sonra çağrılmalıdır).
+  if (!isBoolean(enqueued_active)) throw new OutboxRpcInvariantError("client-claim-invalid-enqueued-active");
   return {
     id,
     sourceKey: source_key,
@@ -113,6 +128,7 @@ function mapClaimRow(row: unknown): ClaimedClientOutboxEvent {
     operation,
     attempts,
     eventVersion: event_version,
+    enqueuedActive: enqueued_active,
   };
 }
 

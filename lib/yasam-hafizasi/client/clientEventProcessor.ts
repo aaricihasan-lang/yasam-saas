@@ -15,6 +15,12 @@
  *     ve deindex YAPILMAZ; olay COMPLETE no-op ile kuyruktan düşürülür (dead-letter YOK).
  *     Client kaynakları BF-11E activation matrisinde FUTURE_ONLY_READY/registryEnabled:false
  *     → gate her zaman inactive → merge tek başına HİÇBİR şey indexlemez.
+ *   - EVENT-TIME BOUNDARY (race hardening): index için İKİ kapı BİRLİKTE gerekir —
+ *     CURRENTLY ACTIVE (isSourceProcessingActive) VE ENQUEUED WHILE ACTIVE
+ *     (event.enqueuedActive; enqueue anındaki yh_source_activation.is_active damgası,
+ *     migration 20261220000000). Aktivasyondan ÖNCE enqueue edilmiş olay worker sonradan
+ *     işlese bile index üretmez: pre-activation UPSERT → no-op (deindex YOK), pre-activation
+ *     DELETE → defensive deindex (ghost-free).
  *
  * PRIVATE MEMORY authorization (Politika Kilidi):
  *   - tenant_id + client_id ZORUNLU (UUID); demo/synthetic tenant indexlenmez.
@@ -88,8 +94,8 @@ export async function processClientOutboxEvent(
   if (!isUuid(event.tenantId) || !isUuid(event.clientId) || !isUuid(event.sourceId)) {
     return permanent("invalid-event-contract");
   }
-  // Kapı 5 (BF-11E RUNTIME ACTIVATION GATE): inactive → COMPLETE no-op (dormant drain;
-  //   index YAZILMAZ, deindex YAPILMAZ). Client kaynakları merge sonrası burada durur.
+  // Kapı 5 (BF-11E RUNTIME ACTIVATION GATE — "CURRENTLY ACTIVE"): inactive → COMPLETE no-op
+  //   (dormant drain; index YAZILMAZ, deindex YAPILMAZ). Kill-switch/deactivate bu kapıda durur.
   if (deps.isSourceProcessingActive !== undefined) {
     let active: boolean;
     try {
@@ -98,6 +104,21 @@ export async function processClientOutboxEvent(
       return transient("activation-check-error"); // fail-closed; sessiz aktif YOK
     }
     if (!active) return complete("inactive-source-noop");
+  }
+  // Kapı 5.5 (BF-11E EVENT-TIME BOUNDARY GATE — "ENQUEUED WHILE ACTIVE"): olay aktivasyon
+  //   effective-time'ından ÖNCE enqueue/coalesce edildiyse (enqueued_active=false), worker
+  //   sonradan (kaynak artık aktifken) işlese bile index üretilmez (FUTURE_ONLY_READY /
+  //   production race hardening). İki kapı BİRLİKTE gerekir: CURRENTLY ACTIVE (Kapı 5) VE
+  //   ENQUEUED WHILE ACTIVE (bu kapı). Coalescing-safe: aynı satır üzerine gelen post-activation
+  //   GERÇEK event enqueued_active'i true'ya flip'ler → burada geçer.
+  if (event.enqueuedActive !== true) {
+    if (event.operation === "delete") {
+      // Pre-activation DELETE: defensive deindex (ghost-free); ardından terminal succeeded.
+      return defensiveDeindex(event, config, deps, "pre-activation-delete");
+    }
+    // Pre-activation UPSERT: index YAZMA, deindex YAPMA (eski/bayat upsert'in daha yeni ve
+    //   geçerli bir index'i yanlışlıkla silmesini önle) → terminal no-op complete.
+    return complete("pre-activation-upsert-noop");
   }
   // Kapı 6: demo/synthetic tenant → ASLA indexlenmez (defensive deindex + complete).
   if (event.tenantId === YH_CLIENT_DEMO_TENANT) {
