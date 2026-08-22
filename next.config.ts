@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/cosmic-calendar/power-days",       destination: "/cosmic-calendar/power-days",       permanent: true },
       { source: "/dashboard/cosmic-calendar/retro-calendar",   destination: "/cosmic-calendar/retro-calendar",   permanent: true },
       { source: "/dashboard/cosmic-calendar/transits/:planet", destination: "/cosmic-calendar/transits/:planet", permanent: true },
+      // Vücut & Nokta Atlası V1'den çıkarıldı (ileri versiyona ertelendi); altyapı korunur.
+      // Geçici (permanent:false) — ileri versiyonda geri gelebilir. Spesifik kurallar
+      // /dashboard/kupa/:path* joker'inden ÖNCE gelmeli (ilk eşleşen kazanır).
+      { source: "/dashboard/kupa/nokta-atlasi", destination: "/kupa",    permanent: false },
+      { source: "/kupa/nokta-atlasi",      destination: "/kupa",         permanent: false },
       { source: "/dashboard/kupa",         destination: "/kupa",         permanent: true },
       { source: "/dashboard/kupa/:path*",  destination: "/kupa/:path*",  permanent: true },
     ];

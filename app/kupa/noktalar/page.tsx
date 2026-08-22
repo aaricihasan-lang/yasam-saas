@@ -38,7 +38,7 @@ export default function NoktalarPage() {
   return (
     <KupaShell
       title="Hacamat Noktaları"
-      subtitle="Nokta bilgisi (ad, kod, anatomik bölge, geleneksel kullanım, güvenlik). Haritadaki yerleşimler ayrıdır."
+      subtitle="Nokta bilgisi: ad, kod, anatomik bölge, geleneksel kullanım, uygulama ve güvenlik."
       breadcrumb={[{ label: "Hacamat Noktaları" }]}
     >
       <CrudManager<CuppingPoint>
