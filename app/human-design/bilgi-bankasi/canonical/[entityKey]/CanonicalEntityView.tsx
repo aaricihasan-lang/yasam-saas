@@ -65,11 +65,12 @@ export function CanonicalEntityView({ entityKey }: { entityKey: string }) {
     if (role === "expert") void loadExpert();
   }, [role, loadExpert]);
 
-  // Admin: mevcut admin editörünü modül içine göm (davranış aynı; geri linki modüle).
+  // Admin: mevcut admin editörünü modül içine göm (premium geniş düzen; "Listeye dön"
+  // CTA'sı kaldırıldı, tarayıcı geri tuşu doğal çalışır).
   if (role === "admin") {
     return (
-      <HumanDesignShell maxWidthClass="max-w-3xl">
-        <HdAdminContentEditor entityKey={entityKey} backHref={MODULE_HOME} />
+      <HumanDesignShell maxWidthClass="max-w-[1400px]">
+        <HdAdminContentEditor entityKey={entityKey} />
       </HumanDesignShell>
     );
   }

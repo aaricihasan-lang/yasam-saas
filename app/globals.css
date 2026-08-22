@@ -266,26 +266,31 @@ button,
   }
 }
 
-/* ── Scrollbar stilleri (değişmedi) ── */
-.stone-reader-scroll {
+/* ── Scrollbar stilleri — Doğaltaş okuyucu + paylaşılan ReaderModal (aynı görünüm) ── */
+.stone-reader-scroll,
+.reader-modal-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgb(167 139 250 / 0.65) transparent;
 }
 
-.stone-reader-scroll::-webkit-scrollbar {
+.stone-reader-scroll::-webkit-scrollbar,
+.reader-modal-scroll::-webkit-scrollbar {
   width: 8px;
 }
 
-.stone-reader-scroll::-webkit-scrollbar-track {
+.stone-reader-scroll::-webkit-scrollbar-track,
+.reader-modal-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.stone-reader-scroll::-webkit-scrollbar-thumb {
+.stone-reader-scroll::-webkit-scrollbar-thumb,
+.reader-modal-scroll::-webkit-scrollbar-thumb {
   border-radius: 9999px;
   background: linear-gradient(180deg, rgb(34 211 238 / 0.55), rgb(139 92 246 / 0.65));
 }
 
-.stone-reader-scroll::-webkit-scrollbar-thumb:hover {
+.stone-reader-scroll::-webkit-scrollbar-thumb:hover,
+.reader-modal-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgb(34 211 238 / 0.75), rgb(139 92 246 / 0.85));
 }
 
