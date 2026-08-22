@@ -38,6 +38,10 @@ const add = (name: string, ok: boolean, detail = ""): void => {
   checks.push({ name, ok, detail });
 };
 
+/** ProcessDirective union'ından güvenli not/etiket (complete→note, fail→code). Detail/koşul için. */
+type Directive = Awaited<ReturnType<typeof processClientOutboxEvent>>;
+const noteOf = (d: Directive): string => (d.action === "complete" ? d.note : d.code);
+
 const cfgByKey = new Map<string, ClientSourceConfig>(YH_CLIENT_INDEX_SOURCES.map((s) => [s.sourceKey, s]));
 
 function ev(partial: Partial<ClaimedClientOutboxEvent>): ClaimedClientOutboxEvent {
@@ -51,6 +55,9 @@ function ev(partial: Partial<ClaimedClientOutboxEvent>): ClaimedClientOutboxEven
     operation: "upsert",
     attempts: 1,
     eventVersion: 1,
+    // Mevcut testler için default true → post-activation event (regression-free);
+    // event-time boundary testleri (RACE-*) enqueuedActive:false ile override eder.
+    enqueuedActive: true,
     ...partial,
   };
 }
@@ -236,19 +243,31 @@ async function run(): Promise<void> {
     add("batch-permanent-maxattempts-1", failMax === 1 && failCode === "unknown-source" && s2.failedPermanent === 1, `${failMax}/${failCode}`);
   }
 
-  // ── 12) RPC client mapping (claim client_id; invalid client → invariant) ──
+  // ── 12) RPC client mapping (claim client_id + enqueued_active; invalid → invariant) ──
   {
     const okDb: OutboxRpcDb = {
       rpc: async () => ({
-        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: CLIENT, operation: "upsert", attempts: 1, event_version: 1 }],
+        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: CLIENT, operation: "upsert", attempts: 1, event_version: 1, enqueued_active: true }],
         error: null,
       }),
     };
     const rows = await claimClientEvents(okDb, "w", 10);
     add("rpc-claim-maps-client-id", rows.length === 1 && rows[0]!.clientId === CLIENT && rows[0]!.tenantId === TENANT, "");
+    add("rpc-claim-maps-enqueued-active", rows.length === 1 && rows[0]!.enqueuedActive === true, "");
+
+    // enqueued_active=false GEÇERLİ (map edilir; boolean koruma false'u reddetmez).
+    const falseDb: OutboxRpcDb = {
+      rpc: async () => ({
+        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: CLIENT, operation: "upsert", attempts: 1, event_version: 1, enqueued_active: false }],
+        error: null,
+      }),
+    };
+    const falseRows = await claimClientEvents(falseDb, "w", 10);
+    add("rpc-claim-enqueued-active-false-valid", falseRows.length === 1 && falseRows[0]!.enqueuedActive === false, "");
+
     const badDb: OutboxRpcDb = {
       rpc: async () => ({
-        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: "bad", operation: "upsert", attempts: 1, event_version: 1 }],
+        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: "bad", operation: "upsert", attempts: 1, event_version: 1, enqueued_active: true }],
         error: null,
       }),
     };
@@ -259,6 +278,145 @@ async function run(): Promise<void> {
       threw = true;
     }
     add("rpc-claim-invalid-client-throws", threw, "");
+
+    // STRICT: enqueued_active missing/null → invariant error (V2 migration-first sözleşmesi).
+    const missingDb: OutboxRpcDb = {
+      rpc: async () => ({
+        data: [{ id: EVID, source_key: SESSIONS_KEY, source_table: SESSIONS_TABLE, source_id: SID, tenant_id: TENANT, client_id: CLIENT, operation: "upsert", attempts: 1, event_version: 1 }],
+        error: null,
+      }),
+    };
+    let threwMissing = false;
+    try {
+      await claimClientEvents(missingDb, "w", 10);
+    } catch {
+      threwMissing = true;
+    }
+    add("rpc-claim-missing-enqueued-active-throws", threwMissing, "");
+  }
+
+  // ═══ EVENT-TIME BOUNDARY (ACTIVATION RACE HARDENING) — RACE-1..RACE-10 ═══════════
+  //
+  // İki kapı BİRLİKTE gerekir: CURRENTLY ACTIVE (isSourceProcessingActive) VE
+  // ENQUEUED WHILE ACTIVE (event.enqueuedActive). Pre-activation olaylar (enqueuedActive=false)
+  // worker sonradan işlese bile index üretmez.
+
+  // RACE-1: active gate=true, enqueuedActive=false, upsert → index 0, no deindex, terminal.
+  {
+    const h = makeDeps(); // isSourceProcessingActive default true
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("pre-activation"));
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: false }), h.deps);
+    add(
+      "RACE-1-preactivation-upsert-noop",
+      d.action === "complete" && d.note === "pre-activation-upsert-noop" &&
+        h.index.size === 0 && h.calls.upsert === 0 && h.calls.deindex === 0 && h.calls.fetch === 0,
+      `${d.action}/${noteOf(d)}/idx${h.index.size}`,
+    );
+  }
+
+  // RACE-2: active=true, enqueuedActive=true, upsert, source var → normal index.
+  {
+    const h = makeDeps();
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("post-activation"));
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: true }), h.deps);
+    add("RACE-2-postactivation-upsert-index", d.action === "complete" && d.note === "upsert-ok" && h.index.size === 1, `${noteOf(d)}/idx${h.index.size}`);
+  }
+
+  // RACE-3: source aktivasyon ÖNCESİNDEN var (eski created_at); aktivasyon sonrası UPDATE'in
+  //   coalesced/latest event'i enqueuedActive=true → normal index. source.created_at KULLANILMAZ.
+  {
+    const h = makeDeps();
+    const oldSource = { ...sessionRow("aktivasyon-oncesi-kaynak"), created_at: "2020-01-01T00:00:00Z" };
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), oldSource);
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: true, eventVersion: 7 }), h.deps);
+    add(
+      "RACE-3-preexisting-source-postactivation-update-index",
+      d.action === "complete" && d.note === "upsert-ok" && h.index.size === 1,
+      `${noteOf(d)}/idx${h.index.size}`,
+    );
+  }
+
+  // RACE-4: pre-activation upsert (false), source processing anında artık YOK → ghost 0, no-op.
+  {
+    const h = makeDeps(); // source boş
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: false }), h.deps);
+    add(
+      "RACE-4-preactivation-upsert-missing-source-no-ghost",
+      d.action === "complete" && d.note === "pre-activation-upsert-noop" &&
+        h.index.size === 0 && h.calls.upsert === 0 && h.calls.deindex === 0,
+      `${noteOf(d)}/idx${h.index.size}`,
+    );
+  }
+
+  // RACE-5: pre-activation DELETE (false) → defensive deindex → terminal succeeded; ghost 0.
+  {
+    const h = makeDeps();
+    // Savunma: varsa mevcut index satırını temizlediğini kanıtla (ghost bırakma).
+    h.index.set(`${SESSIONS_TABLE}|${SID}|`, { source_table: SESSIONS_TABLE, source_id: SID });
+    const d = await processClientOutboxEvent(ev({ operation: "delete", enqueuedActive: false }), h.deps);
+    add(
+      "RACE-5-preactivation-delete-defensive-deindex",
+      d.action === "complete" && d.note === "defensive-deindex:pre-activation-delete" &&
+        h.index.size === 0 && h.calls.deindex === 1 && h.calls.upsert === 0,
+      `${d.action}/${noteOf(d)}/idx${h.index.size}`,
+    );
+  }
+
+  // RACE-6: aynı source identity — event A (false)=no-op, sonraki gerçek event B (true)=index.
+  {
+    const h = makeDeps();
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("event-B-post-activation"));
+    const a = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: false, eventVersion: 1 }), h.deps);
+    add("RACE-6-eventA-false-noop", noteOf(a) === "pre-activation-upsert-noop" && h.index.size === 0, `${noteOf(a)}/idx${h.index.size}`);
+    const b = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: true, eventVersion: 2 }), h.deps);
+    add("RACE-6-eventB-true-index", noteOf(b) === "upsert-ok" && h.index.size === 1, `${noteOf(b)}/idx${h.index.size}`);
+  }
+
+  // RACE-8: 6 client source enqueuedActive=true ile normal indexler (boundary regresyonu YOK).
+  {
+    let allIndexed = true;
+    const detail: string[] = [];
+    for (const cfg of YH_CLIENT_INDEX_SOURCES) {
+      const h = makeDeps();
+      const srcRow: Record<string, unknown> = { id: SID, tenant_id: TENANT, client_id: CLIENT };
+      const primaryText = cfg.searchTextColumns[0] ?? cfg.titleColumns[0];
+      if (primaryText) srcRow[primaryText] = "klinik serbest metin";
+      if (cfg.titleColumns[0]) srcRow[cfg.titleColumns[0]] = "baslik";
+      h.source.set(rowKey(cfg.tableName, SID, TENANT, CLIENT), srcRow);
+      const d = await processClientOutboxEvent(
+        ev({ sourceKey: cfg.sourceKey, sourceTable: cfg.tableName, operation: "upsert", enqueuedActive: true }),
+        h.deps,
+      );
+      const ok = d.action === "complete" && d.note === "upsert-ok" && h.index.size === 1;
+      if (!ok) { allIndexed = false; detail.push(`${cfg.sourceKey}:${noteOf(d)}/idx${h.index.size}`); }
+    }
+    add("RACE-8-all-6-sources-normal-index", allIndexed, detail.join(" "));
+  }
+
+  // RACE-9: CURRENT PROCESSING KILL-SWITCH — enqueuedActive=true ama processing anında inactive
+  //   → Kapı 5 (currently-active) hâlâ bloklar (inactive-source-noop); index 0.
+  {
+    const h = makeDeps({ isSourceProcessingActive: async () => false });
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("kill-switch"));
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: true }), h.deps);
+    add(
+      "RACE-9-killswitch-current-inactive-blocks",
+      d.action === "complete" && d.note === "inactive-source-noop" && h.index.size === 0 && h.calls.upsert === 0,
+      `${noteOf(d)}/idx${h.index.size}`,
+    );
+  }
+
+  // RACE-10: INACTIVE ENQUEUE / LATER REACTIVATION — production'da gözlenen race'in birebir
+  //   deterministik regresyonu: enqueuedActive=false, processing anında active=true → index 0.
+  {
+    const h = makeDeps({ isSourceProcessingActive: async () => true });
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("randevu-10:06:52-pre-activation"));
+    const d = await processClientOutboxEvent(ev({ operation: "upsert", enqueuedActive: false }), h.deps);
+    add(
+      "RACE-10-inactive-enqueue-later-reactivation-no-index",
+      d.action === "complete" && d.note === "pre-activation-upsert-noop" && h.index.size === 0 && h.calls.upsert === 0,
+      `${noteOf(d)}/idx${h.index.size}`,
+    );
   }
 
   // ── 13) STATIK: fiziksel ayrım + çift dormant + professional regresyon YOK ──
@@ -296,6 +454,54 @@ async function run(): Promise<void> {
     // GHOST guarantee: composite FK CASCADE (client sil → index 0) 20260923'te KORUNUR.
     const core = read("supabase/migrations/20260923000000_yasam_hafizasi_client_memory_core.sql");
     add("ghost-composite-fk-cascade", /FOREIGN KEY \(tenant_id, client_id\)[\s\S]*REFERENCES public\.clients \(tenant_id, id\) ON DELETE CASCADE/.test(core), "");
+
+    // ── 14) STATIK: EVENT-TIME BOUNDARY migration (20261220000000) sözleşmesi ──
+    const bnd = read("supabase/migrations/20261220000000_yh_client_outbox_activation_boundary.sql");
+    // NEGATİF assert'ler için SQL yorumlarını (-- ...) çıkar (dokümantasyon mention'ları false-fail etmesin).
+    const bndSql = bnd.replace(/--[^\n]*/g, "");
+    // Kolon + NOT NULL DEFAULT false (fail-closed; historical backfill YOK).
+    add(
+      "boundary-column-not-null-default-false",
+      /ADD COLUMN IF NOT EXISTS\s+enqueued_active\s+boolean\s+NOT NULL\s+DEFAULT\s+false/i.test(bndSql),
+      "",
+    );
+    // Enqueue INSERT enqueued_active damgalar + yh_source_activation okur (IS TRUE fail-closed).
+    add("boundary-enqueue-reads-activation", /FROM public\.yh_source_activation[\s\S]*v_enqueued_active\s*:=\s*\(v_active IS TRUE\)/.test(bndSql), "");
+    add("boundary-enqueue-insert-stamps", /INSERT INTO public\.yasam_hafizasi_client_outbox[\s\S]*enqueued_active\)/.test(bndSql), "");
+    // ON CONFLICT (coalesce) HER YENİ EVENTTE EXCLUDED'dan enqueued_active yeniden yazar.
+    add("boundary-onconflict-overwrites", /ON CONFLICT[\s\S]*enqueued_active\s*=\s*EXCLUDED\.enqueued_active/.test(bndSql), "");
+    // event_version / coalescing semantiği KORUNUR (event_version nextval); created_at yazılmaz.
+    add("boundary-eventversion-preserved", /event_version\s*=\s*nextval\('public\.yasam_hafizasi_client_outbox_event_version_seq'\)/.test(bndSql), "");
+    add("boundary-createdat-not-assigned", !/\bcreated_at\s*=/.test(bndSql), "");
+    // V1 claim KORUNUR (drop/replace YOK) + V2 EKLENDİ + V2 enqueued_active döner.
+    add("boundary-v1-claim-not-dropped", !/DROP FUNCTION[\s\S]*yh_client_outbox_claim\b/.test(bndSql) && !/CREATE OR REPLACE FUNCTION public\.yh_client_outbox_claim\s*\(/.test(bndSql), "");
+    add("boundary-v2-claim-exists", /CREATE OR REPLACE FUNCTION public\.yh_client_outbox_claim_v2\s*\(/.test(bndSql), "");
+    add("boundary-v2-returns-enqueued-active", /RETURNS TABLE[\s\S]*enqueued_active\s+boolean/.test(bndSql), "");
+    add("boundary-v2-definer-service-role", /yh_client_outbox_claim_v2[\s\S]*SECURITY DEFINER/.test(bndSql) && /GRANT EXECUTE ON FUNCTION public\.yh_client_outbox_claim_v2\(text, integer\) TO service_role/.test(bndSql), "");
+    // complete/fail/sweep enqueued_active'e DOKUNMAZ (bu migration onları hiç değiştirmez).
+    add("boundary-lifecycle-untouched", !/yh_client_outbox_(complete|fail|sweep_expired)/.test(bndSql), "");
+    // Professional outbox/function DDL'ine DOKUNULMAZ (fiziksel ayrım; yorumlarda mention serbest).
+    add(
+      "boundary-professional-untouched",
+      !/(CREATE OR REPLACE|DROP)\s+FUNCTION\s+public\.(yh_outbox_|yh_cdc_enqueue)/i.test(bndSql) &&
+        !/(ALTER|DROP|CREATE)\s+TABLE[^\n;]*public\.yasam_hafizasi_outbox\b/i.test(bndSql),
+      "",
+    );
+    // RACE-7: backfill_allowed=false sözleşmesi DEĞİŞMEDİ — migration backfill/reconcile/activation açmaz.
+    add(
+      "RACE-7-no-backfill-no-activation-in-migration",
+      !/reconcile/i.test(bndSql) &&
+        !/INSERT[\s\S]*SELECT[\s\S]*FROM\s+public\.(client_|appointments)/i.test(bndSql) &&
+        !/yh_source_activation_set|is_active\s*=\s*true|backfill_allowed\s*=\s*true/i.test(bndSql),
+      "",
+    );
+
+    // RPC client V2 kullanır + strict enqueued_active koruması.
+    const rpcClient = read("lib/yasam-hafizasi/outbox/clientOutboxRpcClient.ts");
+    add("rpcclient-uses-claim-v2", /yh_client_outbox_claim_v2/.test(rpcClient) && !/["']yh_client_outbox_claim["']/.test(rpcClient), "");
+    add("rpcclient-strict-enqueued-active", /client-claim-invalid-enqueued-active/.test(rpcClient), "");
+    // Processor event-time boundary kapısı wired.
+    add("processor-boundary-gate-wired", /event\.enqueuedActive !== true/.test(cep) && /pre-activation-upsert-noop/.test(cep) && /pre-activation-delete/.test(cep), "");
   }
 }
 
