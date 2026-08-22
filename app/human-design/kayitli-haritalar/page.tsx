@@ -24,7 +24,6 @@ import {
   deleteHdChart,
   type HdChartWithClient,
 } from "./helpers/hdKayitliHaritalar";
-import { HdHaritaDetayModal } from "./components/HdHaritaDetayModal";
 import { HdComputedChartModal } from "./components/HdComputedChartModal";
 import { listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
 
@@ -52,7 +51,6 @@ export default function HdKayitliHaritalarPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [authorityFilter, setAuthorityFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
-  const [detayRow, setDetayRow] = useState<HdChartWithClient | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // FAZ 9D — kaynak sekmesi + hesaplanmış (computed) liste (9B GET)
@@ -75,6 +73,7 @@ export default function HdKayitliHaritalarPage() {
     }
   }, [showToast]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mount'ta liste yükleme (mevcut davranış)
   useEffect(() => { loadRows(); }, [loadRows]);
 
   const loadComputed = useCallback(async () => {
@@ -87,6 +86,7 @@ export default function HdKayitliHaritalarPage() {
     else setComputedRows(data);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- computed sekmesi açılınca yükleme (mevcut davranış)
   useEffect(() => { if (tab === "computed") loadComputed(); }, [tab, loadComputed]);
 
   const computedFiltered = useMemo(() => {
@@ -282,13 +282,12 @@ export default function HdKayitliHaritalarPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setDetayRow(row)}
-                              className="h-7 rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
+                            <Link
+                              href={`/human-design/kayitli-haritalar/${row.id}`}
+                              className="flex h-7 items-center rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50"
                             >
                               Detay
-                            </button>
+                            </Link>
                             {clientId && (
                               <>
                                 <Link
@@ -414,13 +413,6 @@ export default function HdKayitliHaritalarPage() {
           )}
         </div>
       </div>
-      )}
-
-      {detayRow && (
-        <HdHaritaDetayModal
-          row={detayRow}
-          onClose={() => setDetayRow(null)}
-        />
       )}
 
       {computedDetailId && (
