@@ -11,6 +11,11 @@ type OrganListPanelProps = {
   onToggleOrgan: (organ: string) => void;
   onAddOrgan: (name: string) => boolean;
   onDeleteDrawing: () => void;
+  /**
+   * ÜRÜN KURALI: false ise (telefon/dar ekran) düzenleme kontrolleri (organ ekle,
+   * çizimi sil) gizlenir. Organ listesi + arama + seçim KORUNUR (görüntüleme).
+   */
+  editingAllowed: boolean;
 };
 
 export function OrganListPanel({
@@ -21,6 +26,7 @@ export function OrganListPanel({
   onToggleOrgan,
   onAddOrgan,
   onDeleteDrawing,
+  editingAllowed,
 }: OrganListPanelProps) {
   const [query, setQuery] = useState("");
   const [newOrganName, setNewOrganName] = useState("");
@@ -55,29 +61,33 @@ export function OrganListPanel({
       <h2 className="text-xs font-black uppercase tracking-[0.2em] text-violet-900">Organlar</h2>
       <p className="mt-0.5 text-[10px] font-medium text-slate-500">Çoklu seçim için tıklayın</p>
 
-      <div className="mt-1.5 flex gap-1">
-        <input
-          type="text"
-          value={newOrganName}
-          onChange={(e) => {
-            setNewOrganName(e.target.value);
-            if (addError) setAddError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleAdd();
-          }}
-          placeholder="Organ adı yaz..."
-          className="min-w-0 flex-1 rounded-lg border border-violet-200/80 bg-violet-50/40 px-2 py-1 text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none ring-violet-300/40 transition focus:border-violet-300 focus:bg-white focus:ring-2"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="shrink-0 rounded-lg border border-emerald-300/80 bg-emerald-100/90 px-2 py-1 text-[10px] font-bold text-emerald-950 transition hover:bg-emerald-200/90"
-        >
-          Ekle
-        </button>
-      </div>
-      {addError ? <p className="mt-0.5 text-[10px] font-semibold text-rose-700">{addError}</p> : null}
+      {editingAllowed ? (
+        <>
+          <div className="mt-1.5 flex gap-1">
+            <input
+              type="text"
+              value={newOrganName}
+              onChange={(e) => {
+                setNewOrganName(e.target.value);
+                if (addError) setAddError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+              placeholder="Organ adı yaz..."
+              className="min-w-0 flex-1 rounded-lg border border-violet-200/80 bg-violet-50/40 px-2 py-1 text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none ring-violet-300/40 transition focus:border-violet-300 focus:bg-white focus:ring-2"
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="shrink-0 rounded-lg border border-emerald-300/80 bg-emerald-100/90 px-2 py-1 text-[10px] font-bold text-emerald-950 transition hover:bg-emerald-200/90"
+            >
+              Ekle
+            </button>
+          </div>
+          {addError ? <p className="mt-0.5 text-[10px] font-semibold text-rose-700">{addError}</p> : null}
+        </>
+      ) : null}
 
       <label className="mt-1.5 block">
         <span className="sr-only">Organ ara</span>
@@ -90,18 +100,20 @@ export function OrganListPanel({
         />
       </label>
 
-      <button
-        type="button"
-        onClick={onDeleteDrawing}
-        disabled={!selectedRegionId}
-        className={`mt-1.5 w-full rounded-lg border px-2 py-1 text-[10px] font-bold transition ${
-          selectedRegionId
-            ? "border-rose-300/80 bg-rose-50/90 text-rose-900 hover:bg-rose-100/90"
-            : "cursor-not-allowed border-rose-200/60 bg-rose-50/50 text-rose-400"
-        }`}
-      >
-        Çizimi Sil
-      </button>
+      {editingAllowed ? (
+        <button
+          type="button"
+          onClick={onDeleteDrawing}
+          disabled={!selectedRegionId}
+          className={`mt-1.5 w-full rounded-lg border px-2 py-1 text-[10px] font-bold transition ${
+            selectedRegionId
+              ? "border-rose-300/80 bg-rose-50/90 text-rose-900 hover:bg-rose-100/90"
+              : "cursor-not-allowed border-rose-200/60 bg-rose-50/50 text-rose-400"
+          }`}
+        >
+          Çizimi Sil
+        </button>
+      ) : null}
 
       <ul className="mt-1.5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-0.5">
         {listEmpty ? (

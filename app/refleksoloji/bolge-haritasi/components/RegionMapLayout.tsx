@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
+import { useRegionEditingAllowed } from "../hooks/useRegionEditingAllowed";
 import type { RegionDrawShape, RegionToolMode } from "../types";
 import { AtlasSaveToast } from "./AtlasSaveToast";
 import { FootCanvas } from "./FootCanvas";
+import { MobileEditNoticePanel } from "./MobileEditNoticePanel";
 import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
@@ -26,11 +28,25 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const [saveToastVisible, setSaveToastVisible] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
 
+  // ÜRÜN KURALI: telefon/dar ekranda harita salt-okuma (hassas koordinat düzenleme
+  // yalnız masaüstünde). Tek kaynak → hem UI hem etkileşim buradan karar alır.
+  const editingAllowed = useRegionEditingAllowed();
+
   const workspace = useAtlasWorkspace(initialOrgan);
+
+  // Ekran daraldığında (desktop→mobil) düzenleme modunda asılı kalınmasın → salt-görüntüle.
+  // (Etkileşim zaten FootCanvas'ta editingAllowed ile kilitli; bu yalnız deterministik
+  //  toolMode senkronu — güvenlik değil, tutarlılık içindir.)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!editingAllowed) setToolMode("select");
+  }, [editingAllowed]);
 
   const saveAtlas = workspace.handleSave;
 
   const handleSave = useCallback(() => {
+    // Salt-okuma güvence: toolbar mobilde gizli olsa da kaydetme burada da engellenir.
+    if (!editingAllowed) return;
     const saved = saveAtlas();
     if (!saved) {
       showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
@@ -40,7 +56,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
     setSaveToastVisible(true);
     // Organ Atlası panelinin bölge sayılarını tazele (kaydet sonrası).
     setSavedTick((t) => t + 1);
-  }, [saveAtlas, showToast]);
+  }, [editingAllowed, saveAtlas, showToast]);
 
   const dismissSaveToast = useCallback(() => {
     setSaveToastVisible(false);
@@ -89,6 +105,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               onToggleOrgan={workspace.handleToggleOrgan}
               onAddOrgan={workspace.handleAddOrgan}
               onDeleteDrawing={workspace.handleDeleteSelectedDrawing}
+              editingAllowed={editingAllowed}
             />
             <div className="flex h-[58vh] min-h-[420px] min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
               <FootCanvas
@@ -103,10 +120,14 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
                 selectedRegionId={workspace.selectedRegionId}
                 onSelectRegion={workspace.setSelectedRegionId}
                 onDrawComplete={() => setToolMode("select")}
+                editingAllowed={editingAllowed}
               />
             </div>
             <RegionNotesPanel selectedOrgan={workspace.activeOrgan} atlasVersion={savedTick} />
           </div>
+
+          {/* Telefon/dar ekran: premium bilgi paneli (düzenleme masaüstünde). */}
+          {!editingAllowed ? <MobileEditNoticePanel /> : null}
 
           <RegionToolbar
             selectedFoot={workspace.selectedFoot}
@@ -119,6 +140,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
             setDrawShape={setDrawShape}
             onSave={handleSave}
             onClear={workspace.handleClear}
+            editingAllowed={editingAllowed}
           />
         </div>
       </div>

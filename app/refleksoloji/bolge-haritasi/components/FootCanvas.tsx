@@ -43,6 +43,11 @@ type FootCanvasProps = {
   selectedRegionId: string | null;
   onSelectRegion: (id: string | null) => void;
   onDrawComplete?: () => void;
+  /**
+   * ÜRÜN KURALI: false ise (telefon/dar ekran) harita SALT-OKUMA — hiçbir çizim/
+   * taşıma/boyutlandırma/döndürme etkileşimi başlatılamaz. Görüntüleme sürer.
+   */
+  editingAllowed: boolean;
 };
 
 type DraftState = {
@@ -168,6 +173,7 @@ export function FootCanvas({
   selectedRegionId,
   onSelectRegion,
   onDrawComplete,
+  editingAllowed,
 }: FootCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -204,8 +210,11 @@ export function FootCanvas({
   const imageAlt = atlasBackgroundLabel(atlasBackgroundKey);
   const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
 
-  const isAddMode = toolMode === "add";
-  const isMoveMode = toolMode === "move";
+  // ÜRÜN KURALI: düzenleme yalnız geniş ekranda. Etkin add/move modları
+  // editingAllowed'a bağlanır → tüm handler'lar (draw/move/resize/rotate/line),
+  // canDraw, regionInteractive, showEditHandles TEK KAYNAKTAN salt-okuma olur.
+  const isAddMode = editingAllowed && toolMode === "add";
+  const isMoveMode = editingAllowed && toolMode === "move";
   const showOrganRequired = isAddMode && !activeOrgan;
   const showEditHandles = isMoveMode;
 
@@ -427,6 +436,8 @@ export function FootCanvas({
 
   const handleOverlayPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      // Salt-okuma güvence (isAddMode zaten editingAllowed içerir; açık niyet).
+      if (!editingAllowed) return;
       if (e.button !== 0 || !isAddMode || !activeOrgan) return;
 
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
@@ -461,7 +472,7 @@ export function FootCanvas({
       const shape = drawShape === "rect" ? "rect" : "oval";
       setDraft({ kind: "box", shape, start: point, current: point });
     },
-    [isAddMode, activeOrgan, drawShape, getNormalizedPoint],
+    [editingAllowed, isAddMode, activeOrgan, drawShape, getNormalizedPoint],
   );
 
   const handleOverlayPointerMove = useCallback(
@@ -904,7 +915,9 @@ export function FootCanvas({
 
               {visibleRegions.length === 0 && !isAddMode ? (
                 <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm font-medium text-slate-500">
-                  Bu görünümde henüz çizilmiş bölge yok. Bölge Ekle ile çizmeye başlayın.
+                  {editingAllowed
+                    ? "Bu görünümde henüz çizilmiş bölge yok. Bölge Ekle ile çizmeye başlayın."
+                    : "Bu görünümde çizili bölge yok. Bölge ekleme bilgisayardan yapılır."}
                 </p>
               ) : null}
 

@@ -20,6 +20,10 @@ import {
   protocolMatchesSearch,
 } from "@/app/refleksoloji/kayitli-protokoller/lib/protocolActions";
 import type { ReflexologyProtocolRecord } from "@/app/refleksoloji/kayitli-protokoller/types";
+import {
+  isEditViewportWidth,
+  REGION_EDIT_MIN_WIDTH,
+} from "@/app/refleksoloji/bolge-haritasi/lib/editingViewport";
 
 let passed = 0;
 let failed = 0;
@@ -158,6 +162,16 @@ ok("dto: bilinmeyen alan düşer", !("evil" in picked));
   markOrganUpserted(doc, "X", T2);
   ok("mark: yeniden upsert mezar taşını kaldırır", !doc._meta?.tombstones?.["x"]);
 }
+
+// ─── 6. Mobil salt-okuma viewport eşiği (capability contract) ───────────────────
+eq("viewport: eşik = lg 1024", REGION_EDIT_MIN_WIDTH, 1024);
+ok("viewport: 390px telefon → düzenleme KAPALI", !isEditViewportWidth(390));
+ok("viewport: 375px telefon → düzenleme KAPALI", !isEditViewportWidth(375));
+ok("viewport: 768px tablet-portre → düzenleme KAPALI", !isEditViewportWidth(768));
+ok("viewport: 1023px → düzenleme KAPALI", !isEditViewportWidth(1023));
+ok("viewport: 1024px → düzenleme AÇIK", isEditViewportWidth(1024));
+ok("viewport: 1366px laptop → düzenleme AÇIK", isEditViewportWidth(1366));
+ok("viewport: 1920px desktop → düzenleme AÇIK", isEditViewportWidth(1920));
 
 // ─── Özet ───────────────────────────────────────────────────────────────────────
 console.log(`\nRefleksoloji harness: ${passed} PASS, ${failed} FAIL`);

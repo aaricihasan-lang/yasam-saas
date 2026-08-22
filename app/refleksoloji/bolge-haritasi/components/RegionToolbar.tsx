@@ -11,6 +11,12 @@ type RegionToolbarProps = {
   setDrawShape: (shape: RegionDrawShape) => void;
   onSave: () => void;
   onClear: () => void;
+  /**
+   * ÜRÜN KURALI: false ise (telefon/dar ekran) düzenleme kümesi (çizim/taşı/kaydet/
+   * temizle) gizlenir. Sol/Sağ Ayak + Taban/Yan görünüm toggle'ları KORUNUR
+   * (bunlar VIEW kontrolüdür, düzenleme değil).
+   */
+  editingAllowed: boolean;
 };
 
 const btnBase =
@@ -33,6 +39,7 @@ export function RegionToolbar({
   setDrawShape,
   onSave,
   onClear,
+  editingAllowed,
 }: RegionToolbarProps) {
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
@@ -45,6 +52,9 @@ export function RegionToolbar({
         aria-label="Bölge haritası araçları"
       >
         <div className="flex flex-wrap items-center justify-center gap-1.5">
+        {/* DÜZENLEME KÜMESİ — yalnız geniş ekranda (telefon/dar ekranda gizli). */}
+        {editingAllowed ? (
+          <>
         <button
           type="button"
           onClick={() => setToolMode("add")}
@@ -122,6 +132,8 @@ export function RegionToolbar({
         </button>
 
         <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+          </>
+        ) : null}
 
         <button
           type="button"
