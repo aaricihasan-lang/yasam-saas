@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 
 export const runtime = "nodejs";
 
@@ -47,11 +48,10 @@ export async function PUT(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  // tenant_id + source_uid + id payload'dan yok sayılır; server kendi değerlerini yazar.
-  const fields = { ...body };
-  delete (fields as { tenant_id?: unknown }).tenant_id;
-  delete (fields as { id?: unknown }).id;
-  delete (fields as { source_uid?: unknown }).source_uid;
+  // Mass-assignment koruması: yalnız kullanıcı-düzenlenebilir içerik alanları.
+  // tenant_id + source_uid oturumdan/param'dan; id/created_at/updated_at ve köken
+  // (origin_*) alanları İSTEMCİDEN kabul EDİLMEZ.
+  const fields = pickProtocolContentFields(body);
 
   // Önce güncelle (tenant + source_uid eşleşen satır).
   const { data: updated, error: updErr } = await db

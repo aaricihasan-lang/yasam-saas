@@ -6,6 +6,7 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useSavedAtlas } from "../hooks/useSavedAtlas";
+import { getOrganProtocolUsage } from "../lib/organProtocolReconcile";
 import { AtlasEditModal } from "./AtlasEditModal";
 import { AtlasViewModal } from "./AtlasViewModal";
 import { OrganAtlasCard } from "./OrganAtlasCard";
@@ -26,9 +27,18 @@ export function KayitliAtlasLayout() {
   }, [summaries, search]);
 
   const handleDeleteOrgan = async (organ: string) => {
+    // BUG-3: bu organı kullanan protokolleri sessizce orphan bırakma — kullanıcıya söyle.
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usageNote =
+      usage.count > 0
+        ? `\n\n⚠️ Bu organ ${usage.count} protokolde kullanılıyor${
+            usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : ""
+          }. Silerseniz bu protokollerin haritasında bu organ eşleşmeyecek (protokol metni korunur).`
+        : "";
     const ok = await confirm({
       message:
-        "Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz.",
+        "Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz." +
+        usageNote,
       confirmText: "Sil",
       cancelText: "Vazgeç",
       tone: "danger",

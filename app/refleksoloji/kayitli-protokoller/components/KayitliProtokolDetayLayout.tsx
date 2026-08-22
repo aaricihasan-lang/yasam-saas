@@ -22,6 +22,7 @@ import {
   savedProtocolToRecord,
 } from "@/lib/demo/demoRefleksoloji";
 import { loadProtocolsFromStorage } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
+import { useHydratedAtlasVersion } from "@/app/refleksoloji/hooks/useHydratedAtlasVersion";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
   buildProtocolClinicalContent,
@@ -283,9 +284,21 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     return () => { cancelled = true; };
   }, [isDemo, protocolId]);
 
+  // BUG-4: atlas'ı sunucudan hydrate et → yeni cihaz/tarayıcıda harita boş kalmaz.
+  // Sürüm artınca aşağıdaki atlas-bağımlı memo'lar yeniden çözülür.
+  const atlasVersion = useHydratedAtlasVersion();
+
   const organs = useMemo(() => parseOrgansList(protocol?.organs), [protocol?.organs]);
-  const { regions } = useMemo(() => resolveColoredRegionsForOrgans(organs, footView), [organs, footView]);
-  const organStatuses = useMemo(() => buildOrganStatuses(organs, footView), [organs, footView]);
+  const { regions } = useMemo(
+    () => resolveColoredRegionsForOrgans(organs, footView),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [organs, footView, atlasVersion],
+  );
+  const organStatuses = useMemo(
+    () => buildOrganStatuses(organs, footView),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [organs, footView, atlasVersion],
+  );
   const missingOrgans = useMemo(() => missingAtlasOrgans(organStatuses), [organStatuses]);
   const rawJson = protocol?.raw_json ?? null;
 

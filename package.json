@@ -34,7 +34,8 @@
     "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts",
     "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts",
     "yh:professional-cohort:harness": "tsx scripts/yh-professional-cohort/harness.ts",
-    "dogaltas:salesgate:harness": "tsx scripts/dogaltas-sales-gate/harness.ts"
+    "dogaltas:salesgate:harness": "tsx scripts/dogaltas-sales-gate/harness.ts",
+    "refleksoloji:harness": "tsx scripts/refleksoloji-sales-closure/harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

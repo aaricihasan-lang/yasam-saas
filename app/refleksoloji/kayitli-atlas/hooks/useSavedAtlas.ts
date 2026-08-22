@@ -21,9 +21,12 @@ import {
   deleteRegionFromStorage,
   renameOrganInStorage,
 } from "../lib/atlasManage";
+import { cascadeOrganRename } from "../lib/organProtocolReconcile";
 import { buildAllOrganSummaries, type OrganSummary } from "../lib/organSummary";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export function useSavedAtlas() {
+  const { showToast } = useToast();
   const [summaries, setSummaries] = useState<OrganSummary[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -99,10 +102,32 @@ export function useSavedAtlas() {
   const renameOrgan = useCallback(
     (oldName: string, newName: string) => {
       const result = renameOrganInStorage(oldName, newName);
-      if (result.ok) refresh();
+      if (result.ok) {
+        refresh();
+        // BUG-3: bağlı protokolleri de uzlaştır (server + yerel) → rename orphan yok.
+        // Arka planda; atlas rename UX'ini bloklamaz. Hata olursa uyarı gösterilir.
+        const trimmed = newName.trim();
+        if (trimmed && trimmed.toLocaleLowerCase("tr") !== oldName.toLocaleLowerCase("tr")) {
+          void cascadeOrganRename(oldName, trimmed).then((r) => {
+            if (!r.ok) {
+              showToast({
+                type: "warning",
+                title: "Protokol güncellemesi",
+                message: r.error ?? "Bağlı protokoller güncellenemedi. Tekrar deneyin.",
+              });
+            } else if (r.updated > 0) {
+              showToast({
+                type: "success",
+                title: "Protokoller güncellendi",
+                message: `${r.updated} protokolde organ adı güncellendi.`,
+              });
+            }
+          });
+        }
+      }
       return result;
     },
-    [refresh],
+    [refresh, showToast],
   );
 
   return {

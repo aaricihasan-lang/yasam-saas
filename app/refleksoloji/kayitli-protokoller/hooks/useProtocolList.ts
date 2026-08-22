@@ -13,6 +13,7 @@ import {
   loadProtocolsFromStorage,
   saveProtocolsToStorage,
 } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
+import { setProtocolCache } from "@/lib/refleksoloji/protocolCache";
 import type { ReflexologyProtocolRecord } from "../types";
 
 function buildDemoProtocolList(): ReflexologyProtocolRecord[] {
@@ -38,7 +39,10 @@ export function useProtocolList() {
 
   const refresh = useCallback(async () => {
     if (isDemo) {
-      setProtocols(buildDemoProtocolList());
+      const demoList = buildDemoProtocolList();
+      setProtocols(demoList);
+      // Detay geçişini seed'lemek için oturum-içi cache'e yaz (salt hız).
+      setProtocolCache(demoList);
       setLoading(false);
       return;
     }
@@ -70,7 +74,10 @@ export function useProtocolList() {
         return;
       }
 
-      setProtocols((json.protocols ?? []) as ReflexologyProtocolRecord[]);
+      const rows = (json.protocols ?? []) as ReflexologyProtocolRecord[];
+      setProtocols(rows);
+      // Detay geçişini seed'lemek için oturum-içi cache'e yaz (salt hız).
+      setProtocolCache(rows);
     } catch (err) {
       setLoading(false);
       setLoadErrorMessage(

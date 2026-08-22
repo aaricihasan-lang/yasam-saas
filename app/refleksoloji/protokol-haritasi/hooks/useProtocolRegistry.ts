@@ -41,14 +41,14 @@ function protocolFields(saved: SavedProtocol): Record<string, unknown> {
 
 async function syncProtocolToSupabase(saved: SavedProtocol): Promise<string | null> {
   try {
+    // Sunucu: tenant_id oturumdan, id/created_at DB default'undan üretir; istemci
+    // yalnız source_uid + içerik alanlarını gönderir (mass-assignment izin listesi).
     const res = await fetch("/api/refleksoloji/protocols", {
       method: "POST",
       headers: { ...userHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: crypto.randomUUID(),
         source_uid: saved.id,
         ...protocolFields(saved),
-        created_at: saved.createdAt,
       }),
     });
     if (!res.ok) return SYNC_ERR;
