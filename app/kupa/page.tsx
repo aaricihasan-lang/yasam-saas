@@ -54,15 +54,15 @@ export default function KupaLandingPage() {
       badge="Profesyonel Çalışma Alanı"
     >
       {/* ÇALIŞMA ALANLARI — dengeli premium grid (desktop 3×2). */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {AREAS.map((a) => (
           <Link
             key={a.href}
             href={a.href}
-            className={`${kupaCard} group flex min-h-[180px] flex-col gap-3.5 p-5 text-inherit no-underline outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_2px_8px_rgba(120,80,40,0.08),0_16px_32px_-20px_rgba(180,83,9,0.3)] focus-visible:ring-2 focus-visible:ring-amber-400/60`}
+            className={`${kupaCard} group flex min-h-[150px] flex-col gap-3 text-inherit no-underline outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_2px_8px_rgba(120,80,40,0.08),0_16px_32px_-20px_rgba(180,83,9,0.3)] focus-visible:ring-2 focus-visible:ring-amber-400/60`}
           >
             <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/80 text-2xl"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/80 text-2xl"
               aria-hidden
             >
               {a.icon}
@@ -81,7 +81,7 @@ export default function KupaLandingPage() {
         ))}
       </div>
 
-      <p className="mt-7 max-w-3xl text-xs leading-relaxed text-slate-400">
+      <p className="mt-4 max-w-3xl text-xs leading-relaxed text-slate-400">
         Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler;
         hiçbir konu otomatik olarak &quot;tedavi eder&quot; anlamı taşımaz.
       </p>
