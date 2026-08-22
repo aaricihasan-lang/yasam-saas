@@ -22,6 +22,7 @@ import {
 } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
+import { parseOrganList } from "@/lib/refleksoloji/organs";
 
 export const runtime = "nodejs";
 
@@ -42,9 +43,9 @@ type ProtocolRow = {
   created_at: string;
 };
 
+// TEK ortak ayrıştırıcı (pipe VEYA virgül + Türkçe-duyarsız tekilleştirme).
 function parseOrgans(raw: string | null): string[] {
-  if (!raw?.trim()) return [];
-  return raw.split(/[|,]+/).map((s) => s.trim()).filter(Boolean);
+  return parseOrganList(raw);
 }
 
 function formatDateTR(d: string): string {

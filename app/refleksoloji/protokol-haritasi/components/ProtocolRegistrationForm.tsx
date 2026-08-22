@@ -31,6 +31,7 @@ export function ProtocolRegistrationForm({
 }: ProtocolRegistrationFormProps) {
   const [organInput, setOrganInput] = useState("");
   const [organSuggestions, setOrganSuggestions] = useState<string[]>([]);
+  const [organError, setOrganError] = useState<string | null>(null);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
 
   useEffect(() => {
@@ -45,11 +46,20 @@ export function ProtocolRegistrationForm({
 
   const addOrgan = (raw: string) => {
     const name = raw.trim();
-    if (!name) return;
+    if (!name) {
+      setOrganError("Organ adı boş olamaz.");
+      return;
+    }
     const exists = draft.organs.some((o) => normalizeKey(o) === normalizeKey(name));
-    if (exists) return;
+    if (exists) {
+      // Sessiz davranma yerine geri bildirim ver (çoklu-organ duplicate seçimi).
+      setOrganError(`"${name}" zaten eklendi.`);
+      return;
+    }
     onDraftChange({ ...draft, organs: [...draft.organs, name] });
+    // Başarılı eklemede input + hata durumu temizlenir.
     setOrganInput("");
+    setOrganError(null);
   };
 
   const removeOrgan = (name: string) => {
@@ -104,7 +114,10 @@ export function ProtocolRegistrationForm({
               id="protocol-organ-input"
               list={datalistId}
               value={organInput}
-              onChange={(e) => setOrganInput(e.target.value)}
+              onChange={(e) => {
+                setOrganInput(e.target.value);
+                if (organError) setOrganError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -127,6 +140,11 @@ export function ProtocolRegistrationForm({
               <option key={name} value={name} />
             ))}
           </datalist>
+          {organError ? (
+            <p className="mt-1 text-[11px] font-semibold text-rose-700" role="alert">
+              {organError}
+            </p>
+          ) : null}
         </div>
 
         {draft.organs.length > 0 ? (

@@ -1,5 +1,5 @@
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
-import type { AtlasDocument, AtlasOrganEntry } from "@/lib/atlasStorage";
+import type { AtlasDocument, AtlasMeta, AtlasOrganEntry } from "@/lib/atlasStorage";
 import {
   footToStorageKey,
   getRegionsForOrgan,
@@ -10,6 +10,11 @@ import {
   saveAtlas,
   saveOrganList,
 } from "@/lib/atlasStorage";
+import {
+  markOrganDeleted,
+  markOrganUpserted,
+  type AtlasDocLike,
+} from "@/lib/refleksoloji/atlasMerge";
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
   return typeof value === "object" && value !== null && "taban" in value && "yan" in value;
@@ -29,10 +34,15 @@ function regionsToOrganEntry(regions: Region[]): AtlasOrganEntry {
   return entry;
 }
 
+// _meta'yı tazeler AMA mezar taşlarını/organ zaman damgalarını KORUR (senkron).
 function touchMeta(atlas: AtlasDocument): AtlasDocument {
   return {
     ...atlas,
-    _meta: { version: "1", updated_at: new Date().toISOString() },
+    _meta: {
+      ...(atlas._meta as AtlasMeta),
+      version: "1",
+      updated_at: new Date().toISOString(),
+    },
   };
 }
 
@@ -43,9 +53,12 @@ export function deleteRegionFromStorage(organ: string, regionId: string): boolea
     const next = structuredClone(atlas) as AtlasDocument;
 
     if (remaining.length === 0) {
+      // Organın son bölgesi de silindi → organ mezar taşı (zombie fix).
       delete next[organ];
+      markOrganDeleted(next as unknown as AtlasDocLike, organ);
     } else {
       next[organ] = regionsToOrganEntry(remaining);
+      markOrganUpserted(next as unknown as AtlasDocLike, organ);
     }
 
     saveAtlas(touchMeta(next));
@@ -78,6 +91,10 @@ export function renameOrganInStorage(oldName: string, newName: string): { ok: bo
     const next = structuredClone(atlas) as AtlasDocument;
     next[trimmed] = entry;
     delete next[oldName];
+    // Eski ada mezar taşı, yeni adı damgala → başka cihazda eski ad dirilmesin,
+    // duplicate oluşmasın (zombie/rename fix).
+    markOrganDeleted(next as unknown as AtlasDocLike, oldName);
+    markOrganUpserted(next as unknown as AtlasDocLike, trimmed);
     saveAtlas(touchMeta(next));
 
     const list = loadOrganList();

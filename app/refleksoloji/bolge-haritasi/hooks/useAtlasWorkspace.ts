@@ -174,8 +174,12 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setAtlas(next);
     setDraftRegions([]);
     setDeletedRegionIds([]);
-    setSelectedOrgans([]);
-    setActiveOrgan(null);
+    // Kaydet sonrası UX: SEÇİMİ KORU → kaydedilen bölgeler haritada görünür kalır
+    // ("kaydetmedi mi?" algısı ortadan kalkar). Yalnız taslak/silinen durum sıfırlanır.
+    // Seçili organlar hâlâ atlasta mevcut mu (silinmediyse) koru; değilse temizle.
+    const survivingOrgans = new Set(listOrganNamesFromAtlas(next));
+    setSelectedOrgans((prev) => prev.filter((o) => survivingOrgans.has(o)));
+    setActiveOrgan((cur) => (cur && survivingOrgans.has(cur) ? cur : null));
     setSelectedRegionId(null);
     setOrgans((prev) => mergeOrganLists(listOrganNamesFromAtlas(next), prev));
     return true;

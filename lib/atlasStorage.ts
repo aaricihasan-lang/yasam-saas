@@ -1,6 +1,13 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 import { scheduleAtlasSync } from "@/lib/refleksolojiAtlasSync";
+import {
+  markOrganDeleted,
+  markOrganUpserted,
+  mergeAtlasWithTombstones,
+  type AtlasDocLike,
+  type OrganTimeMap,
+} from "@/lib/refleksoloji/atlasMerge";
 
 export const ATLAS_STORAGE_KEY = "yasam-refleksoloji-atlas-v1";
 export const ORGAN_LIST_STORAGE_KEY = "yasam-refleksoloji-organs-v1";
@@ -8,6 +15,10 @@ export const ORGAN_LIST_STORAGE_KEY = "yasam-refleksoloji-organs-v1";
 export type AtlasMeta = {
   updated_at: string;
   version: string;
+  // Çok-cihazlı zombie/duplicate koruması — mezar taşları + organ son-güncelleme.
+  // Belgeyle birlikte jsonb olarak senkron olur (şema değişikliği yok).
+  tombstones?: OrganTimeMap;
+  organUpdatedAt?: OrganTimeMap;
 };
 
 export type StoredRegion = {
@@ -144,15 +155,13 @@ export function mergeAtlasDocuments(
   server: AtlasDocument,
   local: AtlasDocument,
 ): AtlasDocument {
-  const out = structuredClone(server) as AtlasDocument;
-  for (const key of Object.keys(local)) {
-    if (key === "_meta") continue;
-    if (!isOrganEntry(local[key])) continue;
-    if (!(key in out) || !isOrganEntry(out[key])) {
-      out[key] = local[key]; // yalnız yerelde olan organ → koru
-    }
-  }
-  return out;
+  // Tombstone-farkında birleştirme: ortak organda sunucu kazanır; yalnız yerelde
+  // olan organ korunur AMA silinme/yeniden-adlandırma mezar taşı son güncellemeden
+  // yeniyse organ DİRİLMEZ (zombie/duplicate engellenir). Mezar taşları _meta'da.
+  return mergeAtlasWithTombstones(
+    server as unknown as AtlasDocLike,
+    local as unknown as AtlasDocLike,
+  ) as unknown as AtlasDocument;
 }
 
 /** İki organ listesini birleştirir (Türkçe-duyarsız, tekilleştirilmiş). */
@@ -208,11 +217,15 @@ export function loadAtlas(): AtlasDocument {
 
 export function saveAtlas(atlas: AtlasDocument): boolean {
   if (typeof window === "undefined") return false;
+  const prevMeta = (atlas._meta ?? {}) as AtlasMeta;
   const next: AtlasDocument = {
     ...atlas,
     _meta: {
       version: "1",
       updated_at: new Date().toISOString(),
+      // Mezar taşlarını/organ zaman damgalarını KORU (senkron için kritik).
+      tombstones: prevMeta.tombstones ?? {},
+      organUpdatedAt: prevMeta.organUpdatedAt ?? {},
     },
   };
   const ok = safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(next));
@@ -288,6 +301,18 @@ export function mergeDraftIntoAtlas(
   const next = structuredClone(atlas) as AtlasDocument;
   const deleted = new Set(deletedRegionIds);
 
+  // Etkilenen organları tespit et: draft'ı olan VEYA silinen bir bölgeye sahip.
+  // Yalnız bunların son-güncelleme damgası tazelenir (değişmemiş organ bayat sanılmasın).
+  const regionOwner = new Map<string, string>();
+  for (const organ of listOrganNamesFromAtlas(atlas)) {
+    for (const r of getRegionsForOrgan(atlas, organ)) regionOwner.set(r.id, organ);
+  }
+  const affected = new Set<string>(draftRegions.map((r) => r.organ));
+  for (const id of deleted) {
+    const owner = regionOwner.get(id);
+    if (owner) affected.add(owner);
+  }
+
   const organNames = new Set<string>([
     ...listOrganNamesFromAtlas(atlas),
     ...draftRegions.map((r) => r.organ),
@@ -305,19 +330,32 @@ export function mergeDraftIntoAtlas(
 
     if (merged.length > 0) {
       next[organ] = regionsToOrganEntry(merged);
+      if (affected.has(organ)) markOrganUpserted(next as unknown as AtlasDocLike, organ);
     } else if (isOrganEntry(next[organ])) {
       delete next[organ];
+      markOrganDeleted(next as unknown as AtlasDocLike, organ);
     }
   }
 
-  next._meta = { version: "1", updated_at: new Date().toISOString() };
+  // _meta: mezar taşları/damgalar mark* ile güncellendi → koru; updated_at tazele.
+  next._meta = {
+    ...(next._meta as AtlasMeta),
+    version: "1",
+    updated_at: new Date().toISOString(),
+  };
   return next;
 }
 
 export function removeOrganFromAtlas(atlas: AtlasDocument, organ: string): AtlasDocument {
   const next = structuredClone(atlas) as AtlasDocument;
   delete next[organ];
-  next._meta = { version: "1", updated_at: new Date().toISOString() };
+  // Mezar taşı bırak → başka cihazın bayat kopyası dirilmesin (zombie fix).
+  markOrganDeleted(next as unknown as AtlasDocLike, organ);
+  next._meta = {
+    ...(next._meta as AtlasMeta),
+    version: "1",
+    updated_at: new Date().toISOString(),
+  };
   return next;
 }
 

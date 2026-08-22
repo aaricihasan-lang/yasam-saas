@@ -24,6 +24,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
   const [saveToastVisible, setSaveToastVisible] = useState(false);
+  const [savedTick, setSavedTick] = useState(0);
 
   const workspace = useAtlasWorkspace(initialOrgan);
 
@@ -37,6 +38,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
     }
     setToolMode("select");
     setSaveToastVisible(true);
+    // Organ Atlası panelinin bölge sayılarını tazele (kaydet sonrası).
+    setSavedTick((t) => t + 1);
   }, [saveAtlas, showToast]);
 
   const dismissSaveToast = useCallback(() => {
@@ -102,7 +105,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
                 onDrawComplete={() => setToolMode("select")}
               />
             </div>
-            <RegionNotesPanel selectedOrgan={workspace.activeOrgan} />
+            <RegionNotesPanel selectedOrgan={workspace.activeOrgan} atlasVersion={savedTick} />
           </div>
 
           <RegionToolbar

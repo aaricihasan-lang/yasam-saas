@@ -1,15 +1,19 @@
 import type { ReflexologyProtocolRecord } from "../types";
+import { parseOrganList } from "@/lib/refleksoloji/organs";
+import { foldSearchText } from "@/lib/refleksoloji/search";
 
 export function normalizeSearchQuery(query: string): string {
-  return query.trim().toLocaleLowerCase("tr-TR");
+  // Türkçe + diakritik-duyarsız: "bobrek" → "böbrek" eşleşir.
+  return foldSearchText(query);
 }
 
+/**
+ * Protokol `organs` string'ini organ dizisine ayrıştırır.
+ * TEK ortak ayrıştırıcıya (pipe VEYA virgül) devreder; editör `" | "` ile
+ * kaydettiği için eski virgül-yalnız davranış çoklu-organı tek sanıyordu (SEV-1).
+ */
 export function parseOrgansList(organs: string | null | undefined): string[] {
-  if (!organs?.trim()) return [];
-  return organs
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
+  return parseOrganList(organs);
 }
 
 export function protocolMatchesSearch(
@@ -17,15 +21,16 @@ export function protocolMatchesSearch(
   query: string,
 ): boolean {
   if (!query) return true;
-  const haystack = [
-    protocol.title,
-    protocol.target_problem,
-    protocol.organs,
-    protocol.application_notes,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+  const haystack = foldSearchText(
+    [
+      protocol.title,
+      protocol.target_problem,
+      protocol.organs,
+      protocol.application_notes,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
   return haystack.includes(query);
 }
 

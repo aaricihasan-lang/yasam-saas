@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { isUuid } from "@/lib/refleksoloji/uuid";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ export async function GET(
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ ok: false, error: "protokol id gerekli." }, { status: 400 });
+  }
+  // Bozuk UUID DB'ye ulaşmadan 400 ile reddedilir (ham Postgres 22P02 → 500 sızıntısı yok).
+  // Geçerli ama var olmayan UUID → aşağıda 404 semantiği korunur.
+  if (!isUuid(id)) {
+    return NextResponse.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
@@ -58,6 +64,10 @@ export async function DELETE(
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ ok: false, error: "protokol id gerekli." }, { status: 400 });
+  }
+  // Bozuk UUID → 400 (ham Postgres hatası / 500 sızıntısı yerine).
+  if (!isUuid(id)) {
+    return NextResponse.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;

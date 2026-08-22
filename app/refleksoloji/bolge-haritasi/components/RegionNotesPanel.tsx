@@ -1,11 +1,40 @@
+"use client";
+
+import { useMemo } from "react";
+import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
+
 type RegionNotesPanelProps = {
   selectedOrgan: string | null;
+  /** Atlas kaydedilince değişip yeniden okumayı tetikleyen sürüm (opsiyonel). */
+  atlasVersion?: number;
 };
 
-export function RegionNotesPanel({ selectedOrgan }: RegionNotesPanelProps) {
+/**
+ * Seçili organ için SALT-OKUMA atlas bilgisi.
+ *
+ * Önceden bu panelde düzenlenebilir izlenimi veren ama hiçbir yere yazılamayan
+ * ölü bir textarea vardı ("notlar buraya yazılacak"). Sahte UX kaldırıldı; yerine
+ * organın gerçek atlas verisi (taban/yan bölge sayıları) salt-okuma gösterilir.
+ * Bölge koordinatları harita üzerinde çizilerek yönetilir.
+ */
+export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNotesPanelProps) {
+  const counts = useMemo(() => {
+    if (!selectedOrgan) return null;
+    try {
+      const atlas = loadAtlas();
+      const taban = getRegionsForOrgan(atlas, selectedOrgan, { view: "taban" }).length;
+      const yan = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan" }).length;
+      return { taban, yan, total: taban + yan };
+    } catch {
+      return { taban: 0, yan: 0, total: 0 };
+    }
+    // atlasVersion bilinçli bağımlılık: kaydetten sonra sayıları tazelemek için.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrgan, atlasVersion]);
+
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col rounded-2xl border border-white/90 bg-white/80 p-2.5 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md lg:w-[240px]">
-      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-violet-900">Organ Notları</h2>
+      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-violet-900">Organ Atlası</h2>
 
       <div className="mt-1.5 rounded-xl border border-violet-200/70 bg-gradient-to-r from-violet-100/60 to-fuchsia-50/50 px-2.5 py-2">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-800">Seçili Organ:</p>
@@ -18,23 +47,34 @@ export function RegionNotesPanel({ selectedOrgan }: RegionNotesPanelProps) {
         </p>
       </div>
 
-      <label className="mt-2 flex min-h-0 flex-1 flex-col">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Açıklama</span>
-        <textarea
-          readOnly
-          value=""
-          placeholder={
-            selectedOrgan
-              ? `${selectedOrgan} için notlar buraya yazılacak...`
-              : "Organ ve refleks bölgesi notları buraya yazılacak..."
-          }
-          className="mt-1 min-h-[100px] flex-1 resize-none rounded-xl border border-violet-200/60 bg-violet-50/30 px-2.5 py-2 text-sm font-medium leading-relaxed text-slate-800 placeholder:text-xs placeholder:font-medium placeholder:text-slate-500 outline-none"
-        />
-      </label>
-
-      <p className="mt-2 rounded-xl border border-dashed border-violet-200/75 bg-violet-50/45 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">
-        Atlas bilgisi burada görüntülenecek.
-      </p>
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+          Kayıtlı Bölgeler
+        </span>
+        {selectedOrgan && counts ? (
+          counts.total > 0 ? (
+            <div className="mt-1 space-y-1.5">
+              <div className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5">
+                <span className="text-xs font-semibold text-violet-900">Taban görünümü</span>
+                <span className="text-sm font-black text-violet-950">{counts.taban}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5">
+                <span className="text-xs font-semibold text-violet-900">Yan görünüm</span>
+                <span className="text-sm font-black text-violet-950">{counts.yan}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1 rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">
+              Bu organ için henüz bölge çizilmedi. Ayak üzerinde bölge işaretleyip Kaydet ile
+              ekleyebilirsiniz.
+            </p>
+          )
+        ) : (
+          <p className="mt-1 rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">
+            Bir organ seçtiğinizde atlas bilgisi burada görüntülenir.
+          </p>
+        )}
+      </div>
     </aside>
   );
 }

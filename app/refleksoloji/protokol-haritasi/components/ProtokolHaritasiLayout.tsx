@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -12,6 +12,7 @@ import {
   resolveColoredRegionsForOrgans,
 } from "../lib/resolveDisplayRegions";
 import { useProtocolRegistry } from "../hooks/useProtocolRegistry";
+import { useHydratedAtlasVersion } from "@/app/refleksoloji/hooks/useHydratedAtlasVersion";
 import type { ProtocolFootView, ProtocolFormDraft } from "../types";
 import { ProtocolFootMap } from "./ProtocolFootMap";
 import { ProtocolRegistrationForm } from "./ProtocolRegistrationForm";
@@ -34,9 +35,14 @@ export function ProtokolHaritasiLayout() {
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
+  // BUG-4: atlas'ı sunucudan hydrate et → yeni cihaz/tarayıcıda önizleme boş kalmaz.
+  const atlasVersion = useHydratedAtlasVersion();
+
   const { regions, statuses } = useMemo(
     () => resolveColoredRegionsForOrgans(draft.organs, footView),
-    [draft.organs, footView],
+    // atlasVersion: sunucudan hydrate sonrası yeniden çöz (loadAtlas içeride okunur).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draft.organs, footView, atlasVersion],
   );
 
   const missingOrgans = useMemo(() => missingAtlasOrgans(statuses), [statuses]);
@@ -46,7 +52,12 @@ export function ProtokolHaritasiLayout() {
     setValidationMessage(null);
   }, []);
 
+  // Çift-tıklama / hızlı tekrar gönderim koruması (duplicate protokol engeli).
+  // Sunucu (tenant_id, source_uid) idempotensi ile birlikte savunma-derinliği.
+  const savingRef = useRef(false);
+
   const handleSave = () => {
+    if (savingRef.current) return;
     if (!draft.title.trim()) {
       setValidationMessage("Hedef / sorun adı zorunludur.");
       return;
@@ -55,6 +66,12 @@ export function ProtokolHaritasiLayout() {
       setValidationMessage("En az bir organ ekleyin.");
       return;
     }
+
+    savingRef.current = true;
+    // Kısa bir süre sonra tekrar kaydetmeye izin ver (aynı formu bilinçli tekrar kaydetme).
+    setTimeout(() => {
+      savingRef.current = false;
+    }, 800);
 
     const result = saveProtocol(draft, null);
     if (!result.saved) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 
 export const runtime = "nodejs";
 
@@ -54,13 +55,48 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  // tenant_id payload'dan yok sayılır; server her zaman kendi tenant'ını yazar.
-  const fields = { ...body };
-  delete (fields as { tenant_id?: unknown }).tenant_id;
+  // Mass-assignment koruması: yalnız kullanıcı-düzenlenebilir içerik alanları.
+  // tenant_id oturumdan; id/created_at DB default'undan; köken/provenance alanları
+  // (origin_*, transferred_at) ve id/created_at/updated_at İSTEMCİDEN kabul EDİLMEZ.
+  const fields = pickProtocolContentFields(body);
+  const sourceUid =
+    typeof body.source_uid === "string" && body.source_uid.trim()
+      ? body.source_uid.trim()
+      : null;
+
+  // İdempotensi: (tenant_id, source_uid) zaten varsa yeni satır AÇMA — çift-tıklama
+  // / retry duplicate protokol üretmesin. DB unique constraint YOK (mevcut 58 kayıt
+  // conflict riskine karşı eklenmedi); bu ön-kontrol + UI pending guard birlikte korur.
+  if (sourceUid) {
+    const { data: existing, error: existErr } = await db
+      .from("reflexology_protocols")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("source_uid", sourceUid)
+      .maybeSingle();
+
+    if (existErr) {
+      return NextResponse.json({ ok: false, error: existErr.message }, { status: 500 });
+    }
+    if (existing) {
+      // Aynı mantıksal protokol → mevcut satırı içerikle güncelle (idempotent), yeni açma.
+      const { data: updated, error: updErr } = await db
+        .from("reflexology_protocols")
+        .update(fields)
+        .eq("tenant_id", tenantId)
+        .eq("source_uid", sourceUid)
+        .select()
+        .single();
+      if (updErr) {
+        return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, protocol: updated, deduped: true });
+    }
+  }
 
   const { data, error } = await db
     .from("reflexology_protocols")
-    .insert({ ...fields, tenant_id: tenantId })
+    .insert({ ...fields, tenant_id: tenantId, ...(sourceUid ? { source_uid: sourceUid } : {}) })
     .select()
     .single();
 
