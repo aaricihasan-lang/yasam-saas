@@ -19,6 +19,7 @@ import {
   type KnowledgeGroup,
 } from "../../rapor-olustur/helpers/hdRapor";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
+import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 
 type Props = {
   row: HdChartWithClient;
@@ -70,6 +71,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
   const clientName = row.client?.name ?? row.client_name ?? "—";
   const clientId = row.client_id ?? "";
 
+  const [tab, setTab] = useState<"summary" | "knowledge">("summary");
   const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
 
@@ -132,8 +134,25 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
           </button>
         </div>
 
+        {/* Sekmeler */}
+        <div className="flex gap-1.5 border-b border-indigo-100/80 px-6 pt-3">
+          {([["summary", "Özet"], ["knowledge", "Kişinin HD Bilgileri"]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`-mb-px border-b-2 px-3.5 py-2 text-xs font-black uppercase tracking-wide transition ${
+                tab === id ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Body */}
         <div className="max-h-[68vh] overflow-y-auto p-6">
+          {tab === "summary" ? (
           <div className="space-y-6">
             {/* Temel Değerler */}
             <Section title="Temel Değerler">
@@ -200,6 +219,9 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
               </Section>
             )}
           </div>
+          ) : (
+            <HdPersonalKnowledgePanel chartId={row.id} />
+          )}
         </div>
 
         {/* Footer */}
