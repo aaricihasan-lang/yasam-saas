@@ -33,16 +33,26 @@ export type PkUnresolved = {
 
 export type PkGate = { key: string; gate: number; inCompletedChannel: boolean };
 export type PkChannel = { key: string; code: string; name: string; gates: [number, number] };
+export type PkPotentialChannel = { key: string; code: string; name: string; partnerGate: number };
 export type PkHangingGate = {
   key: string;
   gate: number;
-  potentialChannels: Array<{ key: string; code: string; name: string; partnerGate: number }>;
+  potentialChannels: PkPotentialChannel[];
 };
+
+/** chart alanı YOK mu (null/boş)? "değer yok" (chartValueMissing) ile "değer var ama
+ *  içerik yok" (unpublished) ayrımı için. normalizeChart.isAbsent ile birebir. */
+function isAbsent(v: unknown): boolean {
+  return v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+}
 
 /** SAF yapı — içerik (prose) henüz yok; yalnız canonical kimlik/yapı. */
 export type PkStructure = {
   typeKey: string | null;
   authorityKey: string | null;
+  /** chart'ta type_code/authority_code hiç yok mu (null/boş) → "bilgi bulunmuyor". */
+  typeChartMissing: boolean;
+  authorityChartMissing: boolean;
   /** Tamamlanmış kanal İÇİNDE OLMAYAN benzersiz kapılar (bağımsız). */
   independentGates: PkGate[];
   /** Tamamlanmış kanal içindeki kapılar dahil TÜM benzersiz kapılar (metadata). */
@@ -130,16 +140,23 @@ export function buildPersonalKnowledgeStructure(chart: StoredChartLike): PkStruc
   }
 
   // ── Batched read için benzersiz anahtar seti ──
+  // NOT: asılı-kapı bağlamı KANAL canonical içeriğidir → potansiyel kanal anahtarları
+  // da (kanal_9_52 gibi) batched read'e dahil edilir; aksi halde hanging_gate_context
+  // gate content'inde ARANMAZ (BUG-1 kök nedeni: gate'te değil, kanalda).
+  const potentialChannelKeys = hangingGates.flatMap((hg) => hg.potentialChannels.map((p) => p.key));
   const allKeys = [
     ...(typeKey ? [typeKey] : []),
     ...(authorityKey ? [authorityKey] : []),
     ...allGates.map((g) => g.key),
     ...completedChannels.map((c) => c.key),
+    ...potentialChannelKeys,
   ];
 
   return {
     typeKey,
     authorityKey,
+    typeChartMissing: isAbsent(chart.type_code),
+    authorityChartMissing: isAbsent(chart.authority_code),
     independentGates,
     allGates,
     completedChannels,
@@ -151,16 +168,23 @@ export function buildPersonalKnowledgeStructure(chart: StoredChartLike): PkStruc
 
 // ── İçerik enjekte edilmiş nihai DTO ────────────────────────────────────────
 
+/** chartValueMissing: chart'ta değer YOK (null/boş) → "bu haritada ... bilgisi
+ *  bulunmuyor". key=null AMA chartValueMissing=false → değer var, eşleşemedi/unpublished. */
+export type PkIdentity = { key: string | null; content: CanonicalContent | null; chartValueMissing: boolean };
+/** Asılı-kapı potansiyel kanalı + O KANALIN hanging_gate_context'i (kanal content'inden). */
+export type PkHangingPotential = PkPotentialChannel & { hangingContext: string | null };
+
 export type HdPersonalKnowledge = {
   chartRef: { chartId: string; source: "manual" | "computed" };
   identity: {
-    type: { key: string | null; content: CanonicalContent | null };
-    authority: { key: string | null; content: CanonicalContent | null };
+    type: PkIdentity;
+    authority: PkIdentity;
   };
   channels: Array<PkChannel & { content: CanonicalContent | null }>;
   /** Bağımsız (tamamlanmış kanalda olmayan) kapılar. */
   gates: Array<PkGate & { content: CanonicalContent | null }>;
-  hangingGates: Array<{ key: string; gate: number; hangingContext: string | null; potentialChannels: PkHangingGate["potentialChannels"] }>;
+  /** Asılı kapılar: bağlam KANAL içeriğinden (potansiyel kanal bazında). */
+  hangingGates: Array<{ key: string; gate: number; potentialChannels: PkHangingPotential[] }>;
   unresolved: PkUnresolved[];
   provenance: { readAt: string };
   /** Hiç yayınlanmış canonical içerik yoksa true (UI panel-level "yayınlanmadı"). */
@@ -178,28 +202,28 @@ export function assemblePersonalKnowledge(
 
   const channels = structure.completedChannels.map((c) => ({ ...c, content: get(c.key) }));
   const gates = structure.independentGates.map((g) => ({ ...g, content: get(g.key) }));
-  const hangingGates = structure.hangingGates.map((hg) => {
-    const content = get(hg.key);
-    return {
-      key: hg.key,
-      gate: hg.gate,
-      hangingContext: content?.hanging_gate_context ?? null,
-      potentialChannels: hg.potentialChannels,
-    };
-  });
+  // BUG-1 FIX: hanging_gate_context KANAL canonical içeriğinden (potansiyel kanal başına).
+  const hangingGates = structure.hangingGates.map((hg) => ({
+    key: hg.key,
+    gate: hg.gate,
+    potentialChannels: hg.potentialChannels.map((p) => ({
+      ...p,
+      hangingContext: get(p.key)?.hanging_gate_context ?? null,
+    })),
+  }));
 
   const anyPublished =
     get(structure.typeKey) !== null ||
     get(structure.authorityKey) !== null ||
     channels.some((c) => c.content !== null) ||
     gates.some((g) => g.content !== null) ||
-    hangingGates.some((h) => h.hangingContext !== null);
+    hangingGates.some((h) => h.potentialChannels.some((p) => p.hangingContext !== null));
 
   return {
     chartRef,
     identity: {
-      type: { key: structure.typeKey, content: get(structure.typeKey) },
-      authority: { key: structure.authorityKey, content: get(structure.authorityKey) },
+      type: { key: structure.typeKey, content: get(structure.typeKey), chartValueMissing: structure.typeChartMissing },
+      authority: { key: structure.authorityKey, content: get(structure.authorityKey), chartValueMissing: structure.authorityChartMissing },
     },
     channels,
     gates,

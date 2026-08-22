@@ -154,31 +154,71 @@ const FIXTURE = {
   assert("fixture independentGates = [47]", s.independentGates.map((g) => g.gate).join(",") === "47", s.independentGates.map((g) => g.gate));
   assert("fixture hanging = [47]", s.hangingGates.map((h) => h.gate).join(",") === "47", s.hangingGates.map((h) => h.gate));
   assert("fixture unresolved = 0", s.unresolved.length === 0, s.unresolved);
-  // allKeys içerik: tip, otorite, 5 kapı, 2 kanal = 9 benzersiz
-  assert("fixture allKeys count = 9", s.allKeys.length === 9, s.allKeys);
+  // allKeys: tip + otorite + 5 kapı + 2 tamamlanmış kanal + 1 potansiyel kanal (47-64) = 10
+  assert("fixture allKeys count = 10 (potansiyel kanal dahil)", s.allKeys.length === 10, s.allKeys);
+  assert("fixture allKeys potansiyel kanal içerir (kanal_47_64)", s.allKeys.includes("kanal_47_64"));
+}
+
+const BLANK: CanonicalContent = {
+  general_description: "", report_text: "", strategy_text: null, signature_text: null, not_self_text: null,
+  decision_mechanism: null, application_text: null, caution_notes: null, general_theme: null, full_channel_text: null, hanging_gate_context: null,
+};
+function fakeContent(marker: string): CanonicalContent {
+  return { ...BLANK, general_description: `gd-${marker}`, report_text: `rt-${marker}`,
+    // hanging_gate_context YALNIZ KANAL içeriğinde anlamlıdır (BUG-1 sözleşmesi)
+    hanging_gate_context: marker.startsWith("kanal_") ? `hang-${marker}` : null };
+}
+
+// ── BUG-1: hanging context KANAL içeriğinden (gate'ten DEĞİL) ─────────────────
+{
+  const s = buildPersonalKnowledgeStructure({ gates: [9] }); // 9 tek başına → hanging; potansiyel 9-52
+  const hg = s.hangingGates.find((h) => h.gate === 9);
+  assert("BUG1: gate9 hanging + kanal_9_52 allKeys'te", !!hg && s.allKeys.includes("kanal_9_52"), { hg, allKeys: s.allKeys });
+  const m = new Map<string, CanonicalContent | null>();
+  m.set("kapi_9", { ...BLANK, general_description: "gate9", hanging_gate_context: "WRONG-from-gate" }); // gate'te yanlış context
+  m.set("kanal_9_52", { ...BLANK, hanging_gate_context: "RIGHT-from-channel-9-52" });
+  const dto = assemblePersonalKnowledge({ chartId: "c", source: "manual" }, s, m, "t");
+  const pc = dto.hangingGates.find((h) => h.gate === 9)?.potentialChannels[0];
+  assert("BUG1: hanging context CHANNEL kaynağından (gate DEĞİL)", pc?.hangingContext === "RIGHT-from-channel-9-52", pc);
+}
+// BUG-1 çoklu potansiyel: Gate 10 → her potansiyel kanal KENDİ context'i
+{
+  const s = buildPersonalKnowledgeStructure({ gates: [10] });
+  const m = new Map<string, CanonicalContent | null>([
+    ["kanal_10_20", { ...BLANK, hanging_gate_context: "ctx-10-20" }],
+    ["kanal_10_34", { ...BLANK, hanging_gate_context: "ctx-10-34" }],
+    ["kanal_10_57", { ...BLANK, hanging_gate_context: "ctx-10-57" }],
+  ]);
+  const dto = assemblePersonalKnowledge({ chartId: "c", source: "manual" }, s, m, "t");
+  const pcs = dto.hangingGates.find((h) => h.gate === 10)?.potentialChannels ?? [];
+  assert("BUG1 multi: 3 potansiyel, her biri kendi kanal context'i",
+    pcs.length === 3 && pcs.find((p) => p.code === "10-20")?.hangingContext === "ctx-10-20" && pcs.find((p) => p.code === "10-34")?.hangingContext === "ctx-10-34" && pcs.find((p) => p.code === "10-57")?.hangingContext === "ctx-10-57",
+    pcs);
+}
+
+// ── BUG-2: chart-value-missing vs unpublished ────────────────────────────────
+{
+  const s = buildPersonalKnowledgeStructure({ type_code: "Generator", authority_code: null, gates: [] });
+  assert("BUG2: authority YOK → chartValueMissing + key null", s.authorityChartMissing === true && s.authorityKey === null);
+  const dto = assemblePersonalKnowledge({ chartId: "c", source: "manual" }, s, new Map(), "t");
+  assert("BUG2: dto authority chartValueMissing=true content=null", dto.identity.authority.chartValueMissing === true && dto.identity.authority.content === null);
+  assert("BUG2: type VAR → chartValueMissing=false", dto.identity.type.chartValueMissing === false && dto.identity.type.key === "tip_generator");
+  // authority VAR ama content null → unpublished (missing DEĞİL)
+  const s2 = buildPersonalKnowledgeStructure({ authority_code: "Emotional" });
+  const dto2 = assemblePersonalKnowledge({ chartId: "c", source: "manual" }, s2, new Map([["otorite_emotional", null]]), "t");
+  assert("BUG2: authority VAR + content null → missing=false (unpublished)", dto2.identity.authority.chartValueMissing === false && dto2.identity.authority.key === "otorite_emotional" && dto2.identity.authority.content === null);
 }
 
 // ── G. PUBLISHED / DRAFT enjeksiyon ──────────────────────────────────────────
-function fakeContent(marker: string): CanonicalContent {
-  return {
-    general_description: `gd-${marker}`, report_text: `rt-${marker}`,
-    strategy_text: null, signature_text: null, not_self_text: null,
-    decision_mechanism: null, application_text: null, caution_notes: null,
-    general_theme: null, full_channel_text: null,
-    hanging_gate_context: marker.startsWith("kapi_") ? `hang-${marker}` : null,
-  };
-}
 {
   const s = buildPersonalKnowledgeStructure(FIXTURE);
-  // all published
   const full = new Map<string, CanonicalContent | null>();
   for (const k of s.allKeys) full.set(k, fakeContent(k));
   const dtoFull = assemblePersonalKnowledge({ chartId: "c1", source: "manual" }, s, full, "2026-01-01T00:00:00Z");
   assert("G full: allUnpublished=false", dtoFull.allUnpublished === false);
   assert("G full: type content present", dtoFull.identity.type.content?.general_description === "gd-tip_manifesting_generator");
-  assert("G full: hanging context from gate content", dtoFull.hangingGates[0]?.hangingContext === "hang-kapi_47");
+  assert("G full: hanging context from CHANNEL (47-64)", dtoFull.hangingGates[0]?.potentialChannels[0]?.hangingContext === "hang-kanal_47_64", dtoFull.hangingGates[0]);
 
-  // all draft/null
   const empty = new Map<string, CanonicalContent | null>();
   for (const k of s.allKeys) empty.set(k, null);
   const dtoEmpty = assemblePersonalKnowledge({ chartId: "c1", source: "manual" }, s, empty, "2026-01-01T00:00:00Z");
@@ -186,7 +226,6 @@ function fakeContent(marker: string): CanonicalContent {
   assert("G empty: structural intact (2 channels, 1 gate, 1 hanging)", dtoEmpty.channels.length === 2 && dtoEmpty.gates.length === 1 && dtoEmpty.hangingGates.length === 1);
   assert("G empty: no draft leakage (content null)", dtoEmpty.identity.type.content === null && dtoEmpty.channels.every((c) => c.content === null));
 
-  // partial: yalnız type published
   const partial = new Map<string, CanonicalContent | null>();
   for (const k of s.allKeys) partial.set(k, null);
   partial.set(s.typeKey!, fakeContent(s.typeKey!));
