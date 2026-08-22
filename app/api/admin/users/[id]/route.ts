@@ -265,6 +265,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     const oldPerms = ((currentRow as { module_permissions?: unknown }).module_permissions ?? {}) as Record<string, unknown>;
     const newPayload = adminPermissionsToPayload(body.modulePermissions as never) as Record<string, boolean>;
 
+    // yasam_hafizasi admin modül-UI anahtarları arasında DEĞİLDİR (ADMIN_MODULE_UI_KEYS) → bu
+    // wholesale write onu düşürürdü (yanlışlıkla REVOKE). MEVCUT değerini KORU: bu route YH iznini
+    // ne verir ne alır (grant yalnız atomik premium-grade sözleşmesinden: yh_grade_expert_premium)
+    // → PARTIAL üretmez.
+    newPayload.yasam_hafizasi = oldPerms.yasam_hafizasi === true;
+
     const enabledKeys: string[] = [];
     const disabledKeys: string[] = [];
     for (const k of new Set([...Object.keys(oldPerms), ...Object.keys(newPayload)])) {

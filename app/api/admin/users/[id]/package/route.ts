@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/membership";
 import { rowHasMembershipColumns } from "@/lib/admin/userManagement";
 import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
+import { gradeExpertPremiumWithYasamHafizasi } from "@/lib/yasam-hafizasi/expertPremiumGrant";
 
 export const runtime = "nodejs";
 
@@ -52,23 +53,31 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
 
   const rawPayload = buildMembershipUpdatePayload(packagePlan);
-  const payload: Record<string, unknown> = { ...filterMembershipPayloadForRow(rawPayload, row) };
+  const membershipPayload = filterMembershipPayloadForRow(rawPayload, row);
 
-  // Premium → tüm modüller otomatik açılır
-  if (packagePlan === "premium" && "module_permissions" in row) {
-    payload.module_permissions = buildPremiumModulePermissionsPayload();
-  }
-
-  // Tek üyelik modeli: "Premium Olarak Kaydet" tek atomik UPDATE içinde
-  // erişim için gereken active + approved'ı da yazar (yöneticinin bilinçli kararı;
-  // rejected kullanıcı dahil yeniden erişime alınır). Kapatma yalnız manuel Pasif ile.
+  // PREMIUM: membership geçişi + modül izinleri + active/approved + YH izni + YH flags TEK
+  // ATOMİK DB transaction'ında (yh_grade_expert_premium RPC). YH/flags yazımı başarısız olursa
+  // PREMIUM GEÇİŞİ DE COMMIT EDİLMEZ → "premium ama YH kapalı" PARTIAL state İMKÂNSIZ. İki işlem
+  // transaction dışında ardışık kalmaz. FAIL-CLOSED: RPC hatası → 500 (retry idempotent). Ineligible
+  // (demo/non-expert) → RPC premium'u uygular, YH'yi atlar (fail-closed; hata değil).
   if (packagePlan === "premium") {
-    payload.active = true;
-    payload.approval_status = "approved";
-    payload.approved_at = new Date().toISOString();
+    const graded = await gradeExpertPremiumWithYasamHafizasi(
+      db,
+      id,
+      membershipPayload,
+      buildPremiumModulePermissionsPayload(),
+    );
+    if (!graded.ok) {
+      return NextResponse.json(
+        { error: "Premium/Yaşam Hafızası erişimi verilemedi (tekrar deneyin)." },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ ok: true });
   }
 
-  const { error } = await db.from("users").update(payload).eq("id", id);
+  // TRIAL / PRO: YH kapsam dışı; mevcut app-layer üyelik güncellemesi (active/approved zorlanmaz).
+  const { error } = await db.from("users").update({ ...membershipPayload }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });

@@ -77,8 +77,10 @@ export interface ClientSourceConfig {
 /**
  * Private Memory ilk cohort (Politika Kilidi md.12): 6 danışan kaynağı. Klinik serbest
  * metin searchText'e dahildir; doğrudan kimlik/iletişim kolonları daima piiDenylist'te.
- * Hepsi enabled:false (DORMANT; aktivasyon BF-11E). Sıra harness ile hizalıdır
- * (index [2] = danisan:sessions).
+ * Registry kapısı AÇIK (enabled:true); 6/6 kaynak production'da aktive edildi (BF-11E
+ * yh_source_activation.is_active=true, activation_class=FUTURE_ONLY_READY, backfill_allowed=false).
+ * Runtime yine de çift kapılıdır (registryEnabled VE DB is_active). Sıra harness ile
+ * hizalıdır (index [2] = danisan:sessions).
  *
  * DEFER (md.13): human_design_charts (ayrı hassas alan) + client_analyses → kaynak DEĞİL.
  * EXCLUDE: photos/media, DOCX, report_snapshots.
