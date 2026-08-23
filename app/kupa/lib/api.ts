@@ -198,6 +198,9 @@ export const listPointTopics = (params?: { topicId?: string; pointId?: string })
 };
 export const createPointTopic = (body: Partial<CuppingPointTopic>) =>
   call<CuppingPointTopic>(`${BASE}/point-topics`, { method: "POST", body: JSON.stringify(body) }, "relation");
+/** İlişki meta güncelle (relation_strength / note / source_note). FK'ler PATCH'te değişmez. */
+export const updatePointTopic = (id: string, body: Partial<CuppingPointTopic>) =>
+  call<CuppingPointTopic>(`${BASE}/point-topics/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "relation");
 export const deletePointTopic = (id: string) =>
   call<number>(`${BASE}/point-topics/${id}`, { method: "DELETE" }, "deleted");
 
