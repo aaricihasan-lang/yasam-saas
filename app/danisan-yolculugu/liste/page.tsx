@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -58,14 +59,16 @@ function formatDateTR(date: string | null) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
-function goreleSure(date: string | null): string {
+// Göreli süre metni — çeviri anahtarları clients.list.relative.* üzerinden.
+// `t`, clients.list namespace çevirmenidir (çağıran ClientCard'dan geçirilir).
+function goreleSure(date: string | null, t: (key: string, values?: Record<string, string | number>) => string): string {
   if (!date) return "";
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (diff < 1)   return "bugün";
-  if (diff < 7)   return `${diff} gün önce`;
-  if (diff < 30)  return `${Math.floor(diff / 7)} hafta önce`;
-  if (diff < 365) return `${Math.floor(diff / 30)} ay önce`;
-  return `${Math.floor(diff / 365)} yıl önce`;
+  if (diff < 1)   return t("relative.today");
+  if (diff < 7)   return t("relative.daysAgo", { n: diff });
+  if (diff < 30)  return t("relative.weeksAgo", { n: Math.floor(diff / 7) });
+  if (diff < 365) return t("relative.monthsAgo", { n: Math.floor(diff / 30) });
+  return t("relative.yearsAgo", { n: Math.floor(diff / 365) });
 }
 
 // Durum, danışanın son (tamamlanmış) görüşme tarihine göre belirlenir.
@@ -78,11 +81,13 @@ function calcAktifDurum(gorusme: string | null): AktifDurum {
   return "pasif";
 }
 
-const DURUM_META: Record<AktifDurum, { label: string; cls: string }> = {
-  aktif: { label: "Aktif",      cls: "bg-emerald-100 text-emerald-700" },
-  takip: { label: "Takip",      cls: "bg-amber-100 text-amber-700" },
-  pasif: { label: "Pasif",      cls: "bg-red-100 text-red-600" },
-  yeni:  { label: "Yeni Kayıt", cls: "bg-slate-100 text-slate-600" },
+// Durum rozet stilleri. Görünen etiket clients.list.durum.<key> ile çevrilir;
+// anahtar (aktif/takip/pasif/yeni) calcAktifDurum() çıktısıdır.
+const DURUM_CLS: Record<AktifDurum, string> = {
+  aktif: "bg-emerald-100 text-emerald-700",
+  takip: "bg-amber-100 text-amber-700",
+  pasif: "bg-red-100 text-red-600",
+  yeni:  "bg-slate-100 text-slate-600",
 };
 
 function clientInitials(ad: string | null, soyad: string | null): string {
@@ -119,10 +124,13 @@ const ClientCard = memo(function ClientCard({
   onOpen: (id: string) => void;
   onPrefetch: (id: string) => void;
 }) {
+  const t = useTranslations("clients.list");
   const hasExpiredHw = expiredCount > 0;
-  const durum = DURUM_META[calcAktifDurum(client.gorusme)];
+  const durumKey = calcAktifDurum(client.gorusme);
+  const durumCls = DURUM_CLS[durumKey];
+  const durumLabel = t(`durum.${durumKey}`);
   const initText = clientInitials(client.ad, client.soyad);
-  const gorceleSureStr = goreleSure(client.gorusme);
+  const gorceleSureStr = goreleSure(client.gorusme, t);
 
   return (
     <div
@@ -139,7 +147,7 @@ const ClientCard = memo(function ClientCard({
       }}
       onClick={() => onOpen(client.id)}
       onMouseEnter={() => onPrefetch(client.id)}
-      title="Danışan detayını aç"
+      title={t("card.openTitle")}
     >
       {/* Checkbox — demo'da gizli */}
       {!isDemo && (
@@ -168,13 +176,13 @@ const ClientCard = memo(function ClientCard({
             </span>
             {hasExpiredHw && (
               <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
-                ⚠ {expiredCount} ödev
+                {t("card.expiredHw", { count: expiredCount })}
               </span>
             )}
           </div>
-          {durum.label && (
-            <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durum.cls}`}>
-              {durum.label}
+          {durumLabel && (
+            <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durumCls}`}>
+              {durumLabel}
             </span>
           )}
         </div>
@@ -185,7 +193,7 @@ const ClientCard = memo(function ClientCard({
         <div className="flex items-center gap-1.5">
           <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
           <DemoBlur isProtected={isDemo} intensity={4} className="min-w-0 flex-1">
-            <span className="block truncate">{client.telefon || "Telefon yok"}</span>
+            <span className="block truncate">{client.telefon || t("card.noPhone")}</span>
           </DemoBlur>
         </div>
         <div className="flex items-center gap-1.5">
@@ -193,7 +201,7 @@ const ClientCard = memo(function ClientCard({
           <span className="truncate">
             {client.gorusme
               ? `${formatDateTR(client.gorusme)}${gorceleSureStr ? ` · ${gorceleSureStr}` : ""}`
-              : "Görüşme tarihi yok"}
+              : t("card.noGorusme")}
           </span>
         </div>
       </div>
@@ -201,7 +209,7 @@ const ClientCard = memo(function ClientCard({
       {/* Footer */}
       <div className="mt-3 flex justify-end">
         <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold text-sky-700 transition-all group-hover:bg-sky-200">
-          Detay →
+          {t("card.detail")}
         </span>
       </div>
     </div>
@@ -222,6 +230,7 @@ const PaginationBar = memo(function PaginationBar({
   total: number;
   onChange: (p: number) => void;
 }) {
+  const t = useTranslations("clients.list");
   const win = 1;
   const start = Math.max(1, page - win);
   const end = Math.min(pageCount, page + win);
@@ -235,14 +244,14 @@ const PaginationBar = memo(function PaginationBar({
   const nav = `${normal} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0`;
 
   return (
-    <nav className="mt-6 flex flex-col items-center gap-2.5" aria-label="Sayfalama">
+    <nav className="mt-6 flex flex-col items-center gap-2.5" aria-label={t("pagination.aria")}>
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         <button
           type="button"
           onClick={() => onChange(page - 1)}
           disabled={page <= 1}
           className={nav}
-          aria-label="Önceki sayfa"
+          aria-label={t("pagination.prev")}
         >
           ‹
         </button>
@@ -280,13 +289,13 @@ const PaginationBar = memo(function PaginationBar({
           onClick={() => onChange(page + 1)}
           disabled={page >= pageCount}
           className={nav}
-          aria-label="Sonraki sayfa"
+          aria-label={t("pagination.next")}
         >
           ›
         </button>
       </div>
       <p className="text-[12px] font-bold text-slate-400">
-        Sayfa {page} / {pageCount} · {total} danışan
+        {t("pagination.summary", { page, pageCount, total })}
       </p>
     </nav>
   );
@@ -294,6 +303,7 @@ const PaginationBar = memo(function PaginationBar({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DanisanListePage() {
+  const t = useTranslations("clients.list");
   const router = useRouter();
   useBfcacheRefresh();
   const { showToast } = useToast();
@@ -484,7 +494,7 @@ export default function DanisanListePage() {
         alerts,
       });
     } catch {
-      showToast({ title: "İşlem başarısız", message: "Listeleme hatası", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.listError"), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -504,7 +514,7 @@ export default function DanisanListePage() {
       setFullLoaded(full);
       setDanisanListCache(tenantId, { clients: merged, total: newTotal, fullLoaded: full, alerts: homeworkAlerts });
     } catch {
-      showToast({ title: "Hata", message: "Daha fazla kayıt yüklenemedi.", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: t("toast.loadMoreError"), type: "error" });
     } finally {
       setLoadingMore(false);
     }
@@ -533,7 +543,7 @@ export default function DanisanListePage() {
       setFullLoaded(true);
       setDanisanListCache(tid, { clients: all, total: grand ?? all.length, fullLoaded: true, alerts: homeworkAlerts });
     } catch {
-      showToast({ title: "Hata", message: "Kayıtlar yüklenemedi.", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: t("toast.loadAllError"), type: "error" });
     } finally {
       setLoadingMore(false);
     }
@@ -559,10 +569,8 @@ export default function DanisanListePage() {
       setClients([]);
       setHomeworkAlerts({});
       showToast({
-        title: "Oturum uyarısı",
-        message: !sessionUser
-          ? "Oturum bulunamadı. Lütfen tekrar giriş yapın."
-          : "Hesabınızda çalışma alanı (tenant) bilgisi yok.",
+        title: t("toast.sessionWarningTitle"),
+        message: !sessionUser ? t("toast.noSession") : t("toast.noTenant"),
         type: "warning",
       });
       return;
@@ -594,14 +602,14 @@ export default function DanisanListePage() {
     const ids = Array.from(selectedClientIds);
     if (ids.length === 0) return;
     if (!tenantId) {
-      showToast({ title: "Hata", message: "Oturum bilgisi bulunamadı.", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: t("toast.sessionMissing"), type: "error" });
       return;
     }
 
     const confirmed = await deleteConfirm({
-      title: "Seçili danışanları sil",
-      message: `${ids.length} danışanı ve tüm ilişkili verilerini silmek istediğinizden emin misiniz?`,
-      secondMessage: "Bu işlem GERİ ALINAMAZ. Danışana ait görüşmeler, ödevler ve analizler de silinecek.",
+      title: t("toast.deleteConfirmTitle"),
+      message: t("toast.deleteConfirmMsg", { count: ids.length }),
+      secondMessage: t("toast.deleteConfirmSecond"),
     });
     if (!confirmed) return;
 
@@ -632,12 +640,12 @@ export default function DanisanListePage() {
     setDeleteLoading(false);
 
     if (deletedIds.length === 0) {
-      showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: t("toast.deleteNone"), type: "error" });
       return;
     }
 
     if (anyStorageWarning) {
-      showToast({ title: "Danışanlar silindi", message: "Bazı ek dosyaların temizliği tamamlanamadı.", type: "warning" });
+      showToast({ title: t("toast.deletePartialTitle"), message: t("toast.deletePartialMsg"), type: "warning" });
     }
 
     const deletedIdSet = new Set(deletedIds);
@@ -655,7 +663,7 @@ export default function DanisanListePage() {
         alerts: homeworkAlerts,
       });
     }
-    showToast({ title: "Başarılı", message: `${deletedIds.length} danışan başarıyla silindi.`, type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.deleteSuccess", { count: deletedIds.length }), type: "success" });
   }
 
   async function exportClientsWord(mode: "selected" | "all" | "filtered") {
@@ -665,10 +673,10 @@ export default function DanisanListePage() {
       let clientIds: string[] | undefined;
       if (mode === "selected") {
         clientIds = [...selectedClientIds];
-        if (!clientIds.length) { showToast({ title: "Uyarı", message: "Önce danışan seçin.", type: "warning" }); return; }
+        if (!clientIds.length) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportSelectFirst"), type: "warning" }); return; }
       } else if (mode === "filtered") {
         clientIds = filteredClients.map((c) => c.id);
-        if (!clientIds.length) { showToast({ title: "Uyarı", message: "Filtrelenmiş sonuç yok.", type: "warning" }); return; }
+        if (!clientIds.length) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportNoFiltered"), type: "warning" }); return; }
       }
 
       const userId = readYasamUser()?.id;
@@ -684,7 +692,7 @@ export default function DanisanListePage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+        throw new Error((err as { error?: string }).error || t("toast.exportError"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -694,9 +702,9 @@ export default function DanisanListePage() {
       a.download = `danisan-listesi-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      showToast({ title: "Başarılı", message: "Danışan raporu indirildi.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.exportSuccess"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -723,10 +731,10 @@ export default function DanisanListePage() {
               aria-hidden
             />
             <div className="relative z-10">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-700/85">Danışan Yolculuğu</p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Danışan Listesi</h1>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-700/85">{t("eyebrow")}</p>
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{t("title")}</h1>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-                Kayıtlı danışanları arayın, filtreleyin ve detaylarına erişin.
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -734,7 +742,7 @@ export default function DanisanListePage() {
           <div className="flex flex-wrap gap-3 sm:flex-nowrap sm:items-start">
             <div className="min-w-[110px] rounded-2xl border border-white/80 bg-white/85 px-5 py-4 text-center shadow-md backdrop-blur-sm">
               <strong className="block text-3xl font-black text-slate-950">{loading ? "—" : (total ?? clients.length)}</strong>
-              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Danışan</span>
+              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statClients")}</span>
             </div>
             <div className={`min-w-[110px] rounded-2xl border px-5 py-4 text-center shadow-md backdrop-blur-sm ${
               totalExpiredHomework > 0 ? "border-red-200/80 bg-red-50/90" : "border-blue-200/80 bg-blue-50/90"
@@ -742,14 +750,14 @@ export default function DanisanListePage() {
               <strong className={`block text-3xl font-black ${totalExpiredHomework > 0 ? "text-red-600" : "text-blue-600"}`}>
                 {totalExpiredHomework}
               </strong>
-              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Aktif Uyarı</span>
+              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
             </div>
             <Link
               href="/danisan-yolculugu/kayit"
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
             >
               <UserPlus className="h-4 w-4" />
-              {isDemo ? "Demo Kayıt" : "Yeni Kayıt"}
+              {isDemo ? t("newClientDemo") : t("newClient")}
             </Link>
           </div>
         </header>
@@ -759,11 +767,9 @@ export default function DanisanListePage() {
             <div className="flex items-start gap-3.5 bg-amber-50 px-5 py-4">
               <span className="mt-0.5 text-2xl leading-none">🔎</span>
               <div>
-                <p className="text-base font-black text-amber-900">Demo Modu — Örnek Veri</p>
+                <p className="text-base font-black text-amber-900">{t("demoNotice.title")}</p>
                 <p className="mt-1 text-sm leading-relaxed text-amber-800">
-                  Gerçek verilere benzer hazırlanmış 20 örnek danışan profiliyle platformu keşfediyorsunuz.
-                  Telefon bilgileri gizlenmiştir. Yalnızca{" "}
-                  <span className="font-black">Eylül Karaca</span> profilinin tam içeriğine erişebilirsiniz.
+                  {t.rich("demoNotice.desc", { b: (chunks) => <span className="font-black">{chunks}</span> })}
                 </p>
               </div>
             </div>
@@ -773,9 +779,7 @@ export default function DanisanListePage() {
 
         {tenantMissing && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
-            {!sessionUser
-              ? "Oturum bulunamadı. Danışan listesi için lütfen tekrar giriş yapın."
-              : "Çalışma alanı (tenant) bilgisi bulunamadı. Danışan verileri yüklenemez."}
+            {!sessionUser ? t("tenantMissing.noSession") : t("tenantMissing.noTenant")}
           </div>
         )}
 
@@ -789,44 +793,49 @@ export default function DanisanListePage() {
               <ListFilter className="h-4 w-4 text-blue-700" />
             </div>
             <div>
-              <p className="text-base font-black text-slate-900">Arama &amp; Filtreleme</p>
-              <p className="text-xs text-slate-500">Ad, soyad, telefon, burç, kan grubu ve mizaca göre filtrele.</p>
+              <p className="text-base font-black text-slate-900">{t("filter.title")}</p>
+              <p className="text-xs text-slate-500">{t("filter.subtitle")}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <Field label="Ara">
+            <Field label={t("filter.searchLabel")}>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Ad, soyad veya telefon..."
+                placeholder={t("filter.searchPlaceholder")}
                 className={inputCls}
               />
             </Field>
-            <Field label="Burç">
+            <Field label={t("filter.burcLabel")}>
+              {/* Burç seçenekleri KANONİK değerdir (filtre: c.burc === filterBurc);
+                  value == görünen etiket → ÇEVRİLMEZ, dokunulmaz. */}
               <select value={filterBurc} onChange={(e) => setFilterBurc(e.target.value)} className={inputCls}>
-                <option value="">Tümü</option>
+                <option value="">{t("filter.all")}</option>
                 {["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"].map((b) => (
                   <option key={b}>{b}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Kan Grubu">
+            <Field label={t("filter.kanLabel")}>
+              {/* Kan grubu KANONİK değer (filtre: c.kan === filterKan) → ÇEVRİLMEZ. */}
               <select value={filterKan} onChange={(e) => setFilterKan(e.target.value)} className={inputCls}>
-                <option value="">Tümü</option>
+                <option value="">{t("filter.all")}</option>
                 <option>A Rh+</option><option>A Rh-</option>
                 <option>B Rh+</option><option>B Rh-</option>
                 <option>AB Rh+</option><option>AB Rh-</option>
                 <option>0 Rh+</option><option>0 Rh-</option>
               </select>
             </Field>
-            <Field label="Mizaç">
+            <Field label={t("filter.mizacLabel")}>
+              {/* Mizaç: value KANONİK (filtre: c.mizac === filterMizac); yalnız
+                  görünen etiket çevrilir. */}
               <select value={filterMizac} onChange={(e) => setFilterMizac(e.target.value)} className={inputCls}>
-                <option value="">Tümü</option>
-                <option value="safra">Safra</option>
-                <option value="sovdavi">Sovdavi</option>
-                <option value="dem">Dem</option>
-                <option value="balgam">Balgam</option>
+                <option value="">{t("filter.all")}</option>
+                <option value="safra">{t("filter.mizacOptions.safra")}</option>
+                <option value="sovdavi">{t("filter.mizacOptions.sovdavi")}</option>
+                <option value="dem">{t("filter.mizacOptions.dem")}</option>
+                <option value="balgam">{t("filter.mizacOptions.balgam")}</option>
               </select>
             </Field>
           </div>
@@ -836,7 +845,7 @@ export default function DanisanListePage() {
         <DanisanSectionShell desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-black text-slate-950">
-              Kayıtlı Danışanlar
+              {t("listHeader")}
               {!loading && (
                 <span className="ml-2 text-base font-bold text-slate-400">({displayCount})</span>
               )}
@@ -850,12 +859,12 @@ export default function DanisanListePage() {
                 onChange={(e) => setSortBy(e.target.value as SortKey)}
                 className="min-h-[40px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 lg:min-h-0"
               >
-                <option value="newest">En Yeni Kayıt</option>
-                <option value="oldest">En Eski Kayıt</option>
-                <option value="name-az">Ad A → Z</option>
-                <option value="name-za">Ad Z → A</option>
-                <option value="gorusme-new">Görüşme (Yeni)</option>
-                <option value="gorusme-old">Görüşme (Eski)</option>
+                <option value="newest">{t("sort.newest")}</option>
+                <option value="oldest">{t("sort.oldest")}</option>
+                <option value="name-az">{t("sort.nameAz")}</option>
+                <option value="name-za">{t("sort.nameZa")}</option>
+                <option value="gorusme-new">{t("sort.gorusmeNew")}</option>
+                <option value="gorusme-old">{t("sort.gorusmeOld")}</option>
               </select>
             </div>
           </div>
@@ -903,7 +912,7 @@ export default function DanisanListePage() {
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center">
               <UsersRound className="mx-auto mb-3 h-10 w-10 text-slate-300" strokeWidth={1.5} />
               <p className="text-base font-bold text-slate-500">
-                {clients.length === 0 ? "Henüz danışan kaydı yok." : "Kriterlere uygun danışan bulunamadı."}
+                {clients.length === 0 ? t("empty.none") : t("empty.noMatch")}
               </p>
               {clients.length === 0 && (
                 <Link
@@ -911,7 +920,7 @@ export default function DanisanListePage() {
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <UserPlus className="h-4 w-4" />
-                  İlk danışanı ekle
+                  {t("empty.addFirst")}
                 </Link>
               )}
             </div>
@@ -934,7 +943,7 @@ export default function DanisanListePage() {
             {/* Gözat modunda seçili sayfa yüklenirken kısa bilgi */}
             {pageNeedsMore && (
               <div className="mt-4 flex justify-center">
-                <span className="text-[13px] font-bold text-slate-400">Yükleniyor…</span>
+                <span className="text-[13px] font-bold text-slate-400">{t("loadingMore")}</span>
               </div>
             )}
             {pageCount > 1 && (

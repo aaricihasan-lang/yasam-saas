@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -19,13 +20,13 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { readDemoClients } from "@/lib/demo/demoSession";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
+import { formatDate } from "@/lib/i18n/format";
 
 // ─── Yardımcı: ISO tarihi → DD.MM.YYYY ──────────────────────────────────────
+// Merkezî locale-duyarlı format helper üzerinden; boş/geçersizde mevcut "—"
+// davranışı korunur (formatDate boş string döndürür).
 function isoToTR(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return formatDate(iso, { day: "2-digit", month: "2-digit", year: "numeric" }) || "—";
 }
 
 // ─── Yardımcı: Sayıyı okunabilir stringe çevir ──────────────────────────────
@@ -83,8 +84,10 @@ function calcDemoStats(clients: FlatClient[]): string[] {
 }
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
+// `id` = stabil çeviri anahtarı (clients.landing.stats.<id>); görünen etiket
+// render sırasında t() ile üretilir.
 type StatCardDef = {
-  label: string;
+  id: string;
   Icon: LucideIcon;
   cardBg: string;
   border: string;
@@ -100,13 +103,13 @@ const ACCENT = {
 } as const;
 
 const STAT_CARD_DEFS: StatCardDef[] = [
-  { label: "Toplam Danışan",   Icon: UsersRound,    ...ACCENT },
-  { label: "Bu Ay Yeni",       Icon: UserPlus,      ...ACCENT },
-  { label: "Son Kayıt",        Icon: CalendarDays,  ...ACCENT },
-  { label: "Bu Ay Randevu",    Icon: CalendarClock, ...ACCENT },
-  { label: "En Yakın Randevu", Icon: Activity,      ...ACCENT },
+  { id: "total",              Icon: UsersRound,    ...ACCENT },
+  { id: "thisMonthNew",       Icon: UserPlus,      ...ACCENT },
+  { id: "lastCreated",        Icon: CalendarDays,  ...ACCENT },
+  { id: "thisMonthAppts",     Icon: CalendarClock, ...ACCENT },
+  { id: "nextAppt",           Icon: Activity,      ...ACCENT },
   {
-    label: "Bu Ay Tamamlanan",
+    id: "thisMonthCompleted",
     Icon: CalendarCheck,
     cardBg: "bg-white",
     border: "border-slate-200/80",
@@ -114,11 +117,11 @@ const STAT_CARD_DEFS: StatCardDef[] = [
   },
 ];
 
+// `key` = stabil çeviri anahtarı (clients.landing.folders.<key>); görünen
+// title/desc/badge render sırasında t() ile üretilir. href/renk/ikon sabit kalır.
 const journeyFolders: {
-  title: string;
-  desc: string;
+  key: "kayit" | "liste" | "takip";
   href: string;
-  badge: string;
   cardGradient: string;
   border: string;
   iconBox: string;
@@ -127,10 +130,8 @@ const journeyFolders: {
   DecorIcon: LucideIcon;
 }[] = [
   {
-    title: "Danışan Kayıt",
-    desc: "Yeni danışan ekle, kişisel bilgileri ve görüşme tarihini kaydet.",
+    key: "kayit",
     href: "/danisan-yolculugu/kayit",
-    badge: "Yeni Kayıt",
     cardGradient: "bg-gradient-to-br from-emerald-100 via-white to-teal-100",
     border: "border-emerald-300/70",
     iconBox: "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
@@ -139,10 +140,8 @@ const journeyFolders: {
     DecorIcon: ContactRound,
   },
   {
-    title: "Danışan Listesi",
-    desc: "Kayıtlı danışanları görüntüle, ara, düzenle ve detaylara eriş.",
+    key: "liste",
     href: "/danisan-yolculugu/liste",
-    badge: "Liste & Detay",
     cardGradient: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
     border: "border-violet-300/70",
     iconBox: "bg-gradient-to-br from-violet-500 to-indigo-500 text-white",
@@ -151,10 +150,8 @@ const journeyFolders: {
     DecorIcon: ListFilter,
   },
   {
-    title: "Danışan Takip",
-    desc: "Randevular, seans planlama, günlük takip ve danışan süreç yönetimi.",
+    key: "takip",
     href: "/danisan-yolculugu/takip",
-    badge: "Takip & Plan",
     cardGradient: "bg-gradient-to-br from-cyan-100 via-white to-teal-100",
     border: "border-cyan-300/70",
     iconBox: "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
@@ -173,7 +170,7 @@ function SummaryStatCard({
   border,
   iconBox,
   loading,
-}: StatCardDef & { value: string; loading: boolean }) {
+}: StatCardDef & { value: string; loading: boolean; label: string }) {
   return (
     <div
       className={`group relative z-0 flex flex-col justify-between gap-3 rounded-xl border p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md 2xl:p-4 ${border} ${cardBg}`}
@@ -204,6 +201,8 @@ function SummaryStatCard({
 
 // ─── Ana Sayfa ────────────────────────────────────────────────────────────────
 export default function DanisanYolculuguPage() {
+  const t = useTranslations("clients.landing");
+  const tNav = useTranslations("navigation");
   // 6 stat değeri — yükleme öncesi "—"
   const [stats, setStats] = useState<string[]>(Array(6).fill("—"));
   const [loading, setLoading] = useState(true);
@@ -301,13 +300,13 @@ export default function DanisanYolculuguPage() {
               />
               <div className="relative z-10">
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700/85">
-                  Yaşam Sistemi
+                  {tNav("brand")}
                 </p>
                 <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  Danışan Yolculuğu
+                  {t("hero.title")}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-                  Danışan sürecinizi üç ana klasörde yönetin: yeni kayıt, danışan listesi ve takip &amp; ajanda.
+                  {t("hero.subtitle")}
                 </p>
               </div>
             </header>
@@ -315,9 +314,9 @@ export default function DanisanYolculuguPage() {
             {/* Hızlı İşlemler */}
             <section className="flex flex-col gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-900">Hızlı İşlemler</h2>
+                <h2 className="text-lg font-black text-slate-900">{t("quickActions.title")}</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Danışan yönetimi için üç ana klasöre hızlıca erişin.
+                  {t("quickActions.subtitle")}
                 </p>
               </div>
 
@@ -326,7 +325,7 @@ export default function DanisanYolculuguPage() {
                   const { Icon, DecorIcon } = folder;
                   return (
                     <Link
-                      key={folder.title}
+                      key={folder.key}
                       href={folder.href}
                       className={`group relative flex flex-col overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${folder.border} ${folder.cardGradient}`}
                     >
@@ -343,17 +342,17 @@ export default function DanisanYolculuguPage() {
                             <Icon className="h-5 w-5" strokeWidth={2} />
                           </div>
                           <span className="rounded-full border border-white/80 bg-white/75 px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                            {folder.badge}
+                            {t(`folders.${folder.key}.badge`)}
                           </span>
                         </div>
                         <h3 className="mt-3.5 text-xl font-black text-slate-900">
-                          {folder.title}
+                          {t(`folders.${folder.key}.title`)}
                         </h3>
                         <p className="mt-1.5 text-[13px] leading-snug text-slate-600">
-                          {folder.desc}
+                          {t(`folders.${folder.key}.desc`)}
                         </p>
                         <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-slate-900/80 px-4 py-2 text-xs font-bold text-white shadow-sm backdrop-blur-sm transition-all duration-200 group-hover:scale-[1.03] group-hover:bg-slate-900">
-                          Klasöre git
+                          {t("folders.cta")}
                           <span aria-hidden>→</span>
                         </span>
                       </div>
@@ -371,17 +370,18 @@ export default function DanisanYolculuguPage() {
               desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/90 sm:p-6 sm:shadow-lg"
             >
               <div>
-                <h2 className="text-2xl font-black text-slate-950">Genel Özet</h2>
+                <h2 className="text-2xl font-black text-slate-950">{t("summary.title")}</h2>
                 <p className="mt-1 text-sm font-medium leading-snug text-slate-600">
-                  Danışan ve randevu süreçlerinizin anonim genel görünümü.
+                  {t("summary.subtitle")}
                 </p>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                 {STAT_CARD_DEFS.map((def, i) => (
                   <SummaryStatCard
-                    key={def.label}
+                    key={def.id}
                     {...def}
+                    label={t(`stats.${def.id}`)}
                     value={stats[i]}
                     loading={loading}
                   />
@@ -393,9 +393,9 @@ export default function DanisanYolculuguPage() {
                   <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-slate-950">Gizlilik Önceliğimiz</p>
+                  <p className="text-sm font-black text-slate-950">{t("summary.privacyTitle")}</p>
                   <p className="mt-0.5 text-xs font-medium leading-snug text-slate-600">
-                    Kişisel bilgiler bu ekranda gösterilmez.
+                    {t("summary.privacyDesc")}
                   </p>
                 </div>
               </div>
