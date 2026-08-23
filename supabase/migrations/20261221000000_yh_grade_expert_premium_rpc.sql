@@ -23,6 +23,17 @@
 --   membership/active/approved dahil TÜM transaction ROLLBACK (semantic partial YOK). yh_shared'e
 --   DOKUNULMAZ (ortak havuz YOK).
 --
+-- GÜVENLİK İNVARYANTLARI (DB authoritative; caller JSON'una GÜVENİLMEZ):
+--   (1) FAIL-CLOSED PREMIUM GATE (TUTARLILIK): p_membership'te package_type VE plan ikisi birden
+--       'premium' DEĞİLSE (çelişkili/eksik/non-premium payload) RPC UPDATE'e GİRMEDEN RAISE eder →
+--       active/approved yükseltmesi VE YH grant ASLA üretilmez. Gerçek caller her zaman ikisini de
+--       premium gönderir; resulting eligibility de package_type VE plan'ı ayrı ayrı premium arar
+--       (COALESCE ile çelişkili state premium SAYILMAZ).
+--   (2) CALLER-YH SANITIZATION: ADIM 1, caller-supplied p_module_permissions içinden `yasam_hafizasi`
+--       key'ini DB seviyesinde MUTLAKA çıkarır. YH grant AUTHORITY yalnız ADIM 3'ün eligible branch'i
+--       olabilir; malicious/hatalı `{"yasam_hafizasi":true}` payload'ı ineligible bir kullanıcıda YH
+--       izni BIRAKAMAZ. Generic premium payload YH authority DEĞİLDİR.
+--
 -- GÜVENLİK: SECURITY DEFINER + sabit search_path + yalnız service_role EXECUTE.
 -- IDEMPOTENT: CREATE OR REPLACE FUNCTION + guard'lı REVOKE/GRANT.
 -- UYGULAMA: Supabase Dashboard SQL Editor (GATE 1; AYRI ONAY). Bu turda UYGULANMAZ.
@@ -49,8 +60,22 @@ BEGIN
     RAISE EXCEPTION 'yh_grade_expert_premium: p_user_id null';
   END IF;
 
+  -- ── FAIL-CLOSED PREMIUM GATE (İNVARYANT 1): bu RPC YALNIZ gerçek, TUTARLI PREMIUM transition
+  --    içindir. Gerçek caller (app/api/admin/users/[id]/package → buildMembershipUpdatePayload)
+  --    HER ZAMAN package_type='premium' VE plan='premium' BİRLİKTE gönderir (USERS_SAFE_SELECT ikisini
+  --    de içerir → filter ikisini de korur). Bu yüzden DB de TUTARLILIĞI zorlar: package_type VE plan
+  --    ikisi birden premium DEĞİLSE (çelişkili/eksik/non-premium payload) HİÇBİR UPDATE çalıştırmadan
+  --    reddet → active/approved yükseltmesi VE YH grant ASLA üretilmez (caller'a güvenilmez). ──
+  IF lower(coalesce(p_membership->>'package_type', '')) <> 'premium'
+     OR lower(coalesce(p_membership->>'plan', '')) <> 'premium' THEN
+    RAISE EXCEPTION 'yh_grade_expert_premium: tutarli premium payload gerekli (package_type VE plan premium olmali)';
+  END IF;
+
   -- ── ADIM 1: membership premium + modül izinleri (YH HARİÇ) + active/approved.
-  --    UPDATE satırı kilitler; RESULTING satır RETURNING ile alınır (eligibility POST-TRANSACTION). ──
+  --    UPDATE satırı kilitler; RESULTING satır RETURNING ile alınır (eligibility POST-TRANSACTION).
+  --    CALLER-YH SANITIZATION (İNVARYANT 2): caller-supplied module_permissions'tan `yasam_hafizasi`
+  --    DB seviyesinde `- 'yasam_hafizasi'` ile ÇIKARILIR → YH grant authority YALNIZ ADIM 3 eligible
+  --    branch'idir; caller'ın `{"yasam_hafizasi":true}` payload'ı ADIM 1'de YH izni BIRAKAMAZ. ──
   UPDATE public.users SET
     package_type          = COALESCE(p_membership->>'package_type', package_type),
     membership_status     = COALESCE(p_membership->>'membership_status', membership_status),
@@ -60,7 +85,7 @@ BEGIN
     membership_ends_at    = CASE WHEN p_membership ? 'membership_ends_at'    THEN (p_membership->>'membership_ends_at')::timestamptz    ELSE membership_ends_at END,
     plan                  = COALESCE(p_membership->>'plan', plan),
     subscription_status   = COALESCE(p_membership->>'subscription_status', subscription_status),
-    module_permissions    = COALESCE(p_module_permissions, module_permissions, '{}'::jsonb),
+    module_permissions    = (COALESCE(p_module_permissions, module_permissions, '{}'::jsonb)) - 'yasam_hafizasi',
     active                = true,
     approval_status       = 'approved',
     approved_at           = now()
@@ -72,11 +97,15 @@ BEGIN
   END IF;
 
   -- ── ADIM 2: POST-TRANSACTION eligibility (RESULTING state; BELİRLEYİCİ invariant) ──
+  --    PREMIUM INVARIANT: resulting state TUTARLI premium olmalı — package_type VE plan ayrı ayrı
+  --    'premium'. COALESCE(package_type, plan) çelişkili state'i (biri premium/diğeri değil) premium
+  --    saymaz; gate zaten çelişkiyi elediği için valid transition sonrası ikisi de 'premium'.
   v_eligible :=
         v_user.role = 'expert'
     AND v_user.active = true
     AND lower(coalesce(v_user.approval_status, '')) = 'approved'
-    AND lower(coalesce(v_user.package_type, v_user.plan, '')) = 'premium'
+    AND lower(coalesce(v_user.package_type, '')) = 'premium'
+    AND lower(coalesce(v_user.plan, '')) = 'premium'
     AND coalesce(v_user.is_demo_account, false) = false
     AND v_user.tenant_id IS NOT NULL
     AND v_user.tenant_id NOT IN (
@@ -116,6 +145,9 @@ COMMIT;
 -- DOĞRULAMA (uygulama sonrası, SALT-OKUNUR — beklenen):
 --   SELECT prosecdef FROM pg_proc WHERE proname='yh_grade_expert_premium';                          -- t
 --   SELECT has_function_privilege('anon','public.yh_grade_expert_premium(uuid,jsonb,jsonb)','EXECUTE'); -- false
+--   -- İNVARYANT 1 (fail-closed premium/tutarlilik): package_type VE plan ikisi birden premium değilse
+--   --   RAISE eder (active/approved/YH üretmez); resulting eligibility de ikisini ayrı ayrı premium arar.
+--   -- İNVARYANT 2 (caller-YH sanitize): ADIM 1 `- 'yasam_hafizasi'` → ineligible'da caller YH grant üretemez.
 --   -- Bu migration APPLY edildiğinde HİÇBİR users/flags satırı değişmez (yalnız fonksiyon kurulur).
 --   -- Kullanıcı açılımı: 20261221000100_yh_expert_rollout_activation.sql (GATE 4; code deploy SONRASI).
 -- ROLLBACK: DROP FUNCTION IF EXISTS public.yh_grade_expert_premium(uuid, jsonb, jsonb);

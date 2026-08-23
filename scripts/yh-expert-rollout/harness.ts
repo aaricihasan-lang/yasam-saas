@@ -246,12 +246,137 @@ async function run(): Promise<void> {
       "",
     );
     add("expand-grade-rpc-ineligible-no-yh", /RETURN 'premium_no_yh'/.test(expandSql), "");
-    add("expand-first-update-no-yh", !/module_permissions\s*=\s*COALESCE\(p_module_permissions[\s\S]{0,80}yasam_hafizasi/.test(expandSql), "");
+    // ADIM 1 caller-supplied module_permissions'tan yasam_hafizasi'yi DB seviyesinde STRIP eder
+    // (`- 'yasam_hafizasi'`) → YH grant authority YALNIZ ADIM 3 eligible branch'i.
+    add("expand-first-update-sanitizes-caller-yh", /module_permissions\s*=\s*\(?COALESCE\(p_module_permissions,\s*module_permissions,\s*'\{\}'::jsonb\)\)?\s*-\s*'yasam_hafizasi'/.test(expandSql), "");
+    // ADIM 1 (ilk UPDATE) yasam_hafizasi'yi TRUE'ya SET ETMEZ; yasam_hafizasi=true YALNIZ IF v_eligible sonrası.
+    {
+      const eligIdx = expandSql.indexOf("IF v_eligible THEN");
+      const beforeEligible = eligIdx >= 0 ? expandSql.slice(0, eligIdx) : expandSql;
+      add("expand-yh-true-only-in-eligible-branch", eligIdx >= 0 && !/yasam_hafizasi['"]?\s*,\s*true/.test(beforeEligible) && !/yasam_hafizasi['"]?\s*:\s*true/.test(beforeEligible), "");
+    }
+    // FAIL-CLOSED PREMIUM GATE (TUTARLILIK): package_type VE plan ikisi birden premium DEĞİLSE
+    // (OR mantığı: biri bile <> premium ise) UPDATE'ten ÖNCE RAISE ile reddedilir.
+    {
+      const gateMatch = /IF lower\(coalesce\(p_membership->>'package_type',\s*''\)\)\s*<>\s*'premium'\s*OR lower\(coalesce\(p_membership->>'plan',\s*''\)\)\s*<>\s*'premium' THEN\s*RAISE EXCEPTION/.test(expandSql);
+      const gateIdx = expandSql.search(/<>\s*'premium'[\s\S]*RAISE EXCEPTION[^\n]*tutarli premium/);
+      const firstUpdateIdx = expandSql.indexOf("UPDATE public.users SET");
+      add("expand-premium-fail-closed-gate-strict", gateMatch, "");
+      add("expand-premium-gate-before-update", gateIdx >= 0 && firstUpdateIdx >= 0 && gateIdx < firstUpdateIdx, "");
+      // ÇELİŞKİLİ payload'ı geçiren eski gevşek AND-gate KALMADI.
+      add("expand-premium-gate-not-loose-and", !/p_membership->>'package_type',\s*''\)\)\s*<>\s*'premium'\s*AND lower\(coalesce\(p_membership->>'plan',\s*''\)\)\s*<>\s*'premium'/.test(expandSql), "");
+      // Resulting eligibility TUTARLI: package_type VE plan ayrı ayrı premium; COALESCE-cross çelişkisi KALDIRILDI.
+      add("expand-eligibility-strict-both-premium",
+        /lower\(coalesce\(v_user\.package_type,\s*''\)\)\s*=\s*'premium'\s*AND\s*lower\(coalesce\(v_user\.plan,\s*''\)\)\s*=\s*'premium'/.test(expandSql)
+        && !/coalesce\(v_user\.package_type,\s*v_user\.plan,\s*''\)/.test(expandSql), "");
+    }
     // KRİTİK: EXPAND HİÇBİR kullanıcı açılımı/data DML yapmaz (yalnız fonksiyon tanımı).
     add("expand-no-bulk-rollout", !/_yh_rollout_users/.test(expandSql) && !/CREATE TEMP TABLE/.test(expandSql), "");
     add("expand-no-admin-seed", !/VALUES\s*\('aa8b960b-f4f1-4e5b-89f5-109bc030c147'/.test(expandSql), "");
     // EXPAND top-level DML yok: yalnız CREATE FUNCTION + REVOKE/GRANT (INSERT/UPDATE yalnız fonksiyon gövdesinde).
     add("expand-only-function-and-grants", /CREATE OR REPLACE FUNCTION/.test(expandSql) && !/INSERT INTO public\.yasam_hafizasi_flags\s*\(tenant_id, yh_enabled, yh_hizli\)\s*SELECT/.test(expandSql), "");
+  }
+
+  // ─── 9b) ADVERSARIAL — GATE 1 caller-YH sanitize + premium fail-closed invariantları ─────
+  // DB'siz harness: RPC gövdesi SQL-yapısal, helper transport fakeDb ile doğrulanır.
+  {
+    const expandSql = read("supabase/migrations/20261221000000_yh_grade_expert_premium_rpc.sql").replace(/--[^\n]*/g, "");
+    const eligIdx = expandSql.indexOf("IF v_eligible THEN");
+    const before = eligIdx >= 0 ? expandSql.slice(0, eligIdx) : expandSql;
+    const eligible = eligIdx >= 0 ? expandSql.slice(eligIdx) : "";
+    const sanitized = /module_permissions\s*=\s*\(?COALESCE\(p_module_permissions,\s*module_permissions,\s*'\{\}'::jsonb\)\)?\s*-\s*'yasam_hafizasi'/.test(expandSql);
+    const eligibilityGate = /v_user\.role\s*=\s*'expert'/.test(expandSql)
+      && /v_user\.active\s*=\s*true/.test(expandSql)
+      && /lower\(coalesce\(v_user\.approval_status,\s*''\)\)\s*=\s*'approved'/.test(expandSql)
+      && /lower\(coalesce\(v_user\.package_type,\s*''\)\)\s*=\s*'premium'/.test(expandSql)
+      && /lower\(coalesce\(v_user\.plan,\s*''\)\)\s*=\s*'premium'/.test(expandSql)
+      && /coalesce\(v_user\.is_demo_account,\s*false\)\s*=\s*false/.test(expandSql);
+    const yhTrueOnlyInEligible = eligIdx >= 0
+      && !/yasam_hafizasi['"]?\s*[,:]\s*true/.test(before)
+      && /jsonb_build_object\('yasam_hafizasi',\s*true\)/.test(eligible);
+
+    // (A1) ineligible + caller {"yasam_hafizasi":true} → YH grant OLUŞAMAZ:
+    //      ADIM 1 caller YH'yi strip eder, YH=true YALNIZ eligibility gate geçen branch'te.
+    add("adv-ineligible-malicious-yh-no-grant", sanitized && yhTrueOnlyInEligible && eligibilityGate, "");
+    // (A2) demo expert + malicious YH → YH yok (eligibility is_demo_account=false).
+    add("adv-demo-expert-no-yh", /coalesce\(v_user\.is_demo_account,\s*false\)\s*=\s*false/.test(expandSql) && sanitized, "");
+    // (A3) role != expert + malicious YH → YH yok (eligibility role='expert').
+    add("adv-non-expert-no-yh", /v_user\.role\s*=\s*'expert'/.test(expandSql) && sanitized, "");
+    // (A4) eligible real expert + caller YH false/absent → eligible branch YH=true set eder.
+    add("adv-eligible-branch-grants-yh", yhTrueOnlyInEligible, "");
+    // (A5) generic premium permission payload YH authority DEĞİLDİR (kaynak seviyesi).
+    add("adv-generic-premium-not-yh-authority",
+      !(PREMIUM_EXPERT_MODULE_KEYS as readonly string[]).includes("yasam_hafizasi")
+      && buildPremiumModulePermissionsPayload().yasam_hafizasi === undefined, "");
+    // (A6) çelişkili/non-premium p_membership → premium-grade RPC FAIL-CLOSED: UPDATE'ten ÖNCE RAISE.
+    {
+      const gateIdx = expandSql.search(/<>\s*'premium'[\s\S]*RAISE EXCEPTION[^\n]*tutarli premium/);
+      const updIdx = expandSql.indexOf("UPDATE public.users SET");
+      add("adv-non-premium-fail-closed", gateIdx >= 0 && updIdx >= 0 && gateIdx < updIdx, "");
+    }
+    // (A6b) transport: RPC hatası (DB RAISE dahil) → helper ok:false (çağıran premium'u başarısız sayar).
+    {
+      const fakeDb = { rpc: async () => ({ data: null, error: { message: "tutarli premium payload gerekli" } }) } as never;
+      const r = await gradeExpertPremiumWithYasamHafizasi(fakeDb, "99999999-9999-4999-9999-999999999999", { package_type: "premium", plan: "trial" }, { clients: true });
+      add("adv-helper-non-premium-error-fail-closed", r.ok === false && r.outcome === "error", JSON.stringify(r));
+    }
+    // (A7) geçerli premium YALNIZ package_type VE plan İKİSİ birden premium ise gate'i geçer (OR mantığı).
+    add("adv-valid-premium-passes-gate",
+      /lower\(coalesce\(p_membership->>'package_type',\s*''\)\)\s*<>\s*'premium'\s*OR lower\(coalesce\(p_membership->>'plan',\s*''\)\)\s*<>\s*'premium'/.test(expandSql), "");
+    // (A8) flag write failure → TÜM transaction rollback: plpgsql fonksiyon gövdesinde ara COMMIT YOK
+    //      (perm UPDATE + flags INSERT aynı atomik statement; both-or-neither).
+    add("adv-no-intermediate-commit-in-body",
+      eligIdx >= 0 && !/COMMIT\s*;/i.test(eligible.replace(/RETURN 'premium_with_yh';[\s\S]*$/, ""))
+      && /UPDATE\s+public\.users[\s\S]*INSERT INTO public\.yasam_hafizasi_flags/.test(eligible), "");
+    // (A9) retry idempotent: CREATE OR REPLACE + perm MERGE (||) + flags ON CONFLICT DO UPDATE.
+    add("adv-idempotent-retry",
+      /CREATE OR REPLACE FUNCTION public\.yh_grade_expert_premium/.test(expandSql)
+      && /COALESCE\(module_permissions,\s*'\{\}'::jsonb\)\s*\|\|\s*jsonb_build_object\('yasam_hafizasi',\s*true\)/.test(expandSql)
+      && /ON CONFLICT \(tenant_id\) DO UPDATE/.test(expandSql), "");
+    // (A10) EXPAND apply-time data rollout içermez (bulk/admin-seed/activation/backfill/reconcile).
+    add("adv-expand-no-apply-time-rollout",
+      !/UPDATE public\.users SET[\s\S]*WHERE[\s\S]*role\s*=\s*'expert'[\s\S]*AND active/.test(expandSql.replace(/\$\$[\s\S]*\$\$/, "")) // fonksiyon gövdesi hariç top-level
+      && !/backfill/i.test(expandSql) && !/reconcile/i.test(expandSql) && !/yh_source_activation/i.test(expandSql), "");
+  }
+
+  // ─── 9c) PREMIUM PAYLOAD CONSISTENCY — çelişkili payload'ı reddet (gate = OR mantığı) ─────
+  // Gate SQL semantiği: package_type VE plan İKİSİ birden 'premium' değilse RAISE. Aşağıdaki saf
+  // predicate SQL OR-gate'ini birebir yansıtır; SQL'e bağı yukarıdaki `adv-valid-premium-passes-gate`
+  // (OR regex) + `expand-eligibility-strict-both-premium` ile kurulur.
+  {
+    const norm = (v: unknown): string => String(v ?? "").trim().toLowerCase();
+    // Gate reddeder ⇔ ikisinden herhangi biri premium DEĞİL (SQL: <>premium OR <>premium).
+    const gateRejects = (pkg: unknown, plan: unknown): boolean =>
+      norm(pkg) !== "premium" || norm(plan) !== "premium";
+    // Resulting eligibility (premium invariant): package_type VE plan ayrı ayrı premium (COALESCE-cross YOK).
+    const resultingPremium = (pkg: unknown, plan: unknown): boolean =>
+      norm(pkg) === "premium" && norm(plan) === "premium";
+
+    // 1. package_type=premium, plan=trial → reject
+    add("consistency-1-premium-trial-reject", gateRejects("premium", "trial") === true, "");
+    // 2. package_type=trial, plan=premium → reject
+    add("consistency-2-trial-premium-reject", gateRejects("trial", "premium") === true, "");
+    // 3. both premium → PASS (gate geçirir)
+    add("consistency-3-both-premium-pass", gateRejects("premium", "premium") === false, "");
+    // 4. both non-premium → reject
+    add("consistency-4-both-nonpremium-reject", gateRejects("trial", "pro") === true && gateRejects("pro", "trial") === true, "");
+    // 4b. null/eksik required alan → fail-closed reject (gerçek caller her zaman ikisini de gönderir).
+    add("consistency-4b-missing-field-reject", gateRejects("premium", null) === true && gateRejects(null, "premium") === true && gateRejects(undefined, undefined) === true, "");
+    // 5. valid premium + eligible → YH permission + enabled + hizli (yalnız tutarlı premium resulting state).
+    //    (Gate geçen tek payload = both premium; sonra eligible branch YH+flags yazar — yapısal olarak doğrulandı.)
+    {
+      const expandSql = read("supabase/migrations/20261221000000_yh_grade_expert_premium_rpc.sql").replace(/--[^\n]*/g, "");
+      const eligIdx = expandSql.indexOf("IF v_eligible THEN");
+      const eligible = eligIdx >= 0 ? expandSql.slice(eligIdx) : "";
+      const yhOnGrant = /jsonb_build_object\('yasam_hafizasi',\s*true\)/.test(eligible)
+        && /INSERT INTO public\.yasam_hafizasi_flags[\s\S]*yh_enabled = true, yh_hizli = true/.test(eligible)
+        && /RETURN 'premium_with_yh'/.test(eligible);
+      add("consistency-5-valid-premium-eligible-grants-yh", resultingPremium("premium", "premium") === true && yhOnGrant, "");
+      // 6. malicious YH=true + ineligible → YH yok: ADIM 1 strip + YH yalnız eligible branch (before-branch temiz).
+      const before = eligIdx >= 0 ? expandSql.slice(0, eligIdx) : expandSql;
+      const stripped = /module_permissions\s*=\s*\(?COALESCE\(p_module_permissions,\s*module_permissions,\s*'\{\}'::jsonb\)\)?\s*-\s*'yasam_hafizasi'/.test(expandSql);
+      add("consistency-6-malicious-yh-ineligible-no-grant", stripped && !/yasam_hafizasi['"]?\s*[,:]\s*true/.test(before) && resultingPremium("premium", "trial") === false, "");
+    }
   }
 
   // ─── 10) STATIK: ACTIVATION migration (kullanıcı açılımı; code deploy SONRASI) ─────
