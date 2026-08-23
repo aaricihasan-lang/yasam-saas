@@ -113,6 +113,10 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "ders_notu",
   "digital_content",
   "cosmic_calendar",
+  // yasam_hafizasi BİLİNÇLİ olarak BURADA YOKTUR: YH izni yalnız ATOMİK premium-grade sözleşmesinden
+  // verilir (public.yh_grade_expert_premium → lib/yasam-hafizasi/expertPremiumGrant); membership +
+  // perm + flags TEK transaction. Aksi halde düz premium payload'ı perm'i tenant flag'i OLMADAN set
+  // eder → permission/flags PARTIAL riski. DEFAULT_MODULE_PERMISSIONS da fail-closed false kalır.
   // human_design: yakında — premium paketinden de hariç
   "danisan_yonetimi",
   "ajanda",

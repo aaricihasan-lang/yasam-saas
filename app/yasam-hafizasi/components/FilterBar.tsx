@@ -3,21 +3,21 @@
 import type { YhSourceModule } from "@/lib/yasam-hafizasi/config";
 import type { YhFacet } from "@/lib/yasam-hafizasi/ui/searchResult";
 
-/** BF-13 — sade kaynak-modül filtresi + paylaşımlı içerik anahtarı. */
+/**
+ * BF-13 — sade kaynak-modül filtresi.
+ * NOT: "paylaşımlı kütüphane" (shared/global) anahtarı KALDIRILDI — ortak/canonical havuz
+ * ürün modeli YOKTUR; arama her zaman tenant-only'dir (server clamp resolveAllowShared).
+ */
 export function FilterBar({
   facets,
   selected,
   onToggleModule,
   onClear,
-  allowShared,
-  onAllowSharedChange,
 }: {
   facets: YhFacet[];
   selected: readonly YhSourceModule[];
   onToggleModule: (m: YhSourceModule) => void;
   onClear: () => void;
-  allowShared: boolean;
-  onAllowSharedChange: (v: boolean) => void;
 }) {
   return (
     <div className="mb-4 rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-sm">
@@ -52,16 +52,6 @@ export function FilterBar({
           </button>
         ) : null}
       </div>
-
-      <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-        <input
-          type="checkbox"
-          checked={allowShared}
-          onChange={(e) => onAllowSharedChange(e.target.checked)}
-          className="h-4 w-4 accent-violet-600"
-        />
-        Paylaşımlı kütüphane içeriğini de dahil et
-      </label>
     </div>
   );
 }

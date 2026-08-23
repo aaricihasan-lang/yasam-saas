@@ -59,7 +59,15 @@ export function isSearchDisabled(flags: YhFlags, isDemo: boolean): boolean {
   return isDemo || !flags.yh_enabled || !flags.yh_hizli;
 }
 
-/** yh_shared kapalıysa istek ne olursa olsun shared KAPALI (server clamp). */
+/**
+ * SHARED/GLOBAL HARD-DISABLE (bağlayıcı ürün kararı: ortak/canonical havuz YOKTUR).
+ * Kaynak flag (yh_shared) DB'de dursa ve istek allowShared:true gelse DAHİ shared/canonical
+ * retrieval HİÇBİR kullanıcı için açılmaz → her zaman tenant-only. Parametreler yalnız
+ * geriye-uyumluluk için korunur (kullanılmaz); dönüş SABİT false'tur.
+ */
 export function resolveAllowShared(flagShared: boolean, requested: boolean): boolean {
-  return flagShared && requested;
+  // Parametreler geriye-uyumluluk için korunur (çağrı yüzeyi değişmez); shared HER ZAMAN kapalı.
+  void flagShared;
+  void requested;
+  return false;
 }

@@ -111,7 +111,9 @@ function candidate(over: Partial<Candidate>): Candidate {
   add("enabled-both-on", isSearchDisabled(flags({ yh_enabled: true, yh_hizli: true }), false) === false, "");
   add("clamp-shared-flag-off", resolveAllowShared(false, true) === false, "");
   add("clamp-requested-false", resolveAllowShared(true, false) === false, "");
-  add("clamp-both-on", resolveAllowShared(true, true) === true, "");
+  // SHARED/GLOBAL HARD-DISABLE (bağlayıcı ürün kararı): flag+request true olsa DAHİ shared
+  // ASLA açılmaz → arama her zaman tenant-only. (Önceki "both-on → true" davranışı kaldırıldı.)
+  add("clamp-both-on-hard-disabled", resolveAllowShared(true, true) === false, "");
 }
 
 // ── moduleLabels + source-link allowlist ──
