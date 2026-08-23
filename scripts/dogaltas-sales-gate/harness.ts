@@ -240,6 +240,27 @@ for (const rel of REPORT_CALLSITES) {
   ok("DEAD-1: StoneModuleCard.tsx deleted", !exists);
 }
 
+// R310: detay sayfası hook-order koruması — signed-image hook zinciri TÜM erken
+// return'ların (loading / error / !safeStone) ÜSTÜNDE çağrılmalı. Aksi halde React
+// #310 "Rendered more hooks than during the previous render" prod'da çöker (koşullu
+// hook). Kaynak-tarama gate'i: hook'lar ilk erken return'dan ÖNCE, sonrasında tekrar YOK.
+{
+  const src = readFileSync(
+    resolve(ROOT, "app/dogaltas/dogaltas-listesi/[id]/page.tsx"),
+    "utf8",
+  );
+  const firstEarlyReturn = src.indexOf("if (loading) {");
+  const memoHook = src.indexOf("const imageFilePaths = useMemo(");
+  const signedHook = src.indexOf("const signedImageUrls = useSignedStoneImageUrls(");
+  ok("R310: detay ilk erken return bulundu", firstEarlyReturn > 0);
+  ok("R310: imageFilePaths useMemo erken return ÜSTÜNDE",
+    memoHook > 0 && memoHook < firstEarlyReturn);
+  ok("R310: useSignedStoneImageUrls erken return ÜSTÜNDE",
+    signedHook > 0 && signedHook < firstEarlyReturn);
+  ok("R310: signed-image hook'ları erken return SONRASINDA tekrar etmiyor",
+    src.indexOf("useSignedStoneImageUrls(", firstEarlyReturn) === -1);
+}
+
 // ─── Sonuç ──────────────────────────────────────────────────────────────────────
 console.log(`\nDoğaltaş sales-gate harness: ${pass} PASS / ${fail} FAIL (toplam ${pass + fail})`);
 if (fail > 0) {
