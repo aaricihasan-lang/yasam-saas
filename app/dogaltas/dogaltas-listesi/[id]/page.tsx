@@ -1032,6 +1032,18 @@ function StoneDetailPage() {
     [activeReader, highlightQuery],
   );
 
+  // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
+  // React #310: hook'lar loading/error/!safeStone erken return'larının ÜSTÜNDE olmalı ki
+  // her render'da aynı sırada çağrılsın. safeStone henüz yokken null-safe boş küme kullanılır.
+  const imageFilePaths = useMemo(
+    () =>
+      (Array.isArray(safeStone?.images) ? safeStone.images : [])
+        .map((im) => imageFilePath(im))
+        .filter(Boolean) as string[],
+    [safeStone],
+  );
+  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
+
   if (loading) {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
@@ -1075,12 +1087,6 @@ function StoneDetailPage() {
 
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
-  // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
-  const imageFilePaths = useMemo(
-    () => (safeImages.map((im) => imageFilePath(im)).filter(Boolean) as string[]),
-    [safeImages],
-  );
-  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
   const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
 
   const safeAssignments: Record<string, string[][]> =
