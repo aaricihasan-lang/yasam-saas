@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
 
 import trCommon from "@/messages/tr/common.json";
 import trNavigation from "@/messages/tr/navigation.json";
+import trHome from "@/messages/tr/home.json";
 import trClients from "@/messages/tr/clients.json";
 import trClientsList from "@/messages/tr/clients.list.json";
 import trClientsNotes from "@/messages/tr/clients.notes.json";
@@ -43,6 +44,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
   tr: buildMessages([
     trCommon,
     trNavigation,
+    trHome,
     trClients,
     trClientsList,
     trClientsNotes,

@@ -46,6 +46,11 @@
     "more": "Daha fazla",
     "less": "Daha az",
     "showMore": "Daha fazla göster",
-    "showLess": "Daha az göster"
+    "showLess": "Daha az göster",
+    "language": {
+      "current": "Dil: {label}",
+      "select": "Dil seç",
+      "list": "Diller"
+    }
   }
 }

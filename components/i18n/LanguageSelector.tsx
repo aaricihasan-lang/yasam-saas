@@ -13,7 +13,7 @@
  *   import LanguageSelector from "@/components/i18n/LanguageSelector";
  *   <LanguageSelector />
  */
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -28,6 +28,7 @@ export default function LanguageSelector({
 }: {
   className?: string;
 }) {
+  const t = useTranslations("common.language");
   const current = useLocale() as ActiveLocale;
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -73,7 +74,7 @@ export default function LanguageSelector({
     return (
       <span
         className={`inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-emerald-800/80 ${className}`}
-        aria-label={`Dil: ${label}`}
+        aria-label={t("current", { label })}
       >
         <GlobeIcon />
         {label}
@@ -89,7 +90,7 @@ export default function LanguageSelector({
         disabled={isPending}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Dil seç"
+        aria-label={t("select")}
         className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-60"
       >
         <GlobeIcon />
@@ -100,7 +101,7 @@ export default function LanguageSelector({
       {open && (
         <ul
           role="listbox"
-          aria-label="Diller"
+          aria-label={t("list")}
           className="absolute right-0 z-50 mt-2 min-w-[10rem] overflow-hidden rounded-xl border border-emerald-100 bg-white py-1 shadow-lg"
         >
           {ACTIVE_LOCALES.map((locale) => {

@@ -1,0 +1,410 @@
+{
+  "home": {
+    "common": {
+      "moduleGo": "Modüle Git",
+      "seeSampleScreens": "Örnek Ekranları Gör",
+      "sampleScreensBadge": "Örnek Ekranlar Var",
+      "close": "Kapat",
+      "prevScreen": "Önceki ekran",
+      "nextScreen": "Sonraki ekran",
+      "contentReady": "İçerik hazır",
+      "comingSoon": "Yakında",
+      "active": "Aktif"
+    },
+    "boot": {
+      "preparing": "Yaşam Sistemi hazırlanıyor...",
+      "checkingSession": "Oturum bilgileri kontrol ediliyor"
+    },
+    "brand": "YAŞAM SİSTEMİ",
+    "greeting": {
+      "night": "İyi Geceler",
+      "morning": "Günaydın",
+      "day": "İyi Günler",
+      "evening": "İyi Akşamlar"
+    },
+    "rel": {
+      "justNow": "az önce",
+      "minsAgo": "{mins} dk önce",
+      "hrsAgo": "{hrs} sa önce",
+      "daysAgo": "{days} gün önce"
+    },
+    "numDesc": {
+      "1": "Yeni başlangıçlar · Liderlik",
+      "2": "Denge · İşbirliği",
+      "3": "Yaratıcılık · Neşe",
+      "4": "Düzen · Kararlılık",
+      "5": "Değişim · Özgürlük",
+      "6": "Aşk · Uyum",
+      "7": "Spiritüel derinlik",
+      "8": "Güç · Bolluk",
+      "9": "Tamamlanma · Bilgelik",
+      "11": "Sezgi · Aydınlanma",
+      "22": "Büyük inşaacı",
+      "33": "Evrensel öğretmen"
+    },
+    "livePanel": {
+      "title": "Bugünün Enerjisi",
+      "sunSign": "Güneş Burcu",
+      "moonSign": "Ay Burcu",
+      "moonPhase": "Ay Fazı",
+      "numerology": "Numeroloji",
+      "planetaryHour": "Gezegen Saati",
+      "planetarySub": "{start}–{end} · {mins} dk kaldı"
+    },
+    "modules": {
+      "clients": { "title": "Danışan Yolculuğu", "desc": "Danışan kayıtları, randevu ve seans takibi tek merkezde", "badge": "Ana Modül", "stat": "{n} danışan kaydı" },
+      "yasam_hafizasi": { "title": "Yaşam Hafızası", "desc": "Modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın", "badge": "Modül" },
+      "stones": { "title": "Doğaltaş", "desc": "Taş, mineral ve danışan eşleştirmeleri", "badge": "Modül", "stat": "{n} taş kayıtlı" },
+      "stok": { "title": "Ürün & Stok Merkezi", "desc": "Tüm ürünler, stok, satış ve fiyatlandırma merkezi", "badge": "Modül", "stat": "{n} ürün" },
+      "energy_body": { "title": "Enerji & Beden", "desc": "Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa & Hacamat çalışma alanları", "badge": "Modül" },
+      "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Belgeler, videolar, ders notları ve kişisel arşiv yönetimi", "badge": "Merkez", "stat": "{n} içerik" },
+      "numerology": { "title": "Yaşam Analiz Merkezi", "desc": "Numeroloji ve Human Design analiz araçları", "badge": "Merkez", "stat": "{n} analiz" },
+      "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" }
+    },
+    "moduleCard": {
+      "loading": "Yükleniyor",
+      "noRecords": "Henüz kayıt yok",
+      "lastPrefix": "📅 Son: {date}",
+      "lockNoPermission": "🔒 Yetki yok",
+      "lockMembership": "🔒 Üyelik",
+      "badgeNoPermission": "Yetki yok",
+      "badgeInactive": "Pasif"
+    },
+    "settingsCard": {
+      "title": "Ayarlar & Güvenlik",
+      "desc": "Şifre, destek, yedekleme ve dışa aktarma işlemleri"
+    },
+    "yebsCard": {
+      "adminBadge": "Yönetici",
+      "title": "Yaşam Enerjisi Bilgi Sistemi",
+      "desc": "Gelenekler, kavramlar, kaynaklar ve profesyonel bilgi ağı"
+    },
+    "dashboard": {
+      "welcomeSuffix": "hoş geldiniz ✨",
+      "welcomePlain": "Hoş geldiniz ✨",
+      "heroDate": "Bugün {day} {month} {year} {weekday}",
+      "logout": "Çıkış Yap",
+      "systemOwner": "Sistem Sahibi",
+      "adminPanel": "Admin Paneli",
+      "centersLabel": "Ana Merkezler",
+      "recentActivity": "Son Aktiviteler",
+      "livePanelLabel": "Canlı Yaşam Paneli",
+      "modulesBusy": "Modüller yükleniyor",
+      "profileErrorTitle": "Modül izinleri yüklenemedi",
+      "profileErrorDesc": "Bağlantı veya oturum doğrulama hatası nedeniyle modül erişiminiz alınamadı. Lütfen tekrar deneyin.",
+      "retry": "Tekrar dene",
+      "membershipPending": "Hesabınız yönetici onayı bekliyor.",
+      "membershipInactiveTitle": "Hesabınız şu anda aktif değil.",
+      "membershipInactiveDesc": "Sisteme erişim için yönetici ile iletişime geçin.",
+      "noModulesTitle": "Henüz modül izniniz tanımlanmamış",
+      "noModulesDesc": "Erişim için yönetici ile iletişime geçin.",
+      "newRecord": "Yeni kayıt"
+    },
+    "demo": {
+      "titleBadge": "Demo Hesabı",
+      "subtitle": "— Yaşam Sistemi'ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.",
+      "item1": "Danışan ekleyebilir",
+      "item2": "Not oluşturabilir",
+      "item3": "Modülleri inceleyebilir",
+      "item4": "Kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz",
+      "warning": "Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.",
+      "cta": "🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi'nin uzmanlara sunduğu çalışma deneyimini keşfedin."
+    },
+    "auth": {
+      "sessionInvalid": "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
+      "emailPasswordRequired": "Email ve şifre giriniz.",
+      "loggingIn": "Giriş yapılıyor...",
+      "systemError": "Sistem hatası oluştu.",
+      "emailPasswordWrong": "Email veya şifre hatalı.",
+      "noValidRole": "Giriş başarısız: hesabınızda geçerli bir rol (admin / expert) tanımlı değil. Supabase users kaydını kontrol edin.",
+      "userVerifyFailed": "Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.",
+      "sessionLimit": "Oturum limiti nedeniyle giriş yapılamadı. Yöneticinizle iletişime geçin.",
+      "securityWarningTitle": "Güvenlik Uyarısı",
+      "securityWarningMsg": "Hesabınız farklı bir konumdan kullanılıyor olabilir. Şifrenizi yenilemeniz önerilir.",
+      "adminSessionFailed": "Admin oturumu başlatılamadı. Lütfen tekrar deneyin."
+    },
+    "nav": {
+      "login": "Giriş Yap",
+      "register": "Kayıt Ol"
+    },
+    "hero": {
+      "cardModules": "10+ Modül",
+      "cardSinglePanel": "Tek Panel",
+      "cardSinglePanelSub": "Her yerden erişim",
+      "cardSecure": "Güvenli Kayıt",
+      "cardSecureSub": "Verileriniz korumalı",
+      "cardAi": "AI Destekli",
+      "cardAiSub": "Akıllı analiz",
+      "titlePart1": "Danışan, analiz ve seans süreçlerinizi",
+      "titleHighlight": "tek merkezden",
+      "titlePart2": "yönetin",
+      "subtitle": "Numeroloji, doğaltaş, biyoenerji, refleksoloji, şifa rehberi, belge çeviri ve danışan yönetimi modülleriyle profesyonel çalışma akışınızı düzenleyin.",
+      "discoverModules": "Modülleri Keşfet ↓"
+    },
+    "mockup": {
+      "heading": "Yaşam Sistemi İçinde Bir Danışan",
+      "subtitle": "Bir danışanın tüm çalışma geçmişi tek ekranda görüntülenebilir.",
+      "windowTitle": "Danışan Yolculuğu — Ahmet Yılmaz",
+      "clientName": "Ahmet Yılmaz",
+      "activeClient": "Aktif Danışan",
+      "rowLastMeeting": "Son görüşme",
+      "rowSavedWork": "Kayıtlı çalışma",
+      "rowUpcoming": "Yaklaşan randevu",
+      "savedWorkValue": "5 kayıt",
+      "upcomingValue": "2 randevu",
+      "tabsAria": "Danışan sekmeleri",
+      "tabGenel": "Genel Bilgiler",
+      "tabNumeroloji": "Numeroloji",
+      "tabRefleksoloji": "Refleksoloji",
+      "tabDogaltas": "Doğaltaş",
+      "tabNotlar": "Notlar",
+      "tabRandevular": "Randevular",
+      "tabDosyalar": "Dosyalar",
+      "statAnaliz": "Analiz",
+      "statSeans": "Seans",
+      "statDosya": "Dosya",
+      "statNot": "Not",
+      "recentWorks": "Son Çalışmalar",
+      "work1": "Numeroloji Analizi Tamamlandı",
+      "work1detail": "Kişisel yıl & yaşam yolu hesabı",
+      "work1date": "2 gün önce",
+      "work2": "Refleksoloji Protokolü Eklendi",
+      "work2detail": "Ayak haritası · 3 bölge",
+      "work2date": "4 gün önce",
+      "work3": "Doğaltaş Önerisi Kaydedildi",
+      "work3detail": "Ametist, Labradorit kombinasyonu",
+      "work3date": "1 hafta önce",
+      "work4": "Seans Notu Eklendi",
+      "work4detail": "45 dk · 3. seans",
+      "work4date": "1 hafta önce",
+      "work5": "Yeni Randevu Oluşturuldu",
+      "work5detail": "12 Haziran 2026, 14:00",
+      "work5date": "2 hafta önce"
+    },
+    "problem": {
+      "heading": "Bilgileriniz farklı dosyalarda mı dağınık duruyor?",
+      "desc": "Birçok uzman yıllar boyunca oluşturduğu Word dosyalarını, PDF arşivlerini, danışan notlarını ve çalışma kayıtlarını farklı klasörlerde saklıyor. Zamanla bilgiye ulaşmak zorlaşıyor ve aynı araştırmalar tekrar tekrar yapılıyor.",
+      "item1": "Yüzlerce Word ve PDF dosyası arasında bilgi aramak",
+      "item2": "Aynı konuyu tekrar tekrar araştırmak zorunda kalmak",
+      "item3": "Danışan notlarının farklı klasörlerde bulunması",
+      "item4": "Randevu, seans ve kayıtların dağınık olması",
+      "item5": "Doğaltaş, numeroloji ve çalışma notlarının ayrı yerlerde tutulması"
+    },
+    "workspaces": {
+      "heading": "Çalışma Alanları",
+      "subtitle": "Platform içindeki ana modüller"
+    },
+    "landing": {
+      "sampleAnalysisBadge": "Örnek Analiz Var",
+      "previewBadge": "Önizleme",
+      "activeModuleBadge": "Aktif Modül",
+      "comingSoonBadge": "YAKINDA",
+      "inDevelopment": "Geliştirme Aşamasında",
+      "seeSampleAnalysis": "Örnek Analizi Gör",
+      "peekScreen": "Ekrana Göz At",
+      "discover": "Keşfet",
+      "numeroloji": {
+        "title": "Numeroloji",
+        "desc": "Ali AL örneğiyle analiz ekranlarını inceleyin."
+      },
+      "dogaltas": {
+        "title": "Doğaltaş",
+        "desc": "Doğaltaş kayıtları, mineral bilgileri, kombinasyonlar ve stok yönetimi tek merkezde."
+      },
+      "biyoenerji": {
+        "title": "Biyoenerji",
+        "desc": "Enerji analizleri, bilinçaltı çalışmaları, sembol dili, çakra kütüphanesi ve seans yönetimini tek merkezden yönetin."
+      },
+      "kisiselArsiv": {
+        "title": "Kişisel Arşiv",
+        "desc": "Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın."
+      },
+      "belgeCeviri": {
+        "title": "Belge Çeviri",
+        "desc": "PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi."
+      },
+      "videoCeviri": {
+        "title": "Video Çeviri",
+        "desc": "Video ve ses dosyalarını metne çevirip Türkçeye aktararak Word/PDF çıktısı hazırlayan yapay zekâ destekli modül."
+      },
+      "danisanYonetimi": {
+        "title": "Danışan Yönetimi",
+        "desc": "Danışan kayıtları, detay sayfaları ve randevu yönetimini tek merkezden yönetin."
+      },
+      "sifaRehberi": {
+        "title": "Şifa Rehberi",
+        "desc": "Rahatsızlık kayıtları, belirtiler, uygulamalar, doğaltaş, aromaterapi ve destekleyici önerileri tek merkezden yönetin."
+      },
+      "refleksoloji": {
+        "title": "Refleksoloji",
+        "desc": "Ayak refleksoloji atlası, protokoller, kayıtlı atlaslar, klinik notlar ve seans çalışma alanı."
+      },
+      "aromaterapi": {
+        "title": "Aromaterapi",
+        "desc": "Uçucu yağ, sabit yağ ve karışım yönetim sistemi."
+      },
+      "humanDesign": {
+        "title": "Human Design",
+        "desc": "Bilgi bankasına yüklediğiniz Human Design içeriklerini kullanarak danışanlarınıza kişiye özel profesyonel raporlar ve yorumlar oluşturun."
+      }
+    },
+    "feats": {
+      "biyoenerji": ["Biyoenerji Seansları", "Enerji Bedenleri", "Bilinçaltı Sebepleri", "İmajinasyon Kütüphanesi", "Sembol Dili", "Çakra Kütüphanesi"],
+      "kisiselArsiv": ["Ses & Video", "Belge & Resim", "Kişisel Notlar", "Arama Sistemi", "Dosya Takibi", "Güvenli Arşiv"],
+      "belgeCeviri": ["PDF → Word", "PDF → Türkçe Word", "Görsel OCR", "Çoklu Dil Desteği", "Format Koruma", "Güvenli İşlem"],
+      "videoCeviri": ["Video → Metin", "Otomatik Dil Algılama", "Türkçeye Çeviri", "Word/PDF Çıktı", "Eğitim İçeriği Hazırlama", "Gizlilik Odaklı İşlem"],
+      "danisanYonetimi": ["Danışan Kayıtları", "Danışan Detayları", "Randevu Takibi", "Ajanda Yönetimi", "Görüşme Geçmişi", "Takip Süreci"],
+      "sifaRehberi": ["Yeni Rahatsızlık Kaydı", "Kayıtlı Şifa Rehberi", "Belirtiler / Sebepler", "Uygulamalar / Yöntemler", "Doğaltaş & Mineral", "Aromaterapi"],
+      "refleksoloji": ["Bölge Haritası", "Kayıtlı Atlas", "Protokol Haritası", "Kayıtlı Protokoller", "Klinik Notlar", "Seans Takibi"],
+      "humanDesign": ["Bilgi Bankası Yönetimi", "Kapı ve Kanal Yorumları", "Merkez Analizleri", "Tip ve Profil Açıklamaları", "Otomatik Rapor Oluşturma", "Kişiye Özel Raporlar"],
+      "dogaltas": ["Taş Kayıt Yönetimi", "Mineral Bankası", "Kombinasyon Yönetimi", "Akıllı Arama", "Kategori Filtreleme", "Detay Sayfaları", "İstatistikler", "Görsel Arşivi"]
+    },
+    "mobile": {
+      "badge": "Android Uygulaması Yayında",
+      "heading1": "Mobil Uygulama ile",
+      "heading2": "Her Yerden Erişim",
+      "desc": "Yaşam Sistemi Android uygulamasıyla danışan kayıtlarınıza, modüllerinize ve çalışma alanlarınıza mobil cihazınızdan kolayca ulaşabilirsiniz.",
+      "item1": "Danışan kayıtları ve randevu yönetimi",
+      "item2": "Tüm modüllere mobil erişim",
+      "item3": "Hızlı ve güvenli kullanım",
+      "openApp": "Android Uygulamasını Aç",
+      "googlePlay": "Google Play üzerinden erişilebilir",
+      "phoneAppName": "Yaşam Sistemi",
+      "phoneRemove": "Kaldır",
+      "phoneOpen": "Aç",
+      "phoneStatus": "Android uygulaması yayında",
+      "phoneNews": "Yenilikler",
+      "phoneNewsDate": "Haz 2026",
+      "phoneNewsDetail": "Güvenlik güncellemeleri yapıldı",
+      "phoneTagPhone": "Telefon",
+      "phoneTagTablet": "Tablet"
+    },
+    "featureItems": {
+      "guvenli": { "title": "Güvenli Veri Yapısı", "desc": "Verileriniz kontrollü ve güvenli kullanım yapısında korunur." },
+      "analiz": { "title": "Analiz & Raporlama", "desc": "Detaylı analiz, raporlama ve profesyonel çıktı alanları." },
+      "webMobil": { "title": "Web & Mobil Uyum", "desc": "Telefon, tablet ve bilgisayardan kesintisiz erişim." },
+      "yedekleme": { "title": "Yedekleme", "desc": "Düzenli takip ve veri güvenliği odaklı altyapı." },
+      "moduler": { "title": "Modüler Yapı", "desc": "İhtiyaca göre genişleyen çalışma alanları ve modüller." }
+    },
+    "trust": {
+      "badge": "🔒 Güven İlkemiz",
+      "heading": "Yaşam Sistemi yalnızca bir yazılım değil, uzmanların yıllarca oluşturduğu emek ve bilgi birikimini koruyan güvenli bir çalışma alanıdır.",
+      "principle1": "Özel notlarınız, analizleriniz ve tüm çalışma içerikleriniz yalnızca size aittir",
+      "principle2": "Sistem sahibi dahil hiçbir yönetici özel çalışma verilerinize erişemez veya içeriklerinizi inceleyemez",
+      "principle3": "Admin paneli yalnızca üyelik, ödeme, modül ve sistem yönetimi içindir",
+      "principle4": "Verileriniz güvenli altyapıda korunur",
+      "quote": "“Güven bizim için özellik değil, sistemin temelidir.”",
+      "shieldLabel": "Gizlilik · Güven · Saygı",
+      "shieldSub": "Uzman emeğiniz ve danışan mahremiyetiniz önceliğimizdir."
+    },
+    "footer": {
+      "copyright": "© 2026 Yaşam Sistemi. Tüm hakları saklıdır.",
+      "nav": "Footer navigasyon",
+      "privacy": "Gizlilik Politikası",
+      "terms": "Kullanım Şartları",
+      "contact": "İletişim"
+    },
+    "gallery": {
+      "danisanYonetimi": { "0": "Danışan Yolculuğu", "1": "Yeni Danışan Kaydı", "2": "Danışan Listesi", "3": "Ajanda & Randevu", "4": "Yeni Randevu Oluştur" },
+      "sifaRehberi": { "0": "Şifa Rehberi Tanıtım", "1": "Ana Menü", "2": "Yeni Rahatsızlık Kaydı", "3": "Destekleyici Öneriler", "4": "Kayıtlı Rehber Listesi", "5": "Detay Görünümü" },
+      "refleksoloji": { "0": "Kolaj Görünüm", "1": "Ana Menü", "2": "Bölge Haritası", "3": "Kayıtlı Atlas", "4": "Protokol Haritası", "5": "Kayıtlı Protokoller", "6": "Klinik Notlar" },
+      "biyoenerji": { "0": "Biyoenerji Tanıtım", "1": "Biyoenerji Ana Sayfa", "2": "Biyoenerji Seansları", "3": "Enerji Bedenleri", "4": "Bilinçaltı Sebepleri", "5": "İmajinasyon Kütüphanesi", "6": "Sembol Dili Kütüphanesi", "7": "Çakra Kütüphanesi" }
+    },
+    "preview": {
+      "numeroloji": {
+        "aria": "Numeroloji modülü ön izlemesi",
+        "badge": "Numeroloji Modülü",
+        "title": "Numeroloji Analizi — Ürün Ön İzlemesi",
+        "subtitle": "Doğum tarihinizden yaşam haritanızı çıkarın, detaylı analizleri gözlemleyin.",
+        "alt": "Numeroloji Modülü — Ön İzleme"
+      },
+      "dogaltas": {
+        "aria": "Doğaltaş modülü ön izlemesi",
+        "badge": "Doğaltaş Modülü",
+        "title": "Doğaltaş Modülü — Gerçek Ürün Ekranları",
+        "subtitle": "Kayıt, arama, filtreleme, kombinasyon ve bilgi yönetimini tek merkezden yönetin.",
+        "alt": "Doğaltaş Modülü — Ön İzleme",
+        "panelTitle": "Doğaltaş Modülü ile Tüm Taş Verilerinizi Tek Merkezden Yönetin",
+        "panelDesc": "Doğaltaş Modülü; taş kayıtları, mineral bankası, kombinasyon yönetimi, gelişmiş arama ve filtreleme araçlarıyla tüm verilerinizi tek merkezde toplar. Yüzlerce kayıt arasında saniyeler içinde arama yapabilir, kategorilere göre filtreleme uygulayabilir ve detaylı taş bilgilerine kolayca erişebilirsiniz."
+      },
+      "kisiselArsiv": {
+        "aria": "Kişisel Arşiv modülü ön izlemesi",
+        "badge": "Kişisel Arşiv Modülü",
+        "title": "Kişisel Arşiv — Gerçek Ürün Ekranı",
+        "subtitle": "Ses, video, belge, resim ve notlarınızı tek merkezde güvenle saklayın.",
+        "alt": "Kişisel Arşiv Önizleme",
+        "panelTitle": "Kişisel Arşiv ile Güvenli Kayıt Sistemi",
+        "panelDesc": "Her türlü kişisel dosyayı kategorilere göre saklayın, arayın ve takip edin."
+      },
+      "belgeCeviri": {
+        "aria": "Belge Çeviri modülü ön izlemesi",
+        "badge": "Belge Çeviri Modülü",
+        "title": "Belge Çeviri — Gerçek Ürün Ekranı",
+        "subtitle": "PDF, Word ve görselleri yapay zekâ ile dönüştürün, Türkçeye çevirin.",
+        "alt": "Belge Çeviri Önizleme",
+        "panelTitle": "Belge Çeviri ile Hızlı Dönüşüm",
+        "panelDesc": "PDF belgelerini Word'e dönüştürün, Türkçeye çevirin; taranmış görsellerden metin okuyun."
+      },
+      "videoCeviri": {
+        "aria": "Video Çeviri modülü ön izlemesi",
+        "badge": "Geliştirme Aşamasında",
+        "title": "Video Çeviri — Modül Ön İzlemesi",
+        "subtitle": "Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.",
+        "alt": "Video Çeviri Önizleme",
+        "devTitle": "Geliştirme Aşamasında",
+        "devDesc": "Bu modül aktif kullanıma açılmadan önce altyapı ve üyelik planları tamamlanacaktır. Dosya limitleri altyapı paketine göre artırılacaktır."
+      },
+      "danisanYonetimi": {
+        "aria": "Danışan Yönetimi modülü ön izlemesi",
+        "badge": "Danışan Yönetimi Modülü",
+        "title": "Danışan Yönetimi — Gerçek Ürün Ekranları",
+        "subtitle": "Danışan kayıtları, randevu ve ajanda yönetimini tek merkezden yönetin.",
+        "altPrefix": "Danışan Yönetimi — ",
+        "coverBadge": "Danışan Yönetimi",
+        "coverTitle": "Danışan Yolculuğu — Genel Bakış",
+        "panelTitle": "Danışan Yönetimi ile Profesyonel Takip Sistemi",
+        "panelDesc": "Danışan kayıtları, detay sayfaları, randevu ve ajanda yönetimini tek merkezden yönetin."
+      },
+      "sifaRehberi": {
+        "aria": "Şifa Rehberi modülü ön izlemesi",
+        "badge": "Şifa Rehberi Modülü",
+        "title": "Şifa Rehberi — Gerçek Ürün Ekranları",
+        "subtitle": "Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici önerileri tek merkezden yönetin.",
+        "altPrefix": "Şifa Rehberi — ",
+        "panelTitle": "Şifa Rehberi ile Kapsamlı Destek Yönetimi",
+        "panelDesc": "Rahatsızlık kayıtları, belirtiler, sebepler, uygulamalar, doğaltaş ve aromaterapi önerilerini tek merkezden yönetin."
+      },
+      "refleksoloji": {
+        "aria": "Refleksoloji modülü ön izlemesi",
+        "badge": "Refleksoloji Modülü",
+        "title": "Refleksoloji — Gerçek Ürün Ekranları",
+        "subtitle": "Atlas, protokol, klinik notlar ve bölge haritasından oluşan profesyonel seans sistemi.",
+        "altPrefix": "Refleksoloji — ",
+        "panelTitle": "Refleksoloji Modülü ile Profesyonel Seans Sistemi",
+        "panelDesc": "Bölge haritası, kayıtlı atlas, protokol yönetimi, klinik notlar ve seans takibiyle eksiksiz bir refleksoloji çalışma ortamı sunar."
+      },
+      "biyoenerji": {
+        "aria": "Biyoenerji modülü ön izlemesi",
+        "badge": "Biyoenerji Modülü",
+        "title": "Biyoenerji — Gerçek Ürün Ekranları",
+        "subtitle": "Seans yönetimi, enerji bedenleri, bilinçaltı, semboller ve çakralardan oluşan kapsamlı çalışma sistemi.",
+        "altPrefix": "Biyoenerji Modülü — ",
+        "panelTitle": "Biyoenerji Modülü ile Kapsamlı Enerji Çalışması",
+        "panelDesc": "Biyoenerji Modülü; seans yönetimi, enerji bedenleri analizi, bilinçaltı sebepleri kütüphanesi, imajinasyon rehberleri, sembol dili ve çakra kütüphanesiyle bütünsel bir çalışma sistemi sunar."
+      }
+    },
+    "login": {
+      "badge": "Uzman Paneli",
+      "title": "Giriş Yap",
+      "subtitle": "Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz.",
+      "emailLabel": "E-Posta",
+      "emailPlaceholder": "uzman@test.com",
+      "passwordLabel": "Şifre",
+      "register": "Kayıt Ol",
+      "forgot": "Şifremi Unuttum",
+      "forgotMsg": "Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.",
+      "submit": "Uzman Paneline Gir →",
+      "submitting": "Giriş Yapılıyor..."
+    }
+  }
+}
