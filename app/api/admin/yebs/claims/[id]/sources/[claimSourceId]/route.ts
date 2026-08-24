@@ -15,10 +15,10 @@ import {
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: Promise<{ claimId: string; claimSourceId: string }> };
+type RouteContext = { params: Promise<{ id: string; claimSourceId: string }> };
 
 /**
- * GET    /api/admin/yebs/claims/[claimId]/sources/[claimSourceId] — SALT-OKUNUR (A4BR)
+ * GET    /api/admin/yebs/claims/[id]/sources/[claimSourceId] — SALT-OKUNUR (A4BR)
  * PATCH  ... — audit'li update (A4B). Yalnız draft parent; verification/source_id immutable.
  * DELETE ... — audit'li detach (A4B). Önce snapshot, sonra yalnız junction fiziksel silme.
  */
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const { claimId, claimSourceId } = await ctx.params;
+  const { id: claimId, claimSourceId } = await ctx.params;
   if (!UUID_RE.test(claimId) || !UUID_RE.test(claimSourceId)) return invalidIds();
 
   const result = await getClaimSourceById(db, claimId, claimSourceId);
@@ -161,7 +161,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { claimId, claimSourceId } = await ctx.params;
+  const { id: claimId, claimSourceId } = await ctx.params;
   if (!UUID_RE.test(claimId) || !UUID_RE.test(claimSourceId)) return invalidIds();
 
   let body: unknown;
@@ -264,7 +264,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { claimId, claimSourceId } = await ctx.params;
+  const { id: claimId, claimSourceId } = await ctx.params;
   if (!UUID_RE.test(claimId) || !UUID_RE.test(claimSourceId)) return invalidIds();
 
   let body: unknown;

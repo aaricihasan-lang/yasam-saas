@@ -17,11 +17,11 @@ import {
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: Promise<{ claimId: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * GET  /api/admin/yebs/claims/[claimId]/sources — SALT-OKUNUR liste (A4BR)
- * POST /api/admin/yebs/claims/[claimId]/sources — audit'li attach (A4B)
+ * GET  /api/admin/yebs/claims/[id]/sources — SALT-OKUNUR liste (A4BR)
+ * POST /api/admin/yebs/claims/[id]/sources — audit'li attach (A4B)
  *
  * verifyAdminRequest; yalnız guard.db (service_role). JOIN yok; canonical 18 alan.
  * verification_status body'den alınmaz (attach=unverified). DELETE burada değil (detail).
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const { claimId } = await ctx.params;
+  const { id: claimId } = await ctx.params;
   if (!UUID_RE.test(claimId)) {
     return NextResponse.json(
       { ok: false, error: "Geçersiz iddia kimliği.", code: "YEBS_INVALID_CLAIM_ID" },
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { claimId } = await ctx.params;
+  const { id: claimId } = await ctx.params;
   if (!UUID_RE.test(claimId)) {
     return NextResponse.json(
       { ok: false, error: "Geçersiz iddia kimliği.", code: "YEBS_INVALID_CLAIM_ID" },

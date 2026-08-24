@@ -19,11 +19,11 @@ import {
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: Promise<{ relationId: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * GET  /api/admin/yebs/relations/[relationId]/sources — SALT-OKUNUR liste (A5BR)
- * POST /api/admin/yebs/relations/[relationId]/sources — audit'li attach (A5B)
+ * GET  /api/admin/yebs/relations/[id]/sources — SALT-OKUNUR liste (A5BR)
+ * POST /api/admin/yebs/relations/[id]/sources — audit'li attach (A5B)
  *
  * verifyAdminRequest; yalnız guard.db (service_role). JOIN yok; canonical 19 alan.
  * verification_status body'den alınmaz (attach=unverified). evidence_layer zorunlu +
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const { relationId } = await ctx.params;
+  const { id: relationId } = await ctx.params;
   if (!UUID_RE.test(relationId)) {
     return NextResponse.json(
       { ok: false, error: "Geçersiz ilişki kimliği.", code: "YEBS_INVALID_CONCEPT_RELATION_ID" },
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { relationId } = await ctx.params;
+  const { id: relationId } = await ctx.params;
   if (!UUID_RE.test(relationId)) {
     return NextResponse.json(
       { ok: false, error: "Geçersiz ilişki kimliği.", code: "YEBS_INVALID_CONCEPT_RELATION_ID" },

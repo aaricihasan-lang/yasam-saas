@@ -10,8 +10,8 @@ import { execFileSync } from "node:child_process";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const REL = {
-  listRoute: "app/api/admin/yebs/relations/[relationId]/sources/route.ts",
-  detailRoute: "app/api/admin/yebs/relations/[relationId]/sources/[relationSourceId]/route.ts",
+  listRoute: "app/api/admin/yebs/relations/[id]/sources/route.ts",
+  detailRoute: "app/api/admin/yebs/relations/[id]/sources/[relationSourceId]/route.ts",
   mut: "lib/yebs/service/conceptRelationSourceMutations.ts",
 };
 const P = Object.fromEntries(Object.entries(REL).map(([k, v]) => [k, resolve(ROOT, v)]));
