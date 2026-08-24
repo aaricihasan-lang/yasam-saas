@@ -61,6 +61,17 @@ function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
 
+/** Minimal geçerli PNG header'ı (yalnız IHDR w/h) — getImgDimensions için yeterli. */
+function pngOfSize(w: number, h: number): Buffer {
+  const b = Buffer.alloc(24);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0); // PNG imzası
+  b.writeUInt32BE(13, 8); // IHDR length
+  b.write("IHDR", 12, "ascii");
+  b.writeUInt32BE(w, 16);
+  b.writeUInt32BE(h, 20);
+  return b;
+}
+
 // ── Fixture içerik/kayıt üreticileri ────────────────────────────────────────────
 function kindOfKey(key: string): HdEntityKind {
   if (key.startsWith("tip_")) return "tip";
@@ -384,6 +395,43 @@ async function main() {
     ok("DUP THEME::kapi_44 YOK (channeled)", !docText.includes("THEME::kapi_44"));
     // Kaynak tam metni / evidence snapshot'a girmez (V1 references yok)
     ok("SRC 'Kaynakça' bölümü YOK", !docText.includes("Kaynakça") && !docText.includes("Kaynaklar"));
+
+    // ── SUNUM RAFİNMANI #1: İÇİNDEKİLER tamamen kaldırıldı ──
+    ok("TOC 'İÇİNDEKİLER' sayfası YOK", !docText.includes("İÇİNDEKİLER"));
+    ok("TOC alanı/notu YOK", !/\bTOC\s+\\/.test(docXml) && !docText.includes("Belge düzenlenirse İçindekiler"));
+    ok("TOC kaldırıldıktan sonra kapak → Danışan bölümü", docText.indexOf("Danışan ve Harita Bilgileri") >= 0);
+
+    // ── SUNUM RAFİNMANI #3: Tip editoryal konsolidasyon (bilgi kaybı YOK) ──
+    ok("TİP 'Temel Göstergeler' başlığı VAR", docText.includes("Temel Göstergeler"));
+    ok("TİP Strateji/İmza/Kendinden-Olmayan Tema içeriği KORUNUYOR",
+      docText.includes("STRAT::tip_generator") && docText.includes("SIG::tip_generator") && docText.includes("NOTSELF::tip_generator"));
+    ok("TİP göstergeler 'Temel Göstergeler' altında toplandı (grup)",
+      docText.indexOf("Temel Göstergeler") < docText.indexOf("STRAT::tip_generator") &&
+      docText.indexOf("Temel Göstergeler") < docText.indexOf("NOTSELF::tip_generator"));
+    ok("TİP ana metin (Genel Açıklama + Ana Metin) hâlâ tam",
+      docText.includes("GD::tip_generator") && docText.includes("RT::tip_generator"));
+  }
+
+  // ══ SUNUM RAFİNMANI #2: BodyGraph büyütme (§14) ══
+  section("IMG. BodyGraph büyütme — enlarge + aspect + printable + no-image PASS");
+  {
+    const png = pngOfSize(1437, 748); // gerçek BodyGraph oranı (landscape 1.92)
+    const snap = buildOk(struct({ type_code: "generator", authority_code: "sacral", gates: [5, 9] }));
+    const withImg = await docxParts(await renderHdReportBuffer(snap, { chartImage: png }));
+    ok("IMG media gömülü (word/media)", withImg.files.some((f) => /word\/media\//.test(f)));
+    const m = withImg.docXml.match(/<wp:extent\s+cx="(\d+)"\s+cy="(\d+)"/);
+    ok("IMG drawing extent mevcut", !!m);
+    if (m) {
+      const cxPx = Math.round(Number(m[1]) / 9525); // EMU → px (1px=9525EMU)
+      const cyPx = Math.round(Number(m[2]) / 9525);
+      ok(`IMG genişlik büyüdü (${cxPx}px > 420 eski)`, cxPx > 420 && cxPx <= 540);
+      ok("IMG aspect korunuyor (~1.92)", Math.abs(cxPx / cyPx - 1437 / 748) < 0.05);
+      ok(`IMG A4 basılabilir genişlik içinde (${cxPx}px ≤ 601)`, cxPx <= 601);
+      ok(`IMG yükseklik sayfa içi (${cyPx}px ≤ 660)`, cyPx <= 660);
+    }
+    // Görselsiz rapor da başarılı (regresyon): media yok, üretim tamam.
+    const noImg = await docxParts(await renderHdReportBuffer(snap));
+    ok("IMG görselsiz rapor PASS", !noImg.files.some((f) => /word\/media\//.test(f)) && noImg.docText.includes("Danışan ve Harita Bilgileri"));
   }
 
   // ══ Filename / title sanitize ══

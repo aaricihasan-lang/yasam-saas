@@ -6,7 +6,7 @@
  * Çalıştır: npm run hd:word:visual -- "<outDir>"
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { buildPersonalKnowledgeStructure, type PkStructure } from "@/lib/human-design/knowledge/personalKnowledge";
 import {
   buildReportSnapshot,
@@ -80,12 +80,16 @@ function snapshotFor(chart: { type_code?: unknown; authority_code?: unknown; gat
 async function main() {
   mkdirSync(outDir, { recursive: true });
 
+  // Opsiyonel BodyGraph görseli: 2. argümandan (varsa) — büyütülmüş sunum görsel QA için.
+  const imgPath = process.argv[3];
+  const chartImage: Buffer | null = imgPath ? readFileSync(imgPath) : null;
+
   // SHORT: tip + otorite + 1 kanal (26-44) + birkaç kapı.
   const shortSnap = snapshotFor(
     { type_code: "generator", authority_code: "sacral", gates: [26, 44, 5, 9] },
     { name: "Ayşe Yılmaz", birthDate: "1990-05-12", birthTime: "14:30", birthPlace: "İstanbul" },
   );
-  const shortBuf = await renderHdReportBuffer(shortSnap);
+  const shortBuf = await renderHdReportBuffer(shortSnap, { chartImage });
   const shortName = hdReportFilename("Ayse-SHORT", "2026-08-23");
   writeFileSync(join_(outDir, shortName), shortBuf);
 
@@ -94,7 +98,7 @@ async function main() {
     { type_code: "manifesting_generator", authority_code: "emotional", gates: [26, 44, 10, 20, 34, 57, 1, 2, 3, 4, 11, 13, 62, 56, 9 ] },
     { name: "Mehmet Çağrı Öztürk", birthDate: "1985-11-03", birthTime: "08:15", birthPlace: "İzmir" },
   );
-  const longBuf = await renderHdReportBuffer(longSnap);
+  const longBuf = await renderHdReportBuffer(longSnap, { chartImage });
   const longName = hdReportFilename("Mehmet-LONG", "2026-08-23");
   writeFileSync(join_(outDir, longName), longBuf);
 
