@@ -18,38 +18,17 @@ import { ReaderModal } from "@/components/common/reader/ReaderModal";
 import { formatReaderText } from "@/components/common/reader/formatReaderText";
 import { fetchChartKnowledge } from "../helpers/hdChartKnowledge";
 import type { CanonicalContent, HdPersonalKnowledge } from "@/lib/human-design/knowledge/personalKnowledge";
+// §8: FIELD_LABELS/composeContentText/previewText artık paylaşılan HD rapor kompozisyon
+// katmanından gelir (tek kaynak; Reader ve Word AYNI etiket/sırayı kullanır).
+import { composeContentText, previewText } from "@/lib/human-design/reporting/reportCompose";
 
 type State =
   | { phase: "loading" }
   | { phase: "error"; message: string; locked: boolean; notFound: boolean }
   | { phase: "ready"; data: HdPersonalKnowledge };
 
-const FIELD_LABELS: Array<[keyof CanonicalContent, string]> = [
-  ["general_description", "Genel Açıklama"],
-  ["report_text", "Kaynaklandırılmış Ana Metin"],
-  ["strategy_text", "Strateji"],
-  ["signature_text", "İmza"],
-  ["not_self_text", "Kendinden-Olmayan Tema"],
-  ["decision_mechanism", "Karar Mekanizması"],
-  ["application_text", "Uygulama"],
-  ["caution_notes", "Dikkat Notları"],
-  ["general_theme", "Genel Tema"],
-  ["full_channel_text", "Tam Kanal Metni"],
-];
-
 function gateLabel(gate: number): string {
   return (HUMAN_DESIGN_GATES.find((g) => g.code === gate)?.label as string) ?? `Kapı ${gate}`;
-}
-function composeContentText(content: CanonicalContent): string {
-  const parts: string[] = [];
-  for (const [key, label] of FIELD_LABELS) {
-    const v = content[key];
-    if (typeof v === "string" && v.trim() !== "") parts.push(`## ${label}\n\n${v.trim()}`);
-  }
-  return parts.join("\n\n");
-}
-function previewText(content: CanonicalContent): string {
-  return content.general_description?.trim() || content.report_text?.trim() || content.general_theme?.trim() || "";
 }
 const BADGE = "Human Design · Bilgi Bankası";
 

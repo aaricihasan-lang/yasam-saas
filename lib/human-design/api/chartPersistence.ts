@@ -140,6 +140,66 @@ export async function getChartKnowledgeSource(
   return { row: (data as { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null) ?? null, error: null };
 }
 
+/**
+ * FAZ 2 Profesyonel Word — TENANT-GÜVENLİ chart + danışan okuma (rapor snapshot'ı için).
+ * Kaynak (manual/computed) FARK ETMEZ; yalnız tenant + id ile eşleşir (cross-tenant IDOR
+ * yok). personalKnowledge için scalar kolonlar + danışan kimlik/doğum + owned görsel path'i
+ * döner. computed_result jsonb çekilmez. MUTATION YOK.
+ */
+export type ChartForReport = {
+  id: string;
+  source: string | null;
+  type_code: string | null;
+  authority_code: string | null;
+  gates: number[] | null;
+  channels: string[] | null;
+  client_id: string | null;
+  client_name: string | null;
+  birth_date: string | null;
+  birth_time: string | null;
+  birth_place: string | null;
+  /** Danışan kaydından (varsa) — ad + doğum + owned görsel storage path'i. */
+  client: {
+    id: string;
+    name: string;
+    birth_date: string | null;
+    birth_time: string | null;
+    birth_place: string | null;
+    chart_image_url: string | null;
+  } | null;
+};
+
+export async function getChartWithClientForReport(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ row: ChartForReport | null; error: string | null }> {
+  const { data, error } = await db
+    .from(TABLE)
+    .select(
+      "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { row: null, error: error.message };
+  if (!data) return { row: null, error: null };
+
+  const chart = data as Omit<ChartForReport, "client">;
+  let client: ChartForReport["client"] = null;
+  if (chart.client_id) {
+    const { data: cli, error: cErr } = await db
+      .from("human_design_clients")
+      .select("id, name, birth_date, birth_time, birth_place, chart_image_url")
+      .eq("id", chart.client_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (cErr) return { row: null, error: cErr.message };
+    client = (cli as ChartForReport["client"]) ?? null;
+  }
+  return { row: { ...chart, client }, error: null };
+}
+
 export async function deleteComputedChart(
   db: SupabaseClient,
   tenantId: string,

@@ -9,6 +9,7 @@ import {
   deleteReport,
   type HdReportWithClient,
 } from "../helpers/hdKayitliRaporlar";
+import { downloadProfessionalReport } from "../helpers/hdProfessionalReport";
 import { HdRaporDetayModal } from "./HdRaporDetayModal";
 
 function formatDate(val: string | null | undefined): string {
@@ -33,6 +34,14 @@ export function HdRaporListesi() {
   const [search, setSearch] = useState("");
   const [detayRow, setDetayRow] = useState<HdReportWithClient | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownload(row: HdReportWithClient) {
+    setDownloadingId(row.id);
+    const res = await downloadProfessionalReport(row.id);
+    setDownloadingId(null);
+    if (!res.ok) showToast({ message: `İndirilemedi: ${res.error}`, type: "error" });
+  }
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -130,7 +139,9 @@ export function HdRaporListesi() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map((row) => (
+          {filtered.map((row) => {
+            const isCanonical = row.report_kind === "canonical";
+            return (
             <div
               key={row.id}
               className="flex flex-col gap-3 rounded-2xl border border-indigo-100/80 bg-white/90 px-5 py-4 shadow-sm ring-1 ring-indigo-100/40 transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
@@ -141,6 +152,11 @@ export function HdRaporListesi() {
                   <p className="truncate text-sm font-black text-slate-900">
                     {row.title}
                   </p>
+                  {isCanonical && (
+                    <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-700 ring-1 ring-teal-200/80">
+                      Profesyonel
+                    </span>
+                  )}
                   {latestIdPerClient.has(row.id) && (
                     <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/80">
                       Son
@@ -158,19 +174,34 @@ export function HdRaporListesi() {
 
               {/* Aksiyonlar */}
               <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDetayRow(row)}
-                  className="flex h-8 items-center rounded-lg border border-indigo-200 bg-white px-3.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
-                >
-                  Detay
-                </button>
-                <Link
-                  href={`/human-design/rapor-olustur?reportId=${row.id}`}
-                  className="flex h-8 items-center rounded-lg border border-violet-200 bg-white px-3.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
-                >
-                  Düzenle
-                </Link>
+                {isCanonical ? (
+                  // Profesyonel (canonical): DONMUŞ snapshot'tan Word indir. Düzenle YOK
+                  // (immutable/§40); Detay YOK (içerik snapshot'ta, editable metin yok).
+                  <button
+                    type="button"
+                    disabled={downloadingId === row.id}
+                    onClick={() => handleDownload(row)}
+                    className="flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
+                  >
+                    {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setDetayRow(row)}
+                      className="flex h-8 items-center rounded-lg border border-indigo-200 bg-white px-3.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
+                    >
+                      Detay
+                    </button>
+                    <Link
+                      href={`/human-design/rapor-olustur?reportId=${row.id}`}
+                      className="flex h-8 items-center rounded-lg border border-violet-200 bg-white px-3.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
+                    >
+                      Düzenle
+                    </Link>
+                  </>
+                )}
                 <button
                   type="button"
                   disabled={deletingId === row.id}
@@ -181,7 +212,8 @@ export function HdRaporListesi() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
