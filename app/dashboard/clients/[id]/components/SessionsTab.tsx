@@ -2,8 +2,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { formatDate as formatDateI18n } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -389,6 +390,7 @@ function DetailBlock({
 
 export default function SessionsTab({ clientId }: SessionsTabProps) {
   const t = useTranslations("clients.sessions");
+  const locale = useLocale() as ActiveLocale;
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -397,9 +399,9 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   const fmtDate = useCallback(
     (date: string | null) =>
       date
-        ? formatDateI18n(date, { day: "2-digit", month: "2-digit", year: "numeric" })
+        ? formatDateI18n(date, { day: "2-digit", month: "2-digit", year: "numeric" }, locale)
         : t("noDate"),
-    [t],
+    [t, locale],
   );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);

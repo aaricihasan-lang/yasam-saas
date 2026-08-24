@@ -33,7 +33,9 @@ import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -386,7 +388,7 @@ function numerologicalDay(date: Date): number {
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara/bileşenlere t geçirmek için.
 type T = ReturnType<typeof useTranslations>;
 
-function fmtRelDate(iso: string, t: T): string {
+function fmtRelDate(iso: string, t: T, bcp47: string): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
@@ -396,7 +398,8 @@ function fmtRelDate(iso: string, t: T): string {
   if (hrs < 24) return t("rel.hrsAgo", { hrs });
   const days = Math.floor(hrs / 24);
   if (days < 30) return t("rel.daysAgo", { days });
-  return new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  // >30 gün: locale-aware kısa tarih (ay adı locale'e göre; TR "24 Ağu", EN "24 Aug").
+  return new Date(iso).toLocaleDateString(bcp47, { day: "numeric", month: "short" });
 }
 
 function getDayGreeting(date: Date): string {
@@ -490,6 +493,8 @@ function AuthBootScreen() {
 
 export default function Home() {
   const t = useTranslations("home");
+  const locale = useLocale() as ActiveLocale;
+  const bcp47 = localeTag(locale);
   const router = useRouter();
   const { showToast } = useToast();
   const [email, setEmail] = useState("");
@@ -875,7 +880,7 @@ export default function Home() {
         .flatMap((r) => (r as PromiseFulfilledResult<RawItem[]>).value);
       all.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
       setRecentActivity(
-        all.slice(0, 5).map((item) => ({ ...item, relDate: fmtRelDate(item.rawDate, t) })),
+        all.slice(0, 5).map((item) => ({ ...item, relDate: fmtRelDate(item.rawDate, t, bcp47) })),
       );
     });
 
@@ -1197,9 +1202,9 @@ export default function Home() {
             const d = effectiveNow;
             const heroDate = t("dashboard.heroDate", {
               day: d.getDate(),
-              month: d.toLocaleDateString("tr-TR", { month: "long" }),
+              month: d.toLocaleDateString(bcp47, { month: "long" }),
               year: d.getFullYear(),
-              weekday: d.toLocaleDateString("tr-TR", { weekday: "long" }),
+              weekday: d.toLocaleDateString(bcp47, { weekday: "long" }),
             });
             return (
               <>

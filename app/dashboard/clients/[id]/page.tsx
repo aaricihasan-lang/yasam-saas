@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { formatDateTime as formatDateTimeI18n } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -88,11 +89,11 @@ function formatDateTR(date: string | undefined) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
-function formatDateTimeTR(value: string) {
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
   return formatDateTimeI18n(value, {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
-  });
+  }, locale);
 }
 
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
@@ -161,6 +162,12 @@ function normalizeSurname(value: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
   const t = useTranslations("clients.detail");
+  // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
+  // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
+  const localize = (group: string, v: string | null | undefined): string | undefined => {
+    if (!v) return undefined;
+    return t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v;
+  };
   const { confirm } = useConfirm();
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
@@ -626,9 +633,9 @@ export default function ClientDetailPage() {
             <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" />
             <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" />
             <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" />
-            <Info label={t("info.zodiac")}      value={client.burc}                 color="#ea580c" />
+            <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" />
             <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" />
-            <Info label={t("info.temperament")} value={client.mizac}                color="#16a34a" />
+            <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" />
           </div>
         </div>
       </section>
@@ -958,6 +965,7 @@ function AppointmentsTab({
   showToast: ReturnType<typeof useToast>["showToast"];
 }) {
   const t = useTranslations("clients.detail");
+  const locale = useLocale() as ActiveLocale;
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1373,7 +1381,7 @@ function AppointmentsTab({
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
+                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date, locale)}</div>
                     {item.notes && (
                       <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
                     )}
@@ -1417,7 +1425,7 @@ function AppointmentsTab({
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
+                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date, locale)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>
@@ -1518,6 +1526,8 @@ function NumerolojikOzetKart({
   dogum: string;
 }) {
   const t = useTranslations("clients.detail");
+  // element canonical DATA anahtarı ("Hava" vb.) → yerelleştirilmiş etiket; DATA aynen kalır.
+  const localizeEl = (v: string): string => (t.has(`element.${v}`) ? t(`element.${v}`) : v);
   if (!dogum.trim()) return null;
 
   const firstName = ad.trim();
@@ -1636,13 +1646,13 @@ function NumerolojikOzetKart({
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold"
                 style={{ background: meta.bg, color: meta.color }}
               >
-                {name} <strong>{elementCounts[name] ?? 0}</strong>
+                {localizeEl(name)} <strong>{elementCounts[name] ?? 0}</strong>
               </span>
             );
           })}
           {dominantElement && (
             <span className="ml-auto text-[12px] font-bold text-slate-400">
-              {t("num.dominant")} {dominantElement}
+              {t("num.dominant")} {localizeEl(dominantElement)}
             </span>
           )}
         </div>

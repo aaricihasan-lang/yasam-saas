@@ -11,8 +11,7 @@ import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
-import { odevDurumLabel, odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
-import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
+import { odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -89,6 +88,23 @@ function statusLabel(status: string | null | undefined, t: T): string {
   if (status === "tamamlandi") return t("randevuStatus.tamamlandi");
   if (status === "iptal") return t("randevuStatus.iptal");
   return t("randevuStatus.bekliyor");
+}
+
+// Canonical ödev statü kodu → yerelleştirilmiş etiket (bilinmeyen→ham, null→"Bilinmiyor").
+// Renk paylaşımlı odevDurumColor'dan; write payload/kod DEĞİŞMEZ.
+function homeworkStatusLabel(s: string | null | undefined, t: T): string {
+  return s && t.has(`homeworkStatus.${s}`) ? t(`homeworkStatus.${s}`) : (s || t("homeworkStatus.unknown"));
+}
+
+// analysis_type kodu → yerelleştirilmiş etiket (paylaşımlı analysisTypeLabel helper
+// server Word-route için TR döndürmeye devam eder; UI display i18n).
+function analysisTypeI18n(code: string | null | undefined, t: T): string {
+  return code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
+}
+
+// element canonical DATA anahtarı ("Hava" vb.) → yerelleştirilmiş etiket; DATA aynen kalır.
+function localizeElement(name: string, t: T): string {
+  return t.has(`element.${name}`) ? t(`element.${name}`) : name;
 }
 
 // ─── WEB-16: Randevu zaman/gün yardımcıları (Europe/Istanbul otoriter) ───────────
@@ -924,7 +940,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         {d?.status && (
           <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
             <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">{t("modal.status")}</span>
-            <span className="text-[13px] font-black" style={{ color: odevDurumColor(d.status) }}>{odevDurumLabel(d.status)}</span>
+            <span className="text-[13px] font-black" style={{ color: odevDurumColor(d.status) }}>{homeworkStatusLabel(d.status, t)}</span>
           </div>
         )}
         {d?.description && <ModalRow label={t("modal.description")}   value={d.description} />}
@@ -937,7 +953,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
   if (entry.type === "analiz") {
     return (
       <div className={`flex flex-col gap-2 ${textSize}`}>
-        <ModalRow label={t("modal.analysisType")}   value={d?.analysis_type ? analysisTypeLabel(d.analysis_type) : entry.title} />
+        <ModalRow label={t("modal.analysisType")}   value={d?.analysis_type ? analysisTypeI18n(d.analysis_type, t) : entry.title} />
         <ModalRow label={t("modal.date")}         value={entry.date} />
         {d?.note && <ModalRow label={t("modal.resultSummary")} value={d.note} />}
         {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
@@ -984,7 +1000,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
             <span className="text-[11px] font-black text-slate-500">{t("num.elementDist")}</span>
             <div className="flex flex-wrap gap-1.5">
               {/* NOT: element adları ("Hava"/"Su"/"Ateş"/"Toprak") persisted DATA
-                  key'idir (counts index'i) — DEĞİŞMEZ, DISPLAY olarak da bunlar kullanılır. */}
+                  key'idir (counts index'i) — DEĞİŞMEZ; görünen etiket i18n (localizeElement). */}
               {(["Hava", "Su", "Ateş", "Toprak"] as const).map((name) => {
                 const count = d.elementler?.counts?.[name] ?? 0;
                 return (
@@ -993,7 +1009,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
                     className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-extrabold"
                     style={{ background: ELEMENT_BG[name], color: ELEMENT_COLOR[name] }}
                   >
-                    {name} <strong>{count}</strong>
+                    {localizeElement(name, t)} <strong>{count}</strong>
                   </span>
                 );
               })}
@@ -1001,12 +1017,12 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
             <div className="flex flex-wrap gap-4">
               {d.elementler?.key && (
                 <span className="text-[11px] font-bold text-slate-500">
-                  {t("num.dominant")} <strong>{d.elementler.key}</strong>
+                  {t("num.dominant")} <strong>{localizeElement(d.elementler.key, t)}</strong>
                 </span>
               )}
               {d?.eksikElement?.length > 0 && (
                 <span className="text-[11px] font-bold text-slate-500">
-                  {t("num.missing")} <strong>{(d.eksikElement as string[]).join(", ")}</strong>
+                  {t("num.missing")} <strong>{(d.eksikElement as string[]).map((e) => localizeElement(e, t)).join(", ")}</strong>
                 </span>
               )}
             </div>
@@ -1400,7 +1416,7 @@ export default function YolculukTab({
           normalized.push({
             id: `analiz-${an.id}`,
             type: "analiz",
-            title: analysisTypeLabel(an.analysis_type),
+            title: analysisTypeI18n(an.analysis_type, t),
             description: an.note || "",
             date: isoToTR(an.created_at),
             dateRaw: an.created_at || "",

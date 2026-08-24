@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { formatDate as formatDateI18n, formatDateTime as formatDateTimeI18n } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -120,17 +121,13 @@ function valueClass(value: string): string {
   return "";
 }
 
-function formatDateTimeTR(value: string) {
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
   return formatDateTimeI18n(value, {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
-  });
+  }, locale);
 }
 
-// Merkezi etiket helper'ına delege eder (tek doğruluk kaynağı).
-function getAnalysisLabel(type: string | null | undefined) {
-  return analysisTypeLabel(type);
-}
 
 // ─── Shared input class strings ───────────────────────────────────────────────
 const schemaInputBase =
@@ -150,6 +147,7 @@ const PDF_EXPORT_ENABLED = false;
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const t = useTranslations("clients.analizler");
+  const locale = useLocale() as ActiveLocale;
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
   const deleteConfirm                = useDeleteConfirm();
@@ -167,9 +165,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   const [openedAnalysisId, setOpenedAnalysisId] = useState<string | null>(null);
   const [exportingWord, setExportingWord]   = useState(false);
 
+  // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
   const activeTitle = analysisTypeLabel(activeAnalysis);
+  // DISPLAY (modal başlığı, dosya adı) için yerelleştirilmiş etiket.
+  const analysisTypeDisplay = (code: string | null | undefined): string =>
+    code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
+  const activeTitleDisplay = analysisTypeDisplay(activeAnalysis);
 
-  const todayText = useMemo(() => formatDateI18n(new Date()), []);
+  const todayText = useMemo(() => formatDateI18n(new Date(), undefined, locale), [locale]);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
@@ -342,7 +345,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         placed++;
       }
 
-      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`);
+      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.pdf`);
       showToast({ title: t("toast.successTitle"), message: t("toast.pdfDownloaded"), type: "success" });
     } catch (error) {
       console.error("PDF oluşturma hatası:", error);
@@ -458,7 +461,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") || "";
       const match = cd.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.docx`;
+      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.docx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -532,8 +535,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
             {savedAnalyses.map((item) => (
               <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
-                  <div className="text-[14px] font-black text-slate-950">{getAnalysisLabel(item.analysis_type)}</div>
-                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
+                  <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at, locale)}</div>
                   {item.note && (
                     <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
                       {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}
@@ -569,7 +572,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                   <span className="inline-flex bg-white/16 text-white px-2 py-[3px] rounded-full text-[10px] font-black">
                     {t("modal.badge")}
                   </span>
-                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitle}</h3>
+                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitleDisplay}</h3>
                   <p className="mt-[5px] text-[12px] opacity-[0.92] break-words">
                     {t("modal.clientLabel")} <strong>{clientName}</strong> · {t("modal.dateLabel")} <strong>{todayText}</strong>
                   </p>

@@ -2,13 +2,14 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { formatDate as formatDateI18n } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { odevDurumLabel, odevDurumClass, aggregateHomeworks } from "@/lib/odevStatus";
+import { odevDurumClass, aggregateHomeworks } from "@/lib/odevStatus";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -109,7 +110,8 @@ function homeworkToForm(item: ClientHomework): HomeworkFormState {
   };
 }
 
-const statusLabel = odevDurumLabel;
+// Renk/stil paylaşımlı helper'dan (server Word-route ile TEK kaynak); görünen
+// etiket i18n'den (locale-aware). odevDurumLabel yalnız server tarafında kalır.
 const statusClass  = odevDurumClass;
 
 function inputClass(
@@ -280,17 +282,16 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
 
       <div className={`mt-4 ${boxClass("rose")}`}>
         <SectionLabel icon="📌" title={t("form.statusLabel")} tone="rose" />
-        {/* value=canonical statü kodu (DEĞİŞMEZ); görünen etiket paylaşımlı
-            odevDurumLabel helper'ından (tek doğruluk kaynağı). */}
+        {/* value=canonical statü kodu (DEĞİŞMEZ); görünen etiket i18n (locale-aware). */}
         <select
           value={data.status}
           onChange={(e) => onChange("status", e.target.value as HomeworkStatus)}
           className={inputClass("rose")}
         >
-          <option value="devam">{odevDurumLabel("devam")}</option>
-          <option value="tamamlandi">{odevDurumLabel("tamamlandi")}</option>
-          <option value="gecikti">{odevDurumLabel("gecikti")}</option>
-          <option value="iptal">{odevDurumLabel("iptal")}</option>
+          <option value="devam">{t("status.devam")}</option>
+          <option value="tamamlandi">{t("status.tamamlandi")}</option>
+          <option value="gecikti">{t("status.gecikti")}</option>
+          <option value="iptal">{t("status.iptal")}</option>
         </select>
       </div>
 
@@ -384,16 +385,21 @@ function DetailBlock({
 
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const t = useTranslations("clients.homework");
+  const locale = useLocale() as ActiveLocale;
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+
+  // Canonical statü kodu → yerelleştirilmiş etiket; bilinmeyen→ham kod, null→"Bilinmiyor".
+  const statusLabelI18n = (s: string | null | undefined): string =>
+    s && t.has(`status.${s}`) ? t(`status.${s}`) : (s || t("status.unknown"));
 
   // Locale-duyarlı tarih görüntüsü; boş tarihte sistem etiketi (DISPLAY-only).
   const fmtDate = useCallback(
     (date: string | null) =>
       date
-        ? formatDateI18n(date, { day: "2-digit", month: "2-digit", year: "numeric" })
+        ? formatDateI18n(date, { day: "2-digit", month: "2-digit", year: "numeric" }, locale)
         : t("noDate"),
-    [t],
+    [t, locale],
   );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
@@ -930,7 +936,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                                 item.status
                               )}`}
                             >
-                              {statusLabel(item.status)}
+                              {statusLabelI18n(item.status)}
                             </span>
 
                             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
@@ -975,14 +981,14 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                             onClick={() => updateHomeworkStatus(item.id, "tamamlandi")}
                             className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
                           >
-                            {odevDurumLabel("tamamlandi")}
+                            {t("status.tamamlandi")}
                           </button>
 
                           <button
                             onClick={() => updateHomeworkStatus(item.id, "gecikti")}
                             className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                           >
-                            {odevDurumLabel("gecikti")}
+                            {t("status.gecikti")}
                           </button>
 
                           <button
