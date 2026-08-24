@@ -12,12 +12,14 @@ import {
   POINT_WRITABLE,
   PLACEMENT_WRITABLE,
   SAFETY_WRITABLE,
+  POINT_TOPIC_WRITABLE,
+  TOPIC_WRITABLE,
   CUPPING_TABLES,
   CITATION_SPECS,
   isCitationEntity,
 } from "../lib/cupping/fields";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
-import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
+import { CUPPING_EVIDENCE_CLASSES, CUPPING_RELATION_STRENGTHS } from "../lib/cupping/vocab";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/moduleRouteRegistry";
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
@@ -254,6 +256,67 @@ function run(): void {
   ok(/ADD COLUMN IF NOT EXISTS year\s+integer/.test(cf) && /ADD COLUMN IF NOT EXISTS identifier/.test(cf), "foundation: source bibliyografik additive");
   ok(/relation_strength[\s\S]{0,160}NOT VALID/.test(cf) && /source_type[\s\S]{0,220}NOT VALID/.test(cf), "foundation: mevcut kolon CHECK NOT VALID (apply-safe, legacy korunur)");
   ok(!/DROP TABLE|DROP COLUMN/.test(cf.replace(/--[^\n]*/g, "")), "foundation: destructive DDL YOK (additive)");
+
+  // ══ K) GAP-1 + GAP-2 — AMAÇ REHBERİ İLİŞKİ/KONU DETAY UI (migration YOK) ═══════
+  // Bu bölüm: schema/API'de zaten var olan relation_strength/note + topic detay
+  // alanlarının UI'ya BAĞLI olduğunu (create + edit) statik olarak doğrular.
+  const amac = read("app/kupa/amac-rehberi/page.tsx");
+  const clientApi = read("app/kupa/lib/api.ts");
+  const ptItemRoute = read("app/api/kupa/point-topics/[id]/route.ts");
+
+  // GAP-1 API kontratı (mevcut — regresyon guard): PATCH FK'leri değiştirmez, meta yazılır
+  ok(/updatePointTopic\b/.test(clientApi) && /point-topics\/\$\{id\}[\s\S]{0,60}"PATCH"/.test(clientApi),
+    "gap1[api]: client updatePointTopic (PATCH point-topics/:id)");
+  ok(/RELATION_META_WRITABLE\s*=\s*POINT_TOPIC_WRITABLE\.filter/.test(ptItemRoute) &&
+     /f\s*!==\s*"point_id"[\s\S]{0,40}f\s*!==\s*"topic_id"/.test(ptItemRoute),
+    "gap1[api]: PATCH allowlist FK (point_id/topic_id) HARİÇ (yalnız meta güncellenir)");
+  ok((POINT_TOPIC_WRITABLE as readonly string[]).includes("relation_strength") &&
+     (POINT_TOPIC_WRITABLE as readonly string[]).includes("note"),
+    "gap1[fields]: POINT_TOPIC_WRITABLE relation_strength + note içerir");
+
+  // GAP-1 UI: create ilişki relation_strength + note gönderir
+  ok(/createPointTopic\(\{[\s\S]*?relation_strength[\s\S]*?note[\s\S]*?\}\)/.test(amac),
+    "gap1[ui]: ilişki create relation_strength + note gönderir");
+  // GAP-1 UI: mevcut ilişki DÜZENLENEBİLİR (silip-yeniden değil) → updatePointTopic
+  ok(/updatePointTopic\(/.test(amac), "gap1[ui]: mevcut ilişki edit (updatePointTopic) UI'da");
+  ok(/editRelId/.test(amac) && /İlişki Türü/.test(amac) && /İlişki Açıklaması/.test(amac),
+    "gap1[ui]: satır-içi ilişki edit (İlişki Türü + İlişki Açıklaması)");
+  // GAP-1 UI: relation_strength kontrollü sözlükten (vocab tek kaynak); 4 değer
+  ok(/CUPPING_RELATION_STRENGTHS/.test(amac), "gap1[ui]: relation_strength seçenekleri vocab'dan türetilir");
+  ok(CUPPING_RELATION_STRENGTHS.length === 4 &&
+     (CUPPING_RELATION_STRENGTHS as readonly string[]).includes("traditional_primary") &&
+     (CUPPING_RELATION_STRENGTHS as readonly string[]).includes("modern_supported"),
+    "gap1[vocab]: relation_strength 4 kanonik değer");
+  ok(/ilişkisinin türünü belirtir/.test(amac), "gap1[ui]: relation_strength helper metni");
+
+  // GAP-2 UI: topic detay alanları create + edit (title/category/description/notes/source_note)
+  ok((TOPIC_WRITABLE as readonly string[]).includes("description") &&
+     (TOPIC_WRITABLE as readonly string[]).includes("category") &&
+     (TOPIC_WRITABLE as readonly string[]).includes("notes") &&
+     (TOPIC_WRITABLE as readonly string[]).includes("source_note"),
+    "gap2[fields]: TOPIC_WRITABLE description/category/notes/source_note içerir");
+  ok(/createTopic\(/.test(amac) && /updateTopic\(/.test(amac),
+    "gap2[ui]: topic create + edit (updateTopic) UI'da");
+  ok(/topicFormMode/.test(amac) && /"create"/.test(amac) && /"edit"/.test(amac),
+    "gap2[ui]: tek form create+edit modu");
+  for (const [key, lbl] of [
+    ["title", "Başlık"], ["category", "Kategori"], ["description", "Açıklama"],
+    ["notes", "Çalışma Notu"], ["source_note", "Serbest Kaynak Notu"],
+  ] as const) {
+    ok(new RegExp(lbl).test(amac), `gap2[ui]: topic form alanı '${key}' (${lbl})`);
+  }
+  ok(/description:\s*[\s\S]{0,40}\.trim\(\)/.test(amac) && /category:/.test(amac) &&
+     /notes:/.test(amac) && /source_note:/.test(amac),
+    "gap2[ui]: form → API body description/category/notes/source_note map eder");
+  ok(/serbest\/editöryal kaynak notu/.test(amac), "gap2[ui]: source_note serbest-not helper (yapısal atıf ayrımı)");
+
+  // TEDAVİ DİLİ yasağı: label'larda 'Tedavi Noktaları' vb. kullanılmaz
+  ok(!/Tedavi Noktalar/i.test(amac), "dil: 'Tedavi Noktaları' etiketi kullanılmaz (ilişki dili)");
+
+  // CITATION korunumu: point-topic + topic CitationManager AYNEN korunur
+  ok(/CuppingCitationManager[\s\S]{0,60}entity="point-topic"/.test(amac) &&
+     /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac),
+    "gap1/2: point-topic + topic CitationManager korunur (yeniden yazılmadı)");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
