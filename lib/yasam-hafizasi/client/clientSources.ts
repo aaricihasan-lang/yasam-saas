@@ -228,3 +228,55 @@ export function clientSourceLinkFor(module: string): string | null {
 export function isClientSourceModule(value: unknown): value is ClientSourceModule {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(CLIENT_MODULE_LABELS, value);
 }
+
+/**
+ * Client kaynak modülü → danışan DETAY sayfası sekmesi (deep-link hedefi).
+ * Genel modül ana sayfası YERİNE ilgili danışanın ilgili sekmesine götürür.
+ * (Kombinasyon Taşlar sekmesinde yaşar; human_design danışan detayında ayrı sekme
+ *  olmadığı için Yaşam Hafızası sekmesine düşer — zaten cohort dışı/deferred.)
+ */
+export const CLIENT_MODULE_DETAIL_TAB: Record<ClientSourceModule, string> = {
+  danisan_kombinasyon: "taslar",
+  danisan_tas: "taslar",
+  danisan_seans: "seanslar",
+  danisan_odev: "odevler",
+  danisan_not: "notlar",
+  randevu: "randevular",
+  human_design: "hafiza",
+};
+
+const CLIENT_ID_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Danışan DETAY deep-link'i: /dashboard/clients/{clientId}?tab={sekme}.
+ * clientId geçerli UUID değilse null (fail-closed; generic modül ana sayfasına DÜŞMEZ).
+ * Modül bilinmiyorsa tab'sız danışan detayı (genel) döner. Tenant authorization deep-link'te
+ * DEĞİL, hedef sayfanın /api/clients/[id] server-guard'ında korunur (foreign client açılmaz).
+ */
+export function clientDetailDeepLink(clientId: string, module: string): string | null {
+  if (typeof clientId !== "string" || !CLIENT_ID_UUID_RE.test(clientId)) return null;
+  const base = `/dashboard/clients/${clientId}`;
+  const tab = Object.prototype.hasOwnProperty.call(CLIENT_MODULE_DETAIL_TAB, module)
+    ? CLIENT_MODULE_DETAIL_TAB[module as ClientSourceModule]
+    : null;
+  return tab ? `${base}?tab=${tab}` : base;
+}
+
+/** Gerçek title yoksa modül-tipine göre güvenli, insan-okur fallback başlık. */
+export const CLIENT_MODULE_FALLBACK_TITLE: Record<ClientSourceModule, string> = {
+  danisan_kombinasyon: "Taş Kombinasyonu",
+  danisan_tas: "Danışan Taşı",
+  danisan_seans: "Danışan Seansı",
+  danisan_odev: "Danışan Ödevi",
+  danisan_not: "Danışan Notu",
+  randevu: "Randevu",
+  human_design: "Human Design",
+};
+
+/** Gerçek title varsa onu KORU; yoksa modül-tipine göre fallback (asla "Başlıksız kayıt"). */
+export function clientResultDisplayTitle(module: string, title: string | null | undefined): string {
+  if (typeof title === "string" && title.trim().length > 0) return title;
+  return Object.prototype.hasOwnProperty.call(CLIENT_MODULE_FALLBACK_TITLE, module)
+    ? CLIENT_MODULE_FALLBACK_TITLE[module as ClientSourceModule]
+    : "Danışan Kaydı";
+}

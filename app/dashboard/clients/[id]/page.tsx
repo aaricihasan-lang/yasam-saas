@@ -78,6 +78,11 @@ type Appointment = {
 
 type PlanningMode = "auto" | "manual";
 
+// URL-addressable sekme allowlist (deep-link ?tab= hedefi; yalnız bilinen sekmeler kabul edilir).
+const VALID_TABS = new Set([
+  "genel", "notlar", "randevular", "taslar", "seanslar", "odevler", "analizler", "yolculuk", "hafiza",
+]);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDateTR(date: string | undefined) {
   if (!date) return "-";
@@ -164,9 +169,17 @@ export default function ClientDetailPage() {
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
-  const [activeTab, setActiveTab] = useState("genel");
+  // Deep-link: ilk render'da ?tab= (yalnız geçerli sekme) başlangıç sekmesini belirler.
+  // Yalnız client (window); SSR "genel" döner ve o an SADECE loading-skeleton render edilir
+  // (tab paneli SSR HTML'de yok) → hydration mismatch YOK. Yaşam Hafızası arama sonucundan
+  // gelen "ilgili danışan / ilgili sekme" navigasyonunu URL-addressable yapar.
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window === "undefined") return "genel";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return t && VALID_TABS.has(t) ? t : "genel";
+  });
   // Bir kez açılan sekme DOM'da tutulur (tekrar mount → tekrar fetch olmaz).
-  const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel"]));
+  const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel", activeTab]));
   const [loading, setLoading] = useState(true);
   const [deletingClient, setDeletingClient] = useState(false);
 

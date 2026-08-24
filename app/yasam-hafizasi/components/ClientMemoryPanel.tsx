@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import Link from "next/link";
-import type { ClientSourceModule } from "@/lib/yasam-hafizasi/client/clientSources";
+import { clientResultDisplayTitle, type ClientSourceModule } from "@/lib/yasam-hafizasi/client/clientSources";
 import {
   filterTenantByModules,
   type TenantClientSearchResponse,
@@ -279,7 +279,7 @@ function ClientResultCard({
           <span className="text-[11px] text-slate-400">{result.occurredAt.slice(0, 10)}</span>
         ) : null}
       </div>
-      <h3 className="line-clamp-1 text-base font-bold text-slate-900">{result.title ?? "Başlıksız kayıt"}</h3>
+      <h3 className="line-clamp-1 text-base font-bold text-slate-900">{clientResultDisplayTitle(result.module, result.title)}</h3>
       {result.snippet ? (
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600">{result.snippet}</p>
       ) : null}
@@ -319,7 +319,7 @@ function ClientResultDrawer({
             <span className="mb-1 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
               {result.clientName}
             </span>
-            <h2 className="text-xl font-black text-slate-900">{result.title ?? "Başlıksız kayıt"}</h2>
+            <h2 className="text-xl font-black text-slate-900">{clientResultDisplayTitle(result.module, result.title)}</h2>
             {result.occurredAt ? (
               <p className="mt-1 text-sm text-slate-500">Tarih: {result.occurredAt.slice(0, 10)}</p>
             ) : null}
@@ -357,12 +357,12 @@ function ClientResultDrawer({
             <p className="text-sm text-amber-700">Kaynak kaydı artık mevcut değil (snapshot korundu).</p>
           ) : null}
 
-          {result.sourceLink ? (
+          {result.clientDeepLink ? (
             <Link
-              href={result.sourceLink}
+              href={result.clientDeepLink}
               className="btn-primary inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm"
             >
-              {result.moduleLabel} modülüne git
+              {result.clientName} · {result.moduleLabel} kaydına git
             </Link>
           ) : null}
         </div>
