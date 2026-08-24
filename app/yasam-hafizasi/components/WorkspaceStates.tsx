@@ -16,13 +16,19 @@ export function ResultsSkeleton({ cards = 5 }: { cards?: number }) {
   );
 }
 
-export type EmptyVariant = "cold-start" | "no-results" | "filtered" | "disabled" | "error";
+export type EmptyVariant = "cold-start" | "client-cold-start" | "no-results" | "filtered" | "disabled" | "error";
 
 const VARIANT: Record<EmptyVariant, { icon: string; title: string; message: string }> = {
   "cold-start": {
     icon: "🔎",
     title: "Aramaya başlayın",
     message: "Taş, protokol, sembol, çakra veya bir konu yazın; mesleki bilgi havuzunuzda arayalım.",
+  },
+  // Danışan Hafızası (client-scoped) soğuk başlangıç — mesleki havuz copy'sinden AYRI.
+  "client-cold-start": {
+    icon: "🔎",
+    title: "Aramaya başlayın",
+    message: "Danışan geçmişinizde seans, not, ödev, taş, kombinasyon veya randevu içeriği arayın.",
   },
   "no-results": {
     icon: "🗂️",

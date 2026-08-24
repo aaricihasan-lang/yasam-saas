@@ -11,10 +11,11 @@
  *   - Professional eventProcessor/index DEĞİŞMEZ; bu AYRI client yol.
  *   - Reliability modeli BF-11B ile birebir: pending/processing/succeeded/dead,
  *     lease/backoff/coalescing/requeue RPC'de; permanent→maxAttempts=1, transient→N.
- *   - DORMANT: activation gate (isSourceProcessingActive) inactive dönerse index YAZILMAZ
- *     ve deindex YAPILMAZ; olay COMPLETE no-op ile kuyruktan düşürülür (dead-letter YOK).
- *     Client kaynakları BF-11E activation matrisinde FUTURE_ONLY_READY/registryEnabled:false
- *     → gate her zaman inactive → merge tek başına HİÇBİR şey indexlemez.
+ *   - ÇİFT KAPI: registry kapısı AÇIK (6 client kaynağı enabled:true) ama runtime yine de
+ *     fail-closed çift kapılıdır — CURRENTLY ACTIVE (isSourceProcessingActive; DB
+ *     yh_source_activation.is_active) VE worker env (YH_CLIENT_OUTBOX_WORKER_ENABLED). Kapı
+ *     inactive dönerse index YAZILMAZ ve deindex YAPILMAZ; olay COMPLETE no-op ile kuyruktan
+ *     düşürülür (dead-letter YOK). DB activation olmadan merge tek başına HİÇBİR şey indexlemez.
  *   - EVENT-TIME BOUNDARY (race hardening): index için İKİ kapı BİRLİKTE gerekir —
  *     CURRENTLY ACTIVE (isSourceProcessingActive) VE ENQUEUED WHILE ACTIVE
  *     (event.enqueuedActive; enqueue anındaki yh_source_activation.is_active damgası,
@@ -23,7 +24,9 @@
  *     DELETE → defensive deindex (ghost-free).
  *
  * PRIVATE MEMORY authorization (Politika Kilidi):
- *   - tenant_id + client_id ZORUNLU (UUID); demo/synthetic tenant indexlenmez.
+ *   - tenant_id + client_id ZORUNLU (UUID); demo tenant indexlenmez. Sentetik tenant da
+ *     indexlenmez — TEK DAR istisna: ADMIN_LIBRARY kendi private-client memory'si (aşağıdaki
+ *     isPrivateClientMemoryAllowedTenant; professional/shared/global yasağı gevşemez).
  *   - fetchSourceRow tenant+client ile SCOPED okur → kaynak artık tenant+client'a ait
  *     değilse (silinmiş/taşınmış) null → DEFENSIVE DEINDEX (ghost recreate YOK).
  *   - Builder yalnız allowlisted alanları kullanır (clientIndexUnit); doğrudan kimlik
@@ -34,12 +37,34 @@
 import { OUTBOX_OPERATIONS } from "../outbox/outboxState";
 import type { ProcessDirective } from "../outbox/eventProcessor";
 import type { ClaimedClientOutboxEvent } from "../outbox/clientOutboxRpcClient";
-import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
+import { isSyntheticTenantId, ADMIN_LIBRARY_TENANT_ID } from "../../tenancy/syntheticTenants";
 import { buildClientIndexUnit, toClientIndexDbRow } from "./clientIndexUnit";
 import type { ClientSourceConfig } from "./clientSources";
 
 /** Demo tenant (client index'e ASLA girmez; RPC read tarafıyla hizalı). */
 export const YH_CLIENT_DEMO_TENANT = "40f842a0-e3e8-448c-8971-9a938e1faccb";
+
+/**
+ * PRIVATE CLIENT MEMORY — DAR sentetik istisna (Politika Kilidi / Admin private-client fix).
+ * ────────────────────────────────────────────────────────────────────────────
+ * ÜRÜN KARARI: Admin (ADMIN_LIBRARY tenant) kendi danışan geçmişini Danışan Hafızası'nda
+ * arayabilmelidir → yalnız PRIVATE CLIENT MEMORY yolunda, YALNIZ bu tenant için sentetik
+ * yasağı gevşetilir. Bu istisna FİZİKSEL olarak client processor katmanına hapsedilmiştir:
+ *   - `isSyntheticTenantId` DAVRANIŞI ve `SYNTHETIC_TENANT_IDS` listesi DEĞİŞMEZ.
+ *   - Professional/main indexer (createSupabaseIndexWriter) sentetik yasağı AYNEN sürer
+ *     (bu helper oraya import EDİLMEZ) → ADMIN_LIBRARY professional/shared/global index'e
+ *     ASLA giremez.
+ *   - Global/shared/canonical havuz YOKTUR; istisna yalnız client-scoped gerçek kaynak
+ *     satırları (tenant+client ownership fetchSourceRow ile korunur) içindir.
+ *   - DİĞER sentetik tenant'lar (listeye ileride eklenirse) exact-match olmadığı için
+ *     BURADA da fail-closed dışlanır (future-safe).
+ */
+export const YH_CLIENT_PRIVATE_MEMORY_ALLOWED_SYNTHETIC_TENANT = ADMIN_LIBRARY_TENANT_ID;
+
+/** Sentetik tenant PRIVATE CLIENT MEMORY index'ine alınabilir mi? (TEK istisna: ADMIN_LIBRARY, exact-match). */
+export function isPrivateClientMemoryAllowedTenant(tenantId: string): boolean {
+  return tenantId === YH_CLIENT_PRIVATE_MEMORY_ALLOWED_SYNTHETIC_TENANT;
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(v: unknown): v is string {
@@ -120,11 +145,16 @@ export async function processClientOutboxEvent(
     //   geçerli bir index'i yanlışlıkla silmesini önle) → terminal no-op complete.
     return complete("pre-activation-upsert-noop");
   }
-  // Kapı 6: demo/synthetic tenant → ASLA indexlenmez (defensive deindex + complete).
+  // Kapı 6: demo tenant → ASLA indexlenmez (defensive deindex + complete).
   if (event.tenantId === YH_CLIENT_DEMO_TENANT) {
     return defensiveDeindex(event, config, deps, "excluded-demo");
   }
-  if (isSyntheticTenantId(event.tenantId)) {
+  // Kapı 6.5: sentetik tenant → ASLA indexlenmez — TEK DAR istisna: ADMIN_LIBRARY private-client
+  //   memory (isPrivateClientMemoryAllowedTenant). Admin kendi danışan-scoped gerçek kaynaklarını
+  //   normal tenant gibi indexler; ownership (tenant+client fetchSourceRow) AYNEN korunur.
+  //   Diğer TÜM sentetik tenant'lar fail-closed dışlanır (professional/shared/global yasağı bu
+  //   katmanda gevşetilmez; helper professional writer'a import edilmez).
+  if (isSyntheticTenantId(event.tenantId) && !isPrivateClientMemoryAllowedTenant(event.tenantId)) {
     return defensiveDeindex(event, config, deps, "excluded-synthetic");
   }
 

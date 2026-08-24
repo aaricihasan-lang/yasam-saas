@@ -154,7 +154,7 @@ export function ClientMemoryPanel() {
         ) : null}
       </div>
 
-      {status === "idle" ? <WorkspaceEmpty variant="cold-start" /> : null}
+      {status === "idle" ? <WorkspaceEmpty variant="client-cold-start" /> : null}
       {status === "loading" ? <ResultsSkeleton /> : null}
       {status === "disabled" && response ? (
         <DisabledCard reason={response.reason} />

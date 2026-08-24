@@ -14,6 +14,7 @@ import {
   processClientOutboxEvent,
   runClientOutboxBatch,
   YH_CLIENT_DEMO_TENANT,
+  isPrivateClientMemoryAllowedTenant,
   type ClientEventProcessorDeps,
   type ClientOutboxBatchDeps,
 } from "@/lib/yasam-hafizasi/client/clientEventProcessor";
@@ -22,7 +23,7 @@ import {
   type ClaimedClientOutboxEvent,
 } from "@/lib/yasam-hafizasi/outbox/clientOutboxRpcClient";
 import type { OutboxRpcDb } from "@/lib/yasam-hafizasi/outbox/outboxRpcClient";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
+import { ADMIN_LIBRARY_TENANT_ID, isSyntheticTenantId } from "@/lib/tenancy/syntheticTenants";
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const TENANT2 = "ffffffff-ffff-4fff-ffff-ffffffffffff";
@@ -149,15 +150,77 @@ async function run(): Promise<void> {
     add("cross-client-no-index", h.index.size === 0 && h.calls.upsert === 0 && dc.action === "complete", "");
   }
 
-  // ── 6) demo / synthetic tenant → index yaratılmaz ──
+  // ── 6) demo tenant → index yaratılmaz (fetch bile edilmez) ──
   {
     const h = makeDeps();
-    // Kaynak var olsa DAHİ demo/synthetic indexlenmez (fetch bile edilmez).
+    // Kaynak var olsa DAHİ demo indexlenmez.
     h.source.set(rowKey(SESSIONS_TABLE, SID, YH_CLIENT_DEMO_TENANT, CLIENT), sessionRow("demo"));
     const dd = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: YH_CLIENT_DEMO_TENANT }), h.deps);
     add("demo-no-index", h.index.size === 0 && h.calls.upsert === 0 && h.calls.fetch === 0 && dd.action === "complete" && dd.note === "defensive-deindex:excluded-demo", dd.action);
-    const ds = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: ADMIN_LIBRARY_TENANT_ID }), h.deps);
-    add("synthetic-no-index", h.calls.upsert === 0 && ds.action === "complete" && ds.note === "defensive-deindex:excluded-synthetic", ds.action);
+    // Demo DELETE de defensive deindex (asla index üretmez).
+    const ddDel = await processClientOutboxEvent(ev({ operation: "delete", tenantId: YH_CLIENT_DEMO_TENANT }), h.deps);
+    add("demo-delete-defensive-deindex", ddDel.action === "complete" && ddDel.note === "defensive-deindex:excluded-demo" && h.calls.upsert === 0, noteOf(ddDel));
+  }
+
+  // ── 6b) ADMIN PRIVATE CLIENT MEMORY — DAR sentetik istisna: admin kendi danışan geçmişini indexler ──
+  {
+    // ADMIN-1: ADMIN_LIBRARY tenant + active + enqueuedActive=true + valid client UPSERT → upsert-ok.
+    const h = makeDeps();
+    h.source.set(rowKey(SESSIONS_TABLE, SID, ADMIN_LIBRARY_TENANT_ID, CLIENT), sessionRow("admin danisan klinik", ADMIN_LIBRARY_TENANT_ID, CLIENT));
+    const da = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: ADMIN_LIBRARY_TENANT_ID, enqueuedActive: true }), h.deps);
+    add(
+      "ADMIN-1-private-client-upsert-ok",
+      da.action === "complete" && da.note === "upsert-ok" && h.index.size === 1 && h.calls.upsert === 1 && h.calls.fetch === 1,
+      `${da.action}/${noteOf(da)}/idx${h.index.size}`,
+    );
+    add("ADMIN-1-no-defensive-deindex", h.calls.deindex === 0, String(h.calls.deindex));
+    add("ADMIN-1-clinical-searchable", h.index.size === 1 && JSON.stringify([...h.index.values()][0]).includes("admin danisan klinik"), "");
+    const adminRow = [...h.index.values()][0];
+    add("ADMIN-1-tenant-stamped", adminRow !== undefined && adminRow.tenant_id === ADMIN_LIBRARY_TENANT_ID && adminRow.client_id === CLIENT, "");
+
+    // ADMIN-2: ADMIN_LIBRARY DELETE → normal tenant+client scoped deindex (excluded-synthetic DEĞİL).
+    const dDel = await processClientOutboxEvent(ev({ operation: "delete", tenantId: ADMIN_LIBRARY_TENANT_ID, enqueuedActive: true, eventVersion: 2 }), h.deps);
+    add("ADMIN-2-delete-tenant-scoped", dDel.action === "complete" && dDel.note === "delete-one" && h.index.size === 0, `${noteOf(dDel)}/idx${h.index.size}`);
+  }
+
+  // ── 6c) ADMIN private-client: ownership & çift-kapı davranışı korunur ──
+  {
+    // ADMIN-3: enqueuedActive=false (pre-activation) → hâlâ pre-activation-upsert-noop (istisna kapı 5.5'i atlamaz).
+    const h1 = makeDeps();
+    h1.source.set(rowKey(SESSIONS_TABLE, SID, ADMIN_LIBRARY_TENANT_ID, CLIENT), sessionRow("x", ADMIN_LIBRARY_TENANT_ID, CLIENT));
+    const d1 = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: ADMIN_LIBRARY_TENANT_ID, enqueuedActive: false }), h1.deps);
+    add("ADMIN-3-preactivation-noop-preserved", d1.action === "complete" && d1.note === "pre-activation-upsert-noop" && h1.index.size === 0 && h1.calls.upsert === 0, noteOf(d1));
+
+    // ADMIN-4: inactive source (kill-switch) → inactive-source-noop (istisna kapı 5'i atlamaz).
+    const h2 = makeDeps({ isSourceProcessingActive: async () => false });
+    h2.source.set(rowKey(SESSIONS_TABLE, SID, ADMIN_LIBRARY_TENANT_ID, CLIENT), sessionRow("x", ADMIN_LIBRARY_TENANT_ID, CLIENT));
+    const d2 = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: ADMIN_LIBRARY_TENANT_ID }), h2.deps);
+    add("ADMIN-4-inactive-source-noop-preserved", d2.action === "complete" && d2.note === "inactive-source-noop" && h2.index.size === 0 && h2.calls.upsert === 0, noteOf(d2));
+
+    // ADMIN-5: admin tenant + YANLIŞ client (ownership fetch null) → GHOST recreate YOK; defensive deindex.
+    const h3 = makeDeps();
+    h3.source.set(rowKey(SESSIONS_TABLE, SID, ADMIN_LIBRARY_TENANT_ID, CLIENT), sessionRow("owned", ADMIN_LIBRARY_TENANT_ID, CLIENT));
+    const d3 = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: ADMIN_LIBRARY_TENANT_ID, clientId: CLIENT2 }), h3.deps);
+    add("ADMIN-5-cross-client-no-index", h3.index.size === 0 && h3.calls.upsert === 0 && d3.action === "complete" && d3.note.startsWith("defensive-deindex"), `${noteOf(d3)}/idx${h3.index.size}`);
+  }
+
+  // ── 6d) POLİTİKA: dar istisna future-safe + isSyntheticTenantId DEĞİŞMEDİ ──
+  {
+    const REAL_TENANT = "11111111-1111-4111-1111-111111111111";
+    const OTHER_SYNTHETIC = "22222222-2222-4222-2222-222222222222"; // listeye ileride eklenirse
+    // Allow-predicate YALNIZ admin exact-match (demo/gerçek/diğer sentetik → false).
+    add("policy-allow-admin-only", isPrivateClientMemoryAllowedTenant(ADMIN_LIBRARY_TENANT_ID) === true, "");
+    add("policy-allow-real-false", isPrivateClientMemoryAllowedTenant(REAL_TENANT) === false, "");
+    add("policy-allow-demo-false", isPrivateClientMemoryAllowedTenant(YH_CLIENT_DEMO_TENANT) === false, "");
+    add("policy-allow-other-synthetic-false", isPrivateClientMemoryAllowedTenant(OTHER_SYNTHETIC) === false, "");
+    // isSyntheticTenantId global davranışı KORUNUR (admin hâlâ sentetik; gerçek değil).
+    add("policy-synthetic-admin-still-true", isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === true, "");
+    add("policy-synthetic-real-false", isSyntheticTenantId(REAL_TENANT) === false, "");
+    // GERÇEK uzman tenant davranışı değişmez (normal index).
+    const h = makeDeps();
+    h.source.set(rowKey(SESSIONS_TABLE, SID, TENANT, CLIENT), sessionRow("real expert"));
+    const dr = await processClientOutboxEvent(ev({ operation: "upsert", tenantId: TENANT }), h.deps);
+    add("policy-real-expert-normal-index", dr.action === "complete" && dr.note === "upsert-ok" && h.index.size === 1, noteOf(dr));
   }
 
   // ── 7) disabled source (activation inactive) → complete no-op; index/deindex YOK ──
@@ -440,6 +503,40 @@ async function run(): Promise<void> {
     // Client processor YALNIZ client index yazar (professional index'e DOKUNMAZ).
     const cep = read("lib/yasam-hafizasi/client/clientEventProcessor.ts");
     add("client-processor-no-professional-index", !/yasam_hafizasi_index\b/.test(cep), "");
+
+    // ── ADMIN PRIVATE-CLIENT İSTİSNASI: dar + fiziksel izolasyon (professional yasağı gevşemez) ──
+    // Narrow gate wired: excluded-synthetic yalnız allow-predicate NEGATİFken çalışır.
+    add(
+      "admin-exception-narrow-gate-wired",
+      /isSyntheticTenantId\(event\.tenantId\)\s*&&\s*!isPrivateClientMemoryAllowedTenant\(event\.tenantId\)/.test(cep) &&
+        /excluded-synthetic/.test(cep),
+      "",
+    );
+    // Allow-helper professional writer/indexer'a SIZMADI (professional sentetik yasağı korunur).
+    const proWriter = read("lib/yasam-hafizasi/indexer/supabaseIndexAdapters.ts");
+    add("professional-writer-still-bans-synthetic", /isSyntheticTenantId\(u\.tenantId\)/.test(proWriter) && /synthetic-tenant-unit/.test(proWriter), "");
+    add("allow-helper-not-in-professional-writer", !/isPrivateClientMemoryAllowedTenant/.test(proWriter), "");
+    add("allow-helper-not-in-professional-eventprocessor", !/isPrivateClientMemoryAllowedTenant/.test(proEp), "");
+    // syntheticTenants global davranışı DEĞİŞMEDİ (liste tek eleman + import yok + helper eklenmedi).
+    const tenancy = read("lib/tenancy/syntheticTenants.ts");
+    add("synthetic-list-single-element", /SYNTHETIC_TENANT_IDS:\s*readonly string\[\]\s*=\s*\[ADMIN_LIBRARY_TENANT_ID\]/.test(tenancy), "");
+    add("synthetic-module-still-import-free", !/^\s*import\s/m.test(tenancy), "");
+    // Pure module allow-helper'ı TANIMLAMAZ/uygulamaz (yorumda kontrat referansı serbest);
+    // istisna mantığı yalnız client processor katmanında yaşar.
+    const tenancyNoComments = tenancy.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    add("allow-helper-not-defined-in-tenancy-module", !/isPrivateClientMemoryAllowedTenant/.test(tenancyNoComments), "");
+    // isSyntheticTenantId gövdesi DEĞİŞMEDİ (yalnız liste üyeliği; istisna sızıntısı yok).
+    add("synthetic-predicate-body-unchanged", /return SYNTHETIC_TENANT_IDS\.includes\(tenantId\);/.test(tenancyNoComments), "");
+
+    // ── UI: Danışan Hafızası soğuk başlangıç copy'si mesleki copy'den AYRI ──
+    const states = read("app/yasam-hafizasi/components/WorkspaceStates.tsx");
+    add("ui-client-cold-start-variant-exists", /"client-cold-start":/.test(states), "");
+    add("ui-client-cold-start-copy", /Danışan geçmişinizde seans, not, ödev, taş, kombinasyon veya randevu içeriği arayın\./.test(states), "");
+    add("ui-professional-cold-start-copy-preserved", /mesleki bilgi havuzunuzda arayalım/.test(states), "");
+    const clientPanel = read("app/yasam-hafizasi/components/ClientMemoryPanel.tsx");
+    add("ui-client-panel-uses-client-cold-start", /variant="client-cold-start"/.test(clientPanel), "");
+    const proWorkspace = read("app/yasam-hafizasi/components/YasamHafizasiWorkspace.tsx");
+    add("ui-professional-workspace-uses-cold-start", /variant="cold-start"/.test(proWorkspace) && !/client-cold-start/.test(proWorkspace), "");
 
     // Client state-machine migration: client_id döner + DEFINER + service_role + professional untouched.
     const mig = read("supabase/migrations/20261218000300_yh_client_outbox_state_machine.sql");

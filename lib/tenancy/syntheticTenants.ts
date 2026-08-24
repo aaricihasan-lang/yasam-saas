@@ -8,9 +8,15 @@
  * BAĞLAYICI ÜRÜN KURALI (BF-1B):
  *   - `ADMIN_LIBRARY_TENANT_ID` gerçek kullanıcı veya gerçek tenant DEĞİLDİR;
  *     yalnız seed/import/template namespace'idir.
- *   - Bu kimliğe bağlı kayıtlar Yaşam Hafızası indexine ALINAMAZ, shared/null'a
- *     ÇEVRİLEMEZ, hiçbir kullanıcı retrieval'ında GÖRÜNEMEZ.
+ *   - PROFESSIONAL / MAIN / SHARED Yaşam Hafızası: bu kimliğe bağlı kayıtlar mesleki/paylaşımlı
+ *     indexe ALINAMAZ, shared/null'a ÇEVRİLEMEZ, hiçbir kullanıcı retrieval'ında GÖRÜNEMEZ.
+ *     Bu yasak `isSyntheticTenantId` ile korunur (professional writer fail-fast reddeder).
  *   - Global/shared admin kütüphanesi ürün modeli YOKTUR.
+ *   - TEK DAR İSTİSNA (professional yasağını GEVŞETMEZ): PRIVATE CLIENT MEMORY. Admin kendi
+ *     danışan-scoped (tenant+client ownership) gerçek kayıtlarını Danışan Hafızası'nda arayabilir.
+ *     Bu istisna BURADA DEĞİL, client processor katmanında explicit ve dar uygulanır
+ *     (`lib/yasam-hafizasi/client/clientEventProcessor.ts` → isPrivateClientMemoryAllowedTenant);
+ *     `isSyntheticTenantId` semantiği ve `SYNTHETIC_TENANT_IDS` listesi DEĞİŞMEZ.
  *
  * SAFLIK SINIRI:
  *   - Bu modülün HİÇBİR import'u yoktur; client ve server tarafında güvenle
