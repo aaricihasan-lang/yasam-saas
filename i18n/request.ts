@@ -13,6 +13,7 @@ import trClientsCombinations from "@/messages/tr/clients.combinations.json";
 import trClientsStones from "@/messages/tr/clients.stones.json";
 import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
 import trClientsDetail from "@/messages/tr/clients.detail.json";
+import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
 
 type Messages = Record<string, unknown>;
 
@@ -52,6 +53,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsStones,
     trClientsYolculuk,
     trClientsDetail,
+    trClientsAnalizler,
   ]),
 };
 
