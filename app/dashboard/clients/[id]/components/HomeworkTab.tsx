@@ -1,7 +1,9 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { formatDate as formatDateI18n } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -66,16 +68,6 @@ const emptyForm: HomeworkFormState = {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(date: string | null) {
-  if (!date) return "Tarih belirtilmedi";
-
-  return new Date(date).toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 }
 
 function isFormEmpty(form: HomeworkFormState) {
@@ -205,6 +197,7 @@ function ModalTextarea({
   placeholder,
   openEditor,
 }: ModalTextareaProps) {
+  const t = useTranslations("clients.homework");
   return (
     <div className={boxClass(tone)}>
       <div className="flex items-center justify-between gap-3">
@@ -215,7 +208,7 @@ function ModalTextarea({
           onClick={() => openEditor(title, value, onChange)}
           className="mb-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
-          Büyüt
+          {t("expand")}
         </button>
       </div>
 
@@ -240,31 +233,32 @@ type HomeworkFormProps = {
 };
 
 function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
+  const t = useTranslations("clients.homework");
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
         <div className={boxClass("emerald")}>
-          <SectionLabel icon="🎯" title="Ödev Başlığı" tone="emerald" />
+          <SectionLabel icon="🎯" title={t("form.titleLabel")} tone="emerald" />
           <input
             value={data.title}
             onChange={(e) => onChange("title", e.target.value)}
-            placeholder="21 gün nefes çalışması..."
+            placeholder={t("form.titlePlaceholder")}
             className={inputClass("emerald")}
           />
         </div>
 
         <div className={boxClass("blue")}>
-          <SectionLabel icon="🧭" title="Ödev Türü" tone="blue" />
+          <SectionLabel icon="🧭" title={t("form.typeLabel")} tone="blue" />
           <input
             value={data.homeworkType}
             onChange={(e) => onChange("homeworkType", e.target.value)}
-            placeholder="Nefes, meditasyon, taş..."
+            placeholder={t("form.typePlaceholder")}
             className={inputClass("blue")}
           />
         </div>
 
         <div className={boxClass("violet")}>
-          <SectionLabel icon="📅" title="Başlangıç" tone="violet" />
+          <SectionLabel icon="📅" title={t("form.startLabel")} tone="violet" />
           <input
             type="date"
             value={data.startDate}
@@ -274,7 +268,7 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
         </div>
 
         <div className={boxClass("amber")}>
-          <SectionLabel icon="🏁" title="Bitiş" tone="amber" />
+          <SectionLabel icon="🏁" title={t("form.endLabel")} tone="amber" />
           <input
             type="date"
             value={data.endDate}
@@ -285,49 +279,51 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
       </div>
 
       <div className={`mt-4 ${boxClass("rose")}`}>
-        <SectionLabel icon="📌" title="Durum" tone="rose" />
+        <SectionLabel icon="📌" title={t("form.statusLabel")} tone="rose" />
+        {/* value=canonical statü kodu (DEĞİŞMEZ); görünen etiket paylaşımlı
+            odevDurumLabel helper'ından (tek doğruluk kaynağı). */}
         <select
           value={data.status}
           onChange={(e) => onChange("status", e.target.value as HomeworkStatus)}
           className={inputClass("rose")}
         >
-          <option value="devam">Devam Ediyor</option>
-          <option value="tamamlandi">Tamamlandı</option>
-          <option value="gecikti">Gecikti</option>
-          <option value="iptal">İptal</option>
+          <option value="devam">{odevDurumLabel("devam")}</option>
+          <option value="tamamlandi">{odevDurumLabel("tamamlandi")}</option>
+          <option value="gecikti">{odevDurumLabel("gecikti")}</option>
+          <option value="iptal">{odevDurumLabel("iptal")}</option>
         </select>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <ModalTextarea
-          title="Ödev Açıklaması"
+          title={t("form.descLabel")}
           icon="📝"
           tone="emerald"
           value={data.description}
           onChange={(value) => onChange("description", value)}
-          placeholder="Danışanın yapacağı çalışma..."
+          placeholder={t("form.descPlaceholder")}
           openEditor={openEditor}
         />
 
         <ModalTextarea
-          title="Uzman Notu"
+          title={t("form.expertNoteLabel")}
           icon="🧠"
           tone="blue"
           value={data.expertNote}
           onChange={(value) => onChange("expertNote", value)}
-          placeholder="Senin iç notun..."
+          placeholder={t("form.expertNotePlaceholder")}
           openEditor={openEditor}
         />
       </div>
 
       <div className={`mt-4 ${boxClass("violet")}`}>
         <ModalTextarea
-          title="Danışan Geri Bildirimi"
+          title={t("form.feedbackLabel")}
           icon="💬"
           tone="violet"
           value={data.clientFeedback}
           onChange={(value) => onChange("clientFeedback", value)}
-          placeholder="Danışanın dönüşleri, zorlandığı noktalar..."
+          placeholder={t("form.feedbackPlaceholder")}
           openEditor={openEditor}
         />
       </div>
@@ -348,6 +344,7 @@ function DetailBlock({
   tone?: "emerald" | "blue" | "violet" | "amber" | "slate";
   openReader: (title: string, value: string, icon: string) => void;
 }) {
+  const t = useTranslations("clients.homework");
   if (!value) return null;
 
   const color =
@@ -376,7 +373,7 @@ function DetailBlock({
           onClick={() => openReader(title, value, icon)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
-          Aç
+          {t("open")}
         </button>
       </div>
 
@@ -386,8 +383,18 @@ function DetailBlock({
 }
 
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
+  const t = useTranslations("clients.homework");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+
+  // Locale-duyarlı tarih görüntüsü; boş tarihte sistem etiketi (DISPLAY-only).
+  const fmtDate = useCallback(
+    (date: string | null) =>
+      date
+        ? formatDateI18n(date, { day: "2-digit", month: "2-digit", year: "numeric" })
+        : t("noDate"),
+    [t],
+  );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
   const [form, setForm] = useState<HomeworkFormState>({
@@ -421,8 +428,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .map((item) => item.end_date as string)
       .sort();
 
-    return dates.length > 0 ? formatDate(dates[0]) : "-";
-  }, [homeworks]);
+    return dates.length > 0 ? fmtDate(dates[0]) : "-";
+  }, [homeworks, fmtDate]);
 
   const dismissedExpiredCount = useMemo(() => {
     const today = todayISO();
@@ -493,7 +500,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (!res.ok || !json.ok) {
       console.error("Ödev kayıtları yüklenemedi:", json.error);
-      setErrorMessage("Ödev kayıtları yüklenemedi: " + (json.error ?? ""));
+      setErrorMessage(t("error.loadFailed") + ": " + (json.error ?? ""));
       setLoading(false);
       return;
     }
@@ -513,8 +520,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   async function addHomework() {
     if (!clientId || !tenantId) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Danışan bilgisi bulunamadı.",
+        title: t("toast.failTitle"),
+        message: t("toast.noClient"),
         type: "error",
       });
       return;
@@ -522,8 +529,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (isFormEmpty(form)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Lütfen en az bir alan doldurun.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyForm"),
         type: "error",
       });
       return;
@@ -548,8 +555,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     if (!res.ok || !json.ok) {
       console.error("Ödev kaydı eklenemedi:", json.error);
       showToast({
-        title: "İşlem başarısız",
-        message: "Ödev kaydı eklenemedi: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.addFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       setSaving(false);
@@ -562,8 +569,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setSaving(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Ödev kaydı eklendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.added"),
       type: "success",
     });
   }
@@ -581,8 +588,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   async function updateHomework(id: string) {
     if (isFormEmpty(editForm)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Boş ödev güncellenemez.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyUpdate"),
         type: "error",
       });
       return;
@@ -607,8 +614,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     if (!res.ok || !json.ok) {
       console.error("Ödev kaydı güncellenemedi:", json.error);
       showToast({
-        title: "İşlem başarısız",
-        message: "Ödev kaydı güncellenemedi: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.updateFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       setUpdating(false);
@@ -620,8 +627,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setUpdating(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Ödev güncellendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.updated"),
       type: "success",
     });
   }
@@ -642,8 +649,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (!res.ok || !json.ok) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Durum güncellenemedi: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.statusFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       return;
@@ -654,8 +661,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     );
 
     showToast({
-      title: "Başarılı",
-      message: "Durum güncellendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.statusUpdated"),
       type: "success",
     });
   }
@@ -677,8 +684,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (!res.ok || !json.ok) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Uyarı kapatılamadı: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.dismissFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       return;
@@ -693,16 +700,16 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     );
 
     showToast({
-      title: "Başarılı",
-      message: "Uyarı kapatıldı.",
+      title: t("toast.successTitle"),
+      message: t("toast.dismissed"),
       type: "success",
     });
   }
 
   async function deleteHomework(id: string) {
     const ok = await deleteConfirm({
-      title: "Ödevi sil",
-      message: "Bu ödev kaydı silinsin mi?",
+      title: t("delete.title"),
+      message: t("delete.message"),
     });
     if (!ok) return;
 
@@ -721,8 +728,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (!res.ok || !json.ok) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Ödev silinemedi: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.deleteFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       return;
@@ -735,8 +742,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setHomeworks((prev) => prev.filter((item) => item.id !== id));
 
     showToast({
-      title: "Başarılı",
-      message: "Ödev silindi.",
+      title: t("toast.successTitle"),
+      message: t("toast.deleted"),
       type: "success",
     });
   }
@@ -748,17 +755,15 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700 shadow-sm">
-                Danışan Ödev Takibi
+                {t("header.badge")}
               </div>
 
               <h2 className="text-xl font-black tracking-tight text-slate-950">
-                Ödevler
+                {t("header.title")}
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-slate-600">
-                Nefes çalışması, meditasyon, taş kullanımı, su takibi veya
-                danışana verdiğin tüm uygulamaları tarih ve durum bilgisiyle
-                takip edebilirsin.
+                {t("header.subtitle")}
               </p>
             </div>
 
@@ -769,7 +774,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     {activeCount}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    devam
+                    {t("stats.active")}
                   </div>
                 </div>
 
@@ -778,7 +783,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     {completedCount}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    tamam
+                    {t("stats.completed")}
                   </div>
                 </div>
 
@@ -787,7 +792,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     {lateCount}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    geciken
+                    {t("stats.late")}
                   </div>
                 </div>
 
@@ -796,7 +801,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     {dismissedExpiredCount}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    kapatılan
+                    {t("stats.dismissed")}
                   </div>
                 </div>
 
@@ -805,7 +810,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                     {nearestEndDate}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    en yakın
+                    {t("stats.nearest")}
                   </div>
                 </div>
               </div>
@@ -817,7 +822,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                   ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
                   : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"}
               >
-                {showForm ? "Formu Kapat" : "+ Yeni Ödev Ekle"}
+                {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
@@ -831,15 +836,15 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-lg shadow-slate-200/60">
           <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
             <div>
-              <h3 className="text-xl font-black text-slate-950">Yeni Ödev Kaydı</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500">Uzun alanları "Büyüt" ile geniş ekranda düzenleyebilirsin.</p>
+              <h3 className="text-xl font-black text-slate-950">{t("newForm.title")}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
           <div className="p-4">
@@ -859,7 +864,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 disabled={saving}
                 className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
               >
-                {saving ? "Kaydediliyor..." : "✅ Ödevi Kaydet"}
+                {saving ? t("newForm.saving") : t("newForm.save")}
               </button>
             </div>
           </div>
@@ -870,10 +875,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-lg font-black tracking-tight text-slate-950">
-              Kayıtlı Ödevler
+              {t("list.title")}
             </h3>
             <p className="mt-1 text-sm font-medium text-slate-600">
-              Danışana verilen görevler ve takip durumu burada listelenir.
+              {t("list.subtitle")}
             </p>
           </div>
 
@@ -882,21 +887,21 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
             disabled={loading}
             className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Yükleniyor..." : "Listeyi Yenile"}
+            {loading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
           <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-            Ödevler yükleniyor...
+            {t("list.loadingRecords")}
           </div>
         ) : homeworks.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <div className="text-lg font-black text-slate-800">
-              Henüz ödev kaydı yok
+              {t("empty.title")}
             </div>
             <p className="mt-2 text-sm font-medium text-slate-500">
-              "+ Yeni Ödev Ekle" butonundan ilk kaydı oluşturabilirsin.
+              {t("empty.hint")}
             </p>
           </div>
         ) : (
@@ -929,30 +934,30 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                             </span>
 
                             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                              {item.homework_type || "Ödev"}
+                              {item.homework_type || t("typeFallback")}
                             </span>
 
                             {isExpired && !isAlertDismissed && (
                               <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-xs font-black text-red-700">
-                                ⚠️ Süresi doldu
+                                {t("badge.expired")}
                               </span>
                             )}
 
                             {isExpired && isAlertDismissed && (
                               <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                                Görüşüldü / Uyarı kapalı
+                                {t("badge.dismissed")}
                               </span>
                             )}
                           </div>
 
                           <h4 className="text-lg font-black tracking-tight text-slate-950">
-                            {item.title || "Başlıksız ödev"}
+                            {item.title || t("untitled")}
                           </h4>
 
                           <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-slate-500">
-                            <span>Başlangıç: {formatDate(item.start_date)}</span>
+                            <span>{t("card.start", { date: fmtDate(item.start_date) })}</span>
                             <span>•</span>
-                            <span>Bitiş: {formatDate(item.end_date)}</span>
+                            <span>{t("card.end", { date: fmtDate(item.end_date) })}</span>
                           </div>
                         </div>
 
@@ -962,7 +967,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                               onClick={() => dismissHomeworkAlert(item.id)}
                               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
                             >
-                              Uyarıyı Kapat / Görüşüldü
+                              {t("action.dismissAlert")}
                             </button>
                           )}
 
@@ -970,49 +975,49 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                             onClick={() => updateHomeworkStatus(item.id, "tamamlandi")}
                             className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
                           >
-                            Tamamlandı
+                            {odevDurumLabel("tamamlandi")}
                           </button>
 
                           <button
                             onClick={() => updateHomeworkStatus(item.id, "gecikti")}
                             className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                           >
-                            Gecikti
+                            {odevDurumLabel("gecikti")}
                           </button>
 
                           <button
                             onClick={() => startEdit(item)}
                             className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                           >
-                            Düzenle
+                            {t("item.edit")}
                           </button>
 
                           <button
                             onClick={() => deleteHomework(item.id)}
                             className="ml-1 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                           >
-                            Sil
+                            {t("item.delete")}
                           </button>
                         </div>
                       </div>
 
                       <div className="mt-5 grid gap-3 md:grid-cols-2">
                         <DetailBlock
-                          title="Ödev Açıklaması"
+                          title={t("form.descLabel")}
                           value={item.description}
                           icon="📝"
                           tone="emerald"
                           openReader={openReader}
                         />
                         <DetailBlock
-                          title="Uzman Notu"
+                          title={t("form.expertNoteLabel")}
                           value={item.expert_note}
                           icon="🧠"
                           tone="blue"
                           openReader={openReader}
                         />
                         <DetailBlock
-                          title="Danışan Geri Bildirimi"
+                          title={t("form.feedbackLabel")}
                           value={item.client_feedback}
                           icon="💬"
                           tone="violet"
@@ -1025,10 +1030,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <h4 className="text-xl font-black text-slate-950">
-                            Ödevi Düzenle
+                            {t("editForm.title")}
                           </h4>
                           <p className="mt-1 text-sm font-medium text-slate-600">
-                            Uzun alanları “Büyüt” ile geniş ekranda düzenleyebilirsin.
+                            {t("editForm.subtitle")}
                           </p>
                         </div>
 
@@ -1036,7 +1041,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                           onClick={cancelEdit}
                           className="self-start rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                         >
-                          İptal
+                          {t("cancelTop")}
                         </button>
                       </div>
 
@@ -1051,7 +1056,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                           onClick={cancelEdit}
                           className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
-                          Vazgeç
+                          {t("cancel")}
                         </button>
 
                         <button
@@ -1059,7 +1064,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                           disabled={updating}
                           className="btn-primary px-5 py-3"
                         >
-                          {updating ? "Güncelleniyor..." : "Güncelle"}
+                          {updating ? t("editForm.updating") : t("editForm.update")}
                         </button>
                       </div>
                     </div>
@@ -1086,7 +1091,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                   {modalEditor.title}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Geniş yazı ekranı
+                  {t("modal.editorSubtitle")}
                 </p>
               </div>
 
@@ -1095,7 +1100,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 onClick={() => setModalEditor(null)}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
-                Kapat
+                {t("close")}
               </button>
             </div>
 
@@ -1104,7 +1109,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 value={modalDraft}
                 onChange={(e) => setModalDraft(e.target.value)}
                 className="h-[38vh] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium leading-6 text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                placeholder="Metni buraya yaz..."
+                placeholder={t("modal.placeholder")}
                 autoFocus
               />
             </div>
@@ -1115,7 +1120,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 onClick={() => setModalEditor(null)}
                 className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
               >
-                Vazgeç
+                {t("cancel")}
               </button>
 
               <button
@@ -1123,7 +1128,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 onClick={saveModalEditor}
                 className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-green-600"
               >
-                Metni Aktar
+                {t("modal.apply")}
               </button>
             </div>
           </div>
@@ -1145,7 +1150,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                   {readModal.icon} {readModal.title}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Büyük okuma ekranı
+                  {t("modal.readerSubtitle")}
                 </p>
               </div>
 
@@ -1154,7 +1159,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 onClick={() => setReadModal(null)}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
-                Kapat
+                {t("close")}
               </button>
             </div>
 

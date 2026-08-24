@@ -1,3 +1,103 @@
 {
-  "clients": { "sessions": {} }
+  "clients": {
+    "sessions": {
+      "noDate": "Tarih belirtilmedi",
+      "expand": "Büyüt",
+      "open": "Aç",
+      "close": "Kapat",
+      "cancel": "Vazgeç",
+      "cancelTop": "İptal",
+      "unitMin": "dk",
+      "sessionN": "Seans {n}",
+      "toggleFormOpen": "+ Yeni Seans Ekle",
+      "toggleFormClose": "Formu Kapat",
+      "form": {
+        "dateLabel": "Seans Tarihi",
+        "typeLabel": "Seans Türü",
+        "typePlaceholder": "Refleksoloji, online, bioenerji...",
+        "durationLabel": "Süre",
+        "durationPlaceholder": "Dakika",
+        "feeLabel": "Ücret",
+        "feePlaceholder": "Örn: 750",
+        "noteLabel": "Seans Notu",
+        "notePlaceholder": "Seans genel notu...",
+        "actionsLabel": "Yapılan İşlemler",
+        "actionsPlaceholder": "Bu seansta yapılan uygulamalar...",
+        "suggestionsLabel": "Öneriler",
+        "suggestionsPlaceholder": "Danışana verilen öneriler...",
+        "nextPlanLabel": "Sonraki Seans Planı",
+        "nextPlanPlaceholder": "Bir sonraki seans için plan..."
+      },
+      "header": {
+        "badge": "Danışan Seans Takibi",
+        "title": "Seanslar",
+        "subtitle": "Uzun notları küçük kutuya sıkıştırmadan, büyütülmüş yazı ekranı ile rahatça yazıp okuyabilirsin."
+      },
+      "stats": {
+        "sessions": "seans",
+        "total": "toplam",
+        "duration": "süre",
+        "lastSession": "son seans"
+      },
+      "newForm": {
+        "title": "Yeni Seans Kaydı",
+        "subtitle": "Uzun notları büyütülmüş yazı ekranı ile rahatça yazabilirsin.",
+        "saving": "Kaydediliyor...",
+        "save": "💾 Seansı Kaydet"
+      },
+      "list": {
+        "title": "Kayıtlı Seanslar",
+        "subtitle": "Uzun metinleri kart içinden “Aç” butonuyla büyük ekranda okuyabilirsin.",
+        "loading": "Yükleniyor...",
+        "refresh": "Listeyi Yenile",
+        "loadingRecords": "Seans kayıtları yükleniyor..."
+      },
+      "empty": {
+        "title": "Henüz seans kaydı yok",
+        "hint": "\"+ Yeni Seans Ekle\" butonundan ilk kaydı oluşturabilirsin."
+      },
+      "detail": {
+        "note": "Seans Notu",
+        "actions": "Yapılan İşlemler",
+        "suggestions": "Öneriler",
+        "nextPlan": "Sonraki Plan"
+      },
+      "item": {
+        "edit": "Düzenle",
+        "delete": "Sil"
+      },
+      "editForm": {
+        "title": "Seansı Düzenle",
+        "subtitle": "Uzun alanları “Büyüt” ile geniş ekranda düzenleyebilirsin.",
+        "updating": "Güncelleniyor...",
+        "update": "Güncelle"
+      },
+      "modal": {
+        "editorSubtitle": "Geniş yazı ekranı",
+        "placeholder": "Metni buraya yaz...",
+        "apply": "Metni Aktar",
+        "readerSubtitle": "Büyük okuma ekranı"
+      },
+      "delete": {
+        "title": "Seansı sil",
+        "message": "Bu seans kaydı silinsin mi?"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "noClient": "Danışan bilgisi bulunamadı.",
+        "emptyForm": "Lütfen en az bir alan doldurun.",
+        "added": "Seans kaydı eklendi.",
+        "addFailed": "Seans kaydı eklenemedi.",
+        "emptyUpdate": "Boş seans güncellenemez.",
+        "updated": "Seans güncellendi.",
+        "updateFailed": "Seans kaydı güncellenemedi.",
+        "deleted": "Seans silindi.",
+        "deleteFailed": "Seans kaydı silinemedi."
+      },
+      "error": {
+        "loadFailed": "Seans kayıtları yüklenemedi"
+      }
+    }
+  }
 }

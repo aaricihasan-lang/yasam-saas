@@ -1,3 +1,111 @@
 {
-  "clients": { "homework": {} }
+  "clients": {
+    "homework": {
+      "noDate": "Tarih belirtilmedi",
+      "expand": "Büyüt",
+      "open": "Aç",
+      "close": "Kapat",
+      "cancel": "Vazgeç",
+      "cancelTop": "İptal",
+      "typeFallback": "Ödev",
+      "untitled": "Başlıksız ödev",
+      "toggleFormOpen": "+ Yeni Ödev Ekle",
+      "toggleFormClose": "Formu Kapat",
+      "form": {
+        "titleLabel": "Ödev Başlığı",
+        "titlePlaceholder": "21 gün nefes çalışması...",
+        "typeLabel": "Ödev Türü",
+        "typePlaceholder": "Nefes, meditasyon, taş...",
+        "startLabel": "Başlangıç",
+        "endLabel": "Bitiş",
+        "statusLabel": "Durum",
+        "descLabel": "Ödev Açıklaması",
+        "descPlaceholder": "Danışanın yapacağı çalışma...",
+        "expertNoteLabel": "Uzman Notu",
+        "expertNotePlaceholder": "Senin iç notun...",
+        "feedbackLabel": "Danışan Geri Bildirimi",
+        "feedbackPlaceholder": "Danışanın dönüşleri, zorlandığı noktalar..."
+      },
+      "header": {
+        "badge": "Danışan Ödev Takibi",
+        "title": "Ödevler",
+        "subtitle": "Nefes çalışması, meditasyon, taş kullanımı, su takibi veya danışana verdiğin tüm uygulamaları tarih ve durum bilgisiyle takip edebilirsin."
+      },
+      "stats": {
+        "active": "devam",
+        "completed": "tamam",
+        "late": "geciken",
+        "dismissed": "kapatılan",
+        "nearest": "en yakın"
+      },
+      "newForm": {
+        "title": "Yeni Ödev Kaydı",
+        "subtitle": "Uzun alanları \"Büyüt\" ile geniş ekranda düzenleyebilirsin.",
+        "saving": "Kaydediliyor...",
+        "save": "✅ Ödevi Kaydet"
+      },
+      "list": {
+        "title": "Kayıtlı Ödevler",
+        "subtitle": "Danışana verilen görevler ve takip durumu burada listelenir.",
+        "loading": "Yükleniyor...",
+        "refresh": "Listeyi Yenile",
+        "loadingRecords": "Ödevler yükleniyor..."
+      },
+      "empty": {
+        "title": "Henüz ödev kaydı yok",
+        "hint": "\"+ Yeni Ödev Ekle\" butonundan ilk kaydı oluşturabilirsin."
+      },
+      "badge": {
+        "expired": "⚠️ Süresi doldu",
+        "dismissed": "Görüşüldü / Uyarı kapalı"
+      },
+      "card": {
+        "start": "Başlangıç: {date}",
+        "end": "Bitiş: {date}"
+      },
+      "action": {
+        "dismissAlert": "Uyarıyı Kapat / Görüşüldü"
+      },
+      "item": {
+        "edit": "Düzenle",
+        "delete": "Sil"
+      },
+      "editForm": {
+        "title": "Ödevi Düzenle",
+        "subtitle": "Uzun alanları “Büyüt” ile geniş ekranda düzenleyebilirsin.",
+        "updating": "Güncelleniyor...",
+        "update": "Güncelle"
+      },
+      "modal": {
+        "editorSubtitle": "Geniş yazı ekranı",
+        "placeholder": "Metni buraya yaz...",
+        "apply": "Metni Aktar",
+        "readerSubtitle": "Büyük okuma ekranı"
+      },
+      "delete": {
+        "title": "Ödevi sil",
+        "message": "Bu ödev kaydı silinsin mi?"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "noClient": "Danışan bilgisi bulunamadı.",
+        "emptyForm": "Lütfen en az bir alan doldurun.",
+        "added": "Ödev kaydı eklendi.",
+        "addFailed": "Ödev kaydı eklenemedi",
+        "emptyUpdate": "Boş ödev güncellenemez.",
+        "updated": "Ödev güncellendi.",
+        "updateFailed": "Ödev kaydı güncellenemedi",
+        "statusUpdated": "Durum güncellendi.",
+        "statusFailed": "Durum güncellenemedi",
+        "dismissed": "Uyarı kapatıldı.",
+        "dismissFailed": "Uyarı kapatılamadı",
+        "deleted": "Ödev silindi.",
+        "deleteFailed": "Ödev silinemedi"
+      },
+      "error": {
+        "loadFailed": "Ödev kayıtları yüklenemedi"
+      }
+    }
+  }
 }
