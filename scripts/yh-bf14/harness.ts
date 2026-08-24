@@ -27,6 +27,12 @@ import {
   type ClientRpcRow,
 } from "@/lib/yasam-hafizasi/client/clientSearchResult";
 import { toTenantClientSearchResult, type TenantClientRpcRow } from "@/lib/yasam-hafizasi/client/tenantClientSearchResult";
+import {
+  CLIENT_DETAIL_TABS,
+  DEFAULT_CLIENT_DETAIL_TAB,
+  resolveClientDetailTab,
+  isClientDetailTab,
+} from "@/lib/danisan/clientDetailTabs";
 import { runClientRetrieval, type ClientRpcDb } from "@/lib/yasam-hafizasi/client/clientRetrieval";
 import { buildReportSnapshot } from "@/lib/yasam-hafizasi/client/snapshotBuilder";
 
@@ -203,8 +209,8 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   add("deeplink-randevu-tab", clientDetailDeepLink(CLIENT_ID, "randevu") === `/dashboard/clients/${CLIENT_ID}?tab=randevular`, "");
   add("deeplink-tas-tab", clientDetailDeepLink(CLIENT_ID, "danisan_tas") === `/dashboard/clients/${CLIENT_ID}?tab=taslar`, "");
   add("deeplink-kombinasyon-tab", clientDetailDeepLink(CLIENT_ID, "danisan_kombinasyon") === `/dashboard/clients/${CLIENT_ID}?tab=taslar`, "");
-  // Tüm modüller geçerli sekmeye map olur (VALID_TABS ile hizalı — page.tsx allowlist).
-  add("deeplink-all-modules-valid-tab", Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => ["notlar","seanslar","odevler","randevular","taslar","hafiza"].includes(t)), "");
+  // Tüm modül deep-link sekmeleri page.tsx allowlist'inde (CLIENT_DETAIL_TABS) mevcut.
+  add("deeplink-all-modules-valid-tab", Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => isClientDetailTab(t)), "");
   add("deeplink-not-generic-module-home", clientDetailDeepLink(CLIENT_ID, "danisan_not") !== "/danisan-yolculugu", "");
 
   // 10) foreign/invalid client id → null (fail-closed; generic route'a DÜŞMEZ).
@@ -220,10 +226,28 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   // bad client_id satırı DTO'dan elenir (fail-closed).
   add("tenant-dto-bad-client-null", toTenantClientSearchResult({ ...legacyRow, client_id: "bad" }, new Map()) === null, "");
 
-  // page.tsx URL-addressable tab desteği wired (statik).
+  // ── URL ?tab= → aktif sekme çözümleme (SSR-güvenli; deep-link UAT FAIL fix) ──
+  // Deep-link ile gelen sekme doğru açılmalı; bilinmeyen/boş → varsayılan (genel).
+  add("tab-notlar", resolveClientDetailTab("notlar") === "notlar", "");
+  add("tab-seanslar", resolveClientDetailTab("seanslar") === "seanslar", "");
+  add("tab-odevler", resolveClientDetailTab("odevler") === "odevler", "");
+  add("tab-randevular", resolveClientDetailTab("randevular") === "randevular", "");
+  add("tab-taslar", resolveClientDetailTab("taslar") === "taslar", "");
+  add("tab-hafiza", resolveClientDetailTab("hafiza") === "hafiza", "");
+  add("tab-no-query-default-genel", resolveClientDetailTab(null) === "genel" && resolveClientDetailTab(undefined) === "genel", "");
+  add("tab-empty-default-genel", resolveClientDetailTab("") === "genel", "");
+  add("tab-invalid-default-genel", resolveClientDetailTab("foobar") === "genel" && resolveClientDetailTab("GENEL") === "genel", "");
+  add("tab-default-const", DEFAULT_CLIENT_DETAIL_TAB === "genel", "");
+  // Deep-link modül sekmeleri ile page allowlist BİREBİR (cross-consistency).
+  add("tab-deeplink-values-subset-of-allowlist", Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => CLIENT_DETAIL_TABS.includes(t as (typeof CLIENT_DETAIL_TABS)[number])), "");
+
+  // page.tsx SSR-güvenli deep-link tab wiring (statik): useSearchParams + resolveClientDetailTab
+  //   + Suspense sarmalayıcı (build "Missing Suspense boundary" kuralı) + eski window.location YOK.
   const page = readFileSync(join(process.cwd(), "app/dashboard/clients/[id]/page.tsx"), "utf8");
-  add("page-valid-tabs-allowlist", /const VALID_TABS = new Set\(/.test(page) && /"notlar"/.test(page) && /"seanslar"/.test(page), "");
-  add("page-reads-tab-param", /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/.test(page) && /VALID_TABS\.has\(t\)/.test(page), "");
+  add("page-uses-usesearchparams", /useSearchParams\(\)/.test(page) && /from "next\/navigation"/.test(page), "");
+  add("page-inits-tab-from-searchparams", /resolveClientDetailTab\(searchParams\.get\("tab"\)\)/.test(page), "");
+  add("page-suspense-wrapper", /<Suspense fallback=/.test(page) && /<ClientDetailPageInner \/>/.test(page), "");
+  add("page-no-window-location-tab", !/window\.location\.search/.test(page), "");
 }
 
 // ── retrieval adapter (unavailable/error/rows + client scope passed) ──
