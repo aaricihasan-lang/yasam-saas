@@ -4,6 +4,11 @@
       "loading": "Yükleniyor...",
       "refresh": "Yenile",
       "cancel": "Vazgeç",
+      "analysisType": {
+        "chakra": "Çakra Analizi",
+        "planet": "Çakra-Gezegen Analizi",
+        "default": "Analiz"
+      },
       "bodies": {
         "ruhsal": "RUHSAL ENERJİ BEDENİ",
         "zihinsel": "ZİHİNSEL ENERJİ BEDENİ",

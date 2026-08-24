@@ -1,0 +1,145 @@
+{
+  "clients": {
+    "stones": {
+      "noDate": "No date",
+      "cancel": "Cancel",
+      "cancelTop": "Cancel",
+      "close": "Close",
+      "item": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "form": {
+        "nameLabel": "Stone Name",
+        "namePlaceholder": "e.g. Amethyst, Shungite, Pyrite",
+        "typeLabel": "Use / Type",
+        "typePlaceholder": "Necklace, bracelet, pocket stone...",
+        "dateLabel": "Date",
+        "usageLabel": "Usage Detail",
+        "usagePlaceholder": "How will it be used? Duration, area, method...",
+        "combinationLabel": "Combination",
+        "combinationPlaceholder": "Stones given together or the combination rationale...",
+        "warningLabel": "Warning",
+        "warningPlaceholder": "Water contact, night use, sensitivity, etc.",
+        "otherLabel": "Other",
+        "otherPlaceholder": "Free field...",
+        "noteLabel": "General Note",
+        "notePlaceholder": "General advice, follow-up note or session comment about the stone..."
+      },
+      "photoPicker": {
+        "title": "Photos",
+        "select": "Choose Photo from Computer",
+        "clear": "Clear Selection",
+        "hint": "You can select multiple photos from your computer before saving the stone.",
+        "previewAlt": "Selected photo {n}"
+      },
+      "gallery": {
+        "title": "📷 Stone Photos",
+        "count": "{count, plural, one {# photo saved} other {# photos saved}}",
+        "uploading": "Uploading...",
+        "add": "Add Photo",
+        "empty": "No photos added yet. You can also add photos later with “Add Photo”."
+      },
+      "photoAlt": "Stone photo",
+      "header": {
+        "badge": "Professional Stone Tracking System",
+        "title": "Client Stones",
+        "subtitle": "Select stone details and photos on one screen and save them with a single tap."
+      },
+      "stats": {
+        "records": "records",
+        "photoStones": "with photos",
+        "photos": "photos"
+      },
+      "toggleFormOpen": "+ Add Stone",
+      "toggleFormClose": "Close Form",
+      "newForm": {
+        "title": "New Stone Record",
+        "subtitle": "Enter the stone details and photos, then save.",
+        "saving": "Saving...",
+        "savingWithPhotos": "Saving stone and photos...",
+        "save": "💾 Save Stone"
+      },
+      "list": {
+        "title": "Saved Stones",
+        "subtitle": "The stone suggestions, combinations, photos and follow-up notes for this client.",
+        "loading": "Loading...",
+        "refresh": "Refresh List",
+        "loadingRecords": "Loading stone records..."
+      },
+      "empty": {
+        "title": "No stone records yet",
+        "hint": "You can create the first record using the \"+ Add Stone\" button."
+      },
+      "card": {
+        "noPhoto": "📷 No photo",
+        "noType": "Use type not specified",
+        "noName": "Unnamed stone",
+        "stoneDate": "Stone date: {date}",
+        "recordDate": "Record date: {date}",
+        "noNote": "No general note added for this stone yet."
+      },
+      "detail": {
+        "usage": "Usage",
+        "combination": "Combination",
+        "warning": "Warning",
+        "other": "Other",
+        "note": "General Note"
+      },
+      "editForm": {
+        "title": "Edit Stone Record",
+        "subtitle": "You can update the usage, combination, warning and note fields. Photos are added separately from the record card.",
+        "updating": "Updating...",
+        "update": "Update"
+      },
+      "lightbox": {
+        "title": "Photo Gallery",
+        "thumbAlt": "Gallery thumbnail",
+        "deleting": "Deleting...",
+        "deletePhoto": "Delete This Photo"
+      },
+      "warningModal": {
+        "badge": "SAVED STONE WARNING",
+        "title": "The recommended stones have saved warnings",
+        "subtitle": "The Stone module has warning records for these stones. Do you still want to save?",
+        "tagsLabel": "Warning Tags:",
+        "textLabel": "Warning Text:",
+        "openRecord": "Open stone record",
+        "cancel": "Cancel",
+        "confirm": "Save Anyway"
+      },
+      "delete": {
+        "stone": {
+          "title": "Delete stone",
+          "message": "Delete this stone record? Photos attached to this stone will also be removed from the list."
+        },
+        "photo": {
+          "title": "Delete photo",
+          "message": "Delete this photo?"
+        }
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "onlyImages": "You can only select image files.",
+        "noClient": "Client information not found.",
+        "emptyForm": "Please fill in at least one field or select a photo.",
+        "added": "Stone record added.",
+        "addFailed": "Stone record could not be added.",
+        "emptyUpdate": "An empty record cannot be updated.",
+        "updated": "Stone record updated.",
+        "updateFailed": "Stone record could not be updated.",
+        "deleted": "Stone record deleted.",
+        "deleteFailed": "Stone record could not be deleted.",
+        "uploadFailed": "Photo upload failed",
+        "photoInsertFailed": "Photo record could not be saved",
+        "photoDeleted": "Photo deleted.",
+        "photoDeleteFailed": "Photo record could not be deleted"
+      },
+      "error": {
+        "loadStones": "Stone records could not be loaded",
+        "loadPhotos": "Stone photos could not be loaded"
+      }
+    }
+  }
+}

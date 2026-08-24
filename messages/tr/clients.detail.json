@@ -92,6 +92,26 @@
         "dem": "Dem",
         "balgam": "Balgam"
       },
+      "burc": {
+        "Koç": "Koç",
+        "Boğa": "Boğa",
+        "İkizler": "İkizler",
+        "Yengeç": "Yengeç",
+        "Aslan": "Aslan",
+        "Başak": "Başak",
+        "Terazi": "Terazi",
+        "Akrep": "Akrep",
+        "Yay": "Yay",
+        "Oğlak": "Oğlak",
+        "Kova": "Kova",
+        "Balık": "Balık"
+      },
+      "element": {
+        "Hava": "Hava",
+        "Su": "Su",
+        "Ateş": "Ateş",
+        "Toprak": "Toprak"
+      },
       "delete": {
         "title": "Danışanı sil",
         "thisClient": "Bu danışan",

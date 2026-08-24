@@ -1,0 +1,56 @@
+{
+  "clients": {
+    "notes": {
+      "title": "Saved Notes",
+      "totalLabel": "Total Notes",
+      "toggleFormOpen": "+ Add Note",
+      "toggleFormClose": "Close Form",
+      "newForm": {
+        "title": "New Note",
+        "subtitle": "Write and save a new note about the client.",
+        "placeholder": "Private notes about the client, session observations, follow-up details...",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "💾 Save Note"
+      },
+      "empty": {
+        "title": "No notes yet",
+        "hint": "You can create the first note using the \"+ Add Note\" button."
+      },
+      "edit": {
+        "title": "Edit Note",
+        "subtitle": "You can update the note text and save it.",
+        "cancelTop": "Cancel",
+        "cancel": "Cancel",
+        "saving": "Updating...",
+        "save": "Update"
+      },
+      "item": {
+        "viewTitle": "View note",
+        "created": "Created: {date}",
+        "updated": "Updated: {date}",
+        "view": "View",
+        "edit": "Update",
+        "delete": "Delete"
+      },
+      "viewModal": {
+        "badge": "Client Note",
+        "close": "Close",
+        "edit": "Update"
+      },
+      "delete": {
+        "title": "Delete note",
+        "message": "Delete this note permanently?"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "added": "Note added.",
+        "updated": "Note updated.",
+        "deleted": "Note deleted.",
+        "emptyTitle": "Empty note",
+        "emptyNew": "Please enter a note.",
+        "emptyEdit": "The note cannot be empty."
+      }
+    }
+  }
+}

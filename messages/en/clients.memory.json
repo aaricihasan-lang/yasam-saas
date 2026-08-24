@@ -1,0 +1,47 @@
+{
+  "clients": {
+    "memory": {
+      "intro": "Search this client's past records (combinations, stones, sessions, homework, appointments, Human Design). The client's personal/health free-text notes are not searched here.",
+      "searchAria": "Client memory search",
+      "searchPlaceholder": "Search: stone, combination, session type, HD code…",
+      "searchButton": "Search",
+      "dateLabel": "Date:",
+      "dateFromAria": "Start date",
+      "dateToAria": "End date",
+      "resultsCount": "<b>{count}</b> results",
+      "recordFallbackTitle": "Record",
+      "pickAria": "Select record",
+      "pickedBanner": "{count} records selected · Adding to report/protocol <b>coming soon (Package 2)</b>",
+      "detailDialogAria": "Record detail",
+      "close": "Close",
+      "detailDateLabel": "Date: {date}",
+      "sourceGone": "The source record no longer exists (snapshot preserved).",
+      "states": {
+        "idleTitle": "Start searching",
+        "idleMsg": "Type a word; we'll search this client's past records.",
+        "errorTitle": "Something went wrong",
+        "errorMsg": "The search could not be completed.",
+        "retry": "Try again",
+        "emptyTitle": "No records found",
+        "emptyMsg": "No client records found for this search.",
+        "filteredEmptyTitle": "No results in the selected filter",
+        "filteredEmptyMsg": "Broaden the filter."
+      },
+      "disabled": {
+        "fallbackTitle": "Unavailable",
+        "not-active": {
+          "title": "Client Memory is not active yet",
+          "msg": "Once this feature is enabled, you can search this client's past records."
+        },
+        "flag-disabled": {
+          "title": "Life Memory is not active on this account yet",
+          "msg": "You can search once this feature is enabled for your account."
+        },
+        "demo": {
+          "title": "Unavailable on demo accounts",
+          "msg": "Client memory search is not available on demo accounts."
+        }
+      }
+    }
+  }
+}

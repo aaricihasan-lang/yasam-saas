@@ -1,0 +1,248 @@
+{
+  "clients": {
+    "detail": {
+      "cancel": "Cancel",
+      "clientFallback": "Client",
+      "unnamed": "Unnamed Client",
+      "notFound": "Client not found",
+      "deleting": "Deleting...",
+      "deleteClient": "Delete Client",
+      "a11y": {
+        "tabs": "Client tabs",
+        "yhSelect": "Select records from Life Memory for the report",
+        "fullWordReport": "Generate full Word report"
+      },
+      "hero": {
+        "badge": "Client Detail",
+        "subtitle": "Client information, notes, stones, sessions, homework and appointments are managed here."
+      },
+      "info": {
+        "phone": "Phone",
+        "birthDate": "Date of Birth",
+        "meetingDate": "Meeting Date",
+        "zodiac": "Zodiac Sign",
+        "bloodType": "Blood Type",
+        "temperament": "Temperament"
+      },
+      "tab": {
+        "genel": "General Info",
+        "notlar": "Notes",
+        "randevular": "Appointments",
+        "taslar": "Stones",
+        "seanslar": "Sessions",
+        "odevler": "Homework",
+        "analizler": "Analyses",
+        "yolculuk": "✦ Client Journey",
+        "hafiza": "🧠 Life Memory"
+      },
+      "yh": {
+        "selectButton": "🧠 Select from Life Memory"
+      },
+      "report": {
+        "generating": "⏳ Generating...",
+        "wordReport": "📄 Word Report"
+      },
+      "dateRange": {
+        "title": "📅 Date Range Report",
+        "close": "▲ Close",
+        "open": "▼ Open",
+        "startLabel": "Start",
+        "endLabel": "End",
+        "generate": "Generate Word"
+      },
+      "tabWord": {
+        "genel": "📄 General Info Word",
+        "notlar": "📄 Notes Word",
+        "randevular": "📄 Appointment History Word",
+        "taslar": "📄 Stones Word",
+        "seanslar": "📄 Session History Word",
+        "odevler": "📄 Homework Tracking Word",
+        "analizler": "📄 Analysis Results Word"
+      },
+      "general": {
+        "badge": "General Info",
+        "title": "Client Information",
+        "editTitle": "Edit Client Information",
+        "editButton": "✎ Update Information",
+        "cancelButton": "✕ Cancel",
+        "notesLoading": "Loading notes…",
+        "notesLoadingTitle": "Loading notes…",
+        "saving": "Saving...",
+        "save": "Save Changes"
+      },
+      "form": {
+        "ad": "First Name",
+        "soyad": "Last Name",
+        "telefon": "Phone",
+        "telefonPlaceholder": "05xx xxx xx xx",
+        "dogum": "Date of Birth",
+        "kan": "Blood Type",
+        "mizac": "Temperament",
+        "select": "Select",
+        "saglikNotu": "Health Note",
+        "saglikNotuPlaceholder": "The client's health notes...",
+        "adres": "Address",
+        "adresPlaceholder": "Address details...",
+        "oneriler": "Suggestions",
+        "onerilerPlaceholder": "General suggestions given to the client..."
+      },
+      "mizac": {
+        "safra": "Bilious",
+        "sovdavi": "Melancholic",
+        "dem": "Sanguine",
+        "balgam": "Phlegmatic"
+      },
+      "burc": {
+        "Koç": "Aries",
+        "Boğa": "Taurus",
+        "İkizler": "Gemini",
+        "Yengeç": "Cancer",
+        "Aslan": "Leo",
+        "Başak": "Virgo",
+        "Terazi": "Libra",
+        "Akrep": "Scorpio",
+        "Yay": "Sagittarius",
+        "Oğlak": "Capricorn",
+        "Kova": "Aquarius",
+        "Balık": "Pisces"
+      },
+      "element": {
+        "Hava": "Air",
+        "Su": "Water",
+        "Ateş": "Fire",
+        "Toprak": "Earth"
+      },
+      "delete": {
+        "title": "Delete client",
+        "thisClient": "This client",
+        "message": "Delete the client named \"{name}\"? The client and all related records (sessions, homework, appointments, stones, analyses) may be permanently deleted.",
+        "secondMessage": "This action cannot be undone. All data belonging to the client will be permanently deleted. Are you sure?"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "warningTitle": "Warning",
+        "errorTitle": "Error",
+        "unknownError": "Unknown error",
+        "saveClientFailed": "Client information could not be saved",
+        "notesSaveFailed": "Notes could not be saved",
+        "changesSaved": "Changes saved.",
+        "noteSaveError": "Note save error",
+        "reportStarted": "Report download started.",
+        "dateRangeRequired": "Enter a start and end date.",
+        "dateRangeOrder": "The start date cannot be after the end date.",
+        "dateRangeReportStarted": "Date range report download started.",
+        "deleteClientFailed": "Client could not be deleted",
+        "clientDeletedTitle": "Client deleted",
+        "cleanupWarning": "Cleanup of some attached files could not be completed.",
+        "addedTitle": "Added",
+        "yhAdded": "{count, plural, one {# record} other {# records}} will be added to the report's Life Memory section."
+      },
+      "error": {
+        "reportFailed": "Report could not be generated"
+      },
+      "num": {
+        "title": "Numerology Summary",
+        "readonly": "Read Only · Automatic",
+        "needName": "Completed once the first/last name is entered",
+        "anaKulvar": "Soul Number",
+        "yanKulvar": "Personality Number",
+        "ifadeSayisi": "Expression Number",
+        "hayatYolu": "Life Path / DM",
+        "kisiselYil": "Personal Year",
+        "guncelYas": "Current Age",
+        "element": "Element:",
+        "dominant": "dominant:",
+        "peak": "Peak:",
+        "peakLabel": "peak {index} · age {age} · chakra {topic}",
+        "fullAnalysis": "∞ Open Full Numerology Analysis →"
+      },
+      "appt": {
+        "defaultTitle": "Session",
+        "titleFallback": "Meeting",
+        "badge": "Client-Specific Schedule",
+        "title": "Appointments",
+        "subtitle": "All appointments created for {name} appear here.",
+        "listTitle": "Appointment List",
+        "loading": "Loading appointments...",
+        "empty": "No appointments for this client yet.",
+        "toggleOpen": "+ Add Appointment",
+        "toggleClose": "Close Form",
+        "missingTitle": "Missing information",
+        "dateRequired": "You must select a date",
+        "startDateRequired": "You must select a start date",
+        "nthDateRequired": "You must select the date for appointment #{n}",
+        "loadFailed": "Appointments could not be loaded",
+        "updateFailed": "Appointment could not be updated",
+        "updated": "Appointment updated",
+        "saveError": "Appointment save error",
+        "statusUpdateFailed": "Appointment status could not be updated",
+        "deleteFailed": "Appointment could not be deleted",
+        "stat": {
+          "total": "Total",
+          "upcoming": "Upcoming",
+          "past": "Past"
+        },
+        "status": {
+          "tamamlandi": "Completed",
+          "iptal": "Cancelled",
+          "gecmis": "Past",
+          "yaklasan": "Upcoming"
+        },
+        "cancelConfirm": {
+          "title": "Cancel this appointment?",
+          "message": "This appointment's status will be changed to \"Cancelled\".",
+          "confirm": "Cancel Appointment"
+        },
+        "completeConfirm": {
+          "title": "Mark this appointment as completed?",
+          "message": "This appointment's status will be changed to \"Completed\" and the client's last meeting date will be updated.",
+          "confirm": "Mark as Completed"
+        },
+        "pastConfirm": {
+          "title": "Past-dated appointment",
+          "message": "The date you selected is in the past. Do you still want to save this appointment?",
+          "confirm": "Save Anyway"
+        },
+        "delete": {
+          "title": "Delete appointment",
+          "message": "Delete this appointment?"
+        },
+        "form": {
+          "editBadge": "Edit Appointment",
+          "newBadge": "New Appointment",
+          "editTitle": "Edit Appointment",
+          "newTitle": "Add Appointment",
+          "titleLabel": "Title",
+          "titlePlaceholder": "e.g. Bioenergy Session",
+          "noteLabel": "Note",
+          "notePlaceholder": "Appointment note...",
+          "sessionCount": "Number of Sessions",
+          "planningType": "Planning Type",
+          "autoInterval": "Automatic Interval",
+          "manualDates": "Individual Dates",
+          "dateTime": "Date / Time",
+          "startDate": "Start Date",
+          "everyNDays": "Every How Many Days?",
+          "appointmentDates": "Appointment Dates",
+          "nthAppointment": "Appointment #{n}",
+          "saving": "Saving...",
+          "update": "Update",
+          "create": "Create Appointment"
+        },
+        "modal": {
+          "badge": "Appointment Detail",
+          "client": "Client",
+          "dateTime": "Date / Time",
+          "status": "Status",
+          "note": "Note",
+          "noNote": "No note provided.",
+          "edit": "Edit",
+          "complete": "Completed",
+          "cancel": "Cancel",
+          "delete": "Delete"
+        }
+      }
+    }
+  }
+}

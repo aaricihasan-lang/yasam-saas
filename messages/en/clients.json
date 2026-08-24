@@ -1,0 +1,121 @@
+{
+  "clients": {
+    "landing": {
+      "hero": {
+        "eyebrow": "Yaşam Sistemi",
+        "title": "Client Journey",
+        "subtitle": "Manage your client process in three main folders: new record, client list, and follow-up & schedule."
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "subtitle": "Quickly reach the three main folders for client management."
+      },
+      "folders": {
+        "cta": "Open folder",
+        "kayit": {
+          "title": "New Client",
+          "desc": "Add a new client and record their personal details and meeting date.",
+          "badge": "New Record"
+        },
+        "liste": {
+          "title": "Client List",
+          "desc": "View, search, edit registered clients and open their details.",
+          "badge": "List & Detail"
+        },
+        "takip": {
+          "title": "Client Follow-up",
+          "desc": "Appointments, session planning, daily follow-up and client process management.",
+          "badge": "Follow-up & Plan"
+        }
+      },
+      "summary": {
+        "title": "Overview",
+        "subtitle": "An anonymous overview of your client and appointment processes.",
+        "privacyTitle": "Privacy First",
+        "privacyDesc": "Personal details are not shown on this screen."
+      },
+      "stats": {
+        "total": "Total Clients",
+        "thisMonthNew": "New This Month",
+        "lastCreated": "Latest Record",
+        "thisMonthAppts": "Appointments This Month",
+        "nextAppt": "Next Appointment",
+        "thisMonthCompleted": "Completed This Month"
+      }
+    },
+    "form": {
+      "badge": {
+        "demo": "Demo Client",
+        "new": "New Client"
+      },
+      "title": "Save Client",
+      "subtitle": "All fields are optional; first and last name are required.",
+      "fields": {
+        "ad": "First Name",
+        "soyad": "Last Name",
+        "telefon": "Phone",
+        "dogum": "Date of Birth",
+        "gorusme": "Meeting Date",
+        "burc": "Zodiac Sign (Auto)",
+        "kan": "Blood Type",
+        "mizac": "Temperament"
+      },
+      "placeholders": {
+        "ad": "First Name",
+        "soyad": "Last Name",
+        "telefon": "05xx xxx xx xx",
+        "burc": "Calculated automatically from the date of birth",
+        "select": "Select"
+      },
+      "mizacOptions": {
+        "safra": "Bilious",
+        "sovdavi": "Melancholic",
+        "dem": "Sanguine",
+        "balgam": "Phlegmatic"
+      },
+      "gorusmeInvalid": "Enter a valid date (DD.MM.YYYY) or leave the field empty.",
+      "gorusmeHint": "The client's first/last meeting date. For scheduled sessions, use <b>Schedule & Appointments</b>.",
+      "submit": {
+        "saving": "Saving...",
+        "demo": "Create Demo Client",
+        "default": "Save Client"
+      },
+      "backToList": "Back to List",
+      "demoNotice": {
+        "title": "Demo Mode — Temporary Record",
+        "desc": "This client will not be saved to the database; it is kept in your browser only for the duration of your session. It is deleted automatically when you sign out."
+      },
+      "tenantMissing": {
+        "noSession": "Session not found. Please sign in again to save a client.",
+        "noTenant": "Workspace (tenant) information not found. The record cannot be saved."
+      },
+      "duplicate": {
+        "warning": "A client named \"{name}\" is already registered. Do you want to save the same person again?",
+        "cancel": "Cancel",
+        "confirm": "Save Anyway"
+      },
+      "datePicker": {
+        "placeholder": "DD.MM.YYYY",
+        "openCalendar": "Pick a date from the calendar",
+        "dialogLabel": "Date picker",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "clear": "Clear",
+        "today": "Today"
+      },
+      "toast": {
+        "sessionWarningTitle": "Session warning",
+        "noSession": "Session not found. Please sign in again.",
+        "noTenant": "Your account has no workspace (tenant) information. The action cannot be performed.",
+        "failTitle": "Action failed",
+        "nameRequired": "First and last name are required",
+        "invalidDateTitle": "Invalid date",
+        "invalidDateMsg": "Enter the meeting date as a valid date in DD.MM.YYYY format, or leave it empty.",
+        "successTitle": "Success",
+        "demoCreated": "Demo client created.",
+        "saved": "Client saved.",
+        "saveError": "Save error"
+      }
+    }
+  }
+}

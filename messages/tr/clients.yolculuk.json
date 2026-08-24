@@ -82,6 +82,25 @@
         "iptal": "İptal edildi",
         "bekliyor": "Bekliyor"
       },
+      "homeworkStatus": {
+        "bekliyor": "Bekliyor",
+        "devam": "Devam Ediyor",
+        "tamamlandi": "Tamamlandı",
+        "gecikti": "Gecikti",
+        "iptal": "İptal",
+        "unknown": "Bilinmiyor"
+      },
+      "analysisType": {
+        "chakra": "Çakra Analizi",
+        "planet": "Çakra-Gezegen Analizi",
+        "default": "Analiz"
+      },
+      "element": {
+        "Hava": "Hava",
+        "Su": "Su",
+        "Ateş": "Ateş",
+        "Toprak": "Toprak"
+      },
       "summary": {
         "analizler": "Analizler",
         "seanslar": "Seanslar",

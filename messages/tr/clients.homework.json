@@ -11,6 +11,14 @@
       "untitled": "Başlıksız ödev",
       "toggleFormOpen": "+ Yeni Ödev Ekle",
       "toggleFormClose": "Formu Kapat",
+      "status": {
+        "bekliyor": "Bekliyor",
+        "devam": "Devam Ediyor",
+        "tamamlandi": "Tamamlandı",
+        "gecikti": "Gecikti",
+        "iptal": "İptal",
+        "unknown": "Bilinmiyor"
+      },
       "form": {
         "titleLabel": "Ödev Başlığı",
         "titlePlaceholder": "21 gün nefes çalışması...",

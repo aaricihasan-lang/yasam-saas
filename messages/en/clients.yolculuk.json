@@ -1,0 +1,251 @@
+{
+  "clients": {
+    "yolculuk": {
+      "type": {
+        "numeroloji": "Numerology",
+        "dogaltas": "Stones",
+        "refleksoloji": "Reflexology",
+        "biyoenerji": "Bioenergy",
+        "not": "Note",
+        "seans": "Session",
+        "randevu": "Appointment",
+        "analiz": "Analysis",
+        "odev": "Homework",
+        "default": "Other"
+      },
+      "durum": {
+        "aktif": "Active Process",
+        "takip": "Needs Follow-up",
+        "pasif": "Inactive Client",
+        "baslamadi": "Not Started Yet"
+      },
+      "odevDurum": {
+        "yok": "No Homework Yet",
+        "baslangic": "Starting",
+        "devam": "In Progress",
+        "iyi": "Progressing Well",
+        "tamamlandi": "Completed"
+      },
+      "alertCat": {
+        "kritik": "Critical",
+        "takip": "Needs Follow-up",
+        "bilgi": "Information",
+        "olumlu": "Status"
+      },
+      "modalTitle": {
+        "not": "Client Note",
+        "randevu": "Appointment Detail",
+        "seans": "Session Detail",
+        "dogaltas": "Stone Record",
+        "odev": "Homework Detail",
+        "analiz": "Analysis Detail",
+        "numeroloji": "Automatic Numerology Summary"
+      },
+      "scoreStage": {
+        "baslangic": "Starting",
+        "gelisimde": "Developing",
+        "aktifTakip": "Active Follow-up",
+        "gucluSurec": "Strong Process"
+      },
+      "menu": {
+        "genel": "General Info",
+        "numeroloji": "Numerology",
+        "dogaltas": "Stones",
+        "refleksoloji": "Reflexology",
+        "biyoenerji": "Bioenergy",
+        "notlar": "Notes",
+        "randevular": "Appointments",
+        "dosyalar": "Files"
+      },
+      "criteria": {
+        "hasDogum": "Date of Birth",
+        "hasTelefon": "Phone",
+        "hasNot": "Note",
+        "hasSeans": "Session",
+        "hasRandevu": "Appointment",
+        "hasAnaliz": "Analysis",
+        "hasTas": "Stone Record",
+        "hasOdev": "Homework"
+      },
+      "missing": {
+        "hasDogum": "Date of birth missing",
+        "hasTelefon": "Phone missing",
+        "hasNot": "No notes yet",
+        "hasSeans": "No sessions yet",
+        "hasRandevu": "No appointments yet",
+        "hasAnaliz": "No analyses yet",
+        "hasTas": "No stone records yet",
+        "hasOdev": "No homework yet"
+      },
+      "randevuStatus": {
+        "tamamlandi": "Completed",
+        "iptal": "Cancelled",
+        "bekliyor": "Pending"
+      },
+      "homeworkStatus": {
+        "bekliyor": "Pending",
+        "devam": "In Progress",
+        "tamamlandi": "Completed",
+        "gecikti": "Overdue",
+        "iptal": "Cancelled",
+        "unknown": "Unknown"
+      },
+      "analysisType": {
+        "chakra": "Chakra Analysis",
+        "planet": "Chakra-Planet Analysis",
+        "default": "Analysis"
+      },
+      "element": {
+        "Hava": "Air",
+        "Su": "Water",
+        "Ateş": "Fire",
+        "Toprak": "Earth"
+      },
+      "summary": {
+        "analizler": "Analyses",
+        "seanslar": "Sessions",
+        "randevular": "Appointments",
+        "notlar": "Notes"
+      },
+      "criticalBanner": {
+        "count": "{count, plural, one {# Critical Alert} other {# Critical Alerts}}"
+      },
+      "lifeScore": {
+        "title": "Client Life Score",
+        "criteriaProgress": "{completed}/{total} criteria completed"
+      },
+      "eksikAlanlar": {
+        "title": "Missing Fields",
+        "count": "{count} missing"
+      },
+      "seansCard": {
+        "title": "Session Process",
+        "totalSeans": "Total Sessions",
+        "ilkSeans": "First Session",
+        "sonSeans": "Last Session",
+        "sinceLastSession": "Since Last Meeting",
+        "frequencyTitle": "Session Frequency Summary",
+        "avgDuration": "Avg. Session Duration",
+        "totalFee": "Total Fee",
+        "avgFrequency": "Avg. Frequency",
+        "everyNDays": "{days, plural, one {every # day} other {every # days}}",
+        "notEnoughData": "Not enough data",
+        "upcomingLabel": "Upcoming Appointment:",
+        "noUpcoming": "No upcoming appointment",
+        "days": "{days, plural, one {# day} other {# days}}"
+      },
+      "odevCard": {
+        "title": "Homework Tracking",
+        "totalOdev": "Total Homework",
+        "tamamlanan": "Completed",
+        "devamEden": "In Progress",
+        "sonOdevTarihi": "Last Homework Date",
+        "completionPercent": "Completion Rate",
+        "activeLabel": "Active Homework:"
+      },
+      "alertCard": {
+        "title": "Smart Alerts & Suggestions",
+        "kritikBadge": "{count} Critical",
+        "takipBadge": "{count} Follow-up",
+        "bilgiBadge": "{count} Info"
+      },
+      "sidebar": {
+        "unnamed": "Unnamed Client",
+        "phone": "Phone",
+        "lastSession": "Last Meeting",
+        "nextAppointment": "Next Appointment",
+        "soon": "Soon"
+      },
+      "timeline": {
+        "chip": "Journey",
+        "filterChip": "{label} filter",
+        "title": "Recent Activity",
+        "subtitleDefault": "A chronological summary of all the client's module work",
+        "subtitleFiltered": "{count, plural, one {# record} other {# records}} · {label} filter active",
+        "loading": "Loading...",
+        "loadMore": "+ Show {count, plural, one {# more record} other {# more records}}"
+      },
+      "empty": {
+        "title": "No saved work for this client yet.",
+        "hint": "When numerology, stones, reflexology, bioenergy, a note or an appointment is added, it will appear here chronologically."
+      },
+      "unit": {
+        "min": "min"
+      },
+      "badge": {
+        "autoCalc": "Calculated automatically"
+      },
+      "modal": {
+        "seansType": "Session Type",
+        "date": "Date",
+        "duration": "Duration",
+        "fee": "Fee",
+        "seansNote": "Session Note",
+        "actionsDone": "Actions Taken",
+        "suggestions": "Suggestions",
+        "title": "Title",
+        "status": "Status",
+        "note": "Note",
+        "stoneName": "Stone Name",
+        "stoneType": "Type",
+        "usage": "Usage",
+        "startDate": "Start",
+        "endDate": "End",
+        "description": "Description",
+        "expertNote": "Practitioner Note",
+        "analysisType": "Analysis Type",
+        "resultSummary": "Result / Summary",
+        "notes": "Notes",
+        "healthNote": "Health Note"
+      },
+      "num": {
+        "anaKulvar": "Soul Number",
+        "yanKulvar": "Personality Number",
+        "ifadeSayisi": "Expression Number",
+        "hayatYolu": "Life Path / DM",
+        "kisiselYil": "Personal Year",
+        "guncelYas": "Current Age",
+        "elementDist": "Element Distribution",
+        "dominant": "Dominant:",
+        "missing": "Missing:",
+        "strongNumbers": "Strong Numbers",
+        "missingNumbers": "Missing Numbers",
+        "peakInfo": "Peak Information",
+        "peakN": "Peak {n}",
+        "ageYears": "age {age}",
+        "chakraN": "chakra {topic}",
+        "kisiselYilYear": "Personal Year ({year})"
+      },
+      "entryFallback": {
+        "seans": "Session",
+        "seansDesc": "Session held",
+        "randevu": "Appointment",
+        "dogaltas": "Stone",
+        "odev": "Homework"
+      },
+      "alerts": {
+        "noDogum": "Date of birth missing",
+        "noPhone": "Phone number missing",
+        "seans30": "{days, plural, one {No sessions for # day} other {No sessions for # days}}",
+        "randevu60": "{days, plural, one {# day since the last appointment — no upcoming appointment} other {# days since the last appointment — no upcoming appointment}}",
+        "noAnaliz": "No analysis has been done",
+        "noUpcoming": "No upcoming appointment",
+        "hwGecikti": "{count} overdue homework",
+        "hwPending": "{count} homework in progress",
+        "noTas": "No stone suggestion entered yet",
+        "noNot": "No client note added yet",
+        "noSeans": "No session held yet",
+        "seans14": "{days, plural, one {# day since the last session} other {# days since the last session}}",
+        "analizOld": "{days, plural, one {# day since the last analysis} other {# days since the last analysis}}",
+        "newClient": "New client — the process hasn't started yet",
+        "randevuCount": "{count, plural, one {# appointment scheduled} other {# appointments scheduled}}",
+        "seansCount": "{count, plural, one {# session completed} other {# sessions completed}}",
+        "numerolojiOk": "Numerology summary calculated automatically",
+        "seansFresh": "{days, plural, one {# day since the last session — process active} other {# days since the last session — process active}}",
+        "upcomingOk": "Upcoming appointment: {date}",
+        "ok1": "The client's process is progressing steadily",
+        "ok2": "No critical situation requiring follow-up found"
+      }
+    }
+  }
+}
