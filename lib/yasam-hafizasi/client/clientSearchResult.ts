@@ -70,12 +70,63 @@ export interface ClientRpcRow {
   source_updated_at: string | null;
 }
 
+/**
+ * Legacy JSON-string içeriğini güvenli, insan-okur metne çevirir (UI'a HAM JSON / teknik
+ * metadata SIZMAZ). Bazı eski kayıtlar (ör. client_notes.notlar) içeriği
+ * `[{"id":"legacy","content":"...","createdAt":"","updatedAt":"..."}]` biçiminde saklar.
+ *
+ * Sözleşme:
+ *   - Yalnız `[` veya `{` ile başlayan (JSON-benzeri) metinlerde ayrıştırma denenir.
+ *   - Geçerli JSON dizisi/nesnesi ise SADECE `content` (string) alanları çıkarılır ve
+ *     birleştirilir; id/createdAt/updatedAt ve BİLİNMEYEN alanlar UI'a ASLA dökülmez.
+ *   - Dizi elemanı düz string ise o string kullanılır.
+ *   - Parse başarısız → düz metin fallback (olduğu gibi).
+ *   - JSON geçerli ama okunur içerik yoksa → boş string (ham JSON dump YOK).
+ *   - JSON-benzeri değilse dokunulmaz (diğer kaynak tipleri bozulmaz).
+ */
+export function humanizeClientText(raw: string): string {
+  if (typeof raw !== "string") return "";
+  const s = raw.trim();
+  if (s.length === 0) return raw;
+  if (s[0] !== "[" && s[0] !== "{") return raw; // JSON-benzeri değil → düz metin
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(s);
+  } catch {
+    return raw; // parse başarısız → plain-text fallback
+  }
+  const items: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+  const parts: string[] = [];
+  for (const it of items) {
+    if (typeof it === "string") {
+      const t = it.trim();
+      if (t.length > 0) parts.push(t);
+    } else if (it && typeof it === "object" && !Array.isArray(it)) {
+      const c = (it as Record<string, unknown>).content;
+      if (typeof c === "string" && c.trim().length > 0) parts.push(c.trim());
+      // content dışındaki alanlar (id/createdAt/updatedAt/bilinmeyen) UI'a ÇIKMAZ.
+    }
+  }
+  return parts.join("\n"); // okunur içerik yoksa "" → çağıran boş sayar (ham JSON dökülmez)
+}
+
+/** humanize + boşsa null (title/snippet için). */
+function humanizeOrNull(v: string | null): string | null {
+  if (v === null) return null;
+  const h = humanizeClientText(v).trim();
+  return h.length > 0 ? h : null;
+}
+
 function asEvidence(v: unknown): ClientEvidence[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
-    .map((e) => ({ kind: typeof e.kind === "string" ? e.kind : "", text: typeof e.text === "string" ? e.text : "" }))
-    .filter((e) => e.text.length > 0);
+    .map((e) => ({
+      kind: typeof e.kind === "string" ? e.kind : "",
+      // Ham JSON/teknik metadata sızıntısını DTO katmanında güvenli biçimde temizle.
+      text: typeof e.text === "string" ? humanizeClientText(e.text) : "",
+    }))
+    .filter((e) => e.text.trim().length > 0);
 }
 function asRelations(v: unknown): ClientRelation[] {
   if (!Array.isArray(v)) return [];
@@ -113,8 +164,9 @@ export function toClientSearchResult(row: ClientRpcRow): ClientSearchResult | nu
     sourceTable: row.source_table,
     sourceId: row.source_id,
     unitType: row.unit_type,
-    title: row.title,
-    snippet: row.snippet,
+    // Ham JSON/teknik metadata title/snippet'e de sızabilir → aynı güvenli normalizasyon.
+    title: humanizeOrNull(row.title),
+    snippet: humanizeOrNull(row.snippet),
     evidence: asEvidence(row.evidence_fields),
     topicTags: asTags(row.topic_tags),
     relations: asRelations(row.expert_relations),
