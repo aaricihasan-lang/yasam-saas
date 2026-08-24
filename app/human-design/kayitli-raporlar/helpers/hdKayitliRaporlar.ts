@@ -8,6 +8,8 @@ import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/ty
 
 export type HdReportWithClient = HumanDesignReport & {
   client: Pick<HumanDesignClient, "id" | "name"> | null;
+  /** FAZ 2: 'legacy' | 'canonical' (profesyonel donmuş rapor). Legacy satırlarda 'legacy'. */
+  report_kind?: string | null;
 };
 
 function authHeaders(): Record<string, string> {

@@ -9,6 +9,8 @@
     "lint": "eslint",
     "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
+    "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
+    "hd:word:visual": "tsx scripts/hd-word-report/visualFixtures.ts",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
