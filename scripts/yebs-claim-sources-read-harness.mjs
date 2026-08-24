@@ -8,8 +8,8 @@ import { dirname, resolve } from "node:path";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const REL = {
-  listRoute: "app/api/admin/yebs/claims/[claimId]/sources/route.ts",
-  detailRoute: "app/api/admin/yebs/claims/[claimId]/sources/[claimSourceId]/route.ts",
+  listRoute: "app/api/admin/yebs/claims/[id]/sources/route.ts",
+  detailRoute: "app/api/admin/yebs/claims/[id]/sources/[claimSourceId]/route.ts",
   service: "lib/yebs/service/claimSources.ts",
 };
 const P = Object.fromEntries(Object.entries(REL).map(([k, v]) => [k, resolve(ROOT, v)]));
@@ -36,8 +36,10 @@ if (list && detail && svc) {
   check("detail GET export", /export\s+async\s+function\s+GET\s*\(/.test(detail));
   check("detail PATCH export (update)", /export\s+async\s+function\s+PATCH\s*\(/.test(detail));
   check("detail DELETE export (detach)", /export\s+async\s+function\s+DELETE\s*\(/.test(detail));
-  check("nested path claimId (collection)", /\{ claimId: string \}/.test(list));
-  check("nested path claimId+claimSourceId (detail)", /\{ claimId: string; claimSourceId: string \}/.test(detail));
+  // Kanonik dinamik slug [id]'ye tekilleştirildi (Next.js sibling-slug çakışması fix'i);
+  // iç değişken adı `claimId` alias ile korunur (const { id: claimId }).
+  check("nested path canonical [id] (collection)", /\{ id: string \}/.test(list) && /const \{ id: claimId \}/.test(list));
+  check("nested path canonical [id]+claimSourceId (detail)", /\{ id: string; claimSourceId: string \}/.test(detail) && /const \{ id: claimId, claimSourceId \}/.test(detail));
   check("collection verifyAdminRequest + guard.response", /verifyAdminRequest\s*\(/.test(list) && /return\s+guard\.response/.test(list));
   check("detail verifyAdminRequest + guard.response", /verifyAdminRequest\s*\(/.test(detail) && /return\s+guard\.response/.test(detail));
   check("runtime nodejs", /runtime\s*=\s*"nodejs"/.test(list) && /runtime\s*=\s*"nodejs"/.test(detail));

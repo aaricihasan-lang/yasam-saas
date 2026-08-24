@@ -15,11 +15,11 @@ import {
 export const runtime = "nodejs";
 
 type RouteContext = {
-  params: Promise<{ claimId: string; claimSourceId: string }>;
+  params: Promise<{ id: string; claimSourceId: string }>;
 };
 
 /**
- * POST /api/admin/yebs/claims/[claimId]/sources/[claimSourceId]/verify
+ * POST /api/admin/yebs/claims/[id]/sources/[claimSourceId]/verify
  *
  * YEBS D7 (yebs_claim_sources) audit'li evidence verification transition ucu (API-TX / TX-V).
  *
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { claimId, claimSourceId } = await ctx.params;
+  const { id: claimId, claimSourceId } = await ctx.params;
   if (!UUID_RE.test(claimId) || !UUID_RE.test(claimSourceId)) {
     return invalidTransitionId();
   }

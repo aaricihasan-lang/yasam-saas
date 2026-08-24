@@ -16,10 +16,10 @@ import {
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: Promise<{ relationId: string; relationSourceId: string }> };
+type RouteContext = { params: Promise<{ id: string; relationSourceId: string }> };
 
 /**
- * GET    /api/admin/yebs/relations/[relationId]/sources/[relationSourceId] — SALT-OKUNUR (A5BR)
+ * GET    /api/admin/yebs/relations/[id]/sources/[relationSourceId] — SALT-OKUNUR (A5BR)
  * PATCH  ... — audit'li update (A5B). Yalnız draft parent; verification/source_id/relation immutable.
  * DELETE ... — audit'li detach (A5B). Önce snapshot, sonra yalnız junction fiziksel silme.
  */
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const { relationId, relationSourceId } = await ctx.params;
+  const { id: relationId, relationSourceId } = await ctx.params;
   if (!UUID_RE.test(relationId) || !UUID_RE.test(relationSourceId)) return invalidIds();
 
   const result = await getConceptRelationSourceById(db, relationId, relationSourceId);
@@ -160,7 +160,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { relationId, relationSourceId } = await ctx.params;
+  const { id: relationId, relationSourceId } = await ctx.params;
   if (!UUID_RE.test(relationId) || !UUID_RE.test(relationSourceId)) return invalidIds();
 
   let body: unknown;
@@ -263,7 +263,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   if (!guard.ok) return guard.response;
   const { adminId, db } = guard;
 
-  const { relationId, relationSourceId } = await ctx.params;
+  const { id: relationId, relationSourceId } = await ctx.params;
   if (!UUID_RE.test(relationId) || !UUID_RE.test(relationSourceId)) return invalidIds();
 
   let body: unknown;

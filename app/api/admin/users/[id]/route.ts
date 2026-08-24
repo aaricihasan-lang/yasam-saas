@@ -7,7 +7,6 @@ import {
   requireMainAdmin,
   requireMainAdminForAdminTarget,
   resolveIsSuperAdmin,
-  isSuperAdminWorkspaceViewEnabled,
 } from "@/lib/admin/adminGuards";
 import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
 import {
@@ -47,13 +46,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .eq("user_id", id)
     .order("created_at", { ascending: false });
 
-  // UI workspace kartını yalnız (ana yönetici VE flag açık) ise gösterir — server-derived
-  // capability. `viewerIsSuperAdmin` alanı bu iki koşulun birleşimini taşır; flag kapalıysa
-  // ana yönetici de kartı görmez (false-success önlenir). Güvenlik ayrıca SERVER'da zorlanır.
-  const viewerIsSuperAdmin =
-    (await resolveIsSuperAdmin(db, adminId)) && isSuperAdminWorkspaceViewEnabled();
-
-  return NextResponse.json({ user: data, paymentHistory: history ?? [], viewerIsSuperAdmin });
+  // GİZLİLİK KARARI (2026-08-24): Admin/owner uzman private-content görüntüleme
+  // özelliği kaldırıldı → `viewerIsSuperAdmin` capability alanı artık DÖNMEZ
+  // (UI'da workspace kartı da kaldırıldı). Yalnız hesap yönetimi metadata'sı döner.
+  return NextResponse.json({ user: data, paymentHistory: history ?? [] });
 }
 
 /** PATCH /api/admin/users/[id] — kullanıcı bilgileri veya modül izinleri */

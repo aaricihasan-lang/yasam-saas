@@ -17,14 +17,14 @@ import {
   resolveIsSuperAdmin,
   requireMainAdmin,
   requireMainAdminForAdminTarget,
-  requireSuperAdminWorkspaceAccess,
-  isSuperAdminWorkspaceViewEnabled,
   isDbSuperAdminMarkerRequired,
   guardAdminLockout,
   OWNER_FALLBACK_EMAIL,
   type AdminTargetRow,
 } from "../lib/admin/adminGuards";
-import { recordWorkspaceView } from "../lib/admin/workspaceAudit";
+// NOT (2026-08-24): recordWorkspaceView + requireSuperAdminWorkspaceAccess +
+// isSuperAdminWorkspaceViewEnabled ve bunlara ait test bölümleri (6, 7) KALDIRILDI —
+// admin/owner uzman private-content görüntüleme özelliği üründen tamamen çıkarıldı.
 
 let passed = 0;
 let failed = 0;
@@ -206,65 +206,12 @@ const noDb = mockDb(() => ({ data: null }));
   ok(r.ok === false && r.status === 409, "guardAdminLockout: son aktif admin → 409");
 }
 
-// ── 6) recordWorkspaceView ──────────────────────────────────────────────────
-// audit ok → ok, insert çağrıldı
-{
-  const ins: { calls: number; lastPayload?: Record<string, unknown> } = { calls: 0 };
-  const db = mockDb(() => ({ data: null }), ins);
-  const r = await recordWorkspaceView(db, SUPER_ID, "dddddddd-dddd-dddd-dddd-dddddddddddd", "client_analyses", { client_id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" });
-  ok(r.ok === true, "recordWorkspaceView: güvenli → ok");
-  ok(ins.calls === 1, "recordWorkspaceView: audit insert 1");
-  ok(ins.lastPayload?.action === "workspace_viewed", "recordWorkspaceView: action=workspace_viewed");
-  ok(ins.lastPayload?.actor_admin_id === SUPER_ID, "recordWorkspaceView: actor doğru");
-}
-// yasaklı context (PII) → writeAdminAudit reddeder → fail-closed 500 + insert 0
-{
-  const ins = { calls: 0 };
-  const db = mockDb(() => ({ data: null }), ins);
-  const r = await recordWorkspaceView(db, SUPER_ID, null, "x", { email: "danisan@x.com" });
-  ok(r.ok === false && r.status === 500, "recordWorkspaceView: yasaklı PII → fail-closed 500");
-  ok(ins.calls === 0, "recordWorkspaceView: yasaklı PII → insert 0");
-}
-
-// ── 7) WORKSPACE FEATURE FLAG (fail-closed) ─────────────────────────────────
-const superDbFlag = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: true } } : { data: null });
-const normalDbFlag = mockDb((t, s) => t === "users" && s.includes("is_super_admin") ? { data: { is_super_admin: false } } : { data: null });
-const ENV = "ALLOW_SUPER_ADMIN_WORKSPACE_VIEW";
-function setEnv(v: string | undefined): void { if (v === undefined) delete process.env[ENV]; else process.env[ENV] = v; }
-
-// yalnız tam "true" + super → ok
-setEnv("true");
-ok(isSuperAdminWorkspaceViewEnabled() === true, "flag: env=true → enabled");
-ok((await requireSuperAdminWorkspaceAccess(superDbFlag, SUPER_ID)).ok === true, "workspace: super + env=true → ok");
-{ const r = await requireSuperAdminWorkspaceAccess(normalDbFlag, NORMAL_ID); ok(r.ok === false && r.status === 403, "workspace: normal admin + env=true → 403"); }
-
-// eksik / boş / false / TRUE / 1 / yes → super olsa bile 403
-for (const bad of [undefined, "", "false", "TRUE", "1", "yes", "True", " true "]) {
-  setEnv(bad);
-  ok(isSuperAdminWorkspaceViewEnabled() === false, `flag: env=${JSON.stringify(bad)} → disabled`);
-  const r = await requireSuperAdminWorkspaceAccess(superDbFlag, SUPER_ID);
-  ok(r.ok === false && r.status === 403, `workspace: super + env=${JSON.stringify(bad)} → 403 (fail-closed)`);
-}
-setEnv(undefined); // temizle
-
-// env kontrolü MERKEZİ: helper'da var, 8 route'ta kopyalanmamış
-const guardsSrc = readFileSync("lib/admin/adminGuards.ts", "utf8");
-ok(guardsSrc.includes("ALLOW_SUPER_ADMIN_WORKSPACE_VIEW"), "flag: merkezi helper env'i okur");
-const wsRoutes = [
-  "app/api/admin/users/[id]/workspace/clients/route.ts",
-  "app/api/admin/users/[id]/workspace/clients/[clientId]/route.ts",
-  "app/api/admin/users/[id]/workspace/clients/[clientId]/analyses/route.ts",
-  "app/api/admin/users/[id]/workspace/clients/[clientId]/notes/route.ts",
-  "app/api/admin/users/[id]/workspace/clients/[clientId]/homeworks/route.ts",
-  "app/api/admin/users/[id]/workspace/appointments/route.ts",
-  "app/api/admin/numeroloji/records/route.ts",
-  "app/api/admin/kisisel-arsiv/signed-url/route.ts",
-];
-for (const rf of wsRoutes) {
-  const src = readFileSync(rf, "utf8");
-  ok(!src.includes("ALLOW_SUPER_ADMIN_WORKSPACE_VIEW"), `flag: route env kopyası yok — ${rf.split("/").slice(-2).join("/")}`);
-  ok(src.includes("requireSuperAdminWorkspaceAccess"), `flag: route merkezi gate'i kullanır — ${rf.split("/").slice(-2).join("/")}`);
-}
+// ── 6 & 7) recordWorkspaceView + WORKSPACE FEATURE FLAG ─────────────────────
+// KALDIRILDI (2026-08-24): admin/owner uzman private-content görüntüleme özelliği
+// üründen çıkarıldı; ilgili helper'lar (recordWorkspaceView /
+// requireSuperAdminWorkspaceAccess / isSuperAdminWorkspaceViewEnabled) ve
+// ALLOW_SUPER_ADMIN_WORKSPACE_VIEW flag'i silindi. Bu bölümlerin test edeceği
+// yüzey artık mevcut değil. (Sections 1–5 aynen korunur.)
 
 // ── SONUÇ ───────────────────────────────────────────────────────────────────
 console.log("");
