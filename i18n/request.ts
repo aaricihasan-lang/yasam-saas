@@ -1,5 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
-import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import { cookies } from "next/headers";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 
 import trCommon from "@/messages/tr/common.json";
 import trNavigation from "@/messages/tr/navigation.json";
@@ -15,6 +16,21 @@ import trClientsStones from "@/messages/tr/clients.stones.json";
 import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
 import trClientsDetail from "@/messages/tr/clients.detail.json";
 import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
+
+import enCommon from "@/messages/en/common.json";
+import enNavigation from "@/messages/en/navigation.json";
+import enHome from "@/messages/en/home.json";
+import enClients from "@/messages/en/clients.json";
+import enClientsList from "@/messages/en/clients.list.json";
+import enClientsNotes from "@/messages/en/clients.notes.json";
+import enClientsSessions from "@/messages/en/clients.sessions.json";
+import enClientsHomework from "@/messages/en/clients.homework.json";
+import enClientsMemory from "@/messages/en/clients.memory.json";
+import enClientsCombinations from "@/messages/en/clients.combinations.json";
+import enClientsStones from "@/messages/en/clients.stones.json";
+import enClientsYolculuk from "@/messages/en/clients.yolculuk.json";
+import enClientsDetail from "@/messages/en/clients.detail.json";
+import enClientsAnalizler from "@/messages/en/clients.analizler.json";
 
 type Messages = Record<string, unknown>;
 
@@ -57,15 +73,32 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsDetail,
     trClientsAnalizler,
   ]),
+  en: buildMessages([
+    enCommon,
+    enNavigation,
+    enHome,
+    enClients,
+    enClientsList,
+    enClientsNotes,
+    enClientsSessions,
+    enClientsHomework,
+    enClientsMemory,
+    enClientsCombinations,
+    enClientsStones,
+    enClientsYolculuk,
+    enClientsDetail,
+    enClientsAnalizler,
+  ]),
 };
 
 export default getRequestConfig(async () => {
-  // FAZ 1 / AŞAMA 2A — Yalnız Türkçe (tr) AKTİF.
-  // Rendering davranışını (static ↔ dynamic) değiştirmemek için burada
-  // cookies()/headers() OKUNMAZ; locale sabit source locale'dir. İkinci dil
-  // (EN) açıldığında cookie tabanlı çözüm `resolveLocale()` ile buraya
-  // eklenecek (ayrı onay turu — bkz. lib/i18n/locales.ts).
-  const locale: ActiveLocale = DEFAULT_LOCALE;
+  // FAZ 1 / AŞAMA 3 — TR + EN AKTİF. Locale NEXT_LOCALE cookie'sinden çözülür.
+  // resolveLocale yalnız AKTİF bir locale kabul eder (aksi → source tr).
+  // NOT: cookie okuması bu route'ları dynamic render'a çeker (locale
+  // seçimi per-request'tir) — beklenen davranış (URL-prefix'siz i18n).
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
+  const locale: ActiveLocale = resolveLocale(cookieLocale);
 
   return {
     locale,

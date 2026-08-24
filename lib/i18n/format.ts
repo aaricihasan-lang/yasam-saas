@@ -17,6 +17,9 @@ import { DEFAULT_LOCALE, type ActiveLocale } from "./locales";
 
 const BCP47: Record<ActiveLocale, string> = {
   tr: "tr-TR",
+  // en → en-GB: gün/ay/yıl sırası TR'ye yakın ve ay konumu belirsiz değil
+  // (en-US MM/DD/YYYY karışıklığından kaçınmak için).
+  en: "en-GB",
 };
 
 export function localeTag(locale: ActiveLocale = DEFAULT_LOCALE): string {

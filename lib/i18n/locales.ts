@@ -11,8 +11,8 @@
 
 export const DEFAULT_LOCALE = "tr" as const;
 
-/** Kullanıcının gerçekten seçebileceği (aktif) diller. Bu turda yalnız TR. */
-export const ACTIVE_LOCALES = ["tr"] as const;
+/** Kullanıcının gerçekten seçebileceği (aktif) diller. FAZ 1/AŞAMA 3: TR + EN. */
+export const ACTIVE_LOCALES = ["tr", "en"] as const;
 
 /** İleride hedeflenen dil sırası (TR → EN → DE → FR). Henüz selectable DEĞİL. */
 export const PLANNED_LOCALES = ["tr", "en", "de", "fr"] as const;
