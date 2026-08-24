@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { formatDateTime as formatDateTimeI18n } from "@/lib/i18n/format";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -87,11 +89,14 @@ function formatDateTR(date: string | undefined) {
 }
 
 function formatDateTimeTR(value: string) {
-  return new Date(value).toLocaleString("tr-TR", {
+  return formatDateTimeI18n(value, {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
+
+// i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
+type T = ReturnType<typeof useTranslations>;
 
 function isPastDate(value: string) {
   return new Date(value).getTime() < new Date().getTime();
@@ -129,12 +134,13 @@ function getLeftBorderClass(status: string | null | undefined, appointmentDate: 
   return "border-l-violet-500";
 }
 
-function getAppointmentStatusInfo(item: Appointment) {
+// Canonical randevu statü kodu → görünen etiket + renkler (kod DEĞİŞMEZ).
+function getAppointmentStatusInfo(item: Appointment, t: T) {
   const status = item.status || "bekliyor";
-  if (status === "tamamlandi") return { label: "Tamamlandı", bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
-  if (status === "iptal")      return { label: "İptal",       bg: "#fee2e2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" };
-  if (isPastDate(item.appointment_date)) return { label: "Geçmiş", bg: "#f1f5f9", color: "#64748b", border: "#e2e8f0", dot: "#94a3b8" };
-  return { label: "Yaklaşan", bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
+  if (status === "tamamlandi") return { label: t("appt.status.tamamlandi"), bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
+  if (status === "iptal")      return { label: t("appt.status.iptal"),      bg: "#fee2e2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" };
+  if (isPastDate(item.appointment_date)) return { label: t("appt.status.gecmis"), bg: "#f1f5f9", color: "#64748b", border: "#e2e8f0", dot: "#94a3b8" };
+  return { label: t("appt.status.yaklasan"), bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
 }
 
 // ─── Shared style strings ─────────────────────────────────────────────────────
@@ -154,6 +160,7 @@ function normalizeSurname(value: string) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
+  const t = useTranslations("clients.detail");
   const { confirm } = useConfirm();
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
@@ -301,7 +308,7 @@ export default function ClientDetailPage() {
     });
 
     if (!clientRes.ok) {
-      showToast({ title: "İşlem başarısız", message: "Danışan bilgileri kaydedilemedi", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveClientFailed"), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -324,14 +331,14 @@ export default function ClientDetailPage() {
     const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
 
     if (!notesRes.ok || !notesJson.ok) {
-      showToast({ title: "İşlem başarısız", message: "Notlar kaydedilemedi: " + (notesJson.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
       setSavingAll(false);
       return;
     }
 
     if (notesJson.note?.id) setNoteId(notesJson.note.id);
     invalidateDanisanListCache(); // ad/telefon vb. değişti → liste bayat
-    showToast({ title: "Başarılı", message: "Değişiklikler kaydedildi.", type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.changesSaved"), type: "success" });
     setSavingAll(false);
     setIsEditingGeneral(false);
     setGeneralSnap(null);
@@ -376,7 +383,7 @@ export default function ClientDetailPage() {
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
 
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: "Not kayıt hatası: " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError") + ": " + (json.error ?? ""), type: "error" });
       setSavingClientNotes(false);
       return false;
     }
@@ -403,7 +410,7 @@ export default function ClientDetailPage() {
         },
         body: JSON.stringify({ ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -417,16 +424,16 @@ export default function ClientDetailPage() {
       link.download = `danisan-raporu-${nameSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       link.click();
       URL.revokeObjectURL(url);
-      showToast({ title: "Başarılı", message: "Rapor indirme başlatıldı.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally { setGeneratingReport(false); }
   }
 
   async function generateDateRangeReport() {
     if (!tenantId || !client) return;
-    if (!drStart || !drEnd) { showToast({ title: "Uyarı", message: "Başlangıç ve bitiş tarihi giriniz.", type: "warning" }); return; }
-    if (drStart > drEnd) { showToast({ title: "Uyarı", message: "Başlangıç tarihi bitiş tarihinden sonra olamaz.", type: "warning" }); return; }
+    if (!drStart || !drEnd) { showToast({ title: t("toast.warningTitle"), message: t("toast.dateRangeRequired"), type: "warning" }); return; }
+    if (drStart > drEnd) { showToast({ title: t("toast.warningTitle"), message: t("toast.dateRangeOrder"), type: "warning" }); return; }
     setDrBusy(true);
     try {
       const userId = readYasamUser()?.id;
@@ -440,7 +447,7 @@ export default function ClientDetailPage() {
         },
         body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -454,9 +461,9 @@ export default function ClientDetailPage() {
       link.download = `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`;
       link.click();
       URL.revokeObjectURL(url);
-      showToast({ title: "Başarılı", message: "Tarih aralığı raporu indirme başlatıldı.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.dateRangeReportStarted"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally { setDrBusy(false); }
   }
 
@@ -475,7 +482,7 @@ export default function ClientDetailPage() {
         },
         body: JSON.stringify({ exportMode: "tab", tabName: tab }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -489,9 +496,9 @@ export default function ClientDetailPage() {
       link.download = `danisan-${tab}-${nameSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
       link.click();
       URL.revokeObjectURL(url);
-      showToast({ title: "Başarılı", message: "Rapor indirme başlatıldı.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally { setTabWordBusy(false); }
   }
 
@@ -500,9 +507,9 @@ export default function ClientDetailPage() {
     const clientName = client ? `${client.ad ?? ""} ${client.soyad ?? ""}`.trim() : "";
 
     const ok = await deleteConfirm({
-      title: "Danışanı sil",
-      message: `"${clientName || "Bu danışan"}" adlı danışan silinsin mi? Danışan ve bağlı tüm kayıtlar (seanslar, ödevler, randevular, taşlar, analizler) kalıcı olarak silinebilir.`,
-      secondMessage: "Bu işlem geri alınamaz. Danışana ait tüm veriler kalıcı olarak silinecektir. Emin misiniz?",
+      title: t("delete.title"),
+      message: t("delete.message", { name: clientName || t("delete.thisClient") }),
+      secondMessage: t("delete.secondMessage"),
     });
     if (!ok) return;
 
@@ -523,14 +530,14 @@ export default function ClientDetailPage() {
       });
       if (!cascadeRes.ok) {
         console.error("Danışan silme hatası");
-        showToast({ title: "İşlem başarısız", message: "Danışan silinemedi", type: "error" });
+        showToast({ title: t("toast.failTitle"), message: t("toast.deleteClientFailed"), type: "error" });
         setDeletingClient(false);
         return;
       }
       // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir (warnings).
       const cascadeJson = (await cascadeRes.json().catch(() => ({}))) as { warnings?: string[] };
       if (Array.isArray(cascadeJson.warnings) && cascadeJson.warnings.length > 0) {
-        showToast({ title: "Danışan silindi", message: "Bazı ek dosyaların temizliği tamamlanamadı.", type: "warning" });
+        showToast({ title: t("toast.clientDeletedTitle"), message: t("toast.cleanupWarning"), type: "warning" });
       }
     }
 
@@ -573,7 +580,7 @@ export default function ClientDetailPage() {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
         <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
-          Danışan bulunamadı
+          {t("notFound")}
         </div>
       </main>
     );
@@ -592,7 +599,7 @@ export default function ClientDetailPage() {
           disabled={deletingClient}
           className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-extrabold text-red-600 shadow-sm transition-all hover:bg-red-100 disabled:opacity-60"
         >
-          {deletingClient ? "Siliniyor..." : "Danışanı Sil"}
+          {deletingClient ? t("deleting") : t("deleteClient")}
         </button>
       </div>
 
@@ -607,21 +614,21 @@ export default function ClientDetailPage() {
 
         <div className="relative z-10 flex-1 min-w-0">
           <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1.5 text-[11px] font-black text-indigo-700">
-            Danışan Detayı
+            {t("hero.badge")}
           </span>
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
-            {fullName || "İsimsiz Danışan"}
+            {fullName || t("unnamed")}
           </h1>
           <p className="mt-1 hidden text-[12px] text-slate-500 sm:block">
-            Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir.
+            {t("hero.subtitle")}
           </p>
           <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(135px,1fr))]">
-            <Info label="Telefon"       value={client.telefon}              color="#2563eb" />
-            <Info label="Doğum Tarihi"  value={formatDateTR(client.dogum)}  color="#7c3aed" />
-            <Info label="Görüşme Tarihi" value={formatDateTR(client.gorusme)} color="#db2777" />
-            <Info label="Burç"          value={client.burc}                 color="#ea580c" />
-            <Info label="Kan Grubu"     value={client.kan}                  color="#dc2626" />
-            <Info label="Mizaç"         value={client.mizac}                color="#16a34a" />
+            <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" />
+            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" />
+            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" />
+            <Info label={t("info.zodiac")}      value={client.burc}                 color="#ea580c" />
+            <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" />
+            <Info label={t("info.temperament")} value={client.mizac}                color="#16a34a" />
           </div>
         </div>
       </section>
@@ -640,32 +647,32 @@ export default function ClientDetailPage() {
           </div>
           <div
             role="tablist"
-            aria-label="Danışan sekmeleri"
+            aria-label={t("a11y.tabs")}
             className="flex snap-x scroll-smooth items-center gap-1.5 overflow-x-auto py-1 pb-1.5 pr-4 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1 sm:pr-0"
           >
-            <Tab label="Genel Bilgiler"      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
-            <Tab label="Notlar"              id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
-            <Tab label="Randevular"          id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
-            <Tab label="Taşlar"              id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
-            <Tab label="Seanslar"            id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
-            <Tab label="Ödevler"             id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
-            <Tab label="Analizler"           id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
-            <Tab label="✦ Danışan Yolculuğu" id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
-            <Tab label="🧠 Yaşam Hafızası"    id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
+            <Tab label={t("tab.genel")}      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
+            <Tab label={t("tab.notlar")}     id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
+            <Tab label={t("tab.randevular")} id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
+            <Tab label={t("tab.taslar")}     id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
+            <Tab label={t("tab.seanslar")}   id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
+            <Tab label={t("tab.odevler")}    id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
+            <Tab label={t("tab.analizler")}  id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
+            <Tab label={t("tab.yolculuk")}   id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
+            <Tab label={t("tab.hafiza")}     id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
             <button
               onClick={() => setYhPickerOpen(true)}
-              aria-label="Yaşam Hafızası'ndan rapora kayıt seç"
+              aria-label={t("a11y.yhSelect")}
               className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-violet-200 bg-violet-50 px-[18px] py-2.5 text-[13px] font-extrabold text-violet-700 transition-all hover:bg-violet-100 md:inline-flex md:items-center"
             >
-              🧠 Yaşam Hafızası&apos;ndan Seç{yhSelectionCount > 0 ? ` (${yhSelectionCount})` : ""}
+              {t("yh.selectButton")}{yhSelectionCount > 0 ? ` (${yhSelectionCount})` : ""}
             </button>
             <button
               onClick={generateWordReport}
               disabled={generatingReport}
-              aria-label="Tam Word raporu oluştur"
+              aria-label={t("a11y.fullWordReport")}
               className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60 md:inline-flex md:items-center"
             >
-              {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
+              {generatingReport ? t("report.generating") : t("report.wordReport")}
             </button>
           </div>
         </div>
@@ -677,17 +684,17 @@ export default function ClientDetailPage() {
             onClick={() => setDrOpen((v) => !v)}
             className={`flex w-full items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-[12px] font-extrabold text-slate-700 transition-colors ${drOpen ? "bg-slate-100" : "bg-white hover:bg-slate-50"}`}
           >
-            <span>📅 Tarih Aralığı Raporu</span>
-            <span className="ml-auto text-[12px] text-slate-400">{drOpen ? "▲ Kapat" : "▼ Aç"}</span>
+            <span>{t("dateRange.title")}</span>
+            <span className="ml-auto text-[12px] text-slate-400">{drOpen ? t("dateRange.close") : t("dateRange.open")}</span>
           </button>
           {drOpen && (
             <div className="mt-1.5 flex flex-wrap items-end gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div>
-                <label className={labelCls}>Başlangıç</label>
+                <label className={labelCls}>{t("dateRange.startLabel")}</label>
                 <input type="date" value={drStart} onChange={(e) => setDrStart(e.target.value)} className={`${inputCls} w-[150px]`} />
               </div>
               <div>
-                <label className={labelCls}>Bitiş</label>
+                <label className={labelCls}>{t("dateRange.endLabel")}</label>
                 <input type="date" value={drEnd} onChange={(e) => setDrEnd(e.target.value)} className={`${inputCls} w-[150px]`} />
               </div>
               <button
@@ -695,7 +702,7 @@ export default function ClientDetailPage() {
                 disabled={drBusy || !drStart || !drEnd}
                 className="btn-secondary self-end disabled:opacity-60"
               >
-                {drBusy ? "⏳ Oluşturuluyor..." : "Word Oluştur"}
+                {drBusy ? t("report.generating") : t("dateRange.generate")}
               </button>
             </div>
           )}
@@ -722,16 +729,16 @@ export default function ClientDetailPage() {
                 <>
                   <div className="mb-2.5">
                     <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
-                      {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Genel Bilgiler Word"}
+                      {tabWordBusy ? t("report.generating") : t("tabWord.genel")}
                     </button>
                   </div>
 
                   {/* Başlık + düzenle/vazgeç butonu */}
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1.5 text-[11px] font-black text-blue-700">Genel Bilgiler</span>
+                      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1.5 text-[11px] font-black text-blue-700">{t("general.badge")}</span>
                       <h2 className="mt-2 text-[22px] font-black text-slate-950">
-                        {isEditingGeneral ? "Danışan Bilgilerini Düzenle" : "Danışan Bilgileri"}
+                        {isEditingGeneral ? t("general.editTitle") : t("general.title")}
                       </h2>
                     </div>
                     <div className="flex items-center gap-2">
@@ -739,17 +746,17 @@ export default function ClientDetailPage() {
                         <button
                           onClick={enterGeneralEdit}
                           disabled={notesLoading}
-                          title={notesLoading ? "Notlar yükleniyor…" : undefined}
+                          title={notesLoading ? t("general.notesLoadingTitle") : undefined}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
                         >
-                          ✎ Bilgileri Güncelle
+                          {t("general.editButton")}
                         </button>
                       ) : (
                         <button
                           onClick={cancelGeneralEdit}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50"
                         >
-                          ✕ Vazgeç
+                          {t("general.cancelButton")}
                         </button>
                       )}
                     </div>
@@ -758,25 +765,26 @@ export default function ClientDetailPage() {
                   {/* Bilgi alanları */}
                   <div className="mb-1 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
                     <div>
-                      <label className={labelCls}>Ad</label>
-                      <input readOnly={!isEditingGeneral} value={editAd} onChange={(e) => setEditAd(e.target.value)} className={fldCls} placeholder="Ad" />
+                      <label className={labelCls}>{t("form.ad")}</label>
+                      <input readOnly={!isEditingGeneral} value={editAd} onChange={(e) => setEditAd(e.target.value)} className={fldCls} placeholder={t("form.ad")} />
                     </div>
                     <div>
-                      <label className={labelCls}>Soyad</label>
-                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={fldCls} placeholder="Soyad" />
+                      <label className={labelCls}>{t("form.soyad")}</label>
+                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={fldCls} placeholder={t("form.soyad")} />
                     </div>
                     <div>
-                      <label className={labelCls}>Telefon</label>
-                      <input readOnly={!isEditingGeneral} value={editTelefon} onChange={(e) => setEditTelefon(e.target.value)} className={fldCls} placeholder="05xx xxx xx xx" />
+                      <label className={labelCls}>{t("form.telefon")}</label>
+                      <input readOnly={!isEditingGeneral} value={editTelefon} onChange={(e) => setEditTelefon(e.target.value)} className={fldCls} placeholder={t("form.telefonPlaceholder")} />
                     </div>
                     <div>
-                      <label className={labelCls}>Doğum Tarihi</label>
+                      <label className={labelCls}>{t("form.dogum")}</label>
                       <BirthDateInput value={editDogum} onChange={isEditingGeneral ? setEditDogum : () => {}} className={fldCls} />
                     </div>
                     <div>
-                      <label className={labelCls}>Kan Grubu</label>
+                      <label className={labelCls}>{t("form.kan")}</label>
+                      {/* Kan grubu <option> metni = canonical değerdir (value attr yok) → DEĞİŞMEZ. */}
                       <select disabled={!isEditingGeneral} value={editKan} onChange={(e) => setEditKan(e.target.value)} className={`${fldCls} disabled:opacity-100`}>
-                        <option value="">Seçiniz</option>
+                        <option value="">{t("form.select")}</option>
                         <option>A Rh+</option><option>A Rh-</option>
                         <option>B Rh+</option><option>B Rh-</option>
                         <option>AB Rh+</option><option>AB Rh-</option>
@@ -784,40 +792,41 @@ export default function ClientDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className={labelCls}>Mizaç</label>
+                      <label className={labelCls}>{t("form.mizac")}</label>
+                      {/* value=canonical mizaç kodu (DEĞİŞMEZ); görünen etiket i18n. */}
                       <select disabled={!isEditingGeneral} value={editMizac} onChange={(e) => setEditMizac(e.target.value)} className={`${fldCls} disabled:opacity-100`}>
-                        <option value="">Seçiniz</option>
-                        <option value="safra">Safra</option>
-                        <option value="sovdavi">Sovdavi</option>
-                        <option value="dem">Dem</option>
-                        <option value="balgam">Balgam</option>
+                        <option value="">{t("form.select")}</option>
+                        <option value="safra">{t("mizac.safra")}</option>
+                        <option value="sovdavi">{t("mizac.sovdavi")}</option>
+                        <option value="dem">{t("mizac.dem")}</option>
+                        <option value="balgam">{t("mizac.balgam")}</option>
                       </select>
                     </div>
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3.5">
                     {notesLoading && (
-                      <p className="text-[11px] font-bold text-slate-400">Notlar yükleniyor…</p>
+                      <p className="text-[11px] font-bold text-slate-400">{t("general.notesLoading")}</p>
                     )}
                     <div>
-                      <label className={labelCls}>Sağlık Notu</label>
-                      <textarea readOnly={!isEditingGeneral} value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={areaCls} placeholder="Danışanın sağlık notları..." />
+                      <label className={labelCls}>{t("form.saglikNotu")}</label>
+                      <textarea readOnly={!isEditingGeneral} value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={areaCls} placeholder={t("form.saglikNotuPlaceholder")} />
                     </div>
                     <div>
-                      <label className={labelCls}>Adres</label>
-                      <textarea readOnly={!isEditingGeneral} value={adres} onChange={(e) => setAdres(e.target.value)} className={areaCls} placeholder="Adres bilgisi..." />
+                      <label className={labelCls}>{t("form.adres")}</label>
+                      <textarea readOnly={!isEditingGeneral} value={adres} onChange={(e) => setAdres(e.target.value)} className={areaCls} placeholder={t("form.adresPlaceholder")} />
                     </div>
                     <div>
-                      <label className={labelCls}>Öneriler</label>
-                      <textarea readOnly={!isEditingGeneral} value={oneriler} onChange={(e) => setOneriler(e.target.value)} className={areaCls} placeholder="Danışana verilen genel öneriler..." />
+                      <label className={labelCls}>{t("form.oneriler")}</label>
+                      <textarea readOnly={!isEditingGeneral} value={oneriler} onChange={(e) => setOneriler(e.target.value)} className={areaCls} placeholder={t("form.onerilerPlaceholder")} />
                     </div>
                     {isEditingGeneral && (
                       <div className="flex items-center gap-3 border-t border-slate-200 pt-4">
                         <button onClick={saveAllGeneralInfo} disabled={savingAll} className="btn-primary disabled:opacity-70">
-                          {savingAll ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
+                          {savingAll ? t("general.saving") : t("general.save")}
                         </button>
                         <button onClick={cancelGeneralEdit} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50">
-                          Vazgeç
+                          {t("cancel")}
                         </button>
                       </div>
                     )}
@@ -834,7 +843,7 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-notlar" aria-labelledby="tab-notlar" hidden={activeTab !== "notlar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("notlar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Notlar Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.notlar")}
                 </button>
               </div>
               <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
@@ -845,10 +854,10 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-randevular" aria-labelledby="tab-randevular" hidden={activeTab !== "randevular"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("randevular")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Randevu Geçmişi Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.randevular")}
                 </button>
               </div>
-              <AppointmentsTab clientId={client.id} clientName={fullName || "Danışan"} tenantId={tenantId} confirm={confirm} showToast={showToast} />
+              <AppointmentsTab clientId={client.id} clientName={fullName || t("clientFallback")} tenantId={tenantId} confirm={confirm} showToast={showToast} />
           </div>
           )}
 
@@ -856,7 +865,7 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-taslar" aria-labelledby="tab-taslar" hidden={activeTab !== "taslar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("taslar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Taşlar Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.taslar")}
                 </button>
               </div>
               <StonesTab clientId={client.id} />
@@ -867,7 +876,7 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-seanslar" aria-labelledby="tab-seanslar" hidden={activeTab !== "seanslar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("seanslar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Seans Geçmişi Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.seanslar")}
                 </button>
               </div>
               <SessionsTab clientId={client.id} />
@@ -878,7 +887,7 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-odevler" aria-labelledby="tab-odevler" hidden={activeTab !== "odevler"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("odevler")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Ödev Takip Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.odevler")}
                 </button>
               </div>
               <HomeworkTab clientId={client.id} />
@@ -889,10 +898,10 @@ export default function ClientDetailPage() {
           <div role="tabpanel" id="tabpanel-analizler" aria-labelledby="tab-analizler" hidden={activeTab !== "analizler"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("analizler")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Analiz Sonuçları Word"}
+                  {tabWordBusy ? t("report.generating") : t("tabWord.analizler")}
                 </button>
               </div>
-              <AnalizlerTab clientId={client.id} clientName={fullName || "Danışan"} />
+              <AnalizlerTab clientId={client.id} clientName={fullName || t("clientFallback")} />
           </div>
           )}
 
@@ -901,7 +910,7 @@ export default function ClientDetailPage() {
             <YolculukTab
               clientId={client.id}
               tenantId={tenantId}
-              clientName={fullName || "Danışan"}
+              clientName={fullName || t("clientFallback")}
               clientPhone={client.telefon}
               clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
               clientAd={client.ad}
@@ -913,7 +922,7 @@ export default function ClientDetailPage() {
           )}
           {openedTabs.has("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
-            <ClientMemoryTab clientId={client.id} clientName={fullName || "Danışan"} />
+            <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
           </div>
           )}
         </DanisanSectionShell>
@@ -922,12 +931,12 @@ export default function ClientDetailPage() {
             open={yhPickerOpen}
             onClose={() => setYhPickerOpen(false)}
             targetKind="report"
-            fixedClient={{ id: client.id, name: fullName || "Danışan" }}
+            fixedClient={{ id: client.id, name: fullName || t("clientFallback") }}
             onConfirmed={({ selectionGroupId, total }) => {
               setYhSelectionGroupId(selectionGroupId);
               setYhSelectionCount(total);
               setYhPickerOpen(false);
-              showToast({ title: "Eklendi", message: `${total} kayıt raporun Yaşam Hafızası bölümüne eklenecek.`, type: "success" });
+              showToast({ title: t("toast.addedTitle"), message: t("toast.yhAdded", { count: total }), type: "success" });
             }}
           />
         ) : null}
@@ -948,6 +957,7 @@ function AppointmentsTab({
   confirm: ReturnType<typeof useConfirm>["confirm"];
   showToast: ReturnType<typeof useToast>["showToast"];
 }) {
+  const t = useTranslations("clients.detail");
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -955,7 +965,7 @@ function AppointmentsTab({
   const [showForm, setShowForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-  const [title, setTitle] = useState("Seans");
+  const [title, setTitle] = useState(() => t("appt.defaultTitle"));
   const [notes, setNotes] = useState("");
   // MOBİL-01/02: seans sayısı ve "kaç günde bir" ham string tutulur ki alan
   // boşaltılabilsin/çok haneli yazılabilsin; geçerli tam sayı blur + submit'te netleşir.
@@ -982,7 +992,7 @@ function AppointmentsTab({
         ...(apptToken ? { "x-session-token": apptToken } : {}),
       },
     });
-    if (!apptRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevular yüklenemedi", type: "error" }); setLoading(false); return; }
+    if (!apptRes.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.loadFailed"), type: "error" }); setLoading(false); return; }
     const apptJson = (await apptRes.json()) as { appointments?: Appointment[] };
     setAppointments(apptJson.appointments ?? []);
     setLoading(false);
@@ -1008,7 +1018,7 @@ function AppointmentsTab({
   }
 
   function resetForm() {
-    setTitle("Seans");
+    setTitle(t("appt.defaultTitle"));
     setNotes("");
     setSessionCount("1");
     setPlanningMode("auto");
@@ -1022,10 +1032,10 @@ function AppointmentsTab({
   // "İptal Et" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
   async function requestCancelAppointment(id: string) {
     const ok = await confirm({
-      title: "Randevu iptal edilsin mi?",
-      message: 'Bu randevunun durumu "İptal" olarak değiştirilecek.',
-      confirmText: "Randevuyu İptal Et",
-      cancelText: "Vazgeç",
+      title: t("appt.cancelConfirm.title"),
+      message: t("appt.cancelConfirm.message"),
+      confirmText: t("appt.cancelConfirm.confirm"),
+      cancelText: t("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -1035,10 +1045,10 @@ function AppointmentsTab({
   // "Tamamlandı" → önce global confirm, sonra durum PATCH. (Danışanın son görüşme tarihi de güncellenir.)
   async function requestCompleteAppointment(id: string) {
     const ok = await confirm({
-      title: "Randevu tamamlandı olarak işaretlensin mi?",
-      message: 'Bu randevunun durumu "Tamamlandı" olarak değiştirilecek ve danışanın son görüşme tarihi güncellenecek.',
-      confirmText: "Tamamlandı Yap",
-      cancelText: "Vazgeç",
+      title: t("appt.completeConfirm.title"),
+      message: t("appt.completeConfirm.message"),
+      confirmText: t("appt.completeConfirm.confirm"),
+      cancelText: t("cancel"),
       tone: "success",
     });
     if (!ok) return;
@@ -1067,13 +1077,13 @@ function AppointmentsTab({
 
     // ── EDIT modu: yalnız seçili TEK randevu güncellenir (title/notes/appointment_date) ──
     if (editingId) {
-      if (!date) { showToast({ title: "Eksik bilgi", message: "Tarih seçmelisiniz", type: "warning" }); return; }
+      if (!date) { showToast({ title: t("appt.missingTitle"), message: t("appt.dateRequired"), type: "warning" }); return; }
       if (isPastCalendarDay(date)) {
         const ok = await confirm({
-          title: "Geçmiş tarihli randevu",
-          message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
-          confirmText: "Yine de Kaydet",
-          cancelText: "Vazgeç",
+          title: t("appt.pastConfirm.title"),
+          message: t("appt.pastConfirm.message"),
+          confirmText: t("appt.pastConfirm.confirm"),
+          cancelText: t("cancel"),
           tone: "warning",
         });
         if (!ok) return;
@@ -1087,13 +1097,13 @@ function AppointmentsTab({
           "x-user-id": readYasamUser()?.id ?? "",
           ...(editToken ? { "x-session-token": editToken } : {}),
         },
-        body: JSON.stringify({ title: title || "Seans", notes: notes || null, appointment_date: new Date(date).toISOString() }),
+        body: JSON.stringify({ title: title || t("appt.defaultTitle"), notes: notes || null, appointment_date: new Date(date).toISOString() }),
       });
-      if (!res.ok) { showToast({ title: "İşlem başarısız", message: "Randevu güncellenemedi", type: "error" }); setSaving(false); return; }
+      if (!res.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.updateFailed"), type: "error" }); setSaving(false); return; }
       resetForm();
       await loadAppointments();
       setSaving(false);
-      showToast({ title: "Başarılı", message: "Randevu güncellendi", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("appt.updated"), type: "success" });
       return;
     }
 
@@ -1101,19 +1111,21 @@ function AppointmentsTab({
     let rows: { tenant_id: string; client_id: string; title: string; notes: string | null; appointment_date: string; status: AppointmentStatus }[] = [];
 
     if (planningMode === "auto") {
-      if (!date) { showToast({ title: "Eksik bilgi", message: "Başlangıç tarihi seçmelisiniz", type: "warning" }); return; }
+      if (!date) { showToast({ title: t("appt.missingTitle"), message: t("appt.startDateRequired"), type: "warning" }); return; }
       const interval = Math.max(1, Math.floor(Number(dayInterval)) || 1);
       const startDate = new Date(date);
+      const baseTitle = title || t("appt.defaultTitle");
       rows = Array.from({ length: count }).map((_, i) => {
         const d = new Date(startDate);
         d.setDate(startDate.getDate() + i * interval);
-        return { tenant_id: tenantId, client_id: clientId, title: count > 1 ? `${title || "Seans"} ${i + 1}/${count}` : title || "Seans", notes: notes || null, appointment_date: d.toISOString(), status: "bekliyor" };
+        return { tenant_id: tenantId, client_id: clientId, title: count > 1 ? `${baseTitle} ${i + 1}/${count}` : baseTitle, notes: notes || null, appointment_date: d.toISOString(), status: "bekliyor" };
       });
     } else {
       const filled = manualDates.slice(0, count);
       const emptyIdx = filled.findIndex((x) => !x);
-      if (emptyIdx !== -1) { showToast({ title: "Eksik bilgi", message: `${emptyIdx + 1}. randevu tarihini seçmelisiniz`, type: "warning" }); return; }
-      rows = filled.map((d, i) => ({ tenant_id: tenantId, client_id: clientId, title: count > 1 ? `${title || "Seans"} ${i + 1}/${count}` : title || "Seans", notes: notes || null, appointment_date: new Date(d).toISOString(), status: "bekliyor" }));
+      if (emptyIdx !== -1) { showToast({ title: t("appt.missingTitle"), message: t("appt.nthDateRequired", { n: emptyIdx + 1 }), type: "warning" }); return; }
+      const baseTitle = title || t("appt.defaultTitle");
+      rows = filled.map((d, i) => ({ tenant_id: tenantId, client_id: clientId, title: count > 1 ? `${baseTitle} ${i + 1}/${count}` : baseTitle, notes: notes || null, appointment_date: new Date(d).toISOString(), status: "bekliyor" }));
     }
 
     // Geçmiş takvim günü (dün ve öncesi) seçilmişse → uyarı + açık onay; form verisi korunur.
@@ -1122,10 +1134,10 @@ function AppointmentsTab({
       : manualDates.slice(0, count).some((d) => isPastCalendarDay(d));
     if (anyPast) {
       const ok = await confirm({
-        title: "Geçmiş tarihli randevu",
-        message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
-        confirmText: "Yine de Kaydet",
-        cancelText: "Vazgeç",
+        title: t("appt.pastConfirm.title"),
+        message: t("appt.pastConfirm.message"),
+        confirmText: t("appt.pastConfirm.confirm"),
+        cancelText: t("cancel"),
         tone: "warning",
       });
       if (!ok) return;
@@ -1147,7 +1159,7 @@ function AppointmentsTab({
       });
       if (!res.ok) { apptErr = true; break; }
     }
-    if (apptErr) { showToast({ title: "İşlem başarısız", message: "Randevu kayıt hatası", type: "error" }); setSaving(false); return; }
+    if (apptErr) { showToast({ title: t("toast.failTitle"), message: t("appt.saveError"), type: "error" }); setSaving(false); return; }
     resetForm();
     await loadAppointments();
     setSaving(false);
@@ -1164,7 +1176,7 @@ function AppointmentsTab({
       },
       body: JSON.stringify({ status }),
     });
-    if (!statusRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevu durumu güncellenemedi", type: "error" }); return; }
+    if (!statusRes.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.statusUpdateFailed"), type: "error" }); return; }
     setSelectedAppointment((old) => old && old.id === id ? { ...old, status } : old);
 
     // Z-3: Randevu tamamlandığında clients.gorusme güncelle
@@ -1202,8 +1214,8 @@ function AppointmentsTab({
 
   async function deleteAppointment(id: string) {
     const ok = await deleteConfirm({
-      title: "Randevuyu sil",
-      message: "Bu randevu silinsin mi?",
+      title: t("appt.delete.title"),
+      message: t("appt.delete.message"),
     });
     if (!ok) return;
     const delToken = readSessionToken();
@@ -1214,7 +1226,7 @@ function AppointmentsTab({
         ...(delToken ? { "x-session-token": delToken } : {}),
       },
     });
-    if (!delRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevu silinemedi", type: "error" }); return; }
+    if (!delRes.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.deleteFailed"), type: "error" }); return; }
     setSelectedAppointment(null);
     await loadAppointments();
   }
@@ -1227,22 +1239,22 @@ function AppointmentsTab({
       {/* Header */}
       <div className="mb-3.5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="inline-flex rounded-full bg-pink-100 px-2.5 py-1.5 text-[11px] font-black text-pink-700">Danışana Özel Ajanda</span>
-          <h2 className="mt-1.5 mb-0.5 text-[22px] font-black text-slate-950">Randevular</h2>
-          <p className="text-[13px] text-slate-500">{clientName} için oluşturulan tüm randevular burada görünür.</p>
+          <span className="inline-flex rounded-full bg-pink-100 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{t("appt.badge")}</span>
+          <h2 className="mt-1.5 mb-0.5 text-[22px] font-black text-slate-950">{t("appt.title")}</h2>
+          <p className="text-[13px] text-slate-500">{t("appt.subtitle", { name: clientName })}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap gap-1.5">
-            <MiniStat label="Toplam"   value={appointments.length} color="#db2777" bg="#fdf2f8" />
-            <MiniStat label="Yaklaşan" value={upcomingCount}        color="#16a34a" bg="#f0fdf4" />
-            <MiniStat label="Geçmiş"   value={pastCount}            color="#64748b" bg="#f8fafc" />
+            <MiniStat label={t("appt.stat.total")}    value={appointments.length} color="#db2777" bg="#fdf2f8" />
+            <MiniStat label={t("appt.stat.upcoming")} value={upcomingCount}        color="#16a34a" bg="#f0fdf4" />
+            <MiniStat label={t("appt.stat.past")}     value={pastCount}            color="#64748b" bg="#f8fafc" />
           </div>
           <button
             type="button"
             onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
             className={`rounded-xl px-3.5 py-2.5 text-[13px] font-extrabold transition-all ${showForm ? "border border-slate-200 bg-slate-50 text-slate-700" : "border-0 bg-gradient-to-br from-indigo-600 to-pink-600 text-white shadow-md hover:-translate-y-0.5 hover:shadow-lg"}`}
           >
-            {showForm ? "Formu Kapat" : "+ Yeni Randevu Ekle"}
+            {showForm ? t("appt.toggleClose") : t("appt.toggleOpen")}
           </button>
         </div>
       </div>
@@ -1252,42 +1264,42 @@ function AppointmentsTab({
         <div className="mb-3.5 rounded-[18px] border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-3.5 shadow-sm">
           <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <span className="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{editingId ? "Randevu Düzenle" : "Yeni Randevu"}</span>
-              <h3 className="mt-1.5 text-[18px] font-black text-slate-950">{editingId ? "Randevu Düzenle" : "Yeni Randevu Ekle"}</h3>
+              <span className="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{editingId ? t("appt.form.editBadge") : t("appt.form.newBadge")}</span>
+              <h3 className="mt-1.5 text-[18px] font-black text-slate-950">{editingId ? t("appt.form.editTitle") : t("appt.form.newTitle")}</h3>
             </div>
             <button type="button" onClick={resetForm}
               className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-extrabold text-slate-700 hover:bg-slate-50">
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
 
           <div className="flex flex-col gap-2">
             <div>
-              <label className={labelCls}>Başlık</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder="Örn: Biyoenerji Seansı" />
+              <label className={labelCls}>{t("appt.form.titleLabel")}</label>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder={t("appt.form.titlePlaceholder")} />
             </div>
             <div>
-              <label className={labelCls}>Not</label>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={`${textareaCls} min-h-[90px]`} placeholder="Randevu notu..." />
+              <label className={labelCls}>{t("appt.form.noteLabel")}</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={`${textareaCls} min-h-[90px]`} placeholder={t("appt.form.notePlaceholder")} />
             </div>
             {/* Seri/tekrar kontrolleri — edit modunda gizli (tek kayıt) */}
             {!editingId && (
             <>
             <div>
-              <label className={labelCls}>Seans Sayısı</label>
+              <label className={labelCls}>{t("appt.form.sessionCount")}</label>
               <input type="number" min={1} step={1} value={sessionCount} onChange={(e) => handleSessionCountChange(e.target.value)} onBlur={(e) => normalizeCountInput(setSessionCount)(e.target.value)} className={inputCls} />
             </div>
 
             <div className="rounded-[15px] border border-indigo-200 bg-indigo-50 p-2.5">
-              <label className={labelCls}>Planlama Türü</label>
+              <label className={labelCls}>{t("appt.form.planningType")}</label>
               <div className="grid grid-cols-2 gap-2.5">
                 <button onClick={() => setPlanningMode("auto")}
                   className={`rounded-xl border border-slate-200 p-2 text-[12px] font-extrabold cursor-pointer transition-colors ${planningMode === "auto" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-indigo-600 hover:bg-indigo-50"}`}>
-                  Otomatik Aralık
+                  {t("appt.form.autoInterval")}
                 </button>
                 <button onClick={() => setPlanningMode("manual")}
                   className={`rounded-xl border border-slate-200 p-2 text-[12px] font-extrabold cursor-pointer transition-colors ${planningMode === "manual" ? "bg-pink-600 text-white border-pink-600" : "bg-white text-pink-600 hover:bg-pink-50"}`}>
-                  Tek Tek Tarih
+                  {t("appt.form.manualDates")}
                 </button>
               </div>
             </div>
@@ -1297,12 +1309,12 @@ function AppointmentsTab({
             {(editingId || planningMode === "auto") && (
               <>
                 <div>
-                  <label className={labelCls}>{editingId ? "Tarih / Saat" : "Başlangıç Tarihi"}</label>
+                  <label className={labelCls}>{editingId ? t("appt.form.dateTime") : t("appt.form.startDate")}</label>
                   <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
                 </div>
                 {!editingId && (
                 <div>
-                  <label className={labelCls}>Kaç Günde Bir?</label>
+                  <label className={labelCls}>{t("appt.form.everyNDays")}</label>
                   <input type="number" min={1} step={1} value={dayInterval} onChange={(e) => setDayInterval(e.target.value)} onBlur={(e) => normalizeCountInput(setDayInterval)(e.target.value)} className={inputCls} />
                 </div>
                 )}
@@ -1311,10 +1323,10 @@ function AppointmentsTab({
 
             {!editingId && planningMode === "manual" && (
               <div className="rounded-[15px] border border-pink-200 bg-pink-50 p-2.5">
-                <strong className="text-[13px] font-black text-pink-700">Randevu Tarihleri</strong>
+                <strong className="text-[13px] font-black text-pink-700">{t("appt.form.appointmentDates")}</strong>
                 {Array.from({ length: Math.max(1, Math.floor(Number(sessionCount)) || 1) }).map((_, i) => (
                   <div key={i} className="mt-2.5">
-                    <label className={labelCls}>{i + 1}. Randevu</label>
+                    <label className={labelCls}>{t("appt.form.nthAppointment", { n: i + 1 })}</label>
                     <input type="datetime-local" value={manualDates[i] || ""} onChange={(e) => updateManualDate(i, e.target.value)} className={inputCls} />
                   </div>
                 ))}
@@ -1322,7 +1334,7 @@ function AppointmentsTab({
             )}
 
             <button onClick={createAppointments} disabled={saving} className="btn-secondary w-full justify-center disabled:opacity-60">
-              {saving ? "Kaydediliyor..." : editingId ? "Güncelle" : "Randevu Oluştur"}
+              {saving ? t("appt.form.saving") : editingId ? t("appt.form.update") : t("appt.form.create")}
             </button>
           </div>
         </div>
@@ -1330,18 +1342,18 @@ function AppointmentsTab({
 
       {/* Appointment list */}
       <div className="rounded-[18px] border border-slate-200 bg-white p-3.5 shadow-sm">
-        <h3 className="mb-3 mt-1.5 text-[18px] font-black text-slate-950">Randevu Listesi</h3>
+        <h3 className="mb-3 mt-1.5 text-[18px] font-black text-slate-950">{t("appt.listTitle")}</h3>
 
         {loading ? (
-          <p className="text-[13px] text-slate-500">Randevular yükleniyor...</p>
+          <p className="text-[13px] text-slate-500">{t("appt.loading")}</p>
         ) : appointments.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-[18px] text-[13px] font-bold text-slate-500">
-            Bu danışan için henüz randevu yok.
+            {t("appt.empty")}
           </div>
         ) : (
           <div className="grid gap-3.5">
             {appointments.map((item, index) => {
-              const si = getAppointmentStatusInfo(item);
+              const si = getAppointmentStatusInfo(item, t);
               const leftBorder = getLeftBorderClass(item.status, item.appointment_date);
               return (
                 <button
@@ -1355,7 +1367,7 @@ function AppointmentsTab({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-[15px] font-black text-slate-950">{item.title || "Görüşme"}</div>
+                      <div className="text-[15px] font-black text-slate-950">{item.title || t("appt.titleFallback")}</div>
                       <span className="rounded-full px-2 py-1 text-[11px] font-black"
                         style={{ background: si.bg, color: si.color, border: `1px solid ${si.border}` }}>
                         {si.label}
@@ -1385,8 +1397,8 @@ function AppointmentsTab({
           >
             <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-pink-700 p-[18px] text-white">
               <div>
-                <span className="inline-flex rounded-full bg-white/14 px-2.5 py-1.5 text-[11px] font-black">Randevu Detayı</span>
-                <h3 className="mt-2 text-[24px] font-black">{selectedAppointment.title || "Görüşme"}</h3>
+                <span className="inline-flex rounded-full bg-white/14 px-2.5 py-1.5 text-[11px] font-black">{t("appt.modal.badge")}</span>
+                <h3 className="mt-2 text-[24px] font-black">{selectedAppointment.title || t("appt.titleFallback")}</h3>
               </div>
               <button
                 type="button"
@@ -1400,39 +1412,39 @@ function AppointmentsTab({
             <div className="grid gap-3 p-[18px]">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[12px] font-bold text-slate-500">Danışan</span>
+                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.client")}</span>
                   <strong className="text-[14px] text-slate-950">{clientName}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[12px] font-bold text-slate-500">Tarih / Saat</span>
+                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
                   <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
-                  style={{ borderColor: getAppointmentStatusInfo(selectedAppointment).border, background: getAppointmentStatusInfo(selectedAppointment).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment).border}` }}>
-                  <span className="text-[12px] font-bold text-slate-500">Durum</span>
-                  <strong className="text-[14px]" style={{ color: getAppointmentStatusInfo(selectedAppointment).color }}>
-                    {getAppointmentStatusInfo(selectedAppointment).label}
+                  style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>
+                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.status")}</span>
+                  <strong className="text-[14px]" style={{ color: getAppointmentStatusInfo(selectedAppointment, t).color }}>
+                    {getAppointmentStatusInfo(selectedAppointment, t).label}
                   </strong>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                <span className="block mb-1.5 text-[12px] font-bold text-slate-500">Not</span>
-                <p className="text-[13px] text-slate-700">{selectedAppointment.notes || "Not girilmemiş."}</p>
+                <span className="block mb-1.5 text-[12px] font-bold text-slate-500">{t("appt.modal.note")}</span>
+                <p className="text-[13px] text-slate-700">{selectedAppointment.notes || t("appt.modal.noNote")}</p>
               </div>
 
               {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
               <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
                 className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
-                Düzenle
+                {t("appt.modal.edit")}
               </button>
 
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">Tamamlandı</button>
-                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">İptal Et</button>
+                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">{t("appt.modal.complete")}</button>
+                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">{t("appt.modal.cancel")}</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
                   className="btn-danger justify-center" style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}>
-                  Sil
+                  {t("appt.modal.delete")}
                 </button>
               </div>
             </div>
@@ -1505,6 +1517,7 @@ function NumerolojikOzetKart({
   soyad: string;
   dogum: string;
 }) {
+  const t = useTranslations("clients.detail");
   if (!dogum.trim()) return null;
 
   const firstName = ad.trim();
@@ -1541,12 +1554,12 @@ function NumerolojikOzetKart({
   } catch { /* sessiz */ }
 
   const coreItems = [
-    { label: "Ana Kulvar",      value: ruhSayisi,     color: "#16a34a" },
-    { label: "Yan Kulvar",      value: kisilikSayisi, color: "#db2777" },
-    { label: "İfade Sayısı",    value: kaderSayisi,   color: "#2563eb" },
-    { label: "Hayat Yolu / DM", value: hayatYolu,     color: "#7c3aed" },
-    { label: "Kişisel Yıl",    value: kisiselYil,    color: "#ea580c" },
-    ...(guncelYas != null ? [{ label: "Güncel Yaş", value: String(guncelYas), color: "#64748b" }] : []),
+    { label: t("num.anaKulvar"),   value: ruhSayisi,     color: "#16a34a" },
+    { label: t("num.yanKulvar"),   value: kisilikSayisi, color: "#db2777" },
+    { label: t("num.ifadeSayisi"), value: kaderSayisi,   color: "#2563eb" },
+    { label: t("num.hayatYolu"),   value: hayatYolu,     color: "#7c3aed" },
+    { label: t("num.kisiselYil"),  value: kisiselYil,    color: "#ea580c" },
+    ...(guncelYas != null ? [{ label: t("num.guncelYas"), value: String(guncelYas), color: "#64748b" }] : []),
   ];
 
   // ── Element dağılımı — parseBirthDate DD.MM.YYYY ister ───────────────────
@@ -1571,7 +1584,7 @@ function NumerolojikOzetKart({
       if (zirve && zirve.peaks.length > 0) {
         // Yaşını bilmesek de tüm zirveleri göster — birincisini al
         const p = zirve.peaks[0];
-        nearestPeakLabel = `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`;
+        nearestPeakLabel = t("num.peakLabel", { index: p.index, age: p.age, topic: p.topic });
         // Varsa sonraki zirveleri de kontrol et — en küçük yaşlı birincisi zaten
       }
     } catch { /* sessiz */ }
@@ -1582,13 +1595,13 @@ function NumerolojikOzetKart({
       {/* Başlık */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-base text-violet-500">∞</span>
-        <span className="text-[13px] font-black text-violet-900">Numeroloji Özeti</span>
+        <span className="text-[13px] font-black text-violet-900">{t("num.title")}</span>
         <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[12px] font-black text-violet-600">
-          Salt Okunur · Otomatik
+          {t("num.readonly")}
         </span>
         {!hasName && (
           <span className="text-[12px] font-bold text-slate-400">
-            Ad/soyad girilince tamamlanır
+            {t("num.needName")}
           </span>
         )}
       </div>
@@ -1613,7 +1626,8 @@ function NumerolojikOzetKart({
       {/* Element dağılımı */}
       {hasElements && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[12px] font-black text-slate-500">Element:</span>
+          <span className="text-[12px] font-black text-slate-500">{t("num.element")}</span>
+          {/* element adları ("Hava"/"Su"/"Ateş"/"Toprak") persisted DATA key'idir — DEĞİŞMEZ. */}
           {ELEMENT_ORDER.map((name) => {
             const meta = ELEMENT_META[name];
             return (
@@ -1628,7 +1642,7 @@ function NumerolojikOzetKart({
           })}
           {dominantElement && (
             <span className="ml-auto text-[12px] font-bold text-slate-400">
-              baskın: {dominantElement}
+              {t("num.dominant")} {dominantElement}
             </span>
           )}
         </div>
@@ -1637,7 +1651,7 @@ function NumerolojikOzetKart({
       {/* En yakın zirve */}
       {nearestPeakLabel && (
         <div className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[12px] font-black text-slate-500">Zirve:</span>
+          <span className="text-[12px] font-black text-slate-500">{t("num.peak")}</span>
           <span className="text-[12px] font-black text-indigo-700">{nearestPeakLabel}</span>
         </div>
       )}
@@ -1648,7 +1662,7 @@ function NumerolojikOzetKart({
           href={buildAnalizHref(dogum, firstName, lastName)}
           className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-white px-3.5 py-2 text-[12px] font-black text-violet-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md"
         >
-          ∞ Tam Numeroloji Analizi Aç →
+          {t("num.fullAnalysis")}
         </Link>
       </div>
     </div>

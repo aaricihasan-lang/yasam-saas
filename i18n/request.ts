@@ -9,6 +9,10 @@ import trClientsNotes from "@/messages/tr/clients.notes.json";
 import trClientsSessions from "@/messages/tr/clients.sessions.json";
 import trClientsHomework from "@/messages/tr/clients.homework.json";
 import trClientsMemory from "@/messages/tr/clients.memory.json";
+import trClientsCombinations from "@/messages/tr/clients.combinations.json";
+import trClientsStones from "@/messages/tr/clients.stones.json";
+import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
+import trClientsDetail from "@/messages/tr/clients.detail.json";
 
 type Messages = Record<string, unknown>;
 
@@ -44,6 +48,10 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsSessions,
     trClientsHomework,
     trClientsMemory,
+    trClientsCombinations,
+    trClientsStones,
+    trClientsYolculuk,
+    trClientsDetail,
   ]),
 };
 

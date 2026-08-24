@@ -1,0 +1,59 @@
+{
+  "clients": {
+    "combinations": {
+      "cancel": "Vazgeç",
+      "header": {
+        "title": "🧩 Kayıtlı Kombinasyonlar",
+        "subtitle": "Bu danışana özel kaydedilen mineral kombinasyonları."
+      },
+      "loading": "Yükleniyor...",
+      "refresh": "Yenile",
+      "loadingRecords": "Kombinasyonlar yükleniyor...",
+      "empty": {
+        "title": "Henüz kombinasyon yok",
+        "hint": "\"Kombinasyon Oluştur\" ekranından \"Danışana Özel Kaydet\" ile bu danışana kombinasyon ekleyebilirsin."
+      },
+      "stonesCount": "{count} taş",
+      "toggle": {
+        "show": "Detay",
+        "hide": "Gizle"
+      },
+      "item": {
+        "edit": "Düzenle",
+        "delete": "Sil"
+      },
+      "edit": {
+        "title": "Kombinasyonu Düzenle",
+        "namePlaceholder": "Kombinasyon adı",
+        "descPlaceholder": "Amaç / açıklama (opsiyonel)",
+        "notePlaceholder": "Not (opsiyonel)",
+        "saving": "Güncelleniyor...",
+        "save": "Güncelle"
+      },
+      "detail": {
+        "stones": "Taşlar",
+        "noStones": "Taş bilgisi yok.",
+        "purpose": "Amaç",
+        "note": "Not",
+        "mineralSummary": "Mineral Özeti",
+        "warningSummary": "Uyarı / Stok Özeti"
+      },
+      "delete": {
+        "title": "Kombinasyonu sil",
+        "message": "\"{name}\" kombinasyonu bu danışandan silinsin mi?"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "emptyName": "Kombinasyon adı boş olamaz.",
+        "updated": "Kombinasyon güncellendi.",
+        "updateFailed": "Güncellenemedi.",
+        "deleted": "Kombinasyon silindi.",
+        "deleteFailed": "Silinemedi."
+      },
+      "error": {
+        "loadFailed": "Kombinasyonlar yüklenemedi."
+      }
+    }
+  }
+}
