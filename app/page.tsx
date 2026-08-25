@@ -2416,10 +2416,6 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-purple-200/70 bg-gradient-to-br from-purple-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(147,51,234,0.12)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-indigo-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  YAKINDA
-                </span>
-
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 text-xl text-white shadow-md shadow-purple-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
@@ -2448,9 +2444,13 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-purple-200/60 bg-purple-100/50 py-2 text-center text-xs font-bold text-purple-500">
-                  Yakında
-                </div>
+                <Link
+                  href="/human-design"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-purple-500 hover:to-indigo-600 hover:shadow-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                </Link>
               </div>
             ) : (
               <div
