@@ -318,6 +318,85 @@ function run(): void {
      /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac),
     "gap1/2: point-topic + topic CitationManager korunur (yeniden yazılmadı)");
 
+  // ══ L) SADE OKUMA MODU — FORMAL kaynak-karşılaştırma (DB'den; hard-code YOK) ══════
+  ok(/Gelişmiş Düzenleme/.test(amac) && /Okuma Modu/.test(amac),
+    "read[ui]: Gelişmiş Düzenleme toggle (okuma modu default)");
+  ok(/İlişkili Bölgeler/.test(amac), "read[ui]: 'İlişkili Bölgeler' bölümü");
+  ok(/Kaynaklar Ne Diyor\?/.test(amac), "read[ui]: 'Kaynaklar Ne Diyor?' bölümü");
+  ok(/new Set\([\s\S]{0,90}source_id/.test(amac),
+    "read[ui]: formal kaynak sayısı DISTINCT source_id (Set) — aynı kaynak tekrarı şişmez");
+  ok(/rr\.count >= 2/.test(amac), "read[ui]: yalnız >=2 formal kaynaklı bölgede sayı gösterilir");
+  ok(/\{rr\.count\}[\s\S]{0,20}kaynakta geçiyor/.test(amac),
+    "read[ui]: 'N kaynakta geçiyor' DİNAMİK (hard-code değil)");
+  ok(/for \(const ts of topicSources\)/.test(amac),
+    "read[ui]: kaynak kartları topic-source'lı DISTINCT source'lardan OTOMATİK türer");
+  ok(/SOURCE_TYPE_LABEL\[/.test(amac) && /expert_educational[\s\S]{0,24}Uzman/.test(amac),
+    "read[ui]: source_type rozetle resolve (expert_educational→Uzman/Eğitim)");
+  ok(!/Zakir Benli|Süleyman Gök|Hacamat 2\b/.test(amac),
+    "read[ui]: sabit kaynak ADI hard-code YOK (DB'den çözülür)");
+  ok(!/[23] kaynakta geçiyor/.test(amac.replace(/\{[^}]*\}/g, "")),
+    "read[ui]: sabit kaynak SAYISI hard-code YOK");
+  ok(!/Önerilen Uygulama Sırası|Önerilen Sıra/.test(amac),
+    "read[ui]: kaynakları birleştiren global 'uygulama sırası' ÜRETİLMEZ");
+
+  // ══ M) KULLANICI NOTLARI — formal citation'dan AYRI katman ══════════════════════
+  ok(/Notlarım/.test(amac), "note[ui]: 'Notlarım' bölümü (formal kaynaklardan ayrı)");
+  ok(/\+ Yeni Bilgi \/ Not Ekle/.test(amac), "note[ui]: '+ Yeni Bilgi / Not Ekle'");
+  ok(/Kendi Notum/.test(amac), "note[ui]: source_label boşsa 'Kendi Notum'");
+  ok(/createTopicNote\(/.test(amac) && /updateTopicNote\(/.test(amac) && /deleteTopicNote\(/.test(amac),
+    "note[ui]: not create/edit/delete gerçek API'ye bağlı");
+  ok(/listTopicNotes\(/.test(amac), "note[ui]: notlar DB'den okunur (listTopicNotes)");
+  ok(/relSourceCount[\s\S]{0,120}relCitations/.test(amac),
+    "note[semantik]: formal 'N kaynakta geçiyor' relCitations'tan (FORMAL); notlar bu sayıyı ETKİLEMEZ");
+  ok((clientApi.includes("listTopicNotes") && clientApi.includes("createTopicNote") &&
+      clientApi.includes("deleteTopicNote")),
+    "note[client]: topic-notes CRUD client'ta");
+
+  // ══ N) NOT API GÜVENLİK (topic-notes route'ları) ════════════════════════════════
+  const notesRoute = read("app/api/kupa/topic-notes/route.ts");
+  const notesItem = read("app/api/kupa/topic-notes/[id]/route.ts");
+  ok(/requireModuleAccess\(req, "cupping"\)/.test(notesRoute) &&
+     /requireModuleAccess\(req, "cupping"\)/.test(notesItem),
+    "note[api]: requireModuleAccess('cupping') her route'ta");
+  ok(/pickWritable\([\s\S]{0,40}TOPIC_NOTE_WRITABLE/.test(notesRoute),
+    "note[api]: mass-assignment allowlist (TOPIC_NOTE_WRITABLE)");
+  ok(/assertOwnedRef\([\s\S]{0,60}topics/.test(notesRoute) &&
+     /assertOwnedRef\([\s\S]{0,60}points/.test(notesRoute),
+    "note[api]: topic + point cross-tenant reddi (assertOwnedRef)");
+  ok(/is_demo_account/.test(notesRoute) && /is_demo_account/.test(notesItem),
+    "note[api]: demo persist=0 guard");
+  ok(/\.delete\(\)[\s\S]{0,140}noteId/.test(notesRoute),
+    "note[api]: point insert başarısızsa compensating delete (partial state yok)");
+  ok(/insertEntity\(db, CUPPING_TABLES\.topicNotes, tenantId/.test(notesRoute),
+    "note[api]: tenant_id SERVER-forced (insertEntity), body'den değil");
+
+  // ══ O) NOT MIGRATION GÜVENLİK (additive + kilit) ════════════════════════════════
+  const noteMig = read("supabase/migrations/20261001000000_cupping_topic_notes.sql");
+  const noteMigCode = noteMig.replace(/--[^\n]*/g, "");
+  ok(/cupping_topic_notes/.test(noteMig) && /cupping_topic_note_points/.test(noteMig),
+    "note[mig]: iki tablo (cupping_topic_notes + cupping_topic_note_points)");
+  ok(/FOREIGN KEY \(tenant_id, topic_id\) REFERENCES public\.cupping_topics \(tenant_id, id\)/.test(noteMig),
+    "note[mig]: composite tenant-safe FK → cupping_topics(tenant_id,id)");
+  ok(/FOREIGN KEY \(tenant_id, point_id\) REFERENCES public\.cupping_points \(tenant_id, id\)/.test(noteMig),
+    "note[mig]: composite tenant-safe FK → cupping_points(tenant_id,id)");
+  ok((noteMig.match(/ON DELETE CASCADE/g) ?? []).length >= 3,
+    "note[mig]: FK'ler ON DELETE CASCADE (note+note_points)");
+  ok(/UNIQUE \(tenant_id, topic_note_id, point_id\)/.test(noteMig),
+    "note[mig]: duplicate note-point engeli (UNIQUE)");
+  ok(/cupping_topic_notes_tenant_id_key UNIQUE \(tenant_id, id\)/.test(noteMig),
+    "note[mig]: composite UNIQUE(tenant_id,id) — child FK hedefi");
+  ok((noteMig.match(/ENABLE ROW LEVEL SECURITY/g) ?? []).length >= 2,
+    "note[mig]: RLS ENABLE (iki tablo)");
+  ok(/REVOKE ALL PRIVILEGES[\s\S]{0,80}anon, authenticated/.test(noteMig),
+    "note[mig]: anon/authenticated REVOKE (service-role only)");
+  ok(!/CREATE POLICY/i.test(noteMig), "note[mig]: permissive policy YOK (cupping_schema deseni)");
+  ok(!/FORCE ROW LEVEL SECURITY/i.test(noteMigCode),
+    "note[mig]: FORCE RLS YOK (yalnız ENABLE)");
+  ok(!/DROP TABLE|DROP COLUMN|ALTER COLUMN|DROP CONSTRAINT/i.test(noteMigCode),
+    "note[mig]: destructive DDL YOK (additive) — yorumlar hariç");
+  ok(/TOPIC_NOTE_WRITABLE/.test(fields) && /topicNotes:/.test(fields) && /topicNotePoints:/.test(fields),
+    "note[fields]: CUPPING_TABLES + TOPIC_NOTE_WRITABLE tanımlı");
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);

@@ -13,31 +13,43 @@ import { CuppingCitationManager } from "../components/CitationManager";
 import {
   createPointTopic,
   createTopic,
+  createTopicNote,
   deletePointTopic,
+  deleteTopicNote,
+  listCitations,
   listPoints,
   listPointTopics,
+  listSources,
+  listTopicNotes,
   listTopics,
   updatePointTopic,
   updateTopic,
+  updateTopicNote,
+  type CuppingCitation,
   type CuppingPoint,
   type CuppingPointTopic,
+  type CuppingSource,
   type CuppingTopic,
+  type CuppingTopicNote,
 } from "../lib/api";
 import { CUPPING_RELATION_STRENGTHS } from "@/lib/cupping/vocab";
 
 /**
- * AMAÇ / RAHATSIZLIK REHBERİ — konu detayı + konu ↔ nokta ilişki + kaynak yönetimi.
+ * AMAÇ / RAHATSIZLIK REHBERİ — SADE OKUMA MODU (default) + Gelişmiş Düzenleme (toggle).
  *
- * V1 kapsamı: görsel vücut haritası (silhouette/placement) bu ekrandan ÇIKARILDI
- * (Vücut & Nokta Atlası ileri versiyona ertelendi). Bu tur konu detay alanları
- * (kategori/açıklama/not/serbest kaynak) ve ilişki nitelemesi (relation_strength +
- * ilişki açıklaması) UI'ya bağlanır; kaynaklandırma (CitationManager) korunur.
+ * Okuma modu (uygulayıcıya dönük): rahatsızlık açılınca önce BİLGİ görünür —
+ *   ilişkili bölgeler, kaynakların yaklaşımı (formal), ve kullanıcının kendi notları.
+ *   Teknik yönetim (citation/relation/evidence/locator formları) "Gelişmiş Düzenleme"
+ *   altında; okuma modunda görünmez ama SİLİNMEZ, davranışı değişmez.
  *
- * DİL: Bu ekran "tedavi eder" dili üretmez. İlişki = geleneksel/tarihsel/kaynaklı
- * bağlantı bilgisidir; klinik tedavi iddiası DEĞİL.
+ * SEMANTİK AYRIM:
+ *   - "Kaynaklar Ne Diyor?" = FORMAL cupping_topic_sources (yayın/uzman kaynağı + atıf).
+ *   - "Notlarım" = cupping_topic_notes (kullanıcı/uzman notu; formal değil, tenant-local).
+ *   Formal "N kaynakta geçiyor" sayısı yalnız formal citation'lardan gelir; notlar SAYMAZ.
+ *
+ * DİL: "tedavi eder" hükmü ÜRETİLMEZ; kaynak yaklaşımı attribution ile verilir.
  */
 
-/** relation_strength kontrollü sözlüğü (vocab tek kaynak) → TR etiket. */
 const RELATION_STRENGTH_LABEL: Record<string, string> = {
   traditional_primary: "Geleneksel Birincil İlişki",
   traditional_secondary: "Geleneksel İkincil İlişki",
@@ -49,11 +61,18 @@ const RELATION_STRENGTH_OPTIONS = CUPPING_RELATION_STRENGTHS.map((value) => ({
   label: RELATION_STRENGTH_LABEL[value] ?? value,
 }));
 
-/**
- * Topic kategori — UI-only kontrollü liste ("Diğer" serbest metne açılır). DB CHECK
- * YOK (category serbest text kolonudur); mevcut/farklı değerler korunur (edit'te
- * listede yoksa serbest metne düşer).
- */
+/** source.source_type → kısa TR rozet (yayın/uzman ayrımı görünür). */
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  historical_primary: "Tarihsel Kaynak",
+  historical_secondary: "Tarihsel Kaynak",
+  book_monograph: "Kitap / Monografi",
+  academic_article: "Akademik Makale",
+  systematic_review: "Sistematik Derleme",
+  clinical_study: "Klinik Çalışma",
+  official_guidance: "Resmî Rehber",
+  expert_educational: "Uzman / Eğitim",
+};
+
 const TOPIC_CATEGORY_OPTIONS = [
   "Kas & İskelet",
   "Baş & Boyun",
@@ -68,7 +87,7 @@ const CATEGORY_OTHER = "__other__";
 
 type TopicForm = {
   title: string;
-  categorySelect: string; // liste değeri veya CATEGORY_OTHER
+  categorySelect: string;
   categoryOther: string;
   description: string;
   notes: string;
@@ -82,7 +101,6 @@ const EMPTY_TOPIC_FORM: TopicForm = {
   notes: "",
   source_note: "",
 };
-
 function topicToForm(t: CuppingTopic): TopicForm {
   const cat = t.category ?? "";
   const known = cat === "" || TOPIC_CATEGORY_OPTIONS.includes(cat);
@@ -95,13 +113,9 @@ function topicToForm(t: CuppingTopic): TopicForm {
     source_note: t.source_note ?? "",
   };
 }
-
-/** Form → API body (kategoriyi tek değere indirger; boşları null yapar). */
 function formToTopicBody(f: TopicForm): Partial<CuppingTopic> {
   const category =
-    f.categorySelect === CATEGORY_OTHER
-      ? f.categoryOther.trim()
-      : f.categorySelect.trim();
+    f.categorySelect === CATEGORY_OTHER ? f.categoryOther.trim() : f.categorySelect.trim();
   return {
     title: f.title.trim(),
     category: category || null,
@@ -111,8 +125,22 @@ function formToTopicBody(f: TopicForm): Partial<CuppingTopic> {
   };
 }
 
+/** Uzun disclaimer'ı okuma modunda kaynak bölümüne taşımak için ilk cümleyi ayır. */
+function firstSentence(d?: string | null): string {
+  if (!d) return "";
+  const m = d.match(/^[\s\S]*?\.(?=\s|$)/);
+  return (m ? m[0] : d).trim();
+}
+function restAfterFirst(d?: string | null): string {
+  if (!d) return "";
+  const first = firstSentence(d);
+  return d.slice(first.length).trim();
+}
+
 const labelCls = "mb-1 block text-[11px] font-semibold text-slate-600";
 const helperCls = "mt-1 text-[10.5px] leading-snug text-slate-400";
+const chip =
+  "inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800";
 
 export default function AmacRehberiPage() {
   const [topics, setTopics] = useState<CuppingTopic[]>([]);
@@ -120,24 +148,38 @@ export default function AmacRehberiPage() {
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [relations, setRelations] = useState<CuppingPointTopic[]>([]);
 
-  // Topic formu (oluştur / düzenle aynı form; mode ile ayrılır)
+  const [advanced, setAdvanced] = useState(false);
+  const [search, setSearch] = useState("");
+
   const [topicFormMode, setTopicFormMode] = useState<"create" | "edit" | null>(null);
   const [topicForm, setTopicForm] = useState<TopicForm>(EMPTY_TOPIC_FORM);
   const [topicSaving, setTopicSaving] = useState(false);
 
-  // İlişki ekleme formu
   const [linkPointId, setLinkPointId] = useState("");
   const [linkStrength, setLinkStrength] = useState("");
   const [linkNote, setLinkNote] = useState("");
 
-  // İlişki düzenleme (satır içi)
   const [editRelId, setEditRelId] = useState<string | null>(null);
   const [editStrength, setEditStrength] = useState("");
   const [editNote, setEditNote] = useState("");
-
   const [citeRelId, setCiteRelId] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Okuma-modu verisi (formal): topic-source (yaklaşım) + her ilişkinin point-topic citation'ları + kaynak kataloğu.
+  const [sources, setSources] = useState<CuppingSource[]>([]);
+  const [topicSources, setTopicSources] = useState<CuppingCitation[]>([]);
+  const [relCitations, setRelCitations] = useState<Record<string, CuppingCitation[]>>({});
+
+  // Kullanıcı notları (formal citation'dan AYRI)
+  const [notes, setNotes] = useState<CuppingTopicNote[]>([]);
+  const [noteId, setNoteId] = useState<string | null>(null); // düzenlenen not
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [nfNote, setNfNote] = useState("");
+  const [nfRegions, setNfRegions] = useState<string[]>([]);
+  const [nfSource, setNfSource] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const pointName = useCallback(
     (id: string) => points.find((p) => p.id === id)?.name ?? "?",
@@ -172,7 +214,6 @@ export default function AmacRehberiPage() {
     };
   }, []);
 
-  // Seçili konu → ilişkili noktalar
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -192,31 +233,124 @@ export default function AmacRehberiPage() {
     };
   }, [selectedTopicId]);
 
-  const relatedPointIds = useMemo(() => new Set(relations.map((r) => r.point_id)), [relations]);
+  // Formal kaynak-karşılaştırma verisi + kullanıcı notları (paralel).
+  const [dataNonce, setDataNonce] = useState(0);
+  const reloadReadData = useCallback(() => setDataNonce((n) => n + 1), []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!selectedTopicId) return;
+      try {
+        const [srcs, tCits, relPairs, ns] = await Promise.all([
+          listSources(),
+          listCitations("topic", selectedTopicId),
+          Promise.all(
+            relations.map(async (r) => [r.id, await listCitations("point-topic", r.id)] as const),
+          ),
+          listTopicNotes(selectedTopicId),
+        ]);
+        if (cancelled) return;
+        setSources(srcs);
+        setTopicSources(tCits);
+        setRelCitations(Object.fromEntries(relPairs));
+        setNotes(ns);
+      } catch {
+        /* okuma görünümü kritik değil; düzenlemeyi bozma */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTopicId, relations, dataNonce]);
 
-  /** Konu seç + açık satır-içi düzenleme/citation/form panellerini kapat. */
-  const selectTopic = useCallback((id: string) => {
-    setSelectedTopicId(id);
-    setEditRelId(null);
-    setCiteRelId(null);
-    setTopicFormMode(null);
-    setError(null);
+  const relatedPointIds = useMemo(() => new Set(relations.map((r) => r.point_id)), [relations]);
+  const sourceById = useMemo(() => {
+    const m = new Map<string, CuppingSource>();
+    for (const s of sources) m.set(s.id, s);
+    return m;
+  }, [sources]);
+
+  /** FORMAL distinct source sayısı (aynı kaynak tekrarı şişmez; kişisel notlar SAYMAZ). */
+  const relSourceCount = useCallback(
+    (relId: string) => new Set((relCitations[relId] ?? []).map((c) => c.source_id)).size,
+    [relCitations],
+  );
+  const regionRows = useMemo(
+    () =>
+      relations
+        .map((r) => ({ relId: r.id, pointId: r.point_id, count: relSourceCount(r.id) }))
+        .sort((a, b) => b.count - a.count),
+    [relations, relSourceCount],
+  );
+
+  /** FORMAL kaynak kartları — topic-source'lı her DISTINCT source (hard-code YOK). */
+  const sourceApproaches = useMemo(() => {
+    const pointsBySource = new Map<string, Set<string>>();
+    for (const r of relations) {
+      for (const c of relCitations[r.id] ?? []) {
+        let set = pointsBySource.get(c.source_id);
+        if (!set) {
+          set = new Set();
+          pointsBySource.set(c.source_id, set);
+        }
+        set.add(r.point_id);
+      }
+    }
+    const seen = new Set<string>();
+    const out: { sourceId: string; note?: string | null; locator?: string | null; pointIds: string[] }[] = [];
+    for (const ts of topicSources) {
+      if (seen.has(ts.source_id)) continue;
+      seen.add(ts.source_id);
+      out.push({
+        sourceId: ts.source_id,
+        note: ts.note as string | null,
+        locator: ts.locator as string | null,
+        pointIds: Array.from(pointsBySource.get(ts.source_id) ?? []),
+      });
+    }
+    return out;
+  }, [topicSources, relations, relCitations]);
+
+  const filteredTopics = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("tr");
+    return q ? topics.filter((t) => t.title.toLocaleLowerCase("tr").includes(q)) : topics;
+  }, [topics, search]);
+
+  const closeNoteForm = useCallback(() => {
+    setShowNoteForm(false);
+    setNoteId(null);
+    setNfNote("");
+    setNfRegions([]);
+    setNfSource("");
   }, []);
 
-  // ── Topic: oluştur / düzenle ────────────────────────────────────────────────
+  const selectTopic = useCallback(
+    (id: string) => {
+      setSelectedTopicId(id);
+      setEditRelId(null);
+      setCiteRelId(null);
+      setTopicFormMode(null);
+      setError(null);
+      setTopicSources([]);
+      setRelCitations({});
+      setNotes([]);
+      closeNoteForm();
+    },
+    [closeNoteForm],
+  );
+
+  // ── Topic (Gelişmiş) ──
   const openCreateTopic = useCallback(() => {
     setError(null);
     setTopicForm(EMPTY_TOPIC_FORM);
     setTopicFormMode("create");
   }, []);
-
   const openEditTopic = useCallback(() => {
     if (!selectedTopic) return;
     setError(null);
     setTopicForm(topicToForm(selectedTopic));
     setTopicFormMode("edit");
   }, [selectedTopic]);
-
   const handleSaveTopic = useCallback(async () => {
     const body = formToTopicBody(topicForm);
     if (!body.title) {
@@ -241,7 +375,7 @@ export default function AmacRehberiPage() {
     }
   }, [topicForm, topicFormMode, selectedTopicId]);
 
-  // ── İlişki: bağla / düzenle / kaldır ────────────────────────────────────────
+  // ── İlişki (Gelişmiş) ──
   const handleLink = useCallback(async () => {
     if (!selectedTopicId || !linkPointId) return;
     if (relatedPointIds.has(linkPointId)) return;
@@ -260,13 +394,11 @@ export default function AmacRehberiPage() {
       setError(e instanceof Error ? e.message : "Bağlanamadı.");
     }
   }, [selectedTopicId, linkPointId, linkStrength, linkNote, relatedPointIds]);
-
   const openEditRelation = useCallback((r: CuppingPointTopic) => {
     setEditRelId(r.id);
     setEditStrength(r.relation_strength ?? "");
     setEditNote(r.note ?? "");
   }, []);
-
   const handleSaveRelation = useCallback(
     async (relId: string) => {
       try {
@@ -282,7 +414,6 @@ export default function AmacRehberiPage() {
     },
     [editStrength, editNote],
   );
-
   const handleUnlink = useCallback(async (relId: string) => {
     try {
       await deletePointTopic(relId);
@@ -292,10 +423,72 @@ export default function AmacRehberiPage() {
     }
   }, []);
 
+  // ── Kullanıcı notları (okuma modu) ──
+  const openNewNote = useCallback(() => {
+    setNoteId(null);
+    setNfNote("");
+    setNfRegions([]);
+    setNfSource("");
+    setShowNoteForm(true);
+    setError(null);
+  }, []);
+  const openEditNote = useCallback((n: CuppingTopicNote) => {
+    setNoteId(n.id);
+    setNfNote(n.note ?? "");
+    setNfRegions(n.point_ids ?? []);
+    setNfSource(n.source_label ?? "");
+    setShowNoteForm(true);
+    setError(null);
+  }, []);
+  const toggleNfRegion = useCallback((pid: string) => {
+    setNfRegions((cur) => (cur.includes(pid) ? cur.filter((x) => x !== pid) : [...cur, pid]));
+  }, []);
+  const handleSaveNote = useCallback(async () => {
+    if (!selectedTopicId || !nfNote.trim()) {
+      setError("Not metni gerekli.");
+      return;
+    }
+    setNoteBusy(true);
+    try {
+      if (noteId) {
+        await updateTopicNote(noteId, {
+          note: nfNote.trim(),
+          source_label: nfSource.trim() || null,
+          point_ids: nfRegions,
+        });
+      } else {
+        await createTopicNote({
+          topic_id: selectedTopicId,
+          note: nfNote.trim(),
+          source_label: nfSource.trim() || null,
+          point_ids: nfRegions,
+        });
+      }
+      closeNoteForm();
+      reloadReadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Not kaydedilemedi.");
+    } finally {
+      setNoteBusy(false);
+    }
+  }, [selectedTopicId, nfNote, nfSource, nfRegions, noteId, closeNoteForm, reloadReadData]);
+  const handleDeleteNote = useCallback(
+    async (id: string) => {
+      try {
+        await deleteTopicNote(id);
+        setNotes((cur) => cur.filter((n) => n.id !== id));
+        if (noteId === id) closeNoteForm();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Not silinemedi.");
+      }
+    },
+    [noteId, closeNoteForm],
+  );
+
   return (
     <KupaShell
       title="Amaç / Rahatsızlık Rehberi"
-      subtitle="Konuyu seç → ilişkili hacamat noktalarını, ilişki niteliğini ve kaynaklarını yönet. (İlişki bilgisidir; 'tedavi eder' anlamı taşımaz.)"
+      subtitle="Rahatsızlığı seç → ilişkili bölgeleri, kaynakların yaklaşımını ve kendi notlarını gör. (Bilgi rehberidir; 'tedavi eder' anlamı taşımaz.)"
       breadcrumb={[{ label: "Amaç / Rahatsızlık Rehberi" }]}
     >
       {error ? (
@@ -304,28 +497,36 @@ export default function AmacRehberiPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        {/* SOL: konu listesi */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
+        {/* SOL: Rahatsızlıklar + arama */}
         <div className={kupaCard}>
           <div className="mb-2.5 flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Konular</h3>
-            <button
-              type="button"
-              onClick={openCreateTopic}
-              className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
-            >
-              + Yeni Konu
-            </button>
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Rahatsızlıklar</h3>
+            {advanced ? (
+              <button
+                type="button"
+                onClick={openCreateTopic}
+                className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
+              >
+                + Yeni
+              </button>
+            ) : null}
           </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rahatsızlık ara…"
+            className={`${kupaInput} mb-2`}
+          />
           <div className="max-h-[70vh] space-y-1.5 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
-            ) : topics.length === 0 ? (
+            ) : filteredTopics.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
-                <p className="text-xs text-slate-500">Henüz konu yok.</p>
+                <p className="text-xs text-slate-500">Kayıt yok.</p>
               </div>
             ) : (
-              topics.map((t) => (
+              filteredTopics.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -348,133 +549,144 @@ export default function AmacRehberiPage() {
           </div>
         </div>
 
-        {/* SAĞ: seçili konu detayı + ilişkili noktalar */}
+        {/* SAĞ */}
         <div className="flex flex-col gap-4">
-          {/* Topic form (oluştur / düzenle) */}
-          {topicFormMode ? (
-            <div className={kupaCard}>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                  {topicFormMode === "edit" ? "Konuyu Düzenle" : "Yeni Konu"}
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className={labelCls} htmlFor="topic-title">
-                    Başlık <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    id="topic-title"
-                    value={topicForm.title}
-                    onChange={(e) => setTopicForm((f) => ({ ...f, title: e.target.value }))}
-                    placeholder="Örn. Bel ağrısı"
-                    className={kupaInput}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelCls} htmlFor="topic-category">
-                    Kategori
-                  </label>
-                  <select
-                    id="topic-category"
-                    value={topicForm.categorySelect}
-                    onChange={(e) => setTopicForm((f) => ({ ...f, categorySelect: e.target.value }))}
-                    className={kupaInput}
-                  >
-                    <option value="">— seçilmedi —</option>
-                    {TOPIC_CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                    <option value={CATEGORY_OTHER}>Diğer (serbest)…</option>
-                  </select>
-                  {topicForm.categorySelect === CATEGORY_OTHER ? (
-                    <input
-                      value={topicForm.categoryOther}
-                      onChange={(e) => setTopicForm((f) => ({ ...f, categoryOther: e.target.value }))}
-                      placeholder="Kategori adı"
-                      className={`${kupaInput} mt-1.5`}
-                    />
-                  ) : null}
-                  <p className={helperCls}>Konunun sınıfı (UI seçenekleri; serbest için “Diğer”).</p>
-                </div>
-
-                <div>
-                  <label className={labelCls} htmlFor="topic-desc">
-                    Açıklama
-                  </label>
-                  <textarea
-                    id="topic-desc"
-                    value={topicForm.description}
-                    onChange={(e) => setTopicForm((f) => ({ ...f, description: e.target.value }))}
-                    rows={3}
-                    className={kupaInput}
-                  />
-                  <p className={helperCls}>Bu amacın/konunun genel açıklaması.</p>
-                </div>
-
-                <div>
-                  <label className={labelCls} htmlFor="topic-notes">
-                    Profesyonel / Çalışma Notu
-                  </label>
-                  <textarea
-                    id="topic-notes"
-                    value={topicForm.notes}
-                    onChange={(e) => setTopicForm((f) => ({ ...f, notes: e.target.value }))}
-                    rows={3}
-                    className={kupaInput}
-                  />
-                  <p className={helperCls}>Uzman çalışma notu (iç kullanım).</p>
-                </div>
-
-                <div>
-                  <label className={labelCls} htmlFor="topic-src">
-                    Serbest Kaynak Notu
-                  </label>
-                  <textarea
-                    id="topic-src"
-                    value={topicForm.source_note}
-                    onChange={(e) => setTopicForm((f) => ({ ...f, source_note: e.target.value }))}
-                    rows={3}
-                    className={kupaInput}
-                  />
-                  <p className={helperCls}>
-                    Yapısal kaynaklandırma için aşağıdaki Kaynaklar bölümünü kullanın. Bu alan yalnız
-                    serbest/editöryal kaynak notu içindir.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveTopic}
-                  disabled={topicSaving || !topicForm.title.trim()}
-                  className={kupaBtnSuccess}
-                >
-                  {topicSaving ? "Kaydediliyor…" : "Kaydet"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTopicFormMode(null)}
-                  disabled={topicSaving}
-                  className={kupaBtnGhost}
-                >
-                  Vazgeç
-                </button>
-              </div>
+          {selectedTopicId ? (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setAdvanced((a) => !a)}
+                aria-pressed={advanced}
+                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition ${
+                  advanced
+                    ? "border-amber-300 bg-amber-50 text-amber-800"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:text-amber-700"
+                }`}
+              >
+                {advanced ? "← Okuma Modu" : "Gelişmiş Düzenleme"}
+              </button>
             </div>
           ) : null}
 
           {!selectedTopicId ? (
-            !topicFormMode ? (
-              <div className={`${kupaCard} flex min-h-[240px] items-center justify-center`}>
-                <p className="text-sm text-slate-400">Soldan bir konu seçin veya yeni konu ekleyin.</p>
-              </div>
-            ) : null
-          ) : (
+            <div className={`${kupaCard} flex min-h-[240px] items-center justify-center`}>
+              <p className="text-sm text-slate-400">Soldan bir rahatsızlık seçin.</p>
+            </div>
+          ) : advanced ? (
+            /* ══════════ GELİŞMİŞ DÜZENLEME — mevcut teknik yönetim (KORUNDU, tam işlevsel) ══════════ */
             <>
+              {topicFormMode ? (
+                <div className={kupaCard}>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      {topicFormMode === "edit" ? "Konuyu Düzenle" : "Yeni Konu"}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className={labelCls} htmlFor="topic-title">
+                        Başlık <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        id="topic-title"
+                        value={topicForm.title}
+                        onChange={(e) => setTopicForm((f) => ({ ...f, title: e.target.value }))}
+                        placeholder="Örn. Bel ağrısı"
+                        className={kupaInput}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="topic-category">
+                        Kategori
+                      </label>
+                      <select
+                        id="topic-category"
+                        value={topicForm.categorySelect}
+                        onChange={(e) => setTopicForm((f) => ({ ...f, categorySelect: e.target.value }))}
+                        className={kupaInput}
+                      >
+                        <option value="">— seçilmedi —</option>
+                        {TOPIC_CATEGORY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                        <option value={CATEGORY_OTHER}>Diğer (serbest)…</option>
+                      </select>
+                      {topicForm.categorySelect === CATEGORY_OTHER ? (
+                        <input
+                          value={topicForm.categoryOther}
+                          onChange={(e) => setTopicForm((f) => ({ ...f, categoryOther: e.target.value }))}
+                          placeholder="Kategori adı"
+                          className={`${kupaInput} mt-1.5`}
+                        />
+                      ) : null}
+                      <p className={helperCls}>Konunun sınıfı (UI seçenekleri; serbest için “Diğer”).</p>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="topic-desc">
+                        Açıklama
+                      </label>
+                      <textarea
+                        id="topic-desc"
+                        value={topicForm.description}
+                        onChange={(e) => setTopicForm((f) => ({ ...f, description: e.target.value }))}
+                        rows={3}
+                        className={kupaInput}
+                      />
+                      <p className={helperCls}>Bu amacın/konunun genel açıklaması.</p>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="topic-notes">
+                        Profesyonel / Çalışma Notu
+                      </label>
+                      <textarea
+                        id="topic-notes"
+                        value={topicForm.notes}
+                        onChange={(e) => setTopicForm((f) => ({ ...f, notes: e.target.value }))}
+                        rows={3}
+                        className={kupaInput}
+                      />
+                      <p className={helperCls}>Uzman çalışma notu (iç kullanım).</p>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="topic-src">
+                        Serbest Kaynak Notu
+                      </label>
+                      <textarea
+                        id="topic-src"
+                        value={topicForm.source_note}
+                        onChange={(e) => setTopicForm((f) => ({ ...f, source_note: e.target.value }))}
+                        rows={3}
+                        className={kupaInput}
+                      />
+                      <p className={helperCls}>
+                        Yapısal kaynaklandırma için aşağıdaki Kaynaklar bölümünü kullanın. Bu alan yalnız
+                        serbest/editöryal kaynak notu içindir.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveTopic}
+                      disabled={topicSaving || !topicForm.title.trim()}
+                      className={kupaBtnSuccess}
+                    >
+                      {topicSaving ? "Kaydediliyor…" : "Kaydet"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTopicFormMode(null)}
+                      disabled={topicSaving}
+                      className={kupaBtnGhost}
+                    >
+                      Vazgeç
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {selectedTopic ? (
                 <div className={kupaCard}>
                   <div className="flex items-start justify-between gap-3">
@@ -514,8 +726,6 @@ export default function AmacRehberiPage() {
                       düzenle
                     </button>
                   </div>
-
-                  {/* Konunun kendi kaynak atıfları */}
                   <CuppingCitationManager entity="topic" entityId={selectedTopicId} />
                 </div>
               ) : null}
@@ -530,7 +740,6 @@ export default function AmacRehberiPage() {
                   </span>
                 </div>
 
-                {/* Yeni ilişki: nokta + ilişki türü + açıklama */}
                 <div className="mb-3 grid grid-cols-1 gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 sm:grid-cols-2">
                   <div>
                     <label className={labelCls} htmlFor="link-point">
@@ -602,7 +811,6 @@ export default function AmacRehberiPage() {
                   </div>
                 </div>
 
-                {/* İlişki listesi: Nokta → İlişki Türü → İlişki Açıklaması → Kaynaklar */}
                 <div className="space-y-2">
                   {relations.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
@@ -616,7 +824,6 @@ export default function AmacRehberiPage() {
                         <div key={r.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              {/* 1. Nokta */}
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="truncate text-sm font-semibold text-slate-800">
                                   {pointName(r.point_id)}
@@ -626,7 +833,6 @@ export default function AmacRehberiPage() {
                                     {p.code}
                                   </span>
                                 ) : null}
-                                {/* 2. İlişki Türü */}
                                 {r.relation_strength ? (
                                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                                     {RELATION_STRENGTH_LABEL[r.relation_strength] ?? r.relation_strength}
@@ -636,7 +842,6 @@ export default function AmacRehberiPage() {
                               {p?.anatomical_region ? (
                                 <p className="mt-0.5 text-[11px] text-slate-400">{p.anatomical_region}</p>
                               ) : null}
-                              {/* 3. İlişki Açıklaması */}
                               {!isEditing && r.note ? (
                                 <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{r.note}</p>
                               ) : null}
@@ -667,7 +872,6 @@ export default function AmacRehberiPage() {
                             </div>
                           </div>
 
-                          {/* İlişki düzenleme (satır içi): İlişki Türü + İlişki Açıklaması */}
                           {isEditing ? (
                             <div className="mt-2.5 grid grid-cols-1 gap-2 rounded-lg border border-amber-100 bg-amber-50/40 p-2.5 sm:grid-cols-2">
                               <div>
@@ -719,7 +923,6 @@ export default function AmacRehberiPage() {
                             </div>
                           ) : null}
 
-                          {/* 4. Kaynaklar */}
                           {citeRelId === r.id ? (
                             <CuppingCitationManager entity="point-topic" entityId={r.id} />
                           ) : null}
@@ -728,6 +931,241 @@ export default function AmacRehberiPage() {
                     })
                   )}
                 </div>
+              </div>
+            </>
+          ) : (
+            /* ══════════════════ OKUMA MODU (default, sade) ══════════════════ */
+            <>
+              {/* 1. Başlık */}
+              {selectedTopic ? (
+                <div className={kupaCard}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-black tracking-tight text-slate-900">{selectedTopic.title}</h2>
+                      {selectedTopic.category ? (
+                        <span className="mt-1.5 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                          {selectedTopic.category}
+                        </span>
+                      ) : null}
+                      {selectedTopic.description ? (
+                        <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
+                          {firstSentence(selectedTopic.description)}
+                        </p>
+                      ) : null}
+                      <p className="mt-1.5 text-[10.5px] text-slate-400">
+                        Bilgiler kaynaklar ve kullanıcı notlarından derlenir.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAdvanced(true)}
+                      className="shrink-0 text-[11px] font-semibold text-slate-400 transition hover:text-amber-700"
+                    >
+                      Düzenle
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* 2. İlişkili Bölgeler */}
+              {regionRows.length > 0 ? (
+                <div className={kupaCard}>
+                  <h3 className="mb-2.5 text-[13px] font-bold text-slate-700">İlişkili Bölgeler</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {regionRows.map((rr) => (
+                      <div key={rr.relId} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <span className="text-sm font-semibold text-slate-800">{pointName(rr.pointId)}</span>
+                        {rr.count >= 2 ? (
+                          <span className="mt-0.5 block text-[10.5px] font-medium text-amber-700">
+                            {rr.count} kaynakta geçiyor
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* 3. Kaynaklar Ne Diyor? (FORMAL) */}
+              {sourceApproaches.length > 0 ? (
+                <div className={kupaCard}>
+                  <h3 className="text-[13px] font-bold text-slate-700">Kaynaklar Ne Diyor?</h3>
+                  {selectedTopic?.description && restAfterFirst(selectedTopic.description) ? (
+                    <p className="mt-1 text-[10.5px] italic text-slate-400">
+                      {restAfterFirst(selectedTopic.description)}
+                    </p>
+                  ) : null}
+                  <div className="mt-2.5 space-y-3">
+                    {sourceApproaches.map((sa) => {
+                      const s = sourceById.get(sa.sourceId);
+                      return (
+                        <div
+                          key={sa.sourceId}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[15px] font-bold text-slate-900">
+                              {s?.source_name ?? "(kaynak)"}
+                            </span>
+                            {s?.source_type ? (
+                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                                {SOURCE_TYPE_LABEL[s.source_type] ?? s.source_type}
+                              </span>
+                            ) : null}
+                          </div>
+                          {sa.note ? (
+                            <p className="mt-1.5 text-[13.5px] leading-relaxed text-slate-600">{sa.note}</p>
+                          ) : null}
+                          {sa.pointIds.length > 0 ? (
+                            <div className="mt-2.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                Geçen Bölgeler
+                              </span>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {sa.pointIds.map((pid) => (
+                                  <span key={pid} className={chip}>
+                                    {pointName(pid)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          <p className="mt-2 text-[10.5px] text-slate-400">
+                            Kaynak: {s?.source_name ?? "—"}
+                            {sa.locator ? ` · ${String(sa.locator)}` : ""}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* 4. Notlarım (kullanıcı/uzman notu — formal citation'dan AYRI) */}
+              <div className={kupaCard}>
+                <div className="mb-2.5 flex items-center justify-between gap-2">
+                  <h3 className="text-[13px] font-bold text-slate-700">Notlarım</h3>
+                  {!showNoteForm ? (
+                    <button
+                      type="button"
+                      onClick={openNewNote}
+                      className="text-[12px] font-semibold text-amber-700 transition hover:text-amber-800"
+                    >
+                      + Yeni Bilgi / Not Ekle
+                    </button>
+                  ) : null}
+                </div>
+
+                {notes.length === 0 && !showNoteForm ? (
+                  <p className="text-[12px] text-slate-400">Henüz not eklenmedi.</p>
+                ) : null}
+
+                <div className="space-y-2.5">
+                  {notes.map((n) => (
+                    <div key={n.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[12px] font-bold text-emerald-800">
+                          {n.source_label?.trim() ? n.source_label : "Kendi Notum"}
+                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditNote(n)}
+                            className="text-[11px] font-semibold text-slate-500 transition hover:text-slate-700"
+                          >
+                            düzenle
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteNote(n.id)}
+                            className="text-[11px] font-semibold text-rose-600 transition hover:text-rose-700"
+                          >
+                            sil
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-1 text-[13.5px] leading-relaxed text-slate-700">{n.note}</p>
+                      {n.point_ids && n.point_ids.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {n.point_ids.map((pid) => (
+                            <span key={pid} className={chip}>
+                              {pointName(pid)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Yeni / düzenle not formu */}
+                {showNoteForm ? (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <h4 className="mb-2.5 text-[12px] font-bold text-slate-700">
+                      {noteId ? "Notu Düzenle" : "Yeni Bilgi / Not"}
+                    </h4>
+                    <label className={labelCls} htmlFor="nf-note">
+                      Not
+                    </label>
+                    <textarea
+                      id="nf-note"
+                      value={nfNote}
+                      onChange={(e) => setNfNote(e.target.value)}
+                      rows={3}
+                      placeholder="Bu rahatsızlık için kendi bilgin / yöntemin…"
+                      className={kupaInput}
+                    />
+                    {regionRows.length > 0 ? (
+                      <div className="mt-2.5">
+                        <span className={labelCls}>İlgili Bölgeler</span>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {regionRows.map((rr) => {
+                            const on = nfRegions.includes(rr.pointId);
+                            return (
+                              <button
+                                key={rr.relId}
+                                type="button"
+                                onClick={() => toggleNfRegion(rr.pointId)}
+                                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
+                                  on
+                                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                                    : "border-slate-200 bg-white text-slate-500 hover:border-emerald-200"
+                                }`}
+                              >
+                                {pointName(rr.pointId)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="mt-2.5">
+                      <label className={labelCls} htmlFor="nf-source">
+                        Kaynak / Kimden öğrendim
+                      </label>
+                      <input
+                        id="nf-source"
+                        value={nfSource}
+                        onChange={(e) => setNfSource(e.target.value)}
+                        placeholder="Örn. Kendi Notum, Ahmet Yılmaz…"
+                        className={kupaInput}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveNote}
+                        disabled={noteBusy || !nfNote.trim()}
+                        className={kupaBtnSuccess}
+                      >
+                        {noteBusy ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                      <button type="button" onClick={closeNoteForm} disabled={noteBusy} className={kupaBtnGhost}>
+                        Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </>
           )}
