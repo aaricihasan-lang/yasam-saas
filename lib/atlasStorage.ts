@@ -1,4 +1,5 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 import { scheduleAtlasSync } from "@/lib/refleksolojiAtlasSync";
 import {
@@ -171,8 +172,8 @@ export function unionOrganLists(a: string[], b: string[]): string[] {
   for (const name of [...a, ...b]) {
     const trimmed = (name ?? "").trim();
     if (!trimmed) continue;
-    const key = trimmed.toLocaleLowerCase("tr");
-    if (seen.has(key)) continue;
+    const key = organKey(trimmed);
+    if (!key || seen.has(key)) continue;
     seen.add(key);
     out.push(trimmed);
   }

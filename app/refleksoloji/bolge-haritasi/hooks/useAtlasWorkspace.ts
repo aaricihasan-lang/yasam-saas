@@ -20,18 +20,14 @@ import {
   setAtlasSyncSuspended,
 } from "@/lib/refleksolojiAtlasSync";
 import type { FootSide, FootView, Region } from "../types";
-import { isDuplicateOrgan } from "../utils/organUtils";
+import { dedupeByOrganKey, isDuplicateOrgan } from "../utils/organUtils";
 
 function mergeOrganLists(atlasOrgans: string[], sessionOrgans: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const name of [...sessionOrgans, ...atlasOrgans]) {
-    const key = name.trim().toLocaleLowerCase("tr");
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    result.push(name.trim());
-  }
-  return result.sort((a, b) => a.localeCompare(b, "tr"));
+  // Oturum organları önce (kanonik kimlikte ilk-görülen etiket kazanır),
+  // ardından Türkçe sıralama.
+  return dedupeByOrganKey([...sessionOrgans, ...atlasOrgans]).sort((a, b) =>
+    a.localeCompare(b, "tr"),
+  );
 }
 
 export function useAtlasWorkspace(initialOrgan?: string | null) {

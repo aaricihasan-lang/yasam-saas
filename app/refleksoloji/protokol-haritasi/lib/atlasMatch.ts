@@ -1,18 +1,18 @@
 import type { AtlasDocument } from "@/lib/atlasStorage";
 import { getRegionsForOrgan, listOrganNamesFromAtlas } from "@/lib/atlasStorage";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import type { ProtocolFootView } from "../types";
 
-function normalizeOrganName(name: string): string {
-  return name.trim().toLocaleLowerCase("tr");
-}
-
-/** Atlas anahtarıyla büyük/küçük harf duyarsız eşleşme */
+/**
+ * Kanonik organ kimliğiyle eşleşme (büyük/küçük harf + Türkçe İ/i + Unicode
+ * NFC/NFD + boşluk duyarsız). Eşleşen GERÇEK atlas anahtarını döndürür; bu
+ * anahtar `getRegionsForOrgan`'a birebir verilebilir.
+ */
 export function resolveOrganNameInAtlas(atlas: AtlasDocument, name: string): string | null {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  const target = normalizeOrganName(trimmed);
+  const target = organKey(name);
+  if (!target) return null;
   const names = listOrganNamesFromAtlas(atlas);
-  return names.find((n) => normalizeOrganName(n) === target) ?? null;
+  return names.find((n) => organKey(n) === target) ?? null;
 }
 
 export function organHasAtlasRegions(

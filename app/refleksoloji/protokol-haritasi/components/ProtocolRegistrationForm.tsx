@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { listOrganNamesFromAtlas, loadAtlas, loadOrganList } from "@/lib/atlasStorage";
+import { dedupeByOrganKey, organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import type { ProtocolFormDraft } from "../types";
 import { getOrganColor } from "../types";
 import { ProtocolNotesModal } from "./ProtocolNotesModal";
@@ -17,10 +18,6 @@ type ProtocolRegistrationFormProps = {
 const inputClass =
   "w-full rounded-xl border border-violet-200/90 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2";
 const labelClass = "mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-900";
-
-function normalizeKey(name: string): string {
-  return name.trim().toLocaleLowerCase("tr");
-}
 
 export function ProtocolRegistrationForm({
   draft,
@@ -38,7 +35,12 @@ export function ProtocolRegistrationForm({
     const atlas = loadAtlas();
     const fromAtlas = listOrganNamesFromAtlas(atlas);
     const fromList = loadOrganList();
-    const merged = [...new Set([...fromAtlas, ...fromList])].sort((a, b) => a.localeCompare(b, "tr"));
+    // Kanonik kimliğe göre tekilleştir: aynı organ (ör. "karaciğer" NFD atlas
+    // anahtarı + "KARACİĞER" NFC organ listesi) tek seçenek olur. Atlas kaynağı
+    // önce gelir → hayatta kalan etiket gerçek bir atlas anahtarına eşleşir.
+    const merged = dedupeByOrganKey([...fromAtlas, ...fromList]).sort((a, b) =>
+      a.localeCompare(b, "tr"),
+    );
     setOrganSuggestions(merged);
   }, []);
 
@@ -50,7 +52,7 @@ export function ProtocolRegistrationForm({
       setOrganError("Organ adı boş olamaz.");
       return;
     }
-    const exists = draft.organs.some((o) => normalizeKey(o) === normalizeKey(name));
+    const exists = draft.organs.some((o) => organKey(o) === organKey(name));
     if (exists) {
       // Sessiz davranma yerine geri bildirim ver (çoklu-organ duplicate seçimi).
       setOrganError(`"${name}" zaten eklendi.`);
