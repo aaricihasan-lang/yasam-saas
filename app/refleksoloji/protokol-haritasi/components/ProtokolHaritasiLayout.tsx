@@ -144,7 +144,7 @@ export function ProtokolHaritasiLayout() {
 
           <section className={`${panelClass} p-4 xl:h-full`}>
             <h2 className="mb-3 shrink-0 text-base font-bold text-violet-900">Protokol Özeti</h2>
-            <ProtocolSummaryPanel draft={draft} statuses={statuses} />
+            <ProtocolSummaryPanel draft={draft} statuses={statuses} footView={footView} />
           </section>
 
           <div className={`${panelClass} h-[68vh] min-h-[460px] min-w-0 xl:h-full xl:min-h-0`}>

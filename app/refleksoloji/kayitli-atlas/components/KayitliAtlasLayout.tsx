@@ -14,8 +14,16 @@ import { OrganAtlasCard } from "./OrganAtlasCard";
 export function KayitliAtlasLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
-  const { summaries, updatedAt, hydrated, deleteOrgan, deleteRegion, renameOrgan } =
-    useSavedAtlas();
+  const {
+    summaries,
+    orphanOrgans,
+    updatedAt,
+    hydrated,
+    deleteOrgan,
+    deleteOrphanOrgan,
+    deleteRegion,
+    renameOrgan,
+  } = useSavedAtlas();
   const [search, setSearch] = useState("");
   const [viewOrgan, setViewOrgan] = useState<string | null>(null);
   const [editOrgan, setEditOrgan] = useState<string | null>(null);
@@ -47,6 +55,26 @@ export function KayitliAtlasLayout() {
     deleteOrgan(organ);
     if (editOrgan === organ) setEditOrgan(null);
     if (viewOrgan === organ) setViewOrgan(null);
+  };
+
+  const handleDeleteOrphan = async (organ: string) => {
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usageNote =
+      usage.count > 0
+        ? `\n\n⚠️ Bu organ ${usage.count} protokolde kullanılıyor${
+            usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : ""
+          }. Silerseniz bu protokollerin haritasında bu organ eşleşmeyecek (protokol metni korunur).`
+        : "";
+    const ok = await confirm({
+      message:
+        `"${organ}" atlas kaydı olmayan (bölgesiz) bir organ. Organ listesinden kalıcı olarak silinsin mi?` +
+        usageNote,
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!ok) return;
+    deleteOrphanOrgan(organ);
   };
 
   if (!hydrated) {
@@ -140,6 +168,35 @@ export function KayitliAtlasLayout() {
             ))}
           </section>
         )}
+
+        {orphanOrgans.length > 0 ? (
+          <section className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 shadow-sm ring-1 ring-amber-100/70">
+            <h2 className="text-sm font-black text-amber-950">Atlası Olmayan Organlar</h2>
+            <p className="mt-0.5 text-xs font-medium text-amber-900/90">
+              Organ listesinde görünen ama kayıtlı atlas bölgesi olmayan organlar. Eski/test kaydıysa
+              silebilirsiniz; bilinçli oluşturduysanız bırakabilirsiniz. Silme kalıcıdır ve başka
+              cihazdan geri gelmez.
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {orphanOrgans.map((organ) => (
+                <li
+                  key={organ}
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-300/80 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-amber-950 shadow-sm"
+                >
+                  <span className="truncate">{organ}</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteOrphan(organ)}
+                    className="rounded-md border border-red-300/80 bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-800 transition hover:bg-red-100"
+                    aria-label={`${organ} organını sil`}
+                  >
+                    Sil
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
 
       <AtlasViewModal

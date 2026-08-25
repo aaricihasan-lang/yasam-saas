@@ -8,6 +8,8 @@ import {
   resolveAtlasBackgroundKey,
 } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
+import { THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
+import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
 import type { ColoredDisplayRegion, ProtocolFootView } from "../types";
 
 type ProtocolFootMapProps = {
@@ -166,38 +168,117 @@ export function ProtocolFootMap({
                 Organ ekleyin; kayıtlı atlas bölgeleri burada renkli gösterilir.
               </p>
             ) : (
-              regions.map((region) => {
-                const left = (region.cx - region.rx) * 100;
-                const top = (region.cy - region.ry) * 100;
-                const width = region.rx * 2 * 100;
-                const height = region.ry * 2 * 100;
+              <>
+                {/* oval / rect — kutu (mevcut davranış, regresyonsuz) */}
+                {regions
+                  .filter(
+                    (r) =>
+                      (r.shape === "oval" || r.shape === "rect") &&
+                      r.cx != null &&
+                      r.cy != null &&
+                      r.rx != null &&
+                      r.ry != null,
+                  )
+                  .map((region) => {
+                    const left = (region.cx! - region.rx!) * 100;
+                    const top = (region.cy! - region.ry!) * 100;
+                    const width = region.rx! * 2 * 100;
+                    const height = region.ry! * 2 * 100;
 
-                return (
-                  <div
-                    key={region.id}
-                    className="pointer-events-none absolute"
-                    style={{
-                      left: `${left}%`,
-                      top: `${top}%`,
-                      width: `${width}%`,
-                      height: `${height}%`,
-                    }}
+                    return (
+                      <div
+                        key={region.id}
+                        className="pointer-events-none absolute"
+                        style={{
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          width: `${width}%`,
+                          height: `${height}%`,
+                        }}
+                      >
+                        <div
+                          className="h-full w-full border-2"
+                          style={{
+                            borderRadius: region.shape === "oval" ? 9999 : 6,
+                            backgroundColor: region.fill,
+                            borderColor: region.stroke,
+                            boxShadow: prominentControls
+                              ? `0 0 22px ${region.stroke}88, 0 0 8px ${region.fill}`
+                              : `0 0 14px ${region.stroke}55`,
+                          }}
+                          title={region.organ}
+                        />
+                      </div>
+                    );
+                  })}
+
+                {/* free_draw / thick_line — SVG (Bölge Haritası geometrisiyle aynı) */}
+                {regions.some((r) => r.shape === "free_draw" || r.shape === "thick_line") ? (
+                  <svg
+                    className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden
                   >
-                    <div
-                      className="h-full w-full border-2"
-                      style={{
-                        borderRadius: region.shape === "oval" ? 9999 : 6,
-                        backgroundColor: region.fill,
-                        borderColor: region.stroke,
-                        boxShadow: prominentControls
-                          ? `0 0 22px ${region.stroke}88, 0 0 8px ${region.fill}`
-                          : `0 0 14px ${region.stroke}55`,
-                      }}
-                      title={region.organ}
-                    />
-                  </div>
-                );
-              })
+                    {regions.map((region) => {
+                      if (
+                        region.shape === "free_draw" &&
+                        region.points &&
+                        region.points.length >= 1
+                      ) {
+                        if (region.points.length === 1) {
+                          return (
+                            <circle
+                              key={region.id}
+                              cx={region.points[0].x * 100}
+                              cy={region.points[0].y * 100}
+                              r={1.2}
+                              fill={region.stroke}
+                            />
+                          );
+                        }
+                        const pts = region.points
+                          .map((p) => `${p.x * 100},${p.y * 100}`)
+                          .join(" ");
+                        return (
+                          <polyline
+                            key={region.id}
+                            points={pts}
+                            fill="none"
+                            stroke={region.stroke}
+                            strokeWidth={REGION_FREE_STROKE_WIDTH}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        );
+                      }
+                      if (
+                        region.shape === "thick_line" &&
+                        region.x1 != null &&
+                        region.y1 != null &&
+                        region.x2 != null &&
+                        region.y2 != null
+                      ) {
+                        return (
+                          <line
+                            key={region.id}
+                            x1={region.x1 * 100}
+                            y1={region.y1 * 100}
+                            x2={region.x2 * 100}
+                            y2={region.y2 * 100}
+                            stroke={region.stroke}
+                            strokeWidth={THICK_LINE_RENDER_STROKE_PX}
+                            strokeLinecap="round"
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        );
+                      }
+                      return null;
+                    })}
+                  </svg>
+                ) : null}
+              </>
             )}
           </div>
         ) : null}
