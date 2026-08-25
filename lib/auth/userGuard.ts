@@ -174,7 +174,8 @@ export async function verifyUserRequest(
  *
  * includeProfile zorlanır (role + module_permissions tek users lookup'ında gelir →
  * ek sorgu YOK). Modül reddi → 403 (no-store). admin/cosmic_calendar geçer;
- * human_design "yakında"; digital_content hub alt-modülden açılır.
+ * human_design normal modül (module_permissions.human_design=true ile geçer);
+ * digital_content hub alt-modülden açılır.
  */
 export async function requireModuleAccess(
   req: NextRequest,
