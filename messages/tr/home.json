@@ -49,7 +49,42 @@
       "moonPhase": "Ay Fazı",
       "numerology": "Numeroloji",
       "planetaryHour": "Gezegen Saati",
-      "planetarySub": "{start}–{end} · {mins} dk kaldı"
+      "planetarySub": "{start}–{end} · {mins} dk kaldı",
+      "display": {
+        "zodiac": {
+          "Koç": "Koç",
+          "Boğa": "Boğa",
+          "İkizler": "İkizler",
+          "Yengeç": "Yengeç",
+          "Aslan": "Aslan",
+          "Başak": "Başak",
+          "Terazi": "Terazi",
+          "Akrep": "Akrep",
+          "Yay": "Yay",
+          "Oğlak": "Oğlak",
+          "Kova": "Kova",
+          "Balık": "Balık"
+        },
+        "moonPhase": {
+          "Yeni Ay": "Yeni Ay",
+          "Büyüyen Hilal": "Büyüyen Hilal",
+          "İlk Dördün": "İlk Dördün",
+          "Şişen Ay": "Şişen Ay",
+          "Dolunay": "Dolunay",
+          "Azalan Ay": "Azalan Ay",
+          "Son Dördün": "Son Dördün",
+          "Balsamik": "Balsamik"
+        },
+        "planet": {
+          "Güneş": "Güneş",
+          "Ay": "Ay",
+          "Merkür": "Merkür",
+          "Venüs": "Venüs",
+          "Mars": "Mars",
+          "Jüpiter": "Jüpiter",
+          "Satürn": "Satürn"
+        }
+      }
     },
     "modules": {
       "clients": { "title": "Danışan Yolculuğu", "desc": "Danışan kayıtları, randevu ve seans takibi tek merkezde", "badge": "Ana Modül", "stat": "{n} danışan kaydı" },
@@ -80,7 +115,7 @@
       "desc": "Gelenekler, kavramlar, kaynaklar ve profesyonel bilgi ağı"
     },
     "dashboard": {
-      "welcomeSuffix": "hoş geldiniz ✨",
+      "welcomePrefix": "Hoş geldiniz,",
       "welcomePlain": "Hoş geldiniz ✨",
       "heroDate": "Bugün {day} {month} {year} {weekday}",
       "logout": "Çıkış Yap",

@@ -4,28 +4,30 @@
       "hero": {
         "eyebrow": "Yaşam Sistemi",
         "title": "Client Journey",
-        "subtitle": "Manage your client process in three main folders: new record, client list, and follow-up & schedule."
+        "subtitle": "Manage your client workflow across three key areas: new record, client list, and follow-up & schedule."
       },
       "quickActions": {
         "title": "Quick Actions",
-        "subtitle": "Quickly reach the three main folders for client management."
+        "subtitle": "Jump straight to the three key areas of client management."
       },
       "folders": {
-        "cta": "Open folder",
         "kayit": {
           "title": "New Client",
           "desc": "Add a new client and record their personal details and meeting date.",
-          "badge": "New Record"
+          "badge": "New Record",
+          "cta": "Add Client"
         },
         "liste": {
           "title": "Client List",
           "desc": "View, search, edit registered clients and open their details.",
-          "badge": "List & Detail"
+          "badge": "List & Detail",
+          "cta": "View Clients"
         },
         "takip": {
           "title": "Client Follow-up",
           "desc": "Appointments, session planning, daily follow-up and client process management.",
-          "badge": "Follow-up & Plan"
+          "badge": "Follow-up & Plan",
+          "cta": "Open Schedule"
         }
       },
       "summary": {
@@ -38,7 +40,7 @@
         "total": "Total Clients",
         "thisMonthNew": "New This Month",
         "lastCreated": "Latest Record",
-        "thisMonthAppts": "Appointments This Month",
+        "thisMonthAppts": "Monthly Appointments",
         "nextAppt": "Next Appointment",
         "thisMonthCompleted": "Completed This Month"
       }
@@ -48,8 +50,8 @@
         "demo": "Demo Client",
         "new": "New Client"
       },
-      "title": "Save Client",
-      "subtitle": "All fields are optional; first and last name are required.",
+      "title": "Add New Client",
+      "subtitle": "All fields are optional except first and last name.",
       "fields": {
         "ad": "First Name",
         "soyad": "Last Name",

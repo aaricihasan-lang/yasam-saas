@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { formatDate as formatDateI18n } from "@/lib/i18n/format";
-import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useTranslations } from "next-intl";
+import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { runInEffect } from "@/lib/runInEffect";
@@ -20,13 +19,9 @@ type ClientCombinationsSectionProps = {
   clientId: string;
 };
 
-function formatDate(value: string | null, locale: ActiveLocale) {
+function formatDate(value: string | null) {
   if (!value) return "-";
-  return formatDateI18n(value, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }, locale);
+  return formatDateAbsolute(value);
 }
 
 type EditState = {
@@ -46,7 +41,6 @@ export default function ClientCombinationsSection({
   clientId,
 }: ClientCombinationsSectionProps) {
   const t = useTranslations("clients.combinations");
-  const locale = useLocale() as ActiveLocale;
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -241,7 +235,7 @@ export default function ClientCombinationsSection({
                           <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">
                             {t("stonesCount", { count: stones.length })}
                           </span>
-                          <span>📅 {formatDate(row.created_at, locale)}</span>
+                          <span>📅 {formatDate(row.created_at)}</span>
                         </div>
                         {row.description && (
                           <p className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-600">

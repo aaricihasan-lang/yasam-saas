@@ -33,7 +33,7 @@ import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
@@ -414,6 +414,15 @@ function getDayGreeting(date: Date): string {
 
 function LivePanel({ date }: { date: Date | null }) {
   const t = useTranslations("home");
+  const messages = useMessages() as {
+    home?: { livePanel?: { display?: Record<string, Record<string, string>> } };
+  };
+  // Canonical (persisted/computed) TR adlar → locale'e uygun görüntü etiketi.
+  // Harita yalnız DISPLAY katmanıdır; motor/canonical değerler DEĞİŞMEZ.
+  // Eksik/bilinmeyen ad → ham canonical'a düşer (güvenli fallback).
+  const displayMaps = messages?.home?.livePanel?.display ?? {};
+  const dispName = (kind: "zodiac" | "moonPhase" | "planet", name: string): string =>
+    displayMaps?.[kind]?.[name] ?? name;
   date = date ?? new Date();
   const phase = getMoonPhase(date);
   const sun = getSunSignInfo(date);
@@ -427,13 +436,13 @@ function LivePanel({ date }: { date: Date | null }) {
   }
 
   const rows = [
-    { label: t("livePanel.sunSign"),    value: `${sun.emoji} ${sun.name}` },
-    { label: t("livePanel.moonSign"),   value: `${moon.emoji} ${moon.name}` },
-    { label: t("livePanel.moonPhase"),  value: `${phase.emoji} ${phase.name}` },
+    { label: t("livePanel.sunSign"),    value: `${sun.emoji} ${dispName("zodiac", sun.name)}` },
+    { label: t("livePanel.moonSign"),   value: `${moon.emoji} ${dispName("zodiac", moon.name)}` },
+    { label: t("livePanel.moonPhase"),  value: `${phase.emoji} ${dispName("moonPhase", phase.name)}` },
     { label: t("livePanel.numerology"), value: `🔢 ${numDay} · ${numDesc}` },
     {
       label: t("livePanel.planetaryHour"),
-      value: `${planetary.aktifGezegen.symbol} ${planetary.aktifGezegen.name}`,
+      value: `${planetary.aktifGezegen.symbol} ${dispName("planet", planetary.aktifGezegen.name)}`,
       sub: t("livePanel.planetarySub", { start: fmtTime(planetary.hourStart), end: fmtTime(planetary.hourEnd), mins: planetary.kalanDakika }),
     },
   ];
@@ -1224,10 +1233,10 @@ export default function Home() {
                       <h1 className="leading-tight tracking-tight">
                         {firstName ? (
                           <>
+                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">{t("dashboard.welcomePrefix")}</span>
                             <span className="block bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
-                              {firstName}
+                              {firstName} ✨
                             </span>
-                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">{t("dashboard.welcomeSuffix")}</span>
                           </>
                         ) : (
                           <span className="block text-3xl font-black text-slate-900 sm:text-4xl">{t("dashboard.welcomePlain")}</span>

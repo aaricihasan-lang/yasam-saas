@@ -14,7 +14,7 @@
       },
       "hero": {
         "badge": "Client Detail",
-        "subtitle": "Client information, notes, stones, sessions, homework and appointments are managed here."
+        "subtitle": "Everything for this client — information, notes, stones, sessions, homework and appointments — in one place."
       },
       "info": {
         "phone": "Phone",
@@ -48,16 +48,16 @@
         "open": "▼ Open",
         "startLabel": "Start",
         "endLabel": "End",
-        "generate": "Generate Word"
+        "generate": "Export to Word"
       },
       "tabWord": {
-        "genel": "📄 General Info Word",
-        "notlar": "📄 Notes Word",
-        "randevular": "📄 Appointment History Word",
-        "taslar": "📄 Stones Word",
-        "seanslar": "📄 Session History Word",
-        "odevler": "📄 Homework Tracking Word",
-        "analizler": "📄 Analysis Results Word"
+        "genel": "📄 Export General Info",
+        "notlar": "📄 Export Notes",
+        "randevular": "📄 Export Appointment History",
+        "taslar": "📄 Export Stones",
+        "seanslar": "📄 Export Session History",
+        "odevler": "📄 Export Homework",
+        "analizler": "📄 Export Analysis Results"
       },
       "general": {
         "badge": "General Info",

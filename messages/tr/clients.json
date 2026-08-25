@@ -11,21 +11,23 @@
         "subtitle": "Danışan yönetimi için üç ana klasöre hızlıca erişin."
       },
       "folders": {
-        "cta": "Klasöre git",
         "kayit": {
           "title": "Danışan Kayıt",
           "desc": "Yeni danışan ekle, kişisel bilgileri ve görüşme tarihini kaydet.",
-          "badge": "Yeni Kayıt"
+          "badge": "Yeni Kayıt",
+          "cta": "Danışan Ekle"
         },
         "liste": {
           "title": "Danışan Listesi",
           "desc": "Kayıtlı danışanları görüntüle, ara, düzenle ve detaylara eriş.",
-          "badge": "Liste & Detay"
+          "badge": "Liste & Detay",
+          "cta": "Danışanları Gör"
         },
         "takip": {
           "title": "Danışan Takip",
           "desc": "Randevular, seans planlama, günlük takip ve danışan süreç yönetimi.",
-          "badge": "Takip & Plan"
+          "badge": "Takip & Plan",
+          "cta": "Takvimi Aç"
         }
       },
       "summary": {
@@ -73,7 +75,7 @@
         "dem": "Dem",
         "balgam": "Balgam"
       },
-      "gorusmeInvalid": "Geçerli bir tarih girin (GG.AA.YYYY) veya alanı boş bırakın.",
+      "gorusmeInvalid": "Geçerli bir tarih girin (DD.MM.YYYY) veya alanı boş bırakın.",
       "gorusmeHint": "Danışanın ilk/son görüşme tarihi. Planlı seanslar için <b>Ajanda & Randevu</b>’yu kullanın.",
       "submit": {
         "saving": "Kaydediliyor...",
@@ -95,7 +97,7 @@
         "confirm": "Yine de Kaydet"
       },
       "datePicker": {
-        "placeholder": "GG.AA.YYYY",
+        "placeholder": "DD.MM.YYYY",
         "openCalendar": "Takvimden tarih seç",
         "dialogLabel": "Tarih seçici",
         "prevMonth": "Önceki ay",
@@ -110,7 +112,7 @@
         "failTitle": "İşlem başarısız",
         "nameRequired": "Ad ve soyad gerekli",
         "invalidDateTitle": "Geçersiz tarih",
-        "invalidDateMsg": "Görüşme tarihini GG.AA.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.",
+        "invalidDateMsg": "Görüşme tarihini DD.MM.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.",
         "successTitle": "Başarılı",
         "demoCreated": "Demo danışan oluşturuldu.",
         "saved": "Danışan kaydedildi.",

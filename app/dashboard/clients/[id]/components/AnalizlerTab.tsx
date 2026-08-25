@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { formatDate as formatDateI18n, formatDateTime as formatDateTimeI18n } from "@/lib/i18n/format";
-import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useTranslations } from "next-intl";
+import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -121,11 +120,8 @@ function valueClass(value: string): string {
   return "";
 }
 
-function formatDateTimeTR(value: string, locale: ActiveLocale) {
-  return formatDateTimeI18n(value, {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  }, locale);
+function formatDateTimeTR(value: string) {
+  return formatDateTimeAbsolute(value);
 }
 
 
@@ -147,7 +143,6 @@ const PDF_EXPORT_ENABLED = false;
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const t = useTranslations("clients.analizler");
-  const locale = useLocale() as ActiveLocale;
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
   const deleteConfirm                = useDeleteConfirm();
@@ -172,7 +167,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
   const activeTitleDisplay = analysisTypeDisplay(activeAnalysis);
 
-  const todayText = useMemo(() => formatDateI18n(new Date(), undefined, locale), [locale]);
+  const todayText = useMemo(() => formatDateAbsolute(new Date()), []);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
@@ -536,7 +531,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
               <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
                   <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
-                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at, locale)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
                   {item.note && (
                     <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
                       {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}

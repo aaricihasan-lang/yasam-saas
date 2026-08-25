@@ -60,3 +60,29 @@ export function formatTime(
   const d = toDate(value);
   return d ? d.toLocaleTimeString(localeTag(locale), options) : "";
 }
+
+/**
+ * MUTLAK (absolute) TARİH — global ürün sözleşmesi: TÜM locale'lerde `DD.MM.YYYY`.
+ * Locale'e BAĞLI DEĞİLDİR (tr-TR de en-GB de → noktalı, sıra gün.ay.yıl). Danışan
+ * doğum/görüşme/randevu gibi absolute tarih alanlarında kullanılır. Açıklayıcı /
+ * relative tarihler ve takvim ay/gün adları locale'e göre kalır (bu helper DEĞİL).
+ * Tarih bileşenleri tarayıcı yerel saat diliminden okunur (mevcut tr-TR
+ * `toLocaleDateString` davranışıyla BYTE-AYNI → TR regresyonu yok).
+ */
+export function formatDateAbsolute(value: DateInput): string {
+  const d = toDate(value);
+  if (!d) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+/** Mutlak tarih + 24 saat biçiminde saat: `DD.MM.YYYY HH:mm` (tüm locale). */
+export function formatDateTimeAbsolute(value: DateInput): string {
+  const d = toDate(value);
+  if (!d) return "";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${formatDateAbsolute(d)} ${hh}:${min}`;
+}

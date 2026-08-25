@@ -47,6 +47,22 @@
     "less": "Less",
     "showMore": "Show more",
     "showLess": "Show less",
+    "bulk": {
+      "noSelection": "No selection",
+      "selected": "{n} selected",
+      "selectAll": "Select All",
+      "clearSelection": "Clear Selection",
+      "preparing": "Preparing...",
+      "exportSelected": "Export Selected to Word",
+      "exportSelectedShort": "Export Selected",
+      "exportFiltered": "Export Filtered to Word",
+      "exportFilteredShort": "Filtered",
+      "exportAll": "Export All to Word",
+      "exportAllShort": "Export All",
+      "deleteSelected": "Delete Selected",
+      "deleting": "Deleting...",
+      "deleteAll": "Delete All"
+    },
     "language": {
       "current": "Language: {label}",
       "select": "Select language",

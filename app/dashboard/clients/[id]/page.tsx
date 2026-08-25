@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { formatDateTime as formatDateTimeI18n } from "@/lib/i18n/format";
-import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useTranslations } from "next-intl";
+import { formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -89,11 +88,8 @@ function formatDateTR(date: string | undefined) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
-function formatDateTimeTR(value: string, locale: ActiveLocale) {
-  return formatDateTimeI18n(value, {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  }, locale);
+function formatDateTimeTR(value: string) {
+  return formatDateTimeAbsolute(value);
 }
 
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
@@ -965,7 +961,6 @@ function AppointmentsTab({
   showToast: ReturnType<typeof useToast>["showToast"];
 }) {
   const t = useTranslations("clients.detail");
-  const locale = useLocale() as ActiveLocale;
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1381,7 +1376,7 @@ function AppointmentsTab({
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date, locale)}</div>
+                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
                     {item.notes && (
                       <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
                     )}
@@ -1425,7 +1420,7 @@ function AppointmentsTab({
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date, locale)}</strong>
+                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>

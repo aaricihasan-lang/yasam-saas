@@ -352,7 +352,7 @@ export default function DanisanYolculuguPage() {
                           {t(`folders.${folder.key}.desc`)}
                         </p>
                         <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-slate-900/80 px-4 py-2 text-xs font-bold text-white shadow-sm backdrop-blur-sm transition-all duration-200 group-hover:scale-[1.03] group-hover:bg-slate-900">
-                          {t("folders.cta")}
+                          {t(`folders.${folder.key}.cta`)}
                           <span aria-hidden>→</span>
                         </span>
                       </div>

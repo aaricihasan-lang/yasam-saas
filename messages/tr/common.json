@@ -47,6 +47,22 @@
     "less": "Daha az",
     "showMore": "Daha fazla göster",
     "showLess": "Daha az göster",
+    "bulk": {
+      "noSelection": "Seçim yok",
+      "selected": "{n} seçili",
+      "selectAll": "Tümünü Seç",
+      "clearSelection": "Seçimi Temizle",
+      "preparing": "Hazırlanıyor...",
+      "exportSelected": "Seçilenleri Word",
+      "exportSelectedShort": "Seçilenleri",
+      "exportFiltered": "Filtrelenmiş Word",
+      "exportFilteredShort": "Filtreli",
+      "exportAll": "Tümünü Word",
+      "exportAllShort": "Tümü",
+      "deleteSelected": "Seçilileri Sil",
+      "deleting": "Siliniyor...",
+      "deleteAll": "Tümünü Sil"
+    },
     "language": {
       "current": "Dil: {label}",
       "select": "Dil seç",
