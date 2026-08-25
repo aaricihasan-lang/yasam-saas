@@ -412,7 +412,9 @@ function run(): void {
     "yeniux[route]: /yeni ayrı sayfa 'Yeni Rahatsızlık Kaydı' başlığı");
   ok(/breadcrumb=\{\[[\s\S]{0,180}Yeni Kayıt/.test(yeni),
     "yeniux[route]: breadcrumb 'Amaç / Rahatsızlık Rehberi > Yeni Kayıt'");
-  ok(/← Rehbere Dön/.test(yeni), "yeniux[route]: '← Rehbere Dön' butonu");
+  // "Rehbere Dön" / özel geri butonu KALDIRILDI — kullanıcı tarayıcı ileri/geri kullanır.
+  ok(!/Rehbere Dön/.test(yeni) && !/actions=\{/.test(yeni),
+    "yeniux[nav]: 'Rehbere Dön'/özel geri butonu yok (KupaShell actions verilmez)");
 
   // 3) Yeni route'ta rahatsızlık detayı / kaynak / ilişki / teknik edit RENDER edilmez.
   ok(!/CuppingCitationManager/.test(yeni) &&
@@ -427,6 +429,23 @@ function run(): void {
   ok(/karakterlik not eklendi/.test(yeni), "yeniux[ui]: dolu not kartı 'N karakterlik not eklendi'");
   ok(/80vh/.test(dialog) && /<textarea/.test(dialog), "yeniux[ui]: editör ~80vh büyük textarea");
   ok(/Notu Kaydet/.test(dialog) && /Vazgeç/.test(dialog), "yeniux[ui]: editör 'Notu Kaydet' + 'Vazgeç'");
+
+  // ── RESPONSIVE genişlik + edge-to-edge (bu turun konusu) ──────────────────────────
+  // Desktop: dar ortalı kolon YOK (max-w-2xl kaldırıldı) → geniş çalışma ekranı.
+  ok(!/mx-auto[^"]*max-w-2xl/.test(yeni) && !/\bmax-w-2xl\b/.test(yeni),
+    "yeniux[resp]: dar max-w-2xl kolon kaldırıldı (desktop geniş)");
+  ok(/lg:grid-cols-3/.test(yeni) && /lg:col-span-2/.test(yeni) && /lg:grid-cols-2/.test(yeni),
+    "yeniux[resp]: desktop grid (Ad geniş+Kategori dar / iki not kartı yan yana)");
+  // Mobile/tablet: kart viewport'a sıfır (negatif gutter shell padding'i iptal) + köşesiz.
+  ok(/-mx-4/.test(yeni) && /sm:-mx-6/.test(yeni) && /lg:mx-0/.test(yeni),
+    "yeniux[resp]: mobile/tablet edge-to-edge (negatif gutter), lg reset");
+  ok(/border-y/.test(yeni) && /lg:rounded-2xl/.test(yeni),
+    "yeniux[resp]: mobile köşesiz (border-y), desktop rounded-2xl premium kart");
+  // BigNoteEditorDialog responsive: mobile 100dvh doldur / desktop 80vh ortalı.
+  ok(/100dvh/.test(dialog) && /sm:h-\[80vh\]/.test(dialog),
+    "yeniux[resp]: editör mobile 100dvh doldurur / desktop 80vh");
+  ok(/p-0 sm:items-center sm:p-6/.test(dialog) && /sm:rounded-2xl/.test(dialog),
+    "yeniux[resp]: editör mobile kenara sıfır (p-0, köşesiz), desktop ortalı/rounded");
 
   // 6+7) modal save → parent FORM STATE (DB'ye ayrı yazmaz); tekrar aç → metin durur.
   ok(/onSave\(draft\)/.test(dialog) && !/createTopicNote|fetch\(/.test(dialog),

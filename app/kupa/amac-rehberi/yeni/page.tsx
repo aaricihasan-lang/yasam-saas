@@ -3,13 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  KupaShell,
-  kupaBtnGhost,
-  kupaBtnPrimary,
-  kupaCard,
-  kupaInput,
-} from "../../components/KupaShell";
+import { KupaShell, kupaBtnGhost, kupaBtnPrimary, kupaInput } from "../../components/KupaShell";
 import { BigNoteEditorDialog } from "../../components/BigNoteEditorDialog";
 import { createTopic, type CuppingTopic } from "../../lib/api";
 
@@ -21,6 +15,14 @@ import { createTopic, type CuppingTopic } from "../../lib/api";
  * yalnız yeni kayıt formu vardır. Uzun not alanları (Profesyonel/Serbest Kaynak Notu)
  * form içinde küçük textarea DEĞİL; tıklanabilir kart + büyük editör (dialog) olarak
  * yönetilir; metin parent form state'inde tutulur ve asıl "Kaydet" ile create API'ye gider.
+ *
+ * DÜZEN (responsive):
+ *   - Desktop (≥1024px): geniş premium çalışma ekranı — kart ekranı kullanır; alanlar
+ *     grid'e geçer (Ad geniş + Kategori dar / Açıklama full / iki not kartı yan yana).
+ *   - Mobile & tablet (<1024px): kart viewport kenarlarına sıfır yaslanır (edge-to-edge,
+ *     rounded-none); shell yatay padding'i negatif margin ile iptal edilir; tek kolon.
+ *   Navigasyon: sağ üstte özel geri/kapat butonu YOK — kullanıcı tarayıcının ileri/geri
+ *   tuşlarını kullanır; breadcrumb bilgilendirme amaçlıdır (özel geri aksiyonu üretmez).
  *
  * ALANLAR (mevcut şema — değişmez): title, category, description, notes, source_note.
  */
@@ -40,6 +42,16 @@ const CATEGORY_OTHER = "__other__";
 const labelCls = "mb-1 block text-[11px] font-semibold text-slate-600";
 const helperCls = "mt-1 text-[10.5px] leading-snug text-slate-400";
 const GUIDE_HREF = "/kupa/amac-rehberi";
+
+/**
+ * Form kartı — mobile/tablet'te edge-to-edge (negatif gutter ile shell padding'i iptal
+ * eder, rounded-none, yalnız üst/alt kenarlık); ≥1024px'te ferah, köşeli premium kart.
+ */
+const formCardCls =
+  "w-full -mx-4 border-y border-amber-100/90 bg-white/95 p-4 shadow-sm backdrop-blur-sm " +
+  "sm:-mx-6 sm:p-5 " +
+  "lg:mx-0 lg:rounded-2xl lg:border lg:border-amber-100/90 lg:p-7 " +
+  "lg:shadow-[0_1px_3px_rgba(120,80,40,0.06),0_10px_30px_-18px_rgba(120,80,40,0.14)]";
 
 type NoteField = "notes" | "source_note";
 
@@ -122,11 +134,6 @@ export default function YeniRahatsizlikPage() {
         { label: "Amaç / Rahatsızlık Rehberi", href: GUIDE_HREF },
         { label: "Yeni Kayıt" },
       ]}
-      actions={
-        <Link href={GUIDE_HREF} className={kupaBtnGhost}>
-          ← Rehbere Dön
-        </Link>
-      }
     >
       {error ? (
         <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
@@ -134,54 +141,54 @@ export default function YeniRahatsizlikPage() {
         </div>
       ) : null}
 
-      <div className="mx-auto w-full max-w-2xl">
-        <div className={kupaCard}>
-          <div className="grid grid-cols-1 gap-4">
-            {/* Rahatsızlık Adı */}
-            <div>
-              <label className={labelCls} htmlFor="new-title">
-                Rahatsızlık Adı <span className="text-rose-500">*</span>
-              </label>
-              <input
-                id="new-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Örn. Sık İdrara Çıkma"
-                className={kupaInput}
-                autoFocus
-              />
-            </div>
-
-            {/* Kategori */}
-            <div>
-              <label className={labelCls} htmlFor="new-category">
-                Kategori
-              </label>
-              <select
-                id="new-category"
-                value={categorySelect}
-                onChange={(e) => setCategorySelect(e.target.value)}
-                className={kupaInput}
-              >
-                <option value="">— seçilmedi —</option>
-                {TOPIC_CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                <option value={CATEGORY_OTHER}>Diğer (serbest)…</option>
-              </select>
-              {categorySelect === CATEGORY_OTHER ? (
+      <div className="w-full">
+        <div className={formCardCls}>
+          <div className="grid grid-cols-1 gap-4 lg:gap-6">
+            {/* Satır 1: Rahatsızlık Adı (geniş) + Kategori (dar) */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+              <div className="lg:col-span-2">
+                <label className={labelCls} htmlFor="new-title">
+                  Rahatsızlık Adı <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  value={categoryOther}
-                  onChange={(e) => setCategoryOther(e.target.value)}
-                  placeholder="Kategori adı"
-                  className={`${kupaInput} mt-1.5`}
+                  id="new-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Örn. Sık İdrara Çıkma"
+                  className={kupaInput}
+                  autoFocus
                 />
-              ) : null}
+              </div>
+              <div className="lg:col-span-1">
+                <label className={labelCls} htmlFor="new-category">
+                  Kategori
+                </label>
+                <select
+                  id="new-category"
+                  value={categorySelect}
+                  onChange={(e) => setCategorySelect(e.target.value)}
+                  className={kupaInput}
+                >
+                  <option value="">— seçilmedi —</option>
+                  {TOPIC_CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value={CATEGORY_OTHER}>Diğer (serbest)…</option>
+                </select>
+                {categorySelect === CATEGORY_OTHER ? (
+                  <input
+                    value={categoryOther}
+                    onChange={(e) => setCategoryOther(e.target.value)}
+                    placeholder="Kategori adı"
+                    className={`${kupaInput} mt-1.5`}
+                  />
+                ) : null}
+              </div>
             </div>
 
-            {/* Açıklama */}
+            {/* Satır 2: Açıklama — full width */}
             <div>
               <label className={labelCls} htmlFor="new-desc">
                 Açıklama
@@ -196,25 +203,25 @@ export default function YeniRahatsizlikPage() {
               />
             </div>
 
-            {/* Profesyonel / Çalışma Notu — büyük editör (kart) */}
-            <NoteFieldCard
-              label="Profesyonel / Çalışma Notu"
-              value={notes}
-              emptyHint="Not eklemek için tıklayın"
-              onOpen={() => setNoteDialog("notes")}
-            />
-
-            {/* Serbest Kaynak Notu — büyük editör (kart) */}
-            <NoteFieldCard
-              label="Serbest Kaynak Notu"
-              value={sourceNote}
-              emptyHint="Kaynak notu eklemek için tıklayın"
-              helper="Yapısal kaynaklandırma için (kaydettikten sonra) rehberdeki Kaynaklar bölümünü kullanın. Bu alan yalnız serbest/editöryal kaynak notu içindir."
-              onOpen={() => setNoteDialog("source_note")}
-            />
+            {/* Satır 3: iki büyük not kartı (desktop'ta yan yana, mobilde alt alta) */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+              <NoteFieldCard
+                label="Profesyonel / Çalışma Notu"
+                value={notes}
+                emptyHint="Not eklemek için tıklayın"
+                onOpen={() => setNoteDialog("notes")}
+              />
+              <NoteFieldCard
+                label="Serbest Kaynak Notu"
+                value={sourceNote}
+                emptyHint="Kaynak notu eklemek için tıklayın"
+                helper="Yapısal kaynaklandırma için (kaydettikten sonra) rehberdeki Kaynaklar bölümünü kullanın. Bu alan yalnız serbest/editöryal kaynak notu içindir."
+                onOpen={() => setNoteDialog("source_note")}
+              />
+            </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-2">
+          <div className="mt-6 flex items-center gap-2 border-t border-slate-100 pt-5">
             <button
               type="button"
               onClick={handleSave}
@@ -267,19 +274,19 @@ function NoteFieldCard({
 }) {
   const has = value.trim().length > 0;
   return (
-    <div>
+    <div className="flex flex-col">
       <span className={labelCls}>{label}</span>
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
+        className="flex w-full flex-1 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70 lg:min-h-[112px] lg:items-start lg:py-4"
       >
         {has ? (
           <span className="min-w-0">
             <span className="block text-[12px] font-semibold text-slate-700">
               {value.trim().length} karakterlik not eklendi
             </span>
-            <span className="mt-0.5 line-clamp-2 block text-[11.5px] leading-snug text-slate-400">
+            <span className="mt-0.5 line-clamp-3 block text-[11.5px] leading-snug text-slate-400">
               {value.trim()}
             </span>
           </span>
