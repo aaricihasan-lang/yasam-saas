@@ -68,6 +68,22 @@ export async function PATCH(
       }
     }
     // Replace: mevcut note-point'leri sil, yenilerini yaz (hepsi doğrulanmış).
+    // Atomiklik: transaction yok; bu yüzden önce MEVCUT bağları yedekle. Yeni insert
+    // başarısız olursa eski bağları GERİ YÜKLE → kısmi durum (bağların kaybı) bırakma.
+    const existing = await db
+      .from(CUPPING_TABLES.topicNotePoints)
+      .select("point_id, sort_order")
+      .eq("tenant_id", tenantId)
+      .eq("topic_note_id", id)
+      .order("sort_order", { ascending: true });
+    if (existing.error) return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    const prevRows = (existing.data ?? []).map((r) => ({
+      tenant_id: tenantId,
+      topic_note_id: id,
+      point_id: String((r as Record<string, unknown>).point_id),
+      sort_order: Number((r as Record<string, unknown>).sort_order ?? 0),
+    }));
+
     const del = await db
       .from(CUPPING_TABLES.topicNotePoints)
       .delete()
@@ -82,7 +98,13 @@ export async function PATCH(
         sort_order: i,
       }));
       const { error } = await db.from(CUPPING_TABLES.topicNotePoints).insert(rows);
-      if (error) return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+      if (error) {
+        // Rollback: yeni bağlar yazılamadı → yedeklenen eski bağları geri yükle.
+        if (prevRows.length > 0) {
+          await db.from(CUPPING_TABLES.topicNotePoints).insert(prevRows);
+        }
+        return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+      }
     }
   } else {
     // point_ids gönderilmediyse mevcut bağları oku (yanıtı tam döndürmek için).

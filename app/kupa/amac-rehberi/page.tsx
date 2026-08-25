@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   KupaShell,
   kupaBtnGhost,
@@ -143,6 +145,18 @@ const chip =
   "inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800";
 
 export default function AmacRehberiPage() {
+  // useSearchParams (?topic=) statik prerender'da Suspense sınırı ister.
+  return (
+    <Suspense fallback={null}>
+      <AmacRehberiInner />
+    </Suspense>
+  );
+}
+
+function AmacRehberiInner() {
+  const searchParams = useSearchParams();
+  const topicParam = searchParams.get("topic");
+
   const [topics, setTopics] = useState<CuppingTopic[]>([]);
   const [points, setPoints] = useState<CuppingPoint[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
@@ -202,7 +216,9 @@ export default function AmacRehberiPage() {
         if (cancelled) return;
         setTopics(t);
         setPoints(p);
-        setSelectedTopicId((cur) => cur || t[0]?.id || "");
+        // ?topic=<id> verildiyse (yeni kayıt sonrası dönüş) onu seç; yoksa ilk kayıt.
+        const preselect = topicParam && t.some((x) => x.id === topicParam) ? topicParam : "";
+        setSelectedTopicId((cur) => cur || preselect || t[0]?.id || "");
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Yükleme hatası.");
       } finally {
@@ -212,7 +228,7 @@ export default function AmacRehberiPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [topicParam]);
 
   useEffect(() => {
     let cancelled = false;
@@ -340,11 +356,7 @@ export default function AmacRehberiPage() {
   );
 
   // ── Topic (Gelişmiş) ──
-  const openCreateTopic = useCallback(() => {
-    setError(null);
-    setTopicForm(EMPTY_TOPIC_FORM);
-    setTopicFormMode("create");
-  }, []);
+  // Yeni kayıt AYRI sayfada (/kupa/amac-rehberi/yeni). Gelişmiş form yalnız EDIT içindir.
   const openEditTopic = useCallback(() => {
     if (!selectedTopic) return;
     setError(null);
@@ -502,15 +514,12 @@ export default function AmacRehberiPage() {
         <div className={kupaCard}>
           <div className="mb-2.5 flex items-center justify-between gap-2">
             <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Rahatsızlıklar</h3>
-            {advanced ? (
-              <button
-                type="button"
-                onClick={openCreateTopic}
-                className="text-[11px] font-semibold text-amber-700 transition hover:text-amber-800"
-              >
-                + Yeni
-              </button>
-            ) : null}
+            <Link
+              href="/kupa/amac-rehberi/yeni"
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-800 no-underline transition hover:border-amber-400 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              + Yeni Kayıt
+            </Link>
           </div>
           <input
             value={search}

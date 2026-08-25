@@ -397,6 +397,68 @@ function run(): void {
   ok(/TOPIC_NOTE_WRITABLE/.test(fields) && /topicNotes:/.test(fields) && /topicNotePoints:/.test(fields),
     "note[fields]: CUPPING_TABLES + TOPIC_NOTE_WRITABLE tanımlı");
 
+  // ══ P) YENİ KAYIT UX — ayrı sayfa + büyük not editörü (migration YOK) ═════════════
+  const yeni = read("app/kupa/amac-rehberi/yeni/page.tsx");
+  const dialog = read("app/kupa/components/BigNoteEditorDialog.tsx");
+
+  // 1) Sol panel butonu "+ Yeni" değil "+ Yeni Kayıt"; ayrı /yeni sayfasına link.
+  ok(/\+ Yeni Kayıt/.test(amac), "yeniux[ui]: sol panel butonu '+ Yeni Kayıt' (belirgin)");
+  ok(!/>\s*\+ Yeni\s*</.test(amac), "yeniux[ui]: eski belirsiz '+ Yeni' butonu kaldırıldı");
+  ok(/href="\/kupa\/amac-rehberi\/yeni"/.test(amac),
+    "yeniux[ui]: '+ Yeni Kayıt' ayrı /yeni sayfasına gider (inline form açmaz)");
+
+  // 2) Yeni kayıt AYRI route dosyası.
+  ok(yeni.includes("Yeni Rahatsızlık Kaydı"),
+    "yeniux[route]: /yeni ayrı sayfa 'Yeni Rahatsızlık Kaydı' başlığı");
+  ok(/breadcrumb=\{\[[\s\S]{0,180}Yeni Kayıt/.test(yeni),
+    "yeniux[route]: breadcrumb 'Amaç / Rahatsızlık Rehberi > Yeni Kayıt'");
+  ok(/← Rehbere Dön/.test(yeni), "yeniux[route]: '← Rehbere Dön' butonu");
+
+  // 3) Yeni route'ta rahatsızlık detayı / kaynak / ilişki / teknik edit RENDER edilmez.
+  ok(!/CuppingCitationManager/.test(yeni) &&
+     !/listPointTopics|listCitations|İlişkili Bölgeler|Kaynaklar Ne Diyor/.test(yeni),
+    "yeniux[route]: yeni sayfada detay/kaynak/ilişki/teknik-edit YOK (yalnız form)");
+
+  // 4+5) Profesyonel/Serbest not: form içinde küçük textarea DEĞİL → büyük editör dialog.
+  ok(/BigNoteEditorDialog/.test(yeni), "yeniux[ui]: not alanları büyük editör (BigNoteEditorDialog) kullanır");
+  ok(/NoteFieldCard/.test(yeni) && /Not eklemek için tıklayın/.test(yeni) &&
+     /Kaynak notu eklemek için tıklayın/.test(yeni),
+    "yeniux[ui]: her iki not alanı tıklanabilir kart ('… eklemek için tıklayın')");
+  ok(/karakterlik not eklendi/.test(yeni), "yeniux[ui]: dolu not kartı 'N karakterlik not eklendi'");
+  ok(/80vh/.test(dialog) && /<textarea/.test(dialog), "yeniux[ui]: editör ~80vh büyük textarea");
+  ok(/Notu Kaydet/.test(dialog) && /Vazgeç/.test(dialog), "yeniux[ui]: editör 'Notu Kaydet' + 'Vazgeç'");
+
+  // 6+7) modal save → parent FORM STATE (DB'ye ayrı yazmaz); tekrar aç → metin durur.
+  ok(/onSave\(draft\)/.test(dialog) && !/createTopicNote|fetch\(/.test(dialog),
+    "yeniux[ui]: 'Notu Kaydet' parent state'e aktarır (DB'ye ayrı yazmaz)");
+  ok(/setNotes\(t\)/.test(yeni) && /setSourceNote\(t\)/.test(yeni),
+    "yeniux[ui]: editör kaydı formun notes/source_note state'ini günceller (tekrar açınca metin durur)");
+  ok(/useState\(value\)/.test(dialog) && /value:\s*string/.test(dialog),
+    "yeniux[ui]: editör açılışta mevcut değeri (value prop) yükler (kaydedilen metin korunur)");
+
+  // 8/10) Vazgeç: create çağırmadan rehbere döner (yanlış state yazmaz).
+  ok(/onCancel/.test(dialog) && /GUIDE_HREF/.test(yeni),
+    "yeniux[ui]: Vazgeç create çağırmadan iptal/rehbere döner");
+  // ESC/overlay veri kaybı guard: yalnız 'temiz' (dirty değil) iken kapanır.
+  ok(/!dirty[\s\S]{0,24}onCancel/.test(dialog),
+    "yeniux[ui]: ESC/overlay yalnız değişiklik yokken kapatır (veri kaybı guard)");
+
+  // 9) main save → mevcut createTopic (aynı DB alanları; yeni field YOK).
+  ok(/createTopic\(/.test(yeni) &&
+     /title:[\s\S]{0,220}category:[\s\S]{0,140}description:[\s\S]{0,140}notes:[\s\S]{0,140}source_note:/.test(yeni),
+    "yeniux[api]: create body mevcut alanlar (title/category/description/notes/source_note)");
+
+  // 11) başarılı create sonrası created topic'e dönüş + rehber ?topic= okur.
+  ok(/GUIDE_HREF\}\?topic=/.test(yeni) && /\/kupa\/amac-rehberi/.test(yeni),
+    "yeniux[flow]: create → ?topic=<id> ile rehbere dönüş");
+  ok(/useSearchParams/.test(amac) && /topicParam/.test(amac),
+    "yeniux[flow]: rehber ?topic= parametresini okuyup ilgili kaydı seçer");
+
+  // 12) PATCH atomiklik (topic-notes/[id]) — insert başarısızsa eski bağlar RESTORE.
+  ok(/prevRows/.test(notesItem) && /geri yükle/i.test(notesItem) &&
+     /if \(prevRows\.length > 0\)[\s\S]{0,80}\.insert\(prevRows\)/.test(notesItem),
+    "note[api]: PATCH point_ids replace — insert başarısızsa eski bağlar RESTORE (partial state yok)");
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
