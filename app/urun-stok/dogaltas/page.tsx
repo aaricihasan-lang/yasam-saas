@@ -30,6 +30,15 @@ import {
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
+  type BasketItem,
+  basketTotals as computeBasketTotals,
+  buildSaleRecord,
+  makeBasketUid,
+  removeBasketItem,
+  toSaleRecords,
+  updateBasketItem,
+} from "@/lib/urun-stok/dogaltasBasket";
+import {
   deleteDogaltasInventoryItems,
   loadDogaltasInventoryForTenant,
   syncDogaltasInventoryToDb,
@@ -392,7 +401,9 @@ export default function DogaltasUrunStokPage() {
   const [usdRate, setUsdRate] = useState("");
   const [eurRate, setEurRate] = useState("");
   const [profitPct, setProfitPct] = useState("100");
-  const [basket, setBasket] = useState<SaleRecord[]>([]);
+  const [basket, setBasket] = useState<BasketItem[]>([]);
+  const [editingUid, setEditingUid] = useState<string | null>(null);
+  const basketSeqRef = useRef(0);
   const [pricingMsg, setPricingMsg] = useState<string | null>(null);
 
   const pickList = useMemo(() => {
@@ -420,6 +431,8 @@ export default function DogaltasUrunStokPage() {
   const salePrice = recipeCost * (1 + profitPctNum / 100);
   const profitAmount = salePrice - recipeCost;
 
+  const basketView = useMemo(() => computeBasketTotals(basket), [basket]);
+
   function addRecipeLine() {
     const it = inventory.find((i) => itemKeyFrom(i) === pickKey);
     if (!it) {
@@ -446,15 +459,25 @@ export default function DogaltasUrunStokPage() {
     setPricingMsg(null);
   }
 
-  function addToBasket() {
+  function resetProductForm() {
+    setRecipeRows([]);
+    setProductName("");
+    setProductPhotos([]);
+    setInvSearch("");
+    setPickKey("");
+    setEditingUid(null);
+  }
+
+  /** Ekleme ve düzenlemenin ortak gövdesi: formu doğrula, canonical kaydı kur. */
+  function buildRecordFromForm(): SaleRecord | null {
     const product = turkishUpper(productName.trim());
     if (!product) {
       setPricingMsg("Ürün adı girin.");
-      return;
+      return null;
     }
     if (recipeRows.length === 0) {
       setPricingMsg("Önce ürüne ait taşları ekleyin.");
-      return;
+      return null;
     }
     const lines = recipeRows
       .filter((r) => r.unit > 0 && r.qty > 0)
@@ -464,29 +487,74 @@ export default function DogaltasUrunStokPage() {
         currency: r.currency,
         unit: r.unit,
         qty: r.qty,
-        line_total: r.unit * r.qty,
       }));
     if (!lines.length) {
       setPricingMsg("Geçerli satır bulunamadı.");
-      return;
+      return null;
     }
-    const total_cost = lines.reduce((s, l) => s + l.line_total, 0);
-    const sale_price = total_cost * (1 + profitPctNum / 100);
-    const rec: SaleRecord = {
+    return buildSaleRecord({
       name: product,
       lines,
-      total_cost,
-      sale_price,
       profit_pct: profitPctNum,
       photos: [...productPhotos],
       timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
-    };
-    setBasket((b) => [...b, rec]);
-    setRecipeRows([]);
-    setProductName("");
-    setProductPhotos([]);
+    });
+  }
+
+  function addToBasket() {
+    const rec = buildRecordFromForm();
+    if (!rec) return;
+    if (editingUid) {
+      const uid = editingUid;
+      setBasket((b) => updateBasketItem(b, uid, rec));
+      resetProductForm();
+      setPricingMsg("Sepet satırı güncellendi.");
+      return;
+    }
+    const uid = makeBasketUid((basketSeqRef.current += 1));
+    setBasket((b) => [...b, { uid, record: rec }]);
+    resetProductForm();
+    setPricingMsg(null);
+  }
+
+  /** Sepet satırını forma yükle (düzenleme modu). Güncellenene kadar satır korunur. */
+  function startEditBasketItem(item: BasketItem) {
+    const rec = item.record;
+    setEditingUid(item.uid);
+    setProductName(rec.name);
+    setProductPhotos([...(rec.photos || [])]);
+    setProfitPct(String(rec.profit_pct));
+    setRecipeRows(
+      (rec.lines || []).map((l) => ({
+        stone: l.stone,
+        type: l.type,
+        currency: l.currency,
+        unit: l.unit,
+        qty: l.qty,
+      })),
+    );
     setInvSearch("");
     setPickKey("");
+    setPricingMsg(
+      `"${rec.name}" düzenleniyor. Değişiklikleri kaydetmek için Güncelle'ye basın.`,
+    );
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEditBasketItem() {
+    resetProductForm();
+    setPricingMsg("Düzenleme iptal edildi. Satır korundu.");
+  }
+
+  async function clearBasket() {
+    if (!basket.length) return;
+    const ok = await deleteConfirm({
+      title: "Sepet temizlenecek",
+      message: "Sepetteki tüm ürünler kaldırılacak. Devam etmek istiyor musunuz?",
+    });
+    if (!ok) return;
+    setBasket([]);
+    resetProductForm();
     setPricingMsg(null);
   }
 
@@ -499,12 +567,14 @@ export default function DogaltasUrunStokPage() {
     committingRef.current = true;
     setIsCommitting(true);
     try {
-      const updated = deductInventoryForSales(inventory, basket);
+      const records = toSaleRecords(basket);
+      const updated = deductInventoryForSales(inventory, records);
       saveInventory(updated);
       setInventory(updated);
-      appendSales(basket);
+      appendSales(records);
       reloadSales();
       setBasket([]);
+      resetProductForm();
       setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
       // Z-2: Demo modda Supabase'e yazma; gerçek hesaplarda sync yap
       if (!isDemo && activeTenantId) {
@@ -1085,9 +1155,28 @@ export default function DogaltasUrunStokPage() {
                 </div>
               </div>
 
-              <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
-                Sepete Ekle
-              </button>
+              {editingUid ? (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    className={`${btnPrimary} w-full`}
+                    onClick={addToBasket}
+                  >
+                    Güncelle
+                  </button>
+                  <button
+                    type="button"
+                    className={`${btnSecondary} w-full`}
+                    onClick={cancelEditBasketItem}
+                  >
+                    Vazgeç
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
+                  Sepete Ekle
+                </button>
+              )}
               {pricingMsg ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
                   {pricingMsg}
@@ -1098,35 +1187,100 @@ export default function DogaltasUrunStokPage() {
             <section className={`${panelClass} w-full`}>
               <h2 className="mb-4 text-xl font-black">Sepet</h2>
               <div className="space-y-3">
-                {basket.map((rec, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
-                  >
-                    <p className="font-black">{rec.name}</p>
-                    <p className="text-sm text-slate-600">
-                      Maliyet {fmtMoney(rec.total_cost)} · Satış {fmtMoney(rec.sale_price)}
-                    </p>
-                    <p className="text-sm">{(rec.photos || []).length} foto</p>
-                    <button
-                      type="button"
-                      className="mt-2 text-sm font-black text-red-600"
-                      onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}
-                    >
-                      Sil
-                    </button>
-                  </div>
-                ))}
+                {basket.length === 0 ? (
+                  <p className="py-6 text-center text-sm font-semibold text-slate-500">
+                    Sepet boş.
+                  </p>
+                ) : (
+                  basket.map((item) => {
+                    const rec = item.record;
+                    const isEditing = editingUid === item.uid;
+                    return (
+                      <div
+                        key={item.uid}
+                        className={`rounded-2xl border p-4 ${
+                          isEditing
+                            ? "border-violet-400 bg-violet-50 ring-2 ring-violet-200"
+                            : "border-slate-200 bg-slate-50/80"
+                        }`}
+                      >
+                        <p className="font-black">
+                          {rec.name}
+                          {isEditing ? (
+                            <span className="ml-2 rounded-full bg-violet-200 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-violet-800">
+                              Düzenleniyor
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          Maliyet {fmtMoney(rec.total_cost)} · Satış {fmtMoney(rec.sale_price)}
+                        </p>
+                        <p className="text-sm">{(rec.photos || []).length} foto</p>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            className="text-sm font-black text-violet-700 hover:text-violet-900"
+                            onClick={() => startEditBasketItem(item)}
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            type="button"
+                            className="text-sm font-black text-red-600 hover:text-red-800"
+                            onClick={() => {
+                              const uid = item.uid;
+                              setBasket((b) => removeBasketItem(b, uid));
+                              if (editingUid === uid) resetProductForm();
+                              setPricingMsg("Ürün sepetten çıkarıldı.");
+                            }}
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <p className="mt-4 font-black">
-                Ürün: {basket.length} · Toplam Satış:{" "}
-                {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}
-              </p>
+              <div className="mt-4 space-y-1 border-t-2 border-slate-100 pt-3 text-sm font-semibold text-slate-600">
+                <p className="flex justify-between">
+                  <span>Ürün</span>
+                  <span className="font-black text-slate-900">{basketView.count}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span>Toplam Maliyet</span>
+                  <span className="font-black text-slate-900">{fmtMoney(basketView.totalCost)}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span>Toplam Satış</span>
+                  <span className="font-black text-slate-900">{fmtMoney(basketView.totalSale)}</span>
+                </p>
+                <p className="flex justify-between text-base font-black">
+                  <span>Toplam Kâr</span>
+                  <span
+                    className={
+                      basketView.totalProfit < 0 ? "text-rose-700" : "text-emerald-700"
+                    }
+                  >
+                    {fmtMoney(basketView.totalProfit)}
+                  </span>
+                </p>
+              </div>
               <div className="mt-4 flex flex-col gap-2">
-                <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={clearBasket}
+                  disabled={!basket.length}
+                >
                   Sepeti Temizle
                 </button>
-                <button type="button" className={btnPrimary} onClick={commitSale} disabled={isCommitting}>
+                <button
+                  type="button"
+                  className={btnPrimary}
+                  onClick={commitSale}
+                  disabled={!basket.length || isCommitting}
+                >
                   {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
                 </button>
               </div>
