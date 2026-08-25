@@ -15,6 +15,7 @@ import {
   type ComputedChartDetail,
 } from "@/lib/human-design/api/chartsClient";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
+import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 
 type Props = {
   id: string;
@@ -161,7 +162,12 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
               </span>
             ) : null}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* FAZ 2.1: computed chart detayı başarıyla yüklendiğinde mevcut Professional
+                Word butonunu REUSE et (chartId = persisted computed row.id). Yeni akış YOK. */}
+            {!loading && !loadError && row ? (
+              <HdProfessionalReportButton chartId={id} />
+            ) : null}
             <button
               type="button"
               onClick={onClose}

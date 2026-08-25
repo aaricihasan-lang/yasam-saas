@@ -509,6 +509,24 @@ async function main() {
     ok("SEC canonical INSERT report_kind='canonical'", /report_kind:\s*"canonical"/.test(persist));
   }
 
+  // ══ ACCESS: Computed chart modal → mevcut Professional Word butonu REUSE (FAZ 2.1) ══
+  section("ACCESS. Computed chart modal → Professional Word reuse");
+  {
+    const modal = stripComments(read("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx"));
+    ok("ACCESS modal HdProfessionalReportButton import ediyor",
+      /import\s*\{\s*HdProfessionalReportButton\s*\}\s*from\s*"\.\/HdProfessionalReportButton"/.test(modal));
+    ok("ACCESS buton chartId={id} (persisted computed row.id) ile render",
+      /<HdProfessionalReportButton\s+chartId=\{id\}\s*\/>/.test(modal));
+    ok("ACCESS buton render guard'lı (yalnız !loading && !loadError && row)",
+      /!loading\s*&&\s*!loadError\s*&&\s*row\s*\?[\s\S]{0,200}<HdProfessionalReportButton\s+chartId=\{id\}/.test(modal));
+    ok("ACCESS modal duplicate report/snapshot/API logic İÇERMEZ",
+      !/reportSnapshotService|createReportSnapshotFromChart|saveCanonicalReport|reports\/professional/.test(modal));
+    // Reuse edilen buton dokunulmadı: mevcut create+download helper akışını kullanır.
+    const btn = stripComments(read("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx"));
+    ok("ACCESS reuse buton create+download helper kullanıyor",
+      /createProfessionalReport/.test(btn) && /downloadProfessionalReport/.test(btn));
+  }
+
   console.log(`\n${"=".repeat(52)}\nSONUÇ: ${pass} geçti, ${fail} kaldı\n${"=".repeat(52)}`);
   if (fail > 0) process.exit(1);
 }
