@@ -11,7 +11,6 @@ import {
   KnowledgeEmpty,
   KnowledgeError,
   KnowledgeLoading,
-  KnowledgeLocked,
 } from "@/components/human-design/knowledge/KnowledgeStates";
 import { fetchCanonicalEntity } from "../../helpers/hdCanonicalRead";
 import type { HdKnowledgeEntityDetail } from "@/lib/human-design/knowledge/expertReadTypes";
@@ -83,7 +82,10 @@ export function CanonicalEntityView({ entityKey }: { entityKey: string }) {
         {role === null || loading ? (
           <KnowledgeLoading />
         ) : locked ? (
-          <KnowledgeLocked message="Human Design Bilgi Bankası hesabınız için henüz aktif değil. Erişim için yöneticinizle iletişime geçin." />
+          <KnowledgeEmpty
+            title="Bu hesap için henüz Human Design bilgi içeriği oluşturulmamış."
+            hint="Kendi Human Design bilgi içeriğinizi eklediğinizde burada listelenecektir."
+          />
         ) : notFound ? (
           <KnowledgeEmpty title="Kayıt bulunamadı" hint="Bu kanonik anahtar mevcut değil." />
         ) : error ? (

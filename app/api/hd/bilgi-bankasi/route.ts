@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import { isHdEntityKind } from "@/lib/human-design/admin/centralContentValidation";
 import {
   getPublishedContentByKeys,
@@ -15,28 +15,30 @@ import {
 export const runtime = "nodejs";
 
 /**
- * /api/hd/bilgi-bankasi — NORMAL UZMAN salt-okuma canonical Bilgi Bankası.
+ * /api/hd/bilgi-bankasi — ADMIN/OWNER'a ÖZEL merkezî canonical Bilgi Bankası.
  *
- * Güvenlik / sözleşme:
- *   - requireModuleAccess(req, "human_design") → x-user-id + x-session-token binding
- *     + kişiye özel modül izni. (human_design şu an "yakında": yalnız admin geçer →
- *     fail-closed; modül uzmanlara açıldığında otomatik çalışır.)
- *   - service_role YALNIZ server'da (guard.db). Tarayıcıya asla sızmaz.
+ * Güvenlik / sözleşme (admin knowledge isolation):
+ *   - requireAdminUserRequest(req) → x-user-id + x-session-token binding + role==='admin'.
+ *     Human Design modülü uzmanlara AÇIK olsa da (module_permissions.human_design=true),
+ *     merkezî canonical corpus (112/112 + kaynaklar + evidence + Reader prose) yalnız
+ *     ADMIN/OWNER'a servis edilir. Non-admin → 403 (fail-closed); UI empty-state gösterir.
+ *   - service_role YALNIZ server'da (guard.db) ve YALNIZ admin kontrolünden SONRA →
+ *     non-admin için canonical bypass olmaz. Tarayıcıya asla sızmaz.
  *   - Yanıt no-store.
- *   - YALNIZ GET. POST/PUT/PATCH/DELETE YOK (mutation yok) → uzman merkezî
- *     canonical veriyi değiştiremez. Yazma yalnız /api/admin/hd/* (verifyAdminRequest).
- *   - Yalnız YAYINLANMIŞ içerik; taslak sızmaz. Tam metin hak sözleşmesine göre
- *     (expert_delivery) filtrelenir. Legacy human_design_knowledge_* tablolarına
- *     dokunmaz; canonical veriyi legacy'ye kopyalamaz.
+ *   - YALNIZ GET. POST/PUT/PATCH/DELETE YOK (mutation yok). Yazma yalnız
+ *     /api/admin/hd/* (verifyAdminRequest).
+ *   - Yalnız YAYINLANMIŞ içerik; taslak sızmaz. Legacy human_design_knowledge_*
+ *     tablolarına dokunmaz; canonical veriyi legacy'ye kopyalamaz.
  *
  * GET ?resource=groups&kind=tip|otorite|kapi|kanal → yayınlanmış kimlik listesi
  * GET ?resource=entity&key=<canonical_key>         → hak-filtreli detay
+ * GET ?resource=chart-knowledge&chart_id=<uuid>    → chart bazlı canonical paket
  */
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "human_design");
+  const guard = await requireAdminUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);

@@ -230,7 +230,10 @@ async function main(): Promise<void> {
   console.log("\nC. Statik güvenlik değişmezleri");
 
   const routeSrc = stripComments(read("app/api/hd/bilgi-bankasi/route.ts"));
-  ok("C1 expert API: requireModuleAccess(human_design)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(routeSrc));
+  // Admin knowledge isolation: merkezî canonical Bilgi Bankası ADMIN/OWNER'a özeldir.
+  // HD modülü uzmanlara açık olsa da bu route yalnız role==='admin' için servis eder.
+  ok("C1 canonical API: requireAdminUserRequest (admin-only, module gate DEĞİL)",
+    /requireAdminUserRequest\(\s*req\s*\)/.test(routeSrc) && !/requireModuleAccess\(/.test(routeSrc));
   ok("C2 expert API: GET export var", /export async function GET/.test(routeSrc));
   ok("C3 expert API: MUTATION yok (POST/PUT/PATCH/DELETE export YOK)", !/export async function (POST|PUT|PATCH|DELETE)/.test(routeSrc));
   ok("C4 expert API: no-store", /no-store/i.test(routeSrc));

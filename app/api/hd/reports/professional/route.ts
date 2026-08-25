@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createReportSnapshotFromChart } from "@/lib/human-design/reporting/reportSnapshotService";
 import { saveCanonicalReport } from "@/lib/human-design/api/reportPersistence";
@@ -10,8 +10,11 @@ export const runtime = "nodejs";
 /**
  * POST /api/hd/reports/professional — PROFESYONEL (canonical) rapor snapshot OLUŞTUR.
  *
- * Güvenlik / sözleşme (§16, §42):
- *   - requireModuleAccess("human_design") → x-user-id + x-session-token binding.
+ * Güvenlik / sözleşme (§16, §42 + admin knowledge isolation):
+ *   - requireAdminUserRequest → x-user-id + x-session-token binding + role==='admin'.
+ *     Profesyonel rapor merkezî canonical prose'u snapshot'a dondurur → yalnız ADMIN/OWNER
+ *     üretebilir. Non-admin uzman → 403 (buton da client'ta gizli). Canonical corpus
+ *     uzmana sızmaz.
  *   - tenantId + userId YALNIZ guard'dan; body'den GÜVENİLMEZ.
  *   - chart_id tenant-scoped; başka tenant/eksik → 404 (ayırt etme).
  *   - Demo hesap YAZAMAZ (report create bir write'tır).
@@ -24,7 +27,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "human_design");
+  const guard = await requireAdminUserRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
