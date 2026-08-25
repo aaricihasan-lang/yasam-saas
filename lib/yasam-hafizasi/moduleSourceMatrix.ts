@@ -69,15 +69,37 @@ export const YH_MODULE_SOURCE_MATRIX = [
       "biyoenerji:imaginations",
       "biyoenerji:sessions",
       "biyoenerji:energy-bodies",
+      "biyoenerji:chakra-blocks",
     ],
     clientSourceKeys: [],
-    allow: ["başlık", "sembol/anlam", "kategori", "yapılandırılmış içerik", "kaynak"],
+    allow: ["başlık", "sembol/anlam", "kategori", "yapılandırılmış içerik", "kaynak", "V4 çakra bloğu (editoryal/kaynak/not)"],
     deny: ["serbest seans notu", "sağlık iddiası", "ad", "telefon", "e-posta", "kişisel açıklama"],
     rationale:
       "Sembol/çakra/imgeleme/bilinçaltı sebep katalogları tenant-owned danışan-bağımsız bilgi; " +
       "professional index'te CANLI. Doğrudan tenant_id+client_id ile bağlı yapılandırılmış client " +
       "tablosu YOK → client katmanı açılmaz (serbest seans notu PII).",
     activationPrerequisite: "Client katmanı için gerçek tenant+client bağlı yapılandırılmış tablo gerekir.",
+  },
+  {
+    moduleKey: "kupa_hacamat",
+    label: "Kupa & Hacamat",
+    classification: "PROFESSIONAL_ONLY",
+    professionalSourceKeys: [
+      "kupa_hacamat:knowledge",
+      "kupa_hacamat:points",
+      "kupa_hacamat:topics",
+      "kupa_hacamat:techniques",
+      "kupa_hacamat:safety-notes",
+    ],
+    clientSourceKeys: [],
+    allow: ["bilgi/eğitim içeriği", "nokta bilgisi (ad/geleneksel kullanım/uygulama)", "amaç/rahatsızlık", "teknik", "güvenlik/kontrendikasyon", "etiketler"],
+    deny: ["placement koordinatları / atlas geometrisi", "citation junction / bibliyografik künye", "danışan kimliği", "serbest danışan PII"],
+    rationale:
+      "cupping_knowledge_records/points/topics/techniques/safety_notes tenant-owned danışan-bağımsız " +
+      "profesyonel katalog/bilgi (client_id YOK); /api/kupa/* server-only. Geometri (cupping_point_placements), " +
+      "citation junction (*_sources) ve bibliyografik künye (cupping_sources) BİLİNÇLİ olarak DIŞARIDA " +
+      "(arama değeri yok/yapısal). Kozmik 'hacamat_rules' ile İLGİSİZ. Client katmanı YOK (danışan tablosu yok).",
+    activationPrerequisite: "Coverage Completion CDC trigger + yh_source_activation_set (default OFF; ayrı production onayı).",
   },
   {
     moduleKey: "refleksoloji",

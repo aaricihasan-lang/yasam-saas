@@ -134,8 +134,8 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   // BF-11E: kisisel_arsiv:archives ROW-GATED CONTROLLED (safe-non-pii + requiresRowEligibilityGate; duplicate yok).
   add("existing-archive-source-row-gated", byKey.get("kisisel_arsiv:archives")?.classification === "safe-non-pii" && byKey.get("kisisel_arsiv:archives")?.requiresRowEligibilityGate === true, byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
   // Professional Cohort: 22 canlı (19 + 3 aroma; numeroloji enabled:false KORUNDU) + 8 dormant (2 numeroloji + 6 yebs) = 30 kaynak.
-  add("registry-count-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
-  add("live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
+  add("registry-count-30", YH_INDEX_SOURCES.length === 36, String(YH_INDEX_SOURCES.length));
+  add("live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28);
   // WIRED_DORMANT closure key'leri GERÇEKTEN registry'de ve HEPSİ enabled:false.
   const wired = wiredDormantRegistryKeys();
   add("closure-wired-keys-in-registry", wired.length === 6 && wired.every((k) => byKey.has(k)), wired.join(","));

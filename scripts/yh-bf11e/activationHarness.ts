@@ -63,7 +63,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   const matrixKeys = YH_ACTIVATION_MATRIX.map((e) => e.sourceKey);
 
   // Professional Cohort: registry 27→30 professional (+3 aroma) + 6 client = 36 matris kaydı.
-  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 36, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
+  add("A-all-source-keys-covered", proKeys.size + cliKeys.size === matrixKeys.length && matrixKeys.length === 42, `matrix=${matrixKeys.length} registry=${proKeys.size + cliKeys.size}`);
   add("A-no-duplicate-key", new Set(matrixKeys).size === matrixKeys.length);
   add("A-no-unknown-source", matrixKeys.every((k) => proKeys.has(k) || cliKeys.has(k)));
   add("A-every-entry-has-class", YH_ACTIVATION_MATRIX.every((e) => (ACTIVATION_CLASSES as readonly string[]).includes(e.activationClass)));
@@ -81,7 +81,7 @@ const has = (re: RegExp): boolean => re.test(MIG);
   add("A-wait-clean-reset-2-numerology", sourceKeysByClass("WAIT_FOR_CLEAN_RESET").length === 2 && sourceKeysByClass("WAIT_FOR_CLEAN_RESET").every((k) => k.startsWith("numeroloji:")));
   // FUTURE_ONLY_READY = 19 professional controlled (11 worker-v1 Cohort A + 5 worker-v2 + 3 Professional
   // Cohort aroma katalog/method) + 6 client = 25. (numeroloji WAIT_FOR_CLEAN_RESET; ayrı sınıf.)
-  add("A-future-only-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 25, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
+  add("A-future-only-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 31, sourceKeysByClass("FUTURE_ONLY_READY").join(","));
   // DEFERRED_SHARED_WORKER_V2 = 0: Worker-v2 (migration 20261210000000) 5 kaynağa capability verdi → READY.
   add("A-deferred-shared-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("A-no-deferred-registry-entry", sourceKeysByClass("DEFERRED_HARD_BLOCKER").length === 0);
@@ -286,9 +286,9 @@ const has = (re: RegExp): boolean => re.test(MIG);
 
 // ═══ K) MODÜL REGRESYON (registry sayıları / dormancy değişmedi) ═════════════
 {
-  add("K-professional-registry-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
+  add("K-professional-registry-30", YH_INDEX_SOURCES.length === 36, String(YH_INDEX_SOURCES.length));
   // Professional Cohort: live 22 (19 + 3 aroma; numeroloji enabled:false KORUNDU); dormant 8 (2 numeroloji + 6 yebs).
-  add("K-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
+  add("K-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28);
   add("K-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("K-client-registry-6", YH_CLIENT_INDEX_SOURCES.length === 6);
   add("K-client-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true));

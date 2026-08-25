@@ -128,6 +128,16 @@ export interface SourceConfig {
    */
   readonly rowClassificationColumn?: string | null;
   /**
+   * Professional Coverage Completion: satır-seviyesi DIŞLAMA kapısı (allowlist DEĞİL). Verilirse,
+   * `ineligibleStatuses` içindeki bir değere sahip satır indexlenmez (deindex); NULL / listede
+   * OLMAYAN her değer geçer. `statusColumn`+`eligibleStatuses` (pozitif allowlist) ile birlikte de
+   * çalışır (her ikisi de fail-closed AND). Örn. biyoenerji:chakra-blocks → block_type='source-evidence'
+   * (gizli kaynak-kanıtı blokları; UI'da içerik olarak gösterilmez → aranmaz). null block_type geçer.
+   */
+  readonly ineligibleStatusColumn?: string | null;
+  /** `ineligibleStatusColumn` için DIŞLANAN değerler (bu değere sahip satır indexlenmez). */
+  readonly ineligibleStatuses?: readonly string[];
+  /**
    * BF-11E Kişisel Arşiv (ROW-GATED CONTROLLED): bu kaynak YALNIZ satır-seviyesi eligibility
    * kapısından (ayrı classification tablosu + server-türetimli current content hash eşleşmesi;
    * `archiveEligibility.ts`) geçen kayıtları indexler. true ise:
@@ -876,6 +886,149 @@ export const YH_INDEX_SOURCES = [
     updatedAtColumn: "updated_at",
     activeColumn: null,
     requiresRowEligibilityGate: true, // per-row classification + current-hash gate ZORUNLU
+    enabled: true,
+  },
+
+  // ── Kupa & Hacamat (Professional Coverage Completion; tenant-scoped katalog/bilgi) ──────────
+  //   5 aranması-değerli tablo. cupping_point_placements (geometri), *_sources citation junction,
+  //   cupping_sources (bibliyografik künye), cupping_point_topics (junction) BİLİNÇLİ olarak DIŞARIDA.
+  //   Hepsi column-tenant (NOT NULL) + record + is_active soft-delete → worker-v1 kapsamı; capability YOK.
+  {
+    sourceKey: "kupa_hacamat:knowledge",
+    classification: "safe-non-pii", // uzman bilgi/eğitim kütüphanesi; client_id YOK
+
+    sourceFamily: "kupa_hacamat",
+    tableName: "cupping_knowledge_records",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["content", "notes", "source", "source_section", "keyword"],
+    snippetColumns: ["content"],
+    topicTagsColumns: ["category", "tags"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: "is_active",
+    enabled: true,
+  },
+  {
+    sourceKey: "kupa_hacamat:points",
+    classification: "safe-non-pii", // nokta bilgisi (ad/geleneksel kullanım/uygulama/güvenlik); danışan-bağımsız
+
+    sourceFamily: "kupa_hacamat",
+    tableName: "cupping_points",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["name"],
+    searchTextColumns: [
+      "alt_name",
+      "code",
+      "anatomical_region",
+      "description",
+      "traditional_use",
+      "application_info",
+      "safety_note",
+      "source_note",
+      "professional_note",
+    ],
+    snippetColumns: ["description", "traditional_use"],
+    topicTagsColumns: ["anatomical_region", "laterality"],
+    relationColumns: ["related_points", "synonyms"], // koordinat/placement DAHİL DEĞİL
+    updatedAtColumn: "updated_at",
+    activeColumn: "is_active",
+    enabled: true,
+  },
+  {
+    sourceKey: "kupa_hacamat:topics",
+    classification: "safe-non-pii", // amaç/rahatsızlık (kaynaklı geleneksel kullanım); danışan-bağımsız
+
+    sourceFamily: "kupa_hacamat",
+    tableName: "cupping_topics",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["description", "notes", "source_note"],
+    snippetColumns: ["description"],
+    topicTagsColumns: ["category"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: "is_active",
+    enabled: true,
+  },
+  {
+    sourceKey: "kupa_hacamat:techniques",
+    classification: "safe-non-pii", // kupa teknikleri (kuru/yaş/sabit/hareketli); danışan-bağımsız
+
+    sourceFamily: "kupa_hacamat",
+    tableName: "cupping_techniques",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["name"],
+    searchTextColumns: ["kind", "description", "application_info", "safety_note", "source_note", "technique_type", "movement_style"],
+    snippetColumns: ["description"],
+    topicTagsColumns: ["kind", "technique_type", "movement_style"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: "is_active",
+    enabled: true,
+  },
+  {
+    sourceKey: "kupa_hacamat:safety-notes",
+    classification: "safe-non-pii", // güvenlik/kontrendikasyon (bağımsız kayıt); danışan-bağımsız
+
+    sourceFamily: "kupa_hacamat",
+    tableName: "cupping_safety_notes",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["content"],
+    snippetColumns: ["content"],
+    topicTagsColumns: ["severity", "scope_tags", "contraindication_class"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: "is_active",
+    enabled: true,
+  },
+
+  // ── Biyoenerji V4 — Çakra zengin içerik blokları (SOURCE_NOT_CONNECTED gap kapanışı) ────────
+  //   bioenergy_chakra_blocks DOĞRUDAN tenant_id (NOT NULL) taşır → column-tenant + record.
+  //   Görünürlük: UI reader ile BİREBİR — yalnız GÖRÜNÜR (block_type != 'source-evidence') VE
+  //   içerikli bloklar indexlenir. source-evidence blokları (yalnız bibliyografyayı besler)
+  //   ineligibleStatuses ile DIŞLANIR; içeriksiz blok evidence-gate ile düşer (deindex). Parent
+  //   biyoenerji:chakras (bioenergy_chakras legacy alanlar) DEĞİŞMEZ.
+  {
+    sourceKey: "biyoenerji:chakra-blocks",
+    classification: "safe-non-pii", // uzman-authored çakra bilgi bloğu (editoryal/kaynak/not); danışan-bağımsız
+
+    sourceFamily: "biyoenerji",
+    tableName: "bioenergy_chakra_blocks",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["block_title"],
+    searchTextColumns: [
+      "source_excerpt",
+      "source_translation",
+      "editorial_explanation",
+      "editorial_interpretation",
+      "expert_note",
+      "source_title",
+      "source_author",
+      "source_ref",
+      "tradition_frame",
+    ],
+    snippetColumns: ["editorial_explanation", "source_translation", "source_excerpt"],
+    topicTagsColumns: [], // section_key/block_type slug'ları tag olarak gürültü → dahil edilmez
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    // Görünürlük = UI isVisibleChakraBlock: source-evidence blokları içerik olarak GÖSTERİLMEZ → aranmaz.
+    ineligibleStatusColumn: "block_type",
+    ineligibleStatuses: ["source-evidence"],
     enabled: true,
   },
 ] as const satisfies readonly SourceConfig[];
