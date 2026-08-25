@@ -7,7 +7,8 @@
  * Double-submit engellenir (disabled loading state). Ayrı preview sayfası YOK (§47).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   createProfessionalReport,
   downloadProfessionalReport,
@@ -16,6 +17,14 @@ import {
 type Phase = "idle" | "creating" | "downloading" | "done" | "error";
 
 export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
+  // Admin knowledge isolation: profesyonel canonical Word yalnız ADMIN/OWNER içindir
+  // (endpoint de 403 döner). Non-admin uzman için buton hiç render edilmez.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAdmin(isAdminUser(readYasamUser()));
+  }, []);
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string>("");
 
@@ -44,6 +53,8 @@ export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
     setPhase("done");
     setMessage("Rapor indirildi. Kayıtlı Raporlar'dan tekrar erişebilirsiniz.");
   }
+
+  if (!isAdmin) return null;
 
   return (
     <div className="flex flex-col gap-1.5">

@@ -14,6 +14,7 @@
     "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
     "hd:word:visual": "tsx scripts/hd-word-report/visualFixtures.ts",
     "hd:member:harness": "tsx scripts/hd-member-access-harness.ts",
+    "hd:isolation:harness": "node scripts/hd-admin-knowledge-isolation-check.mjs",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
@@ -35,6 +36,13 @@ export function HdRaporListesi() {
   const [detayRow, setDetayRow] = useState<HdReportWithClient | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  // Admin knowledge isolation: profesyonel (canonical) rapor Word indirme yalnız
+  // ADMIN/OWNER içindir (endpoint 403). Non-admin için indirme butonu gizlenir.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAdmin(isAdminUser(readYasamUser()));
+  }, []);
 
   async function handleDownload(row: HdReportWithClient) {
     setDownloadingId(row.id);
@@ -55,6 +63,7 @@ export function HdRaporListesi() {
   }, [showToast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadRows();
   }, [loadRows]);
 
@@ -177,14 +186,17 @@ export function HdRaporListesi() {
                 {isCanonical ? (
                   // Profesyonel (canonical): DONMUŞ snapshot'tan Word indir. Düzenle YOK
                   // (immutable/§40); Detay YOK (içerik snapshot'ta, editable metin yok).
-                  <button
-                    type="button"
-                    disabled={downloadingId === row.id}
-                    onClick={() => handleDownload(row)}
-                    className="flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
-                  >
-                    {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
-                  </button>
+                  // Merkezî canonical prose içerdiğinden yalnız ADMIN/OWNER indirebilir.
+                  isAdmin ? (
+                    <button
+                      type="button"
+                      disabled={downloadingId === row.id}
+                      onClick={() => handleDownload(row)}
+                      className="flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
+                    >
+                      {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
+                    </button>
+                  ) : null
                 ) : (
                   <>
                     <button

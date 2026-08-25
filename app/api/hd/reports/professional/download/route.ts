@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
@@ -11,8 +11,10 @@ export const runtime = "nodejs";
 /**
  * POST /api/hd/reports/professional/download — DONMUŞ snapshot → DOCX.
  *
- * Güvenlik / sözleşme (§18, §43):
- *   - requireModuleAccess("human_design") → x-user-id + x-session-token binding.
+ * Güvenlik / sözleşme (§18, §43 + admin knowledge isolation):
+ *   - requireAdminUserRequest → x-user-id + x-session-token binding + role==='admin'.
+ *     Donmuş snapshot merkezî canonical prose içerir → yalnız ADMIN/OWNER indirebilir.
+ *     Non-admin uzman → 403.
  *   - tenantId YALNIZ guard'dan; body reportId tenant-scoped okunur (foreign → 404).
  *   - YALNIZ report_kind='canonical'; snapshot server'da doğrulanır.
  *   - DOCX KAYDEDİLMİŞ snapshot'tan üretilir → LIVE CANONICAL LOOKUP YOK (canonical
@@ -26,7 +28,7 @@ const BUCKET = "hd-chart-images";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireModuleAccess(req, "human_design");
+  const guard = await requireAdminUserRequest(req);
   if (!guard.ok) return guard.response;
 
   const rl = checkRateLimit(`hd-word-dl:${guard.tenantId}`, 20, 60_000);

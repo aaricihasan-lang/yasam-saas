@@ -54,7 +54,18 @@ export function HdPersonalKnowledgePanel({ chartId }: { chartId: string }) {
     return <div className="animate-pulse space-y-4"><div className="h-5 w-48 rounded bg-slate-100" /><div className="grid gap-4 sm:grid-cols-2"><div className="h-24 rounded-2xl bg-slate-100" /><div className="h-24 rounded-2xl bg-slate-100" /></div></div>;
   }
   if (state.phase === "error") {
-    const msg = state.locked ? "Human Design bilgi bankası erişiminiz henüz aktif değil." : state.notFound ? "Harita bulunamadı." : "Human Design bilgileri yüklenemedi.";
+    // Admin knowledge isolation: merkezî canonical Reader ADMIN/OWNER'a özeldir.
+    // Non-admin uzman (server 403 → locked) için empty-state gösterilir; harita/chart
+    // verisi etkilenmez, yalnız canonical prose gizlenir.
+    if (state.locked) {
+      return (
+        <div className="rounded-2xl border border-indigo-100 bg-white/70 px-6 py-10 text-center">
+          <p className="text-sm font-bold text-slate-700">Bu hesap için henüz Human Design bilgi içeriği oluşturulmamış.</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">Kendi Human Design bilgi içeriğinizi eklediğinizde bu haritanın bilgileri burada görünecektir.</p>
+        </div>
+      );
+    }
+    const msg = state.notFound ? "Harita bulunamadı." : "Human Design bilgileri yüklenemedi.";
     return <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 ring-1 ring-amber-100">{msg}</p>;
   }
 
