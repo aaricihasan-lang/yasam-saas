@@ -1,8 +1,10 @@
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import type { AtlasDocument, AtlasMeta, AtlasOrganEntry } from "@/lib/atlasStorage";
 import {
   footToStorageKey,
   getRegionsForOrgan,
+  listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
   removeOrganFromAtlas,
@@ -131,4 +133,32 @@ export function deleteOrganFromStorage(organ: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * "Atlası Olmayan Organlar" (ghost/orphan): organ listesinde bulunan ama
+ * atlas belgesinde KANONİK karşılığı OLMAYAN organlar. Gerçek atlas-backed
+ * organ (böbrek/kalp/karaciğer/mesane) ASLA bu listeye düşmez. Kanonik kimlik
+ * (organKey) → NFC/NFD + casing tek organ sayılır. Saf/testable.
+ */
+export function listOrphanOrganList(atlas: AtlasDocument, organList: string[]): string[] {
+  const atlasKeys = new Set(listOrganNamesFromAtlas(atlas).map(organKey));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of organList) {
+    const key = organKey(name);
+    if (!key || atlasKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name.trim());
+  }
+  return out.sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+/**
+ * Ghost/orphan organı kalıcı siler: mevcut silme yolunu (mezar taşı yazar +
+ * organ listesinden çıkarır + sunucu senkronu) yeniden kullanır. Böylece bayat
+ * bir cihaz kopyası hydrate olsa bile organ DİRİLMEZ (tombstone-aware union).
+ */
+export function deleteOrphanOrganFromStorage(organ: string): boolean {
+  return deleteOrganFromStorage(organ);
 }

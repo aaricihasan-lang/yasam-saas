@@ -1,16 +1,32 @@
 export type ProtocolFootView = "taban" | "yan";
 
-/** Atlas önizleme bölgesi (salt okunur) */
+export type ProtocolRegionPoint = { x: number; y: number };
+
+/**
+ * Atlas önizleme bölgesi (salt okunur). Bölge Haritası'nın TÜM geçerli
+ * şekillerini taşır: oval/rect (kutu), free_draw (points), thick_line (uç
+ * koordinatları). Şekle göre yalnız ilgili geometri alanları dolu olur.
+ */
 export type ProtocolDisplayRegion = {
   id: string;
   organ: string;
   footSide: "left" | "right";
   view: ProtocolFootView;
-  shape: "oval" | "rect";
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
+  shape: "oval" | "rect" | "free_draw" | "thick_line";
+  // oval / rect
+  cx?: number;
+  cy?: number;
+  rx?: number;
+  ry?: number;
+  angle?: number;
+  // free_draw
+  points?: ProtocolRegionPoint[];
+  // thick_line
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  lineWidth?: number;
 };
 
 export type OrganColorStyle = {
@@ -24,8 +40,14 @@ export type ColoredDisplayRegion = ProtocolDisplayRegion & OrganColorStyle;
 export type OrganAtlasStatus = {
   name: string;
   atlasKey: string | null;
+  /** Organın HERHANGİ bir görünümde (Taban/Yan) kayıtlı atlas bölgesi var mı. */
   found: boolean;
+  /** TÜM görünümlerdeki toplam geçerli bölge sayısı. */
   regionCount: number;
+  /** Yalnız aktif görünümdeki geçerli bölge sayısı. */
+  currentViewRegionCount: number;
+  /** Bölgesi bulunan görünümler (ör. yalnız "yan"). */
+  availableViews: ProtocolFootView[];
   color: OrganColorStyle;
 };
 

@@ -11,9 +11,9 @@ import {
   mergeDraftIntoAtlas,
   saveAtlas,
   saveOrganList,
-  unionOrganLists,
 } from "@/lib/atlasStorage";
 import type { AtlasDocument } from "@/lib/atlasStorage";
+import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
 import {
   hydrateAtlasFromServer,
   scheduleAtlasSync,
@@ -71,7 +71,12 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
         // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
         const localDoc = loadAtlas();
         const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
-        const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
+        // Zombie fix: tombstone-farkında + kanonik organ listesi birleştirme.
+        const mergedOrgans = mergeOrganListsWithTombstones(
+          server.organ_list,
+          loadOrganList(),
+          mergedDoc._meta,
+        );
         setAtlasSyncSuspended(true);
         saveAtlas(mergedDoc);
         saveOrganList(mergedOrgans);

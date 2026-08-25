@@ -1,13 +1,26 @@
 "use client";
 
-import type { OrganAtlasStatus, ProtocolFormDraft } from "../types";
+import type { OrganAtlasStatus, ProtocolFootView, ProtocolFormDraft } from "../types";
 
 type ProtocolSummaryPanelProps = {
   draft: ProtocolFormDraft;
   statuses: OrganAtlasStatus[];
+  footView: ProtocolFootView;
 };
 
-export function ProtocolSummaryPanel({ draft, statuses }: ProtocolSummaryPanelProps) {
+function viewLabel(view: ProtocolFootView): string {
+  return view === "taban" ? "Taban" : "Yan";
+}
+
+/** Aktif görünümde bölge yoksa, bölgesi olan diğer görünümü tarif eder. */
+function otherViewsHint(status: OrganAtlasStatus, currentView: ProtocolFootView): string | null {
+  const others = status.availableViews.filter((v) => v !== currentView);
+  if (others.length === 0) return null;
+  const parts = others.map((v) => `${viewLabel(v)} görünümünde ${status.regionCount} bölge`);
+  return `Bu organın ${viewLabel(currentView)} görünümünde kayıtlı bölgesi yok. ${parts.join(", ")} var.`;
+}
+
+export function ProtocolSummaryPanel({ draft, statuses, footView }: ProtocolSummaryPanelProps) {
   const hasContent =
     draft.title.trim() || draft.description.trim() || draft.organs.length > 0 || draft.notes.trim();
 
@@ -39,32 +52,41 @@ export function ProtocolSummaryPanel({ draft, statuses }: ProtocolSummaryPanelPr
           <p className="mt-1 text-xs font-medium text-slate-500">Organ eklenmedi.</p>
         ) : (
           <ul className="mt-2 flex flex-col gap-2">
-            {statuses.map((status) => (
-              <li
-                key={status.name}
-                className={`rounded-xl border p-2.5 ${status.color.chipClass}`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <span className="text-sm font-bold">{status.name}</span>
-                  <span
-                    className={`rounded-lg px-2 py-0.5 text-xs font-bold ${
-                      status.found
-                        ? "bg-white/80 text-emerald-800"
-                        : "bg-white/80 text-amber-900"
-                    }`}
-                  >
-                    {status.found
-                      ? `Atlas bulundu (${status.regionCount} bölge)`
-                      : "Atlas bulunamadı"}
-                  </span>
-                </div>
-                {!status.found ? (
-                  <p className="mt-1 text-xs font-medium opacity-90">
-                    Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası&apos;ndan ekleyin.
-                  </p>
-                ) : null}
-              </li>
-            ))}
+            {statuses.map((status) => {
+              const currentViewEmpty = status.found && status.currentViewRegionCount === 0;
+              const hint = currentViewEmpty ? otherViewsHint(status, footView) : null;
+              return (
+                <li
+                  key={status.name}
+                  className={`rounded-xl border p-2.5 ${status.color.chipClass}`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <span className="text-sm font-bold">{status.name}</span>
+                    <span
+                      className={`rounded-lg px-2 py-0.5 text-xs font-bold ${
+                        status.found
+                          ? "bg-white/80 text-emerald-800"
+                          : "bg-white/80 text-amber-900"
+                      }`}
+                    >
+                      {status.found
+                        ? `Atlas bulundu (${status.regionCount} bölge)`
+                        : "Atlas bulunamadı"}
+                    </span>
+                  </div>
+                  {/* Atlas VAR ama aktif görünümde bölge yoksa → görünüme özel bilgi
+                      (ASLA "Atlas bulunamadı" deme). */}
+                  {hint ? (
+                    <p className="mt-1 text-xs font-medium opacity-90">{hint}</p>
+                  ) : null}
+                  {!status.found ? (
+                    <p className="mt-1 text-xs font-medium opacity-90">
+                      Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası&apos;ndan ekleyin.
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
