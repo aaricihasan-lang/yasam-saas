@@ -36,6 +36,10 @@ export const YH_SOURCE_MODULES = [
   //   Merkezi belge/video/ders-notu işleme alanı transient workspace'tir, Yaşam Hafızası source
   //   değildir → source_module ailesinden çıkarıldı (bkz sources.ts / moduleSourceMatrix).
   "yebs",
+  // Professional Coverage Completion: ADDITİF tenant-scoped professional aile. Kupa & Hacamat
+  // Terapisi bilgi/nokta/konu/teknik/güvenlik kayıtları (danışan-bağımsız katalog; client_id YOK).
+  // Kozmik Ajanda 'hacamat_rules' (zamanlama) ile İLGİSİZ ve ONA DOKUNULMAZ.
+  "kupa_hacamat",
 ] as const;
 export type YhSourceModule = (typeof YH_SOURCE_MODULES)[number];
 

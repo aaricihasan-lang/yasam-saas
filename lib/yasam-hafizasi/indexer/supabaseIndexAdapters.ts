@@ -122,6 +122,7 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
   // BF-14 row-eligibility kolonları (varsa) fetch'e dahil (status/row-classification kapıları).
   if (typeof config.statusColumn === "string" && config.statusColumn.length > 0) cols.add(config.statusColumn);
   if (typeof config.rowClassificationColumn === "string" && config.rowClassificationColumn.length > 0) cols.add(config.rowClassificationColumn);
+  if (typeof config.ineligibleStatusColumn === "string" && config.ineligibleStatusColumn.length > 0) cols.add(config.ineligibleStatusColumn);
   for (const c of config.titleColumns) cols.add(c);
   for (const c of config.searchTextColumns) cols.add(c);
   for (const c of config.snippetColumns) cols.add(c);

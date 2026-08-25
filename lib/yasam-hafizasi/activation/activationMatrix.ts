@@ -170,6 +170,16 @@ export const YH_ACTIVATION_MATRIX = [
   professionalCohort("aromaterapi:preparations", "Aromaterapi", "aromatherapy_preparations"),
   professionalCohort("aromaterapi:method", "Aromaterapi", "aromatherapy_preparation_method_series"),
 
+  // ── COVERAGE COMPLETION (FUTURE_ONLY_READY) — Kupa & Hacamat (5) + Biyoenerji V4 chakra-blocks (1) ──
+  //   Gerçek coverage gap kapanışı; column-tenant + record; CDC yeni migration ile WIRED, production OFF.
+  coverageControlled("kupa_hacamat:knowledge", "Kupa & Hacamat", "cupping_knowledge_records", "source-classification"),
+  coverageControlled("kupa_hacamat:points", "Kupa & Hacamat", "cupping_points", "source-classification"),
+  coverageControlled("kupa_hacamat:topics", "Kupa & Hacamat", "cupping_topics", "source-classification"),
+  coverageControlled("kupa_hacamat:techniques", "Kupa & Hacamat", "cupping_techniques", "source-classification"),
+  coverageControlled("kupa_hacamat:safety-notes", "Kupa & Hacamat", "cupping_safety_notes", "source-classification"),
+  // chakra-blocks: block_type='source-evidence' DIŞLAMA kapısı (status-eligibility) → UI görünürlüğü ile birebir.
+  coverageControlled("biyoenerji:chakra-blocks", "Biyoenerji", "bioenergy_chakra_blocks", "status-eligibility"),
+
   // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {
     sourceKey: "kisisel_arsiv:archives",
@@ -367,6 +377,41 @@ function controlledV2(
  * değişimi → series-keyed coalesce). Row-gate = status-eligibility (katalog verified|approved;
  * method verified). Tenant column + record → worker-v1 kapsamı; capability YOK. Backfill DEFAULT false.
  */
+/**
+ * PROFESSIONAL COVERAGE COMPLETION (FUTURE_ONLY_READY): controlled()'un eşi; Kupa & Hacamat (5) +
+ * Biyoenerji V4 chakra-blocks (1) coverage gap kapanışı. Hepsi column-tenant (NOT NULL) + record →
+ * worker-v1 kapsamı; capability YOK. CDC trigger YENİ Coverage Completion migration'ları ile WIRED
+ * (generic yh_cdc_enqueue); production'da is_active=true olmadan NO-OP (default OFF; çift kapı).
+ * Backfill YASAK (blind bulk); yalnız INSERT→upsert / UPDATE→refresh / DELETE→deindex future-event.
+ */
+function coverageControlled(
+  sourceKey: string,
+  module: string,
+  sourceTable: string,
+  rowGate: ActivationRowGate,
+): ActivationMatrixEntry {
+  return {
+    sourceKey,
+    module,
+    scope: "professional",
+    activationClass: "FUTURE_ONLY_READY",
+    sourceTable,
+    tenantMode: "column",
+    rowGate,
+    registryEnabled: true,
+    currentDataRisk: "none",
+    futureEventEligible: true,
+    backfillEligibility: "not-applicable",
+    triggerFeasibleNow: true,
+    activationPrerequisite:
+      "AYRI production kapıları: (1) Coverage Completion CDC trigger WIRED (yeni migration; generic yh_cdc_enqueue; enqueue AKTİVASYON-KAPILI — is_active YOKSA sessiz NO-OP), (2) yh_source_activation_set(<sourceKey>, true) — CODE ENABLED ≠ TRIGGER INSTALLED ≠ DB ACTIVATED. Kaynak default OFF; kör backfill YASAK (yalnız future-event current-state).",
+    activationCohort: "coverage-completion-professional",
+    rollbackBehavior: DORMANT_ROLLBACK,
+    recommendation:
+      "FUTURE_ONLY_READY (coverage completion): tenant-scoped professional katalog/bilgi kaynağı (Kupa & Hacamat / Biyoenerji V4 çakra blokları); worker-v1 kapsamında. CDC trigger yeni migration ile WIRED ama production'da is_active=true olmadan NO-OP (default OFF; çift kapı: kod + DB flip). Backfill DEFAULT false (blind bulk YASAK); yalnız INSERT→upsert / UPDATE→refresh / DELETE→deindex future-event indexlenir. chakra-blocks görünürlüğü UI ile birebir (source-evidence hariç). Aktivasyon ayrı production onayı.",
+  };
+}
+
 function professionalCohort(
   sourceKey: string,
   module: string,

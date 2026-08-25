@@ -146,7 +146,7 @@ async function run(): Promise<void> {
   // Cohort A + 5 worker-v2) = 17; kod önkoşulları çözüldü → readyGap BOŞ.
   const cohort1Ready = YH_ACTIVATION_MATRIX.filter((e) => assessCohort(e).cohort === "COHORT_1_READY");
   // Professional Cohort: 17 + 3 aroma (FUTURE_ONLY_READY → COHORT_1_READY) = 20.
-  add("D-cohort1-ready-20-no-gap", cohort1Ready.length === 20 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
+  add("D-cohort1-ready-20-no-gap", cohort1Ready.length === 26 && cohort1Ready.every((e) => assessCohort(e).readyGap.length === 0), cohort1Ready.map((e) => e.sourceKey).join(","));
   add("D-cohort1-ready-includes-archive", cohort1Ready.some((e) => e.sourceKey === "kisisel_arsiv:archives"));
   // DEFERRED_SHARED_WORKER_V2 kohortu = 0: Worker-v2 5 kaynağa capability verdi → COHORT_1_READY'ye taşındı.
   add("D-deferred-worker-v2-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").join(","));
@@ -160,7 +160,7 @@ async function run(): Promise<void> {
 // ═══ E) KEEP_LIVE COMPATIBILITY (Cohort A: 19 canlı registry kaynak) ═══
 {
   // Professional Cohort: live 19 → 22 (+3 aroma; numeroloji enabled:false KORUNDU).
-  add("E-live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 22);
+  add("E-live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28);
   // dormant professional 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; client 6 code-gate AÇIK (DB is_active ile gated).
   add("E-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("E-client-code-gate-open", YH_CLIENT_INDEX_SOURCES.every((s) => s.enabled === true));

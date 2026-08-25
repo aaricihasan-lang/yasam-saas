@@ -197,6 +197,10 @@ export function extractFields(
     } else if (config.sourceFamily === "sifa_rehberi" && (col === "related_stones" || col === "related_reflexology")) {
       // S5: şekil repo içinden doğrulanamadı → YALNIZ string / string[] kabul; obje atla.
       extractGuardedStringRelation(col, row[col], relations);
+    } else if (config.sourceKey === "dogaltas:minerals" && col === "organ_etkileri") {
+      // organ_etkileri kanonik string[]; legacy newline-string / obje[] / JSON-string şekilleri de
+      // güvenli çözülür → insan-okur organ adı/etki metni search_text'e girer (ham JSON/id/UUID GİRMEZ).
+      extractLabeledRelation(col, row[col], relations);
     } else {
       // Generic: string[] veya virgül/pipe düz metin.
       for (const member of multiValueMembers(row[col])) {
@@ -258,6 +262,56 @@ function extractGuardedStringRelation(
     }
   }
   // diğer her şey → atla
+}
+
+/**
+ * dogaltas:minerals → organ_etkileri (ve şekli belirsiz benzeri relation kolonları).
+ * Kanonik şekil string[] (organ adları); ancak legacy veri şu şekilleri de taşıyabilir:
+ *   - string[]                → her string eleman
+ *   - newline/virgül/pipe ile ayrılmış string → parçalara böl
+ *   - JSON-string ('[...]' / '{...}') → parse edip recurse (parse fail → düz-metin fallback)
+ *   - obje[] veya JSONB obje → yalnız İNSAN-OKUR string değerler (id/uuid/*_id/*_at/sort/tenant
+ *     metadata anahtarları ATLANIR; UUID / saf-sayı değerler ATLANIR) → hiçbir ham JSON/id sızmaz
+ * Fail-safe: bilinmeyen/bozuk değer → sessiz atla (exception YOK). Yalnız bu kaynağa özeldir
+ * (generic multiValueMembers DEĞİŞMEZ → diğer relationColumn kaynakları regresyonsuz).
+ */
+const RELATION_META_KEY_RE = /(^id$|_id$|^uuid$|_at$|^created|^updated|^sort_order$|^order$|^tenant)/i;
+const UUID_LIKE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function extractLabeledRelation(col: string, value: unknown, relations: RelationCollector): void {
+  visitLabeledRelation(col, value, relations, 0);
+}
+function visitLabeledRelation(col: string, value: unknown, relations: RelationCollector, depth: number): void {
+  if (depth > 3) return; // derinlik guard (patolojik iç içe yapı)
+  if (isString(value)) {
+    const s = value.trim();
+    if (s.length === 0) return;
+    if (s[0] === "[" || s[0] === "{") {
+      try {
+        visitLabeledRelation(col, JSON.parse(s), relations, depth + 1);
+        return;
+      } catch {
+        // geçerli JSON değil → düz-metin ayırıcı fallback (aşağı düşer)
+      }
+    }
+    for (const part of s.split(/[\n|,]+/)) relations.add(col, part); // collector trim+dedupe
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const el of value) visitLabeledRelation(col, el, relations, depth + 1);
+    return;
+  }
+  if (isPlainObject(value)) {
+    for (const [k, v] of Object.entries(value)) {
+      if (RELATION_META_KEY_RE.test(k)) continue; // id/uuid/*_id/*_at/sort/tenant → atla
+      if (!isString(v)) continue; // yalnız string değer (nested obje/sayı → atla; coercion YOK)
+      const t = v.trim();
+      if (t.length === 0 || UUID_LIKE_RE.test(t) || /^\d+$/.test(t)) continue; // uuid/saf-sayı → atla
+      relations.add(col, t);
+    }
+    return;
+  }
+  // number/boolean/null/bilinmeyen → atla (coercion YOK)
 }
 
 /**

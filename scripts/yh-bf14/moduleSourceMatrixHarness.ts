@@ -77,9 +77,9 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
 
   // LIVE_PROFESSIONAL (enabled:true): 19 (Cohort A sonrası) + Professional Cohort 3 aroma (plant-taxa/
   // preparations/method) = 22. (numeroloji enabled:false KORUNDU → çift fail-closed kapı.)
-  add("existing-live-professional-22", live.length === 22, `live=${live.length}`);
+  add("existing-live-professional-22", live.length === 28, `live=${live.length}`);
   // DORMANT professional (enabled:false): 2 numeroloji + 6 yebs = 8. Registry toplam 27→30 (+3 aroma).
-  add("professional-registry-total-30", YH_INDEX_SOURCES.length === 30, String(YH_INDEX_SOURCES.length));
+  add("professional-registry-total-30", YH_INDEX_SOURCES.length === 36, String(YH_INDEX_SOURCES.length));
   add("dormant-professional-8", dormantPro.length === 8 && dormantPro.every((s) => /^(numeroloji|yebs):/.test(s.sourceKey)), dormantPro.map((s) => s.sourceKey).join(","));
   // Professional Cohort: numeroloji registry enabled:false KORUNDU (çift kapı; runtime processing OFF).
   add("numerology-sources-enabled-false", num.length === 2 && num.every((s) => s.enabled === false), String(num.length));
@@ -105,7 +105,7 @@ const rationaleHas = (k: string, sub: string) => (entry(k)?.rationale ?? "").toL
   // numerology_knowledge_records (repo'da CREATE TABLE yok) BAĞLANMADI.
   add("num-knowledge-records-not-wired", !YH_INDEX_SOURCES.some((s) => (s.tableName as string) === "numerology_knowledge_records"));
   // Family additif genişledi (mevcut 6 korunur + numeroloji).
-  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 8);
+  add("family-has-numeroloji", (YH_SOURCE_MODULES as readonly string[]).includes("numeroloji") && (YH_SOURCE_MODULES as readonly string[]).length === 9);
   add("family-has-yebs-excludes-belge", (YH_SOURCE_MODULES as readonly string[]).includes("yebs") && !(YH_SOURCE_MODULES as readonly string[]).includes("belge_video"));
   add("family-preserves-existing", ["refleksoloji", "sifa_rehberi", "biyoenerji", "dogaltas", "aromaterapi", "kisisel_arsiv"].every((m) => (YH_SOURCE_MODULES as readonly string[]).includes(m)));
   add("numeroloji-module-label", YH_MODULE_LABELS.numeroloji === "Numeroloji");

@@ -17,6 +17,7 @@ export const YH_MODULE_LABELS: Record<YhSourceModule, string> = {
   kisisel_arsiv: "Kişisel Arşiv",
   numeroloji: "Numeroloji",
   yebs: "YEBS Canonical",
+  kupa_hacamat: "Kupa & Hacamat",
   // NOT: 'belge_video' ÜRÜN KARARIYLA memory source ailesinden çıkarıldı (NON_SOURCE) →
   //   memory modül etiketi/route'undan da kaldırıldı (Yaşam Hafızası kaynak linki üretmez).
 };
@@ -31,6 +32,7 @@ const YH_MODULE_ROUTES: Record<YhSourceModule, string> = {
   kisisel_arsiv: "/dashboard/kisisel-arsiv",
   numeroloji: "/numeroloji",
   yebs: "/yebs",
+  kupa_hacamat: "/kupa",
 };
 
 export function moduleLabel(module: string): string {

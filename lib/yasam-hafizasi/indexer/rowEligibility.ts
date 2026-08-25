@@ -15,7 +15,7 @@
  */
 import type { SourceConfig } from "./sources";
 
-export type RowEligibilityReason = "status-ineligible" | "row-classification-ineligible";
+export type RowEligibilityReason = "status-ineligible" | "row-classification-ineligible" | "status-excluded";
 
 export type RowEligibilityResult =
   | { readonly eligible: true }
@@ -51,6 +51,18 @@ export function evaluateRowEligibility(
     }
   }
 
+  // 3) Row-level DIŞLAMA (yalnız ineligibleStatusColumn tanımlıysa). Allowlist DEĞİL: değer
+  //    ineligibleStatuses içindeyse skip; NULL / listede olmayan değer geçer (ör. block_type
+  //    'source-evidence' → skip; null/'text'/'state'... → geçer). eligibleStatuses YOKSA no-op.
+  const exclCol = config.ineligibleStatusColumn;
+  if (typeof exclCol === "string" && exclCol.length > 0) {
+    const excluded = config.ineligibleStatuses;
+    const value = row[exclCol];
+    if (excluded && excluded.length > 0 && typeof value === "string" && excluded.includes(value)) {
+      return { eligible: false, reason: "status-excluded" };
+    }
+  }
+
   return ELIGIBLE;
 }
 
@@ -58,6 +70,7 @@ export function evaluateRowEligibility(
 export function hasRowEligibilityGate(config: SourceConfig): boolean {
   return (
     (typeof config.statusColumn === "string" && config.statusColumn.length > 0) ||
-    (typeof config.rowClassificationColumn === "string" && config.rowClassificationColumn.length > 0)
+    (typeof config.rowClassificationColumn === "string" && config.rowClassificationColumn.length > 0) ||
+    (typeof config.ineligibleStatusColumn === "string" && config.ineligibleStatusColumn.length > 0)
   );
 }

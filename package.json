@@ -35,6 +35,7 @@
     "yh:bf11e:archive:security:harness": "tsx scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
     "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
     "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts",
+    "yh:coverage-completion:harness": "tsx scripts/yh-coverage-completion/harness.ts",
     "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts",
     "yh:professional-cohort:harness": "tsx scripts/yh-professional-cohort/harness.ts",
     "dogaltas:salesgate:harness": "tsx scripts/dogaltas-sales-gate/harness.ts",
