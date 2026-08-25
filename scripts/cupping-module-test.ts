@@ -318,6 +318,36 @@ function run(): void {
      /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac),
     "gap1/2: point-topic + topic CitationManager korunur (yeniden yazılmadı)");
 
+  // ══ L) MİGREN PİLOTU — KAYNAK-BAZLI OKUMA GÖRÜNÜMÜ (source comparison; DISPLAY-ONLY) ═══
+  // UI kontratı statik doğrulanır; DB-durum iddiaları (Migren 1, HCP006=3 vb.) seed
+  // (seed-cupping-migraine.mjs) DB acceptance'ında koşulur.
+  const cm = read("app/kupa/components/CitationManager.tsx");
+  ok(/Çoklu Kaynakta Geçen Noktalar/.test(amac), "migren[ui]: 'Çoklu Kaynakta Geçen Noktalar' bölümü var");
+  ok(/Kaynaklara Göre Yaklaşımlar/.test(amac), "migren[ui]: 'Kaynaklara Göre Yaklaşımlar' bölümü var");
+  ok(/new Set\([\s\S]{0,90}source_id/.test(amac),
+    "migren[ui]: ortak-nokta DISTINCT source_id (Set) ile hesaplanır (aynı kaynak tekrarı şişmez)");
+  ok(/distinct\.length\s*>=\s*2/.test(amac),
+    "migren[ui]: yalnız >=2 distinct kaynaklı nokta 'ortak' sayılır (0/1 kaynaklı gizli)");
+  ok(/\{cp\.sourceIds\.length\}[\s\S]{0,30}kaynakta ortak/.test(amac),
+    "migren[ui]: 'N kaynakta ortak' sayısı DİNAMİK (hard-code değil)");
+  ok(/SOURCE_TYPE_LABEL\[/.test(amac), "migren[ui]: source_type UI'da SOURCE_TYPE_LABEL ile resolve edilir");
+  ok(/expert_educational[\s\S]{0,24}Uzman/.test(amac),
+    "migren[ui]: SOURCE_TYPE_LABEL expert_educational→'Uzman / Eğitim' (yayın/uzman ayrımı görünür)");
+  ok(/for \(const c of topicCitations\)[\s\S]{0,90}source_id/.test(amac),
+    "migren[ui]: kaynak kartları topic citation'lı DISTINCT source'lardan OTOMATİK türer");
+  ok(!/Zakir Benli|Süleyman Gök|Hacamat 2\b/.test(amac),
+    "migren[ui]: sabit kaynak ADI hard-code YOK (DB'den çözülür — yeni kaynak koda değmeden gelir)");
+  ok(!/[23] kaynakta ortak/.test(amac.replace(/\{[^}]*\}/g, "")),
+    "migren[ui]: sabit ortak-SAYISI hard-code YOK");
+  ok(/klinik etkinlik derecesi anlamına gelmez/.test(amac),
+    "migren[ui]: 'tekrar sayısı klinik etkinlik değildir' uyarısı var");
+  ok(/onChanged=\{reloadCompare\}/.test(amac),
+    "migren[ui]: citation ekle/sil sonrası karşılaştırma tazelenir (onChanged=reloadCompare)");
+  ok(/onChanged\?:/.test(cm) && /onChanged\?\.\(\)/.test(cm),
+    "migren[ui]: CitationManager onChanged prop'u (opsiyonel/additive) ekle-sil sonrası tetikler");
+  ok(/Konu Kaynak Yönetimi/.test(amac) && /entity="topic"[\s\S]{0,70}onChanged/.test(amac),
+    "migren[ui]: topic CitationManager korunur (Konu Kaynak Yönetimi bölümü, onChanged'li)");
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);

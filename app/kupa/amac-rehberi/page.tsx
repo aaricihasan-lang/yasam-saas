@@ -14,13 +14,17 @@ import {
   createPointTopic,
   createTopic,
   deletePointTopic,
+  listCitations,
   listPoints,
   listPointTopics,
+  listSources,
   listTopics,
   updatePointTopic,
   updateTopic,
+  type CuppingCitation,
   type CuppingPoint,
   type CuppingPointTopic,
+  type CuppingSource,
   type CuppingTopic,
 } from "../lib/api";
 import { CUPPING_RELATION_STRENGTHS } from "@/lib/cupping/vocab";
@@ -48,6 +52,18 @@ const RELATION_STRENGTH_OPTIONS = CUPPING_RELATION_STRENGTHS.map((value) => ({
   value,
   label: RELATION_STRENGTH_LABEL[value] ?? value,
 }));
+
+/** source.source_type → kısa TR rozet etiketi (yayın/uzman ayrımı görünür olsun). */
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  historical_primary: "Tarihsel Kaynak",
+  historical_secondary: "Tarihsel Kaynak",
+  book_monograph: "Kitap / Monografi",
+  academic_article: "Akademik Makale",
+  systematic_review: "Sistematik Derleme",
+  clinical_study: "Klinik Çalışma",
+  official_guidance: "Resmî Rehber",
+  expert_educational: "Uzman / Eğitim",
+};
 
 /**
  * Topic kategori — UI-only kontrollü liste ("Diğer" serbest metne açılır). DB CHECK
@@ -139,6 +155,11 @@ export default function AmacRehberiPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Kaynak-karşılaştırma (SALT-OKUMA) görünümü — tümü DB'den hesaplanır, YENİ row YOK.
+  const [sources, setSources] = useState<CuppingSource[]>([]);
+  const [topicCitations, setTopicCitations] = useState<CuppingCitation[]>([]);
+  const [relCitations, setRelCitations] = useState<Record<string, CuppingCitation[]>>({});
+
   const pointName = useCallback(
     (id: string) => points.find((p) => p.id === id)?.name ?? "?",
     [points],
@@ -194,6 +215,77 @@ export default function AmacRehberiPage() {
 
   const relatedPointIds = useMemo(() => new Set(relations.map((r) => r.point_id)), [relations]);
 
+  // ── Kaynak-karşılaştırma verisi: seçili topic'in topic-source + her ilişkinin
+  //    point-topic citation'ları + kaynak kataloğu. Citation ekl/sil sonrası tazelenir. ──
+  // compareNonce artınca (citation ekle/sil → onChanged) kaynak-karşılaştırma yeniden çekilir.
+  const [compareNonce, setCompareNonce] = useState(0);
+  const reloadCompare = useCallback(() => setCompareNonce((n) => n + 1), []);
+
+  // Seçili topic'in topic-source + her ilişkinin point-topic citation'ları + kaynak kataloğu.
+  // (Mevcut ilişki effect'iyle aynı IIFE deseni — senkron setState yok.)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!selectedTopicId) return;
+      try {
+        const [srcs, tCits, relPairs] = await Promise.all([
+          listSources(),
+          listCitations("topic", selectedTopicId),
+          Promise.all(
+            relations.map(async (r) => [r.id, await listCitations("point-topic", r.id)] as const),
+          ),
+        ]);
+        if (cancelled) return;
+        setSources(srcs);
+        setTopicCitations(tCits);
+        setRelCitations(Object.fromEntries(relPairs));
+      } catch {
+        /* okuma görünümü kritik değil; düzenleme akışını bozma. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTopicId, relations, compareNonce]);
+
+  const sourceById = useMemo(() => {
+    const m = new Map<string, CuppingSource>();
+    for (const s of sources) m.set(s.id, s);
+    return m;
+  }, [sources]);
+
+  /** Çoklu Kaynakta Geçen Noktalar: her ilişki için DISTINCT source_id ≥ 2 (display-only, YENİ row YOK). */
+  const commonPoints = useMemo(() => {
+    const out: { relId: string; pointId: string; sourceIds: string[] }[] = [];
+    for (const r of relations) {
+      const distinct = Array.from(new Set((relCitations[r.id] ?? []).map((c) => c.source_id)));
+      if (distinct.length >= 2) out.push({ relId: r.id, pointId: r.point_id, sourceIds: distinct });
+    }
+    return out.sort((a, b) => b.sourceIds.length - a.sourceIds.length);
+  }, [relations, relCitations]);
+
+  /** Kaynaklara Göre Yaklaşımlar: topic citation'ı olan her DISTINCT source için kart (yaklaşım + o kaynağın geçtiği noktalar). */
+  const sourceCards = useMemo(() => {
+    const byTopicSource = new Map<string, CuppingCitation>();
+    for (const c of topicCitations) if (!byTopicSource.has(c.source_id)) byTopicSource.set(c.source_id, c);
+    const pointsBySource = new Map<string, Set<string>>();
+    for (const r of relations) {
+      for (const c of relCitations[r.id] ?? []) {
+        let set = pointsBySource.get(c.source_id);
+        if (!set) {
+          set = new Set();
+          pointsBySource.set(c.source_id, set);
+        }
+        set.add(r.point_id);
+      }
+    }
+    return Array.from(byTopicSource.entries()).map(([sourceId, citation]) => ({
+      sourceId,
+      citation,
+      pointIds: Array.from(pointsBySource.get(sourceId) ?? []),
+    }));
+  }, [topicCitations, relations, relCitations]);
+
   /** Konu seç + açık satır-içi düzenleme/citation/form panellerini kapat. */
   const selectTopic = useCallback((id: string) => {
     setSelectedTopicId(id);
@@ -201,6 +293,9 @@ export default function AmacRehberiPage() {
     setCiteRelId(null);
     setTopicFormMode(null);
     setError(null);
+    // Kaynak-karşılaştırma verisini temizle (yeni topic için yeniden hesaplanır).
+    setTopicCitations([]);
+    setRelCitations({});
   }, []);
 
   // ── Topic: oluştur / düzenle ────────────────────────────────────────────────
@@ -515,8 +610,94 @@ export default function AmacRehberiPage() {
                     </button>
                   </div>
 
-                  {/* Konunun kendi kaynak atıfları */}
-                  <CuppingCitationManager entity="topic" entityId={selectedTopicId} />
+                </div>
+              ) : null}
+
+              {/* 3. ÇOKLU KAYNAKTA GEÇEN NOKTALAR — SALT-OKUMA (DB'den DISTINCT source_id ≥ 2 hesaplanır). */}
+              {commonPoints.length > 0 ? (
+                <div className={kupaCard}>
+                  <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Çoklu Kaynakta Geçen Noktalar
+                  </h3>
+                  <div className="space-y-2">
+                    {commonPoints.map((cp) => (
+                      <div key={cp.relId} className="rounded-xl border border-amber-100 bg-amber-50/40 px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                            {cp.sourceIds.length} kaynakta ortak
+                          </span>
+                          <span className="text-sm font-semibold text-slate-800">{pointName(cp.pointId)}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {cp.sourceIds.map((sid) => sourceById.get(sid)?.source_name ?? "(kaynak)").join(" · ")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[10.5px] italic text-slate-400">
+                    Kaynak tekrar sayısı klinik etkinlik derecesi anlamına gelmez.
+                  </p>
+                </div>
+              ) : null}
+
+              {/* 4. KAYNAKLARA GÖRE YAKLAŞIMLAR — SALT-OKUMA (topic citation'ı olan her kaynak için kart). */}
+              {sourceCards.length > 0 ? (
+                <div className={kupaCard}>
+                  <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Kaynaklara Göre Yaklaşımlar
+                  </h3>
+                  <div className="space-y-2.5">
+                    {sourceCards.map((sc) => {
+                      const s = sourceById.get(sc.sourceId);
+                      const meta = [s?.author_or_organization, s?.title, s?.year ? String(s.year) : null]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <div key={sc.sourceId} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-bold text-slate-900">{s?.source_name ?? "(kaynak)"}</span>
+                            {s?.source_type ? (
+                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                                {SOURCE_TYPE_LABEL[s.source_type] ?? s.source_type}
+                              </span>
+                            ) : null}
+                          </div>
+                          {meta ? <p className="mt-0.5 text-[11px] text-slate-400">{meta}</p> : null}
+
+                          {sc.pointIds.length > 0 ? (
+                            <div className="mt-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                Kaynakta geçen noktalar
+                              </span>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {sc.pointIds.map((pid) => (
+                                  <span
+                                    key={pid}
+                                    className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700"
+                                  >
+                                    {pointName(pid)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {sc.citation.note ? (
+                            <div className="mt-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                Kaynaktaki yaklaşım
+                              </span>
+                              <p className="text-[12px] leading-relaxed text-slate-600">{String(sc.citation.note)}</p>
+                            </div>
+                          ) : null}
+
+                          {sc.citation.locator ? (
+                            <p className="mt-1 text-[10.5px] text-slate-400">Konum: {String(sc.citation.locator)}</p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
@@ -721,13 +902,29 @@ export default function AmacRehberiPage() {
 
                           {/* 4. Kaynaklar */}
                           {citeRelId === r.id ? (
-                            <CuppingCitationManager entity="point-topic" entityId={r.id} />
+                            <CuppingCitationManager
+                              entity="point-topic"
+                              entityId={r.id}
+                              onChanged={reloadCompare}
+                            />
                           ) : null}
                         </div>
                       );
                     })
                   )}
                 </div>
+              </div>
+
+              {/* 6. KONU KAYNAK YÖNETİMI — topic citation admin (yaklaşım notu + locator). */}
+              <div className={kupaCard}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Konu Kaynak Yönetimi
+                </h3>
+                <p className={helperCls}>
+                  Bu konuya kaynak yaklaşımı bağlayın (yaklaşım notu + konum). Yukarıdaki karşılaştırma
+                  görünümü otomatik güncellenir.
+                </p>
+                <CuppingCitationManager entity="topic" entityId={selectedTopicId} onChanged={reloadCompare} />
               </div>
             </>
           )}

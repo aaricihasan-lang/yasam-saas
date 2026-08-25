@@ -39,9 +39,12 @@ const EMPTY: FormState = { source_id: "", locator: "", evidence_class: "", note:
 export function CuppingCitationManager({
   entity,
   entityId,
+  onChanged,
 }: {
   entity: CuppingCitationEntity;
   entityId: string;
+  /** Atıf eklendi/güncellendi/kaldırıldıktan sonra tetiklenir (ör. üst kaynak-karşılaştırma görünümünü tazelemek için). Opsiyonel — mevcut kullanımlar etkilenmez. */
+  onChanged?: () => void;
 }) {
   const [sources, setSources] = useState<CuppingSource[]>([]);
   const [citations, setCitations] = useState<CuppingCitation[]>([]);
@@ -108,6 +111,7 @@ export function CuppingCitationManager({
         setCitations((cur) => [...cur, created]);
       }
       reset();
+      onChanged?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kaydedilemedi.");
     } finally {
@@ -132,6 +136,7 @@ export function CuppingCitationManager({
       await deleteCitation(entity, id);
       setCitations((cur) => cur.filter((c) => c.id !== id));
       if (editingId === id) reset();
+      onChanged?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kaldırılamadı.");
     } finally {

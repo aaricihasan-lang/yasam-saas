@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "purpose": "MİGREN pilotu — kaynak-bazlı rahatsızlık kaydı. cupping_topics(1) + cupping_topic_sources(3) + cupping_point_topics(5) + cupping_point_topic_sources(8). Mevcut source (adıyla) ve point (koduyla) REUSE edilir; YENİ source/point YOK. MIGRATION YOK. Dil: attribution ('Kaynak X belirtir'), platform tedavi hükmü YOK. Locator'lar kaynakta doğrulanmış (Benli s.51-52; Gök Migren s.134-135 + kulak arkası s.88; Hacamat2 ön s.1 / arka s.2).",
+    "reuse_sources_by_name": {
+      "BENLI": "Zakir Benli — Hacamat Tedavisi",
+      "GOK": "Süleyman Gök — Hacamat (Kupa Terapisi)",
+      "HACAMAT2": "Hacamat Noktaları (ön/arka vücut şeması)"
+    }
+  },
+  "topic": {
+    "title": "Migren",
+    "category": "Baş & Boyun",
+    "description": "İncelenen hacamat kaynaklarında migren için farklı bölge ve uygulama yaklaşımları tarif edilmektedir. Aşağıda her kaynağın yaklaşımı kendi atfıyla ayrı gösterilir; kaynaklar arası tekrar, klinik etkinlik derecesi anlamına gelmez."
+  },
+  "topic_sources": [
+    { "source": "BENLI", "locator": "s.51-52", "evidence_class": "traditional", "note": "Zakir Benli, migren için kulak arkasını ve omuz bölgesini ayrı ayrı belirtir. Baş ağrısı ve migreni birlikte ele aldığı bölümde kulak arkası ile kürek kemikleri arası ve aşağısındaki bölgeleri birlikte verir. Ayrıca kafa hacamatını migren için kullanılan uygulamalar arasında sayar." },
+    { "source": "GOK", "locator": "s.134-135 (+ kulak arkası s.88)", "evidence_class": "expert_educational", "note": "Süleyman Gök, migren için yaklaşık beş seanslık kademeli bir hacamat yaklaşımı tarif eder. Kafada gösterdiği noktaları öncelikli kabul eder; kişinin durumuna göre sırttaki noktaların eklenebileceğini ve bazı standart dışı noktaların ilerleyen seanslarda uygulanabileceğini belirtir. Kulak arkası anlatımında bu bölgeyi migren için vazgeçilmez en önemli nokta olarak öne çıkarır." },
+    { "source": "HACAMAT2", "locator": "s.1-2 (ön/arka şema)", "evidence_class": "expert_educational", "note": "Hacamat 2 vücut şemasında migren; kulak arkası, omuz bölgesi ve boyun altı hacamat bölgeleriyle ilişkilendirilir." }
+  ],
+  "point_topics": [
+    { "point": "HCP006", "relation_strength": "traditional_primary", "note": "İncelenen kaynakların birçoğu migren bağlamında kulak arkası / mastoid bölgesini belirtir (bkz. kaynak atıfları)." },
+    { "point": "HCP010", "relation_strength": "traditional_primary", "note": "Kaynaklar migren bağlamında omuz / acromion bölgesini belirtir." },
+    { "point": "HCP002", "relation_strength": "traditional_primary", "note": "Benli, baş ağrısı ve migren için kürek kemikleri arası bölgesini (kulak arkası ile birlikte) belirtir." },
+    { "point": "HCP026", "relation_strength": "traditional_primary", "note": "Benli, kafa (genel) hacamatını migren için kullanılan uygulamalar arasında sayar." },
+    { "point": "HCP029", "relation_strength": "traditional_primary", "note": "Hacamat 2 şeması boyun altı bölgesini migren ile ilişkilendirir." }
+  ],
+  "point_topic_sources": [
+    { "point": "HCP006", "source": "BENLI",    "locator": "s.51", "evidence_class": "traditional",         "note": "Benli, migren için kulak arkasına hacamat yapılmasını belirtir." },
+    { "point": "HCP006", "source": "GOK",      "locator": "s.88", "evidence_class": "expert_educational", "note": "Gök, kulak arkasını migren hastaları için vazgeçilmez en önemli nokta olarak belirtir." },
+    { "point": "HCP006", "source": "HACAMAT2", "locator": "s.2",  "evidence_class": "expert_educational", "note": "Hacamat 2 arka şemasında kulak arkası bölgesi migren için gösterilir." },
+    { "point": "HCP010", "source": "BENLI",    "locator": "s.51", "evidence_class": "traditional",         "note": "Benli, migreni omuz bölgesine hacamat yapılan rahatsızlıklar arasında sayar." },
+    { "point": "HCP010", "source": "HACAMAT2", "locator": "s.1",  "evidence_class": "expert_educational", "note": "Hacamat 2 ön şemasında omuz hacamatı başlığı altında migren sayılır." },
+    { "point": "HCP002", "source": "BENLI",    "locator": "s.51", "evidence_class": "traditional",         "note": "Benli, baş ağrısı ve migren için kulak arkası ile kürek kemikleri arası ve aşağısındaki bölgeleri birlikte belirtir." },
+    { "point": "HCP026", "source": "BENLI",    "locator": "s.52", "evidence_class": "traditional",         "note": "Benli, kafa hacamatını migren için kullanılan uygulamalar arasında sayar." },
+    { "point": "HCP029", "source": "HACAMAT2", "locator": "s.1",  "evidence_class": "expert_educational", "note": "Hacamat 2 ön şemasında boyun altı bölgesinde migren açıkça sayılır." }
+  ]
+}
