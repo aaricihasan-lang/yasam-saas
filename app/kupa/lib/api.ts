@@ -66,6 +66,17 @@ export type CuppingPointTopic = {
   relation_strength?: string | null;
 };
 
+/** Kullanıcı/uzman notu (formal kaynak/atıf DEĞİL; tenant-local not katmanı). */
+export type CuppingTopicNote = {
+  id: string;
+  topic_id: string;
+  note: string;
+  source_label?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  point_ids?: string[];
+};
+
 export type CuppingTechnique = {
   id: string;
   name: string;
@@ -241,6 +252,26 @@ export const updateSafety = (id: string, body: Partial<CuppingSafetyNote>) =>
   call<CuppingSafetyNote>(`${BASE}/safety/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "note");
 export const deleteSafety = (id: string) =>
   call<number>(`${BASE}/safety/${id}`, { method: "DELETE" }, "deleted");
+
+// Topic notes (kullanıcı/uzman notu — formal citation'dan ayrı)
+export const listTopicNotes = (topicId: string) =>
+  call<CuppingTopicNote[]>(
+    `${BASE}/topic-notes?topicId=${encodeURIComponent(topicId)}`,
+    { method: "GET" },
+    "notes",
+  );
+export const createTopicNote = (body: {
+  topic_id: string;
+  note: string;
+  source_label?: string | null;
+  point_ids?: string[];
+}) => call<CuppingTopicNote>(`${BASE}/topic-notes`, { method: "POST", body: JSON.stringify(body) }, "note");
+export const updateTopicNote = (
+  id: string,
+  body: Partial<{ note: string; source_label: string | null; point_ids: string[]; sort_order: number; is_active: boolean }>,
+) => call<CuppingTopicNote>(`${BASE}/topic-notes/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "note");
+export const deleteTopicNote = (id: string) =>
+  call<number>(`${BASE}/topic-notes/${id}`, { method: "DELETE" }, "deleted");
 
 // ─── Citations (tipli junction; tek generic client adaptörü) ─────────────────
 export const listCitations = (entity: CuppingCitationEntity, entityId: string) =>

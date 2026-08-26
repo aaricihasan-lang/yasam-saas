@@ -22,7 +22,17 @@ export const CUPPING_TABLES = {
   techniqueSources: "cupping_technique_sources",
   knowledgeSources: "cupping_knowledge_sources",
   safetySources: "cupping_safety_sources",
+  // ── Kullanıcı/uzman notları (formal citation'dan AYRI, tenant-local) ──
+  topicNotes: "cupping_topic_notes",
+  topicNotePoints: "cupping_topic_note_points",
 } as const;
+
+/**
+ * cupping_topic_notes yazılabilir alanları (server-side). tenant_id/id/topic_id/created_at
+ * ASLA client'tan alınmaz (topic_id path/param'dan gelir, server assertOwnedRef eder).
+ * point_id listesi ayrı body alanı olarak (point_ids) ele alınır — junction'a server yazar.
+ */
+export const TOPIC_NOTE_WRITABLE = ["note", "source_label", "sort_order", "is_active"] as const;
 
 export const POINT_WRITABLE = [
   "name",
