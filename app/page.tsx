@@ -35,6 +35,7 @@ import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -47,6 +48,7 @@ import {
   Loader2,
   Lock,
   Package,
+  Salad,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -620,6 +622,10 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
+  // Beslenme OWNER-ONLY (super-admin) kart görünürlüğü. isAdminUser TEK BAŞINA yetmez;
+  // gerçek owner (users.is_super_admin) server probe'u (/api/beslenme/access) ile doğrulanır.
+  // Default hidden → owner doğrulanırsa render (normal admin/expert asla görmez; fail-closed).
+  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -670,6 +676,21 @@ export default function Home() {
     event.stopPropagation();
     loginBackdropPressed.current = false;
   };
+
+  // Beslenme owner-only kart: yalnız admin için server owner-probe (super-admin). Fail-closed.
+  useEffect(() => {
+    if (!user || !isAdminUser(user)) {
+      setBeslenmeOwner(false);
+      return;
+    }
+    let alive = true;
+    void checkBeslenmeAccess().then((ok) => {
+      if (alive) setBeslenmeOwner(ok === true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     const stored = readYasamUser();
@@ -1577,6 +1598,35 @@ export default function Home() {
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
                             YEBS
+                          </span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
+
+                  {/* Beslenme — OWNER-ONLY (super-admin) kart. isAdminUser + server owner
+                      probe (beslenmeOwner) birlikte gerekli; normal admin/expert görmez.
+                      Asıl güvenlik server-side requireMainAdmin'dedir (defense-in-depth). */}
+                  {beslenmeOwner ? (
+                    <Link href="/beslenme" data-beslenme-owner-card data-admin-only="true" className="block text-inherit no-underline">
+                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-lime-200/90 bg-lime-50 px-2 py-0.5 text-[10px] font-bold text-lime-700">
+                          Sahip
+                        </span>
+                        <span className="text-3xl leading-none" aria-hidden>
+                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
+                        </span>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">Beslenme</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                          Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri
+                        </p>
+                        <p className="mt-1.5 text-xs text-slate-500">Geliştirme (yalnız sahip)</p>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                            Beslenme
                           </span>
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
                             <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
