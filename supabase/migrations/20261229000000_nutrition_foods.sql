@@ -31,11 +31,12 @@ CREATE TABLE public.nutrition_foods (
   sort_order    integer     NOT NULL DEFAULT 0,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
-  search_tsv    tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(name_tr, ''))), 'A')
-    || setweight(to_tsvector('simple', public.yh_immutable_unaccent(
-         coalesce(name_en, '') || ' ' || array_to_string(aliases, ' '))), 'B')
-  ) STORED,
+  -- search_tsv: BEFORE INSERT/UPDATE trigger ile doldurulur (GENERATED DEĞİL).
+  -- GEREKÇE: GENERATED ALWAYS ifadesi IMMUTABLE olmak zorundadır; array_to_string(anyarray,text)
+  -- PostgreSQL'de STABLE'dır (IMMUTABLE değil) → generated column 42P17 verir. Trigger ifadesi
+  -- immutability zorunluluğu taşımaz (repo canonical deseni: yh_index_build_search_tsv). Alias
+  -- araması korunur; içerik ve GIN indeksi aynıdır.
+  search_tsv    tsvector,
 
   CONSTRAINT nutrition_foods_name_tr_chk CHECK (btrim(name_tr) <> ''),
   CONSTRAINT nutrition_foods_prep_state_chk CHECK (
@@ -84,6 +85,24 @@ CREATE TRIGGER trg_nutrition_foods_identity_guard
 CREATE TRIGGER trg_nutrition_foods_updated_at
   BEFORE UPDATE ON public.nutrition_foods
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- search_tsv üretimi (BEFORE INSERT OR UPDATE). Trigger olduğundan STABLE array_to_string
+-- güvenle kullanılır (generated column immutability zorunluluğu yoktur). Ağırlık A=name_tr,
+-- B=name_en+aliases. yh_immutable_unaccent (IMMUTABLE) korpus/sorgu simetrisi için reuse.
+CREATE FUNCTION public.nutrition_foods_search_tsv()
+  RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.search_tsv :=
+    setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(NEW.name_tr, ''))), 'A')
+    || setweight(to_tsvector('simple', public.yh_immutable_unaccent(
+         coalesce(NEW.name_en, '') || ' ' || array_to_string(NEW.aliases, ' '))), 'B');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_nutrition_foods_search_tsv
+  BEFORE INSERT OR UPDATE ON public.nutrition_foods
+  FOR EACH ROW EXECUTE FUNCTION public.nutrition_foods_search_tsv();
 
 ALTER TABLE public.nutrition_foods ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE public.nutrition_foods FROM anon, authenticated, PUBLIC;

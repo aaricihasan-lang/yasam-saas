@@ -131,6 +131,23 @@ const contracts = read(resolve(ROOT, "lib/beslenme/contracts.ts"));
 for (const code of ["dem", "safra", "sovdavi", "balgam"]) check(`mizaç kodu '${code}'`, new RegExp(`code:\\s*"${code}"`).test(contracts));
 check("blood type 4 profil (0/A/B/AB)", /BLOOD_TYPE_PROFILES = \["0", "A", "B", "AB"\]/.test(contracts));
 
+console.log("\n[IMM] search_tsv immutability regression (GENERATED column YOK → trigger)");
+// KÖK NEDEN (prod 42P17): GENERATED ALWAYS AS ifadesi IMMUTABLE olmak zorundadır;
+// array_to_string(anyarray,text) STABLE'dır → generated column reddedilir. Fix: search_tsv
+// plain kolon + BEFORE INSERT OR UPDATE trigger (repo canonical deseni; STABLE fn güvenli).
+check("hiçbir migration'da tsvector GENERATED ALWAYS YOK",
+  !/search_tsv\s+tsvector\s+GENERATED ALWAYS/i.test(ALL_MIG), "generated search_tsv bulundu (42P17 riski)");
+check("GENERATED ALWAYS içinde array_to_string (STABLE) YOK",
+  !/GENERATED ALWAYS AS \([\s\S]*?array_to_string[\s\S]*?\)\s*STORED/i.test(ALL_MIG), "generated column'da STABLE fn");
+for (const t of ["nutrition_foods", "nutrition_topics", "nutrition_sources"]) {
+  check(`${t} search_tsv plain tsvector kolon`, new RegExp(`search_tsv\\s+tsvector,`).test(SRC[t]));
+  check(`${t} search_tsv trigger fonksiyonu`, new RegExp(`CREATE FUNCTION public\\.${t}_search_tsv\\(\\)`).test(SRC[t]));
+  check(`${t} search_tsv BEFORE INSERT OR UPDATE trigger`,
+    new RegExp(`CREATE TRIGGER trg_${t}_search_tsv\\s*\\n?\\s*BEFORE INSERT OR UPDATE ON public\\.${t}`).test(SRC[t]));
+}
+check("search trigger yalnız IMMUTABLE yh_immutable_unaccent kullanır (unaccent tek-arg YOK)",
+  /yh_immutable_unaccent/.test(ALL_MIG) && !/[^_]unaccent\s*\(\s*NEW\./i.test(ALL_MIG));
+
 console.log("\n[W/X] Word YOK + dış-DB import YOK (beslenme scope)");
 const beslenmeAll = [ownerGuard, contracts, ...Object.values(routeSrc)].join("\n");
 check("Word/docx import YOK", !/reportHelpers|from "docx"|Packer/.test(beslenmeAll));
