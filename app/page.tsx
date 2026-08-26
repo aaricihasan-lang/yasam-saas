@@ -114,7 +114,7 @@ function MembershipContactCTA({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-violet-200 transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
       >
         Üyelik ve Fiyat Bilgisi Al
       </button>
@@ -1732,7 +1732,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={() => {
@@ -1740,16 +1740,10 @@ export default function Home() {
                 setMembershipIntent(false);
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/70 px-4 text-[13px] font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-white hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               Giriş Yap
             </button>
-            <Link
-              href="/register"
-              className="hidden items-center justify-center rounded-lg px-2 text-xs font-semibold text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:inline-flex"
-            >
-              Görüştüm, hesap oluştur
-            </Link>
             <button
               type="button"
               onClick={() => {
@@ -1757,7 +1751,7 @@ export default function Home() {
                 setMembershipIntent(true);
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               Üyelik ve Fiyat Bilgisi Al
             </button>
@@ -3686,7 +3680,7 @@ export default function Home() {
                     onClick={() =>
                       setMessage("Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.")
                     }
-                    className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                    className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline focus-visible:text-violet-900 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                   >
                     Şifremi Unuttum
                   </button>
@@ -3710,7 +3704,7 @@ export default function Home() {
             )}
 
             <div className="relative z-10 mt-6 border-t border-slate-200/70 pt-5">
-              <p className="text-center text-sm font-semibold text-slate-600">
+              <p className="text-center text-[15px] font-semibold text-slate-700">
                 Henüz Yaşam Sistemi üyesi değil misiniz?
               </p>
               <MembershipContactCTA
@@ -3718,15 +3712,15 @@ export default function Home() {
                 defaultOpen={membershipIntent}
                 onNavigate={closeLoginModal}
               />
-              <p className="mt-3 text-center text-xs text-slate-500">
+              <div className="mt-4 text-center">
                 <Link
                   href="/register"
                   onClick={closeLoginModal}
-                  className="rounded font-semibold text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                  className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 no-underline transition hover:text-violet-800 hover:underline focus-visible:text-violet-800 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                 >
-                  Görüştüm, hesap oluştur
+                  Üyelik sürecimi tamamla
                 </Link>
-              </p>
+              </div>
             </div>
           </div>
         </div>
