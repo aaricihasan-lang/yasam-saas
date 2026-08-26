@@ -808,12 +808,12 @@ export default function DanisanListePage() {
               />
             </Field>
             <Field label={t("filter.burcLabel")}>
-              {/* Burç seçenekleri KANONİK değerdir (filtre: c.burc === filterBurc);
-                  value == görünen etiket → ÇEVRİLMEZ, dokunulmaz. */}
+              {/* Burç option VALUE'su KANONİK Türkçe kalır (filtre: c.burc === filterBurc);
+                  yalnız görünen LABEL locale'e göre map'lenir (EN→Aries…), bilinmeyen→raw. */}
               <select value={filterBurc} onChange={(e) => setFilterBurc(e.target.value)} className={inputCls}>
                 <option value="">{t("filter.all")}</option>
                 {["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"].map((b) => (
-                  <option key={b}>{b}</option>
+                  <option key={b} value={b}>{t.has(`filter.burcOptions.${b}`) ? t(`filter.burcOptions.${b}`) : b}</option>
                 ))}
               </select>
             </Field>

@@ -65,7 +65,7 @@ Koç→Aries · Boğa→Taurus · İkizler→Gemini · Yengeç→Cancer · Aslan
 *(DB/filter/computeBurc hâlâ Türkçe canonical döner; display `t.has` ile map'lenir, bilinmeyen→raw.)*
 
 ### Mizaç (canonical value → EN display) — humoral/Unani mizaç
-safra (sarı safra/yellow bile) → **Bilious** · sovdavi (sevda/black bile) → **Melancholic**
+safra (sarı safra/yellow bile) → **Choleric** · sovdavi (sevda/black bile) → **Melancholic**
 · dem (kan/blood) → **Sanguine** · balgam (phlegm) → **Phlegmatic**
 *(Rasyonel: geleneksel/Unani tıbbında dört mizaç humor karşılığıyla adlandırılır. Write payload `value="safra"` vb. DEĞİŞMEZ. TR display "Safra/Sovdavi/Dem/Balgam" korunur.)*
 

@@ -10,7 +10,7 @@
         "seans": "Session",
         "randevu": "Appointment",
         "analiz": "Analysis",
-        "odev": "Homework",
+        "odev": "Assignment",
         "default": "Other"
       },
       "durum": {
@@ -20,8 +20,8 @@
         "baslamadi": "Not Started Yet"
       },
       "odevDurum": {
-        "yok": "No Homework Yet",
-        "baslangic": "Starting",
+        "yok": "No Assignments Yet",
+        "baslangic": "Getting Started",
         "devam": "In Progress",
         "iyi": "Progressing Well",
         "tamamlandi": "Completed"
@@ -37,15 +37,15 @@
         "randevu": "Appointment Detail",
         "seans": "Session Detail",
         "dogaltas": "Stone Record",
-        "odev": "Homework Detail",
+        "odev": "Assignment Detail",
         "analiz": "Analysis Detail",
         "numeroloji": "Automatic Numerology Summary"
       },
       "scoreStage": {
-        "baslangic": "Starting",
+        "baslangic": "Getting Started",
         "gelisimde": "Developing",
         "aktifTakip": "Active Follow-up",
-        "gucluSurec": "Strong Process"
+        "gucluSurec": "On Track"
       },
       "menu": {
         "genel": "General Info",
@@ -65,7 +65,7 @@
         "hasRandevu": "Appointment",
         "hasAnaliz": "Analysis",
         "hasTas": "Stone Record",
-        "hasOdev": "Homework"
+        "hasOdev": "Assignment"
       },
       "missing": {
         "hasDogum": "Date of birth missing",
@@ -75,7 +75,7 @@
         "hasRandevu": "No appointments yet",
         "hasAnaliz": "No analyses yet",
         "hasTas": "No stone records yet",
-        "hasOdev": "No homework yet"
+        "hasOdev": "No assignments yet"
       },
       "randevuStatus": {
         "tamamlandi": "Completed",
@@ -92,7 +92,7 @@
       },
       "analysisType": {
         "chakra": "Chakra Analysis",
-        "planet": "Chakra-Planet Analysis",
+        "planet": "Chakra–Planetary Analysis",
         "default": "Analysis"
       },
       "element": {
@@ -111,7 +111,7 @@
         "count": "{count, plural, one {# Critical Alert} other {# Critical Alerts}}"
       },
       "lifeScore": {
-        "title": "Client Life Score",
+        "title": "Client Progress Score",
         "criteriaProgress": "{completed}/{total} criteria completed"
       },
       "eksikAlanlar": {
@@ -119,7 +119,7 @@
         "count": "{count} missing"
       },
       "seansCard": {
-        "title": "Session Process",
+        "title": "Session Summary",
         "totalSeans": "Total Sessions",
         "ilkSeans": "First Session",
         "sonSeans": "Last Session",
@@ -135,13 +135,13 @@
         "days": "{days, plural, one {# day} other {# days}}"
       },
       "odevCard": {
-        "title": "Homework Tracking",
-        "totalOdev": "Total Homework",
+        "title": "Assignment Tracking",
+        "totalOdev": "Total Assignments",
         "tamamlanan": "Completed",
         "devamEden": "In Progress",
-        "sonOdevTarihi": "Last Homework Date",
+        "sonOdevTarihi": "Last Assignment Date",
         "completionPercent": "Completion Rate",
-        "activeLabel": "Active Homework:"
+        "activeLabel": "Active Assignments:"
       },
       "alertCard": {
         "title": "Smart Alerts & Suggestions",
@@ -221,17 +221,17 @@
         "seansDesc": "Session held",
         "randevu": "Appointment",
         "dogaltas": "Stone",
-        "odev": "Homework"
+        "odev": "Assignment"
       },
       "alerts": {
         "noDogum": "Date of birth missing",
         "noPhone": "Phone number missing",
-        "seans30": "{days, plural, one {No sessions for # day} other {No sessions for # days}}",
+        "seans30": "{days, plural, one {No session recorded in # day} other {No session recorded in # days}}",
         "randevu60": "{days, plural, one {# day since the last appointment — no upcoming appointment} other {# days since the last appointment — no upcoming appointment}}",
         "noAnaliz": "No analysis has been done",
         "noUpcoming": "No upcoming appointment",
-        "hwGecikti": "{count} overdue homework",
-        "hwPending": "{count} homework in progress",
+        "hwGecikti": "{count, plural, one {# overdue assignment} other {# overdue assignments}}",
+        "hwPending": "{count, plural, one {# assignment in progress} other {# assignments in progress}}",
         "noTas": "No stone suggestion entered yet",
         "noNot": "No client note added yet",
         "noSeans": "No session held yet",

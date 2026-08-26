@@ -440,6 +440,33 @@
       "forgotMsg": "Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.",
       "submit": "Uzman Paneline Gir →",
       "submitting": "Giriş Yapılıyor..."
+    },
+    "register": {
+      "badge": "Uzman Kaydı",
+      "title": "Kayıt Ol",
+      "subtitle": "Uzman hesabınızı oluşturun. Yönetici onayından sonra giriş yapabilirsiniz.",
+      "fullNameLabel": "Ad Soyad",
+      "fullNamePlaceholder": "Adınız Soyadınız",
+      "emailLabel": "E-posta",
+      "emailPlaceholder": "uzman@ornek.com",
+      "passwordLabel": "Şifre",
+      "passwordRepeatLabel": "Şifre Tekrar",
+      "submit": "Kayıt Ol",
+      "submitting": "Kaydediliyor…",
+      "haveAccount": "Zaten hesabınız var mı?",
+      "signIn": "Giriş yapın",
+      "toast": {
+        "errorTitle": "İşlem başarısız",
+        "successTitle": "Başarılı",
+        "allFields": "Tüm alanları doldurunuz.",
+        "passwordMismatch": "Şifreler eşleşmiyor.",
+        "success": "Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.",
+        "generic": "Kayıt tamamlanamadı.",
+        "alreadyExists": "Bu e-posta adresi zaten kayıtlı.",
+        "idempotency": "İşlem kimliği çakışması. Lütfen tekrar deneyin.",
+        "config": "Sunucu yapılandırma hatası.",
+        "hash": "Şifre işlenemedi."
+      }
     }
   }
 }

@@ -25,8 +25,22 @@
         "kanLabel": "Blood Type",
         "mizacLabel": "Temperament",
         "all": "All",
+        "burcOptions": {
+          "Koç": "Aries",
+          "Boğa": "Taurus",
+          "İkizler": "Gemini",
+          "Yengeç": "Cancer",
+          "Aslan": "Leo",
+          "Başak": "Virgo",
+          "Terazi": "Libra",
+          "Akrep": "Scorpio",
+          "Yay": "Sagittarius",
+          "Oğlak": "Capricorn",
+          "Kova": "Aquarius",
+          "Balık": "Pisces"
+        },
         "mizacOptions": {
-          "safra": "Bilious",
+          "safra": "Choleric",
           "sovdavi": "Melancholic",
           "dem": "Sanguine",
           "balgam": "Phlegmatic"
@@ -55,7 +69,7 @@
       },
       "card": {
         "openTitle": "Open client detail",
-        "expiredHw": "⚠ {count} homework",
+        "expiredHw": "⚠ {count, plural, one {# assignment} other {# assignments}}",
         "noPhone": "No phone",
         "noGorusme": "No meeting date",
         "detail": "Detail →"
@@ -85,7 +99,7 @@
         "sessionMissing": "Session information not found.",
         "deleteConfirmTitle": "Delete selected clients",
         "deleteConfirmMsg": "Are you sure you want to delete {count, plural, one {# client} other {# clients}} and all their related data?",
-        "deleteConfirmSecond": "This action CANNOT be undone. The client's meetings, homework and analyses will also be deleted.",
+        "deleteConfirmSecond": "This action CANNOT be undone. The client's meetings, assignments and analyses will also be deleted.",
         "deleteNone": "Deletion did not take place. Please try again.",
         "deletePartialTitle": "Clients deleted",
         "deletePartialMsg": "Cleanup of some attached files could not be completed.",

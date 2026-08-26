@@ -7,9 +7,9 @@
       "close": "Close",
       "cancel": "Cancel",
       "cancelTop": "Cancel",
-      "typeFallback": "Homework",
-      "untitled": "Untitled homework",
-      "toggleFormOpen": "+ Add Homework",
+      "typeFallback": "Assignment",
+      "untitled": "Untitled assignment",
+      "toggleFormOpen": "+ Add Assignment",
       "toggleFormClose": "Close Form",
       "status": {
         "bekliyor": "Pending",
@@ -20,14 +20,14 @@
         "unknown": "Unknown"
       },
       "form": {
-        "titleLabel": "Homework Title",
+        "titleLabel": "Assignment Title",
         "titlePlaceholder": "21-day breathing practice...",
-        "typeLabel": "Homework Type",
+        "typeLabel": "Assignment Type",
         "typePlaceholder": "Breathing, meditation, stone...",
         "startLabel": "Start",
         "endLabel": "End",
         "statusLabel": "Status",
-        "descLabel": "Homework Description",
+        "descLabel": "Assignment Description",
         "descPlaceholder": "The practice the client will do...",
         "expertNoteLabel": "Practitioner Note",
         "expertNotePlaceholder": "Your internal note...",
@@ -35,8 +35,8 @@
         "feedbackPlaceholder": "The client's feedback, points they struggled with..."
       },
       "header": {
-        "badge": "Client Homework Tracking",
-        "title": "Homework",
+        "badge": "Client Assignment Tracking",
+        "title": "Assignments",
         "subtitle": "Track breathing practice, meditation, stone use, water intake, or any practice you assign to the client, with date and status information."
       },
       "stats": {
@@ -47,21 +47,21 @@
         "nearest": "nearest"
       },
       "newForm": {
-        "title": "New Homework Record",
+        "title": "New Assignment Record",
         "subtitle": "You can edit long fields on a wide screen with \"Expand\".",
         "saving": "Saving...",
-        "save": "✅ Save Homework"
+        "save": "✅ Save Assignment"
       },
       "list": {
-        "title": "Saved Homework",
+        "title": "Saved Assignments",
         "subtitle": "The tasks assigned to the client and their tracking status are listed here.",
         "loading": "Loading...",
         "refresh": "Refresh List",
-        "loadingRecords": "Loading homework..."
+        "loadingRecords": "Loading assignments..."
       },
       "empty": {
-        "title": "No homework yet",
-        "hint": "You can create the first record using the \"+ Add Homework\" button."
+        "title": "No assignments yet",
+        "hint": "You can create the first record using the \"+ Add Assignment\" button."
       },
       "badge": {
         "expired": "⚠️ Expired",
@@ -79,7 +79,7 @@
         "delete": "Delete"
       },
       "editForm": {
-        "title": "Edit Homework",
+        "title": "Edit Assignment",
         "subtitle": "You can edit long fields on a wide screen with “Expand”.",
         "updating": "Updating...",
         "update": "Update"
@@ -91,28 +91,28 @@
         "readerSubtitle": "Large reading screen"
       },
       "delete": {
-        "title": "Delete homework",
-        "message": "Delete this homework record?"
+        "title": "Delete assignment",
+        "message": "Delete this assignment record?"
       },
       "toast": {
         "successTitle": "Success",
         "failTitle": "Action failed",
         "noClient": "Client information not found.",
         "emptyForm": "Please fill in at least one field.",
-        "added": "Homework record added.",
-        "addFailed": "Homework record could not be added",
-        "emptyUpdate": "Empty homework cannot be updated.",
-        "updated": "Homework updated.",
-        "updateFailed": "Homework record could not be updated",
+        "added": "Assignment record added.",
+        "addFailed": "Assignment record could not be added",
+        "emptyUpdate": "An empty assignment cannot be updated.",
+        "updated": "Assignment updated.",
+        "updateFailed": "Assignment record could not be updated",
         "statusUpdated": "Status updated.",
         "statusFailed": "Status could not be updated",
         "dismissed": "Alert dismissed.",
         "dismissFailed": "Alert could not be dismissed",
-        "deleted": "Homework deleted.",
-        "deleteFailed": "Homework could not be deleted"
+        "deleted": "Assignment deleted.",
+        "deleteFailed": "Assignment could not be deleted"
       },
       "error": {
-        "loadFailed": "Homework could not be loaded"
+        "loadFailed": "Assignments could not be loaded"
       }
     }
   }

@@ -25,6 +25,20 @@
         "kanLabel": "Kan Grubu",
         "mizacLabel": "Mizaç",
         "all": "Tümü",
+        "burcOptions": {
+          "Koç": "Koç",
+          "Boğa": "Boğa",
+          "İkizler": "İkizler",
+          "Yengeç": "Yengeç",
+          "Aslan": "Aslan",
+          "Başak": "Başak",
+          "Terazi": "Terazi",
+          "Akrep": "Akrep",
+          "Yay": "Yay",
+          "Oğlak": "Oğlak",
+          "Kova": "Kova",
+          "Balık": "Balık"
+        },
         "mizacOptions": {
           "safra": "Safra",
           "sovdavi": "Sovdavi",

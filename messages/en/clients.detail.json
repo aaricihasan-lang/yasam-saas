@@ -14,7 +14,7 @@
       },
       "hero": {
         "badge": "Client Detail",
-        "subtitle": "Everything for this client — information, notes, stones, sessions, homework and appointments — in one place."
+        "subtitle": "Everything for this client — information, notes, stones, sessions, assignments and appointments — in one place."
       },
       "info": {
         "phone": "Phone",
@@ -30,7 +30,7 @@
         "randevular": "Appointments",
         "taslar": "Stones",
         "seanslar": "Sessions",
-        "odevler": "Homework",
+        "odevler": "Assignments",
         "analizler": "Analyses",
         "yolculuk": "✦ Client Journey",
         "hafiza": "🧠 Life Memory"
@@ -56,7 +56,7 @@
         "randevular": "📄 Export Appointment History",
         "taslar": "📄 Export Stones",
         "seanslar": "📄 Export Session History",
-        "odevler": "📄 Export Homework",
+        "odevler": "📄 Export Assignments",
         "analizler": "📄 Export Analysis Results"
       },
       "general": {
@@ -87,7 +87,7 @@
         "onerilerPlaceholder": "General suggestions given to the client..."
       },
       "mizac": {
-        "safra": "Bilious",
+        "safra": "Choleric",
         "sovdavi": "Melancholic",
         "dem": "Sanguine",
         "balgam": "Phlegmatic"
@@ -115,7 +115,7 @@
       "delete": {
         "title": "Delete client",
         "thisClient": "This client",
-        "message": "Delete the client named \"{name}\"? The client and all related records (sessions, homework, appointments, stones, analyses) may be permanently deleted.",
+        "message": "Delete the client named \"{name}\"? The client and all related records (sessions, assignments, appointments, stones, analyses) may be permanently deleted.",
         "secondMessage": "This action cannot be undone. All data belonging to the client will be permanently deleted. Are you sure?"
       },
       "toast": {
@@ -152,9 +152,9 @@
         "kisiselYil": "Personal Year",
         "guncelYas": "Current Age",
         "element": "Element:",
-        "dominant": "dominant:",
-        "peak": "Peak:",
-        "peakLabel": "peak {index} · age {age} · chakra {topic}",
+        "dominant": "Dominant:",
+        "peak": "Peak",
+        "peakLabel": "{index} · Age {age} · Chakra {topic}",
         "fullAnalysis": "∞ Open Full Numerology Analysis →"
       },
       "appt": {

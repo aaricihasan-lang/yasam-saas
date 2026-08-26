@@ -6,7 +6,7 @@
       "cancel": "Cancel",
       "analysisType": {
         "chakra": "Chakra Analysis",
-        "planet": "Chakra-Planet Analysis",
+        "planet": "Chakra–Planetary Analysis",
         "default": "Analysis"
       },
       "bodies": {
@@ -44,7 +44,7 @@
       "header": {
         "badge": "Energy & Analysis Center",
         "title": "Client Analyses",
-        "subtitle": "Chakra, Chakra-Planet, numerology and Human Design analyses for {name} will be collected here."
+        "subtitle": "Chakra, Chakra–Planetary, numerology and Human Design analyses for {name} will be collected here."
       },
       "card": {
         "openButton": "Open Analysis",
@@ -54,8 +54,8 @@
           "text": "Track the energy changes before and after a session through the chakra layout."
         },
         "planet": {
-          "badge": "Planet Analysis",
-          "title": "Chakra-Planet Analysis",
+          "badge": "Planetary Analysis",
+          "title": "Chakra–Planetary Analysis",
           "text": "Evaluate the planetary energy balance of the chakras on a per-session basis."
         }
       },
@@ -76,9 +76,9 @@
         "noteLabel": "Analysis Note",
         "notePlaceholder": "Analysis comment, session observation or a client-specific note...",
         "clearAll": "Clear All",
-        "pdf": "Get PDF",
+        "pdf": "Export to PDF",
         "pdfPreparing": "Preparing PDF...",
-        "word": "Get Word",
+        "word": "Export to Word",
         "wordPreparing": "Preparing Word...",
         "save": "Save",
         "saving": "Saving..."

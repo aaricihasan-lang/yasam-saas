@@ -12,6 +12,7 @@ import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
 import { odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
+import { notesToPlainText } from "@/lib/clientNotes";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -962,10 +963,14 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
   }
 
   if (entry.type === "not") {
+    // `notlar` çok-not JSON dizisi olarak saklanabilir; salt-okunur gösterim için
+    // insan-okunur düz metne çevir (eski düz-metin kayıtlar aynen kalır). Ham JSON
+    // ASLA kullanıcıya gösterilmez; parse başarısızsa kontrollü fallback döner.
+    const notlarText = notesToPlainText(d?.notlar);
     return (
       <div className={`flex flex-col gap-2 ${textSize}`}>
         <ModalRow label={t("modal.date")} value={entry.date} />
-        {d?.notlar      && <ModalRow label={t("modal.notes")}      value={d.notlar} />}
+        {notlarText     && <ModalRow label={t("modal.notes")}      value={notlarText} />}
         {d?.oneriler    && <ModalRow label={t("modal.suggestions")}    value={d.oneriler} />}
         {d?.saglik_notu && <ModalRow label={t("modal.healthNote")} value={d.saglik_notu} />}
         {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
@@ -1439,8 +1444,11 @@ export default function YolculukTab({
         }
 
         if (noteData) {
+          // `notlar` çok-not JSON dizisi olabilir → önce düz metne çevir; ham JSON
+          // envelope (id/content/createdAt…) timeline açıklamasında GÖSTERİLMEZ.
+          const notlarText = notesToPlainText(noteData.notlar);
           const noteText = (
-            [noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (string | null | undefined)[]
+            [notlarText, noteData.oneriler, noteData.saglik_notu] as (string | null | undefined)[]
           ).find(Boolean);
           if (noteText) {
             normalized.push({

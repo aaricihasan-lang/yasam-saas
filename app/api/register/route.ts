@@ -27,20 +27,20 @@ export async function POST(req: NextRequest) {
   const password = String(body.password ?? "").trim();
 
   if (!fullName || !email || !password) {
-    return NextResponse.json({ error: "Tüm alanları doldurunuz." }, { status: 400 });
+    return NextResponse.json({ error: "Tüm alanları doldurunuz.", code: "missing_fields" }, { status: 400 });
   }
 
   let db: ReturnType<typeof getServerDb>;
   try {
     db = getServerDb();
   } catch {
-    return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu yapılandırma hatası.", code: "config" }, { status: 500 });
   }
 
   // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
   if (hashError || !hashResult) {
-    return NextResponse.json({ error: "Şifre işlenemedi." }, { status: 500 });
+    return NextResponse.json({ error: "Şifre işlenemedi.", code: "hash" }, { status: 500 });
   }
 
   // Atomik provisioning (tenant+user+event TEK transaction). E-posta tekilliği +
@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
   if (result.outcome === "already_exists") {
-    return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı." }, { status: 409 });
+    return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı.", code: "already_exists" }, { status: 409 });
   }
   if (result.outcome === "idempotency_key_conflict") {
-    return NextResponse.json({ error: "İşlem kimliği çakışması." }, { status: 409 });
+    return NextResponse.json({ error: "İşlem kimliği çakışması.", code: "idempotency" }, { status: 409 });
   }
-  return NextResponse.json({ error: "Kayıt oluşturulamadı." }, { status: 500 });
+  return NextResponse.json({ error: "Kayıt oluşturulamadı.", code: "failed" }, { status: 500 });
 }

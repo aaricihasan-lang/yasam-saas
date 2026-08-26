@@ -36,6 +36,7 @@
     "filter": "Filtrele",
     "filters": "Filtreler",
     "date": "Tarih",
+    "datePlaceholder": "GG.AA.YYYY",
     "today": "Bugün",
     "copy": "Kopyala",
     "copied": "Kopyalandı",

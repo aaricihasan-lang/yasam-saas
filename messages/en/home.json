@@ -440,6 +440,33 @@
       "forgotMsg": "Contact your administrator to reset your password.",
       "submit": "Enter Practitioner Panel →",
       "submitting": "Signing In..."
+    },
+    "register": {
+      "badge": "Practitioner Registration",
+      "title": "Create Your Account",
+      "subtitle": "Create your practitioner account. You can sign in once your account has been approved.",
+      "fullNameLabel": "Full Name",
+      "fullNamePlaceholder": "Your full name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "practitioner@example.com",
+      "passwordLabel": "Password",
+      "passwordRepeatLabel": "Confirm Password",
+      "submit": "Create Account",
+      "submitting": "Creating account…",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign In",
+      "toast": {
+        "errorTitle": "Something went wrong",
+        "successTitle": "Success",
+        "allFields": "Please fill in all fields.",
+        "passwordMismatch": "Passwords do not match.",
+        "success": "Your account has been created. You can sign in once it has been approved.",
+        "generic": "Registration could not be completed.",
+        "alreadyExists": "This email address is already registered.",
+        "idempotency": "Request conflict. Please try again.",
+        "config": "Server configuration error.",
+        "hash": "Password could not be processed."
+      }
     }
   }
 }

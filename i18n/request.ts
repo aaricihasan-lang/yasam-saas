@@ -16,6 +16,7 @@ import trClientsStones from "@/messages/tr/clients.stones.json";
 import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
 import trClientsDetail from "@/messages/tr/clients.detail.json";
 import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
+import trMemoryPicker from "@/messages/tr/memoryPicker.json";
 
 import enCommon from "@/messages/en/common.json";
 import enNavigation from "@/messages/en/navigation.json";
@@ -31,6 +32,7 @@ import enClientsStones from "@/messages/en/clients.stones.json";
 import enClientsYolculuk from "@/messages/en/clients.yolculuk.json";
 import enClientsDetail from "@/messages/en/clients.detail.json";
 import enClientsAnalizler from "@/messages/en/clients.analizler.json";
+import enMemoryPicker from "@/messages/en/memoryPicker.json";
 
 type Messages = Record<string, unknown>;
 
@@ -72,6 +74,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsYolculuk,
     trClientsDetail,
     trClientsAnalizler,
+    trMemoryPicker,
   ]),
   en: buildMessages([
     enCommon,
@@ -88,6 +91,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     enClientsYolculuk,
     enClientsDetail,
     enClientsAnalizler,
+    enMemoryPicker,
   ]),
 };
 

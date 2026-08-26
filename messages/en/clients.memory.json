@@ -1,7 +1,7 @@
 {
   "clients": {
     "memory": {
-      "intro": "Search this client's past records (combinations, stones, sessions, homework, appointments, Human Design). The client's personal/health free-text notes are not searched here.",
+      "intro": "Search this client's past records (combinations, stones, sessions, assignments, appointments, Human Design). The client's personal/health free-text notes are not searched here.",
       "searchAria": "Client memory search",
       "searchPlaceholder": "Search: stone, combination, session type, HD code…",
       "searchButton": "Search",

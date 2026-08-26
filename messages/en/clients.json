@@ -66,11 +66,11 @@
         "ad": "First Name",
         "soyad": "Last Name",
         "telefon": "05xx xxx xx xx",
-        "burc": "Calculated automatically from the date of birth",
+        "burc": "Calculated from date of birth",
         "select": "Select"
       },
       "mizacOptions": {
-        "safra": "Bilious",
+        "safra": "Choleric",
         "sovdavi": "Melancholic",
         "dem": "Sanguine",
         "balgam": "Phlegmatic"

@@ -10,6 +10,7 @@ import {
   type ClientSearchResult,
 } from "@/lib/yasam-hafizasi/client/clientSearchResult";
 import { fetchClientYhSearch } from "@/lib/yasam-hafizasi/client/clientSearchApiClient";
+import { BirthDateInput } from "@/components/ui/BirthDateInput";
 
 type Status = "idle" | "loading" | "done" | "error" | "disabled";
 
@@ -109,9 +110,12 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <label className="text-slate-500">{t("dateLabel")}</label>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label={t("dateFromAria")} className="rounded-lg border border-slate-200 px-2 py-1" />
+        {/* Global tarih sözleşmesi: görünen format DD.MM.YYYY (tüm locale). Native
+            <input type="date"> tarayıcı locale'ine göre mm/dd/yyyy gösterebildiğinden
+            kontrollü maskeli bileşen kullanılır; saklanan değer ISO yyyy-mm-dd kalır. */}
+        <BirthDateInput value={dateFrom} onChange={setDateFrom} ariaLabel={t("dateFromAria")} className="w-32 rounded-lg border border-slate-200 px-2 py-1" />
         <span className="text-slate-400">–</span>
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label={t("dateToAria")} className="rounded-lg border border-slate-200 px-2 py-1" />
+        <BirthDateInput value={dateTo} onChange={setDateTo} ariaLabel={t("dateToAria")} className="w-32 rounded-lg border border-slate-200 px-2 py-1" />
       </div>
 
       {status === "idle" ? <StateCard icon="🔎" title={t("states.idleTitle")} msg={t("states.idleMsg")} /> : null}
