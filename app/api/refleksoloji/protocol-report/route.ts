@@ -34,12 +34,28 @@ type ProtocolRow = {
   created_at: string;
 };
 
+// Tarih biçimleri DAİMA Europe/Istanbul (Türkiye) takvimine göre — Vercel runtime
+// UTC olduğundan gece sınırında (UTC 21:00–24:00 = TR 00:00–03:00) yanlış GÜN
+// üretilmemesi için timeZone açıkça verilir (mevcut sistem standardı: clients/stats,
+// cosmic/audit vb. Europe/Istanbul kullanır).
+const TR_TZ = "Europe/Istanbul";
+
 function formatDateTR(d: string): string {
   try {
-    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
   } catch {
     return d;
   }
+}
+
+/** Raporun GERÇEK üretim tarihi (export anı) — Türkiye takvimi, uzun biçim. */
+function reportDateTR(): string {
+  return new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
+}
+
+/** Dosya adı için üretim günü YYYY-MM-DD — Istanbul takvimi (UTC gün kayması yok). */
+function reportDateSlug(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TR_TZ }).format(new Date());
 }
 
 function slugify(t: string): string {
@@ -116,7 +132,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ ok: false, error: `Atlas okunamadı: ${atlasErr.message}` }, { status: 500 });
   const atlasDoc = ((atlasRow?.document as AtlasDocument | null) ?? EMPTY_ATLAS);
 
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const dateSlug = reportDateSlug();
   const isSingle = protocols.length === 1;
 
   const toInput = (proto: ProtocolRow, index: number): ReflexologyProtocolInput => {
@@ -135,7 +151,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   let children: ReportChild[];
   if (isSingle) {
     const input = toInput(protocols[0]!, 0);
-    children = await buildSingleReport(input, formatDateTR(protocols[0]!.created_at));
+    // "Oluşturulma Tarihi" = raporun ÜRETİM tarihi (bugün). Protokolün kayıt tarihi
+    // ayrı "Protokol Tarihi" metadata'sı olarak korunur (yanlış etiketlenmez).
+    children = await buildSingleReport(input, reportDateTR(), formatDateTR(protocols[0]!.created_at));
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
     // Yalnız exportMode === "single" + doğrulanmış client + selection group.
@@ -163,8 +181,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } else {
     const inputs = protocols.map(toInput);
     const scopeLabel = exportMode === "selected" ? "Seçili Protokoller" : "Tüm Protokoller";
-    const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-    children = await buildBulkReport(inputs, today, scopeLabel);
+    children = await buildBulkReport(inputs, reportDateTR(), scopeLabel);
   }
 
   const doc = new Document({

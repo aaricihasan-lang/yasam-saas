@@ -382,11 +382,15 @@ export function usedGroupsLabel(resolved: ResolvedAtlas): string {
 // ─── SINGLE rapor ─────────────────────────────────────────────────────────────
 export async function buildSingleReport(
   input: ReflexologyProtocolInput,
-  createdLabel: string,
+  /** Raporun ÜRETİM tarihi (export anı, Türkiye takvimi). "Oluşturulma Tarihi". */
+  reportDateLabel: string,
+  /** Protokolün kayıt tarihi — ayrı "Protokol Tarihi" metadata'sı (opsiyonel). */
+  protocolDateLabel?: string,
 ): Promise<ReportChild[]> {
   const totalRegions = input.resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
   const meta: CoverMeta = [
-    { label: "Oluşturulma Tarihi", value: createdLabel },
+    { label: "Oluşturulma Tarihi", value: reportDateLabel },
+    ...(protocolDateLabel ? [{ label: "Protokol Tarihi", value: protocolDateLabel }] : []),
     { label: "Organ Sayısı", value: String(input.organs.length) },
     { label: "Toplam Atlas Bölgesi", value: String(totalRegions) },
     { label: "Kullanılan Görünümler", value: usedGroupsLabel(input.resolved) },
