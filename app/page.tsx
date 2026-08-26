@@ -29,6 +29,10 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
+import {
+  WHATSAPP_CONTACT_ENABLED,
+  buildWhatsAppUrl,
+} from "@/lib/contact/whatsapp";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -46,12 +50,78 @@ import {
   Layers,
   Loader2,
   Lock,
+  Mail,
+  MessageCircle,
   Package,
   Shield,
   ShieldCheck,
   Sparkles,
   UsersRound,
 } from "lucide-react";
+
+/**
+ * Üyelik & fiyat iletişim aksiyonları — hem login modalında hem
+ * pending/inactive panelinde kullanılır (tek kaynak, tutarlı UX).
+ *
+ * WhatsApp aksiyonu yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
+ * render edilir; kapalıyken kullanıcıya kırık wa.me linki GÖSTERİLMEZ.
+ * "Mesaj Bırak" her durumda çalışır (public /iletisim sayfası).
+ */
+function MembershipContactCTA({
+  variant = "modal",
+  onNavigate,
+  defaultOpen = false,
+}: {
+  variant?: "modal" | "panel";
+  onNavigate?: () => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const whatsappUrl = buildWhatsAppUrl();
+
+  const options = (
+    <div className="mt-3 space-y-2">
+      {WHATSAPP_CONTACT_ENABLED && (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          onClick={onNavigate}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white no-underline shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+        >
+          <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
+          WhatsApp&apos;tan Görüş
+        </a>
+      )}
+      <Link
+        href="/iletisim"
+        onClick={onNavigate}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-700 no-underline shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      >
+        <Mail className="h-4 w-4" strokeWidth={2.5} />
+        Mesaj Bırak
+      </Link>
+    </div>
+  );
+
+  if (variant === "panel") {
+    return <div className="mt-1 w-full">{options}</div>;
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-violet-200 transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      >
+        Üyelik ve Fiyat Bilgisi Al
+      </button>
+      {open && options}
+    </div>
+  );
+}
 
 type ModuleTheme = {
   iconWrap: string;
@@ -602,6 +672,7 @@ export default function Home() {
   const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [membershipIntent, setMembershipIntent] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
@@ -638,6 +709,7 @@ export default function Home() {
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
+    setMembershipIntent(false);
   };
 
   const handleLoginBackdropMouseDown = (
@@ -1433,6 +1505,12 @@ export default function Home() {
                       </p>
                     </>
                   )}
+                  <p className="mt-4 max-w-md text-sm font-semibold text-rose-600">
+                    Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.
+                  </p>
+                  <div className="mt-3 w-full max-w-xs">
+                    <MembershipContactCTA variant="panel" />
+                  </div>
                 </div>
               ) : expertModulesEmpty ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-white/60 px-6 py-8 text-center backdrop-blur-sm">
@@ -1654,23 +1732,35 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => {
                 setMessage("");
+                setMembershipIntent(false);
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900"
+              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               Giriş Yap
             </button>
             <Link
               href="/register"
-              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)]"
+              className="hidden items-center justify-center rounded-lg px-2 text-xs font-semibold text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:inline-flex"
             >
-              Kayıt Ol
+              Görüştüm, hesap oluştur
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMessage("");
+                setMembershipIntent(true);
+                setLoginModalOpen(true);
+              }}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+            >
+              Üyelik ve Fiyat Bilgisi Al
+            </button>
           </div>
         </header>
 
@@ -3590,20 +3680,13 @@ export default function Home() {
                   }}
                 />
 
-                <div className="mt-2 flex items-center justify-between gap-4">
-                  <Link
-                    href="/register"
-                    onClick={() => setLoginModalOpen(false)}
-                    className="text-[12px] font-semibold tracking-wide text-violet-700/90 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline"
-                  >
-                    Kayıt Ol
-                  </Link>
+                <div className="mt-2 flex justify-end">
                   <button
                     type="button"
                     onClick={() =>
                       setMessage("Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.")
                     }
-                    className="bg-transparent p-0 text-[12px] font-semibold tracking-wide text-violet-600/85 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                    className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                   >
                     Şifremi Unuttum
                   </button>
@@ -3625,6 +3708,26 @@ export default function Home() {
                 {message}
               </div>
             )}
+
+            <div className="relative z-10 mt-6 border-t border-slate-200/70 pt-5">
+              <p className="text-center text-sm font-semibold text-slate-600">
+                Henüz Yaşam Sistemi üyesi değil misiniz?
+              </p>
+              <MembershipContactCTA
+                variant="modal"
+                defaultOpen={membershipIntent}
+                onNavigate={closeLoginModal}
+              />
+              <p className="mt-3 text-center text-xs text-slate-500">
+                <Link
+                  href="/register"
+                  onClick={closeLoginModal}
+                  className="rounded font-semibold text-violet-700 underline underline-offset-2 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                >
+                  Görüştüm, hesap oluştur
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       )}
