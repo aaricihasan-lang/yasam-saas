@@ -803,6 +803,91 @@ function run(): void {
   ok(CUPPING_TABLES.protocols === "cupping_protocols" && CUPPING_TABLES.topics === "cupping_topics", "v2-legacy: protocols AYRI tablo; legacy topics korunur");
   ok(!Object.prototype.hasOwnProperty.call(CITATION_SPECS, "protocol"), "v2-legacy: protocol legacy citation ağacına EKLENMEDİ");
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // FAZ 2 — Hacamat Protokolleri UI (kontrat). Legacy amac-rehberi DEĞİŞMEZ.
+  // ══════════════════════════════════════════════════════════════════════════
+  const exists = (p: string) => { try { statSync(p); return true; } catch { return false; } };
+
+  // ── FAZ2-A) Canonical route'lar var; legacy amac-rehberi korunur ────────────────
+  ok(exists("app/kupa/protokoller/page.tsx"), "faz2-route: /kupa/protokoller liste");
+  ok(exists("app/kupa/protokoller/yeni/page.tsx"), "faz2-route: /kupa/protokoller/yeni");
+  ok(exists("app/kupa/protokoller/[id]/page.tsx"), "faz2-route: /kupa/protokoller/[id]");
+  ok(exists("app/kupa/protokoller/[id]/loading.tsx") && exists("app/kupa/protokoller/loading.tsx"), "faz2-route: loading.tsx (liste + [id])");
+  ok(exists("app/kupa/amac-rehberi/page.tsx") && exists("app/kupa/amac-rehberi/[topicId]/page.tsx"), "faz2-legacy: amac-rehberi route'ları KORUNUR");
+
+  const pApi = read("app/kupa/lib/api.ts");
+  const pList = read("app/kupa/protokoller/page.tsx");
+  const pNew = read("app/kupa/protokoller/yeni/page.tsx");
+  const pDoc = read("app/kupa/protokoller/[id]/ProtocolDocumentClient.tsx");
+  const pRel = read("app/kupa/protokoller/components/RelationSection.tsx");
+  const pSteps = read("app/kupa/protokoller/components/StepsSection.tsx");
+  const pEntries = read("app/kupa/protokoller/components/EntriesSection.tsx");
+  const pPicker = read("app/kupa/protokoller/components/MasterPickerDialog.tsx");
+  const pHook = read("app/kupa/protokoller/hooks/useProtocolDocument.ts");
+  const pListHook = read("app/kupa/protokoller/hooks/useProtocolList.ts");
+  const pCard = read("app/kupa/protokoller/components/ProtocolListCard.tsx");
+  const pInline = read("app/kupa/protokoller/components/InlineLongText.tsx");
+  const newFiles = [pList, pNew, pDoc, pRel, pSteps, pEntries, pPicker, pCard].join("\n\n");
+
+  // ── FAZ2-B) CLIENT wrappers (V2 additive; legacy korunur) ──────────────────────
+  for (const fn of ["listProtocols", "createProtocol", "getProtocol", "updateProtocol", "deleteProtocol",
+    "listProtocolPoints", "addProtocolPoint", "deleteProtocolPoint", "listProtocolSteps", "addProtocolStep",
+    "listProtocolEntries", "createProtocolEntry", "updateProtocolEntry", "deleteProtocolEntry",
+    "listProtocolSources", "addProtocolSource"]) {
+    ok(new RegExp(`export const ${fn}\\b`).test(pApi), `faz2-client: ${fn}`);
+  }
+  ok(/export const listTopics\b/.test(pApi) && /export const listTopicNotes\b/.test(pApi), "faz2-client: legacy wrapper'lar KORUNUR");
+  ok(/point_ids/.test(pApi) && /createProtocolEntry[\s\S]*?point_ids/.test(pApi), "faz2-entry: create/update wrappers point_ids taşır");
+
+  // ── FAZ2-C) UX kontratı ────────────────────────────────────────────────────────
+  ok(!/Gelişmiş Düzenleme/.test(newFiles), "faz2-ux: global 'Gelişmiş Düzenleme' mod YOK (section-level edit)");
+  ok(/ProtocolSectionShell/.test(pDoc) || /RelationSection/.test(pDoc), "faz2-ux: section-level bileşen mimarisi");
+  ok(/useConfirm/.test(pDoc) && /deleteProtocol\(/.test(pDoc), "faz2-delete: protokol silme useConfirm");
+  ok(/useConfirm/.test(pList) && /deleteProtocol\(/.test(pList), "faz2-delete: liste kartı silme useConfirm");
+  ok(/useConfirm/.test(pRel) && /useConfirm/.test(pSteps) && /useConfirm/.test(pEntries), "faz2-delete: child (relation/step/entry) silme useConfirm");
+  ok(/useToast/.test(pDoc) && /useToast/.test(pRel) && /useToast/.test(pEntries), "faz2-ux: useToast bildirimleri");
+
+  // Unified Bilgiler: tek başlık; "Notlarım"/"Kaynaklar Ne Diyor?"/formal-personal badge YOK.
+  ok(/title="Bilgiler"|"Bilgiler"/.test(pEntries), "faz2-bilgiler: tek 'Bilgiler' başlığı");
+  ok(!/Notlar[ıi]m/.test(newFiles) && !/Kaynaklar Ne Diyor/.test(newFiles), "faz2-bilgiler: 'Notlarım'/'Kaynaklar Ne Diyor?' YOK");
+  ok(!/Kişisel Not|formal kayıt|Formal Bilgi/i.test(newFiles), "faz2-bilgiler: formal/personal discriminator badge YOK");
+
+  // Mobil tam CRUD + full-screen editör + edge-to-edge.
+  ok(/fullBleedBelowLg/.test(pList) && /fullBleedBelowLg/.test(pNew) && /fullBleedBelowLg/.test(pDoc), "faz2-mobile: fullBleedBelowLg edge-to-edge");
+  ok(/BigNoteEditorDialog/.test(pInline) && /lg:hidden/.test(pInline) && /hidden lg:block/.test(pInline), "faz2-mobile: uzun metin <1024 full-screen editör + desktop inline");
+  ok(!/Rehbere Dön|Geri Dön|floating.*back/i.test(newFiles), "faz2-nav: özel geri/floating-back butonu YOK");
+
+  // No fake quick-create (technique/safety master 0 olabilir).
+  ok(!/Yeni Teknik Oluştur|Yeni Güvenlik Oluştur|quick-create|QuickCreate/.test(newFiles), "faz2-noquick: sahte/disabled quick-create CTA YOK");
+  ok(!/createTechnique\(|createSafety\(|createPoint\(|createSource\(/.test(newFiles), "faz2-noquick: protokol UI master kayıt OLUŞTURMAZ (yalnız picker)");
+
+  // ── FAZ2-D) N+1 HARD GATE ──────────────────────────────────────────────────────
+  ok(!/listProtocolPoints|listProtocolTechniques|listProtocolSafety/.test(pList) && !/listProtocol/.test(pCard),
+    "faz2-n+1: liste/kart per-kart relation fetch YAPMAZ ('N bölge' sayacı OMIT)");
+  ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pRel) &&
+     !/listPoints\(|listTechniques\(/.test(pSteps) &&
+     !/listPoints\(|listSources\(/.test(pEntries),
+    "faz2-n+1: section bileşenleri master GET yapmaz (doc.master* map kullanır)");
+  ok(/listPoints\(\)/.test(pHook) && /listTechniques\(\)/.test(pHook) && /listSafety\(\)/.test(pHook) && /listSources\(\)/.test(pHook) && /Promise\.all/.test(pHook),
+    "faz2-n+1: useProtocolDocument master listelerini TEK KEZ (Promise.all) yükler");
+  ok(/new Map\(/.test(pHook) && /pointName|pointMap/.test(pHook), "faz2-n+1: master isim çözümü Map ile (loop-içi GET yok)");
+  ok(!/listProtocolPoints/.test(pListHook), "faz2-n+1: liste hook'u relation yüklemez");
+
+  // ── FAZ2-E) ENTRY atomik tüketimi (optimistic YOK) ─────────────────────────────
+  ok(/createProtocolEntry\(|updateProtocolEntry\(/.test(pEntries) && /doc\.reload\.entries\(\)/.test(pEntries),
+    "faz2-entry: create/update sonrası server canonical yeniden çekilir (optimistic YOK)");
+  ok(/source_id/.test(pEntries) && /Kaynak yok/.test(pEntries), "faz2-entry: kaynak OPSİYONEL (source yok seçeneği)");
+
+  // ── FAZ2-F) STEP membership UI ─────────────────────────────────────────────────
+  ok(/doc\.points\.map/.test(pSteps) && /doc\.techniques\.map/.test(pSteps),
+    "faz2-step: ref_point/ref_technique seçenekleri YALNIZ protokole-bağlı (doc.points/doc.techniques)");
+  ok(!/masterPoints\.map[\s\S]{0,80}ref_point|doc\.masterPoints[\s\S]{0,120}Bağlı bölge/.test(pSteps),
+    "faz2-step: step ref dropdown master listeden DOĞRUDAN seçtirmez");
+
+  // ── FAZ2-G) Picker erişilebilirlik + quick-create yokluğu ──────────────────────
+  ok(/role="dialog"/.test(pPicker) && /aria-modal="true"/.test(pPicker) && /Escape/.test(pPicker) && /min-h-\[44px\]/.test(pPicker),
+    "faz2-a11y: MasterPickerDialog dialog/aria/Escape/44px");
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
