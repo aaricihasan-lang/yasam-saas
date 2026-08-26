@@ -33,6 +33,7 @@ import {
   WHATSAPP_CONTACT_ENABLED,
   buildWhatsAppUrl,
 } from "@/lib/contact/whatsapp";
+import PasswordSupportForm from "@/components/auth/PasswordSupportForm";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -673,6 +674,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [membershipIntent, setMembershipIntent] = useState(false);
+  const [authModalView, setAuthModalView] = useState<"login" | "support">("login");
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
@@ -710,6 +712,7 @@ export default function Home() {
   const closeLoginModal = () => {
     setLoginModalOpen(false);
     setMembershipIntent(false);
+    setAuthModalView("login");
   };
 
   const handleLoginBackdropMouseDown = (
@@ -1732,28 +1735,18 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={() => {
                 setMessage("");
                 setMembershipIntent(false);
+                setAuthModalView("login");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/70 px-4 text-[13px] font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-white hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               Giriş Yap
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMessage("");
-                setMembershipIntent(true);
-                setLoginModalOpen(true);
-              }}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
-            >
-              Üyelik ve Fiyat Bilgisi Al
             </button>
           </div>
         </header>
@@ -3602,7 +3595,7 @@ export default function Home() {
           />
           <div
             ref={loginModalRef}
-            className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
+            className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/95 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-modal-title"
@@ -3616,18 +3609,20 @@ export default function Home() {
             <div className="relative z-10 flex items-start justify-between gap-4">
               <div>
                 <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
-                  Uzman Paneli
+                  {authModalView === "support" ? "Şifre Desteği" : "Uzman Paneli"}
                 </div>
 
                 <h3
                   id="login-modal-title"
                   className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl"
                 >
-                  Giriş Yap
+                  {authModalView === "support" ? "Giriş Sorunu Bildir" : "Giriş Yap"}
                 </h3>
 
-                <p className="mt-1.5 text-sm leading-6 text-slate-500">
-                  Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz.
+                <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                  {authModalView === "support"
+                    ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
+                    : "Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz."}
                 </p>
               </div>
 
@@ -3640,6 +3635,15 @@ export default function Home() {
               </button>
             </div>
 
+            {authModalView === "support" ? (
+              <PasswordSupportForm
+                onBack={() => {
+                  setMessage("");
+                  setAuthModalView("login");
+                }}
+              />
+            ) : (
+              <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -3651,7 +3655,7 @@ export default function Home() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="uzman@test.com"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   autoFocus
                 />
               </div>
@@ -3666,7 +3670,7 @@ export default function Home() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       handleLogin();
@@ -3677,9 +3681,10 @@ export default function Home() {
                 <div className="mt-2 flex justify-end">
                   <button
                     type="button"
-                    onClick={() =>
-                      setMessage("Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.")
-                    }
+                    onClick={() => {
+                      setMessage("");
+                      setAuthModalView("support");
+                    }}
                     className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline focus-visible:text-violet-900 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                   >
                     Şifremi Unuttum
@@ -3722,6 +3727,8 @@ export default function Home() {
                 </Link>
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}
