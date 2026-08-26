@@ -256,6 +256,31 @@ async function main(): Promise<void> {
     ok("PNG deterministik (byte-eşit)", png1.equals(png2), `${png1.length} vs ${png2.length}`);
   }
 
+  // ── H. REPORT DATE (kapak "Oluşturulma Tarihi" = üretim tarihi, protokol tarihi değil) ──
+  section("H. REPORT DATE (üretim tarihi ≠ protokol tarihi)");
+  {
+    // protocol.created_at 25 Ağustos; rapor 26 Ağustos'ta üretiliyor.
+    const single = await buildSingleReport(
+      input({ organs: ["Kalp"], createdAt: "2026-08-25T09:00:00.000Z" }),
+      "26 Ağustos 2026", // reportDateLabel (üretim)
+      "25 Ağustos 2026", // protocolDateLabel (kayıt)
+    );
+    const { xml } = await docText(single);
+    const iOlus = xml.indexOf("Oluşturulma Tarihi");
+    const i26 = xml.indexOf("26 Ağustos 2026");
+    const iProt = xml.indexOf("Protokol Tarihi");
+    const i25 = xml.indexOf("25 Ağustos 2026");
+    ok("kapakta 'Oluşturulma Tarihi' var", iOlus >= 0);
+    ok("Oluşturulma Tarihi = 26 Ağustos (üretim)", iOlus >= 0 && i26 > iOlus && (iProt < 0 || i26 < iProt));
+    ok("'Protokol Tarihi' ayrı metadata var", iProt > iOlus);
+    ok("Protokol Tarihi = 25 Ağustos (kayıt)", iProt >= 0 && i25 > iProt);
+    ok("Oluşturulma Tarihi'nin değeri 25 DEĞİL (regresyon)", !(iOlus >= 0 && i25 > iOlus && (iProt < 0 || i25 < iProt)));
+
+    // protocolDateLabel verilmezse "Protokol Tarihi" satırı YOK (conditional).
+    const noProt = await docText(await buildSingleReport(input({ organs: ["Kalp"] }), "26 Ağustos 2026"));
+    ok("protokol tarihi verilmezse 'Protokol Tarihi' YOK", !noProt.xml.includes("Protokol Tarihi"));
+  }
+
   console.log(`\n──────── SONUÇ: ${pass}/${pass + fail} PASS ────────`);
   if (fail > 0) {
     console.log(`❌ ${fail} test başarısız.`);
