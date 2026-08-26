@@ -22,10 +22,9 @@ CREATE TABLE public.nutrition_topics (
   sort_order   integer     NOT NULL DEFAULT 0,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now(),
-  search_tsv   tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(title, ''))), 'A')
-    || setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(summary, ''))), 'C')
-  ) STORED,
+  -- search_tsv: BEFORE INSERT/UPDATE trigger ile doldurulur (GENERATED DEĞİL — modül geneli
+  -- tutarlılık + gelecekte alias/array eklenirse 42P17 immutability riskine karşı güvenli desen).
+  search_tsv   tsvector,
 
   CONSTRAINT nutrition_topics_title_chk CHECK (btrim(title) <> ''),
   CONSTRAINT nutrition_topics_topic_type_chk CHECK (
@@ -80,6 +79,21 @@ CREATE TRIGGER trg_nutrition_topics_identity_guard
 CREATE TRIGGER trg_nutrition_topics_updated_at
   BEFORE UPDATE ON public.nutrition_topics
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- search_tsv üretimi (BEFORE INSERT OR UPDATE). Ağırlık A=title, C=summary.
+CREATE FUNCTION public.nutrition_topics_search_tsv()
+  RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.search_tsv :=
+    setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(NEW.title, ''))), 'A')
+    || setweight(to_tsvector('simple', public.yh_immutable_unaccent(coalesce(NEW.summary, ''))), 'C');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_nutrition_topics_search_tsv
+  BEFORE INSERT OR UPDATE ON public.nutrition_topics
+  FOR EACH ROW EXECUTE FUNCTION public.nutrition_topics_search_tsv();
 
 ALTER TABLE public.nutrition_topics ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE public.nutrition_topics FROM anon, authenticated, PUBLIC;
