@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { KupaShell, kupaBtnGhost, kupaBtnPrimary, kupaInput } from "../../components/KupaShell";
+import { KupaShell, kupaBtnGhost, kupaBtnPrimary, kupaEdgeCard, kupaInput } from "../../components/KupaShell";
 import { BigNoteEditorDialog } from "../../components/BigNoteEditorDialog";
 import { createTopic, type CuppingTopic } from "../../lib/api";
 
@@ -18,9 +18,10 @@ import { createTopic, type CuppingTopic } from "../../lib/api";
  *
  * DÜZEN (responsive):
  *   - Desktop (≥1024px): geniş premium çalışma ekranı — kart ekranı kullanır; alanlar
- *     grid'e geçer (Ad geniş + Kategori dar / Açıklama full / iki not kartı yan yana).
- *   - Mobile & tablet (<1024px): kart viewport kenarlarına sıfır yaslanır (edge-to-edge,
- *     rounded-none); shell yatay padding'i negatif margin ile iptal edilir; tek kolon.
+ *     grid'e geçer (Ad geniş + Kategori dar / Açıklama INLINE textarea / iki not kartı yan yana).
+ *   - Mobile & tablet (<1024px): kart viewport kenarlarına GERÇEK sıfır yaslanır (edge-to-edge,
+ *     köşesiz). KupaShell `fullBleedBelowLg` shell padding'i sıfırlar — negatif-margin HACK YOK.
+ *     Açıklama dahil uzun metin alanları küçük textarea DEĞİL; büyük (full-screen) editör açar.
  *   Navigasyon: sağ üstte özel geri/kapat butonu YOK — kullanıcı tarayıcının ileri/geri
  *   tuşlarını kullanır; breadcrumb bilgilendirme amaçlıdır (özel geri aksiyonu üretmez).
  *
@@ -43,17 +44,8 @@ const labelCls = "mb-1 block text-[11px] font-semibold text-slate-600";
 const helperCls = "mt-1 text-[10.5px] leading-snug text-slate-400";
 const GUIDE_HREF = "/kupa/amac-rehberi";
 
-/**
- * Form kartı — mobile/tablet'te edge-to-edge (negatif gutter ile shell padding'i iptal
- * eder, rounded-none, yalnız üst/alt kenarlık); ≥1024px'te ferah, köşeli premium kart.
- */
-const formCardCls =
-  "w-full -mx-4 border-y border-amber-100/90 bg-white/95 p-4 shadow-sm backdrop-blur-sm " +
-  "sm:-mx-6 sm:p-5 " +
-  "lg:mx-0 lg:rounded-2xl lg:border lg:border-amber-100/90 lg:p-7 " +
-  "lg:shadow-[0_1px_3px_rgba(120,80,40,0.06),0_10px_30px_-18px_rgba(120,80,40,0.14)]";
-
-type NoteField = "notes" | "source_note";
+/** Uzun metin alanları için büyük (full-screen <1024px) editörle yönetilen alanlar. */
+type NoteField = "description" | "notes" | "source_note";
 
 export default function YeniRahatsizlikPage() {
   const router = useRouter();
@@ -104,7 +96,17 @@ export default function YeniRahatsizlikPage() {
   };
 
   const noteDialogConfig =
-    noteDialog === "notes"
+    noteDialog === "description"
+      ? {
+          title: "Açıklama",
+          value: description,
+          placeholder: "Bu amacın/konunun genel açıklaması.",
+          onSave: (t: string) => {
+            setDescription(t);
+            setNoteDialog(null);
+          },
+        }
+      : noteDialog === "notes"
       ? {
           title: "Profesyonel / Çalışma Notu",
           value: notes,
@@ -134,15 +136,18 @@ export default function YeniRahatsizlikPage() {
         { label: "Amaç / Rahatsızlık Rehberi", href: GUIDE_HREF },
         { label: "Yeni Kayıt" },
       ]}
+      fullBleedBelowLg
     >
       {error ? (
-        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-          {error}
+        <div className="mb-3 px-4 sm:px-6 lg:px-0">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {error}
+          </div>
         </div>
       ) : null}
 
       <div className="w-full">
-        <div className={formCardCls}>
+        <div className={kupaEdgeCard}>
           <div className="grid grid-cols-1 gap-4 lg:gap-6">
             {/* Satır 1: Rahatsızlık Adı (geniş) + Kategori (dar) */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
@@ -188,19 +193,33 @@ export default function YeniRahatsizlikPage() {
               </div>
             </div>
 
-            {/* Satır 2: Açıklama — full width */}
+            {/* Satır 2: Açıklama — full width. Mobile/tablet (<1024px): büyük (full-screen)
+                editör kartı; desktop (>=1024px): beğenilen INLINE textarea. Aynı `description`
+                state — duplicate alan YOK. */}
             <div>
-              <label className={labelCls} htmlFor="new-desc">
-                Açıklama
-              </label>
-              <textarea
-                id="new-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Bu amacın/konunun genel açıklaması."
-                className={kupaInput}
-              />
+              {/* Mobile/tablet: büyük editör tetikleyicisi */}
+              <div className="lg:hidden">
+                <NoteFieldCard
+                  label="Açıklama"
+                  value={description}
+                  emptyHint="Açıklama eklemek için tıklayın"
+                  onOpen={() => setNoteDialog("description")}
+                />
+              </div>
+              {/* Desktop: inline textarea (korunur) */}
+              <div className="hidden lg:block">
+                <label className={labelCls} htmlFor="new-desc">
+                  Açıklama
+                </label>
+                <textarea
+                  id="new-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Bu amacın/konunun genel açıklaması."
+                  className={kupaInput}
+                />
+              </div>
             </div>
 
             {/* Satır 3: iki büyük not kartı (desktop'ta yan yana, mobilde alt alta) */}

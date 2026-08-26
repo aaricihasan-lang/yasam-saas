@@ -263,6 +263,12 @@ function run(): void {
   const amac = read("app/kupa/amac-rehberi/page.tsx");
   const clientApi = read("app/kupa/lib/api.ts");
   const ptItemRoute = read("app/api/kupa/point-topics/[id]/route.ts");
+  // FAZ (mobil/tablet reading UX): TEK-kaynak okuma bileşeni + ayrı detay route + shell.
+  const readView = read("app/kupa/amac-rehberi/components/TopicReadView.tsx");
+  const readHook = read("app/kupa/amac-rehberi/hooks/useTopicReadData.ts");
+  const detailPage = read("app/kupa/amac-rehberi/[topicId]/page.tsx");
+  const detailClient = read("app/kupa/amac-rehberi/[topicId]/TopicDetailClient.tsx");
+  const shell = read("app/kupa/components/KupaShell.tsx");
 
   // GAP-1 API kontratı (mevcut — regresyon guard): PATCH FK'leri değiştirmez, meta yazılır
   ok(/updatePointTopic\b/.test(clientApi) && /point-topics\/\$\{id\}[\s\S]{0,60}"PATCH"/.test(clientApi),
@@ -318,36 +324,44 @@ function run(): void {
      /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac),
     "gap1/2: point-topic + topic CitationManager korunur (yeniden yazılmadı)");
 
-  // ══ L) SADE OKUMA MODU — FORMAL kaynak-karşılaştırma (DB'den; hard-code YOK) ══════
+  // ══ L) SADE OKUMA MODU — FORMAL kaynak-karşılaştırma (TEK KAYNAK TopicReadView) ══════
+  // Okuma UI'sı artık reusable TopicReadView'dadır; amac desktop okuma modunda onu kullanır.
   ok(/Gelişmiş Düzenleme/.test(amac) && /Okuma Modu/.test(amac),
-    "read[ui]: Gelişmiş Düzenleme toggle (okuma modu default)");
-  ok(/İlişkili Bölgeler/.test(amac), "read[ui]: 'İlişkili Bölgeler' bölümü");
-  ok(/Kaynaklar Ne Diyor\?/.test(amac), "read[ui]: 'Kaynaklar Ne Diyor?' bölümü");
-  ok(/new Set\([\s\S]{0,90}source_id/.test(amac),
+    "read[ui]: Gelişmiş Düzenleme toggle (okuma modu default) — amac'ta korunur");
+  ok(/<TopicReadView/.test(amac) && /from "\.\/components\/TopicReadView"/.test(amac),
+    "read[reuse]: amac desktop okuma paneli TopicReadView bileşenini kullanır (inline read UI YOK)");
+  ok(/İlişkili Bölgeler/.test(readView), "read[ui]: 'İlişkili Bölgeler' bölümü (TopicReadView)");
+  ok(/Kaynaklar Ne Diyor\?/.test(readView), "read[ui]: 'Kaynaklar Ne Diyor?' bölümü (TopicReadView)");
+  ok(/new Set\([\s\S]{0,90}source_id/.test(readView),
     "read[ui]: formal kaynak sayısı DISTINCT source_id (Set) — aynı kaynak tekrarı şişmez");
-  ok(/rr\.count >= 2/.test(amac), "read[ui]: yalnız >=2 formal kaynaklı bölgede sayı gösterilir");
-  ok(/\{rr\.count\}[\s\S]{0,20}kaynakta geçiyor/.test(amac),
+  ok(/rr\.count >= 2/.test(readView), "read[ui]: yalnız >=2 formal kaynaklı bölgede sayı gösterilir");
+  ok(/\{rr\.count\}[\s\S]{0,20}kaynakta geçiyor/.test(readView),
     "read[ui]: 'N kaynakta geçiyor' DİNAMİK (hard-code değil)");
-  ok(/for \(const ts of topicSources\)/.test(amac),
+  ok(/for \(const ts of topicSources\)/.test(readView),
     "read[ui]: kaynak kartları topic-source'lı DISTINCT source'lardan OTOMATİK türer");
-  ok(/SOURCE_TYPE_LABEL\[/.test(amac) && /expert_educational[\s\S]{0,24}Uzman/.test(amac),
+  ok(/SOURCE_TYPE_LABEL\[/.test(readView) && /expert_educational[\s\S]{0,24}Uzman/.test(readView),
     "read[ui]: source_type rozetle resolve (expert_educational→Uzman/Eğitim)");
-  ok(!/Zakir Benli|Süleyman Gök|Hacamat 2\b/.test(amac),
+  ok(!/Zakir Benli|Süleyman Gök|Hacamat 2\b/.test(readView),
     "read[ui]: sabit kaynak ADI hard-code YOK (DB'den çözülür)");
-  ok(!/[23] kaynakta geçiyor/.test(amac.replace(/\{[^}]*\}/g, "")),
+  ok(!/[23] kaynakta geçiyor/.test(readView.replace(/\{[^}]*\}/g, "")),
     "read[ui]: sabit kaynak SAYISI hard-code YOK");
-  ok(!/Önerilen Uygulama Sırası|Önerilen Sıra/.test(amac),
+  ok(!/Önerilen Uygulama Sırası|Önerilen Sıra/.test(readView),
     "read[ui]: kaynakları birleştiren global 'uygulama sırası' ÜRETİLMEZ");
+  ok(!/Migren|migren/.test(readView) && !/Migren|migren/.test(readHook),
+    "read[reuse]: TopicReadView/loader Migren'e özel hard-code içermez (generic topic)");
 
-  // ══ M) KULLANICI NOTLARI — formal citation'dan AYRI katman ══════════════════════
-  ok(/Notlarım/.test(amac), "note[ui]: 'Notlarım' bölümü (formal kaynaklardan ayrı)");
-  ok(/\+ Yeni Bilgi \/ Not Ekle/.test(amac), "note[ui]: '+ Yeni Bilgi / Not Ekle'");
-  ok(/Kendi Notum/.test(amac), "note[ui]: source_label boşsa 'Kendi Notum'");
-  ok(/createTopicNote\(/.test(amac) && /updateTopicNote\(/.test(amac) && /deleteTopicNote\(/.test(amac),
-    "note[ui]: not create/edit/delete gerçek API'ye bağlı");
-  ok(/listTopicNotes\(/.test(amac), "note[ui]: notlar DB'den okunur (listTopicNotes)");
-  ok(/relSourceCount[\s\S]{0,120}relCitations/.test(amac),
+  // ══ M) KULLANICI NOTLARI — formal citation'dan AYRI katman (TopicReadView) ═══════════
+  ok(/Notlarım/.test(readView), "note[ui]: 'Notlarım' bölümü (formal kaynaklardan ayrı)");
+  ok(/\+ Yeni Bilgi \/ Not Ekle/.test(readView), "note[ui]: '+ Yeni Bilgi / Not Ekle'");
+  ok(/Kendi Notum/.test(readView), "note[ui]: source_label boşsa 'Kendi Notum'");
+  ok(/createTopicNote\(/.test(readView) && /updateTopicNote\(/.test(readView) && /deleteTopicNote\(/.test(readView),
+    "note[ui]: not create/edit/delete gerçek API'ye bağlı (TopicReadView)");
+  ok(/listTopicNotes\(/.test(readView), "note[ui]: notlar DB'den okunur (listTopicNotes)");
+  ok(/relSourceCount[\s\S]{0,120}relCitations/.test(readView),
     "note[semantik]: formal 'N kaynakta geçiyor' relCitations'tan (FORMAL); notlar bu sayıyı ETKİLEMEZ");
+  // Notlar okuma UI'sında yönetildiği için amac artık not-CRUD içermez (tek kaynak).
+  ok(!/createTopicNote\(|updateTopicNote\(|deleteTopicNote\(/.test(amac),
+    "note[reuse]: amac not-CRUD'u DUPLICATE ETMEZ (TopicReadView sahiplenir)");
   ok((clientApi.includes("listTopicNotes") && clientApi.includes("createTopicNote") &&
       clientApi.includes("deleteTopicNote")),
     "note[client]: topic-notes CRUD client'ta");
@@ -436,16 +450,21 @@ function run(): void {
     "yeniux[resp]: dar max-w-2xl kolon kaldırıldı (desktop geniş)");
   ok(/lg:grid-cols-3/.test(yeni) && /lg:col-span-2/.test(yeni) && /lg:grid-cols-2/.test(yeni),
     "yeniux[resp]: desktop grid (Ad geniş+Kategori dar / iki not kartı yan yana)");
-  // Mobile/tablet: kart viewport'a sıfır (negatif gutter shell padding'i iptal) + köşesiz.
-  ok(/-mx-4/.test(yeni) && /sm:-mx-6/.test(yeni) && /lg:mx-0/.test(yeni),
-    "yeniux[resp]: mobile/tablet edge-to-edge (negatif gutter), lg reset");
-  ok(/border-y/.test(yeni) && /lg:rounded-2xl/.test(yeni),
-    "yeniux[resp]: mobile köşesiz (border-y), desktop rounded-2xl premium kart");
-  // BigNoteEditorDialog responsive: mobile 100dvh doldur / desktop 80vh ortalı.
-  ok(/100dvh/.test(dialog) && /sm:h-\[80vh\]/.test(dialog),
-    "yeniux[resp]: editör mobile 100dvh doldurur / desktop 80vh");
-  ok(/p-0 sm:items-center sm:p-6/.test(dialog) && /sm:rounded-2xl/.test(dialog),
-    "yeniux[resp]: editör mobile kenara sıfır (p-0, köşesiz), desktop ortalı/rounded");
+  // Mobile/tablet: GERÇEK edge-to-edge — KupaShell fullBleedBelowLg + shared kupaEdgeCard.
+  // Negatif-margin HACK'İ YASAK (kullanıcı bunu reddetti): -mx-* class'ı /yeni'de olmamalı.
+  ok(/fullBleedBelowLg/.test(yeni), "yeniux[resp]: /yeni KupaShell fullBleedBelowLg kullanır (page-level edge-to-edge)");
+  ok(/kupaEdgeCard/.test(yeni), "yeniux[resp]: /yeni paylaşılan kupaEdgeCard kullanır (formCardCls hack kaldırıldı)");
+  ok(!/-mx-4|-mx-6|sm:-mx-/.test(yeni), "yeniux[resp]: negatif-margin gutter HACK'i /yeni'de YOK (page-level çözüm)");
+  ok(/border-y/.test(shell) && /lg:rounded-2xl/.test(shell),
+    "yeniux[resp]: kupaEdgeCard mobil köşesiz (border-y), desktop rounded-2xl premium (KupaShell)");
+  // BigNoteEditorDialog responsive: <1024px (768 TABLET DAHİL) full-screen; >=1024px desktop modal.
+  ok(/100dvh/.test(dialog) && /lg:h-\[80vh\]/.test(dialog),
+    "yeniux[resp]: editör mobile/tablet 100dvh doldurur / desktop (lg) 80vh");
+  ok(/p-0 lg:items-center lg:p-6/.test(dialog) && /lg:rounded-2xl/.test(dialog),
+    "yeniux[resp]: editör <1024 kenara sıfır (p-0, köşesiz), >=1024 ortalı/rounded");
+  // KRİTİK: desktop modal `sm:` breakpoint'inden BAŞLAMAZ (768 tablet full-screen kalmalı).
+  ok(!/sm:h-\[80vh\]|sm:max-w-3xl|sm:rounded-2xl|sm:items-center/.test(dialog),
+    "yeniux[resp]: dialog desktop modal'a `sm`/768'de GEÇMEZ (lg breakpoint)");
 
   // 6+7) modal save → parent FORM STATE (DB'ye ayrı yazmaz); tekrar aç → metin durur.
   ok(/onSave\(draft\)/.test(dialog) && !/createTopicNote|fetch\(/.test(dialog),
@@ -477,6 +496,92 @@ function run(): void {
   ok(/prevRows/.test(notesItem) && /geri yükle/i.test(notesItem) &&
      /if \(prevRows\.length > 0\)[\s\S]{0,80}\.insert\(prevRows\)/.test(notesItem),
     "note[api]: PATCH point_ids replace — insert başarısızsa eski bağlar RESTORE (partial state yok)");
+
+  // ══ Q) MOBİL/TABLET OKUMA UX — list-only ana sayfa + ayrı detay route + full-bleed ═══
+  //     (bu turun konusu; migration YOK. Breakpoint POLİTİKASI: <1024 mobil/tablet, >=1024 desktop.)
+
+  // Q1) Ayrı /[topicId] detay route mevcut (server page, Next 16 params Promise + await).
+  ok(/params:\s*Promise<\{\s*topicId:\s*string\s*\}>/.test(detailPage) && /await params/.test(detailPage),
+    "readux[route]: /[topicId] server page params Promise + await (Next 16)");
+  ok(/<TopicDetailClient\s+topicId=\{decodeURIComponent/.test(detailPage),
+    "readux[route]: detay client'e decode edilmiş topicId geçer");
+
+  // Q2) Statik /yeni route KORUNUR (App Router'da dinamik segmentten önce eşleşir → çakışma yok).
+  ok(yeni.includes("Yeni Rahatsızlık Kaydı"), "readux[route]: statik /yeni sayfası korunur");
+
+  // Q3) Mobil/tablet: rahatsızlık kartı AYRI okuma route'una Link (lg:hidden); JS innerWidth YOK.
+  ok(/href=\{`\/kupa\/amac-rehberi\/\$\{encodeURIComponent\(t\.id\)\}`\}/.test(amac) &&
+     /lg:hidden/.test(amac),
+    "readux[nav]: mobil/tablet topic kartı dedicated /[topicId] Link (lg:hidden)");
+  ok(!/window\.innerWidth|useMediaQuery|matchMedia/.test(amac),
+    "readux[nav]: responsive ayrım saf CSS (innerWidth/matchMedia/hydration bağımlılığı YOK)");
+
+  // Q4) Desktop: beğenilen inline seçim (selectTopic) button ile korunur (hidden lg:block).
+  ok(/hidden lg:block[\s\S]{0,120}onClick=\{\(\) => selectTopic\(t\.id\)\}/.test(amac) ||
+     /onClick=\{\(\) => selectTopic\(t\.id\)\}[\s\S]{0,160}hidden lg:block/.test(amac),
+    "readux[nav]: desktop topic button inline selectTopic (hidden lg:block)");
+
+  // Q5) Mobil ana sayfa: sağ okuma/düzenleme paneli GİZLİ (list-only; detay inline AÇILMAZ).
+  ok(/hidden lg:flex/.test(amac), "readux[list]: mobil/tablet sağ panel gizli (hidden lg:flex) — list-only");
+
+  // Q6) Reusable TEK-kaynak TopicReadView bileşeni var.
+  ok(/export function TopicReadView/.test(readView), "readux[reuse]: TopicReadView bileşeni tanımlı");
+
+  // Q7) Desktop okuma paneli + mobil detay route AYNI TopicReadView'ı kullanır (duplicate YOK).
+  ok(/<TopicReadView/.test(amac), "readux[reuse]: desktop (amac) TopicReadView kullanır");
+  ok(/<TopicReadView/.test(detailClient) && /from "\.\.\/components\/TopicReadView"/.test(detailClient),
+    "readux[reuse]: mobil detay (TopicDetailClient) AYNI TopicReadView'ı kullanır");
+
+  // Q8) Detay verisi topicId ile GERÇEK data'dan yüklenir (hard-code YOK): topics/point_topics/citations.
+  ok(/listTopics\(\)/.test(readHook) && /listPointTopics\(\{\s*topicId\s*\}\)/.test(readHook) &&
+     /listCitations\("topic",\s*topicId\)/.test(readHook) && /listCitations\("point-topic"/.test(readHook),
+    "readux[data]: useTopicReadData topicId ile gerçek data yükler (topics/point_topics/citations)");
+  ok(/find\(\(t\) => t\.id === topicId\)/.test(readHook) && /notFound/.test(readHook),
+    "readux[data]: topic id ile bulunur; yoksa notFound (hard-code Migren YOK)");
+
+  // Q9) Ayrı okuma sayfasında sidebar/liste/yeni-form YOK (yalnız seçili rahatsızlık okuması).
+  ok(!/Rahatsızlıklar<\/h3>|Rahatsızlık ara|\+ Yeni Kayıt/.test(detailClient) &&
+     !/Rahatsızlıklar<\/h3>|Rahatsızlık ara|\+ Yeni Kayıt/.test(detailPage),
+    "readux[detail]: ayrı okuma sayfasında sol sidebar/liste/yeni-form YOK");
+
+  // Q10) Özel geri/"Rehbere Dön"/floating back butonu YOK (tarayıcı ileri/geri; breadcrumb bilgi amaçlı).
+  ok(!/Rehbere Dön/.test(detailClient) && !/Rehbere Dön/.test(detailPage) && !/Rehbere Dön/.test(readView),
+    "readux[nav]: detay okuma sayfasında özel 'Rehbere Dön'/floating geri butonu YOK");
+
+  // Q11) KupaShell fullBleedBelowLg opt-in prop (default false → diğer sayfalar değişmez).
+  ok(/fullBleedBelowLg\s*=\s*false/.test(shell) && /fullBleedBelowLg\?:\s*boolean/.test(shell),
+    "readux[shell]: KupaShell fullBleedBelowLg opt-in (default false)");
+  ok(/const containerPad\s*=\s*fullBleedBelowLg\s*\?\s*"px-0 lg:px-8"/.test(shell),
+    "readux[shell]: fullBleed <1024 dış padding=0, >=1024 lg:px-8 (premium geri gelir)");
+
+  // Q12) /yeni + /[topicId] fullBleed kullanır (gerçek edge-to-edge).
+  ok(/fullBleedBelowLg/.test(yeni), "readux[shell]: /yeni fullBleedBelowLg kullanır");
+  ok(/fullBleedBelowLg/.test(detailClient), "readux[shell]: /[topicId] detay fullBleedBelowLg kullanır");
+
+  // Q13) Mobil ana liste de edge-to-edge (fullBleed + köşesiz sidebar kart).
+  ok(/fullBleedBelowLg/.test(amac) && /sidebarCardCls/.test(amac) && /border-y/.test(amac),
+    "readux[shell]: ana liste mobilde edge-to-edge (fullBleed + köşesiz sidebar kart)");
+
+  // Q14) Açıklama: mobil büyük editör tetikleyicisi (lg:hidden) + desktop inline textarea (hidden lg:block).
+  ok(/setNoteDialog\("description"\)/.test(yeni) && /noteDialog === "description"/.test(yeni),
+    "readux[desc]: /yeni Açıklama mobilde büyük editör (BigNoteEditorDialog title 'Açıklama')");
+  ok(/lg:hidden[\s\S]{0,220}Açıklama eklemek için tıklayın/.test(yeni),
+    "readux[desc]: mobil Açıklama tıklanabilir kart (büyük editör tetikler)");
+  ok(/hidden lg:block[\s\S]{0,260}id="new-desc"/.test(yeni),
+    "readux[desc]: desktop Açıklama INLINE textarea korunur (aynı description state)");
+
+  // Q15) Notlarım not METNİ: mobil büyük (full-screen) editör + desktop inline textarea (aynı nfNote).
+  ok(/BigNoteEditorDialog/.test(readView) && /title="Not"/.test(readView),
+    "readux[note]: mobil not metni büyük (full-screen) editör kullanır (TopicReadView)");
+  ok(/setNoteTextEditor\(true\)/.test(readView) && /lg:hidden/.test(readView) &&
+     /className=\{`\$\{kupaInput\} hidden lg:block`\}/.test(readView),
+    "readux[note]: not metni mobil editör tetikleyici (lg:hidden) + desktop inline textarea (hidden lg:block)");
+
+  // Q16) REGRESYON: Gelişmiş Düzenleme (teknik yönetim) amac'ta AYNEN korunur (citation manager + link/edit).
+  ok(/CuppingCitationManager[\s\S]{0,60}entity="point-topic"/.test(amac) &&
+     /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac) &&
+     /updatePointTopic\(/.test(amac) && /createPointTopic\(/.test(amac),
+    "readux[regresyon]: Gelişmiş Düzenleme (citation/relation) amac'ta korunur");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {

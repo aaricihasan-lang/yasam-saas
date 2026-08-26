@@ -59,7 +59,7 @@ export function BigNoteEditorDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center p-0 sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-stretch justify-center p-0 lg:items-center lg:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -69,9 +69,10 @@ export function BigNoteEditorDialog({
         onClick={handleOverlay}
         aria-hidden
       />
-      {/* Mobile/tablet: ekranı doldur (100dvh, kenara sıfır, köşesiz — klavye açılınca
-          da kullanılabilir). Desktop: ortalanmış ~80vh geniş premium editör. */}
-      <div className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden border-amber-100 bg-white shadow-2xl sm:h-[80vh] sm:max-h-[80vh] sm:max-w-3xl sm:rounded-2xl sm:border">
+      {/* Mobile + TABLET (<1024px): ekranı doldur (100dvh, kenara sıfır, köşesiz — 768px
+          tablet dahil, klavye açılınca da kullanılabilir). Desktop (>=1024px): ortalanmış
+          ~80vh geniş premium editör. Breakpoint `lg` (sm/768 desktop modal'a GEÇMEZ). */}
+      <div className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden border-amber-100 bg-white shadow-2xl lg:h-[80vh] lg:max-h-[80vh] lg:max-w-3xl lg:rounded-2xl lg:border">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
           <h3 className="min-w-0 truncate text-sm font-black tracking-tight text-slate-800">{title}</h3>
           {dirty ? (
@@ -79,7 +80,7 @@ export function BigNoteEditorDialog({
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-hidden p-4 sm:p-5">
+        <div className="flex-1 overflow-hidden p-4 lg:p-5">
           <textarea
             ref={taRef}
             value={draft}
