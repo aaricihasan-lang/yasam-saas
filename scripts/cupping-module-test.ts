@@ -492,10 +492,72 @@ function run(): void {
   ok(/useSearchParams/.test(amac) && /topicParam/.test(amac),
     "yeniux[flow]: rehber ?topic= parametresini okuyup ilgili kaydı seçer");
 
-  // 12) PATCH atomiklik (topic-notes/[id]) — insert başarısızsa eski bağlar RESTORE.
-  ok(/prevRows/.test(notesItem) && /geri yükle/i.test(notesItem) &&
-     /if \(prevRows\.length > 0\)[\s\S]{0,80}\.insert\(prevRows\)/.test(notesItem),
-    "note[api]: PATCH point_ids replace — insert başarısızsa eski bağlar RESTORE (partial state yok)");
+  // 12) PATCH ATOMİKLİK — GERÇEK TRANSACTION (RPC). Eski "önce yaz sonra doğrula"
+  //     yarım-güncelleme + delete→insert→best-effort-restore ANTI-PATTERN'i KALDIRILDI.
+  ok(/db\.rpc\(\s*"cupping_topic_note_update_atomic"/.test(notesItem),
+    "note[atomic]: PATCH tek transaction RPC (cupping_topic_note_update_atomic) çağırır");
+  // Anti-pattern gitti: route artık not alanlarını RPC ÖNCESİ DB'ye yazmıyor.
+  ok(!/updateEntity\(/.test(notesItem),
+    "note[atomic]: route point doğrulamasından ÖNCE not yazmıyor (updateEntity kaldırıldı → partial yok)");
+  ok(!/topicNotePoints\)\s*\.delete\(\)/.test(notesItem) && !/prevRows/.test(notesItem),
+    "note[atomic]: delete→insert→restore anti-pattern route'tan kaldırıldı (replace RPC'de, atomik)");
+  // tenant_id İSTEMCİDEN değil server'dan; RPC'ye server-side geçer.
+  ok(/p_tenant_id:\s*tenantId/.test(notesItem),
+    "note[atomic]: RPC'ye tenant_id SERVER-side (guard) geçer — body'den değil");
+  // point_ids gönderilmediyse ilişkilere DOKUNMA (p_point_ids = null).
+  ok(/hasPoints\s*\?\s*parsePointIds\([\s\S]{0,40}\)\s*:\s*null/.test(notesItem),
+    "note[atomic]: point_ids yoksa p_point_ids=null (ilişkilere dokunulmaz)");
+  // Hata kodu → sabit güvenli mesaj eşleşmesi (ham DB hatası sızmaz).
+  ok(/"45001"[\s\S]{0,60}404/.test(notesItem) && /"45002"[\s\S]{0,60}400/.test(notesItem) &&
+     /"45003"[\s\S]{0,60}400/.test(notesItem),
+    "note[atomic]: RPC SQLSTATE → 404/400 güvenli mesaj map (45001/45002/45003)");
+  ok(!/error\.message/.test(notesItem),
+    "note[atomic]: ham DB error.message DÖNMEZ (güvenli sabit mesaj)");
+  ok(/is_demo_account/.test(notesItem) && /Not metni boş olamaz/.test(notesItem) &&
+     /Çok fazla bölge/.test(notesItem),
+    "note[atomic]: demo guard + boş-not + MAX_POINTS kontratı korunur");
+
+  // ── ATOMİK RPC MIGRATION GÜVENLİK + FAILURE-INJECTION KONTRATI ──────────────────
+  const atomicMig = read("supabase/migrations/20261227000000_cupping_topic_note_atomic_update.sql");
+  const atomicCode = atomicMig.replace(/--[^\n]*/g, "");
+  ok(/CREATE OR REPLACE FUNCTION public\.cupping_topic_note_update_atomic\(/.test(atomicMig),
+    "note[rpc]: atomik update fonksiyonu (public.cupping_topic_note_update_atomic)");
+  ok(/SECURITY INVOKER/.test(atomicMig) && !/SECURITY DEFINER/.test(atomicCode),
+    "note[rpc]: SECURITY INVOKER (yetki yükseltmesi/DEFINER YOK)");
+  ok(/SET search_path = pg_catalog, public/.test(atomicMig),
+    "note[rpc]: search_path sabit (pg_catalog, public)");
+  // Failure-injection ATOMİKLİK: sahiplik + boş-not + point-tenant doğrulaması RAISE eder
+  // → tek plpgsql gövdesi = tek transaction → her RAISE TAM rollback.
+  ok(/RAISE EXCEPTION 'cupping_note_not_found' USING ERRCODE = '45001'/.test(atomicMig),
+    "note[rpc-fi]: not bulunamadı → 45001 RAISE (rollback)");
+  ok(/RAISE EXCEPTION 'cupping_note_empty' USING ERRCODE = '45002'/.test(atomicMig),
+    "note[rpc-fi]: boş not → 45002 RAISE (rollback)");
+  ok(/RAISE EXCEPTION 'cupping_point_not_owned' USING ERRCODE = '45003'/.test(atomicMig),
+    "note[rpc-fi]: GEÇERSİZ/başka-tenant point → 45003 RAISE (not DEĞİŞMEZ, tam rollback)");
+  // point-tenant doğrulaması yazmalarla AYNI fonksiyonda (id::text ile cast-panik yok).
+  ok(/p\.tenant_id = p_tenant_id AND p\.id::text = x\.pid/.test(atomicMig),
+    "note[rpc-fi]: point AYNI tenant'ta GERÇEK olmalı (id::text karşılaştırma)");
+  // Replace (delete→insert) fonksiyon İÇİNDE (route'ta değil) → atomik.
+  ok(/DELETE FROM public\.cupping_topic_note_points/.test(atomicMig) &&
+     /INSERT INTO public\.cupping_topic_note_points/.test(atomicMig),
+    "note[rpc-fi]: note-point REPLACE fonksiyon içinde (tek txn)");
+  // NULL point_ids → ilişkilere dokunma; boş dizi → tamamen temizle.
+  ok(/IF p_point_ids IS NOT NULL THEN/.test(atomicMig),
+    "note[rpc-fi]: p_point_ids NULL → ilişkiler korunur; dizi (boş dahil) → REPLACE");
+  // Yanıt sözleşmesi: not satırı + sıralı point_ids döner.
+  ok(/to_jsonb\(n\)[\s\S]{0,80}'point_ids'/.test(atomicMig),
+    "note[rpc]: fonksiyon not satırı + point_ids döndürür (API yanıt kontratı)");
+  // EXECUTE kilidi: yalnız service_role.
+  ok(/REVOKE ALL ON FUNCTION public\.cupping_topic_note_update_atomic[\s\S]{0,120}FROM PUBLIC, anon, authenticated/.test(atomicMig),
+    "note[rpc]: EXECUTE anon/authenticated/PUBLIC'ten REVOKE");
+  ok(/GRANT EXECUTE ON FUNCTION public\.cupping_topic_note_update_atomic[\s\S]{0,120}TO service_role/.test(atomicMig),
+    "note[rpc]: EXECUTE yalnız service_role'e GRANT");
+  // Kapsam kilidi: yalnız topic_notes + note_points; formal source/citation/YH/Atlas'a DOKUNMAZ.
+  ok(!/cupping_topic_sources|cupping_point_topic_sources|cupping_sources|yh_|atlas/i.test(atomicCode),
+    "note[rpc]: yalnız topic_notes + note_points'a dokunur (formal source/citation/YH/Atlas YOK)");
+  // Additive: fonksiyon değişimi; destructive DDL YOK.
+  ok(!/DROP TABLE|DROP COLUMN|ALTER TABLE|TRUNCATE/i.test(atomicCode),
+    "note[rpc-mig]: destructive DDL YOK (yalnız CREATE OR REPLACE FUNCTION)");
 
   // ══ Q) MOBİL/TABLET OKUMA UX — list-only ana sayfa + ayrı detay route + full-bleed ═══
   //     (bu turun konusu; migration YOK. Breakpoint POLİTİKASI: <1024 mobil/tablet, >=1024 desktop.)
