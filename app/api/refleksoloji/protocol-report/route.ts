@@ -2,31 +2,22 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import {
-  arraySection,
-  bodyText,
-  buildFooter,
-  buildPremiumCover,
-  buildStatsPage,
-  buildTOCPage,
-  divider,
-  fieldInline,
-  h1Colored,
-  h2,
-  h3,
-  muted,
-  profileLabel,
-  ReportChild,
-  spacer,
-  twoColTable,
-} from "@/lib/docx/reportHelpers";
+import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
+import { resolveProtocolAtlas } from "@/lib/refleksoloji/atlasRegionsCore";
+import type { AtlasDocument } from "@/lib/atlasStorage";
+import {
+  buildSingleReport,
+  buildBulkReport,
+  reflexologyHeaders,
+  reflexologyFooters,
+  type ReflexologyProtocolInput,
+} from "@/lib/refleksoloji/reflexologyWord";
 
 export const runtime = "nodejs";
 
-const C_PROTOKOL = "be185d"; // refleksoloji pembe-mor
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ExportMode = "all" | "selected" | "single";
@@ -36,54 +27,53 @@ type ProtocolRow = {
   tenant_id: string;
   source_uid: string | null;
   title: string | null;
-  target_problem: string | null;
-  organs: string | null;        // pipe-delimited: "Karaciğer | Böbrek | Bağırsak"
-  application_notes: string | null;
+  target_problem: string | null; // "Kısa Açıklama"
+  organs: string | null; // pipe/virgül: "Karaciğer | Böbrek"
+  application_notes: string | null; // "Uygulama Notları"
   raw_json: Record<string, unknown> | null;
   created_at: string;
 };
 
-// TEK ortak ayrıştırıcı (pipe VEYA virgül + Türkçe-duyarsız tekilleştirme).
-function parseOrgans(raw: string | null): string[] {
-  return parseOrganList(raw);
-}
-
 function formatDateTR(d: string): string {
   try {
-    return new Date(d).toLocaleDateString("tr-TR", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-  } catch { return d; }
+    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  } catch {
+    return d;
+  }
 }
 
 function slugify(t: string): string {
-  return t.toLowerCase()
-    .replace(/ı/g,"i").replace(/İ/g,"i").replace(/ğ/g,"g").replace(/Ğ/g,"g")
-    .replace(/ü/g,"u").replace(/Ü/g,"u").replace(/ş/g,"s").replace(/Ş/g,"s")
-    .replace(/ö/g,"o").replace(/Ö/g,"o").replace(/ç/g,"c").replace(/Ç/g,"c")
-    .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  return t
+    .toLowerCase()
+    .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
+    .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
+    .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+const EMPTY_ATLAS: AtlasDocument = { _meta: { version: "1", updated_at: "1970-01-01T00:00:00.000Z" } };
+
 export async function POST(request: NextRequest): Promise<Response> {
-  // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
-  // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  // GÜVENLİK: kimlik yalnız sunucu tarafında (requireModuleAccess). Body'deki
+  // tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
   const guard = await requireModuleAccess(request, "reflexology");
   if (!guard.ok) return guard.response;
   const { tenantId } = guard;
 
-  // Demo hesap: export sunucu seviyesinde engellenir
   if (guard.is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+  }
 
   const { exportMode = "all", protocolIds, protocolId, clientId, selectionGroupId } = body as {
     exportMode?: ExportMode;
     protocolIds?: string[];
     protocolId?: string;
-    // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
     clientId?: string;
     selectionGroupId?: string;
   };
@@ -102,7 +92,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   const db = createClient(supabaseUrl, supabaseKey);
 
   let query = db.from("reflexology_protocols").select("*").eq("tenant_id", tenantId);
-
   if (exportMode === "single" && protocolId) {
     query = query.eq("id", protocolId);
   } else if (exportMode === "selected" && Array.isArray(protocolIds) && protocolIds.length > 0) {
@@ -117,124 +106,86 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!protocols.length)
     return Response.json({ ok: false, error: "Bu seçim için protokol bulunamadı." }, { status: 404 });
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  // Tenant atlas belgesi (READ-ONLY; mutate YOK). Yoksa boş belge → harita üretilmez.
+  const { data: atlasRow, error: atlasErr } = await db
+    .from("reflexology_atlas")
+    .select("document")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (atlasErr)
+    return Response.json({ ok: false, error: `Atlas okunamadı: ${atlasErr.message}` }, { status: 500 });
+  const atlasDoc = ((atlasRow?.document as AtlasDocument | null) ?? EMPTY_ATLAS);
+
   const dateSlug = new Date().toISOString().slice(0, 10);
-  const isSingle = exportMode === "single" || (exportMode === "selected" && protocols.length === 1);
+  const isSingle = protocols.length === 1;
 
-  const exportLabel =
-    isSingle ? `Tek Protokol — ${protocols[0]!.title || ""}` :
-    exportMode === "selected" ? `Seçili Protokoller (${protocols.length})` :
-    `Tüm Protokoller (${protocols.length})`;
+  const toInput = (proto: ProtocolRow, index: number): ReflexologyProtocolInput => {
+    const organs = parseOrganList(proto.organs);
+    return {
+      index,
+      title: proto.title?.trim() || "Başlıksız Protokol",
+      description: proto.target_problem,
+      notes: proto.application_notes,
+      organs,
+      createdAt: proto.created_at,
+      resolved: resolveProtocolAtlas(atlasDoc, organs),
+    };
+  };
 
-  const totalOrgans = new Set(protocols.flatMap((p) => parseOrgans(p.organs))).size;
+  let children: ReportChild[];
+  if (isSingle) {
+    const input = toInput(protocols[0]!, 0);
+    children = await buildSingleReport(input, formatDateTR(protocols[0]!.created_at));
 
-  const all: ReportChild[] = [];
-
-  // Premium kapak
-  all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "REFLEKSOLOJİ PROTOKOLLER",
-    subtitle: isSingle && protocols[0]
-      ? `${protocols[0].title || "Protokol"} · Klinik Protokol Raporu`
-      : "Klinik Protokol Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Protokol Sayısı",  value: String(protocols.length) },
-      { label: "Kapsam",           value: exportLabel },
-      { label: "Toplam Organ",     value: String(totalOrgans) },
-    ],
-  }));
-
-  // Sistem özeti
-  all.push(...buildStatsPage([
-    ["Protokol Sayısı", String(protocols.length)],
-    ["Kapsam",          exportLabel],
-    ["Toplam Organ",    String(totalOrgans)],
-  ]));
-
-  // TOC
-  all.push(...buildTOCPage());
-
-  // Protokol listesi başlığı
-  all.push(h1Colored("1. Protokol Listesi", C_PROTOKOL, true));
-  all.push(muted(`${protocols.length} protokol`));
-  all.push(spacer());
-
-  // Her protokol
-  protocols.forEach((proto, i) => {
-    const title = proto.title?.trim() || "Başlıksız Protokol";
-    const organs = parseOrgans(proto.organs);
-
-    if (i > 0) all.push(divider());
-
-    all.push(profileLabel(`PROTOKOL #${String(i + 1).padStart(3, "0")}`, C_PROTOKOL));
-    all.push(h2(title));
-
-    // Meta tablo
-    all.push(twoColTable([
-      ["Kayıt Tarihi",  formatDateTR(proto.created_at)],
-      ["Organ Sayısı",  String(organs.length)],
-      ...(proto.source_uid?.trim() ? [["Kaynak UID", proto.source_uid.trim()] as [string, string]] : []),
-    ]));
-
-    // Hedef / sorun
-    if (proto.target_problem?.trim()) {
-      all.push(h3("Hedef / Sorun"));
-      all.push(bodyText(proto.target_problem.trim()));
-    }
-
-    // Organlar
-    if (organs.length > 0) {
-      all.push(...arraySection("Organlar", organs));
-    }
-
-    // Uygulama notları
-    if (proto.application_notes?.trim()) {
-      all.push(h3("Uygulama Notları"));
-      const paras = proto.application_notes.trim().split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
-      for (const para of paras) {
-        all.push(bodyText(para));
+    // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
+    // Yalnız exportMode === "single" + doğrulanmış client + selection group.
+    // Protokol/atlas ana kaydı MUTATE EDİLMEZ; snapshot yalnız teslim katmanı.
+    if (
+      exportMode === "single" &&
+      typeof protocolId === "string" && UUID_RE.test(protocolId) &&
+      typeof clientId === "string" && UUID_RE.test(clientId) &&
+      typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId)
+    ) {
+      const { data: cliRow } = await db
+        .from("clients").select("id").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
+      if (!cliRow) {
+        return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
+      }
+      try {
+        const snaps = await readSnapshotsForDelivery(db, {
+          tenantId, clientId, targetKind: "protocol", targetRef: protocolId, selectionGroup: selectionGroupId,
+        });
+        if (snaps.length > 0) children.push(...buildSnapshotSection(snaps));
+      } catch {
+        /* regresyon güvenli: teslim seçimi eklenemezse mevcut protokol raporu korunur */
       }
     }
-  });
-
-  // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
-  // Yalnız single mode + doğrulanmış client + selection group. Yoksa çıktı DEĞİŞMEZ.
-  // Protokol ana kaydı (reflexology_protocols) MUTATE EDİLMEZ; snapshot yalnız teslim katmanı.
-  if (
-    exportMode === "single" &&
-    typeof protocolId === "string" && UUID_RE.test(protocolId) &&
-    typeof clientId === "string" && UUID_RE.test(clientId) &&
-    typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId)
-  ) {
-    // Client ownership server-side doğrulanmalı (başka tenant/client reddedilir).
-    const { data: cliRow } = await db
-      .from("clients").select("id").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
-    if (!cliRow) {
-      return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
-    }
-    try {
-      const snaps = await readSnapshotsForDelivery(db, {
-        tenantId, clientId, targetKind: "protocol", targetRef: protocolId, selectionGroup: selectionGroupId,
-      });
-      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps));
-    } catch {
-      /* regresyon güvenli: teslim seçimi eklenemezse mevcut protokol raporu korunur */
-    }
+  } else {
+    const inputs = protocols.map(toInput);
+    const scopeLabel = exportMode === "selected" ? "Seçili Protokoller" : "Tüm Protokoller";
+    const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+    children = await buildBulkReport(inputs, today, scopeLabel);
   }
 
   const doc = new Document({
     sections: [{
-      properties: {},
-      footers: { default: buildFooter("Refleksoloji Protokol Raporu · Yaşam Sistemi") },
-      children: all,
+      properties: {
+        titlePage: true,
+        page: {
+          size: { width: 11906, height: 16838 }, // A4
+          margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 },
+        },
+      },
+      headers: reflexologyHeaders(),
+      footers: reflexologyFooters(),
+      children,
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug =
-    isSingle && protocols[0] ? slugify(protocols[0].title || "protokol") :
-    exportMode === "selected" ? "secili" : "tumu";
+  const modeSlug = isSingle
+    ? slugify(protocols[0]!.title || "protokol")
+    : exportMode === "selected" ? "secili" : "tumu";
   const filename = `refleksoloji-protokol-${modeSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {
