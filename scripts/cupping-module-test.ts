@@ -17,6 +17,15 @@ import {
   CUPPING_TABLES,
   CITATION_SPECS,
   isCitationEntity,
+  PROTOCOL_WRITABLE,
+  PROTOCOL_POINT_WRITABLE,
+  PROTOCOL_POINT_META_WRITABLE,
+  PROTOCOL_TECHNIQUE_META_WRITABLE,
+  PROTOCOL_SAFETY_META_WRITABLE,
+  PROTOCOL_STEP_WRITABLE,
+  PROTOCOL_STEP_META_WRITABLE,
+  PROTOCOL_ENTRY_WRITABLE,
+  PROTOCOL_SOURCE_META_WRITABLE,
 } from "../lib/cupping/fields";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
 import { CUPPING_EVIDENCE_CLASSES, CUPPING_RELATION_STRENGTHS } from "../lib/cupping/vocab";
@@ -644,6 +653,155 @@ function run(): void {
      /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac) &&
      /updatePointTopic\(/.test(amac) && /createPointTopic\(/.test(amac),
     "readux[regresyon]: Gelişmiş Düzenleme (citation/relation) amac'ta korunur");
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // V2 CLEAN CORE — Hacamat Protokolleri (FAZ 1). Legacy topics ağacından AYRI.
+  // ══════════════════════════════════════════════════════════════════════════
+  const v2Tables = [
+    "cupping_protocols", "cupping_protocol_points", "cupping_protocol_techniques",
+    "cupping_protocol_safety", "cupping_protocol_steps", "cupping_protocol_entries",
+    "cupping_protocol_entry_points", "cupping_protocol_sources",
+  ];
+
+  // ── V2-A) ŞEMA STATIC CONTRACT (yorum satırları çıkarılmış executable DDL) ──────
+  const migCoreRaw = read("supabase/migrations/20261228000000_cupping_protocols_v2_core.sql");
+  const migCore = migCoreRaw.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+  for (const t of v2Tables) {
+    ok(new RegExp(`CREATE TABLE IF NOT EXISTS public\\.${t}\\b`).test(migCore), `v2-şema: ${t} tablosu`);
+  }
+  ok(!/DROP\s+TABLE/i.test(migCore) && !/DROP\s+COLUMN/i.test(migCore) &&
+     !/RENAME\s+TO/i.test(migCore) && !/DROP\s+CONSTRAINT/i.test(migCore),
+    "v2-şema: destructive DDL YOK (DROP/RENAME executable satırda yok)");
+  ok(!/ALTER TABLE public\.cupping_topics\b/.test(migCore) &&
+     !/ALTER TABLE public\.cupping_point_topics\b/.test(migCore) &&
+     !/ALTER TABLE public\.cupping_topic_notes\b/.test(migCore),
+    "v2-şema: legacy tablolar (topics/point_topics/topic_notes) ALTER EDİLMEZ");
+  ok(/ALTER TABLE public\.cupping_sources\s+ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true/.test(migCore),
+    "v2-şema: cupping_sources.is_active additive (soft-archive)");
+
+  // RLS lock (8 tablo): ENABLE + anon/auth REVOKE; FORCE/policy YOK.
+  for (const t of v2Tables) {
+    ok(new RegExp(`ALTER TABLE public\\.${t}\\s+ENABLE ROW LEVEL SECURITY`).test(migCore), `v2-rls: ${t} ENABLE`);
+    ok(new RegExp(`REVOKE ALL PRIVILEGES ON TABLE public\\.${t}\\s+FROM anon, authenticated`).test(migCore), `v2-rls: ${t} anon/auth REVOKE`);
+  }
+  ok(!/FORCE ROW LEVEL SECURITY/.test(migCore), "v2-rls: FORCE YOK");
+  ok(!/CREATE POLICY/.test(migCore), "v2-rls: policy YOK (REVOKE-only)");
+
+  // FK davranışı: composite tenant-safe; protokol-child CASCADE, master RESTRICT.
+  ok(/FOREIGN KEY \(tenant_id, protocol_id\) REFERENCES public\.cupping_protocols \(tenant_id, id\) ON DELETE CASCADE/.test(migCore),
+    "v2-fk: protokol child (tenant,protocol_id)→protocols CASCADE");
+  ok(/REFERENCES public\.cupping_points \(tenant_id, id\) ON DELETE RESTRICT/.test(migCore), "v2-fk: master point RESTRICT");
+  ok(/REFERENCES public\.cupping_techniques \(tenant_id, id\) ON DELETE RESTRICT/.test(migCore), "v2-fk: master technique RESTRICT");
+  ok(/REFERENCES public\.cupping_safety_notes \(tenant_id, id\) ON DELETE RESTRICT/.test(migCore), "v2-fk: master safety RESTRICT");
+  ok(/cupping_protocol_entries_source_fk[\s\S]*?REFERENCES public\.cupping_sources \(tenant_id, id\) ON DELETE RESTRICT/.test(migCore),
+    "v2-fk: entry source nullable RESTRICT (SET NULL DEĞİL → tenant_id NOT NULL güvenli)");
+  ok(/cupping_protocol_entry_points_entry_fk[\s\S]*?REFERENCES public\.cupping_protocol_entries \(tenant_id, id\) ON DELETE CASCADE/.test(migCore),
+    "v2-fk: entry_points entry CASCADE");
+  ok(/cupping_protocol_entry_points_point_fk[\s\S]*?REFERENCES public\.cupping_points \(tenant_id, id\) ON DELETE RESTRICT/.test(migCore),
+    "v2-fk: entry_points master point RESTRICT");
+
+  // STEP INTEGRITY (DB-level): ref → protokol-üyesi child; NO ACTION (RESTRICT DEĞİL).
+  ok(/cupping_protocol_steps_ref_point_fk[\s\S]*?REFERENCES public\.cupping_protocol_points \(tenant_id, protocol_id, point_id\) ON DELETE NO ACTION/.test(migCore),
+    "v2-step: ref_point composite FK→protocol_points NO ACTION (detach-block + cascade uyumu)");
+  ok(/cupping_protocol_steps_ref_technique_fk[\s\S]*?REFERENCES public\.cupping_protocol_techniques \(tenant_id, protocol_id, technique_id\) ON DELETE NO ACTION/.test(migCore),
+    "v2-step: ref_technique composite FK→protocol_techniques NO ACTION");
+  ok(!/REFERENCES public\.cupping_protocol_points \(tenant_id, protocol_id, point_id\) ON DELETE RESTRICT/.test(migCore) &&
+     !/REFERENCES public\.cupping_protocol_techniques \(tenant_id, protocol_id, technique_id\) ON DELETE RESTRICT/.test(migCore),
+    "v2-step: ref FK RESTRICT DEĞİL (RESTRICT protokol cascade'ini kırardı)");
+
+  // Natural key / unique + CHECK.
+  ok(/cupping_protocol_points_unique UNIQUE \(tenant_id, protocol_id, point_id\)/.test(migCore), "v2-uk: protocol_points natural key (step ref hedefi)");
+  ok(/cupping_protocol_techniques_unique UNIQUE \(tenant_id, protocol_id, technique_id\)/.test(migCore), "v2-uk: protocol_techniques natural key");
+  ok(/cupping_protocols_tenant_id_key UNIQUE \(tenant_id, id\)/.test(migCore), "v2-uk: protocols UNIQUE(tenant_id,id)");
+  ok(/cupping_protocol_entries_tenant_id_key UNIQUE \(tenant_id, id\)/.test(migCore), "v2-uk: entries UNIQUE(tenant_id,id) (entry_points hedefi)");
+  ok(/cupping_protocol_sources_unique UNIQUE \(tenant_id, protocol_id, source_id, locator\)/.test(migCore), "v2-uk: protocol_sources locator-dahil (aynı source çoklu locator)");
+  ok(/cupping_protocol_entries_content_chk CHECK \(btrim\(content\) <> ''\)/.test(migCore), "v2-chk: entry content boş olamaz");
+  ok(/cupping_protocol_steps_body_chk CHECK \(btrim\(body\) <> ''\)/.test(migCore), "v2-chk: step body boş olamaz");
+
+  // ── V2-B) ATOMİK ENTRY RPC ─────────────────────────────────────────────────────
+  const migRpc = read("supabase/migrations/20261228000100_cupping_protocol_entry_atomic.sql");
+  // İKİ atomik fonksiyon: CREATE + UPDATE (ikisi de tek-txn, INVOKER, service_role-only).
+  ok(/CREATE OR REPLACE FUNCTION public\.cupping_protocol_entry_create_atomic\(/.test(migRpc), "v2-rpc: entry CREATE atomik fonksiyon");
+  ok(/CREATE OR REPLACE FUNCTION public\.cupping_protocol_entry_update_atomic\(/.test(migRpc), "v2-rpc: entry UPDATE atomik fonksiyon");
+  ok((migRpc.match(/SECURITY INVOKER/g) ?? []).length >= 2, "v2-rpc: her iki RPC de SECURITY INVOKER (yetki yükseltmesi yok)");
+  ok((migRpc.match(/SET search_path = pg_catalog, public/g) ?? []).length >= 2, "v2-rpc: her iki RPC sabit search_path");
+  // CREATE fonksiyonu için REVOKE/GRANT.
+  ok(/REVOKE ALL ON FUNCTION public\.cupping_protocol_entry_create_atomic\(uuid, uuid, jsonb, text\[\]\)\s*FROM PUBLIC, anon, authenticated/.test(migRpc),
+    "v2-rpc: CREATE EXECUTE anon/auth/public REVOKE");
+  ok(/GRANT EXECUTE ON FUNCTION public\.cupping_protocol_entry_create_atomic\(uuid, uuid, jsonb, text\[\]\)\s*TO service_role/.test(migRpc),
+    "v2-rpc: CREATE EXECUTE yalnız service_role");
+  // UPDATE fonksiyonu için REVOKE/GRANT.
+  ok(/REVOKE ALL ON FUNCTION public\.cupping_protocol_entry_update_atomic\(uuid, uuid, jsonb, text\[\]\)\s*FROM PUBLIC, anon, authenticated/.test(migRpc),
+    "v2-rpc: UPDATE EXECUTE anon/auth/public REVOKE");
+  ok(/GRANT EXECUTE ON FUNCTION public\.cupping_protocol_entry_update_atomic\(uuid, uuid, jsonb, text\[\]\)\s*TO service_role/.test(migRpc),
+    "v2-rpc: UPDATE EXECUTE yalnız service_role");
+  for (const c of ["45001", "45002", "45003", "45004", "45005"]) ok(migRpc.includes(c), `v2-rpc: SQLSTATE ${c}`);
+  ok(/id::text = v_src/.test(migRpc) && /id::text = x\.pid/.test(migRpc), "v2-rpc: source/point id::text karşılaştırması (cast paniği yok)");
+  ok(/DELETE FROM public\.cupping_protocol_entry_points[\s\S]*?INSERT INTO public\.cupping_protocol_entry_points/.test(migRpc), "v2-rpc: UPDATE entry-point atomik REPLACE");
+  // CREATE: entry INSERT + entry_points INSERT AYNI function gövdesinde (compensating delete DEĞİL).
+  const createBody = (migRpc.split("cupping_protocol_entry_update_atomic")[0] ?? "");
+  ok(/INSERT INTO public\.cupping_protocol_entries[\s\S]*?INSERT INTO public\.cupping_protocol_entry_points/.test(createBody),
+    "v2-rpc: CREATE entry + entry_points AYNI function body (tek txn; compensating delete YOK)");
+  ok(/cupping_entry_protocol_not_owned[\s\S]*?45001/.test(createBody) &&
+     /p\.tenant_id = p_tenant_id AND p\.id::text = x\.pid/.test(createBody) &&
+     /cupping_entry_source_not_owned/.test(createBody),
+    "v2-rpc: CREATE txn-içi protocol/point/source sahiplik doğrulaması (RAISE → tam rollback)");
+  ok(/GROUP BY x\.pid/.test(createBody), "v2-rpc: CREATE point_ids dedup (GROUP BY; duplicate junction YOK)");
+
+  // ── V2-C) API STATIC + OWNERSHIP + DETACH + ATOMICITY ──────────────────────────
+  const rProtocols = read("app/api/kupa/protocols/route.ts");
+  ok(/PROTOCOL_WRITABLE/.test(rProtocols) && /pickWritable/.test(rProtocols), "v2-api: protocols POST pickWritable(PROTOCOL_WRITABLE)");
+  const rProtocolsId = read("app/api/kupa/protocols/[id]/route.ts");
+  ok(/deleteEntity\(db, CUPPING_TABLES\.protocols/.test(rProtocolsId) && /CASCADE/.test(rProtocolsId), "v2-api: protocol delete (çocuklar DB CASCADE)");
+
+  const rPP = read("app/api/kupa/protocol-points/route.ts");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.protocols/.test(rPP) && /assertOwnedRef\(db, CUPPING_TABLES\.points/.test(rPP), "v2-own: protocol-points POST protocol+point tenant doğrulaması");
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolPoints/.test(rPP) && /409/.test(rPP), "v2-own: protocol-points duplicate → 409");
+  const rPT = read("app/api/kupa/protocol-techniques/route.ts");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.techniques/.test(rPT), "v2-own: protocol-techniques POST technique tenant doğrulaması");
+  const rPS = read("app/api/kupa/protocol-safety/route.ts");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.safety/.test(rPS), "v2-own: protocol-safety POST safety tenant doğrulaması");
+  const rPSrc = read("app/api/kupa/protocol-sources/route.ts");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.sources/.test(rPSrc), "v2-own: protocol-sources POST source tenant doğrulaması");
+
+  const rPPId = read("app/api/kupa/protocol-points/[id]/route.ts");
+  ok(/"23503"/.test(rPPId) && /409/.test(rPPId), "v2-detach: protocol-point silme step referanslıysa → 409 (kör 500 değil)");
+  const rPTId = read("app/api/kupa/protocol-techniques/[id]/route.ts");
+  ok(/"23503"/.test(rPTId) && /409/.test(rPTId), "v2-detach: protocol-technique silme step referanslıysa → 409");
+
+  const rStep = read("app/api/kupa/protocol-steps/route.ts");
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolPoints/.test(rStep) && /assertCompositeRef\(db, CUPPING_TABLES\.protocolTechniques/.test(rStep),
+    "v2-step: POST ref_point/ref_technique protokol-üyeliği API'de doğrulanır");
+  const rStepId = read("app/api/kupa/protocol-steps/[id]/route.ts");
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolPoints/.test(rStepId), "v2-step: PATCH ref güncellemesi protokol-üyeliği doğrular");
+  ok(!(PROTOCOL_STEP_META_WRITABLE as readonly string[]).includes("protocol_id"), "v2-step: PATCH allowlist protocol_id IMMUTABLE");
+
+  const rEntry = read("app/api/kupa/protocol-entries/route.ts");
+  // POST = TEK atomik create RPC. compensating-delete / çok-adımlı direct insert anti-pattern YASAK.
+  ok(/cupping_protocol_entry_create_atomic/.test(rEntry), "v2-entry: POST tek atomik create RPC");
+  ok(!/compensating/i.test(rEntry) &&
+     !/\.from\(CUPPING_TABLES\.protocolEntryPoints\)\s*\.insert/.test(rEntry) &&
+     !/insertEntity\(db, CUPPING_TABLES\.protocolEntries/.test(rEntry),
+    "v2-entry: POST compensating-delete / çok-adımlı direct entry+points insert anti-pattern YOK");
+  ok(/45005/.test(rEntry) && /45003/.test(rEntry), "v2-entry: POST source/point sahiplik SQLSTATE map (45003/45005)");
+  const rEntryId = read("app/api/kupa/protocol-entries/[id]/route.ts");
+  ok(/cupping_protocol_entry_update_atomic/.test(rEntryId) && !/updateEntity/.test(rEntryId), "v2-entry: PATCH atomik RPC (updateEntity anti-pattern YOK)");
+  ok(/45005/.test(rEntryId), "v2-entry: PATCH source-not-owned (45005) map");
+
+  // ── V2-D) UNIFIED BİLGİLER + MASS-ASSIGN + LEGACY İZOLASYONU ────────────────────
+  ok((PROTOCOL_ENTRY_WRITABLE as readonly string[]).includes("source_id") &&
+     (PROTOCOL_ENTRY_WRITABLE as readonly string[]).includes("content") &&
+     (PROTOCOL_ENTRY_WRITABLE as readonly string[]).includes("source_label"),
+    "v2-bilgiler: entry unified (content + opsiyonel source_id + source_label TEK sınıf; formal/personal ayrımı YOK)");
+  ok((PROTOCOL_POINT_WRITABLE as readonly string[]).includes("protocol_id") && (PROTOCOL_POINT_WRITABLE as readonly string[]).includes("point_id"), "v2-fields: protocol_points POST allowlist FK dahil");
+  ok((PROTOCOL_STEP_WRITABLE as readonly string[]).includes("protocol_id") && (PROTOCOL_STEP_WRITABLE as readonly string[]).includes("body"), "v2-fields: protocol_steps POST allowlist");
+  ok(!(PROTOCOL_WRITABLE as readonly string[]).includes("tenant_id") && !(PROTOCOL_WRITABLE as readonly string[]).includes("id"), "v2-mass: PROTOCOL_WRITABLE tenant_id/id içermez");
+  ok(!(PROTOCOL_POINT_META_WRITABLE as readonly string[]).includes("protocol_id") && !(PROTOCOL_POINT_META_WRITABLE as readonly string[]).includes("point_id"), "v2-mass: protocol_points META FK immutable");
+  ok(!(PROTOCOL_TECHNIQUE_META_WRITABLE as readonly string[]).includes("technique_id"), "v2-mass: protocol_techniques META FK immutable");
+  ok(!(PROTOCOL_SAFETY_META_WRITABLE as readonly string[]).includes("safety_id"), "v2-mass: protocol_safety META FK immutable");
+  ok(!(PROTOCOL_SOURCE_META_WRITABLE as readonly string[]).includes("source_id"), "v2-mass: protocol_sources META FK immutable");
+  ok(CUPPING_TABLES.protocols === "cupping_protocols" && CUPPING_TABLES.topics === "cupping_topics", "v2-legacy: protocols AYRI tablo; legacy topics korunur");
+  ok(!Object.prototype.hasOwnProperty.call(CITATION_SPECS, "protocol"), "v2-legacy: protocol legacy citation ağacına EKLENMEDİ");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
