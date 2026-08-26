@@ -10,6 +10,7 @@
     "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",
     "refleksoloji:organ-identity:harness": "tsx scripts/reflexology-organ-identity-harness.ts",
     "refleksoloji:shape-view-ghost:harness": "tsx scripts/reflexology-shape-view-ghost-harness.ts",
+    "refleksoloji:word:harness": "tsx scripts/reflexology-word-report-harness.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
     "hd:word:visual": "tsx scripts/hd-word-report/visualFixtures.ts",
@@ -37,7 +38,6 @@
     "yh:bf11e:belge:harness": "tsx scripts/yh-bf11e/belgeVideoHarness.ts",
     "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
     "yh:bf11e:archive:security:harness": "tsx scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
-    "yh:bf11e:archive:harness": "tsx scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
     "yh:cohort-a:harness": "tsx scripts/yh-cohort-a/professionalCdcParityHarness.ts",
     "yh:coverage-completion:harness": "tsx scripts/yh-coverage-completion/harness.ts",
     "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts",
@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "^2.105.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

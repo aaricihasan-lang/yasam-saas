@@ -22,7 +22,13 @@ const nextConfig: NextConfig = {
   // unpdf uses dynamic import('unpdf/pdfjs') internally (1.6MB ESM bundle).
   // Bundling it via Turbopack causes the dynamic import to fail at runtime on Vercel.
   // Marking as external lets Node.js resolve it directly from node_modules.
-  serverExternalPackages: ["unpdf"],
+  serverExternalPackages: ["unpdf", "@resvg/resvg-js"],
+
+  // Refleksoloji premium Word raporu klinik ayak PNG'lerini server-side (fs) okur;
+  // Vercel output tracing bunları route bundle'ına dahil etsin (ağ fetch YOK).
+  outputFileTracingIncludes: {
+    "/api/refleksoloji/protocol-report": ["./public/refleksoloji/klinik_*.png"],
+  },
 
   experimental: {
     // Next.js routes ALL multipart/form-data POST requests through the Server Actions
