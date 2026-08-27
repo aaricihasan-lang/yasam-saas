@@ -141,6 +141,7 @@
         "devamEden": "Devam Eden",
         "sonOdevTarihi": "Son Ödev Tarihi",
         "completionPercent": "Tamamlama Yüzdesi",
+        "completionValue": "%{percent}",
         "activeLabel": "Aktif Ödev:"
       },
       "alertCard": {
@@ -167,7 +168,9 @@
       },
       "empty": {
         "title": "Bu danışan için henüz kayıtlı çalışma yok.",
-        "hint": "Numeroloji, doğaltaş, refleksoloji, biyoenerji, not veya randevu eklendiğinde burada kronolojik olarak görünecek."
+        "hint": "Numeroloji, doğaltaş, refleksoloji, biyoenerji, not veya randevu eklendiğinde burada kronolojik olarak görünecek.",
+        "titleFiltered": "Bu danışan için henüz {label} kaydı yok.",
+        "hintFiltered": "Bu danışana ait {label} kayıtları burada görünecek."
       },
       "unit": {
         "min": "dk"

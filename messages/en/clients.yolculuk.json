@@ -123,7 +123,7 @@
         "totalSeans": "Total Sessions",
         "ilkSeans": "First Session",
         "sonSeans": "Last Session",
-        "sinceLastSession": "Since Last Meeting",
+        "sinceLastSession": "Since Last Session",
         "frequencyTitle": "Session Frequency Summary",
         "avgDuration": "Avg. Session Duration",
         "totalFee": "Total Fee",
@@ -141,6 +141,7 @@
         "devamEden": "In Progress",
         "sonOdevTarihi": "Last Assignment Date",
         "completionPercent": "Completion Rate",
+        "completionValue": "{percent}%",
         "activeLabel": "Active Assignments:"
       },
       "alertCard": {
@@ -158,16 +159,18 @@
       },
       "timeline": {
         "chip": "Journey",
-        "filterChip": "{label} filter",
+        "filterChip": "{label}",
         "title": "Recent Activity",
         "subtitleDefault": "A chronological summary of all the client's module work",
-        "subtitleFiltered": "{count, plural, one {# record} other {# records}} · {label} filter active",
+        "subtitleFiltered": "{count, plural, one {# record} other {# records}} · Filtered by {label}",
         "loading": "Loading...",
         "loadMore": "+ Show {count, plural, one {# more record} other {# more records}}"
       },
       "empty": {
         "title": "No saved work for this client yet.",
-        "hint": "When numerology, stones, reflexology, bioenergy, a note or an appointment is added, it will appear here chronologically."
+        "hint": "When numerology, stones, reflexology, bioenergy, a note or an appointment is added, it will appear here chronologically.",
+        "titleFiltered": "No {label} records yet.",
+        "hintFiltered": "{label} records for this client will appear here."
       },
       "unit": {
         "min": "min"

@@ -31,7 +31,7 @@
       "header": {
         "badge": "Client Session Tracking",
         "title": "Sessions",
-        "subtitle": "Write and read your longer notes comfortably on an enlarged text screen, without squeezing them into a tiny box."
+        "subtitle": "Open longer session notes in a larger editor for easier reading and writing."
       },
       "stats": {
         "sessions": "sessions",
@@ -47,7 +47,7 @@
       },
       "list": {
         "title": "Saved Sessions",
-        "subtitle": "You can read longer text on a large screen using the “Open” button on each card.",
+        "subtitle": "Open any session to view its full notes.",
         "loading": "Loading...",
         "refresh": "Refresh List",
         "loadingRecords": "Loading session records..."

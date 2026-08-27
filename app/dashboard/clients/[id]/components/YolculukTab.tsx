@@ -732,7 +732,7 @@ function OdevCard({ process }: { process: HomeworkProcess }) {
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-extrabold text-slate-500">{t("odevCard.completionPercent")}</span>
           <span className="text-[14px] font-black" style={{ color: meta.color }}>
-            %{process.yuzde}
+            {t("odevCard.completionValue", { percent: process.yuzde })}
           </span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -835,16 +835,24 @@ function AlertCard({ alerts }: { alerts: AlertItem[] }) {
 }
 
 // ─── EmptyState ──────────────────────────────────────────────────────────────
-function EmptyState() {
+// filterLabel geçildiğinde (aktif kategori filtresi) category-aware boş durum
+// gösterilir; aksi halde tüm zaman çizelgesi için genel boş durum kullanılır.
+function EmptyState({ filterLabel }: { filterLabel?: string | null }) {
   const t = useTranslations("clients.yolculuk");
+  const title = filterLabel
+    ? t("empty.titleFiltered", { label: filterLabel })
+    : t("empty.title");
+  const hint = filterLabel
+    ? t("empty.hintFiltered", { label: filterLabel })
+    : t("empty.hint");
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
       <div className="text-[40px] leading-none text-slate-300">◌</div>
       <div className="text-[15px] font-black text-slate-700">
-        {t("empty.title")}
+        {title}
       </div>
       <div className="max-w-[360px] text-[12px] font-bold leading-relaxed text-slate-400">
-        {t("empty.hint")}
+        {hint}
       </div>
     </div>
   );
@@ -1874,7 +1882,7 @@ export default function YolculukTab({
               <div className="text-[15px] font-black text-slate-400">{t("timeline.loading")}</div>
             </div>
           ) : filteredEntries.length === 0 ? (
-            <EmptyState />
+            <EmptyState filterLabel={activeFilter ? typeLabel(activeFilter, t) : null} />
           ) : (
             <div className="flex flex-col">
               {visibleEntries.map((entry, idx) => (

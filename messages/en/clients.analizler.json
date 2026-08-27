@@ -92,7 +92,7 @@
         "after": "After Session"
       },
       "colHeader": {
-        "mark": "MARK +/- · VALUE %",
+        "mark": "VALUE (+/−) %",
         "male": "MASCULINE ENERGY",
         "female": "FEMININE ENERGY"
       },

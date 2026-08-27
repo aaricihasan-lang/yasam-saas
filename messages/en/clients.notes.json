@@ -2,7 +2,7 @@
   "clients": {
     "notes": {
       "title": "Saved Notes",
-      "totalLabel": "Total Notes",
+      "totalLabel": "{count, plural, one {Note} other {Notes}}",
       "toggleFormOpen": "+ Add Note",
       "toggleFormClose": "Close Form",
       "newForm": {

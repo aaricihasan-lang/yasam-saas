@@ -162,7 +162,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
               {items.length}
             </span>
             <span className="text-[11px] font-black uppercase tracking-wide text-violet-700/70">
-              {t("totalLabel")}
+              {t("totalLabel", { count: items.length })}
             </span>
           </div>
 

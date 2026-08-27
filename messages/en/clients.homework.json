@@ -44,7 +44,7 @@
         "completed": "done",
         "late": "overdue",
         "dismissed": "dismissed",
-        "nearest": "nearest"
+        "nearest": "next due"
       },
       "newForm": {
         "title": "New Assignment Record",
@@ -64,15 +64,15 @@
         "hint": "You can create the first record using the \"+ Add Assignment\" button."
       },
       "badge": {
-        "expired": "⚠️ Expired",
-        "dismissed": "Discussed / Alert closed"
+        "expired": "⚠️ Overdue",
+        "dismissed": "Alert Dismissed"
       },
       "card": {
         "start": "Start: {date}",
         "end": "End: {date}"
       },
       "action": {
-        "dismissAlert": "Dismiss Alert / Discussed"
+        "dismissAlert": "Dismiss Alert"
       },
       "item": {
         "edit": "Edit",

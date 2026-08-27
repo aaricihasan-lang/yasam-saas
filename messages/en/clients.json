@@ -4,7 +4,7 @@
       "hero": {
         "eyebrow": "Yaşam Sistemi",
         "title": "Client Journey",
-        "subtitle": "Manage your client workflow across three key areas: new record, client list, and follow-up & schedule."
+        "subtitle": "Manage your client workflow across three key areas: new clients, client records, and follow-up & scheduling."
       },
       "quickActions": {
         "title": "Quick Actions",
@@ -25,14 +25,14 @@
         },
         "takip": {
           "title": "Client Follow-up",
-          "desc": "Appointments, session planning, daily follow-up and client process management.",
+          "desc": "Manage appointments, session planning and day-to-day client follow-up.",
           "badge": "Follow-up & Plan",
           "cta": "Open Schedule"
         }
       },
       "summary": {
         "title": "Overview",
-        "subtitle": "An anonymous overview of your client and appointment processes.",
+        "subtitle": "An overview of client and appointment activity without displaying personal details.",
         "privacyTitle": "Privacy First",
         "privacyDesc": "Personal details are not shown on this screen."
       },

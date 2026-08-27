@@ -72,7 +72,7 @@
         "expiredHw": "⚠ {count, plural, one {# assignment} other {# assignments}}",
         "noPhone": "No phone",
         "noGorusme": "No meeting date",
-        "detail": "Detail →"
+        "detail": "View Details →"
       },
       "durum": {
         "aktif": "Active",

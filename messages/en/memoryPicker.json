@@ -10,7 +10,7 @@
       "recordDetail": "Record details"
     },
     "title": "Select from Life Memory",
-    "subtitle": "Selected records are added to this delivery as an <b>unchanged copy</b>.",
+    "subtitle": "Selected records will be added as <b>unchanged copies</b>.",
     "clientRequiredLabel": "Client (required for delivery)",
     "clientsLoading": "Loading clients…",
     "clientSelectPlaceholder": "— Select a client —",
