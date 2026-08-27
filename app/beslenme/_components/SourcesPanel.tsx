@@ -9,9 +9,9 @@
  * listSources/createSource generic olduğu için panel içinde çağrılır.
  */
 import { useState } from "react";
-import { BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from "lucide-react";
+import { Archive, BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from "lucide-react";
 import type { Source } from "@/lib/beslenme/beslenmeClient";
-import { createSource, listSources } from "@/lib/beslenme/beslenmeClient";
+import { createSource, listSources, updateSource } from "@/lib/beslenme/beslenmeClient";
 import { SOURCE_TYPE_LABELS, SOURCE_TYPE_OPTIONS, friendlyError } from "./constants";
 import {
   Card,
@@ -45,6 +45,9 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Source[] | null>(null);
   const [searching, setSearching] = useState(false);
+  // Katalog kaynağı arşivleme (is_active=false) — iki adımlı onay.
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   // Ortak
   const [locator, setLocator] = useState("");
@@ -63,6 +66,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     setErr("");
     setQ("");
     setResults(null);
+    setConfirmArchiveId(null);
     setLocator("");
     setNTitle("");
     setNType("book");
@@ -92,6 +96,25 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     setBusy(false);
     if (ok) resetAll();
     else setErr("Kaynak bağlanamadı. Lütfen tekrar deneyin.");
+  }
+
+  /**
+   * Katalog kaynağını arşivle (canonical: hard-delete DEĞİL, is_active=false).
+   * Owner-only PATCH; server tenant-scoped + demo-deny uygular. Aktif linkli olsa
+   * bile arşivlenebilir — link satırları FK bütünlüğü için DB'de kalır, ama
+   * arşivli kaynak aktif katalog aramasında (is_active=true) artık görünmez.
+   */
+  async function archiveSource(sourceId: string) {
+    setArchivingId(sourceId);
+    setErr("");
+    const r = await updateSource(sourceId, { is_active: false });
+    setArchivingId(null);
+    if (r.ok && r.data?.source) {
+      setConfirmArchiveId(null);
+      setResults((prev) => (prev ? prev.filter((s) => s.id !== sourceId) : prev));
+    } else {
+      setErr(friendlyError(r.code, r.status));
+    }
   }
 
   async function createAndLink() {
@@ -275,22 +298,60 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
               ) : (
                 <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
                   {results.map((s) => (
-                    <li key={s.id}>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void linkExisting(s.id)}
-                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2 text-left transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-60"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-bold text-slate-800">{s.title}</span>
-                          <span className="block truncate text-[11px] font-medium text-slate-400">
-                            {s.source_type ? SOURCE_TYPE_LABELS[s.source_type] ?? s.source_type : ""}
-                            {s.authors ? ` · ${s.authors}` : ""}
+                    <li key={s.id} className="rounded-xl border border-slate-100 bg-white">
+                      <div className="flex items-center gap-1 px-1.5 py-1">
+                        <button
+                          type="button"
+                          disabled={busy || archivingId === s.id}
+                          onClick={() => void linkExisting(s.id)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-emerald-50 disabled:opacity-60"
+                          title="Bu kaynağı bağla"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] font-bold text-slate-800">{s.title}</span>
+                            <span className="block truncate text-[11px] font-medium text-slate-400">
+                              {s.source_type ? SOURCE_TYPE_LABELS[s.source_type] ?? s.source_type : ""}
+                              {s.authors ? ` · ${s.authors}` : ""}
+                            </span>
                           </span>
-                        </span>
-                        <Link2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-                      </button>
+                          <Link2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy || archivingId === s.id}
+                          onClick={() => setConfirmArchiveId((cur) => (cur === s.id ? null : s.id))}
+                          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 disabled:opacity-60"
+                          title="Kaynağı arşivle"
+                          aria-label="Kaynağı arşivle"
+                        >
+                          <Archive className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
+                      {confirmArchiveId === s.id ? (
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
+                          <span className="text-[11px] font-bold text-amber-700">
+                            Kaynak arşivlensin mi? Aktif katalogda görünmez.
+                          </span>
+                          <span className="flex shrink-0 gap-1.5">
+                            <button
+                              type="button"
+                              disabled={archivingId === s.id}
+                              onClick={() => void archiveSource(s.id)}
+                              className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-black text-white transition hover:bg-amber-700 disabled:opacity-60"
+                            >
+                              {archivingId === s.id ? "Arşivleniyor…" : "Evet, Arşivle"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={archivingId === s.id}
+                              onClick={() => setConfirmArchiveId(null)}
+                              className="rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100"
+                            >
+                              Vazgeç
+                            </button>
+                          </span>
+                        </div>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
