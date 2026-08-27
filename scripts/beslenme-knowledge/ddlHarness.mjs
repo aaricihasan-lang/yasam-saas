@@ -126,6 +126,29 @@ check("[id] route'larında isUuid", uuidOk);
 check("body tenant_id trust YOK", tenantTrustOk);
 check("her mutation hasOnlyKeys (mass-assignment)", massOk);
 
+console.log("\n[count] Genel Bakış sayaçları active-only (arşivli sayılmaz)");
+// Arşiv canonical = is_active=false; sayaçlar liste route'larıyla aynı contract'ı
+// paylaşmalı: yalnız aktif kayıt sayılır (arşivlenince kart 0 gösterir).
+const countsSrc = routeSrc["/app/api/beslenme/counts/route.ts"] ?? "";
+check("counts route mevcut", !!countsSrc);
+// 4 head-count sorgusunun (foods, guides, sources, profileCount) hepsi is_active=true filtreler.
+const activeFilterCount = (countsSrc.match(/\.eq\("is_active",\s*true\)/g) ?? []).length;
+check("counts route 4 sorguda da is_active=true filtresi", activeFilterCount >= 4,
+  `beklenen ≥4, bulunan ${activeFilterCount}`);
+check("counts foods is_active filtreli",
+  /nutrition_foods[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("is_active",\s*true\)/.test(countsSrc));
+check("counts topics/dietary_pattern is_active filtreli",
+  /"dietary_pattern"\)[\s\S]*?\.eq\("is_active",\s*true\)/.test(countsSrc));
+check("counts profile (mizac/blood) is_active filtreli",
+  /"traditional_profile"\)[\s\S]*?\.eq\("framework_id", frameworkId\)[\s\S]*?\.eq\("is_active",\s*true\)/.test(countsSrc));
+
+console.log("\n[archive] SourcesPanel kaynak arşivleme (is_active=false, hard-delete DEĞİL)");
+const sourcesPanel = read(resolve(ROOT, "app/beslenme/_components/SourcesPanel.tsx"));
+check("SourcesPanel updateSource ile is_active:false çağırır",
+  /updateSource\([^)]*\{\s*is_active:\s*false\s*\}\)/.test(sourcesPanel));
+check("SourcesPanel arşiv onayı (iki adımlı, confirmArchiveId)", /confirmArchiveId/.test(sourcesPanel));
+check("SourcesPanel arşivde hard-delete (deleteSource) KULLANMAZ", !/deleteSource/.test(sourcesPanel));
+
 console.log("\n[U/V] mizaç + kan grubu canonical");
 const contracts = read(resolve(ROOT, "lib/beslenme/contracts.ts"));
 for (const code of ["dem", "safra", "sovdavi", "balgam"]) check(`mizaç kodu '${code}'`, new RegExp(`code:\\s*"${code}"`).test(contracts));

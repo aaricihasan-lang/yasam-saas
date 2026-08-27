@@ -3,7 +3,11 @@ import { requireBeslenmeOwner } from "@/lib/beslenme/ownerGuard";
 
 export const runtime = "nodejs";
 
-/** Genel Bakış sayaçları (owner-only, tenant-scoped, service_role head-count). */
+/**
+ * Genel Bakış sayaçları (owner-only, tenant-scoped, service_role head-count).
+ * Yalnız AKTİF (is_active=true) kayıtlar sayılır — liste route'larıyla aynı contract;
+ * arşivlenen (is_active=false) kayıt listede görünmediği gibi sayaçta da görünmez.
+ */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const guard = await requireBeslenmeOwner(req);
   if (!guard.ok) return guard.response;
@@ -23,18 +27,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const foodsRes = await db
       .from("nutrition_foods")
       .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true);
 
     const guidesRes = await db
       .from("nutrition_topics")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId)
-      .eq("topic_type", "dietary_pattern");
+      .eq("topic_type", "dietary_pattern")
+      .eq("is_active", true);
 
     const sourcesRes = await db
       .from("nutrition_sources")
       .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true);
 
     const profileCount = async (frameworkId: string | null): Promise<number> => {
       if (!frameworkId) return 0;
@@ -43,7 +50,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("topic_type", "traditional_profile")
-        .eq("framework_id", frameworkId);
+        .eq("framework_id", frameworkId)
+        .eq("is_active", true);
       return count ?? 0;
     };
 
