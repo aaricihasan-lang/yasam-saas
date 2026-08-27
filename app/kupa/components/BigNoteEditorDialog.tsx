@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { kupaBtnGhost, kupaBtnSuccess } from "./KupaShell";
 
 /**
@@ -11,6 +12,12 @@ import { kupaBtnGhost, kupaBtnSuccess } from "./KupaShell";
  * form state'ine aktarır. Asıl kayıt, ana formun "Kaydet" butonuyla topic create
  * API'sine gider. "Vazgeç" değişikliği açıkça iptal eder. ESC/overlay VERİ KAYBINA
  * yol açmaz: taslak değiştirilmişse (dirty) yalnız açık "Vazgeç"/"Notu Kaydet" kapatır.
+ *
+ * KRİTİK (mobil tam-ekran): Overlay `document.body`'ye PORTAL edilir. Aksi halde
+ * `fixed inset-0`, `backdrop-filter`/`transform`/`contain` içeren bir ata (ör.
+ * `kupaEdgeCard` bölüm kartı `backdrop-blur`) tarafından o kutuya HAPSOLUR → <1024px'te
+ * editör tüm viewport yerine bölüm kartını doldurur, alttaki belge görünmeye devam eder.
+ * Portal, sabit-konum içeren-blok tuzağını aşarak gerçek 100dvh tam-ekran sağlar.
  */
 export function BigNoteEditorDialog({
   open,
@@ -55,9 +62,23 @@ export function BigNoteEditorDialog({
     if (!dirty) onCancel();
   }, [dirty, onCancel]);
 
+  // Açıkken alttaki belgenin scroll'unu kilitle (tam-ekran editör kontratı: alttaki
+  // içerik görünmez + kaymaz; editör kendi içinde scroll eder).
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
-  return (
+  // SSR guard — portal yalnız client'ta (document.body). Kapalıyken zaten null döner.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-stretch justify-center p-0 lg:items-center lg:p-6"
       role="dialog"
@@ -102,6 +123,7 @@ export function BigNoteEditorDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
