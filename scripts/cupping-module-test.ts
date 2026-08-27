@@ -835,6 +835,8 @@ function run(): void {
   const pListHook = read("app/kupa/protokoller/hooks/useProtocolList.ts");
   const pCard = read("app/kupa/protokoller/components/ProtocolListCard.tsx");
   const pInline = read("app/kupa/protokoller/components/InlineLongText.tsx");
+  const pSources = read("app/kupa/protokoller/components/SourcesSection.tsx");
+  const pQuick = read("app/kupa/protokoller/components/QuickCreateMasterForm.tsx");
   const newFiles = [pList, pNew, pDoc, pRel, pSteps, pEntries, pPicker, pCard].join("\n\n");
 
   // ── FAZ2-B) CLIENT wrappers (V2 additive; legacy korunur) ──────────────────────
@@ -870,9 +872,8 @@ function run(): void {
     "faz2-mobile: PrepSection 3 alan (prep/after/follow) InlineLongText full-screen path'i kullanır (ham textarea YOK)");
   ok(!/Rehbere Dön|Geri Dön|floating.*back/i.test(newFiles), "faz2-nav: özel geri/floating-back butonu YOK");
 
-  // No fake quick-create (technique/safety master 0 olabilir).
-  ok(!/Yeni Teknik Oluştur|Yeni Güvenlik Oluştur|quick-create|QuickCreate/.test(newFiles), "faz2-noquick: sahte/disabled quick-create CTA YOK");
-  ok(!/createTechnique\(|createSafety\(|createPoint\(|createSource\(/.test(newFiles), "faz2-noquick: protokol UI master kayıt OLUŞTURMAZ (yalnız picker)");
+  // FAZ 3A: quick-create ARTIK VAR (technique/safety) — ama YALNIZ gerçek create+attach,
+  // sahte/disabled CTA değil. Point quick-create HÂLÂ YOK (aşağıda faz3a-point-exclude).
 
   // ── FAZ2-D) N+1 HARD GATE ──────────────────────────────────────────────────────
   ok(!/listProtocolPoints|listProtocolTechniques|listProtocolSafety/.test(pList) && !/listProtocol/.test(pCard),
@@ -889,7 +890,10 @@ function run(): void {
   // ── FAZ2-E) ENTRY atomik tüketimi (optimistic YOK) ─────────────────────────────
   ok(/createProtocolEntry\(|updateProtocolEntry\(/.test(pEntries) && /doc\.reload\.entries\(\)/.test(pEntries),
     "faz2-entry: create/update sonrası server canonical yeniden çekilir (optimistic YOK)");
-  ok(/source_id/.test(pEntries) && /Kaynak yok/.test(pEntries), "faz2-entry: kaynak OPSİYONEL (source yok seçeneği)");
+  // Kaynak OPSİYONEL — FAZ 3A sade akış: serbest metin (source_label) birincil; ayrı <select>
+  // katalog picker KALDIRILDI. Mevcut source_id bağlı entry düzenlenebilir (chip + Kaldır).
+  ok(/source_label/.test(pEntries) && /kimden öğrendim/i.test(pEntries) && !/<select/.test(pEntries),
+    "faz2-entry: kaynak OPSİYONEL + sade serbest metin (ayrı katalog <select> YOK)");
 
   // ── FAZ2-F) STEP membership UI ─────────────────────────────────────────────────
   ok(/doc\.points\.map/.test(pSteps) && /doc\.techniques\.map/.test(pSteps),
@@ -897,9 +901,86 @@ function run(): void {
   ok(!/masterPoints\.map[\s\S]{0,80}ref_point|doc\.masterPoints[\s\S]{0,120}Bağlı bölge/.test(pSteps),
     "faz2-step: step ref dropdown master listeden DOĞRUDAN seçtirmez");
 
-  // ── FAZ2-G) Picker erişilebilirlik + quick-create yokluğu ──────────────────────
+  // ── FAZ2-G) Picker erişilebilirlik ─────────────────────────────────────────────
   ok(/role="dialog"/.test(pPicker) && /aria-modal="true"/.test(pPicker) && /Escape/.test(pPicker) && /min-h-\[44px\]/.test(pPicker),
     "faz2-a11y: MasterPickerDialog dialog/aria/Escape/44px");
+
+  // ══ FAZ 3A) MASTER QUICK-CREATE + SADE KAYNAK ════════════════════════════════════
+
+  // A) Picker gerçek-viewport portal (BigNoteEditorDialog ile aynı çözülen sınıf).
+  ok(/from "react-dom"/.test(pPicker) && /createPortal\(/.test(pPicker) && /document\.body/.test(pPicker),
+    "faz3a-portal: MasterPickerDialog createPortal(document.body) ile ata containing-block tuzağını AŞAR");
+  ok(/document\.body\.style\.overflow/.test(pPicker) && /fixed inset-0/.test(pPicker) && /h-\[100dvh\]/.test(pPicker),
+    "faz3a-portal: picker body-scroll-lock + fixed inset-0 + 100dvh (gerçek tam-ekran)");
+  ok(/typeof document === "undefined"/.test(pPicker),
+    "faz3a-portal: picker SSR guard (document yoksa null)");
+
+  // B) Tek surface pick⇄create mode (nested modal YOK).
+  ok(/"pick"/.test(pPicker) && /"create"/.test(pPicker) && /quickCreate/.test(pPicker),
+    "faz3a-picker: tek surface pick⇄create mode + quickCreate prop (nested modal YOK)");
+  ok(/QuickCreateMasterForm/.test(pPicker), "faz3a-picker: create view paylaşılan QuickCreateMasterForm kullanır");
+
+  // C) Quick-create form YALNIZ technique + safety (discriminated union) — point/createPoint YOK.
+  ok(/"technique"/.test(pQuick) && /"safety"/.test(pQuick), "faz3a-form: quick-create technique + safety");
+  ok(!/"point"/.test(pQuick) && !/createPoint/.test(pQuick), "faz3a-form: quick-create form point İÇERMEZ");
+
+  // D) TR enum eşlemeleri + kod GÖSTERİLMEZ (enum sadece value; UI label Türkçe).
+  ok(/dry/.test(pQuick) && /wet/.test(pQuick) && /stationary/.test(pQuick) && /gliding/.test(pQuick) && /flash/.test(pQuick),
+    "faz3a-enum: technique_type/movement_style enum value'ları mevcut");
+  ok(/Kuru Kupa/.test(pQuick) && /Yaş Kupa/.test(pQuick) && /Sabit/.test(pQuick) && /Kaydırmalı/.test(pQuick),
+    "faz3a-enum: technique UI Türkçe etiketler (kod değil)");
+  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /Bilgi/.test(pQuick) && /Uyarı/.test(pQuick) && /Kontrendikasyon/.test(pQuick),
+    "faz3a-enum: safety severity enum + Türkçe etiketler");
+  // severity !== contraindication → contraindication_class DAİMA null.
+  ok(/severity === "contraindication" \? contraClass \|\| null : null/.test(pQuick),
+    "faz3a-safety: severity kontrendikasyon değilse contraindication_class temizlenir (null)");
+
+  // E) Advisory duplicate — TR-fold normalize (NFKC + tr-lower), agresif değil.
+  ok(/normalize\("NFKC"\)/.test(pQuick) && /toLocaleLowerCase\("tr-TR"\)/.test(pQuick),
+    "faz3a-dup: normalizeMasterName NFKC + tr-lower");
+  ok(/Mevcut Kaydı Kullan/.test(pQuick) && /Yine de Oluştur/.test(pQuick) && /!duplicate \?/.test(pQuick),
+    "faz3a-dup: dup varken sessiz create YOK (Mevcut Kaydı Kullan / Yine de Oluştur; birincil oluştur gizli)");
+
+  // F) create → attach orchestration (technique + safety).
+  ok(/createTechnique\(/.test(pRel) && /addProtocolTechnique\(/.test(pRel) &&
+     /createSafety\(/.test(pRel) && /addProtocolSafety\(/.test(pRel),
+    "faz3a-attach: technique/safety create→immediate attach wired");
+  // demo/null id → attach YAPMA.
+  ok(/!created \|\| !created\.id/.test(pRel), "faz3a-demo: created id yoksa (demo) attach YAPMAZ");
+  // create OK / attach FAIL → master rollback YOK (compensating delete YOK).
+  ok(!/deleteTechnique\(/.test(pRel) && !/deleteSafety\(/.test(pRel),
+    "faz3a-consistency: attach fail'de master rollback/compensating-delete YOK (standalone entity)");
+  // targeted master refresh (full reload YOK).
+  ok(/reload\.masterTechniques\(\)/.test(pRel) && /reload\.masterSafety\(\)/.test(pRel) && !/reload\.all\(/.test(pRel),
+    "faz3a-refresh: quick-create sonrası hedefli master refresh (reload.all YOK)");
+
+  // G) POINT hard exclusion.
+  ok(!/entity: "point"/.test(pRel) && !/createPoint\(/.test(pRel), "faz3a-point-exclude: RelationSection point quick-create YOK");
+  ok(!/quickCreate/.test(pEntries) && !/createPoint\(/.test(pEntries), "faz3a-point-exclude: EntriesSection point picker quickCreate ALMAZ");
+  ok(!/createPoint\(/.test([pRel, pEntries, pSources, pQuick, pPicker].join("\n")),
+    "faz3a-point-exclude: FAZ3 quick-create yollarının HİÇBİRİ createPoint çağırmaz");
+
+  // H) Hook targeted master reload (N+1 yok).
+  ok(/reloadMasterTechniques/.test(pHook) && /reloadMasterSafety/.test(pHook) && /reloadMasterSources/.test(pHook),
+    "faz3a-n+1: useProtocolDocument hedefli master reload sağlar (full reload spam YOK)");
+  ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pSources),
+    "faz3a-n+1: SourcesSection loop/section master GET yapmaz");
+
+  // I) SADE KAYNAK — SourcesSection: serbest metin, katalog picker/bibliyografik metadata YOK.
+  ok(/Kimden öğrendim/.test(pSources) && !/<select/.test(pSources),
+    "faz3a-source: sade 'Kaynak / Kimden öğrendim' serbest metin (ayrı katalog <select> YOK)");
+  ok(!/author_or_organization|publication|identifier|source_type|\blanguage\b/.test(pSources),
+    "faz3a-source: bibliyografik metadata (yazar/yayın/identifier/tür/dil) UI'da YOK");
+  ok(/createSource\(/.test(pSources) && /source_name: text/.test(pSources) && /normalizeMasterName/.test(pSources),
+    "faz3a-source: exact-normalized reuse veya arka planda minimal source create (source_name)");
+  ok(/datalist/.test(pSources), "faz3a-source: autocomplete datalist (öneri; seçime ZORLAMAZ)");
+  ok(/!created \|\| !created\.id/.test(pSources), "faz3a-source: demo/null id → attach YAPMAZ");
+
+  // J) SADE KAYNAK — EntriesSection: serbest metin + datalist + mevcut source_id chip korunur.
+  ok(/list="kupa-entry-source-suggestions"/.test(pEntries) && /datalist/.test(pEntries),
+    "faz3a-entry-source: serbest metin + autocomplete datalist");
+  ok(/draft\.source_id \?/.test(pEntries) && /Kaldır/.test(pEntries),
+    "faz3a-entry-source: mevcut kayıtlı kaynak (source_id) chip + Kaldır ile korunur/temizlenir");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
