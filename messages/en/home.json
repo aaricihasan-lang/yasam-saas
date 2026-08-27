@@ -173,12 +173,12 @@
       "titlePart1": "Manage your clients, analyses and sessions",
       "titleHighlight": "in one place",
       "titlePart2": "",
-      "subtitle": "Bring your whole practice together — numerology, stones, bioenergy, reflexology, the healing guide, document translation and client management, all in one workspace.",
+      "subtitle": "Bring your whole practice together — client management, numerology, stones, bioenergy, reflexology, the Healing Guide and document tools — all in one workspace.",
       "discoverModules": "Explore Modules ↓"
     },
     "mockup": {
       "heading": "A Client at a Glance",
-      "subtitle": "See a client's entire history on a single screen.",
+      "subtitle": "See a client's complete history in one place.",
       "windowTitle": "Client Journey — Ahmet Yılmaz",
       "clientName": "Ahmet Yılmaz",
       "activeClient": "Active Client",
@@ -218,16 +218,16 @@
     },
     "problem": {
       "heading": "Is your knowledge scattered across dozens of files?",
-      "desc": "Many practitioners keep years of Word files, PDF archives, client notes and records spread across separate folders. Over time it gets harder to find anything — and you end up repeating the same research again and again.",
-      "item1": "Digging through hundreds of Word and PDF files to find one thing",
-      "item2": "Researching the same topic over and over",
-      "item3": "Client notes scattered across different folders",
-      "item4": "Disorganized appointments, sessions and records",
-      "item5": "Stones, numerology and work notes kept in separate places"
+      "desc": "Many practitioners build up years of Word files, PDFs, client notes and work records across separate folders. Over time, finding the right information becomes harder — and the same research often gets repeated.",
+      "item1": "Searching through hundreds of Word and PDF files",
+      "item2": "Researching the same topic again and again",
+      "item3": "Client notes spread across different folders",
+      "item4": "Appointments, sessions and records in separate places",
+      "item5": "Stone, numerology and practice notes stored separately"
     },
     "workspaces": {
       "heading": "Workspaces",
-      "subtitle": "The main modules within the platform"
+      "subtitle": "Professional tools and workspaces in one platform."
     },
     "landing": {
       "sampleAnalysisBadge": "Sample Analysis",
@@ -240,47 +240,47 @@
       "discover": "Explore",
       "numeroloji": {
         "title": "Numerology",
-        "desc": "Explore the analysis screens with the Ali AL example."
+        "desc": "Explore professional numerology analysis screens using the Ali AL sample profile."
       },
       "dogaltas": {
         "title": "Stones",
-        "desc": "Stone records, mineral information, combinations and stock management in one place."
+        "desc": "Manage stone records, mineral information, combinations and inventory in one workspace."
       },
       "biyoenerji": {
         "title": "Bioenergy",
-        "desc": "Manage energy analyses, subconscious work, symbol language, the chakra library and session management from one center."
+        "desc": "Manage energy analyses, energy-body records, subconscious work, symbolic references, chakra resources and session workflows in one workspace."
       },
       "kisiselArsiv": {
         "title": "Personal Archive",
-        "desc": "Store your audio, video, documents, images and personal notes safely in one center."
+        "desc": "Keep your audio, video, documents, images and personal notes organized in one secure archive."
       },
       "belgeCeviri": {
         "title": "Document Translation",
-        "desc": "A document center that converts PDFs, Word files and images with AI support and translates them into Turkish."
+        "desc": "Process PDFs, Word files and images with AI-assisted Turkish translation and format-preserving output."
       },
       "videoCeviri": {
         "title": "Video Translation",
-        "desc": "An AI-powered module that transcribes video and audio files into text and translates them into Turkish, producing Word/PDF output."
+        "desc": "AI-assisted transcription and translation for video and audio, with Turkish-language output and Word/PDF export."
       },
       "danisanYonetimi": {
         "title": "Client Management",
-        "desc": "Manage client records, detail pages and appointment management from one center."
+        "desc": "Manage client records, profiles, appointments and follow-up workflows in one place."
       },
       "sifaRehberi": {
         "title": "Healing Guide",
-        "desc": "Manage ailment records, symptoms, applications, stones, aromatherapy and supportive suggestions from one center."
+        "desc": "Organize condition references, symptoms, application methods, stones, aromatherapy and supportive guidance in one workspace."
       },
       "refleksoloji": {
         "title": "Reflexology",
-        "desc": "A foot reflexology atlas, protocols, saved atlases, clinical notes and a session workspace."
+        "desc": "Work with a foot reflexology atlas, protocols, saved maps, practitioner notes and session records in one workspace."
       },
       "aromaterapi": {
         "title": "Aromatherapy",
-        "desc": "Essential oil, carrier oil and blend management system."
+        "desc": "Manage essential oils, carrier oils and blends in one dedicated workspace."
       },
       "humanDesign": {
         "title": "Human Design",
-        "desc": "Use the Human Design content you upload to the knowledge base to create personalized professional reports and interpretations for your clients."
+        "desc": "Use your Human Design knowledge base to create personalized professional reports and interpretations for your clients."
       }
     },
     "feats": {
@@ -288,20 +288,20 @@
       "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
       "belgeCeviri": ["PDF → Word", "PDF → Turkish Word", "Image OCR", "Multi-Language Support", "Format Preservation", "Secure Processing"],
       "videoCeviri": ["Video → Text", "Automatic Language Detection", "Translation to Turkish", "Word/PDF Output", "Training Content Preparation", "Privacy-Focused Processing"],
-      "danisanYonetimi": ["Client Records", "Client Details", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Process"],
-      "sifaRehberi": ["New Ailment Record", "Saved Healing Guide", "Symptoms / Causes", "Applications / Methods", "Stones & Minerals", "Aromatherapy"],
-      "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Clinical Notes", "Session Tracking"],
+      "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
+      "sifaRehberi": ["Condition References", "Saved Healing Guide", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
+      "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Session Tracking"],
       "humanDesign": ["Knowledge Base Management", "Gate and Channel Interpretations", "Center Analyses", "Type and Profile Descriptions", "Automatic Report Generation", "Personalized Reports"],
-      "dogaltas": ["Stone Record Management", "Mineral Bank", "Combination Management", "Smart Search", "Category Filtering", "Detail Pages", "Statistics", "Image Archive"]
+      "dogaltas": ["Stone Records", "Mineral Bank", "Combination Management", "Smart Search", "Category Filtering", "Detail Views", "Statistics", "Image Archive"]
     },
     "mobile": {
       "badge": "Android App Available",
-      "heading1": "Access from Anywhere",
-      "heading2": "with the Mobile App",
-      "desc": "With the Yaşam Sistemi Android app, you can easily reach your client records, modules and workspaces from your mobile device.",
+      "heading1": "Access Your Workspace",
+      "heading2": "Anywhere",
+      "desc": "Use the Yaşam Sistemi Android app to securely access your client records, modules and workspaces from your mobile device.",
       "item1": "Client records and appointment management",
-      "item2": "Mobile access to all modules",
-      "item3": "Fast and secure use",
+      "item2": "Access your workspace on the go",
+      "item3": "Fast, secure access",
       "openApp": "Open the Android App",
       "googlePlay": "Available on Google Play",
       "phoneAppName": "Yaşam Sistemi",
@@ -315,22 +315,22 @@
       "phoneTagTablet": "Tablet"
     },
     "featureItems": {
-      "guvenli": { "title": "Secure Data Structure", "desc": "Your data is protected in a controlled and secure usage structure." },
-      "analiz": { "title": "Analysis & Reporting", "desc": "Detailed analysis, reporting and professional output areas." },
-      "webMobil": { "title": "Web & Mobile Compatibility", "desc": "Seamless access from phone, tablet and computer." },
+      "guvenli": { "title": "Secure Data Architecture", "desc": "Your data is protected within a controlled, security-focused architecture." },
+      "analiz": { "title": "Analysis & Reporting", "desc": "Professional analysis tools and structured reporting in one workspace." },
+      "webMobil": { "title": "Web & Mobile Access", "desc": "Responsive access across desktop, tablet and mobile devices." },
       "yedekleme": { "title": "Backup & Export", "desc": "Download a full backup of your records from Settings whenever you need it." },
-      "moduler": { "title": "Modular Structure", "desc": "Workspaces and modules that expand as needed." }
+      "moduler": { "title": "Modular Workspace", "desc": "Use the workspaces you need and expand as your practice grows." }
     },
     "trust": {
       "badge": "🔒 Our Trust Principle",
-      "heading": "Yaşam Sistemi is not just software; it is a secure workspace that protects the effort and knowledge that practitioners have built over the years.",
-      "principle1": "Your private notes, analyses and all work content belong to you alone",
-      "principle2": "Administrators manage only your membership and access — they do not browse your notes, analyses or client records",
-      "principle3": "The admin panel is only for membership, payment, module and system management",
-      "principle4": "Your data is protected on secure infrastructure",
+      "heading": "Yaşam Sistemi is more than software — it is a secure workspace designed to protect the knowledge and professional work practitioners build over time.",
+      "principle1": "Your private notes, analyses and work content remain yours.",
+      "principle2": "Administrators manage your membership and access — they do not browse your notes, analyses or client records.",
+      "principle3": "Administrative tools are limited to membership, billing, module access and system management.",
+      "principle4": "Your data is protected on secure infrastructure.",
       "quote": "“For us, trust is not a feature — it is the foundation of the system.”",
       "shieldLabel": "Privacy · Trust · Respect",
-      "shieldSub": "Your professional effort and your clients' privacy are our priority."
+      "shieldSub": "Your professional work and your clients' privacy are our priority."
     },
     "footer": {
       "copyright": "© 2026 Yaşam Sistemi. All rights reserved.",
@@ -341,8 +341,8 @@
     },
     "gallery": {
       "danisanYonetimi": { "0": "Client Journey", "1": "New Client Record", "2": "Client List", "3": "Schedule & Appointments", "4": "Create New Appointment" },
-      "sifaRehberi": { "0": "Healing Guide Intro", "1": "Main Menu", "2": "New Ailment Record", "3": "Supportive Suggestions", "4": "Saved Guide List", "5": "Detail View" },
-      "refleksoloji": { "0": "Collage View", "1": "Main Menu", "2": "Zone Map", "3": "Saved Atlas", "4": "Protocol Map", "5": "Saved Protocols", "6": "Clinical Notes" },
+      "sifaRehberi": { "0": "Healing Guide Intro", "1": "Main Menu", "2": "New Condition Record", "3": "Supportive Guidance", "4": "Saved Guide List", "5": "Detail View" },
+      "refleksoloji": { "0": "Collage View", "1": "Main Menu", "2": "Zone Map", "3": "Saved Atlas", "4": "Protocol Map", "5": "Saved Protocols", "6": "Practitioner Notes" },
       "biyoenerji": { "0": "Bioenergy Intro", "1": "Bioenergy Home", "2": "Bioenergy Sessions", "3": "Energy Bodies", "4": "Subconscious Causes", "5": "Imagination Library", "6": "Symbol Language Library", "7": "Chakra Library" }
     },
     "preview": {
@@ -350,23 +350,23 @@
         "aria": "Numerology module preview",
         "badge": "Numerology Module",
         "title": "Numerology Analysis — Product Preview",
-        "subtitle": "Derive your life map from your date of birth and observe detailed analyses.",
+        "subtitle": "Build a life map from a date of birth and explore the analyses in detail.",
         "alt": "Numerology Module — Preview"
       },
       "dogaltas": {
         "aria": "Stones module preview",
         "badge": "Stones Module",
         "title": "Stones Module — Real Product Screens",
-        "subtitle": "Manage records, search, filtering, combinations and knowledge from one center.",
+        "subtitle": "Manage records, search, filtering, combinations and knowledge in one workspace.",
         "alt": "Stones Module — Preview",
-        "panelTitle": "Manage All Your Stone Data from One Center with the Stones Module",
-        "panelDesc": "The Stones Module brings all your data together in one center with stone records, a mineral bank, combination management, and advanced search and filtering tools. You can search among hundreds of records in seconds, apply category filters and easily access detailed stone information."
+        "panelTitle": "Manage All Your Stone Data in One Workspace with the Stones Module",
+        "panelDesc": "The Stones Module brings all your data together with stone records, a mineral bank, combination management, and advanced search and filtering tools. Search hundreds of records in seconds, apply category filters and quickly open detailed stone information."
       },
       "kisiselArsiv": {
         "aria": "Personal Archive module preview",
         "badge": "Personal Archive Module",
         "title": "Personal Archive — Real Product Screen",
-        "subtitle": "Store your audio, video, documents, images and notes safely in one center.",
+        "subtitle": "Keep your audio, video, documents, images and notes safe in one secure archive.",
         "alt": "Personal Archive Preview",
         "panelTitle": "A Secure Record System with Personal Archive",
         "panelDesc": "Store, search and track any kind of personal file by category."
@@ -393,30 +393,30 @@
         "aria": "Client Management module preview",
         "badge": "Client Management Module",
         "title": "Client Management — Real Product Screens",
-        "subtitle": "Manage client records, appointments and scheduling from one center.",
+        "subtitle": "Manage client records, appointments and scheduling in one workspace.",
         "altPrefix": "Client Management — ",
         "coverBadge": "Client Management",
         "coverTitle": "Client Journey — Overview",
         "panelTitle": "A Professional Follow-up System with Client Management",
-        "panelDesc": "Manage client records, detail pages, appointments and scheduling from one center."
+        "panelDesc": "Manage client records, profiles, appointments and scheduling in one workspace."
       },
       "sifaRehberi": {
         "aria": "Healing Guide module preview",
         "badge": "Healing Guide Module",
         "title": "Healing Guide — Real Product Screens",
-        "subtitle": "Manage ailment records, symptoms, applications and supportive suggestions from one center.",
+        "subtitle": "Manage condition references, symptoms, applications and supportive guidance in one workspace.",
         "altPrefix": "Healing Guide — ",
         "panelTitle": "Comprehensive Support Management with the Healing Guide",
-        "panelDesc": "Manage ailment records, symptoms, causes, applications, stones and aromatherapy suggestions from one center."
+        "panelDesc": "Manage condition references, symptoms, causes, applications, stones and aromatherapy guidance in one workspace."
       },
       "refleksoloji": {
         "aria": "Reflexology module preview",
         "badge": "Reflexology Module",
         "title": "Reflexology — Real Product Screens",
-        "subtitle": "A professional session system made up of an atlas, protocols, clinical notes and a zone map.",
+        "subtitle": "A professional session system made up of an atlas, protocols, practitioner notes and a zone map.",
         "altPrefix": "Reflexology — ",
         "panelTitle": "A Professional Session System with the Reflexology Module",
-        "panelDesc": "It offers a complete reflexology work environment with a zone map, saved atlas, protocol management, clinical notes and session tracking."
+        "panelDesc": "It offers a complete reflexology work environment with a zone map, saved atlas, protocol management, practitioner notes and session tracking."
       },
       "biyoenerji": {
         "aria": "Bioenergy module preview",
