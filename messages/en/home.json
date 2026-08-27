@@ -357,9 +357,9 @@
         "aria": "Stones module preview",
         "badge": "Stones Module",
         "title": "Stones Module — Real Product Screens",
-        "subtitle": "Manage records, search, filtering, combinations and knowledge in one workspace.",
+        "subtitle": "Manage stone records, search and filtering, combinations, and knowledge in one workspace.",
         "alt": "Stones Module — Preview",
-        "panelTitle": "Manage All Your Stone Data in One Workspace with the Stones Module",
+        "panelTitle": "Manage All Your Stone Data in One Workspace",
         "panelDesc": "The Stones Module brings all your data together with stone records, a mineral bank, combination management, and advanced search and filtering tools. Search hundreds of records in seconds, apply category filters and quickly open detailed stone information."
       },
       "kisiselArsiv": {
@@ -368,8 +368,8 @@
         "title": "Personal Archive — Real Product Screen",
         "subtitle": "Keep your audio, video, documents, images and notes safe in one secure archive.",
         "alt": "Personal Archive Preview",
-        "panelTitle": "A Secure Record System with Personal Archive",
-        "panelDesc": "Store, search and track any kind of personal file by category."
+        "panelTitle": "A Secure Workspace for Your Personal Archive",
+        "panelDesc": "Store, search and organize your personal files by category."
       },
       "belgeCeviri": {
         "aria": "Document Translation module preview",
@@ -377,7 +377,7 @@
         "title": "Document Translation — Real Product Screen",
         "subtitle": "Convert PDFs, Word files and images with AI and translate them into Turkish.",
         "alt": "Document Translation Preview",
-        "panelTitle": "Fast Conversion with Document Translation",
+        "panelTitle": "Fast Document Conversion and Translation",
         "panelDesc": "Convert PDF documents to Word, translate them into Turkish, and read text from scanned images."
       },
       "videoCeviri": {
@@ -397,8 +397,8 @@
         "altPrefix": "Client Management — ",
         "coverBadge": "Client Management",
         "coverTitle": "Client Journey — Overview",
-        "panelTitle": "A Professional Follow-up System with Client Management",
-        "panelDesc": "Manage client records, profiles, appointments and scheduling in one workspace."
+        "panelTitle": "Professional Client Management and Follow-up",
+        "panelDesc": "Manage client records, profiles, appointments and follow-up workflows in one workspace."
       },
       "sifaRehberi": {
         "aria": "Healing Guide module preview",
@@ -406,26 +406,26 @@
         "title": "Healing Guide — Real Product Screens",
         "subtitle": "Manage condition references, symptoms, applications and supportive guidance in one workspace.",
         "altPrefix": "Healing Guide — ",
-        "panelTitle": "Comprehensive Support Management with the Healing Guide",
-        "panelDesc": "Manage condition references, symptoms, causes, applications, stones and aromatherapy guidance in one workspace."
+        "panelTitle": "A Comprehensive Healing Guide Workspace",
+        "panelDesc": "Manage condition references, symptoms, applications, stones, aromatherapy and supportive guidance in one workspace."
       },
       "refleksoloji": {
         "aria": "Reflexology module preview",
         "badge": "Reflexology Module",
         "title": "Reflexology — Real Product Screens",
-        "subtitle": "A professional session system made up of an atlas, protocols, practitioner notes and a zone map.",
+        "subtitle": "A professional reflexology workspace with an atlas, protocols, practitioner notes and session tracking.",
         "altPrefix": "Reflexology — ",
-        "panelTitle": "A Professional Session System with the Reflexology Module",
-        "panelDesc": "It offers a complete reflexology work environment with a zone map, saved atlas, protocol management, practitioner notes and session tracking."
+        "panelTitle": "A Professional Reflexology Workspace",
+        "panelDesc": "Manage reflexology maps, saved atlases, protocols, practitioner notes and session tracking in one workspace."
       },
       "biyoenerji": {
         "aria": "Bioenergy module preview",
         "badge": "Bioenergy Module",
         "title": "Bioenergy — Real Product Screens",
-        "subtitle": "A comprehensive work system made up of session management, energy bodies, the subconscious, symbols and chakras.",
+        "subtitle": "A comprehensive workspace for session management, energy-body analysis, subconscious work, symbols and chakras.",
         "altPrefix": "Bioenergy Module — ",
-        "panelTitle": "Comprehensive Energy Work with the Bioenergy Module",
-        "panelDesc": "The Bioenergy Module offers a holistic work system with session management, energy body analysis, a subconscious causes library, imagination guides, symbol language and a chakra library."
+        "panelTitle": "A Comprehensive Bioenergy Workspace",
+        "panelDesc": "Manage sessions, energy-body analyses, subconscious work, imagination resources, symbolic language and chakra resources in one workspace."
       }
     },
     "login": {
