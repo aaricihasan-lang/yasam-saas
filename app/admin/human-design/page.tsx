@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { hdGet, hdSend } from "./adminHdApi";
 import { sortCanonicalRows } from "@/lib/human-design/admin/hdSort";
+import { badgeForContentStatus } from "@/lib/human-design/admin/hdContentBadge";
 import { HdConfirmModal } from "./components/HdConfirmModal";
 import { CanonicalGroupList, type GroupListItem } from "@/components/human-design/knowledge/CanonicalGroupList";
-import type { HdCanonicalEntityRow, HdEntityKind } from "@/lib/human-design/admin/centralContentTypes";
+import type { HdCanonicalAdminListRow, HdEntityKind } from "@/lib/human-design/admin/centralContentTypes";
 
 /**
  * Admin merkezî içerik yönetimi — ürün Bilgi Bankası ile AYNI liste bileşenini
@@ -25,7 +26,7 @@ export default function HdAdminHome() {
   const load = useCallback(async (k: HdEntityKind) => {
     setLoading(true);
     setError(null);
-    const r = await hdGet<{ rows: HdCanonicalEntityRow[] }>(`canonical?kind=${k}`);
+    const r = await hdGet<{ rows: HdCanonicalAdminListRow[] }>(`canonical?kind=${k}`);
     if (r.ok) {
       const sorted = sortCanonicalRows(k, r.data.rows ?? []);
       setItems(sorted.map((row) => ({
@@ -33,9 +34,8 @@ export default function HdAdminHome() {
         canonical_key: row.canonical_key,
         name_tr: row.name_tr,
         name_original: row.name_original,
-        badge: row.status === "published"
-          ? { label: "Yayınlandı", tone: "published" as const }
-          : { label: "Taslak", tone: "draft" as const },
+        // Badge source-of-truth = hd_canonical_content.status (entity.status DEĞİL).
+        badge: badgeForContentStatus(row.content_status),
       })));
     } else { setError(r.error); setItems([]); }
     setLoading(false);

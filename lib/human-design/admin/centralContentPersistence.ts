@@ -24,9 +24,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   HdAuditAction,
   HdAuditResourceKind,
+  HdCanonicalAdminListRow,
   HdCanonicalContentRow,
   HdCanonicalEntityRow,
   HdContentEvidenceRow,
+  HdContentStatus,
   HdEntityKind,
   HdFaithfulTranslationRow,
   HdOriginalTextRow,
@@ -80,15 +82,41 @@ async function audit(
 }
 
 // ── Canonical kimlik (SALT-OKUMA; write YOK) ────────────────────────────────
+/**
+ * Canonical kimlik listesi + her kimliğe bağlı İÇERİĞİN yayın durumu.
+ *
+ * İki salt-okuma sorgusu (N+1 YOK, kırılgan implicit join YOK):
+ *   1) hd_canonical_entities  → kimlik satırları (entity.status DAHİL, DEĞİŞMEDEN)
+ *   2) hd_canonical_content   → yalnız (entity_id, status) → Map ile deterministik merge
+ *
+ * `content_status` badge'in gerçek source-of-truth'udur (published/draft/null).
+ * Entity'nin kendi `status` alanı AYRI kalır; ASLA overwrite edilmez.
+ */
 export async function listCanonical(
   db: SupabaseClient,
   entityKind?: HdEntityKind,
-): Promise<HdPersistResult<HdCanonicalEntityRow[]>> {
+): Promise<HdPersistResult<HdCanonicalAdminListRow[]>> {
   let q = db.from("hd_canonical_entities").select("id, entity_kind, canonical_key, name_tr, name_original, status, version, created_at, updated_at");
   if (entityKind) q = q.eq("entity_kind", entityKind);
   const { data, error } = await q.order("canonical_key", { ascending: true });
   if (error) return mapError(error);
-  return { ok: true, data: (data ?? []) as HdCanonicalEntityRow[] };
+  const entities = (data ?? []) as HdCanonicalEntityRow[];
+
+  // Tek ek sorgu: ilgili içerik satırlarının yayın durumu (entity_id → status).
+  let cq = db.from("hd_canonical_content").select("entity_id, status");
+  if (entityKind) cq = cq.eq("entity_kind", entityKind);
+  const { data: contentData, error: contentError } = await cq;
+  if (contentError) return mapError(contentError);
+  const statusByEntity = new Map<string, HdContentStatus>();
+  for (const c of (contentData ?? []) as { entity_id: string; status: HdContentStatus }[]) {
+    statusByEntity.set(c.entity_id, c.status);
+  }
+
+  const rows: HdCanonicalAdminListRow[] = entities.map((e) => ({
+    ...e,
+    content_status: statusByEntity.get(e.id) ?? null,
+  }));
+  return { ok: true, data: rows };
 }
 
 export async function getCanonicalDetail(
