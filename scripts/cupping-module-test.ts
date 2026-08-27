@@ -474,6 +474,14 @@ function run(): void {
   // KRİTİK: desktop modal `sm:` breakpoint'inden BAŞLAMAZ (768 tablet full-screen kalmalı).
   ok(!/sm:h-\[80vh\]|sm:max-w-3xl|sm:rounded-2xl|sm:items-center/.test(dialog),
     "yeniux[resp]: dialog desktop modal'a `sm`/768'de GEÇMEZ (lg breakpoint)");
+  // KRİTİK REGRESSION (mobil tam-ekran hapsi): overlay `document.body`'ye PORTAL edilmeli.
+  // Aksi halde `fixed inset-0`, backdrop-filter/transform içeren bir ata (kupaEdgeCard
+  // bölüm kartı `backdrop-blur`) tarafından o kutuya hapsolur → 100dvh string olsa bile
+  // gerçek runtime'da tam-ekran DEĞİL. Portal olmadan bu assertion FAIL vermeli.
+  ok(/createPortal\(/.test(dialog) && /document\.body/.test(dialog) && /from "react-dom"/.test(dialog),
+    "yeniux[resp]: editör overlay createPortal(document.body) ile ata containing-block tuzağını AŞAR (gerçek 100dvh)");
+  ok(/fixed inset-0/.test(dialog),
+    "yeniux[resp]: portal overlay viewport-fixed (fixed inset-0) — document-flow textarea DEĞİL");
 
   // 6+7) modal save → parent FORM STATE (DB'ye ayrı yazmaz); tekrar aç → metin durur.
   ok(/onSave\(draft\)/.test(dialog) && !/createTopicNote|fetch\(/.test(dialog),
@@ -855,6 +863,11 @@ function run(): void {
   // Mobil tam CRUD + full-screen editör + edge-to-edge.
   ok(/fullBleedBelowLg/.test(pList) && /fullBleedBelowLg/.test(pNew) && /fullBleedBelowLg/.test(pDoc), "faz2-mobile: fullBleedBelowLg edge-to-edge");
   ok(/BigNoteEditorDialog/.test(pInline) && /lg:hidden/.test(pInline) && /hidden lg:block/.test(pInline), "faz2-mobile: uzun metin <1024 full-screen editör + desktop inline");
+  // PrepSection (Hazırlık/Sonrası/Takip) 3 uzun-metin alanı InlineLongText → BigNoteEditorDialog
+  // full-screen path'ine ULAŞMALI (owner UAT blocker'ı buradaydı). Ham <textarea> KULLANMAZ.
+  const pPrep = read("app/kupa/protokoller/components/PrepSection.tsx");
+  ok(/InlineLongText/.test(pPrep) && (pPrep.match(/<InlineLongText\b/g) || []).length >= 3 && !/<textarea\b/.test(pPrep),
+    "faz2-mobile: PrepSection 3 alan (prep/after/follow) InlineLongText full-screen path'i kullanır (ham textarea YOK)");
   ok(!/Rehbere Dön|Geri Dön|floating.*back/i.test(newFiles), "faz2-nav: özel geri/floating-back butonu YOK");
 
   // No fake quick-create (technique/safety master 0 olabilir).
