@@ -10,6 +10,7 @@ import {
   hasOnlyKeys,
   PREP_STATES,
 } from "@/lib/beslenme/contracts";
+import { SYSTEM_NUTRITION_TENANT_ID, isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const group = url.searchParams.get("group");
   const includeInactive = url.searchParams.get("all") === "1";
 
-  let query = db.from("nutrition_foods").select(FOOD_COLUMNS).eq("tenant_id", tenantId);
+  // SYSTEM (merkezi katalog) + caller CUSTOM birlikte listelenir (üçüncü tenant ASLA).
+  let query = db
+    .from("nutrition_foods")
+    .select(FOOD_COLUMNS)
+    .in("tenant_id", [SYSTEM_NUTRITION_TENANT_ID, tenantId]);
   if (!includeInactive) query = query.eq("is_active", true);
   if (group && isUuid(group)) query = query.eq("food_group_id", group);
   if (q) {
@@ -46,7 +51,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, code: "LIST_FAILED" }, { status: 500 });
-  return NextResponse.json({ ok: true, foods: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
+  const foods = (data ?? []).map((f) => ({
+    ...f,
+    is_system: isSystemNutritionTenant((f as { tenant_id: string }).tenant_id),
+  }));
+  return NextResponse.json({ ok: true, foods }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** POST: yeni besin. */

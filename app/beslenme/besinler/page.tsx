@@ -5,16 +5,21 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  Activity,
   ArrowLeft,
   BookOpen,
+  Leaf,
   Package,
   Plus,
   Save,
+  Scale,
   Search,
   Trash2,
   X,
 } from "lucide-react";
-import type { Food, FoodGroupRef } from "@/lib/beslenme/beslenmeClient";
+import type {
+  Food, FoodGroupRef, FrameworkRef, FoodNutrientView, FoodPortionView, FoodTraditional,
+} from "@/lib/beslenme/beslenmeClient";
 import {
   createFood,
   deleteFood,
@@ -32,6 +37,7 @@ import {
 } from "../_components/BeslenmeShell";
 import { PREP_STATE_LABELS, PREP_STATE_OPTIONS, friendlyError } from "../_components/constants";
 import { SourcesPanel, type LinkedSource } from "../_components/SourcesPanel";
+import { NutrientsPanel, PortionsPanel, TraditionalPanel } from "../_components/FoodNutrition";
 import {
   Card,
   DangerButton,
@@ -53,6 +59,7 @@ export default function BesinlerPage() {
   const guard = useBeslenmeOwnerGuard();
 
   const [groups, setGroups] = useState<FoodGroupRef[]>([]);
+  const [frameworks, setFrameworks] = useState<FrameworkRef[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listErr, setListErr] = useState("");
@@ -74,7 +81,10 @@ export default function BesinlerPage() {
     if (guard !== "ok") return;
     void (async () => {
       const r = await fetchReference();
-      if (r.ok && r.data) setGroups(r.data.foodGroups ?? []);
+      if (r.ok && r.data) {
+        setGroups(r.data.foodGroups ?? []);
+        setFrameworks(r.data.frameworks ?? []);
+      }
     })();
   }, [guard]);
 
@@ -131,6 +141,7 @@ export default function BesinlerPage() {
               key={selectedId}
               foodId={selectedId === NEW ? null : selectedId}
               groups={groups}
+              frameworks={frameworks}
               onBack={() => setSelectedId(null)}
               onSaved={async (food) => {
                 await load();
@@ -255,12 +266,14 @@ function FoodList({
 function FoodDetail({
   foodId,
   groups,
+  frameworks,
   onBack,
   onSaved,
   onDeleted,
 }: {
   foodId: string | null;
   groups: FoodGroupRef[];
+  frameworks: FrameworkRef[];
   onBack: () => void;
   onSaved: (food: Food) => void;
   onDeleted: () => void;
@@ -268,7 +281,11 @@ function FoodDetail({
   const isNew = foodId === null;
   const [loading, setLoading] = useState(!isNew);
   const [loadErr, setLoadErr] = useState("");
-  const [tab, setTab] = useState<"info" | "sources">("info");
+  const [tab, setTab] = useState<"info" | "nutrients" | "portions" | "traditional" | "sources">("info");
+  const [isSystem, setIsSystem] = useState(false);
+  const [nutrients, setNutrients] = useState<FoodNutrientView[]>([]);
+  const [portions, setPortions] = useState<FoodPortionView[]>([]);
+  const [traditional, setTraditional] = useState<FoodTraditional | null>(null);
 
   const [nameTr, setNameTr] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -289,6 +306,16 @@ function FoodDetail({
     if (isNew || !foodId) return;
     const r = await getFood(foodId);
     if (r.ok && r.data) setSources((r.data.sources ?? []) as LinkedSource[]);
+  }, [foodId, isNew]);
+
+  const reloadDetail = useCallback(async () => {
+    if (isNew || !foodId) return;
+    const r = await getFood(foodId);
+    if (r.ok && r.data) {
+      setNutrients(r.data.nutrients ?? []);
+      setPortions(r.data.portions ?? []);
+      setTraditional(r.data.traditional ?? null);
+    }
   }, [foodId, isNew]);
 
   useEffect(() => {
@@ -312,7 +339,11 @@ function FoodDetail({
       setPrep(f.prep_state ?? "");
       setDescription(f.description ?? "");
       setNotes(f.notes ?? "");
+      setIsSystem(f.is_system === true);
       setSources((r.data.sources ?? []) as LinkedSource[]);
+      setNutrients(r.data.nutrients ?? []);
+      setPortions(r.data.portions ?? []);
+      setTraditional(r.data.traditional ?? null);
     })();
     return () => {
       alive = false;
@@ -391,10 +422,19 @@ function FoodDetail({
     <div className="flex flex-col gap-4">
       <Card className="p-4">
         <MobileBack onBack={onBack} />
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="min-w-0 truncate text-lg font-black text-slate-900">
             {isNew ? "Yeni Besin" : nameTr || "Besin"}
           </h2>
+          {!isNew ? (
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                isSystem ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+              }`}
+            >
+              {isSystem ? "Sistem" : "Özel"}
+            </span>
+          ) : null}
         </div>
 
         {/* Sekmeler */}
@@ -402,6 +442,19 @@ function FoodDetail({
           <TabBtn active={tab === "info"} onClick={() => setTab("info")} icon={<Package className="h-4 w-4" />}>
             Bilgiler
           </TabBtn>
+          {!isNew ? (
+            <>
+              <TabBtn active={tab === "nutrients"} onClick={() => setTab("nutrients")} icon={<Activity className="h-4 w-4" />}>
+                Besin Değerleri
+              </TabBtn>
+              <TabBtn active={tab === "portions"} onClick={() => setTab("portions")} icon={<Scale className="h-4 w-4" />}>
+                Porsiyonlar
+              </TabBtn>
+              <TabBtn active={tab === "traditional"} onClick={() => setTab("traditional")} icon={<Leaf className="h-4 w-4" />}>
+                Geleneksel
+              </TabBtn>
+            </>
+          ) : null}
           <TabBtn
             active={tab === "sources"}
             onClick={() => setTab("sources")}
@@ -503,27 +556,39 @@ function FoodDetail({
               <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Özel notlar…" />
             </Field>
 
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
-                {isNew ? "Oluştur" : "Kaydet"}
-              </PrimaryButton>
-              {!isNew ? (
-                confirmDel ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-bold text-rose-600">Arşivlensin mi?</span>
-                    <DangerButton loading={deleting} onClick={() => void del()}>
-                      Evet, Arşivle
+            {isSystem ? (
+              <StatusMessage type="info">
+                Sistem besni — salt-okunur (USDA FoodData Central kaynaklı). Kendi özel besninizi oluşturup değerlerini düzenleyebilirsiniz.
+              </StatusMessage>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
+                  {isNew ? "Oluştur" : "Kaydet"}
+                </PrimaryButton>
+                {!isNew ? (
+                  confirmDel ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-bold text-rose-600">Arşivlensin mi?</span>
+                      <DangerButton loading={deleting} onClick={() => void del()}>
+                        Evet, Arşivle
+                      </DangerButton>
+                      <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
+                    </div>
+                  ) : (
+                    <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
+                      Arşivle
                     </DangerButton>
-                    <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
-                  </div>
-                ) : (
-                  <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
-                    Arşivle
-                  </DangerButton>
-                )
-              ) : null}
-            </div>
+                  )
+                ) : null}
+              </div>
+            )}
           </div>
+        ) : tab === "nutrients" && foodId ? (
+          <NutrientsPanel foodId={foodId} isSystem={isSystem} nutrients={nutrients} onChanged={() => void reloadDetail()} />
+        ) : tab === "portions" && foodId ? (
+          <PortionsPanel foodId={foodId} isSystem={isSystem} portions={portions} nutrients={nutrients} onChanged={() => void reloadDetail()} />
+        ) : tab === "traditional" && foodId ? (
+          <TraditionalPanel foodId={foodId} isSystem={isSystem} traditional={traditional} frameworks={frameworks} onChanged={() => void reloadDetail()} />
         ) : (
           <SourcesPanel
             links={sources}

@@ -171,10 +171,17 @@ for (const t of ["nutrition_foods", "nutrition_topics", "nutrition_sources"]) {
 check("search trigger yalnız IMMUTABLE yh_immutable_unaccent kullanır (unaccent tek-arg YOK)",
   /yh_immutable_unaccent/.test(ALL_MIG) && !/[^_]unaccent\s*\(\s*NEW\./i.test(ALL_MIG));
 
-console.log("\n[W/X] Word YOK + dış-DB import YOK (beslenme scope)");
+console.log("\n[W/X] Word YOK + lisanslı-veri kapısı (beslenme scope; FAZ 4 güncel)");
 const beslenmeAll = [ownerGuard, contracts, ...Object.values(routeSrc)].join("\n");
 check("Word/docx import YOK", !/reportHelpers|from "docx"|Packer/.test(beslenmeAll));
-check("USDA/TÜRKOMP import YOK", !/usda|turkomp/i.test(beslenmeAll));
+// FAZ 4: USDA FoodData Central (CC0/public domain) provider desteği MEVCUT ve serbesttir.
+//   TÜRKOMP ticari lisans gerektirir → veri sisteme GİRMEZ (yalnız enum olarak geleceğe hazır).
+const dataDir = resolve(ROOT, "data", "nutrition");
+const dataFiles = existsSync(dataDir) ? readdirSync(dataDir) : [];
+check("TÜRKOMP veri fixture'ı YOK (lisanssız veri bundle edilmez)",
+  !dataFiles.some((f) => /turkomp/i.test(f)));
+check("API otomatik import provider yalnız usda_fdc (CC0)",
+  /IMPORT_PROVIDERS\s*=\s*\[\s*"usda_fdc"\s*\]/.test(contracts));
 
 console.log("\n[Z] dashboard owner-only hidden-by-default");
 const page = read(resolve(ROOT, "app/page.tsx"));

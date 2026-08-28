@@ -20,6 +20,7 @@ export type Food = {
   id: string; tenant_id: string; name_tr: string; name_en: string | null; aliases: string[];
   food_group_id: string | null; prep_state: string | null; description: string | null;
   notes: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string;
+  is_system?: boolean;
 };
 export type Topic = {
   id: string; tenant_id: string; topic_type: TopicType; framework_id: string | null; title: string;
@@ -72,8 +73,14 @@ export function listFoods(params?: { q?: string; group?: string; all?: boolean }
   return req<{ foods: Food[] }>(`/api/beslenme/foods?${u.toString()}`, { headers: authHeaders() });
 }
 export function getFood(id: string) {
-  return req<{ food: Food; sources: Array<{ id: string; source: Source | null; locator: string | null }> }>(
-    `/api/beslenme/foods/${id}`, { headers: authHeaders() });
+  return req<{
+    food: Food;
+    nutrients: FoodNutrientView[];
+    portions: FoodPortionView[];
+    traditional: FoodTraditional | null;
+    sources: Array<{ id: string; source: Source | null; locator: string | null }>;
+    externalRefs: FoodExternalRef[];
+  }>(`/api/beslenme/foods/${id}`, { headers: authHeaders() });
 }
 export function createFood(body: Partial<Food>) {
   return req<{ food: Food }>("/api/beslenme/foods", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
@@ -159,4 +166,53 @@ export function linkFoodSource(foodId: string, body: { source_id: string; locato
 }
 export function unlinkFoodSource(foodId: string, linkId: string) {
   return req<Record<string, unknown>>(`/api/beslenme/foods/${foodId}/sources/${linkId}`, { method: "DELETE", headers: authHeaders() });
+}
+
+// ── FAZ 4 — Besin Motoru (nutrients / portions / traditional) ──
+export type FoodNutrientView = {
+  id: string; nutrient_id: string; amount: number; unit_id: string; basis_grams: number;
+  nutrient: { code: string; name_tr: string; name_en: string; category: string; sort_order: number } | null;
+  unit: { code: string; symbol: string } | null;
+};
+export type FoodPortionView = {
+  id: string; label_tr: string; label_en: string | null; quantity: number; measure_unit_id: string;
+  gram_weight: number; is_default: boolean; sort_order: number;
+  unit: { code: string; symbol: string; name_tr: string } | null;
+};
+export type FoodTraditional = {
+  id: string; tenant_id: string; food_id: string; framework_id: string | null;
+  thermal_quality: string | null; moisture_quality: string | null; notes: string | null;
+  source_id: string | null; created_at: string; updated_at: string;
+};
+export type FoodExternalRef = {
+  id: string; provider: string; external_id: string; external_dataset: string | null;
+  external_version: string | null; source_url: string | null; retrieved_at: string | null;
+};
+
+/** /100 g nutrient setini tümüyle değiştir (yalnız custom food). */
+export function putFoodNutrients(
+  foodId: string,
+  items: Array<{ nutrient_code: string; amount: number; unit_code: string; source_id?: string | null }>,
+) {
+  return req<{ count: number }>(`/api/beslenme/foods/${foodId}/nutrients`, {
+    method: "PUT", headers: authHeaders(true), body: JSON.stringify({ items }),
+  });
+}
+/** Porsiyon setini tümüyle değiştir (yalnız custom food). */
+export function putFoodPortions(
+  foodId: string,
+  items: Array<{ label_tr: string; label_en?: string | null; quantity?: number; measure_unit_code: string; gram_weight: number; is_default?: boolean; sort_order?: number }>,
+) {
+  return req<{ count: number }>(`/api/beslenme/foods/${foodId}/portions`, {
+    method: "PUT", headers: authHeaders(true), body: JSON.stringify({ items }),
+  });
+}
+/** Geleneksel niteliği upsert et (yalnız custom food). Boş gövde = sil. */
+export function putFoodTraditional(
+  foodId: string,
+  body: { framework_id?: string | null; thermal_quality?: string | null; moisture_quality?: string | null; notes?: string | null; source_id?: string | null },
+) {
+  return req<{ traditional: FoodTraditional | null }>(`/api/beslenme/foods/${foodId}/traditional`, {
+    method: "PUT", headers: authHeaders(true), body: JSON.stringify(body),
+  });
 }
