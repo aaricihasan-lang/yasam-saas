@@ -1,0 +1,137 @@
+{
+  "stones": {
+    "common": {
+      "save": "Kaydet",
+      "saving": "Kaydediliyor...",
+      "cancel": "İptal",
+      "close": "Kapat",
+      "delete": "Sil",
+      "edit": "Düzenle",
+      "back": "← Geri",
+      "clear": "Temizle",
+      "loading": "Yükleniyor...",
+      "giveUp": "Vazgeç"
+    },
+    "modules": {
+      "home": {
+        "title": "Doğaltaş"
+      },
+      "dogaltas-kayit": {
+        "title": "Doğaltaş Kayıt",
+        "subtitle": "Yeni taş kaydı oluştur."
+      },
+      "mineral-bankasi": {
+        "title": "Mineral Bankası",
+        "subtitle": "Yeni mineral kaydı ekle."
+      },
+      "mineral-listesi": {
+        "title": "Mineral Listesi",
+        "subtitle": "Mineralleri görüntüle ve yönet."
+      },
+      "dogaltas-listesi": {
+        "title": "Doğaltaş Listesi",
+        "subtitle": "Kayıtlı taşlar."
+      },
+      "kombinasyonlar": {
+        "title": "Kombinasyonlar",
+        "subtitle": "Taş kombinasyonları."
+      },
+      "kombinasyon-olustur": {
+        "title": "Kombinasyon Oluştur",
+        "subtitle": "Minerale göre taş bul."
+      },
+      "tas-bilgi-kutuphanesi": {
+        "title": "Taş Bilgi Kütüphanesi",
+        "subtitle": "Eğitim ve referans."
+      }
+    },
+    "photos": {
+      "noImage": "Görsel eklenmemiş",
+      "imageAlt": "Görsel {n}"
+    },
+    "breadcrumb": {
+      "aria": "Sayfa konumu",
+      "home": "Ana Sayfa",
+      "panel": "Doğaltaş Paneli"
+    },
+    "fontSize": {
+      "groupAria": "Yazı boyutu",
+      "label": "Yazı Boyutu",
+      "decreaseAria": "Yazıyı küçült",
+      "decreaseTitle": "Küçült (A-)",
+      "resetAria": "Varsayılan yazı boyutu ({px}px)",
+      "resetTitle": "Varsayılan ({px}px)",
+      "increaseAria": "Yazıyı büyüt",
+      "increaseTitle": "Büyüt (A+)"
+    },
+    "duplicateModal": {
+      "title": "Bu isimde bir kayıt zaten var",
+      "subtitle": "Mevcut kaydı kontrol etmek ister misiniz?",
+      "existingLabel": "Mevcut kayıt",
+      "openExisting": "Mevcut Kaydı Aç",
+      "creating": "Oluşturuluyor...",
+      "createAnyway": "Yine de Oluştur"
+    },
+    "mineralCombo": {
+      "stoneCount": "{count} taş"
+    },
+    "saveCombo": {
+      "dialogAria": "Kombinasyon kaydet",
+      "title": "Kombinasyon nereye kaydedilsin?",
+      "saveToClient": "Danışana Özel Kaydet",
+      "summary": "{name} · {count} taş",
+      "combinationFallback": "Kombinasyon",
+      "saveGeneral": "Genel Kombinasyonlara Kaydet",
+      "generalDesc": "Tüm danışanlarda tekrar kullanılabilecek şablon kombinasyon.",
+      "clientDesc": "Yalnızca seçilen danışanın dosyasında görünür.",
+      "searchLabel": "Danışan Ara",
+      "searchPlaceholder": "İsim, telefon veya danışan no…",
+      "errNoSession": "Oturum bulunamadı.",
+      "errLoadFailed": "Danışanlar yüklenemedi.",
+      "errNetwork": "Ağ hatası",
+      "loadingClients": "Danışanlar yükleniyor…",
+      "noMatch": "Eşleşen danışan yok.",
+      "noClients": "Danışan bulunamadı.",
+      "selectedSummary": "Seçili: {name} · \"{combo}\" ({count} taş) bu danışana kaydedilecek.",
+      "saveToClientBtn": "💾 Danışana Kaydet"
+    },
+    "detailDrawer": {
+      "detailAria": "{name} detayı",
+      "stoneFallback": "Taş",
+      "badge": "💎 TAŞ DETAYI",
+      "addToCart": "+ Kombinasyona Ekle",
+      "removeFromCart": "Sepetten Çıkar",
+      "shortTitle": "Kısa Açıklama",
+      "shortBadge": "GENEL BİLGİ",
+      "generalTitle": "Genel Taş Açıklaması",
+      "generalBadge": "DETAYLI BİLGİ",
+      "assignmentsTitle": "Mineral İçeriği & Atamalar",
+      "assignmentsBadge": "ATAMA",
+      "chakrasTitle": "Çakralar",
+      "chakrasBadge": "ÇAKRA",
+      "physicalTitle": "Fiziksel Etkiler",
+      "physicalBadge": "BEDENSEL ETKİ",
+      "spiritualTitle": "Ruhsal Etkiler",
+      "spiritualBadge": "RUHSAL ETKİ",
+      "otherTitle": "Diğer Etkiler",
+      "otherBadge": "TAMAMLAYICI NOT",
+      "sourceTitle": "Kaynak Notu",
+      "sourceBadge": "KAYNAK",
+      "usageTitle": "Kullanım / Uygulama",
+      "usageBadge": "KULLANIM ALANI",
+      "usageFengShui": "Feng Shui",
+      "usageMeditation": "Meditasyon",
+      "usageCare": "Bakım",
+      "usageApplication": "Uygulama",
+      "warningsTitle": "Uyarılar ve Hassasiyetler",
+      "warningsBadge": "KLİNİK NOT",
+      "stockTitle": "Stok Bilgisi",
+      "stockBadge": "STOK",
+      "inStockYes": "✓ Bu taş stokta mevcut.",
+      "inStockNo": "Bu taş şu an stokta görünmüyor."
+    },
+    "reader": {
+      "demoProtected": "🔒 Demo hesabında bu içerik korumalıdır"
+    }
+  }
+}

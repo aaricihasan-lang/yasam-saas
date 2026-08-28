@@ -17,6 +17,13 @@ import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
 import trClientsDetail from "@/messages/tr/clients.detail.json";
 import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
 import trMemoryPicker from "@/messages/tr/memoryPicker.json";
+import trStones from "@/messages/tr/stones.json";
+import trStonesHub from "@/messages/tr/stones.hub.json";
+import trStonesRecords from "@/messages/tr/stones.records.json";
+import trStonesList from "@/messages/tr/stones.list.json";
+import trStonesMinerals from "@/messages/tr/stones.minerals.json";
+import trStonesCombinations from "@/messages/tr/stones.combinations.json";
+import trStonesKnowledge from "@/messages/tr/stones.knowledge.json";
 
 import enCommon from "@/messages/en/common.json";
 import enNavigation from "@/messages/en/navigation.json";
@@ -33,6 +40,13 @@ import enClientsYolculuk from "@/messages/en/clients.yolculuk.json";
 import enClientsDetail from "@/messages/en/clients.detail.json";
 import enClientsAnalizler from "@/messages/en/clients.analizler.json";
 import enMemoryPicker from "@/messages/en/memoryPicker.json";
+import enStones from "@/messages/en/stones.json";
+import enStonesHub from "@/messages/en/stones.hub.json";
+import enStonesRecords from "@/messages/en/stones.records.json";
+import enStonesList from "@/messages/en/stones.list.json";
+import enStonesMinerals from "@/messages/en/stones.minerals.json";
+import enStonesCombinations from "@/messages/en/stones.combinations.json";
+import enStonesKnowledge from "@/messages/en/stones.knowledge.json";
 
 type Messages = Record<string, unknown>;
 
@@ -75,6 +89,13 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsDetail,
     trClientsAnalizler,
     trMemoryPicker,
+    trStones,
+    trStonesHub,
+    trStonesRecords,
+    trStonesList,
+    trStonesMinerals,
+    trStonesCombinations,
+    trStonesKnowledge,
   ]),
   en: buildMessages([
     enCommon,
@@ -92,6 +113,13 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     enClientsDetail,
     enClientsAnalizler,
     enMemoryPicker,
+    enStones,
+    enStonesHub,
+    enStonesRecords,
+    enStonesList,
+    enStonesMinerals,
+    enStonesCombinations,
+    enStonesKnowledge,
   ]),
 };
 

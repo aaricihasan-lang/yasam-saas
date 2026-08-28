@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
@@ -270,6 +271,8 @@ function adminHeaders(json = false): Record<string, string> {
 // ─── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function TasBilgiKutuphanesiPage() {
+  const t = useTranslations("stones.knowledge");
+  const tc = useTranslations("stones.common");
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +405,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   async function saveCategory() {
     const name = catForm.name.trim();
-    if (!name) { setCatError("Kategori adı zorunludur."); return; }
+    if (!name) { setCatError(t("category.errors.nameRequired")); return; }
     setSavingCat(true);
     setCatError("");
     // slug/sort_order/is_active SUNUCUDA belirlenir; yazma yetkisi verifyAdminRequest ile.
@@ -419,14 +422,14 @@ export default function TasBilgiKutuphanesiPage() {
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       setSavingCat(false);
       if (!res.ok || !json.ok) {
-        if (res.status === 409) { setCatError("Bu isimde kategori zaten var."); return; }
-        if (res.status === 401 || res.status === 403) { setCatError("Bu işlem için admin yetkisi gerekli."); return; }
-        setCatError(json.error ? "Hata: " + json.error : "Kategori kaydedilemedi.");
+        if (res.status === 409) { setCatError(t("category.errors.duplicate")); return; }
+        if (res.status === 401 || res.status === 403) { setCatError(t("category.errors.adminRequired")); return; }
+        setCatError(json.error ? t("category.errors.generic", { error: json.error }) : t("category.errors.saveFailed"));
         return;
       }
     } catch {
       setSavingCat(false);
-      setCatError("Sunucuya ulaşılamadı.");
+      setCatError(t("category.errors.serverUnreachable"));
       return;
     }
     setCatForm(EMPTY_CAT_FORM);
@@ -528,21 +531,21 @@ export default function TasBilgiKutuphanesiPage() {
 
   async function downloadKnowledgeReport() {
     if (wordExportMode === "category" && !wordExportCategory) {
-      setWordReportError("Lütfen bir kategori seçin.");
+      setWordReportError(t("word.errors.selectCategory"));
       return;
     }
     const tid = await getSyncedTenantId();
-    if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    if (!tid) { setWordReportError(t("errors.noSession")); return; }
     const uid = readYasamUser()?.id;
-    if (!uid) { setWordReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    if (!uid) { setWordReportError(t("word.errors.noUser")); return; }
 
     let articleIds: string[] | undefined;
     if (wordExportMode === "filtered") {
       articleIds = filtered.map((a) => a.id);
-      if (!articleIds.length) { setWordReportError("Filtrelenmiş sonuç bulunamadı."); return; }
+      if (!articleIds.length) { setWordReportError(t("word.errors.noFiltered")); return; }
     } else if (wordExportMode === "viewed") {
       articleIds = [...viewed];
-      if (!articleIds.length) { setWordReportError("Bu arama oturumunda henüz görüntülenen makale yok."); return; }
+      if (!articleIds.length) { setWordReportError(t("word.errors.noViewed")); return; }
     }
 
     setWordReportLoading(true);
@@ -569,7 +572,7 @@ export default function TasBilgiKutuphanesiPage() {
         const data = await res.json().catch(() => ({})) as { error?: string };
         // FAZ-4C: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
-        setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+        setWordReportError(t("word.errors.reportFailed"));
         return;
       }
       const blob = await res.blob();
@@ -580,10 +583,10 @@ export default function TasBilgiKutuphanesiPage() {
       a.click();
       URL.revokeObjectURL(url);
       // FAZ-4C: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
-      setWordReportSuccess("Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.");
+      setWordReportSuccess(t("word.success"));
     } catch (err) {
       console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", err);
-      setWordReportError("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+      setWordReportError(t("word.errors.reportFailed"));
     } finally {
       setWordReportLoading(false);
     }
@@ -593,15 +596,15 @@ export default function TasBilgiKutuphanesiPage() {
 
   async function saveArticle(forceCreate = false) {
     if (!form.title.trim()) {
-      setSaveError("Başlık zorunludur.");
+      setSaveError(t("errors.titleRequired"));
       return;
     }
     if (!form.category) {
-      setSaveError("Kategori seçimi zorunludur.");
+      setSaveError(t("errors.categoryRequired"));
       return;
     }
     if (!form.content.trim()) {
-      setSaveError("İçerik zorunludur.");
+      setSaveError(t("errors.contentRequired"));
       return;
     }
     // Modül-bazlı çift kayıt kontrolü (yalnız ilk denemede; çift-tık koruması).
@@ -616,7 +619,7 @@ export default function TasBilgiKutuphanesiPage() {
       }
     }
     if (!tenantId) {
-      setSaveError("Oturum bulunamadı. Lütfen sayfayı yenileyin.");
+      setSaveError(t("errors.noSession"));
       return;
     }
     setSaving(true);
@@ -635,7 +638,7 @@ export default function TasBilgiKutuphanesiPage() {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        setSaveError("Kayıt hatası: " + (json.error ?? "Bilinmeyen hata"));
+        setSaveError(t("errors.saveError", { error: json.error ?? t("errors.unknown") }));
         return;
       }
     } finally {
@@ -650,9 +653,9 @@ export default function TasBilgiKutuphanesiPage() {
 
   async function updateArticle() {
     if (!selectedArticle) return;
-    if (!editForm.title.trim()) { setEditError("Başlık zorunludur."); return; }
-    if (!editForm.category) { setEditError("Kategori seçimi zorunludur."); return; }
-    if (!editForm.content.trim()) { setEditError("İçerik zorunludur."); return; }
+    if (!editForm.title.trim()) { setEditError(t("errors.titleRequired")); return; }
+    if (!editForm.category) { setEditError(t("errors.categoryRequired")); return; }
+    if (!editForm.content.trim()) { setEditError(t("errors.contentRequired")); return; }
 
     setEditSaving(true);
     setEditError("");
@@ -671,7 +674,7 @@ export default function TasBilgiKutuphanesiPage() {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        setEditError("Güncelleme hatası: " + (json.error ?? "Bilinmeyen hata"));
+        setEditError(t("errors.updateError", { error: json.error ?? t("errors.unknown") }));
         return;
       }
     } finally {
@@ -693,7 +696,7 @@ export default function TasBilgiKutuphanesiPage() {
   function toggleSelection(id: string) {
     // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
     if (isMobile && !selectedIds.has(id) && selectedIds.size >= 2) {
-      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToast({ type: "info", message: t("toasts.maxTwoMobile") });
       return;
     }
     setSelectedIds((prev) => {
@@ -707,7 +710,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   function selectAll() {
     if (isMobile) {
-      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToast({ type: "info", message: t("toasts.maxTwoMobile") });
       return;
     }
     setSelectedIds(new Set(filtered.map((r) => r.id)));
@@ -722,8 +725,8 @@ export default function TasBilgiKutuphanesiPage() {
     if (!ids.length || bulkDeleteBusy || !tenantId) return;
 
     const ok = await deleteConfirm({
-      title: "Kayıtları Kalıcı Olarak Sil",
-      message: `${ids.length} kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteMessage", { count: ids.length }),
     });
     if (!ok) return;
 
@@ -739,7 +742,7 @@ export default function TasBilgiKutuphanesiPage() {
       if (!res.ok || !json.ok) {
         // FAZ-4D: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", json.error ?? `HTTP ${res.status}`);
-        showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
+        showToast({ type: "error", message: t("toasts.deleteFailed") });
         return;
       }
 
@@ -752,13 +755,13 @@ export default function TasBilgiKutuphanesiPage() {
       showToast({
         type: "success",
         message: skipped > 0
-          ? `${count} kayıt silindi. ${skipped} kayıt atlandı.`
-          : `${count} kayıt başarıyla silindi.`,
+          ? t("toasts.deletedWithSkipped", { count, skipped })
+          : t("toasts.deleted", { count }),
       });
     } catch (err) {
       // FAZ-4D: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
       console.error("[tas-bilgi-kutuphanesi] Toplu silme hatası:", err);
-      showToast({ type: "error", message: "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin." });
+      showToast({ type: "error", message: t("toasts.deleteFailed") });
     } finally {
       setBulkDeleteBusy(false);
     }
@@ -782,14 +785,14 @@ export default function TasBilgiKutuphanesiPage() {
     }
 
     if (!Object.keys(updates).length) {
-      setBulkUpdateError("En az bir alanı değiştirin.");
+      setBulkUpdateError(t("bulkUpdate.errorNoChange"));
       return;
     }
 
     if (updates.title !== undefined || updates.content !== undefined) {
       const ok = await deleteConfirm({
-        title: "Makale Metni Güncellenecek",
-        message: "Makale başlığı veya içeriği kalıcı olarak değiştirilecek. Emin misiniz?",
+        title: t("confirm.updateTextTitle"),
+        message: t("confirm.updateTextMessage"),
       });
       if (!ok) return;
     }
@@ -811,7 +814,7 @@ export default function TasBilgiKutuphanesiPage() {
       if (!res.ok || !json.ok) {
         // FAZ-4E: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", json.error ?? `HTTP ${res.status}`);
-        setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
+        setBulkUpdateError(t("bulkUpdate.errorFailed"));
         return;
       }
 
@@ -839,11 +842,11 @@ export default function TasBilgiKutuphanesiPage() {
       setShowBulkUpdateModal(false);
       setBulkUpdateForm({ category: "", sub_category: "", title: "", content: "" });
       setBulkUpdateTextEdit(false);
-      showToast({ type: "success", message: `${updated?.length ?? 0} kayıt güncellendi.` });
+      showToast({ type: "success", message: t("toasts.updated", { count: updated?.length ?? 0 }) });
     } catch (err) {
       // FAZ-4E: fetch/ağ/abort gibi beklenmeyen istisnalar; teknik ayrıntı yalnız logda.
       console.error("[tas-bilgi-kutuphanesi] Toplu güncelleme hatası:", err);
-      setBulkUpdateError("Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.");
+      setBulkUpdateError(t("bulkUpdate.errorFailed"));
     } finally {
       setBulkUpdateBusy(false);
     }
@@ -861,15 +864,15 @@ export default function TasBilgiKutuphanesiPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="mb-0.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-emerald-700">
-              Doğaltaş
+              {t("header.brand")}
             </div>
             <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-              Taş Bilgi Kütüphanesi
+              {t("header.title")}
             </h1>
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {loading
-                ? "Yükleniyor..."
-                : `${articles.length} makale · Mineroloji, Şifa, Araştırma, Uygulamalar`}
+                ? tc("loading")
+                : t("header.subtitle", { count: articles.length })}
             </p>
           </div>
 
@@ -896,7 +899,7 @@ export default function TasBilgiKutuphanesiPage() {
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
                 className="btn-soft"
               >
-                📄 Word Raporu
+                {t("actions.wordReport")}
               </button>
             )}
 
@@ -907,7 +910,7 @@ export default function TasBilgiKutuphanesiPage() {
                 onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
                 className={showForm ? "btn-soft" : "btn-primary"}
               >
-                {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
+                {showForm ? t("actions.closeForm") : t("actions.newRecord")}
               </button>
             )}
           </div>
@@ -916,7 +919,7 @@ export default function TasBilgiKutuphanesiPage() {
         {/* Yeni kayıt formu */}
         {!isDemo && showForm && (
           <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <h3 className="mb-3 text-sm font-black text-slate-900">Yeni Makale Ekle</h3>
+            <h3 className="mb-3 text-sm font-black text-slate-900">{t("form.title")}</h3>
             {saveError && (
               <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
                 {saveError}
@@ -924,17 +927,17 @@ export default function TasBilgiKutuphanesiPage() {
             )}
             <div className="grid gap-3 lg:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-black text-slate-700">Başlık *</label>
+                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.titleLabel")}</label>
                 <input
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="Makale başlığı..."
+                  placeholder={t("form.titlePlaceholder")}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
               <div className="lg:col-span-2">
                 <label className="mb-1 block text-xs font-black text-slate-700">
-                  Kategori <span className="text-rose-500">*</span>
+                  {t("form.categoryLabel")} <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <select
@@ -942,7 +945,7 @@ export default function TasBilgiKutuphanesiPage() {
                     onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                     className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   >
-                    <option value="">— Kategori seç —</option>
+                    <option value="">{t("form.categorySelectPlaceholder")}</option>
                     {dropdownCategories.map((cat) => (
                       <option key={cat.id} value={cat.name}>
                         {cat.icon} {cat.name}
@@ -955,7 +958,7 @@ export default function TasBilgiKutuphanesiPage() {
                       onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
                       className="btn-soft !px-3 !py-2 !text-xs shrink-0"
                     >
-                      {showCatForm ? "Vazgeç" : "+ Yeni Kategori"}
+                      {showCatForm ? tc("giveUp") : t("category.new")}
                     </button>
                   )}
                 </div>
@@ -963,7 +966,7 @@ export default function TasBilgiKutuphanesiPage() {
                 {/* Inline kategori formu */}
                 {showCatForm && (
                   <div className="mt-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
-                    <p className="mb-2 text-xs font-black text-slate-800">Yeni Kategori Ekle</p>
+                    <p className="mb-2 text-xs font-black text-slate-800">{t("category.formTitle")}</p>
                     {catError && (
                       <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
                     )}
@@ -971,14 +974,14 @@ export default function TasBilgiKutuphanesiPage() {
                       <input
                         value={catForm.name}
                         onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
-                        placeholder="Kategori adı *"
+                        placeholder={t("category.namePlaceholder")}
                         className="col-span-3 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                       />
                       <div className="col-span-1">
                         <input
                           value={catForm.icon}
                           onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
-                          placeholder="İkon 📖"
+                          placeholder={t("category.iconPlaceholder")}
                           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
                         />
                       </div>
@@ -1000,7 +1003,7 @@ export default function TasBilgiKutuphanesiPage() {
                         onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
                         className="btn-soft !px-3 !py-1.5 !text-xs !rounded-lg"
                       >
-                        Vazgeç
+                        {tc("giveUp")}
                       </button>
                       <button
                         type="button"
@@ -1008,27 +1011,27 @@ export default function TasBilgiKutuphanesiPage() {
                         disabled={savingCat}
                         className="btn-primary !px-3 !py-1.5 !text-xs !rounded-lg"
                       >
-                        {savingCat ? "Kaydediliyor..." : "Kategoriyi Kaydet"}
+                        {savingCat ? tc("saving") : t("category.save")}
                       </button>
                     </div>
                   </div>
                 )}
               </div>
               <div className="lg:col-span-2">
-                <label className="mb-1 block text-xs font-black text-slate-700">Kaynak</label>
+                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.sourceLabel")}</label>
                 <input
                   value={form.source}
                   onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-                  placeholder="Kaynak adı..."
+                  placeholder={t("form.sourcePlaceholder")}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
               <div className="lg:col-span-2">
-                <label className="mb-1 block text-xs font-black text-slate-700">İçerik *</label>
+                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.contentLabel")}</label>
                 <textarea
                   value={form.content}
                   onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                  placeholder="Makale içeriği... (## Başlık ile bölümler oluşturabilirsin)"
+                  placeholder={t("form.contentPlaceholder")}
                   rows={6}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
@@ -1040,7 +1043,7 @@ export default function TasBilgiKutuphanesiPage() {
                 onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSaveError(""); }}
                 className="btn-soft"
               >
-                Vazgeç
+                {tc("giveUp")}
               </button>
               <button
                 type="button"
@@ -1048,7 +1051,7 @@ export default function TasBilgiKutuphanesiPage() {
                 disabled={saving || dupChecking}
                 className="btn-primary"
               >
-                {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
+                {dupChecking ? t("actions.checking") : saving ? tc("saving") : tc("save")}
               </button>
             </div>
           </div>
@@ -1075,7 +1078,7 @@ export default function TasBilgiKutuphanesiPage() {
                 type="text"
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
-                placeholder="Tam metin ara — şifa, mineral, çakra..."
+                placeholder={t("search.placeholder")}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm font-medium outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
               />
               {rawSearch && (
@@ -1090,11 +1093,11 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
             <div className="mt-2 flex items-center gap-1.5 text-xs">
               {isSearchActive ? (
-                <><span className="font-black text-emerald-700">{filtered.length} sonuç</span>
+                <><span className="font-black text-emerald-700">{t("search.resultCount", { count: filtered.length })}</span>
                   <span className="text-slate-400">—</span>
-                  <span className="text-slate-500">"{search}" araması</span></>
+                  <span className="text-slate-500">{t("search.queryLabel", { q: search })}</span></>
               ) : (
-                <span className="text-slate-400">{filtered.length} kayıt</span>
+                <span className="text-slate-400">{t("search.recordCount", { count: filtered.length })}</span>
               )}
             </div>
           </div>
@@ -1125,9 +1128,9 @@ export default function TasBilgiKutuphanesiPage() {
           {!isDemo && !loading && (
             <div className="shrink-0 border-b border-slate-100 px-3 py-2">
               <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1.5 shadow-sm">
-                <span className="shrink-0 text-[11px] font-black text-slate-600">📋 Toplu İşlemler</span>
+                <span className="shrink-0 text-[11px] font-black text-slate-600">{t("bulk.title")}</span>
                 <span className="shrink-0 rounded-full border border-blue-300 bg-white px-2 py-0.5 text-[11px] font-black text-blue-800">
-                  {selectedIds.size > 0 ? `✓ ${selectedIds.size} seçili` : "Seçim yok"}
+                  {selectedIds.size > 0 ? t("bulk.selectedCount", { count: selectedIds.size }) : t("bulk.noSelection")}
                 </span>
 
                 {/* FAZ-1: Mobil/PWA'da "Tümünü Seç" gizlenir (max 2 kayıt kuralı);
@@ -1140,8 +1143,8 @@ export default function TasBilgiKutuphanesiPage() {
                     className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
                   >
                     {selectedIds.size > 0 && selectedIds.size >= filtered.length
-                      ? "Tümünün Seçimini Kaldır"
-                      : `Tümünü Seç (${filtered.length})`}
+                      ? t("bulk.deselectAll")
+                      : t("bulk.selectAll", { count: filtered.length })}
                   </button>
                 )}
 
@@ -1152,7 +1155,7 @@ export default function TasBilgiKutuphanesiPage() {
                     disabled={bulkDeleteBusy || bulkUpdateBusy}
                     className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg"
                   >
-                    Seçimi Kaldır
+                    {t("bulk.clearSelection")}
                   </button>
                 )}
 
@@ -1172,7 +1175,7 @@ export default function TasBilgiKutuphanesiPage() {
                   disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
                   className="btn-primary !px-3 !py-1 !text-[11px] !rounded-lg"
                 >
-                  Seçili Güncelle
+                  {t("bulk.updateSelected")}
                 </button>
 
                 <button
@@ -1181,11 +1184,11 @@ export default function TasBilgiKutuphanesiPage() {
                   disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
                   className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg"
                 >
-                  {bulkDeleteBusy ? "Siliniyor…" : "Seçili Sil"}
+                  {bulkDeleteBusy ? t("bulk.deleting") : t("bulk.deleteSelected")}
                 </button>
               </div>
               <p className="mt-1 px-0.5 text-[10px] font-semibold text-slate-400">
-                “Tümünü Seç” yalnızca şu an filtrelenmiş {filtered.length} kaydı seçer.
+                {t("bulk.selectAllHint", { count: filtered.length })}
               </p>
             </div>
           )}
@@ -1193,13 +1196,13 @@ export default function TasBilgiKutuphanesiPage() {
           {/* Liste */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-slate-400">Yükleniyor...</div>
+              <div className="flex h-32 items-center justify-center text-sm text-slate-400">{tc("loading")}</div>
             ) : filtered.length === 0 ? (
               <div className="flex h-32 flex-col items-center justify-center gap-1 text-sm text-slate-400">
                 <span className="text-xl">🔍</span>
                 {articles.length === 0
-                  ? "Henüz makale yok. Yeni Kayıt butonu ile ekleyebilirsin."
-                  : "Kayıt bulunamadı"}
+                  ? t("empty.noArticles")
+                  : t("empty.noResults")}
               </div>
             ) : (
               <div className="py-1">
@@ -1235,7 +1238,7 @@ export default function TasBilgiKutuphanesiPage() {
                           </div>
                           {isSearchActive && viewed.has(rec.id) && (
                             <div className={`mt-0.5 text-[11px] font-semibold ${isActive ? "text-white/55" : "text-rose-400/80"}`}>
-                              ✓ Bakıldı
+                              {t("list.viewed")}
                             </div>
                           )}
                         </div>
@@ -1260,10 +1263,9 @@ export default function TasBilgiKutuphanesiPage() {
             <div className="flex flex-1 items-center justify-center p-8">
               <div className="max-w-md rounded-3xl border border-white bg-white px-10 py-12 text-center shadow-md">
                 <div className="mb-4 text-5xl">📚</div>
-                <h2 className="text-2xl font-black text-slate-900">Taş Bilgi Kütüphanesi</h2>
+                <h2 className="text-2xl font-black text-slate-900">{t("header.title")}</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-500">
-                  Sol panelden bir makale seçerek okuyabilirsin.
-                  Arama motoruyla tam metin içinde arama yapabilirsin.
+                  {t("empty.detailPrompt")}
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                   {categoryList.map((cat) => {
@@ -1285,7 +1287,7 @@ export default function TasBilgiKutuphanesiPage() {
                 <div className="flex items-start gap-3">
                   <button type="button" onClick={() => setMobileView("list")}
                     className="btn-soft !px-2.5 !py-1.5 !text-xs !rounded-lg mt-0.5 shrink-0 md:hidden">
-                    ← Geri
+                    {tc("back")}
                   </button>
                   <div className="min-w-0 flex-1">
                     {/* Üst satır: kategori / arama badge + sağda edit butonları */}
@@ -1302,10 +1304,10 @@ export default function TasBilgiKutuphanesiPage() {
                         })()}
                         {!isEditing && isSearchActive && (
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-800">
-                            🔍 Arama: {search}
+                            {t("detail.searchLabel", { q: search })}
                             {selectedContentMatchCount > 0 && (
                               <span className="rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black">
-                                {selectedContentMatchCount} eşleşme
+                                {t("detail.matchCount", { count: selectedContentMatchCount })}
                               </span>
                             )}
                           </span>
@@ -1320,7 +1322,7 @@ export default function TasBilgiKutuphanesiPage() {
                               disabled={editSaving}
                               className="btn-soft !px-3 !py-1.5 !text-xs !rounded-xl"
                             >
-                              Vazgeç
+                              {tc("giveUp")}
                             </button>
                             <button
                               type="button"
@@ -1328,7 +1330,7 @@ export default function TasBilgiKutuphanesiPage() {
                               disabled={editSaving}
                               className="btn-primary !px-4 !py-1.5 !text-xs !rounded-xl"
                             >
-                              {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                              {editSaving ? tc("saving") : tc("save")}
                             </button>
                           </div>
                         ) : (
@@ -1346,7 +1348,7 @@ export default function TasBilgiKutuphanesiPage() {
                             }}
                             className="btn-soft !px-3 !py-1.5 !text-xs !rounded-xl shrink-0"
                           >
-                            ✏️ Düzenle
+                            {t("detail.edit")}
                           </button>
                         )
                       )}
@@ -1357,7 +1359,7 @@ export default function TasBilgiKutuphanesiPage() {
                       <input
                         value={editForm.title}
                         onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
-                        placeholder="Makale başlığı..."
+                        placeholder={t("form.titlePlaceholder")}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xl font-black text-slate-950 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:text-2xl"
                       />
                     ) : (
@@ -1370,24 +1372,24 @@ export default function TasBilgiKutuphanesiPage() {
                     {isEditing && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <div>
-                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">Ana Kategori</label>
+                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">{t("edit.mainCategoryLabel")}</label>
                           <select
                             value={editForm.category}
                             onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                           >
-                            <option value="">— Kategori seç —</option>
+                            <option value="">{t("form.categorySelectPlaceholder")}</option>
                             {dropdownCategories.map((cat) => (
                               <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">Alt Kategori / Etiket</label>
+                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">{t("edit.subCategoryLabel")}</label>
                           <input
                             value={editForm.sub_category}
                             onChange={(e) => setEditForm((f) => ({ ...f, sub_category: e.target.value }))}
-                            placeholder="Alt kategori veya etiket..."
+                            placeholder={t("edit.subCategoryPlaceholder")}
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                           />
                         </div>
@@ -1446,11 +1448,11 @@ export default function TasBilgiKutuphanesiPage() {
                 {isEditing ? (
                   <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
                     <div className="rounded-2xl border border-white bg-white px-8 py-6 shadow-sm sm:px-10 lg:px-14">
-                      <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">İçerik</label>
+                      <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">{t("edit.contentLabel")}</label>
                       <textarea
                         value={editForm.content}
                         onChange={(e) => setEditForm((f) => ({ ...f, content: e.target.value }))}
-                        placeholder="Makale içeriği... (## Başlık ile bölümler oluşturabilirsin)"
+                        placeholder={t("form.contentPlaceholder")}
                         rows={20}
                         className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                       />
@@ -1461,7 +1463,7 @@ export default function TasBilgiKutuphanesiPage() {
                           disabled={editSaving}
                           className="btn-soft"
                         >
-                          Vazgeç
+                          {tc("giveUp")}
                         </button>
                         <button
                           type="button"
@@ -1469,7 +1471,7 @@ export default function TasBilgiKutuphanesiPage() {
                           disabled={editSaving}
                           className="btn-primary"
                         >
-                          {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                          {editSaving ? tc("saving") : tc("save")}
                         </button>
                       </div>
                     </div>
@@ -1479,7 +1481,7 @@ export default function TasBilgiKutuphanesiPage() {
                     <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
                       <DemoGate
                         isProtected={isDemo}
-                        message="Bu içerik demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir."
+                        message={t("demo.hiddenContent")}
                         className="min-h-[200px]"
                       >
                         <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
@@ -1500,7 +1502,7 @@ export default function TasBilgiKutuphanesiPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-950">Bilgi Kütüphanesi Raporu</h2>
+              <h2 className="text-lg font-black text-slate-950">{t("word.modalTitle")}</h2>
               <button
                 type="button"
                 onClick={() => setShowWordModal(false)}
@@ -1512,15 +1514,15 @@ export default function TasBilgiKutuphanesiPage() {
               </button>
             </div>
 
-            <p className="mb-4 text-sm text-slate-500">Rapora dahil edilecek makaleleri seçin.</p>
+            <p className="mb-4 text-sm text-slate-500">{t("word.modalSubtitle")}</p>
 
             {/* Export mode radio options */}
             <div className="space-y-2">
               {([
-                ["all",      "Tüm Makaleler",                `${articles.length} makale`],
-                ["category", "Sadece Seçili Kategori",       null],
-                ["filtered", "Sadece Filtrelenmiş Sonuçlar", `${filtered.length} makale`],
-                ["viewed",   "Sadece Görüntülenen Kayıtlar", `${viewed.size} makale`],
+                ["all",      t("word.modeAll"),      t("word.articleCount", { count: articles.length })],
+                ["category", t("word.modeCategory"), null],
+                ["filtered", t("word.modeFiltered"), t("word.articleCount", { count: filtered.length })],
+                ["viewed",   t("word.modeViewed"),   t("word.articleCount", { count: viewed.size })],
               ] as const).map(([mode, label, count]) => (
                 <label
                   key={mode}
@@ -1545,7 +1547,7 @@ export default function TasBilgiKutuphanesiPage() {
                       <span className="ml-2 text-xs font-medium text-slate-400">{count}</span>
                     )}
                     {mode === "viewed" && viewed.size === 0 && (
-                      <p className="mt-0.5 text-xs text-slate-400">Arama oturumunda görüntülenen makale yok</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{t("word.noViewedHint")}</p>
                     )}
                   </div>
                 </label>
@@ -1560,7 +1562,7 @@ export default function TasBilgiKutuphanesiPage() {
                   onChange={(e) => setWordExportCategory(e.target.value)}
                   className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 >
-                  <option value="">— Kategori seç —</option>
+                  <option value="">{t("form.categorySelectPlaceholder")}</option>
                   {categories.filter((c) => c !== "Tümü").map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -1580,7 +1582,7 @@ export default function TasBilgiKutuphanesiPage() {
             )}
             {wordReportLoading && (
               <p className="mt-4 text-center text-sm font-semibold text-indigo-700">
-                Profesyonel Word raporu hazırlanıyor...
+                {t("word.preparing")}
               </p>
             )}
 
@@ -1591,7 +1593,7 @@ export default function TasBilgiKutuphanesiPage() {
                 disabled={wordReportLoading}
                 className="btn-soft flex-1"
               >
-                Kapat
+                {tc("close")}
               </button>
               <button
                 type="button"
@@ -1599,7 +1601,7 @@ export default function TasBilgiKutuphanesiPage() {
                 disabled={wordReportLoading}
                 className="btn-primary flex-1"
               >
-                {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+                {wordReportLoading ? t("word.preparingShort") : t("word.generate")}
               </button>
             </div>
           </div>
@@ -1614,12 +1616,12 @@ export default function TasBilgiKutuphanesiPage() {
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div>
                 <h2 className="text-lg font-black text-slate-950">
-                  {selectedIds.size === 1 ? "Kayıt Güncelle" : `Toplu Güncelleme (${selectedIds.size} kayıt)`}
+                  {selectedIds.size === 1 ? t("bulkUpdate.titleSingle") : t("bulkUpdate.titleMulti", { count: selectedIds.size })}
                 </h2>
                 <p className="mt-0.5 text-xs font-medium text-slate-500">
                   {selectedIds.size === 1
-                    ? "Boş bırakılan kategori alanları değişmez."
-                    : "Çoklu seçimde yalnızca kategori alanları güncellenir."}
+                    ? t("bulkUpdate.subtitleSingle")
+                    : t("bulkUpdate.subtitleMulti")}
                 </p>
               </div>
               <button
@@ -1638,24 +1640,24 @@ export default function TasBilgiKutuphanesiPage() {
               <div className="space-y-3">
                 {/* Kategori alanları — her zaman */}
                 <div>
-                  <label className="mb-1 block text-xs font-black text-slate-700">Kategori</label>
+                  <label className="mb-1 block text-xs font-black text-slate-700">{t("form.categoryLabel")}</label>
                   <select
                     value={bulkUpdateForm.category}
                     onChange={(e) => setBulkUpdateForm((f) => ({ ...f, category: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   >
-                    <option value="">— Değiştirme —</option>
+                    <option value="">{t("bulkUpdate.categoryNoChange")}</option>
                     {dropdownCategories.map((cat) => (
                       <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-black text-slate-700">Alt Kategori</label>
+                  <label className="mb-1 block text-xs font-black text-slate-700">{t("bulkUpdate.subCategoryLabel")}</label>
                   <input
                     value={bulkUpdateForm.sub_category}
                     onChange={(e) => setBulkUpdateForm((f) => ({ ...f, sub_category: e.target.value }))}
-                    placeholder="Boş bırakılırsa değişmez"
+                    placeholder={t("bulkUpdate.noChangePlaceholder")}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
@@ -1664,7 +1666,7 @@ export default function TasBilgiKutuphanesiPage() {
                 {selectedIds.size === 1 && (
                   <>
                     <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-                      <span className="flex-1 text-xs font-black text-slate-500 uppercase tracking-wider">Makale Metni</span>
+                      <span className="flex-1 text-xs font-black text-slate-500 uppercase tracking-wider">{t("bulkUpdate.articleTextLabel")}</span>
                       <button
                         type="button"
                         onClick={() => setBulkUpdateTextEdit((v) => !v)}
@@ -1674,26 +1676,26 @@ export default function TasBilgiKutuphanesiPage() {
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        {bulkUpdateTextEdit ? "✏️ Metin Düzenleniyor" : "✏️ Metni Düzenle"}
+                        {bulkUpdateTextEdit ? t("bulkUpdate.editingText") : t("bulkUpdate.editText")}
                       </button>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-black text-slate-700">Başlık</label>
+                      <label className="mb-1 block text-xs font-black text-slate-700">{t("bulkUpdate.titleLabel")}</label>
                       <input
                         value={bulkUpdateForm.title}
                         onChange={(e) => setBulkUpdateForm((f) => ({ ...f, title: e.target.value }))}
                         disabled={!bulkUpdateTextEdit}
-                        placeholder="Boş bırakılırsa değişmez"
+                        placeholder={t("bulkUpdate.noChangePlaceholder")}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-black text-slate-700">İçerik</label>
+                      <label className="mb-1 block text-xs font-black text-slate-700">{t("edit.contentLabel")}</label>
                       <textarea
                         value={bulkUpdateForm.content}
                         onChange={(e) => setBulkUpdateForm((f) => ({ ...f, content: e.target.value }))}
                         disabled={!bulkUpdateTextEdit}
-                        placeholder="Boş bırakılırsa değişmez"
+                        placeholder={t("bulkUpdate.noChangePlaceholder")}
                         rows={10}
                         className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                       />
@@ -1704,7 +1706,7 @@ export default function TasBilgiKutuphanesiPage() {
                 {/* Çoklu seçim uyarısı */}
                 {selectedIds.size > 1 && (
                   <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
-                    Çoklu seçimde başlık ve içerik alanları güncellenmez. Yalnızca kategori alanları uygulanır.
+                    {t("bulkUpdate.multiWarning")}
                   </p>
                 )}
               </div>
@@ -1725,7 +1727,7 @@ export default function TasBilgiKutuphanesiPage() {
                   disabled={bulkUpdateBusy}
                   className="btn-soft flex-1"
                 >
-                  İptal
+                  {tc("cancel")}
                 </button>
                 <button
                   type="button"
@@ -1733,7 +1735,7 @@ export default function TasBilgiKutuphanesiPage() {
                   disabled={bulkUpdateBusy}
                   className="btn-primary flex-1"
                 >
-                  {bulkUpdateBusy ? "Güncelleniyor…" : "Güncelle"}
+                  {bulkUpdateBusy ? t("bulkUpdate.updating") : t("bulkUpdate.update")}
                 </button>
               </div>
             </div>

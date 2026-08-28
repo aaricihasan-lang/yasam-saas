@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   getSyncedTenantId,
@@ -28,63 +29,21 @@ type MineralForm = {
   iceren_taslar: string;
 };
 
-type MineralSection = {
-  key: keyof Omit<MineralForm, "name" | "kategori">;
-  label: string;
-  placeholder: string;
-};
+type MineralSectionKey = keyof Omit<MineralForm, "name" | "kategori">;
 
-const mineralSections: MineralSection[] = [
-  {
-    key: "aciklama",
-    label: "Açıklama",
-    placeholder: "Mineralin genel tanımı ve temel görevi...",
-  },
-  {
-    key: "fiziksel",
-    label: "Fiziksel",
-    placeholder: "Her satıra bir fiziksel etki yazın...",
-  },
-  {
-    key: "zihinsel",
-    label: "Zihinsel",
-    placeholder: "Her satıra bir zihinsel etki yazın...",
-  },
-  {
-    key: "fizyoloji",
-    label: "Fizyoloji",
-    placeholder: "Fizyolojik etkiler (satır satır)...",
-  },
-  {
-    key: "eksiklik_belirtileri",
-    label: "Eksiklik belirtileri",
-    placeholder: "Eksiklik belirtileri (satır satır)...",
-  },
-  {
-    key: "doz_asimi",
-    label: "Doz aşımı",
-    placeholder: "Doz aşımı / toksisite notları (satır satır)...",
-  },
-  {
-    key: "iceren_taslar",
-    label: "İçeren taşlar",
-    placeholder: "Her satıra bir taş adı yazın...",
-  },
-  {
-    key: "organ_etkileri",
-    label: "Organ etkileri",
-    placeholder: "Organ etkileri (satır satır)...",
-  },
-  {
-    key: "cakralar",
-    label: "Çakralar",
-    placeholder: "Çakra ilişkileri (satır satır)...",
-  },
-  {
-    key: "fazlalik_belirtileri",
-    label: "Fazlalık belirtileri",
-    placeholder: "Fazlalık belirtileri (satır satır)...",
-  },
+// Bölüm etiket/placeholder'ları i18n katalogundan (stones.minerals.bank.sections)
+// gelir; DB alan anahtarı (key) aşağıdaki dizide sabit ve sıralıdır.
+const mineralSectionKeys: MineralSectionKey[] = [
+  "aciklama",
+  "fiziksel",
+  "zihinsel",
+  "fizyoloji",
+  "eksiklik_belirtileri",
+  "doz_asimi",
+  "iceren_taslar",
+  "organ_etkileri",
+  "cakralar",
+  "fazlalik_belirtileri",
 ];
 
 const emptyForm: MineralForm = {
@@ -126,8 +85,13 @@ function slugifySourceId(name: string) {
 }
 
 export default function MineralBankasiPage() {
+  const t = useTranslations("stones.minerals.bank");
+  const tRoot = useTranslations("stones.minerals");
+  const tc = useTranslations("stones.common");
+  const sectionLabel = (key: MineralSectionKey) => t(`sections.${key}.label`);
+  const sectionPlaceholder = (key: MineralSectionKey) => t(`sections.${key}.placeholder`);
   const [form, setForm] = useState<MineralForm>(emptyForm);
-  const [activeSection, setActiveSection] = useState<MineralSection["key"]>("aciklama");
+  const [activeSection, setActiveSection] = useState<MineralSectionKey>("aciklama");
   const [expandedEditor, setExpandedEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -152,11 +116,6 @@ export default function MineralBankasiPage() {
   }, [isDirty]);
   const [dupChecking, setDupChecking] = useState(false);
 
-  const activeSectionInfo = useMemo(
-    () => mineralSections.find((section) => section.key === activeSection)!,
-    [activeSection],
-  );
-
   function updateField<K extends keyof MineralForm>(key: K, value: MineralForm[K]) {
     setForm((current) => ({
       ...current,
@@ -174,7 +133,7 @@ export default function MineralBankasiPage() {
 
   function closeSectionEditor() {
     setExpandedEditor(false);
-    setMessage(`${activeSectionInfo.label} alanı kaydedildi. Genel kayıt için Kaydet butonuna basın.`);
+    setMessage(t("sectionSavedMessage", { label: sectionLabel(activeSection) }));
     setErrorMessage("");
   }
 
@@ -184,7 +143,7 @@ export default function MineralBankasiPage() {
 
     const nameTrim = form.name.trim();
     if (!nameTrim) {
-      setErrorMessage("Mineral adı boş bırakılamaz.");
+      setErrorMessage(tRoot("validation.nameRequired"));
       return;
     }
 
@@ -231,11 +190,11 @@ export default function MineralBankasiPage() {
 
     if (!ok) {
       // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      setErrorMessage(`Mineral kaydedilemedi: ${error ?? "Bilinmeyen hata"}`);
+      setErrorMessage(t("saveFailedPrefix", { error: error ?? tRoot("unknownError") }));
       showToast({
         type: "error",
-        title: "Kayıt başarısız",
-        message: "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+        title: t("toastSaveFailedTitle"),
+        message: t("toastSaveFailedMessage"),
       });
       return;
     }
@@ -245,8 +204,8 @@ export default function MineralBankasiPage() {
     // form reset/kapanış mesajı yok etmez.
     showToast({
       type: "success",
-      title: "Kaydedildi",
-      message: "Mineral kaydı başarıyla oluşturuldu.",
+      title: t("toastSavedTitle"),
+      message: t("toastSavedMessage"),
     });
     resetForm();
     setShowForm(false);
@@ -254,9 +213,9 @@ export default function MineralBankasiPage() {
 
   return (
     <DogaltasSectionShell
-      eyebrow="DOĞALTAŞ · MİNERAL BANKASI"
-      title="Mineral Kayıt Ekranı"
-      subtitle="Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır."
+      eyebrow={t("eyebrow")}
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon="⚗️"
       contentClassName="pb-40 sm:pb-24"
       actions={
@@ -265,7 +224,7 @@ export default function MineralBankasiPage() {
             href="/dogaltas/mineral-listesi"
             className="btn-soft"
           >
-            Mineral Listesi
+            {t("listLink")}
           </Link>
 
           {/* FAZ-3A(2A): Form kapalıyken tek giriş noktası intro CTA'dır; header'da ikinci
@@ -276,7 +235,7 @@ export default function MineralBankasiPage() {
               onClick={() => { resetForm(); setShowForm(false); }}
               className="btn-soft"
             >
-              Formu Kapat
+              {t("closeForm")}
             </button>
           )}
         </>
@@ -300,10 +259,9 @@ export default function MineralBankasiPage() {
           <div className={`${uiCard} flex flex-col items-center gap-4 py-14 text-center`}>
             <span className="text-5xl">⚗️</span>
             <div>
-              <h2 className="text-lg font-black text-slate-800">Mineral Kayıt Ekranı</h2>
+              <h2 className="text-lg font-black text-slate-800">{t("title")}</h2>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Yeni mineral kaydı oluşturmak için aşağıdaki butona basın.
-                Mevcut mineralleri Mineral Listesi'nden görüntüleyebilirsiniz.
+                {t("introDescription")}
               </p>
             </div>
             <button
@@ -311,7 +269,7 @@ export default function MineralBankasiPage() {
               onClick={() => setShowForm(true)}
               className="btn-primary"
             >
-              + Yeni Kayıt Oluştur
+              {t("createButton")}
             </button>
           </div>
         )}
@@ -319,24 +277,24 @@ export default function MineralBankasiPage() {
         {showForm && <section className={`${uiCard} mb-2 grid grid-cols-1 gap-2 p-3 md:grid-cols-2`}>
           <label className="block md:col-span-2">
             <span className="mb-1 block text-xs font-black tracking-[0.16em] text-emerald-800">
-              MİNERAL ADI
+              {t("nameLabel")}
             </span>
             <input
               value={form.name}
               onChange={(event) => updateField("name", event.target.value)}
-              placeholder="Örn: KROM"
+              placeholder={t("namePlaceholder")}
               className={`${uiInput} text-lg font-black`}
             />
           </label>
 
           <label className="block md:col-span-2">
             <span className="mb-1 block text-xs font-black tracking-[0.16em] text-emerald-800">
-              KATEGORİ
+              {t("categoryLabel")}
             </span>
             <input
               value={form.kategori}
               onChange={(event) => updateField("kategori", event.target.value)}
-              placeholder="Örn: İz mineral"
+              placeholder={t("categoryPlaceholder")}
               className={uiInput}
             />
           </label>
@@ -344,19 +302,19 @@ export default function MineralBankasiPage() {
 
         {showForm && <section className="grid grid-cols-1 gap-3 xl:grid-cols-[220px_1fr]">
           <aside className={`${uiCard} p-2.5`}>
-            <h2 className="mb-1.5 px-1 text-sm font-black text-slate-950">Kayıt Bölümleri</h2>
+            <h2 className="mb-1.5 px-1 text-sm font-black text-slate-950">{t("sectionsHeading")}</h2>
 
             <div className="grid grid-cols-1 gap-1">
-              {mineralSections.map((section) => {
-                const active = activeSection === section.key;
-                const filled = form[section.key].trim().length > 0;
+              {mineralSectionKeys.map((key) => {
+                const active = activeSection === key;
+                const filled = form[key].trim().length > 0;
 
                 return (
                   <button
-                    key={section.key}
+                    key={key}
                     type="button"
                     onClick={() => {
-                      setActiveSection(section.key);
+                      setActiveSection(key);
                       setExpandedEditor(false);
                     }}
                     className={`w-full rounded-xl px-3 py-1.5 text-left transition-all duration-300 hover:translate-x-1 ${
@@ -366,7 +324,7 @@ export default function MineralBankasiPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black">{section.label}</span>
+                      <span className="text-xs font-black">{sectionLabel(key)}</span>
                       {filled ? (
                         <span
                           className={`rounded-full px-2 py-0.5 text-[9px] font-black ring-1 ${
@@ -375,7 +333,7 @@ export default function MineralBankasiPage() {
                               : "bg-emerald-50 text-emerald-700 ring-emerald-100"
                           }`}
                         >
-                          dolu
+                          {t("filledBadge")}
                         </span>
                       ) : null}
                     </div>
@@ -389,12 +347,12 @@ export default function MineralBankasiPage() {
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
                 <div className="mb-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-800 ring-1 ring-emerald-100">
-                  AKTİF BÖLÜM
+                  {t("activeSectionBadge")}
                 </div>
-                <h2 className="text-lg font-black text-slate-950">{activeSectionInfo.label}</h2>
+                <h2 className="text-lg font-black text-slate-950">{sectionLabel(activeSection)}</h2>
               </div>
               <span className="rounded-full border border-emerald-200/80 bg-white/70 px-3 py-1 text-xs font-black text-slate-600 shadow-sm">
-                {form[activeSection].length} karakter
+                {t("charCount", { n: form[activeSection].length })}
               </span>
             </div>
 
@@ -406,12 +364,12 @@ export default function MineralBankasiPage() {
               <p className="min-h-[140px] whitespace-pre-wrap">
                 {form[activeSection].trim()
                   ? form[activeSection].slice(0, 420)
-                  : activeSectionInfo.placeholder}
+                  : sectionPlaceholder(activeSection)}
                 {form[activeSection].length > 420 ? "..." : ""}
               </p>
               <div className="mt-3 flex justify-end">
                 <span className="rounded-full bg-gradient-to-r from-emerald-500 to-amber-500 px-4 py-1.5 text-xs font-black text-white shadow-md">
-                  Yazmak için tıkla
+                  {t("writeHint")}
                 </span>
               </div>
             </button>
@@ -423,9 +381,9 @@ export default function MineralBankasiPage() {
           <div className={`${uiCard} w-full max-w-[980px] bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}>
             <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-[24px] font-black text-slate-950">{activeSectionInfo.label}</h2>
+                <h2 className="text-[24px] font-black text-slate-950">{sectionLabel(activeSection)}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-600">
-                  {form.name.trim() || "Yeni mineral"} · Satır satır liste alanları desteklenir.
+                  {form.name.trim() || t("newMineralFallback")} · {t("editorSubtitle")}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -434,21 +392,21 @@ export default function MineralBankasiPage() {
                   onClick={() => setExpandedEditor(false)}
                   className="btn-soft"
                 >
-                  Kapat
+                  {tc("close")}
                 </button>
                 <button
                   type="button"
                   onClick={closeSectionEditor}
                   className="btn-primary"
                 >
-                  Bu Alanı Kaydet
+                  {t("saveSection")}
                 </button>
               </div>
             </header>
             <textarea
               value={form[activeSection]}
               onChange={(event) => updateField(activeSection, event.target.value)}
-              placeholder={activeSectionInfo.placeholder}
+              placeholder={sectionPlaceholder(activeSection)}
               className={`${uiInput} h-[430px] max-h-[62vh] resize-none text-[15px] leading-8`}
               autoFocus
             />
@@ -475,11 +433,11 @@ export default function MineralBankasiPage() {
       {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="hidden text-sm font-semibold text-slate-500 sm:block">
-            Kaydedilmeden ayrılırsanız girdiğiniz bilgiler kaybolabilir.
+            {t("unsavedWarning")}
           </p>
           <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
             <button type="button" onClick={resetForm} className="btn-soft w-full sm:w-auto">
-              Temizle
+              {tc("clear")}
             </button>
             <button
               type="button"
@@ -487,7 +445,7 @@ export default function MineralBankasiPage() {
               disabled={saving || dupChecking}
               className="btn-primary w-full sm:w-auto"
             >
-              {dupChecking ? "Kontrol ediliyor..." : saving ? "Kaydediliyor..." : "Kaydet"}
+              {dupChecking ? t("checking") : saving ? tc("saving") : tc("save")}
             </button>
           </div>
         </div>

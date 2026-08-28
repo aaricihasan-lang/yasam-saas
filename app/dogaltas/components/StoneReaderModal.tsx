@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { dogaltasModalFontStore } from "@/lib/dogaltas/dogaltasModalFontSize";
 import { ReaderModal } from "@/components/common/reader/ReaderModal";
@@ -39,6 +40,7 @@ export function StoneReaderModal({
   contentBlurred = false,
   onClose,
 }: StoneReaderModalProps) {
+  const t = useTranslations("stones.reader");
   const renderSegment = (segment: string, key: string): ReactNode => {
     const q = highlightQuery?.trim();
     if (q && renderHighlight) return renderHighlight(segment, key);
@@ -53,7 +55,7 @@ export function StoneReaderModal({
       subtitle={subtitle}
       headerExtra={matchBadge}
       contentBlurred={contentBlurred}
-      blurredNote={<p className="mt-6 text-center text-sm font-black text-amber-600">🔒 Demo hesabında bu içerik korumalıdır</p>}
+      blurredNote={<p className="mt-6 text-center text-sm font-black text-amber-600">{t("demoProtected")}</p>}
       fontStore={dogaltasModalFontStore}
       scrollClassName="stone-reader-scroll"
       renderBody={(fontSizePx) => formatStoneContent(text, { renderSegment, fontSizePx })}

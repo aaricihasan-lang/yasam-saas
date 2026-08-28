@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
@@ -270,7 +271,8 @@ function getMatchedStones(
 
 
 function SearchMatchBadge() {
-  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>;
+  const t = useTranslations("stones.combinations.detail");
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>{t("matchBadge")}</span>;
 }
 
 
@@ -373,6 +375,7 @@ function StonesBlock({
   highlightQuery?: string;
   hasSearchMatch?: boolean;
 }) {
+  const t = useTranslations("stones.combinations.detail");
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
 
@@ -397,15 +400,15 @@ function StonesBlock({
   return (
     <article className={cardClass}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={badgeClass("cyan")}>TAŞLAR</span>
-        <h2 className="text-xs font-black text-slate-950">Taş Listesi</h2>
+        <span className={badgeClass("cyan")}>{t("stonesBadge")}</span>
+        <h2 className="text-xs font-black text-slate-950">{t("stonesListTitle")}</h2>
         {stones.length > 0 ? (
           <span className="text-[10px] font-medium text-slate-400">
-            {stones.length} taş
+            {t("stonesCount", { n: stones.length })}
             {stockLoading
-              ? " · stok kontrol ediliyor"
+              ? t("stockChecking")
               : inStockCount > 0
-                ? ` · ${inStockCount} stokta`
+                ? t("stockedSuffix", { n: inStockCount })
                 : null}
           </span>
         ) : null}
@@ -419,7 +422,7 @@ function StonesBlock({
                 return (
                   <span
                     key={`c-${idx}`}
-                    title="Stok bilgisi yükleniyor"
+                    title={t("chipStockLoadingTitle")}
                     className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
                   >
                     {highlightQuery.trim()
@@ -444,7 +447,7 @@ function StonesBlock({
                 return (
                   <span
                     key={`c-${idx}`}
-                    title="Stokta var"
+                    title={t("chipInStockTitle")}
                     className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
                   >
                     <span className="text-[10px] font-black text-emerald-600">✓</span>
@@ -456,7 +459,7 @@ function StonesBlock({
                 return (
                   <span
                     key={`c-${idx}`}
-                    title="Bu taş artık taş listesinde yok (silinmiş / eski kayıt)"
+                    title={t("chipGhostTitle")}
                     className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-dashed border-amber-400 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 line-through decoration-amber-400/70"
                   >
                     <span className="text-[10px] font-black text-amber-600 no-underline">⚠</span>
@@ -467,7 +470,7 @@ function StonesBlock({
               return (
                 <span
                   key={`c-${idx}`}
-                  title="Stokta yok"
+                  title={t("chipOutOfStockTitle")}
                   className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
                 >
                   {chipLabel}
@@ -477,7 +480,7 @@ function StonesBlock({
             {!stockLoading && extraTextStones.map((stone, idx) => (
               <span
                 key={`e-${idx}`}
-                title="Stokta var"
+                title={t("chipInStockTitle")}
                 className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
               >
                 <span className="text-[10px] font-black text-emerald-600">✓</span>
@@ -502,6 +505,7 @@ function CombinationCalculator({
   stockedDisplayNames: string[];
   stockMap: Map<string, StockEntry>;
 }) {
+  const t = useTranslations("stones.combinations.detail");
   const [qtyMap, setQtyMap] = useState<Map<string, string>>(new Map());
   // Kâr marjı % — Ürün/Stok "Satış & Fiyatlandırma" sekmesiyle aynı mantık
   const [profitPctRaw, setProfitPctRaw] = useState("30");
@@ -557,7 +561,7 @@ function CombinationCalculator({
                 {stone}
               </span>
               <label className="flex items-center gap-1 text-[11px] text-slate-500">
-                <span className="font-medium">Adet</span>
+                <span className="font-medium">{t("qty")}</span>
                 <input
                   type="number"
                   min={0}
@@ -569,7 +573,7 @@ function CombinationCalculator({
               </label>
               {overStock ? (
                 <span className="text-[10px] font-semibold text-amber-600">
-                  ⚠ mevcut: {entry.adet}
+                  {t("available", { n: entry.adet })}
                 </span>
               ) : null}
               {entry.unitCostTry > 0 ? (
@@ -580,7 +584,7 @@ function CombinationCalculator({
                   ) : null}
                 </span>
               ) : (
-                <span className="ml-auto text-[11px] text-slate-400">fiyat girilmemiş</span>
+                <span className="ml-auto text-[11px] text-slate-400">{t("noPrice")}</span>
               )}
             </div>
           );
@@ -590,11 +594,11 @@ function CombinationCalculator({
         <div className="mt-2 rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 via-emerald-50/30 to-white px-4 py-4 shadow-md">
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Toplam Maliyet</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t("totalCost")}</span>
               <span className="text-xl font-black leading-none text-slate-800">{fmtTL(totalCost)}</span>
             </div>
             <label className="flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Kâr Marjı</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t("profitMargin")}</span>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -608,11 +612,11 @@ function CombinationCalculator({
               </div>
             </label>
             <div className="flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Tahmini Satış</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">{t("estimatedSale")}</span>
               <span className="text-xl font-black leading-none text-emerald-700">{fmtTL(totalSale)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Net Kâr</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">{t("netProfit")}</span>
               <span className="text-xl font-black leading-none text-emerald-700">
                 {fmtTL(profit)}
                 <span className="ml-1 text-[10px] font-semibold text-emerald-500">({profitPctNum.toFixed(1)}%)</span>
@@ -737,12 +741,13 @@ function computeGlobalSummary(
 // ─── Dashboard bileşenleri ─────────────────────────────────────────────────────
 
 function ApplicabilityBadge({ pct }: { pct: number }) {
+  const t = useTranslations("stones.combinations.detail");
   const [cls, label] =
     pct === 100
-      ? ["border-emerald-200 bg-emerald-50 text-emerald-700", "Tam"]
+      ? ["border-emerald-200 bg-emerald-50 text-emerald-700", t("full")]
       : pct >= 50
-        ? ["border-amber-200 bg-amber-50 text-amber-700", "Kısmi"]
-        : ["border-rose-200 bg-rose-50 text-rose-700", "Eksik"];
+        ? ["border-amber-200 bg-amber-50 text-amber-700", t("partial")]
+        : ["border-rose-200 bg-rose-50 text-rose-700", t("missing")];
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${cls}`}>
       {pct}% {label}
@@ -757,6 +762,7 @@ function AnalysisDashboard({
   global: GlobalSummary;
   variantSummaries: VariantSummary[];
 }) {
+  const t = useTranslations("stones.combinations.detail");
   const showBest = variantSummaries.length > 1 && global.bestVariantPct > 0;
 
   return (
@@ -765,15 +771,15 @@ function AnalysisDashboard({
       <div className={`${uiInfoCard} space-y-2`}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full border border-violet-400 bg-gradient-to-r from-violet-100 to-violet-50 px-3 py-0.5 text-[10px] font-black tracking-widest text-violet-900 shadow-sm">
-            ANALİZ
+            {t("analysis")}
           </span>
-          <StatChip label="Kombinasyon" value={global.totalCombinations} color="violet" />
-          <StatChip label="Stok Taşı" value={global.totalStockedUnique} color="emerald" />
+          <StatChip label={t("statCombination")} value={global.totalCombinations} color="violet" />
+          <StatChip label={t("statStockStone")} value={global.totalStockedUnique} color="emerald" />
           {global.missingNames.length > 0 && (
-            <StatChip label="Eksik" value={global.missingNames.length} color="rose" />
+            <StatChip label={t("statMissing")} value={global.missingNames.length} color="rose" />
           )}
           {global.criticalStones.length > 0 && (
-            <StatChip label="Kritik Stok" value={global.criticalStones.length} color="amber" />
+            <StatChip label={t("statCriticalStock")} value={global.criticalStones.length} color="amber" />
           )}
         </div>
         {showBest && (
@@ -782,11 +788,11 @@ function AnalysisDashboard({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <span className="text-[12px] font-black text-amber-900">
-                  Önerilen: Kombinasyon {global.bestVariantIndex + 1}
+                  {t("recommended", { n: global.bestVariantIndex + 1 })}
                 </span>
                 <span className="text-[13px] font-black text-emerald-700">{global.bestVariantPct}%</span>
                 {global.bestVariantCost > 0 && (
-                  <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost)} tahmini maliyet</span>
+                  <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost)} {t("estimatedCostSuffix")}</span>
                 )}
               </div>
             </div>
@@ -799,9 +805,9 @@ function AnalysisDashboard({
         <div className="rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2">
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="inline-flex items-center rounded-full border border-rose-300 bg-rose-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-800">
-              EKSİK TAŞLAR
+              {t("missingStonesLabel")}
             </span>
-            <span className="text-[10px] font-medium text-rose-500">{global.missingNames.length} taş</span>
+            <span className="text-[10px] font-medium text-rose-500">{t("stonesCount", { n: global.missingNames.length })}</span>
           </div>
           <div className="flex flex-wrap gap-1">
             {global.missingNames.map((name, i) => (
@@ -822,7 +828,7 @@ function AnalysisDashboard({
         <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-900">
-              KRİTİK STOK
+              {t("criticalStockLabel")}
             </span>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -903,6 +909,8 @@ function VariantCard({
   isDemo?: boolean;
   onSaved?: (newIssue: string) => void;
 }) {
+  const t = useTranslations("stones.combinations.detail");
+  const tc = useTranslations("stones.common");
   const calcOpen = isCalcOpen;
 
   // ─── Düzenleme durumu (yalnız kendi tenant kombinasyonu) ───
@@ -942,15 +950,15 @@ function VariantCard({
   }
   async function removeStone(idx: number) {
     // FAZ-5D: onaydan önce state DEĞİŞMEZ; save ile kalıcılaşacağı için çift koruma.
-    const stoneName = editStones[idx]?.trim() || "Taş";
+    const stoneName = editStones[idx]?.trim() || t("stoneFallback");
     const confirmed = await deleteConfirm({
-      title: "Taşı kombinasyondan kaldır",
-      message: `"${stoneName}" bu kombinasyondan kaldırılacak. Devam etmek istiyor musunuz?`,
-      secondMessage: `"${stoneName}" bu kombinasyondan kaldırılacak. Emin misiniz?`,
+      title: t("removeStoneTitle"),
+      message: t("removeStoneMessage", { stone: stoneName }),
+      secondMessage: t("removeStoneSecondMessage", { stone: stoneName }),
       // FAZ-5G: taş sistemden silinmiyor, yalnız kombinasyondan kaldırılıyor.
-      confirmText: "Kaldır",
-      cancelText: "Vazgeç",
-      secondConfirmText: "Kaldır",
+      confirmText: t("removeStoneConfirm"),
+      cancelText: tc("giveUp"),
+      secondConfirmText: t("removeStoneConfirm"),
     });
     if (!confirmed) return;
     setEditStones((prev) => prev.filter((_, i) => i !== idx));
@@ -958,12 +966,12 @@ function VariantCard({
   async function saveEdit() {
     const issue = editIssue.trim();
     if (!issue) {
-      setEditError("Kombinasyon adı boş bırakılamaz.");
+      setEditError(t("nameRequired"));
       return;
     }
     const stones = editStones.map((s) => s.trim()).filter(Boolean);
     if (stones.length === 0) {
-      setEditError("En az bir taş bulunmalıdır.");
+      setEditError(t("atLeastOneStone"));
       return;
     }
     setEditSaving(true);
@@ -976,7 +984,7 @@ function VariantCard({
     });
     setEditSaving(false);
     if (!res.ok) {
-      setEditError(res.error || "Kombinasyon güncellenemedi. Lütfen tekrar deneyin.");
+      setEditError(res.error || t("updateError"));
       return;
     }
     setIsEditing(false);
@@ -1008,7 +1016,7 @@ function VariantCard({
       <div className="mb-2.5 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">
         <span className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-gradient-to-r from-violet-100 to-indigo-50 px-3 py-1 text-[11px] font-black tracking-wide text-violet-900 shadow-sm">
           <span className="text-violet-400">◈</span>
-          <span>Kombinasyon</span>
+          <span>{t("combinationLabel")}</span>
           <span>{index + 1} / {total}</span>
         </span>
         {!isDemo && applicabilityPct !== undefined && !stockLoading && !isEditing ? (
@@ -1026,7 +1034,7 @@ function VariantCard({
                 onClick={startEdit}
                 className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
               >
-                ✏️ Düzenle
+                {t("edit")}
               </button>
             </>
           ) : null}
@@ -1038,7 +1046,7 @@ function VariantCard({
                 disabled={editSaving}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
               >
-                Vazgeç
+                {tc("giveUp")}
               </button>
               <button
                 type="button"
@@ -1046,7 +1054,7 @@ function VariantCard({
                 disabled={editSaving}
                 className="rounded-lg border border-emerald-500 bg-emerald-600 px-3 py-1 text-[11px] font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
               >
-                {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                {editSaving ? tc("saving") : tc("save")}
               </button>
             </>
           ) : null}
@@ -1062,38 +1070,38 @@ function VariantCard({
           ) : null}
           <div>
             <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
-              Kombinasyon Adı
+              {t("editNameLabel")}
             </label>
             <input
               value={editIssue}
               onChange={(e) => setEditIssue(e.target.value)}
-              placeholder="Kombinasyon adı"
-              aria-label="Kombinasyon adı"
+              placeholder={t("comboNamePlaceholder")}
+              aria-label={t("comboNamePlaceholder")}
               className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
-              Açıklama / Amaç
+              {t("descLabel")}
             </label>
             <input
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="Açıklama / amaç (opsiyonel)"
-              aria-label="Açıklama"
+              placeholder={t("descPlaceholder")}
+              aria-label={t("descAria")}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
           </div>
           <div>
             <label className="mb-1 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-500">
-              <span>Taşlar</span>
+              <span>{t("stonesLabel")}</span>
               <span className="font-medium normal-case tracking-normal text-slate-400">
-                {editStones.length} taş · ✓ stokta · × ile çıkar
+                {t("editStonesHint", { n: editStones.length })}
               </span>
             </label>
             <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-2">
               {editStones.length === 0 ? (
-                <span className="px-1 text-xs italic text-slate-400">En az bir taş ekleyin</span>
+                <span className="px-1 text-xs italic text-slate-400">{t("addAtLeastOne")}</span>
               ) : (
                 editStones.map((stone, idx) => {
                   const inStock = !stockLoading && resolveStockKey(stone, stockMap) !== null;
@@ -1112,7 +1120,7 @@ function VariantCard({
                       <button
                         type="button"
                         onClick={() => void removeStone(idx)}
-                        aria-label={`${stone} taşını çıkar`}
+                        aria-label={t("removeStoneAria", { stone })}
                         className="ml-0.5 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full px-1 text-sm font-black leading-none text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 sm:min-h-0 sm:min-w-0"
                       >
                         ×
@@ -1132,8 +1140,8 @@ function VariantCard({
                     addStone();
                   }
                 }}
-                placeholder="Taş adı ekle..."
-                aria-label="Taş adı ekle"
+                placeholder={t("addStonePlaceholder")}
+                aria-label={t("addStoneAria")}
                 className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               />
               <button
@@ -1141,20 +1149,20 @@ function VariantCard({
                 onClick={addStone}
                 className="shrink-0 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
               >
-                + Ekle
+                {t("addStone")}
               </button>
             </div>
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
-              Not
+              {t("noteLabel")}
             </label>
             <textarea
               value={editNote}
               onChange={(e) => setEditNote(e.target.value)}
               rows={2}
-              placeholder="Serbest not (opsiyonel)"
-              aria-label="Not"
+              placeholder={t("notePlaceholder")}
+              aria-label={t("noteAria")}
               className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
           </div>
@@ -1165,7 +1173,7 @@ function VariantCard({
               disabled={editSaving}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
             >
-              Vazgeç
+              {tc("giveUp")}
             </button>
             <button
               type="button"
@@ -1173,7 +1181,7 @@ function VariantCard({
               disabled={editSaving}
               className="rounded-lg border border-emerald-500 bg-emerald-600 px-4 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
             >
-              {editSaving ? "Kaydediliyor..." : "Kaydet"}
+              {editSaving ? tc("saving") : tc("save")}
             </button>
           </div>
         </div>
@@ -1181,8 +1189,8 @@ function VariantCard({
       <DemoBlur isProtected={isDemo}>
       <div className="space-y-2">
         <FieldBlock
-          label="Kaynak"
-          badge="KAYNAK"
+          label={t("sourceLabel")}
+          badge={t("sourceBadge")}
           tone="violet"
           text={row.source}
           highlightQuery={highlightQuery}
@@ -1211,9 +1219,9 @@ function VariantCard({
             }`}
           >
             <span className="text-amber-500">{calcOpen ? "▲" : "▼"}</span>
-            <span>Hesap Makinesi</span>
+            <span>{t("calcToggle")}</span>
             {stockLoading ? (
-              <span className="text-[10px] font-medium text-slate-400">· yükleniyor</span>
+              <span className="text-[10px] font-medium text-slate-400">{t("calcLoading")}</span>
             ) : allStockedDisplayNames.length > 0 ? (
               <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-black text-amber-900">
                 {allStockedDisplayNames.length}
@@ -1229,13 +1237,13 @@ function VariantCard({
             </div>
           ) : calcOpen && !stockLoading ? (
             <p className="mt-2 text-[11px] font-medium text-slate-400">
-              Bu kombinasyonda stokta eşleşen taş bulunamadı.
+              {t("calcNoMatch")}
             </p>
           ) : null}
         </div>
         <FieldBlock
-          label="Notlar"
-          badge="NOTLAR"
+          label={t("notesLabel")}
+          badge={t("notesBadge")}
           tone="slate"
           text={row.notes_text}
           highlightQuery={highlightQuery}
@@ -1243,8 +1251,8 @@ function VariantCard({
         />
         {row.notes_text_2?.trim() ? (
           <FieldBlock
-            label="Notlar 2"
-            badge="NOTLAR 2"
+            label={t("notes2Label")}
+            badge={t("notes2Badge")}
             tone="slate"
             text={row.notes_text_2}
             highlightQuery={highlightQuery}
@@ -1253,8 +1261,8 @@ function VariantCard({
         ) : null}
         {row.notes_text_3?.trim() ? (
           <FieldBlock
-            label="Notlar 3"
-            badge="NOTLAR 3"
+            label={t("notes3Label")}
+            badge={t("notes3Badge")}
             tone="slate"
             text={row.notes_text_3}
             highlightQuery={highlightQuery}
@@ -1303,6 +1311,8 @@ function KombinasyonDetayPageContent() {
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
   const router = useRouter();
+  const t = useTranslations("stones.combinations.detail");
+  const tc = useTranslations("stones.common");
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1364,7 +1374,7 @@ function KombinasyonDetayPageContent() {
     setLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(`Kayıtlar alınamadı: ${result.error ?? ""}`);
+      setErrorMessage(t("loadError", { error: result.error ?? "" }));
       setRows([]);
       return;
     }
@@ -1392,7 +1402,7 @@ function KombinasyonDetayPageContent() {
     }
 
     setRows(unique);
-  }, [decodedIssue]);
+  }, [decodedIssue, t]);
 
   const loadStockNames = useCallback(async () => {
     setStockLoading(true);
@@ -1493,7 +1503,7 @@ function KombinasyonDetayPageContent() {
     return (
       <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
         <div className={`${uiHeaderCard} w-full text-center`}>
-          <p className="text-sm font-bold text-slate-600">Geçersiz başlık.</p>
+          <p className="text-sm font-bold text-slate-600">{t("invalidTitle")}</p>
         </div>
       </main>
     );
@@ -1514,7 +1524,7 @@ function KombinasyonDetayPageContent() {
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-violet-700">
-                KOMBİNASYON DETAY
+                {t("detailBadge")}
               </span>
               {categoryLabel ? (
                 <span className={uiCategoryPill}>
@@ -1537,12 +1547,12 @@ function KombinasyonDetayPageContent() {
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
               {loading
-                ? "Yükleniyor..."
+                ? tc("loading")
                 : rows.length === 0
-                  ? "Henüz variant kaydı yok."
-                  : `${rows.length} kombinasyon variant`}
+                  ? t("subtitleNoVariant")
+                  : t("subtitleVariantCount", { n: rows.length })}
               {hasHighlight && sectionMatches?.description ? (
-                <span className="ml-2 font-black text-emerald-700">· Açıklama eşleşmesi</span>
+                <span className="ml-2 font-black text-emerald-700">{t("descMatch")}</span>
               ) : null}
             </p>
           </div>
@@ -1555,7 +1565,7 @@ function KombinasyonDetayPageContent() {
                 disabled={wordBusy}
                 className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
               >
-                {wordBusy ? "⏳..." : "📄 Word"}
+                {wordBusy ? t("wordBusy") : t("word")}
               </button>
             )}
             <button
@@ -1563,7 +1573,7 @@ function KombinasyonDetayPageContent() {
               onClick={() => void handleRefresh()}
               className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-emerald-50"
             >
-              Yenile
+              {t("refresh")}
             </button>
           </div>
         </header>
@@ -1584,14 +1594,14 @@ function KombinasyonDetayPageContent() {
           <div
             className={`${uiVariantCard} flex min-h-[120px] items-center justify-center text-sm font-bold text-slate-500`}
           >
-            Yükleniyor...
+            {tc("loading")}
           </div>
         ) : rows.length === 0 && !errorMessage ? (
           <div className={`${uiVariantCard} text-center py-8`}>
             <div className="text-3xl">✶</div>
-            <p className="mt-2 text-base font-semibold text-slate-800">Henüz kombinasyon kaydı yok</p>
+            <p className="mt-2 text-base font-semibold text-slate-800">{t("emptyTitle")}</p>
             <p className="mt-1 text-sm font-medium text-slate-500">
-              Bu başlık için henüz variant aktarılmamış olabilir.
+              {t("emptyDesc")}
             </p>
           </div>
         ) : (
@@ -1644,9 +1654,10 @@ function KombinasyonDetayPageContent() {
 }
 
 function KombinasyonDetayPageFallback() {
+  const t = useTranslations("stones.combinations.detail");
   return (
     <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
-      <p className="text-sm font-black text-slate-600">Yükleniyor…</p>
+      <p className="text-sm font-black text-slate-600">{t("loadingEllipsis")}</p>
     </main>
   );
 }

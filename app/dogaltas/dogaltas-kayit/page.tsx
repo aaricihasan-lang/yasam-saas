@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
@@ -32,33 +33,27 @@ const chakraOptions = [
 
 const effectSections = [
   {
-    title: "Fiziksel Etkiler",
     key: "physical_effects",
-    desc: "Bedensel etkiler, destek alanları ve kullanım notları.",
     icon: "🫀",
     accent: "cyan",
   },
   {
-    title: "Ruhsal Etkiler",
     key: "spiritual_effects",
-    desc: "Ruhsal denge, farkındalık ve içsel çalışma notları.",
     icon: "✨",
     accent: "violet",
   },
   {
-    title: "Diğer Etkiler",
     key: "other_effects",
-    desc: "Ek bilgiler, gözlemler ve tamamlayıcı notlar.",
     icon: "📝",
     accent: "orange",
   },
 ];
 
 const usageSections = [
-  { title: "Feng Shui", key: "feng_shui" },
-  { title: "Meditasyon", key: "meditation" },
-  { title: "Bakım", key: "care" },
-  { title: "Uygulama", key: "application" },
+  { key: "feng_shui" },
+  { key: "meditation" },
+  { key: "care" },
+  { key: "application" },
 ];
 
 const warningTypes = [
@@ -179,6 +174,7 @@ function ExpandableTextarea({
   placeholder?: string;
   className?: string;
 }) {
+  const t = useTranslations("stones.records");
   return (
     <div className={`relative ${className}`}>
       <textarea
@@ -190,8 +186,8 @@ function ExpandableTextarea({
       <button
         type="button"
         onClick={onExpand}
-        title="Geniş ekranda düzenle"
-        aria-label="Geniş ekranda düzenle"
+        title={t("expand.editWide")}
+        aria-label={t("expand.editWide")}
         className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/60 bg-white/95 text-base font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900"
       >
         ⤢
@@ -276,6 +272,7 @@ async function compressImageFileToWebp(file: File): Promise<File> {
 }
 
 export default function DogaltasKayitPage() {
+  const t = useTranslations("stones.records");
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
   const [selectedWarnings, setSelectedWarnings] = useState<string[]>([]);
@@ -422,11 +419,11 @@ export default function DogaltasKayitPage() {
     // Ortak useDeleteConfirm: masaüstü tek açıklayıcı onay, mobil/PWA 2 aşamalı onay.
     // Silinecek satır değeri (organ/mineral adı) onay metninde açıkça gösterilir.
     const row = (assignmentRows[sectionTitle] || [])[index] || [];
-    const label = row.filter((v) => v && v.trim()).join(" • ") || `${sectionTitle} satırı`;
+    const label = row.filter((v) => v && v.trim()).join(" • ") || t("assignRow.rowFallback", { section: sectionTitle });
     const confirmed = await deleteConfirm({
-      title: `${sectionTitle} satırını sil`,
-      message: `"${label}" satırını kaldırmak istiyor musunuz?`,
-      secondMessage: `"${label}" satırı kaldırılacak. Emin misiniz?`,
+      title: t("assignRow.deleteTitle", { section: sectionTitle }),
+      message: t("assignRow.deleteMessage", { label }),
+      secondMessage: t("assignRow.deleteSecondMessage", { label }),
     });
     if (!confirmed) return;
     setAssignmentRows((prev) => ({
@@ -456,7 +453,7 @@ export default function DogaltasKayitPage() {
     // Boş MIME'li (Android) geçerli görseller elenmesin; görsel olmayanlar reddedilsin.
     const files = selected.filter(isAcceptableImageFile);
     if (files.length === 0) {
-      if (selected.length > 0) showError("Yalnızca görsel dosyaları eklenebilir.");
+      if (selected.length > 0) showError(t("toasts.onlyImages"));
       return;
     }
 
@@ -486,11 +483,11 @@ export default function DogaltasKayitPage() {
         previewUrl?: string | null;
       };
 
-      if (json.demo) { showMessage("Demo modunda görsel yüklenmez."); return; }
+      if (json.demo) { showMessage(t("toasts.demoNoUpload")); return; }
       if (!res.ok || !json.ok || !json.image) {
         // FAZ-2B: Ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[dogaltas-kayit] görsel yükleme hatası:", `HTTP ${res.status}`);
-        showError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
+        showError(t("toasts.imageUploadFailed"));
         return;
       }
 
@@ -505,7 +502,7 @@ export default function DogaltasKayitPage() {
     }
 
     setImages((prev) => [...prev, ...uploaded]);
-    showMessage(`${uploaded.length} resim yüklendi.`);
+    showMessage(t("toasts.imagesUploaded", { count: uploaded.length }));
   }
 
   async function removeImage(id: string) {
@@ -516,19 +513,19 @@ export default function DogaltasKayitPage() {
 
     // Onaydan ÖNCE Storage çağrısı ve state değişikliği yok.
     const confirmed = await deleteConfirm({
-      title: "Fotoğrafı kaldır",
-      message: "Bu fotoğraf kalıcı olarak kaldırılacak ve geri alınamayacak. Devam etmek istiyor musunuz?",
-      secondMessage: "Bu fotoğraf kalıcı olarak kaldırılacak. Emin misiniz?",
-      confirmText: "Kaldır",
-      cancelText: "Vazgeç",
-      secondConfirmText: "Kaldır",
+      title: t("photoConfirm.title"),
+      message: t("photoConfirm.message"),
+      secondMessage: t("photoConfirm.secondMessage"),
+      confirmText: t("photoConfirm.confirm"),
+      cancelText: t("photoConfirm.cancel"),
+      secondConfirmText: t("photoConfirm.confirm"),
     });
     if (!confirmed) return;
 
     // Path elle türetilmez; yalnız state'teki file_path kullanılır. Yoksa Storage'a dokunma.
     if (!image.file_path) {
       console.error("[dogaltas-kayit] fotoğraf kaldırma: file_path yok", image.id);
-      showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+      showError(t("toasts.photoRemoveFailed"));
       return;
     }
 
@@ -550,11 +547,11 @@ export default function DogaltasKayitPage() {
       if (!res.ok || (!json.ok && !json.demo)) {
         // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
         console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", `HTTP ${res.status}`);
-        showError("Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.");
+        showError(t("toasts.photoRemoveFailed"));
         return;
       }
       setImages((prev) => prev.filter((img) => img.id !== id));
-      showMessage("Fotoğraf kaldırıldı.");
+      showMessage(t("toasts.photoRemoved"));
     } finally {
       setRemovingImageId(null);
     }
@@ -562,7 +559,7 @@ export default function DogaltasKayitPage() {
 
   async function handleSave(forceCreate = false) {
     if (!formData.stone_name.trim()) {
-      showError("Taş adı zorunlu hocam.");
+      showError(t("toasts.stoneNameRequired"));
       return;
     }
 
@@ -621,11 +618,11 @@ export default function DogaltasKayitPage() {
     if (!ok) {
       // FAZ-2B: Ham backend/API hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
       console.error("[dogaltas-kayit] kayıt hatası:", error);
-      showError("Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.");
+      showError(t("toasts.saveFailed"));
       showToast({
         type: "error",
-        title: "Kayıt başarısız",
-        message: "Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.",
+        title: t("toasts.saveFailedTitle"),
+        message: t("toasts.saveFailed"),
       });
       return;
     }
@@ -641,8 +638,8 @@ export default function DogaltasKayitPage() {
     // 4 sn boyunca görünür kalır (inline savedMessage'a bağımlı değil).
     showToast({
       type: "success",
-      title: "Kaydedildi",
-      message: "Taş kaydı başarıyla oluşturuldu.",
+      title: t("toasts.savedTitle"),
+      message: t("toasts.savedMessage"),
     });
     setShowForm(false);
   }
@@ -654,7 +651,7 @@ export default function DogaltasKayitPage() {
     setAssignmentRows(emptyAssignmentRows);
     setAssignmentInputs(emptyAssignmentInputs);
     setImages([]);
-    showMessage("Form temizlendi.");
+    showMessage(t("toasts.formCleared"));
   }
 
   function handleCancel() {
@@ -663,9 +660,9 @@ export default function DogaltasKayitPage() {
 
   return (
     <DogaltasSectionShell
-      eyebrow="DOĞALTAŞ · DOĞALTAŞ MODÜLÜ"
-      title="Doğaltaş Kayıt"
-      subtitle="Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin."
+      eyebrow={t("shell.eyebrow")}
+      title={t("shell.title")}
+      subtitle={t("shell.subtitle")}
       icon="💎"
       contentClassName="mt-4 pb-40 sm:pb-24"
       actions={
@@ -689,7 +686,7 @@ export default function DogaltasKayitPage() {
               onClick={() => setShowForm(false)}
               className="btn-soft"
             >
-              Formu Kapat
+              {t("actions.closeForm")}
             </button>
           )}
         </>
@@ -702,10 +699,9 @@ export default function DogaltasKayitPage() {
           <div className="rounded-[24px] border-[3px] border-emerald-300/40 bg-white/65 shadow-[0_0_40px_rgba(6,182,212,0.10)] backdrop-blur-xl flex flex-col items-center gap-4 py-14 text-center">
             <span className="text-5xl">💎</span>
             <div>
-              <h2 className="text-lg font-black text-slate-800">Doğaltaş Kayıt Ekranı</h2>
+              <h2 className="text-lg font-black text-slate-800">{t("intro.title")}</h2>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Yeni taş kaydı oluşturmak için "+ Yeni Kayıt" butonuna basın.
-                Kayıtlı taşları Taş Listesi'nden görüntüleyebilirsiniz.
+                {t("intro.description")}
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-3">
@@ -714,13 +710,13 @@ export default function DogaltasKayitPage() {
                 onClick={() => setShowForm(true)}
                 className="btn-primary"
               >
-                + Yeni Kayıt Oluştur
+                {t("intro.createCta")}
               </button>
               <a
                 href="/dogaltas/dogaltas-listesi"
                 className="btn-soft"
               >
-                Taş Listesi
+                {t("intro.listCta")}
               </a>
             </div>
           </div>
@@ -734,15 +730,15 @@ export default function DogaltasKayitPage() {
                   💎
                 </span>
                 <div>
-                <h2 className="text-base font-black tracking-wide text-slate-950">Temel Bilgi</h2>
+                <h2 className="text-base font-black tracking-wide text-slate-950">{t("basic.title")}</h2>
                 <p className="mt-0.5 text-slate-500">
-                  Masaüstündeki temel kayıt alanının sade web uyarlaması.
+                  {t("basic.desc")}
                 </p>
                 </div>
               </div>
 
               <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-black text-emerald-700">
-                Ana Kayıt
+                {t("basic.badge")}
               </span>
             </div>
 
@@ -750,45 +746,45 @@ export default function DogaltasKayitPage() {
               <div className="space-y-4">
                 <div>
                   <label className={uiLabel}>
-                    Taş Adı
+                    {t("fields.stoneName")}
                   </label>
                   <input
                     type="text"
                     value={formData.stone_name}
                     onChange={(event) => updateField("stone_name", event.target.value)}
-                    placeholder="Örn. Ametist"
+                    placeholder={t("fields.stoneNamePlaceholder")}
                     className={uiInput}
                   />
                 </div>
 
                 <div>
                   <label className={uiLabel}>
-                    Kısa Açıklama{" "}
-                    <span className="font-semibold text-slate-400">(isteğe bağlı)</span>
+                    {t("fields.shortDescription")}{" "}
+                    <span className="font-semibold text-slate-400">{t("fields.optional")}</span>
                   </label>
 
                   <ExpandableTextarea
                     value={formData.short_description}
                     onChange={(value) => updateField("short_description", value)}
-                    onExpand={() => openLargeEditor("Kısa Açıklama", "short_description")}
-                    placeholder="Taşın kısa tanımı, temel özelliği ve öne çıkan etkisi..."
+                    onExpand={() => openLargeEditor(t("fields.shortDescription"), "short_description")}
+                    placeholder={t("fields.shortDescriptionPlaceholder")}
                   />
                 </div>
               </div>
 
               <div>
                 <label className={uiLabel}>
-                  Görsel Alanı
+                  {t("image.areaLabel")}
                 </label>
 
                 <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-gradient-to-br from-emerald-50/90 to-violet-50/80 p-4 text-center shadow-md">
                   <div className="flex min-h-[200px] flex-col items-center justify-center">
                     <div className="text-4xl">💎</div>
                     <p className="mt-2 text-base font-black text-slate-800">
-                      Birden fazla taş görseli ekle
+                      {t("image.addMultiple")}
                     </p>
                     <p className="mt-1 max-w-[260px] text-sm leading-relaxed text-slate-500">
-                      Seçtiğiniz görseller bu kayda eklenir.
+                      {t("image.hint")}
                     </p>
 
                     {/* FAZ-5B: explicit ref.click() ile iki açık seçenek — implicit label kaldırıldı.
@@ -802,14 +798,14 @@ export default function DogaltasKayitPage() {
                         onClick={() => galleryInputRef.current?.click()}
                         className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
                       >
-                        Galeriden Seç
+                        {t("image.pickFromGallery")}
                       </button>
                       <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}
                         className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
                       >
-                        Fotoğraf Çek
+                        {t("image.takePhoto")}
                       </button>
                     </div>
                     <input
@@ -818,7 +814,7 @@ export default function DogaltasKayitPage() {
                       accept="image/*"
                       multiple
                       onChange={handleImageUpload}
-                      aria-label="Galeriden seç"
+                      aria-label={t("image.pickFromGalleryAria")}
                       className="sr-only"
                     />
                     <input
@@ -827,7 +823,7 @@ export default function DogaltasKayitPage() {
                       accept="image/*"
                       capture="environment"
                       onChange={handleImageUpload}
-                      aria-label="Fotoğraf çek"
+                      aria-label={t("image.takePhotoAria")}
                       className="sr-only"
                     />
                     </div>
@@ -845,7 +841,7 @@ export default function DogaltasKayitPage() {
                             type="button"
                             onClick={() => void removeImage(image.id)}
                             disabled={removingImageId === image.id}
-                            aria-label="Fotoğrafı kaldır"
+                            aria-label={t("image.removePhotoAria")}
                             className="absolute right-1.5 top-1.5 hidden h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 md:flex"
                           >
                             {removingImageId === image.id ? "⋯" : "×"}
@@ -865,38 +861,41 @@ export default function DogaltasKayitPage() {
                 📋
               </span>
               <div>
-                <h2 className="text-base font-black tracking-wide text-slate-950">Genel Bilgi</h2>
+                <h2 className="text-base font-black tracking-wide text-slate-950">{t("general.title")}</h2>
                 <p className="mt-0.5 text-slate-500">
-                  Bilgi paneli / tablo / özet mantığının sade web karşılığı.
+                  {t("general.desc")}
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {[
-                { title: "Genel Bilgi / Tanım", key: "general_info" as keyof FormData },
-                { title: "Oluşum / Kaynak Notu", key: "source_note" as keyof FormData },
-              ].map((item) => (
+                { key: "general_info" as keyof FormData },
+                { key: "source_note" as keyof FormData },
+              ].map((item) => {
+                const title = t(`general.${item.key}`);
+                return (
                 <div key={item.key}>
                   <label className={uiLabel}>
-                    {item.title}
+                    {title}
                   </label>
 
                   <ExpandableTextarea
                     value={formData[item.key]}
                     onChange={(value) => updateField(item.key, value)}
-                    onExpand={() => openLargeEditor(item.title, item.key)}
-                    placeholder={`${item.title} yaz...`}
+                    onExpand={() => openLargeEditor(title, item.key)}
+                    placeholder={t("placeholderWrite", { field: title })}
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {effectSections.map((section) => (
               <div
-                key={section.title}
+                key={section.key}
                 className={`${uiCard} flex min-h-[160px] flex-col border-l-[8px] p-4 ${
                   section.accent === "cyan"
                     ? "border-l-emerald-500"
@@ -918,16 +917,16 @@ export default function DogaltasKayitPage() {
                     {section.icon}
                   </span>
                   <div>
-                    <h3 className="text-base font-black tracking-wide text-slate-950">{section.title}</h3>
-                    <p className="mt-0.5 text-slate-500">{section.desc}</p>
+                    <h3 className="text-base font-black tracking-wide text-slate-950">{t(`effects.${section.key}.title`)}</h3>
+                    <p className="mt-0.5 text-slate-500">{t(`effects.${section.key}.desc`)}</p>
                   </div>
                 </div>
 
                 <ExpandableTextarea
                   value={formData[section.key as keyof FormData]}
                   onChange={(value) => updateField(section.key as keyof FormData, value)}
-                  onExpand={() => openLargeEditor(section.title, section.key as keyof FormData)}
-                  placeholder={`${section.title} yaz...`}
+                  onExpand={() => openLargeEditor(t(`effects.${section.key}.title`), section.key as keyof FormData)}
+                  placeholder={t("placeholderWrite", { field: t(`effects.${section.key}.title`) })}
                   className="mt-auto"
                 />
               </div>
@@ -945,12 +944,12 @@ export default function DogaltasKayitPage() {
                   ✨
                 </span>
                 <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">İleri Seviye Notlar</h2>
-                  <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım, uygulama ve uyarı notları.</p>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">{t("advanced.title")}</h2>
+                  <p className="mt-0.5 text-slate-500">{t("advanced.desc")}</p>
                 </div>
               </div>
               <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
-                {advancedOpen ? "▲ Gizle" : "▼ Göster"}
+                {advancedOpen ? t("toggle.hide") : t("toggle.show")}
               </span>
             </button>
 
@@ -959,13 +958,13 @@ export default function DogaltasKayitPage() {
                 <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-4">
                   {usageSections.map((item) => (
                     <div key={item.key} className={`${uiPanel} p-4`}>
-                      <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
+                      <p className="mb-2 text-[13px] font-bold text-slate-800">{t(`usage.${item.key}`)}</p>
 
                       <ExpandableTextarea
                         value={formData[item.key as keyof FormData]}
                         onChange={(value) => updateField(item.key as keyof FormData, value)}
-                        onExpand={() => openLargeEditor(item.title, item.key as keyof FormData)}
-                        placeholder={`${item.title} notu...`}
+                        onExpand={() => openLargeEditor(t(`usage.${item.key}`), item.key as keyof FormData)}
+                        placeholder={t("placeholderNote", { field: t(`usage.${item.key}`) })}
                       />
                     </div>
                   ))}
@@ -978,28 +977,28 @@ export default function DogaltasKayitPage() {
                         ⚠️
                       </span>
                       <div>
-                        <h3 className="text-sm font-black text-slate-950">Uyarılar ve Hassasiyetler</h3>
-                        <p className="mt-0.5 text-[11px] font-semibold text-amber-700/80">Danışan modülü ile entegre — bu alan taş önerilerinde otomatik kontrol edilir.</p>
+                        <h3 className="text-sm font-black text-slate-950">{t("warnings.title")}</h3>
+                        <p className="mt-0.5 text-[11px] font-semibold text-amber-700/80">{t("warnings.integrationNote")}</p>
                       </div>
                     </div>
                     <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700">
-                      Klinik Not
+                      {t("warnings.clinicalBadge")}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
                     <div>
-                      <label className={uiLabel}>Uyarı Metni</label>
+                      <label className={uiLabel}>{t("warnings.textLabel")}</label>
                       <ExpandableTextarea
                         value={formData.warning_text}
                         onChange={(value) => updateField("warning_text", value)}
-                        onExpand={() => openLargeEditor("Uyarılar", "warning_text")}
-                        placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
+                        onExpand={() => openLargeEditor(t("warnings.largeEditorTitle"), "warning_text")}
+                        placeholder={t("warnings.textPlaceholder")}
                       />
                     </div>
 
                     <div>
-                      <label className={uiLabel}>Uyarı Etiketleri</label>
+                      <label className={uiLabel}>{t("warnings.tagsLabel")}</label>
                       <div className="grid grid-cols-2 gap-2.5">
                         {warningTypes.map((warning) => (
                           <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-2.5 px-3 py-2`}>
@@ -1031,12 +1030,12 @@ export default function DogaltasKayitPage() {
                   📎
                 </span>
                 <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
-                  <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji, element ve çakra alanları.</p>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">{t("assignments.title")}</h2>
+                  <p className="mt-0.5 text-slate-500">{t("assignments.desc")}</p>
                 </div>
               </div>
               <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
-                {assignmentsOpen ? "▲ Gizle" : "▼ Göster"}
+                {assignmentsOpen ? t("toggle.hide") : t("toggle.show")}
               </span>
             </button>
 
@@ -1053,7 +1052,7 @@ export default function DogaltasKayitPage() {
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-base ring-1 ring-emerald-100">{item.icon}</span>
                       <span>
                         <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
-                        <span className="block text-xs text-slate-500">Düzenle / ekle</span>
+                        <span className="block text-xs text-slate-500">{t("assignments.editAdd")}</span>
                       </span>
                     </span>
                     <span className="text-lg font-black text-emerald-600">→</span>
@@ -1063,7 +1062,7 @@ export default function DogaltasKayitPage() {
                 <div className={`${uiPanel} md:col-span-2 p-4`}>
                   <div className="mb-3 flex items-center gap-2">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-base ring-1 ring-emerald-100">🌀</span>
-                    <span className="text-[13px] font-bold text-slate-800">Çakra Atama</span>
+                    <span className="text-[13px] font-bold text-slate-800">{t("assignments.chakraTitle")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
                     {chakraOptions.map((chakra) => (
@@ -1091,17 +1090,17 @@ export default function DogaltasKayitPage() {
             Safe-area alt boşluğu eklendi; dar ekranda yatay taşma/sıkışma yok. */}
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="hidden text-sm font-semibold text-slate-500 sm:block">
-            Kaydedilmeden ayrılırsanız taslak kaybolabilir.
+            {t("bottomBar.leaveWarning")}
           </p>
 
           <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
             <div className="flex gap-2 sm:gap-3">
               <button type="button" onClick={handleClear} className="btn-soft flex-1 sm:flex-none">
-                Temizle
+                {t("common.clear")}
               </button>
 
               <button type="button" onClick={handleCancel} className="btn-soft flex-1 sm:flex-none">
-                İptal
+                {t("common.cancel")}
               </button>
             </div>
 
@@ -1111,7 +1110,7 @@ export default function DogaltasKayitPage() {
               disabled={isSaving || dupChecking}
               className="btn-primary w-full sm:w-auto"
             >
-              {dupChecking ? "Kontrol ediliyor..." : isSaving ? "Kaydediliyor..." : "Kaydet"}
+              {dupChecking ? t("bottomBar.checking") : isSaving ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </div>
@@ -1137,10 +1136,10 @@ export default function DogaltasKayitPage() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
-                  BÜYÜK YAZI EKRANI
+                  {t("largeEditor.badge")}
                 </div>
                 <h2 className="text-[26px] font-black text-slate-950">{largeEditorTitle}</h2>
-                <p className="mt-1 text-[13px] text-slate-500">Uzun metinleri rahat yazmak için geniş düzen.</p>
+                <p className="mt-1 text-[13px] text-slate-500">{t("largeEditor.subtitle")}</p>
               </div>
 
               <button type="button" onClick={closeLargeEditor} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[20px] font-black text-slate-600 transition hover:bg-slate-200">
@@ -1151,18 +1150,18 @@ export default function DogaltasKayitPage() {
             <textarea
               value={largeEditorValue}
               onChange={(event) => setLargeEditorValue(event.target.value)}
-              placeholder="Notunuzu geniş ekranda yazın..."
+              placeholder={t("largeEditor.placeholder")}
               className="min-h-0 flex-1 resize-none rounded-[24px] border-2 border-emerald-200 bg-white/90 p-5 text-[15px] font-medium leading-7 text-slate-700 shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
               autoFocus
             />
 
             <div className="mt-5 flex justify-end gap-3">
               <button type="button" onClick={closeLargeEditor} className="btn-soft">
-                İptal
+                {t("common.cancel")}
               </button>
 
               <button type="button" onClick={saveLargeEditor} className="btn-primary">
-                Kaydet
+                {t("common.save")}
               </button>
             </div>
           </div>
@@ -1175,7 +1174,7 @@ export default function DogaltasKayitPage() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
-                  ATAMA PANELİ
+                  {t("assignModal.badge")}
                 </div>
                 <h2 className="text-[26px] font-black text-slate-950">{activeAssignment.icon} {activeAssignment.title}</h2>
                 <p className="mt-1 text-[13px] text-slate-500">{activeAssignment.desc}</p>
@@ -1195,7 +1194,7 @@ export default function DogaltasKayitPage() {
                       type="text"
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
                       onChange={(event) => updateAssignmentInput(activeAssignment.title, index, event.target.value)}
-                      placeholder={`${field} yaz...`}
+                      placeholder={t("placeholderWrite", { field })}
                       className="h-12 w-full rounded-2xl border-2 border-emerald-200 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
                     />
                   </div>
@@ -1203,7 +1202,7 @@ export default function DogaltasKayitPage() {
               </div>
 
               <button type="button" onClick={addAssignmentRow} className="btn-primary self-end">
-                Satır Ekle
+                {t("assignModal.addRow")}
               </button>
             </div>
 
@@ -1214,13 +1213,13 @@ export default function DogaltasKayitPage() {
                   {activeAssignment.fields[0]}
                   {activeAssignment.fields.length === 2 ? ` • ${activeAssignment.fields[1]}` : ""}
                 </span>
-                <span className="text-right">İşlem</span>
+                <span className="text-right">{t("assignModal.actionColumn")}</span>
               </div>
 
               <div className="mt-3 space-y-2">
                 {(assignmentRows[activeAssignment.title] || []).length === 0 ? (
                   <div className="flex h-[210px] items-center justify-center text-center text-[13px] font-medium text-slate-400">
-                    Henüz kayıt eklenmedi.
+                    {t("assignModal.empty")}
                   </div>
                 ) : (
                   (assignmentRows[activeAssignment.title] || []).map((row, rowIndex) => (
@@ -1239,7 +1238,7 @@ export default function DogaltasKayitPage() {
                         ) : null}
                       </div>
                       <button type="button" onClick={() => void deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
-                        Sil
+                        {t("common.delete")}
                       </button>
                     </div>
                   ))
@@ -1249,11 +1248,11 @@ export default function DogaltasKayitPage() {
 
             <div className="mt-5 flex justify-end gap-3">
               <button type="button" onClick={closeAssignment} className="btn-soft">
-                İptal
+                {t("common.cancel")}
               </button>
 
               <button type="button" onClick={saveAssignmentAndClose} className="btn-primary">
-                Kaydet
+                {t("common.save")}
               </button>
             </div>
           </div>

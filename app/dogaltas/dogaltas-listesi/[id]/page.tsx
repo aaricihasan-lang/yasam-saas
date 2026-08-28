@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   ChangeEvent,
@@ -36,7 +37,8 @@ import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImag
 
 
 function SearchMatchBadge() {
-  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
+  const t = useTranslations("stones.detail");
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>{t("matchBadge")}</span>;
 }
 
 
@@ -422,6 +424,7 @@ function TextBlock({
   onOpenRead: () => void;
   isContentProtected?: boolean;
 }) {
+  const t = useTranslations("stones.detail");
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
 
@@ -439,12 +442,12 @@ function TextBlock({
             aria-hidden="true"
           >
             <p className={`line-clamp-4 whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}>
-              {shortPreview(text, 240) || "Henüz bilgi girilmedi."}
+              {shortPreview(text, 240) || t("noInfoYet")}
             </p>
           </div>
         </div>
         <p className="mt-2 text-[11px] font-black text-amber-600">
-          🔒 Demo hesabında korumalı · yapıyı görmek için tıklayın
+          {t("protectedHint")}
         </p>
       </button>
     );
@@ -469,7 +472,7 @@ function TextBlock({
             </p>
           </div>
           <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
-            Düzenle
+            {t("edit")}
           </span>
         </div>
       </button>
@@ -499,13 +502,14 @@ function TextBlock({
       </div>
 
       <p className="mt-2 text-[11px] font-black text-emerald-700">
-        Tam okumak için tıklayın →
+        {t("readMore")}
       </p>
     </button>
   );
 }
 
 function StoneDetailPage() {
+  const t = useTranslations("stones.detail");
   const params = useParams<{ id: string }>();
   const router = useRouter();
   useBfcacheRefresh();
@@ -659,7 +663,7 @@ function StoneDetailPage() {
     setActiveReader({
       title,
       badge,
-      text: text && text.trim() ? text : "Henüz bilgi girilmedi.",
+      text: text && text.trim() ? text : t("noInfoYet"),
     });
   }
 
@@ -710,8 +714,8 @@ function StoneDetailPage() {
     setSuccessMessage("");
     setActiveEditor({
       mode: "assignments",
-      title: "Atamalar",
-      badge: "ATAMA",
+      title: t("sections.assignments"),
+      badge: t("badges.assignment"),
       values: assignmentsToValues(stone.assignments),
     });
   }
@@ -747,7 +751,7 @@ function StoneDetailPage() {
     if (activeEditor.mode === "text") {
       if (activeEditor.field === "stone_name" && !activeEditor.value.trim()) {
         setSaving(false);
-        setErrorMessage("Taş adı boş bırakılamaz.");
+        setErrorMessage(t("editor.nameRequired"));
         return;
       }
 
@@ -777,7 +781,7 @@ function StoneDetailPage() {
     setSaving(false);
 
     if (!ok || !data) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
+      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
       return;
     }
 
@@ -827,9 +831,9 @@ function StoneDetailPage() {
   async function handleDeleteStoneTrigger() {
     if (!stone) return;
     const confirmed = await deleteConfirm({
-      title: "Taşı Sil",
-      message: `"${stone.stone_name || "Bu taş"}" kaydını silmek istediğinizden emin misiniz?`,
-      secondMessage: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+      title: t("deleteConfirm.title"),
+      message: t("deleteConfirm.message", { name: stone.stone_name || "Bu taş" }),
+      secondMessage: t("deleteConfirm.second"),
     });
     if (!confirmed) return;
     await deleteStone();
@@ -852,7 +856,7 @@ function StoneDetailPage() {
     setDeleteLoading(false);
 
     if (!ok) {
-      setErrorMessage(`Kayıt silinemedi: ${error ?? "Lütfen tekrar deneyin."}`);
+      setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
       return;
     }
 
@@ -897,7 +901,7 @@ function StoneDetailPage() {
       if (json.demo) { setImageBusy(false); return; }
       if (!res.ok || !json.ok || !json.image) {
         setImageBusy(false);
-        setErrorMessage("Görsel yüklenemedi. Lütfen tekrar deneyin.");
+        setErrorMessage(t("image.uploadFailed"));
         return;
       }
 
@@ -915,7 +919,7 @@ function StoneDetailPage() {
     setImageBusy(false);
 
     if (!ok || !data) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
+      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
       return;
     }
 
@@ -933,9 +937,9 @@ function StoneDetailPage() {
 
     // FAZ-1: Resim silme ortak güvenli onaya bağlandı (masaüstü tek onay, mobil/PWA 2 adım).
     const confirmed = await deleteConfirm({
-      title: "Fotoğrafı sil",
-      message: `"${image.name}" fotoğrafını silmek istiyor musunuz? Bu işlem geri alınamaz.`,
-      secondMessage: `"${image.name}" fotoğrafı kalıcı olarak silinecek. Emin misiniz?`,
+      title: t("image.deleteConfirmTitle"),
+      message: t("image.deleteConfirmMessage", { name: image.name }),
+      secondMessage: t("image.deleteConfirmSecond", { name: image.name }),
     });
     if (!confirmed) return;
 
@@ -959,7 +963,7 @@ function StoneDetailPage() {
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean };
       if (!res.ok || (!json.ok && !json.demo)) {
         setImageBusy(false);
-        setErrorMessage("Depolama temizlenemedi. Lütfen tekrar deneyin.");
+        setErrorMessage(t("image.storageClearFailed"));
         return;
       }
     }
@@ -973,7 +977,7 @@ function StoneDetailPage() {
     setImageBusy(false);
 
     if (!ok || !data) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
+      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
       return;
     }
 
@@ -1036,7 +1040,7 @@ function StoneDetailPage() {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
         <div className={`${uiHeaderCard} text-sm font-black text-slate-600`}>
-          Kayıt yükleniyor...
+          {t("loading")}
         </div>
       </main>
     );
@@ -1055,14 +1059,14 @@ function StoneDetailPage() {
           <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-500">
             {isReadError
               ? errorMessage.replace(/^Kayıt okunurken hata oluştu\n?/, "")
-              : errorMessage || "Bu doğaltaş kaydı görüntülenemedi."}
+              : errorMessage || t("error.notViewable")}
           </p>
 
           <Link
             href={listBackHref}
             className="btn-soft mt-6"
           >
-            {hasFilterContext ? "Aramaya Dön" : "Taş Listesine Dön"}
+            {hasFilterContext ? t("backToSearchShort") : t("backToListShort")}
           </Link>
         </div>
       </main>
@@ -1106,16 +1110,16 @@ function StoneDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-emerald-700">
-                💎 DOĞALTAŞ DETAY
+                {t("eyebrow")}
               </span>
               {isLibraryStone && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700">
-                  📚 Kütüphane · Görüntüleme
+                  {t("libraryBadge")}
                 </span>
               )}
               {wasViewed && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-[10px] font-black text-indigo-600">
-                  👁 Bakıldı
+                  {t("viewedBadge")}
                 </span>
               )}
             </div>
@@ -1123,7 +1127,7 @@ function StoneDetailPage() {
             {editEnabled ? (
               <button
                 type="button"
-                onClick={() => openTextEditor("stone_name", "Taş Adı", "BAŞLIK", false)}
+                onClick={() => openTextEditor("stone_name", t("sections.stoneName"), t("badges.title"), false)}
                 className="block w-full rounded-xl border border-emerald-200 bg-white/90 px-3 py-1.5 text-left text-xl font-black tracking-tight text-slate-950 shadow-sm transition hover:border-violet-300 sm:text-2xl"
               >
                 {safeStone.stone_name}
@@ -1139,7 +1143,7 @@ function StoneDetailPage() {
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
               {formatDate(safeStone.created_at)}
-              {safeStone.updated_at ? ` · güncellendi ${formatDate(safeStone.updated_at)}` : ""}
+              {safeStone.updated_at ? t("updatedAt", { date: formatDate(safeStone.updated_at) }) : ""}
             </p>
           </div>
 
@@ -1148,7 +1152,7 @@ function StoneDetailPage() {
               href={listBackHref}
               className="btn-soft"
             >
-              {hasFilterContext ? "← Aramaya Dön" : "← Taş Listesi"}
+              {hasFilterContext ? t("backToSearch") : t("backToList")}
             </Link>
 
             {!isLibraryStone && !isDemo && (
@@ -1167,7 +1171,7 @@ function StoneDetailPage() {
                 }}
                 className={editEnabled ? "btn-primary" : "btn-soft"}
               >
-                {editEnabled ? "Kaydet" : "Düzenle"}
+                {editEnabled ? t("save") : t("edit")}
               </button>
             )}
 
@@ -1178,7 +1182,7 @@ function StoneDetailPage() {
                 disabled={wordBusy}
                 className="btn-soft"
               >
-                {wordBusy ? "⏳..." : "📄 Word"}
+                {wordBusy ? t("wordBusy") : t("wordButton")}
               </button>
             )}
 
@@ -1188,7 +1192,7 @@ function StoneDetailPage() {
                 onClick={() => void handleDeleteStoneTrigger()}
                 className="btn-danger"
               >
-                Sil
+                {t("delete")}
               </button>
             )}
           </div>
@@ -1196,18 +1200,18 @@ function StoneDetailPage() {
 
         {hasFilterContext && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">Eşleşme:</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">{t("matchLabel")}</span>
             {highlightQuery && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔍 {highlightQuery}</span>}
             {astroFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">♈ {astroFilter}</span>}
             {chakraFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔵 {chakraFilter}</span>}
             {mineralFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">💎 {mineralFilter}</span>}
-            {warnFilter && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">⚠️ Uyarılı</span>}
+            {warnFilter && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">{t("filterWarnLabel")}</span>}
           </div>
         )}
 
         {editEnabled && (
           <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs font-black text-violet-800 shadow-sm">
-            Düzenleme modu: düzenlemek istediğiniz kartı seçin.
+            {t("editModeHint")}
           </div>
         )}
 
@@ -1258,7 +1262,7 @@ function StoneDetailPage() {
                         }}
                         className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
                       >
-                        Sil
+                        {t("delete")}
                       </button>
                     )}
                     <h2 className="border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
@@ -1296,7 +1300,7 @@ function StoneDetailPage() {
                               }}
                               className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md hidden md:inline-flex"
                             >
-                              Sil
+                              {t("delete")}
                             </button>
                           )}
                         </div>
@@ -1312,7 +1316,7 @@ function StoneDetailPage() {
                       {safeStone.stone_name}
                     </h2>
                     <p className="mt-1 text-[10px] leading-4 text-slate-400">
-                      Görsel eklenmemiş
+                      {t("image.none")}
                     </p>
                   </div>
                 </div>
@@ -1321,7 +1325,7 @@ function StoneDetailPage() {
               {imagesNotWebFormat.length > 0 && (
                 <div className="mt-4 space-y-2 text-left">
                   <p className="text-[12px] font-black text-slate-700">
-                    Web&apos;de gösterilemeyen görseller
+                    {t("image.notWebTitle")}
                   </p>
                   {imagesNotWebFormat.map((image) => (
                     <div
@@ -1330,7 +1334,7 @@ function StoneDetailPage() {
                     >
                       <span className="block min-w-0 truncate">{image.name}</span>
                       <span className="mt-1 block text-[10px] font-semibold text-amber-700">
-                        Görsel yolu web formatında değil
+                        {t("image.notWebFormat")}
                       </span>
                       {editEnabled && (
                         <button
@@ -1343,7 +1347,7 @@ function StoneDetailPage() {
                           }}
                           className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
                         >
-                          Sil
+                          {t("delete")}
                         </button>
                       )}
                     </div>
@@ -1372,7 +1376,7 @@ function StoneDetailPage() {
                     }}
                     className="btn-primary w-full"
                   >
-                    Fotoğraf Ekle
+                    {t("image.add")}
                   </button>
                 </div>
               )}
@@ -1381,17 +1385,17 @@ function StoneDetailPage() {
             <div className="space-y-3">
             <button
               type="button"
-              onClick={() => openCheckboxEditor("chakras", "Çakralar", "ÇAKRA", CHAKRA_OPTIONS)}
+              onClick={() => openCheckboxEditor("chakras", t("sections.chakras"), t("badges.chakra"), CHAKRA_OPTIONS)}
               className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.chakras))}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="text-sm font-black text-slate-950">Çakralar</h3>
+                  <h3 className="text-sm font-black text-slate-950">{t("sections.chakras")}</h3>
                   {sectionMatches?.chakras ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
                   <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                    Seç
+                    {t("select")}
                   </span>
                 )}
               </div>
@@ -1423,17 +1427,17 @@ function StoneDetailPage() {
 
             <button
               type="button"
-              onClick={() => openCheckboxEditor("warning_tags", "Uyarı Etiketleri", "UYARI ETİKETLERİ", WARNING_OPTIONS)}
+              onClick={() => openCheckboxEditor("warning_tags", t("sections.warningTags"), t("badges.warningTags"), WARNING_OPTIONS)}
               className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.warningTags))}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="text-sm font-black text-slate-950">Uyarı Etiketleri</h3>
+                  <h3 className="text-sm font-black text-slate-950">{t("sections.warningTags")}</h3>
                   {sectionMatches?.warningTags ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
                   <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                    Seç
+                    {t("select")}
                   </span>
                 )}
               </div>
@@ -1470,12 +1474,12 @@ function StoneDetailPage() {
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="text-sm font-black text-slate-950">Atamalar</h3>
+                  <h3 className="text-sm font-black text-slate-950">{t("sections.assignments")}</h3>
                   {sectionMatches?.assignments ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
                   <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                    Düzenle
+                    {t("edit")}
                   </span>
                 )}
               </div>
@@ -1542,111 +1546,111 @@ function StoneDetailPage() {
 
           <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <TextBlock
-              title="Kısa Açıklama"
-              badge="GENEL BİLGİ"
+              title={t("sections.shortDesc")}
+              badge={t("badges.generalInfo")}
               text={safeStone.short_description}
               tone="cyan"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.shortDescription}
-              onOpenEdit={() => openTextEditor("short_description", "Kısa Açıklama", "GENEL BİLGİ")}
-              onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
+              onOpenEdit={() => openTextEditor("short_description", t("sections.shortDesc"), t("badges.generalInfo"))}
+              onOpenRead={() => openReader(t("sections.shortDesc"), t("badges.generalInfo"), safeStone.short_description)}
             />
 
             <TextBlock
-              title="Genel Taş Açıklaması"
-              badge="DETAYLI BİLGİ"
+              title={t("sections.generalInfo")}
+              badge={t("badges.detailedInfo")}
               text={safeStone.general_info}
               tone="cyan"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.generalInfo}
               isContentProtected={isContentProtected}
-              onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
-              onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
+              onOpenEdit={() => openTextEditor("general_info", t("sections.generalInfo"), t("badges.detailedInfo"))}
+              onOpenRead={() => openReader(t("sections.generalInfo"), t("badges.detailedInfo"), safeStone.general_info)}
             />
 
             <TextBlock
-              title="Kaynak Notu"
-              badge="KAYNAK"
+              title={t("sections.sourceNote")}
+              badge={t("badges.source")}
               text={safeStone.source_note}
               tone="slate"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.sourceNote}
               isContentProtected={isContentProtected}
-              onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
-              onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
+              onOpenEdit={() => openTextEditor("source_note", t("sections.sourceNote"), t("badges.source"))}
+              onOpenRead={() => openReader(t("sections.sourceNote"), t("badges.source"), safeStone.source_note)}
             />
 
             <TextBlock
-              title="Fiziksel Etkiler"
-              badge="BEDENSEL ETKİ"
+              title={t("sections.physicalEffects")}
+              badge={t("badges.physical")}
               text={safeStone.physical_effects}
               tone="emerald"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.physicalEffects}
               isContentProtected={isContentProtected}
-              onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
-              onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
+              onOpenEdit={() => openTextEditor("physical_effects", t("sections.physicalEffects"), t("badges.physical"))}
+              onOpenRead={() => openReader(t("sections.physicalEffects"), t("badges.physical"), safeStone.physical_effects)}
             />
 
             <TextBlock
-              title="Ruhsal Etkiler"
-              badge="RUHSAL ETKİ"
+              title={t("sections.spiritualEffects")}
+              badge={t("badges.spiritual")}
               text={safeStone.spiritual_effects}
               tone="violet"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.spiritualEffects}
               isContentProtected={isContentProtected}
-              onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
-              onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
+              onOpenEdit={() => openTextEditor("spiritual_effects", t("sections.spiritualEffects"), t("badges.spiritual"))}
+              onOpenRead={() => openReader(t("sections.spiritualEffects"), t("badges.spiritual"), safeStone.spiritual_effects)}
             />
 
             <TextBlock
-              title="Diğer Etkiler"
-              badge="TAMAMLAYICI NOT"
+              title={t("sections.otherEffects")}
+              badge={t("badges.complementary")}
               text={safeStone.other_effects}
               tone="amber"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.otherEffects}
               isContentProtected={isContentProtected}
-              onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
-              onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
+              onOpenEdit={() => openTextEditor("other_effects", t("sections.otherEffects"), t("badges.complementary"))}
+              onOpenRead={() => openReader(t("sections.otherEffects"), t("badges.complementary"), safeStone.other_effects)}
             />
 
             <div className="lg:col-span-2">
               <TextBlock
-                title="Uyarılar ve Hassasiyetler"
-                badge="KLİNİK NOT"
+                title={t("sections.warnings")}
+                badge={t("badges.clinical")}
                 text={safeStone.warning_text}
                 tone="rose"
                 editEnabled={editEnabled}
                 highlightQuery={highlightQuery}
                 hasSearchMatch={sectionMatches?.warningText}
                 isContentProtected={isContentProtected}
-                onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
+                onOpenEdit={() => openTextEditor("warning_text", t("sections.warnings"), t("badges.clinical"))}
                 onOpenRead={() =>
-                  openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
+                  openReader(t("sections.warnings"), t("badges.clinical"), safeStone.warning_text)
                 }
               />
             </div>
 
             <section className={`${uiInfoCard} lg:col-span-2`}>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className={toneClass("cyan")}>KULLANIM ALANLARI</span>
-                <h2 className="text-sm font-black text-slate-950">Kullanım / Uygulama Notları</h2>
+                <span className={toneClass("cyan")}>{t("badges.usage")}</span>
+                <h2 className="text-sm font-black text-slate-950">{t("sections.usageTitle")}</h2>
               </div>
 
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
-                  ["Feng Shui", "feng_shui", safeStone.feng_shui],
-                  ["Meditasyon", "meditation", safeStone.meditation],
-                  ["Bakım", "care", safeStone.care],
-                  ["Uygulama", "application", safeStone.application],
+                  [t("sections.fengShui"), "feng_shui", safeStone.feng_shui],
+                  [t("sections.meditation"), "meditation", safeStone.meditation],
+                  [t("sections.care"), "care", safeStone.care],
+                  [t("sections.application"), "application", safeStone.application],
                 ].map(([title, key, text]) => {
                   const usageMatchKey =
                     key === "feng_shui"
@@ -1668,8 +1672,8 @@ function StoneDetailPage() {
                       isContentProtected
                         ? undefined
                         : editEnabled
-                          ? openTextEditor(key as EditableTextField, String(title), "KULLANIM ALANI")
-                          : openReader(String(title), "KULLANIM ALANI", String(text || ""))
+                          ? openTextEditor(key as EditableTextField, String(title), t("badges.usageArea"))
+                          : openReader(String(title), t("badges.usageArea"), String(text || ""))
                     }
                     className={mergeMatchCardClass(
                       "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner transition hover:border-emerald-300 hover:bg-white",
@@ -1683,11 +1687,11 @@ function StoneDetailPage() {
                       </div>
                       {!isContentProtected && (editEnabled ? (
                         <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                          Düzenle
+                          {t("edit")}
                         </span>
                       ) : (
                         <span className="rounded-md bg-white px-1.5 py-0.5 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
-                          Oku
+                          {t("readMode")}
                         </span>
                       ))}
                     </div>
@@ -1722,7 +1726,7 @@ function StoneDetailPage() {
         open={Boolean(activeReader)}
         title={activeReader?.title ?? ""}
         badge={activeReader?.badge ?? ""}
-        subtitle={`${safeStone.stone_name} · detaylı okuma`}
+        subtitle={t("readerSubtitle", { name: safeStone.stone_name })}
         text={activeReader?.text ?? ""}
         highlightQuery={highlightQuery}
         renderHighlight={(segment, key) => (
@@ -1765,7 +1769,7 @@ function StoneDetailPage() {
                 </h2>
 
                 <p className="mt-1 text-[12px] font-bold text-slate-400">
-                  {safeStone.stone_name} kaydı düzenleniyor.
+                  {t("editor.editing", { name: safeStone.stone_name })}
                 </p>
               </div>
 
@@ -1776,7 +1780,7 @@ function StoneDetailPage() {
                   disabled={saving}
                   className="btn-soft"
                 >
-                  Vazgeç
+                  {t("editor.cancel")}
                 </button>
 
                 <button
@@ -1785,7 +1789,7 @@ function StoneDetailPage() {
                   disabled={saving}
                   className="btn-primary"
                 >
-                  {saving ? "Kaydediliyor..." : "Kaydet / Güncelle"}
+                  {saving ? t("editor.saving") : t("editor.saveUpdate")}
                 </button>
               </div>
             </header>
@@ -1851,7 +1855,7 @@ function StoneDetailPage() {
                         })
                       }
                       className="mt-3 h-[105px] w-full resize-none rounded-2xl border border-emerald-100 bg-white p-3 text-[12px] leading-6 text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
-                      placeholder="Her satıra bir kayıt yazın. Örn: Demir / 20"
+                      placeholder={t("editor.assignmentPlaceholder")}
                     />
                   </div>
                 ))}
@@ -1866,7 +1870,7 @@ function StoneDetailPage() {
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
                   className="h-[430px] max-h-[62vh] w-full resize-none rounded-[24px] border border-emerald-100 bg-white p-5 text-[15px] leading-8 text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
-                  placeholder={`${activeEditor.title} yazın...`}
+                  placeholder={t("editor.textPlaceholder", { title: activeEditor.title })}
                   autoFocus
                 />
               ) : (
@@ -1876,7 +1880,7 @@ function StoneDetailPage() {
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
                   className="h-16 w-full rounded-2xl border border-emerald-100 bg-white px-5 text-[24px] font-black text-slate-950 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
-                  placeholder={`${activeEditor.title} yazın...`}
+                  placeholder={t("editor.textPlaceholder", { title: activeEditor.title })}
                   autoFocus
                 />
               ))}
@@ -1912,9 +1916,10 @@ function StoneDetailPage() {
 }
 
 function StoneDetailPageFallback() {
+  const t = useTranslations("stones.detail");
   return (
     <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-500">
-      <p className="text-sm font-semibold text-slate-600">Kayıt yükleniyor...</p>
+      <p className="text-sm font-semibold text-slate-600">{t("loading")}</p>
     </main>
   );
 }

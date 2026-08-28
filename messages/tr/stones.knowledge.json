@@ -1,0 +1,144 @@
+{
+  "stones": {
+    "knowledge": {
+      "header": {
+        "brand": "Doğaltaş",
+        "title": "Taş Bilgi Kütüphanesi",
+        "subtitle": "{count} makale · Mineroloji, Şifa, Araştırma, Uygulamalar"
+      },
+      "actions": {
+        "wordReport": "📄 Word Raporu",
+        "newRecord": "+ Yeni Kayıt",
+        "closeForm": "Formu Kapat",
+        "checking": "Kontrol ediliyor..."
+      },
+      "form": {
+        "title": "Yeni Makale Ekle",
+        "titleLabel": "Başlık *",
+        "titlePlaceholder": "Makale başlığı...",
+        "categoryLabel": "Kategori",
+        "categorySelectPlaceholder": "— Kategori seç —",
+        "sourceLabel": "Kaynak",
+        "sourcePlaceholder": "Kaynak adı...",
+        "contentLabel": "İçerik *",
+        "contentPlaceholder": "Makale içeriği... (## Başlık ile bölümler oluşturabilirsin)"
+      },
+      "category": {
+        "new": "+ Yeni Kategori",
+        "formTitle": "Yeni Kategori Ekle",
+        "namePlaceholder": "Kategori adı *",
+        "iconPlaceholder": "İkon 📖",
+        "save": "Kategoriyi Kaydet",
+        "errors": {
+          "nameRequired": "Kategori adı zorunludur.",
+          "duplicate": "Bu isimde kategori zaten var.",
+          "adminRequired": "Bu işlem için admin yetkisi gerekli.",
+          "generic": "Hata: {error}",
+          "saveFailed": "Kategori kaydedilemedi.",
+          "serverUnreachable": "Sunucuya ulaşılamadı."
+        }
+      },
+      "search": {
+        "placeholder": "Tam metin ara — şifa, mineral, çakra...",
+        "resultCount": "{count} sonuç",
+        "queryLabel": "\"{q}\" araması",
+        "recordCount": "{count} kayıt"
+      },
+      "bulk": {
+        "title": "📋 Toplu İşlemler",
+        "selectedCount": "✓ {count} seçili",
+        "noSelection": "Seçim yok",
+        "selectAll": "Tümünü Seç ({count})",
+        "deselectAll": "Tümünün Seçimini Kaldır",
+        "clearSelection": "Seçimi Kaldır",
+        "updateSelected": "Seçili Güncelle",
+        "deleteSelected": "Seçili Sil",
+        "deleting": "Siliniyor…",
+        "selectAllHint": "“Tümünü Seç” yalnızca şu an filtrelenmiş {count} kaydı seçer."
+      },
+      "toasts": {
+        "maxTwoMobile": "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz.",
+        "deleteFailed": "Silme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin.",
+        "deletedWithSkipped": "{count} kayıt silindi. {skipped} kayıt atlandı.",
+        "deleted": "{count} kayıt başarıyla silindi.",
+        "updated": "{count} kayıt güncellendi."
+      },
+      "confirm": {
+        "deleteTitle": "Kayıtları Kalıcı Olarak Sil",
+        "deleteMessage": "{count} kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        "updateTextTitle": "Makale Metni Güncellenecek",
+        "updateTextMessage": "Makale başlığı veya içeriği kalıcı olarak değiştirilecek. Emin misiniz?"
+      },
+      "errors": {
+        "titleRequired": "Başlık zorunludur.",
+        "categoryRequired": "Kategori seçimi zorunludur.",
+        "contentRequired": "İçerik zorunludur.",
+        "noSession": "Oturum bulunamadı. Lütfen sayfayı yenileyin.",
+        "unknown": "Bilinmeyen hata",
+        "saveError": "Kayıt hatası: {error}",
+        "updateError": "Güncelleme hatası: {error}"
+      },
+      "word": {
+        "modalTitle": "Bilgi Kütüphanesi Raporu",
+        "modalSubtitle": "Rapora dahil edilecek makaleleri seçin.",
+        "modeAll": "Tüm Makaleler",
+        "modeCategory": "Sadece Seçili Kategori",
+        "modeFiltered": "Sadece Filtrelenmiş Sonuçlar",
+        "modeViewed": "Sadece Görüntülenen Kayıtlar",
+        "articleCount": "{count} makale",
+        "noViewedHint": "Arama oturumunda görüntülenen makale yok",
+        "preparing": "Profesyonel Word raporu hazırlanıyor...",
+        "preparingShort": "Hazırlanıyor...",
+        "generate": "Rapor Oluştur",
+        "success": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+        "errors": {
+          "selectCategory": "Lütfen bir kategori seçin.",
+          "noUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
+          "noFiltered": "Filtrelenmiş sonuç bulunamadı.",
+          "noViewed": "Bu arama oturumunda henüz görüntülenen makale yok.",
+          "reportFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
+        }
+      },
+      "detail": {
+        "searchLabel": "🔍 Arama: {q}",
+        "matchCount": "{count} eşleşme",
+        "edit": "✏️ Düzenle"
+      },
+      "edit": {
+        "mainCategoryLabel": "Ana Kategori",
+        "subCategoryLabel": "Alt Kategori / Etiket",
+        "subCategoryPlaceholder": "Alt kategori veya etiket...",
+        "contentLabel": "İçerik"
+      },
+      "list": {
+        "viewed": "✓ Bakıldı"
+      },
+      "empty": {
+        "noArticles": "Henüz makale yok. Yeni Kayıt butonu ile ekleyebilirsin.",
+        "noResults": "Kayıt bulunamadı",
+        "detailPrompt": "Sol panelden bir makale seçerek okuyabilirsin. Arama motoruyla tam metin içinde arama yapabilirsin."
+      },
+      "demo": {
+        "hiddenContent": "Bu içerik demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir."
+      },
+      "bulkUpdate": {
+        "titleSingle": "Kayıt Güncelle",
+        "titleMulti": "Toplu Güncelleme ({count} kayıt)",
+        "subtitleSingle": "Boş bırakılan kategori alanları değişmez.",
+        "subtitleMulti": "Çoklu seçimde yalnızca kategori alanları güncellenir.",
+        "categoryNoChange": "— Değiştirme —",
+        "subCategoryLabel": "Alt Kategori",
+        "noChangePlaceholder": "Boş bırakılırsa değişmez",
+        "articleTextLabel": "Makale Metni",
+        "editingText": "✏️ Metin Düzenleniyor",
+        "editText": "✏️ Metni Düzenle",
+        "titleLabel": "Başlık",
+        "multiWarning": "Çoklu seçimde başlık ve içerik alanları güncellenmez. Yalnızca kategori alanları uygulanır.",
+        "updating": "Güncelleniyor…",
+        "update": "Güncelle",
+        "errorNoChange": "En az bir alanı değiştirin.",
+        "errorFailed": "Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin."
+      }
+    }
+  }
+}
