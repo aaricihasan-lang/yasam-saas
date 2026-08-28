@@ -21,6 +21,7 @@ import {
   CloudUpload,
   RefreshCw,
   BookOpen,
+  Sprout,
 } from "lucide-react";
 import {
   clearYasamUser,
@@ -75,6 +76,17 @@ type AdminCard = {
 };
 
 const adminCards: AdminCard[] = [
+  {
+    title: "Doğal Pazar Yönetimi",
+    desc: "Yaşam Sistemi Doğal Pazar: ürün, kategori ve WhatsApp iletişim ayarları.",
+    href: "/admin/magaza",
+    Icon: Sprout,
+    theme: {
+      iconWrap: "from-emerald-600 to-teal-700",
+      cardBg: "from-emerald-50/90 via-white to-lime-50/70",
+      border: "border-emerald-200/70",
+    },
+  },
   {
     title: "Kullanıcı / Üye Yönetimi",
     desc: "Üye hesapları, roller ve erişim kontrolü.",
