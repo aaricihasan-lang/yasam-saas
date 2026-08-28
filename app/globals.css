@@ -264,6 +264,26 @@ button,
     color: #b91c1c !important;
     -webkit-text-fill-color: #b91c1c;
   }
+
+  /* Doğal Pazar admin form girişi — tutarlı, sakin, okunaklı input/textarea/select. */
+  .store-input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid #e7e5e4;
+    background: #ffffff;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+    color: #292524;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .store-input::placeholder {
+    color: #a8a29e;
+  }
+  .store-input:focus {
+    border-color: #6ee7b7;
+    box-shadow: 0 0 0 3px rgb(16 185 129 / 0.15);
+  }
 }
 
 /* ── Scrollbar stilleri — Doğaltaş okuyucu + paylaşılan ReaderModal (aynı görünüm) ── */

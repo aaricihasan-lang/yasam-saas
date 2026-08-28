@@ -52,6 +52,7 @@ import {
   Shield,
   ShieldCheck,
   Sparkles,
+  Sprout,
   UsersRound,
 } from "lucide-react";
 
@@ -1571,6 +1572,28 @@ export default function Home() {
                           Aktif
                         </span>
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                          <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Yaşam Sistemi Doğal Pazar — herkese görünür müşteri vitrini kartı. */}
+                  <Link href="/magaza" className="block text-inherit no-underline">
+                    <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-emerald-100/90 via-lime-50/90 to-white border-emerald-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm">
+                        <Sprout className="h-4 w-4" strokeWidth={2.25} />
+                      </div>
+                      <h3 className="mt-2.5 text-base font-black text-slate-900">Doğal Pazar</h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                        Doğal ve bütüncül yaşam ürünleri vitrini
+                      </p>
+                      <p className="mt-1.5 text-xs text-slate-500">Vitrin</p>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                          Aktif
+                        </span>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm" aria-hidden>
                           <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
                         </span>
                       </div>
