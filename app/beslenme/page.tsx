@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BookOpen,
+  CalendarDays,
   Compass,
   HeartPulse,
   Package,
@@ -148,6 +149,30 @@ export default function BeslenmeHubPage() {
       </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Beslenme Planları — sayaçsız (kart planlara doğrudan yönlendirir) */}
+        <Link
+          href="/beslenme/planlar"
+          className="group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <span
+              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm"
+              aria-hidden
+            >
+              <CalendarDays className="h-6 w-6" />
+            </span>
+          </div>
+          <div className="mt-3 min-w-0 flex-1">
+            <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Beslenme Planları</h2>
+            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
+              Günlük, haftalık ve aylık beslenme planları oluşturun; kalori ve besin değerlerini otomatik hesaplayın.
+            </p>
+          </div>
+          <span className="mt-4 block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
+            Beslenme Planları →
+          </span>
+        </Link>
+
         {MODULES.map((m) => {
           const Icon = m.icon;
           const value = counts?.[m.countKey];
