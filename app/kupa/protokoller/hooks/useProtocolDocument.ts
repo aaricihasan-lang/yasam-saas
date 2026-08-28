@@ -60,6 +60,12 @@ export function useProtocolDocument(id: string) {
   const reloadEntries = useCallback(async () => setEntries(await listProtocolEntries(id)), [id]);
   const reloadSources = useCallback(async () => setSources(await listProtocolSources(id)), [id]);
 
+  // Master listeleri için HEDEFLİ yeniden çekim (quick-create sonrası yeni master picker'da
+  // görünür olsun). Tek GET; loop-içi/section-içi master fetch YOK (N+1 YASAK).
+  const reloadMasterTechniques = useCallback(async () => setMasterTechniques(await listTechniques()), []);
+  const reloadMasterSafety = useCallback(async () => setMasterSafety(await listSafety()), []);
+  const reloadMasterSources = useCallback(async () => setMasterSources(await listSources()), []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -191,6 +197,9 @@ export function useProtocolDocument(id: string) {
       steps: reloadSteps,
       entries: reloadEntries,
       sources: reloadSources,
+      masterTechniques: reloadMasterTechniques,
+      masterSafety: reloadMasterSafety,
+      masterSources: reloadMasterSources,
       all: loadAll,
     },
     setProtocol,

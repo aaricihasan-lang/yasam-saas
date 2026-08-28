@@ -14,10 +14,13 @@ import {
   deleteProtocolPoint,
   deleteProtocolTechnique,
   deleteProtocolSafety,
+  createTechnique,
+  createSafety,
 } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
 import { MasterPickerDialog, type PickerItem } from "./MasterPickerDialog";
+import { type QuickCreateConfig } from "./QuickCreateMasterForm";
 import { InlineLongText } from "./InlineLongText";
 
 type Kind = "point" | "technique" | "safety";
@@ -152,6 +155,71 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
     }
   }
 
+  // ── Quick-create (YALNIZ technique/safety; point HARİÇ) ───────────────────────
+  // create başarısız → THROW (form açık kalır, attach YOK). create OK/attach FAIL →
+  // master standalone kalır (rollback YOK), picker'da görünür, kullanıcı seçebilir.
+  // demo → create null id döner → attach YAPMA.
+  const quickCreate: QuickCreateConfig | undefined =
+    kind === "technique"
+      ? {
+          entity: "technique",
+          existing: doc.masterTechniques.map((m) => ({ id: m.id, label: m.name })),
+          onUseExisting: (id) => { if (!busy) void handleAdd(id); },
+          onCreate: async (v) => {
+            const created = await createTechnique({
+              name: v.name,
+              technique_type: v.technique_type,
+              movement_style: v.movement_style,
+              description: v.description,
+            });
+            if (!created || !created.id) {
+              showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+              return;
+            }
+            await doc.reload.masterTechniques();
+            try {
+              await addProtocolTechnique({ protocol_id: protocolId, technique_id: created.id });
+            } catch {
+              await reload();
+              showToast({ message: "Kayıt oluşturuldu ancak protokole eklenemedi. Listeden seçerek tekrar deneyebilirsiniz.", type: "warning" });
+              return;
+            }
+            await reload();
+            setPickerOpen(false);
+            showToast({ message: "Teknik oluşturuldu ve eklendi.", type: "success" });
+          },
+        }
+      : kind === "safety"
+        ? {
+            entity: "safety",
+            existing: doc.masterSafety.map((m) => ({ id: m.id, label: m.title })),
+            onUseExisting: (id) => { if (!busy) void handleAdd(id); },
+            onCreate: async (v) => {
+              const created = await createSafety({
+                title: v.title,
+                content: v.content,
+                severity: v.severity,
+                contraindication_class: v.contraindication_class,
+              });
+              if (!created || !created.id) {
+                showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+                return;
+              }
+              await doc.reload.masterSafety();
+              try {
+                await addProtocolSafety({ protocol_id: protocolId, safety_id: created.id });
+              } catch {
+                await reload();
+                showToast({ message: "Kayıt oluşturuldu ancak protokole eklenemedi. Listeden seçerek tekrar deneyebilirsiniz.", type: "warning" });
+                return;
+              }
+              await reload();
+              setPickerOpen(false);
+              showToast({ message: "Güvenlik maddesi oluşturuldu ve eklendi.", type: "success" });
+            },
+          }
+        : undefined;
+
   return (
     <ProtocolSectionShell
       title={cfg.title}
@@ -216,6 +284,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
           if (!busy) void handleAdd(mid);
         }}
         onClose={() => setPickerOpen(false)}
+        quickCreate={quickCreate}
       />
     </ProtocolSectionShell>
   );

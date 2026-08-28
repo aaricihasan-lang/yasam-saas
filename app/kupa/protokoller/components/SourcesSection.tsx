@@ -4,15 +4,16 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
-import { addProtocolSource, updateProtocolSource, deleteProtocolSource, type CuppingProtocolSourceLink } from "@/app/kupa/lib/api";
+import { addProtocolSource, updateProtocolSource, deleteProtocolSource, createSource, type CuppingProtocolSourceLink } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
+import { normalizeMasterName } from "./QuickCreateMasterForm";
 
 export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: ProtocolDocument }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [formOpen, setFormOpen] = useState(false);
-  const [sourceId, setSourceId] = useState("");
+  const [sourceText, setSourceText] = useState("");
   const [locator, setLocator] = useState("");
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   const rows = [...doc.sources].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   function reset() {
-    setSourceId("");
+    setSourceText("");
     setLocator("");
     setNote("");
     setEditingId(null);
@@ -29,19 +30,35 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   }
 
   async function add() {
-    if (!sourceId) {
-      showToast({ message: "Bir kaynak seçin.", type: "warning" });
+    const text = sourceText.trim();
+    if (!text) {
+      showToast({ message: "Kaynak / kimden öğrendiğinizi yazın.", type: "warning" });
       return;
     }
-    // Kullanıcı dostu duplicate ön-kontrolü (aynı kaynak + aynı locator UNIQUE).
     const loc = locator.trim();
-    if (rows.some((r) => r.source_id === sourceId && (r.locator ?? "") === loc)) {
-      showToast({ message: "Bu kaynak aynı sayfa/bölüm ile zaten eklenmiş.", type: "warning" });
-      return;
-    }
     setBusy(true);
     try {
-      await addProtocolSource({ protocol_id: protocolId, source_id: sourceId, locator: loc || null, note: note.trim() || null, sort_order: rows.length });
+      // SADE akış: kullanıcı serbest metin yazar. Aynı isimde master EXACT normalized varsa
+      // sessiz reuse (§14: agresif uyarı yok); yoksa ARKA PLANDA minimal source oluştur
+      // (kullanıcıya "katalog kaydı" hissi verilmez). protocol_sources.source_id zorunlu.
+      const norm = normalizeMasterName(text);
+      const existing = doc.masterSources.find((s) => normalizeMasterName(s.source_name) === norm);
+      let sid = existing?.id ?? "";
+      if (!sid) {
+        const created = await createSource({ source_name: text });
+        if (!created || !created.id) {
+          showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+          return;
+        }
+        sid = created.id;
+        await doc.reload.masterSources();
+      }
+      // Aynı kaynak + aynı sayfa/bölüm UNIQUE ön-kontrolü (yalnız reuse durumunda anlamlı).
+      if (rows.some((r) => r.source_id === sid && (r.locator ?? "") === loc)) {
+        showToast({ message: "Bu kaynak aynı sayfa/bölüm ile zaten eklenmiş.", type: "warning" });
+        return;
+      }
+      await addProtocolSource({ protocol_id: protocolId, source_id: sid, locator: loc || null, note: note.trim() || null, sort_order: rows.length });
       await doc.reload.sources();
       reset();
       showToast({ message: "Kaynak eklendi.", type: "success" });
@@ -124,19 +141,27 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
 
       {formOpen ? (
         <div className="mt-3 space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
-          <select className={kupaInput} value={sourceId} onChange={(e) => setSourceId(e.target.value)} aria-label="Kaynak">
-            <option value="">Kaynak seçin…</option>
+          {/* SADE: tek serbest-metin alan. Ayrı katalog / tür / yazar / yayın picker YOK. */}
+          <label className="block">
+            <span className="block text-[11px] font-semibold text-slate-500">Kaynak / Kimden öğrendim *</span>
+            <input
+              className={`mt-1 ${kupaInput}`}
+              list="kupa-source-suggestions"
+              placeholder="Örn. Süleyman Gök kitabı, Ahmet Hoca eğitimi, kendi eğitim notlarım…"
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              aria-label="Kaynak / kimden öğrendim"
+            />
+          </label>
+          <datalist id="kupa-source-suggestions">
             {doc.masterSources.map((s) => (
-              <option key={s.id} value={s.id}>{s.source_name}</option>
+              <option key={s.id} value={s.source_name} />
             ))}
-          </select>
-          {doc.masterSources.length === 0 ? (
-            <p className="text-[11px] text-slate-500">Henüz kaynak kaydı bulunmuyor.</p>
-          ) : null}
-          <input className={kupaInput} placeholder="Sayfa / bölüm (locator, opsiyonel)" value={locator} onChange={(e) => setLocator(e.target.value)} aria-label="Locator" />
+          </datalist>
+          <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={locator} onChange={(e) => setLocator(e.target.value)} aria-label="Sayfa / bölüm" />
           <input className={kupaInput} placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Not" />
           <div className="flex items-center gap-2">
-            <button type="button" disabled={busy || doc.masterSources.length === 0} className={kupaBtnSuccess} onClick={add}>Ekle</button>
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={add}>Ekle</button>
             <button type="button" className={kupaBtnGhost} onClick={reset}>Vazgeç</button>
           </div>
         </div>

@@ -162,19 +162,33 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                 <p className="mt-1 text-[11px] text-slate-400">Opsiyonel.</p>
               )}
             </div>
-            {/* Kaynak (opsiyonel) */}
-            <div className="grid gap-2 sm:grid-cols-2">
-              <select className={kupaInput} value={draft.source_id} onChange={(e) => setDraft({ ...draft, source_id: e.target.value })} aria-label="Kaynak">
-                <option value="">Kaynak yok</option>
-                {doc.masterSources.map((s) => (
-                  <option key={s.id} value={s.id}>{s.source_name}</option>
-                ))}
-              </select>
-              <input className={kupaInput} placeholder="Sayfa / bölüm (locator)" value={draft.locator} onChange={(e) => setDraft({ ...draft, locator: e.target.value })} aria-label="Locator" />
-            </div>
-            {!draft.source_id ? (
-              <input className={kupaInput} placeholder="Kaynak / kimden öğrendim (opsiyonel)" value={draft.source_label} onChange={(e) => setDraft({ ...draft, source_label: e.target.value })} aria-label="Kaynak etiketi" />
-            ) : null}
+            {/* Kaynak (opsiyonel) — SADE serbest metin. Ayrı katalog picker/modal YOK.
+                Mevcut kayıtlı kaynağa bağlı entry düzenlenirken (source_id) chip gösterilir;
+                "Kaldır" ile serbest metne geçilir. Yeni entry'de yalnız serbest metin + öneri. */}
+            {draft.source_id ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5">
+                <span className="text-[11px] font-semibold text-slate-500">Kaynak:</span>
+                <span className="text-[13px] font-medium text-slate-700">{doc.sourceName(draft.source_id)}</span>
+                <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => setDraft({ ...draft, source_id: "" })}>
+                  Kaldır
+                </button>
+              </div>
+            ) : (
+              <input
+                className={kupaInput}
+                list="kupa-entry-source-suggestions"
+                placeholder="Kaynak / kimden öğrendim — örn. Süleyman Gök kitabı, Ahmet Hoca eğitimi (opsiyonel)"
+                value={draft.source_label}
+                onChange={(e) => setDraft({ ...draft, source_label: e.target.value })}
+                aria-label="Kaynak / kimden öğrendim"
+              />
+            )}
+            <datalist id="kupa-entry-source-suggestions">
+              {doc.masterSources.map((s) => (
+                <option key={s.id} value={s.source_name} />
+              ))}
+            </datalist>
+            <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={draft.locator} onChange={(e) => setDraft({ ...draft, locator: e.target.value })} aria-label="Sayfa / bölüm" />
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>
                 {editingId ? "Bilgiyi Kaydet" : "Bilgiyi Ekle"}
