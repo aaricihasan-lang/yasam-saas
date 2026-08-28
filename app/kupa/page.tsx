@@ -58,27 +58,24 @@ export default function KupaLandingPage() {
       subtitle="Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve kaynakları tek çalışma alanında yönetin."
       badge="Profesyonel Çalışma Alanı"
     >
-      {/* ── 1) PRIMARY HERO — Hacamat Protokolleri (dominant, tek CTA) ──────────── */}
+      {/* ── 1) PRIMARY HERO — Hacamat Protokolleri (dominant ama KOMPAKT, tek CTA) ─── */}
       <Link
         href="/kupa/protokoller"
-        className="group mb-5 flex flex-col gap-4 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-white to-rose-50/60 p-5 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_16px_40px_-24px_rgba(180,83,9,0.35)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_24px_48px_-24px_rgba(180,83,9,0.4)] focus-visible:ring-2 focus-visible:ring-amber-400/70 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:p-7"
+        className="group mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-white to-rose-50/60 p-4 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_16px_40px_-24px_rgba(180,83,9,0.35)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_24px_48px_-24px_rgba(180,83,9,0.4)] focus-visible:ring-2 focus-visible:ring-amber-400/70 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-6 lg:py-4"
       >
-        <div className="flex items-start gap-4">
+        <div className="flex items-center gap-3">
           <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-200 bg-white/80 text-3xl shadow-sm"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white/80 text-2xl shadow-sm"
             aria-hidden
           >
             🗂️
           </span>
           <div className="min-w-0">
             <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Çalışma Alanı</span>
-            <h2 className="mt-0.5 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Hacamat Protokolleri</h2>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-600">
+            <h2 className="text-xl font-black tracking-tight text-slate-900">Hacamat Protokolleri</h2>
+            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-slate-600">
               Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği,
               bilgileri ve kaynakları tek yerde yönetin.
-            </p>
-            <p className="mt-2 text-[12px] font-medium text-amber-800/80">
-              Bölge · Teknik · Akış · Güvenlik · Bilgi · Kaynak
             </p>
           </div>
         </div>
