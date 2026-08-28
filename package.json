@@ -11,6 +11,7 @@
     "refleksoloji:organ-identity:harness": "tsx scripts/reflexology-organ-identity-harness.ts",
     "refleksoloji:shape-view-ghost:harness": "tsx scripts/reflexology-shape-view-ghost-harness.ts",
     "refleksoloji:coordinate-parity:harness": "tsx scripts/reflexology-coordinate-parity-harness.ts",
+    "refleksoloji:side-view:harness": "tsx scripts/reflexology-side-view-harness.ts",
     "refleksoloji:word:harness": "tsx scripts/reflexology-word-report-harness.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
