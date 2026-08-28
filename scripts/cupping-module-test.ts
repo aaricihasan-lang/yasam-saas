@@ -982,6 +982,56 @@ function run(): void {
   ok(/draft\.source_id \?/.test(pEntries) && /Kaldır/.test(pEntries),
     "faz3a-entry-source: mevcut kayıtlı kaynak (source_id) chip + Kaldır ile korunur/temizlenir");
 
+  // ══ FAZ 3B) LANDING V2 HİYERARŞİSİ (app/kupa/page.tsx) ═══════════════════════════
+  const pLanding = read("app/kupa/page.tsx");
+  // RENDER sırası (JSX) — SUPPORT array dosya tepesinde tanımlı olduğundan tüm-dosya
+  // indexOf yanıltır; hiyerarşiyi yalnız render bloğu (KupaShell) üzerinden ölç.
+  const render = pLanding.slice(Math.max(0, pLanding.indexOf("<KupaShell")));
+  const rHero = render.indexOf("/kupa/protokoller");
+  const rSupport = render.indexOf("Destek Kütüphaneleri");
+  const rMap = render.indexOf("SUPPORT.map");
+  const rLegacy = render.indexOf("/kupa/amac-rehberi");
+  const iBilgi = pLanding.indexOf("/kupa/bilgi-kutuphanesi");
+  const iNoktalar = pLanding.indexOf("/kupa/noktalar");
+  const iLegacy = pLanding.indexOf("/kupa/amac-rehberi");
+
+  // Primary hero.
+  ok(rHero >= 0 && /Hacamat Protokolleri/.test(pLanding) && /Protokolleri Aç/.test(pLanding),
+    "faz3b-hero: primary 'Hacamat Protokolleri' + tek CTA 'Protokolleri Aç' (href /kupa/protokoller)");
+  ok(rHero >= 0 && rSupport > rHero && rMap > rSupport && rLegacy > rMap,
+    "faz3b-hero: RENDER sırası hero → Destek Kütüphaneleri → destek kartları → legacy");
+
+  // Support libraries — başlık + 5 route korunur.
+  ok(rSupport >= 0, "faz3b-support: 'Destek Kütüphaneleri' başlığı mevcut");
+  for (const r of ["/kupa/noktalar", "/kupa/teknikler", "/kupa/guvenlik", "/kupa/kaynaklar", "/kupa/bilgi-kutuphanesi"]) {
+    ok(pLanding.includes(r), `faz3b-support: route korunur ${r}`);
+  }
+
+  // Rename (route AYNI, yalnız kullanıcı-facing başlık sadeleşir).
+  ok(/"Kaynaklar"/.test(pLanding) && !/Kaynak Katalo[ğg]u/.test(pLanding),
+    "faz3b-rename: 'Kaynak Kataloğu' → 'Kaynaklar' (route /kupa/kaynaklar aynı)");
+  ok(/"Bilgi & Eğitim"/.test(pLanding) && !/Bilgi & Eğitim Kütüphanesi/.test(pLanding),
+    "faz3b-rename: 'Bilgi & Eğitim Kütüphanesi' → 'Bilgi & Eğitim' (route /kupa/bilgi-kutuphanesi aynı)");
+
+  // Legacy 'Mevcut Rehber' — korunur, subordinate (destek grid'inin ALTINDA).
+  ok(iLegacy >= 0 && iLegacy > iBilgi && /Mevcut Rehber/.test(pLanding) && /Amaç \/ Rahatsızlık Rehberi/.test(pLanding),
+    "faz3b-legacy: amac-rehberi korunur + 'Mevcut Rehber' etiketli subordinate kart (destek sonrası)");
+  ok(!/deprecated|eski sistem|\bV1\b|kaldırılacak|yakında kapan/i.test(pLanding),
+    "faz3b-legacy: deprecated/eski-sistem/kaldırılacak kullanıcı copy'si YOK");
+
+  // Medical disclaimer korunur.
+  ok(/tedavi eder/.test(pLanding), "faz3b-medical: 'tedavi eder anlamı taşımaz' disclaimer korunur");
+
+  // Statik navigasyon — yeni fetch/API/sayaç state YOK.
+  ok(!/fetch\(|\/api\/|useState|useEffect/.test(pLanding),
+    "faz3b-static: landing statik navigasyon (fetch/API/counter-state YOK)");
+  ok(!/tenant-izole|source_id|künye|Konu ↔ nokta|anatomik bölge|canonical/i.test(pLanding),
+    "faz3b-copy: DB/mimari jargonu YOK (sade kullanıcı dili)");
+
+  // Eşit-ağırlıklı 6-kart mimarisi ARTIK canonical değil: amac-rehberi destek grid'inin DIŞINDA.
+  ok(iLegacy > iBilgi && iLegacy > iNoktalar,
+    "faz3b-hierarchy: amac-rehberi destek grid'inin DIŞINDA/ALTINDA (flat eşit-6-kart mimarisi değil)");
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
