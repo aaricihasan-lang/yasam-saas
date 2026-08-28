@@ -32,12 +32,12 @@ export default function MagazaAdmin() {
             </p>
           </div>
           <a
-            href="/magaza"
+            href="/admin/magaza/onizleme"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-soft"
           >
-            Vitrini Gör ↗
+            Mağazayı Önizle ↗
           </a>
         </header>
 

@@ -32,10 +32,12 @@ export default function StoreHeader({
   categories,
   whatsappHref,
   controlled,
+  hrefBase = "/magaza",
 }: {
   categories: Category[];
   whatsappHref: string | null;
   controlled?: Controlled;
+  hrefBase?: string;
 }) {
   const cat = (c: Category, extra = "") => {
     const active = controlled?.category === c.slug;
@@ -51,7 +53,7 @@ export default function StoreHeader({
       );
     }
     return (
-      <Link key={c.slug} href="/magaza" title={c.name} className={cls}>
+      <Link key={c.slug} href={hrefBase} title={c.name} className={cls}>
         {c.name}
       </Link>
     );
@@ -78,7 +80,7 @@ export default function StoreHeader({
       <div className="border-b border-[#e7dfd0] bg-[#fbf8f2]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-5 px-4 py-3.5 sm:px-6 lg:px-8">
           {/* brand — daralmaz (shrink-0): kategori sayısı artsa da sabit ve rahat kalır */}
-          <Link href="/magaza" className="flex shrink-0 flex-col leading-none">
+          <Link href={hrefBase} className="flex shrink-0 flex-col leading-none">
             <span className="whitespace-nowrap font-serif text-[19px] font-semibold tracking-tight text-[#2a2620]">Yaşam Sistemi</span>
             <span className="mt-1 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.28em] text-[#a67c53]">Doğal Pazar</span>
           </Link>
@@ -107,7 +109,7 @@ export default function StoreHeader({
                   Tüm Kategoriler
                 </button>
               ) : (
-                <Link href="/magaza#kategoriler" className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold text-[#96543d] transition-colors hover:text-[#7c4230]">
+                <Link href={`${hrefBase}#kategoriler`} className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold text-[#96543d] transition-colors hover:text-[#7c4230]">
                   Tüm Kategoriler
                 </Link>
               )
@@ -129,7 +131,7 @@ export default function StoreHeader({
                 />
               </label>
             ) : (
-              <Link href="/magaza" aria-label="Ürün ara" className="hidden items-center gap-2 rounded-full border border-[#e2d8c6] bg-white px-3.5 py-2 text-[13px] text-[#8b8175] sm:flex">
+              <Link href={hrefBase} aria-label="Ürün ara" className="hidden items-center gap-2 rounded-full border border-[#e2d8c6] bg-white px-3.5 py-2 text-[13px] text-[#8b8175] sm:flex">
                 <SearchIcon className="h-3.5 w-3.5" /> Ara
               </Link>
             )}
@@ -190,7 +192,7 @@ export default function StoreHeader({
                     {c.name}
                   </button>
                 ) : (
-                  <Link key={c.slug} href="/magaza" className="whitespace-nowrap rounded-full border border-[#e2d8c6] bg-white px-3 py-1.5 text-[12.5px] font-medium text-[#4a443b]">
+                  <Link key={c.slug} href={hrefBase} className="whitespace-nowrap rounded-full border border-[#e2d8c6] bg-white px-3 py-1.5 text-[12.5px] font-medium text-[#4a443b]">
                     {c.name}
                   </Link>
                 ),
