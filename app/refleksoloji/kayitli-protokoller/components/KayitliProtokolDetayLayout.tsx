@@ -543,17 +543,19 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               </div>
 
               <div className="relative min-h-[min(62vh,720px)] flex-1 p-3 sm:min-h-[min(68vh,800px)] sm:p-4">
+                {/* SEV-1 fix: NO CSS transform:scale wrapper here. ProtocolFootMap ölçümü
+                    getBoundingClientRect'e dayanır; ölçekli bir ata, overlay px'ini iki kez
+                    ölçekleyip bölgeleri ayak görselinden kaydırıyordu (creation ↔ detail drift).
+                    Bölge Haritası ile birebir aynı geometri için doğrudan (ölçeksiz) render. */}
                 <div className="relative h-full min-h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:min-h-[min(64vh,760px)]">
-                  <div className="absolute inset-0 origin-center scale-[1.06] sm:scale-[1.08]">
-                    <ProtocolFootMap
-                      regions={regions}
-                      footView={footView}
-                      missingOrgans={missingOrgans}
-                      onFootViewChange={setFootView}
-                      prominentControls
-                      embedded
-                    />
-                  </div>
+                  <ProtocolFootMap
+                    regions={regions}
+                    footView={footView}
+                    missingOrgans={missingOrgans}
+                    onFootViewChange={setFootView}
+                    prominentControls
+                    embedded
+                  />
                 </div>
               </div>
             </section>

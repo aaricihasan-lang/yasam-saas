@@ -184,6 +184,9 @@ export function ProtocolFootMap({
                     const top = (region.cy! - region.ry!) * 100;
                     const width = region.rx! * 2 * 100;
                     const height = region.ry! * 2 * 100;
+                    // Atlas ile parite: Bölge Haritası/Kayıtlı Atlas oval/rect döndürmeyi
+                    // (RegionShape) merkez etrafında uygular. Aynı contract'ı burada da uygula.
+                    const angle = region.angle ?? 0;
 
                     return (
                       <div
@@ -194,6 +197,8 @@ export function ProtocolFootMap({
                           top: `${top}%`,
                           width: `${width}%`,
                           height: `${height}%`,
+                          transform: angle !== 0 ? `rotate(${angle}deg)` : undefined,
+                          transformOrigin: "center center",
                         }}
                       >
                         <div
