@@ -10,7 +10,8 @@
       "back": "← Back",
       "clear": "Clear",
       "loading": "Loading…",
-      "giveUp": "Cancel"
+      "giveUp": "Cancel",
+      "unnamedStone": "Untitled Stone"
     },
     "modules": {
       "home": {
@@ -164,6 +165,29 @@
       "Böbrek": "Kidney",
       "Psikolojik Hassasiyet": "Psychological Sensitivity",
       "Uzman Kontrolü": "Specialist Supervision"
+    },
+    "assignmentLabels": {
+      "Mineraller": "Minerals",
+      "Etkili Organlar": "Affected Organs",
+      "Astrolojik Atama": "Astrological Associations",
+      "Elementler": "Elements",
+      "Çakra Atama": "Chakra Assignment",
+      "Burçlar": "Zodiac Signs",
+      "Mizaçlar": "Temperaments",
+      "Kan Grupları": "Blood Types"
+    },
+    "assignmentDesc": {
+      "Mineraller": "Add a mineral name and percentage.",
+      "Etkili Organlar": "Add an affected organ or a short note.",
+      "Astrolojik Atama": "Add a zodiac sign, planet, or astrological association.",
+      "Elementler": "Add elements such as Fire, Water, Air, or Earth."
+    },
+    "assignmentFields": {
+      "Mineral": "Mineral",
+      "Oran %": "Percentage %",
+      "Etkili Organ / Not": "Affected Organ / Note",
+      "Astrolojik Atama": "Astrological Association",
+      "Element": "Element"
     }
   }
 }

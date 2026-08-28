@@ -10,7 +10,8 @@
       "back": "← Geri",
       "clear": "Temizle",
       "loading": "Yükleniyor...",
-      "giveUp": "Vazgeç"
+      "giveUp": "Vazgeç",
+      "unnamedStone": "İsimsiz taş"
     },
     "modules": {
       "home": {
@@ -164,6 +165,29 @@
       "Böbrek": "Böbrek",
       "Psikolojik Hassasiyet": "Psikolojik Hassasiyet",
       "Uzman Kontrolü": "Uzman Kontrolü"
+    },
+    "assignmentLabels": {
+      "Mineraller": "Mineraller",
+      "Etkili Organlar": "Etkili Organlar",
+      "Astrolojik Atama": "Astrolojik Atama",
+      "Elementler": "Elementler",
+      "Çakra Atama": "Çakra Atama",
+      "Burçlar": "Burçlar",
+      "Mizaçlar": "Mizaçlar",
+      "Kan Grupları": "Kan Grupları"
+    },
+    "assignmentDesc": {
+      "Mineraller": "Mineral adı ve oran yüzdesi ekleyin.",
+      "Etkili Organlar": "Etkili organ veya kısa not ekleyin.",
+      "Astrolojik Atama": "Burç, gezegen veya astrolojik eşleşme ekleyin.",
+      "Elementler": "Ateş, su, hava, toprak gibi elementleri ekleyin."
+    },
+    "assignmentFields": {
+      "Mineral": "Mineral",
+      "Oran %": "Oran %",
+      "Etkili Organ / Not": "Etkili Organ / Not",
+      "Astrolojik Atama": "Astrolojik Atama",
+      "Element": "Element"
     }
   }
 }

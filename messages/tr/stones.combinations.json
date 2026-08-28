@@ -63,7 +63,29 @@
         "toastSavedGeneral": "\"{name}\" kombinasyonlara kaydedildi.",
         "toastServerUnreachable": "Sunucuya ulaşılamadı.",
         "toastSaveClientFail": "Kombinasyon danışana kaydedilemedi.",
-        "toastSavedClient": "\"{name}\" → {client} danışanına kaydedildi."
+        "toastSavedClient": "\"{name}\" → {client} danışanına kaydedildi.",
+        "searchType": {
+          "mineral": {
+            "label": "Mineral",
+            "placeholder": "örn. Demir, Lityum, Kalsiyum"
+          },
+          "chakra": {
+            "label": "Çakra",
+            "placeholder": "örn. Kök, Kalp, Boğaz"
+          },
+          "astrology": {
+            "label": "Astroloji",
+            "placeholder": "örn. Koç, Venüs, Mars"
+          },
+          "organ": {
+            "label": "Etkili Organ",
+            "placeholder": "örn. Böbrek, Karaciğer"
+          },
+          "stone_name": {
+            "label": "Taş İsmi",
+            "placeholder": "örn. Kuvars, Akik"
+          }
+        }
       },
       "list": {
         "eyebrow": "DOĞALTAŞ · TAŞ KOMBİNASYONLARI",

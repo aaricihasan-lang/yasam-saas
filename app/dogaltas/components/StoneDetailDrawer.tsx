@@ -106,6 +106,8 @@ export function StoneDetailDrawer({
   const t = useTranslations("stones.detailDrawer");
   const tc = useTranslations("stones.common");
   const tp = useTranslations("stones.photos");
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
@@ -203,7 +205,7 @@ export function StoneDetailDrawer({
               )}
             </div>
             <h2 className="truncate text-lg font-black tracking-tight text-slate-950">
-              {stone.stone_name || "İsimsiz taş"}
+              {stone.stone_name || tc("unnamedStone")}
             </h2>
           </div>
           <button
@@ -323,7 +325,7 @@ export function StoneDetailDrawer({
                     key={c}
                     className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-black text-violet-700"
                   >
-                    {c}
+                    {facet(c)}
                   </span>
                 ))}
               </div>

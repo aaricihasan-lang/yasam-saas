@@ -152,7 +152,14 @@
         "indigo": "İndigo",
         "teal": "Teal"
       },
-      "allCategory": "Tümü"
+      "allCategory": "Tümü",
+      "categoryLabels": {
+        "Şifa": "Şifa",
+        "Araştırma": "Araştırma",
+        "Mineroloji": "Mineroloji",
+        "Uygulamalar": "Uygulamalar",
+        "Genel": "Genel"
+      }
     }
   }
 }

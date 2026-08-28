@@ -514,6 +514,9 @@ function StoneDetailPage() {
   // yazımı canonical'da); yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
+  // Atama section title display-only localize; KANONİK Türkçe key (`assignments` DB object key,
+  // key=/write [section]) DEĞİŞMEZ.
+  const asgLabel = (v: string) => (tf.has(`assignmentLabels.${v}`) ? tf(`assignmentLabels.${v}`) : v);
   const params = useParams<{ id: string }>();
   const router = useRouter();
   useBfcacheRefresh();
@@ -1411,7 +1414,7 @@ function StoneDetailPage() {
                       <span className="text-xs text-slate-400">-</span>
                     ) : (
                       safeChakras.map((chakra) => (
-                        <span key={chakra} className={toneClass("violet")}>{chakra}</span>
+                        <span key={chakra} className={toneClass("violet")}>{facet(chakra)}</span>
                       ))
                     )}
                   </div>
@@ -1422,7 +1425,7 @@ function StoneDetailPage() {
                     <span className="text-xs text-slate-400">-</span>
                   ) : (
                     safeChakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
-                      <span key={chakra} className={toneClass("violet")}>{chakra}</span>
+                      <span key={chakra} className={toneClass("violet")}>{facet(chakra)}</span>
                     ))
                   )}
                 </div>
@@ -1496,7 +1499,7 @@ function StoneDetailPage() {
                       if (safeRows.length === 0) return null;
                       return (
                         <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
-                          <p className="text-[11px] font-black text-slate-600">{title}</p>
+                          <p className="text-[11px] font-black text-slate-600">{asgLabel(title)}</p>
                           <div className="mt-0.5 space-y-0.5">
                             {safeRows.slice(0, 2).map((row, index) => {
                               const cells = Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : [String(row ?? "")];
@@ -1523,7 +1526,7 @@ function StoneDetailPage() {
 
                       return (
                         <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
-                          <p className="text-[11px] font-black text-slate-600">{title}</p>
+                          <p className="text-[11px] font-black text-slate-600">{asgLabel(title)}</p>
                           <div className="mt-0.5 space-y-0.5">
                             {safeRows.slice(0, editEnabled ? 2 : 4).map((row, index) => {
                               const cells = Array.isArray(row)
@@ -1844,7 +1847,7 @@ function StoneDetailPage() {
                 {Object.entries(activeEditor.values).map(([section, value]) => (
                   <div key={section} className="rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
                     <label className="text-[13px] font-black text-slate-800">
-                      {section}
+                      {asgLabel(section)}
                     </label>
 
                     <textarea

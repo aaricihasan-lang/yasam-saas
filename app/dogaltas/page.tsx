@@ -263,6 +263,9 @@ async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; erro
 
 function DogaltasPageContent() {
   const t = useTranslations("stones.hub");
+  // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
+  // görünen title/subtitle slug ile localize edilir.
+  const tm = useTranslations("stones.modules");
   const router = useRouter();
   const searchParams = useSearchParams();
   useBfcacheRefresh();
@@ -591,10 +594,10 @@ function DogaltasPageContent() {
 
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-[12px] font-black leading-tight text-slate-950 lg:truncate lg:text-[13px]">
-                      {item.title}
+                      {tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}
                     </span>
                     <span className="mt-0.5 hidden truncate text-[11px] font-semibold leading-snug text-slate-500 sm:block">
-                      {item.subtitle}
+                      {tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}
                     </span>
                   </span>
 

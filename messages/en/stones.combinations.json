@@ -63,7 +63,29 @@
         "toastSavedGeneral": "“{name}” saved to your combinations.",
         "toastServerUnreachable": "Unable to reach the server.",
         "toastSaveClientFail": "Unable to save the combination for the client.",
-        "toastSavedClient": "“{name}” saved for {client}."
+        "toastSavedClient": "“{name}” saved for {client}.",
+        "searchType": {
+          "mineral": {
+            "label": "Mineral",
+            "placeholder": "e.g. Iron, Lithium, Calcium"
+          },
+          "chakra": {
+            "label": "Chakra",
+            "placeholder": "e.g. Root, Heart, Throat"
+          },
+          "astrology": {
+            "label": "Astrology",
+            "placeholder": "e.g. Aries, Venus, Mars"
+          },
+          "organ": {
+            "label": "Affected Organ",
+            "placeholder": "e.g. Kidney, Liver"
+          },
+          "stone_name": {
+            "label": "Stone Name",
+            "placeholder": "e.g. Quartz, Agate"
+          }
+        }
       },
       "list": {
         "eyebrow": "STONES · STONE COMBINATIONS",

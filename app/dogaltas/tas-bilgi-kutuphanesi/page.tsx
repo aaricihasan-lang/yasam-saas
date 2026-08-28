@@ -273,6 +273,9 @@ function adminHeaders(json = false): Record<string, string> {
 export default function TasBilgiKutuphanesiPage() {
   const t = useTranslations("stones.knowledge");
   const tc = useTranslations("stones.common");
+  // Kategori display: value KANONİK Türkçe kalır (activeKat/filter/DB/query/<option value>);
+  // yalnız görünen etiket localize. Bilinmeyen (admin-eklenen/legacy) kategori verbatim.
+  const catLabel = (name: string) => (t.has(`categoryLabels.${name}`) ? t(`categoryLabels.${name}`) : name);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -886,7 +889,7 @@ export default function TasBilgiKutuphanesiPage() {
                 return (
                   <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
                     style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                    {cat.icon} {cat.name} ({count})
+                    {cat.icon} {catLabel(cat.name)} ({count})
                   </span>
                 );
               })}
@@ -948,7 +951,7 @@ export default function TasBilgiKutuphanesiPage() {
                     <option value="">{t("form.categorySelectPlaceholder")}</option>
                     {dropdownCategories.map((cat) => (
                       <option key={cat.id} value={cat.name}>
-                        {cat.icon} {cat.name}
+                        {cat.icon} {catLabel(cat.name)}
                       </option>
                     ))}
                   </select>
@@ -1114,7 +1117,7 @@ export default function TasBilgiKutuphanesiPage() {
                     style={isActive
                       ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
                       : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
-                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : kat}
+                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : catLabel(kat)}
                     {kat !== "Tümü" && (
                       <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
                     )}
@@ -1233,7 +1236,7 @@ export default function TasBilgiKutuphanesiPage() {
                             {rec.title}
                           </div>
                           <div className={`mt-0.5 flex items-center gap-2 text-[11px] font-semibold ${isActive ? "text-white/70" : "text-slate-400"}`}>
-                            <span>{rec.category}</span>
+                            <span>{catLabel(rec.category)}</span>
                             {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
                           </div>
                           {isSearchActive && viewed.has(rec.id) && (
@@ -1273,7 +1276,7 @@ export default function TasBilgiKutuphanesiPage() {
                     return (
                       <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
                         style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                        {cat.icon} {cat.name}
+                        {cat.icon} {catLabel(cat.name)}
                       </span>
                     );
                   })}
@@ -1298,7 +1301,7 @@ export default function TasBilgiKutuphanesiPage() {
                           return (
                             <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black"
                               style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                              {cfg.icon} {selectedArticle.category}
+                              {cfg.icon} {catLabel(selectedArticle.category)}
                             </span>
                           );
                         })()}
@@ -1380,7 +1383,7 @@ export default function TasBilgiKutuphanesiPage() {
                           >
                             <option value="">{t("form.categorySelectPlaceholder")}</option>
                             {dropdownCategories.map((cat) => (
-                              <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                              <option key={cat.id} value={cat.name}>{cat.icon} {catLabel(cat.name)}</option>
                             ))}
                           </select>
                         </div>
@@ -1564,7 +1567,7 @@ export default function TasBilgiKutuphanesiPage() {
                 >
                   <option value="">{t("form.categorySelectPlaceholder")}</option>
                   {categories.filter((c) => c !== "Tümü").map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{catLabel(c)}</option>
                   ))}
                 </select>
               </div>
@@ -1648,7 +1651,7 @@ export default function TasBilgiKutuphanesiPage() {
                   >
                     <option value="">{t("bulkUpdate.categoryNoChange")}</option>
                     {dropdownCategories.map((cat) => (
-                      <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                      <option key={cat.id} value={cat.name}>{cat.icon} {catLabel(cat.name)}</option>
                     ))}
                   </select>
                 </div>

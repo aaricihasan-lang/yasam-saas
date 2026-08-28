@@ -152,7 +152,14 @@
         "indigo": "Indigo",
         "teal": "Teal"
       },
-      "allCategory": "All"
+      "allCategory": "All",
+      "categoryLabels": {
+        "Şifa": "Healing",
+        "Araştırma": "Research",
+        "Mineroloji": "Mineralogy",
+        "Uygulamalar": "Applications",
+        "Genel": "General"
+      }
     }
   }
 }

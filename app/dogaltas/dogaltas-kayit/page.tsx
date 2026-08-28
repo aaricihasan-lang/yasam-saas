@@ -277,6 +277,11 @@ export default function DogaltasKayitPage() {
   // canonical'da); yalnız görünen etiket localize edilir. Anahtar eksikse canonical'a düşer.
   const tf = useTranslations("stones");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
+  // Atama (assignments) display: section title/desc/field görünen etiketleri localize;
+  // KANONİK Türkçe title `assignments` DB object key + `=== "Mineraller"` mantığı DEĞİŞMEZ.
+  const asgLabel = (v: string) => (tf.has(`assignmentLabels.${v}`) ? tf(`assignmentLabels.${v}`) : v);
+  const asgDesc = (v: string) => (tf.has(`assignmentDesc.${v}`) ? tf(`assignmentDesc.${v}`) : v);
+  const asgField = (v: string) => (tf.has(`assignmentFields.${v}`) ? tf(`assignmentFields.${v}`) : v);
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
   const [selectedWarnings, setSelectedWarnings] = useState<string[]>([]);
@@ -423,9 +428,9 @@ export default function DogaltasKayitPage() {
     // Ortak useDeleteConfirm: masaüstü tek açıklayıcı onay, mobil/PWA 2 aşamalı onay.
     // Silinecek satır değeri (organ/mineral adı) onay metninde açıkça gösterilir.
     const row = (assignmentRows[sectionTitle] || [])[index] || [];
-    const label = row.filter((v) => v && v.trim()).join(" • ") || t("assignRow.rowFallback", { section: sectionTitle });
+    const label = row.filter((v) => v && v.trim()).join(" • ") || t("assignRow.rowFallback", { section: asgLabel(sectionTitle) });
     const confirmed = await deleteConfirm({
-      title: t("assignRow.deleteTitle", { section: sectionTitle }),
+      title: t("assignRow.deleteTitle", { section: asgLabel(sectionTitle) }),
       message: t("assignRow.deleteMessage", { label }),
       secondMessage: t("assignRow.deleteSecondMessage", { label }),
     });
@@ -1055,7 +1060,7 @@ export default function DogaltasKayitPage() {
                     <span className="flex items-center gap-3">
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-base ring-1 ring-emerald-100">{item.icon}</span>
                       <span>
-                        <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
+                        <span className="block text-[13px] font-bold text-slate-800">{asgLabel(item.title)}</span>
                         <span className="block text-xs text-slate-500">{t("assignments.editAdd")}</span>
                       </span>
                     </span>
@@ -1180,8 +1185,8 @@ export default function DogaltasKayitPage() {
                 <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
                   {t("assignModal.badge")}
                 </div>
-                <h2 className="text-[26px] font-black text-slate-950">{activeAssignment.icon} {activeAssignment.title}</h2>
-                <p className="mt-1 text-[13px] text-slate-500">{activeAssignment.desc}</p>
+                <h2 className="text-[26px] font-black text-slate-950">{activeAssignment.icon} {asgLabel(activeAssignment.title)}</h2>
+                <p className="mt-1 text-[13px] text-slate-500">{asgDesc(activeAssignment.title)}</p>
               </div>
 
               <button type="button" onClick={closeAssignment} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[20px] font-black text-slate-600 transition hover:bg-slate-200">
@@ -1193,12 +1198,12 @@ export default function DogaltasKayitPage() {
               <div className={activeAssignment.fields.length === 2 ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
                 {activeAssignment.fields.map((field, index) => (
                   <div key={field}>
-                    <label className={uiLabel}>{field}</label>
+                    <label className={uiLabel}>{asgField(field)}</label>
                     <input
                       type="text"
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
                       onChange={(event) => updateAssignmentInput(activeAssignment.title, index, event.target.value)}
-                      placeholder={t("placeholderWrite", { field })}
+                      placeholder={t("placeholderWrite", { field: asgField(field) })}
                       className="h-12 w-full rounded-2xl border-2 border-emerald-200 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
                     />
                   </div>
@@ -1214,8 +1219,8 @@ export default function DogaltasKayitPage() {
               {/* FAZ-3A: İsim ve oran tek içerik sütununda (görsel ayrım rows'da "•" / mobilde alt satır). */}
               <div className="grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500">
                 <span>
-                  {activeAssignment.fields[0]}
-                  {activeAssignment.fields.length === 2 ? ` • ${activeAssignment.fields[1]}` : ""}
+                  {asgField(activeAssignment.fields[0])}
+                  {activeAssignment.fields.length === 2 ? ` • ${asgField(activeAssignment.fields[1])}` : ""}
                 </span>
                 <span className="text-right">{t("assignModal.actionColumn")}</span>
               </div>

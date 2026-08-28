@@ -106,6 +106,13 @@ export default function KombinasyonOlusturPage() {
   const { showToast } = useToast();
   const t = useTranslations("stones.combinations.builder");
   const tc = useTranslations("stones.common");
+  // Arama tipi görünen label/placeholder localize; SEARCH_TYPE_META KANONİK kalır
+  // (type key query alanı + describeCondition/notesText'i besler). Helper'lar çeviriciyi
+  // kapatır; aşağıdaki .map((t)=>...) shadow'undan etkilenmez.
+  const typeLabel = (ty: SearchType) =>
+    t.has(`searchType.${ty}.label`) ? t(`searchType.${ty}.label`) : SEARCH_TYPE_META[ty].label;
+  const typePlaceholder = (ty: SearchType) =>
+    t.has(`searchType.${ty}.placeholder`) ? t(`searchType.${ty}.placeholder`) : SEARCH_TYPE_META[ty].placeholder;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -592,7 +599,7 @@ export default function KombinasyonOlusturPage() {
                 >
                   {SEARCH_TYPES.map((t) => (
                     <option key={t} value={t}>
-                      {SEARCH_TYPE_META[t].icon} {SEARCH_TYPE_META[t].label}
+                      {SEARCH_TYPE_META[t].icon} {typeLabel(t)}
                     </option>
                   ))}
                 </select>
@@ -605,7 +612,7 @@ export default function KombinasyonOlusturPage() {
                     options={optionsByType[cond.type].options}
                     counts={optionsByType[cond.type].counts}
                     icon={SEARCH_TYPE_META[cond.type].icon}
-                    placeholder={SEARCH_TYPE_META[cond.type].placeholder}
+                    placeholder={typePlaceholder(cond.type)}
                     className={uiInput}
                   />
                 </div>
@@ -742,7 +749,7 @@ export default function KombinasyonOlusturPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="truncate text-sm font-black text-slate-950">
-                              {stone.stone_name || "İsimsiz taş"}
+                              {stone.stone_name || tc("unnamedStone")}
                             </h3>
                             {inStock ? (
                               <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
@@ -766,7 +773,7 @@ export default function KombinasyonOlusturPage() {
                               <span
                                 key={`${stone.id}-m-${i}`}
                                 className={`max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold ${CHIP_TONE[m.type]}`}
-                                title={`${SEARCH_TYPE_META[m.type].label}: ${m.name}`}
+                                title={`${typeLabel(m.type)}: ${m.name}`}
                               >
                                 {SEARCH_TYPE_META[m.type].icon} {m.name}
                               </span>

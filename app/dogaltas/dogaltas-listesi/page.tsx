@@ -264,11 +264,13 @@ const StoneCard = memo(function StoneCard({
   onDelete,
 }: StoneRowSharedProps) {
   const t = useTranslations("stones.list");
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const imageCount = stoneListImageCount(stone.images);
   // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
   const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
-  const displayName = stone.stone_name || "İsimsiz taş";
+  const displayName = stone.stone_name || tf("common.unnamedStone");
   const displayDescription = safeText(stone.short_description, 120, t("card.noShortDescription"));
 
   return (
@@ -300,7 +302,7 @@ const StoneCard = memo(function StoneCard({
             checked={isSelected}
             onChange={() => onToggleSelect(stone.id)}
             onClick={(event) => event.stopPropagation()}
-            aria-label={t("card.selectAria", { name: stone.stone_name || "İsimsiz taş" })}
+            aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
             className={uiRowCheckbox}
           />
         ) : <span />}
@@ -367,7 +369,7 @@ const StoneCard = memo(function StoneCard({
                   key={chakra}
                   className={uiBadgeChakra}
                 >
-                  {chakra}
+                  {facet(chakra)}
                 </span>
               ))}
 
@@ -406,7 +408,7 @@ const StoneCard = memo(function StoneCard({
               event.stopPropagation();
               onDelete(stone);
             }}
-            aria-label={t("card.deleteAria", { name: stone.stone_name || "İsimsiz taş" })}
+            aria-label={t("card.deleteAria", { name: stone.stone_name || tf("common.unnamedStone") })}
             // F-015a: destructive dokunma hedefi ~44×44px (mobil erişilebilirlik).
             className="btn-danger shrink-0 !min-h-[44px] !min-w-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
           >
@@ -1566,7 +1568,7 @@ function DogaltasListesiPageContent() {
                 </h2>
                 <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
                   {t.rich("deleteDialog.mobileQuestion", {
-                    name: stoneToDelete.stone_name || "İsimsiz taş",
+                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
                     b: (chunks) => <b>{chunks}</b>,
                   })}
                 </p>
@@ -1597,7 +1599,7 @@ function DogaltasListesiPageContent() {
                 </h2>
                 <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
                   {t.rich("deleteDialog.desktopQuestion", {
-                    name: stoneToDelete.stone_name || "İsimsiz taş",
+                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
                     b: (chunks) => <b>{chunks}</b>,
                   })}
                 </p>
