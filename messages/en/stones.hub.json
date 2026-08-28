@@ -3,88 +3,88 @@
     "hub": {
       "sidebar": {
         "brand": "YAŞAM SİSTEMİ",
-        "moduleName": "Doğaltaş Modülü",
-        "modulesHeading": "MODÜLLER"
+        "moduleName": "Stones",
+        "modulesHeading": "MODULES"
       },
       "hero": {
-        "titleAccent": "Doğaltaş",
-        "titleSuffix": "Yönetimi",
-        "subtitle": "Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.",
-        "reportButton": "📄 Profesyonel Rapor"
+        "titleAccent": "Stones",
+        "titleSuffix": "",
+        "subtitle": "Manage your stones, minerals, combinations and inventory in one place.",
+        "reportButton": "📄 Professional Report"
       },
       "search": {
-        "aria": "Taş adı veya içerikte ara",
-        "placeholderNarrow": "Taş ara...",
-        "placeholderWide": "Taş adı veya içerikte ara (ör. mide, şifa)...",
-        "submit": "Ara",
-        "submitting": "Aranıyor...",
-        "dataError": "Arama verisi okunamadı.",
-        "recordsError": "Taş kayıtları okunamadı: {message}"
+        "aria": "Search by stone name or content",
+        "placeholderNarrow": "Search stones…",
+        "placeholderWide": "Search by stone name or content (e.g. stomach, healing)…",
+        "submit": "Search",
+        "submitting": "Searching…",
+        "dataError": "Unable to load search data.",
+        "recordsError": "Unable to load stone records: {message}"
       },
       "results": {
-        "title": "Arama Sonuçları",
-        "count": " · {count} kayıt",
-        "loading": "Yükleniyor...",
-        "empty": "Bu arama için sonuç bulunamadı.",
-        "noDescription": "Kısa açıklama eklenmemiş.",
-        "viewed": "Bakıldı",
-        "matched": "Eşleşme: {field}",
-        "detail": "Detaya Git"
+        "title": "Search Results",
+        "count": " · {count} records",
+        "loading": "Loading…",
+        "empty": "No results found for this search.",
+        "noDescription": "No short description added.",
+        "viewed": "Viewed",
+        "matched": "Match: {field}",
+        "detail": "View Details"
       },
       "field": {
-        "stoneName": "Taş adı",
-        "shortDescription": "Kısa açıklama",
-        "generalInfo": "Genel bilgi",
-        "physicalEffects": "Fiziksel etkiler",
-        "spiritualEffects": "Ruhsal etkiler",
-        "otherEffects": "Diğer etkiler",
-        "warning": "Uyarı",
-        "chakra": "Çakra",
-        "tag": "Etiket",
-        "assignments": "Atamalar"
+        "stoneName": "Stone name",
+        "shortDescription": "Short description",
+        "generalInfo": "General information",
+        "physicalEffects": "Physical effects",
+        "spiritualEffects": "Spiritual effects",
+        "otherEffects": "Other effects",
+        "warning": "Warning",
+        "chakra": "Chakra",
+        "tag": "Tag",
+        "assignments": "Assignments"
       },
       "analytics": {
-        "title": "Hesaplanmış Analizler",
-        "subtitle": "Supabase stones, minerals ve combinations verilerine göre",
-        "failedCounters": "Bazı sayaçlar okunamadı ({items}). Lütfen sayfayı yenileyin.",
+        "title": "Calculated Insights",
+        "subtitle": "Based on Supabase stones, minerals and combinations data",
+        "failedCounters": "Some counters could not be loaded ({items}). Please refresh the page.",
         "failedLabel": {
-          "stones": "taş kaydı",
-          "combinations": "kombinasyon",
-          "minerals": "mineral"
+          "stones": "stone records",
+          "combinations": "combinations",
+          "minerals": "minerals"
         },
-        "trendTitle": "Aylık Kayıt Trendi",
-        "trendSubtitle": "Son 6 ay · stones.created_at",
-        "loading": "Yükleniyor...",
-        "barTitle": "{label}: {count} kayıt",
-        "totalStones": "Toplam Taş Kaydı",
-        "mineralBank": "Mineral Bankası",
-        "activeCombinations": "Aktif Kombinasyonlar"
+        "trendTitle": "Monthly Record Trend",
+        "trendSubtitle": "Last 6 months · stones.created_at",
+        "loading": "Loading…",
+        "barTitle": "{label}: {count} records",
+        "totalStones": "Total Stone Records",
+        "mineralBank": "Mineral Library",
+        "activeCombinations": "Active Combinations"
       },
       "report": {
-        "title": "Profesyonel Word Raporu Oluştur",
-        "subtitle": "Rapora dahil edilecek bölümleri seçin.",
-        "selectAll": "Tümünü Seç",
+        "title": "Create Professional Word Report",
+        "subtitle": "Select the sections to include in the report.",
+        "selectAll": "Select All",
         "section": {
-          "stones": "Doğaltaş Kayıtları",
-          "minerals": "Mineral Bankası",
-          "combinations": "Kombinasyonlar",
-          "knowledge": "Taş Bilgi Kütüphanesi",
-          "analytics": "Stok / Analiz Özeti"
+          "stones": "Stone Records",
+          "minerals": "Mineral Library",
+          "combinations": "Combinations",
+          "knowledge": "Stone Knowledge Base",
+          "analytics": "Inventory / Analytics Summary"
         },
-        "errorEmpty": "Lütfen rapora dahil edilecek en az bir bölüm seçin.",
-        "errorSession": "Oturum bulunamadı. Lütfen sayfayı yenileyin.",
-        "errorUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
-        "errorGeneric": "Rapor oluşturulamadı.",
-        "success": "Word raporu başarıyla oluşturuldu.",
-        "preparing": "Profesyonel Word raporu hazırlanıyor...",
-        "clear": "Seçimi Temizle",
-        "submit": "Rapor Oluştur",
-        "submitting": "Hazırlanıyor..."
+        "errorEmpty": "Please select at least one section to include in the report.",
+        "errorSession": "No active session found. Please refresh the page.",
+        "errorUser": "User identity not found. Please sign in again.",
+        "errorGeneric": "Unable to generate the report.",
+        "success": "Word report generated successfully.",
+        "preparing": "Preparing your professional Word report…",
+        "clear": "Clear Selection",
+        "submit": "Generate Report",
+        "submitting": "Preparing…"
       },
-      "fallbackLoading": "Yükleniyor…",
+      "fallbackLoading": "Loading…",
       "meta": {
-        "titleDefault": "Doğaltaş · Yaşam Sistemi",
-        "titleTemplate": "%s · Doğaltaş · Yaşam Sistemi"
+        "titleDefault": "Stones · Yaşam Sistemi",
+        "titleTemplate": "%s · Stones · Yaşam Sistemi"
       }
     }
   }

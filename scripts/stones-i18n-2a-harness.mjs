@@ -60,11 +60,10 @@ for (const f of stonesFiles) {
   const orphan = [...enMap.keys()].filter((k) => !trMap.has(k));
   if (missing.length) err(`${f}: EN'de EKSİK (${missing.length}): ${missing.slice(0, 8).join(", ")}`);
   if (orphan.length) err(`${f}: EN'de FAZLA (${orphan.length}): ${orphan.slice(0, 8).join(", ")}`);
-  // 2A: EN value == TR value (baseline copy). 2B'de bu kasıtlı değişecek; harness 2A içindir.
-  let diff = 0;
-  for (const [k, v] of trMap) if (enMap.has(k) && enMap.get(k) !== v) diff++;
-  if (diff) err(`${f}: ${diff} EN value TR'den farklı (2A baseline EN=TR olmalı)`);
-  if (!missing.length && !orphan.length && !diff) ok(`${f}  (${trMap.size} key, EN=TR baseline)`);
+  // NOT: EN=TR value eşitliği YALNIZ 2A baseline içindi. AŞAMA 2B'de EN değerleri
+  // kasıtlı olarak native-English'e çevrildi → value eşitliği ARTIK BEKLENMEZ.
+  // Bu gate yalnız KEY parity'yi korur (value parity global .i18n-parity-audit + bu).
+  if (!missing.length && !orphan.length) ok(`${f}  (${trMap.size} key, parity OK)`);
   mergedTr = deepMerge(mergedTr, tr);
 }
 

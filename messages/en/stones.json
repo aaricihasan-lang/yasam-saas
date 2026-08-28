@@ -1,137 +1,137 @@
 {
   "stones": {
     "common": {
-      "save": "Kaydet",
-      "saving": "Kaydediliyor...",
-      "cancel": "İptal",
-      "close": "Kapat",
-      "delete": "Sil",
-      "edit": "Düzenle",
-      "back": "← Geri",
-      "clear": "Temizle",
-      "loading": "Yükleniyor...",
-      "giveUp": "Vazgeç"
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "delete": "Delete",
+      "edit": "Edit",
+      "back": "← Back",
+      "clear": "Clear",
+      "loading": "Loading…",
+      "giveUp": "Cancel"
     },
     "modules": {
       "home": {
-        "title": "Doğaltaş"
+        "title": "Stones"
       },
       "dogaltas-kayit": {
-        "title": "Doğaltaş Kayıt",
-        "subtitle": "Yeni taş kaydı oluştur."
+        "title": "Stone Record",
+        "subtitle": "Create a new stone record."
       },
       "mineral-bankasi": {
-        "title": "Mineral Bankası",
-        "subtitle": "Yeni mineral kaydı ekle."
+        "title": "Mineral Library",
+        "subtitle": "Add a new mineral record."
       },
       "mineral-listesi": {
-        "title": "Mineral Listesi",
-        "subtitle": "Mineralleri görüntüle ve yönet."
+        "title": "Minerals",
+        "subtitle": "View and manage minerals."
       },
       "dogaltas-listesi": {
-        "title": "Doğaltaş Listesi",
-        "subtitle": "Kayıtlı taşlar."
+        "title": "Stone Records",
+        "subtitle": "Saved stones."
       },
       "kombinasyonlar": {
-        "title": "Kombinasyonlar",
-        "subtitle": "Taş kombinasyonları."
+        "title": "Stone Combinations",
+        "subtitle": "Stone combinations."
       },
       "kombinasyon-olustur": {
-        "title": "Kombinasyon Oluştur",
-        "subtitle": "Minerale göre taş bul."
+        "title": "Create Combination",
+        "subtitle": "Find stones by mineral."
       },
       "tas-bilgi-kutuphanesi": {
-        "title": "Taş Bilgi Kütüphanesi",
-        "subtitle": "Eğitim ve referans."
+        "title": "Stone Knowledge Base",
+        "subtitle": "Learning and reference."
       }
     },
     "photos": {
-      "noImage": "Görsel eklenmemiş",
-      "imageAlt": "Görsel {n}"
+      "noImage": "No photo added",
+      "imageAlt": "Photo {n}"
     },
     "breadcrumb": {
-      "aria": "Sayfa konumu",
-      "home": "Ana Sayfa",
-      "panel": "Doğaltaş Paneli"
+      "aria": "Page location",
+      "home": "Home",
+      "panel": "Stones Panel"
     },
     "fontSize": {
-      "groupAria": "Yazı boyutu",
-      "label": "Yazı Boyutu",
-      "decreaseAria": "Yazıyı küçült",
-      "decreaseTitle": "Küçült (A-)",
-      "resetAria": "Varsayılan yazı boyutu ({px}px)",
-      "resetTitle": "Varsayılan ({px}px)",
-      "increaseAria": "Yazıyı büyüt",
-      "increaseTitle": "Büyüt (A+)"
+      "groupAria": "Font size",
+      "label": "Font Size",
+      "decreaseAria": "Decrease font size",
+      "decreaseTitle": "Decrease (A-)",
+      "resetAria": "Default font size ({px}px)",
+      "resetTitle": "Default ({px}px)",
+      "increaseAria": "Increase font size",
+      "increaseTitle": "Increase (A+)"
     },
     "duplicateModal": {
-      "title": "Bu isimde bir kayıt zaten var",
-      "subtitle": "Mevcut kaydı kontrol etmek ister misiniz?",
-      "existingLabel": "Mevcut kayıt",
-      "openExisting": "Mevcut Kaydı Aç",
-      "creating": "Oluşturuluyor...",
-      "createAnyway": "Yine de Oluştur"
+      "title": "A record with this name already exists",
+      "subtitle": "Would you like to review the existing record?",
+      "existingLabel": "Existing record",
+      "openExisting": "Open Existing Record",
+      "creating": "Creating…",
+      "createAnyway": "Create Anyway"
     },
     "mineralCombo": {
-      "stoneCount": "{count} taş"
+      "stoneCount": "{count} stones"
     },
     "saveCombo": {
-      "dialogAria": "Kombinasyon kaydet",
-      "title": "Kombinasyon nereye kaydedilsin?",
-      "saveToClient": "Danışana Özel Kaydet",
-      "summary": "{name} · {count} taş",
-      "combinationFallback": "Kombinasyon",
-      "saveGeneral": "Genel Kombinasyonlara Kaydet",
-      "generalDesc": "Tüm danışanlarda tekrar kullanılabilecek şablon kombinasyon.",
-      "clientDesc": "Yalnızca seçilen danışanın dosyasında görünür.",
-      "searchLabel": "Danışan Ara",
-      "searchPlaceholder": "İsim, telefon veya danışan no…",
-      "errNoSession": "Oturum bulunamadı.",
-      "errLoadFailed": "Danışanlar yüklenemedi.",
-      "errNetwork": "Ağ hatası",
-      "loadingClients": "Danışanlar yükleniyor…",
-      "noMatch": "Eşleşen danışan yok.",
-      "noClients": "Danışan bulunamadı.",
-      "selectedSummary": "Seçili: {name} · \"{combo}\" ({count} taş) bu danışana kaydedilecek.",
-      "saveToClientBtn": "💾 Danışana Kaydet"
+      "dialogAria": "Save combination",
+      "title": "Where should this combination be saved?",
+      "saveToClient": "Save to a Client",
+      "summary": "{name} · {count} stones",
+      "combinationFallback": "Combination",
+      "saveGeneral": "Save to General Combinations",
+      "generalDesc": "A template combination you can reuse across all clients.",
+      "clientDesc": "Visible only in the selected client's file.",
+      "searchLabel": "Search Clients",
+      "searchPlaceholder": "Name, phone or client no…",
+      "errNoSession": "No session found.",
+      "errLoadFailed": "Unable to load clients.",
+      "errNetwork": "Network error",
+      "loadingClients": "Loading clients…",
+      "noMatch": "No matching clients.",
+      "noClients": "No clients found.",
+      "selectedSummary": "Selected: \"{combo}\" ({count} stones) will be saved to {name}.",
+      "saveToClientBtn": "💾 Save to Client"
     },
     "detailDrawer": {
-      "detailAria": "{name} detayı",
-      "stoneFallback": "Taş",
-      "badge": "💎 TAŞ DETAYI",
-      "addToCart": "+ Kombinasyona Ekle",
-      "removeFromCart": "Sepetten Çıkar",
-      "shortTitle": "Kısa Açıklama",
-      "shortBadge": "GENEL BİLGİ",
-      "generalTitle": "Genel Taş Açıklaması",
-      "generalBadge": "DETAYLI BİLGİ",
-      "assignmentsTitle": "Mineral İçeriği & Atamalar",
-      "assignmentsBadge": "ATAMA",
-      "chakrasTitle": "Çakralar",
-      "chakrasBadge": "ÇAKRA",
-      "physicalTitle": "Fiziksel Etkiler",
-      "physicalBadge": "BEDENSEL ETKİ",
-      "spiritualTitle": "Ruhsal Etkiler",
-      "spiritualBadge": "RUHSAL ETKİ",
-      "otherTitle": "Diğer Etkiler",
-      "otherBadge": "TAMAMLAYICI NOT",
-      "sourceTitle": "Kaynak Notu",
-      "sourceBadge": "KAYNAK",
-      "usageTitle": "Kullanım / Uygulama",
-      "usageBadge": "KULLANIM ALANI",
+      "detailAria": "{name} details",
+      "stoneFallback": "Stone",
+      "badge": "💎 STONE DETAILS",
+      "addToCart": "+ Add to Combination",
+      "removeFromCart": "Remove from Cart",
+      "shortTitle": "Short Description",
+      "shortBadge": "GENERAL INFORMATION",
+      "generalTitle": "General Stone Description",
+      "generalBadge": "DETAILED INFORMATION",
+      "assignmentsTitle": "Mineral Content & Assignments",
+      "assignmentsBadge": "ASSIGNMENT",
+      "chakrasTitle": "Chakras",
+      "chakrasBadge": "CHAKRA",
+      "physicalTitle": "Physical Effects",
+      "physicalBadge": "PHYSICAL EFFECT",
+      "spiritualTitle": "Spiritual Effects",
+      "spiritualBadge": "SPIRITUAL EFFECT",
+      "otherTitle": "Other Effects",
+      "otherBadge": "SUPPLEMENTARY NOTE",
+      "sourceTitle": "Source Note",
+      "sourceBadge": "SOURCE",
+      "usageTitle": "Use / Application",
+      "usageBadge": "AREA OF USE",
       "usageFengShui": "Feng Shui",
-      "usageMeditation": "Meditasyon",
-      "usageCare": "Bakım",
-      "usageApplication": "Uygulama",
-      "warningsTitle": "Uyarılar ve Hassasiyetler",
-      "warningsBadge": "KLİNİK NOT",
-      "stockTitle": "Stok Bilgisi",
-      "stockBadge": "STOK",
-      "inStockYes": "✓ Bu taş stokta mevcut.",
-      "inStockNo": "Bu taş şu an stokta görünmüyor."
+      "usageMeditation": "Meditation",
+      "usageCare": "Care",
+      "usageApplication": "Application",
+      "warningsTitle": "Warnings & Sensitivities",
+      "warningsBadge": "CLINICAL NOTE",
+      "stockTitle": "Inventory Status",
+      "stockBadge": "INVENTORY",
+      "inStockYes": "✓ This stone is in stock.",
+      "inStockNo": "This stone does not appear to be in stock right now."
     },
     "reader": {
-      "demoProtected": "🔒 Demo hesabında bu içerik korumalıdır"
+      "demoProtected": "🔒 This content is protected in the demo account"
     }
   }
 }
