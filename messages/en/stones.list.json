@@ -36,9 +36,9 @@
         "clearAll": "Clear All"
       },
       "status": {
-        "matchDetail": "{count} matches (detail filter)",
-        "searchResult": "Search: {query} · {count} results",
-        "showingRecords": "Showing {count} records",
+        "matchDetail": "{count, plural, one {# match (detail filter)} other {# matches (detail filter)}}",
+        "searchResult": "Search: {query} · {count, plural, one {# result} other {# results}}",
+        "showingRecords": "Showing {count, plural, one {# record} other {# records}}",
         "filterLoading": "Loading filters…",
         "searching": "Searching…",
         "loading": "Loading…"
@@ -83,12 +83,12 @@
         "noShortDescription": "No short description added.",
         "readOnDetail": "Read on the details page →",
         "delete": "Delete",
-        "imageCount": "{count} photos"
+        "imageCount": "{count, plural, one {# photo} other {# photos}}"
       },
       "toast": {
         "demoAction": "This action isn't available on the demo account. All features are enabled in the full version.",
         "maxSelectMobile": "On mobile you can select up to 2 records at once.",
-        "removedCount": "{count} records removed from your list.",
+        "removedCount": "{count, plural, one {# record} other {# records}} removed from your list.",
         "selectStoneFirst": "Select a stone first.",
         "noFilteredResult": "No filtered results.",
         "wordStarted": "Your Word report download has started. You'll find the file in your browser's Downloads.",
@@ -103,7 +103,7 @@
       },
       "confirm": {
         "bulkTitle": "Remove selected records",
-        "bulkMessage": "Are you sure you want to remove {count} stone records from your list?",
+        "bulkMessage": "Are you sure you want to remove {count, plural, one {# stone record} other {# stone records}} from your list?",
         "bulkSecond": "Records you added yourself are permanently deleted. Library stones are only removed from your view."
       },
       "deleteDialog": {

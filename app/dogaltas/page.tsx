@@ -677,7 +677,7 @@ function DogaltasPageContent() {
                   <h2 className="text-base font-black text-slate-900">
                     {t("results.title")}
                     {!searchLoading && stonesForSearch
-                      ? t("results.count", { count: String(searchResults.length) })
+                      ? t("results.count", { count: searchResults.length })
                       : ""}
                   </h2>
                   {activeQuery ? (
@@ -800,7 +800,7 @@ function DogaltasPageContent() {
                           <div
                             key={bucket.label}
                             className="flex h-full flex-1 flex-col justify-end"
-                            title={t("analytics.barTitle", { label: bucket.label, count: String(bucket.count) })}
+                            title={t("analytics.barTitle", { label: bucket.label, count: bucket.count })}
                           >
                             <div
                               className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"

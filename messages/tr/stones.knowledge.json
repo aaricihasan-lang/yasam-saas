@@ -138,7 +138,21 @@
         "update": "Güncelle",
         "errorNoChange": "En az bir alanı değiştirin.",
         "errorFailed": "Güncelleme işlemi gerçekleştirilemedi. Lütfen tekrar deneyin."
-      }
+      },
+      "colorOptions": {
+        "emerald": "Yeşil",
+        "blue": "Mavi",
+        "violet": "Mor",
+        "amber": "Amber",
+        "slate": "Gri",
+        "rose": "Pembe",
+        "cyan": "Açık Mavi",
+        "orange": "Turuncu",
+        "green": "Açık Yeşil",
+        "indigo": "İndigo",
+        "teal": "Teal"
+      },
+      "allCategory": "Tümü"
     }
   }
 }

@@ -448,7 +448,7 @@ function MineralDetailPageContent() {
   const loadMineral = useCallback(async () => {
     if (!id) {
       setLoading(false);
-      setErrorMessage("Geçersiz mineral kimliği.");
+      setErrorMessage(t("invalidId"));
       return;
     }
 
@@ -482,19 +482,19 @@ function MineralDetailPageContent() {
     setLoading(false);
 
     if (!ok) {
-      setErrorMessage(`Mineral kayıtları okunamadı: ${error ?? ""}`);
+      setErrorMessage(t("loadError", { error: error ?? "" }));
       setMineral(null);
       return;
     }
 
     if (!data) {
-      setErrorMessage("Mineral kaydı bulunamadı.");
+      setErrorMessage(t("notFound"));
       setMineral(null);
       return;
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery, refMineralIdFromQuery]);
+  }, [id, highlightQuery, refMineralIdFromQuery, t]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -665,9 +665,9 @@ function MineralDetailPageContent() {
                 : mineral.source_id}
               {" · "}
               <span className="font-black text-emerald-700">{filledSections}</span>
-              {t("filledSuffix")}
+              {t("filledSuffix", { n: filledSections })}
               <span className="font-black text-amber-700">{mineral.iceren_taslar.length}</span>
-              {t("icerenSuffix")}
+              {t("icerenSuffix", { n: mineral.iceren_taslar.length })}
             </p>
           </div>
 

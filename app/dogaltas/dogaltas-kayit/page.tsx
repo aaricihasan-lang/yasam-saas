@@ -273,6 +273,10 @@ async function compressImageFileToWebp(file: File): Promise<File> {
 
 export default function DogaltasKayitPage() {
   const t = useTranslations("stones.records");
+  // Facet display: value KANONİK Türkçe kalır (chakras[]/warning_tags[] yazımı + filtre
+  // canonical'da); yalnız görünen etiket localize edilir. Anahtar eksikse canonical'a düşer.
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
   const [selectedWarnings, setSelectedWarnings] = useState<string[]>([]);
@@ -1008,7 +1012,7 @@ export default function DogaltasKayitPage() {
                               onChange={() => toggleWarning(warning)}
                               className="h-5 w-5 accent-rose-600"
                             />
-                            <span className="text-[13px] font-bold text-slate-700">{warning}</span>
+                            <span className="text-[13px] font-bold text-slate-700">{facet(warning)}</span>
                           </label>
                         ))}
                       </div>
@@ -1073,7 +1077,7 @@ export default function DogaltasKayitPage() {
                           onChange={() => toggleChakra(chakra)}
                           className="h-4 w-4 accent-emerald-600"
                         />
-                        <span className="text-[12px] font-bold text-slate-700">{chakra}</span>
+                        <span className="text-[12px] font-bold text-slate-700">{facet(chakra)}</span>
                       </label>
                     ))}
                   </div>

@@ -109,7 +109,9 @@
         "deleteGroupMessage": "\"{issue}\" grubundaki tüm kayıtlar silinecek",
         "deletedGroupToast": "\"{issue}\" silindi",
         "deleteSelectedError": "Seçili kombinasyonlar silinemedi: {error}",
-        "deleteGroupError": "Kombinasyon silinemedi: {error}"
+        "deleteGroupError": "Kombinasyon silinemedi: {error}",
+        "untitled": "İsimsiz",
+        "loadError": "Kayıtlar alınamadı: {error}"
       },
       "detail": {
         "invalidTitle": "Geçersiz başlık.",

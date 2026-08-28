@@ -73,13 +73,13 @@
       "createAnyway": "Create Anyway"
     },
     "mineralCombo": {
-      "stoneCount": "{count} stones"
+      "stoneCount": "{count, plural, one {# stone} other {# stones}}"
     },
     "saveCombo": {
       "dialogAria": "Save combination",
       "title": "Where should this combination be saved?",
       "saveToClient": "Save to a Client",
-      "summary": "{name} · {count} stones",
+      "summary": "{name} · {count, plural, one {# stone} other {# stones}}",
       "combinationFallback": "Combination",
       "saveGeneral": "Save to General Combinations",
       "generalDesc": "A template combination you can reuse across all clients.",
@@ -92,7 +92,7 @@
       "loadingClients": "Loading clients…",
       "noMatch": "No matching clients.",
       "noClients": "No clients found.",
-      "selectedSummary": "Selected: \"{combo}\" ({count} stones) will be saved to {name}.",
+      "selectedSummary": "Selected: \"{combo}\" ({count, plural, one {# stone} other {# stones}}) will be saved to {name}.",
       "saveToClientBtn": "💾 Save to Client"
     },
     "detailDrawer": {
@@ -132,6 +132,38 @@
     },
     "reader": {
       "demoProtected": "🔒 This content is protected in the demo account"
+    },
+    "facetLabels": {
+      "Kök": "Root",
+      "Kök Çakra": "Root Chakra",
+      "Sakral": "Sacral",
+      "Sakral Çakra": "Sacral Chakra",
+      "Solar Pleksus": "Solar Plexus",
+      "Kalp": "Heart",
+      "Kalp Çakra": "Heart Chakra",
+      "Kalp Çakrası": "Heart Chakra",
+      "Boğaz": "Throat",
+      "Boğaz Çakra": "Throat Chakra",
+      "Boğaz Çakrası": "Throat Chakra",
+      "Alın": "Brow",
+      "Üçüncü Göz": "Third Eye",
+      "Taç": "Crown",
+      "Taç Çakra": "Crown Chakra",
+      "Genel Uyarı": "General Warning",
+      "Hamilelik": "Pregnancy",
+      "Hamileler": "Pregnant Women",
+      "Çocuklar": "Children",
+      "Tansiyon / Kalp": "Blood Pressure / Heart",
+      "Tansiyon": "Blood Pressure",
+      "Uyku / Huzursuzluk": "Sleep / Restlessness",
+      "Uyku": "Sleep",
+      "Enerji Hassasiyeti": "Energy Sensitivity",
+      "Kalp Rahatsızlığı": "Heart Condition",
+      "Epilepsi": "Epilepsy",
+      "Alerji": "Allergy",
+      "Böbrek": "Kidney",
+      "Psikolojik Hassasiyet": "Psychological Sensitivity",
+      "Uzman Kontrolü": "Specialist Supervision"
     }
   }
 }

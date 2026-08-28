@@ -302,7 +302,9 @@ export default function KombinasyonlarPage() {
     setLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(`Kayıtlar alınamadı: ${result.error ?? ""}`);
+      // loadCombinations plain fn + [] mount effect → t()'yi doğrudan kullanmıyoruz
+      // (reaktif bağımlılık/lint döngüsü olmasın). Hata KODU saklanır, render'da t() ile çözülür.
+      setErrorMessage(`@@loadError:${result.error ?? ""}`);
       setRows([]);
       return;
     }
@@ -673,7 +675,9 @@ export default function KombinasyonlarPage() {
         {/* ── Error ──────────────────────────────────────────────────── */}
         {errorMessage && (
           <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
-            {errorMessage}
+            {errorMessage.startsWith("@@loadError:")
+              ? t("loadError", { error: errorMessage.slice("@@loadError:".length) })
+              : errorMessage}
           </div>
         )}
 
@@ -729,7 +733,9 @@ export default function KombinasyonlarPage() {
                     <span className={uiComboBadge}>{t("variantBadge", { n: count })}</span>
                     {category && (
                       <span className={uiCategoryPill}>
-                        {isSearchActive ? renderHighlightedText(category, activeSearch) : category}
+                        {category === "İsimsiz"
+                          ? t("untitled")
+                          : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
                       </span>
                     )}
                     {isSearchActive && (

@@ -420,6 +420,10 @@ const StoneCard = memo(function StoneCard({
 
 function DogaltasListesiPageContent() {
   const t = useTranslations("stones.list");
+  // Facet chip display: filtre value KANONİK Türkçe (detailFilters.chakra + containsTr eşleşme);
+  // yalnız etiket localize. Anahtar yoksa canonical'a düşer.
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const { isDemo } = useDemoGuard();
@@ -1461,7 +1465,7 @@ function DogaltasListesiPageContent() {
                         : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
                     }`}
                   >
-                    {chip}
+                    {facet(chip)}
                   </button>
                 ))}
               </div>

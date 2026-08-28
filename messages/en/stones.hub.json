@@ -23,7 +23,7 @@
       },
       "results": {
         "title": "Search Results",
-        "count": " · {count} records",
+        "count": " · {count, plural, one {# record} other {# records}}",
         "loading": "Loading…",
         "empty": "No results found for this search.",
         "noDescription": "No short description added.",
@@ -55,7 +55,7 @@
         "trendTitle": "Monthly Record Trend",
         "trendSubtitle": "Last 6 months · stones.created_at",
         "loading": "Loading…",
-        "barTitle": "{label}: {count} records",
+        "barTitle": "{label}: {count, plural, one {# record} other {# records}}",
         "totalStones": "Total Stone Records",
         "mineralBank": "Mineral Library",
         "activeCombinations": "Active Combinations"

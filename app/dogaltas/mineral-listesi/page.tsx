@@ -215,13 +215,13 @@ function MineralListesiPageContent() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setErrorMessage(`Mineral kayıtları okunamadı: ${pageRes.error}`);
+        setErrorMessage(t("loadError", { error: pageRes.error }));
         if (opts.reset) setMinerals([]);
         return;
       }
 
       if (countRes.error) {
-        setErrorMessage(`Kayıt sayısı alınamadı: ${countRes.error}`);
+        setErrorMessage(t("countError", { error: countRes.error }));
       } else if (opts.reset) {
         setTotalCount(countRes.count);
       }
@@ -230,7 +230,7 @@ function MineralListesiPageContent() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
     },
-    [categoryFilter, debouncedSearch, queryTenantId, totalCount],
+    [categoryFilter, debouncedSearch, queryTenantId, totalCount, t],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -537,7 +537,7 @@ function MineralListesiPageContent() {
                 <option value="">{t("allCategories")}</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>
-                    {cat}
+                    {cat === UNCATEGORIZED_LABEL ? t("uncategorized") : cat}
                   </option>
                 ))}
               </select>
@@ -626,6 +626,8 @@ function MineralListesiPageContent() {
               {filteredMinerals.map((mineral) => {
                 const categoryLabel = getCategoryLabel(mineral.kategori);
                 const showCategoryPill = categoryLabel !== UNCATEGORIZED_LABEL;
+                // Sentinel "Kategorisiz" görünen etiketi localize; gerçek kategori adları DB verisi → aynen.
+                const categoryDisplay = categoryLabel === UNCATEGORIZED_LABEL ? t("uncategorized") : categoryLabel;
                 const isViewedInSearch =
                   isSearchActive && viewedMineralIds.has(mineral.id);
                 const descriptionPreview = previewText(mineral.aciklama, t("noDescription"));
@@ -699,14 +701,14 @@ function MineralListesiPageContent() {
                         {showCategoryPill ? (
                           <span className={`${uiCategoryPill} mb-1.5 w-fit`}>
                             {isSearchActive
-                              ? renderHighlightedText(categoryLabel, activeSearch)
-                              : categoryLabel}
+                              ? renderHighlightedText(categoryDisplay, activeSearch)
+                              : categoryDisplay}
                           </span>
                         ) : (
                           <span className="mb-1.5 text-xs font-bold text-slate-400">
                             {isSearchActive
-                              ? renderHighlightedText(categoryLabel, activeSearch)
-                              : categoryLabel}
+                              ? renderHighlightedText(categoryDisplay, activeSearch)
+                              : categoryDisplay}
                           </span>
                         )}
                         <h2 className="text-base font-black text-slate-950">

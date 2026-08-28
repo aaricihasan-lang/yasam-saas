@@ -109,7 +109,10 @@
         "viewedBadge": "Bakıldı",
         "noDescription": "Açıklama henüz girilmedi.",
         "detailLink": "Detayı Gör →",
-        "loadMore": "Daha Fazla Göster ({loaded} / {total})"
+        "loadMore": "Daha Fazla Göster ({loaded} / {total})",
+        "uncategorized": "Kategorisiz",
+        "loadError": "Mineral kayıtları okunamadı: {error}",
+        "countError": "Kayıt sayısı alınamadı: {error}"
       },
       "word": {
         "reportTitle": "Mineral Bankası Raporu",
@@ -138,8 +141,8 @@
         "categoryPlaceholder": "Kategori (örn: İz mineral)",
         "categoryAria": "Mineral kategorisi",
         "namePlaceholder": "Mineral adı",
-        "filledSuffix": " Dolu Bölüm · ",
-        "icerenSuffix": " İçeren Taş",
+        "filledSuffix": "{n, plural, other { Dolu Bölüm · }}",
+        "icerenSuffix": "{n, plural, other { İçeren Taş}}",
         "wordButton": "📄 Word",
         "wordBusy": "⏳...",
         "refresh": "Yenile",
@@ -190,7 +193,10 @@
           "iceren_taslar": {
             "title": "İçeren taşlar"
           }
-        }
+        },
+        "invalidId": "Geçersiz mineral kimliği.",
+        "notFound": "Mineral kaydı bulunamadı.",
+        "loadError": "Mineral kayıtları okunamadı: {error}"
       },
       "edit": {
         "lineHint": "her satır bir madde",

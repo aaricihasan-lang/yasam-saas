@@ -992,7 +992,7 @@ export default function TasBilgiKutuphanesiPage() {
                           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
                         >
                           {COLOR_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
+                            <option key={o.value} value={o.value}>{t.has(`colorOptions.${o.value}`) ? t(`colorOptions.${o.value}`) : o.label}</option>
                           ))}
                         </select>
                       </div>
@@ -1114,7 +1114,7 @@ export default function TasBilgiKutuphanesiPage() {
                     style={isActive
                       ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
                       : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
-                    {cfg?.icon} {kat}
+                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : kat}
                     {kat !== "Tümü" && (
                       <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
                     )}

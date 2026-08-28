@@ -132,6 +132,38 @@
     },
     "reader": {
       "demoProtected": "🔒 Demo hesabında bu içerik korumalıdır"
+    },
+    "facetLabels": {
+      "Kök": "Kök",
+      "Kök Çakra": "Kök Çakra",
+      "Sakral": "Sakral",
+      "Sakral Çakra": "Sakral Çakra",
+      "Solar Pleksus": "Solar Pleksus",
+      "Kalp": "Kalp",
+      "Kalp Çakra": "Kalp Çakra",
+      "Kalp Çakrası": "Kalp Çakrası",
+      "Boğaz": "Boğaz",
+      "Boğaz Çakra": "Boğaz Çakra",
+      "Boğaz Çakrası": "Boğaz Çakrası",
+      "Alın": "Alın",
+      "Üçüncü Göz": "Üçüncü Göz",
+      "Taç": "Taç",
+      "Taç Çakra": "Taç Çakra",
+      "Genel Uyarı": "Genel Uyarı",
+      "Hamilelik": "Hamilelik",
+      "Hamileler": "Hamileler",
+      "Çocuklar": "Çocuklar",
+      "Tansiyon / Kalp": "Tansiyon / Kalp",
+      "Tansiyon": "Tansiyon",
+      "Uyku / Huzursuzluk": "Uyku / Huzursuzluk",
+      "Uyku": "Uyku",
+      "Enerji Hassasiyeti": "Enerji Hassasiyeti",
+      "Kalp Rahatsızlığı": "Kalp Rahatsızlığı",
+      "Epilepsi": "Epilepsi",
+      "Alerji": "Alerji",
+      "Böbrek": "Böbrek",
+      "Psikolojik Hassasiyet": "Psikolojik Hassasiyet",
+      "Uzman Kontrolü": "Uzman Kontrolü"
     }
   }
 }

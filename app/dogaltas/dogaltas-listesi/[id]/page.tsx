@@ -510,6 +510,10 @@ function TextBlock({
 
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
+  // Chakra/warning checkbox editör: seçili value KANONİK Türkçe kalır (chakras[]/warning_tags[]
+  // yazımı canonical'da); yalnız etiket localize. Anahtar yoksa canonical'a düşer.
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const params = useParams<{ id: string }>();
   const router = useRouter();
   useBfcacheRefresh();
@@ -1819,7 +1823,7 @@ function StoneDetailPage() {
                           : "bg-slate-50 text-slate-600 ring-slate-100 hover:bg-white"
                       }`}
                     >
-                      <span>{option}</span>
+                      <span>{facet(option)}</span>
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-lg text-[13px] ${
                           checked

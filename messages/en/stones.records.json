@@ -123,7 +123,7 @@
         "onlyImages": "Only image files can be added.",
         "demoNoUpload": "Photos can't be uploaded in demo mode.",
         "imageUploadFailed": "Unable to upload the photo. Please try again.",
-        "imagesUploaded": "{count} images uploaded.",
+        "imagesUploaded": "{count, plural, one {# image} other {# images}} uploaded.",
         "photoRemoveFailed": "Unable to remove the photo. Please try again.",
         "photoRemoved": "Photo removed.",
         "stoneNameRequired": "Stone name is required.",
