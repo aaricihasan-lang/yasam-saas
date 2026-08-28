@@ -4,6 +4,7 @@ import {
   FOOD_COLUMNS,
   FOOD_SOURCE_COLUMNS,
   SOURCE_COLUMNS,
+  FOOD_TRADITIONAL_COLUMNS,
   cleanStr,
   cleanStringArray,
   inEnum,
@@ -11,6 +12,8 @@ import {
   hasOnlyKeys,
   PREP_STATES,
 } from "@/lib/beslenme/contracts";
+import { resolveFoodForRead, resolveFoodForWrite } from "@/lib/beslenme/foodEngine";
+import { isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 
@@ -28,7 +31,7 @@ const UPDATE_KEYS = [
   "is_active",
 ] as const;
 
-/** GET: besin detayı + bağlı kaynaklar. */
+/** GET: besin detayı + besin değerleri + porsiyonlar + geleneksel + kaynaklar (SYSTEM veya kendi). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeOwner(req);
   if (!guard.ok) return guard.response;
@@ -36,24 +39,60 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
 
-  const { data: food, error } = await db
-    .from("nutrition_foods")
-    .select(FOOD_COLUMNS)
-    .eq("tenant_id", tenantId)
-    .eq("id", id)
-    .maybeSingle();
-  if (error) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
+  // SYSTEM veya kendi besnini okuyabilir (üçüncü tenant → null → 404).
+  const food = (await resolveFoodForRead(db, tenantId, id, FOOD_COLUMNS)) as
+    | (Record<string, unknown> & { tenant_id: string })
+    | null;
   if (!food) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  const foodTenant = food.tenant_id;
+  const isSystem = isSystemNutritionTenant(foodTenant);
 
-  const { data: links } = await db
-    .from("nutrition_food_sources")
-    .select(`${FOOD_SOURCE_COLUMNS}, source:nutrition_sources(${SOURCE_COLUMNS})`)
-    .eq("tenant_id", tenantId)
-    .eq("food_id", id)
-    .order("sort_order", { ascending: true });
+  // Çocuk kayıtlar food'un sahibine (SYSTEM veya caller) göre çekilir.
+  const [nutrientsRes, portionsRes, traditionalRes, sourcesRes, extRes] = await Promise.all([
+    db
+      .from("nutrition_food_nutrients")
+      .select(
+        "id, nutrient_id, amount, unit_id, basis_grams, nutrient:nutrition_nutrients(code, name_tr, name_en, category, sort_order), unit:nutrition_units(code, symbol)",
+      )
+      .eq("tenant_id", foodTenant)
+      .eq("food_id", id),
+    db
+      .from("nutrition_food_portions")
+      .select(
+        "id, label_tr, label_en, quantity, measure_unit_id, gram_weight, is_default, sort_order, unit:nutrition_units(code, symbol, name_tr)",
+      )
+      .eq("tenant_id", foodTenant)
+      .eq("food_id", id)
+      .order("sort_order", { ascending: true }),
+    db
+      .from("nutrition_food_traditional")
+      .select(FOOD_TRADITIONAL_COLUMNS)
+      .eq("tenant_id", foodTenant)
+      .eq("food_id", id)
+      .maybeSingle(),
+    db
+      .from("nutrition_food_sources")
+      .select(`${FOOD_SOURCE_COLUMNS}, source:nutrition_sources(${SOURCE_COLUMNS})`)
+      .eq("tenant_id", foodTenant)
+      .eq("food_id", id)
+      .order("sort_order", { ascending: true }),
+    db
+      .from("nutrition_food_external_refs")
+      .select("id, provider, external_id, external_dataset, external_version, source_url, retrieved_at")
+      .eq("tenant_id", foodTenant)
+      .eq("food_id", id),
+  ]);
 
   return NextResponse.json(
-    { ok: true, food, sources: links ?? [] },
+    {
+      ok: true,
+      food: { ...food, is_system: isSystem },
+      nutrients: nutrientsRes.data ?? [],
+      portions: portionsRes.data ?? [],
+      traditional: traditionalRes.data ?? null,
+      sources: sourcesRes.data ?? [],
+      externalRefs: extRes.data ?? [],
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -67,6 +106,10 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+
+  // SYSTEM food normal düzenleme API'siyle değiştirilemez (403); bulunamazsa 404.
+  const wguard = await resolveFoodForWrite(db, tenantId, id);
+  if (!wguard.ok) return beslenmeJson({ ok: false, code: wguard.code }, wguard.status);
 
   let body: Record<string, unknown>;
   try {
@@ -128,6 +171,10 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+
+  // SYSTEM food silinemez/arşivlenemez normal API'den (403); bulunamazsa 404.
+  const wguard = await resolveFoodForWrite(db, tenantId, id);
+  if (!wguard.ok) return beslenmeJson({ ok: false, code: wguard.code }, wguard.status);
   const hard = new URL(req.url).searchParams.get("hard") === "1";
 
   if (!hard) {
