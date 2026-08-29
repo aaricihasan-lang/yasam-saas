@@ -19,18 +19,23 @@ import {
 } from "@/lib/refleksoloji/atlasMerge";
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
-  return typeof value === "object" && value !== null && "taban" in value && "yan" in value;
+  if (typeof value !== "object" || value === null) return false;
+  return "taban" in value && ("yan_ic" in value || "yan_dis" in value || "yan" in value);
 }
 
 function regionsToOrganEntry(regions: Region[]): AtlasOrganEntry {
   const entry: AtlasOrganEntry = {
     taban: { sol: [], sag: [] },
-    yan: { sol: [], sag: [] },
+    yan_ic: { sol: [], sag: [] },
+    yan_dis: { sol: [], sag: [] },
   };
 
   for (const region of regions) {
     const footKey = footToStorageKey(region.footSide);
-    entry[region.view][footKey].push(regionToStored(region));
+    // region.view canonical (taban/yan_ic/yan_dis) → doğrudan bucket. "yan" YAZILMAZ.
+    const bucket = entry[region.view];
+    if (!bucket) continue;
+    bucket[footKey].push(regionToStored(region));
   }
 
   return entry;

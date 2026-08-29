@@ -13,21 +13,20 @@ import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/util
 type AtlasReadonlyFootMapProps = {
   regions: Region[];
   footView: FootView;
-  organName: string;
   onFootViewChange: (view: FootView) => void;
 };
 
 export function AtlasReadonlyFootMap({
   regions,
   footView,
-  organName,
   onFootViewChange,
 }: AtlasReadonlyFootMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
 
-  const backgroundKey = resolveAtlasBackgroundKey(footView, organName);
+  // EKOLE BAĞIMSIZ: arka plan DOĞRUDAN footView'dan; organ adı KULLANILMAZ.
+  const backgroundKey = resolveAtlasBackgroundKey(footView);
   const imageSrc = ATLAS_IMAGE_SRC[backgroundKey];
   const imageLabel = atlasBackgroundLabel(backgroundKey);
 
@@ -68,31 +67,28 @@ export function AtlasReadonlyFootMap({
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-[24px] border border-violet-100/90 bg-white">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-violet-100/80 px-4 py-3">
         <p className="text-base font-semibold text-slate-600">{imageLabel}</p>
+        {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — organın hangi görünümde bölgesi
+            varsa manuel seçilebilir. Organ adı arka planı belirlemez. */}
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onFootViewChange("taban")}
-            aria-pressed={footView === "taban"}
-            className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
-              footView === "taban"
-                ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-            }`}
-          >
-            Taban
-          </button>
-          <button
-            type="button"
-            onClick={() => onFootViewChange("yan")}
-            aria-pressed={footView === "yan"}
-            className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
-              footView === "yan"
-                ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-            }`}
-          >
-            Yan
-          </button>
+          {([
+            { view: "taban", label: "Taban" },
+            { view: "yan_ic", label: "Yan İç" },
+            { view: "yan_dis", label: "Yan Dış" },
+          ] as const).map(({ view, label }) => (
+            <button
+              key={view}
+              type="button"
+              onClick={() => onFootViewChange(view)}
+              aria-pressed={footView === view}
+              className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                footView === view
+                  ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
+                  : "border-violet-200/80 bg-violet-50/80 text-violet-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 

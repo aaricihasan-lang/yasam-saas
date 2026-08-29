@@ -16,15 +16,15 @@ import {
   type ResolvedAtlas,
 } from "@/lib/refleksoloji/atlasRegionsCore";
 
-const ALL_VIEWS: ProtocolFootView[] = ["taban", "yan"];
+const ALL_VIEWS: ProtocolFootView[] = ["taban", "yan_ic", "yan_dis"];
 
 /**
  * PROTOKOL UI (Protokol Haritası + Kayıtlı Protokol Detay) için TEK giriş.
  *
- * Anatomik doğruluk: "yan" tek görünüm DEĞİL — Yan İç (mesane/rahim/prostat) ve
- * Yan Dış AYRI arka planlardır. Gruplama TEK kaynaktan (`resolveProtocolAtlas`
- * → `regionBackgroundGroup` = view + isInnerYanOrgan) gelir; Word raporuyla aynı
- * çekirdek. Bir grubun bölgesi asla başka grubun arka planına sızmaz.
+ * Ekole bağımsız: üç AYRI görünüm (Taban / Yan İç / Yan Dış) uzman tarafından
+ * MANUEL seçilir. Gruplama TEK kaynaktan (`resolveProtocolAtlas` →
+ * `regionBackgroundGroup` = region'ın EXPLICIT view'ı; organ adı KULLANILMAZ) gelir;
+ * Word raporuyla aynı çekirdek. Bir grubun bölgesi asla başka grubun arka planına sızmaz.
  *
  * `availableViews`: en az bir bölgesi olan gruplar (taban/yan_ic/yan_dis sırası).
  * UI yalnız anlamlı görünüm düğmelerini gösterir ve boş sekme açmaz.

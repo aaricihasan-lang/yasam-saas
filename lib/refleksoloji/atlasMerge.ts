@@ -42,12 +42,11 @@ export function normOrgan(name: string): string {
 }
 
 export function isOrganEntryLike(value: unknown): boolean {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "taban" in (value as Record<string, unknown>) &&
-    "yan" in (value as Record<string, unknown>)
-  );
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  // Organ entry = taban + en az bir yan varyantı. Yeni canonical: yan_ic/yan_dis;
+  // legacy "yan" da kabul (normalize öncesi ham belge merge'de KAYBOLMASIN — §24).
+  return "taban" in v && ("yan_ic" in v || "yan_dis" in v || "yan" in v);
 }
 
 function ensureMeta(doc: AtlasDocLike): Required<Pick<AtlasMetaLike, "tombstones" | "organUpdatedAt">> & AtlasMetaLike {

@@ -1,4 +1,7 @@
-export type ProtocolFootView = "taban" | "yan";
+import type { FootView } from "../bolge-haritasi/types";
+
+/** Canonical 3-görünüm ile TEK type kaynağı (ekole bağımsız). Legacy "yan" YOK. */
+export type ProtocolFootView = FootView;
 
 export type ProtocolRegionPoint = { x: number; y: number };
 

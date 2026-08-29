@@ -44,7 +44,7 @@ function oval(id: string): StoredRegion {
 }
 
 // Bir organ için taban görünümünde `n` bölgeli entry üretir.
-function organWithRegions(n: number, view: "taban" | "yan" = "taban"): AtlasOrganEntry {
+function organWithRegions(n: number, view: "taban" | "yan_dis" = "taban"): AtlasOrganEntry {
   const entry = emptyOrganEntry();
   for (let i = 0; i < n; i += 1) {
     entry[view].sol.push(oval(`${view}-${i}`));
@@ -60,8 +60,8 @@ const atlas: AtlasDocument = {
   [KARACIGER_NFD]: organWithRegions(2), // taban: 2 bölge
   ["böbrek"]: organWithRegions(2),
   ["kalp"]: organWithRegions(2),
-  // Yalnız "yan" görünümünde olan farklı bir organ (çapraz-görünüm testi).
-  ["safra kesesi"]: organWithRegions(3, "yan"),
+  // Yalnız "yan_dis" görünümünde olan farklı bir organ (çapraz-görünüm testi).
+  ["safra kesesi"]: organWithRegions(3, "yan_dis"),
 };
 
 // Atlas anahtarının gerçekten NFD saklandığını kanıtla (fixture sağlığı).
@@ -71,7 +71,7 @@ console.log("Fixture: karaciğer atlas anahtarı NFD mi?",
 
 // Protokolde bir organın atlas durumu — resolveColoredRegionsForOrgans ile
 // AYNI çekirdek mantık (found = eşleşen atlas bölgesi > 0).
-function statusFor(input: string, view: "taban" | "yan" = "taban") {
+function statusFor(input: string, view: "taban" | "yan_dis" = "taban") {
   const atlasKey = resolveOrganNameInAtlas(atlas, input);
   const regions = atlasKey
     ? getRegionsForOrgan(atlas, atlasKey, { view }).filter(
@@ -128,7 +128,7 @@ check("7b boş girdi → found=false", !sEmpty.found && sEmpty.atlasKey === null
 console.log("\n=== 8) Bölge sayısı doğru ===");
 check("8  karaciğer bölge sayısı tam olarak 2", statusFor("karaciğer").regionCount === 2);
 check("8b safra kesesi (yan) bölge sayısı tam olarak 3",
-  statusFor("safra kesesi", "yan").regionCount === 3);
+  statusFor("safra kesesi", "yan_dis").regionCount === 3);
 
 console.log("\n=== 9) Görünüm (Taban/Yan) çapraz-eşleşme yok ===");
 // safra kesesi yalnız YAN'da; TABAN görünümünde 0 bölge dönmeli.
@@ -137,7 +137,7 @@ check("9a safra kesesi TABAN görünümünde 0 bölge (yanlış görünüm sızm
   sSafraTaban.atlasKey !== null && sSafraTaban.regionCount === 0);
 // karaciğer TABAN'da var; YAN görünümünde 0 bölge (organ eşleşse de görünüm ayrı).
 check("9b karaciğer YAN görünümünde 0 bölge",
-  statusFor("karaciğer", "yan").regionCount === 0);
+  statusFor("karaciğer", "yan_dis").regionCount === 0);
 // Farklı organın bölgeleri karaciğer'e sızmaz: resolveOrganNameInAtlas doğru anahtar.
 check("9c karaciğer resolve → karaciğer anahtarı (kalp/böbrek değil)",
   organKey(resolveOrganNameInAtlas(atlas, "KARACİĞER") ?? "") === organKey("karaciğer"));

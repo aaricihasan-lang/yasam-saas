@@ -9,12 +9,12 @@ import {
   saveAtlas,
   saveOrganList,
   unionOrganLists,
-  type AtlasDocument,
 } from "@/lib/atlasStorage";
 import {
   hydrateAtlasFromServer,
   setAtlasSyncSuspended,
 } from "@/lib/refleksolojiAtlasSync";
+import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 /**
@@ -39,7 +39,9 @@ export function useHydratedAtlasVersion(): number {
     let cancelled = false;
     void hydrateAtlasFromServer().then((server) => {
       if (cancelled || !server) return;
-      const serverDoc = (server.document ?? {}) as AtlasDocument;
+      // CANONICAL SINIR: sunucudan gelen belge legacy olabilir → 3-görünüme normalize
+      // et (localDoc zaten loadAtlas'ta normalize). Merge yalnız canonical şekiller üzerinde.
+      const serverDoc = normalizeAtlasDocument(server.document ?? {});
       const hasServerData =
         listOrganNamesFromAtlas(serverDoc).length > 0 || server.organ_list.length > 0;
       if (!hasServerData) return;

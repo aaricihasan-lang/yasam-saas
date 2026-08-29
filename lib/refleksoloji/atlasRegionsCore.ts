@@ -10,7 +10,7 @@
  *   - organ kimliği           → `organKey` (PR #201, TEK kaynak)
  *   - şekil geçerlilik kuralı  → `isRenderableAtlasRegion` (bu dosya = TEK kaynak;
  *                                atlasMatch buradan re-export eder)
- *   - Yan İç / Yan Dış ayrımı  → `isInnerYanOrgan` (atlasBackground, TEK kaynak)
+ *   - Taban/Yan İç/Yan Dış ayrımı → region'ın EXPLICIT `view`'ı (ekole bağımsız; organ adı YOK)
  *   - renk paleti              → `getOrganColor` (protokol-haritasi/types, TEK kaynak)
  *
  * Atlas belgesinin yürüyüşü (taban/yan × sol/sag) yapısal veri gezintisidir; iş
@@ -25,14 +25,14 @@ import type {
 } from "@/lib/atlasStorage";
 import type { FootSide, FootView, Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
-import { isInnerYanOrgan } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { getOrganColor, type OrganColorStyle } from "@/app/refleksoloji/protokol-haritasi/types";
 
 // ─── Arka plan (görünüm) grupları ─────────────────────────────────────────────
-// Bölge Haritası Region.view yalnız "taban" | "yan" taşır; Yan'ın İç/Dış ayrımı
-// organ adından (isInnerYanOrgan) TÜRETİLİR. Bu üç grup Word'deki üç bağımsız
-// haritayı ve arka plan PNG'sini belirler.
-export type AtlasBackgroundGroup = "taban" | "yan_ic" | "yan_dis";
+// EKOLE BAĞIMSIZ: her bölge kendi canonical görünümünü (region.view) TAŞIR —
+// taban / yan_ic / yan_dis. Grup DOĞRUDAN region.view'dır; organ adından TÜRETME
+// YOK (organ-adı çıkarımı runtime'dan kaldırıldı; legacy dönüşüm yalnız atlasNormalize).
+// `AtlasBackgroundGroup` canonical `FootView`'ın alias'ıdır (tek type kaynağı).
+export type AtlasBackgroundGroup = FootView;
 
 export const ATLAS_GROUP_LABEL: Record<AtlasBackgroundGroup, string> = {
   taban: "Taban",
@@ -46,13 +46,12 @@ export const ATLAS_GROUP_ASSET: Record<AtlasBackgroundGroup, string> = {
   yan_dis: "klinik_yan_dis.png",
 };
 
-/** Bir bölgenin ait olduğu arka plan grubu (TEK kaynak: view + isInnerYanOrgan). */
-export function regionBackgroundGroup(region: {
-  view: FootView;
-  organ: string;
-}): AtlasBackgroundGroup {
-  if (region.view === "taban") return "taban";
-  return isInnerYanOrgan(region.organ) ? "yan_ic" : "yan_dis";
+/**
+ * Bir bölgenin ait olduğu arka plan grubu = region'ın EXPLICIT canonical görünümü.
+ * Organ adı KULLANILMAZ (ekole bağımsız). region.view zaten taban/yan_ic/yan_dis.
+ */
+export function regionBackgroundGroup(region: { view: FootView }): AtlasBackgroundGroup {
+  return region.view;
 }
 
 // ─── Şekil geçerlilik kuralı (TEK kaynak; atlasMatch re-export eder) ───────────
@@ -88,9 +87,10 @@ export function isRenderableAtlasRegion(region: Region): boolean {
 
 // ─── Saf belge yürüyüşü (yapısal; iş kuralı değil) ────────────────────────────
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
-  return (
-    typeof value === "object" && value !== null && "taban" in value && "yan" in value
-  );
+  if (typeof value !== "object" || value === null) return false;
+  // Organ entry = taban + en az bir yan varyantı. Yeni canonical: yan_ic/yan_dis;
+  // legacy "yan" da kabul edilir (normalizasyon öncesi ham belge güvenli tanınsın).
+  return "taban" in value && ("yan_ic" in value || "yan_dis" in value || "yan" in value);
 }
 
 function storageKeyToFoot(key: "sol" | "sag"): FootSide {
@@ -150,13 +150,15 @@ export function getAtlasRegionsForOrgan(
   const entry = atlas[organAtlasKey];
   if (!isOrganEntry(entry)) return [];
 
-  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan"];
+  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan_ic", "yan_dis"];
   const footKeys: ("sol" | "sag")[] = ["sol", "sag"];
   const result: Region[] = [];
 
   for (const view of views) {
+    const bucket = entry[view];
+    if (!bucket) continue; // normalize edilmiş belgede 3 bucket da bulunur; savunmacı kontrol
     for (const footKey of footKeys) {
-      const storedList = entry[view][footKey] ?? [];
+      const storedList = bucket[footKey] ?? [];
       for (const stored of storedList) {
         result.push(storedToRegion(stored, organAtlasKey, storageKeyToFoot(footKey), view));
       }
@@ -227,9 +229,9 @@ export function resolveProtocolAtlas(
       for (const region of all) {
         if (seenRegionIds.has(region.id)) continue;
         seenRegionIds.add(region.id);
-        // Grup, organ ETİKETİYLE belirlenir (isInnerYanOrgan ham ada bakar); atlas
-        // anahtarı yerine protokol etiketi kullanılır ki kimlik/görünüm tutarlı olsun.
-        const group = regionBackgroundGroup({ view: region.view, organ: label });
+        // Grup = region'ın EXPLICIT canonical görünümü (region.view). Organ adı
+        // KULLANILMAZ — ekole bağımsız; uzmanın seçtiği görünüm source-of-truth.
+        const group = regionBackgroundGroup({ view: region.view });
         byGroup[group] += 1;
         totalRegions += 1;
         regionsByGroup[group].push({
