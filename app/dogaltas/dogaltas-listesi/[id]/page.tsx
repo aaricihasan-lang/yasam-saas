@@ -350,7 +350,9 @@ function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky
 }
 
 function shortPreview(text: string | null | undefined, limit = 180) {
-  if (!text || !text.trim()) return "Henüz bilgi girilmedi.";
+  // Boş içerik → "" döndürür; locale-aware empty-state metnini (t("noInfoYet"))
+  // çağıran render sitesi ekler (sistem fallback'i EN'de Türkçe görünmemeli).
+  if (!text || !text.trim()) return "";
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > limit ? `${clean.slice(0, limit)}...` : clean;
 }
@@ -474,7 +476,7 @@ function TextBlock({
               {showMatchBadge ? <SearchMatchBadge /> : null}
             </div>
             <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-              {shortPreview(text, 80)}
+              {shortPreview(text, 80) || t("noInfoYet")}
             </p>
           </div>
           <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
@@ -503,7 +505,7 @@ function TextBlock({
         >
           {text?.trim()
             ? renderHighlightedText(shortPreview(text, 240), highlightQuery)
-            : shortPreview(text, 240)}
+            : t("noInfoYet")}
         </p>
       </div>
 
@@ -1729,7 +1731,7 @@ function StoneDetailPage() {
                       <p className={`mt-1 line-clamp-2 text-xs leading-5 ${!String(text || "").trim() ? uiEmptyText : "text-slate-600"}`}>
                         {String(text || "").trim()
                           ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
-                          : shortPreview(String(text || ""), 80)}
+                          : t("noInfoYet")}
                       </p>
                     )}
                   </button>
