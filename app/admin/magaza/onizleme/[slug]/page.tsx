@@ -9,7 +9,7 @@ import ProductDetail from "@/app/magaza/[slug]/ProductDetail";
 import { previewApi, type StorefrontDetailPreview } from "../../magazaAdminApi";
 import { buildWhatsappLink, buildWhatsappProductMessage } from "@/lib/store/whatsapp";
 import { STORE_BRAND_NAME } from "@/lib/store/types";
-import { HREF_BASE } from "../page";
+import { HREF_BASE } from "../hrefBase";
 
 function Notice({ title, desc }: { title: string; desc?: string }) {
   return (
