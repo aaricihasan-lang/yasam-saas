@@ -15,6 +15,8 @@ import type {
   StoreProductAdminDetail,
   StoreProductImage,
   StoreSettings,
+  StorefrontProductCard,
+  StorefrontProductDetail,
 } from "@/lib/store/types";
 
 const BASE = "/api/admin/magaza";
@@ -125,6 +127,40 @@ export const settingsApi = {
     toResult(await jsonFetch("GET", "/settings"), (b) => b.row as StoreSettings),
   update: async (body: Record<string, unknown>): Promise<ApiResult<StoreSettings>> =>
     toResult(await jsonFetch("PATCH", "/settings", body), (b) => b.row as StoreSettings),
+};
+
+// ---- Sahip önizleme (gerçek storefront verisi; owner-gate'li) ----
+type PreviewCategory = { slug: string; name: string };
+export type StorefrontPreview = {
+  products: StorefrontProductCard[];
+  categories: PreviewCategory[];
+  whatsapp_number: string | null;
+  whatsapp_enabled: boolean;
+};
+export type StorefrontDetailPreview = {
+  product: StorefrontProductDetail;
+  categories: PreviewCategory[];
+  related: StorefrontProductCard[];
+  whatsapp_number: string | null;
+  whatsapp_enabled: boolean;
+};
+
+export const previewApi = {
+  storefront: async (): Promise<ApiResult<StorefrontPreview>> =>
+    toResult(await jsonFetch("GET", "/storefront"), (b) => ({
+      products: (b.products as StorefrontProductCard[]) ?? [],
+      categories: (b.categories as PreviewCategory[]) ?? [],
+      whatsapp_number: (b.whatsapp_number as string | null) ?? null,
+      whatsapp_enabled: b.whatsapp_enabled === true,
+    })),
+  product: async (slug: string): Promise<ApiResult<StorefrontDetailPreview>> =>
+    toResult(await jsonFetch("GET", `/storefront/${encodeURIComponent(slug)}`), (b) => ({
+      product: b.product as StorefrontProductDetail,
+      categories: (b.categories as PreviewCategory[]) ?? [],
+      related: (b.related as StorefrontProductCard[]) ?? [],
+      whatsapp_number: (b.whatsapp_number as string | null) ?? null,
+      whatsapp_enabled: b.whatsapp_enabled === true,
+    })),
 };
 
 /** Public bucket ürün görseli path → gösterim URL'i (admin önizleme için). */

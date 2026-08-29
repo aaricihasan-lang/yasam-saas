@@ -26,12 +26,14 @@ export default function ProductDetail({
   categories,
   headerWhatsappHref,
   related = [],
+  hrefBase = "/magaza",
 }: {
   product: StorefrontProductDetail;
   whatsappLink: string | null;
   categories: Category[];
   headerWhatsappHref: string | null;
   related?: StorefrontProductCard[];
+  hrefBase?: string;
 }) {
   const [active, setActive] = useState(0);
   const images = product.images;
@@ -40,10 +42,10 @@ export default function ProductDetail({
 
   return (
     <div className="min-h-screen bg-[#f5f0e6] text-[#2a2620] antialiased">
-      <StoreHeader categories={categories} whatsappHref={headerWhatsappHref} />
+      <StoreHeader categories={categories} whatsappHref={headerWhatsappHref} hrefBase={hrefBase} />
 
       <main className="mx-auto w-full max-w-[1280px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-        <Link href="/magaza" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#8b8175] transition-colors hover:text-[#96543d]">
+        <Link href={hrefBase} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#8b8175] transition-colors hover:text-[#96543d]">
           <span aria-hidden>←</span> Mağazaya dön
         </Link>
 
@@ -138,7 +140,7 @@ export default function ProductDetail({
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {related.slice(0, 4).map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard key={p.id} product={p} hrefBase={hrefBase} />
               ))}
             </div>
           </section>

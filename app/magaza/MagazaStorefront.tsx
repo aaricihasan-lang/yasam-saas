@@ -12,10 +12,12 @@ export default function MagazaStorefront({
   products,
   categories,
   whatsappHref,
+  hrefBase = "/magaza",
 }: {
   products: StorefrontProductCard[];
   categories: Category[];
   whatsappHref: string | null;
+  hrefBase?: string;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
@@ -45,7 +47,7 @@ export default function MagazaStorefront({
 
   return (
     <div className="min-h-screen bg-[#f5f0e6] text-[#2a2620] antialiased">
-      <StoreHeader categories={categories} whatsappHref={whatsappHref} controlled={{ query, setQuery, category, setCategory }} />
+      <StoreHeader categories={categories} whatsappHref={whatsappHref} controlled={{ query, setQuery, category, setCategory }} hrefBase={hrefBase} />
 
       {/* HERO — Image A */}
       <section className="mx-auto w-full max-w-[1280px] px-4 pt-5 sm:px-6 lg:px-8">
@@ -127,7 +129,7 @@ export default function MagazaStorefront({
             filtered.length > 0 ? (
               <>
                 <SectionHead title="Sonuçlar" subtitle={`${filtered.length} ürün`} />
-                <ProductGrid products={filtered} />
+                <ProductGrid products={filtered} hrefBase={hrefBase} />
               </>
             ) : (
               <NoResults onClear={() => { setQuery(""); setCategory("all"); }} />
@@ -136,17 +138,17 @@ export default function MagazaStorefront({
             <div className="space-y-12">
               <div>
                 <SectionHead title="Öne Çıkan Ürünler" subtitle="Seçkimizden öne çıkanlar" />
-                <ProductGrid products={featured} />
+                <ProductGrid products={featured} hrefBase={hrefBase} />
               </div>
               <div>
                 <SectionHead title="Tüm Ürünler" subtitle={`${total} ürün`} />
-                <ProductGrid products={products} />
+                <ProductGrid products={products} hrefBase={hrefBase} />
               </div>
             </div>
           ) : (
             <>
               <SectionHead title="Ürünler" subtitle={`${total} ürün`} />
-              <ProductGrid products={products} />
+              <ProductGrid products={products} hrefBase={hrefBase} />
             </>
           )}
         </section>
@@ -157,11 +159,11 @@ export default function MagazaStorefront({
   );
 }
 
-function ProductGrid({ products }: { products: StorefrontProductCard[] }) {
+function ProductGrid({ products, hrefBase }: { products: StorefrontProductCard[]; hrefBase: string }) {
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} />
+        <ProductCard key={p.id} product={p} hrefBase={hrefBase} />
       ))}
     </div>
   );

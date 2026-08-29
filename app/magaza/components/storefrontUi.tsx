@@ -89,12 +89,13 @@ function StockDot({ product }: { product: StorefrontProductCard }) {
   );
 }
 
-/** Retail ürün kartı — gerçek 3:4 fotoğraf, ölçülü kart, net fiyat/CTA. */
-export function ProductCard({ product }: { product: StorefrontProductCard }) {
+/** Retail ürün kartı — gerçek 3:4 fotoğraf, ölçülü kart, net fiyat/CTA.
+ *  hrefBase: kart hedef kökü (public "/magaza" default; sahip önizlemesinde "/admin/magaza/onizleme"). */
+export function ProductCard({ product, hrefBase = "/magaza" }: { product: StorefrontProductCard; hrefBase?: string }) {
   const soldOut = !product.in_stock;
   return (
     <Link
-      href={`/magaza/${product.slug}`}
+      href={`${hrefBase}/${product.slug}`}
       className="group flex flex-col overflow-hidden rounded-xl border border-[#e7dfd0] bg-[#fbf8f2] transition-all duration-300 hover:-translate-y-1 hover:border-[#d9c6a9] hover:shadow-[0_18px_40px_-24px_rgba(60,45,25,.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b0674d]"
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#efe9dc]">
