@@ -1045,7 +1045,14 @@ function run(): void {
   // ══ FAZ 4 / AŞAMA 2A — KUPA TEKNİKLERİ VERİ TEMELİ ══════════════════════════════
   // Additive: practitioner_note + cupping_technique_safety + technique-safety API +
   // read-only "Kullanıldığı Protokoller". Destructive DDL / backfill YOK.
-  const f4mig = read("supabase/migrations/20270101000100_cupping_technique_workspace_foundation.sql");
+  const f4mig = read("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql");
+  // Migration version hygiene (drift reconciliation): yeni benzersiz slot; eski çakışan yok.
+  ok(exists("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql") &&
+     !exists("supabase/migrations/20270101000100_cupping_technique_workspace_foundation.sql"),
+    "faz4-mig-version: cupping migration 20270101000600 (eski 20270101000100 çakışan slot yok)");
+  ok(/-- 20270101000600_cupping_technique_workspace_foundation\.sql/.test(f4mig) &&
+     !/20270101000100/.test(f4mig),
+    "faz4-mig-version: migration başlığı yeni versiyonla tutarlı (eski versiyon referansı yok)");
 
   // — Migration: practitioner_note additive kolon (backfill YOK) —
   ok(/ADD COLUMN IF NOT EXISTS practitioner_note text/.test(f4mig),

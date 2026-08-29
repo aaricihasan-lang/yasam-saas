@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20270101000100_cupping_technique_workspace_foundation.sql
+-- 20270101000600_cupping_technique_workspace_foundation.sql
 --
 -- KUPA & HACAMAT — FAZ 4 / AŞAMA 2A — Kupa Teknikleri çalışma alanı VERİ TEMELİ.
 --
