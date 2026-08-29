@@ -14,12 +14,16 @@ import {
   SAFETY_WRITABLE,
   POINT_TOPIC_WRITABLE,
   TOPIC_WRITABLE,
+  TECHNIQUE_WRITABLE,
+  TECHNIQUE_SAFETY_WRITABLE,
+  TECHNIQUE_SAFETY_META_WRITABLE,
   CUPPING_TABLES,
   CITATION_SPECS,
   isCitationEntity,
   PROTOCOL_WRITABLE,
   PROTOCOL_POINT_WRITABLE,
   PROTOCOL_POINT_META_WRITABLE,
+  PROTOCOL_TECHNIQUE_WRITABLE,
   PROTOCOL_TECHNIQUE_META_WRITABLE,
   PROTOCOL_SAFETY_META_WRITABLE,
   PROTOCOL_STEP_WRITABLE,
@@ -1037,6 +1041,277 @@ function run(): void {
   // Eşit-ağırlıklı çok-kart mimarisi canonical değil: amac-rehberi destek grid'inin DIŞINDA.
   ok(iLegacy > iTeknikler && iLegacy > iNoktalar,
     "faz3b-hierarchy: amac-rehberi destek grid'inin DIŞINDA/ALTINDA (flat eşit-kart mimarisi değil)");
+
+  // ══ FAZ 4 / AŞAMA 2A — KUPA TEKNİKLERİ VERİ TEMELİ ══════════════════════════════
+  // Additive: practitioner_note + cupping_technique_safety + technique-safety API +
+  // read-only "Kullanıldığı Protokoller". Destructive DDL / backfill YOK.
+  const f4mig = read("supabase/migrations/20270101000100_cupping_technique_workspace_foundation.sql");
+
+  // — Migration: practitioner_note additive kolon (backfill YOK) —
+  ok(/ADD COLUMN IF NOT EXISTS practitioner_note text/.test(f4mig),
+    "faz4-mig: cupping_techniques.practitioner_note additive (IF NOT EXISTS)");
+  ok(!/UPDATE\s+public\./i.test(f4mig) && !/INSERT\s+INTO\s+public\./i.test(f4mig),
+    "faz4-mig: veri backfill/UPDATE/INSERT YOK (schema-only additive)");
+  ok(!/DROP\s+COLUMN|DROP\s+TABLE|RENAME\s+(COLUMN|TO)/i.test(f4mig),
+    "faz4-mig: destructive DDL YOK (DROP/RENAME yok)");
+
+  // — Migration: cupping_technique_safety tablosu + kontrat —
+  ok(/CREATE TABLE IF NOT EXISTS public\.cupping_technique_safety/.test(f4mig),
+    "faz4-mig: cupping_technique_safety CREATE TABLE IF NOT EXISTS");
+  ok(/tenant_id\s+uuid\s+NOT NULL/.test(f4mig) && /technique_id\s+uuid\s+NOT NULL/.test(f4mig) && /safety_id\s+uuid\s+NOT NULL/.test(f4mig),
+    "faz4-mig: tenant_id/technique_id/safety_id NOT NULL");
+  ok(/FOREIGN KEY \(tenant_id, technique_id\) REFERENCES public\.cupping_techniques \(tenant_id, id\) ON DELETE CASCADE/.test(f4mig),
+    "faz4-mig: technique composite FK → CASCADE (tenant-safe)");
+  ok(/FOREIGN KEY \(tenant_id, safety_id\) REFERENCES public\.cupping_safety_notes \(tenant_id, id\) ON DELETE RESTRICT/.test(f4mig),
+    "faz4-mig: safety composite FK → RESTRICT (tenant-safe)");
+  ok(/UNIQUE \(tenant_id, technique_id, safety_id\)/.test(f4mig),
+    "faz4-mig: natural unique (tenant, technique, safety)");
+  ok(/cupping_technique_safety_technique_idx[\s\S]*\(tenant_id, technique_id, sort_order\)/.test(f4mig) &&
+     /cupping_technique_safety_safety_idx[\s\S]*\(tenant_id, safety_id\)/.test(f4mig),
+    "faz4-mig: indexler (technique+sort, safety)");
+
+  // — Migration: güvenlik kilidi (schema deseniyle birebir) —
+  ok(/REVOKE ALL PRIVILEGES ON TABLE public\.cupping_technique_safety FROM anon, authenticated/.test(f4mig),
+    "faz4-mig: anon/authenticated REVOKE ALL");
+  ok(/ALTER TABLE public\.cupping_technique_safety ENABLE ROW LEVEL SECURITY/.test(f4mig),
+    "faz4-mig: RLS ENABLE");
+  ok(!/FORCE ROW LEVEL SECURITY/i.test(f4mig) && !/CREATE POLICY/i.test(f4mig),
+    "faz4-mig: FORCE RLS YOK + permissive policy YOK (service-role only)");
+  ok(/BEGIN;[\s\S]*COMMIT;/.test(f4mig),
+    "faz4-mig: transaction BEGIN/COMMIT dengeli");
+
+  // — fields.ts: tablo + allowlist'ler —
+  ok(CUPPING_TABLES.techniqueSafety === "cupping_technique_safety",
+    "faz4-fields: CUPPING_TABLES.techniqueSafety = cupping_technique_safety");
+  ok((TECHNIQUE_WRITABLE as readonly string[]).includes("practitioner_note"),
+    "faz4-fields: TECHNIQUE_WRITABLE practitioner_note içerir");
+  ok((TECHNIQUE_WRITABLE as readonly string[]).includes("kind") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("description") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("application_info") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("source_note"),
+    "faz4-fields: legacy alanlar (kind/description/application_info/source_note) KORUNUR (backward-compat)");
+  ok((TECHNIQUE_SAFETY_WRITABLE as readonly string[]).join(",") === "technique_id,safety_id,note,sort_order",
+    "faz4-fields: TECHNIQUE_SAFETY_WRITABLE = technique_id,safety_id,note,sort_order");
+  ok((TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).join(",") === "note,sort_order",
+    "faz4-fields: TECHNIQUE_SAFETY_META_WRITABLE = note,sort_order (yalnız META)");
+  ok(!(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("technique_id") &&
+     !(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("safety_id") &&
+     !(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("tenant_id"),
+    "faz4-fields: PATCH META FK/tenant immutable (technique_id/safety_id/tenant_id yok)");
+
+  // — technique-safety API: güvenlik sözleşmesi —
+  const tsColl = read("app/api/kupa/technique-safety/route.ts");
+  const tsItem = read("app/api/kupa/technique-safety/[id]/route.ts");
+  ok(/requireModuleAccess\(req, "cupping"\)/.test(tsColl) && /requireModuleAccess\(req, "cupping"\)/.test(tsItem),
+    "faz4-api: technique-safety route'ları cupping gate");
+  ok(/is_demo_account\) return NextResponse\.json\(\{ ok: true, demo: true/.test(tsColl) &&
+     /is_demo_account\) return NextResponse\.json\(\{ ok: true, demo: true/.test(tsItem),
+    "faz4-api: demo persist=0 (POST/PATCH/DELETE)");
+  ok(/pickWritable\(parsed\.data, TECHNIQUE_SAFETY_WRITABLE\)/.test(tsColl),
+    "faz4-api: POST pickWritable(TECHNIQUE_SAFETY_WRITABLE) — mass-assignment kilidi");
+  ok(/pickWritable\(parsed\.data, TECHNIQUE_SAFETY_META_WRITABLE\)/.test(tsItem),
+    "faz4-api: PATCH pickWritable(TECHNIQUE_SAFETY_META_WRITABLE) — FK immutable");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.techniques, tenantId, techniqueId\)/.test(tsColl) &&
+     /assertOwnedRef\(db, CUPPING_TABLES\.safety, tenantId, safetyId\)/.test(tsColl),
+    "faz4-api: POST technique + safety ownership doğrulaması (cross-tenant attach engeli)");
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.techniqueSafety[\s\S]*return cuppingError\(409/.test(tsColl),
+    "faz4-api: duplicate attach → 409 kullanıcı dostu");
+  ok(/\.eq\("tenant_id", tenantId\)/.test(tsColl) || /listEntity\(db, CUPPING_TABLES\.techniqueSafety, tenantId/.test(tsColl),
+    "faz4-api: GET tenant-forced filtre");
+
+  // — used-in-protocols: read-only, tenant-safe, N+1'siz —
+  const tsProto = read("app/api/kupa/techniques/[id]/protocols/route.ts");
+  ok(/requireModuleAccess\(req, "cupping"\)/.test(tsProto),
+    "faz4-proto: used-in-protocols cupping gate");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.techniques, tenantId, id\)/.test(tsProto),
+    "faz4-proto: teknik sahipliği doğrulanır (cross-tenant title sızıntısı yok)");
+  ok(/\.in\("id", protocolIds\)/.test(tsProto) && /select\("id, title, category, is_active"\)/.test(tsProto),
+    "faz4-proto: tek IN sorgusu + SADE metadata (N+1 yok, DB ayrıntısı yok)");
+  ok(!/PATCH|POST|DELETE/.test(tsProto),
+    "faz4-proto: yalnız GET (read-only)");
+
+  // — client api.ts: type + wrappers —
+  const cApi = read("app/kupa/lib/api.ts");
+  ok(/practitioner_note\?: string \| null/.test(cApi),
+    "faz4-client: CuppingTechnique.practitioner_note");
+  ok(/export type CuppingTechniqueSafety =/.test(cApi) &&
+     /export const listTechniqueSafety/.test(cApi) &&
+     /export const createTechniqueSafety/.test(cApi) &&
+     /export const updateTechniqueSafety/.test(cApi) &&
+     /export const deleteTechniqueSafety/.test(cApi),
+    "faz4-client: CuppingTechniqueSafety type + 4 wrapper");
+  ok(/export const listTechniqueProtocols/.test(cApi) && /export type CuppingTechniqueProtocolRef =/.test(cApi),
+    "faz4-client: used-in-protocols type + wrapper");
+
+  // — Quick-create HÂLÂ minimal: practitioner_note/application_info/safety EKLENMEDİ —
+  const qc = read("app/kupa/protokoller/components/QuickCreateMasterForm.tsx");
+  ok(/name:\s*string;\s*technique_type: string \| null;\s*movement_style: string \| null;\s*description: string \| null;/.test(qc),
+    "faz4-quick: TechniqueQuickValues minimal (name/type/movement/description)");
+  ok(!/practitioner_note/.test(qc) && !/application_info/.test(qc),
+    "faz4-quick: quick-create'e practitioner_note/application_info EKLENMEDİ");
+
+  // — description & application_info İKİSİ DE korunur (owner: deprecate REDDEDİLDİ) —
+  ok(/application_info\?: string \| null/.test(cApi) && /description\?: string \| null/.test(cApi),
+    "faz4-owner: description + application_info İKİSİ DE korunur (client type)");
+
+  // ══ FAZ 4 / AŞAMA 2B — READER-FIRST TEKNİKLER ÇALIŞMA ALANI ═════════════════════
+  const tPage = read("app/kupa/teknikler/page.tsx");
+  const tWork = read("app/kupa/teknikler/components/TechniqueWorkspace.tsx");
+  const tList = read("app/kupa/teknikler/components/TechniqueList.tsx");
+  const tRead = read("app/kupa/teknikler/components/TechniqueReadView.tsx");
+  const tEdit = read("app/kupa/teknikler/components/TechniqueEditor.tsx");
+  const tSafe = read("app/kupa/teknikler/components/TechniqueSafetySection.tsx");
+  const tProt = read("app/kupa/teknikler/components/TechniqueProtocolsSection.tsx");
+  const tLabels = read("app/kupa/teknikler/lib/labels.ts");
+
+  // Route mimarisi: index + [id] + yeni mevcut.
+  ok(exists("app/kupa/teknikler/page.tsx") && exists("app/kupa/teknikler/[id]/page.tsx") && exists("app/kupa/teknikler/yeni/page.tsx"),
+    "faz4b-route: /kupa/teknikler + [id] + yeni route'ları");
+
+  // Generic CrudManager ARTIK /kupa/teknikler'i sürmüyor (reader-first workspace).
+  ok(!/CrudManager/.test(tPage) && /TechniqueWorkspace/.test(tPage),
+    "faz4b-ux: generic CrudManager kaldırıldı → reader-first TechniqueWorkspace");
+
+  // Desktop split eşiği >=1024 (lg); mobil liste-önce (seçiliyse detay).
+  ok(/lg:flex/.test(tWork) && /hidden lg:block/.test(tWork),
+    "faz4b-responsive: desktop split lg (>=1024) + mobil liste/detay geçişi");
+
+  // Liste satırları [id] deep-link (browser back/forward temiz).
+  ok(/href=\{`\/kupa\/teknikler\/\$\{t\.id\}`\}/.test(tList),
+    "faz4b-nav: liste satırları /kupa/teknikler/[id] deep-link");
+
+  // Normal UI ham enum kodu GÖSTERMEZ (label helper üzerinden).
+  ok(/techniqueTypeLabel/.test(tList) && /techniqueTypeLabel/.test(tRead),
+    "faz4b-labels: tür TR etiketle gösterilir (ham dry/wet değil)");
+  ok(/dry: "Kuru Kupa"/.test(tLabels) && /wet: "Yaş Kupa \/ Hacamat"/.test(tLabels) &&
+     /stationary: "Sabit"/.test(tLabels) && /gliding: "Kaydırmalı"/.test(tLabels) && /flash: "Flaş"/.test(tLabels),
+    "faz4b-labels: technique_type/movement_style TR etiket haritası");
+
+  // Yorumları çıkar → yalnız GERÇEK kod üzerinde legacy-alan yokluğu ölç (yorumlar
+  // "kind/source_note DEĞİŞMEZ" gibi açıklamalar içerebilir; bunlar false-positive olmasın).
+  const stripComments = (s: string) =>
+    s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const tListCode = stripComments(tList);
+  const tReadCode = stripComments(tRead);
+  const tEditCode = stripComments(tEdit);
+
+  // kind normal UI'da YOK (list/read/edit); create/edit payload'da GÖNDERİLMEZ.
+  ok(!/\bkind\b/.test(tListCode) && !/\bkind\b/.test(tReadCode) && !/\bkind\b/.test(tEditCode),
+    "faz4b-legacy-kind: kind normal UI kodunda render/edit EDİLMEZ");
+  ok(!/kind:/.test(tEditCode) && !/source_note/.test(tEditCode) && !/sort_order/.test(tEditCode),
+    "faz4b-legacy: editor payload kodunda kind/source_note/sort_order YOK");
+
+  // description + application_info İKİSİ DE editor + reader'da (owner: deprecate REDDEDİLDİ).
+  ok(/description/.test(tEdit) && /applicationInfo|application_info/.test(tEdit),
+    "faz4b-fields: description + application_info İKİSİ DE editor'da");
+  ok(/Teknik Özeti/.test(tRead) && /Genel Uygulama Yaklaşımı/.test(tRead),
+    "faz4b-fields: reader'da Teknik Özeti + Genel Uygulama Yaklaşımı AYRI bölüm");
+
+  // practitioner_note ("Uzman Notum") reader + editor'da.
+  ok(/Uzman Notum/.test(tRead) && /practitioner_note|practitionerNote/.test(tEdit),
+    "faz4b-practitioner: 'Uzman Notum' reader + editor");
+
+  // Güvenlik: iki katman + structured technique-safety wiring.
+  ok(/createTechniqueSafety/.test(tSafe) && /deleteTechniqueSafety/.test(tSafe) && /updateTechniqueSafety/.test(tSafe),
+    "faz4b-safety: technique-safety attach/detach/note wiring");
+  ok(/Tekniğe Özel Not/.test(tSafe) && /listSafety/.test(tSafe),
+    "faz4b-safety: safety_note serbest not + master safety picker (iki katman)");
+
+  // Kullanıldığı Protokoller: read-only + protokol adı clickable.
+  ok(/listTechniqueProtocols/.test(tProt) && /href=\{`\/kupa\/protokoller\/\$\{p\.id\}`\}/.test(tProt),
+    "faz4b-protocols: used-in-protocols + protokol adı /kupa/protokoller/[id] link");
+  ok(/Kullanıldığı Protokoller/.test(tRead) || /Kullanıldığı Protokoller/.test(tProt),
+    "faz4b-protocols: 'Kullanıldığı Protokoller' bölümü mevcut");
+
+  // Duplicate advisory + delete confirmation + unsaved-changes.
+  ok(/normalizeMasterName/.test(tEdit),
+    "faz4b-duplicate: create advisory (normalizeMasterName) reuse");
+  ok(/window\.confirm\(/.test(tRead),
+    "faz4b-delete: silme onayı (confirm)");
+  ok(/Kaydedilmemiş değişiklikler|dirty/.test(tEdit) && /window\.confirm\(/.test(tEdit),
+    "faz4b-unsaved: editor kaydedilmemiş-değişiklik koruması");
+
+  // Silme dostça: protokolde kullanılıyorsa ham hata değil, açık mesaj.
+  ok(/kullanıldığı için silinemez/.test(tRead),
+    "faz4b-delete: protokolde kullanılan teknik için dostça silme mesajı");
+
+  // source_note normal reader/editor kodunda primary alan DEĞİL (yorumlar hariç).
+  ok(!/source_note/.test(tReadCode) && !/source_note/.test(tEditCode),
+    "faz4b-legacy-source: source_note normal UI kodunda primary alan DEĞİL");
+
+  // ══ FAZ 4 / AŞAMA 2C — PROTOCOL INTEGRATION + STATE CONSISTENCY ═════════════════
+  const rSec = read("app/kupa/protokoller/components/RelationSection.tsx");
+  const tWork2 = read("app/kupa/teknikler/components/TechniqueWorkspace.tsx");
+  const tList2 = read("app/kupa/teknikler/components/TechniqueList.tsx");
+  const tRead2 = read("app/kupa/teknikler/components/TechniqueEditor.tsx");
+  const tReadView2 = read("app/kupa/teknikler/components/TechniqueReadView.tsx");
+  const stepRoute = read("app/api/kupa/protocol-steps/route.ts");
+  const protoUsageRoute = read("app/api/kupa/techniques/[id]/protocols/route.ts");
+
+  // Tek master: standalone create + protokol quick-create AYNI createTechnique API'sini kullanır.
+  ok(/createTechnique\(/.test(tRead2),
+    "faz4c-single-master: standalone editor createTechnique kullanır");
+  ok(/createTechnique\(\{/.test(rSec) && /addProtocolTechnique\(\{ protocol_id: protocolId, technique_id: created\.id \}\)/.test(rSec),
+    "faz4c-single-master: protokol quick-create AYNI createTechnique → dönen created.id ile attach");
+  ok(!/create[A-Za-z]*Technique.*master.*store|technique_master|protocolTechnique.*name/i.test(rSec),
+    "faz4c-single-master: ayrı protokole-özel teknik master store YOK");
+
+  // Protokol relation SADECE technique_id + META taşır (kopyalanmış tür/ad/stil YOK).
+  ok((PROTOCOL_TECHNIQUE_WRITABLE as readonly string[]).join(",") === "protocol_id,technique_id,protocol_note,sort_order",
+    "faz4c-relation: protocol_techniques yalnız FK + protocol_note/sort_order (kopya alan yok)");
+  ok(!(PROTOCOL_TECHNIQUE_WRITABLE as readonly string[]).some((k) => ["technique_type", "movement_style", "name", "description"].includes(k)),
+    "faz4c-relation: relation'a technique_type/movement_style/name/description KOPYALANMAZ");
+  ok((PROTOCOL_TECHNIQUE_META_WRITABLE as readonly string[]).join(",") === "protocol_note,sort_order",
+    "faz4c-protocol-note: PATCH yalnız protocol_note/sort_order (relation-specific)");
+
+  // Tür/stil propagasyonu: RelationSection master listfrom join → dinamik TR etiket (ham kod YOK).
+  ok(/techniqueTypeLabel/.test(rSec) && /movementStyleLabel/.test(rSec),
+    "faz4c-labels: protokol picker TR etiket (techniqueTypeLabel/movementStyleLabel)");
+  ok(!/\[t\.technique_type, t\.movement_style\]\.filter/.test(rSec),
+    "faz4c-labels: ham technique_type/movement_style kod join'i KALDIRILDI");
+  ok(/doc\.masterTechniques/.test(rSec),
+    "faz4c-propagation: picker/relation master listeden join (relation'da snapshot alan yok)");
+
+  // Standalone edit → sol liste tazelenir (workspace nonce + context; hard reload YOK).
+  ok(/TechniqueListRefreshContext/.test(tWork2) && /refreshList/.test(tWork2) && /version=\{listVersion\}/.test(tWork2),
+    "faz4c-state: workspace liste-versiyon nonce + refresh context sağlar");
+  ok(/version\??: number/.test(tList2) && /\}, \[version\]\)/.test(tList2),
+    "faz4c-state: TechniqueList version prop ile yeniden yükler");
+  ok(/useTechniqueListRefresh/.test(tReadView2) && /refreshList\(\)/.test(tReadView2),
+    "faz4c-state: reader başarılı düzenleme sonrası refreshList çağırır");
+
+  // Hard reload YOK (idiomatic router/state; window.location.reload/href YOK).
+  const noHardReload = (s: string) => !/window\.location\.reload|window\.location\.href\s*=/.test(s);
+  ok(noHardReload(tReadView2) && noHardReload(tList2) && noHardReload(tWork2) && noHardReload(tRead2),
+    "faz4c-no-hard-reload: window.location.reload/href ile durum senkronu YOK");
+
+  // Protokol step referans bütünlüğü: ref_technique yalnız protokole EKLİ teknik olabilir.
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolTechniques/.test(stepRoute),
+    "faz4c-step: step ref_technique protokol-üyeliği doğrulanır (attached-only)");
+
+  // Used-in-protocols: N+1 yok (tek IN) + boş set malformed .in([]) üretmez.
+  ok(/protocolIds\.length === 0/.test(protoUsageRoute) && /\.in\("id", protocolIds\)/.test(protoUsageRoute),
+    "faz4c-usage: boş-set guard + tek IN sorgusu (N+1 yok)");
+
+  // Sınır: teknik güvenliği/citation protokole OTOMATİK kopyalanmaz.
+  const tSafe2 = read("app/kupa/teknikler/components/TechniqueSafetySection.tsx");
+  ok(!/addProtocolSafety|protocol_safety|createProtocol/.test(tSafe2),
+    "faz4c-boundary: technique-safety protokol safety'ye OTO-kopyalanmaz");
+  ok(!/addProtocolSafety\(/.test(rSec.slice(rSec.indexOf("entity: \"technique\""), rSec.indexOf("entity: \"safety\""))),
+    "faz4c-boundary: teknik ekleme akışı safety'yi OTO-eklemez");
+
+  // ══ FAZ 4 / AŞAMA 2D — inactive-picker contract (owner-locked) ══════════════════
+  // Pasif teknik YENİ attach picker'ında sunulmaz; ekli pasif relation'da kalır; global
+  // listTechniques DEĞİŞMEZ (ekli pasif çözümlensin); otomatik detach/arşiv YOK.
+  ok(/kind === "technique"[\s\S]{0,120}master\.filter\(\(m\) =>[\s\S]{0,60}is_active !== false\)/.test(rSec),
+    "faz4d-inactive: teknik picker aday kümesi is_active !== false ile filtrelenir");
+  ok(/const items: PickerItem\[\] = pickerMaster\.map/.test(rSec),
+    "faz4d-inactive: picker items filtrelenmiş pickerMaster'dan (master DEĞİL) türetilir");
+  const apiSrc = read("lib/cupping/api.ts");
+  ok(!/is_active/.test(apiSrc),
+    "faz4d-inactive: global listEntity/listTechniques'e is_active filtresi EKLENMEDİ (ekli pasif çözümlenir)");
+  ok(!/detachProtocolTechnique|archive|deleteTechnique\(/.test(rSec.slice(rSec.indexOf("pickerMaster"), rSec.indexOf("const items"))),
+    "faz4d-inactive: pasif filtre otomatik detach/arşiv/silme YAPMAZ");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
