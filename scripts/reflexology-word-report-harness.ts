@@ -61,10 +61,12 @@ function thickLine(x1: number, y1: number, x2: number, y2: number): StoredRegion
 }
 
 type Bucket = { sol?: StoredRegion[]; sag?: StoredRegion[] };
-function entry(taban: Bucket, yan: Bucket) {
+// EXPLICIT 3-görünüm (ekole bağımsız): view uzman tarafından seçilir, organ adından türetilmez.
+function entry(taban: Bucket, yanIc: Bucket = {}, yanDis: Bucket = {}) {
   return {
     taban: { sol: taban.sol ?? [], sag: taban.sag ?? [] },
-    yan: { sol: yan.sol ?? [], sag: yan.sag ?? [] },
+    yan_ic: { sol: yanIc.sol ?? [], sag: yanIc.sag ?? [] },
+    yan_dis: { sol: yanDis.sol ?? [], sag: yanDis.sag ?? [] },
   };
 }
 
@@ -78,10 +80,10 @@ const ATLAS = makeAtlas({
   "Böbrek": entry({ sol: [freeDraw([[0.28, 0.55], [0.30, 0.60], [0.31, 0.64]])], sag: [freeDraw([[0.70, 0.55], [0.72, 0.60], [0.73, 0.64]])] }, {}),
   "Kalp": entry({ sol: [oval(0.30, 0.42), oval(0.33, 0.45)] }, {}),
   "Karaciğer": entry({ sag: [rect(0.68, 0.40), rect(0.72, 0.44)] }, {}),
-  // Yan görünüm — İç (mesane inner organ)
+  // Yan İç — uzman Mesane'yi YAN İÇ görünümüne çizmiş (explicit; organ override YOK)
   "Mesane": entry({}, { sol: [rect(0.35, 0.60), rect(0.40, 0.62)] }),
-  // Yan görünüm — Dış (ince bağırsak dış)
-  "İnce bağırsak": entry({}, { sol: [freeDraw([[0.55, 0.40], [0.60, 0.45]]), thickLine(0.62, 0.5, 0.7, 0.58)] }),
+  // Yan Dış — uzman İnce bağırsağı YAN DIŞ görünümüne çizmiş (explicit)
+  "İnce bağırsak": entry({}, {}, { sol: [freeDraw([[0.55, 0.40], [0.60, 0.45]]), thickLine(0.62, 0.5, 0.7, 0.58)] }),
 });
 
 // NFD anahtarlı atlas (identity testi): "Karaciğer" NFD normalize edilerek saklanır.

@@ -91,7 +91,6 @@ export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps
           <AtlasReadonlyFootMap
             regions={regions}
             footView={footView}
-            organName={organName}
             onFootViewChange={setFootView}
           />
         </div>

@@ -7,6 +7,7 @@ import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotSt
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
 import { resolveProtocolAtlas } from "@/lib/refleksoloji/atlasRegionsCore";
+import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 import type { AtlasDocument } from "@/lib/atlasStorage";
 import {
   buildSingleReport,
@@ -130,7 +131,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     .maybeSingle();
   if (atlasErr)
     return Response.json({ ok: false, error: `Atlas okunamadı: ${atlasErr.message}` }, { status: 500 });
-  const atlasDoc = ((atlasRow?.document as AtlasDocument | null) ?? EMPTY_ATLAS);
+  // CANONICAL SINIR (server read): DB belgesi legacy `{taban,yan}` olabilir →
+  // 3-görünüme normalize et. Word grouping yalnız explicit region.view'a bakar.
+  const atlasDoc = normalizeAtlasDocument(atlasRow?.document ?? EMPTY_ATLAS);
 
   const dateSlug = reportDateSlug();
   const isSingle = protocols.length === 1;

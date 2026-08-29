@@ -80,7 +80,8 @@ function makeRegion(shape: RegionShapeType, organ: string, footSide: FootSide, v
 
 const regions: Region[] = [];
 function buildGroup(groupName: "taban" | "yan_dis" | "yan_ic", pool: string[]) {
-  const view: FootView = groupName === "taban" ? "taban" : "yan";
+  // Explicit canonical: region.view = grup (ekole bağımsız). Organ adı KULLANILMAZ.
+  const view: FootView = groupName;
   let gi = 0;
   for (const shape of SHAPES) {
     for (let k = 0; k < 5; k++) {
@@ -185,10 +186,10 @@ check("responsive: content box scales linearly with container size (2×)",
   Math.abs(r2.height / r1.height - 2) < 1e-9 &&
   Math.abs(r2.top / r1.top - 2) < 1e-9);
 
-/* 5. Background resolution contract */
-check("bg: taban → taban", resolveAtlasBackgroundKey("taban", "Karaciğer") === "taban");
-check("bg: yan + Mesane → yan_ic (atlas/editor)", resolveAtlasBackgroundKey("yan", "Mesane") === "yan_ic");
-check("bg: yan + Omurga → yan_dis", resolveAtlasBackgroundKey("yan", "Omurga") === "yan_dis");
+/* 5. Background resolution contract — EKOLE BAĞIMSIZ: view DOĞRUDAN asset (organ YOK) */
+check("bg: taban → taban", resolveAtlasBackgroundKey("taban") === "taban");
+check("bg: yan_ic → yan_ic", resolveAtlasBackgroundKey("yan_ic") === "yan_ic");
+check("bg: yan_dis → yan_dis", resolveAtlasBackgroundKey("yan_dis") === "yan_dis");
 
 /* 6. SOURCE GUARD — SEV-1 lock: no transform:scale wrapper around ProtocolFootMap */
 const here = dirname(fileURLToPath(import.meta.url));

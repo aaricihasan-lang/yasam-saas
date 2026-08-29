@@ -1,21 +1,15 @@
 /**
  * reflexology-side-view-harness.ts
  *
- * YAN İÇ / YAN DIŞ anatomik harita ayrımı regresyon kilidi.
+ * TABAN / YAN İÇ / YAN DIŞ EXPLICIT görünüm ayrımı regresyon kilidi (EKOLE BAĞIMSIZ).
  *
- * Bug: ProtocolFootMap yan görünümde `resolveAtlasBackgroundKey(footView, null)`
- * kullandığından (organ bilgisi yok) DAİMA yan_dis arka planına düşüyordu. Oysa
- * mesane/rahim/prostat YAN İÇ (klinik_yan_ic.png), diğer yan organlar YAN DIŞ
- * (klinik_yan_dis.png) üzerinde çizilir. Böylece yan_ic bölgeleri yanlış anatomik
- * arka plana (yan_dis) sızıyordu — SALES BLOCKER anatomik doğruluk hatası.
+ * Yeni mimari: her bölge kendi CANONICAL görünümünü (region.view ∈
+ * taban/yan_ic/yan_dis) TAŞIR. Gruplama `regionBackgroundGroup` = region.view
+ * (organ adı KULLANILMAZ; isInnerYanOrgan runtime'dan kaldırıldı). Yan İç bölgeleri
+ * asla Yan Dış arka planına sızmaz — çünkü grup, uzmanın seçtiği explicit view'dır.
  *
- * Fix: protokol UI görünümü artık `AtlasBackgroundGroup` (taban/yan_ic/yan_dis);
- * gruplama TEK kaynaktan (`resolveProtocolAtlas` → `regionBackgroundGroup` =
- * view + isInnerYanOrgan, Word raporuyla AYNI çekirdek). Her bölge yalnız kendi
- * grubunun arka planında render edilir.
- *
- * GERÇEK üretim fonksiyonlarını çağırır (kopya iş kuralı YOK). Storage modeli
- * değişmez (view hâlâ taban|yan); grup organ kimliğinden TÜRETİLİR → migration YOK.
+ * GERÇEK üretim fonksiyonlarını çağırır (kopya iş kuralı YOK). Depolama 3 bucket
+ * (taban/yan_ic/yan_dis); mergeDraftIntoAtlas explicit view'a yazar.
  *
  * Çalıştır:  npx tsx scripts/reflexology-side-view-harness.ts
  */
@@ -30,7 +24,6 @@ import {
   ALL_ATLAS_GROUPS,
   type AtlasBackgroundGroup,
 } from "@/lib/refleksoloji/atlasRegionsCore";
-import { isInnerYanOrgan } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 
 let pass = 0;
 let fail = 0;
@@ -52,9 +45,11 @@ function availableViewsOf(atlas: AtlasDocument, organNames: string[]): AtlasBack
 
 /* ---------------- 60-region fixture: 20 taban / 20 yan_ic / 20 yan_dis ---------------- */
 const SHAPES: RegionShapeType[] = ["oval", "rect", "free_draw", "thick_line"];
+// Organlar yalnız ETİKET — görünüm EXPLICIT olarak buildGroup ile atanır (organ
+// adına göre türetme YOK). Ekol bağımsızlığı: aynı organ herhangi bir görünüme gidebilir.
 const TABAN_ORGANS = ["Karaciğer", "Böbrek", "Kalp", "Mide"];
-const YAN_IC_ORGANS = ["Mesane", "Rahim", "Prostat"]; // isInnerYanOrgan = true
-const YAN_DIS_ORGANS = ["İnce bağırsak", "Omurga", "Diz", "Omuz"]; // isInnerYanOrgan = false
+const YAN_IC_ORGANS = ["Mesane", "Rahim", "Prostat"];
+const YAN_DIS_ORGANS = ["İnce bağırsak", "Omurga", "Diz", "Omuz"];
 
 let seq = 0;
 const rid = (t: string) => `sv-${t}-${(seq++).toString().padStart(3, "0")}`;
@@ -79,24 +74,24 @@ function buildGroup(view: FootView, pool: string[]) {
     }
   }
 }
-buildGroup("taban", TABAN_ORGANS); // 20 → taban
-buildGroup("yan", YAN_IC_ORGANS); // 20 → yan_ic
-buildGroup("yan", YAN_DIS_ORGANS); // 20 → yan_dis
+buildGroup("taban", TABAN_ORGANS); // 20 → taban (explicit)
+buildGroup("yan_ic", YAN_IC_ORGANS); // 20 → yan_ic (explicit)
+buildGroup("yan_dis", YAN_DIS_ORGANS); // 20 → yan_dis (explicit)
 
 const ATLAS = mergeDraftIntoAtlas({ _meta: { version: "1", updated_at: "T" } } as AtlasDocument, regions, []);
 const ALL_ORGANS = [...TABAN_ORGANS, ...YAN_IC_ORGANS, ...YAN_DIS_ORGANS];
 
 console.log("Refleksoloji — YAN İÇ / YAN DIŞ AYRIM HARNESS\n");
 
-/* 1. Canonical unit mapping */
-check("mesane → yan_ic", regionBackgroundGroup({ view: "yan", organ: "Mesane" }) === "yan_ic");
-check("rahim → yan_ic", regionBackgroundGroup({ view: "yan", organ: "Rahim" }) === "yan_ic");
-check("prostat → yan_ic", regionBackgroundGroup({ view: "yan", organ: "Prostat" }) === "yan_ic");
-check("ince bağırsak → yan_dis", regionBackgroundGroup({ view: "yan", organ: "İnce bağırsak" }) === "yan_dis");
-check("omurga → yan_dis", regionBackgroundGroup({ view: "yan", organ: "Omurga" }) === "yan_dis");
-check("böbrek(taban) → taban", regionBackgroundGroup({ view: "taban", organ: "Böbrek" }) === "taban");
-check("isInnerYanOrgan(mesane)=true", isInnerYanOrgan("Mesane"));
-check("isInnerYanOrgan(ince bağırsak)=false", !isInnerYanOrgan("İnce bağırsak"));
+/* 1. Canonical unit mapping — grup = EXPLICIT region.view (organ adı KULLANILMAZ) */
+check("view taban → grup taban", regionBackgroundGroup({ view: "taban" }) === "taban");
+check("view yan_ic → grup yan_ic", regionBackgroundGroup({ view: "yan_ic" }) === "yan_ic");
+check("view yan_dis → grup yan_dis", regionBackgroundGroup({ view: "yan_dis" }) === "yan_dis");
+// EKOLE BAĞIMSIZLIK: organ adı görünümü DEĞİŞTİRMEZ — Mesane yan_dis'e de gidebilir.
+check("mesane yan_dis'te çizilirse grup yan_dis (organ override YOK)",
+  regionBackgroundGroup({ view: "yan_dis" }) === "yan_dis");
+check("ince bağırsak yan_ic'te çizilirse grup yan_ic (organ override YOK)",
+  regionBackgroundGroup({ view: "yan_ic" }) === "yan_ic");
 
 /* 2. Full resolve — partition counts 20/20/20 */
 const full = resolveProtocolAtlas(ATLAS, ALL_ORGANS);
@@ -104,21 +99,22 @@ check(`taban group = 20 (got ${full.regionsByGroup.taban.length})`, full.regions
 check(`yan_ic group = 20 (got ${full.regionsByGroup.yan_ic.length})`, full.regionsByGroup.yan_ic.length === 20);
 check(`yan_dis group = 20 (got ${full.regionsByGroup.yan_dis.length})`, full.regionsByGroup.yan_dis.length === 20);
 
-/* 3. NEGATIVE: no region ever sits in a group != its own regionBackgroundGroup */
+/* 3. NEGATIVE: no region ever sits in a group != its own explicit region.view */
 let crossContamination = 0;
 for (const group of ALL_ATLAS_GROUPS) {
   for (const r of full.regionsByGroup[group]) {
-    if (regionBackgroundGroup({ view: r.view, organ: r.organ }) !== group) crossContamination++;
+    if (regionBackgroundGroup({ view: r.view }) !== group) crossContamination++;
     if (r.group !== group) crossContamination++;
+    if (r.view !== group) crossContamination++; // explicit: bölge yalnız kendi view bucket'ında
   }
 }
 check(`negative: 0 cross-background regions (got ${crossContamination})`, crossContamination === 0);
 
-/* 4. NEGATIVE: yan_ic organ never appears in yan_dis bucket and vice-versa */
-const yanIcOrgansInDis = full.regionsByGroup.yan_dis.filter((r) => isInnerYanOrgan(r.organ)).length;
-const yanDisOrgansInIc = full.regionsByGroup.yan_ic.filter((r) => !isInnerYanOrgan(r.organ)).length;
-check(`negative: yan_ic organ in yan_dis bucket = 0 (got ${yanIcOrgansInDis})`, yanIcOrgansInDis === 0);
-check(`negative: yan_dis organ in yan_ic bucket = 0 (got ${yanDisOrgansInIc})`, yanDisOrgansInIc === 0);
+/* 4. NEGATIVE: her yan bucket'ı YALNIZ kendi explicit view'ını taşır (leakage=0) */
+const nonIcInIc = full.regionsByGroup.yan_ic.filter((r) => r.view !== "yan_ic").length;
+const nonDisInDis = full.regionsByGroup.yan_dis.filter((r) => r.view !== "yan_dis").length;
+check(`negative: yan_ic bucket yalnız yan_ic view (got ${nonIcInIc})`, nonIcInIc === 0);
+check(`negative: yan_dis bucket yalnız yan_dis view (got ${nonDisInDis})`, nonDisInDis === 0);
 
 /* 5. NEGATIVE: taban never mixes into any yan bucket */
 const tabanInYan =

@@ -1,6 +1,17 @@
 export type FootSide = "left" | "right";
 
-export type FootView = "taban" | "yan";
+/**
+ * Canonical anatomik görünüm — EKOLE BAĞIMSIZ. Uzman manuel seçer; organ adı
+ * görünümü ASLA belirlemez. Depolama bucket'ı = region.view = grup (tek kaynak).
+ * `AtlasBackgroundGroup` (lib/refleksoloji/atlasRegionsCore) bunun ALIAS'ıdır.
+ */
+export type FootView = "taban" | "yan_ic" | "yan_dis";
+
+/**
+ * Eski depolama görünümü — YALNIZ legacy belge normalizasyonu (converter) girdisi.
+ * Runtime canonical `FootView` içinde "yan" YOKTUR; yeni kayıt asla "yan" yazmaz.
+ */
+export type LegacyFootView = "taban" | "yan";
 
 export type RegionShapeType = "oval" | "rect" | "free_draw" | "thick_line";
 
