@@ -5,7 +5,7 @@
  * aksiyon menüsünü (miktar / besini değiştir / çoğalt / sil) yönetir.
  */
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Copy, PenLine, Plus, Repeat, Trash2, Utensils } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, LayoutTemplate, PenLine, Plus, Repeat, Sparkles, Trash2, Utensils } from "lucide-react";
 import {
   addItem,
   copyItem,
@@ -25,6 +25,7 @@ import { Field, GhostButton, PrimaryButton, DangerButton, StatusMessage, TextInp
 import { ActionMenu, EnergyTargetLine, MacroChips, Modal, energyValue, type MenuItem } from "./planUi";
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
 import { mealTotals, formatDateShort, friendlyPlanError } from "./planFormat";
+import { SaveMealTemplateModal, ItemAlternativesModal } from "./Faz6ItemActions";
 
 function mealTypeLabel(t: string | null): string | null {
   if (!t) return null;
@@ -52,6 +53,7 @@ export function MealCard({
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tplSaveOpen, setTplSaveOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -73,6 +75,7 @@ export function MealCard({
     ? []
     : [
         { label: "Ayarlar / Adını Değiştir", icon: <PenLine className="h-4 w-4" />, onClick: () => setSettingsOpen(true) },
+        { label: "Öğünü Şablonla", icon: <LayoutTemplate className="h-4 w-4" />, onClick: () => setTplSaveOpen(true) },
       ];
 
   return (
@@ -176,6 +179,15 @@ export function MealCard({
           onMutated={onMutated}
         />
       ) : null}
+
+      {tplSaveOpen ? (
+        <SaveMealTemplateModal
+          mealId={meal.id}
+          mealLabel={meal.label}
+          onClose={() => setTplSaveOpen(false)}
+          onSaved={() => setTplSaveOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -194,6 +206,7 @@ function ItemRow({
 }) {
   const [amountOpen, setAmountOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
+  const [altOpen, setAltOpen] = useState(false);
   const [err, setErr] = useState("");
 
   const totals = mealTotals([item]);
@@ -234,6 +247,7 @@ function ItemRow({
     : [
         { label: "Miktar / Porsiyon", icon: <PenLine className="h-4 w-4" />, onClick: () => setAmountOpen(true) },
         { label: "Besini Değiştir", icon: <Repeat className="h-4 w-4" />, onClick: () => setReplaceOpen(true) },
+        { label: "Alternatif Bul", icon: <Sparkles className="h-4 w-4" />, onClick: () => setAltOpen(true) },
         { label: "Çoğalt", icon: <Copy className="h-4 w-4" />, onClick: () => void onDuplicate() },
         { label: "Sil", icon: <Trash2 className="h-4 w-4" />, onClick: () => void onDelete(), danger: true },
       ];
@@ -280,6 +294,20 @@ function ItemRow({
 
       {replaceOpen ? (
         <FoodPickerDialog open onClose={() => setReplaceOpen(false)} onPick={onReplace} title="Besini Değiştir" />
+      ) : null}
+
+      {altOpen ? (
+        <ItemAlternativesModal
+          planId={planId}
+          itemId={item.id}
+          itemName={item.food_name_snapshot}
+          readOnly={readOnly}
+          onClose={() => setAltOpen(false)}
+          onReplaced={() => {
+            setAltOpen(false);
+            onMutated();
+          }}
+        />
       ) : null}
     </div>
   );

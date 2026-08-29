@@ -118,7 +118,15 @@ for (const [r, s] of engineRoutes) {
 console.log("\n[I] foods list SYSTEM+CUSTOM union + detail SYSTEM read");
 const foodsList = read(resolve(API, "foods/route.ts"));
 const foodsDetail = read(resolve(API, "foods/[id]/route.ts"));
-check("foods list SYSTEM + caller union (.in tenant)", /\.in\("tenant_id",\s*\[SYSTEM_NUTRITION_TENANT_ID/.test(foodsList));
+// FAZ 6: liste artık ranked+paginated search RPC üzerinden; SYSTEM∪caller union RPC'de
+// (nutrition_food_search WHERE tenant_id IN (p_tenant_id, p_system_tenant_id)). Route her iki
+// tenant'ı da RPC'ye geçirir — union güvenlik özelliği KORUNUR (üçüncü tenant ASLA).
+check(
+  "foods list SYSTEM + caller union (search RPC)",
+  /nutrition_food_search/.test(foodsList) &&
+    /p_system_tenant_id:\s*SYSTEM_NUTRITION_TENANT_ID/.test(foodsList) &&
+    /p_tenant_id:\s*tenantId/.test(foodsList),
+);
 check("foods list is_system bayrağı", /is_system/.test(foodsList));
 check("foods detail resolveFoodForRead (SYSTEM okunabilir)", /resolveFoodForRead/.test(foodsDetail));
 check("foods detail PATCH/DELETE SYSTEM write guard", /resolveFoodForWrite/.test(foodsDetail));

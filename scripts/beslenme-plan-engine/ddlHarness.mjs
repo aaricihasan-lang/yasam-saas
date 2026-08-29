@@ -140,8 +140,11 @@ for (const p of routeFiles) {
   const hasMutation = /export async function (POST|PATCH|PUT|DELETE)/.test(s);
   if (hasMutation) check(`${rel} demo deny (mutation)`, /denyDemoMutation/.test(s));
   // tenant server-side: guard'tan gelen tenantId ile filtre/yazım/RPC (ASLA body'den).
+  // tenant server-side: guard'tan gelen tenantId ile filtre/yazım/RPC (ASLA body'den).
+  //   Doğrudan (.eq/p_tenant_id/tenant_id:) VEYA server-only builder'a delege: fn(db, tenantId, …)
+  //   (ör. buildPlanDocxBuffer(db, tenantId, id) — tenant-scoped okuma builder içinde).
   if (hasMutation) check(`${rel} tenant server guard'tan (tenantId)`,
-    /\.eq\("tenant_id",\s*tenantId\)|tenant_id:\s*tenantId|p_tenant_id:\s*tenantId/.test(s));
+    /\.eq\("tenant_id",\s*tenantId\)|tenant_id:\s*tenantId|p_tenant_id:\s*tenantId|\(db,\s*tenantId[,)]/.test(s));
 }
 
 console.log("\n[I] SNAPSHOT client'tan gelmez — item POST/PUT server-authoritative");
