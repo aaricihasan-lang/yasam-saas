@@ -54,7 +54,9 @@
     "yh:worker-v2:harness": "tsx scripts/yh-worker-v2/workerV2ParityHarness.ts",
     "yh:professional-cohort:harness": "tsx scripts/yh-professional-cohort/harness.ts",
     "dogaltas:salesgate:harness": "tsx scripts/dogaltas-sales-gate/harness.ts",
-    "refleksoloji:harness": "tsx scripts/refleksoloji-sales-closure/harness.ts"
+    "refleksoloji:harness": "tsx scripts/refleksoloji-sales-closure/harness.ts",
+    "store:whatsapp:harness": "tsx scripts/store-whatsapp-harness.ts",
+    "store:category-media:harness": "tsx scripts/store-category-media-harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

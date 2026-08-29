@@ -2,8 +2,13 @@
  * lib/store/categoryVisuals.ts — Doğal Pazar marka görsel eşlemeleri (YÖN B).
  *
  * Yüklenen özgün AI fotoğrafları (public/magaza/*.png) storefront'un taşıyıcı
- * görselleridir. Kategori tile'ları slug'a göre eşlenir; bilinmeyen slug'lar sırayla
- * üç kategori görselinden birini alır. Saf sabit + saf yardımcı (client-safe).
+ * görselleridir. V1.1'den itibaren kategori görseli ÖNCELİĞİ:
+ *   1) kategoriye özel yüklenmiş görsel (store_categories.image_path)
+ *   2) yoksa slug'a göre ANLAMLI legacy marka görseli (categoryImageForStrict)
+ *   3) hiçbir anlamlı eşleşme yoksa → null (yanlış foto ATANMAZ, zarif yedek gösterilir)
+ *
+ * Not: eski "bilinmeyen slug'a sırayla foto ata" (CYCLE) davranışı KALDIRILDI — ANALİZ gibi
+ * kategoriler artık yanlışlıkla taş/aroma fotoğrafı almaz. Saf sabit + saf yardımcı (client-safe).
  */
 
 export const STORE_HERO_IMAGE = "/magaza/hero.png";
@@ -12,11 +17,9 @@ export const STORE_CAT_STONES = "/magaza/kategori-dogal-taslar.png";
 export const STORE_CAT_AROMA = "/magaza/kategori-aromaterapi.png";
 export const STORE_CAT_CARE = "/magaza/kategori-dogal-bakim.png";
 
-const CYCLE = [STORE_CAT_STONES, STORE_CAT_AROMA, STORE_CAT_CARE];
-
 /**
  * Kategori slug'ına göre GÜVENİLİR görsel eşlemesi. Yalnız anlamlı eşleşmede foto döner;
- * eşleşme yoksa null (ör. "Kitaplar", "Setler", "Hizmetler" için yanlış foto atanmaz).
+ * eşleşme yoksa null (ör. "Analiz", "Kitaplar", "Setler" için yanlış foto atanmaz).
  */
 export function categoryImageForStrict(slug: string | null | undefined): string | null {
   const s = (slug ?? "").toLowerCase();
@@ -27,9 +30,14 @@ export function categoryImageForStrict(slug: string | null | undefined): string 
 }
 
 /**
- * Fotoğraflı büyük vitrin tile'ı için görsel (her zaman bir foto döner). Anlamlı eşleşme
- * yoksa sıralı marka görseli kullanılır — yalnız öne çıkan 3 büyük tile için uygundur.
+ * Kategori görseli öncelik çözümü (saf): önce özel yüklenmiş görsel URL'i, yoksa anlamlı
+ * legacy marka görseli, o da yoksa null. Arbitrary/yanlış foto ASLA üretmez.
+ * `customUrl` server'da image_path → public URL çözümünden gelir (yoksa null).
  */
-export function categoryImageFor(slug: string | null | undefined, index = 0): string {
-  return categoryImageForStrict(slug) ?? CYCLE[index % CYCLE.length];
+export function pickCategoryImage(
+  customUrl: string | null | undefined,
+  slug: string | null | undefined,
+): string | null {
+  if (typeof customUrl === "string" && customUrl.length > 0) return customUrl;
+  return categoryImageForStrict(slug);
 }

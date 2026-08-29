@@ -80,6 +80,23 @@ export const categoriesApi = {
     toResult(await jsonFetch("PATCH", `/categories/${id}`, body), (b) => b.row as StoreCategory),
   remove: async (id: string): Promise<ApiResult<true>> =>
     toResult(await jsonFetch("DELETE", `/categories/${id}`), () => true),
+  // Kategori görseli adanmış uç (image_path yalnız burada mutate edilir — mass-assignment YOK).
+  uploadImage: async (
+    id: string,
+    file: File,
+  ): Promise<ApiResult<{ row: StoreCategory; url: string }>> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/categories/${id}/image`, {
+      method: "POST",
+      headers: adminHeaders(false),
+      cache: "no-store",
+      body: form,
+    });
+    return toResult(res, (b) => ({ row: b.row as StoreCategory, url: b.url as string }));
+  },
+  removeImage: async (id: string): Promise<ApiResult<StoreCategory>> =>
+    toResult(await jsonFetch("DELETE", `/categories/${id}/image`), (b) => b.row as StoreCategory),
 };
 
 // ---- Ürünler ----
@@ -130,7 +147,8 @@ export const settingsApi = {
 };
 
 // ---- Sahip önizleme (gerçek storefront verisi; owner-gate'li) ----
-type PreviewCategory = { slug: string; name: string };
+// image_url server'da çözülür (özel görsel → anlamlı legacy → null).
+type PreviewCategory = { slug: string; name: string; image_url: string | null };
 export type StorefrontPreview = {
   products: StorefrontProductCard[];
   categories: PreviewCategory[];

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { categoriesApi } from "@/app/admin/magaza/magazaAdminApi";
+import { categoriesApi, storePhotoPublicUrl } from "@/app/admin/magaza/magazaAdminApi";
 import { slugifyStore } from "@/lib/store/slug";
 import type { StoreCategory } from "@/lib/store/types";
 
@@ -14,9 +14,15 @@ type Draft = {
   description: string;
   is_active: boolean;
   sort_order: string;
+  image_path: string | null;
 };
 
-const emptyDraft: Draft = { id: null, name: "", slug: "", description: "", is_active: true, sort_order: "0" };
+const emptyDraft: Draft = {
+  id: null, name: "", slug: "", description: "", is_active: true, sort_order: "0", image_path: null,
+};
+
+const IMG_ACCEPT = "image/jpeg,image/png,image/webp";
+const IMG_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function CategoriesPanel() {
   const { showToast } = useToast();
@@ -25,6 +31,8 @@ export default function CategoriesPanel() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function load() {
     setLoading(true);
@@ -63,8 +71,67 @@ export default function CategoriesPanel() {
 
     if (res.ok) {
       showToast({ type: "success", message: draft.id ? "Kategori güncellendi." : "Kategori eklendi." });
-      setDraft(null);
+      // Yeni kategori: görseli hemen ekleyebilsin diye formu düzenleme moduna geçir.
+      if (draft.id) {
+        setDraft(null);
+      } else {
+        setDraft({
+          id: res.data.id,
+          name: res.data.name,
+          slug: res.data.slug,
+          description: res.data.description,
+          is_active: res.data.is_active,
+          sort_order: String(res.data.sort_order),
+          image_path: res.data.image_path,
+        });
+      }
       void load();
+    } else {
+      showToast({ type: "error", message: res.error });
+    }
+  }
+
+  async function onPickImage(files: FileList | null) {
+    if (!draft?.id || !files || files.length === 0) return;
+    const file = files[0];
+    if (!IMG_ACCEPT.split(",").includes(file.type)) {
+      showToast({ type: "warning", message: "Yalnız JPEG/PNG/WEBP görseli yüklenebilir." });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    if (file.size > IMG_MAX_BYTES) {
+      showToast({ type: "warning", message: "Görsel 5 MB sınırını aşıyor." });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setImgBusy(true);
+    const res = await categoriesApi.uploadImage(draft.id, file);
+    setImgBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+    if (res.ok) {
+      setDraft((d) => (d ? { ...d, image_path: res.data.row.image_path } : d));
+      setRows((prev) => prev.map((r) => (r.id === res.data.row.id ? res.data.row : r)));
+      showToast({ type: "success", message: "Kategori görseli güncellendi." });
+    } else {
+      showToast({ type: "error", message: res.error });
+    }
+  }
+
+  async function removeImage() {
+    if (!draft?.id) return;
+    const ok = await deleteConfirm({
+      message: "Kategori görseli kaldırılsın mı?",
+      confirmText: "Kaldır",
+      cancelText: "Vazgeç",
+    });
+    if (!ok) return;
+    setImgBusy(true);
+    const res = await categoriesApi.removeImage(draft.id);
+    setImgBusy(false);
+    if (res.ok) {
+      setDraft((d) => (d ? { ...d, image_path: null } : d));
+      setRows((prev) => prev.map((r) => (r.id === res.data.id ? res.data : r)));
+      showToast({ type: "success", message: "Kategori görseli kaldırıldı." });
     } else {
       showToast({ type: "error", message: res.error });
     }
@@ -86,6 +153,8 @@ export default function CategoriesPanel() {
       showToast({ type: "error", message: res.error });
     }
   }
+
+  const draftImageUrl = storePhotoPublicUrl(draft?.image_path ?? null);
 
   return (
     <div className="space-y-5">
@@ -147,12 +216,64 @@ export default function CategoriesPanel() {
               </label>
             </Field>
           </div>
+
+          {/* Kategori görseli — yalnız kayıtlı kategoride (id gerekir). */}
+          <div className="mt-5 border-t border-emerald-200/60 pt-4">
+            <span className="text-[12px] font-semibold text-stone-600">Kategori Görseli</span>
+            {draft.id ? (
+              <div className="mt-2 flex flex-wrap items-center gap-4">
+                <div className="h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-stone-200/80 bg-stone-100">
+                  {draftImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={draftImageUrl} alt={draft.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[11px] text-stone-400">
+                      Görsel yok
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-soft"
+                    disabled={imgBusy}
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    {imgBusy ? "Yükleniyor…" : draft.image_path ? "Görseli Değiştir" : "Görsel Yükle"}
+                  </button>
+                  {draft.image_path ? (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-rose-200 px-3 py-1.5 text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                      disabled={imgBusy}
+                      onClick={removeImage}
+                    >
+                      Görseli Kaldır
+                    </button>
+                  ) : null}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept={IMG_ACCEPT}
+                    className="hidden"
+                    onChange={(e) => onPickImage(e.target.files)}
+                  />
+                  <span className="text-[11px] text-stone-400">JPEG / PNG / WEBP · en fazla 5 MB</span>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-[12px] text-stone-500">
+                Görseli kategori kaydedildikten sonra ekleyebilirsiniz.
+              </p>
+            )}
+          </div>
+
           <div className="mt-5 flex gap-2">
             <button type="button" className="btn-primary" disabled={saving} onClick={save}>
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>
             <button type="button" className="btn-soft" disabled={saving} onClick={() => setDraft(null)}>
-              Vazgeç
+              {draft.id ? "Kapat" : "Vazgeç"}
             </button>
           </div>
         </div>
@@ -172,6 +293,7 @@ export default function CategoriesPanel() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-stone-200/70 bg-stone-50/70 text-[12px] uppercase tracking-wide text-stone-500">
               <tr>
+                <th className="px-4 py-3 font-semibold">Görsel</th>
                 <th className="px-4 py-3 font-semibold">Ad</th>
                 <th className="px-4 py-3 font-semibold">Slug</th>
                 <th className="px-4 py-3 font-semibold">Durum</th>
@@ -180,51 +302,65 @@ export default function CategoriesPanel() {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {rows.map((c) => (
-                <tr key={c.id} className="hover:bg-stone-50/60">
-                  <td className="px-4 py-3 font-semibold text-stone-800">{c.name}</td>
-                  <td className="px-4 py-3 font-mono text-[12px] text-stone-500">{c.slug}</td>
-                  <td className="px-4 py-3">
-                    {c.is_active ? (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-200/70">
-                        Aktif
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[12px] font-semibold text-stone-500 ring-1 ring-stone-200/70">
-                        Pasif
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-stone-500">{c.sort_order}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        className="rounded-lg border border-stone-200 px-3 py-1.5 text-[13px] font-semibold text-stone-600 hover:bg-stone-50"
-                        onClick={() =>
-                          setDraft({
-                            id: c.id,
-                            name: c.name,
-                            slug: c.slug,
-                            description: c.description,
-                            is_active: c.is_active,
-                            sort_order: String(c.sort_order),
-                          })
-                        }
-                      >
-                        Düzenle
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg border border-rose-200 px-3 py-1.5 text-[13px] font-semibold text-rose-600 hover:bg-rose-50"
-                        onClick={() => remove(c)}
-                      >
-                        Sil
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((c) => {
+                const thumb = storePhotoPublicUrl(c.image_path);
+                return (
+                  <tr key={c.id} className="hover:bg-stone-50/60">
+                    <td className="px-4 py-3">
+                      <div className="h-10 w-14 overflow-hidden rounded-lg border border-stone-200/70 bg-stone-100">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-stone-300">—</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-stone-800">{c.name}</td>
+                    <td className="px-4 py-3 font-mono text-[12px] text-stone-500">{c.slug}</td>
+                    <td className="px-4 py-3">
+                      {c.is_active ? (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-200/70">
+                          Aktif
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[12px] font-semibold text-stone-500 ring-1 ring-stone-200/70">
+                          Pasif
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-stone-500">{c.sort_order}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-stone-200 px-3 py-1.5 text-[13px] font-semibold text-stone-600 hover:bg-stone-50"
+                          onClick={() =>
+                            setDraft({
+                              id: c.id,
+                              name: c.name,
+                              slug: c.slug,
+                              description: c.description,
+                              is_active: c.is_active,
+                              sort_order: String(c.sort_order),
+                              image_path: c.image_path,
+                            })
+                          }
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-rose-200 px-3 py-1.5 text-[13px] font-semibold text-rose-600 hover:bg-rose-50"
+                          onClick={() => remove(c)}
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

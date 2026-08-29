@@ -9,6 +9,7 @@
 
 import { getServerDb } from "@/lib/supabase-server";
 import { STORE_PHOTO_BUCKET } from "@/lib/store/productImage";
+import { pickCategoryImage } from "@/lib/store/categoryVisuals";
 import type {
   StorefrontProductCard,
   StorefrontProductDetail,
@@ -94,9 +95,12 @@ function toCard(row: ProductRow, primaryPath: string | null): StorefrontProductC
   };
 }
 
+/** Storefront kategori gösterimi: image_url server'da çözülür (custom → semantic → null). */
+export type StorefrontCategory = { name: string; slug: string; image_url: string | null };
+
 export type StorefrontData = {
   products: StorefrontProductCard[];
-  categories: Array<{ name: string; slug: string }>;
+  categories: StorefrontCategory[];
 };
 
 /**
@@ -116,16 +120,21 @@ export async function getStorefrontData(): Promise<StorefrontData> {
       .order("created_at", { ascending: false }),
     db
       .from("store_categories")
-      .select("name, slug, sort_order")
+      .select("name, slug, image_path, sort_order")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
   ]);
 
-  // Kategoriler bağımsız kaynaktan (ürün varlığından etkilenmez).
-  const categories = ((categoryData ?? []) as Array<{ name: string; slug: string }>).map(
-    ({ name, slug }) => ({ name, slug }),
-  );
+  // Kategoriler bağımsız kaynaktan (ürün varlığından etkilenmez). Görsel önceliği:
+  // özel yüklenmiş image_path (public URL) → anlamlı legacy marka görseli → null.
+  const categories: StorefrontCategory[] = (
+    (categoryData ?? []) as Array<{ name: string; slug: string; image_path: string | null }>
+  ).map(({ name, slug, image_path }) => ({
+    name,
+    slug,
+    image_url: pickCategoryImage(image_path ? publicUrl(image_path) : null, slug),
+  }));
 
   if (productErr || !productData) return { products: [], categories };
 

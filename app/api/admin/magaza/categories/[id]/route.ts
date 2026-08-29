@@ -9,6 +9,7 @@ import {
   STORE_UUID_RE,
 } from "@/lib/store/adminHttp";
 import { isValidStoreSlug } from "@/lib/store/slug";
+import { STORE_PHOTO_BUCKET, isOwnedStoreCategoryImagePath } from "@/lib/store/productImage";
 
 export const runtime = "nodejs";
 
@@ -114,11 +115,18 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
     .from("store_categories")
     .delete()
     .eq("id", id)
-    .select("id")
+    .select("id, image_path")
     .maybeSingle();
 
   if (error) return storeError("Kategori silinemedi.", "STORE_CATEGORY_DELETE_FAILED", 500);
   if (!data) return storeError("Kategori bulunamadı.", "STORE_CATEGORY_NOT_FOUND", 404);
+
+  // DB silme başarılı → varsa kategori görsel objesini best-effort temizle (isteği bozmaz).
+  const imagePath = (data.image_path as string | null) ?? null;
+  if (isOwnedStoreCategoryImagePath(imagePath)) {
+    const { error: rmErr } = await db.storage.from(STORE_PHOTO_BUCKET).remove([imagePath]);
+    if (rmErr) console.error("[store] silinen kategori görseli temizlenemedi", { code: rmErr.name });
+  }
 
   return NextResponse.json({ ok: true });
 }

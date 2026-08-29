@@ -126,8 +126,9 @@ export function ProductCard({ product, hrefBase = "/magaza" }: { product: Storef
   );
 }
 
-/** Fotoğraflı kategori vitrin kartı (3:2). Storefront'ta filtreyi kurar (button). */
-export function CategoryTile({ name, imageUrl, onClick }: { name: string; imageUrl: string; onClick: () => void }) {
+/** Fotoğraflı kategori vitrin kartı (3:2). Storefront'ta filtreyi kurar (button).
+ *  imageUrl null ise yanlış foto atanmaz; zarif tipografik/botanik yedek gösterilir. */
+export function CategoryTile({ name, imageUrl, onClick }: { name: string; imageUrl: string | null; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -135,8 +136,14 @@ export function CategoryTile({ name, imageUrl, onClick }: { name: string; imageU
       className="group relative block overflow-hidden rounded-2xl border border-[#e7dfd0] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b0674d]"
     >
       <div className="aspect-[3/2] w-full overflow-hidden bg-[#efe9dc]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-[700ms] ease-out group-hover:scale-[1.05]" />
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-[700ms] ease-out group-hover:scale-[1.05]" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#efe9dc_0%,#e6ddcb_100%)]" aria-hidden>
+            <CategoryLeaf className="h-12 w-12 text-[#b3a488] transition-transform duration-[700ms] ease-out group-hover:scale-[1.05]" />
+          </div>
+        )}
       </div>
       <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(38,28,16,.5),transparent_55%)]" aria-hidden />
       <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4">
