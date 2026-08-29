@@ -52,3 +52,31 @@ export function checkRateLimit(
 export function __resetRateLimitStore(): void {
   store.clear();
 }
+
+// ── Reusable ms-tabanlı arayüz (Beslenme Word ve sonraki uçlar) ──────────────
+
+export type RateLimitOptions = { limit: number; windowMs: number };
+export type RateLimitVerdict = { ok: boolean; remaining: number; retryAfterMs: number };
+
+/**
+ * `checkRateLimit` ile AYNI in-memory fixed-window store'u kullanan, ms cinsinden
+ * `retryAfterMs` dönen ergonomik sarmalayıcı.
+ *
+ * BEST-EFFORT / PER-INSTANCE: state yalnız çağıran runtime instance'ında tutulur.
+ * Vercel Fluid Compute çok-instance'lı olduğundan gerçek üst-sınır ≈ (limit × instance
+ * sayısı) olabilir; global/atomik DEĞİLDİR (Redis vb. yok). Kötüye-kullanım (art arda
+ * burst) için MVP koruması olarak KABUL EDİLEBİLİR; sıkı kota gerektiren durumlarda
+ * merkezi bir sayaç kullanılmalıdır. Saf/test-edilebilir (`now` enjekte edilebilir).
+ */
+export function rateLimit(
+  key: string,
+  opts: RateLimitOptions,
+  now: number = Date.now(),
+): RateLimitVerdict {
+  const r = checkRateLimit(key, opts.limit, opts.windowMs, now);
+  return {
+    ok: r.allowed,
+    remaining: r.remaining,
+    retryAfterMs: r.retryAfterSeconds * 1000,
+  };
+}

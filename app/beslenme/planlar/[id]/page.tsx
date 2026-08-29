@@ -48,6 +48,7 @@ import {
   statusClass,
   statusLabel,
 } from "../_components/planFormat";
+import { PlanTools } from "../_components/PlanTools";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
@@ -135,6 +136,13 @@ export default function PlanEditorPage() {
 
   const headerActions = plan ? (
     <div className="flex flex-wrap items-center gap-2">
+      <PlanTools
+        planId={plan.id}
+        days={days}
+        selectedDayId={selectedDayId}
+        archived={archived}
+        onChanged={() => void reloadPlan()}
+      />
       <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
         Kopyala
       </GhostButton>

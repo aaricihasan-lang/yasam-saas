@@ -10,7 +10,7 @@ import {
   hasOnlyKeys,
   PREP_STATES,
 } from "@/lib/beslenme/contracts";
-import { SYSTEM_NUTRITION_TENANT_ID, isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
+import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 
@@ -35,27 +35,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const q = cleanStr(url.searchParams.get("q"), 120);
   const group = url.searchParams.get("group");
   const includeInactive = url.searchParams.get("all") === "1";
+  // Pagination (500-food ölçeği; §10). limit ∈ [1,100] default 50; offset ≥ 0.
+  const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "50", 10) || 50));
+  const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
+  const normalizedQuery = q ? normalizeSearchText(q).normalizedText || null : null;
 
-  // SYSTEM (merkezi katalog) + caller CUSTOM birlikte listelenir (üçüncü tenant ASLA).
-  let query = db
-    .from("nutrition_foods")
-    .select(FOOD_COLUMNS)
-    .in("tenant_id", [SYSTEM_NUTRITION_TENANT_ID, tenantId]);
-  if (!includeInactive) query = query.eq("is_active", true);
-  if (group && isUuid(group)) query = query.eq("food_group_id", group);
-  if (q) {
-    const normalized = normalizeSearchText(q).normalizedText;
-    if (normalized) query = query.textSearch("search_tsv", normalized, { config: "simple", type: "websearch" });
-  }
-  query = query.order("sort_order", { ascending: true }).order("name_tr", { ascending: true }).limit(300);
-
-  const { data, error } = await query;
+  // Ranked + paginated search RPC (ts_rank_cd relevance; SYSTEM ∪ caller CUSTOM union).
+  const { data, error } = await db.rpc("nutrition_food_search", {
+    p_tenant_id: tenantId,
+    p_system_tenant_id: SYSTEM_NUTRITION_TENANT_ID,
+    p_query: normalizedQuery,
+    p_group: group && isUuid(group) ? group : null,
+    p_include_inactive: includeInactive,
+    p_limit: limit,
+    p_offset: offset,
+  });
   if (error) return NextResponse.json({ ok: false, code: "LIST_FAILED" }, { status: 500 });
-  const foods = (data ?? []).map((f) => ({
-    ...f,
-    is_system: isSystemNutritionTenant((f as { tenant_id: string }).tenant_id),
-  }));
-  return NextResponse.json({ ok: true, foods }, { headers: { "Cache-Control": "no-store" } });
+  const rows = (data ?? []) as Array<Record<string, unknown> & { total_count?: number; is_system?: boolean }>;
+  const total = rows.length > 0 ? Number(rows[0].total_count ?? 0) : 0;
+  const foods = rows.map((f) => {
+    const { total_count: _t, ...rest } = f;
+    void _t;
+    return { ...rest, is_system: Boolean(rest.is_system) };
+  });
+  return NextResponse.json(
+    { ok: true, foods, total, limit, offset },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 /** POST: yeni besin. */
