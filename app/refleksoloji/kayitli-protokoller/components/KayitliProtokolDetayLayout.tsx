@@ -542,7 +542,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                     getBoundingClientRect'e dayanır; ölçekli bir ata, overlay px'ini iki kez
                     ölçekleyip bölgeleri ayak görselinden kaydırıyordu (creation ↔ detail drift).
                     Bölge Haritası ile birebir aynı geometri için doğrudan (ölçeksiz) render. */}
-                <div className="relative h-full min-h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:min-h-[min(64vh,760px)]">
+                {/* SEV-1 fix (Saved Detail boş harita): KESİN yükseklik. Önceki `h-full`,
+                    yüzde-yükseklik olduğundan ata zinciri (section/flex-1 kutuları) yalnız
+                    `min-height` taşıdığı için ÇÖZÜLMÜYORDU → ProtocolFootMap kabuğu içeriğe
+                    (yalnız başlık) çöküp canvas 0px, ayak PNG'si + overlay 0px kalıyordu.
+                    (Yüzde yükseklik `min-height` üzerinden zincirlenmez.) Oluşturma ekranı
+                    zaten `h-[68vh]` KESİN yükseklikle çalıştığı için etkilenmiyordu; burada da
+                    kırılım-başına KESİN yükseklik verilir. Ölçekleme YOK → koordinat paritesi
+                    korunur; grup/görünüm mantığı (PR #222) değişmez. */}
+                <div className="relative h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:h-[min(64vh,760px)] xl:h-[min(72vh,820px)]">
                   <ProtocolFootMap
                     regions={regions}
                     footView={effectiveFootView}
