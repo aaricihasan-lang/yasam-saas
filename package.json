@@ -12,6 +12,7 @@
     "refleksoloji:shape-view-ghost:harness": "tsx scripts/reflexology-shape-view-ghost-harness.ts",
     "refleksoloji:coordinate-parity:harness": "tsx scripts/reflexology-coordinate-parity-harness.ts",
     "refleksoloji:side-view:harness": "tsx scripts/reflexology-side-view-harness.ts",
+    "refleksoloji:saved-detail-render:harness": "tsx scripts/reflexology-saved-detail-render-harness.ts",
     "refleksoloji:word:harness": "tsx scripts/reflexology-word-report-harness.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
@@ -78,9 +79,9 @@
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "20.19.43",
     "@types/pg": "^8.20.3",
-    "@types/react": "^19",
+    "@types/react": "19.2.18",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",
     "eslint": "^9",
@@ -90,7 +91,7 @@
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.4",
-    "typescript": "^5",
+    "typescript": "5.9.3",
     "xlsx": "^0.18.5"
   }
 }
