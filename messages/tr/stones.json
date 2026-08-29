@@ -188,6 +188,9 @@
       "Etkili Organ / Not": "Etkili Organ / Not",
       "Astrolojik Atama": "Astrolojik Atama",
       "Element": "Element"
+    },
+    "assignmentFieldPlaceholders": {
+      "Oran %": "Oran % yaz..."
     }
   }
 }

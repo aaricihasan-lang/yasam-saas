@@ -184,10 +184,13 @@
     },
     "assignmentFields": {
       "Mineral": "Mineral",
-      "Oran %": "Percentage %",
+      "Oran %": "Percentage",
       "Etkili Organ / Not": "Affected Organ / Note",
       "Astrolojik Atama": "Astrological Association",
       "Element": "Element"
+    },
+    "assignmentFieldPlaceholders": {
+      "Oran %": "Enter percentage..."
     }
   }
 }

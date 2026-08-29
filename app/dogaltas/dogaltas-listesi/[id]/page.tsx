@@ -297,13 +297,19 @@ function safeFileName(fileName: string) {
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
 
+  // Legacy/bozuk kayıtlar: created_at/updated_at ISO olmayabilir (ör. epoch string,
+  // "0000-00-00", boş sayı). Intl.format(Invalid Date) → RangeError ile TÜM sayfayı
+  // çökertir. Geçersiz tarihte "-" döneriz (veri mutasyonu YOK, yalnız güvenli render).
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+
   return new Intl.DateTimeFormat("tr-TR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 const pageBg =
@@ -1043,6 +1049,18 @@ function StoneDetailPage() {
     [activeReader, highlightQuery],
   );
 
+  // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
+  // Rules of Hooks: hook'lar aşağıdaki erken return'lerden (loading / hata / !safeStone)
+  // ÖNCE çağrılmalı — aksi halde başarılı yüklemede "Rendered more hooks…" ile sayfa çöker.
+  // Path listesi memoization gerektirmez: useSignedStoneImageUrls stabil string "key" ile
+  // senkronize olur (dizi kimliği önemsiz). safeStone null iken güvenli boş liste.
+  const imageFilePaths = (
+    safeStone && Array.isArray(safeStone.images)
+      ? safeStone.images.map((im) => imageFilePath(im)).filter(Boolean)
+      : []
+  ) as string[];
+  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
+
   if (loading) {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
@@ -1086,12 +1104,6 @@ function StoneDetailPage() {
 
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
-  // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
-  const imageFilePaths = useMemo(
-    () => (safeImages.map((im) => imageFilePath(im)).filter(Boolean) as string[]),
-    [safeImages],
-  );
-  const signedImageUrls = useSignedStoneImageUrls(imageFilePaths);
   const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
 
   const safeAssignments: Record<string, string[][]> =

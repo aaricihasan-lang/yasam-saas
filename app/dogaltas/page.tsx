@@ -10,8 +10,10 @@ import {
   type FormEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
+import { formatDate } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   getSyncedTenantId,
@@ -211,14 +213,19 @@ type MonthTrendBucket = {
 // EKLENMEDİ (ürün kararı). İlgili tespit/hesap makinesi (parseNumeric/detectStockValueFields/
 // computeStockValue/formatTry) de kaldırıldı.
 
-function buildLast6MonthTrend(createdAts: string[]): MonthTrendBucket[] {
+function buildLast6MonthTrend(
+  createdAts: string[],
+  locale: ActiveLocale,
+): MonthTrendBucket[] {
   const now = new Date();
   const buckets: { label: string; year: number; month: number; count: number }[] = [];
 
   for (let offset = 5; offset >= 0; offset -= 1) {
     const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
     buckets.push({
-      label: date.toLocaleDateString("tr-TR", { month: "short" }),
+      // Ay kısaltması locale-aware: EN → "Apr/Jun/Aug", TR → "Nis/Haz/Ağu" (byte-aynı).
+      // Merkezî helper localeTag (en→en-GB, tr→tr-TR) kullanır; absolute-date sözleşmesi ayrı.
+      label: formatDate(date, { month: "short" }, locale),
       year: date.getFullYear(),
       month: date.getMonth(),
       count: 0,
@@ -263,6 +270,7 @@ async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; erro
 
 function DogaltasPageContent() {
   const t = useTranslations("stones.hub");
+  const locale = useLocale() as ActiveLocale;
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
@@ -362,12 +370,12 @@ function DogaltasPageContent() {
     const createdAts = rows
       .map((row) => (row.created_at != null ? String(row.created_at) : ""))
       .filter(Boolean);
-    setMonthlyTrend(buildLast6MonthTrend(createdAts));
+    setMonthlyTrend(buildLast6MonthTrend(createdAts, locale));
 
     if (failed.length > 0) {
       setErrorMessage(t("analytics.failedCounters", { items: failed.join(", ") }));
     }
-  }, [t]);
+  }, [t, locale]);
 
   useEffect(() => {
     runInEffect(() => {

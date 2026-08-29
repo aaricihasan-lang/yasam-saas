@@ -45,7 +45,7 @@
       },
       "analytics": {
         "title": "Calculated Insights",
-        "subtitle": "Based on Supabase stones, minerals and combinations data",
+        "subtitle": "Based on your stone, mineral and combination data.",
         "failedCounters": "Some counters could not be loaded ({items}). Please refresh the page.",
         "failedLabel": {
           "stones": "stone records",
@@ -53,7 +53,7 @@
           "minerals": "minerals"
         },
         "trendTitle": "Monthly Record Trend",
-        "trendSubtitle": "Last 6 months · stones.created_at",
+        "trendSubtitle": "Last 6 months",
         "loading": "Loading…",
         "barTitle": "{label}: {count, plural, one {# record} other {# records}}",
         "totalStones": "Total Stone Records",

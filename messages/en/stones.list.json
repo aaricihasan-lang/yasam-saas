@@ -12,7 +12,7 @@
         "total": "Total records",
         "matched": "Matched",
         "loaded": "Loaded",
-        "image": "Photo"
+        "image": "Photos"
       },
       "search": {
         "modeName": "Stone Name",
@@ -81,7 +81,7 @@
         "viewed": "Viewed",
         "summaryYes": "Summary available",
         "noShortDescription": "No short description added.",
-        "readOnDetail": "Read on the details page →",
+        "readOnDetail": "View Details →",
         "delete": "Delete",
         "imageCount": "{count, plural, one {# photo} other {# photos}}"
       },

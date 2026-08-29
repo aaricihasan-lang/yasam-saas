@@ -282,6 +282,12 @@ export default function DogaltasKayitPage() {
   const asgLabel = (v: string) => (tf.has(`assignmentLabels.${v}`) ? tf(`assignmentLabels.${v}`) : v);
   const asgDesc = (v: string) => (tf.has(`assignmentDesc.${v}`) ? tf(`assignmentDesc.${v}`) : v);
   const asgField = (v: string) => (tf.has(`assignmentFields.${v}`) ? tf(`assignmentFields.${v}`) : v);
+  // Alan-özel placeholder (ör. "Oran %" → doğal "Enter percentage…"); yoksa jenerik
+  // "{field} yaz…"/"Write {field}…" fallback. KANONİK alan anahtarı (v) değişmez.
+  const asgFieldPh = (v: string) =>
+    tf.has(`assignmentFieldPlaceholders.${v}`)
+      ? tf(`assignmentFieldPlaceholders.${v}`)
+      : t("placeholderWrite", { field: asgField(v) });
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
   const [selectedWarnings, setSelectedWarnings] = useState<string[]>([]);
@@ -1203,7 +1209,7 @@ export default function DogaltasKayitPage() {
                       type="text"
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
                       onChange={(event) => updateAssignmentInput(activeAssignment.title, index, event.target.value)}
-                      placeholder={t("placeholderWrite", { field: asgField(field) })}
+                      placeholder={asgFieldPh(field)}
                       className="h-12 w-full rounded-2xl border-2 border-emerald-200 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
                     />
                   </div>

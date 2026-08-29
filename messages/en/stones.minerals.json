@@ -10,7 +10,7 @@
       "bank": {
         "eyebrow": "STONES · MINERAL LIBRARY",
         "title": "Add Mineral Record",
-        "subtitle": "New mineral records are added to the minerals table. List fields are entered line by line.",
+        "subtitle": "Add a new mineral record. List fields are entered line by line.",
         "listLink": "Mineral Records",
         "closeForm": "Close Form",
         "introDescription": "Press the button below to create a new mineral record. You can view existing minerals from the Mineral Records list.",
@@ -61,7 +61,7 @@
             "placeholder": "Overdose / toxicity notes (one per line)…"
           },
           "iceren_taslar": {
-            "label": "Stones containing it",
+            "label": "Stones Containing This Mineral",
             "placeholder": "Write one stone name per line…"
           },
           "organ_etkileri": {
@@ -81,7 +81,7 @@
       "list": {
         "eyebrow": "STONES · MINERAL LIBRARY",
         "title": "Mineral Records",
-        "subtitle": "Mineral records from the public.minerals table.",
+        "subtitle": "Browse and manage your mineral records.",
         "totalLabel": "Total records",
         "loadedTotal": "Loaded / total",
         "visibleResult": "Visible results",
@@ -103,7 +103,7 @@
         "exportSelectedLabel": "Export Selected to Word",
         "loadingList": "Loading minerals…",
         "emptyDbTitle": "No mineral records yet",
-        "emptyDbText": "There are no records in the Supabase minerals table yet.",
+        "emptyDbText": "You don't have any mineral records yet.",
         "emptyFilteredTitle": "No results found",
         "emptyFilteredText": "Try changing your search or category filter.",
         "viewedBadge": "Viewed",
@@ -191,7 +191,7 @@
             "badge": "OVERDOSE"
           },
           "iceren_taslar": {
-            "title": "Stones containing it"
+            "title": "Stones Containing This Mineral"
           }
         },
         "invalidId": "Invalid mineral ID.",

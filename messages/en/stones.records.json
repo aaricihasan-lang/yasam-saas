@@ -11,13 +11,13 @@
       },
       "intro": {
         "title": "Stone Record",
-        "description": "Press \"+ New Record\" to create a new stone record. You can view saved stones in Stone Records.",
+        "description": "Press \"+ Create New Record\" to create a new stone record. You can view saved stones in Stone Records.",
         "createCta": "+ Create New Record",
         "listCta": "Stone Records"
       },
       "basic": {
         "title": "Basic Information",
-        "desc": "A streamlined web version of the core record area from the desktop app.",
+        "desc": "Add the stone's core details and photos.",
         "badge": "Main Record"
       },
       "fields": {
@@ -39,7 +39,7 @@
       },
       "general": {
         "title": "General Information",
-        "desc": "A streamlined web version of the info panel / table / summary layout.",
+        "desc": "Capture the stone's overview, formation and source information.",
         "general_info": "General Information / Overview",
         "source_note": "Formation / Source Note"
       },
