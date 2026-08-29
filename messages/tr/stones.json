@@ -191,6 +191,9 @@
     },
     "assignmentFieldPlaceholders": {
       "Oran %": "Oran % yaz..."
+    },
+    "validation": {
+      "mineralPercentInvalid": "Mineral yüzdesi 0 ile 100 arasında olmalıdır."
     }
   }
 }

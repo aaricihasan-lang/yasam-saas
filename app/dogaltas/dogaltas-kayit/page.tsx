@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
-import { parseMineralPercent, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
+import { parseMineralPercent } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
@@ -412,7 +412,8 @@ export default function DogaltasKayitPage() {
     if (sectionTitle === "Mineraller") {
       const parsed = parseMineralPercent(values[1]);
       if (!parsed.ok) {
-        showError(parsed.error ?? MINERAL_PERCENT_ERROR);
+        // Yalnız DISPLAY localize; validation davranışı (parsed.ok) locale-bağımsız.
+        showError(tf("validation.mineralPercentInvalid"));
         return;
       }
       rowToStore = values.map((value, index) => (index === 1 ? parsed.value : value));

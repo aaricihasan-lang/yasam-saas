@@ -191,6 +191,9 @@
     },
     "assignmentFieldPlaceholders": {
       "Oran %": "Enter percentage..."
+    },
+    "validation": {
+      "mineralPercentInvalid": "Enter a mineral percentage between 0 and 100."
     }
   }
 }

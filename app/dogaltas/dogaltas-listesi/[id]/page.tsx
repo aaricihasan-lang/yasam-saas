@@ -24,7 +24,7 @@ import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
-import { validateMineralAssignments, MINERAL_PERCENT_ERROR } from "@/lib/dogaltas/mineralPercent";
+import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import {
   mergeMatchCardClass,
   renderHighlightedText,
@@ -790,7 +790,8 @@ function StoneDetailPage() {
       const check = validateMineralAssignments(nextAssignments);
       if (!check.ok) {
         setSaving(false);
-        setErrorMessage(check.error ?? MINERAL_PERCENT_ERROR);
+        // Yalnız DISPLAY localize; validation davranışı (check.ok) locale-bağımsız.
+        setErrorMessage(tf("validation.mineralPercentInvalid"));
         return;
       }
       payload.assignments = check.value;
