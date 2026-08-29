@@ -16,7 +16,6 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   ADMIN_LIBRARY_TENANT_ID,
   getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -567,6 +566,11 @@ function StoneDetailPage() {
   const [activeEditor, setActiveEditor] = useState<ActiveEditor | null>(null);
   const [activeReader, setActiveReader] = useState<ActiveReader | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  // Yükleme-fazı hataları TYPED tutulur (control flow ≠ display string). Kullanıcıya
+  // gösterilen metin t() ile locale'e göre; `kind` locale-bağımsız sınıflandırma.
+  const [loadError, setLoadError] = useState<
+    { kind: "notFound" | "loadFailed" | "workspace"; detail: string } | null
+  >(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(
     null
@@ -617,6 +621,7 @@ function StoneDetailPage() {
 
     setLoading(true);
     setErrorMessage("");
+    setLoadError(null);
     setSuccessMessage("");
 
     try {
@@ -624,7 +629,7 @@ function StoneDetailPage() {
       if (!tenantId) {
         setLoading(false);
         setStone(null);
-        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        setLoadError({ kind: "workspace", detail: "" });
         return;
       }
 
@@ -644,25 +649,25 @@ function StoneDetailPage() {
 
       if (!ok) {
         setStone(null);
-        setErrorMessage(`Kayıt okunurken hata oluştu\n${error ?? ""}`);
+        setLoadError({ kind: "loadFailed", detail: error ?? "" });
         return;
       }
 
       if (!data) {
         setStone(null);
-        setErrorMessage(`Kayıt bulunamadı.\nID: ${id}`);
+        setLoadError({ kind: "notFound", detail: `ID: ${id}` });
         return;
       }
 
       const safe = commitStoneRecord(data as Record<string, unknown>);
       if (!safe) {
-        setErrorMessage(`Kayıt okunurken hata oluştu\nGeçersiz kayıt verisi`);
+        setLoadError({ kind: "loadFailed", detail: t("error.invalidData") });
       }
     } catch (err) {
       setLoading(false);
       setStone(null);
       const message = err instanceof Error ? err.message : String(err);
-      setErrorMessage(`Kayıt okunurken hata oluştu\n${message}`);
+      setLoadError({ kind: "loadFailed", detail: message });
     }
   }
 
@@ -751,7 +756,7 @@ function StoneDetailPage() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(t("error.workspaceUnavailable"));
       return;
     }
 
@@ -847,7 +852,7 @@ function StoneDetailPage() {
     if (!stone) return;
     const confirmed = await deleteConfirm({
       title: t("deleteConfirm.title"),
-      message: t("deleteConfirm.message", { name: stone.stone_name || "Bu taş" }),
+      message: t("deleteConfirm.message", { name: stone.stone_name || t("thisStone") }),
       secondMessage: t("deleteConfirm.second"),
     });
     if (!confirmed) return;
@@ -859,7 +864,7 @@ function StoneDetailPage() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(t("error.workspaceUnavailable"));
       return;
     }
 
@@ -1073,21 +1078,36 @@ function StoneDetailPage() {
     );
   }
 
-  if (errorMessage && !stone) {
-    const isReadError = errorMessage.startsWith("Kayıt okunurken hata oluştu");
+  if (loadError && !stone) {
+    // Sınıflandırma TYPED `kind` üzerinden (locale-bağımsız); görünen metin t() ile.
+    const title =
+      loadError.kind === "notFound"
+        ? t("error.notFound")
+        : loadError.kind === "workspace"
+          ? t("error.workspaceUnavailable")
+          : t("error.loadFailed");
+    const desc =
+      loadError.kind === "notFound"
+        ? t("error.notViewable")
+        : loadError.kind === "workspace"
+          ? ""
+          : t("error.loadFailedHelp");
 
     return (
       <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
         <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-[48px]">💎</div>
-          <h1 className="mt-3 text-[22px] font-black text-slate-950">
-            {isReadError ? "Kayıt okunurken hata oluştu" : "Kayıt bulunamadı"}
-          </h1>
-          <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-500">
-            {isReadError
-              ? errorMessage.replace(/^Kayıt okunurken hata oluştu\n?/, "")
-              : errorMessage || t("error.notViewable")}
-          </p>
+          <h1 className="mt-3 text-[22px] font-black text-slate-950">{title}</h1>
+          {desc ? (
+            <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-500">
+              {desc}
+            </p>
+          ) : null}
+          {loadError.detail ? (
+            <p className="mt-2 whitespace-pre-line text-[11px] leading-5 text-slate-400">
+              {loadError.detail}
+            </p>
+          ) : null}
 
           <Link
             href={listBackHref}

@@ -209,8 +209,14 @@
       "error": {
         "deleteFailed": "Couldn't delete the record: {error}",
         "tryAgain": "Please try again.",
-        "notViewable": "This stone record couldn't be displayed."
-      }
+        "notViewable": "This stone record couldn't be displayed.",
+        "notFound": "Stone record not found.",
+        "loadFailed": "We couldn't load this stone record.",
+        "loadFailedHelp": "Try again or return to Stone Records.",
+        "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again.",
+        "invalidData": "Invalid record data."
+      },
+      "thisStone": "this stone"
     }
   }
 }

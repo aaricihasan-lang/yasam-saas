@@ -209,8 +209,14 @@
       "error": {
         "deleteFailed": "Kayıt silinemedi: {error}",
         "tryAgain": "Lütfen tekrar deneyin.",
-        "notViewable": "Bu doğaltaş kaydı görüntülenemedi."
-      }
+        "notViewable": "Bu doğaltaş kaydı görüntülenemedi.",
+        "notFound": "Kayıt bulunamadı.",
+        "loadFailed": "Kayıt okunurken hata oluştu.",
+        "loadFailedHelp": "Tekrar deneyin veya Taş Kayıtları'na dönün.",
+        "workspaceUnavailable": "Çalışma alanı bilgileriniz yüklenemedi. Lütfen yeniden giriş yapın.",
+        "invalidData": "Geçersiz kayıt verisi."
+      },
+      "thisStone": "bu taş"
     }
   }
 }
