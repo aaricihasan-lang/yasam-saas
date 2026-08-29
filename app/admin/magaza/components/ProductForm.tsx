@@ -234,7 +234,7 @@ export default function ProductForm({ productId }: { productId: string | null })
                     <span className="text-[11px] text-amber-700">Önce Kategoriler sekmesinden kategori oluşturun.</span>
                   ) : null}
                 </Field>
-                <Field label="Ürün Tipi *">
+                <Field label="Ürün / Hizmet Türü *">
                   <select className="store-input" value={form.product_type} onChange={(e) => set("product_type", e.target.value)}>
                     {STORE_PRODUCT_TYPES.map((t) => (
                       <option key={t} value={t}>{STORE_PRODUCT_TYPE_LABELS[t]}</option>

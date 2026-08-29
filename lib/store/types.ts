@@ -17,7 +17,8 @@ export type StoreProductStatus = (typeof STORE_PRODUCT_STATUSES)[number];
 export const STORE_PRODUCT_TYPE_LABELS: Record<StoreProductType, string> = {
   physical: "Fiziksel Ürün",
   digital: "Dijital Ürün",
-  service: "Hizmet / Eğitim",
+  // DB canonical değer AYNEN 'service' kalır; yalnız UI karşılığı.
+  service: "Analiz / Danışmanlık",
 };
 
 /** Durum Türkçe etiketleri (UI). */
@@ -45,6 +46,8 @@ export type StoreCategory = {
   description: string;
   is_active: boolean;
   sort_order: number;
+  /** Kategori ana görsel storage path'i (public bucket). NULL → görselsiz. */
+  image_path: string | null;
   created_at: string;
   updated_at: string;
 };

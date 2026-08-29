@@ -43,3 +43,29 @@ export function isOwnedStorePhotoPath(path: unknown): path is string {
   if (path.includes("..") || path.includes("://")) return false;
   return path.startsWith(STORE_PHOTO_PREFIX);
 }
+
+// ------------------------------------------------------------
+// Kategori görseli — AYNI public bucket (`store-product-images`), ayrı namespace.
+// MIME allowlist + boyut sınırı ürün görseliyle ORTAK (yukarıdaki sabitler REUSE).
+// ------------------------------------------------------------
+
+/** Kategori görsellerinin path öneki (bucket içi namespace). */
+export const STORE_CATEGORY_IMAGE_PREFIX = "categories/";
+
+/**
+ * Sunucuda üretilen kategori görsel yolu. Dosya adı client'tan ALINMAZ; kategori kimliği
+ * ve uzantı server-side (MIME'den) belirlenir. `categories/{categoryId}/{uuid}.{ext}`.
+ */
+export function buildStoreCategoryImagePath(categoryId: string, ext: string, uuid: string): string {
+  return `${STORE_CATEGORY_IMAGE_PREFIX}${categoryId}/${uuid}.${ext}`;
+}
+
+/**
+ * Bir image_path beklenen kategori-görsel önekine uyuyor mu? (delete/replace guard —
+ * DB'de tutulan path'e storage remove uygulanmadan önce doğrulanır.) Traversal / URL reddi.
+ */
+export function isOwnedStoreCategoryImagePath(path: unknown): path is string {
+  if (typeof path !== "string" || !path) return false;
+  if (path.includes("..") || path.includes("://")) return false;
+  return path.startsWith(STORE_CATEGORY_IMAGE_PREFIX);
+}

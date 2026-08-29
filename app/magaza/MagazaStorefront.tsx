@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { STORE_BRAND_TAGLINE, type StorefrontProductCard } from "@/lib/store/types";
-import { STORE_HERO_IMAGE, categoryImageFor, categoryImageForStrict } from "@/lib/store/categoryVisuals";
+import { STORE_HERO_IMAGE } from "@/lib/store/categoryVisuals";
 import StoreHeader from "@/app/magaza/components/StoreHeader";
 import { ProductCard, CategoryTile, CategoryChip, StoreFooter } from "@/app/magaza/components/storefrontUi";
 
-type Category = { slug: string; name: string };
+// image_url server'da çözülür (özel görsel → anlamlı legacy → null). Yanlış foto atanmaz.
+type Category = { slug: string; name: string; image_url: string | null };
 
 export default function MagazaStorefront({
   products,
@@ -93,8 +94,8 @@ export default function MagazaStorefront({
             <SectionHead title="Kategoriler" />
             {/* Öne çıkan 3 büyük fotoğraflı tile (beğenilen tasarım — korunur) */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.slice(0, 3).map((c, i) => (
-                <CategoryTile key={c.slug} name={c.name} imageUrl={categoryImageFor(c.slug, i)} onClick={() => selectCategory(c.slug)} />
+              {categories.slice(0, 3).map((c) => (
+                <CategoryTile key={c.slug} name={c.name} imageUrl={c.image_url} onClick={() => selectCategory(c.slug)} />
               ))}
             </div>
 
@@ -110,7 +111,7 @@ export default function MagazaStorefront({
                     <CategoryChip
                       key={c.slug}
                       name={c.name}
-                      imageUrl={categoryImageForStrict(c.slug)}
+                      imageUrl={c.image_url}
                       active={category === c.slug}
                       onClick={() => selectCategory(c.slug)}
                     />
