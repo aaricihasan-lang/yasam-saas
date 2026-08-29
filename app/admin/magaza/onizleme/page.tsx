@@ -13,8 +13,7 @@ import MagazaStorefront from "@/app/magaza/MagazaStorefront";
 import { previewApi, type StorefrontPreview } from "../magazaAdminApi";
 import { buildWhatsappLink } from "@/lib/store/whatsapp";
 import { STORE_BRAND_NAME } from "@/lib/store/types";
-
-export const HREF_BASE = "/admin/magaza/onizleme";
+import { HREF_BASE } from "./hrefBase";
 
 function PreviewNotice({ title, desc }: { title: string; desc?: string }) {
   return (
