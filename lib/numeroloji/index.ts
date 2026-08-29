@@ -12,3 +12,4 @@ export * from "./zirveYillari";
 export * from "./mucadeleYillari";
 export * from "./harflerinYankilanisi";
 export * from "./numerolojiMotor";
+export * from "./relationship";

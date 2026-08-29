@@ -1,4 +1,4 @@
-import { parseBirthDate, reduce1To9, sumDigits } from "./ortak";
+import { parseBirthDate, reduce1To9, reduceToDigit, sumDigits } from "./ortak";
 
 export type Zirve = {
   index: number;
@@ -11,9 +11,27 @@ export type ZirveResult = {
   gSade: number;
   aSade: number;
   ySade: number;
+  /** Hayat Yolu kök sayısı (1–9). Zirve yaşları bu değerden türetilir. */
+  hayatYoluRoot: number;
   peaks: Zirve[];
 };
 
+/**
+ * Zirve (Pinnacle) yılları.
+ *
+ * CANONICAL (Hasan Hoca eğitim notu):
+ *   Konu (çakra) formülleri:
+ *     P1 = ay(sade) + gün(sade)
+ *     P2 = gün(sade) + yıl(sade)
+ *     P3 = P1 konu + P2 konu
+ *     P4 = ay(sade) + yıl(sade)
+ *   Yaş formülleri:
+ *     1. zirve yaşı = 36 − Hayat Yolu kök sayısı
+ *     sonraki zirveler: +9, +9, +9
+ *
+ * NOT: Yaş çıpası Hayat Yolu köküdür (ay+gün DEĞİL). Bu, FAZ 1 forensic'te
+ * tespit edilen kanıtlı hatanın (36 − (aySade+günSade)) düzeltmesidir.
+ */
 export function calcZirveYillari(birthDate: string): ZirveResult | null {
   const parts = parseBirthDate(birthDate);
   if (!parts) return null;
@@ -22,9 +40,13 @@ export function calcZirveYillari(birthDate: string): ZirveResult | null {
   const aSade = reduce1To9(sumDigits(parts.month));
   const ySade = reduce1To9(sumDigits(parts.year));
 
+  // Hayat Yolu kök sayısı: doğum tarihindeki tüm rakamların tam sadeleşmesi (1–9).
+  const hayatYoluTotal = sumDigits(parts.day) + sumDigits(parts.month) + sumDigits(parts.year);
+  const hayatYoluRoot = reduceToDigit(hayatYoluTotal);
+
   const p1Raw = aSade + gSade;
   const p1Topic = p1Raw === 11 ? 2 : reduce1To9(p1Raw);
-  const p1Age = 36 - p1Raw;
+  const p1Age = 36 - hayatYoluRoot;
 
   const p2Raw = gSade + ySade;
   const p2Topic = reduce1To9(p2Raw);
@@ -42,6 +64,7 @@ export function calcZirveYillari(birthDate: string): ZirveResult | null {
     gSade,
     aSade,
     ySade,
+    hayatYoluRoot,
     peaks: [
       { index: 1, topicRaw: p1Raw, topic: p1Topic, age: p1Age },
       { index: 2, topicRaw: p2Raw, topic: p2Topic, age: p2Age },
@@ -55,17 +78,17 @@ export function formatlaZirveYillari(birthDate: string): string {
   const info = calcZirveYillari(birthDate);
   if (!info) return ["=== ZİRVE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "HATA: Doğum tarihi 'gg.aa.yyyy' formatında olmalıdır."].join("\n");
 
-  const { gSade: g, aSade: a, ySade: y, peaks } = info;
+  const { gSade: g, aSade: a, ySade: y, hayatYoluRoot: root, peaks } = info;
   const [p1, p2, p3, p4] = peaks;
   const lines: string[] = [];
 
-  lines.push("=== ZİRVE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "Doğum tarihinin sadeleşmiş hali (gün / ay / yıl):", `  Gün : ${g}`, `  Ay  : ${a}`, `  Yıl : ${y}`, "");
+  lines.push("=== ZİRVE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "Doğum tarihinin sadeleşmiş hali (gün / ay / yıl):", `  Gün : ${g}`, `  Ay  : ${a}`, `  Yıl : ${y}`, `  Hayat Yolu kök sayısı: ${root}`, "");
 
   lines.push("1. ZİRVE YILI");
   lines.push(`  Ay (sade) + Gün (sade): ${a} + ${g} = ${p1.topicRaw}`);
-  if (p1.topicRaw === 11) lines.push("  Not: 11 çıktığı için yaş hesabında 36 - 11 kullanılacak, yorumda ise 2. çakra olarak değerlendirilir.");
+  if (p1.topicRaw === 11) lines.push("  Not: 11 çıktığı için yorumda 2. çakra olarak değerlendirilir.");
   lines.push(`  Konu sayısı (çakra): ${p1.topic}  → ${p1.topic}. çakra`);
-  lines.push(`  Yaş: 36 - ${p1.topicRaw} = ${p1.age} yaş`, "");
+  lines.push(`  Yaş: 36 - Hayat Yolu (${root}) = ${p1.age} yaş`, "");
 
   lines.push("2. ZİRVE YILI");
   lines.push(`  Gün (sade) + Yıl (sade): ${g} + ${y} = ${p2.topicRaw}`);

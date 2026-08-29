@@ -112,20 +112,10 @@ function formatZirveOzet(out: NumerolojiMotorOut): string {
 
 function formatMucadeleOzet(out: NumerolojiMotorOut): string {
   const m = out.mucadeleYillari;
-  if (!m) return "—";
+  if (!m?.method1?.length) return "—";
   const lines: string[] = [];
-  if (m.method1?.length) {
-    lines.push("1. yöntem (36 yıl arayla):");
-    for (const p of m.method1) {
-      lines.push(`  ${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
-    }
-  }
-  if (m.method2?.length) {
-    if (lines.length) lines.push("");
-    lines.push("2. yöntem (9 yıl arayla):");
-    for (const p of m.method2) {
-      lines.push(`  ${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
-    }
+  for (const p of m.method1) {
+    lines.push(`${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
   }
   return lines.join("\n").trim() || "—";
 }
