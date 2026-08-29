@@ -8,8 +8,13 @@ import { KupaShell, kupaCard, kupaBtnPrimary } from "./components/KupaShell";
  *
  * HİYERARŞİ (FAZ 3B): eşit-ağırlıklı 6 kart DEĞİL. Üç katman:
  *   1) PRIMARY HERO  → Hacamat Protokolleri (günlük çalışma alanı; dominant)
- *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (5 kart)
+ *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (2 kart:
+ *        Hacamat Noktaları + Kupa Teknikleri)
  *   3) MEVCUT REHBER → Amaç / Rahatsızlık Rehberi (legacy; korunur ama subordinate)
+ *
+ * Güvenlik, Kaynaklar ve Bilgi & Eğitim standalone ekranları/altyapısı KORUNUR
+ * (route + API + DB aynen yaşar) ama günlük landing navigasyonunda GÖRÜNMEZ;
+ * uzman bunları protokolün içinden oluşturup bağlar. Yalnız landing hiyerarşisi.
  *
  * Copy kullanıcı dilinde (DB/mimari jargonu YOK). İçerik/route DEĞİŞMEZ; yalnız
  * landing navigation hiyerarşisi. Yeni fetch/API/sayaç YOK — statik navigasyon.
@@ -30,24 +35,6 @@ const SUPPORT: Area[] = [
     desc: "Kuru, yaş ve farklı uygulama tekniklerini yönetin.",
     icon: "🌀",
     href: "/kupa/teknikler",
-  },
-  {
-    title: "Güvenlik & Kontrendikasyonlar",
-    desc: "Uygulama öncesi dikkat ve güvenlik kayıtlarını yönetin.",
-    icon: "⚠️",
-    href: "/kupa/guvenlik",
-  },
-  {
-    title: "Kaynaklar",
-    desc: "Kitap, eğitmen, eğitim veya kendi kaynak kayıtlarınızı yönetin.",
-    icon: "📖",
-    href: "/kupa/kaynaklar",
-  },
-  {
-    title: "Bilgi & Eğitim",
-    desc: "Uzun bilgi ve eğitim kayıtlarınızı saklayın ve düzenleyin.",
-    icon: "📚",
-    href: "/kupa/bilgi-kutuphanesi",
   },
 ];
 
@@ -87,7 +74,7 @@ export default function KupaLandingPage() {
 
       {/* ── 2) DESTEK KÜTÜPHANELERİ ─────────────────────────────────────────────── */}
       <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Destek Kütüphaneleri</h2>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {SUPPORT.map((a) => (
           <Link
             key={a.href}
