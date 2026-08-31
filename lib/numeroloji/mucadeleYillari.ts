@@ -10,10 +10,40 @@ export type MucadeleResult = {
   gSade: number;
   aSade: number;
   ySade: number;
+  /**
+   * Tek canonical mücadele yöntemi (Hasan Hoca eğitim notu).
+   * Alan adı geriye dönük uyumluluk için `method1` olarak korunur;
+   * ARTIK ikinci bir yöntem (`method2`) YOKTUR.
+   */
   method1: MucadeleItem[];
-  method2: MucadeleItem[];
+  /**
+   * ANA MÜCADELE = |M1 − M2| (1. mücadele konusu − 2. mücadele konusu farkı).
+   * M3 (=|a−y|) DEĞİLDİR. 3. dönem yaşından (age3) yaşam sonuna kadar geçerlidir.
+   */
+  anaMucadele: number;
+  /** Ana mücadelenin başladığı yaş (3. dönem sonu). */
+  anaMucadeleBaslangicYasi: number;
 };
 
+/**
+ * Mücadele (Challenge) yılları — TEK canonical yöntem.
+ *
+ * CANONICAL (Hasan Hoca eğitim notu):
+ *   g = gün sade, a = ay sade, y = yıl sade
+ *   Konular:
+ *     M1 = |g − a|
+ *     M2 = |g − y|
+ *     M3 = |a − y|
+ *   Dönem yaşları:
+ *     age1 = 36 − M1
+ *     age2 = age1 + 27
+ *     age3 = age2 + 27
+ *
+ * FAZ 1 forensic'te tespit edilen kanıtlı hataların düzeltmesi:
+ *   - KALDIRILDI: +36 / +36 dönem artışı (yanlış)
+ *   - KALDIRILDI: "2. yöntem" (27 taban, +9 / +9)
+ *   - KALDIRILDI: M3 = |M1 − M2| (yerine canonical M3 = |a − y|)
+ */
 export function calcMucadeleYillari(birthDate: string): MucadeleResult | null {
   const parts = parseBirthDate(birthDate);
   if (!parts) return null;
@@ -22,34 +52,28 @@ export function calcMucadeleYillari(birthDate: string): MucadeleResult | null {
   const aSade = reduce1To9(sumDigits(parts.month));
   const ySade = reduce1To9(sumDigits(parts.year));
 
-  const c1 = Math.abs(aSade - gSade);
-  const age1 = 36 - c1;
-  const c2 = Math.abs(gSade - ySade);
-  const age2 = age1 + 36;
-  const c3 = Math.abs(c1 - c2);
-  const age3 = age2 + 36;
+  const m1 = Math.abs(gSade - aSade);
+  const m2 = Math.abs(gSade - ySade);
+  const m3 = Math.abs(aSade - ySade);
 
-  const c1b = Math.abs(aSade - gSade);
-  const age1b = 27 - c1b;
-  const c2b = Math.abs(gSade - ySade);
-  const age2b = age1b + 9;
-  const c3b = Math.abs(c1b - c2b);
-  const age3b = age2b + 9;
+  const age1 = 36 - m1;
+  const age2 = age1 + 27;
+  const age3 = age2 + 27;
+
+  // ANA MÜCADELE: 1. ve 2. mücadele konularının farkı (M3 DEĞİL).
+  const anaMucadele = Math.abs(m1 - m2);
 
   return {
     gSade,
     aSade,
     ySade,
     method1: [
-      { index: 1, topic: c1, age: age1 },
-      { index: 2, topic: c2, age: age2 },
-      { index: 3, topic: c3, age: age3 },
+      { index: 1, topic: m1, age: age1 },
+      { index: 2, topic: m2, age: age2 },
+      { index: 3, topic: m3, age: age3 },
     ],
-    method2: [
-      { index: 1, topic: c1b, age: age1b },
-      { index: 2, topic: c2b, age: age2b },
-      { index: 3, topic: c3b, age: age3b },
-    ],
+    anaMucadele,
+    anaMucadeleBaslangicYasi: age3,
   };
 }
 
@@ -59,52 +83,51 @@ function topicLine(topic: number): string {
 
 export function formatlaMucadeleYili(birthDate: string): string {
   const info = calcMucadeleYillari(birthDate);
-  if (!info) return ["=== MÜCADELE YILI / MÜCADELE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "HATA: Doğum tarihi 'gg.aa.yyyy' formatında olmalıdır."].join("\n");
+  if (!info) return ["=== MÜCADELE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "HATA: Doğum tarihi 'gg.aa.yyyy' formatında olmalıdır."].join("\n");
 
-  const { gSade: g, aSade: a, ySade: y, method1: m1, method2: m2 } = info;
-  const [p1, p2, p3] = m1;
-  const [q1, q2, q3] = m2;
+  const { gSade: g, aSade: a, ySade: y, method1: m, anaMucadele, anaMucadeleBaslangicYasi } = info;
+  const [p1, p2, p3] = m;
   const lines: string[] = [];
 
-  lines.push("=== MÜCADELE YILI / MÜCADELE YILLARI ===", `Doğum Tarihi: ${birthDate}`, "", "Doğum tarihinin sadeleşmiş hali (gün / ay / yıl):", `  Gün : ${g}`, `  Ay  : ${a}`, `  Yıl : ${y}`, "", "Notlar:", "  • Numerolojide 36 sayısı sabit alınır.", "  • Mücadele yılları 3 kez ortaya çıkar.", "  • Konu 0 çıkarsa, kişi yönsüzlük ve kararsızlık temalı bir mücadele yaşar.", "");
+  lines.push(
+    "=== MÜCADELE YILLARI ===",
+    `Doğum Tarihi: ${birthDate}`,
+    "",
+    "Doğum tarihinin sadeleşmiş hali (gün / ay / yıl):",
+    `  Gün : ${g}`,
+    `  Ay  : ${a}`,
+    `  Yıl : ${y}`,
+    "",
+    "Notlar:",
+    "  • 36 sayısı sabit alınır; dönemler 27 yıl arayla ilerler.",
+    "  • Mücadele 3 kez ortaya çıkar.",
+    "  • Konu 0 çıkarsa, kişi yönsüzlük ve kararsızlık temalı bir mücadele yaşar.",
+    "",
+  );
 
-  lines.push("1. HESAPLAMA ŞEKLİ (36 sabiti, 36'şar yıl arayla)", "");
-  lines.push("1. Mücadele Yılı (1. yöntem)");
-  lines.push("  İlk mücadele konusu için: Ay (sade) - Gün (sade)");
-  lines.push(`    ${a} - ${g} = ${Math.abs(a - g)}  (eksi işaret yok, mutlak değer alınır)`);
+  lines.push("1. Mücadele Yılı");
+  lines.push("  Konu için: |Gün (sade) - Ay (sade)|");
+  lines.push(`    |${g} - ${a}| = ${p1.topic}`);
   lines.push(`  ${topicLine(p1.topic)}`);
   lines.push(`  Yaş: 36 - ${p1.topic} = ${p1.age} yaş`, "");
 
-  lines.push("2. Mücadele Yılı (1. yöntem)");
-  lines.push("  Konu için: Gün (sade) - Yıl (sade)");
-  lines.push(`    ${g} - ${y} = ${Math.abs(g - y)}  (eksi işaret yok, mutlak değer alınır)`);
+  lines.push("2. Mücadele Yılı");
+  lines.push("  Konu için: |Gün (sade) - Yıl (sade)|");
+  lines.push(`    |${g} - ${y}| = ${p2.topic}`);
   lines.push(`  ${topicLine(p2.topic)}`);
-  lines.push(`  Yaş: 1. mücadele yaşı + 36 = ${p1.age} + 36 = ${p2.age} yaş`, "");
+  lines.push(`  Yaş: 1. mücadele yaşı + 27 = ${p1.age} + 27 = ${p2.age} yaş`, "");
 
-  lines.push("3. Mücadele Yılı (1. yöntem)");
-  lines.push("  Konu için: 1. mücadele konusu - 2. mücadele konusu");
-  lines.push(`    ${p1.topic} - ${p2.topic} = ${Math.abs(p1.topic - p2.topic)}`);
+  lines.push("3. Mücadele Yılı");
+  lines.push("  Konu için: |Ay (sade) - Yıl (sade)|");
+  lines.push(`    |${a} - ${y}| = ${p3.topic}`);
   lines.push(`  ${topicLine(p3.topic)}`);
-  lines.push(`  Yaş: 2. mücadele yaşı + 36 = ${p2.age} + 36 = ${p3.age} yaş`, "");
+  lines.push(`  Yaş: 2. mücadele yaşı + 27 = ${p2.age} + 27 = ${p3.age} yaş`, "");
 
-  lines.push("", "2. HESAPLAMA ŞEKLİ (27 sabiti, 9'ar yıl arayla)", "");
-  lines.push("1. Mücadele Yılı (2. yöntem)");
-  lines.push("  İlk mücadele konusu yine: Ay (sade) - Gün (sade)");
-  lines.push(`    ${a} - ${g} = ${Math.abs(a - g)}  (eksi işaret yok, mutlak değer alınır)`);
-  lines.push(`  ${topicLine(q1.topic)}`);
-  lines.push(`  Yaş: 27 - ${q1.topic} = ${q1.age} yaş`, "");
-
-  lines.push("2. Mücadele Yılı (2. yöntem)");
-  lines.push("  Konu için yine: Gün (sade) - Yıl (sade)");
-  lines.push(`    ${g} - ${y} = ${Math.abs(g - y)}  (eksi işaret yok, mutlak değer alınır)`);
-  lines.push(`  ${topicLine(q2.topic)}`);
-  lines.push(`  Yaş: 1. mücadele yaşı + 9 = ${q1.age} + 9 = ${q2.age} yaş`, "");
-
-  lines.push("3. Mücadele Yılı (2. yöntem)");
-  lines.push("  Konu için: 1. mücadele konusu - 2. mücadele konusu");
-  lines.push(`    ${q1.topic} - ${q2.topic} = ${Math.abs(q1.topic - q2.topic)}`);
-  lines.push(`  ${topicLine(q3.topic)}`);
-  lines.push(`  Yaş: 2. mücadele yaşı + 9 = ${q2.age} + 9 = ${q3.age} yaş`, "");
+  lines.push("ANA MÜCADELE");
+  lines.push("  Konu için: |1. mücadele konusu - 2. mücadele konusu|");
+  lines.push(`    |${p1.topic} - ${p2.topic}| = ${anaMucadele}`);
+  lines.push(`  ${topicLine(anaMucadele)}`);
+  lines.push(`  Geçerlilik: ${anaMucadeleBaslangicYasi} yaşından yaşam sonuna kadar.`, "");
 
   return lines.join("\n");
 }

@@ -12,17 +12,19 @@ import {
   type ClientFacet,
 } from "./clientSearchResult";
 import { computeClientFacets } from "./clientSearchResult";
-import type { ClientSourceModule } from "./clientSources";
+import { clientDetailDeepLink, type ClientSourceModule } from "./clientSources";
 
 /** Tenant-wide RPC satırı (yh_search_tenant_client_candidates; client_id EK alan). */
 export interface TenantClientRpcRow extends ClientRpcRow {
   client_id: string;
 }
 
-/** Tenant-wide sonuç: per-client DTO + client_id + server-resolved ad. */
+/** Tenant-wide sonuç: per-client DTO + client_id + server-resolved ad + danışan detay deep-link. */
 export interface TenantClientSearchResult extends ClientSearchResult {
   clientId: string;
   clientName: string;
+  /** İlgili DANIŞANIN detay sayfası + modül sekmesi (generic modül ana sayfası DEĞİL). */
+  clientDeepLink: string | null;
 }
 
 export type TenantClientEmptyReason = "no-query" | "no-results" | "filtered";
@@ -68,6 +70,7 @@ export function toTenantClientSearchResult(
     ...base,
     clientId: row.client_id,
     clientName: resolved && resolved.trim().length > 0 ? resolved : CLIENT_NAME_FALLBACK,
+    clientDeepLink: clientDetailDeepLink(row.client_id, base.module),
   };
 }
 

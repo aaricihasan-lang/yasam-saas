@@ -11,6 +11,9 @@ import {
   validateAllClientSources,
   clientModuleLabel,
   clientSourceLinkFor,
+  clientDetailDeepLink,
+  clientResultDisplayTitle,
+  CLIENT_MODULE_DETAIL_TAB,
   isClientSourceModule,
   type ClientSourceConfig,
 } from "@/lib/yasam-hafizasi/client/clientSources";
@@ -20,8 +23,16 @@ import {
   computeClientFacets,
   filterClientByModules,
   toClientSearchResult,
+  humanizeClientText,
   type ClientRpcRow,
 } from "@/lib/yasam-hafizasi/client/clientSearchResult";
+import { toTenantClientSearchResult, type TenantClientRpcRow } from "@/lib/yasam-hafizasi/client/tenantClientSearchResult";
+import {
+  CLIENT_DETAIL_TABS,
+  DEFAULT_CLIENT_DETAIL_TAB,
+  resolveClientDetailTab,
+  isClientDetailTab,
+} from "@/lib/danisan/clientDetailTabs";
 import { runClientRetrieval, type ClientRpcDb } from "@/lib/yasam-hafizasi/client/clientRetrieval";
 import { buildReportSnapshot } from "@/lib/yasam-hafizasi/client/snapshotBuilder";
 
@@ -139,6 +150,104 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   add("facets", computeClientFacets(results).length === 2, "");
   add("filter", filterClientByModules(results, ["danisan_seans"]).length === 1, "");
   add("moduleLabel+isModule", clientModuleLabel("randevu") === "Randevu" && isClientSourceModule("human_design") && !isClientSourceModule("x") && clientSourceLinkFor("zzz") === null, "");
+}
+
+// ── UX POLISH: legacy JSON normalization + fallback title + client deep-link ──
+{
+  const CLIENT_ID = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+  const LEGACY = '[{"id":"legacy","content":"kulak çınlaması, tansiyon ve daha önce tedavi süreci tamamlanmış vertigo.","createdAt":"","updatedAt":"2026-08-24T08:54:08.249Z"}]';
+
+  // 1) legacy JSON → yalnız content görünür (ham JSON/teknik metadata YOK).
+  const h = humanizeClientText(LEGACY);
+  add("humanize-legacy-content-only", h === "kulak çınlaması, tansiyon ve daha önce tedavi süreci tamamlanmış vertigo.", h);
+  add("humanize-no-json-syntax", !h.includes("{") && !h.includes("[") && !h.includes("\":\""), h);
+  add("humanize-no-internal-metadata", !h.includes("legacy") && !h.includes("createdAt") && !h.includes("updatedAt") && !h.includes("2026-08-24T08:54:08"), h);
+
+  // 2) plain-text → değişmeden korunur.
+  add("humanize-plaintext-unchanged", humanizeClientText("kulak çınlaması ve tansiyon") === "kulak çınlaması ve tansiyon", "");
+  // JSON-benzeri olmayan köşeli-parantez içeren düz metin bozulmaz (parse edilmez).
+  add("humanize-bracketish-plaintext", humanizeClientText("[önemli] tansiyon takibi") === "[önemli] tansiyon takibi", "");
+
+  // 3) malformed JSON → crash yok, düz metin fallback.
+  add("humanize-malformed-fallback", humanizeClientText('[{"content": "yarim') === '[{"content": "yarim', "");
+  // valid JSON ama content yok → ham JSON dump YOK (boş).
+  add("humanize-no-content-no-dump", humanizeClientText('[{"id":"x","note":"gizli"}]') === "", "");
+  // string dizisi → birleşик.
+  add("humanize-string-array", humanizeClientText('["a","b"]') === "a\nb", "");
+  // empty/whitespace korunur (fallback null katmanı UI'da).
+  add("humanize-empty", humanizeClientText("") === "", "");
+
+  // 4) DTO: legacy JSON evidence/snippet/title humanize edilir; internal metadata sızmaz.
+  const legacyRow: ClientRpcRow = {
+    id: SID, source_module: "danisan_not", source_table: "client_notes", source_id: SID,
+    unit_type: "record", title: null, snippet: LEGACY,
+    evidence_fields: [{ kind: "paragraph", text: LEGACY }, { kind: "paragraph", text: "düz sağlık notu" }],
+    topic_tags: [], expert_relations: [], occurred_at: null, source_updated_at: null,
+  };
+  const legacyDto = toClientSearchResult(legacyRow);
+  add("dto-legacy-evidence-humanized", legacyDto !== null && legacyDto.evidence.some((e) => e.text.includes("vertigo")) && !JSON.stringify(legacyDto.evidence).includes("createdAt"), "");
+  add("dto-legacy-snippet-humanized", legacyDto?.snippet === "kulak çınlaması, tansiyon ve daha önce tedavi süreci tamamlanmış vertigo.", legacyDto?.snippet ?? "null");
+  // Ham JSON sözdizimi + iç metadata DEĞERLERİ sızmamalı (DTO'nun kendi updatedAt ALANI meşru; onu arama).
+  add("dto-legacy-no-raw-json-anywhere", legacyDto !== null && !JSON.stringify(legacyDto).includes("\\\"id\\\":\\\"legacy\\\"") && !JSON.stringify(legacyDto).includes("2026-08-24T08:54:08"), "");
+  add("dto-legacy-plain-evidence-kept", legacyDto !== null && legacyDto.evidence.some((e) => e.text === "düz sağlık notu"), "");
+
+  // 5+6) fallback title contract (gerçek title KORUNUR; yoksa modül-tipi fallback).
+  add("title-fallback-not", clientResultDisplayTitle("danisan_not", null) === "Danışan Notu", "");
+  add("title-fallback-seans", clientResultDisplayTitle("danisan_seans", null) === "Danışan Seansı", "");
+  add("title-fallback-odev", clientResultDisplayTitle("danisan_odev", null) === "Danışan Ödevi", "");
+  add("title-fallback-randevu", clientResultDisplayTitle("randevu", null) === "Randevu", "");
+  add("title-fallback-tas", clientResultDisplayTitle("danisan_tas", null) === "Danışan Taşı", "");
+  add("title-fallback-kombinasyon", clientResultDisplayTitle("danisan_kombinasyon", null) === "Taş Kombinasyonu", "");
+  add("title-real-preserved", clientResultDisplayTitle("danisan_not", "Gerçek Başlık") === "Gerçek Başlık", "");
+  add("title-empty-uses-fallback", clientResultDisplayTitle("danisan_not", "   ") === "Danışan Notu", "");
+  add("title-unknown-module-generic", clientResultDisplayTitle("zzz", null) === "Danışan Kaydı", "");
+
+  // 7+8+9) deep-link: ilgili DANIŞAN + modül sekmesi (generic modül ana sayfası DEĞİL).
+  add("deeplink-not-tab", clientDetailDeepLink(CLIENT_ID, "danisan_not") === `/dashboard/clients/${CLIENT_ID}?tab=notlar`, "");
+  add("deeplink-seans-tab", clientDetailDeepLink(CLIENT_ID, "danisan_seans") === `/dashboard/clients/${CLIENT_ID}?tab=seanslar`, "");
+  add("deeplink-odev-tab", clientDetailDeepLink(CLIENT_ID, "danisan_odev") === `/dashboard/clients/${CLIENT_ID}?tab=odevler`, "");
+  add("deeplink-randevu-tab", clientDetailDeepLink(CLIENT_ID, "randevu") === `/dashboard/clients/${CLIENT_ID}?tab=randevular`, "");
+  add("deeplink-tas-tab", clientDetailDeepLink(CLIENT_ID, "danisan_tas") === `/dashboard/clients/${CLIENT_ID}?tab=taslar`, "");
+  add("deeplink-kombinasyon-tab", clientDetailDeepLink(CLIENT_ID, "danisan_kombinasyon") === `/dashboard/clients/${CLIENT_ID}?tab=taslar`, "");
+  // Tüm modül deep-link sekmeleri page.tsx allowlist'inde (CLIENT_DETAIL_TABS) mevcut.
+  add("deeplink-all-modules-valid-tab", Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => isClientDetailTab(t)), "");
+  add("deeplink-not-generic-module-home", clientDetailDeepLink(CLIENT_ID, "danisan_not") !== "/danisan-yolculugu", "");
+
+  // 10) foreign/invalid client id → null (fail-closed; generic route'a DÜŞMEZ).
+  add("deeplink-bad-uuid-null", clientDetailDeepLink("not-a-uuid", "danisan_not") === null, "");
+  add("deeplink-empty-uuid-null", clientDetailDeepLink("", "danisan_not") === null, "");
+
+  // tenant-wide DTO: clientDeepLink alanı doğru danışana bağlanır + humanize korunur.
+  const tRow: TenantClientRpcRow = { ...legacyRow, client_id: CLIENT_ID };
+  const tDto = toTenantClientSearchResult(tRow, new Map([[CLIENT_ID, "hasan arıcı"]]));
+  add("tenant-dto-deeplink", tDto?.clientDeepLink === `/dashboard/clients/${CLIENT_ID}?tab=notlar`, tDto?.clientDeepLink ?? "null");
+  add("tenant-dto-name-resolved", tDto?.clientName === "hasan arıcı", tDto?.clientName ?? "null");
+  add("tenant-dto-humanized-evidence", tDto !== null && tDto.evidence.some((e) => e.text.includes("vertigo")) && !JSON.stringify(tDto).includes("createdAt"), "");
+  // bad client_id satırı DTO'dan elenir (fail-closed).
+  add("tenant-dto-bad-client-null", toTenantClientSearchResult({ ...legacyRow, client_id: "bad" }, new Map()) === null, "");
+
+  // ── URL ?tab= → aktif sekme çözümleme (SSR-güvenli; deep-link UAT FAIL fix) ──
+  // Deep-link ile gelen sekme doğru açılmalı; bilinmeyen/boş → varsayılan (genel).
+  add("tab-notlar", resolveClientDetailTab("notlar") === "notlar", "");
+  add("tab-seanslar", resolveClientDetailTab("seanslar") === "seanslar", "");
+  add("tab-odevler", resolveClientDetailTab("odevler") === "odevler", "");
+  add("tab-randevular", resolveClientDetailTab("randevular") === "randevular", "");
+  add("tab-taslar", resolveClientDetailTab("taslar") === "taslar", "");
+  add("tab-hafiza", resolveClientDetailTab("hafiza") === "hafiza", "");
+  add("tab-no-query-default-genel", resolveClientDetailTab(null) === "genel" && resolveClientDetailTab(undefined) === "genel", "");
+  add("tab-empty-default-genel", resolveClientDetailTab("") === "genel", "");
+  add("tab-invalid-default-genel", resolveClientDetailTab("foobar") === "genel" && resolveClientDetailTab("GENEL") === "genel", "");
+  add("tab-default-const", DEFAULT_CLIENT_DETAIL_TAB === "genel", "");
+  // Deep-link modül sekmeleri ile page allowlist BİREBİR (cross-consistency).
+  add("tab-deeplink-values-subset-of-allowlist", Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => CLIENT_DETAIL_TABS.includes(t as (typeof CLIENT_DETAIL_TABS)[number])), "");
+
+  // page.tsx SSR-güvenli deep-link tab wiring (statik): useSearchParams + resolveClientDetailTab
+  //   + Suspense sarmalayıcı (build "Missing Suspense boundary" kuralı) + eski window.location YOK.
+  const page = readFileSync(join(process.cwd(), "app/dashboard/clients/[id]/page.tsx"), "utf8");
+  add("page-uses-usesearchparams", /useSearchParams\(\)/.test(page) && /from "next\/navigation"/.test(page), "");
+  add("page-inits-tab-from-searchparams", /resolveClientDetailTab\(searchParams\.get\("tab"\)\)/.test(page), "");
+  add("page-suspense-wrapper", /<Suspense fallback=/.test(page) && /<ClientDetailPageInner \/>/.test(page), "");
+  add("page-no-window-location-tab", !/window\.location\.search/.test(page), "");
 }
 
 // ── retrieval adapter (unavailable/error/rows + client scope passed) ──

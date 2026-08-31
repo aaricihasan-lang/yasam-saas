@@ -20,7 +20,8 @@ import {
   getPublishedEntityDetail,
   listPublishedGroup,
 } from "@/lib/human-design/knowledge/canonicalReadService";
-import { listEvidence } from "@/lib/human-design/admin/centralContentPersistence";
+import { listCanonical, listEvidence } from "@/lib/human-design/admin/centralContentPersistence";
+import { badgeForContentStatus } from "@/lib/human-design/admin/hdContentBadge";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -230,7 +231,10 @@ async function main(): Promise<void> {
   console.log("\nC. Statik güvenlik değişmezleri");
 
   const routeSrc = stripComments(read("app/api/hd/bilgi-bankasi/route.ts"));
-  ok("C1 expert API: requireModuleAccess(human_design)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(routeSrc));
+  // Admin knowledge isolation: merkezî canonical Bilgi Bankası ADMIN/OWNER'a özeldir.
+  // HD modülü uzmanlara açık olsa da bu route yalnız role==='admin' için servis eder.
+  ok("C1 canonical API: requireAdminUserRequest (admin-only, module gate DEĞİL)",
+    /requireAdminUserRequest\(\s*req\s*\)/.test(routeSrc) && !/requireModuleAccess\(/.test(routeSrc));
   ok("C2 expert API: GET export var", /export async function GET/.test(routeSrc));
   ok("C3 expert API: MUTATION yok (POST/PUT/PATCH/DELETE export YOK)", !/export async function (POST|PUT|PATCH|DELETE)/.test(routeSrc));
   ok("C4 expert API: no-store", /no-store/i.test(routeSrc));
@@ -311,6 +315,51 @@ async function main(): Promise<void> {
   ok("D12 editor: useEffect ile hydrate", /useEffect/.test(edSrc));
   ok("D13 editor: yazma sonrası DB reload (await load)", /await load\(\)/.test(edSrc));
   ok("D14 editor: browser'da service_role yok", !/supabase-server|getServerDb|service_role/i.test(edSrc));
+
+  // ── E. Liste badge source-of-truth (content.status, entity.status DEĞİL) ──
+  console.log("\nE. Liste badge: hd_canonical_content.status source-of-truth");
+
+  // E-behavioral: listCanonical entity.status'u KORUR ve content_status ekler.
+  {
+    const db = makeDb({
+      hd_canonical_entities: [
+        // Üçünün de entity.status="draft" (prod gerçeği: 112/112 entity 'draft').
+        { id: "e-pub", entity_kind: "tip", canonical_key: "tip_pub", name_tr: "Yayınlı", name_original: null, status: "draft", version: 1, created_at: "t", updated_at: "t" },
+        { id: "e-drf", entity_kind: "tip", canonical_key: "tip_drf", name_tr: "Taslak", name_original: null, status: "draft", version: 1, created_at: "t", updated_at: "t" },
+        { id: "e-none", entity_kind: "tip", canonical_key: "tip_none", name_tr: "İçeriksiz", name_original: null, status: "draft", version: 1, created_at: "t", updated_at: "t" },
+      ],
+      hd_canonical_content: [
+        { entity_id: "e-pub", entity_kind: "tip", status: "published" },
+        { entity_id: "e-drf", entity_kind: "tip", status: "draft" },
+        // e-none: içerik satırı YOK.
+      ],
+    });
+    const r = await listCanonical(db, "tip");
+    ok("E1 listCanonical ok", r.ok === true);
+    const byId = r.ok ? new Map(r.data.map((row) => [row.id, row])) : new Map();
+    ok("E2 published içerik → content_status='published'", byId.get("e-pub")?.content_status === "published");
+    ok("E3 draft içerik → content_status='draft'", byId.get("e-drf")?.content_status === "draft");
+    ok("E4 içerik yok → content_status=null", byId.get("e-none")?.content_status === null);
+    // entity.status ASLA overwrite edilmez (content 'published' olsa bile entity 'draft' kalır).
+    ok("E5 entity.status KORUNUR (published içerikte bile 'draft')", byId.get("e-pub")?.status === "draft");
+    ok("E6 entity.status ile content_status AYRI eksen", byId.get("e-pub")?.status === "draft" && byId.get("e-pub")?.content_status === "published");
+  }
+
+  // E-mapping: badgeForContentStatus TEK kaynaklı eşleme.
+  ok("E7 published → Yayınlandı / published", (() => { const b = badgeForContentStatus("published"); return b.label === "Yayınlandı" && b.tone === "published"; })());
+  ok("E8 draft → Taslak / draft", (() => { const b = badgeForContentStatus("draft"); return b.label === "Taslak" && b.tone === "draft"; })());
+  ok("E9 null → İçerik Yok / neutral (published DEĞİL)", (() => { const b = badgeForContentStatus(null); return b.label === "İçerik Yok" && b.tone === "neutral"; })());
+
+  // E-static: her iki liste ekranı da badge için row.status KULLANMAZ, row.content_status kullanır.
+  const listPages = [
+    "app/human-design/bilgi-bankasi/page.tsx",
+    "app/admin/human-design/page.tsx",
+  ];
+  for (const f of listPages) {
+    const s = stripComments(read(f));
+    ok(`E10 ${f}: badge için row.status === 'published' KULLANMAZ`, !/row\.status\s*===\s*["']published["']/.test(s));
+    ok(`E11 ${f}: badgeForContentStatus(row.content_status) kullanır`, /badgeForContentStatus\(\s*row\.content_status\s*\)/.test(s));
+  }
 
   console.log(`\nToplam: ${pass} geçti, ${fail} başarısız.`);
   if (fail > 0) process.exit(1);

@@ -7,12 +7,12 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { CanonicalGroupList, type GroupListItem } from "@/components/human-design/knowledge/CanonicalGroupList";
-import { KnowledgeLocked } from "@/components/human-design/knowledge/KnowledgeStates";
+import { KnowledgeEmpty } from "@/components/human-design/knowledge/KnowledgeStates";
 import { HdConfirmModal } from "@/app/admin/human-design/components/HdConfirmModal";
-import { fetchCanonicalGroups } from "./helpers/hdCanonicalRead";
 import { hdGet, hdSend } from "@/app/admin/human-design/adminHdApi";
 import { sortCanonicalRows } from "@/lib/human-design/admin/hdSort";
-import type { HdCanonicalEntityRow } from "@/lib/human-design/admin/centralContentTypes";
+import { badgeForContentStatus } from "@/lib/human-design/admin/hdContentBadge";
+import type { HdCanonicalAdminListRow } from "@/lib/human-design/admin/centralContentTypes";
 import type { HdEntityKind } from "@/lib/human-design/knowledge/expertReadTypes";
 
 /**
@@ -32,7 +32,6 @@ export default function HdCanonicalBilgiBankasiPage() {
   const [items, setItems] = useState<GroupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [locked, setLocked] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [pendingBulk, setPendingBulk] = useState<string[] | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -46,33 +45,28 @@ export default function HdCanonicalBilgiBankasiPage() {
 
   const load = useCallback(
     async (k: HdEntityKind, admin: boolean) => {
+      // Admin knowledge isolation: merkezî canonical corpus ADMIN/OWNER'a özeldir.
+      // Non-admin istemci canonical'ı HİÇ ÇAĞIRMAZ (server da 403 döner) → empty-state.
+      if (!admin) {
+        setItems([]);
+        setError(null);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
-      setLocked(null);
-      if (admin) {
-        const r = await hdGet<{ rows: HdCanonicalEntityRow[] }>(`canonical?kind=${k}`);
-        if (r.ok) {
-          const sorted = sortCanonicalRows(k, r.data.rows ?? []);
-          setItems(sorted.map((row) => ({
-            id: row.id,
-            canonical_key: row.canonical_key,
-            name_tr: row.name_tr,
-            name_original: row.name_original,
-            badge: row.status === "published"
-              ? { label: "Yayınlandı", tone: "published" as const }
-              : { label: "Taslak", tone: "draft" as const },
-          })));
-        } else { setError(r.error); setItems([]); }
-      } else {
-        const r = await fetchCanonicalGroups(k);
-        if (r.ok) {
-          const sorted = sortCanonicalRows(k, r.items);
-          setItems(sorted.map((it) => ({ canonical_key: it.canonical_key, name_tr: it.name_tr, name_original: it.name_original })));
-        } else if (r.locked) {
-          setLocked("Human Design Bilgi Bankası hesabınız için henüz aktif değil. Erişim için yöneticinizle iletişime geçin.");
-          setItems([]);
-        } else { setError(r.error); setItems([]); }
-      }
+      const r = await hdGet<{ rows: HdCanonicalAdminListRow[] }>(`canonical?kind=${k}`);
+      if (r.ok) {
+        const sorted = sortCanonicalRows(k, r.data.rows ?? []);
+        setItems(sorted.map((row) => ({
+          id: row.id,
+          canonical_key: row.canonical_key,
+          name_tr: row.name_tr,
+          name_original: row.name_original,
+          // Badge source-of-truth = hd_canonical_content.status (entity.status DEĞİL).
+          badge: badgeForContentStatus(row.content_status),
+        })));
+      } else { setError(r.error); setItems([]); }
       setLoading(false);
     },
     [],
@@ -116,8 +110,11 @@ export default function HdCanonicalBilgiBankasiPage() {
       {msg && <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 ring-1 ring-slate-100">{msg}</p>}
 
       <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md sm:p-5">
-        {locked ? (
-          <KnowledgeLocked message={locked} />
+        {!isAdmin ? (
+          <KnowledgeEmpty
+            title="Bu hesap için henüz Human Design bilgi içeriği oluşturulmamış."
+            hint="Kendi Human Design bilgi içeriğinizi eklediğinizde burada listelenecektir."
+          />
         ) : (
           <CanonicalGroupList
             activeKind={kind}
@@ -126,7 +123,7 @@ export default function HdCanonicalBilgiBankasiPage() {
             loading={loading}
             error={error}
             hrefFor={(key) => `/human-design/bilgi-bankasi/canonical/${encodeURIComponent(key)}`}
-            emptyLabel={isAdmin ? "Bu türde kimlik bulunamadı." : "Henüz yayınlanmış içerik yok."}
+            emptyLabel="Bu türde kimlik bulunamadı."
             selectable={isAdmin && !isDemo}
             onBulkDelete={(ids) => setPendingBulk(ids)}
             bulkBusy={bulkBusy}

@@ -91,7 +91,8 @@
       "yasam_hafizasi": { "title": "Yaşam Hafızası", "desc": "Modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın", "badge": "Modül" },
       "stones": { "title": "Doğaltaş", "desc": "Taş, mineral ve danışan eşleştirmeleri", "badge": "Modül", "stat": "{n} taş kayıtlı" },
       "stok": { "title": "Ürün & Stok Merkezi", "desc": "Tüm ürünler, stok, satış ve fiyatlandırma merkezi", "badge": "Modül", "stat": "{n} ürün" },
-      "energy_body": { "title": "Enerji & Beden", "desc": "Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa & Hacamat çalışma alanları", "badge": "Modül" },
+      "energy_body": { "title": "Enerji & Beden", "desc": "Biyoenerji, Refleksoloji ve Kupa & Hacamat çalışma alanları", "badge": "Modül" },
+      "sifa_rehberi": { "title": "Doğal Destek & Rehber", "desc": "Doğal destek yöntemleri ve profesyonel başvuru kaynakları: Aromaterapi ve Şifa Rehberi", "badge": "Modül" },
       "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Belgeler, videolar, ders notları ve kişisel arşiv yönetimi", "badge": "Merkez", "stat": "{n} içerik" },
       "numerology": { "title": "Yaşam Analiz Merkezi", "desc": "Numeroloji ve Human Design analiz araçları", "badge": "Merkez", "stat": "{n} analiz" },
       "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" }

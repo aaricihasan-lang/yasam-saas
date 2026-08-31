@@ -1058,10 +1058,10 @@ function StoneDetailPage() {
   );
 
   // F-016: bu taşın görsel file_path'leri için batch signed URL (private-read, N+1'siz).
-  // Rules of Hooks: hook'lar aşağıdaki erken return'lerden (loading / hata / !safeStone)
-  // ÖNCE çağrılmalı — aksi halde başarılı yüklemede "Rendered more hooks…" ile sayfa çöker.
-  // Path listesi memoization gerektirmez: useSignedStoneImageUrls stabil string "key" ile
-  // senkronize olur (dizi kimliği önemsiz). safeStone null iken güvenli boş liste.
+  // React #310 / Rules of Hooks: hook'lar aşağıdaki erken return'lerden (loading / hata /
+  // !safeStone) ÖNCE çağrılmalı — aksi halde başarılı yüklemede "Rendered more hooks…" ile
+  // sayfa çöker. Path listesi memoization gerektirmez: useSignedStoneImageUrls stabil string
+  // "key" ile senkronize olur (dizi kimliği önemsiz). safeStone null iken güvenli boş liste.
   const imageFilePaths = (
     safeStone && Array.isArray(safeStone.images)
       ? safeStone.images.map((im) => imageFilePath(im)).filter(Boolean)

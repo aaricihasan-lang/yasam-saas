@@ -19,6 +19,7 @@ export function KupaShell({
   breadcrumb,
   actions,
   children,
+  fullBleedBelowLg = false,
 }: {
   title: string;
   subtitle?: string;
@@ -26,7 +27,18 @@ export function KupaShell({
   breadcrumb?: { label: string; href?: string }[];
   actions?: ReactNode;
   children: ReactNode;
+  /**
+   * Opt-in GERÇEK edge-to-edge davranışı (<1024px). true iken:
+   *   - dış yatay padding = 0 (kart/ana yüzey viewport kenarına DEĞER, negatif-margin hack YOK)
+   *   - başlık/breadcrumb metni yine px-4/sm:px-6 nefes payı korur (yalnız beyaz yüzey kenara yaslanır)
+   *   - >=1024px: mevcut premium (max-w-[1600px] + lg:px-8) aynen geri gelir.
+   * Default false → diğer /kupa/** sayfaları DEĞİŞMEZ.
+   */
+  fullBleedBelowLg?: boolean;
 }) {
+  // fullBleed: children full-bleed (px-0) below lg; header/breadcrumb keep reading gutter.
+  const containerPad = fullBleedBelowLg ? "px-0 lg:px-8" : "px-4 sm:px-6 lg:px-8";
+  const readingGutter = fullBleedBelowLg ? "px-4 sm:px-6 lg:px-0" : "";
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#faf6f0] text-slate-800">
       {/* Yumuşak sıcak dekor blob'ları (sadece atmosfer). */}
@@ -39,9 +51,9 @@ export function KupaShell({
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
+      <div className={`relative z-10 mx-auto w-full max-w-[1600px] py-3 ${containerPad}`}>
         {/* Breadcrumb */}
-        <nav className="mb-2 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500">
+        <nav className={`mb-2 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500 ${readingGutter}`}>
           <Link href="/" className="no-underline transition hover:text-amber-700">
             Ana Sayfa
           </Link>
@@ -80,7 +92,7 @@ export function KupaShell({
         </nav>
 
         {/* Header */}
-        <header className="mb-2 flex flex-wrap items-start justify-between gap-4">
+        <header className={`mb-2 flex flex-wrap items-start justify-between gap-4 ${readingGutter}`}>
           <div className="min-w-0">
             {badge ? (
               <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">
@@ -116,6 +128,17 @@ export function KupaShell({
 /** Premium kart: beyaz zemin, yumuşak amber kenarlık + ince gölge. */
 export const kupaCard =
   "rounded-2xl border border-amber-100/90 bg-white/95 p-4 shadow-[0_1px_3px_rgba(120,80,40,0.06),0_8px_24px_-16px_rgba(120,80,40,0.12)] backdrop-blur-sm";
+
+/**
+ * Edge-to-edge kart (fullBleedBelowLg shell ile birlikte): <1024px'te viewport kenarına
+ * yaslanır (köşesiz, yalnız border-y); >=1024px'te ferah, köşeli premium kart. Negatif-margin
+ * HACK'İ YOK — KupaShell zaten mobilde dış padding'i sıfırlar. /yeni + /[topicId] paylaşır.
+ */
+export const kupaEdgeCard =
+  "w-full border-y border-amber-100/90 bg-white/95 p-4 shadow-sm backdrop-blur-sm " +
+  "sm:p-5 " +
+  "lg:rounded-2xl lg:border lg:border-amber-100/90 lg:p-7 " +
+  "lg:shadow-[0_1px_3px_rgba(120,80,40,0.06),0_10px_30px_-18px_rgba(120,80,40,0.14)]";
 
 /** Amber birincil aksiyon (modül CTA: ekle/bağla/işaretle). */
 export const kupaBtnPrimary =

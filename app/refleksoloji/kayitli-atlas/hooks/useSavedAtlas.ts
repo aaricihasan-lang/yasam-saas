@@ -8,9 +8,9 @@ import {
   mergeAtlasDocuments,
   saveAtlas,
   saveOrganList,
-  unionOrganLists,
   type AtlasDocument,
 } from "@/lib/atlasStorage";
+import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
 import {
   hydrateAtlasFromServer,
   scheduleAtlasSync,
@@ -18,7 +18,9 @@ import {
 } from "@/lib/refleksolojiAtlasSync";
 import {
   deleteOrganFromStorage,
+  deleteOrphanOrganFromStorage,
   deleteRegionFromStorage,
+  listOrphanOrganList,
   renameOrganInStorage,
 } from "../lib/atlasManage";
 import { cascadeOrganRename } from "../lib/organProtocolReconcile";
@@ -28,6 +30,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 export function useSavedAtlas() {
   const { showToast } = useToast();
   const [summaries, setSummaries] = useState<OrganSummary[]>([]);
+  const [orphanOrgans, setOrphanOrgans] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -35,9 +38,13 @@ export function useSavedAtlas() {
     try {
       const atlas = loadAtlas();
       setSummaries(buildAllOrganSummaries(atlas));
+      // "Atlası Olmayan Organlar": organ listesinde olup atlas belgesinde
+      // karşılığı olmayan stale/bölgesiz organlar (ör. eski test kaydı).
+      setOrphanOrgans(listOrphanOrganList(atlas, loadOrganList()));
       setUpdatedAt(atlas._meta?.updated_at ?? null);
     } catch {
       setSummaries([]);
+      setOrphanOrgans([]);
       setUpdatedAt(null);
     }
   }, []);
@@ -59,7 +66,13 @@ export function useSavedAtlas() {
         // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
         const localDoc = loadAtlas();
         const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
-        const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
+        // Zombie fix: tombstone-farkında + kanonik organ listesi birleştirme
+        // (silinen/temizlenen organ bayat kopyadan dirilmez).
+        const mergedOrgans = mergeOrganListsWithTombstones(
+          server.organ_list,
+          loadOrganList(),
+          mergedDoc._meta,
+        );
         setAtlasSyncSuspended(true);
         saveAtlas(mergedDoc);
         saveOrganList(mergedOrgans);
@@ -99,6 +112,16 @@ export function useSavedAtlas() {
     [refresh],
   );
 
+  // Ghost/orphan organ silme: mezar taşı yazar → hydrate'te dirilmez.
+  const deleteOrphanOrgan = useCallback(
+    (organ: string) => {
+      const ok = deleteOrphanOrganFromStorage(organ);
+      if (ok) refresh();
+      return ok;
+    },
+    [refresh],
+  );
+
   const renameOrgan = useCallback(
     (oldName: string, newName: string) => {
       const result = renameOrganInStorage(oldName, newName);
@@ -132,10 +155,12 @@ export function useSavedAtlas() {
 
   return {
     summaries,
+    orphanOrgans,
     updatedAt,
     hydrated,
     refresh,
     deleteOrgan,
+    deleteOrphanOrgan,
     deleteRegion,
     renameOrgan,
   };

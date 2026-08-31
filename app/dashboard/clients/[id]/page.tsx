@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { resolveClientDetailTab } from "@/lib/danisan/clientDetailTabs";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -156,7 +157,7 @@ function normalizeSurname(value: string) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function ClientDetailPage() {
+function ClientDetailPageInner() {
   const t = useTranslations("clients.detail");
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
@@ -169,14 +170,24 @@ export default function ClientDetailPage() {
   const { showToast } = useToast();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const clientId = params.id as string;
   useBfcacheRefresh();
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
-  const [activeTab, setActiveTab] = useState("genel");
+  // Deep-link: ilk render'da ?tab= (yalnız geçerli sekme) başlangıç sekmesini belirler.
+  // useSearchParams App Router'da dinamik render sırasında SUNUCUDA da erişilebilir → sunucu
+  // ve istemci AYNI sekmeyi görür (hydration mismatch YOK). Böylece window'a bağlı eski
+  // yaklaşımın "sunucu 'genel' render eder → hydration kilitlenir" hatası ortadan kalkar.
+  // Bilinmeyen/boş ?tab= güvenli şekilde "genel"e düşer. (Sekme tıklamaları setActiveTab ile
+  // korunur; başlangıç sekmesi URL'den gelir.) Suspense sarmalayıcısı prerender build kuralını
+  // karşılar (bkz. dosya sonundaki default export).
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    resolveClientDetailTab(searchParams.get("tab")),
+  );
   // Bir kez açılan sekme DOM'da tutulur (tekrar mount → tekrar fetch olmaz).
-  const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel"]));
+  const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel", activeTab]));
   const [loading, setLoading] = useState(true);
   const [deletingClient, setDeletingClient] = useState(false);
 
@@ -947,6 +958,23 @@ export default function ClientDetailPage() {
       </div>
 
     </main>
+  );
+}
+
+// Suspense sarmalayıcı: useSearchParams kullanan client component'in prerender sırasında
+// build hatası vermemesi için ZORUNLU (Next 16 "Missing Suspense boundary with useSearchParams").
+// Fallback, sayfanın kendi loading iskeleti devralana kadar aynı gradient zemini gösterir.
+function ClientDetailFallback() {
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5" aria-busy="true" />
+  );
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense fallback={<ClientDetailFallback />}>
+      <ClientDetailPageInner />
+    </Suspense>
   );
 }
 

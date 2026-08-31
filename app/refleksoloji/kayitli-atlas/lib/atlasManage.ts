@@ -1,8 +1,10 @@
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import type { AtlasDocument, AtlasMeta, AtlasOrganEntry } from "@/lib/atlasStorage";
 import {
   footToStorageKey,
   getRegionsForOrgan,
+  listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
   removeOrganFromAtlas,
@@ -17,18 +19,23 @@ import {
 } from "@/lib/refleksoloji/atlasMerge";
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
-  return typeof value === "object" && value !== null && "taban" in value && "yan" in value;
+  if (typeof value !== "object" || value === null) return false;
+  return "taban" in value && ("yan_ic" in value || "yan_dis" in value || "yan" in value);
 }
 
 function regionsToOrganEntry(regions: Region[]): AtlasOrganEntry {
   const entry: AtlasOrganEntry = {
     taban: { sol: [], sag: [] },
-    yan: { sol: [], sag: [] },
+    yan_ic: { sol: [], sag: [] },
+    yan_dis: { sol: [], sag: [] },
   };
 
   for (const region of regions) {
     const footKey = footToStorageKey(region.footSide);
-    entry[region.view][footKey].push(regionToStored(region));
+    // region.view canonical (taban/yan_ic/yan_dis) → doğrudan bucket. "yan" YAZILMAZ.
+    const bucket = entry[region.view];
+    if (!bucket) continue;
+    bucket[footKey].push(regionToStored(region));
   }
 
   return entry;
@@ -131,4 +138,32 @@ export function deleteOrganFromStorage(organ: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * "Atlası Olmayan Organlar" (ghost/orphan): organ listesinde bulunan ama
+ * atlas belgesinde KANONİK karşılığı OLMAYAN organlar. Gerçek atlas-backed
+ * organ (böbrek/kalp/karaciğer/mesane) ASLA bu listeye düşmez. Kanonik kimlik
+ * (organKey) → NFC/NFD + casing tek organ sayılır. Saf/testable.
+ */
+export function listOrphanOrganList(atlas: AtlasDocument, organList: string[]): string[] {
+  const atlasKeys = new Set(listOrganNamesFromAtlas(atlas).map(organKey));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of organList) {
+    const key = organKey(name);
+    if (!key || atlasKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name.trim());
+  }
+  return out.sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+/**
+ * Ghost/orphan organı kalıcı siler: mevcut silme yolunu (mezar taşı yazar +
+ * organ listesinden çıkarır + sunucu senkronu) yeniden kullanır. Böylece bayat
+ * bir cihaz kopyası hydrate olsa bile organ DİRİLMEZ (tombstone-aware union).
+ */
+export function deleteOrphanOrganFromStorage(organ: string): boolean {
+  return deleteOrganFromStorage(organ);
 }

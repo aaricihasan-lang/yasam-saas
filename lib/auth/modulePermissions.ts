@@ -113,11 +113,13 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "ders_notu",
   "digital_content",
   "cosmic_calendar",
+  "human_design",
   // yasam_hafizasi BİLİNÇLİ olarak BURADA YOKTUR: YH izni yalnız ATOMİK premium-grade sözleşmesinden
   // verilir (public.yh_grade_expert_premium → lib/yasam-hafizasi/expertPremiumGrant); membership +
   // perm + flags TEK transaction. Aksi halde düz premium payload'ı perm'i tenant flag'i OLMADAN set
   // eder → permission/flags PARTIAL riski. DEFAULT_MODULE_PERMISSIONS da fail-closed false kalır.
-  // human_design: yakında — premium paketinden de hariç
+  // human_design ise normal bir modüldür: Premium payload'ına dahildir → yeni Premium geçişlerinde
+  // module_permissions.human_design=true üretilir (mevcut Premium'lar migration ile backfill).
   "danisan_yonetimi",
   "ajanda",
   "numeroloji",
@@ -142,13 +144,15 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "digital_content",
   "numerology",
   "cosmic_calendar",
-  // human_design: yakında — premium dahil tüm uzmanlar için kilitli
+  "human_design",
 ];
 
-/** Yakında açılacak modüller — admin hariç herkes için kilitli */
-export const COMING_SOON_MODULE_KEYS = new Set<ModulePermissionKey>([
-  "human_design",
-]);
+/**
+ * Yakında açılacak modüller — admin hariç herkes için kilitli (izin verilmiş olsa dahi).
+ * Human Design ARTIK burada DEĞİLDİR: normal module_permissions.human_design kontratıyla
+ * (Premium + active + approved + izin) erişilir. Bu abstraction başka modüller için korunur.
+ */
+export const COMING_SOON_MODULE_KEYS = new Set<ModulePermissionKey>([]);
 
 export function isPremiumExpertUser(
   user: YasamUser | null | undefined,

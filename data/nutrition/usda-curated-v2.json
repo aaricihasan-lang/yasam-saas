@@ -1,0 +1,132 @@
+{
+  "manifest_version": "usda-curated-v2",
+  "provider": "usda_fdc",
+  "dataset": "SR Legacy / Foundation",
+  "retrieved_at": "2026-08-28",
+  "license": "CC0 1.0 Universal (public domain)",
+  "attribution": "U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, fdc.nal.usda.gov.",
+  "basis": "per 100 g",
+  "_note": "FAZ 6 küratörlü katalog manifestidir (usda-curated-v2). AŞAMA 2'de HİÇBİR USDA verisi UYDURULMAZ: fdc_id, nutrient değeri veya porsiyon gramı icat edilmez. Buradaki 'foods' kayıtları, halihazırda doğrulanmış set olan usda-foundation-v1.json'dan BİREBİR (verbatim) kopyalanmıştır; her değer gerçek USDA FoodData Central kaydından alınmıştır ve fdc_id ile teyit edilebilir. Yeni doğrulanmış besinler AŞAMA 3'te resmi USDA FoodData Central kaynağından eklenecektir. Kayıtta bulunmayan nutrient ATLANMIŞTIR (0 uydurma YOK). SYSTEM tenant altına import edilir.",
+  "foods": [
+    {
+      "name_tr": "Elma", "name_en": "Apples, raw, with skin", "aliases": ["elma", "apple"],
+      "food_group": "fruits", "prep_state": "raw", "fdc_id": "171688",
+      "nutrients": { "energy": {"amount": 52, "unit": "kcal"}, "protein": {"amount": 0.26, "unit": "g"}, "carbohydrate": {"amount": 13.81, "unit": "g"}, "total_fat": {"amount": 0.17, "unit": "g"}, "fiber": {"amount": 2.40, "unit": "g"}, "sugar": {"amount": 10.39, "unit": "g"}, "sodium": {"amount": 1, "unit": "mg"}, "potassium": {"amount": 107, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 orta elma", "label_en": "medium (3\" dia)", "measure_unit": "piece", "gram_weight": 182, "is_default": true}, {"label_tr": "1 küçük elma", "label_en": "small (2-3/4\" dia)", "measure_unit": "piece", "gram_weight": 149}, {"label_tr": "1 büyük elma", "label_en": "large (3-1/4\" dia)", "measure_unit": "piece", "gram_weight": 223} ]
+    },
+    {
+      "name_tr": "Muz", "name_en": "Bananas, raw", "aliases": ["muz", "banana"],
+      "food_group": "fruits", "prep_state": "raw", "fdc_id": "173944",
+      "nutrients": { "energy": {"amount": 89, "unit": "kcal"}, "protein": {"amount": 1.09, "unit": "g"}, "carbohydrate": {"amount": 22.84, "unit": "g"}, "total_fat": {"amount": 0.33, "unit": "g"}, "fiber": {"amount": 2.60, "unit": "g"}, "sugar": {"amount": 12.23, "unit": "g"}, "sodium": {"amount": 1, "unit": "mg"}, "potassium": {"amount": 358, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 orta muz", "label_en": "medium (7-7/8\" long)", "measure_unit": "piece", "gram_weight": 118, "is_default": true}, {"label_tr": "1 büyük muz", "label_en": "large (8-8/9\" long)", "measure_unit": "piece", "gram_weight": 136} ]
+    },
+    {
+      "name_tr": "Portakal", "name_en": "Oranges, raw, all commercial varieties", "aliases": ["portakal", "orange"],
+      "food_group": "citrus", "prep_state": "raw", "fdc_id": "169097",
+      "nutrients": { "energy": {"amount": 47, "unit": "kcal"}, "protein": {"amount": 0.94, "unit": "g"}, "carbohydrate": {"amount": 11.75, "unit": "g"}, "total_fat": {"amount": 0.12, "unit": "g"}, "fiber": {"amount": 2.40, "unit": "g"}, "sugar": {"amount": 9.35, "unit": "g"}, "potassium": {"amount": 181, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 orta portakal", "label_en": "fruit (2-5/8\" dia)", "measure_unit": "piece", "gram_weight": 131, "is_default": true}, {"label_tr": "1 küçük portakal", "label_en": "small (2-3/8\" dia)", "measure_unit": "piece", "gram_weight": 96} ]
+    },
+    {
+      "name_tr": "Çilek", "name_en": "Strawberries, raw", "aliases": ["cilek", "çilek", "strawberry"],
+      "food_group": "fruits", "prep_state": "raw", "fdc_id": "167762",
+      "nutrients": { "energy": {"amount": 32, "unit": "kcal"}, "protein": {"amount": 0.67, "unit": "g"}, "carbohydrate": {"amount": 7.68, "unit": "g"}, "total_fat": {"amount": 0.30, "unit": "g"}, "fiber": {"amount": 2.00, "unit": "g"}, "sugar": {"amount": 4.89, "unit": "g"}, "sodium": {"amount": 1, "unit": "mg"}, "potassium": {"amount": 153, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı çilek", "label_en": "cup, halves", "measure_unit": "cup", "gram_weight": 152, "is_default": true} ]
+    },
+    {
+      "name_tr": "Domates", "name_en": "Tomatoes, red, ripe, raw, year round average", "aliases": ["domates", "tomato"],
+      "food_group": "vegetables", "prep_state": "raw", "fdc_id": "170457",
+      "nutrients": { "energy": {"amount": 18, "unit": "kcal"}, "protein": {"amount": 0.88, "unit": "g"}, "carbohydrate": {"amount": 3.89, "unit": "g"}, "total_fat": {"amount": 0.20, "unit": "g"}, "fiber": {"amount": 1.20, "unit": "g"}, "sugar": {"amount": 2.63, "unit": "g"}, "sodium": {"amount": 5, "unit": "mg"}, "potassium": {"amount": 237, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 orta domates", "label_en": "medium whole (2-3/5\" dia)", "measure_unit": "piece", "gram_weight": 123, "is_default": true}, {"label_tr": "1 su bardağı doğranmış", "label_en": "cup, chopped or sliced", "measure_unit": "cup", "gram_weight": 180} ]
+    },
+    {
+      "name_tr": "Salatalık", "name_en": "Cucumber, with peel, raw", "aliases": ["salatalik", "salatalık", "hiyar", "cucumber"],
+      "food_group": "vegetables", "prep_state": "raw", "fdc_id": "168409",
+      "nutrients": { "energy": {"amount": 15, "unit": "kcal"}, "protein": {"amount": 0.65, "unit": "g"}, "carbohydrate": {"amount": 3.63, "unit": "g"}, "total_fat": {"amount": 0.11, "unit": "g"}, "fiber": {"amount": 0.50, "unit": "g"}, "sugar": {"amount": 1.67, "unit": "g"}, "sodium": {"amount": 2, "unit": "mg"}, "potassium": {"amount": 147, "unit": "mg"} },
+      "portions": []
+    },
+    {
+      "name_tr": "Havuç", "name_en": "Carrots, raw", "aliases": ["havuc", "havuç", "carrot"],
+      "food_group": "vegetables", "prep_state": "raw", "fdc_id": "170393",
+      "nutrients": { "energy": {"amount": 41, "unit": "kcal"}, "protein": {"amount": 0.93, "unit": "g"}, "carbohydrate": {"amount": 9.58, "unit": "g"}, "total_fat": {"amount": 0.24, "unit": "g"}, "fiber": {"amount": 2.80, "unit": "g"}, "sugar": {"amount": 4.74, "unit": "g"}, "sodium": {"amount": 69, "unit": "mg"}, "potassium": {"amount": 320, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı doğranmış", "label_en": "cup chopped", "measure_unit": "cup", "gram_weight": 128, "is_default": true}, {"label_tr": "1 su bardağı rendelenmiş", "label_en": "cup grated", "measure_unit": "cup", "gram_weight": 110} ]
+    },
+    {
+      "name_tr": "Patates", "name_en": "Potatoes, flesh and skin, raw", "aliases": ["patates", "potato"],
+      "food_group": "vegetables", "prep_state": "raw", "fdc_id": "170026",
+      "nutrients": { "energy": {"amount": 77, "unit": "kcal"}, "protein": {"amount": 2.05, "unit": "g"}, "carbohydrate": {"amount": 17.49, "unit": "g"}, "total_fat": {"amount": 0.09, "unit": "g"}, "fiber": {"amount": 2.10, "unit": "g"}, "sugar": {"amount": 0.82, "unit": "g"}, "sodium": {"amount": 6, "unit": "mg"}, "potassium": {"amount": 425, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 orta patates", "label_en": "medium", "measure_unit": "piece", "gram_weight": 213, "is_default": true}, {"label_tr": "1 küçük patates", "label_en": "small", "measure_unit": "piece", "gram_weight": 170} ]
+    },
+    {
+      "name_tr": "Yumurta", "name_en": "Egg, whole, raw, fresh", "aliases": ["yumurta", "egg"],
+      "food_group": "eggs", "prep_state": "raw", "fdc_id": "171287",
+      "nutrients": { "energy": {"amount": 143, "unit": "kcal"}, "protein": {"amount": 12.56, "unit": "g"}, "carbohydrate": {"amount": 0.72, "unit": "g"}, "total_fat": {"amount": 9.51, "unit": "g"}, "sodium": {"amount": 142, "unit": "mg"}, "potassium": {"amount": 138, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 büyük yumurta", "label_en": "large", "measure_unit": "piece", "gram_weight": 56, "is_default": true}, {"label_tr": "1 orta yumurta", "label_en": "medium", "measure_unit": "piece", "gram_weight": 50} ]
+    },
+    {
+      "name_tr": "Yoğurt (Tam Yağlı)", "name_en": "Yogurt, plain, whole milk", "aliases": ["yogurt", "yoğurt"],
+      "food_group": "dairy", "prep_state": "processed", "fdc_id": "171284",
+      "nutrients": { "energy": {"amount": 61, "unit": "kcal"}, "protein": {"amount": 3.47, "unit": "g"}, "carbohydrate": {"amount": 4.66, "unit": "g"}, "total_fat": {"amount": 3.25, "unit": "g"}, "fiber": {"amount": 0, "unit": "g"}, "sugar": {"amount": 4.66, "unit": "g"}, "sodium": {"amount": 46, "unit": "mg"}, "potassium": {"amount": 155, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "cup (8 fl oz)", "measure_unit": "cup", "gram_weight": 245, "is_default": true}, {"label_tr": "1 kap (170 g)", "label_en": "container (6 oz)", "measure_unit": "serving", "gram_weight": 170} ]
+    },
+    {
+      "name_tr": "Tavuk Göğsü (Derisiz)", "name_en": "Chicken, broiler, breast, skinless, boneless, meat only, raw", "aliases": ["tavuk gogsu", "tavuk göğsü", "chicken breast"],
+      "food_group": "meat_poultry", "prep_state": "raw", "fdc_id": "171077",
+      "nutrients": { "energy": {"amount": 120, "unit": "kcal"}, "protein": {"amount": 22.5, "unit": "g"}, "total_fat": {"amount": 2.62, "unit": "g"}, "sodium": {"amount": 45, "unit": "mg"}, "potassium": {"amount": 334, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 porsiyon (113 g)", "label_en": "4 oz", "measure_unit": "serving", "gram_weight": 113, "is_default": true} ]
+    },
+    {
+      "name_tr": "Süt (Tam Yağlı)", "name_en": "Milk, whole, 3.25% milkfat, with added vitamin D", "aliases": ["sut", "süt", "milk"],
+      "food_group": "dairy", "prep_state": null, "fdc_id": "171265",
+      "nutrients": { "energy": {"amount": 61, "unit": "kcal"}, "protein": {"amount": 3.15, "unit": "g"}, "carbohydrate": {"amount": 4.80, "unit": "g"}, "total_fat": {"amount": 3.25, "unit": "g"}, "fiber": {"amount": 0, "unit": "g"}, "sugar": {"amount": 5.05, "unit": "g"}, "sodium": {"amount": 43, "unit": "mg"}, "potassium": {"amount": 132, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 244, "is_default": true}, {"label_tr": "1 yemek kaşığı", "label_en": "1 tbsp", "measure_unit": "tbsp", "gram_weight": 15} ]
+    },
+    {
+      "name_tr": "Yulaf", "name_en": "Oats", "aliases": ["yulaf", "oats"],
+      "food_group": "grains_cereals", "prep_state": "raw", "fdc_id": "169705",
+      "nutrients": { "energy": {"amount": 389, "unit": "kcal"}, "protein": {"amount": 16.89, "unit": "g"}, "carbohydrate": {"amount": 66.27, "unit": "g"}, "total_fat": {"amount": 6.90, "unit": "g"}, "fiber": {"amount": 10.60, "unit": "g"}, "sodium": {"amount": 2, "unit": "mg"}, "potassium": {"amount": 429, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 156, "is_default": true} ]
+    },
+    {
+      "name_tr": "Pirinç (Beyaz)", "name_en": "Rice, white, long-grain, regular, raw, unenriched", "aliases": ["pirinc", "pirinç", "rice"],
+      "food_group": "grains_cereals", "prep_state": "raw", "fdc_id": "169756",
+      "nutrients": { "energy": {"amount": 365, "unit": "kcal"}, "protein": {"amount": 7.13, "unit": "g"}, "carbohydrate": {"amount": 79.95, "unit": "g"}, "total_fat": {"amount": 0.66, "unit": "g"}, "fiber": {"amount": 1.30, "unit": "g"}, "sugar": {"amount": 0.12, "unit": "g"}, "sodium": {"amount": 5, "unit": "mg"}, "potassium": {"amount": 115, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 185, "is_default": true} ]
+    },
+    {
+      "name_tr": "Mercimek", "name_en": "Lentils, raw", "aliases": ["mercimek", "lentils"],
+      "food_group": "legumes", "prep_state": "raw", "fdc_id": "172420",
+      "nutrients": { "energy": {"amount": 352, "unit": "kcal"}, "protein": {"amount": 24.63, "unit": "g"}, "carbohydrate": {"amount": 63.35, "unit": "g"}, "total_fat": {"amount": 1.06, "unit": "g"}, "fiber": {"amount": 10.70, "unit": "g"}, "sugar": {"amount": 2.03, "unit": "g"}, "sodium": {"amount": 6, "unit": "mg"}, "potassium": {"amount": 677, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 192, "is_default": true}, {"label_tr": "1 yemek kaşığı", "label_en": "1 tbsp", "measure_unit": "tbsp", "gram_weight": 12} ]
+    },
+    {
+      "name_tr": "Nohut", "name_en": "Chickpeas (garbanzo beans, bengal gram), mature seeds, raw", "aliases": ["nohut", "chickpeas", "garbanzo"],
+      "food_group": "legumes", "prep_state": "raw", "fdc_id": "173756",
+      "nutrients": { "energy": {"amount": 378, "unit": "kcal"}, "protein": {"amount": 20.47, "unit": "g"}, "carbohydrate": {"amount": 62.95, "unit": "g"}, "total_fat": {"amount": 6.04, "unit": "g"}, "fiber": {"amount": 12.20, "unit": "g"}, "sugar": {"amount": 10.70, "unit": "g"}, "sodium": {"amount": 24, "unit": "mg"}, "potassium": {"amount": 718, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 200, "is_default": true} ]
+    },
+    {
+      "name_tr": "Badem", "name_en": "Nuts, almonds", "aliases": ["badem", "almonds"],
+      "food_group": "nuts_seeds", "prep_state": "raw", "fdc_id": "170567",
+      "nutrients": { "energy": {"amount": 579, "unit": "kcal"}, "protein": {"amount": 21.15, "unit": "g"}, "carbohydrate": {"amount": 21.55, "unit": "g"}, "total_fat": {"amount": 49.93, "unit": "g"}, "fiber": {"amount": 12.50, "unit": "g"}, "sugar": {"amount": 4.35, "unit": "g"}, "potassium": {"amount": 733, "unit": "mg"} },
+      "portions": []
+    },
+    {
+      "name_tr": "Ceviz", "name_en": "Nuts, walnuts, english", "aliases": ["ceviz", "walnuts"],
+      "food_group": "nuts_seeds", "prep_state": "raw", "fdc_id": "170187",
+      "nutrients": { "energy": {"amount": 654, "unit": "kcal"}, "protein": {"amount": 15.23, "unit": "g"}, "carbohydrate": {"amount": 13.71, "unit": "g"}, "total_fat": {"amount": 65.21, "unit": "g"}, "fiber": {"amount": 6.70, "unit": "g"}, "sugar": {"amount": 2.61, "unit": "g"}, "sodium": {"amount": 2, "unit": "mg"}, "potassium": {"amount": 441, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 porsiyon (28 g)", "label_en": "1 oz (14 halves)", "measure_unit": "serving", "gram_weight": 28, "is_default": true}, {"label_tr": "1 su bardağı doğranmış", "label_en": "cup, chopped", "measure_unit": "cup", "gram_weight": 117} ]
+    },
+    {
+      "name_tr": "Zeytinyağı", "name_en": "Oil, olive, salad or cooking", "aliases": ["zeytinyagi", "zeytinyağı", "olive oil"],
+      "food_group": "fats_oils", "prep_state": null, "fdc_id": "171413",
+      "nutrients": { "energy": {"amount": 884, "unit": "kcal"}, "total_fat": {"amount": 100, "unit": "g"} },
+      "portions": [ {"label_tr": "1 yemek kaşığı", "label_en": "1 tbsp", "measure_unit": "tbsp", "gram_weight": 14, "is_default": true} ]
+    },
+    {
+      "name_tr": "Ispanak", "name_en": "Spinach, raw", "aliases": ["ispanak", "spinach"],
+      "food_group": "leafy_greens", "prep_state": "raw", "fdc_id": "168462",
+      "nutrients": { "energy": {"amount": 23, "unit": "kcal"}, "protein": {"amount": 2.86, "unit": "g"}, "carbohydrate": {"amount": 3.63, "unit": "g"}, "total_fat": {"amount": 0.39, "unit": "g"}, "fiber": {"amount": 2.20, "unit": "g"}, "sugar": {"amount": 0.42, "unit": "g"}, "sodium": {"amount": 79, "unit": "mg"}, "potassium": {"amount": 558, "unit": "mg"} },
+      "portions": [ {"label_tr": "1 su bardağı", "label_en": "1 cup", "measure_unit": "cup", "gram_weight": 30, "is_default": true} ]
+    }
+  ]
+}

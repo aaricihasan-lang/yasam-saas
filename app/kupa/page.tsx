@@ -1,48 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { KupaShell, kupaCard } from "./components/KupaShell";
+import { KupaShell, kupaCard, kupaBtnPrimary } from "./components/KupaShell";
 
-/** Kupa & Hacamat Terapisi — modül landing (workspace hub). İçerik dokunulmadı. */
+/**
+ * Kupa & Hacamat Terapisi — modül landing (V2 çalışma merkezi).
+ *
+ * HİYERARŞİ (FAZ 3B): eşit-ağırlıklı 6 kart DEĞİL. Üç katman:
+ *   1) PRIMARY HERO  → Hacamat Protokolleri (günlük çalışma alanı; dominant)
+ *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (2 kart:
+ *        Hacamat Noktaları + Kupa Teknikleri)
+ *   3) MEVCUT REHBER → Amaç / Rahatsızlık Rehberi (legacy; korunur ama subordinate)
+ *
+ * Güvenlik, Kaynaklar ve Bilgi & Eğitim standalone ekranları/altyapısı KORUNUR
+ * (route + API + DB aynen yaşar) ama günlük landing navigasyonunda GÖRÜNMEZ;
+ * uzman bunları protokolün içinden oluşturup bağlar. Yalnız landing hiyerarşisi.
+ *
+ * Copy kullanıcı dilinde (DB/mimari jargonu YOK). İçerik/route DEĞİŞMEZ; yalnız
+ * landing navigation hiyerarşisi. Yeni fetch/API/sayaç YOK — statik navigasyon.
+ */
 
 type Area = { title: string; desc: string; icon: string; href: string };
 
-const AREAS: Area[] = [
+// Destek kütüphaneleri — protokollerde kullanılan temel kayıtlar (sade kullanıcı dili).
+const SUPPORT: Area[] = [
   {
     title: "Hacamat Noktaları",
-    desc: "Nokta kayıtları: ad, kod, anatomik bölge, geleneksel kullanım, güvenlik.",
+    desc: "Hacamat bölgelerini ve kayıtlı açıklamalarını görüntüleyin.",
     icon: "📍",
     href: "/kupa/noktalar",
   },
   {
-    title: "Amaç / Rahatsızlık Rehberi",
-    desc: "Konu ↔ nokta ilişkisi; konuyu aç, ilgili noktaları ve kaynaklarını gör.",
-    icon: "🎯",
-    href: "/kupa/amac-rehberi",
-  },
-  {
     title: "Kupa Teknikleri",
-    desc: "Kuru, yaş (hacamat), sabit ve hareketli/kaydırmalı teknik kayıtları.",
+    desc: "Kuru, yaş ve farklı uygulama tekniklerini yönetin.",
     icon: "🌀",
     href: "/kupa/teknikler",
-  },
-  {
-    title: "Bilgi & Eğitim Kütüphanesi",
-    desc: "Uzun profesyonel bilgi ve eğitim kayıtları.",
-    icon: "📚",
-    href: "/kupa/bilgi-kutuphanesi",
-  },
-  {
-    title: "Güvenlik & Kontrendikasyonlar",
-    desc: "Bağımsız güvenlik/kontrendikasyon kayıtları (açıklamaya gömülü değil).",
-    icon: "⚠️",
-    href: "/kupa/guvenlik",
-  },
-  {
-    title: "Kaynak Kataloğu",
-    desc: "Kaynak künyeleri; içerik atıfları (Kaynaklar bölümleri) bu kayıtlara bağlanır.",
-    icon: "📖",
-    href: "/kupa/kaynaklar",
   },
 ];
 
@@ -50,12 +42,40 @@ export default function KupaLandingPage() {
   return (
     <KupaShell
       title="Kupa & Hacamat Terapisi"
-      subtitle="Profesyonel çalışma merkezi — amaç rehberi, hacamat noktaları, teknikler, bilgi ve güvenlik. Tüm kayıtlar hesabınıza özeldir (tenant-izole)."
+      subtitle="Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve kaynakları tek çalışma alanında yönetin."
       badge="Profesyonel Çalışma Alanı"
     >
-      {/* ÇALIŞMA ALANLARI — dengeli premium grid (desktop 3×2). */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {AREAS.map((a) => (
+      {/* ── 1) PRIMARY HERO — Hacamat Protokolleri (dominant ama KOMPAKT, tek CTA) ─── */}
+      <Link
+        href="/kupa/protokoller"
+        className="group mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-white to-rose-50/60 p-4 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_16px_40px_-24px_rgba(180,83,9,0.35)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_24px_48px_-24px_rgba(180,83,9,0.4)] focus-visible:ring-2 focus-visible:ring-amber-400/70 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-6 lg:py-4"
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white/80 text-2xl shadow-sm"
+            aria-hidden
+          >
+            🗂️
+          </span>
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Çalışma Alanı</span>
+            <h2 className="text-xl font-black tracking-tight text-slate-900">Hacamat Protokolleri</h2>
+            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-slate-600">
+              Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği,
+              bilgileri ve kaynakları tek yerde yönetin.
+            </p>
+          </div>
+        </div>
+        <span className={`${kupaBtnPrimary} shrink-0 self-start lg:self-center`}>
+          Protokolleri Aç
+          <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
+        </span>
+      </Link>
+
+      {/* ── 2) DESTEK KÜTÜPHANELERİ ─────────────────────────────────────────────── */}
+      <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Destek Kütüphaneleri</h2>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {SUPPORT.map((a) => (
           <Link
             key={a.href}
             href={a.href}
@@ -73,15 +93,39 @@ export default function KupaLandingPage() {
             </div>
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700">
               Aç
-              <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
-                →
-              </span>
+              <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
             </span>
           </Link>
         ))}
       </div>
 
-      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-400">
+      {/* ── 3) MEVCUT REHBER — Amaç / Rahatsızlık Rehberi (legacy; sakin/subordinate) ── */}
+      <div className="mt-5">
+        <Link
+          href="/kupa/amac-rehberi"
+          className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3.5 text-inherit no-underline outline-none transition duration-200 hover:border-slate-300 hover:bg-white focus-visible:ring-2 focus-visible:ring-amber-400/60"
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xl" aria-hidden>
+              🎯
+            </span>
+            <div className="min-w-0">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Mevcut Rehber</span>
+              <h3 className="text-[15px] font-bold text-slate-800">Amaç / Rahatsızlık Rehberi</h3>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500">
+                Mevcut konu, ilişkili bölgeler ve kaynak kayıtlarınızı görüntüleyin.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-600">
+            Rehberi Aç
+            <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
+          </span>
+        </Link>
+      </div>
+
+      {/* Sakin editoryal not (medical claim YOK). */}
+      <p className="mt-5 max-w-3xl text-xs leading-relaxed text-slate-400">
         Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler;
         hiçbir konu otomatik olarak &quot;tedavi eder&quot; anlamı taşımaz.
       </p>

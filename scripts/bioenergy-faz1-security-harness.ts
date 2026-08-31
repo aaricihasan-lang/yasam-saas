@@ -99,17 +99,11 @@ console.log("\n═══ 4. Toplu-veri: browser publishable insert KALDIRILDI �
   assert(!/bioenergy[A-Za-z]*InsertSucceeded/.test(s), "kullanılmayan bioenergy *InsertSucceeded helper'ları kaldırıldı");
 }
 
-console.log("\n═══ 5. Admin workspace: bioenergy_sessions publishable SELECT taşındı ═══");
-{
-  const s = read("app/admin/users/[id]/workspace/bioenergy/page.tsx");
-  assert(s.includes("fetchAdminBioSessionCount"), "sessions sayımı admin endpoint'ine taşındı");
-  assert(s.includes("fetchAdminBioSessionRows"), "sessions listesi admin endpoint'ine taşındı");
-  assert(s.includes('/api/admin/biyoenerji/sessions'), "service-role sessions endpoint'i çağrılır");
-  assert(/section\.table === "bioenergy_sessions"/.test(s), "sadece bioenergy_sessions dallanır (legacy 5 tablo değişmez)");
-  assert(/meta\.table === "bioenergy_sessions"/.test(s), "liste dalı bioenergy_sessions'a özel");
-  // Legacy tablolara publishable SELECT KASITLI korunur (kapsam dışı).
-  assert(s.includes(".from(section.table)") && s.includes(".from(meta.table)"), "legacy 5 sekme publishable SELECT'i korunur (kapsam dışı)");
-}
+// ═══ 5. (KALDIRILDI 2026-08-24) ═══
+// Bu bölüm, admin/owner uzman workspace bioenergy sayfasının (app/admin/users/[id]/
+// workspace/bioenergy/page.tsx) publishable SELECT davranışını test ediyordu. Admin/owner
+// uzman private-content görüntüleme özelliği üründen tamamen kaldırıldığı için o sayfa
+// da silindi; bu test yüzeyi artık mevcut değil.
 
 console.log("\n═══ 6. DOCX rapor sertleştirme (6 route) ═══");
 for (const rp of REPORT_ROUTES) {

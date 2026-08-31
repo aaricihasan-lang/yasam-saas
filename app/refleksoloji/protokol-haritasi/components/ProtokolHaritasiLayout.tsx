@@ -1,19 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { EMPTY_PROTOCOL_DRAFT } from "../lib/protocolStorage";
-import {
-  missingAtlasOrgans,
-  resolveColoredRegionsForOrgans,
-} from "../lib/resolveDisplayRegions";
+import { resolveProtocolViews } from "../lib/resolveDisplayRegions";
 import { useProtocolRegistry } from "../hooks/useProtocolRegistry";
 import { useHydratedAtlasVersion } from "@/app/refleksoloji/hooks/useHydratedAtlasVersion";
-import type { ProtocolFootView, ProtocolFormDraft } from "../types";
+import type { AtlasBackgroundGroup } from "@/lib/refleksoloji/atlasRegionsCore";
+import type { ProtocolFormDraft } from "../types";
 import { ProtocolFootMap } from "./ProtocolFootMap";
 import { ProtocolRegistrationForm } from "./ProtocolRegistrationForm";
 import { ProtocolSummaryPanel } from "./ProtocolSummaryPanel";
@@ -32,20 +29,27 @@ export function ProtokolHaritasiLayout() {
     clearSyncError();
   }, [syncErrorMessage, clearSyncError, showToast]);
   const [draft, setDraft] = useState<ProtocolFormDraft>(EMPTY_PROTOCOL_DRAFT);
-  const [footView, setFootView] = useState<ProtocolFootView>("taban");
+  const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
   // BUG-4: atlas'ı sunucudan hydrate et → yeni cihaz/tarayıcıda önizleme boş kalmaz.
   const atlasVersion = useHydratedAtlasVersion();
 
-  const { regions, statuses } = useMemo(
-    () => resolveColoredRegionsForOrgans(draft.organs, footView),
+  const { resolved, availableViews } = useMemo(
+    () => resolveProtocolViews(draft.organs),
     // atlasVersion: sunucudan hydrate sonrası yeniden çöz (loadAtlas içeride okunur).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft.organs, footView, atlasVersion],
+    [draft.organs, atlasVersion],
   );
 
-  const missingOrgans = useMemo(() => missingAtlasOrgans(statuses), [statuses]);
+  // Aktif görünüm anlamlı değilse ilk anlamlı görünümü TÜRET (setState-in-effect yok;
+  // boş sekme açma). Kullanıcı yalnız mevcut görünüm düğmelerine basabildiğinden
+  // footView her zaman geçerli kalır; bu yalnız organ değişince fallback sağlar.
+  const effectiveFootView = availableViews.includes(footView)
+    ? footView
+    : availableViews[0] ?? footView;
+  const regions = resolved.regionsByGroup[effectiveFootView];
+  const missingOrgans = resolved.missingOrgans;
 
   const resetForm = useCallback(() => {
     setDraft(EMPTY_PROTOCOL_DRAFT);
@@ -144,13 +148,14 @@ export function ProtokolHaritasiLayout() {
 
           <section className={`${panelClass} p-4 xl:h-full`}>
             <h2 className="mb-3 shrink-0 text-base font-bold text-violet-900">Protokol Özeti</h2>
-            <ProtocolSummaryPanel draft={draft} statuses={statuses} />
+            <ProtocolSummaryPanel draft={draft} organs={resolved.organs} footView={effectiveFootView} />
           </section>
 
           <div className={`${panelClass} h-[68vh] min-h-[460px] min-w-0 xl:h-full xl:min-h-0`}>
             <ProtocolFootMap
               regions={regions}
-              footView={footView}
+              footView={effectiveFootView}
+              availableViews={availableViews}
               missingOrgans={missingOrgans}
               onFootViewChange={setFootView}
             />

@@ -8,6 +8,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
+import {
+  HD_REPORT_SCHEMA_VERSION,
+  HD_REPORT_VERSION,
+  isHdReportSnapshot,
+  type HdReportSnapshot,
+} from "@/lib/human-design/reporting/reportSnapshot";
 
 const TABLE = "human_design_reports";
 
@@ -139,6 +145,21 @@ export async function updateReport(
   id: string,
   input: Record<string, unknown>,
 ): Promise<{ ok: boolean; error: string | null }> {
+  // IMMUTABILITY (FAZ 2): canonical (profesyonel) rapor snapshot'ı DEĞİŞMEZ.
+  // Legacy PATCH davranışı korunur; canonical satır güncellemesi AÇIKÇA reddedilir
+  // (snapshot/canonical_provenance/generated içerik PATCH ile değiştirilemez).
+  const { data: kindRow, error: kindErr } = await db
+    .from(TABLE)
+    .select("report_kind")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (kindErr) return { ok: false, error: kindErr.message };
+  if (!kindRow) return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+  if ((kindRow as { report_kind?: string }).report_kind === "canonical") {
+    return { ok: false, error: "Profesyonel (canonical) rapor değiştirilemez; içeriği sabittir." };
+  }
+
   const { data, error } = await db
     .from(TABLE)
     .update({
@@ -163,4 +184,95 @@ export async function deleteReport(
 ): Promise<{ ok: boolean; error: string | null }> {
   const { error } = await db.from(TABLE).delete().eq("id", id).eq("tenant_id", tenantId);
   return { ok: !error, error: error?.message ?? null };
+}
+
+// =============================================================================
+// FAZ 2 — Profesyonel (canonical) rapor kalıcılığı (DONMUŞ snapshot; immutable).
+// tenant_id + user_id YALNIZ guard'dan. chart/client IDOR guard tenant-scoped.
+// =============================================================================
+
+export type SaveCanonicalReportInput = {
+  chartId: string;
+  clientId: string | null;
+  title: string;
+  snapshot: HdReportSnapshot;
+  provenance: Record<string, unknown>;
+};
+
+export async function saveCanonicalReport(
+  db: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  input: SaveCanonicalReportInput,
+): Promise<{ id: string | null; error: string | null }> {
+  // IDOR: chart bu tenant'a ait olmalı; client_id verildiyse o da tenant'a ait olmalı.
+  if (!(await chartInTenant(db, input.chartId, tenantId))) {
+    return { id: null, error: "Harita bu hesaba ait değil." };
+  }
+  if (input.clientId && !(await clientInTenant(db, input.clientId, tenantId))) {
+    return { id: null, error: "Danışan bu hesaba ait değil." };
+  }
+  if (!isHdReportSnapshot(input.snapshot)) {
+    return { id: null, error: "Geçersiz rapor snapshot'ı." };
+  }
+
+  const { data, error } = await db
+    .from(TABLE)
+    .insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      client_id: input.clientId,
+      chart_id: input.chartId,
+      title: input.title,
+      selected_codes: [],
+      generated_content: "",
+      edited_content: "",
+      report_kind: "canonical",
+      snapshot: input.snapshot,
+      canonical_provenance: input.provenance,
+      report_version: HD_REPORT_VERSION,
+      schema_version: HD_REPORT_SCHEMA_VERSION,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { id: null, error: error?.message ?? "Rapor kaydedilemedi." };
+  return { id: (data as { id: string }).id, error: null };
+}
+
+/**
+ * İndirme için canonical rapor okuma — tenant-scoped, YALNIZ report_kind='canonical'.
+ * DOCX bu DONMUŞ snapshot'tan üretilir (LIVE canonical lookup YOK). Başka tenant/legacy/
+ * eksik snapshot → hata (fail-safe). client_id de döner (owned görsel doğrulaması için).
+ */
+export async function getCanonicalReportForDownload(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{
+  data: { snapshot: HdReportSnapshot; title: string; clientId: string | null } | null;
+  status: number;
+  error: string | null;
+}> {
+  const { data, error } = await db
+    .from(TABLE)
+    .select("title, client_id, report_kind, snapshot")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error) return { data: null, status: 500, error: error.message };
+  if (!data) return { data: null, status: 404, error: "Rapor bulunamadı." };
+
+  const row = data as { title: string; client_id: string | null; report_kind: string; snapshot: unknown };
+  if (row.report_kind !== "canonical") {
+    return { data: null, status: 400, error: "Bu rapor profesyonel (canonical) rapor değil." };
+  }
+  if (!isHdReportSnapshot(row.snapshot)) {
+    return { data: null, status: 422, error: "Rapor snapshot'ı geçersiz veya eksik." };
+  }
+  return {
+    data: { snapshot: row.snapshot, title: row.title, clientId: row.client_id },
+    status: 200,
+    error: null,
+  };
 }

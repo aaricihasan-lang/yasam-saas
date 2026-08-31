@@ -6,7 +6,8 @@
  * erişimler migration 20260919 ile module_permissions'a backfill edildi). İstisnalar:
  *   - admin (role='admin') → tüm modüller (yönetim; modül-gate dışı)
  *   - cosmic_calendar → herkese açık (always-on)
- *   - human_design → "yakında" (admin hariç herkese kapalı)
+ *   - human_design → normal modül: module_permissions.human_design === true ise geçer
+ *     (Premium payload'ına dahil + mevcut Premium'lar migration ile backfill)
  *   - digital_content → hub: alt modüllerden (personal_archive/video_ceviri/
  *     belge_ceviri/ders_notu) herhangi biri açıksa erişilebilir
  *
@@ -35,7 +36,8 @@ export type ModuleGateKey =
   | "human_design"
   | "digital_content"
   | "cosmic_calendar"
-  | "cupping";
+  | "cupping"
+  | "beslenme";
 
 /** Kanonik anahtar → kabul edilen alias'lar (DB'de her iki biçim de saklanabilir). */
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -56,6 +58,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   human_design: [],
   digital_content: [],
   cosmic_calendar: [],
+  beslenme: [],
 };
 
 function toFlags(raw: unknown): Record<string, boolean> {
@@ -78,7 +81,8 @@ function hasFlag(flags: Record<string, boolean>, key: string): boolean {
 
 /**
  * SAF karar: bu kullanıcı (role + module_permissions) bu modüle erişebilir mi?
- * Premium bypass YOKTUR. admin/cosmic_calendar → true; human_design → false (yakında).
+ * Premium bypass YOKTUR. admin/cosmic_calendar → true; human_design artık normal modül
+ * (module_permissions.human_design === true ise geçer).
  */
 export function resolveModuleAccess(
   role: unknown,
@@ -87,7 +91,10 @@ export function resolveModuleAccess(
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
   if (moduleKey === "cosmic_calendar") return true;
-  if (moduleKey === "human_design") return false;
+  // Beslenme: OWNER-ONLY (super-admin) faz. Admin (üstte short-circuit) API'de ayrıca
+  // requireMainAdmin ile owner'a daraltılır; uzman/anon buradan reddedilir (defense-in-depth).
+  // Uzmanlara açılınca bu satır `return hasFlag(flags, "beslenme")` olur (bkz. §G expert-opening).
+  if (moduleKey === "beslenme") return false;
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {

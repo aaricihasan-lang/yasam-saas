@@ -201,9 +201,11 @@ export function FootCanvas({
       null as { x: number; y: number } | null,
   );
 
+  // EKOLE BAĞIMSIZ: arka plan DOĞRUDAN selectedView'dan gelir; activeOrgan KARIŞMAZ.
+  // Organ değişmesi arka planı/görünümü değiştirmez (§14).
   const atlasBackgroundKey = useMemo(
-    () => resolveAtlasBackgroundKey(selectedView, activeOrgan),
-    [selectedView, activeOrgan],
+    () => resolveAtlasBackgroundKey(selectedView),
+    [selectedView],
   );
 
   const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];

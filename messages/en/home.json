@@ -91,7 +91,8 @@
       "yasam_hafizasi": { "title": "Life Memory", "desc": "Search your professional knowledge and content across modules from one place", "badge": "Module" },
       "stones": { "title": "Stones", "desc": "Stones, minerals and client matches", "badge": "Module", "stat": "{n, plural, one {# stone saved} other {# stones saved}}" },
       "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
-      "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology, Aromatherapy, Healing Guide and Cupping & Hijama workspaces", "badge": "Module" },
+      "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
+      "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural support methods and professional reference resources: Aromatherapy and Healing Guide", "badge": "Module" },
       "digital_content": { "title": "Digital Content Center", "desc": "Documents, videos, lecture notes and personal archive management", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
       "numerology": { "title": "Life Analysis Center", "desc": "Numerology and Human Design analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
       "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" }

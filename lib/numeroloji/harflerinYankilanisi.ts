@@ -36,7 +36,27 @@ function segmentKapsarYili(seg: HarfYankilanisiSegment, yil: number): boolean {
   return seg.yearStart !== undefined && seg.yearEnd !== undefined && seg.yearStart <= yil && yil <= seg.yearEnd;
 }
 
-export function calcHarflerinYankilanisi(firstName: string, lastName: string, birthDate?: string, maxAge = 80): HarfYankilanisiSegment[] {
+export type HarfTimelineMode = "full" | "toCurrent";
+
+/**
+ * Harflerin Yankılanışı — isimdeki harfler yaşam zaman çizgisine ardışık yayılır;
+ * her harf kendi çakra değeri kadar yıl etkili olur. İsim bitince baştan tekrarlanır.
+ *
+ * mode:
+ *   "full"      → TÜM yaşam haritası (0..maxAge). Varsayılan.
+ *   "toCurrent" → yalnızca bugüne kadar olan segmentler (eski davranış).
+ *
+ * FAZ 1 forensic düzeltmesi: eski motor doğum yılı verildiğinde "güncel yılı
+ * kapsayan ilk segmentte" durup tek harf döndürebiliyordu (örn. 2026 doğumlu için
+ * yalnız "A"). Artık varsayılan olarak tam yaşam çizgisi üretilir.
+ */
+export function calcHarflerinYankilanisi(
+  firstName: string,
+  lastName: string,
+  birthDate?: string,
+  maxAge = 80,
+  mode: HarfTimelineMode = "full",
+): HarfYankilanisiSegment[] {
   const normalized = normalizeName(firstName, lastName);
   const letters = Array.from(normalized).filter((ch) => LETTER_TO_CHAKRA[ch]);
   if (letters.length === 0) return [];
@@ -44,7 +64,6 @@ export function calcHarflerinYankilanisi(firstName: string, lastName: string, bi
   const parts = birthDate ? parseBirthDate(birthDate) : null;
   const birthYear = parts?.year;
   const mevcutYil = new Date().getFullYear();
-  const hedefYas = birthYear != null ? Math.max(0, mevcutYil - birthYear) : maxAge;
 
   const segments: HarfYankilanisiSegment[] = [];
   let currentAge = 0;
@@ -61,11 +80,11 @@ export function calcHarflerinYankilanisi(firstName: string, lastName: string, bi
       continue;
     }
 
+    if (currentAge > maxAge) break;
+
     const ageStart = currentAge;
     let ageEnd = currentAge + chakra - 1;
-    if (ageEnd > hedefYas) ageEnd = hedefYas;
-    if (!birthYear && ageEnd > maxAge) ageEnd = maxAge;
-    if (ageStart > (birthYear ? hedefYas : maxAge)) break;
+    if (ageEnd > maxAge) ageEnd = maxAge;
 
     const seg: HarfYankilanisiSegment = {
       letter: ch,
@@ -79,11 +98,16 @@ export function calcHarflerinYankilanisi(firstName: string, lastName: string, bi
     currentAge = ageEnd + 1;
     harfIdx += 1;
 
-    if (birthYear != null && segmentKapsarYili(seg, mevcutYil)) break;
-    if (!birthYear && currentAge > maxAge) break;
+    // "toCurrent" modunda güncel yılı kapsayan segmentte dur (eski davranış).
+    if (mode === "toCurrent" && birthYear != null && segmentKapsarYili(seg, mevcutYil)) break;
   }
 
   return segments;
+}
+
+/** Yalnız bugüne kadar olan segmentler (eski davranışın açık adı). */
+export function calcHarflerinYankilanisiToCurrent(firstName: string, lastName: string, birthDate?: string, maxAge = 80): HarfYankilanisiSegment[] {
+  return calcHarflerinYankilanisi(firstName, lastName, birthDate, maxAge, "toCurrent");
 }
 
 export function formatlaHarflerinYankilanisi(firstName: string, lastName: string, birthDate?: string, maxAge = 80): string {

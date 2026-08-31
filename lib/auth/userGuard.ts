@@ -174,7 +174,8 @@ export async function verifyUserRequest(
  *
  * includeProfile zorlanır (role + module_permissions tek users lookup'ında gelir →
  * ek sorgu YOK). Modül reddi → 403 (no-store). admin/cosmic_calendar geçer;
- * human_design "yakında"; digital_content hub alt-modülden açılır.
+ * human_design normal modül (module_permissions.human_design=true ile geçer);
+ * digital_content hub alt-modülden açılır.
  */
 export async function requireModuleAccess(
   req: NextRequest,
@@ -190,6 +191,39 @@ export async function requireModuleAccess(
       ok: false,
       response: NextResponse.json(
         { error: "Bu modül hesabınız için aktif değil. Yöneticinizle iletişime geçin." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      ),
+    };
+  }
+  return guard;
+}
+
+/**
+ * ADMIN-ONLY kullanıcı-header doğrulaması (owner/admin özel içerik izolasyonu).
+ *
+ * `requireModuleAccess` yalnız modül iznini (module_permissions.<key>) kontrol eder;
+ * bir modül uzmanlara AÇIK olsa bile o modülün ADMIN/OWNER'a özel bilgi/corpus
+ * yüzeyleri (ör. Human Design merkezî canonical Bilgi Bankası + profesyonel canonical
+ * rapor) yalnız `users.role === 'admin'` için servis edilmelidir.
+ *
+ * Bu guard x-user-id + x-session-token binding'i (verifyUserRequest) üzerine SERVER-SIDE
+ * rol kontrolü ekler: role !== 'admin' → 403 (no-store, fail-closed). service_role
+ * sorgusu YALNIZ bu kontrolden SONRA çalışır → non-admin için canonical bypass olmaz.
+ * Dönüş şekli `verifyUserRequest`/`requireModuleAccess` ile birebir aynıdır (drop-in).
+ */
+export async function requireAdminUserRequest(
+  req: NextRequest,
+  options?: VerifyUserOptions,
+): Promise<UserGuardResult> {
+  const guard = await verifyUserRequest(req, { ...options, includeProfile: true });
+  if (!guard.ok) return guard;
+
+  const role = String((guard.profile?.role ?? "")).trim().toLowerCase();
+  if (role !== "admin") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { ok: false, code: "ADMIN_ONLY", error: "Bu içerik yalnız yöneticiye özeldir." },
         { status: 403, headers: { "Cache-Control": "no-store" } },
       ),
     };

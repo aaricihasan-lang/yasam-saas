@@ -18,7 +18,8 @@ export type OrganSummary = {
 };
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
-  return typeof value === "object" && value !== null && "taban" in value && "yan" in value;
+  if (typeof value !== "object" || value === null) return false;
+  return "taban" in value && ("yan_ic" in value || "yan_dis" in value || "yan" in value);
 }
 
 function bucketHasRegions(entry: AtlasOrganEntry, view: FootView, foot: "sol" | "sag"): boolean {
@@ -48,7 +49,12 @@ export function buildOrganSummary(atlas: AtlasDocument, organName: string): Orga
   if (isOrganEntry(entry)) {
     hasTaban =
       bucketHasRegions(entry, "taban", "sol") || bucketHasRegions(entry, "taban", "sag");
-    hasYan = bucketHasRegions(entry, "yan", "sol") || bucketHasRegions(entry, "yan", "sag");
+    // "Yan" = herhangi bir yan görünüm (İç veya Dış). Modal 3'ünü ayrı gösterir.
+    hasYan =
+      bucketHasRegions(entry, "yan_ic", "sol") ||
+      bucketHasRegions(entry, "yan_ic", "sag") ||
+      bucketHasRegions(entry, "yan_dis", "sol") ||
+      bucketHasRegions(entry, "yan_dis", "sag");
   }
 
   const hasLeft = regions.some((r) => r.footSide === "left");

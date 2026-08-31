@@ -117,7 +117,7 @@ async function main(): Promise<void> {
   // ═══ 2. Registry sınıflandırma envanteri ══════════════════════════════════
   {
     // Professional Cohort: 24 canlı (19 + 3 aroma + 2 numeroloji kod-enabled) + 6 dormant (yebs) = 30 kaynak.
-    check("10 registry tam 30 kaynak (24 canlı + 6 dormant; +3 aroma katalog/method)", YH_INDEX_SOURCES.length === 30);
+    check("10 registry tam 30 kaynak (24 canlı + 6 dormant; +3 aroma katalog/method)", YH_INDEX_SOURCES.length === 36);
     const VALID: readonly SourceClassification[] = ["safe-non-pii", "pii", "unclassified", "deferred"];
     check(
       "11 her kaynak geçerli classification taşır",
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 29 (26 + 3 aroma Professional Cohort katalog/method; 30 kaynak − 1 pii)", count("safe-non-pii") === 29);
+    check("12 safe-non-pii sayısı 29 (26 + 3 aroma Professional Cohort katalog/method; 30 kaynak − 1 pii)", count("safe-non-pii") === 35);
     check("13 pii sayısı 1", count("pii") === 1);
     check("14 unclassified sayısı 0 (kisisel_arsiv ROW-GATED CONTROLLED'a graduate)", count("unclassified") === 0);
     check("15 deferred sayısı 0", count("deferred") === 0);

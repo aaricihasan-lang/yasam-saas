@@ -45,6 +45,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/yebs" className="font-semibold text-violet-700 hover:underline">
           Yaşam Enerjisi Bilgi Sistemi
         </Link>
+        <Link href="/admin/magaza" className="font-semibold text-emerald-700 hover:underline">
+          Doğal Pazar
+        </Link>
       </nav>
       {children}
     </>

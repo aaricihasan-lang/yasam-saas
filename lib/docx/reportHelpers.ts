@@ -775,11 +775,17 @@ function detectImgType(buf: Buffer): "jpg" | "png" | "gif" | "bmp" {
  * Creates a centered image paragraph scaled to maxWidth (default 400px).
  * Falls back to 400×300 if natural dimensions can't be detected.
  */
-export function embedImageParagraph(buf: Buffer, maxWidth = 400): Paragraph {
+export function embedImageParagraph(buf: Buffer, maxWidth = 400, maxHeight?: number): Paragraph {
   const dims = getImgDimensions(buf);
   const naturalW = dims?.w ?? 400;
   const naturalH = dims?.h ?? 300;
-  const scale = Math.min(1, maxWidth / naturalW);
+  // Aspect ratio korunur; asla natural boyuttan büyütülmez (min≤1). maxHeight verilirse
+  // portre görsellerde sayfa taşmasını engellemek için yükseklik de sınırlanır (additive).
+  const scale = Math.min(
+    1,
+    maxWidth / naturalW,
+    maxHeight && maxHeight > 0 ? maxHeight / naturalH : 1,
+  );
   const w = Math.round(naturalW * scale);
   const h = Math.round(naturalH * scale);
 

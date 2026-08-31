@@ -209,7 +209,10 @@ function run(): void {
   // ── 9) resolveModuleAccess (Premium bypass YOK; admin/cosmic/coming-soon/hub) ──
   ok(resolveModuleAccess("admin", {}, "stones") === true, "module: admin → tüm modüller");
   ok(resolveModuleAccess("expert", {}, "cosmic_calendar") === true, "module: cosmic_calendar always-on");
-  ok(resolveModuleAccess("expert", { stones: true }, "human_design") === false, "module: human_design yakında (non-admin false)");
+  // Human Design artık NORMAL modül: kişiye özel module_permissions.human_design esastır.
+  ok(resolveModuleAccess("expert", { human_design: true }, "human_design") === true, "module: human_design izinli expert → true");
+  ok(resolveModuleAccess("expert", { human_design: false }, "human_design") === false, "module: human_design izinsiz expert → false");
+  ok(resolveModuleAccess("expert", { stones: true }, "human_design") === false, "module: human_design başka izinle AÇILMAZ");
   ok(resolveModuleAccess("admin", {}, "human_design") === true, "module: human_design admin → true");
   ok(resolveModuleAccess("expert", { stones: true }, "stones") === true, "module: açık modül → izin");
   ok(resolveModuleAccess("expert", { stones: false }, "stones") === false, "module: kapalı modül → red");

@@ -19,12 +19,12 @@ const subModules = [
     desc: "Bilgi bankasına yüklediğiniz içeriklerle danışanlara kişiye özel Human Design raporları oluşturun.",
     href: "/human-design",
     Icon: Compass,
-    badge: "Yakında",
-    badgeStyle: "bg-violet-100 text-violet-700 ring-violet-200/80",
+    badge: "Aktif",
+    badgeStyle: "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
     iconGradient: "from-purple-600 to-indigo-700",
     cardGradient: "from-purple-50/90 via-indigo-50/95 to-white",
     border: "border-purple-200/70",
-    comingSoon: true,
+    comingSoon: false,
   },
 ] as const;
 

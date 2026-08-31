@@ -15,6 +15,8 @@
  * `AtlasDocLike` gerçek `AtlasDocument` ile yapısal uyumludur.
  */
 
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
+
 export type OrganTimeMap = Record<string, string>; // normalizedName -> ISO tarih
 
 export type AtlasMetaLike = {
@@ -28,17 +30,23 @@ export type AtlasDocLike = { _meta?: AtlasMetaLike } & Record<string, unknown>;
 
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
+/**
+ * Organ kimliği TEK kaynaktan: PR #201 kanonik `organKey`
+ * (NFC → whitespace normalize → trim → tr-lower → NFC). Tombstone /
+ * organUpdatedAt anahtarları ve zombie mantığı DAİMA bunu kullanır — NFD
+ * karaciğer tombstone'u ile NFC KARACİĞER organ listesi AYNI kanonik organ
+ * sayılır. Bağımsız ikinci normalizer YOK.
+ */
 export function normOrgan(name: string): string {
-  return name.trim().toLocaleLowerCase("tr");
+  return organKey(name);
 }
 
 export function isOrganEntryLike(value: unknown): boolean {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "taban" in (value as Record<string, unknown>) &&
-    "yan" in (value as Record<string, unknown>)
-  );
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  // Organ entry = taban + en az bir yan varyantı. Yeni canonical: yan_ic/yan_dis;
+  // legacy "yan" da kabul (normalize öncesi ham belge merge'de KAYBOLMASIN — §24).
+  return "taban" in v && ("yan_ic" in v || "yan_dis" in v || "yan" in v);
 }
 
 function ensureMeta(doc: AtlasDocLike): Required<Pick<AtlasMetaLike, "tombstones" | "organUpdatedAt">> & AtlasMetaLike {
@@ -138,4 +146,48 @@ export function mergeAtlasWithTombstones(
     organUpdatedAt: survivorUpdatedAt,
   };
   return out;
+}
+
+/**
+ * Silinmiş (tombstone'lu, silinmeden sonra yeniden EKLENMEMİŞ) organların
+ * kanonik anahtar kümesi. Bunlar organ listesinden filtrelenmeli — aksi halde
+ * bir cihazın bayat organ_list'i silinen organı sonsuza dek diriltir (zombie).
+ */
+export function deadOrganKeys(meta: AtlasMetaLike | undefined): Set<string> {
+  const tombstones = meta?.tombstones ?? {};
+  const organUpdatedAt = meta?.organUpdatedAt ?? {};
+  const dead = new Set<string>();
+  for (const [k, deletedAt] of Object.entries(tombstones)) {
+    if (typeof deletedAt !== "string") continue;
+    const upd = organUpdatedAt[k] ?? EPOCH;
+    if (!(upd > deletedAt)) dead.add(organKey(k)); // kanonik anahtar
+  }
+  return dead;
+}
+
+/**
+ * Organ listesi için TOMBSTONE-farkında + KANONİK birleştirme.
+ *   - Kanonik kimlik (organKey: NFC + Türkçe küçük harf + boşluk) ile
+ *     tekilleştirir → "KARACİĞER" ile "karaciğer" tek satır.
+ *   - Silinen/temizlenen (dead) organ, bayat kopyadan DİRİLMEZ.
+ * Girdi sırası: sunucu önce (mevcut union davranışıyla uyumlu), sonra Türkçe
+ * sıralama. Yalnız ekranda gizleme değil — lifecycle invariantını sağlar.
+ */
+export function mergeOrganListsWithTombstones(
+  server: string[],
+  local: string[],
+  meta: AtlasMetaLike | undefined,
+): string[] {
+  const dead = deadOrganKeys(meta);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [...(server ?? []), ...(local ?? [])]) {
+    const trimmed = (raw ?? "").trim();
+    if (!trimmed) continue;
+    const key = organKey(trimmed);
+    if (!key || seen.has(key) || dead.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out.sort((a, b) => a.localeCompare(b, "tr"));
 }

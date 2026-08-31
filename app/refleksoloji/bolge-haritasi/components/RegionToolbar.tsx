@@ -161,29 +161,23 @@ export function RegionToolbar({
 
         <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
-        <button
-          type="button"
-          onClick={() => setSelectedView("taban")}
-          aria-pressed={selectedView === "taban"}
-          className={btnClass(
-            "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
-            selectedView === "taban",
-          )}
-        >
-          Taban Görünümü
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedView("yan")}
-          aria-pressed={selectedView === "yan"}
-          className={btnClass(
-            "border-purple-200 bg-purple-50 text-purple-700",
-            selectedView === "yan",
-          )}
-        >
-          Yan Görünümü
-        </button>
+        {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — uzman MANUEL seçer. Organ adı
+            görünümü belirlemez. Organ seçili olmasa da seçilebilir. */}
+        {([
+          { view: "taban", label: "Taban", tone: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" },
+          { view: "yan_ic", label: "Yan İç", tone: "border-purple-200 bg-purple-50 text-purple-700" },
+          { view: "yan_dis", label: "Yan Dış", tone: "border-violet-200 bg-violet-50 text-violet-700" },
+        ] as const).map(({ view, label, tone }) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => setSelectedView(view)}
+            aria-pressed={selectedView === view}
+            className={btnClass(tone, selectedView === view)}
+          >
+            {label}
+          </button>
+        ))}
         </div>
       </div>
     </div>

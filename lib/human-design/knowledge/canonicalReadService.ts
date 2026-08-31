@@ -38,6 +38,10 @@ import type {
   HdKnowledgeReadResult,
   HdKnowledgeSourceRef,
 } from "./expertReadTypes";
+import {
+  freezeContent,
+  type FrozenCanonicalRecord,
+} from "@/lib/human-design/reporting/reportSnapshot";
 
 const PUBLISHED = "published";
 const VERIFIED = "verified";
@@ -276,6 +280,46 @@ export async function getPublishedContentByKeys(
   for (const row of data ?? []) {
     const r = row as HdCanonicalContentRow;
     map.set(r.canonical_key, toContentDTO(r));
+  }
+  return { ok: true, data: map };
+}
+
+/**
+ * BATCHED published-only içerik + PROVENANCE okuma (N+1 önler). getPublishedContentByKeys
+ * ile AYNI published/status semantiği; FARK: profesyonel Word raporu snapshot'ı için
+ * canonical satırın DONMUŞ değerlerini + provenance'ını (id/entity_id/entity_kind/version)
+ * birlikte döner → snapshot canonicalContentHash'i mevcut DB kontratıyla (chr(30) + SHA-256)
+ * BİREBİR üretebilir. Tek DB sorgusu (canonical_key + status). Yayınlanmamış/eksik → null.
+ * Kaynak tam metni (rights-gated) BU projeksiyona GİRMEZ (canonical prose odaklı; §13/§38).
+ */
+export async function getPublishedRecordsByKeys(
+  db: SupabaseClient,
+  canonicalKeys: readonly string[],
+): Promise<HdKnowledgeReadResult<Map<string, FrozenCanonicalRecord | null>>> {
+  const keys = Array.from(new Set(canonicalKeys.filter((k) => typeof k === "string" && k.length > 0)));
+  const map = new Map<string, FrozenCanonicalRecord | null>();
+  for (const k of keys) map.set(k, null); // varsayılan: yayınlanmamış/eksik → null
+  if (keys.length === 0) return { ok: true, data: map };
+
+  const { data, error } = await db
+    .from("hd_canonical_content")
+    .select("*")
+    .in("canonical_key", keys)
+    .eq("status", PUBLISHED);
+  if (error) return { ok: false, error: { code: "db_error", message: error.message } };
+
+  for (const row of data ?? []) {
+    const r = row as HdCanonicalContentRow;
+    map.set(r.canonical_key, {
+      meta: {
+        contentId: r.id,
+        entityId: r.entity_id,
+        entityKind: r.entity_kind,
+        canonicalKey: r.canonical_key,
+        version: r.version,
+      },
+      content: freezeContent(toContentDTO(r)),
+    });
   }
   return { ok: true, data: map };
 }

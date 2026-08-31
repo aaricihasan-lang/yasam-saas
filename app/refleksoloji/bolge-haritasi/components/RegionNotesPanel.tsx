@@ -23,10 +23,11 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
     try {
       const atlas = loadAtlas();
       const taban = getRegionsForOrgan(atlas, selectedOrgan, { view: "taban" }).length;
-      const yan = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan" }).length;
-      return { taban, yan, total: taban + yan };
+      const yanIc = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan_ic" }).length;
+      const yanDis = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan_dis" }).length;
+      return { taban, yanIc, yanDis, total: taban + yanIc + yanDis };
     } catch {
-      return { taban: 0, yan: 0, total: 0 };
+      return { taban: 0, yanIc: 0, yanDis: 0, total: 0 };
     }
     // atlasVersion bilinçli bağımlılık: kaydetten sonra sayıları tazelemek için.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,14 +55,19 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
         {selectedOrgan && counts ? (
           counts.total > 0 ? (
             <div className="mt-1 space-y-1.5">
-              <div className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5">
-                <span className="text-xs font-semibold text-violet-900">Taban görünümü</span>
-                <span className="text-sm font-black text-violet-950">{counts.taban}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5">
-                <span className="text-xs font-semibold text-violet-900">Yan görünüm</span>
-                <span className="text-sm font-black text-violet-950">{counts.yan}</span>
-              </div>
+              {([
+                { label: "Taban görünümü", value: counts.taban },
+                { label: "Yan İç görünümü", value: counts.yanIc },
+                { label: "Yan Dış görünümü", value: counts.yanDis },
+              ]).map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5"
+                >
+                  <span className="text-xs font-semibold text-violet-900">{label}</span>
+                  <span className="text-sm font-black text-violet-950">{value}</span>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="mt-1 rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">

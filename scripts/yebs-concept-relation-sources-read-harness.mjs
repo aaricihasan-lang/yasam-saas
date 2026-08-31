@@ -8,8 +8,8 @@ import { dirname, resolve } from "node:path";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const REL = {
-  listRoute: "app/api/admin/yebs/relations/[relationId]/sources/route.ts",
-  detailRoute: "app/api/admin/yebs/relations/[relationId]/sources/[relationSourceId]/route.ts",
+  listRoute: "app/api/admin/yebs/relations/[id]/sources/route.ts",
+  detailRoute: "app/api/admin/yebs/relations/[id]/sources/[relationSourceId]/route.ts",
   service: "lib/yebs/service/conceptRelationSources.ts",
 };
 const P = Object.fromEntries(Object.entries(REL).map(([k, v]) => [k, resolve(ROOT, v)]));
@@ -36,8 +36,10 @@ if (list && detail && svc) {
   check("detail GET export", /export\s+async\s+function\s+GET\s*\(/.test(detail));
   check("detail PATCH export (update)", /export\s+async\s+function\s+PATCH\s*\(/.test(detail));
   check("detail DELETE export (detach)", /export\s+async\s+function\s+DELETE\s*\(/.test(detail));
-  check("nested path relationId (collection)", /\{ relationId: string \}/.test(list));
-  check("nested path relationId+relationSourceId (detail)", /\{ relationId: string; relationSourceId: string \}/.test(detail));
+  // Kanonik dinamik slug [id]'ye tekilleştirildi (Next.js sibling-slug çakışması fix'i);
+  // iç değişken adı `relationId` alias ile korunur (const { id: relationId }).
+  check("nested path canonical [id] (collection)", /\{ id: string \}/.test(list) && /const \{ id: relationId \}/.test(list));
+  check("nested path canonical [id]+relationSourceId (detail)", /\{ id: string; relationSourceId: string \}/.test(detail) && /const \{ id: relationId, relationSourceId \}/.test(detail));
   check("collection verifyAdminRequest + guard.response", /verifyAdminRequest\s*\(/.test(list) && /return\s+guard\.response/.test(list));
   check("detail verifyAdminRequest + guard.response", /verifyAdminRequest\s*\(/.test(detail) && /return\s+guard\.response/.test(detail));
   check("runtime nodejs", /runtime\s*=\s*"nodejs"/.test(list) && /runtime\s*=\s*"nodejs"/.test(detail));

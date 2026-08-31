@@ -1,0 +1,118 @@
+{
+  "_meta": {
+    "purpose": "cupping_point_sources load fixture. Each entry: point_code -> source key + locator + evidence_class + note (LOCATION only, correct Turkish, NO disease claims, NO fabrication). Conflicts preserved via opposing-source notes.",
+    "pending_points": []
+  },
+  "citations": [
+    { "point": "HCP001", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "Kaynak 'kalbin arkası' bölgesini en faydalı hacamat bölgeleri arasında sayar." },
+    { "point": "HCP001", "source": "GOK", "locator": "s.92", "evidence_class": "expert_educational", "note": "Sırt Hacamatı listesinde 'kalp arkası' Kâhil'den ayrı bir bölge olarak verilir." },
+
+    { "point": "HCP002", "source": "GOK", "locator": "s.92", "evidence_class": "expert_educational", "note": "Kâhil, kürek kemiği altı ile 7. omur arasının tam orta noktası olarak tarif edilir; kalp arkasından ayrıdır." },
+    { "point": "HCP002", "source": "ISLAMDA", "locator": "Nafi / Genel Hacamat", "evidence_class": "traditional", "note": "İki kürek kemiği arasındaki üçgenin tepe noktası; kaynak bunu 'nafi/genel/kazançlı/imdada koşan' olarak adlandırır." },
+    { "point": "HCP002", "source": "RISALE", "locator": "s.4", "evidence_class": "historical", "note": "'Kâhil (iki omuzu arası)' olarak açıkça iki omuz arası bölge tarif edilir." },
+
+    { "point": "HCP003", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "Kaynak bıngıldağı 'başın tepe noktasının ortasındaki çukurluk' olarak tanımlar ve buraya hacamat yapılmamasını belirtir (boyun ile birlikte istisna)." },
+    { "point": "HCP003", "source": "ISLAMDA", "locator": "Kurtarıcı Hacamat", "evidence_class": "traditional", "note": "Bu kaynak ise bıngıldak / ön fontanel bölgesine (iki kaş ortasından bir karış) uygulama tarif eder — Benli ile ters görüş." },
+
+    { "point": "HCP004", "source": "ISLAMDA", "locator": "Salıverici Hacamat", "evidence_class": "traditional", "note": "Bel boşluğundaki sakral bölge; kaynak 'salıverici (rehanende)' olarak adlandırır." },
+    { "point": "HCP004", "source": "PPTX", "locator": "slayt 22", "evidence_class": "expert_educational", "note": "Bel/sakral bölge yaklaşık L5–S1 arası olarak tarif edilir." },
+
+    { "point": "HCP005", "source": "ISLAMDA", "locator": "İki Baldır Hacamatı", "evidence_class": "traditional", "note": "Dış malleolden baldırdaki arka çıkıntıya bir karış olarak tarif edilen çift taraflı bölge." },
+    { "point": "HCP005", "source": "PPTX", "locator": "slayt 23", "evidence_class": "expert_educational", "note": "Dış malleolden arka baldıra bir karış gelecek şekilde tarif edilir." },
+
+    { "point": "HCP006", "source": "PPTX", "locator": "slayt 24", "evidence_class": "expert_educational", "note": "Kulak arkasında mastoid kemiği üzerine uygulanan bölge." },
+    { "point": "HCP006", "source": "ISLAMDA", "locator": "Bölgesel Hacamat", "evidence_class": "traditional", "note": "Çene ve 'kulak arkası (mastoid)' bölgesel hacamat yerleri arasında sayılır." },
+
+    { "point": "HCP007", "source": "ISLAMDA", "locator": "Bölgesel Hacamat", "evidence_class": "traditional", "note": "Akhdain, boynun arkasında sağ ve solda yer alan iki bölge (damar) olarak tanımlanır." },
+    { "point": "HCP007", "source": "RISALE", "locator": "s.4", "evidence_class": "historical", "note": "Kaynak 'ahdeayn'ı 'iki kulak arkası' olarak açıklar (boyun-arkası tanımıyla farklılık gösterir; kaynak farkı korunur)." },
+
+    { "point": "HCP008", "source": "ISLAMDA", "locator": "Nukra Hacamatı", "evidence_class": "traditional", "note": "Nukra, boynun ortasındaki çukurdur; kaynak çocuklarda önerirken yetişkinlerde sakıncalı sayar ve bir rivayette unutkanlıkla ilişkilendirir." },
+    { "point": "HCP008", "source": "GOK", "locator": "s.88", "evidence_class": "expert_educational", "note": "'Ense çukuru' olarak gösterilen bölgeden hacamat yapılmaması gerektiği açıkça belirtilir." },
+    { "point": "HCP008", "source": "TERCUME", "locator": "s.24 (YER NO 39)", "evidence_class": "historical", "note": "'Kafa çukuru' (ense arkası derin yer) için zaruret dışında hacamatın yasak olduğu belirtilir." },
+
+    { "point": "HCP009", "source": "ISLAMDA", "locator": "Çene Altı Hacamatı", "evidence_class": "traditional", "note": "Çene altı, kendi başlığı altında bölgesel bir hacamat yeri olarak verilir." },
+    { "point": "HCP009", "source": "RISALE", "locator": "s.5", "evidence_class": "historical", "note": "'Çene Altından Hacamat' ayrı bir uygulama olarak anılır." },
+    { "point": "HCP009", "source": "GOK", "locator": "s.95", "evidence_class": "expert_educational", "note": "Çene altı, nadiren yapılan ve uygulaması zor noktalardan biri olarak tarif edilir." },
+
+    { "point": "HCP010", "source": "PPTX", "locator": "slayt 24", "evidence_class": "expert_educational", "note": "Omzun iki tarafında acromion kemiği üzerine uygulanır; kaynak başlığı 'Kürek Kemiği Hacamatı' olsa da anatomik tarif acromion'u gösterir (İki Kürek Arası ile karıştırılmamalı)." },
+    { "point": "HCP010", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Omuz bölgesine' hacamat ayrı bir uygulama alanı olarak sayılır." },
+    { "point": "HCP010", "source": "GOK", "locator": "s.94", "evidence_class": "expert_educational", "note": "'Omuz başlarından' yapılan hacamat olarak tarif edilir." },
+
+    { "point": "HCP011", "source": "PPTX", "locator": "slayt 25", "evidence_class": "expert_educational", "note": "Omurganın iki tarafında, 12. sırt omuru ve 1. bel omuru (T12–L1) hizası olarak tarif edilir." },
+    { "point": "HCP011", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Böbrek hizasından arka ve ön taraflardan' uygulanabildiği belirtilir." },
+
+    { "point": "HCP012", "source": "PPTX", "locator": "slayt 26", "evidence_class": "expert_educational", "note": "Gövde arkasında sağ kısımda, 12. kaburga hizasında tarif edilir." },
+    { "point": "HCP012", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Karaciğer arkası' bölgesi ayrı bir uygulama alanı olarak sayılır." },
+
+    { "point": "HCP013", "source": "PPTX", "locator": "slayt 26", "evidence_class": "expert_educational", "note": "Dizin iki yanı ve yukarı kısmı olarak tarif edilen bölge." },
+    { "point": "HCP013", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Diz ve baldırlara' uygulanan bölgesel bir alan olarak anılır." },
+
+    { "point": "HCP014", "source": "PPTX", "locator": "slayt 26", "evidence_class": "expert_educational", "note": "'Beynü'l-kab ve'l-ergub': hacamat yeri topuk ile dış malleol arası olarak tarif edilir." },
+
+    { "point": "HCP015", "source": "PPTX", "locator": "slayt 26", "evidence_class": "expert_educational", "note": "Temporal (şakak) bölge; küçük kupa ile iğnesel çizik olarak tarif edilir." },
+    { "point": "HCP015", "source": "GOK", "locator": "s.88-89", "evidence_class": "expert_educational", "note": "'Şakak Yanları' (ST7, GB8 çevresi) olarak gösterilir." },
+
+    { "point": "HCP016", "source": "PPTX", "locator": "slayt 23", "evidence_class": "expert_educational", "note": "Kulak kepçesinin dış kısmı; bu uygulamada kupa kullanılmadığı, tamamen yüzeysel olduğu belirtilir." },
+
+    { "point": "HCP017", "source": "PPTX", "locator": "slayt 25 / 43", "evidence_class": "expert_educational", "note": "Akciğerin bazal (taban) kısmı; kaynakta 'ihtikan hacamatı (akciğer bazalı)' olarak da adlandırılır." },
+
+    { "point": "HCP018", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "Kaynak 'omirilik (omurilik) yanları' olarak omurga iki yanı boyunca uzanan bölgeyi tarif eder." },
+
+    { "point": "HCP019", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Kuyruk sokumu bölgesinin üst tarafına sağ ve soldan' olarak çift taraflı tarif edilir." },
+    { "point": "HCP019", "source": "GOK", "locator": "s.93", "evidence_class": "expert_educational", "note": "'Kuyruk sokumu hacamatı' bölgesi olarak gösterilir." },
+
+    { "point": "HCP020", "source": "BENLI", "locator": "s.52", "evidence_class": "traditional", "note": "'Kafa arkası hacamatı' ayrı bir uygulama olarak anılır." },
+    { "point": "HCP020", "source": "RISALE", "locator": "s.5", "evidence_class": "historical", "note": "Kişi sırt üstü yattığında kafanın yere geldiği yer olarak tarif edilir (Ebu Davud rivayeti)." },
+    { "point": "HCP020", "source": "GOK", "locator": "s.88", "evidence_class": "expert_educational", "note": "'Kafa Arka Hacamatı' (DU18 çevresi) olarak diyagramda gösterilir." },
+
+    { "point": "HCP021", "source": "ISLAMDA", "locator": "Bölgesel Hacamat", "evidence_class": "traditional", "note": "Kalça bölgesi, bölgesel hacamat yerleri arasında sayılır." },
+    { "point": "HCP021", "source": "PPTX", "locator": "slayt 41", "evidence_class": "expert_educational", "note": "Ağrının basenden başlaması bağlamında 'basen hacamatı' bölgesi anılır." },
+
+    { "point": "HCP022", "source": "BENLI", "locator": "s.46", "evidence_class": "historical", "note": "'Alnının her iki yanından' olarak çift taraflı alın yanları tarif edilir (rivayet bağlamı)." },
+    { "point": "HCP022", "source": "TEKIN1", "locator": "teknik paragrafı", "evidence_class": "historical", "note": "'Alnının her iki yanından' kan aldırıldığı belirtilir." },
+
+    { "point": "HCP023", "source": "BENLI", "locator": "s.46", "evidence_class": "historical", "note": "'Ayağının üzerinden' (ayak üstü) olarak tarif edilir (topuktaki incinme bağlamı)." },
+    { "point": "HCP023", "source": "RISALE", "locator": "s.5", "evidence_class": "historical", "note": "'Ayak üzerinden Hacamat' ayrı bir uygulama olarak anılır." },
+
+    { "point": "HCP024", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'İki kulak arası' bölge en faydalı bölgeler arasında sayılır." },
+
+    { "point": "HCP025", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'İki kürek arasının 10 cm üstü' en faydalı bölgeler arasında ayrı bir bölge olarak verilir (Kâhil'den ayrıdır)." },
+
+    { "point": "HCP026", "source": "BENLI", "locator": "s.51-52", "evidence_class": "traditional", "note": "'Kafa bölgesine' genel uygulama ve tarama hacamatında 'Baş bölgesi' olarak anılır." },
+    { "point": "HCP026", "source": "GOK", "locator": "s.111", "evidence_class": "expert_educational", "note": "'Kafa Tarama Hacamat Noktaları' geniş bir baş tarama haritası olarak verilir." },
+
+    { "point": "HCP028", "source": "RISALE", "locator": "s.5", "evidence_class": "historical", "note": "'Göğüs Altından Hacamat' ayrı bir uygulama olarak anılır." },
+    { "point": "HCP028", "source": "PPTX", "locator": "slayt 41", "evidence_class": "expert_educational", "note": "Kanın yönlendirilmesi bağlamında 'göğüs altı' kupa uygulaması anılır." },
+
+    { "point": "HCP032", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "'Kürek kemikleri arası ve aşağısına' ve 'kürek kemikleri hizası' ifadeleriyle kürek altı bölge tarif edilir." },
+
+    { "point": "HCP033", "source": "GOK", "locator": "s.95", "evidence_class": "expert_educational", "note": "'Ayak bileği iç kısmı' ayrı bir nokta olarak gösterilir." },
+
+    { "point": "HCP034", "source": "GOK", "locator": "s.95", "evidence_class": "expert_educational", "note": "'Ayak bileği dış kısmı' ayrı bir nokta olarak gösterilir." },
+
+    { "point": "HCP035", "source": "GOK", "locator": "s.95", "evidence_class": "expert_educational", "note": "'Mide boşluğundan hacamat' (epigastrium; REN 15 çevresi) olarak gösterilir." },
+
+    { "point": "HCP036", "source": "GOK", "locator": "s.89-90", "evidence_class": "expert_educational", "note": "'Alından hacamat (üçüncü göz)': iki kaşın hemen üstündeki nokta olarak tarif edilir." },
+
+    { "point": "HCP037", "source": "GOK", "locator": "s.90", "evidence_class": "expert_educational", "note": "'Alın Üstü Hacamat' (DU23) ayrı bir nokta olarak gösterilir." },
+
+    { "point": "HCP038", "source": "GOK", "locator": "s.91", "evidence_class": "expert_educational", "note": "DU20 (tepe/verteks) noktası açıkça 'bıngıldak DEĞİL' olarak tanımlanır; kafanın 1–2 cm arkasına doğru konumlanır." },
+    { "point": "HCP038", "source": "BENLI", "locator": "s.51", "evidence_class": "traditional", "note": "Bu kaynak ise başın tepe noktasının ortasındaki çukurluğu bıngıldak sayıp buraya hacamatı yasaklar — Gök ile ters görüş (kaynak farkı korunur)." },
+    { "point": "HCP038", "source": "TEKIN2", "locator": "sihir rivayeti", "evidence_class": "historical", "note": "Bir rivayette 'başının tepesinden' hacamat yaptırıldığı anlatılır (kodlama yapılmadan)." },
+
+    { "point": "HCP039", "source": "BENLI", "locator": "s.51-52", "evidence_class": "traditional", "note": "'Sırt bölgesi' genel tarama hacamatında geniş bir uygulama alanı olarak anılır." },
+    { "point": "HCP039", "source": "GOK", "locator": "s.92", "evidence_class": "expert_educational", "note": "Sırt, hacamat yapılan en geniş bölge olarak; kuyruk sokumundan 7. omura kadar tarif edilir." },
+
+    { "point": "HCP002", "source": "HACAMAT2", "locator": "s.2 (arka şema)", "evidence_class": "expert_educational", "note": "Arka vücut şemasında 'Kürek Kemikleri Arası (iki omuz arası kâhil noktası)' başlığıyla gösterilir — Kâhil'in iki omuz arası olduğunu (kalp arkası olmadığını) doğrular." },
+
+    { "point": "HCP027", "source": "HACAMAT2", "locator": "s.1 (ön şema)", "evidence_class": "expert_educational", "note": "Ön vücut şemasında 'Göğüs Bölgesi' başlığıyla ayrı bir hacamat bölgesi olarak gösterilir." },
+    { "point": "HCP027", "source": "TERCUME", "locator": "s.24 (YER NO 120)", "evidence_class": "historical", "note": "Atlas künyesinde 'Göğüs kemiği; burası göğüs ortasıdır' olarak göğüs orta bölgesi tarif edilir (numara kod olarak alınmamıştır)." },
+
+    { "point": "HCP029", "source": "HACAMAT2", "locator": "s.1 (ön şema)", "evidence_class": "expert_educational", "note": "Ön vücut şemasında 'Boyun Bölgesi Altı Hacamat' başlığıyla boynun alt bölgesi ayrı bir yer olarak gösterilir." },
+    { "point": "HCP029", "source": "TERCUME", "locator": "s.24 (YER NO 55)", "evidence_class": "historical", "note": "Atlas künyesinde 'Boynun yaklaşık 3 cm alt tarafı' olarak tarif edilir (numara kod olarak alınmamıştır)." },
+
+    { "point": "HCP030", "source": "HACAMAT2", "locator": "s.1 (ön şema)", "evidence_class": "expert_educational", "note": "Ön vücut şemasında 'Makat ile Cinsel Organ Arasına' başlığıyla perine bölgesi ayrı bir hacamat yeri olarak gösterilir." },
+
+    { "point": "HCP031", "source": "HACAMAT2", "locator": "s.2 (arka şema)", "evidence_class": "expert_educational", "note": "Arka vücut şemasında 'Ense Çukurunun Altı Hacamat Tedavi (boyun)' başlığıyla, ense çukurunun ALTINDAKİ bölge AYRI bir başlık/yer olarak gösterilir (Nukra ile birleştirilmez)." }
+  ]
+}

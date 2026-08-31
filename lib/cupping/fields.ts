@@ -22,7 +22,26 @@ export const CUPPING_TABLES = {
   techniqueSources: "cupping_technique_sources",
   knowledgeSources: "cupping_knowledge_sources",
   safetySources: "cupping_safety_sources",
+  // ── Kullanıcı/uzman notları (formal citation'dan AYRI, tenant-local) ──
+  topicNotes: "cupping_topic_notes",
+  topicNotePoints: "cupping_topic_note_points",
+  // ── V2 CLEAN CORE — Hacamat Protokolleri (legacy topics ağacından TAMAMEN AYRI) ──
+  protocols: "cupping_protocols",
+  protocolPoints: "cupping_protocol_points",
+  protocolTechniques: "cupping_protocol_techniques",
+  protocolSafety: "cupping_protocol_safety",
+  protocolSteps: "cupping_protocol_steps",
+  protocolEntries: "cupping_protocol_entries",
+  protocolEntryPoints: "cupping_protocol_entry_points",
+  protocolSources: "cupping_protocol_sources",
 } as const;
+
+/**
+ * cupping_topic_notes yazılabilir alanları (server-side). tenant_id/id/topic_id/created_at
+ * ASLA client'tan alınmaz (topic_id path/param'dan gelir, server assertOwnedRef eder).
+ * point_id listesi ayrı body alanı olarak (point_ids) ele alınır — junction'a server yazar.
+ */
+export const TOPIC_NOTE_WRITABLE = ["note", "source_label", "sort_order", "is_active"] as const;
 
 export const POINT_WRITABLE = [
   "name",
@@ -148,3 +167,78 @@ export type CitationEntity = keyof typeof CITATION_SPECS;
 export function isCitationEntity(v: unknown): v is CitationEntity {
   return typeof v === "string" && Object.prototype.hasOwnProperty.call(CITATION_SPECS, v);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 CLEAN CORE — Hacamat Protokolleri yazılabilir alanları (server-side)
+//
+// LEGACY (cupping_topics / cupping_point_topics / cupping_topic_notes) ağacından
+// TAMAMEN AYRI. tenant_id / id / created_at / provenance ASLA client'tan alınmaz.
+// Junction PATCH'lerinde FK kolonları (protocol_id/point_id/technique_id/...) META
+// allowlist'ten HARİÇ (immutable) — yalnız protocol_note/sort_order düzenlenir.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** cupping_protocols — protokol dosyası temel bilgisi. */
+export const PROTOCOL_WRITABLE = [
+  "title",
+  "category",
+  "summary",
+  "tags",
+  "preparation_note",
+  "aftercare_note",
+  "follow_up_note",
+  "sort_order",
+  "is_active",
+] as const;
+
+/** cupping_protocol_points — POST (FK dahil) / PATCH (yalnız META). */
+export const PROTOCOL_POINT_WRITABLE = ["protocol_id", "point_id", "protocol_note", "sort_order"] as const;
+export const PROTOCOL_POINT_META_WRITABLE = ["protocol_note", "sort_order"] as const;
+
+/** cupping_protocol_techniques — POST (FK dahil) / PATCH (yalnız META). */
+export const PROTOCOL_TECHNIQUE_WRITABLE = ["protocol_id", "technique_id", "protocol_note", "sort_order"] as const;
+export const PROTOCOL_TECHNIQUE_META_WRITABLE = ["protocol_note", "sort_order"] as const;
+
+/** cupping_protocol_safety — POST (FK dahil) / PATCH (yalnız META). */
+export const PROTOCOL_SAFETY_WRITABLE = ["protocol_id", "safety_id", "protocol_note", "sort_order"] as const;
+export const PROTOCOL_SAFETY_META_WRITABLE = ["protocol_note", "sort_order"] as const;
+
+/**
+ * cupping_protocol_steps — POST (protocol_id dahil) / PATCH (protocol_id HARİÇ; ref'ler
+ * düzenlenebilir ama step route'u protokol-üyeliğini doğrular + DB composite FK backstop).
+ */
+export const PROTOCOL_STEP_WRITABLE = [
+  "protocol_id",
+  "title",
+  "body",
+  "stage_label",
+  "ref_point_id",
+  "ref_technique_id",
+  "sort_order",
+] as const;
+export const PROTOCOL_STEP_META_WRITABLE = [
+  "title",
+  "body",
+  "stage_label",
+  "ref_point_id",
+  "ref_technique_id",
+  "sort_order",
+] as const;
+
+/**
+ * cupping_protocol_entries — UNIFIED "Bilgiler". source_id opsiyonel (nullable);
+ * protocol_id body'den (POST) alınır, PATCH'te immutable. point_ids ayrı body alanı
+ * (junction'a yalnız server yazar; atomik REPLACE).
+ */
+export const PROTOCOL_ENTRY_WRITABLE = [
+  "title",
+  "content",
+  "source_id",
+  "source_label",
+  "locator",
+  "sort_order",
+  "is_active",
+] as const;
+
+/** cupping_protocol_sources — protokol-seviye künye. POST (FK dahil) / PATCH (META). */
+export const PROTOCOL_SOURCE_WRITABLE = ["protocol_id", "source_id", "locator", "note", "sort_order"] as const;
+export const PROTOCOL_SOURCE_META_WRITABLE = ["locator", "note", "sort_order"] as const;

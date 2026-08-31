@@ -11,27 +11,23 @@ import {
   mergeDraftIntoAtlas,
   saveAtlas,
   saveOrganList,
-  unionOrganLists,
 } from "@/lib/atlasStorage";
 import type { AtlasDocument } from "@/lib/atlasStorage";
+import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
 import {
   hydrateAtlasFromServer,
   scheduleAtlasSync,
   setAtlasSyncSuspended,
 } from "@/lib/refleksolojiAtlasSync";
 import type { FootSide, FootView, Region } from "../types";
-import { isDuplicateOrgan } from "../utils/organUtils";
+import { dedupeByOrganKey, isDuplicateOrgan } from "../utils/organUtils";
 
 function mergeOrganLists(atlasOrgans: string[], sessionOrgans: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const name of [...sessionOrgans, ...atlasOrgans]) {
-    const key = name.trim().toLocaleLowerCase("tr");
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    result.push(name.trim());
-  }
-  return result.sort((a, b) => a.localeCompare(b, "tr"));
+  // Oturum organları önce (kanonik kimlikte ilk-görülen etiket kazanır),
+  // ardından Türkçe sıralama.
+  return dedupeByOrganKey([...sessionOrgans, ...atlasOrgans]).sort((a, b) =>
+    a.localeCompare(b, "tr"),
+  );
 }
 
 export function useAtlasWorkspace(initialOrgan?: string | null) {
@@ -75,7 +71,12 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
         // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
         const localDoc = loadAtlas();
         const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
-        const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
+        // Zombie fix: tombstone-farkında + kanonik organ listesi birleştirme.
+        const mergedOrgans = mergeOrganListsWithTombstones(
+          server.organ_list,
+          loadOrganList(),
+          mergedDoc._meta,
+        );
         setAtlasSyncSuspended(true);
         saveAtlas(mergedDoc);
         saveOrganList(mergedOrgans);

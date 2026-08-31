@@ -154,3 +154,22 @@ export async function assertOwnedRef(
     .maybeSingle();
   return !error && !!data;
 }
+
+/**
+ * Bir kompozit üyeliğin (ör. bir point'in AYNI protokolün cupping_protocol_points
+ * setinde olması) GERÇEK olduğunu doğrular — V2 step referential integrity için.
+ * Herhangi bir filtre değeri boş/geçersizse false (cast paniği yok).
+ */
+export async function assertCompositeRef(
+  db: SupabaseClient,
+  table: string,
+  filters: Record<string, unknown>,
+): Promise<boolean> {
+  let q = db.from(table).select("id");
+  for (const [k, v] of Object.entries(filters)) {
+    if (typeof v !== "string" || !v) return false;
+    q = q.eq(k, v);
+  }
+  const { data, error } = await q.maybeSingle();
+  return !error && !!data;
+}

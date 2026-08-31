@@ -18,6 +18,7 @@ import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { listChartsWithClients } from "../helpers/hdKayitliHaritalar";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
 import { HdPersonalKnowledgePanel } from "../components/HdPersonalKnowledgePanel";
+import { HdProfessionalReportButton } from "../components/HdProfessionalReportButton";
 
 type State =
   | { phase: "loading" }
@@ -104,13 +105,15 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
             {row.client.birth_place ? ` · ${row.client.birth_place}` : ""}
           </p>
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-start gap-2">
           {clientId ? (
             <>
               <Link href={`/human-design/harita-kaydi?clientId=${clientId}`} className="flex h-9 items-center rounded-xl border border-indigo-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-700 no-underline shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50">Düzenle</Link>
               <Link href={`/human-design/rapor-olustur?clientId=${clientId}`} className="flex h-9 items-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-black uppercase tracking-wide text-white no-underline shadow-sm transition hover:brightness-105">Rapor Oluştur</Link>
             </>
           ) : null}
+          {/* FAZ 2: DONMUŞ canonical içerikten profesyonel Word raporu (chart bazlı). */}
+          <HdProfessionalReportButton chartId={chartId} />
         </div>
       </div>
 

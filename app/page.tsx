@@ -22,6 +22,7 @@ import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
+  hasAnyModulePermissionFlag,
   hasModulePermission,
   LOCKED_PERMISSION_TOAST,
   COMING_SOON_MODULE_KEYS,
@@ -39,6 +40,7 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -48,9 +50,11 @@ import {
   Check,
   Gem,
   Layers,
+  Leaf,
   Loader2,
   Lock,
   Package,
+  Salad,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -75,6 +79,13 @@ type RecentItem = {
 type ModuleCard = {
   href: string;
   permissionKey: ModulePermissionKey;
+  /**
+   * Çok-modüllü hub kartı için AÇIK OR izin listesi. Verildiğinde kartın görünürlüğü
+   * ve kilit kararı bu anahtarlardan HERHANGİ biriyle (hasAnyModulePermissionFlag)
+   * belirlenir; permissionKey yalnız tip/stat/tarih araması için placeholder kalır.
+   * Global permission alias semantiği DEĞİŞTİRİLMEZ (aroma izni ≠ şifa izni).
+   */
+  anyPermissionKeys?: string[];
   emoji: string;
   featured?: boolean;
   /** Bu modülün i18n `.stat` sayaç metni var mı (n interpolasyonlu). */
@@ -251,6 +262,21 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
+    href: "/dogal-destek",
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi izni yeterli. permissionKey
+    // yalnız tip placeholder'ı (stat/tarih yok); gerçek karar anyPermissionKeys üzerinden.
+    // Görünen başlık/açıklama i18n'den `home.modules.sifa_rehberi.*` ile gelir.
+    permissionKey: "sifa_rehberi",
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing"],
+    emoji: "🌿",
+    Icon: Leaf,
+    theme: {
+      iconWrap: "from-emerald-500 to-teal-600",
+      cardBg: "from-emerald-100/90 via-teal-50/95 to-white",
+      border: "border-emerald-200/70",
+    },
+  },
+  {
     href: "/digital-content",
     permissionKey: "digital_content",
     emoji: "📚",
@@ -295,12 +321,12 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   stones: ["dogaltas"],
   stok: ["stock"],
   sifa_rehberi: ["healing"],
+  // Enerji & Beden umbrella'sı artık Aromaterapi'yi KAPSAMAZ (Doğal Destek'e taşındı).
+  // aromatherapy/aromaterapi alias'ları kaldırıldı; Biyoenerji + Refleksoloji kalır.
   energy_body: [
     "biyoenerji",
     "reflexology",
     "refleksoloji",
-    "aromatherapy",
-    "aromaterapi",
   ],
   personal_archive: ["kisisel_arsiv"],
   video_ceviri: [],
@@ -332,6 +358,12 @@ function isExpertDashboardModuleVisible(
 ): boolean {
   if (!hasExpertMembershipAccess(user)) return false;
 
+  // Çok-modüllü hub kartı (ör. Doğal Destek & Rehber): AÇIK OR — anahtarlardan
+  // herhangi biri yeterli. Global alias semantiği değişmeden merkezî yardımcı reuse.
+  if (item.anyPermissionKeys) {
+    return hasAnyModulePermissionFlag(user, item.anyPermissionKeys);
+  }
+
   const key = item.permissionKey;
 
   // P3: Premium otomatik-tüm-modül bypass'ı KALDIRILDI — kişiye özel izinlere dayanır
@@ -354,6 +386,23 @@ function isExpertDashboardModuleVisible(
 function isExpertMembershipExpired(user: YasamUser): boolean {
   if (isAdminUser(user)) return false;
   return !hasExpertMembershipAccess(user);
+}
+
+/**
+ * Çok-modüllü hub kartı için kilit kararı — getModuleLockReason'ın OR karşılığı.
+ * Anahtarlardan herhangi biri açıksa kilit yok; hiçbiri yoksa "permission".
+ * coming_soon burada geçersiz (hub kartı yakında-modül değil).
+ */
+function getAnyPermissionLockReason(
+  user: YasamUser | null | undefined,
+  keys: string[],
+  hasHref: boolean,
+  subscriptionOpen: boolean,
+): ModuleLockReason {
+  if (!hasHref) return null;
+  if (!subscriptionOpen) return "subscription";
+  if (!hasAnyModulePermissionFlag(user, keys)) return "permission";
+  return null;
 }
 
 function expertHasAnyGrantedModule(user: YasamUser): boolean {
@@ -537,6 +586,10 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
+  // Beslenme OWNER-ONLY (super-admin) kart görünürlüğü. isAdminUser TEK BAŞINA yetmez;
+  // gerçek owner (users.is_super_admin) server probe'u (/api/beslenme/access) ile doğrulanır.
+  // Default hidden → owner doğrulanırsa render (normal admin/expert asla görmez; fail-closed).
+  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -585,6 +638,21 @@ export default function Home() {
     event.stopPropagation();
     loginBackdropPressed.current = false;
   };
+
+  // Beslenme owner-only kart: yalnız admin için server owner-probe (super-admin). Fail-closed.
+  useEffect(() => {
+    if (!user || !isAdminUser(user)) {
+      setBeslenmeOwner(false);
+      return;
+    }
+    let alive = true;
+    void checkBeslenmeAccess().then((ok) => {
+      if (alive) setBeslenmeOwner(ok === true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     const stored = readYasamUser();
@@ -1363,7 +1431,9 @@ export default function Home() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                   {visibleDashboardModules.map((item) => {
                     const hasHref = item.href !== "#";
-                    const lockReason = getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+                    const lockReason = item.anyPermissionKeys
+                      ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
+                      : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const { Icon, theme } = item;
@@ -1474,6 +1544,10 @@ export default function Home() {
                     </div>
                   </Link>
 
+                  {/* Doğal Pazar public vitrin kartı — PRIVATE OWNER PREVIEW LOCK sırasında
+                      GİZLİ. Public açılış ileride ayrı release ile geri getirilecek. Sahip
+                      önizlemesi /admin/magaza/onizleme üzerinden yapılır. */}
+
                   {/* YEBS — YALNIZ yönetici hesabında görünür admin-only kart.
                       Gerçek güvenlik server-side verifyAdminRequest'tedir; bu kart
                       isAdminUser ile gizlenir (defense-in-depth). Diğer modül
@@ -1495,6 +1569,35 @@ export default function Home() {
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
                             YEBS
+                          </span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
+
+                  {/* Beslenme — OWNER-ONLY (super-admin) kart. isAdminUser + server owner
+                      probe (beslenmeOwner) birlikte gerekli; normal admin/expert görmez.
+                      Asıl güvenlik server-side requireMainAdmin'dedir (defense-in-depth). */}
+                  {beslenmeOwner ? (
+                    <Link href="/beslenme" data-beslenme-owner-card data-admin-only="true" className="block text-inherit no-underline">
+                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-lime-200/90 bg-lime-50 px-2 py-0.5 text-[10px] font-bold text-lime-700">
+                          Sahip
+                        </span>
+                        <span className="text-3xl leading-none" aria-hidden>
+                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
+                        </span>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">Beslenme</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                          Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri
+                        </p>
+                        <p className="mt-1.5 text-xs text-slate-500">Geliştirme (yalnız sahip)</p>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                            Beslenme
                           </span>
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
                             <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
@@ -2281,10 +2384,6 @@ export default function Home() {
                 key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-purple-200/70 bg-gradient-to-br from-purple-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(147,51,234,0.12)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-indigo-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("landing.comingSoonBadge")}
-                </span>
-
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 text-xl text-white shadow-md shadow-purple-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
@@ -2306,9 +2405,13 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-purple-200/60 bg-purple-100/50 py-2 text-center text-xs font-bold text-purple-500">
-                  {t("common.comingSoon")}
-                </div>
+                <Link
+                  href="/human-design"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-purple-500 hover:to-indigo-600 hover:shadow-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t("common.moduleGo")}
+                </Link>
               </div>
             ) : (
               <div
