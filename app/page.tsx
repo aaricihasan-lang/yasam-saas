@@ -22,6 +22,7 @@ import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
+  hasAnyModulePermissionFlag,
   hasModulePermission,
   LOCKED_PERMISSION_TOAST,
   COMING_SOON_MODULE_KEYS,
@@ -45,6 +46,7 @@ import {
   Check,
   Gem,
   Layers,
+  Leaf,
   Loader2,
   Lock,
   Package,
@@ -75,6 +77,13 @@ type ModuleCard = {
   badge: string;
   href: string;
   permissionKey: ModulePermissionKey;
+  /**
+   * Çok-modüllü hub kartı için AÇIK OR izin listesi. Verildiğinde kartın görünürlüğü
+   * ve kilit kararı bu anahtarlardan HERHANGİ biriyle (hasAnyModulePermissionFlag)
+   * belirlenir; permissionKey yalnız tip/stat/tarih araması için placeholder kalır.
+   * Global permission alias semantiği DEĞİŞTİRİLMEZ (aroma izni ≠ şifa izni).
+   */
+  anyPermissionKeys?: string[];
   emoji: string;
   featured?: boolean;
   statFormat?: (n: number) => string;
@@ -313,7 +322,7 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     title: "Enerji & Beden",
-    desc: "Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa & Hacamat çalışma alanları",
+    desc: "Beden üzerinde çalışan uygulama ve terapi araçları: Biyoenerji, Refleksoloji ve Kupa & Hacamat",
     count: "Aktif",
     badge: "Modül",
     href: "/enerji-beden",
@@ -324,6 +333,24 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-fuchsia-500 to-violet-600",
       cardBg: "from-violet-100/90 via-purple-50/95 to-white",
       border: "border-violet-200/70",
+    },
+  },
+  {
+    title: "Doğal Destek & Rehber",
+    desc: "Doğal destek yöntemleri ve profesyonel başvuru kaynakları: Aromaterapi ve Şifa Rehberi",
+    count: "Aktif",
+    badge: "Modül",
+    href: "/dogal-destek",
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi izni yeterli. permissionKey
+    // yalnız tip placeholder'ı (stat/tarih yok); gerçek karar anyPermissionKeys üzerinden.
+    permissionKey: "sifa_rehberi",
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing"],
+    emoji: "🌿",
+    Icon: Leaf,
+    theme: {
+      iconWrap: "from-emerald-500 to-teal-600",
+      cardBg: "from-emerald-100/90 via-teal-50/95 to-white",
+      border: "border-emerald-200/70",
     },
   },
   {
@@ -383,12 +410,12 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   stones: ["dogaltas"],
   stok: ["stock"],
   sifa_rehberi: ["healing"],
+  // Enerji & Beden umbrella'sı artık Aromaterapi'yi KAPSAMAZ (Doğal Destek'e taşındı).
+  // aromatherapy/aromaterapi alias'ları kaldırıldı; Biyoenerji + Refleksoloji kalır.
   energy_body: [
     "biyoenerji",
     "reflexology",
     "refleksoloji",
-    "aromatherapy",
-    "aromaterapi",
   ],
   personal_archive: ["kisisel_arsiv"],
   video_ceviri: [],
@@ -420,6 +447,12 @@ function isExpertDashboardModuleVisible(
 ): boolean {
   if (!hasExpertMembershipAccess(user)) return false;
 
+  // Çok-modüllü hub kartı (ör. Doğal Destek & Rehber): AÇIK OR — anahtarlardan
+  // herhangi biri yeterli. Global alias semantiği değişmeden merkezî yardımcı reuse.
+  if (item.anyPermissionKeys) {
+    return hasAnyModulePermissionFlag(user, item.anyPermissionKeys);
+  }
+
   const key = item.permissionKey;
 
   // P3: Premium otomatik-tüm-modül bypass'ı KALDIRILDI — kişiye özel izinlere dayanır
@@ -442,6 +475,23 @@ function isExpertDashboardModuleVisible(
 function isExpertMembershipExpired(user: YasamUser): boolean {
   if (isAdminUser(user)) return false;
   return !hasExpertMembershipAccess(user);
+}
+
+/**
+ * Çok-modüllü hub kartı için kilit kararı — getModuleLockReason'ın OR karşılığı.
+ * Anahtarlardan herhangi biri açıksa kilit yok; hiçbiri yoksa "permission".
+ * coming_soon burada geçersiz (hub kartı yakında-modül değil).
+ */
+function getAnyPermissionLockReason(
+  user: YasamUser | null | undefined,
+  keys: string[],
+  hasHref: boolean,
+  subscriptionOpen: boolean,
+): ModuleLockReason {
+  if (!hasHref) return null;
+  if (!subscriptionOpen) return "subscription";
+  if (!hasAnyModulePermissionFlag(user, keys)) return "permission";
+  return null;
 }
 
 function expertHasAnyGrantedModule(user: YasamUser): boolean {
@@ -1466,7 +1516,9 @@ export default function Home() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                   {visibleDashboardModules.map((item) => {
                     const hasHref = item.href !== "#";
-                    const lockReason = getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+                    const lockReason = item.anyPermissionKeys
+                      ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
+                      : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const { Icon, theme } = item;
