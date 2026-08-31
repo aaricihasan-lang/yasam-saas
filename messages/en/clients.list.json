@@ -1,0 +1,117 @@
+{
+  "clients": {
+    "list": {
+      "eyebrow": "Client Journey",
+      "title": "Client List",
+      "subtitle": "Search, filter and open the details of your registered clients.",
+      "statClients": "Clients",
+      "statAlerts": "Active Alerts",
+      "newClient": "New Record",
+      "newClientDemo": "Demo Record",
+      "demoNotice": {
+        "title": "Demo Mode — Sample Data",
+        "desc": "You are exploring the platform with 20 sample client profiles prepared to resemble real data. Phone details are hidden. You can access the full content of only the <b>Eylül Karaca</b> profile."
+      },
+      "tenantMissing": {
+        "noSession": "Session not found. Please sign in again to view the client list.",
+        "noTenant": "Workspace (tenant) information not found. Client data cannot be loaded."
+      },
+      "filter": {
+        "title": "Search & Filter",
+        "subtitle": "Filter by first name, last name, phone, zodiac sign, blood type and temperament.",
+        "searchLabel": "Search",
+        "searchPlaceholder": "First name, last name or phone...",
+        "burcLabel": "Zodiac Sign",
+        "kanLabel": "Blood Type",
+        "mizacLabel": "Temperament",
+        "all": "All",
+        "burcOptions": {
+          "Koç": "Aries",
+          "Boğa": "Taurus",
+          "İkizler": "Gemini",
+          "Yengeç": "Cancer",
+          "Aslan": "Leo",
+          "Başak": "Virgo",
+          "Terazi": "Libra",
+          "Akrep": "Scorpio",
+          "Yay": "Sagittarius",
+          "Oğlak": "Capricorn",
+          "Kova": "Aquarius",
+          "Balık": "Pisces"
+        },
+        "mizacOptions": {
+          "safra": "Choleric",
+          "sovdavi": "Melancholic",
+          "dem": "Sanguine",
+          "balgam": "Phlegmatic"
+        }
+      },
+      "listHeader": "Registered Clients",
+      "sort": {
+        "newest": "Newest First",
+        "oldest": "Oldest First",
+        "nameAz": "Name A → Z",
+        "nameZa": "Name Z → A",
+        "gorusmeNew": "Meeting (Newest)",
+        "gorusmeOld": "Meeting (Oldest)"
+      },
+      "empty": {
+        "none": "No client records yet.",
+        "noMatch": "No clients match your criteria.",
+        "addFirst": "Add the first client"
+      },
+      "loadingMore": "Loading…",
+      "pagination": {
+        "aria": "Pagination",
+        "prev": "Previous page",
+        "next": "Next page",
+        "summary": "Page {page} / {pageCount} · {total, plural, one {# client} other {# clients}}"
+      },
+      "card": {
+        "openTitle": "Open client detail",
+        "expiredHw": "⚠ {count, plural, one {# assignment} other {# assignments}}",
+        "noPhone": "No phone",
+        "noGorusme": "No meeting date",
+        "detail": "View Details →"
+      },
+      "durum": {
+        "aktif": "Active",
+        "takip": "Follow-up",
+        "pasif": "Passive",
+        "yeni": "New Record"
+      },
+      "relative": {
+        "today": "today",
+        "daysAgo": "{n, plural, one {# day ago} other {# days ago}}",
+        "weeksAgo": "{n, plural, one {# week ago} other {# weeks ago}}",
+        "monthsAgo": "{n, plural, one {# month ago} other {# months ago}}",
+        "yearsAgo": "{n, plural, one {# year ago} other {# years ago}}"
+      },
+      "toast": {
+        "sessionWarningTitle": "Session warning",
+        "noSession": "Session not found. Please sign in again.",
+        "noTenant": "Your account has no workspace (tenant) information.",
+        "failTitle": "Action failed",
+        "listError": "List error",
+        "errorTitle": "Error",
+        "loadMoreError": "More records could not be loaded.",
+        "loadAllError": "Records could not be loaded.",
+        "sessionMissing": "Session information not found.",
+        "deleteConfirmTitle": "Delete selected clients",
+        "deleteConfirmMsg": "Are you sure you want to delete {count, plural, one {# client} other {# clients}} and all their related data?",
+        "deleteConfirmSecond": "This action CANNOT be undone. The client's meetings, assignments and analyses will also be deleted.",
+        "deleteNone": "Deletion did not take place. Please try again.",
+        "deletePartialTitle": "Clients deleted",
+        "deletePartialMsg": "Cleanup of some attached files could not be completed.",
+        "successTitle": "Success",
+        "deleteSuccess": "{count, plural, one {# client} other {# clients}} deleted successfully.",
+        "warnTitle": "Warning",
+        "exportSelectFirst": "Select a client first.",
+        "exportNoFiltered": "No filtered results.",
+        "exportSuccess": "Client report downloaded.",
+        "exportError": "Report could not be generated",
+        "unknownError": "Unknown error"
+      }
+    }
+  }
+}

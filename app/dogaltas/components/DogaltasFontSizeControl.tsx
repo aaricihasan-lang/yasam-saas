@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { DOGALTAS_MODAL_FONT_DEFAULT } from "@/lib/dogaltas/dogaltasModalFontSize";
 
 type DogaltasFontSizeControlProps = {
@@ -34,20 +35,21 @@ export function DogaltasFontSizeControl({
   defaultFontSizePx = DOGALTAS_MODAL_FONT_DEFAULT,
 }: DogaltasFontSizeControlProps) {
   const isDefaultSize = isDefault ?? fontSizePx === defaultFontSizePx;
+  const t = useTranslations("stones.fontSize");
   return (
     <div
       className={`inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-violet-200/90 bg-white/95 shadow-sm ring-1 ring-violet-100/70 ${
         compact ? "p-1" : "px-2 py-1.5"
       }`}
       role="group"
-      aria-label="Yazı boyutu"
+      aria-label={t("groupAria")}
     >
       <span
         className={`font-black uppercase tracking-wider text-slate-500 ${
           compact ? "px-1.5 text-[9px]" : "px-2 text-[10px]"
         }`}
       >
-        Yazı Boyutu
+        {t("label")}
       </span>
 
       <button
@@ -55,8 +57,8 @@ export function DogaltasFontSizeControl({
         onClick={onDecrease}
         disabled={!canDecrease}
         className={`${btnBase} ${btnIdle}`}
-        aria-label="Yazıyı küçült"
-        title="Küçült (A-)"
+        aria-label={t("decreaseAria")}
+        title={t("decreaseTitle")}
       >
         A-
       </button>
@@ -65,8 +67,8 @@ export function DogaltasFontSizeControl({
         type="button"
         onClick={onReset}
         className={`${btnBase} ${isDefaultSize ? btnActive : btnIdle}`}
-        aria-label={`Varsayılan yazı boyutu (${defaultFontSizePx}px)`}
-        title={`Varsayılan (${defaultFontSizePx}px)`}
+        aria-label={t("resetAria", { px: defaultFontSizePx })}
+        title={t("resetTitle", { px: defaultFontSizePx })}
       >
         A
       </button>
@@ -76,8 +78,8 @@ export function DogaltasFontSizeControl({
         onClick={onIncrease}
         disabled={!canIncrease}
         className={`${btnBase} ${btnIdle}`}
-        aria-label="Yazıyı büyüt"
-        title="Büyüt (A+)"
+        aria-label={t("increaseAria")}
+        title={t("increaseTitle")}
       >
         A+
       </button>

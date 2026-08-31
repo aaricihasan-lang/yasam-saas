@@ -1,0 +1,91 @@
+{
+  "stones": {
+    "hub": {
+      "sidebar": {
+        "brand": "YAŞAM SİSTEMİ",
+        "moduleName": "Stones",
+        "modulesHeading": "MODULES"
+      },
+      "hero": {
+        "titleAccent": "Stones",
+        "titleSuffix": "",
+        "subtitle": "Manage your stones, minerals, combinations and inventory in one place.",
+        "reportButton": "📄 Professional Report"
+      },
+      "search": {
+        "aria": "Search by stone name or content",
+        "placeholderNarrow": "Search stones…",
+        "placeholderWide": "Search by stone name or content (e.g. stomach, healing)…",
+        "submit": "Search",
+        "submitting": "Searching…",
+        "dataError": "Unable to load search data.",
+        "recordsError": "Unable to load stone records: {message}"
+      },
+      "results": {
+        "title": "Search Results",
+        "count": " · {count, plural, one {# record} other {# records}}",
+        "loading": "Loading…",
+        "empty": "No results found for this search.",
+        "noDescription": "No short description added.",
+        "viewed": "Viewed",
+        "matched": "Match: {field}",
+        "detail": "View Details"
+      },
+      "field": {
+        "stoneName": "Stone name",
+        "shortDescription": "Short description",
+        "generalInfo": "General information",
+        "physicalEffects": "Physical effects",
+        "spiritualEffects": "Spiritual effects",
+        "otherEffects": "Other effects",
+        "warning": "Warning",
+        "chakra": "Chakra",
+        "tag": "Tag",
+        "assignments": "Assignments"
+      },
+      "analytics": {
+        "title": "Calculated Insights",
+        "subtitle": "Based on your stone, mineral and combination data.",
+        "failedCounters": "Some counters could not be loaded ({items}). Please refresh the page.",
+        "failedLabel": {
+          "stones": "stone records",
+          "combinations": "combinations",
+          "minerals": "minerals"
+        },
+        "trendTitle": "Monthly Record Trend",
+        "trendSubtitle": "Last 6 months",
+        "loading": "Loading…",
+        "barTitle": "{label}: {count, plural, one {# record} other {# records}}",
+        "totalStones": "Total Stone Records",
+        "mineralBank": "Mineral Library",
+        "activeCombinations": "Active Combinations"
+      },
+      "report": {
+        "title": "Create Professional Word Report",
+        "subtitle": "Select the sections to include in the report.",
+        "selectAll": "Select All",
+        "section": {
+          "stones": "Stone Records",
+          "minerals": "Mineral Library",
+          "combinations": "Combinations",
+          "knowledge": "Stone Knowledge Base",
+          "analytics": "Inventory / Analytics Summary"
+        },
+        "errorEmpty": "Please select at least one section to include in the report.",
+        "errorSession": "No active session found. Please refresh the page.",
+        "errorUser": "User identity not found. Please sign in again.",
+        "errorGeneric": "Unable to generate the report.",
+        "success": "Word report generated successfully.",
+        "preparing": "Preparing your professional Word report…",
+        "clear": "Clear Selection",
+        "submit": "Generate Report",
+        "submitting": "Preparing…"
+      },
+      "fallbackLoading": "Loading…",
+      "meta": {
+        "titleDefault": "Stones · Yaşam Sistemi",
+        "titleTemplate": "%s · Stones · Yaşam Sistemi"
+      }
+    }
+  }
+}

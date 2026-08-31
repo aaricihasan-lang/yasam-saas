@@ -10,14 +10,15 @@ import {
   type FormEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
+import { formatDate } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
@@ -95,27 +96,33 @@ function assignmentsToSearchText(assignments: Record<string, unknown> | null): s
   return parts.filter(Boolean).join(" ");
 }
 
-function buildStoneSearchFields(stone: StoneSearchRecord): StoneSearchFieldHit[] {
+/** Görünen alan etiketi çözümleyicisi (i18n `stones.hub` grubu). */
+type HubLabelResolver = (key: string) => string;
+
+function buildStoneSearchFields(
+  stone: StoneSearchRecord,
+  t: HubLabelResolver,
+): StoneSearchFieldHit[] {
   const fields: StoneSearchFieldHit[] = [
-    { label: "Taş adı", text: stone.stone_name },
-    { label: "Kısa açıklama", text: stone.short_description ?? "" },
-    { label: "Genel bilgi", text: stone.general_info ?? "" },
-    { label: "Fiziksel etkiler", text: stone.physical_effects ?? "" },
-    { label: "Ruhsal etkiler", text: stone.spiritual_effects ?? "" },
-    { label: "Diğer etkiler", text: stone.other_effects ?? "" },
-    { label: "Uyarı", text: stone.warning_text ?? "" },
+    { label: t("field.stoneName"), text: stone.stone_name },
+    { label: t("field.shortDescription"), text: stone.short_description ?? "" },
+    { label: t("field.generalInfo"), text: stone.general_info ?? "" },
+    { label: t("field.physicalEffects"), text: stone.physical_effects ?? "" },
+    { label: t("field.spiritualEffects"), text: stone.spiritual_effects ?? "" },
+    { label: t("field.otherEffects"), text: stone.other_effects ?? "" },
+    { label: t("field.warning"), text: stone.warning_text ?? "" },
   ];
 
   if (stone.chakras?.length) {
-    fields.push({ label: "Çakra", text: stone.chakras.join(", ") });
+    fields.push({ label: t("field.chakra"), text: stone.chakras.join(", ") });
   }
   if (stone.warning_tags?.length) {
-    fields.push({ label: "Etiket", text: stone.warning_tags.join(", ") });
+    fields.push({ label: t("field.tag"), text: stone.warning_tags.join(", ") });
   }
 
   const assignmentText = assignmentsToSearchText(stone.assignments);
   if (assignmentText) {
-    fields.push({ label: "Atamalar", text: assignmentText });
+    fields.push({ label: t("field.assignments"), text: assignmentText });
   }
 
   return fields;
@@ -138,14 +145,18 @@ function extractSnippet(text: string, query: string, maxLen = 140): string {
   return snippet;
 }
 
-function searchStones(records: StoneSearchRecord[], query: string): StoneSearchResult[] {
+function searchStones(
+  records: StoneSearchRecord[],
+  query: string,
+  t: HubLabelResolver,
+): StoneSearchResult[] {
   const qNorm = normalizeTrSearch(query.trim());
   if (!qNorm) return [];
 
   const results: StoneSearchResult[] = [];
 
   for (const stone of records) {
-    const fields = buildStoneSearchFields(stone);
+    const fields = buildStoneSearchFields(stone, t);
     const hit = fields.find((field) => normalizeTrSearch(field.text).includes(qNorm));
     if (!hit) continue;
 
@@ -153,7 +164,7 @@ function searchStones(records: StoneSearchRecord[], query: string): StoneSearchR
       id: stone.id,
       stone_name: stone.stone_name?.trim() || "İsimsiz taş",
       short_description:
-        stone.short_description?.trim() || "Kısa açıklama eklenmemiş.",
+        stone.short_description?.trim() || t("results.noDescription"),
       matchedField: hit.label,
       snippet: extractSnippet(hit.text, query) || hit.text.slice(0, 140),
     });
@@ -200,14 +211,19 @@ type MonthTrendBucket = {
 // EKLENMEDİ (ürün kararı). İlgili tespit/hesap makinesi (parseNumeric/detectStockValueFields/
 // computeStockValue/formatTry) de kaldırıldı.
 
-function buildLast6MonthTrend(createdAts: string[]): MonthTrendBucket[] {
+function buildLast6MonthTrend(
+  createdAts: string[],
+  locale: ActiveLocale,
+): MonthTrendBucket[] {
   const now = new Date();
   const buckets: { label: string; year: number; month: number; count: number }[] = [];
 
   for (let offset = 5; offset >= 0; offset -= 1) {
     const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
     buckets.push({
-      label: date.toLocaleDateString("tr-TR", { month: "short" }),
+      // Ay kısaltması locale-aware: EN → "Apr/Jun/Aug", TR → "Nis/Haz/Ağu" (byte-aynı).
+      // Merkezî helper localeTag (en→en-GB, tr→tr-TR) kullanır; absolute-date sözleşmesi ayrı.
+      label: formatDate(date, { month: "short" }, locale),
       year: date.getFullYear(),
       month: date.getMonth(),
       count: 0,
@@ -233,8 +249,12 @@ function buildLast6MonthTrend(createdAts: string[]): MonthTrendBucket[] {
   }));
 }
 
-function formatCount(value: number | null, loading: boolean): string {
-  if (loading) return "Yükleniyor...";
+function formatCount(
+  value: number | null,
+  loading: boolean,
+  loadingLabel: string,
+): string {
+  if (loading) return loadingLabel;
   if (value === null) return "—";
   return value.toLocaleString("tr-TR");
 }
@@ -247,6 +267,12 @@ async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; erro
 }
 
 function DogaltasPageContent() {
+  const t = useTranslations("stones.hub");
+  const locale = useLocale() as ActiveLocale;
+  // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
+  // görünen title/subtitle slug ile localize edilir.
+  const tm = useTranslations("stones.modules");
+  const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
   useBfcacheRefresh();
@@ -284,7 +310,7 @@ function DogaltasPageContent() {
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       setStonesCount(null);
       setMineralsCount(null);
       setCombinationsCount(null);
@@ -312,7 +338,7 @@ function DogaltasPageContent() {
     if (stonesCountRes.error) {
       console.error("[dogaltas/dashboard] Taş sayımı hatası:", stonesCountRes.error);
       setStonesCount(null);
-      failed.push("taş kaydı");
+      failed.push(t("analytics.failedLabel.stones"));
     } else {
       setStonesCount(stonesCountRes.count);
     }
@@ -320,7 +346,7 @@ function DogaltasPageContent() {
     if (!combinationsRes.ok) {
       console.error("[dogaltas/dashboard] Kombinasyon sayımı hatası:", combinationsRes.error);
       setCombinationsCount(null);
-      failed.push("kombinasyon");
+      failed.push(t("analytics.failedLabel.combinations"));
     } else {
       setCombinationsCount(combinationsRes.rows.length);
     }
@@ -329,7 +355,7 @@ function DogaltasPageContent() {
     if (mineralsCountRes.error) {
       console.error("[dogaltas/dashboard] Mineral sayımı hatası:", mineralsCountRes.error);
       setMineralsCount(null);
-      failed.push("mineral");
+      failed.push(t("analytics.failedLabel.minerals"));
     } else {
       setMineralsCount(mineralsCountRes.count);
     }
@@ -343,12 +369,12 @@ function DogaltasPageContent() {
     const createdAts = rows
       .map((row) => (row.created_at != null ? String(row.created_at) : ""))
       .filter(Boolean);
-    setMonthlyTrend(buildLast6MonthTrend(createdAts));
+    setMonthlyTrend(buildLast6MonthTrend(createdAts, locale));
 
     if (failed.length > 0) {
-      setErrorMessage(`Bazı sayaçlar okunamadı (${failed.join(", ")}). Lütfen sayfayı yenileyin.`);
+      setErrorMessage(t("analytics.failedCounters", { items: failed.join(", ") }));
     }
-  }, []);
+  }, [t, tc, locale]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -381,14 +407,15 @@ function DogaltasPageContent() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      throw new Error(MISSING_SESSION_TENANT_MESSAGE);
+      // Locale-independent kod; catch sınırında localize edilir.
+      throw new Error(STONES_WORKSPACE_UNAVAILABLE);
     }
 
     // Server API (mode=extended) — assignments dahil tüm arama alanlarını döndürür.
     const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
       "/api/dogaltas/stones?mode=extended");
     if (!r.ok) {
-      throw new Error(r.error ?? "Arama verisi okunamadı.");
+      throw new Error(r.error ?? t("search.dataError"));
     }
 
     const mapped = (r.data?.rows ?? []).map((row) =>
@@ -396,7 +423,7 @@ function DogaltasPageContent() {
     );
     setStonesForSearch(mapped);
     return mapped;
-  }, [stonesForSearch]);
+  }, [stonesForSearch, t]);
 
   const runSearch = useCallback(
     async (rawQuery: string) => {
@@ -420,13 +447,17 @@ function DogaltasPageContent() {
       try {
         await ensureStonesForSearch();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Arama verisi okunamadı.";
-        setSearchError(`Taş kayıtları okunamadı: ${message}`);
+        if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
+          setSearchError(tc("workspaceUnavailable"));
+        } else {
+          const message = err instanceof Error ? err.message : t("search.dataError");
+          setSearchError(t("search.recordsError", { message }));
+        }
       } finally {
         setSearchLoading(false);
       }
     },
-    [ensureStonesForSearch, router],
+    [ensureStonesForSearch, router, t, tc],
   );
 
   useEffect(() => {
@@ -438,19 +469,23 @@ function DogaltasPageContent() {
         try {
           await ensureStonesForSearch();
         } catch (err) {
-          const message = err instanceof Error ? err.message : "Arama verisi okunamadı.";
-          setSearchError(`Taş kayıtları okunamadı: ${message}`);
+          if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
+            setSearchError(tc("workspaceUnavailable"));
+          } else {
+            const message = err instanceof Error ? err.message : t("search.dataError");
+            setSearchError(t("search.recordsError", { message }));
+          }
         } finally {
           setSearchLoading(false);
         }
       })();
     });
-  }, [activeQuery, ensureStonesForSearch]);
+  }, [activeQuery, ensureStonesForSearch, t, tc]);
 
   const searchResults = useMemo(() => {
     if (!activeQuery.trim() || !stonesForSearch) return [];
-    return searchStones(stonesForSearch, activeQuery);
-  }, [activeQuery, stonesForSearch]);
+    return searchStones(stonesForSearch, activeQuery, t);
+  }, [activeQuery, stonesForSearch, t]);
 
   const handleSearchSubmit = useCallback(
     (event?: FormEvent) => {
@@ -489,13 +524,13 @@ function DogaltasPageContent() {
 
   async function downloadReport() {
     if (!Object.values(reportSections).some(Boolean)) {
-      setReportError("Lütfen rapora dahil edilecek en az bir bölüm seçin.");
+      setReportError(t("report.errorEmpty"));
       return;
     }
     const tid = await getSyncedTenantId();
-    if (!tid) { setReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    if (!tid) { setReportError(t("report.errorSession")); return; }
     const uid = readYasamUser()?.id;
-    if (!uid) { setReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    if (!uid) { setReportError(t("report.errorUser")); return; }
     const sessionToken = readSessionToken();
     setReportLoading(true);
     setReportError("");
@@ -513,7 +548,7 @@ function DogaltasPageContent() {
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+        throw new Error(data.error ?? t("report.errorGeneric"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -522,9 +557,9 @@ function DogaltasPageContent() {
       a.download = `yasam-sistemi-dogaltas-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setReportSuccess("Word raporu başarıyla oluşturuldu.");
+      setReportSuccess(t("report.success"));
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+      setReportError(err instanceof Error ? err.message : t("report.errorGeneric"));
     } finally {
       setReportLoading(false);
     }
@@ -540,14 +575,14 @@ function DogaltasPageContent() {
             </div>
             <div>
               <h2 className="text-[11px] font-black tracking-[0.22em] text-slate-950">
-                YAŞAM SİSTEMİ
+                {t("sidebar.brand")}
               </h2>
-              <p className="mt-0.5 text-[11px] font-bold text-emerald-700">Doğaltaş Modülü</p>
+              <p className="mt-0.5 text-[11px] font-bold text-emerald-700">{t("sidebar.moduleName")}</p>
             </div>
           </div>
 
           <div className="mb-2 shrink-0 text-[11px] font-black tracking-[0.24em] text-slate-400">
-            MODÜLLER
+            {t("sidebar.modulesHeading")}
           </div>
 
           <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
@@ -575,10 +610,10 @@ function DogaltasPageContent() {
 
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-[12px] font-black leading-tight text-slate-950 lg:truncate lg:text-[13px]">
-                      {item.title}
+                      {tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}
                     </span>
                     <span className="mt-0.5 hidden truncate text-[11px] font-semibold leading-snug text-slate-500 sm:block">
-                      {item.subtitle}
+                      {tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}
                     </span>
                   </span>
 
@@ -606,12 +641,12 @@ function DogaltasPageContent() {
               <div className="min-w-0">
                 <h1 className="text-2xl font-black tracking-tight text-slate-950">
                   <span className="bg-[linear-gradient(90deg,#d97706_0%,#10b981_55%,#84cc16_100%)] bg-clip-text text-transparent">
-                    Doğaltaş
+                    {t("hero.titleAccent")}
                   </span>{" "}
-                  Yönetimi
+                  {t("hero.titleSuffix")}
                 </h1>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.
+                  {t("hero.subtitle")}
                 </p>
               </div>
               <button
@@ -619,7 +654,7 @@ function DogaltasPageContent() {
                 onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
                 className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
               >
-                📄 Profesyonel Rapor
+                {t("hero.reportButton")}
               </button>
             </header>
 
@@ -634,13 +669,13 @@ function DogaltasPageContent() {
                   </span>
                   <input
                     type="search"
-                    aria-label="Taş adı veya içerikte ara"
+                    aria-label={t("search.aria")}
                     value={searchInput}
                     onChange={(event) => handleSearchInputChange(event.target.value)}
                     placeholder={
                       isNarrowViewport
-                        ? "Taş ara..."
-                        : "Taş adı veya içerikte ara (ör. mide, şifa)..."
+                        ? t("search.placeholderNarrow")
+                        : t("search.placeholderWide")
                     }
                     className="h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100"
                   />
@@ -650,7 +685,7 @@ function DogaltasPageContent() {
                   disabled={searchLoading}
                   className="btn-primary h-10 shrink-0 !px-5"
                 >
-                  {searchLoading ? "Aranıyor..." : "Ara"}
+                  {searchLoading ? t("search.submitting") : t("search.submit")}
                 </button>
               </div>
             </form>
@@ -659,9 +694,9 @@ function DogaltasPageContent() {
               <section className="shrink-0 rounded-[26px] border border-emerald-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-black text-slate-900">
-                    Arama Sonuçları
+                    {t("results.title")}
                     {!searchLoading && stonesForSearch
-                      ? ` · ${searchResults.length} kayıt`
+                      ? t("results.count", { count: searchResults.length })
                       : ""}
                   </h2>
                   {activeQuery ? (
@@ -682,11 +717,11 @@ function DogaltasPageContent() {
 
                 {searchLoading ? (
                   <p className="py-6 text-center text-sm font-semibold text-slate-600">
-                    Yükleniyor...
+                    {t("results.loading")}
                   </p>
                 ) : searchResults.length === 0 && !searchError ? (
                   <p className="py-6 text-center text-sm font-semibold text-slate-600">
-                    Bu arama için sonuç bulunamadı.
+                    {t("results.empty")}
                   </p>
                 ) : (
                   <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
@@ -717,7 +752,7 @@ function DogaltasPageContent() {
                               </h3>
                               {isViewed ? (
                                 <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                  Bakıldı
+                                  {t("results.viewed")}
                                 </span>
                               ) : null}
                             </div>
@@ -727,7 +762,7 @@ function DogaltasPageContent() {
                             </p>
 
                             <p className="mt-2 text-xs font-bold text-violet-700">
-                              Eşleşme: {result.matchedField}
+                              {t("results.matched", { field: result.matchedField })}
                             </p>
                             <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
                               {result.snippet}
@@ -738,7 +773,7 @@ function DogaltasPageContent() {
                               onClick={() => handleResultNavigate(result.id)}
                               className="mt-3 inline-flex rounded-xl border border-emerald-300/80 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-950 transition hover:bg-emerald-100"
                             >
-                              Detaya Git
+                              {t("results.detail")}
                             </Link>
                           </div>
                         </article>
@@ -755,8 +790,8 @@ function DogaltasPageContent() {
                   📊
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-950">Hesaplanmış Analizler</h2>
-                  <p className="text-[11px] text-slate-500">Supabase stones, minerals ve combinations verilerine göre</p>
+                  <h2 className="text-base font-black text-slate-950">{t("analytics.title")}</h2>
+                  <p className="text-[11px] text-slate-500">{t("analytics.subtitle")}</p>
                 </div>
               </div>
 
@@ -773,10 +808,10 @@ function DogaltasPageContent() {
                   gerçek veriyle beslenen "Aylık Kayıt Trendi" tam genişliğe alındı. */}
               <div className="grid shrink-0 grid-cols-1 gap-2.5">
                 <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
-                  <p className="text-sm font-black text-slate-800">Aylık Kayıt Trendi</p>
-                  <p className="text-[11px] text-slate-500">Son 6 ay · stones.created_at</p>
+                  <p className="text-sm font-black text-slate-800">{t("analytics.trendTitle")}</p>
+                  <p className="text-[11px] text-slate-500">{t("analytics.trendSubtitle")}</p>
                   {loading ? (
-                    <p className="mt-auto text-sm font-semibold text-slate-600">Yükleniyor...</p>
+                    <p className="mt-auto text-sm font-semibold text-slate-600">{t("analytics.loading")}</p>
                   ) : (
                     <>
                       <div className="mt-1.5 flex h-[62px] items-end gap-1">
@@ -784,7 +819,7 @@ function DogaltasPageContent() {
                           <div
                             key={bucket.label}
                             className="flex h-full flex-1 flex-col justify-end"
-                            title={`${bucket.label}: ${bucket.count} kayıt`}
+                            title={t("analytics.barTitle", { label: bucket.label, count: bucket.count })}
                           >
                             <div
                               className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
@@ -808,21 +843,21 @@ function DogaltasPageContent() {
 
               <div className="mt-2.5 grid shrink-0 grid-cols-3 gap-2.5">
                 <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-emerald-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-teal-700">Toplam Taş Kaydı</p>
+                  <p className="text-xs font-black text-teal-700">{t("analytics.totalStones")}</p>
                   <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(stonesCount, loading)}
+                    {formatCount(stonesCount, loading, t("analytics.loading"))}
                   </p>
                 </div>
                 <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-violet-700">Mineral Bankası</p>
+                  <p className="text-xs font-black text-violet-700">{t("analytics.mineralBank")}</p>
                   <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(mineralsCount, loading)}
+                    {formatCount(mineralsCount, loading, t("analytics.loading"))}
                   </p>
                 </div>
                 <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-amber-700">Aktif Kombinasyonlar</p>
+                  <p className="text-xs font-black text-amber-700">{t("analytics.activeCombinations")}</p>
                   <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(combinationsCount, loading)}
+                    {formatCount(combinationsCount, loading, t("analytics.loading"))}
                   </p>
                 </div>
               </div>
@@ -836,7 +871,7 @@ function DogaltasPageContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-950">Profesyonel Word Raporu Oluştur</h2>
+              <h2 className="text-lg font-black text-slate-950">{t("report.title")}</h2>
               <button
                 type="button"
                 onClick={() => setShowReportModal(false)}
@@ -848,7 +883,7 @@ function DogaltasPageContent() {
               </button>
             </div>
 
-            <p className="mb-4 text-sm text-slate-500">Rapora dahil edilecek bölümleri seçin.</p>
+            <p className="mb-4 text-sm text-slate-500">{t("report.subtitle")}</p>
 
             <div className="space-y-2">
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
@@ -858,18 +893,18 @@ function DogaltasPageContent() {
                   onChange={toggleAllReport}
                   className="h-4 w-4 rounded accent-emerald-600"
                 />
-                <span className="text-sm font-black text-violet-800">Tümünü Seç</span>
+                <span className="text-sm font-black text-violet-800">{t("report.selectAll")}</span>
               </label>
 
               <div className="my-1 border-t border-slate-100" />
 
               {([
-                ["stones",       "💎", "Doğaltaş Kayıtları"],
-                ["minerals",     "🧪", "Mineral Bankası"],
-                ["combinations", "🧩", "Kombinasyonlar"],
-                ["knowledge",    "📚", "Taş Bilgi Kütüphanesi"],
-                ["analytics",    "📊", "Stok / Analiz Özeti"],
-              ] as const).map(([key, icon, label]) => (
+                ["stones",       "💎"],
+                ["minerals",     "🧪"],
+                ["combinations", "🧩"],
+                ["knowledge",    "📚"],
+                ["analytics",    "📊"],
+              ] as const).map(([key, icon]) => (
                 <label key={key} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:bg-slate-100">
                   <input
                     type="checkbox"
@@ -877,7 +912,7 @@ function DogaltasPageContent() {
                     onChange={() => setReportSections(prev => ({ ...prev, [key]: !prev[key] }))}
                     className="h-4 w-4 rounded accent-emerald-600"
                   />
-                  <span className="text-sm font-semibold text-slate-700">{icon} {label}</span>
+                  <span className="text-sm font-semibold text-slate-700">{icon} {t(`report.section.${key}`)}</span>
                 </label>
               ))}
             </div>
@@ -894,7 +929,7 @@ function DogaltasPageContent() {
             )}
             {reportLoading && (
               <p className="mt-4 text-center text-sm font-semibold text-violet-700">
-                Profesyonel Word raporu hazırlanıyor...
+                {t("report.preparing")}
               </p>
             )}
 
@@ -905,7 +940,7 @@ function DogaltasPageContent() {
                 disabled={reportLoading}
                 className="btn-soft flex-1 !px-4 !py-2.5"
               >
-                Seçimi Temizle
+                {t("report.clear")}
               </button>
               <button
                 type="button"
@@ -913,7 +948,7 @@ function DogaltasPageContent() {
                 disabled={reportLoading}
                 className="btn-primary flex-1 !px-4 !py-2.5"
               >
-                {reportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+                {reportLoading ? t("report.submitting") : t("report.submit")}
               </button>
             </div>
           </div>
@@ -924,9 +959,10 @@ function DogaltasPageContent() {
 }
 
 function DogaltasPageFallback() {
+  const t = useTranslations("stones.hub");
   return (
     <main className="flex h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)]">
-      <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
+      <p className="text-base font-semibold text-violet-900">{t("fallbackLoading")}</p>
     </main>
   );
 }

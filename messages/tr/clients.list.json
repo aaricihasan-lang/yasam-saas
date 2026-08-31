@@ -1,0 +1,117 @@
+{
+  "clients": {
+    "list": {
+      "eyebrow": "Danışan Yolculuğu",
+      "title": "Danışan Listesi",
+      "subtitle": "Kayıtlı danışanları arayın, filtreleyin ve detaylarına erişin.",
+      "statClients": "Danışan",
+      "statAlerts": "Aktif Uyarı",
+      "newClient": "Yeni Kayıt",
+      "newClientDemo": "Demo Kayıt",
+      "demoNotice": {
+        "title": "Demo Modu — Örnek Veri",
+        "desc": "Gerçek verilere benzer hazırlanmış 20 örnek danışan profiliyle platformu keşfediyorsunuz. Telefon bilgileri gizlenmiştir. Yalnızca <b>Eylül Karaca</b> profilinin tam içeriğine erişebilirsiniz."
+      },
+      "tenantMissing": {
+        "noSession": "Oturum bulunamadı. Danışan listesi için lütfen tekrar giriş yapın.",
+        "noTenant": "Çalışma alanı (tenant) bilgisi bulunamadı. Danışan verileri yüklenemez."
+      },
+      "filter": {
+        "title": "Arama & Filtreleme",
+        "subtitle": "Ad, soyad, telefon, burç, kan grubu ve mizaca göre filtrele.",
+        "searchLabel": "Ara",
+        "searchPlaceholder": "Ad, soyad veya telefon...",
+        "burcLabel": "Burç",
+        "kanLabel": "Kan Grubu",
+        "mizacLabel": "Mizaç",
+        "all": "Tümü",
+        "burcOptions": {
+          "Koç": "Koç",
+          "Boğa": "Boğa",
+          "İkizler": "İkizler",
+          "Yengeç": "Yengeç",
+          "Aslan": "Aslan",
+          "Başak": "Başak",
+          "Terazi": "Terazi",
+          "Akrep": "Akrep",
+          "Yay": "Yay",
+          "Oğlak": "Oğlak",
+          "Kova": "Kova",
+          "Balık": "Balık"
+        },
+        "mizacOptions": {
+          "safra": "Safra",
+          "sovdavi": "Sovdavi",
+          "dem": "Dem",
+          "balgam": "Balgam"
+        }
+      },
+      "listHeader": "Kayıtlı Danışanlar",
+      "sort": {
+        "newest": "En Yeni Kayıt",
+        "oldest": "En Eski Kayıt",
+        "nameAz": "Ad A → Z",
+        "nameZa": "Ad Z → A",
+        "gorusmeNew": "Görüşme (Yeni)",
+        "gorusmeOld": "Görüşme (Eski)"
+      },
+      "empty": {
+        "none": "Henüz danışan kaydı yok.",
+        "noMatch": "Kriterlere uygun danışan bulunamadı.",
+        "addFirst": "İlk danışanı ekle"
+      },
+      "loadingMore": "Yükleniyor…",
+      "pagination": {
+        "aria": "Sayfalama",
+        "prev": "Önceki sayfa",
+        "next": "Sonraki sayfa",
+        "summary": "Sayfa {page} / {pageCount} · {total} danışan"
+      },
+      "card": {
+        "openTitle": "Danışan detayını aç",
+        "expiredHw": "⚠ {count} ödev",
+        "noPhone": "Telefon yok",
+        "noGorusme": "Görüşme tarihi yok",
+        "detail": "Detay →"
+      },
+      "durum": {
+        "aktif": "Aktif",
+        "takip": "Takip",
+        "pasif": "Pasif",
+        "yeni": "Yeni Kayıt"
+      },
+      "relative": {
+        "today": "bugün",
+        "daysAgo": "{n} gün önce",
+        "weeksAgo": "{n} hafta önce",
+        "monthsAgo": "{n} ay önce",
+        "yearsAgo": "{n} yıl önce"
+      },
+      "toast": {
+        "sessionWarningTitle": "Oturum uyarısı",
+        "noSession": "Oturum bulunamadı. Lütfen tekrar giriş yapın.",
+        "noTenant": "Hesabınızda çalışma alanı (tenant) bilgisi yok.",
+        "failTitle": "İşlem başarısız",
+        "listError": "Listeleme hatası",
+        "errorTitle": "Hata",
+        "loadMoreError": "Daha fazla kayıt yüklenemedi.",
+        "loadAllError": "Kayıtlar yüklenemedi.",
+        "sessionMissing": "Oturum bilgisi bulunamadı.",
+        "deleteConfirmTitle": "Seçili danışanları sil",
+        "deleteConfirmMsg": "{count} danışanı ve tüm ilişkili verilerini silmek istediğinizden emin misiniz?",
+        "deleteConfirmSecond": "Bu işlem GERİ ALINAMAZ. Danışana ait görüşmeler, ödevler ve analizler de silinecek.",
+        "deleteNone": "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.",
+        "deletePartialTitle": "Danışanlar silindi",
+        "deletePartialMsg": "Bazı ek dosyaların temizliği tamamlanamadı.",
+        "successTitle": "Başarılı",
+        "deleteSuccess": "{count} danışan başarıyla silindi.",
+        "warnTitle": "Uyarı",
+        "exportSelectFirst": "Önce danışan seçin.",
+        "exportNoFiltered": "Filtrelenmiş sonuç yok.",
+        "exportSuccess": "Danışan raporu indirildi.",
+        "exportError": "Rapor oluşturulamadı",
+        "unknownError": "Bilinmeyen hata"
+      }
+    }
+  }
+}

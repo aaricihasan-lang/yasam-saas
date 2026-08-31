@@ -1,0 +1,145 @@
+{
+  "stones": {
+    "records": {
+      "shell": {
+        "eyebrow": "STONES · STONES MODULE",
+        "title": "Stone Record",
+        "subtitle": "Manage stone details, effects, uses, warnings, and assignments all on one screen."
+      },
+      "actions": {
+        "closeForm": "Close Form"
+      },
+      "intro": {
+        "title": "Stone Record",
+        "description": "Press \"+ Create New Record\" to create a new stone record. You can view saved stones in Stone Records.",
+        "createCta": "+ Create New Record",
+        "listCta": "Stone Records"
+      },
+      "basic": {
+        "title": "Basic Information",
+        "desc": "Add the stone's core details and photos.",
+        "badge": "Main Record"
+      },
+      "fields": {
+        "stoneName": "Stone Name",
+        "stoneNamePlaceholder": "e.g. Amethyst",
+        "shortDescription": "Short Description",
+        "optional": "(optional)",
+        "shortDescriptionPlaceholder": "A short description of the stone, its main property, and its standout effect..."
+      },
+      "image": {
+        "areaLabel": "Photos",
+        "addMultiple": "Add multiple stone photos",
+        "hint": "The photos you select are added to this record.",
+        "pickFromGallery": "Choose from Gallery",
+        "takePhoto": "Take Photo",
+        "pickFromGalleryAria": "Choose from gallery",
+        "takePhotoAria": "Take photo",
+        "removePhotoAria": "Remove photo"
+      },
+      "general": {
+        "title": "General Information",
+        "desc": "Capture the stone's overview, formation and source information.",
+        "general_info": "General Information / Overview",
+        "source_note": "Formation / Source Note"
+      },
+      "effects": {
+        "physical_effects": {
+          "title": "Physical Effects",
+          "desc": "Physical effects, areas of support, and usage notes."
+        },
+        "spiritual_effects": {
+          "title": "Spiritual Effects",
+          "desc": "Notes on spiritual balance, awareness, and inner work."
+        },
+        "other_effects": {
+          "title": "Other Effects",
+          "desc": "Additional information, observations, and complementary notes."
+        }
+      },
+      "usage": {
+        "feng_shui": "Feng Shui",
+        "meditation": "Meditation",
+        "care": "Care",
+        "application": "Application"
+      },
+      "advanced": {
+        "title": "Advanced Notes",
+        "desc": "Notes on Feng Shui, meditation, care, application, and warnings."
+      },
+      "toggle": {
+        "hide": "▲ Hide",
+        "show": "▼ Show"
+      },
+      "warnings": {
+        "title": "Warnings & Sensitivities",
+        "integrationNote": "Integrated with the client module — this field is checked automatically in stone recommendations.",
+        "clinicalBadge": "Clinical Note",
+        "textLabel": "Warning Text",
+        "textPlaceholder": "Write down anything to watch out for with this stone. E.g. long-term use is not recommended for sensitive individuals...",
+        "largeEditorTitle": "Warnings",
+        "tagsLabel": "Warning Tags"
+      },
+      "assignments": {
+        "title": "Assignments",
+        "desc": "Mineral, organ, astrology, element, and chakra fields.",
+        "editAdd": "Edit / add",
+        "chakraTitle": "Chakra Assignment"
+      },
+      "expand": {
+        "editWide": "Edit in wide view"
+      },
+      "placeholderWrite": "Write {field}...",
+      "placeholderNote": "{field} note...",
+      "bottomBar": {
+        "leaveWarning": "If you leave without saving, your draft may be lost.",
+        "checking": "Checking..."
+      },
+      "largeEditor": {
+        "badge": "LARGE TEXT EDITOR",
+        "subtitle": "A wide layout for comfortably writing long text.",
+        "placeholder": "Write your note in the large editor..."
+      },
+      "assignModal": {
+        "badge": "ASSIGNMENT PANEL",
+        "addRow": "Add Row",
+        "actionColumn": "Action",
+        "empty": "No entries added yet."
+      },
+      "assignRow": {
+        "deleteTitle": "Delete {section} row",
+        "deleteMessage": "Do you want to remove the \"{label}\" row?",
+        "deleteSecondMessage": "The \"{label}\" row will be removed. Are you sure?",
+        "rowFallback": "{section} row"
+      },
+      "photoConfirm": {
+        "title": "Remove photo",
+        "message": "This photo will be permanently removed and cannot be recovered. Do you want to continue?",
+        "secondMessage": "This photo will be permanently removed. Are you sure?",
+        "confirm": "Remove",
+        "cancel": "Cancel"
+      },
+      "toasts": {
+        "onlyImages": "Only image files can be added.",
+        "demoNoUpload": "Photos can't be uploaded in demo mode.",
+        "imageUploadFailed": "Unable to upload the photo. Please try again.",
+        "imagesUploaded": "{count, plural, one {# image} other {# images}} uploaded.",
+        "photoRemoveFailed": "Unable to remove the photo. Please try again.",
+        "photoRemoved": "Photo removed.",
+        "stoneNameRequired": "Stone name is required.",
+        "saveFailed": "Unable to save the record. Please check the details and try again.",
+        "saveFailedTitle": "Save failed",
+        "savedTitle": "Saved",
+        "savedMessage": "Stone record created successfully.",
+        "formCleared": "Form cleared."
+      },
+      "common": {
+        "save": "Save",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "clear": "Clear",
+        "delete": "Delete"
+      }
+    }
+  }
+}

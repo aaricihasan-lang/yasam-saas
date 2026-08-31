@@ -1,7 +1,9 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -62,16 +64,6 @@ const emptyForm: SessionFormState = {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(date: string | null) {
-  if (!date) return "Tarih belirtilmedi";
-
-  return new Date(date).toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 }
 
 function formatMoney(value: number | null) {
@@ -212,6 +204,7 @@ function ModalTextarea({
   placeholder,
   openEditor,
 }: ModalTextareaProps) {
+  const t = useTranslations("clients.sessions");
   return (
     <div className={boxClass(tone)}>
       <div className="flex items-center justify-between gap-3">
@@ -222,7 +215,7 @@ function ModalTextarea({
           onClick={() => openEditor(title, value, onChange)}
           className="mb-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
-          Büyüt
+          {t("expand")}
         </button>
       </div>
 
@@ -247,11 +240,12 @@ type SessionFormProps = {
 };
 
 function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
+  const t = useTranslations("clients.sessions");
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
         <div className={boxClass("blue")}>
-          <SectionLabel icon="📅" title="Seans Tarihi" tone="blue" />
+          <SectionLabel icon="📅" title={t("form.dateLabel")} tone="blue" />
           <input
             type="date"
             value={data.sessionDate}
@@ -261,35 +255,35 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
         </div>
 
         <div className={boxClass("emerald")}>
-          <SectionLabel icon="🧭" title="Seans Türü" tone="emerald" />
+          <SectionLabel icon="🧭" title={t("form.typeLabel")} tone="emerald" />
           <input
             value={data.sessionType}
             onChange={(e) => onChange("sessionType", e.target.value)}
-            placeholder="Refleksoloji, online, bioenerji..."
+            placeholder={t("form.typePlaceholder")}
             className={inputClass("emerald")}
           />
         </div>
 
         <div className={boxClass("violet")}>
-          <SectionLabel icon="⏱️" title="Süre" tone="violet" />
+          <SectionLabel icon="⏱️" title={t("form.durationLabel")} tone="violet" />
           <input
             type="number"
             min="0"
             value={data.durationMinutes}
             onChange={(e) => onChange("durationMinutes", e.target.value)}
-            placeholder="Dakika"
+            placeholder={t("form.durationPlaceholder")}
             className={inputClass("violet")}
           />
         </div>
 
         <div className={boxClass("amber")}>
-          <SectionLabel icon="₺" title="Ücret" tone="amber" />
+          <SectionLabel icon="₺" title={t("form.feeLabel")} tone="amber" />
           <input
             type="number"
             min="0"
             value={data.fee}
             onChange={(e) => onChange("fee", e.target.value)}
-            placeholder="Örn: 750"
+            placeholder={t("form.feePlaceholder")}
             className={inputClass("amber")}
           />
         </div>
@@ -297,44 +291,44 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <ModalTextarea
-          title="Seans Notu"
+          title={t("form.noteLabel")}
           icon="📝"
           tone="blue"
           value={data.sessionNote}
           onChange={(value) => onChange("sessionNote", value)}
-          placeholder="Seans genel notu..."
+          placeholder={t("form.notePlaceholder")}
           openEditor={openEditor}
         />
 
         <ModalTextarea
-          title="Yapılan İşlemler"
+          title={t("form.actionsLabel")}
           icon="✅"
           tone="emerald"
           value={data.actionsDone}
           onChange={(value) => onChange("actionsDone", value)}
-          placeholder="Bu seansta yapılan uygulamalar..."
+          placeholder={t("form.actionsPlaceholder")}
           openEditor={openEditor}
         />
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <ModalTextarea
-          title="Öneriler"
+          title={t("form.suggestionsLabel")}
           icon="💡"
           tone="violet"
           value={data.suggestions}
           onChange={(value) => onChange("suggestions", value)}
-          placeholder="Danışana verilen öneriler..."
+          placeholder={t("form.suggestionsPlaceholder")}
           openEditor={openEditor}
         />
 
         <ModalTextarea
-          title="Sonraki Seans Planı"
+          title={t("form.nextPlanLabel")}
           icon="📌"
           tone="amber"
           value={data.nextPlan}
           onChange={(value) => onChange("nextPlan", value)}
-          placeholder="Bir sonraki seans için plan..."
+          placeholder={t("form.nextPlanPlaceholder")}
           openEditor={openEditor}
         />
       </div>
@@ -355,6 +349,7 @@ function DetailBlock({
   tone?: "blue" | "emerald" | "violet" | "amber" | "slate";
   openReader: (title: string, value: string, icon: string) => void;
 }) {
+  const t = useTranslations("clients.sessions");
   if (!value) return null;
 
   const color =
@@ -383,7 +378,7 @@ function DetailBlock({
           onClick={() => openReader(title, value, icon)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
-          Aç
+          {t("open")}
         </button>
       </div>
 
@@ -393,8 +388,17 @@ function DetailBlock({
 }
 
 export default function SessionsTab({ clientId }: SessionsTabProps) {
+  const t = useTranslations("clients.sessions");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+
+  // Locale-duyarlı seans tarihi görüntüsü; boş tarihte sistem etiketi döner.
+  // (Kaynak `session_date` değeri değişmez — yalnız DISPLAY.)
+  const fmtDate = useCallback(
+    (date: string | null) =>
+      date ? formatDateAbsolute(date) : t("noDate"),
+    [t],
+  );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [form, setForm] = useState<SessionFormState>({
@@ -427,8 +431,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
   const lastSessionDate = useMemo(() => {
     if (sessions.length === 0) return "-";
-    return formatDate(sessions[0].session_date);
-  }, [sessions]);
+    return fmtDate(sessions[0].session_date);
+  }, [sessions, fmtDate]);
 
   function updateFormField<K extends keyof SessionFormState>(
     key: K,
@@ -485,7 +489,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     if (!res.ok) {
       console.error("Seans kayıtları yüklenemedi");
-      setErrorMessage("Seans kayıtları yüklenemedi");
+      setErrorMessage(t("error.loadFailed"));
       setLoading(false);
       return;
     }
@@ -512,8 +516,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   async function addSession() {
     if (!clientId || !tenantId) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Danışan bilgisi bulunamadı.",
+        title: t("toast.failTitle"),
+        message: t("toast.noClient"),
         type: "error",
       });
       return;
@@ -521,8 +525,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     if (isFormEmpty(form)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Lütfen en az bir alan doldurun.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyForm"),
         type: "error",
       });
       return;
@@ -545,8 +549,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     if (!addRes.ok) {
       console.error("Seans kaydı eklenemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Seans kaydı eklenemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.addFailed"),
         type: "error",
       });
       setSaving(false);
@@ -584,8 +588,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setSaving(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Seans kaydı eklendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.added"),
       type: "success",
     });
   }
@@ -603,8 +607,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   async function updateSession(id: string) {
     if (isFormEmpty(editForm)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Boş seans güncellenemez.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyUpdate"),
         type: "error",
       });
       return;
@@ -627,8 +631,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     if (!updRes.ok) {
       console.error("Seans kaydı güncellenemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Seans kaydı güncellenemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.updateFailed"),
         type: "error",
       });
       setUpdating(false);
@@ -640,16 +644,16 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setUpdating(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Seans güncellendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.updated"),
       type: "success",
     });
   }
 
   async function deleteSession(id: string) {
     const ok = await deleteConfirm({
-      title: "Seansı sil",
-      message: "Bu seans kaydı silinsin mi?",
+      title: t("delete.title"),
+      message: t("delete.message"),
     });
     if (!ok) return;
 
@@ -665,8 +669,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     if (!delRes.ok) {
       console.error("Seans kaydı silinemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Seans kaydı silinemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.deleteFailed"),
         type: "error",
       });
       return;
@@ -679,8 +683,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setSessions((prev) => prev.filter((item) => item.id !== id));
 
     showToast({
-      title: "Başarılı",
-      message: "Seans silindi.",
+      title: t("toast.successTitle"),
+      message: t("toast.deleted"),
       type: "success",
     });
   }
@@ -692,16 +696,15 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-blue-700 shadow-sm">
-                Danışan Seans Takibi
+                {t("header.badge")}
               </div>
 
               <h2 className="text-base font-black tracking-tight text-slate-950">
-                Seanslar
+                {t("header.title")}
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
-                Uzun notları küçük kutuya sıkıştırmadan, büyütülmüş yazı ekranı
-                ile rahatça yazıp okuyabilirsin.
+                {t("header.subtitle")}
               </p>
             </div>
 
@@ -712,7 +715,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                     {sessions.length}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    seans
+                    {t("stats.sessions")}
                   </div>
                 </div>
 
@@ -721,16 +724,16 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                     {formatMoney(totalFee)}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    toplam
+                    {t("stats.total")}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
                   <div className="text-base font-black text-amber-700">
-                    {totalMinutes} dk
+                    {totalMinutes} {t("unitMin")}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    süre
+                    {t("stats.duration")}
                   </div>
                 </div>
 
@@ -739,7 +742,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                     {lastSessionDate}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    son seans
+                    {t("stats.lastSession")}
                   </div>
                 </div>
               </div>
@@ -751,7 +754,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                   ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
                   : "w-full rounded-2xl border border-blue-300 bg-blue-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-blue-700"}
               >
-                {showForm ? "Formu Kapat" : "+ Yeni Seans Ekle"}
+                {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
@@ -765,15 +768,15 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
         <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-br from-blue-50/60 to-white px-4 py-3">
             <div>
-              <h3 className="text-base font-black text-slate-950">Yeni Seans Kaydı</h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-500">Uzun notları büyütülmüş yazı ekranı ile rahatça yazabilirsin.</p>
+              <h3 className="text-base font-black text-slate-950">{t("newForm.title")}</h3>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
           <div className="p-4">
@@ -793,7 +796,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 disabled={saving}
                 className="btn-secondary hover:-translate-y-0.5 hover:scale-[1.02]"
               >
-                {saving ? "Kaydediliyor..." : "💾 Seansı Kaydet"}
+                {saving ? t("newForm.saving") : t("newForm.save")}
               </button>
             </div>
           </div>
@@ -804,11 +807,10 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-base font-black tracking-tight text-slate-950">
-              Kayıtlı Seanslar
+              {t("list.title")}
             </h3>
             <p className="mt-1 text-sm font-medium text-slate-600">
-              Uzun metinleri kart içinden “Aç” butonuyla büyük ekranda
-              okuyabilirsin.
+              {t("list.subtitle")}
             </p>
           </div>
 
@@ -817,21 +819,21 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
             disabled={loading}
             className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Yükleniyor..." : "Listeyi Yenile"}
+            {loading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
           <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-            Seans kayıtları yükleniyor...
+            {t("list.loadingRecords")}
           </div>
         ) : sessions.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <div className="text-base font-black text-slate-800">
-              Henüz seans kaydı yok
+              {t("empty.title")}
             </div>
             <p className="mt-2 text-sm font-medium text-slate-500">
-              "+ Yeni Seans Ekle" butonundan ilk kaydı oluşturabilirsin.
+              {t("empty.hint")}
             </p>
           </div>
         ) : (
@@ -851,16 +853,16 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div>
                             <div className="mb-2 inline-flex rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-black text-blue-800">
-                              {session.session_type || `Seans ${index + 1}`}
+                              {session.session_type || t("sessionN", { n: index + 1 })}
                             </div>
 
                             <h4 className="text-base font-black tracking-tight text-slate-950">
-                              {formatDate(session.session_date)}
+                              {fmtDate(session.session_date)}
                             </h4>
 
                             <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
                               <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                                ⏱️ {session.duration_minutes || "-"} dk
+                                ⏱️ {session.duration_minutes || "-"} {t("unitMin")}
                               </span>
                               <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
                                 {formatMoney(session.fee)}
@@ -873,42 +875,42 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                               onClick={() => startEdit(session)}
                               className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                             >
-                              Düzenle
+                              {t("item.edit")}
                             </button>
 
                             <button
                               onClick={() => deleteSession(session.id)}
                               className="ml-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                             >
-                              Sil
+                              {t("item.delete")}
                             </button>
                           </div>
                         </div>
 
                         <div className="mt-5 grid gap-3 md:grid-cols-2">
                           <DetailBlock
-                            title="Seans Notu"
+                            title={t("detail.note")}
                             value={session.session_note}
                             icon="📝"
                             tone="blue"
                             openReader={openReader}
                           />
                           <DetailBlock
-                            title="Yapılan İşlemler"
+                            title={t("detail.actions")}
                             value={session.actions_done}
                             icon="✅"
                             tone="emerald"
                             openReader={openReader}
                           />
                           <DetailBlock
-                            title="Öneriler"
+                            title={t("detail.suggestions")}
                             value={session.suggestions}
                             icon="💡"
                             tone="violet"
                             openReader={openReader}
                           />
                           <DetailBlock
-                            title="Sonraki Plan"
+                            title={t("detail.nextPlan")}
                             value={session.next_plan}
                             icon="📌"
                             tone="amber"
@@ -921,10 +923,10 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <h4 className="text-base font-black text-slate-950">
-                              Seansı Düzenle
+                              {t("editForm.title")}
                             </h4>
                             <p className="mt-1 text-sm font-medium text-slate-600">
-                              Uzun alanları “Büyüt” ile geniş ekranda düzenleyebilirsin.
+                              {t("editForm.subtitle")}
                             </p>
                           </div>
 
@@ -932,7 +934,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                             onClick={cancelEdit}
                             className="self-start rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                           >
-                            İptal
+                            {t("cancelTop")}
                           </button>
                         </div>
 
@@ -947,7 +949,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                             onClick={cancelEdit}
                             className="rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                           >
-                            Vazgeç
+                            {t("cancel")}
                           </button>
 
                           <button
@@ -955,7 +957,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                             disabled={updating}
                             className="btn-secondary px-4 py-2.5 text-sm"
                           >
-                            {updating ? "Güncelleniyor..." : "Güncelle"}
+                            {updating ? t("editForm.updating") : t("editForm.update")}
                           </button>
                         </div>
                       </div>
@@ -983,7 +985,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                   {modalEditor.title}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Geniş yazı ekranı
+                  {t("modal.editorSubtitle")}
                 </p>
               </div>
 
@@ -992,7 +994,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 onClick={() => setModalEditor(null)}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
-                Kapat
+                {t("close")}
               </button>
             </div>
 
@@ -1001,7 +1003,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 value={modalDraft}
                 onChange={(e) => setModalDraft(e.target.value)}
                 className="h-[42vh] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                placeholder="Metni buraya yaz..."
+                placeholder={t("modal.placeholder")}
                 autoFocus
               />
             </div>
@@ -1012,7 +1014,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 onClick={() => setModalEditor(null)}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
               >
-                Vazgeç
+                {t("cancel")}
               </button>
 
               <button
@@ -1020,7 +1022,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 onClick={saveModalEditor}
                 className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-indigo-600"
               >
-                Metni Aktar
+                {t("modal.apply")}
               </button>
             </div>
           </div>
@@ -1042,7 +1044,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                   {readModal.icon} {readModal.title}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Büyük okuma ekranı
+                  {t("modal.readerSubtitle")}
                 </p>
               </div>
 
@@ -1051,7 +1053,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                 onClick={() => setReadModal(null)}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
-                Kapat
+                {t("close")}
               </button>
             </div>
 

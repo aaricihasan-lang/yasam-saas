@@ -5,14 +5,13 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 
 /** Güvenli delete API'sine issue listesi gönderir (publishable delete yerine). */
 async function deleteCombinationsViaApi(
@@ -254,6 +253,8 @@ const GROUPS_PAGE_SIZE = 24;
 export default function KombinasyonlarPage() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
+  const t = useTranslations("stones.combinations.list");
+  const tc = useTranslations("stones.common");
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -299,7 +300,9 @@ export default function KombinasyonlarPage() {
     setLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(`Kayıtlar alınamadı: ${result.error ?? ""}`);
+      // loadCombinations plain fn + [] mount effect → t()'yi doğrudan kullanmıyoruz
+      // (reaktif bağımlılık/lint döngüsü olmasın). Hata KODU saklanır, render'da t() ile çözülür.
+      setErrorMessage(`@@loadError:${result.error ?? ""}`);
       setRows([]);
       return;
     }
@@ -395,7 +398,7 @@ export default function KombinasyonlarPage() {
   const toggleGroupSelection = useCallback((issue: string) => {
     // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
     if (isMobile && !selectedIds.has(issue) && selectedIds.size >= 2) {
-      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToast({ type: "info", message: t("mobileMaxSelect") });
       return;
     }
     setSelectedIds((current) => {
@@ -405,17 +408,17 @@ export default function KombinasyonlarPage() {
       else next.add(issue);
       return next;
     });
-  }, [isMobile, selectedIds, showToast]);
+  }, [isMobile, selectedIds, showToast, t]);
 
   const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
 
   const selectAllFiltered = useCallback(() => {
     if (isMobile) {
-      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToast({ type: "info", message: t("mobileMaxSelect") });
       return;
     }
     setSelectedIds(new Set(groups.map((g) => g.issue)));
-  }, [groups, isMobile, showToast]);
+  }, [groups, isMobile, showToast, t]);
 
   const deleteSelectedCombinations = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -424,21 +427,21 @@ export default function KombinasyonlarPage() {
     const deleteCount = issueKeys.length;
 
     const firstConfirmed = await confirm({
-      title: isMobile ? "Bu kaydı silmek istiyor musunuz?" : "Kombinasyonları sil",
-      message: `Seçili ${deleteCount} kombinasyon silinecek`,
+      title: isMobile ? t("deleteTitleMobile") : t("deleteTitle"),
+      message: t("deleteMessage", { n: deleteCount }),
       tone: "danger",
-      confirmText: isMobile ? "Evet" : "Evet Sil",
-      cancelText: isMobile ? "Hayır" : "Vazgeç",
+      confirmText: isMobile ? t("confirmYesMobile") : t("confirmYes"),
+      cancelText: isMobile ? t("cancelNo") : tc("giveUp"),
     });
     if (!firstConfirmed) return;
 
     if (isMobile) {
       const secondConfirmed = await confirm({
-        title: "Son Onay",
-        message: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+        title: t("secondConfirmTitle"),
+        message: t("secondConfirmMessage"),
         tone: "danger",
-        confirmText: "Evet, Kalıcı Sil",
-        cancelText: "Vazgeç",
+        confirmText: t("secondConfirmYes"),
+        cancelText: tc("giveUp"),
       });
       if (!secondConfirmed) return;
     }
@@ -451,20 +454,20 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(`Seçili kombinasyonlar silinemedi: ${result.error ?? ""}`);
+      setErrorMessage(t("deleteSelectedError", { error: result.error ?? "" }));
       return;
     }
 
-    showToast({ type: "success", message: `${deleteCount} kombinasyon silindi` });
+    showToast({ type: "success", message: t("deletedToast", { n: deleteCount }) });
     setSelectedIds(new Set());
     await loadCombinations();
-  }, [confirm, isMobile, selectedIds, showToast]);
+  }, [confirm, isMobile, selectedIds, showToast, t, tc]);
 
   const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = await getSyncedTenantId();
-    if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    if (!tenantId) { setErrorMessage(tc("workspaceUnavailable")); return; }
     const userId = readYasamUser()?.id;
-    if (!userId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    if (!userId) { setErrorMessage(tc("workspaceUnavailable")); return; }
     setWordBusy(true);
     try {
       let issues: string[] | undefined;
@@ -492,7 +495,7 @@ export default function KombinasyonlarPage() {
         const data = await res.json().catch(() => ({})) as { error?: string };
         // FAZ-4B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[kombinasyonlar] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
-        setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+        setErrorMessage(t("wordError"));
         return;
       }
       const blob = await res.blob();
@@ -507,32 +510,32 @@ export default function KombinasyonlarPage() {
       // tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
       showToast({
         type: "success",
-        message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+        message: t("wordDownloadStarted"),
       });
     } catch (err) {
       console.error("[kombinasyonlar] Word raporu hatası:", err);
-      setErrorMessage("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+      setErrorMessage(t("wordError"));
     } finally {
       setWordBusy(false);
     }
-  }, [selectedIds, groups, showToast]);
+  }, [selectedIds, groups, showToast, t, tc]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
     const firstConfirmed = await confirm({
-      title: "Bu kombinasyonu silmek istiyor musunuz?",
-      message: `"${issueKey}" grubundaki tüm kayıtlar silinecek`,
+      title: t("deleteGroupTitle"),
+      message: t("deleteGroupMessage", { issue: issueKey }),
       tone: "danger",
-      confirmText: "Evet",
-      cancelText: "Hayır",
+      confirmText: t("confirmYesMobile"),
+      cancelText: t("cancelNo"),
     });
     if (!firstConfirmed) return;
 
     const secondConfirmed = await confirm({
-      title: "Son Onay",
-      message: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+      title: t("secondConfirmTitle"),
+      message: t("secondConfirmMessage"),
       tone: "danger",
-      confirmText: "Evet, Kalıcı Sil",
-      cancelText: "Vazgeç",
+      confirmText: t("secondConfirmYes"),
+      cancelText: tc("giveUp"),
     });
     if (!secondConfirmed) return;
 
@@ -544,27 +547,32 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(`Kombinasyon silinemedi: ${result.error ?? ""}`);
+      setErrorMessage(t("deleteGroupError", { error: result.error ?? "" }));
       return;
     }
 
-    showToast({ type: "success", message: `"${issueKey}" silindi` });
+    showToast({ type: "success", message: t("deletedGroupToast", { issue: issueKey }) });
     setSelectedIds((current) => {
       const next = new Set(current);
       next.delete(issueKey);
       return next;
     });
     void loadCombinations();
-  }, [confirm, showToast]);
+  }, [confirm, showToast, t, tc]);
 
   return (
     <DogaltasSectionShell
-      eyebrow="DOĞALTAŞ · TAŞ KOMBİNASYONLARI"
-      title="Taş Kombinasyonları"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
       subtitle={
         loading
-          ? "Yükleniyor..."
-          : `${uniqueIssues} başlık · ${rows.length} variant · ${visibleGroups.length}/${groups.length} gösterilen`
+          ? tc("loading")
+          : t("subtitleCounts", {
+              issues: uniqueIssues,
+              variants: rows.length,
+              shown: visibleGroups.length,
+              total: groups.length,
+            })
       }
       icon="🧩"
       maxWidthClass="max-w-[1720px]"
@@ -574,7 +582,7 @@ export default function KombinasyonlarPage() {
           onClick={handleRefresh}
           className="btn-soft"
         >
-          Yenile
+          {t("refresh")}
         </button>
       }
     >
@@ -596,7 +604,7 @@ export default function KombinasyonlarPage() {
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-                placeholder="Başlık, taş, kaynak veya not ara..."
+                placeholder={t("searchPlaceholder")}
                 className={uiSearchInput}
                 enterKeyHint="search"
                 autoComplete="off"
@@ -608,9 +616,9 @@ export default function KombinasyonlarPage() {
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={uiCategorySelect}
-                aria-label="Kategori filtresi"
+                aria-label={t("categoryFilterAria")}
               >
-                <option value="">Tüm kategoriler</option>
+                <option value="">{t("allCategories")}</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat.length > 40 ? `${cat.slice(0, 40)}…` : cat}
@@ -623,11 +631,11 @@ export default function KombinasyonlarPage() {
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
             <p className="text-[11px] font-medium text-slate-400">
               {isSearchActive
-                ? `"${activeSearch}" · ${filteredRows.length} variant · ${groups.length} başlık`
+                ? t("searchCounts", { q: activeSearch, variants: filteredRows.length, titles: groups.length })
                 : hasFilters
-                  ? `${filteredRows.length} variant · ${groups.length} başlık`
-                  : `${rows.length} variant · ${groups.length} başlık`}
-              {loading && <span className="ml-2 text-emerald-600">yükleniyor...</span>}
+                  ? t("variantTitleCounts", { variants: filteredRows.length, titles: groups.length })
+                  : t("variantTitleCounts", { variants: rows.length, titles: groups.length })}
+              {loading && <span className="ml-2 text-emerald-600">{t("loadingInline")}</span>}
             </p>
 
             {!isDemo && !loading && groups.length > 0 && (
@@ -637,12 +645,12 @@ export default function KombinasyonlarPage() {
                 totalCount={uniqueIssues}
                 filteredCount={groups.length}
                 hasActiveFilter={hasFilters}
-                selectAllLabel="Tümünü Seç"
+                selectAllLabel={t("selectAll")}
                 selectAllCount={groups.length}
                 onSelectAll={selectAllFiltered}
                 hideSelectAll={isMobile}
                 onClearSelection={clearSelection}
-                exportSelectedLabel="Seçilenleri Word'e Aktar"
+                exportSelectedLabel={t("exportSelected")}
                 onExportSelected={() => void exportCombosWord("selected")}
                 onExportFiltered={() => void exportCombosWord("filtered")}
                 onExportAll={() => void exportCombosWord("all")}
@@ -657,7 +665,7 @@ export default function KombinasyonlarPage() {
               başlıkları seçer (yalnız ekranda görüneni değil). */}
           {!isDemo && !loading && groups.length > 0 && (
             <p className="mt-1.5 text-[11px] font-medium text-slate-400">
-              “Tümünü Seç” yalnızca şu an filtrelenmiş {groups.length} başlığı seçer.
+              {t("selectAllNote", { count: groups.length })}
             </p>
           )}
         </section>
@@ -665,26 +673,30 @@ export default function KombinasyonlarPage() {
         {/* ── Error ──────────────────────────────────────────────────── */}
         {errorMessage && (
           <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
-            {errorMessage}
+            {errorMessage.startsWith("@@loadError:")
+              ? errorMessage.slice("@@loadError:".length) === STONES_WORKSPACE_UNAVAILABLE
+                ? tc("workspaceUnavailable")
+                : t("loadError", { error: errorMessage.slice("@@loadError:".length) })
+              : errorMessage}
           </div>
         )}
 
         {/* ── Content ────────────────────────────────────────────────── */}
         {loading ? (
           <div className="flex h-[200px] items-center justify-center text-sm font-bold text-slate-400">
-            Kayıtlar yükleniyor...
+            {t("loadingRecords")}
           </div>
         ) : isEmptyDatabase ? (
           <div className="flex h-[200px] flex-col items-center justify-center text-center">
             <div className="text-4xl">✶</div>
-            <p className="mt-2 text-base font-black text-slate-800">Henüz kombinasyon kaydı yok</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">Admin panelinden JSON aktarımı yapıldığında kayıtlar burada listelenir.</p>
+            <p className="mt-2 text-base font-black text-slate-800">{t("emptyTitle")}</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{t("emptyDesc")}</p>
           </div>
         ) : isEmptyFiltered ? (
           <div className="flex h-[200px] flex-col items-center justify-center text-center">
             <div className="text-4xl">✶</div>
-            <p className="mt-2 text-base font-black text-slate-800">Sonuç bulunamadı</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">Arama veya kategori filtresini değiştirin.</p>
+            <p className="mt-2 text-base font-black text-slate-800">{t("noResultTitle")}</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{t("noResultDesc")}</p>
           </div>
         ) : (
 
@@ -715,20 +727,22 @@ export default function KombinasyonlarPage() {
                       checked={isSelected}
                       onChange={() => toggleGroupSelection(issue)}
                       onClick={(e) => e.stopPropagation()}
-                      aria-label={`${issue} seç`}
+                      aria-label={t("selectAria", { issue })}
                       className={uiRowCheckbox}
                     />
-                    <span className={uiComboBadge}>{count} variant</span>
+                    <span className={uiComboBadge}>{t("variantBadge", { n: count })}</span>
                     {category && (
                       <span className={uiCategoryPill}>
-                        {isSearchActive ? renderHighlightedText(category, activeSearch) : category}
+                        {category === "İsimsiz"
+                          ? t("untitled")
+                          : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
                       </span>
                     )}
                     {isSearchActive && (
-                      <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
+                      <span className={SEARCH_MATCH_BADGE_CLASS}>{t("matchBadge")}</span>
                     )}
                     {isViewedInSearch && (
-                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">Bakıldı</span>
+                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">{t("viewed")}</span>
                     )}
                   </div>
 
@@ -766,8 +780,8 @@ export default function KombinasyonlarPage() {
                   {/* Metadata */}
                   <DemoBlur isProtected={isDemo}>
                     <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                      {stats.sources > 0 ? `${stats.sources} kaynak · ` : ""}
-                      {stats.stonesCount > 0 ? `${stats.stonesCount} taş metni · ` : ""}
+                      {stats.sources > 0 ? t("sourcesCount", { n: stats.sources }) + " · " : ""}
+                      {stats.stonesCount > 0 ? t("stoneTextCount", { n: stats.stonesCount }) + " · " : ""}
                       {ts ? formatListCardDate(ts) : "—"}
                     </p>
                   </DemoBlur>
@@ -779,7 +793,7 @@ export default function KombinasyonlarPage() {
                       onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
                       className={uiComboBtn}
                     >
-                      Detay →
+                      {t("detailLink")}
                     </Link>
                     {!isDemo && isMobile && (
                       <button
@@ -787,7 +801,7 @@ export default function KombinasyonlarPage() {
                         onClick={(e) => { e.preventDefault(); void handleMobileDeleteGroup(issue); }}
                         className="btn-danger !px-2.5 !py-1.5 !text-[11px] !rounded-lg"
                       >
-                        Sil
+                        {tc("delete")}
                       </button>
                     )}
                   </div>
@@ -807,7 +821,7 @@ export default function KombinasyonlarPage() {
               onClick={() => setVisibleCount((c) => c + GROUPS_PAGE_SIZE)}
               className="rounded-xl border border-violet-200 bg-white px-5 py-2.5 text-sm font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50"
             >
-              Daha Fazla Göster ({visibleGroups.length} / {groups.length})
+              {t("showMore", { shown: visibleGroups.length, total: groups.length })}
             </button>
           </div>
         )}

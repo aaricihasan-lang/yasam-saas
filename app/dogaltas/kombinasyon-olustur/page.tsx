@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   fetchAllStonesExtended,
   type StoneListItemExtended,
@@ -103,6 +101,15 @@ type CartStone = {
 export default function KombinasyonOlusturPage() {
   const { isDemo } = useDemoGuard();
   const { showToast } = useToast();
+  const t = useTranslations("stones.combinations.builder");
+  const tc = useTranslations("stones.common");
+  // Arama tipi görünen label/placeholder localize; SEARCH_TYPE_META KANONİK kalır
+  // (type key query alanı + describeCondition/notesText'i besler). Helper'lar çeviriciyi
+  // kapatır; aşağıdaki .map((t)=>...) shadow'undan etkilenmez.
+  const typeLabel = (ty: SearchType) =>
+    t.has(`searchType.${ty}.label`) ? t(`searchType.${ty}.label`) : SEARCH_TYPE_META[ty].label;
+  const typePlaceholder = (ty: SearchType) =>
+    t.has(`searchType.${ty}.placeholder`) ? t(`searchType.${ty}.placeholder`) : SEARCH_TYPE_META[ty].placeholder;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,7 +194,7 @@ export default function KombinasyonOlusturPage() {
       const tid = await getSyncedTenantId();
       if (!tid) {
         if (!cancelled) {
-          setError(MISSING_SESSION_TENANT_MESSAGE);
+          setError(tc("workspaceUnavailable"));
           setLoading(false);
         }
         return;
@@ -232,7 +239,7 @@ export default function KombinasyonOlusturPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tc]);
 
   const activeConditions = useMemo(
     () => conditions.filter((c) => c.value.trim()),
@@ -419,8 +426,8 @@ export default function KombinasyonOlusturPage() {
 
       if (!res.ok || !json.ok) {
         showToast({
-          title: "Kayıt başarısız",
-          message: json.error ?? "Kombinasyon kaydedilemedi.",
+          title: t("toastSaveFailTitle"),
+          message: json.error ?? t("toastSaveFailMessage"),
           type: "error",
         });
         setSaving(false);
@@ -428,17 +435,17 @@ export default function KombinasyonOlusturPage() {
       }
 
       showToast({
-        title: "Kaydedildi",
+        title: t("toastSavedTitle"),
         message: json.demo
-          ? "Demo hesabında kayıt veritabanına yazılmaz (önizleme)."
-          : `"${name}" kombinasyonlara kaydedildi.`,
+          ? t("toastDemoMessage")
+          : t("toastSavedGeneral", { name }),
         type: "success",
       });
       setSavedInfo({ name });
     } catch {
       showToast({
-        title: "Kayıt başarısız",
-        message: "Sunucuya ulaşılamadı.",
+        title: t("toastSaveFailTitle"),
+        message: t("toastServerUnreachable"),
         type: "error",
       });
     }
@@ -469,8 +476,8 @@ export default function KombinasyonOlusturPage() {
 
     if (!res.ok) {
       showToast({
-        title: "Kayıt başarısız",
-        message: res.error ?? "Kombinasyon danışana kaydedilemedi.",
+        title: t("toastSaveFailTitle"),
+        message: res.error ?? t("toastSaveClientFail"),
         type: "error",
       });
       return;
@@ -478,10 +485,10 @@ export default function KombinasyonOlusturPage() {
 
     setSaveModalOpen(false);
     showToast({
-      title: "Kaydedildi",
+      title: t("toastSavedTitle"),
       message: res.demo
-        ? "Demo hesabında kayıt veritabanına yazılmaz (önizleme)."
-        : `"${name}" → ${clientFullName(client)} danışanına kaydedildi.`,
+        ? t("toastDemoMessage")
+        : t("toastSavedClient", { name, client: clientFullName(client) }),
       type: "success",
     });
     setSavedInfo({ name });
@@ -538,27 +545,27 @@ export default function KombinasyonOlusturPage() {
 
   return (
     <DogaltasSectionShell
-      eyebrow="DOĞALTAŞ · KOMBİNASYON OLUŞTUR"
-      title="Taş Kombinasyonu"
-      subtitle="Mineral, çakra, astroloji, etkili organ veya taş ismine göre koşul ekleyin; tüm koşulları (VE) sağlayan taşlar listelenir. Stokta olan taşlar belirgin gösterilir."
+      eyebrow={t("eyebrow")}
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon="⚗️"
       actions={
         <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
           <div className={uiStatCard}>
             <div className="text-lg font-black text-slate-950">{stones.length}</div>
-            <div className="text-xs font-bold text-slate-500">Taş</div>
+            <div className="text-xs font-bold text-slate-500">{t("statStones")}</div>
           </div>
           <div className={uiStatCard}>
             <div className="text-lg font-black text-slate-950">
               {showResults ? results.length : "—"}
             </div>
-            <div className="text-xs font-bold text-slate-500">Eşleşen</div>
+            <div className="text-xs font-bold text-slate-500">{t("statMatched")}</div>
           </div>
           <div className={uiStatCard}>
             <div className="text-lg font-black text-emerald-600">
               {showResults ? inStockMatched : "—"}
             </div>
-            <div className="text-xs font-bold text-slate-500">Stokta</div>
+            <div className="text-xs font-bold text-slate-500">{t("statInStock")}</div>
           </div>
         </div>
       }
@@ -566,15 +573,15 @@ export default function KombinasyonOlusturPage() {
       <BfcacheRefreshHandler />
       <div className={pageContent}>
         {isDemo && (
-          <DemoModuleBanner message="Kombinasyon Oluştur'u inceleyebilirsiniz. Sonuçlar kütüphane taşları üzerinden gösterilir." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
 
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-black text-slate-900">Arama Koşulları</h2>
+            <h2 className="text-sm font-black text-slate-900">{t("conditionsTitle")}</h2>
             <span className="text-[11px] font-bold text-slate-500">
-              Tümü eşleşmeli (VE) · yüzde yalnız mineralde
+              {t("conditionsHint")}
             </span>
           </div>
 
@@ -589,7 +596,7 @@ export default function KombinasyonOlusturPage() {
                 >
                   {SEARCH_TYPES.map((t) => (
                     <option key={t} value={t}>
-                      {SEARCH_TYPE_META[t].icon} {SEARCH_TYPE_META[t].label}
+                      {SEARCH_TYPE_META[t].icon} {typeLabel(t)}
                     </option>
                   ))}
                 </select>
@@ -602,7 +609,7 @@ export default function KombinasyonOlusturPage() {
                     options={optionsByType[cond.type].options}
                     counts={optionsByType[cond.type].counts}
                     icon={SEARCH_TYPE_META[cond.type].icon}
-                    placeholder={SEARCH_TYPE_META[cond.type].placeholder}
+                    placeholder={typePlaceholder(cond.type)}
                     className={uiInput}
                   />
                 </div>
@@ -611,7 +618,7 @@ export default function KombinasyonOlusturPage() {
                 <div className="flex items-center gap-2 sm:shrink-0">
                   {cond.type === "mineral" && (
                     <div className="flex items-center gap-1.5 sm:w-[140px]">
-                      <span className="text-xs font-black text-slate-500">≥ %</span>
+                      <span className="text-xs font-black text-slate-500">{t("percentLabel")}</span>
                       <input
                         type="number"
                         min={0}
@@ -619,7 +626,7 @@ export default function KombinasyonOlusturPage() {
                         inputMode="decimal"
                         value={cond.minPercent ?? ""}
                         onChange={(e) => updatePercent(cond.id, e.target.value)}
-                        placeholder="ops."
+                        placeholder={t("percentPlaceholder")}
                         className={uiInput}
                       />
                     </div>
@@ -627,10 +634,10 @@ export default function KombinasyonOlusturPage() {
                   <button
                     type="button"
                     onClick={() => removeCondition(cond.id)}
-                    aria-label="Koşulu kaldır"
+                    aria-label={t("removeConditionAria")}
                     className="btn-danger h-11 shrink-0 !px-3"
                   >
-                    Sil
+                    {tc("delete")}
                   </button>
                 </div>
               </div>
@@ -643,7 +650,7 @@ export default function KombinasyonOlusturPage() {
               onClick={addCondition}
               className="btn-soft !px-3 !py-1.5 !text-xs"
             >
-              + Koşul Ekle
+              {t("addCondition")}
             </button>
 
             <button
@@ -652,14 +659,13 @@ export default function KombinasyonOlusturPage() {
               disabled={loading || activeConditions.length === 0}
               className="btn-primary"
             >
-              {loading ? "Yükleniyor..." : "Taşları Tara"}
+              {loading ? tc("loading") : t("scan")}
             </button>
           </div>
 
           {anyThreshold && (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
-              Not: Oran (yüzde) girilmemiş taşlarda eşik uygulanmaz; bu taşlar
-              mineral varlığına göre eşleşir ve listeden çıkarılmaz.
+              {t("thresholdNote")}
             </p>
           )}
         </section>
@@ -678,19 +684,17 @@ export default function KombinasyonOlusturPage() {
             {!showResults ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-emerald-300/50 bg-white/70 p-6 text-center">
                 <div className="text-base font-black text-slate-800">
-                  Koşul ekleyip "Taşları Tara"ya basın
+                  {t("resultsEmptyTitle")}
                 </div>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Seçtiğiniz tüm koşulları (mineral, çakra, astroloji, organ, isim)
-                  sağlayan taşlar burada listelenir.
+                  {t("resultsEmptyDesc")}
                 </p>
               </div>
             ) : results.length === 0 ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-slate-300 bg-white/70 p-6 text-center">
-                <div className="text-base font-black text-slate-800">Eşleşme yok</div>
+                <div className="text-base font-black text-slate-800">{t("noMatchTitle")}</div>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Seçilen koşulların tümünü sağlayan taş bulunamadı. Koşulları
-                  azaltmayı veya eşiği kaldırmayı deneyin.
+                  {t("noMatchDesc")}
                 </p>
               </div>
             ) : (
@@ -742,15 +746,15 @@ export default function KombinasyonOlusturPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="truncate text-sm font-black text-slate-950">
-                              {stone.stone_name || "İsimsiz taş"}
+                              {stone.stone_name || tc("unnamedStone")}
                             </h3>
                             {inStock ? (
                               <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-                                Stokta
+                                {t("inStock")}
                               </span>
                             ) : (
                               <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                                Stok yok
+                                {t("outOfStock")}
                               </span>
                             )}
                           </div>
@@ -766,7 +770,7 @@ export default function KombinasyonOlusturPage() {
                               <span
                                 key={`${stone.id}-m-${i}`}
                                 className={`max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold ${CHIP_TONE[m.type]}`}
-                                title={`${SEARCH_TYPE_META[m.type].label}: ${m.name}`}
+                                title={`${typeLabel(m.type)}: ${m.name}`}
                               >
                                 {SEARCH_TYPE_META[m.type].icon} {m.name}
                               </span>
@@ -782,7 +786,7 @@ export default function KombinasyonOlusturPage() {
                           onClick={() => setDetail({ stone, inStock })}
                           className="btn-soft w-full !px-3 !py-1.5 !text-xs"
                         >
-                          🔍 Detay
+                          {t("detail")}
                         </button>
                         <button
                           type="button"
@@ -799,7 +803,7 @@ export default function KombinasyonOlusturPage() {
                             cartIds.has(stone.id) ? "btn-danger" : "btn-primary"
                           }`}
                         >
-                          {cartIds.has(stone.id) ? "Çıkar" : "+ Ekle"}
+                          {cartIds.has(stone.id) ? t("removeStone") : t("addStone")}
                         </button>
                       </div>
                     </div>
@@ -815,7 +819,7 @@ export default function KombinasyonOlusturPage() {
           <aside className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start lg:sticky lg:top-4">
             <div className="rounded-[20px] border-[3px] border-violet-300/50 bg-white/90 p-3 shadow-md sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-black text-slate-900">🧺 Kombinasyon Sepeti</h2>
+                <h2 className="text-sm font-black text-slate-900">{t("cartTitle")}</h2>
                 <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-700">
                   {cart.length}
                 </span>
@@ -824,7 +828,7 @@ export default function KombinasyonOlusturPage() {
               {/* ── Arama dışı taş ekle (autocomplete + serbest ad) ─────────── */}
               <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5">
                 <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-700">
-                  Taş adıyla ekle
+                  {t("addByNameLabel")}
                 </label>
                 <div className="flex items-stretch gap-2">
                   <div className="min-w-0 flex-1">
@@ -834,7 +838,7 @@ export default function KombinasyonOlusturPage() {
                       options={optionsByType.stone_name.options}
                       counts={optionsByType.stone_name.counts}
                       icon={SEARCH_TYPE_META.stone_name.icon}
-                      placeholder="Örn. Ametist — aramadan doğrudan ekle"
+                      placeholder={t("addByNamePlaceholder")}
                       className={uiInput}
                     />
                   </div>
@@ -844,18 +848,17 @@ export default function KombinasyonOlusturPage() {
                     disabled={manualName.trim() === ""}
                     className="btn-primary shrink-0 !px-3"
                   >
-                    + Ekle
+                    {t("addStone")}
                   </button>
                 </div>
                 <p className="mt-1 text-[10px] font-medium leading-snug text-slate-500">
-                  Kütüphanedeki taşla eşleşirse otomatik kullanılır; eşleşmezse serbest
-                  ad olarak eklenir. Denenmiş bir kombinasyonu aramadan kaydedebilirsiniz.
+                  {t("addByNameHint")}
                 </p>
               </div>
 
               {cart.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs font-semibold text-slate-500">
-                  Sepet boş. Sonuç listesinden "Kombinasyona Ekle" ile taş ekleyin.
+                  {t("cartEmpty")}
                 </p>
               ) : (
                 <>
@@ -870,7 +873,7 @@ export default function KombinasyonOlusturPage() {
                             className={`h-2 w-2 shrink-0 rounded-full ${
                               item.inStock ? "bg-emerald-500" : "bg-slate-300"
                             }`}
-                            title={item.inStock ? "Stokta" : "Stok yok"}
+                            title={item.inStock ? t("inStock") : t("outOfStock")}
                           />
                           <span className="truncate text-xs font-bold text-slate-800">
                             {item.name}
@@ -879,10 +882,10 @@ export default function KombinasyonOlusturPage() {
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.id)}
-                          aria-label={`${item.name} sepetten çıkar`}
+                          aria-label={t("removeFromCartAria", { name: item.name })}
                           className="btn-danger inline-flex min-h-[44px] items-center justify-center shrink-0 !rounded-lg !px-2 !py-0.5 !text-[11px] sm:min-h-0"
                         >
-                          Çıkar
+                          {t("removeStone")}
                         </button>
                       </li>
                     ))}
@@ -890,14 +893,14 @@ export default function KombinasyonOlusturPage() {
 
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-slate-500">
-                      {cart.filter((c) => c.inStock).length} stokta
+                      {t("inStockCount", { n: cart.filter((c) => c.inStock).length })}
                     </span>
                     <button
                       type="button"
                       onClick={clearCart}
                       className="btn-soft inline-flex min-h-[44px] items-center justify-center !rounded-lg !px-2 !py-0.5 !text-[11px] sm:min-h-0"
                     >
-                      Temizle
+                      {tc("clear")}
                     </button>
                   </div>
 
@@ -906,10 +909,10 @@ export default function KombinasyonOlusturPage() {
                     <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
                       <div>
                         <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                          Karşılanan Koşullar
+                          {t("metTitle")}
                         </div>
                         {cartAnalysis.metMinerals.length === 0 ? (
-                          <p className="text-[11px] font-semibold text-slate-400">Henüz yok.</p>
+                          <p className="text-[11px] font-semibold text-slate-400">{t("metEmpty")}</p>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {cartAnalysis.metMinerals.map((m) => (
@@ -926,11 +929,11 @@ export default function KombinasyonOlusturPage() {
 
                       <div>
                         <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                          Eksik Koşullar
+                          {t("missingTitle")}
                         </div>
                         {cartAnalysis.missingMinerals.length === 0 ? (
                           <p className="text-[11px] font-semibold text-emerald-600">
-                            Tümü karşılandı.
+                            {t("allMet")}
                           </p>
                         ) : (
                           <div className="flex flex-wrap gap-1">
@@ -951,7 +954,7 @@ export default function KombinasyonOlusturPage() {
                   {/* ── Taş Bazlı Uyarılar ─────────────────────────────── */}
                   <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
                     <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">
-                      Taş Uyarıları
+                      {t("warningsTitle")}
                     </div>
                     {cartAnalysis.warnings.map((w) => (
                       <div
@@ -981,7 +984,7 @@ export default function KombinasyonOlusturPage() {
                           </div>
                         ) : (
                           <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                            Belirgin uyarı yok
+                            {t("noWarning")}
                           </p>
                         )}
                       </div>
@@ -992,23 +995,22 @@ export default function KombinasyonOlusturPage() {
                   <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
                     {manualOnlyCount > 0 && (
                       <p className="rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
-                        ℹ️ {manualOnlyCount} taş elle eklendi. Bunlar kaydedilir; ancak
-                        kütüphanede bulunmadığından mineral/uyarı analizine dahil edilemez.
+                        {t("manualNote", { n: manualOnlyCount })}
                       </p>
                     )}
                     {activeConditions.length > 0 &&
                       (cartAnalysis.missingMinerals.length === 0 ? (
                         <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
-                          ✓ Kombinasyon tüm koşulları karşılıyor.
+                          {t("allConditionsMet")}
                         </p>
                       ) : (
                         <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
-                          Eksik koşullar var, taş ekleyin veya değiştirin.
+                          {t("conditionsMissing")}
                         </p>
                       ))}
                     {cartAnalysis.hasAnyWarning && (
                       <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
-                        ⚠️ Uyarı bulunan taşlar var, danışan durumuna göre kontrol edin.
+                        {t("hasWarnings")}
                       </p>
                     )}
                   </div>
@@ -1022,18 +1024,18 @@ export default function KombinasyonOlusturPage() {
           {/* ── Kombinasyonu Kaydet (sonuç listesinin hemen altında) ──── */}
           <section className={`${uiFilterCard} lg:col-start-1 lg:row-start-2`}>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-black text-slate-900">💾 Kombinasyonu Kaydet</h2>
+            <h2 className="text-sm font-black text-slate-900">{t("saveTitle")}</h2>
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-700">
-              {cart.length} taş
+              {t("saveCountBadge", { n: cart.length })}
             </span>
           </div>
 
           {savedInfo ? (
             <div className="space-y-2">
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
-                ✓ &quot;{savedInfo.name}&quot; kaydedildi.{" "}
+                {t("savedPrefix", { name: savedInfo.name })}{" "}
                 <Link href="/dogaltas/kombinasyonlar" className="underline">
-                  Listede gör
+                  {t("seeInList")}
                 </Link>
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -1045,14 +1047,14 @@ export default function KombinasyonOlusturPage() {
                   }}
                   className="btn-soft sm:flex-1"
                 >
-                  Sepeti Temizle
+                  {t("clearCartBtn")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSavedInfo(null)}
                   className="btn-primary sm:flex-1"
                 >
-                  Devam Et
+                  {t("continue")}
                 </button>
               </div>
             </div>
@@ -1063,7 +1065,7 @@ export default function KombinasyonOlusturPage() {
                   type="text"
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="Kombinasyon adı (zorunlu)"
+                  placeholder={t("namePlaceholder")}
                   maxLength={200}
                   className={DOGALTAS_INPUT_CLASS}
                 />
@@ -1071,7 +1073,7 @@ export default function KombinasyonOlusturPage() {
                   type="text"
                   value={saveDescription}
                   onChange={(e) => setSaveDescription(e.target.value)}
-                  placeholder="Açıklama / amaç (opsiyonel)"
+                  placeholder={t("descPlaceholder")}
                   maxLength={200}
                   className={DOGALTAS_INPUT_CLASS}
                 />
@@ -1079,18 +1081,18 @@ export default function KombinasyonOlusturPage() {
               <textarea
                 value={saveNote}
                 onChange={(e) => setSaveNote(e.target.value)}
-                placeholder="Serbest not (opsiyonel)"
+                placeholder={t("notePlaceholder")}
                 rows={2}
                 className={`${DOGALTAS_TEXTAREA_CLASS} !resize-y`}
               />
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 {cart.length === 0 ? (
                   <p className="text-[11px] font-semibold text-slate-400">
-                    Kaydetmek için sepete en az bir taş ekleyin.
+                    {t("needStone")}
                   </p>
                 ) : (
                   <span className="text-[11px] font-semibold text-slate-500">
-                    {cart.length} taş kaydedilecek
+                    {t("willSaveCount", { n: cart.length })}
                   </span>
                 )}
                 <button
@@ -1100,10 +1102,10 @@ export default function KombinasyonOlusturPage() {
                   className="btn-primary sm:w-auto"
                 >
                   {saving || savingClient
-                    ? "Kaydediliyor..."
+                    ? tc("saving")
                     : preselectedClient
-                      ? `💾 ${clientFullName(preselectedClient)} danışanına Kaydet`
-                      : "💾 Kombinasyonu Kaydet"}
+                      ? t("saveToClientButton", { name: clientFullName(preselectedClient) })
+                      : t("saveButton")}
                 </button>
               </div>
             </div>

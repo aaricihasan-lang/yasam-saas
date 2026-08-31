@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import {
@@ -102,6 +103,11 @@ export function StoneDetailDrawer({
   onToggleCart,
   onClose,
 }: StoneDetailDrawerProps) {
+  const t = useTranslations("stones.detailDrawer");
+  const tc = useTranslations("stones.common");
+  const tp = useTranslations("stones.photos");
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
@@ -134,11 +140,11 @@ export function StoneDetailDrawer({
         const src = resolveImageSrc(im, signedImageUrls);
         if (!src) return null;
         const rec = im && typeof im === "object" ? (im as Record<string, unknown>) : null;
-        const name = rec && typeof rec.name === "string" && rec.name.trim() ? rec.name : `Görsel ${index + 1}`;
+        const name = rec && typeof rec.name === "string" && rec.name.trim() ? rec.name : tp("imageAlt", { n: index + 1 });
         return { url: src, name };
       })
       .filter(Boolean) as { url: string; name: string }[];
-  }, [stone?.images, signedImageUrls]);
+  }, [stone?.images, signedImageUrls, tp]);
   const assignments = useMemo(
     () => normalizeAssignments(stone?.assignments),
     [stone?.assignments],
@@ -155,10 +161,10 @@ export function StoneDetailDrawer({
   if (!open || !stone) return null;
 
   const usage = [
-    ["Feng Shui", stone.feng_shui],
-    ["Meditasyon", stone.meditation],
-    ["Bakım", stone.care],
-    ["Uygulama", stone.application],
+    [t("usageFengShui"), stone.feng_shui],
+    [t("usageMeditation"), stone.meditation],
+    [t("usageCare"), stone.care],
+    [t("usageApplication"), stone.application],
   ].filter(([, text]) => Boolean(text && String(text).trim())) as [string, string][];
 
   return (
@@ -166,7 +172,7 @@ export function StoneDetailDrawer({
       className="fixed inset-0 z-50 flex justify-end"
       role="dialog"
       aria-modal="true"
-      aria-label={`${stone.stone_name || "Taş"} detayı`}
+      aria-label={t("detailAria", { name: stone.stone_name || t("stoneFallback") })}
     >
       {/* Arka plan */}
       <div
@@ -186,7 +192,7 @@ export function StoneDetailDrawer({
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[9px] font-black tracking-[0.14em] text-cyan-700">
-                💎 TAŞ DETAYI
+                {t("badge")}
               </span>
               {inStock ? (
                 <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
@@ -199,13 +205,13 @@ export function StoneDetailDrawer({
               )}
             </div>
             <h2 className="truncate text-lg font-black tracking-tight text-slate-950">
-              {stone.stone_name || "İsimsiz taş"}
+              {stone.stone_name || tc("unnamedStone")}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={tc("close")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-600 transition hover:bg-slate-200"
           >
             ×
@@ -258,7 +264,7 @@ export function StoneDetailDrawer({
               <div className="px-3 py-2">
                 <div className="text-[34px]">💎</div>
                 <p className="mt-1 text-[10px] font-bold text-slate-400">
-                  Görsel eklenmemiş
+                  {tp("noImage")}
                 </p>
               </div>
             </div>
@@ -270,26 +276,26 @@ export function StoneDetailDrawer({
             onClick={onToggleCart}
             className={`w-full ${inCart ? "btn-danger" : "btn-primary"}`}
           >
-            {inCart ? "Sepetten Çıkar" : "+ Kombinasyona Ekle"}
+            {inCart ? t("removeFromCart") : t("addToCart")}
           </button>
 
           {/* Metin alanları */}
           <TextSection
-            title="Kısa Açıklama"
-            badge="GENEL BİLGİ"
+            title={t("shortTitle")}
+            badge={t("shortBadge")}
             tone="cyan"
             text={stone.short_description}
           />
           <TextSection
-            title="Genel Taş Açıklaması"
-            badge="DETAYLI BİLGİ"
+            title={t("generalTitle")}
+            badge={t("generalBadge")}
             tone="cyan"
             text={stone.general_info}
           />
 
           {/* Mineral içeriği + atamalar (Mineraller / Burçlar / Etkili Organlar ...) */}
           {Object.entries(assignments).length > 0 && (
-            <Section title="Mineral İçeriği & Atamalar" badge="ATAMA" tone="violet">
+            <Section title={t("assignmentsTitle")} badge={t("assignmentsBadge")} tone="violet">
               <div className="space-y-1.5">
                 {Object.entries(assignments).map(([title, rows]) => (
                   <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
@@ -312,14 +318,14 @@ export function StoneDetailDrawer({
 
           {/* Çakralar */}
           {chakras.length > 0 && (
-            <Section title="Çakralar" badge="ÇAKRA" tone="violet">
+            <Section title={t("chakrasTitle")} badge={t("chakrasBadge")} tone="violet">
               <div className="flex flex-wrap gap-1.5">
                 {chakras.map((c) => (
                   <span
                     key={c}
                     className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-black text-violet-700"
                   >
-                    {c}
+                    {facet(c)}
                   </span>
                 ))}
               </div>
@@ -328,33 +334,33 @@ export function StoneDetailDrawer({
 
           {/* Etkiler */}
           <TextSection
-            title="Fiziksel Etkiler"
-            badge="BEDENSEL ETKİ"
+            title={t("physicalTitle")}
+            badge={t("physicalBadge")}
             tone="emerald"
             text={stone.physical_effects}
           />
           <TextSection
-            title="Ruhsal Etkiler"
-            badge="RUHSAL ETKİ"
+            title={t("spiritualTitle")}
+            badge={t("spiritualBadge")}
             tone="violet"
             text={stone.spiritual_effects}
           />
           <TextSection
-            title="Diğer Etkiler"
-            badge="TAMAMLAYICI NOT"
+            title={t("otherTitle")}
+            badge={t("otherBadge")}
             tone="amber"
             text={stone.other_effects}
           />
           <TextSection
-            title="Kaynak Notu"
-            badge="KAYNAK"
+            title={t("sourceTitle")}
+            badge={t("sourceBadge")}
             tone="slate"
             text={stone.source_note}
           />
 
           {/* Kullanım */}
           {usage.length > 0 && (
-            <Section title="Kullanım / Uygulama" badge="KULLANIM ALANI" tone="cyan">
+            <Section title={t("usageTitle")} badge={t("usageBadge")} tone="cyan">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {usage.map(([title, text]) => (
                   <div
@@ -373,7 +379,7 @@ export function StoneDetailDrawer({
 
           {/* Uyarılar */}
           {(stone.warning_text?.trim() || warningTags.length > 0) && (
-            <Section title="Uyarılar ve Hassasiyetler" badge="KLİNİK NOT" tone="rose">
+            <Section title={t("warningsTitle")} badge={t("warningsBadge")} tone="rose">
               {stone.warning_text?.trim() && (
                 <p className="whitespace-pre-wrap text-sm leading-6 text-amber-700">
                   ⚠️ {stone.warning_text}
@@ -395,12 +401,12 @@ export function StoneDetailDrawer({
           )}
 
           {/* Stok bilgisi */}
-          <Section title="Stok Bilgisi" badge="STOK" tone={inStock ? "emerald" : "slate"}>
+          <Section title={t("stockTitle")} badge={t("stockBadge")} tone={inStock ? "emerald" : "slate"}>
             <p className="text-sm font-bold text-slate-700">
               {inStock ? (
-                <span className="text-emerald-600">✓ Bu taş stokta mevcut.</span>
+                <span className="text-emerald-600">{t("inStockYes")}</span>
               ) : (
-                <span className="text-slate-500">Bu taş şu an stokta görünmüyor.</span>
+                <span className="text-slate-500">{t("inStockNo")}</span>
               )}
             </p>
           </Section>
@@ -416,7 +422,7 @@ export function StoneDetailDrawer({
           <button
             type="button"
             onClick={() => setPreview(null)}
-            aria-label="Kapat"
+            aria-label={tc("close")}
             className="absolute right-6 top-6 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl font-black text-white transition hover:bg-white/20"
           >
             ×

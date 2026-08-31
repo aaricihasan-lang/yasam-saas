@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { StoneWarningResult } from "@/lib/stones/stoneWarningService";
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Props) {
+  const t = useTranslations("clients.stones.warningModal");
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -30,14 +32,13 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
           </div>
           <div>
             <span className="mb-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
-              TAŞLARA KAYITLI UYARI
+              {t("badge")}
             </span>
             <h2 className="text-[17px] font-black leading-tight text-slate-900">
-              Önerilen taşlarda kayıtlı uyarılar var
+              {t("title")}
             </h2>
             <p className="mt-1 text-xs leading-snug text-slate-500">
-              Doğaltaş modülünde bu taşlar için uyarı kaydı bulunuyor.
-              Yine de kaydetmek istiyor musunuz?
+              {t("subtitle")}
             </p>
           </div>
         </div>
@@ -60,7 +61,7 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
               {w.warningTags && w.warningTags.length > 0 && (
                 <div className={w.warningText ? "mb-3" : ""}>
                   <div className="mb-1.5 text-[11px] font-black text-amber-700">
-                    Uyarı Etiketleri:
+                    {t("tagsLabel")}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {w.warningTags.map((tag) => (
@@ -79,7 +80,7 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
               {w.warningText && (
                 <div>
                   <div className="mb-1.5 text-[11px] font-black text-amber-700">
-                    Uyarı Metni:
+                    {t("textLabel")}
                   </div>
                   <p className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs leading-relaxed text-orange-950">
                     {w.warningText}
@@ -96,7 +97,7 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
                   className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"
                 >
                   <span>🔗</span>
-                  <span>Doğaltaş kaydını aç</span>
+                  <span>{t("openRecord")}</span>
                 </a>
               </div>
             </div>
@@ -110,14 +111,14 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
             onClick={onCancel}
             className="btn-soft"
           >
-            İptal
+            {t("cancel")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="btn-primary"
           >
-            Yine de Kaydet
+            {t("confirm")}
           </button>
         </div>
       </div>

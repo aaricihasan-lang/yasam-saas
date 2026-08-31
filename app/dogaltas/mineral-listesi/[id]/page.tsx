@@ -12,10 +12,8 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { useTranslations } from "next-intl";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { ensureMineralStringArray, getDemoReferenceMineralId } from "@/lib/dogaltas/mineralsListFetch";
@@ -79,7 +77,8 @@ function listMatchesQuery(items: string[], query: string): boolean {
 }
 
 function SearchMatchBadge() {
-  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
+  const tRoot = useTranslations("stones.minerals");
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>{tRoot("searchMatchBadge")}</span>;
 }
 
 
@@ -108,16 +107,18 @@ function linesToArray(value: string): string[] {
 }
 
 // Mineral kaydının düzenlenebilir liste alanları (veri modelinde mevcut alanlar).
-const MINERAL_EDIT_LIST_FIELDS: { key: keyof MineralEditForm; label: string }[] = [
-  { key: "fiziksel", label: "Fiziksel" },
-  { key: "zihinsel", label: "Zihinsel" },
-  { key: "fizyoloji", label: "Fizyoloji" },
-  { key: "organ_etkileri", label: "Organ etkileri" },
-  { key: "cakralar", label: "Çakralar" },
-  { key: "eksiklik_belirtileri", label: "Eksiklik belirtileri" },
-  { key: "fazlalik_belirtileri", label: "Fazlalık belirtileri" },
-  { key: "doz_asimi", label: "Doz aşımı" },
-  { key: "iceren_taslar", label: "İçeren taşlar" },
+// Etiketler i18n katalogundan (stones.minerals.detail.sections.<key>.title) gelir;
+// DB alan anahtarı (key) aşağıdaki dizide sabit ve sıralıdır.
+const MINERAL_EDIT_LIST_FIELD_KEYS: (keyof MineralEditForm)[] = [
+  "fiziksel",
+  "zihinsel",
+  "fizyoloji",
+  "organ_etkileri",
+  "cakralar",
+  "eksiklik_belirtileri",
+  "fazlalik_belirtileri",
+  "doz_asimi",
+  "iceren_taslar",
 ];
 
 type MineralEditForm = {
@@ -275,6 +276,7 @@ function TextSectionCard({
   contentTypography: MineralContentTypography;
   isContentProtected?: boolean;
 }) {
+  const tDetail = useTranslations("stones.minerals.detail");
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
   const displayText = text?.trim() || "";
@@ -293,7 +295,7 @@ function TextSectionCard({
           {displayText ? (
             renderMineralContent(displayText, contentTypography.bodyStyle, renderSeg)
           ) : (
-            <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
+            <p className={uiEmptyText}>{tDetail("noInfo")}</p>
           )}
         </DemoBlur>
       </div>
@@ -320,6 +322,7 @@ function ListSectionCard({
   contentTypography: MineralContentTypography;
   isContentProtected?: boolean;
 }) {
+  const tDetail = useTranslations("stones.minerals.detail");
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
 
@@ -348,7 +351,7 @@ function ListSectionCard({
                 </div>
               ))
             ) : (
-              <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
+              <p className={uiEmptyText}>{tDetail("noInfo")}</p>
             )}
           </div>
         </DemoBlur>
@@ -358,6 +361,10 @@ function ListSectionCard({
 }
 
 function MineralDetailPageContent() {
+  const t = useTranslations("stones.minerals.detail");
+  const tEdit = useTranslations("stones.minerals.edit");
+  const tRoot = useTranslations("stones.minerals");
+  const tc = useTranslations("stones.common");
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const id = params?.id;
@@ -409,7 +416,7 @@ function MineralDetailPageContent() {
     if (!mineral || !editForm) return;
     const name = editForm.name.trim();
     if (!name) {
-      setEditError("Mineral adı boş bırakılamaz.");
+      setEditError(tRoot("validation.nameRequired"));
       return;
     }
     setEditSaving(true);
@@ -419,13 +426,13 @@ function MineralDetailPageContent() {
       kategori: editForm.kategori.trim() || null,
       aciklama: editForm.aciklama.trim() || null,
     };
-    for (const f of MINERAL_EDIT_LIST_FIELDS) {
-      payload[f.key] = linesToArray(editForm[f.key]);
+    for (const key of MINERAL_EDIT_LIST_FIELD_KEYS) {
+      payload[key] = linesToArray(editForm[key]);
     }
     const res = await updateMineral(mineral.id, payload);
     setEditSaving(false);
     if (!res.ok) {
-      setEditError(res.error || "Mineral güncellenemedi. Lütfen tekrar deneyin.");
+      setEditError(res.error || t("updateFailed"));
       return;
     }
     setIsEditing(false);
@@ -438,7 +445,7 @@ function MineralDetailPageContent() {
   const loadMineral = useCallback(async () => {
     if (!id) {
       setLoading(false);
-      setErrorMessage("Geçersiz mineral kimliği.");
+      setErrorMessage(t("invalidId"));
       return;
     }
 
@@ -449,7 +456,7 @@ function MineralDetailPageContent() {
     if (!tenantId) {
       setLoading(false);
       setMineral(null);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -472,19 +479,19 @@ function MineralDetailPageContent() {
     setLoading(false);
 
     if (!ok) {
-      setErrorMessage(`Mineral kayıtları okunamadı: ${error ?? ""}`);
+      setErrorMessage(t("loadError", { error: error ?? "" }));
       setMineral(null);
       return;
     }
 
     if (!data) {
-      setErrorMessage("Mineral kaydı bulunamadı.");
+      setErrorMessage(t("notFound"));
       setMineral(null);
       return;
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery, refMineralIdFromQuery]);
+  }, [id, highlightQuery, refMineralIdFromQuery, t, tc]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -572,7 +579,7 @@ function MineralDetailPageContent() {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
         <div className={`${uiHeaderCard} text-sm font-black text-slate-600`}>
-          Mineral yükleniyor...
+          {t("loading")}
         </div>
       </main>
     );
@@ -583,7 +590,7 @@ function MineralDetailPageContent() {
       <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
         <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-5xl">⚗️</div>
-          <h1 className="mt-3 text-2xl font-black text-slate-950">Mineral yüklenemedi</h1>
+          <h1 className="mt-3 text-2xl font-black text-slate-950">{t("loadFailedTitle")}</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-rose-700" role="alert">
             {errorMessage}
           </p>
@@ -608,14 +615,14 @@ function MineralDetailPageContent() {
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-emerald-700">
-                ⚗️ MİNERAL DETAY
+                {t("badgeDetail")}
               </span>
               {isEditing && editForm ? (
                 <input
                   value={editForm.kategori}
                   onChange={(e) => updateEditField("kategori", e.target.value)}
-                  placeholder="Kategori (örn: İz mineral)"
-                  aria-label="Mineral kategorisi"
+                  placeholder={t("categoryPlaceholder")}
+                  aria-label={t("categoryAria")}
                   className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               ) : mineral.kategori?.trim() ? (
@@ -633,8 +640,8 @@ function MineralDetailPageContent() {
                 <input
                   value={editForm.name}
                   onChange={(e) => updateEditField("name", e.target.value)}
-                  placeholder="Mineral adı"
-                  aria-label="Mineral adı"
+                  placeholder={t("namePlaceholder")}
+                  aria-label={t("namePlaceholder")}
                   className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xl font-black text-slate-950 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:text-2xl"
                 />
               ) : (
@@ -655,9 +662,9 @@ function MineralDetailPageContent() {
                 : mineral.source_id}
               {" · "}
               <span className="font-black text-emerald-700">{filledSections}</span>
-              {" Dolu Bölüm · "}
+              {t("filledSuffix", { n: filledSections })}
               <span className="font-black text-amber-700">{mineral.iceren_taslar.length}</span>
-              {" İçeren Taş"}
+              {t("icerenSuffix", { n: mineral.iceren_taslar.length })}
             </p>
           </div>
 
@@ -670,7 +677,7 @@ function MineralDetailPageContent() {
                   disabled={editSaving}
                   className="btn-soft"
                 >
-                  Vazgeç
+                  {tc("giveUp")}
                 </button>
                 <button
                   type="button"
@@ -678,7 +685,7 @@ function MineralDetailPageContent() {
                   disabled={editSaving}
                   className="btn-primary"
                 >
-                  {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                  {editSaving ? tc("saving") : tc("save")}
                 </button>
               </>
             ) : (
@@ -699,7 +706,7 @@ function MineralDetailPageContent() {
                     disabled={wordBusy}
                     className="btn-soft"
                   >
-                    {wordBusy ? "⏳..." : "📄 Word"}
+                    {wordBusy ? t("wordBusy") : t("wordButton")}
                   </button>
                 )}
                 <button
@@ -707,7 +714,7 @@ function MineralDetailPageContent() {
                   onClick={() => void loadMineral()}
                   className="btn-soft"
                 >
-                  Yenile
+                  {t("refresh")}
                 </button>
                 {canEdit && (
                   <button
@@ -715,7 +722,7 @@ function MineralDetailPageContent() {
                     onClick={startEdit}
                     className="btn-primary"
                   >
-                    ✏️ Düzenle
+                    {t("editButton")}
                   </button>
                 )}
               </>
@@ -725,7 +732,7 @@ function MineralDetailPageContent() {
 
         {hasHighlight && headerHasMatch ? (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Eşleşme:</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">{t("matchLabel")}</span>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-800">
               🔍 {highlightQuery}
             </span>
@@ -741,28 +748,28 @@ function MineralDetailPageContent() {
             ) : null}
             <div className={uiInfoCard}>
               <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
-                Açıklama
+                {t("sections.aciklama.title")}
               </label>
               <textarea
                 value={editForm.aciklama}
                 onChange={(e) => updateEditField("aciklama", e.target.value)}
                 rows={4}
-                placeholder="Mineralin genel tanımı ve temel görevi..."
+                placeholder={tRoot("bank.sections.aciklama.placeholder")}
                 className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
               />
             </div>
             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-              {MINERAL_EDIT_LIST_FIELDS.map((f) => (
-                <div key={f.key} className={uiInfoCard}>
+              {MINERAL_EDIT_LIST_FIELD_KEYS.map((key) => (
+                <div key={key} className={uiInfoCard}>
                   <label className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-wider text-slate-500">
-                    <span>{f.label}</span>
-                    <span className="font-medium normal-case tracking-normal text-slate-400">her satır bir madde</span>
+                    <span>{t(`sections.${key}.title`)}</span>
+                    <span className="font-medium normal-case tracking-normal text-slate-400">{tEdit("lineHint")}</span>
                   </label>
                   <textarea
-                    value={editForm[f.key]}
-                    onChange={(e) => updateEditField(f.key, e.target.value)}
+                    value={editForm[key]}
+                    onChange={(e) => updateEditField(key, e.target.value)}
                     rows={3}
-                    placeholder={`${f.label} — her satıra bir madde yazın`}
+                    placeholder={tEdit("fieldPlaceholder", { label: t(`sections.${key}.title`) })}
                     className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
@@ -771,18 +778,18 @@ function MineralDetailPageContent() {
             {/* Mobil kolaylığı için alt kaydet/vazgeç */}
             <div className="flex items-center justify-end gap-2 pt-1">
               <button type="button" onClick={cancelEdit} disabled={editSaving} className="btn-soft">
-                Vazgeç
+                {tc("giveUp")}
               </button>
               <button type="button" onClick={() => void saveEdit()} disabled={editSaving} className="btn-primary">
-                {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                {editSaving ? tc("saving") : tc("save")}
               </button>
             </div>
           </section>
         ) : (
         <section className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <TextSectionCard
-              title="Açıklama"
-              badge="AÇIKLAMA"
+              title={t("sections.aciklama.title")}
+              badge={t("sections.aciklama.badge")}
               text={mineral.aciklama}
               tone="emerald"
               highlightQuery={highlightQuery}
@@ -791,8 +798,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Fiziksel"
-              badge="FİZİKSEL"
+              title={t("sections.fiziksel.title")}
+              badge={t("sections.fiziksel.badge")}
               items={mineral.fiziksel}
               tone="sky"
               highlightQuery={highlightQuery}
@@ -801,8 +808,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Zihinsel"
-              badge="ZİHİNSEL"
+              title={t("sections.zihinsel.title")}
+              badge={t("sections.zihinsel.badge")}
               items={mineral.zihinsel}
               tone="purple"
               highlightQuery={highlightQuery}
@@ -811,8 +818,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Fizyoloji"
-              badge="FİZYOLOJİ"
+              title={t("sections.fizyoloji.title")}
+              badge={t("sections.fizyoloji.badge")}
               items={mineral.fizyoloji}
               tone="violet"
               highlightQuery={highlightQuery}
@@ -821,8 +828,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Organ etkileri"
-              badge="ORGAN"
+              title={t("sections.organ_etkileri.title")}
+              badge={t("sections.organ_etkileri.badge")}
               items={mineral.organ_etkileri}
               tone="emerald"
               highlightQuery={highlightQuery}
@@ -831,8 +838,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Çakralar"
-              badge="ÇAKRA"
+              title={t("sections.cakralar.title")}
+              badge={t("sections.cakralar.badge")}
               items={mineral.cakralar}
               tone="cyan"
               highlightQuery={highlightQuery}
@@ -841,8 +848,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Eksiklik belirtileri"
-              badge="EKSİKLİK"
+              title={t("sections.eksiklik_belirtileri.title")}
+              badge={t("sections.eksiklik_belirtileri.badge")}
               items={mineral.eksiklik_belirtileri}
               tone="amber"
               highlightQuery={highlightQuery}
@@ -851,8 +858,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Fazlalık belirtileri"
-              badge="FAZLALIK"
+              title={t("sections.fazlalik_belirtileri.title")}
+              badge={t("sections.fazlalik_belirtileri.badge")}
               items={mineral.fazlalik_belirtileri}
               tone="red"
               highlightQuery={highlightQuery}
@@ -861,8 +868,8 @@ function MineralDetailPageContent() {
               isContentProtected={isContentProtected}
             />
             <ListSectionCard
-              title="Doz aşımı"
-              badge="DOZ"
+              title={t("sections.doz_asimi.title")}
+              badge={t("sections.doz_asimi.badge")}
               items={mineral.doz_asimi}
               tone="rose"
               highlightQuery={highlightQuery}
@@ -872,8 +879,8 @@ function MineralDetailPageContent() {
             />
             <div className="lg:col-span-2">
               <ListSectionCard
-                title="İçeren taşlar"
-                badge={`${mineral.iceren_taslar.length} TAŞ`}
+                title={t("sections.iceren_taslar.title")}
+                badge={t("icerenTaslarBadge", { n: mineral.iceren_taslar.length })}
                 items={mineral.iceren_taslar}
                 tone="cyan"
                 highlightQuery={highlightQuery}
@@ -890,9 +897,10 @@ function MineralDetailPageContent() {
 }
 
 function MineralDetailPageFallback() {
+  const tRoot = useTranslations("stones.minerals");
   return (
     <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
-      <p className="text-sm font-semibold text-slate-600">Yükleniyor…</p>
+      <p className="text-sm font-semibold text-slate-600">{tRoot("fallbackLoading")}</p>
     </main>
   );
 }

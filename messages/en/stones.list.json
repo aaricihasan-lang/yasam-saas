@@ -1,0 +1,222 @@
+{
+  "stones": {
+    "list": {
+      "eyebrow": "STONES · STONE LIBRARY",
+      "title": "Stone Records",
+      "subtitle": "Search, filter and read your records on the details page.",
+      "newRecord": "+ New Record",
+      "clearFilters": "Clear Filters",
+      "loadMore": "Show More ({loaded} / {total})",
+      "demoBanner": "You can browse the stone list. Adding, editing, deleting and Word/PDF export are disabled on the demo account.",
+      "stat": {
+        "total": "Total records",
+        "matched": "Matched",
+        "loaded": "Loaded",
+        "image": "Photos"
+      },
+      "search": {
+        "modeName": "Stone Name",
+        "modeContent": "Content",
+        "ariaName": "Search by stone name",
+        "ariaContent": "Search descriptions and content",
+        "placeholderName": "Search by stone name…",
+        "placeholderContent": "Search descriptions and content…",
+        "detail": "Details ▾",
+        "filtered": "Filtered ▾"
+      },
+      "filters": {
+        "badgeAstro": "♈ Astrology: {value}",
+        "removeAstroAria": "Remove astrology filter",
+        "badgeChakra": "🔵 Chakra: {value}",
+        "removeChakraAria": "Remove chakra filter",
+        "badgeWarning": "⚠️ With alerts",
+        "removeWarningAria": "Remove alert filter",
+        "badgeMineral": "💎 Mineral: {value}",
+        "removeMineralAria": "Remove mineral filter",
+        "clearAll": "Clear All"
+      },
+      "status": {
+        "matchDetail": "{count, plural, one {# match (detail filter)} other {# matches (detail filter)}}",
+        "searchResult": "Search: {query} · {count, plural, one {# result} other {# results}}",
+        "showingRecords": "Showing {count, plural, one {# record} other {# records}}",
+        "filterLoading": "Loading filters…",
+        "searching": "Searching…",
+        "loading": "Loading…"
+      },
+      "bulk": {
+        "selectAll": "Select Visible",
+        "exportSelected": "Export Selected to Word"
+      },
+      "empty": {
+        "noResultTitle": "No results found",
+        "noResultDesc": "No records match your search. Try a different search or clear your filters.",
+        "clearSearch": "Clear Search",
+        "noRecordTitle": "No records yet",
+        "noRecordDesc": "Your stone library doesn't have any records yet. Use the button below to add your first record.",
+        "newRecordAdd": "+ Add New Record"
+      },
+      "panel": {
+        "eyebrow": "Advanced Filters",
+        "title": "Detailed Search",
+        "closeAria": "Close panel",
+        "astroLabel": "♈ Astrological Assignment / Zodiac Sign",
+        "astroPlaceholder": "Type a zodiac sign, planet or astrological assignment…",
+        "astroHint": "E.g. cancer, mercury, venus, moon, aries",
+        "warningLabel": "⚠️ Only stones with alerts",
+        "warningHint": "Stones that have a warning_text or warning_tags value.",
+        "chakraLabel": "🔵 Chakra",
+        "chakraPlaceholder": "Type a chakra name or related term…",
+        "chakraHint": "E.g. heart, throat, crown, 4th chakra",
+        "mineralLabel": "💎 Mineral Search",
+        "mineralPlaceholder": "Enter a mineral name… (min. 2 characters)",
+        "mineralHint": "Only stones matched by mineral assignment.",
+        "apply": "Apply"
+      },
+      "card": {
+        "selectAria": "Select {name}",
+        "deleteAria": "Delete {name} record",
+        "library": "Library",
+        "select": "Select",
+        "matchBadge": "🔎 Match Found",
+        "viewed": "Viewed",
+        "summaryYes": "Summary available",
+        "noShortDescription": "No short description added.",
+        "readOnDetail": "View Details →",
+        "delete": "Delete",
+        "imageCount": "{count, plural, one {# photo} other {# photos}}"
+      },
+      "toast": {
+        "demoAction": "This action isn't available on the demo account. All features are enabled in the full version.",
+        "maxSelectMobile": "On mobile you can select up to 2 records at once.",
+        "removedCount": "{count, plural, one {# record} other {# records}} removed from your list.",
+        "selectStoneFirst": "Select a stone first.",
+        "noFilteredResult": "No filtered results.",
+        "wordStarted": "Your Word report download has started. You'll find the file in your browser's Downloads.",
+        "wordFailed": "Couldn't create the Word report. Please try again."
+      },
+      "error": {
+        "fetchFailed": "Couldn't load records: {error}",
+        "removeFailed": "Couldn't remove the record: {error}",
+        "deleteFailed": "Couldn't delete the record: {error}",
+        "someRemoveFailed": "Some records couldn't be removed: {error}",
+        "tryAgain": "Please try again."
+      },
+      "confirm": {
+        "bulkTitle": "Remove selected records",
+        "bulkMessage": "Are you sure you want to remove {count, plural, one {# stone record} other {# stone records}} from your list?",
+        "bulkSecond": "Records you added yourself are permanently deleted. Library stones are only removed from your view."
+      },
+      "deleteDialog": {
+        "title": "Delete Stone",
+        "finalTitle": "Final Confirmation",
+        "finalDesc": "This action <b>cannot be undone.</b> Delete permanently?",
+        "mobileQuestion": "Delete the <b>{name}</b> record?",
+        "desktopQuestion": "Are you sure you want to delete the <b>{name}</b> record?",
+        "irreversible": "This action cannot be undone.",
+        "cancel": "Cancel",
+        "no": "No",
+        "yes": "Yes",
+        "deleting": "Deleting…",
+        "confirm": "Yes, Delete",
+        "confirmPermanent": "Yes, Delete Permanently"
+      }
+    },
+    "detail": {
+      "loading": "Loading record…",
+      "eyebrow": "💎 STONE DETAILS",
+      "libraryBadge": "📚 Library · View Only",
+      "viewedBadge": "👁 Viewed",
+      "updatedAt": " · updated {date}",
+      "backToSearch": "← Back to Search",
+      "backToList": "← Stone Records",
+      "backToSearchShort": "Back to Search",
+      "backToListShort": "Back to Stone Records",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "select": "Select",
+      "wordButton": "📄 Word",
+      "wordBusy": "⏳…",
+      "matchLabel": "Match:",
+      "filterWarnLabel": "⚠️ With alert",
+      "editModeHint": "Edit mode: select the card you'd like to edit.",
+      "matchBadge": "🔎 Match Found",
+      "protectedHint": "🔒 Protected on the demo account · tap to see the structure",
+      "readMore": "Tap to read in full →",
+      "readMode": "Read",
+      "noInfoYet": "No information added yet.",
+      "readerSubtitle": "{name} · detailed reading",
+      "sections": {
+        "stoneName": "Stone Name",
+        "shortDesc": "Short Description",
+        "generalInfo": "General Stone Description",
+        "sourceNote": "Source Note",
+        "physicalEffects": "Physical Effects",
+        "spiritualEffects": "Spiritual Effects",
+        "otherEffects": "Other Effects",
+        "warnings": "Warnings & Sensitivities",
+        "chakras": "Chakras",
+        "warningTags": "Warning Tags",
+        "assignments": "Assignments",
+        "usageTitle": "Usage / Application Notes",
+        "fengShui": "Feng Shui",
+        "meditation": "Meditation",
+        "care": "Care",
+        "application": "Application"
+      },
+      "badges": {
+        "title": "TITLE",
+        "generalInfo": "GENERAL INFO",
+        "detailedInfo": "DETAILED INFO",
+        "source": "SOURCE",
+        "physical": "PHYSICAL EFFECT",
+        "spiritual": "SPIRITUAL EFFECT",
+        "complementary": "COMPLEMENTARY NOTE",
+        "clinical": "CLINICAL NOTE",
+        "chakra": "CHAKRA",
+        "warningTags": "WARNING TAGS",
+        "assignment": "ASSIGNMENT",
+        "usage": "USE CASES",
+        "usageArea": "USE CASE"
+      },
+      "image": {
+        "none": "No photo added",
+        "notWebTitle": "Photos that can't be shown on the web",
+        "notWebFormat": "The photo path isn't in a web format",
+        "add": "Add Photo",
+        "uploadFailed": "Couldn't upload the photo. Please try again.",
+        "storageClearFailed": "Couldn't clear storage. Please try again.",
+        "deleteConfirmTitle": "Delete photo",
+        "deleteConfirmMessage": "Delete the \"{name}\" photo? This action cannot be undone.",
+        "deleteConfirmSecond": "The \"{name}\" photo will be permanently deleted. Are you sure?"
+      },
+      "deleteConfirm": {
+        "title": "Delete Stone",
+        "message": "Are you sure you want to delete the \"{name}\" record?",
+        "second": "This action cannot be undone. Delete permanently?"
+      },
+      "editor": {
+        "editing": "Editing the {name} record.",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "saveUpdate": "Save / Update",
+        "nameRequired": "Stone name can't be empty.",
+        "updateFailed": "Couldn't update the record: {error}",
+        "updateFailedFallback": "record not found.",
+        "assignmentPlaceholder": "Write one record per line. E.g. Iron / 20",
+        "textPlaceholder": "Enter {title}…"
+      },
+      "error": {
+        "deleteFailed": "Couldn't delete the record: {error}",
+        "tryAgain": "Please try again.",
+        "notViewable": "This stone record couldn't be displayed.",
+        "notFound": "Stone record not found.",
+        "loadFailed": "We couldn't load this stone record.",
+        "loadFailedHelp": "Try again or return to Stone Records.",
+        "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again.",
+        "invalidData": "Invalid record data."
+      },
+      "thisStone": "this stone"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "memoryPicker": {
+    "aria": {
+      "dialog": "Yaşam Hafızası'ndan seç",
+      "close": "Kapat",
+      "professionalSearch": "Mesleki hafıza araması",
+      "clientSearch": "Danışan hafızası araması",
+      "selectRecord": "Kaydı seç",
+      "removeSelection": "Seçimi kaldır",
+      "recordDetail": "Kayıt detayı"
+    },
+    "title": "Yaşam Hafızası'ndan Seç",
+    "subtitle": "Seçtiğiniz kayıtlar bu teslime <b>değişmez kopya</b> olarak eklenir.",
+    "clientRequiredLabel": "Danışan (teslim için zorunlu)",
+    "clientsLoading": "Danışanlar yükleniyor…",
+    "clientSelectPlaceholder": "— Danışan seçin —",
+    "clientBanner": "Danışan:",
+    "unnamedClient": "İsimsiz Danışan",
+    "tabs": {
+      "professional": "Mesleki Hafıza",
+      "client": "Danışan Hafızası"
+    },
+    "selectClientFirst": "Önce yukarıdan bir danışan seçin.",
+    "placeholder": {
+      "professional": "Mesleki bilgi ara…",
+      "client": "Danışan kaydı ara…"
+    },
+    "searchBtn": "Ara",
+    "idle": {
+      "title": "Aramaya başlayın",
+      "professionalMsg": "Mesleki bilgi havuzunuzda arayın.",
+      "clientMsg": "Bu danışanın geçmiş kayıtlarında arayın."
+    },
+    "disabled": {
+      "notActive": {
+        "title": "Danışan Hafızası henüz etkin değil",
+        "msg": "Bu özellik etkinleştirildiğinde bu danışanın kayıtlarında arama yapabilirsiniz."
+      },
+      "flagDisabled": {
+        "title": "Yaşam Hafızası bu hesapta aktif değil",
+        "msg": "Bu özellik hesabınız için etkinleştirildiğinde arama yapabilirsiniz."
+      },
+      "demo": {
+        "title": "Demo hesabında kullanılamaz",
+        "msg": "Demo hesaplarında Yaşam Hafızası seçimi yapılmaz."
+      },
+      "fallbackTitle": "Kullanılamaz"
+    },
+    "error": {
+      "title": "Bir şeyler ters gitti",
+      "msg": "Arama tamamlanamadı.",
+      "retry": "Tekrar dene"
+    },
+    "empty": {
+      "title": "Kayıt bulunamadı",
+      "filtered": "Bu filtrede kayıt yok.",
+      "noResults": "Bu arama için kayıt bulunamadı."
+    },
+    "filteredEmpty": {
+      "title": "Seçili filtrede sonuç yok",
+      "msg": "Filtreyi kaldırın."
+    },
+    "sharedBadge": "Kütüphane",
+    "recordFallbackTitle": "Kayıt",
+    "selectedCount": "<b>{count}</b> kayıt seçildi",
+    "cancel": "Vazgeç",
+    "adding": "Ekleniyor…",
+    "add": "Teslime Ekle",
+    "detail": {
+      "dateLabel": "Tarih:",
+      "sourceGone": "Kaynak kaydı artık mevcut değil (snapshot korunur).",
+      "deselect": "Seçimden çıkar",
+      "select": "Seç"
+    },
+    "saveError": {
+      "notActive": "Yaşam Hafızası bu hesapta aktif değil.",
+      "demoReadonly": "Demo hesabında bu işlem yapılamaz.",
+      "generic": "Seçim kaydedilemedi. Lütfen tekrar deneyin."
+    }
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "stones": {
+    "list": {
+      "eyebrow": "DOĞALTAŞ · DOĞALTAŞ KÜTÜPHANESİ",
+      "title": "Doğaltaş Listesi",
+      "subtitle": "Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.",
+      "newRecord": "+ Yeni Kayıt",
+      "clearFilters": "Filtreleri Temizle",
+      "loadMore": "Daha Fazla Göster ({loaded} / {total})",
+      "demoBanner": "Doğaltaş listesini inceleyebilirsiniz. Yeni kayıt, düzenleme, silme ve Word/PDF dışa aktarma demo hesabında kapalıdır.",
+      "stat": {
+        "total": "Toplam kayıt",
+        "matched": "Eşleşen",
+        "loaded": "Yüklü",
+        "image": "Görsel"
+      },
+      "search": {
+        "modeName": "Taş İsmi",
+        "modeContent": "İçerik",
+        "ariaName": "Taş adında ara",
+        "ariaContent": "Açıklama ve içerikte ara",
+        "placeholderName": "Taş adında ara...",
+        "placeholderContent": "Açıklama ve içerikte ara...",
+        "detail": "Detay ▾",
+        "filtered": "Filtreli ▾"
+      },
+      "filters": {
+        "badgeAstro": "♈ Astroloji: {value}",
+        "removeAstroAria": "Astroloji filtresini kaldır",
+        "badgeChakra": "🔵 Çakra: {value}",
+        "removeChakraAria": "Çakra filtresini kaldır",
+        "badgeWarning": "⚠️ Uyarısı olanlar",
+        "removeWarningAria": "Uyarı filtresini kaldır",
+        "badgeMineral": "💎 Mineral: {value}",
+        "removeMineralAria": "Mineral filtresini kaldır",
+        "clearAll": "Tümünü Temizle"
+      },
+      "status": {
+        "matchDetail": "{count} eşleşme (detay filtre)",
+        "searchResult": "Arama: {query} · {count} sonuç",
+        "showingRecords": "{count} kayıt gösteriliyor",
+        "filterLoading": "Filtre yükleniyor...",
+        "searching": "Aranıyor...",
+        "loading": "Yükleniyor..."
+      },
+      "bulk": {
+        "selectAll": "Görünenleri Seç",
+        "exportSelected": "Seçilenleri Word'e Aktar"
+      },
+      "empty": {
+        "noResultTitle": "Sonuç bulunamadı",
+        "noResultDesc": "Arama kriterlerinize uygun kayıt bulunamadı. Farklı bir arama yapmayı veya filtreleri temizlemeyi deneyebilirsiniz.",
+        "clearSearch": "Aramayı Temizle",
+        "noRecordTitle": "Henüz kayıt bulunamadı",
+        "noRecordDesc": "Doğaltaş kütüphanenizde henüz kayıt bulunmuyor. İlk kaydınızı oluşturmak için aşağıdaki butonu kullanabilirsiniz.",
+        "newRecordAdd": "+ Yeni Kayıt Ekle"
+      },
+      "panel": {
+        "eyebrow": "Gelişmiş Filtreler",
+        "title": "Detay Arama",
+        "closeAria": "Paneli kapat",
+        "astroLabel": "♈ Astrolojik Atama / Burç",
+        "astroPlaceholder": "Burç, gezegen veya astrolojik atama yazın…",
+        "astroHint": "Örn: yengeç, merkür, venüs, ay, koç — Türkçe karakter uyumlu",
+        "warningLabel": "⚠️ Sadece uyarısı olan taşlar",
+        "warningHint": "warning_text veya warning_tags alanı dolu olan taşlar.",
+        "chakraLabel": "🔵 Çakra",
+        "chakraPlaceholder": "Çakra adı veya bağlantılı ifade yazın…",
+        "chakraHint": "Örn: kalp, boğaz, taç, 4. çakra — Türkçe karakter uyumlu",
+        "mineralLabel": "💎 Mineral Araması",
+        "mineralPlaceholder": "Mineral adı girin... (min 2 karakter)",
+        "mineralHint": "Sadece mineral atamasında eşleşen taşlar. Türkçe karakter uyumlu.",
+        "apply": "Uygula"
+      },
+      "card": {
+        "selectAria": "{name} seç",
+        "deleteAria": "{name} kaydını sil",
+        "library": "Kütüphane",
+        "select": "Seç",
+        "matchBadge": "🔎 Eşleşme Var",
+        "viewed": "Bakıldı",
+        "summaryYes": "Özet var",
+        "noShortDescription": "Kısa açıklama eklenmemiş.",
+        "readOnDetail": "Detay sayfasında oku →",
+        "delete": "Sil",
+        "imageCount": "{count} görsel"
+      },
+      "toast": {
+        "demoAction": "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.",
+        "maxSelectMobile": "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz.",
+        "removedCount": "{count} kayıt listenizden kaldırıldı.",
+        "selectStoneFirst": "Önce taş seçin.",
+        "noFilteredResult": "Filtrelenmiş sonuç yok.",
+        "wordStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+        "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
+      },
+      "error": {
+        "fetchFailed": "Kayıtlar alınamadı: {error}",
+        "removeFailed": "Kayıt kaldırılamadı: {error}",
+        "deleteFailed": "Kayıt silinemedi: {error}",
+        "someRemoveFailed": "Bazı kayıtlar kaldırılamadı: {error}",
+        "tryAgain": "Lütfen tekrar deneyin."
+      },
+      "confirm": {
+        "bulkTitle": "Seçili kayıtları kaldır",
+        "bulkMessage": "{count} taş kaydını listenden kaldırmak istediğinden emin misin?",
+        "bulkSecond": "Kendi eklediğin kayıtlar kalıcı silinir. Kütüphane taşları yalnızca senin görünümünden kaldırılır."
+      },
+      "deleteDialog": {
+        "title": "Taşı Sil",
+        "finalTitle": "Son Onay",
+        "finalDesc": "Bu işlem <b>geri alınamaz.</b> Kalıcı olarak silinsin mi?",
+        "mobileQuestion": "<b>{name}</b> kaydını silmek istiyor musunuz?",
+        "desktopQuestion": "<b>{name}</b> kaydını silmek istediğinizden emin misiniz?",
+        "irreversible": "Bu işlem geri alınamaz.",
+        "cancel": "Vazgeç",
+        "no": "Hayır",
+        "yes": "Evet",
+        "deleting": "Siliniyor...",
+        "confirm": "Evet, Sil",
+        "confirmPermanent": "Evet, Kalıcı Sil"
+      }
+    },
+    "detail": {
+      "loading": "Kayıt yükleniyor...",
+      "eyebrow": "💎 DOĞALTAŞ DETAY",
+      "libraryBadge": "📚 Kütüphane · Görüntüleme",
+      "viewedBadge": "👁 Bakıldı",
+      "updatedAt": " · güncellendi {date}",
+      "backToSearch": "← Aramaya Dön",
+      "backToList": "← Taş Listesi",
+      "backToSearchShort": "Aramaya Dön",
+      "backToListShort": "Taş Listesine Dön",
+      "save": "Kaydet",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "select": "Seç",
+      "wordButton": "📄 Word",
+      "wordBusy": "⏳...",
+      "matchLabel": "Eşleşme:",
+      "filterWarnLabel": "⚠️ Uyarılı",
+      "editModeHint": "Düzenleme modu: düzenlemek istediğiniz kartı seçin.",
+      "matchBadge": "🔎 Eşleşme Var",
+      "protectedHint": "🔒 Demo hesabında korumalı · yapıyı görmek için tıklayın",
+      "readMore": "Tam okumak için tıklayın →",
+      "readMode": "Oku",
+      "noInfoYet": "Henüz bilgi girilmedi.",
+      "readerSubtitle": "{name} · detaylı okuma",
+      "sections": {
+        "stoneName": "Taş Adı",
+        "shortDesc": "Kısa Açıklama",
+        "generalInfo": "Genel Taş Açıklaması",
+        "sourceNote": "Kaynak Notu",
+        "physicalEffects": "Fiziksel Etkiler",
+        "spiritualEffects": "Ruhsal Etkiler",
+        "otherEffects": "Diğer Etkiler",
+        "warnings": "Uyarılar ve Hassasiyetler",
+        "chakras": "Çakralar",
+        "warningTags": "Uyarı Etiketleri",
+        "assignments": "Atamalar",
+        "usageTitle": "Kullanım / Uygulama Notları",
+        "fengShui": "Feng Shui",
+        "meditation": "Meditasyon",
+        "care": "Bakım",
+        "application": "Uygulama"
+      },
+      "badges": {
+        "title": "BAŞLIK",
+        "generalInfo": "GENEL BİLGİ",
+        "detailedInfo": "DETAYLI BİLGİ",
+        "source": "KAYNAK",
+        "physical": "BEDENSEL ETKİ",
+        "spiritual": "RUHSAL ETKİ",
+        "complementary": "TAMAMLAYICI NOT",
+        "clinical": "KLİNİK NOT",
+        "chakra": "ÇAKRA",
+        "warningTags": "UYARI ETİKETLERİ",
+        "assignment": "ATAMA",
+        "usage": "KULLANIM ALANLARI",
+        "usageArea": "KULLANIM ALANI"
+      },
+      "image": {
+        "none": "Görsel eklenmemiş",
+        "notWebTitle": "Web'de gösterilemeyen görseller",
+        "notWebFormat": "Görsel yolu web formatında değil",
+        "add": "Fotoğraf Ekle",
+        "uploadFailed": "Görsel yüklenemedi. Lütfen tekrar deneyin.",
+        "storageClearFailed": "Depolama temizlenemedi. Lütfen tekrar deneyin.",
+        "deleteConfirmTitle": "Fotoğrafı sil",
+        "deleteConfirmMessage": "\"{name}\" fotoğrafını silmek istiyor musunuz? Bu işlem geri alınamaz.",
+        "deleteConfirmSecond": "\"{name}\" fotoğrafı kalıcı olarak silinecek. Emin misiniz?"
+      },
+      "deleteConfirm": {
+        "title": "Taşı Sil",
+        "message": "\"{name}\" kaydını silmek istediğinizden emin misiniz?",
+        "second": "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?"
+      },
+      "editor": {
+        "editing": "{name} kaydı düzenleniyor.",
+        "cancel": "Vazgeç",
+        "saving": "Kaydediliyor...",
+        "saveUpdate": "Kaydet / Güncelle",
+        "nameRequired": "Taş adı boş bırakılamaz.",
+        "updateFailed": "Kayıt güncellenemedi: {error}",
+        "updateFailedFallback": "kayıt bulunamadı.",
+        "assignmentPlaceholder": "Her satıra bir kayıt yazın. Örn: Demir / 20",
+        "textPlaceholder": "{title} yazın..."
+      },
+      "error": {
+        "deleteFailed": "Kayıt silinemedi: {error}",
+        "tryAgain": "Lütfen tekrar deneyin.",
+        "notViewable": "Bu doğaltaş kaydı görüntülenemedi.",
+        "notFound": "Kayıt bulunamadı.",
+        "loadFailed": "Kayıt okunurken hata oluştu.",
+        "loadFailedHelp": "Tekrar deneyin veya Taş Kayıtları'na dönün.",
+        "workspaceUnavailable": "Çalışma alanı bilgileriniz yüklenemedi. Lütfen yeniden giriş yapın.",
+        "invalidData": "Geçersiz kayıt verisi."
+      },
+      "thisStone": "bu taş"
+    }
+  }
+}

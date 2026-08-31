@@ -1,0 +1,473 @@
+{
+  "home": {
+    "common": {
+      "moduleGo": "Go to Module",
+      "seeSampleScreens": "See Sample Screens",
+      "sampleScreensBadge": "Sample Screens",
+      "close": "Close",
+      "prevScreen": "Previous screen",
+      "nextScreen": "Next screen",
+      "contentReady": "Ready to use",
+      "comingSoon": "Coming Soon",
+      "active": "Active"
+    },
+    "boot": {
+      "preparing": "Preparing Yaşam Sistemi...",
+      "checkingSession": "Checking session details"
+    },
+    "brand": "YAŞAM SİSTEMİ",
+    "greeting": {
+      "night": "Good Night",
+      "morning": "Good Morning",
+      "day": "Good Day",
+      "evening": "Good Evening"
+    },
+    "rel": {
+      "justNow": "just now",
+      "minsAgo": "{mins, plural, one {# min ago} other {# min ago}}",
+      "hrsAgo": "{hrs, plural, one {# hr ago} other {# hrs ago}}",
+      "daysAgo": "{days, plural, one {# day ago} other {# days ago}}"
+    },
+    "numDesc": {
+      "1": "New beginnings · Leadership",
+      "2": "Balance · Cooperation",
+      "3": "Creativity · Joy",
+      "4": "Order · Determination",
+      "5": "Change · Freedom",
+      "6": "Love · Harmony",
+      "7": "Spiritual depth",
+      "8": "Power · Abundance",
+      "9": "Completion · Wisdom",
+      "11": "Intuition · Enlightenment",
+      "22": "Master builder",
+      "33": "Universal teacher"
+    },
+    "livePanel": {
+      "title": "Today's Energy",
+      "sunSign": "Sun Sign",
+      "moonSign": "Moon Sign",
+      "moonPhase": "Moon Phase",
+      "numerology": "Numerology",
+      "planetaryHour": "Planetary Hour",
+      "planetarySub": "{start}–{end} · {mins} min left",
+      "display": {
+        "zodiac": {
+          "Koç": "Aries",
+          "Boğa": "Taurus",
+          "İkizler": "Gemini",
+          "Yengeç": "Cancer",
+          "Aslan": "Leo",
+          "Başak": "Virgo",
+          "Terazi": "Libra",
+          "Akrep": "Scorpio",
+          "Yay": "Sagittarius",
+          "Oğlak": "Capricorn",
+          "Kova": "Aquarius",
+          "Balık": "Pisces"
+        },
+        "moonPhase": {
+          "Yeni Ay": "New Moon",
+          "Büyüyen Hilal": "Waxing Crescent",
+          "İlk Dördün": "First Quarter",
+          "Şişen Ay": "Waxing Gibbous",
+          "Dolunay": "Full Moon",
+          "Azalan Ay": "Waning Gibbous",
+          "Son Dördün": "Last Quarter",
+          "Balsamik": "Waning Crescent"
+        },
+        "planet": {
+          "Güneş": "Sun",
+          "Ay": "Moon",
+          "Merkür": "Mercury",
+          "Venüs": "Venus",
+          "Mars": "Mars",
+          "Jüpiter": "Jupiter",
+          "Satürn": "Saturn"
+        }
+      }
+    },
+    "modules": {
+      "clients": { "title": "Client Journey", "desc": "Client records, appointments and session tracking in one place", "badge": "Core Module", "stat": "{n, plural, one {# client record} other {# client records}}" },
+      "yasam_hafizasi": { "title": "Life Memory", "desc": "Search your professional knowledge and content across modules from one place", "badge": "Module" },
+      "stones": { "title": "Stones", "desc": "Stones, minerals and client matches", "badge": "Module", "stat": "{n, plural, one {# stone saved} other {# stones saved}}" },
+      "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
+      "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
+      "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural support methods and professional reference resources: Aromatherapy and Healing Guide", "badge": "Module" },
+      "digital_content": { "title": "Digital Content Center", "desc": "Documents, videos, lecture notes and personal archive management", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
+      "numerology": { "title": "Life Analysis Center", "desc": "Numerology and Human Design analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
+      "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" }
+    },
+    "moduleCard": {
+      "loading": "Loading",
+      "noRecords": "No records yet",
+      "lastPrefix": "📅 Last: {date}",
+      "lockNoPermission": "🔒 No access",
+      "lockMembership": "🔒 Membership",
+      "badgeNoPermission": "No access",
+      "badgeInactive": "Inactive"
+    },
+    "settingsCard": {
+      "title": "Settings & Security",
+      "desc": "Password, support, backup and export operations"
+    },
+    "yebsCard": {
+      "adminBadge": "Admin",
+      "title": "Life Energy Knowledge System",
+      "desc": "Traditions, concepts, sources and a professional knowledge network"
+    },
+    "dashboard": {
+      "welcomePrefix": "Welcome,",
+      "welcomePlain": "Welcome ✨",
+      "heroDate": "Today is {weekday}, {day} {month} {year}",
+      "logout": "Sign Out",
+      "systemOwner": "System Owner",
+      "adminPanel": "Admin Panel",
+      "centersLabel": "Workspaces",
+      "recentActivity": "Recent Activity",
+      "livePanelLabel": "Daily Insights",
+      "modulesBusy": "Loading modules",
+      "profileErrorTitle": "Module permissions could not be loaded",
+      "profileErrorDesc": "Your module access could not be retrieved due to a connection or session verification error. Please try again.",
+      "retry": "Try again",
+      "membershipPending": "Your account is awaiting admin approval.",
+      "membershipInactiveTitle": "Your account is not currently active.",
+      "membershipInactiveDesc": "Contact your administrator to access the system.",
+      "noModulesTitle": "No module permissions defined yet",
+      "noModulesDesc": "Contact your administrator for access.",
+      "newRecord": "New record"
+    },
+    "demo": {
+      "titleBadge": "Demo Account",
+      "subtitle": "— Test Yaşam Sistemi in an experience as close as possible to real usage.",
+      "item1": "Add clients",
+      "item2": "Create notes",
+      "item3": "Explore the modules",
+      "item4": "Try out how the recording processes work",
+      "warning": "Records created in this account are for trial purposes only and are not permanent. They are deleted automatically when the session ends or after a certain period.",
+      "cta": "🚀 Go ahead and create your first record, and discover the working experience Yaşam Sistemi offers professionals."
+    },
+    "auth": {
+      "sessionInvalid": "Your account was opened from another device or location, so for your security you need to sign in again.",
+      "emailPasswordRequired": "Enter your email and password.",
+      "loggingIn": "Signing in...",
+      "systemError": "A system error occurred.",
+      "emailPasswordWrong": "Incorrect email or password.",
+      "noValidRole": "Sign-in failed: your account has no valid role (admin / expert) defined. Check the Supabase users record.",
+      "userVerifyFailed": "The user record could not be verified. Please try again.",
+      "sessionLimit": "Sign-in blocked due to the session limit. Contact your administrator.",
+      "securityWarningTitle": "Security Alert",
+      "securityWarningMsg": "Your account may be in use from a different location. We recommend resetting your password.",
+      "adminSessionFailed": "The admin session could not be started. Please try again."
+    },
+    "nav": {
+      "login": "Sign In",
+      "register": "Sign Up"
+    },
+    "hero": {
+      "cardModules": "10+ Modules",
+      "cardSinglePanel": "One Panel",
+      "cardSinglePanelSub": "Access from anywhere",
+      "cardSecure": "Secure Records",
+      "cardSecureSub": "Your data is protected",
+      "cardAi": "AI-Powered",
+      "cardAiSub": "Smart analysis",
+      "titlePart1": "Manage your clients, analyses and sessions",
+      "titleHighlight": "in one place",
+      "titlePart2": "",
+      "subtitle": "Bring your whole practice together — client management, numerology, stones, bioenergy, reflexology, the Healing Guide and document tools — all in one workspace.",
+      "discoverModules": "Explore Modules ↓"
+    },
+    "mockup": {
+      "heading": "A Client at a Glance",
+      "subtitle": "See a client's complete history in one place.",
+      "windowTitle": "Client Journey — Ahmet Yılmaz",
+      "clientName": "Ahmet Yılmaz",
+      "activeClient": "Active Client",
+      "rowLastMeeting": "Last meeting",
+      "rowSavedWork": "Saved work",
+      "rowUpcoming": "Upcoming appointment",
+      "savedWorkValue": "5 records",
+      "upcomingValue": "2 appointments",
+      "tabsAria": "Client tabs",
+      "tabGenel": "General Info",
+      "tabNumeroloji": "Numerology",
+      "tabRefleksoloji": "Reflexology",
+      "tabDogaltas": "Stones",
+      "tabNotlar": "Notes",
+      "tabRandevular": "Appointments",
+      "tabDosyalar": "Files",
+      "statAnaliz": "Analyses",
+      "statSeans": "Sessions",
+      "statDosya": "Files",
+      "statNot": "Notes",
+      "recentWorks": "Recent Work",
+      "work1": "Numerology Analysis Completed",
+      "work1detail": "Personal year & life path calculation",
+      "work1date": "2 days ago",
+      "work2": "Reflexology Protocol Added",
+      "work2detail": "Foot map · 3 zones",
+      "work2date": "4 days ago",
+      "work3": "Stone Suggestion Saved",
+      "work3detail": "Amethyst, Labradorite combination",
+      "work3date": "1 week ago",
+      "work4": "Session Note Added",
+      "work4detail": "45 min · 3rd session",
+      "work4date": "1 week ago",
+      "work5": "New Appointment Created",
+      "work5detail": "12 June 2026, 14:00",
+      "work5date": "2 weeks ago"
+    },
+    "problem": {
+      "heading": "Is your knowledge scattered across dozens of files?",
+      "desc": "Many practitioners build up years of Word files, PDFs, client notes and work records across separate folders. Over time, finding the right information becomes harder — and the same research often gets repeated.",
+      "item1": "Searching through hundreds of Word and PDF files",
+      "item2": "Researching the same topic again and again",
+      "item3": "Client notes spread across different folders",
+      "item4": "Appointments, sessions and records in separate places",
+      "item5": "Stone, numerology and practice notes stored separately"
+    },
+    "workspaces": {
+      "heading": "Workspaces",
+      "subtitle": "Professional tools and workspaces in one platform."
+    },
+    "landing": {
+      "sampleAnalysisBadge": "Sample Analysis",
+      "previewBadge": "Preview",
+      "activeModuleBadge": "Active Module",
+      "comingSoonBadge": "COMING SOON",
+      "inDevelopment": "In Development",
+      "seeSampleAnalysis": "See Sample Analysis",
+      "peekScreen": "Take a Look",
+      "discover": "Explore",
+      "numeroloji": {
+        "title": "Numerology",
+        "desc": "Explore professional numerology analysis screens using the Ali AL sample profile."
+      },
+      "dogaltas": {
+        "title": "Stones",
+        "desc": "Manage stone records, mineral information, combinations and inventory in one workspace."
+      },
+      "biyoenerji": {
+        "title": "Bioenergy",
+        "desc": "Manage energy analyses, energy-body records, subconscious work, symbolic references, chakra resources and session workflows in one workspace."
+      },
+      "kisiselArsiv": {
+        "title": "Personal Archive",
+        "desc": "Keep your audio, video, documents, images and personal notes organized in one secure archive."
+      },
+      "belgeCeviri": {
+        "title": "Document Translation",
+        "desc": "Process PDFs, Word files and images with AI-assisted Turkish translation and format-preserving output."
+      },
+      "videoCeviri": {
+        "title": "Video Translation",
+        "desc": "AI-assisted transcription and translation for video and audio, with Turkish-language output and Word/PDF export."
+      },
+      "danisanYonetimi": {
+        "title": "Client Management",
+        "desc": "Manage client records, profiles, appointments and follow-up workflows in one place."
+      },
+      "sifaRehberi": {
+        "title": "Healing Guide",
+        "desc": "Organize condition references, symptoms, application methods, stones, aromatherapy and supportive guidance in one workspace."
+      },
+      "refleksoloji": {
+        "title": "Reflexology",
+        "desc": "Work with a foot reflexology atlas, protocols, saved maps, practitioner notes and session records in one workspace."
+      },
+      "aromaterapi": {
+        "title": "Aromatherapy",
+        "desc": "Manage essential oils, carrier oils and blends in one dedicated workspace."
+      },
+      "humanDesign": {
+        "title": "Human Design",
+        "desc": "Use your Human Design knowledge base to create personalized professional reports and interpretations for your clients."
+      }
+    },
+    "feats": {
+      "biyoenerji": ["Bioenergy Sessions", "Energy Bodies", "Subconscious Causes", "Imagination Library", "Symbol Language", "Chakra Library"],
+      "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
+      "belgeCeviri": ["PDF → Word", "PDF → Turkish Word", "Image OCR", "Multi-Language Support", "Format Preservation", "Secure Processing"],
+      "videoCeviri": ["Video → Text", "Automatic Language Detection", "Translation to Turkish", "Word/PDF Output", "Training Content Preparation", "Privacy-Focused Processing"],
+      "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
+      "sifaRehberi": ["Condition References", "Saved Healing Guide", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
+      "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Session Tracking"],
+      "humanDesign": ["Knowledge Base Management", "Gate and Channel Interpretations", "Center Analyses", "Type and Profile Descriptions", "Automatic Report Generation", "Personalized Reports"],
+      "dogaltas": ["Stone Records", "Mineral Bank", "Combination Management", "Smart Search", "Category Filtering", "Detail Views", "Statistics", "Image Archive"]
+    },
+    "mobile": {
+      "badge": "Android App Available",
+      "heading1": "Access Your Workspace",
+      "heading2": "Anywhere",
+      "desc": "Use the Yaşam Sistemi Android app to securely access your client records, modules and workspaces from your mobile device.",
+      "item1": "Client records and appointment management",
+      "item2": "Access your workspace on the go",
+      "item3": "Fast, secure access",
+      "openApp": "Open the Android App",
+      "googlePlay": "Available on Google Play",
+      "phoneAppName": "Yaşam Sistemi",
+      "phoneRemove": "Uninstall",
+      "phoneOpen": "Open",
+      "phoneStatus": "Android app is live",
+      "phoneNews": "What's New",
+      "phoneNewsDate": "Jun 2026",
+      "phoneNewsDetail": "Security updates applied",
+      "phoneTagPhone": "Phone",
+      "phoneTagTablet": "Tablet"
+    },
+    "featureItems": {
+      "guvenli": { "title": "Secure Data Architecture", "desc": "Your data is protected within a controlled, security-focused architecture." },
+      "analiz": { "title": "Analysis & Reporting", "desc": "Professional analysis tools and structured reporting in one workspace." },
+      "webMobil": { "title": "Web & Mobile Access", "desc": "Responsive access across desktop, tablet and mobile devices." },
+      "yedekleme": { "title": "Backup & Export", "desc": "Download a full backup of your records from Settings whenever you need it." },
+      "moduler": { "title": "Modular Workspace", "desc": "Use the workspaces you need and expand as your practice grows." }
+    },
+    "trust": {
+      "badge": "🔒 Our Trust Principle",
+      "heading": "Yaşam Sistemi is more than software — it is a secure workspace designed to protect the knowledge and professional work practitioners build over time.",
+      "principle1": "Your private notes, analyses and work content remain yours.",
+      "principle2": "Administrators manage your membership and access — they do not browse your notes, analyses or client records.",
+      "principle3": "Administrative tools are limited to membership, billing, module access and system management.",
+      "principle4": "Your data is protected on secure infrastructure.",
+      "quote": "“For us, trust is not a feature — it is the foundation of the system.”",
+      "shieldLabel": "Privacy · Trust · Respect",
+      "shieldSub": "Your professional work and your clients' privacy are our priority."
+    },
+    "footer": {
+      "copyright": "© 2026 Yaşam Sistemi. All rights reserved.",
+      "nav": "Footer navigation",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "contact": "Contact"
+    },
+    "gallery": {
+      "danisanYonetimi": { "0": "Client Journey", "1": "New Client Record", "2": "Client List", "3": "Schedule & Appointments", "4": "Create New Appointment" },
+      "sifaRehberi": { "0": "Healing Guide Intro", "1": "Main Menu", "2": "New Condition Record", "3": "Supportive Guidance", "4": "Saved Guide List", "5": "Detail View" },
+      "refleksoloji": { "0": "Collage View", "1": "Main Menu", "2": "Zone Map", "3": "Saved Atlas", "4": "Protocol Map", "5": "Saved Protocols", "6": "Practitioner Notes" },
+      "biyoenerji": { "0": "Bioenergy Intro", "1": "Bioenergy Home", "2": "Bioenergy Sessions", "3": "Energy Bodies", "4": "Subconscious Causes", "5": "Imagination Library", "6": "Symbol Language Library", "7": "Chakra Library" }
+    },
+    "preview": {
+      "numeroloji": {
+        "aria": "Numerology module preview",
+        "badge": "Numerology Module",
+        "title": "Numerology Analysis — Product Preview",
+        "subtitle": "Build a life map from a date of birth and explore the analyses in detail.",
+        "alt": "Numerology Module — Preview"
+      },
+      "dogaltas": {
+        "aria": "Stones module preview",
+        "badge": "Stones Module",
+        "title": "Stones Module — Real Product Screens",
+        "subtitle": "Manage stone records, search and filtering, combinations, and knowledge in one workspace.",
+        "alt": "Stones Module — Preview",
+        "panelTitle": "Manage All Your Stone Data in One Workspace",
+        "panelDesc": "The Stones Module brings all your data together with stone records, a mineral bank, combination management, and advanced search and filtering tools. Search hundreds of records in seconds, apply category filters and quickly open detailed stone information."
+      },
+      "kisiselArsiv": {
+        "aria": "Personal Archive module preview",
+        "badge": "Personal Archive Module",
+        "title": "Personal Archive — Real Product Screen",
+        "subtitle": "Keep your audio, video, documents, images and notes safe in one secure archive.",
+        "alt": "Personal Archive Preview",
+        "panelTitle": "A Secure Workspace for Your Personal Archive",
+        "panelDesc": "Store, search and organize your personal files by category."
+      },
+      "belgeCeviri": {
+        "aria": "Document Translation module preview",
+        "badge": "Document Translation Module",
+        "title": "Document Translation — Real Product Screen",
+        "subtitle": "Convert PDFs, Word files and images with AI and translate them into Turkish.",
+        "alt": "Document Translation Preview",
+        "panelTitle": "Fast Document Conversion and Translation",
+        "panelDesc": "Convert PDF documents to Word, translate them into Turkish, and read text from scanned images."
+      },
+      "videoCeviri": {
+        "aria": "Video Translation module preview",
+        "badge": "In Development",
+        "title": "Video Translation — Module Preview",
+        "subtitle": "Upload a video; the speech is automatically transcribed, translated into Turkish and becomes downloadable as Word and PDF.",
+        "alt": "Video Translation Preview",
+        "devTitle": "In Development",
+        "devDesc": "Before this module goes live, the infrastructure and membership plans will be finalized. File limits will be increased according to the infrastructure package."
+      },
+      "danisanYonetimi": {
+        "aria": "Client Management module preview",
+        "badge": "Client Management Module",
+        "title": "Client Management — Real Product Screens",
+        "subtitle": "Manage client records, appointments and scheduling in one workspace.",
+        "altPrefix": "Client Management — ",
+        "coverBadge": "Client Management",
+        "coverTitle": "Client Journey — Overview",
+        "panelTitle": "Professional Client Management and Follow-up",
+        "panelDesc": "Manage client records, profiles, appointments and follow-up workflows in one workspace."
+      },
+      "sifaRehberi": {
+        "aria": "Healing Guide module preview",
+        "badge": "Healing Guide Module",
+        "title": "Healing Guide — Real Product Screens",
+        "subtitle": "Manage condition references, symptoms, applications and supportive guidance in one workspace.",
+        "altPrefix": "Healing Guide — ",
+        "panelTitle": "A Comprehensive Healing Guide Workspace",
+        "panelDesc": "Manage condition references, symptoms, applications, stones, aromatherapy and supportive guidance in one workspace."
+      },
+      "refleksoloji": {
+        "aria": "Reflexology module preview",
+        "badge": "Reflexology Module",
+        "title": "Reflexology — Real Product Screens",
+        "subtitle": "A professional reflexology workspace with an atlas, protocols, practitioner notes and session tracking.",
+        "altPrefix": "Reflexology — ",
+        "panelTitle": "A Professional Reflexology Workspace",
+        "panelDesc": "Manage reflexology maps, saved atlases, protocols, practitioner notes and session tracking in one workspace."
+      },
+      "biyoenerji": {
+        "aria": "Bioenergy module preview",
+        "badge": "Bioenergy Module",
+        "title": "Bioenergy — Real Product Screens",
+        "subtitle": "A comprehensive workspace for session management, energy-body analysis, subconscious work, symbols and chakras.",
+        "altPrefix": "Bioenergy Module — ",
+        "panelTitle": "A Comprehensive Bioenergy Workspace",
+        "panelDesc": "Manage sessions, energy-body analyses, subconscious work, imagination resources, symbolic language and chakra resources in one workspace."
+      }
+    },
+    "login": {
+      "badge": "Practitioner Panel",
+      "title": "Sign In",
+      "subtitle": "Sign in with your authorized account to reach your workspace.",
+      "emailLabel": "Email",
+      "emailPlaceholder": "expert@test.com",
+      "passwordLabel": "Password",
+      "register": "Sign Up",
+      "forgot": "Forgot Password",
+      "forgotMsg": "Contact your administrator to reset your password.",
+      "submit": "Enter Practitioner Panel →",
+      "submitting": "Signing In..."
+    },
+    "register": {
+      "badge": "Practitioner Registration",
+      "title": "Create Your Account",
+      "subtitle": "Create your practitioner account. You can sign in once your account has been approved.",
+      "fullNameLabel": "Full Name",
+      "fullNamePlaceholder": "Your full name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "practitioner@example.com",
+      "passwordLabel": "Password",
+      "passwordRepeatLabel": "Confirm Password",
+      "submit": "Create Account",
+      "submitting": "Creating account…",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign In",
+      "toast": {
+        "errorTitle": "Something went wrong",
+        "successTitle": "Success",
+        "allFields": "Please fill in all fields.",
+        "passwordMismatch": "Passwords do not match.",
+        "success": "Your account has been created. You can sign in once it has been approved.",
+        "generic": "Registration could not be completed.",
+        "alreadyExists": "This email address is already registered.",
+        "idempotency": "Request conflict. Please try again.",
+        "config": "Server configuration error.",
+        "hash": "Password could not be processed."
+      }
+    }
+  }
+}

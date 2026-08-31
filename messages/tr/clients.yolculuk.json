@@ -1,0 +1,254 @@
+{
+  "clients": {
+    "yolculuk": {
+      "type": {
+        "numeroloji": "Numeroloji",
+        "dogaltas": "Doğaltaş",
+        "refleksoloji": "Refleksoloji",
+        "biyoenerji": "Biyoenerji",
+        "not": "Not",
+        "seans": "Seans",
+        "randevu": "Randevu",
+        "analiz": "Analiz",
+        "odev": "Ödev",
+        "default": "Diğer"
+      },
+      "durum": {
+        "aktif": "Aktif Süreç",
+        "takip": "Takip Gerekiyor",
+        "pasif": "Pasif Danışan",
+        "baslamadi": "Henüz Başlamadı"
+      },
+      "odevDurum": {
+        "yok": "Henüz Ödev Yok",
+        "baslangic": "Başlangıç",
+        "devam": "Devam Ediyor",
+        "iyi": "İyi İlerliyor",
+        "tamamlandi": "Tamamlandı"
+      },
+      "alertCat": {
+        "kritik": "Kritik",
+        "takip": "Takip Gerekiyor",
+        "bilgi": "Bilgilendirme",
+        "olumlu": "Durum"
+      },
+      "modalTitle": {
+        "not": "Danışan Notu",
+        "randevu": "Randevu Detayı",
+        "seans": "Seans Detayı",
+        "dogaltas": "Doğaltaş Kaydı",
+        "odev": "Ödev Detayı",
+        "analiz": "Analiz Detayı",
+        "numeroloji": "Otomatik Numeroloji Özeti"
+      },
+      "scoreStage": {
+        "baslangic": "Başlangıç",
+        "gelisimde": "Gelişimde",
+        "aktifTakip": "Aktif Takip",
+        "gucluSurec": "Güçlü Süreç"
+      },
+      "menu": {
+        "genel": "Genel Bilgiler",
+        "numeroloji": "Numeroloji",
+        "dogaltas": "Doğaltaş",
+        "refleksoloji": "Refleksoloji",
+        "biyoenerji": "Biyoenerji",
+        "notlar": "Notlar",
+        "randevular": "Randevular",
+        "dosyalar": "Dosyalar"
+      },
+      "criteria": {
+        "hasDogum": "Doğum Tarihi",
+        "hasTelefon": "Telefon",
+        "hasNot": "Not",
+        "hasSeans": "Seans",
+        "hasRandevu": "Randevu",
+        "hasAnaliz": "Analiz",
+        "hasTas": "Taş Kaydı",
+        "hasOdev": "Ödev"
+      },
+      "missing": {
+        "hasDogum": "Doğum tarihi eksik",
+        "hasTelefon": "Telefon eksik",
+        "hasNot": "Henüz not yok",
+        "hasSeans": "Henüz seans yok",
+        "hasRandevu": "Henüz randevu yok",
+        "hasAnaliz": "Henüz analiz yok",
+        "hasTas": "Henüz taş kaydı yok",
+        "hasOdev": "Henüz ödev yok"
+      },
+      "randevuStatus": {
+        "tamamlandi": "Tamamlandı",
+        "iptal": "İptal edildi",
+        "bekliyor": "Bekliyor"
+      },
+      "homeworkStatus": {
+        "bekliyor": "Bekliyor",
+        "devam": "Devam Ediyor",
+        "tamamlandi": "Tamamlandı",
+        "gecikti": "Gecikti",
+        "iptal": "İptal",
+        "unknown": "Bilinmiyor"
+      },
+      "analysisType": {
+        "chakra": "Çakra Analizi",
+        "planet": "Çakra-Gezegen Analizi",
+        "default": "Analiz"
+      },
+      "element": {
+        "Hava": "Hava",
+        "Su": "Su",
+        "Ateş": "Ateş",
+        "Toprak": "Toprak"
+      },
+      "summary": {
+        "analizler": "Analizler",
+        "seanslar": "Seanslar",
+        "randevular": "Randevular",
+        "notlar": "Notlar"
+      },
+      "criticalBanner": {
+        "count": "{count} Kritik Uyarı"
+      },
+      "lifeScore": {
+        "title": "Danışan Yaşam Skoru",
+        "criteriaProgress": "{completed}/{total} kriter tamamlandı"
+      },
+      "eksikAlanlar": {
+        "title": "Eksik Alanlar",
+        "count": "{count} eksik"
+      },
+      "seansCard": {
+        "title": "Seans Süreci",
+        "totalSeans": "Toplam Seans",
+        "ilkSeans": "İlk Seans",
+        "sonSeans": "Son Seans",
+        "sinceLastSession": "Son Görüşmeden Bu Yana",
+        "frequencyTitle": "Seans Sıklığı Özeti",
+        "avgDuration": "Ort. Seans Süresi",
+        "totalFee": "Toplam Ücret",
+        "avgFrequency": "Ort. Sıklık",
+        "everyNDays": "{days} günde bir",
+        "notEnoughData": "Yeterli veri yok",
+        "upcomingLabel": "Yaklaşan Randevu:",
+        "noUpcoming": "Yaklaşan randevu yok",
+        "days": "{days} gün"
+      },
+      "odevCard": {
+        "title": "Ödev Takibi",
+        "totalOdev": "Toplam Ödev",
+        "tamamlanan": "Tamamlanan",
+        "devamEden": "Devam Eden",
+        "sonOdevTarihi": "Son Ödev Tarihi",
+        "completionPercent": "Tamamlama Yüzdesi",
+        "completionValue": "%{percent}",
+        "activeLabel": "Aktif Ödev:"
+      },
+      "alertCard": {
+        "title": "Akıllı Uyarılar ve Öneriler",
+        "kritikBadge": "{count} Kritik",
+        "takipBadge": "{count} Takip",
+        "bilgiBadge": "{count} Bilgi"
+      },
+      "sidebar": {
+        "unnamed": "İsimsiz Danışan",
+        "phone": "Telefon",
+        "lastSession": "Son Görüşme",
+        "nextAppointment": "Sonraki Randevu",
+        "soon": "Yakında"
+      },
+      "timeline": {
+        "chip": "Yolculuk",
+        "filterChip": "{label} filtresi",
+        "title": "Son Çalışmalar",
+        "subtitleDefault": "Danışana ait tüm modül çalışmalarının kronolojik özeti",
+        "subtitleFiltered": "{count} kayıt · {label} filtresi aktif",
+        "loading": "Yükleniyor...",
+        "loadMore": "+ {count} kayıt daha göster"
+      },
+      "empty": {
+        "title": "Bu danışan için henüz kayıtlı çalışma yok.",
+        "hint": "Numeroloji, doğaltaş, refleksoloji, biyoenerji, not veya randevu eklendiğinde burada kronolojik olarak görünecek.",
+        "titleFiltered": "Bu danışan için henüz {label} kaydı yok.",
+        "hintFiltered": "Bu danışana ait {label} kayıtları burada görünecek."
+      },
+      "unit": {
+        "min": "dk"
+      },
+      "badge": {
+        "autoCalc": "Otomatik hesaplandı"
+      },
+      "modal": {
+        "seansType": "Seans Tipi",
+        "date": "Tarih",
+        "duration": "Süre",
+        "fee": "Ücret",
+        "seansNote": "Seans Notu",
+        "actionsDone": "Yapılan",
+        "suggestions": "Öneriler",
+        "title": "Başlık",
+        "status": "Durum",
+        "note": "Not",
+        "stoneName": "Taş Adı",
+        "stoneType": "Türü",
+        "usage": "Kullanım",
+        "startDate": "Başlangıç",
+        "endDate": "Bitiş",
+        "description": "Açıklama",
+        "expertNote": "Uzman Notu",
+        "analysisType": "Analiz Tipi",
+        "resultSummary": "Sonuç / Özet",
+        "notes": "Notlar",
+        "healthNote": "Sağlık Notu"
+      },
+      "num": {
+        "anaKulvar": "Ana Kulvar",
+        "yanKulvar": "Yan Kulvar",
+        "ifadeSayisi": "İfade Sayısı",
+        "hayatYolu": "Hayat Yolu / DM",
+        "kisiselYil": "Kişisel Yıl",
+        "guncelYas": "Güncel Yaş",
+        "elementDist": "Element Dağılımı",
+        "dominant": "Baskın:",
+        "missing": "Eksik:",
+        "strongNumbers": "Güçlü Sayılar",
+        "missingNumbers": "Eksik Sayılar",
+        "peakInfo": "Zirve Bilgisi",
+        "peakN": "{n}. Zirve",
+        "ageYears": "{age} yaş",
+        "chakraN": "{topic}. çakra",
+        "kisiselYilYear": "Kişisel Yıl ({year})"
+      },
+      "entryFallback": {
+        "seans": "Seans",
+        "seansDesc": "Seans gerçekleşti",
+        "randevu": "Randevu",
+        "dogaltas": "Doğaltaş",
+        "odev": "Ödev"
+      },
+      "alerts": {
+        "noDogum": "Doğum tarihi eksik",
+        "noPhone": "Telefon numarası eksik",
+        "seans30": "{days} gündür seans yok",
+        "randevu60": "Son randevudan {days} gün geçti — yaklaşan randevu yok",
+        "noAnaliz": "Hiç analiz yapılmamış",
+        "noUpcoming": "Yaklaşan randevu yok",
+        "hwGecikti": "{count} geciken ödev var",
+        "hwPending": "{count} aktif ödev devam ediyor",
+        "noTas": "Taş önerisi henüz girilmemiş",
+        "noNot": "Danışan notu henüz eklenmemiş",
+        "noSeans": "Henüz seans yapılmamış",
+        "seans14": "Son seanstan {days} gün geçti",
+        "analizOld": "Son analizden {days} gün geçti",
+        "newClient": "Yeni danışan — süreç henüz başlamadı",
+        "randevuCount": "{count} randevu planlandı",
+        "seansCount": "{count} seans tamamlandı",
+        "numerolojiOk": "Numeroloji özeti otomatik hesaplandı",
+        "seansFresh": "Son seanstan {days} gün geçti — süreç aktif",
+        "upcomingOk": "Yaklaşan randevu: {date}",
+        "ok1": "Danışan süreci düzenli ilerliyor",
+        "ok2": "Takip gerektiren kritik durum bulunamadı"
+      }
+    }
+  }
+}

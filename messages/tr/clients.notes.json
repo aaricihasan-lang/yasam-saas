@@ -1,0 +1,56 @@
+{
+  "clients": {
+    "notes": {
+      "title": "Kayıtlı Notlar",
+      "totalLabel": "Toplam Not",
+      "toggleFormOpen": "+ Yeni Not Ekle",
+      "toggleFormClose": "Formu Kapat",
+      "newForm": {
+        "title": "Yeni Not",
+        "subtitle": "Danışan hakkında yeni bir not yaz ve kaydet.",
+        "placeholder": "Danışan hakkında özel notlar, seans gözlemleri, takip bilgileri...",
+        "cancel": "Vazgeç",
+        "saving": "Kaydediliyor...",
+        "save": "💾 Notu Kaydet"
+      },
+      "empty": {
+        "title": "Henüz not yok",
+        "hint": "\"+ Yeni Not Ekle\" butonundan ilk notu oluşturabilirsin."
+      },
+      "edit": {
+        "title": "Notu Düzenle",
+        "subtitle": "Not metnini güncelleyip kaydedebilirsin.",
+        "cancelTop": "İptal",
+        "cancel": "Vazgeç",
+        "saving": "Güncelleniyor...",
+        "save": "Güncelle"
+      },
+      "item": {
+        "viewTitle": "Notu görüntüle",
+        "created": "Kayıt: {date}",
+        "updated": "Güncelleme: {date}",
+        "view": "Gör",
+        "edit": "Güncelle",
+        "delete": "Sil"
+      },
+      "viewModal": {
+        "badge": "Danışan Notu",
+        "close": "Kapat",
+        "edit": "Güncelle"
+      },
+      "delete": {
+        "title": "Notu sil",
+        "message": "Bu not kalıcı olarak silinsin mi?"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "added": "Not eklendi.",
+        "updated": "Not güncellendi.",
+        "deleted": "Not silindi.",
+        "emptyTitle": "Boş not",
+        "emptyNew": "Lütfen bir not metni girin.",
+        "emptyEdit": "Not metni boş olamaz."
+      }
+    }
+  }
+}
