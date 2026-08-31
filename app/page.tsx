@@ -757,11 +757,19 @@ export default function Home() {
     if (isAdminUser(stored)) {
       setProfileSynced(true);
       // Cookie refresh DB sync'ten önce (paralel) başlatılıyor.
-      adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: stored.id }),
-      }).then(() => {}).catch(() => {});
+      // P0-1: sayfa yüklemesinde admin cookie tazelemesi yalnız GEÇERLİ oturum
+      // token'ı (credential-gated login'de üretilmiş) varsa yapılır. Token yoksa
+      // sessizce atlanır; erişim /admin nav veya yeniden login'de doğrulanır.
+      const adminRefreshToken = readSessionToken();
+      adminCookiePromiseRef.current = adminRefreshToken
+        ? fetch("/api/auth/admin-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-token": adminRefreshToken,
+            },
+          }).then(() => {}).catch(() => {})
+        : Promise.resolve();
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (fresh) setUser(fresh);
       });
@@ -1145,7 +1153,9 @@ export default function Home() {
       const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: loggedUser.id }),
+        // P0-1: token yalnız SERVER-SIDE credential doğrulamasıyla üretilir.
+        // Çıplak userId artık kabul edilmez; e-posta+şifre server'da yeniden doğrulanır.
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
       });
       // P3 reject-new: limit aşımında server 403 döner ve token vermez → giriş DURDURULUR.
       if (sessionRes.status === 403) {
@@ -1208,8 +1218,11 @@ export default function Home() {
       // Admin httpOnly session cookie set et (server-side doğrulama ile)
       const cookieRes = await fetch("/api/auth/admin-session", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: loggedUser.id }),
+        // P0-1: admin cookie yalnız GEÇERLİ (credential-gated) oturum token'ıyla verilir.
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": readSessionToken() ?? "",
+        },
       });
       if (!cookieRes.ok) {
         setMessage("Admin oturumu başlatılamadı. Lütfen tekrar deneyin.");
@@ -1275,8 +1288,11 @@ export default function Home() {
         try {
           await fetch("/api/auth/admin-session", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user!.id }),
+            // P0-1: admin cookie yalnız geçerli (credential-gated) oturum token'ıyla verilir.
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-token": readSessionToken() ?? "",
+            },
           });
         } catch {}
       }
