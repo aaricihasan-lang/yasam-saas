@@ -8,7 +8,6 @@ import { deleteTechnique, getTechnique, listTechniqueProtocols, type CuppingTech
 import { hasMovement, movementStyleLabel, techniqueTypeLabel } from "../lib/labels";
 import { useTechniqueListRefresh } from "../lib/listRefresh";
 import { TechniqueEditor } from "./TechniqueEditor";
-import { TechniqueSafetySection } from "./TechniqueSafetySection";
 import { TechniqueSourcesSection } from "./TechniqueSourcesSection";
 import { TechniqueProtocolsSection } from "./TechniqueProtocolsSection";
 
@@ -167,7 +166,7 @@ export function TechniqueReadView({ id }: { id: string }) {
       <ReadBlock title="Teknik Özeti" text={technique.description} empty="Henüz açıklama eklenmemiş." />
       <ReadBlock title="Genel Uygulama Yaklaşımı" text={technique.application_info} empty="Henüz uygulama bilgisi eklenmemiş." />
 
-      <TechniqueSafetySection techniqueId={technique.id} safetyNote={technique.safety_note} />
+      <ReadBlock title="Güvenlik ve Dikkat" text={technique.safety_note} empty="Henüz güvenlik/dikkat notu eklenmemiş." />
       <TechniqueSourcesSection techniqueId={technique.id} />
 
       <ReadBlock title="Uzman Notum" text={technique.practitioner_note} empty="Henüz kişisel not eklenmemiş." />

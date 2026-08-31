@@ -93,17 +93,6 @@ export type CuppingTechnique = {
   is_active?: boolean;
 };
 
-/** FAZ 4 — technique ↔ master safety note ilişki satırı (UI'da tenant_id gerekmez). */
-export type CuppingTechniqueSafety = {
-  id: string;
-  technique_id: string;
-  safety_id: string;
-  note?: string | null;
-  sort_order?: number;
-  created_at?: string;
-  updated_at?: string;
-};
-
 /** FAZ 4 — "Kullanıldığı Protokoller" read-only sade metadata. */
 export type CuppingTechniqueProtocolRef = {
   id: string;
@@ -247,20 +236,6 @@ export const updateTechnique = (id: string, body: Partial<CuppingTechnique>) =>
   call<CuppingTechnique>(`${BASE}/techniques/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "technique");
 export const deleteTechnique = (id: string) =>
   call<number>(`${BASE}/techniques/${id}`, { method: "DELETE" }, "deleted");
-
-// Technique ↔ safety (FAZ 4)
-export const listTechniqueSafety = (techniqueId: string) =>
-  call<CuppingTechniqueSafety[]>(
-    `${BASE}/technique-safety?techniqueId=${encodeURIComponent(techniqueId)}`,
-    { method: "GET" },
-    "relations",
-  );
-export const createTechniqueSafety = (body: { technique_id: string; safety_id: string; note?: string | null; sort_order?: number }) =>
-  call<CuppingTechniqueSafety>(`${BASE}/technique-safety`, { method: "POST", body: JSON.stringify(body) }, "relation");
-export const updateTechniqueSafety = (id: string, body: Partial<Pick<CuppingTechniqueSafety, "note" | "sort_order">>) =>
-  call<CuppingTechniqueSafety>(`${BASE}/technique-safety/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "relation");
-export const deleteTechniqueSafety = (id: string) =>
-  call<number>(`${BASE}/technique-safety/${id}`, { method: "DELETE" }, "deleted");
 
 // Technique "Kullanıldığı Protokoller" (read-only, FAZ 4)
 export const listTechniqueProtocols = (techniqueId: string) =>

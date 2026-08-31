@@ -1043,8 +1043,10 @@ function run(): void {
     "faz3b-hierarchy: amac-rehberi destek grid'inin DIŞINDA/ALTINDA (flat eşit-kart mimarisi değil)");
 
   // ══ FAZ 4 / AŞAMA 2A — KUPA TEKNİKLERİ VERİ TEMELİ ══════════════════════════════
-  // Additive: practitioner_note + cupping_technique_safety + technique-safety API +
-  // read-only "Kullanıldığı Protokoller". Destructive DDL / backfill YOK.
+  // Additive: practitioner_note + cupping_technique_safety (DORMANT — prod'a uygulandı,
+  // şema korunur) + read-only "Kullanıldığı Protokoller". Destructive DDL / backfill YOK.
+  // NOT: structured technique-safety uygulama/API yüzeyi owner FINAL ile KALDIRILDI;
+  // yalnız tablo/şema geriye-dönük dormant infra olarak repoda kalır (bkz. FAZ 4 UX).
   const f4mig = read("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql");
   // Migration version hygiene (drift reconciliation): yeni benzersiz slot; eski çakışan yok.
   ok(exists("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql") &&
@@ -1106,25 +1108,13 @@ function run(): void {
      !(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("tenant_id"),
     "faz4-fields: PATCH META FK/tenant immutable (technique_id/safety_id/tenant_id yok)");
 
-  // — technique-safety API: güvenlik sözleşmesi —
-  const tsColl = read("app/api/kupa/technique-safety/route.ts");
-  const tsItem = read("app/api/kupa/technique-safety/[id]/route.ts");
-  ok(/requireModuleAccess\(req, "cupping"\)/.test(tsColl) && /requireModuleAccess\(req, "cupping"\)/.test(tsItem),
-    "faz4-api: technique-safety route'ları cupping gate");
-  ok(/is_demo_account\) return NextResponse\.json\(\{ ok: true, demo: true/.test(tsColl) &&
-     /is_demo_account\) return NextResponse\.json\(\{ ok: true, demo: true/.test(tsItem),
-    "faz4-api: demo persist=0 (POST/PATCH/DELETE)");
-  ok(/pickWritable\(parsed\.data, TECHNIQUE_SAFETY_WRITABLE\)/.test(tsColl),
-    "faz4-api: POST pickWritable(TECHNIQUE_SAFETY_WRITABLE) — mass-assignment kilidi");
-  ok(/pickWritable\(parsed\.data, TECHNIQUE_SAFETY_META_WRITABLE\)/.test(tsItem),
-    "faz4-api: PATCH pickWritable(TECHNIQUE_SAFETY_META_WRITABLE) — FK immutable");
-  ok(/assertOwnedRef\(db, CUPPING_TABLES\.techniques, tenantId, techniqueId\)/.test(tsColl) &&
-     /assertOwnedRef\(db, CUPPING_TABLES\.safety, tenantId, safetyId\)/.test(tsColl),
-    "faz4-api: POST technique + safety ownership doğrulaması (cross-tenant attach engeli)");
-  ok(/assertCompositeRef\(db, CUPPING_TABLES\.techniqueSafety[\s\S]*return cuppingError\(409/.test(tsColl),
-    "faz4-api: duplicate attach → 409 kullanıcı dostu");
-  ok(/\.eq\("tenant_id", tenantId\)/.test(tsColl) || /listEntity\(db, CUPPING_TABLES\.techniqueSafety, tenantId/.test(tsColl),
-    "faz4-api: GET tenant-forced filtre");
+  // — REDDEDİLEN structured technique-safety API tamamen KALDIRILDI (owner FINAL) —
+  // Teknik güvenliği artık yalnız cupping_techniques.safety_note serbest alanıdır.
+  // Not: cupping_technique_safety tablosu prod'a uygulandığı için DORMANT olarak kalır
+  // (migration şeması korunur); yalnız uygulama/API yüzeyi kaldırılmıştır.
+  ok(!exists("app/api/kupa/technique-safety/route.ts") &&
+     !exists("app/api/kupa/technique-safety/[id]/route.ts"),
+    "faz4-api: technique-safety route'ları KALDIRILDI (structured teknik güvenliği reddedildi)");
 
   // — used-in-protocols: read-only, tenant-safe, N+1'siz —
   const tsProto = read("app/api/kupa/techniques/[id]/protocols/route.ts");
@@ -1141,12 +1131,12 @@ function run(): void {
   const cApi = read("app/kupa/lib/api.ts");
   ok(/practitioner_note\?: string \| null/.test(cApi),
     "faz4-client: CuppingTechnique.practitioner_note");
-  ok(/export type CuppingTechniqueSafety =/.test(cApi) &&
-     /export const listTechniqueSafety/.test(cApi) &&
-     /export const createTechniqueSafety/.test(cApi) &&
-     /export const updateTechniqueSafety/.test(cApi) &&
-     /export const deleteTechniqueSafety/.test(cApi),
-    "faz4-client: CuppingTechniqueSafety type + 4 wrapper");
+  ok(!/CuppingTechniqueSafety/.test(cApi) &&
+     !/listTechniqueSafety/.test(cApi) &&
+     !/createTechniqueSafety/.test(cApi) &&
+     !/updateTechniqueSafety/.test(cApi) &&
+     !/deleteTechniqueSafety/.test(cApi),
+    "faz4-client: technique-safety type + wrapper'lar KALDIRILDI (client surface temiz)");
   ok(/export const listTechniqueProtocols/.test(cApi) && /export type CuppingTechniqueProtocolRef =/.test(cApi),
     "faz4-client: used-in-protocols type + wrapper");
 
@@ -1167,7 +1157,6 @@ function run(): void {
   const tList = read("app/kupa/teknikler/components/TechniqueList.tsx");
   const tRead = read("app/kupa/teknikler/components/TechniqueReadView.tsx");
   const tEdit = read("app/kupa/teknikler/components/TechniqueEditor.tsx");
-  const tSafe = read("app/kupa/teknikler/components/TechniqueSafetySection.tsx");
   const tProt = read("app/kupa/teknikler/components/TechniqueProtocolsSection.tsx");
   const tLabels = read("app/kupa/teknikler/lib/labels.ts");
 
@@ -1218,11 +1207,17 @@ function run(): void {
   ok(/Uzman Notum/.test(tRead) && /practitioner_note|practitionerNote/.test(tEdit),
     "faz4b-practitioner: 'Uzman Notum' reader + editor");
 
-  // Güvenlik: iki katman + structured technique-safety wiring.
-  ok(/createTechniqueSafety/.test(tSafe) && /deleteTechniqueSafety/.test(tSafe) && /updateTechniqueSafety/.test(tSafe),
-    "faz4b-safety: technique-safety attach/detach/note wiring");
-  ok(/Tekniğe Özel Not/.test(tSafe) && /listSafety/.test(tSafe),
-    "faz4b-safety: safety_note serbest not + master safety picker (iki katman)");
+  // Güvenlik: TEK katman — yalnız safety_note (owner FINAL: structured teknik güvenliği reddedildi).
+  ok(!exists("app/kupa/teknikler/components/TechniqueSafetySection.tsx") &&
+     !exists("app/kupa/teknikler/components/SafetyPickerDialog.tsx"),
+    "faz4b-safety: structured TechniqueSafetySection + SafetyPickerDialog KALDIRILDI");
+  ok(/Güvenlik ve Dikkat/.test(tRead) && /technique\.safety_note/.test(tReadCode),
+    "faz4b-safety: reader 'Güvenlik ve Dikkat' yalnız safety_note gösterir");
+  ok(!/Güvenlik Kaydı Ekle/.test(tRead) && !/SafetyPicker/.test(tRead) && !/TechniqueSafetySection/.test(tRead),
+    "faz4b-safety: '+ Güvenlik Kaydı Ekle' CTA + structured picker/section reader'da YOK");
+  // Editor tek kullanıcı-yüzlü güvenlik alanı olarak safety_note'u KORUR.
+  ok(/safety_note/.test(tEdit) && /Güvenlik \/ Dikkat/.test(tEdit),
+    "faz4b-safety: editor safety_note alanını ('Güvenlik / Dikkat') KORUR");
 
   // Kullanıldığı Protokoller: read-only + protokol adı clickable.
   ok(/listTechniqueProtocols/.test(tProt) && /href=\{`\/kupa\/protokoller\/\$\{p\.id\}`\}/.test(tProt),
@@ -1300,10 +1295,7 @@ function run(): void {
   ok(/protocolIds\.length === 0/.test(protoUsageRoute) && /\.in\("id", protocolIds\)/.test(protoUsageRoute),
     "faz4c-usage: boş-set guard + tek IN sorgusu (N+1 yok)");
 
-  // Sınır: teknik güvenliği/citation protokole OTOMATİK kopyalanmaz.
-  const tSafe2 = read("app/kupa/teknikler/components/TechniqueSafetySection.tsx");
-  ok(!/addProtocolSafety|protocol_safety|createProtocol/.test(tSafe2),
-    "faz4c-boundary: technique-safety protokol safety'ye OTO-kopyalanmaz");
+  // Sınır: teknik ekleme akışı protokol safety'yi OTOMATİK kopyalamaz/eklemez.
   ok(!/addProtocolSafety\(/.test(rSec.slice(rSec.indexOf("entity: \"technique\""), rSec.indexOf("entity: \"safety\""))),
     "faz4c-boundary: teknik ekleme akışı safety'yi OTO-eklemez");
 
@@ -1319,6 +1311,29 @@ function run(): void {
     "faz4d-inactive: global listEntity/listTechniques'e is_active filtresi EKLENMEDİ (ekli pasif çözümlenir)");
   ok(!/detachProtocolTechnique|archive|deleteTechnique\(/.test(rSec.slice(rSec.indexOf("pickerMaster"), rSec.indexOf("const items"))),
     "faz4d-inactive: pasif filtre otomatik detach/arşiv/silme YAPMAZ");
+
+  // ══ FAZ 4 / UX SADELEŞTİRME — standalone /kupa/guvenlik + protokol güvenlik koruması ═
+  // owner FINAL: bağımsız güvenlik CRUD çalışma alanı normal akıştan KALDIRILDI; rota
+  // artık doğrudan URL ile gizli CRUD paneli açmaz → /kupa'ya redirect. Protokol güvenlik
+  // (QuickCreate + backend master + /api/kupa/safety) AYNEN korunur.
+  const guvPage = read("app/kupa/guvenlik/page.tsx");
+  ok(/redirect\("\/kupa"\)/.test(guvPage),
+    "faz4-ux: /kupa/guvenlik server redirect → /kupa (standalone CRUD kaldırıldı)");
+  ok(!/CrudManager/.test(guvPage) && !/createSafety|updateSafety|deleteSafety/.test(guvPage),
+    "faz4-ux: /kupa/guvenlik artık CRUD/mutasyon iskeleti render ETMEZ");
+  // Protokol güvenlik master altyapısı KORUNUR (backend + QuickCreate).
+  ok(exists("app/api/kupa/safety/route.ts") && exists("app/api/kupa/safety/[id]/route.ts") &&
+     exists("app/api/kupa/protocol-safety/route.ts") && exists("app/api/kupa/protocol-safety/[id]/route.ts"),
+    "faz4-ux: protokol güvenlik backend (safety + protocol-safety route'ları) DOKUNULMADI");
+  ok(/entity: "safety"/.test(rSec) && /createSafety\(/.test(rSec),
+    "faz4-ux: protokol QuickCreate yeni güvenlik master (createSafety) + attach KORUNUR");
+  ok(/listSafety\b/.test(read("app/kupa/protokoller/hooks/useProtocolDocument.ts")),
+    "faz4-ux: protokol dokümanı master güvenlik listesini (listSafety) KORUR");
+  // cupping_technique_safety tablosu prod'a uygulandı → migration şeması DORMANT olarak kalır
+  // (repo şeması prod'dan bilerek sapmaz); yalnız uygulama/API yüzeyi kaldırıldı.
+  ok(/CREATE TABLE IF NOT EXISTS public\.cupping_technique_safety/.test(f4mig) &&
+     !/DROP\s+TABLE[^;]*cupping_technique_safety/i.test(f4mig),
+    "faz4-ux: cupping_technique_safety tablosu migration'da DORMANT korunur (DROP YOK)");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
