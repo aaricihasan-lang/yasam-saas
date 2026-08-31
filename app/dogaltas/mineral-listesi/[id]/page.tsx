@@ -13,10 +13,7 @@ import {
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { ensureMineralStringArray, getDemoReferenceMineralId } from "@/lib/dogaltas/mineralsListFetch";
@@ -459,7 +456,7 @@ function MineralDetailPageContent() {
     if (!tenantId) {
       setLoading(false);
       setMineral(null);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -494,7 +491,7 @@ function MineralDetailPageContent() {
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery, refMineralIdFromQuery, t]);
+  }, [id, highlightQuery, refMineralIdFromQuery, t, tc]);
 
   useEffect(() => {
     runInEffect(() => {

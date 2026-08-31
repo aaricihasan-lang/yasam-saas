@@ -8,12 +8,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 
 /** Güvenli delete API'sine issue listesi gönderir (publishable delete yerine). */
 async function deleteCombinationsViaApi(
@@ -467,9 +465,9 @@ export default function KombinasyonlarPage() {
 
   const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = await getSyncedTenantId();
-    if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    if (!tenantId) { setErrorMessage(tc("workspaceUnavailable")); return; }
     const userId = readYasamUser()?.id;
-    if (!userId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    if (!userId) { setErrorMessage(tc("workspaceUnavailable")); return; }
     setWordBusy(true);
     try {
       let issues: string[] | undefined;
@@ -520,7 +518,7 @@ export default function KombinasyonlarPage() {
     } finally {
       setWordBusy(false);
     }
-  }, [selectedIds, groups, showToast, t]);
+  }, [selectedIds, groups, showToast, t, tc]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
     const firstConfirmed = await confirm({
@@ -676,7 +674,9 @@ export default function KombinasyonlarPage() {
         {errorMessage && (
           <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
             {errorMessage.startsWith("@@loadError:")
-              ? t("loadError", { error: errorMessage.slice("@@loadError:".length) })
+              ? errorMessage.slice("@@loadError:".length) === STONES_WORKSPACE_UNAVAILABLE
+                ? tc("workspaceUnavailable")
+                : t("loadError", { error: errorMessage.slice("@@loadError:".length) })
               : errorMessage}
           </div>
         )}

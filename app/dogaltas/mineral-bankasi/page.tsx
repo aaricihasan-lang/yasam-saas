@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { createMineral, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -161,7 +158,7 @@ export default function MineralBankasiPage() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 

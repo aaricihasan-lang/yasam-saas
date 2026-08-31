@@ -16,7 +16,6 @@ import { backgroundSyncYasamUserFromDb, readYasamUser, readSessionToken } from "
 import {
   getSessionTenantId,
   getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import {
   fetchMineralsListCount,
@@ -182,7 +181,7 @@ function MineralListesiPageContent() {
       if (!tenantId) {
         setListLoading(false);
         setLoadingMore(false);
-        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        setErrorMessage(tc("workspaceUnavailable"));
         return;
       }
 
@@ -230,7 +229,7 @@ function MineralListesiPageContent() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
     },
-    [categoryFilter, debouncedSearch, queryTenantId, totalCount, t],
+    [categoryFilter, debouncedSearch, queryTenantId, totalCount, t, tc],
   );
 
   const resolveTenant = useCallback(async () => {

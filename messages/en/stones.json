@@ -11,7 +11,8 @@
       "clear": "Clear",
       "loading": "Loading…",
       "giveUp": "Cancel",
-      "unnamedStone": "Untitled Stone"
+      "unnamedStone": "Untitled Stone",
+      "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again."
     },
     "modules": {
       "home": {

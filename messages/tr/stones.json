@@ -11,7 +11,8 @@
       "clear": "Temizle",
       "loading": "Yükleniyor...",
       "giveUp": "Vazgeç",
-      "unnamedStone": "İsimsiz taş"
+      "unnamedStone": "İsimsiz taş",
+      "workspaceUnavailable": "Çalışma alanı bilgileriniz yüklenemedi. Lütfen yeniden giriş yapın."
     },
     "modules": {
       "home": {

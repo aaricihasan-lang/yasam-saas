@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
@@ -1374,7 +1375,11 @@ function KombinasyonDetayPageContent() {
     setLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(t("loadError", { error: result.error ?? "" }));
+      setErrorMessage(
+        result.error === STONES_WORKSPACE_UNAVAILABLE
+          ? tc("workspaceUnavailable")
+          : t("loadError", { error: result.error ?? "" }),
+      );
       setRows([]);
       return;
     }
@@ -1402,7 +1407,7 @@ function KombinasyonDetayPageContent() {
     }
 
     setRows(unique);
-  }, [decodedIssue, t]);
+  }, [decodedIssue, t, tc]);
 
   const loadStockNames = useCallback(async () => {
     setStockLoading(true);

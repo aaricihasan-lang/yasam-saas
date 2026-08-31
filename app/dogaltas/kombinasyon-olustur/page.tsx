@@ -10,10 +10,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   fetchAllStonesExtended,
   type StoneListItemExtended,
@@ -197,7 +194,7 @@ export default function KombinasyonOlusturPage() {
       const tid = await getSyncedTenantId();
       if (!tid) {
         if (!cancelled) {
-          setError(MISSING_SESSION_TENANT_MESSAGE);
+          setError(tc("workspaceUnavailable"));
           setLoading(false);
         }
         return;
@@ -242,7 +239,7 @@ export default function KombinasyonOlusturPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tc]);
 
   const activeConditions = useMemo(
     () => conditions.filter((c) => c.value.trim()),

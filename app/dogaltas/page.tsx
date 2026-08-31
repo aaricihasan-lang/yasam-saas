@@ -15,12 +15,10 @@ import { runInEffect } from "@/lib/runInEffect";
 import { formatDate } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
@@ -274,6 +272,7 @@ function DogaltasPageContent() {
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
+  const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
   useBfcacheRefresh();
@@ -311,7 +310,7 @@ function DogaltasPageContent() {
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       setStonesCount(null);
       setMineralsCount(null);
       setCombinationsCount(null);
@@ -375,7 +374,7 @@ function DogaltasPageContent() {
     if (failed.length > 0) {
       setErrorMessage(t("analytics.failedCounters", { items: failed.join(", ") }));
     }
-  }, [t, locale]);
+  }, [t, tc, locale]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -408,7 +407,8 @@ function DogaltasPageContent() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      throw new Error(MISSING_SESSION_TENANT_MESSAGE);
+      // Locale-independent kod; catch sınırında localize edilir.
+      throw new Error(STONES_WORKSPACE_UNAVAILABLE);
     }
 
     // Server API (mode=extended) — assignments dahil tüm arama alanlarını döndürür.
@@ -447,13 +447,17 @@ function DogaltasPageContent() {
       try {
         await ensureStonesForSearch();
       } catch (err) {
-        const message = err instanceof Error ? err.message : t("search.dataError");
-        setSearchError(t("search.recordsError", { message }));
+        if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
+          setSearchError(tc("workspaceUnavailable"));
+        } else {
+          const message = err instanceof Error ? err.message : t("search.dataError");
+          setSearchError(t("search.recordsError", { message }));
+        }
       } finally {
         setSearchLoading(false);
       }
     },
-    [ensureStonesForSearch, router, t],
+    [ensureStonesForSearch, router, t, tc],
   );
 
   useEffect(() => {
@@ -465,14 +469,18 @@ function DogaltasPageContent() {
         try {
           await ensureStonesForSearch();
         } catch (err) {
-          const message = err instanceof Error ? err.message : t("search.dataError");
-          setSearchError(t("search.recordsError", { message }));
+          if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
+            setSearchError(tc("workspaceUnavailable"));
+          } else {
+            const message = err instanceof Error ? err.message : t("search.dataError");
+            setSearchError(t("search.recordsError", { message }));
+          }
         } finally {
           setSearchLoading(false);
         }
       })();
     });
-  }, [activeQuery, ensureStonesForSearch, t]);
+  }, [activeQuery, ensureStonesForSearch, t, tc]);
 
   const searchResults = useMemo(() => {
     if (!activeQuery.trim() || !stonesForSearch) return [];

@@ -6,10 +6,7 @@ import { useTranslations } from "next-intl";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { createStone, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { parseMineralPercent } from "@/lib/dogaltas/mineralPercent";
@@ -276,6 +273,7 @@ export default function DogaltasKayitPage() {
   // Facet display: value KANONİK Türkçe kalır (chakras[]/warning_tags[] yazımı + filtre
   // canonical'da); yalnız görünen etiket localize edilir. Anahtar eksikse canonical'a düşer.
   const tf = useTranslations("stones");
+  const tc = useTranslations("stones.common");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   // Atama (assignments) display: section title/desc/field görünen etiketleri localize;
   // KANONİK Türkçe title `assignments` DB object key + `=== "Mineraller"` mantığı DEĞİŞMEZ.
@@ -593,7 +591,7 @@ export default function DogaltasKayitPage() {
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      showError(MISSING_SESSION_TENANT_MESSAGE);
+      showError(tc("workspaceUnavailable"));
       return;
     }
 

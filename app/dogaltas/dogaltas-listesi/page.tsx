@@ -22,7 +22,6 @@ import {
   ADMIN_LIBRARY_TENANT_ID,
   getSessionTenantId,
   getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import {
   excludeStonesForTenant,
@@ -425,6 +424,7 @@ function DogaltasListesiPageContent() {
   // Facet chip display: filtre value KANONİK Türkçe (detailFilters.chakra + containsTr eşleşme);
   // yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
+  const tc = useTranslations("stones.common");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
@@ -473,7 +473,7 @@ function DogaltasListesiPageContent() {
       if (!tenantId) {
         setListLoading(false);
         setLoadingMore(false);
-        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        setErrorMessage(tc("workspaceUnavailable"));
         return;
       }
 
@@ -542,7 +542,7 @@ function DogaltasListesiPageContent() {
 
       applyResult(pageRes.rows, opts.reset ? pageRes.count : undefined);
     },
-    [debouncedSearch, searchMode, queryTenantId, t],
+    [debouncedSearch, searchMode, queryTenantId, t, tc],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -579,7 +579,7 @@ function DogaltasListesiPageContent() {
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
       setDeleteLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -912,7 +912,7 @@ function DogaltasListesiPageContent() {
 
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -971,7 +971,7 @@ function DogaltasListesiPageContent() {
     showToast({ type: "success", message: t("toast.removedCount", { count: deletedCount }) });
     setSelectedIds(new Set());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo, t]);
+  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo, t, tc]);
 
   const loadedImages = useMemo(
     () =>
@@ -985,9 +985,9 @@ function DogaltasListesiPageContent() {
   const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     if (isDemo) { showToast({ type: "info", message: t("toast.demoAction") }); return; }
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
-    if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    if (!tenantId) { showToast({ type: "error", message: tc("workspaceUnavailable") }); return; }
     const userId = readYasamUser()?.id;
-    if (!userId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    if (!userId) { showToast({ type: "error", message: tc("workspaceUnavailable") }); return; }
     const sessionToken = readSessionToken();
 
     setWordBusy(true);
@@ -1039,7 +1039,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo, t]);
+  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo, t, tc]);
 
   return (
     <DogaltasSectionShell
