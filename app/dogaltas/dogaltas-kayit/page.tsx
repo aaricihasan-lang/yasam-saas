@@ -295,6 +295,9 @@ export default function DogaltasKayitPage() {
   const [assignmentTitle, setAssignmentTitle] = useState<string | null>(null);
   const [assignmentRows, setAssignmentRows] = useState<AssignmentRows>(emptyAssignmentRows);
   const [assignmentInputs, setAssignmentInputs] = useState<AssignmentInputs>(emptyAssignmentInputs);
+  // Atama modalı içi (locale-aware) validation feedback — ana sayfa errorMessage'ı
+  // z-50 modalın ARKASINDA kaldığı için modal-kapsamlı ayrı state gerekir (2J).
+  const [assignmentError, setAssignmentError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -376,19 +379,23 @@ export default function DogaltasKayitPage() {
 
   function closeAssignment() {
     setAssignmentTitle(null);
+    setAssignmentError("");
   }
 
   /**
    * "Kaydet": input'ta bekleyen değeri (varsa) gerçekten satır olarak ekler,
    * sonra modalı kapatır. addAssignmentRow boş input'ta no-op olduğu için
    * bekleyen değer yoksa yalnızca kapatır. (İptal/× yalnızca kapatır.)
+   * Geçersiz oran halinde satır eklenmez ve modal AÇIK kalır → kullanıcı hatayı
+   * görür ve düzeltir (2J).
    */
   function saveAssignmentAndClose() {
-    addAssignmentRow();
-    closeAssignment();
+    if (addAssignmentRow()) closeAssignment();
   }
 
   function updateAssignmentInput(sectionTitle: string, index: number, value: string) {
+    // Yeni girişe başlanınca stale validation error temizlenir (2J).
+    if (assignmentError) setAssignmentError("");
     setAssignmentInputs((prev) => {
       const current = [...(prev[sectionTitle] || [])];
       current[index] = value;
@@ -396,14 +403,19 @@ export default function DogaltasKayitPage() {
     });
   }
 
-  function addAssignmentRow() {
-    if (!activeAssignment) return;
+  /**
+   * Bekleyen input'u satır olarak ekler. Dönen değer: satır eklendi VEYA bekleyen
+   * değer yok (kapatılabilir) → true; geçersiz oran nedeniyle engellendi → false
+   * (modal açık kalır, validation error gösterilir). (2J)
+   */
+  function addAssignmentRow(): boolean {
+    if (!activeAssignment) return true;
 
     const sectionTitle = activeAssignment.title;
     const values = assignmentInputs[sectionTitle] || [];
     const hasValue = values.some((value) => value.trim().length > 0);
 
-    if (!hasValue) return;
+    if (!hasValue) return true;
 
     // Mineraller: oran (2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
     let rowToStore = values;
@@ -411,11 +423,15 @@ export default function DogaltasKayitPage() {
       const parsed = parseMineralPercent(values[1]);
       if (!parsed.ok) {
         // Yalnız DISPLAY localize; validation davranışı (parsed.ok) locale-bağımsız.
-        showError(tf("validation.mineralPercentInvalid"));
-        return;
+        // Modal-kapsamlı state → mesaj z-50 modalın İÇİNDE görünür (2J).
+        setAssignmentError(tf("validation.mineralPercentInvalid"));
+        return false;
       }
       rowToStore = values.map((value, index) => (index === 1 ? parsed.value : value));
     }
+
+    // Başarılı geçerli ekleme → stale validation error temizlenir (2J).
+    setAssignmentError("");
 
     setAssignmentRows((prev) => ({
       ...prev,
@@ -426,6 +442,8 @@ export default function DogaltasKayitPage() {
       ...prev,
       [sectionTitle]: activeAssignment.fields.map(() => ""),
     }));
+
+    return true;
   }
 
   async function deleteAssignmentRow(sectionTitle: string, index: number) {
@@ -1219,6 +1237,15 @@ export default function DogaltasKayitPage() {
                 {t("assignModal.addRow")}
               </button>
             </div>
+
+            {assignmentError && (
+              <div
+                role="alert"
+                className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100"
+              >
+                {assignmentError}
+              </div>
+            )}
 
             <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border-2 border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4">
               {/* FAZ-3A: İsim ve oran tek içerik sütununda (görsel ayrım rows'da "•" / mobilde alt satır). */}
