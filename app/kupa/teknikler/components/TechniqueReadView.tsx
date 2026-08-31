@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { kupaBtnDanger, kupaBtnGhost } from "../../components/KupaShell";
-import { deleteTechnique, getTechnique, listTechniqueProtocols, type CuppingTechnique } from "../../lib/api";
+import { KupaConfirmDialog } from "../../components/ConfirmDialog";
+import {
+  deleteTechnique,
+  getTechnique,
+  listTechniqueProtocols,
+  type CuppingTechnique,
+  type CuppingTechniqueProtocolRef,
+} from "../../lib/api";
 import { hasMovement, movementStyleLabel, techniqueTypeLabel } from "../lib/labels";
 import { useTechniqueListRefresh } from "../lib/listRefresh";
 import { TechniqueEditor } from "./TechniqueEditor";
@@ -40,6 +47,13 @@ export function TechniqueReadView({ id }: { id: string }) {
   const [mode, setMode] = useState<"read" | "edit">("read");
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Silme UX: native window.confirm YERİNE app-standart modal. İki durum:
+  //   - "blocked": teknik protokolde kullanılıyor → uyarı modalı (yıkıcı aksiyon YOK)
+  //   - "confirm": referans yok → yıkıcı onay modalı
+  const [deleteDialog, setDeleteDialog] = useState<
+    null | { variant: "confirm" } | { variant: "blocked"; protocols: CuppingTechniqueProtocolRef[] }
+  >(null);
+  const [checking, setChecking] = useState(false);
   const [nonce, setNonce] = useState(0);
   const reload = () => setNonce((n) => n + 1);
 
@@ -66,21 +80,33 @@ export function TechniqueReadView({ id }: { id: string }) {
     };
   }, [id, nonce]);
 
-  const onDelete = async () => {
+  // "Sil" → önce protokol-kullanım prechecki; sonucuna göre uyarı VEYA onay modalı açılır.
+  // Native window.confirm KULLANILMAZ. FK RESTRICT sunucu tarafında yetkili korumadır.
+  const onDeleteClick = async () => {
     if (!technique) return;
-    if (!window.confirm("Bu tekniği silmek istediğinize emin misiniz?")) return;
+    setActionError(null);
+    setChecking(true);
+    try {
+      const protos = await listTechniqueProtocols(id);
+      if (protos.length > 0) setDeleteDialog({ variant: "blocked", protocols: protos });
+      else setDeleteDialog({ variant: "confirm" });
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Kullanım kontrolü yapılamadı.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Yalnız referans YOKKEN (confirm modu) çağrılır; kullanıcı modalda açıkça onayladıktan sonra.
+  const confirmDelete = async () => {
     setBusy(true);
     setActionError(null);
     try {
-      const protos = await listTechniqueProtocols(id);
-      if (protos.length > 0) {
-        setActionError("Bu teknik bir veya daha fazla protokolde kullanıldığı için silinemez.");
-        return;
-      }
       await deleteTechnique(id);
       router.push("/kupa/teknikler");
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Silinemedi.");
+      setDeleteDialog(null);
     } finally {
       setBusy(false);
     }
@@ -150,11 +176,11 @@ export function TechniqueReadView({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" className={kupaBtnGhost} onClick={() => setMode("edit")} disabled={busy}>
+          <button type="button" className={kupaBtnGhost} onClick={() => setMode("edit")} disabled={busy || checking}>
             Düzenle
           </button>
-          <button type="button" className={kupaBtnDanger} onClick={onDelete} disabled={busy}>
-            Sil
+          <button type="button" className={kupaBtnDanger} onClick={onDeleteClick} disabled={busy || checking}>
+            {checking ? "Kontrol ediliyor…" : "Sil"}
           </button>
         </div>
       </header>
@@ -172,6 +198,52 @@ export function TechniqueReadView({ id }: { id: string }) {
       <ReadBlock title="Uzman Notum" text={technique.practitioner_note} empty="Henüz kişisel not eklenmemiş." />
 
       <TechniqueProtocolsSection techniqueId={technique.id} />
+
+      {/* Silme UX — app-standart modal (native window.confirm YOK). */}
+      {deleteDialog?.variant === "blocked" ? (
+        <KupaConfirmDialog
+          open
+          title="Teknik silinemiyor"
+          description={
+            "Bu teknik bir veya daha fazla protokolde kullanılıyor.\n" +
+            "Silmeden önce ilgili protokollerden tekniği çıkarmanız gerekir."
+          }
+          closeLabel="Kapat"
+          onClose={() => setDeleteDialog(null)}
+        >
+          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+              Kullanıldığı protokoller
+            </p>
+            <ul className="mt-1.5 flex flex-col gap-1.5">
+              {deleteDialog.protocols.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate text-[14px] font-semibold text-slate-800">{p.title}</span>
+                  <Link
+                    href={`/kupa/protokoller/${p.id}`}
+                    className="shrink-0 text-[12px] font-semibold text-amber-700 hover:text-amber-800"
+                  >
+                    Protokolü Aç →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </KupaConfirmDialog>
+      ) : null}
+
+      {deleteDialog?.variant === "confirm" ? (
+        <KupaConfirmDialog
+          open
+          title="Tekniği sil?"
+          description="Bu teknik kalıcı olarak silinecek. Bu işlem geri alınamaz."
+          confirmLabel="Tekniği Sil"
+          cancelLabel="Vazgeç"
+          busy={busy}
+          onConfirm={confirmDelete}
+          onClose={() => { if (!busy) setDeleteDialog(null); }}
+        />
+      ) : null}
     </div>
   );
 }

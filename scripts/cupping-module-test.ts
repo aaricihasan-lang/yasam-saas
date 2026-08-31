@@ -968,17 +968,43 @@ function run(): void {
   ok(/Kullanıldığı Protokoller/.test(tRead) || /Kullanıldığı Protokoller/.test(tProt),
     "faz4b-protocols: 'Kullanıldığı Protokoller' bölümü mevcut");
 
-  // Duplicate advisory + delete confirmation + unsaved-changes.
+  // Duplicate advisory + APP-STANDARD delete modal (native confirm YOK) + unsaved-changes.
   ok(/normalizeMasterName/.test(tEdit),
     "faz4b-duplicate: create advisory (normalizeMasterName) reuse");
-  ok(/window\.confirm\(/.test(tRead),
-    "faz4b-delete: silme onayı (confirm)");
-  ok(/Kaydedilmemiş değişiklikler|dirty/.test(tEdit) && /window\.confirm\(/.test(tEdit),
-    "faz4b-unsaved: editor kaydedilmemiş-değişiklik koruması");
 
-  // Silme dostça: protokolde kullanılıyorsa ham hata değil, açık mesaj.
-  ok(/kullanıldığı için silinemez/.test(tRead),
-    "faz4b-delete: protokolde kullanılan teknik için dostça silme mesajı");
+  // Silme UX — owner FINAL: native window.confirm/alert KALDIRILDI → app-standart custom modal.
+  const confirmDlg = read("app/kupa/components/ConfirmDialog.tsx");
+  ok(!/window\.confirm\(/.test(tRead) && !/window\.alert\(/.test(tRead),
+    "faz4b-delete: reader native window.confirm/alert KULLANMAZ");
+  ok(/KupaConfirmDialog/.test(tRead) && /from "\.\.\/\.\.\/components\/ConfirmDialog"/.test(tRead),
+    "faz4b-delete: silme onayı app-standart KupaConfirmDialog ile (custom modal)");
+  // A) Referanslı teknik: 'Sil' önce precheck → uyarı modalı; yıkıcı aksiyon SUNULMAZ.
+  ok(/listTechniqueProtocols\(id\)/.test(tRead) && /variant: "blocked"/.test(tRead),
+    "faz4b-delete: 'Sil' önce protokol-kullanım prechecki yapar (blocked state)");
+  ok(/Teknik silinemiyor/.test(tRead) && /kullanılıyor/.test(tRead) && /closeLabel="Kapat"/.test(tRead),
+    "faz4b-delete: referanslı teknik uyarı modalı ('Teknik silinemiyor' + 'Kapat')");
+  // B) Referanssız teknik: yıkıcı onay modalı ('Tekniği sil?' + 'Tekniği Sil').
+  ok(/Tekniği sil\?/.test(tRead) && /confirmLabel="Tekniği Sil"/.test(tRead),
+    "faz4b-delete: referanssız teknik yıkıcı onay modalı ('Tekniği sil?' + 'Tekniği Sil')");
+  // Yıkıcı aksiyon YALNIZ confirm modunda: tek onConfirm={confirmDelete} (blocked modda YOK).
+  ok((tRead.match(/onConfirm=/g) ?? []).length === 1 && /onConfirm=\{confirmDelete\}/.test(tRead),
+    "faz4b-delete: tek yıkıcı onConfirm (confirmDelete) — blocked modda yıkıcı aksiyon YOK");
+  // Server-side yetkili koruma korunur: silme yine deleteTechnique (API FK RESTRICT enforce).
+  ok(/deleteTechnique\(id\)/.test(tRead),
+    "faz4b-delete: onay sonrası mevcut deleteTechnique çağrılır (FK RESTRICT sunucu koruması korunur)");
+
+  // KupaConfirmDialog a11y: role/aria-modal + portal(body) + Escape + scroll-lock + focus + no-native.
+  ok(/role="dialog"/.test(confirmDlg) && /aria-modal="true"/.test(confirmDlg) &&
+     /aria-labelledby/.test(confirmDlg) && /createPortal\(/.test(confirmDlg) && /document\.body/.test(confirmDlg),
+    "faz4b-delete: modal role/aria-modal/aria-labelledby + createPortal(document.body)");
+  ok(/"Escape"/.test(confirmDlg) && /body\.style\.overflow = "hidden"/.test(confirmDlg) &&
+     /\.focus\(\)/.test(confirmDlg) && /"Tab"/.test(confirmDlg),
+    "faz4b-delete: modal Escape + scroll-lock + focus yönetimi + focus-trap (Tab)");
+  ok(!/window\.confirm|window\.alert/.test(confirmDlg),
+    "faz4b-delete: KupaConfirmDialog native confirm/alert KULLANMAZ");
+
+  ok(/Kaydedilmemiş değişiklikler|dirty/.test(tEdit) && /window\.confirm\(/.test(tEdit),
+    "faz4b-unsaved: editor kaydedilmemiş-değişiklik koruması (silme UX kapsamı DIŞI)");
 
   // source_note normal reader/editor kodunda primary alan DEĞİL (yorumlar hariç).
   ok(!/source_note/.test(tReadCode) && !/source_note/.test(tEditCode),
