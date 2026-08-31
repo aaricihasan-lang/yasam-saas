@@ -48,15 +48,22 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   { prefix: "/aromaterapi", keys: ["aromatherapy", "aromaterapi"] },
   { prefix: "/dogaltas", keys: ["stones", "dogaltas"] },
   {
+    // Enerji & Beden artık yalnız Biyoenerji + Refleksoloji + Kupa ailesini temsil eder.
+    // Aromaterapi Doğal Destek & Rehber'e taşındı → aromatherapy/aromaterapi kaldırıldı.
+    // NOT: cupping BİLİNÇLİ olarak eklenMEDİ (ayrı /kupa access konusu; bu iş kapsamı dışı).
     prefix: "/enerji-beden",
     keys: [
       "energy_body",
       "biyoenerji",
       "reflexology",
       "refleksoloji",
-      "aromatherapy",
-      "aromaterapi",
     ],
+  },
+  {
+    // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi izni olan uzman girebilir (OR).
+    // hasAnyModulePermissionFlag zaten OR uygular; ikisi de yoksa evaluateRouteModuleGuard "deny".
+    prefix: "/dogal-destek",
+    keys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing"],
   },
   { prefix: "/danisan-yolculugu", keys: ["clients", "danisan_yonetimi"] },
   { prefix: "/urun-stok", keys: ["stok", "stock"] },
