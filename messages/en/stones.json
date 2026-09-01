@@ -16,7 +16,7 @@
     },
     "modules": {
       "home": {
-        "title": "Stones"
+        "title": "Natural Stone"
       },
       "dogaltas-kayit": {
         "title": "Stone Record",
@@ -54,7 +54,7 @@
     "breadcrumb": {
       "aria": "Page location",
       "home": "Home",
-      "panel": "Stones Panel"
+      "panel": "Natural Stone Panel"
     },
     "fontSize": {
       "groupAria": "Font size",
