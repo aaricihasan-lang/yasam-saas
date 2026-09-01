@@ -117,6 +117,7 @@
     "plan": {
       "context": {
         "clientLabel": "Client",
+        "clientFallback": "Unnamed Client",
         "goalLabel": "Goal",
         "allergensLabel": "Declared Allergens",
         "avoidedLabel": "Avoided Foods",
@@ -131,7 +132,12 @@
         "bindFailed": "Could not bind to client.",
         "advisory": "Declared allergens are client statements; no automatic matching against foods is performed."
       },
-      "avoidedItem": "This food is among the client's avoided foods."
+      "avoidedItem": "This food is among the client's avoided foods.",
+      "newPlan": {
+        "remove": "remove",
+        "bindOptional": "+ Bind to client (optional)",
+        "bindFailedStandalone": "Plan created but could not be bound to the client; saved as standalone."
+      }
     }
   }
 }

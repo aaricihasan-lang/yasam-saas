@@ -4,6 +4,7 @@
  * (yeni backend YOK). MemoryPicker'a bağımlı DEĞİL. Beslenme + diğer modüller REUSE edebilir.
  */
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 export type PickerClient = { id: string; ad: string | null; soyad: string | null };
@@ -12,11 +13,6 @@ function clientHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
   return { "x-user-id": u?.id ?? "", ...(t ? { "x-session-token": t } : {}) };
-}
-
-export function clientLabel(c: PickerClient): string {
-  const raw = `${c.ad ?? ""} ${c.soyad ?? ""}`.trim();
-  return raw || "İsimsiz Danışan";
 }
 
 export default function ClientPicker({
@@ -28,11 +24,14 @@ export default function ClientPicker({
   selectedId?: string | null;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations("clients.picker");
   const [q, setQ] = useState("");
   const [list, setList] = useState<PickerClient[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Görünür ad (boşsa i18n fallback). Payload-üretici clientLabel() SAF kalır.
+  const displayLabel = (c: PickerClient) => `${c.ad ?? ""} ${c.soyad ?? ""}`.trim() || t("unnamed");
 
   useEffect(() => {
     let alive = true;
@@ -49,11 +48,11 @@ export default function ClientPicker({
           const rows = Array.isArray(j?.clients) ? j.clients : [];
           setList(rows as PickerClient[]);
         })
-        .catch(() => { if (alive) setError("Danışan listesi alınamadı."); })
+        .catch(() => { if (alive) setError(t("error")); })
         .finally(() => { if (alive) setLoading(false); });
     }, 250);
     return () => { alive = false; if (timer.current) clearTimeout(timer.current); };
-  }, [q]);
+  }, [q, t]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -62,16 +61,16 @@ export default function ClientPicker({
         value={q}
         autoFocus={autoFocus}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Danışan ara (ad/soyad)…"
+        placeholder={t("searchPlaceholder")}
         className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
-        aria-label="Danışan ara"
+        aria-label={t("searchAria")}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="max-h-64 overflow-y-auto rounded-lg border border-emerald-100 bg-white">
         {loading && list.length === 0 ? (
-          <p className="px-3 py-3 text-sm text-slate-400">Yükleniyor…</p>
+          <p className="px-3 py-3 text-sm text-slate-400">{t("loading")}</p>
         ) : list.length === 0 ? (
-          <p className="px-3 py-3 text-sm text-slate-400">Danışan bulunamadı.</p>
+          <p className="px-3 py-3 text-sm text-slate-400">{t("empty")}</p>
         ) : (
           <ul className="divide-y divide-emerald-50">
             {list.map((c) => (
@@ -83,7 +82,7 @@ export default function ClientPicker({
                     selectedId === c.id ? "bg-emerald-100 font-semibold" : ""
                   }`}
                 >
-                  <span>{clientLabel(c)}</span>
+                  <span>{displayLabel(c)}</span>
                   {selectedId === c.id && <span className="text-emerald-600">✓</span>}
                 </button>
               </li>

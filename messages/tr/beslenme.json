@@ -117,6 +117,7 @@
     "plan": {
       "context": {
         "clientLabel": "Danışan",
+        "clientFallback": "İsimsiz Danışan",
         "goalLabel": "Hedef",
         "allergensLabel": "Beyan Edilen Alerjiler",
         "avoidedLabel": "Kaçınılan Besinler",
@@ -131,7 +132,12 @@
         "bindFailed": "Danışana bağlanamadı.",
         "advisory": "Beyan edilen alerjiler danışan bildirimidir; besinlerle otomatik eşleme yapılmaz."
       },
-      "avoidedItem": "Bu besin danışanın kaçınılan besinleri arasında."
+      "avoidedItem": "Bu besin danışanın kaçınılan besinleri arasında.",
+      "newPlan": {
+        "remove": "kaldır",
+        "bindOptional": "+ Danışana bağla (opsiyonel)",
+        "bindFailedStandalone": "Plan oluşturuldu ancak danışana bağlanamadı; plan bağsız kaydedildi."
+      }
     }
   }
 }

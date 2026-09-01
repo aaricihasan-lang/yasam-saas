@@ -118,6 +118,14 @@
         "saved": "Client saved.",
         "saveError": "Save error"
       }
+    },
+    "picker": {
+      "searchPlaceholder": "Search clients (name/surname)…",
+      "searchAria": "Search clients",
+      "loading": "Loading…",
+      "empty": "No clients found.",
+      "error": "Could not load client list.",
+      "unnamed": "Unnamed Client"
     }
   }
 }

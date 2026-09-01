@@ -118,6 +118,14 @@
         "saved": "Danışan kaydedildi.",
         "saveError": "Kayıt hatası"
       }
+    },
+    "picker": {
+      "searchPlaceholder": "Danışan ara (ad/soyad)…",
+      "searchAria": "Danışan ara",
+      "loading": "Yükleniyor…",
+      "empty": "Danışan bulunamadı.",
+      "error": "Danışan listesi alınamadı.",
+      "unnamed": "İsimsiz Danışan"
     }
   }
 }
