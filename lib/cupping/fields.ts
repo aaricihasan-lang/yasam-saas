@@ -15,6 +15,8 @@ export const CUPPING_TABLES = {
   knowledge: "cupping_knowledge_records",
   sources: "cupping_sources",
   safety: "cupping_safety_notes",
+  // ── FAZ 4 — technique ↔ master safety note (protocol_safety'den AYRI) ──
+  techniqueSafety: "cupping_technique_safety",
   // ── FAZ 1.5 — tipli citation junction tabloları ──
   pointSources: "cupping_point_sources",
   topicSources: "cupping_topic_sources",
@@ -101,6 +103,8 @@ export const TECHNIQUE_WRITABLE = [
   "application_info",
   "safety_note",
   "source_note",
+  // ── FAZ 4 — "Uzman Notum" (kişisel not; source_note/safety_note'tan AYRI) ──
+  "practitioner_note",
   "sort_order",
   "is_active",
 ] as const;
@@ -201,6 +205,14 @@ export const PROTOCOL_TECHNIQUE_META_WRITABLE = ["protocol_note", "sort_order"] 
 /** cupping_protocol_safety — POST (FK dahil) / PATCH (yalnız META). */
 export const PROTOCOL_SAFETY_WRITABLE = ["protocol_id", "safety_id", "protocol_note", "sort_order"] as const;
 export const PROTOCOL_SAFETY_META_WRITABLE = ["protocol_note", "sort_order"] as const;
+
+/**
+ * FAZ 4 — cupping_technique_safety (technique ↔ master safety note).
+ * POST FK'leri (technique_id, safety_id) içerir; PATCH yalnız META (note/sort_order) —
+ * technique_id/safety_id/tenant_id PATCH ile DEĞİŞTİRİLEMEZ (immutable ilişki kimliği).
+ */
+export const TECHNIQUE_SAFETY_WRITABLE = ["technique_id", "safety_id", "note", "sort_order"] as const;
+export const TECHNIQUE_SAFETY_META_WRITABLE = ["note", "sort_order"] as const;
 
 /**
  * cupping_protocol_steps — POST (protocol_id dahil) / PATCH (protocol_id HARİÇ; ref'ler

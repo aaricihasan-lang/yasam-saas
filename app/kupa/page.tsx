@@ -6,14 +6,15 @@ import { KupaShell, kupaCard, kupaBtnPrimary } from "./components/KupaShell";
 /**
  * Kupa & Hacamat Terapisi — modül landing (V2 çalışma merkezi).
  *
- * HİYERARŞİ (FAZ 3B): eşit-ağırlıklı 6 kart DEĞİL. Üç katman:
- *   1) PRIMARY HERO  → Hacamat Protokolleri (günlük çalışma alanı; dominant)
+ * HİYERARŞİ (FAZ 4 sadeleştirme): eşit-ağırlıklı kart DEĞİL. İki katman:
+ *   1) PRIMARY HERO  → Hacamat Protokolleri (TEK günlük çalışma alanı; dominant)
  *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (2 kart:
  *        Hacamat Noktaları + Kupa Teknikleri)
- *   3) MEVCUT REHBER → Amaç / Rahatsızlık Rehberi (legacy; korunur ama subordinate)
  *
- * Güvenlik, Kaynaklar ve Bilgi & Eğitim standalone ekranları/altyapısı KORUNUR
- * (route + API + DB aynen yaşar) ama günlük landing navigasyonunda GÖRÜNMEZ;
+ * owner FINAL: eski bağımsız konu/rahatsızlık rehber akışı kullanıcıdan KALDIRILDI —
+ * aynı konu iki ayrı yerde tutulmasın. Legacy verisi (cupping_topics vb.) DB'de DORMANT
+ * korunur; ilgili eski rota protokol çalışma alanına yönlendirir (route seviyesinde
+ * redirect). Güvenlik/Kaynaklar/Bilgi standalone altyapısı KORUNUR ama landing'de GÖRÜNMEZ;
  * uzman bunları protokolün içinden oluşturup bağlar. Yalnız landing hiyerarşisi.
  *
  * Copy kullanıcı dilinde (DB/mimari jargonu YOK). İçerik/route DEĞİŞMEZ; yalnız
@@ -97,31 +98,6 @@ export default function KupaLandingPage() {
             </span>
           </Link>
         ))}
-      </div>
-
-      {/* ── 3) MEVCUT REHBER — Amaç / Rahatsızlık Rehberi (legacy; sakin/subordinate) ── */}
-      <div className="mt-5">
-        <Link
-          href="/kupa/amac-rehberi"
-          className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3.5 text-inherit no-underline outline-none transition duration-200 hover:border-slate-300 hover:bg-white focus-visible:ring-2 focus-visible:ring-amber-400/60"
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xl" aria-hidden>
-              🎯
-            </span>
-            <div className="min-w-0">
-              <span className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Mevcut Rehber</span>
-              <h3 className="text-[15px] font-bold text-slate-800">Amaç / Rahatsızlık Rehberi</h3>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500">
-                Mevcut konu, ilişkili bölgeler ve kaynak kayıtlarınızı görüntüleyin.
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-600">
-            Rehberi Aç
-            <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
-          </span>
-        </Link>
       </div>
 
       {/* Sakin editoryal not (medical claim YOK). */}

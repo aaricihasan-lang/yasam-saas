@@ -1,20 +1,10 @@
-import { TopicDetailClient } from "./TopicDetailClient";
+import { redirect } from "next/navigation";
 
 /**
- * AYRI TOPIC OKUMA SAYFASI — /kupa/amac-rehberi/[topicId]
- *
- * Mobile/tablet'te rahatsızlığa dokununca açılan TAM GENİŞ, sade okuma sayfası
- * (sidebar/kart-listesi/yeni-form YOK; yalnız seçili rahatsızlığın okuma içeriği).
- * Statik /yeni segmenti App Router'da bu dinamik segmentten önce eşleşir (çakışma yok).
- *
- * Next.js 16: params bir Promise'tir (await edilir), sonra client bileşene geçilir.
- * Özel geri / floating back butonu YOK — kullanıcı tarayıcı ileri/geri kullanır.
+ * FAZ 4 — ürün sadeleştirme (owner FINAL): legacy "Amaç / Rahatsızlık Rehberi" konu
+ * okuma sayfası KALDIRILDI. Bu dinamik rota (herhangi bir topicId için) eski okuma
+ * UI'sını AÇMAZ; /kupa/protokoller'e yönlendirir. Legacy topic verisi DB'de DORMANT kalır.
  */
-type PageProps = {
-  params: Promise<{ topicId: string }>;
-};
-
-export default async function AmacRehberiDetailPage({ params }: PageProps) {
-  const { topicId } = await params;
-  return <TopicDetailClient topicId={decodeURIComponent(topicId)} />;
+export default function AmacRehberiDetailPage() {
+  redirect("/kupa/protokoller");
 }
