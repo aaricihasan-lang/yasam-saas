@@ -1,0 +1,137 @@
+{
+  "beslenme": {
+    "detail": {
+      "loading": "Loading…",
+      "denied": "This section is available to the system owner only.",
+      "clientFallback": "Client",
+      "eyebrow": "Nutrition",
+      "bloodLabel": "Blood Type",
+      "temperamentLabel": "Temperament",
+      "integrativeNote": "Blood type / temperament is holistic context; it is separate from nutritional science and does not generate automatic recommendations.",
+      "banner": {
+        "profileSaved": "Profile saved.",
+        "profileSaveFailed": "Could not save profile",
+        "allergensUpdated": "Allergens updated.",
+        "allergensSaveFailed": "Could not save allergens",
+        "measurementAdded": "Measurement added.",
+        "measurementAddFailed": "Could not add measurement",
+        "measurementDeleted": "Measurement deleted.",
+        "weightRequired": "Weight is required.",
+        "foodNameRequired": "Food name is required.",
+        "prefAdded": "Added.",
+        "prefAddFailed": "Could not add"
+      },
+      "profile": {
+        "title": "Nutrition Profile",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "goal": "Goal",
+        "activity": "Activity",
+        "dietaryPattern": "Dietary Pattern",
+        "mealCount": "Meal Count",
+        "mealCountEdit": "Meal Count (1-12)",
+        "targetWeight": "Target Weight",
+        "targetWeightEdit": "Target Weight (20-500)",
+        "targetWeightValue": "{kg} kg",
+        "waterNote": "Water Note",
+        "lifestyle": "Lifestyle",
+        "lifestyleEdit": "Lifestyle Note",
+        "generalNote": "General Note"
+      },
+      "measurements": {
+        "title": "Recent Measurements",
+        "date": "Date",
+        "weight": "Weight",
+        "height": "Height",
+        "waist": "Waist",
+        "hip": "Hip",
+        "bmi": "BMI",
+        "note": "Note",
+        "empty": "No measurements.",
+        "weightValue": "{kg} kg",
+        "delete": "Delete",
+        "phWeight": "Weight*",
+        "phHeight": "Height",
+        "phWaist": "Waist",
+        "phHip": "Hip",
+        "phNote": "Note",
+        "add": "Add"
+      },
+      "allergens": {
+        "title": "Declared Allergens",
+        "save": "Save",
+        "advisory": "This information is based on the client's declaration. No automatic allergen matching against foods is performed.",
+        "loadingVocab": "Loading allergen list…"
+      },
+      "preferences": {
+        "title": "Preferred / Avoided Foods",
+        "preferredGroup": "Preferred",
+        "avoidedGroup": "Avoided",
+        "empty": "—",
+        "delete": "delete",
+        "optPreferred": "Preferred",
+        "optAvoided": "Avoided",
+        "phFood": "Food name*",
+        "phNote": "Note",
+        "add": "Add"
+      },
+      "plans": {
+        "title": "Nutrition Plans",
+        "new": "New Nutrition Plan",
+        "empty": "No plan bound to this client."
+      },
+      "goalType": {
+        "weight_loss": "Weight Loss",
+        "weight_gain": "Weight Gain",
+        "maintenance": "Maintenance / Balance",
+        "muscle_gain": "Muscle Gain",
+        "healthy_lifestyle": "Healthy Lifestyle",
+        "other": "Other"
+      },
+      "activity": {
+        "sedentary": "Sedentary",
+        "light": "Lightly Active",
+        "moderate": "Moderately Active",
+        "active": "Active",
+        "very_active": "Very Active"
+      },
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "mizac": {
+        "dem": "Sanguine (Warm-Moist)",
+        "safra": "Choleric (Warm-Dry)",
+        "sovdavi": "Melancholic (Cold-Dry)",
+        "balgam": "Phlegmatic (Cold-Moist)"
+      },
+      "kan": {
+        "0": "0 (Zero)",
+        "A": "A",
+        "B": "B",
+        "AB": "AB"
+      }
+    },
+    "plan": {
+      "context": {
+        "clientLabel": "Client",
+        "goalLabel": "Goal",
+        "allergensLabel": "Declared Allergens",
+        "avoidedLabel": "Avoided Foods",
+        "bloodLabel": "Blood Type",
+        "temperamentLabel": "Temperament",
+        "none": "—",
+        "unbound": "This plan is not bound to a client.",
+        "bind": "Bind to Client",
+        "close": "Close",
+        "lockedArchived": "This plan contains an archived revision and cannot be bound to a client.",
+        "immutableError": "This plan is already bound to another client; it cannot be changed.",
+        "bindFailed": "Could not bind to client.",
+        "advisory": "Declared allergens are client statements; no automatic matching against foods is performed."
+      },
+      "avoidedItem": "This food is among the client's avoided foods."
+    }
+  }
+}

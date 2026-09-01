@@ -49,6 +49,8 @@ import {
   statusLabel,
 } from "../_components/planFormat";
 import { PlanTools } from "../_components/PlanTools";
+import PlanClientContext from "./_components/PlanClientContext";
+import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
@@ -71,6 +73,9 @@ export default function PlanEditorPage() {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionErr, setActionErr] = useState("");
+  // FAZ 7 §17: bağlı danışanın kaçınılan besin id'leri (PlanClientContext'ten beslenir;
+  // item satırlarına context ile taşınır). setState setter stabil → effect döngüsü yok.
+  const [avoidedFoodIds, setAvoidedFoodIds] = useState<Set<string>>(new Set());
 
   const reloadPlan = useCallback(async () => {
     if (!id) return;
@@ -188,7 +193,10 @@ export default function PlanEditorPage() {
       ) : err || !plan ? (
         <StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage>
       ) : (
+        <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
+          {/* FAZ 7: danışan bağlam şeridi (owner-only; API owner-authoritative) */}
+          <PlanClientContext planId={id} onAvoidedFoodIdsChange={setAvoidedFoodIds} />
           {/* Bilgi şeridi */}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${statusClass(plan.status)}`}>
@@ -260,6 +268,7 @@ export default function PlanEditorPage() {
             />
           )}
         </div>
+        </AvoidedFoodIdsProvider>
       )}
 
       {plan && metaOpen ? (

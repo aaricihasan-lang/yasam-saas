@@ -8,7 +8,14 @@ import { mapAssignError } from "@/lib/beslenme/clientContracts";
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET: bu planın family'sinin mevcut danışan bağı (varsa). Plan editor context için. */
+/**
+ * GET: bu planın family'sinin mevcut danışan bağı (varsa) + kompakt bağlam özeti.
+ * Plan editor context şeridi + kaçınılan-besin advisory'si için (§15/§16/§17).
+ *
+ * SPOOF-PROOF: client_id URL/body'den ALINMAZ; plan_id → tenant → family →
+ * nutrition_plan_clients → client zincirinden SERVER çözer. Yabancı danışan bağlamı
+ * enjekte edilemez. Yalnız non-PII alanlar döner (telefon/adres YOK — §15/§22).
+ */
 export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const guard = await requireBeslenmeOwner(req);
   if (!guard.ok) return guard.response;
@@ -31,9 +38,47 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const familyArchived = (plan as { status?: string }).status === "archived";
     return NextResponse.json({ ok: true, bound: false, canBind: !familyArchived }, { headers: { "Cache-Control": "no-store" } });
   }
+
   const client = await requireClientInTenant(db, tenantId, clientId);
+  if (!client) {
+    // binding var ama client çözülemedi (yarış/silme) → bağsız gibi davran (fail-safe).
+    return NextResponse.json({ ok: true, bound: false, canBind: false }, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  // Kompakt bağlam: hedef + beyan alerjiler + kaçınılan besinler (id + label).
+  // client_id server-doğrulanmış clientId'dir (spoof edilemez). Tek round-trip demeti.
+  const [profileRes, allergenRes, avoidedRes] = await Promise.all([
+    db.from("nutrition_client_profiles")
+      .select("goal_type, goal_note")
+      .eq("tenant_id", tenantId).eq("client_id", clientId).maybeSingle(),
+    db.from("nutrition_client_allergens")
+      .select("nutrition_allergens(code, name_tr, name_en)")
+      .eq("tenant_id", tenantId).eq("client_id", clientId),
+    db.from("nutrition_client_food_preferences")
+      .select("food_id, food_label")
+      .eq("tenant_id", tenantId).eq("client_id", clientId).eq("stance", "avoided"),
+  ]);
+
+  const profile = (profileRes.data ?? null) as { goal_type: string | null; goal_note: string | null } | null;
+  const allergenRows = (allergenRes.data ?? []) as unknown as Array<{
+    nutrition_allergens: { code: string; name_tr: string | null; name_en: string | null } | null;
+  }>;
+  const avoidedRows = (avoidedRes.data ?? []) as Array<{ food_id: string | null; food_label: string }>;
+
+  const context = {
+    goal_type: profile?.goal_type ?? null,
+    goal_note: profile?.goal_note ?? null,
+    allergens: allergenRows
+      .map((r) => r.nutrition_allergens)
+      .filter((a): a is { code: string; name_tr: string | null; name_en: string | null } => a != null)
+      .map((a) => ({ code: a.code, name_tr: a.name_tr, name_en: a.name_en })),
+    avoided: avoidedRows.map((r) => ({ food_id: r.food_id, food_label: r.food_label })),
+    kan: client.kan ?? null,
+    mizac: client.mizac ?? null,
+  };
+
   return NextResponse.json(
-    { ok: true, bound: true, client: client ? { id: client.id, display_name: clientDisplayName(client) } : null },
+    { ok: true, bound: true, client: { id: client.id, display_name: clientDisplayName(client) }, context },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

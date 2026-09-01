@@ -3,9 +3,12 @@
  * Danışan detay — Beslenme sekmesi (FAZ 7). Owner/super-admin-only içerik.
  * Self-fetch (clientId prop). Profil + Ölçümler + Beyan Alerjiler + Tercihler + Planlar.
  * PII tekrarı YOK; clients.kan/mizac read-only integrative badge. CRM paneli DEĞİL.
+ * i18n: beslenme.detail namespace (EN/TR). DB kodları (goal_type/activity/kan/mizac/
+ * stance/status) canonical'dır; YALNIZ display çevrilir.
  */
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
 import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import {
@@ -15,15 +18,10 @@ import {
   type ClientProfile, type ClientContext, type Measurement, type ClientAllergen,
   type FoodPreference, type PlanFamily, type AllergenVocab,
 } from "@/lib/beslenme/clientTabClient";
-import {
-  GOAL_TYPES, GOAL_TYPE_LABELS, ACTIVITY_LEVELS, ACTIVITY_LEVEL_LABELS,
-  MIZAC_LABELS, computeBmi,
-} from "@/lib/beslenme/clientContracts";
+import { GOAL_TYPES, ACTIVITY_LEVELS, computeBmi } from "@/lib/beslenme/clientContracts";
 
 type Props = { clientId: string; clientName?: string; tenantId?: string };
-
-const KAN_LABEL: Record<string, string> = { "0": "0 (Sıfır)", A: "A", B: "B", AB: "AB" };
-const STATUS_LABEL: Record<string, string> = { draft: "Taslak", active: "Aktif", archived: "Arşiv" };
+type Tf = ReturnType<typeof useTranslations>;
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -38,6 +36,7 @@ function Section({ title, children, action }: { title: string; children: React.R
 }
 
 export default function BeslenmeTab({ clientId, clientName }: Props) {
+  const t = useTranslations("beslenme.detail");
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
   const [client, setClient] = useState<ClientContext | null>(null);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
@@ -78,10 +77,12 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
     return () => { alive = false; };
   }, [reloadAll]);
 
-  if (access === "loading") return <p className="p-4 text-sm text-slate-400">Yükleniyor…</p>;
-  if (access === "denied") return <p className="p-4 text-sm text-slate-500">Bu bölüm yalnız sistem sahibine açıktır.</p>;
+  if (access === "loading") return <p className="p-4 text-sm text-slate-400">{t("loading")}</p>;
+  if (access === "denied") return <p className="p-4 text-sm text-slate-500">{t("denied")}</p>;
 
-  const name = client?.display_name || clientName || "Danışan";
+  const name = client?.display_name || clientName || t("clientFallback");
+  const kanText = client?.kan ? (t.has(`kan.${client.kan}`) ? t(`kan.${client.kan}`) : client.kan) : null;
+  const mizacText = client?.mizac ? (t.has(`mizac.${client.mizac}`) ? t(`mizac.${client.mizac}`) : client.mizac) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -89,38 +90,40 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
       <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-wide text-emerald-600">Beslenme</p>
+            <p className="text-xs uppercase tracking-wide text-emerald-600">{t("eyebrow")}</p>
             <h2 className="text-lg font-bold text-emerald-900">{name}</h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            {client?.kan && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">Kan Grubu: {KAN_LABEL[client.kan] ?? client.kan}</span>}
-            {client?.mizac && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">Mizaç: {MIZAC_LABELS[client.mizac] ?? client.mizac}</span>}
+            {kanText && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">{t("bloodLabel")}: {kanText}</span>}
+            {mizacText && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">{t("temperamentLabel")}: {mizacText}</span>}
           </div>
         </div>
-        <p className="mt-1 text-[11px] text-slate-400">Kan grubu / mizaç bütüncül bağlamdır; besin bilimsel değerlerinden ayrıdır ve otomatik öneri üretmez.</p>
+        <p className="mt-1 text-[11px] text-slate-400">{t("integrativeNote")}</p>
       </div>
 
       {banner && (
         <div className={`rounded-lg px-3 py-2 text-sm ${banner.kind === "ok" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>{banner.text}</div>
       )}
 
-      <ProfileSection clientId={clientId} profile={profile} onSaved={(p) => { setProfile(p); flash("ok", "Profil kaydedildi."); }} onErr={(t) => flash("err", t)} />
-      <MeasurementsSection clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
-      <AllergensSection clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", "Alerjiler güncellendi."); }} onErr={(t) => flash("err", t)} />
-      <PreferencesSection clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
-      <PlansSection clientId={clientId} clientName={name} families={families} />
+      <ProfileSection t={t} clientId={clientId} profile={profile} onSaved={(p) => { setProfile(p); flash("ok", t("banner.profileSaved")); }} onErr={(text) => flash("err", text)} />
+      <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
+      <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
+      <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
+      <PlansSection t={t} clientId={clientId} clientName={name} families={families} />
     </div>
   );
 }
 
 // ── Profil ──
-function ProfileSection({ clientId, profile, onSaved, onErr }: { clientId: string; profile: ClientProfile | null; onSaved: (p: ClientProfile) => void; onErr: (t: string) => void }) {
+function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clientId: string; profile: ClientProfile | null; onSaved: (p: ClientProfile) => void; onErr: (text: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<ClientProfile>>({});
   const [saving, setSaving] = useState(false);
   useEffect(() => { runInEffect(() => setForm(profile ?? {})); }, [profile, editing]);
 
   const num = (v: number | null | undefined) => (v == null ? "" : String(v));
+  const goalLabel = (g: string) => (t.has(`goalType.${g}`) ? t(`goalType.${g}`) : g);
+  const activityLabel = (a: string) => (t.has(`activity.${a}`) ? t(`activity.${a}`) : a);
   const save = async () => {
     setSaving(true);
     const body: Record<string, unknown> = {
@@ -137,35 +140,35 @@ function ProfileSection({ clientId, profile, onSaved, onErr }: { clientId: strin
     const r = await saveProfile(clientId, body as Partial<ClientProfile>);
     setSaving(false);
     if (r.ok && r.data) { onSaved(r.data.profile); setEditing(false); }
-    else onErr("Profil kaydedilemedi" + (r.code ? ` (${r.code})` : ""));
+    else onErr(t("banner.profileSaveFailed") + (r.code ? ` (${r.code})` : ""));
   };
 
   return (
-    <Section title="Beslenme Profili" action={!editing && <button className="text-sm text-emerald-700 hover:underline" onClick={() => setEditing(true)}>Düzenle</button>}>
+    <Section title={t("profile.title")} action={!editing && <button className="text-sm text-emerald-700 hover:underline" onClick={() => setEditing(true)}>{t("profile.edit")}</button>}>
       {!editing ? (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          <Field label="Hedef" value={profile?.goal_type ? GOAL_TYPE_LABELS[profile.goal_type as keyof typeof GOAL_TYPE_LABELS] : "—"} />
-          <Field label="Aktivite" value={profile?.activity_level ? ACTIVITY_LEVEL_LABELS[profile.activity_level as keyof typeof ACTIVITY_LEVEL_LABELS] : "—"} />
-          <Field label="Beslenme Düzeni" value={profile?.dietary_pattern || "—"} />
-          <Field label="Öğün Sayısı" value={num(profile?.daily_meal_count) || "—"} />
-          <Field label="Hedef Kilo" value={profile?.target_weight_kg != null ? `${profile.target_weight_kg} kg` : "—"} />
-          <Field label="Su Notu" value={profile?.water_note || "—"} />
-          <Field label="Yaşam Tarzı" value={profile?.lifestyle_note || "—"} full />
-          <Field label="Genel Not" value={profile?.general_note || "—"} full />
+          <Field label={t("profile.goal")} value={profile?.goal_type ? goalLabel(profile.goal_type) : "—"} />
+          <Field label={t("profile.activity")} value={profile?.activity_level ? activityLabel(profile.activity_level) : "—"} />
+          <Field label={t("profile.dietaryPattern")} value={profile?.dietary_pattern || "—"} />
+          <Field label={t("profile.mealCount")} value={num(profile?.daily_meal_count) || "—"} />
+          <Field label={t("profile.targetWeight")} value={profile?.target_weight_kg != null ? t("profile.targetWeightValue", { kg: profile.target_weight_kg }) : "—"} />
+          <Field label={t("profile.waterNote")} value={profile?.water_note || "—"} />
+          <Field label={t("profile.lifestyle")} value={profile?.lifestyle_note || "—"} full />
+          <Field label={t("profile.generalNote")} value={profile?.general_note || "—"} full />
         </dl>
       ) : (
         <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <Select label="Hedef" value={form.goal_type ?? ""} onChange={(v) => setForm({ ...form, goal_type: v || null })} options={GOAL_TYPES.map((g) => [g, GOAL_TYPE_LABELS[g]])} />
-          <Select label="Aktivite" value={form.activity_level ?? ""} onChange={(v) => setForm({ ...form, activity_level: v || null })} options={ACTIVITY_LEVELS.map((a) => [a, ACTIVITY_LEVEL_LABELS[a]])} />
-          <Text label="Beslenme Düzeni" value={form.dietary_pattern ?? ""} onChange={(v) => setForm({ ...form, dietary_pattern: v || null })} />
-          <NumberInput label="Öğün Sayısı (1-12)" value={num(form.daily_meal_count)} onChange={(v) => setForm({ ...form, daily_meal_count: v === "" ? null : Number(v) })} />
-          <NumberInput label="Hedef Kilo (20-500)" value={num(form.target_weight_kg)} onChange={(v) => setForm({ ...form, target_weight_kg: v === "" ? null : Number(v) })} />
-          <Text label="Su Notu" value={form.water_note ?? ""} onChange={(v) => setForm({ ...form, water_note: v || null })} />
-          <Textarea label="Yaşam Tarzı Notu" value={form.lifestyle_note ?? ""} onChange={(v) => setForm({ ...form, lifestyle_note: v || null })} />
-          <Textarea label="Genel Not" value={form.general_note ?? ""} onChange={(v) => setForm({ ...form, general_note: v || null })} />
+          <Select label={t("profile.goal")} value={form.goal_type ?? ""} onChange={(v) => setForm({ ...form, goal_type: v || null })} options={GOAL_TYPES.map((g) => [g, goalLabel(g)])} />
+          <Select label={t("profile.activity")} value={form.activity_level ?? ""} onChange={(v) => setForm({ ...form, activity_level: v || null })} options={ACTIVITY_LEVELS.map((a) => [a, activityLabel(a)])} />
+          <Text label={t("profile.dietaryPattern")} value={form.dietary_pattern ?? ""} onChange={(v) => setForm({ ...form, dietary_pattern: v || null })} />
+          <NumberInput label={t("profile.mealCountEdit")} value={num(form.daily_meal_count)} onChange={(v) => setForm({ ...form, daily_meal_count: v === "" ? null : Number(v) })} />
+          <NumberInput label={t("profile.targetWeightEdit")} value={num(form.target_weight_kg)} onChange={(v) => setForm({ ...form, target_weight_kg: v === "" ? null : Number(v) })} />
+          <Text label={t("profile.waterNote")} value={form.water_note ?? ""} onChange={(v) => setForm({ ...form, water_note: v || null })} />
+          <Textarea label={t("profile.lifestyleEdit")} value={form.lifestyle_note ?? ""} onChange={(v) => setForm({ ...form, lifestyle_note: v || null })} />
+          <Textarea label={t("profile.generalNote")} value={form.general_note ?? ""} onChange={(v) => setForm({ ...form, general_note: v || null })} />
           <div className="col-span-full flex gap-2">
-            <button disabled={saving} onClick={save} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Kaydet</button>
-            <button onClick={() => setEditing(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm">Vazgeç</button>
+            <button disabled={saving} onClick={save} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t("profile.save")}</button>
+            <button onClick={() => setEditing(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm">{t("profile.cancel")}</button>
           </div>
         </div>
       )}
@@ -174,34 +177,35 @@ function ProfileSection({ clientId, profile, onSaved, onErr }: { clientId: strin
 }
 
 // ── Ölçümler ──
-function MeasurementsSection({ clientId, rows, onChange, onMsg }: { clientId: string; rows: Measurement[]; onChange: () => void; onMsg: (k: "ok" | "err", t: string) => void }) {
+function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; clientId: string; rows: Measurement[]; onChange: () => void; onMsg: (k: "ok" | "err", text: string) => void }) {
+  const locale = useLocale();
   const [w, setW] = useState(""); const [h, setH] = useState(""); const [waist, setWaist] = useState(""); const [hip, setHip] = useState(""); const [note, setNote] = useState("");
   const add = async () => {
-    if (!w.trim()) { onMsg("err", "Kilo gerekli."); return; }
+    if (!w.trim()) { onMsg("err", t("banner.weightRequired")); return; }
     const r = await addMeasurement(clientId, { weight_kg: Number(w), height_cm: h ? Number(h) : null, waist_cm: waist ? Number(waist) : null, hip_cm: hip ? Number(hip) : null, note: note || null });
-    if (r.ok) { setW(""); setH(""); setWaist(""); setHip(""); setNote(""); onMsg("ok", "Ölçüm eklendi."); onChange(); }
-    else onMsg("err", "Ölçüm eklenemedi" + (r.code ? ` (${r.code})` : ""));
+    if (r.ok) { setW(""); setH(""); setWaist(""); setHip(""); setNote(""); onMsg("ok", t("banner.measurementAdded")); onChange(); }
+    else onMsg("err", t("banner.measurementAddFailed") + (r.code ? ` (${r.code})` : ""));
   };
-  const del = async (id: string) => { const r = await deleteMeasurement(clientId, id); if (r.ok) { onMsg("ok", "Ölçüm silindi."); onChange(); } };
+  const del = async (id: string) => { const r = await deleteMeasurement(clientId, id); if (r.ok) { onMsg("ok", t("banner.measurementDeleted")); onChange(); } };
   return (
-    <Section title="Son Ölçümler">
+    <Section title={t("measurements.title")}>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">Tarih</th><th className="pr-3">Kilo</th><th className="pr-3">Boy</th><th className="pr-3">Bel</th><th className="pr-3">Kalça</th><th className="pr-3">BMI</th><th className="pr-3">Not</th><th /></tr></thead>
+          <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">{t("measurements.date")}</th><th className="pr-3">{t("measurements.weight")}</th><th className="pr-3">{t("measurements.height")}</th><th className="pr-3">{t("measurements.waist")}</th><th className="pr-3">{t("measurements.hip")}</th><th className="pr-3">{t("measurements.bmi")}</th><th className="pr-3">{t("measurements.note")}</th><th /></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={8} className="py-2 text-slate-400">Ölçüm yok.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={8} className="py-2 text-slate-400">{t("measurements.empty")}</td></tr>}
             {rows.map((m) => {
               const bmi = computeBmi(m.weight_kg, m.height_cm);
               return (
                 <tr key={m.id} className="border-t border-emerald-50">
-                  <td className="py-1 pr-3 text-slate-600">{new Date(m.measured_at).toLocaleDateString("tr-TR")}</td>
-                  <td className="pr-3">{m.weight_kg} kg</td>
+                  <td className="py-1 pr-3 text-slate-600">{new Date(m.measured_at).toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR")}</td>
+                  <td className="pr-3">{t("measurements.weightValue", { kg: m.weight_kg })}</td>
                   <td className="pr-3">{m.height_cm ?? "—"}</td>
                   <td className="pr-3">{m.waist_cm ?? "—"}</td>
                   <td className="pr-3">{m.hip_cm ?? "—"}</td>
                   <td className="pr-3">{bmi ?? "—"}</td>
                   <td className="pr-3 text-slate-500">{m.note ?? ""}</td>
-                  <td><button onClick={() => del(m.id)} className="text-xs text-red-500 hover:underline">Sil</button></td>
+                  <td><button onClick={() => del(m.id)} className="text-xs text-red-500 hover:underline">{t("measurements.delete")}</button></td>
                 </tr>
               );
             })}
@@ -209,34 +213,36 @@ function MeasurementsSection({ clientId, rows, onChange, onMsg }: { clientId: st
         </table>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
-        <input value={w} onChange={(e) => setW(e.target.value)} placeholder="Kilo*" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={h} onChange={(e) => setH(e.target.value)} placeholder="Boy" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder="Bel" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder="Kalça" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">Ekle</button>
+        <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("measurements.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("measurements.add")}</button>
       </div>
     </Section>
   );
 }
 
 // ── Alerjiler ──
-function AllergensSection({ clientId, vocab, current, onSaved, onErr }: { clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; onSaved: () => void; onErr: (t: string) => void }) {
+function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; onSaved: () => void; onErr: (text: string) => void }) {
+  const locale = useLocale();
   const [sel, setSel] = useState<Set<string>>(new Set());
   useEffect(() => { runInEffect(() => setSel(new Set(current.map((a) => a.allergen_id)))); }, [current]);
   const toggle = (id: string) => { const n = new Set(sel); if (n.has(id)) n.delete(id); else n.add(id); setSel(n); };
   const save = async () => {
     const r = await setAllergens(clientId, [...sel].map((id) => ({ allergen_id: id })));
-    if (r.ok) onSaved(); else onErr("Alerjiler kaydedilemedi" + (r.code ? ` (${r.code})` : ""));
+    if (r.ok) onSaved(); else onErr(t("banner.allergensSaveFailed") + (r.code ? ` (${r.code})` : ""));
   };
+  const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
-    <Section title="Beyan Edilen Alerjiler" action={<button onClick={save} className="text-sm text-emerald-700 hover:underline">Kaydet</button>}>
-      <p className="mb-2 text-[11px] text-amber-700">Bu bilgiler danışanın beyanına dayanır. Besinlerle otomatik alerjen eşlemesi yapılmaz.</p>
+    <Section title={t("allergens.title")} action={<button onClick={save} className="text-sm text-emerald-700 hover:underline">{t("allergens.save")}</button>}>
+      <p className="mb-2 text-[11px] text-amber-700">{t("allergens.advisory")}</p>
       <div className="flex flex-wrap gap-2">
-        {vocab.length === 0 && <span className="text-sm text-slate-400">Alerjen listesi yükleniyor…</span>}
+        {vocab.length === 0 && <span className="text-sm text-slate-400">{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
           <button key={a.id} onClick={() => toggle(a.id)} className={`rounded-full px-3 py-1 text-sm ring-1 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
-            {a.name_tr || a.code}{a.is_major ? " ★" : ""}
+            {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
       </div>
@@ -245,28 +251,28 @@ function AllergensSection({ clientId, vocab, current, onSaved, onErr }: { client
 }
 
 // ── Tercihler ──
-function PreferencesSection({ clientId, rows, onChange, onMsg }: { clientId: string; rows: FoodPreference[]; onChange: () => void; onMsg: (k: "ok" | "err", t: string) => void }) {
+function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; clientId: string; rows: FoodPreference[]; onChange: () => void; onMsg: (k: "ok" | "err", text: string) => void }) {
   const [stance, setStance] = useState<"preferred" | "avoided">("preferred");
   const [label, setLabel] = useState(""); const [note, setNote] = useState("");
   const add = async () => {
-    if (!label.trim()) { onMsg("err", "Besin adı gerekli."); return; }
+    if (!label.trim()) { onMsg("err", t("banner.foodNameRequired")); return; }
     const r = await addPreference(clientId, { stance, food_label: label.trim(), note: note || null });
-    if (r.ok) { setLabel(""); setNote(""); onMsg("ok", "Eklendi."); onChange(); } else onMsg("err", "Eklenemedi" + (r.code ? ` (${r.code})` : ""));
+    if (r.ok) { setLabel(""); setNote(""); onMsg("ok", t("banner.prefAdded")); onChange(); } else onMsg("err", t("banner.prefAddFailed") + (r.code ? ` (${r.code})` : ""));
   };
   const del = async (id: string) => { const r = await deletePreference(clientId, id); if (r.ok) { onChange(); } };
   const group = (s: "preferred" | "avoided") => rows.filter((r) => r.stance === s);
   return (
-    <Section title="Tercih Edilen / Kaçınılan Besinler">
+    <Section title={t("preferences.title")}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(["preferred", "avoided"] as const).map((s) => (
           <div key={s}>
-            <h4 className="mb-1 text-sm font-semibold text-slate-700">{s === "preferred" ? "Tercih Edilenler" : "Kaçınılanlar"}</h4>
+            <h4 className="mb-1 text-sm font-semibold text-slate-700">{s === "preferred" ? t("preferences.preferredGroup") : t("preferences.avoidedGroup")}</h4>
             <ul className="space-y-1">
-              {group(s).length === 0 && <li className="text-sm text-slate-400">—</li>}
+              {group(s).length === 0 && <li className="text-sm text-slate-400">{t("preferences.empty")}</li>}
               {group(s).map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded bg-emerald-50/50 px-2 py-1 text-sm">
                   <span>{p.food_label}{p.note ? <span className="text-slate-400"> · {p.note}</span> : null}</span>
-                  <button onClick={() => del(p.id)} className="text-xs text-red-500 hover:underline">sil</button>
+                  <button onClick={() => del(p.id)} className="text-xs text-red-500 hover:underline">{t("preferences.delete")}</button>
                 </li>
               ))}
             </ul>
@@ -275,23 +281,24 @@ function PreferencesSection({ clientId, rows, onChange, onMsg }: { clientId: str
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className="rounded border border-emerald-200 px-2 py-1 text-sm">
-          <option value="preferred">Tercih</option><option value="avoided">Kaçınılan</option>
+          <option value="preferred">{t("preferences.optPreferred")}</option><option value="avoided">{t("preferences.optAvoided")}</option>
         </select>
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Besin adı*" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not" className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">Ekle</button>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("preferences.add")}</button>
       </div>
     </Section>
   );
 }
 
 // ── Planlar ──
-function PlansSection({ clientId, clientName, families }: { clientId: string; clientName: string; families: PlanFamily[] }) {
+function PlansSection({ t, clientId, clientName, families }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[] }) {
+  const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
   const newHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
   return (
-    <Section title="Beslenme Planları" action={<Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">Yeni Beslenme Planı</Link>}>
+    <Section title={t("plans.title")} action={<Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>}>
       {families.length === 0 ? (
-        <p className="text-sm text-slate-400">Bu danışana bağlı plan yok.</p>
+        <p className="text-sm text-slate-400">{t("plans.empty")}</p>
       ) : (
         <ul className="space-y-2">
           {families.map((f) => (
@@ -300,14 +307,14 @@ function PlansSection({ clientId, clientName, families }: { clientId: string; cl
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
-                    <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {STATUS_LABEL[f.latest.status] ?? f.latest.status} · {f.latest.start_date} → {f.latest.end_date}</span>
+                    <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {f.latest.start_date} → {f.latest.end_date}</span>
                   </div>
                 </div>
               )}
               {f.revisions.length > 1 && (
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                   {f.revisions.map((r) => (
-                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">V{r.revision_number} · {STATUS_LABEL[r.status] ?? r.status}</Link>
+                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">V{r.revision_number} · {statusLabel(r.status)}</Link>
                   ))}
                 </div>
               )}

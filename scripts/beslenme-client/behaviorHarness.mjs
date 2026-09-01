@@ -127,6 +127,27 @@ ok("preference insert (free-text)", true);
 ok("preference stance CHECK reddi", !!(await tryErr(`INSERT INTO nutrition_client_food_preferences (tenant_id, client_id, stance, food_label) VALUES ($1,$2,'hate','x')`, [TA, clientA])));
 ok("preference empty food_label reddi", !!(await tryErr(`INSERT INTO nutrition_client_food_preferences (tenant_id, client_id, stance, food_label) VALUES ($1,$2,'preferred','   ')`, [TA, clientA])));
 
+console.log("\n[Context resolution — kaçınılan besin advisory kaynak (§16/§17)]");
+// clientA'da zaten 1 avoided (food_id NULL — 'Kırmızı et' label-only). Ekleyelim:
+const foodAvoid = await val(`SELECT gen_random_uuid()`);   // structured avoided food_id
+const foodPref = await val(`SELECT gen_random_uuid()`);    // preferred food_id (avoided DEĞİL)
+await q(`INSERT INTO nutrition_client_food_preferences (tenant_id, client_id, stance, food_id, food_label) VALUES ($1,$2,'avoided',$3,'Fıstık')`, [TA, clientA, foodAvoid]);
+await q(`INSERT INTO nutrition_client_food_preferences (tenant_id, client_id, stance, food_id, food_label) VALUES ($1,$2,'preferred',$3,'Elma')`, [TA, clientA, foodPref]);
+// GET route query şekli: stance='avoided' satırları (food_id + food_label).
+const avoidedRows = (await q(`SELECT food_id, food_label FROM nutrition_client_food_preferences WHERE tenant_id=$1 AND client_id=$2 AND stance='avoided' ORDER BY food_label`, [TA, clientA])).rows;
+ok("avoided sorgusu 2 satır döner (label-only + structured)", avoidedRows.length === 2);
+const avoidedIds = new Set(avoidedRows.filter((r) => r.food_id).map((r) => r.food_id));
+ok("avoided food_id kümesi YALNIZ structured (label-only null hariç) = 1", avoidedIds.size === 1);
+ok("structured avoided food_id kümede (exact match → advisory)", avoidedIds.has(foodAvoid));
+ok("preferred food_id kümede DEĞİL (uyarı yok)", !avoidedIds.has(foodPref));
+ok("label-only avoided (food_id NULL) exact-id ile eşleşMEZ (fuzzy YOK)",
+  avoidedRows.some((r) => r.food_id === null) && !avoidedIds.has(null));
+// declared alerjen var ama food↔allergen mapping tablosu YOK → otomatik güvenlik iddiası imkansız (§19).
+ok("nutrition_food_allergens mapping tablosu YOK (auto allergy warning devre-dışı)",
+  (await val(`SELECT to_regclass('public.nutrition_food_allergens')`)) === null);
+ok("clientA'da beyan alerjen mevcut (advisory-only context)",
+  Number(await val(`SELECT count(*) FROM nutrition_client_allergens WHERE tenant_id=$1 AND client_id=$2`, [TA, clientA])) >= 1);
+
 console.log("\n[Assign RPC — immutable recipient]");
 const famA = crypto?.randomUUID ? crypto.randomUUID() : (await val(`SELECT gen_random_uuid()`));
 const planV1 = (await one(`INSERT INTO nutrition_plans (tenant_id, title, status, plan_family_id, revision_number) VALUES ($1,'Plan A','draft',$2,1) RETURNING id`, [TA, famA])).id;

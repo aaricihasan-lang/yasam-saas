@@ -86,7 +86,20 @@ export type AllergenVocab = { id: string; code: string; name_tr: string | null; 
 export const getAllergenVocab = () => req<{ allergens: AllergenVocab[] }>(`/api/beslenme/reference`, { headers: authHeaders() });
 
 // ── Assign / binding ──
-export type PlanBinding = { bound: boolean; canBind?: boolean; client?: { id: string; display_name: string } | null };
+export type PlanClientSummary = {
+  goal_type: string | null;
+  goal_note: string | null;
+  allergens: Array<{ code: string; name_tr: string | null; name_en: string | null }>;
+  avoided: Array<{ food_id: string | null; food_label: string }>;
+  kan: string | null;
+  mizac: string | null;
+};
+export type PlanBinding = {
+  bound: boolean;
+  canBind?: boolean;
+  client?: { id: string; display_name: string } | null;
+  context?: PlanClientSummary;
+};
 export const getPlanBinding = (planId: string) =>
   req<PlanBinding>(`/api/beslenme/plans/${planId}/assign-client`, { headers: authHeaders() });
 export const assignPlanClient = (planId: string, clientId: string) =>
