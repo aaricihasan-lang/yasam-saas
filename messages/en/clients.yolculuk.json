@@ -3,7 +3,7 @@
     "yolculuk": {
       "type": {
         "numeroloji": "Numerology",
-        "dogaltas": "Stones",
+        "dogaltas": "Natural Stone",
         "refleksoloji": "Reflexology",
         "biyoenerji": "Bioenergy",
         "not": "Note",
@@ -50,7 +50,7 @@
       "menu": {
         "genel": "General Info",
         "numeroloji": "Numerology",
-        "dogaltas": "Stones",
+        "dogaltas": "Natural Stone",
         "refleksoloji": "Reflexology",
         "biyoenerji": "Bioenergy",
         "notlar": "Notes",

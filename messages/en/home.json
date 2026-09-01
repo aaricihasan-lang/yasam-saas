@@ -89,7 +89,7 @@
     "modules": {
       "clients": { "title": "Client Journey", "desc": "Client records, appointments and session tracking in one place", "badge": "Core Module", "stat": "{n, plural, one {# client record} other {# client records}}" },
       "yasam_hafizasi": { "title": "Life Memory", "desc": "Search your professional knowledge and content across modules from one place", "badge": "Module" },
-      "stones": { "title": "Stones", "desc": "Stones, minerals and client matches", "badge": "Module", "stat": "{n, plural, one {# stone saved} other {# stones saved}}" },
+      "stones": { "title": "Natural Stone", "desc": "Stones, minerals and client matches", "badge": "Module", "stat": "{n, plural, one {# stone saved} other {# stones saved}}" },
       "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
       "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
       "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural support methods and professional reference resources: Aromatherapy and Healing Guide", "badge": "Module" },
@@ -192,7 +192,7 @@
       "tabGenel": "General Info",
       "tabNumeroloji": "Numerology",
       "tabRefleksoloji": "Reflexology",
-      "tabDogaltas": "Stones",
+      "tabDogaltas": "Natural Stone",
       "tabNotlar": "Notes",
       "tabRandevular": "Appointments",
       "tabDosyalar": "Files",
@@ -244,7 +244,7 @@
         "desc": "Explore professional numerology analysis screens using the Ali AL sample profile."
       },
       "dogaltas": {
-        "title": "Stones",
+        "title": "Natural Stone",
         "desc": "Manage stone records, mineral information, combinations and inventory in one workspace."
       },
       "biyoenerji": {
@@ -355,13 +355,13 @@
         "alt": "Numerology Module — Preview"
       },
       "dogaltas": {
-        "aria": "Stones module preview",
-        "badge": "Stones Module",
-        "title": "Stones Module — Real Product Screens",
+        "aria": "Natural Stone module preview",
+        "badge": "Natural Stone Module",
+        "title": "Natural Stone Module — Real Product Screens",
         "subtitle": "Manage stone records, search and filtering, combinations, and knowledge in one workspace.",
-        "alt": "Stones Module — Preview",
+        "alt": "Natural Stone Module — Preview",
         "panelTitle": "Manage All Your Stone Data in One Workspace",
-        "panelDesc": "The Stones Module brings all your data together with stone records, a mineral bank, combination management, and advanced search and filtering tools. Search hundreds of records in seconds, apply category filters and quickly open detailed stone information."
+        "panelDesc": "The Natural Stone Module brings all your data together with stone records, a mineral bank, combination management, and advanced search and filtering tools. Search hundreds of records in seconds, apply category filters and quickly open detailed stone information."
       },
       "kisiselArsiv": {
         "aria": "Personal Archive module preview",

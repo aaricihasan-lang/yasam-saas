@@ -3,11 +3,11 @@
     "hub": {
       "sidebar": {
         "brand": "YAŞAM SİSTEMİ",
-        "moduleName": "Stones",
+        "moduleName": "Natural Stone",
         "modulesHeading": "MODULES"
       },
       "hero": {
-        "titleAccent": "Stones",
+        "titleAccent": "Natural Stone",
         "titleSuffix": "",
         "subtitle": "Manage your stones, minerals, combinations and inventory in one place.",
         "reportButton": "📄 Professional Report"
@@ -83,8 +83,8 @@
       },
       "fallbackLoading": "Loading…",
       "meta": {
-        "titleDefault": "Stones · Yaşam Sistemi",
-        "titleTemplate": "%s · Stones · Yaşam Sistemi"
+        "titleDefault": "Natural Stone · Yaşam Sistemi",
+        "titleTemplate": "%s · Natural Stone · Yaşam Sistemi"
       }
     }
   }
