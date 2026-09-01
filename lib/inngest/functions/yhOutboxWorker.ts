@@ -7,17 +7,26 @@ import "server-only";
  * Inngest cron worker: BF-11A outbox durum makinesini sürer. YALNIZ transport +
  * orkestrasyon; iş kararları `eventProcessor`'da, DB durum kararı BF-11A RPC'lerinde.
  *
- * BAĞLAYICI AYARLAR:
- *   - cron: her dakika · claim batch: 10 · lease: 300s · concurrency: 1 · retries: 0
+ * TETİKLEME (EVENT-DRIVEN + SAFETY CRON):
+ *   - EVENT: DB outbox enqueue → güvenli webhook bridge → inngest.send(
+ *     YH_OUTBOX_ENQUEUED_EVENT) → worker HEMEN uyanır (near-real-time drain).
+ *   - SAFETY CRON: 15 dakikada bir (YH_OUTBOX_SAFETY_CRON) — kaçan event / başarısız
+ *     inngest.send / stale processing lease / orphan pending için garantili recovery
+ *     (correctness event'e TEK BAŞINA bağlı DEĞİL; nihai kurtarma cron'dadır).
+ *   - Eski her-dakika polling KALDIRILDI (Inngest run tabanı ~86.4K→~5.8K/ay).
+ *
+ * BAĞLAYICI AYARLAR (İŞLEME SEMANTİĞİ DEĞİŞMEDİ):
+ *   - claim batch: 10 · lease: 300s · concurrency: 1 · retries: 0
  *   - sweep ÖNCE, claim SONRA · seri işleme · boş claim → erken no-op
  *   - retry/dead otoritesi YALNIZ PostgreSQL (Inngest retries=0)
- *   - worker kimliği: `yh-outbox@<runId>`
+ *   - worker kimliği: `yh-outbox@<runId>` · triggerSource yalnız gözlemlenebilirlik için
  *   - PRODUCTION GATE: yalnız YH_OUTBOX_WORKER_ENABLED === "true" iken DB'ye dokunur;
  *     aksi halde getServerDb/sweep/claim/IO YAPILMADAN `disabled` döner.
  *   - Ham source row / DB hata metni / secret / PII LOGLANMAZ (yalnız güvenli sayaç).
  */
 
 import { inngest } from "@/lib/inngest/client";
+import { YH_OUTBOX_ENQUEUED_EVENT } from "@/lib/inngest/events";
 import { getServerDb } from "@/lib/supabase-server";
 import { resolveYhSourceConfig } from "@/lib/yasam-hafizasi/indexer/adminIndexRequest";
 import { indexSourcePage } from "@/lib/yasam-hafizasi/indexer/indexSourcePage";
@@ -42,7 +51,10 @@ import {
 } from "@/lib/yasam-hafizasi/outbox/outboxState";
 
 // ─── Bağlayıcı worker sabitleri (workerConfig.ts oluşturulmaz; açık exportlar) ─
-export const YH_OUTBOX_CRON = "* * * * *";
+/** Kaçan event / stale lease / orphan pending için 15 dakikalık safety cron (her dakika DEĞİL). */
+export const YH_OUTBOX_SAFETY_CRON = "*/15 * * * *";
+/** Event-driven uyanma sinyali (webhook bridge → inngest.send). */
+export const YH_OUTBOX_EVENT_NAME = YH_OUTBOX_ENQUEUED_EVENT;
 export const YH_OUTBOX_CLAIM_BATCH = 10;
 export const YH_OUTBOX_LEASE_SECONDS = 300;
 export const YH_OUTBOX_CONCURRENCY = 1;
@@ -64,12 +76,18 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     name: "Yaşam Hafızası Outbox Worker",
     concurrency: YH_OUTBOX_CONCURRENCY,
     retries: YH_OUTBOX_RETRIES,
-    triggers: [{ cron: YH_OUTBOX_CRON }],
+    // EVENT-DRIVEN (primary) + SAFETY CRON (recovery). Aynı işleme gövdesi iki
+    // tetikleyiciyle çalışır; batch/concurrency/retry semantiği trigger'dan bağımsızdır.
+    triggers: [{ event: YH_OUTBOX_EVENT_NAME }, { cron: YH_OUTBOX_SAFETY_CRON }],
   },
-  async ({ runId }) => {
+  async ({ runId, event }) => {
+    // Gözlemlenebilirlik: bu run event ile mi safety cron ile mi tetiklendi (davranışı DEĞİŞTİRMEZ).
+    const triggerSource: "event" | "safety-cron" =
+      event?.name === YH_OUTBOX_EVENT_NAME ? "event" : "safety-cron";
+
     // PRODUCTION GATE: kapalıysa hiçbir DB client / RPC / IO yapılmadan çık.
     if (!isOutboxWorkerEnabled()) {
-      return { status: "disabled" as const };
+      return { status: "disabled" as const, triggerSource };
     }
 
     const worker = `yh-outbox@${runId}`;
@@ -132,8 +150,8 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
 
     const summary =
       batch.claimed === 0
-        ? { status: "empty" as const, swept: batch.swept }
-        : { status: "processed" as const, ...batch };
+        ? { status: "empty" as const, triggerSource, swept: batch.swept }
+        : { status: "processed" as const, triggerSource, ...batch };
     // Yalnız güvenli sayaç/özet (ham row/PII/secret YOK).
     console.info("[yh-outbox-worker]", summary);
     return summary;
