@@ -17,6 +17,7 @@ import {
   createTechnique,
   createSafety,
 } from "@/app/kupa/lib/api";
+import { hasMovement, movementStyleLabel, techniqueTypeLabel } from "../../teknikler/lib/labels";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
 import { MasterPickerDialog, type PickerItem } from "./MasterPickerDialog";
@@ -84,11 +85,27 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
   const master =
     kind === "point" ? doc.masterPoints : kind === "technique" ? doc.masterTechniques : doc.masterSafety;
 
-  const items: PickerItem[] = master.map((m) => {
+  // FAZ 4 (owner-locked): PASİF teknik YENİ attachment picker'ında adaydeğildir. Zaten ekli
+  // pasif teknik relation listesinde render olmaya DEVAM eder (nameOf → doc.techniqueName;
+  // burada filtre YALNIZ picker aday kümesini etkiler — otomatik detach/arşiv/silme YOK).
+  // Global listTechniques DEĞİŞMEZ (ekli pasif kayıtların çözümlenmesi korunur).
+  const pickerMaster =
+    kind === "technique"
+      ? master.filter((m) => (m as { is_active?: boolean | null }).is_active !== false)
+      : master;
+
+  const items: PickerItem[] = pickerMaster.map((m) => {
     if (kind === "point") return { id: m.id, label: (m as { name: string }).name, meta: (m as { anatomical_region?: string | null }).anatomical_region ?? undefined };
     if (kind === "technique") {
       const t = m as { name: string; technique_type?: string | null; movement_style?: string | null };
-      const meta = [t.technique_type, t.movement_style].filter(Boolean).join(" · ") || undefined;
+      // Kullanıcı-facing TR etiket (ham dry/wet/stationary kodu GÖSTERİLMEZ). Uygulama biçimi
+      // yalnız gerçek bir değer taşıyorsa eklenir (paylaşılan teknik label yardımcıları).
+      const meta = [
+        techniqueTypeLabel(t.technique_type),
+        hasMovement(t.movement_style) ? movementStyleLabel(t.movement_style) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined;
       return { id: m.id, label: t.name, meta };
     }
     const s = m as { title: string; severity?: string | null };

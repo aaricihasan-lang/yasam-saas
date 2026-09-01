@@ -87,7 +87,17 @@ export type CuppingTechnique = {
   application_info?: string | null;
   safety_note?: string | null;
   source_note?: string | null;
+  /** FAZ 4 — "Uzman Notum" (kişisel not; source_note/safety_note'tan AYRI). */
+  practitioner_note?: string | null;
   sort_order?: number;
+  is_active?: boolean;
+};
+
+/** FAZ 4 — "Kullanıldığı Protokoller" read-only sade metadata. */
+export type CuppingTechniqueProtocolRef = {
+  id: string;
+  title: string;
+  category?: string | null;
   is_active?: boolean;
 };
 
@@ -218,12 +228,18 @@ export const deletePointTopic = (id: string) =>
 // Techniques
 export const listTechniques = () =>
   call<CuppingTechnique[]>(`${BASE}/techniques`, { method: "GET" }, "techniques");
+export const getTechnique = (id: string) =>
+  call<CuppingTechnique>(`${BASE}/techniques/${id}`, { method: "GET" }, "technique");
 export const createTechnique = (body: Partial<CuppingTechnique>) =>
   call<CuppingTechnique>(`${BASE}/techniques`, { method: "POST", body: JSON.stringify(body) }, "technique");
 export const updateTechnique = (id: string, body: Partial<CuppingTechnique>) =>
   call<CuppingTechnique>(`${BASE}/techniques/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "technique");
 export const deleteTechnique = (id: string) =>
   call<number>(`${BASE}/techniques/${id}`, { method: "DELETE" }, "deleted");
+
+// Technique "Kullanıldığı Protokoller" (read-only, FAZ 4)
+export const listTechniqueProtocols = (techniqueId: string) =>
+  call<CuppingTechniqueProtocolRef[]>(`${BASE}/techniques/${techniqueId}/protocols`, { method: "GET" }, "protocols");
 
 // Knowledge
 export const listKnowledge = () =>
