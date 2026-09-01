@@ -1,5 +1,5 @@
-import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 
 /** Güvenli read API'sinden dönen kombinasyon satırı (12 kolon). */
 export type CombinationApiRow = {
@@ -41,7 +41,8 @@ export async function fetchCombinationsViaApi(
   const sessionToken = readSessionToken();
 
   if (!userId || !sessionToken) {
-    return { ok: false, rows: [], error: MISSING_SESSION_TENANT_MESSAGE };
+    // Locale-independent kod; görüntüleme sınırında localize edilir (Stones UI).
+    return { ok: false, rows: [], error: STONES_WORKSPACE_UNAVAILABLE };
   }
 
   const query =

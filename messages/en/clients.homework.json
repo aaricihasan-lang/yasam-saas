@@ -1,0 +1,119 @@
+{
+  "clients": {
+    "homework": {
+      "noDate": "No date",
+      "expand": "Expand",
+      "open": "Open",
+      "close": "Close",
+      "cancel": "Cancel",
+      "cancelTop": "Cancel",
+      "typeFallback": "Assignment",
+      "untitled": "Untitled assignment",
+      "toggleFormOpen": "+ Add Assignment",
+      "toggleFormClose": "Close Form",
+      "status": {
+        "bekliyor": "Pending",
+        "devam": "In Progress",
+        "tamamlandi": "Completed",
+        "gecikti": "Overdue",
+        "iptal": "Cancelled",
+        "unknown": "Unknown"
+      },
+      "form": {
+        "titleLabel": "Assignment Title",
+        "titlePlaceholder": "21-day breathing practice...",
+        "typeLabel": "Assignment Type",
+        "typePlaceholder": "Breathing, meditation, stone...",
+        "startLabel": "Start",
+        "endLabel": "End",
+        "statusLabel": "Status",
+        "descLabel": "Assignment Description",
+        "descPlaceholder": "The practice the client will do...",
+        "expertNoteLabel": "Practitioner Note",
+        "expertNotePlaceholder": "Your internal note...",
+        "feedbackLabel": "Client Feedback",
+        "feedbackPlaceholder": "The client's feedback, points they struggled with..."
+      },
+      "header": {
+        "badge": "Client Assignment Tracking",
+        "title": "Assignments",
+        "subtitle": "Track breathing practice, meditation, stone use, water intake, or any practice you assign to the client, with date and status information."
+      },
+      "stats": {
+        "active": "in progress",
+        "completed": "done",
+        "late": "overdue",
+        "dismissed": "dismissed",
+        "nearest": "next due"
+      },
+      "newForm": {
+        "title": "New Assignment Record",
+        "subtitle": "You can edit long fields on a wide screen with \"Expand\".",
+        "saving": "Saving...",
+        "save": "✅ Save Assignment"
+      },
+      "list": {
+        "title": "Saved Assignments",
+        "subtitle": "The tasks assigned to the client and their tracking status are listed here.",
+        "loading": "Loading...",
+        "refresh": "Refresh List",
+        "loadingRecords": "Loading assignments..."
+      },
+      "empty": {
+        "title": "No assignments yet",
+        "hint": "You can create the first record using the \"+ Add Assignment\" button."
+      },
+      "badge": {
+        "expired": "⚠️ Overdue",
+        "dismissed": "Alert Dismissed"
+      },
+      "card": {
+        "start": "Start: {date}",
+        "end": "End: {date}"
+      },
+      "action": {
+        "dismissAlert": "Dismiss Alert"
+      },
+      "item": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "editForm": {
+        "title": "Edit Assignment",
+        "subtitle": "You can edit long fields on a wide screen with “Expand”.",
+        "updating": "Updating...",
+        "update": "Update"
+      },
+      "modal": {
+        "editorSubtitle": "Wide writing screen",
+        "placeholder": "Type your text here...",
+        "apply": "Insert Text",
+        "readerSubtitle": "Large reading screen"
+      },
+      "delete": {
+        "title": "Delete assignment",
+        "message": "Delete this assignment record?"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "noClient": "Client information not found.",
+        "emptyForm": "Please fill in at least one field.",
+        "added": "Assignment record added.",
+        "addFailed": "Assignment record could not be added",
+        "emptyUpdate": "An empty assignment cannot be updated.",
+        "updated": "Assignment updated.",
+        "updateFailed": "Assignment record could not be updated",
+        "statusUpdated": "Status updated.",
+        "statusFailed": "Status could not be updated",
+        "dismissed": "Alert dismissed.",
+        "dismissFailed": "Alert could not be dismissed",
+        "deleted": "Assignment deleted.",
+        "deleteFailed": "Assignment could not be deleted"
+      },
+      "error": {
+        "loadFailed": "Assignments could not be loaded"
+      }
+    }
+  }
+}

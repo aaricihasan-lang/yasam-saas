@@ -1,0 +1,207 @@
+{
+  "stones": {
+    "minerals": {
+      "searchMatchBadge": "🔎 Match found",
+      "unknownError": "Unknown error",
+      "fallbackLoading": "Loading…",
+      "validation": {
+        "nameRequired": "Mineral name cannot be empty."
+      },
+      "bank": {
+        "eyebrow": "STONES · MINERAL LIBRARY",
+        "title": "Add Mineral Record",
+        "subtitle": "Add a new mineral record. List fields are entered line by line.",
+        "listLink": "Mineral Records",
+        "closeForm": "Close Form",
+        "introDescription": "Press the button below to create a new mineral record. You can view existing minerals from the Mineral Records list.",
+        "createButton": "+ Add Record",
+        "nameLabel": "MINERAL NAME",
+        "namePlaceholder": "e.g. Chromium",
+        "categoryLabel": "CATEGORY",
+        "categoryPlaceholder": "e.g. Trace mineral",
+        "sectionsHeading": "Record Sections",
+        "filledBadge": "filled",
+        "activeSectionBadge": "ACTIVE SECTION",
+        "charCount": "{n, plural, one {# character} other {# characters}}",
+        "writeHint": "Click to write",
+        "newMineralFallback": "New mineral",
+        "editorSubtitle": "Line-by-line list fields are supported.",
+        "saveSection": "Save This Field",
+        "sectionSavedMessage": "{label} field saved. Press Save to save the full record.",
+        "unsavedWarning": "If you leave without saving, the information you entered may be lost.",
+        "checking": "Checking…",
+        "saveFailedPrefix": "Unable to save the mineral: {error}",
+        "toastSaveFailedTitle": "Save failed",
+        "toastSaveFailedMessage": "Unable to create the record. Please try again.",
+        "toastSavedTitle": "Saved",
+        "toastSavedMessage": "Mineral record created successfully.",
+        "sections": {
+          "aciklama": {
+            "label": "Description",
+            "placeholder": "General overview of the mineral and its main role…"
+          },
+          "fiziksel": {
+            "label": "Physical",
+            "placeholder": "Write one physical effect per line…"
+          },
+          "zihinsel": {
+            "label": "Mental",
+            "placeholder": "Write one mental effect per line…"
+          },
+          "fizyoloji": {
+            "label": "Physiology",
+            "placeholder": "Physiological effects (one per line)…"
+          },
+          "eksiklik_belirtileri": {
+            "label": "Deficiency signs",
+            "placeholder": "Deficiency signs (one per line)…"
+          },
+          "doz_asimi": {
+            "label": "Overdose",
+            "placeholder": "Overdose / toxicity notes (one per line)…"
+          },
+          "iceren_taslar": {
+            "label": "Stones Containing This Mineral",
+            "placeholder": "Write one stone name per line…"
+          },
+          "organ_etkileri": {
+            "label": "Organ effects",
+            "placeholder": "Organ effects (one per line)…"
+          },
+          "cakralar": {
+            "label": "Chakras",
+            "placeholder": "Chakra associations (one per line)…"
+          },
+          "fazlalik_belirtileri": {
+            "label": "Excess signs",
+            "placeholder": "Excess signs (one per line)…"
+          }
+        }
+      },
+      "list": {
+        "eyebrow": "STONES · MINERAL LIBRARY",
+        "title": "Mineral Records",
+        "subtitle": "Browse and manage your mineral records.",
+        "totalLabel": "Total records",
+        "loadedTotal": "Loaded / total",
+        "visibleResult": "Visible results",
+        "searchPlaceholder": "Search by name, description, physical, mental, physiology or stones…",
+        "categoryFilterAria": "Category filter",
+        "allCategories": "All categories",
+        "searching": "Searching…",
+        "searchResult": "Search: “{q}” · {n, plural, one {# result} other {# results}}",
+        "wordReportButton": "📄 Word Report",
+        "newMineral": "+ Add Mineral",
+        "mobileSelectLimit": "On mobile you can select at most 2 records at a time.",
+        "deleteConfirmTitle": "Permanently Delete Minerals",
+        "deleteConfirmMessage": "{n, plural, one {# mineral} other {# minerals}} will be permanently deleted. This action cannot be undone.",
+        "deleteFailed": "Delete failed: {error}",
+        "deleteSuccess": "{n, plural, one {# mineral} other {# minerals}} deleted successfully.",
+        "wordDownloadStarted": "The Word report download has started. You can find the file in your browser's Downloads.",
+        "wordFailed": "Unable to generate the Word report. Please try again.",
+        "selectAllLabel": "Select Visible",
+        "exportSelectedLabel": "Export Selected to Word",
+        "loadingList": "Loading minerals…",
+        "emptyDbTitle": "No mineral records yet",
+        "emptyDbText": "You don't have any mineral records yet.",
+        "emptyFilteredTitle": "No results found",
+        "emptyFilteredText": "Try changing your search or category filter.",
+        "viewedBadge": "Viewed",
+        "noDescription": "No description added yet.",
+        "detailLink": "View Details →",
+        "loadMore": "Show More ({loaded} / {total})",
+        "uncategorized": "Uncategorized",
+        "loadError": "Unable to load mineral records: {error}",
+        "countError": "Unable to get the record count: {error}"
+      },
+      "word": {
+        "reportTitle": "Mineral Library Report",
+        "selectPrompt": "Select the minerals to include in the report.",
+        "modeAll": "All Minerals",
+        "modeFiltered": "Filtered Results Only",
+        "modeViewed": "Viewed Records Only",
+        "modeSelected": "Selected Minerals",
+        "modeSelectedCount": "📄 Selected Minerals ({n})",
+        "countMineral": "{n, plural, one {# mineral} other {# minerals}}",
+        "loadedSuffix": " (loaded)",
+        "noViewedInSession": "No minerals viewed in this session yet",
+        "selectHint": "Use the checkboxes on the cards to select minerals from the list.",
+        "selectedInfo": "✓ {n, plural, one {# mineral} other {# minerals}} selected — they will be included in the report.",
+        "preparing": "Preparing the mineral report…",
+        "generateButton": "Generate Report",
+        "generating": "Preparing…",
+        "errNoSession": "No session found. Please refresh the page.",
+        "errNoUser": "User ID not found. Please sign in again.",
+        "errNoFiltered": "No filtered results found.",
+        "errNoViewed": "No minerals viewed in this session yet.",
+        "errNoSelected": "Select minerals from the list first (using the checkboxes)."
+      },
+      "detail": {
+        "badgeDetail": "⚗️ MINERAL DETAILS",
+        "categoryPlaceholder": "Category (e.g. Trace mineral)",
+        "categoryAria": "Mineral category",
+        "namePlaceholder": "Mineral name",
+        "filledSuffix": "{n, plural, one { Filled Section · } other { Filled Sections · }}",
+        "icerenSuffix": "{n, plural, one { Containing Stone} other { Containing Stones}}",
+        "wordButton": "📄 Word",
+        "wordBusy": "⏳…",
+        "refresh": "Refresh",
+        "editButton": "✏️ Edit",
+        "matchLabel": "Match:",
+        "loading": "Loading mineral…",
+        "loadFailedTitle": "Unable to load the mineral",
+        "updateFailed": "Unable to update the mineral. Please try again.",
+        "noInfo": "No information added yet.",
+        "icerenTaslarBadge": "{n, plural, one {# STONE} other {# STONES}}",
+        "sections": {
+          "aciklama": {
+            "title": "Description",
+            "badge": "DESCRIPTION"
+          },
+          "fiziksel": {
+            "title": "Physical",
+            "badge": "PHYSICAL"
+          },
+          "zihinsel": {
+            "title": "Mental",
+            "badge": "MENTAL"
+          },
+          "fizyoloji": {
+            "title": "Physiology",
+            "badge": "PHYSIOLOGY"
+          },
+          "organ_etkileri": {
+            "title": "Organ effects",
+            "badge": "ORGAN"
+          },
+          "cakralar": {
+            "title": "Chakras",
+            "badge": "CHAKRA"
+          },
+          "eksiklik_belirtileri": {
+            "title": "Deficiency signs",
+            "badge": "DEFICIENCY"
+          },
+          "fazlalik_belirtileri": {
+            "title": "Excess signs",
+            "badge": "EXCESS"
+          },
+          "doz_asimi": {
+            "title": "Overdose",
+            "badge": "OVERDOSE"
+          },
+          "iceren_taslar": {
+            "title": "Stones Containing This Mineral"
+          }
+        },
+        "invalidId": "Invalid mineral ID.",
+        "notFound": "Mineral record not found.",
+        "loadError": "Unable to load mineral records: {error}"
+      },
+      "edit": {
+        "lineHint": "one item per line",
+        "fieldPlaceholder": "{label} — write one item per line"
+      }
+    }
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "clients": {
+    "detail": {
+      "cancel": "Vazgeç",
+      "clientFallback": "Danışan",
+      "unnamed": "İsimsiz Danışan",
+      "notFound": "Danışan bulunamadı",
+      "deleting": "Siliniyor...",
+      "deleteClient": "Danışanı Sil",
+      "a11y": {
+        "tabs": "Danışan sekmeleri",
+        "yhSelect": "Yaşam Hafızası'ndan rapora kayıt seç",
+        "fullWordReport": "Tam Word raporu oluştur"
+      },
+      "hero": {
+        "badge": "Danışan Detayı",
+        "subtitle": "Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir."
+      },
+      "info": {
+        "phone": "Telefon",
+        "birthDate": "Doğum Tarihi",
+        "meetingDate": "Görüşme Tarihi",
+        "zodiac": "Burç",
+        "bloodType": "Kan Grubu",
+        "temperament": "Mizaç"
+      },
+      "tab": {
+        "genel": "Genel Bilgiler",
+        "notlar": "Notlar",
+        "randevular": "Randevular",
+        "taslar": "Taşlar",
+        "seanslar": "Seanslar",
+        "odevler": "Ödevler",
+        "analizler": "Analizler",
+        "yolculuk": "✦ Danışan Yolculuğu",
+        "hafiza": "🧠 Yaşam Hafızası",
+        "beslenme": "🥗 Beslenme"
+      },
+      "yh": {
+        "selectButton": "🧠 Yaşam Hafızası'ndan Seç"
+      },
+      "report": {
+        "generating": "⏳ Oluşturuluyor...",
+        "wordReport": "📄 Word Raporu"
+      },
+      "dateRange": {
+        "title": "📅 Tarih Aralığı Raporu",
+        "close": "▲ Kapat",
+        "open": "▼ Aç",
+        "startLabel": "Başlangıç",
+        "endLabel": "Bitiş",
+        "generate": "Word Oluştur"
+      },
+      "tabWord": {
+        "genel": "📄 Genel Bilgiler Word",
+        "notlar": "📄 Notlar Word",
+        "randevular": "📄 Randevu Geçmişi Word",
+        "taslar": "📄 Taşlar Word",
+        "seanslar": "📄 Seans Geçmişi Word",
+        "odevler": "📄 Ödev Takip Word",
+        "analizler": "📄 Analiz Sonuçları Word"
+      },
+      "general": {
+        "badge": "Genel Bilgiler",
+        "title": "Danışan Bilgileri",
+        "editTitle": "Danışan Bilgilerini Düzenle",
+        "editButton": "✎ Bilgileri Güncelle",
+        "cancelButton": "✕ Vazgeç",
+        "notesLoading": "Notlar yükleniyor…",
+        "notesLoadingTitle": "Notlar yükleniyor…",
+        "saving": "Kaydediliyor...",
+        "save": "Değişiklikleri Kaydet"
+      },
+      "form": {
+        "ad": "Ad",
+        "soyad": "Soyad",
+        "telefon": "Telefon",
+        "telefonPlaceholder": "05xx xxx xx xx",
+        "dogum": "Doğum Tarihi",
+        "kan": "Kan Grubu",
+        "mizac": "Mizaç",
+        "select": "Seçiniz",
+        "saglikNotu": "Sağlık Notu",
+        "saglikNotuPlaceholder": "Danışanın sağlık notları...",
+        "adres": "Adres",
+        "adresPlaceholder": "Adres bilgisi...",
+        "oneriler": "Öneriler",
+        "onerilerPlaceholder": "Danışana verilen genel öneriler..."
+      },
+      "mizac": {
+        "safra": "Safra",
+        "sovdavi": "Sovdavi",
+        "dem": "Dem",
+        "balgam": "Balgam"
+      },
+      "burc": {
+        "Koç": "Koç",
+        "Boğa": "Boğa",
+        "İkizler": "İkizler",
+        "Yengeç": "Yengeç",
+        "Aslan": "Aslan",
+        "Başak": "Başak",
+        "Terazi": "Terazi",
+        "Akrep": "Akrep",
+        "Yay": "Yay",
+        "Oğlak": "Oğlak",
+        "Kova": "Kova",
+        "Balık": "Balık"
+      },
+      "element": {
+        "Hava": "Hava",
+        "Su": "Su",
+        "Ateş": "Ateş",
+        "Toprak": "Toprak"
+      },
+      "delete": {
+        "title": "Danışanı sil",
+        "thisClient": "Bu danışan",
+        "message": "\"{name}\" adlı danışan silinsin mi? Danışan ve bağlı tüm kayıtlar (seanslar, ödevler, randevular, taşlar, analizler) kalıcı olarak silinebilir.",
+        "secondMessage": "Bu işlem geri alınamaz. Danışana ait tüm veriler kalıcı olarak silinecektir. Emin misiniz?"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "warningTitle": "Uyarı",
+        "errorTitle": "Hata",
+        "unknownError": "Bilinmeyen hata",
+        "saveClientFailed": "Danışan bilgileri kaydedilemedi",
+        "notesSaveFailed": "Notlar kaydedilemedi",
+        "changesSaved": "Değişiklikler kaydedildi.",
+        "noteSaveError": "Not kayıt hatası",
+        "reportStarted": "Rapor indirme başlatıldı.",
+        "dateRangeRequired": "Başlangıç ve bitiş tarihi giriniz.",
+        "dateRangeOrder": "Başlangıç tarihi bitiş tarihinden sonra olamaz.",
+        "dateRangeReportStarted": "Tarih aralığı raporu indirme başlatıldı.",
+        "deleteClientFailed": "Danışan silinemedi",
+        "clientDeletedTitle": "Danışan silindi",
+        "cleanupWarning": "Bazı ek dosyaların temizliği tamamlanamadı.",
+        "addedTitle": "Eklendi",
+        "yhAdded": "{count} kayıt raporun Yaşam Hafızası bölümüne eklenecek."
+      },
+      "error": {
+        "reportFailed": "Rapor oluşturulamadı"
+      },
+      "num": {
+        "title": "Numeroloji Özeti",
+        "readonly": "Salt Okunur · Otomatik",
+        "needName": "Ad/soyad girilince tamamlanır",
+        "anaKulvar": "Ana Kulvar",
+        "yanKulvar": "Yan Kulvar",
+        "ifadeSayisi": "İfade Sayısı",
+        "hayatYolu": "Hayat Yolu / DM",
+        "kisiselYil": "Kişisel Yıl",
+        "guncelYas": "Güncel Yaş",
+        "element": "Element:",
+        "dominant": "baskın:",
+        "peak": "Zirve:",
+        "peakLabel": "{index}. zirve · {age} yaş · {topic}. çakra",
+        "fullAnalysis": "∞ Tam Numeroloji Analizi Aç →"
+      },
+      "appt": {
+        "defaultTitle": "Seans",
+        "titleFallback": "Görüşme",
+        "badge": "Danışana Özel Ajanda",
+        "title": "Randevular",
+        "subtitle": "{name} için oluşturulan tüm randevular burada görünür.",
+        "listTitle": "Randevu Listesi",
+        "loading": "Randevular yükleniyor...",
+        "empty": "Bu danışan için henüz randevu yok.",
+        "toggleOpen": "+ Yeni Randevu Ekle",
+        "toggleClose": "Formu Kapat",
+        "missingTitle": "Eksik bilgi",
+        "dateRequired": "Tarih seçmelisiniz",
+        "startDateRequired": "Başlangıç tarihi seçmelisiniz",
+        "nthDateRequired": "{n}. randevu tarihini seçmelisiniz",
+        "loadFailed": "Randevular yüklenemedi",
+        "updateFailed": "Randevu güncellenemedi",
+        "updated": "Randevu güncellendi",
+        "saveError": "Randevu kayıt hatası",
+        "statusUpdateFailed": "Randevu durumu güncellenemedi",
+        "deleteFailed": "Randevu silinemedi",
+        "stat": {
+          "total": "Toplam",
+          "upcoming": "Yaklaşan",
+          "past": "Geçmiş"
+        },
+        "status": {
+          "tamamlandi": "Tamamlandı",
+          "iptal": "İptal",
+          "gecmis": "Geçmiş",
+          "yaklasan": "Yaklaşan"
+        },
+        "cancelConfirm": {
+          "title": "Randevu iptal edilsin mi?",
+          "message": "Bu randevunun durumu \"İptal\" olarak değiştirilecek.",
+          "confirm": "Randevuyu İptal Et"
+        },
+        "completeConfirm": {
+          "title": "Randevu tamamlandı olarak işaretlensin mi?",
+          "message": "Bu randevunun durumu \"Tamamlandı\" olarak değiştirilecek ve danışanın son görüşme tarihi güncellenecek.",
+          "confirm": "Tamamlandı Yap"
+        },
+        "pastConfirm": {
+          "title": "Geçmiş tarihli randevu",
+          "message": "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
+          "confirm": "Yine de Kaydet"
+        },
+        "delete": {
+          "title": "Randevuyu sil",
+          "message": "Bu randevu silinsin mi?"
+        },
+        "form": {
+          "editBadge": "Randevu Düzenle",
+          "newBadge": "Yeni Randevu",
+          "editTitle": "Randevu Düzenle",
+          "newTitle": "Yeni Randevu Ekle",
+          "titleLabel": "Başlık",
+          "titlePlaceholder": "Örn: Biyoenerji Seansı",
+          "noteLabel": "Not",
+          "notePlaceholder": "Randevu notu...",
+          "sessionCount": "Seans Sayısı",
+          "planningType": "Planlama Türü",
+          "autoInterval": "Otomatik Aralık",
+          "manualDates": "Tek Tek Tarih",
+          "dateTime": "Tarih / Saat",
+          "startDate": "Başlangıç Tarihi",
+          "everyNDays": "Kaç Günde Bir?",
+          "appointmentDates": "Randevu Tarihleri",
+          "nthAppointment": "{n}. Randevu",
+          "saving": "Kaydediliyor...",
+          "update": "Güncelle",
+          "create": "Randevu Oluştur"
+        },
+        "modal": {
+          "badge": "Randevu Detayı",
+          "client": "Danışan",
+          "dateTime": "Tarih / Saat",
+          "status": "Durum",
+          "note": "Not",
+          "noNote": "Not girilmemiş.",
+          "edit": "Düzenle",
+          "complete": "Tamamlandı",
+          "cancel": "İptal Et",
+          "delete": "Sil"
+        }
+      }
+    }
+  }
+}

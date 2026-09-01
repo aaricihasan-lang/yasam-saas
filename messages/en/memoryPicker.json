@@ -1,0 +1,81 @@
+{
+  "memoryPicker": {
+    "aria": {
+      "dialog": "Select from Life Memory",
+      "close": "Close",
+      "professionalSearch": "Professional memory search",
+      "clientSearch": "Client memory search",
+      "selectRecord": "Select record",
+      "removeSelection": "Remove selection",
+      "recordDetail": "Record details"
+    },
+    "title": "Select from Life Memory",
+    "subtitle": "Selected records will be added as <b>unchanged copies</b>.",
+    "clientRequiredLabel": "Client (required for delivery)",
+    "clientsLoading": "Loading clients…",
+    "clientSelectPlaceholder": "— Select a client —",
+    "clientBanner": "Client:",
+    "unnamedClient": "Unnamed Client",
+    "tabs": {
+      "professional": "Professional Memory",
+      "client": "Client Memory"
+    },
+    "selectClientFirst": "Select a client above first.",
+    "placeholder": {
+      "professional": "Search professional knowledge…",
+      "client": "Search this client's records…"
+    },
+    "searchBtn": "Search",
+    "idle": {
+      "title": "Start searching",
+      "professionalMsg": "Search your professional knowledge library.",
+      "clientMsg": "Search this client's past records."
+    },
+    "disabled": {
+      "notActive": {
+        "title": "Client Memory is not active yet",
+        "msg": "Once this feature is enabled, you can search this client's records."
+      },
+      "flagDisabled": {
+        "title": "Life Memory is not active on this account",
+        "msg": "You can search once this feature is enabled for your account."
+      },
+      "demo": {
+        "title": "Not available on demo accounts",
+        "msg": "Life Memory selection is not available on demo accounts."
+      },
+      "fallbackTitle": "Not available"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "msg": "The search could not be completed.",
+      "retry": "Try again"
+    },
+    "empty": {
+      "title": "No records found",
+      "filtered": "No records in this filter.",
+      "noResults": "No records found for this search."
+    },
+    "filteredEmpty": {
+      "title": "No results in the selected filter",
+      "msg": "Clear the filter."
+    },
+    "sharedBadge": "Library",
+    "recordFallbackTitle": "Record",
+    "selectedCount": "<b>{count}</b> selected",
+    "cancel": "Cancel",
+    "adding": "Adding…",
+    "add": "Add Selected",
+    "detail": {
+      "dateLabel": "Date:",
+      "sourceGone": "The source record no longer exists (the snapshot is preserved).",
+      "deselect": "Deselect",
+      "select": "Select"
+    },
+    "saveError": {
+      "notActive": "Life Memory is not active on this account.",
+      "demoReadonly": "This action is not available on demo accounts.",
+      "generic": "Your selection could not be saved. Please try again."
+    }
+  }
+}

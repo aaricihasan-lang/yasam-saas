@@ -1,0 +1,165 @@
+{
+  "stones": {
+    "knowledge": {
+      "header": {
+        "brand": "Stones",
+        "title": "Stone Knowledge Base",
+        "subtitle": "{count, plural, one {# article} other {# articles}} · Mineralogy, Healing, Research, Applications"
+      },
+      "actions": {
+        "wordReport": "📄 Word Report",
+        "newRecord": "+ Add Knowledge Record",
+        "closeForm": "Close Form",
+        "checking": "Checking…"
+      },
+      "form": {
+        "title": "Add Article",
+        "titleLabel": "Title *",
+        "titlePlaceholder": "Article title…",
+        "categoryLabel": "Category",
+        "categorySelectPlaceholder": "— Select a category —",
+        "sourceLabel": "Source",
+        "sourcePlaceholder": "Source name…",
+        "contentLabel": "Content *",
+        "contentPlaceholder": "Article content… (use ## Heading to create sections)"
+      },
+      "category": {
+        "new": "+ Add Category",
+        "formTitle": "Add Category",
+        "namePlaceholder": "Category name *",
+        "iconPlaceholder": "Icon 📖",
+        "save": "Save Category",
+        "errors": {
+          "nameRequired": "Category name is required.",
+          "duplicate": "A category with this name already exists.",
+          "adminRequired": "Admin access is required for this action.",
+          "generic": "Error: {error}",
+          "saveFailed": "Unable to save the category.",
+          "serverUnreachable": "Couldn't reach the server."
+        }
+      },
+      "search": {
+        "placeholder": "Full-text search — healing, mineral, chakra…",
+        "resultCount": "{count, plural, one {# result} other {# results}}",
+        "queryLabel": "Search: \"{q}\"",
+        "recordCount": "{count, plural, one {# record} other {# records}}"
+      },
+      "bulk": {
+        "title": "📋 Bulk Actions",
+        "selectedCount": "✓ {count} selected",
+        "noSelection": "No selection",
+        "selectAll": "Select All ({count})",
+        "deselectAll": "Deselect All",
+        "clearSelection": "Clear Selection",
+        "updateSelected": "Update Selected",
+        "deleteSelected": "Delete Selected",
+        "deleting": "Deleting…",
+        "selectAllHint": "“Select All” only selects the {count, plural, one {# record} other {# records}} currently filtered."
+      },
+      "toasts": {
+        "maxTwoMobile": "On mobile you can select up to 2 records at a time.",
+        "deleteFailed": "Unable to delete. Please try again.",
+        "deletedWithSkipped": "{count, plural, one {# record} other {# records}} deleted. {skipped, plural, one {# record} other {# records}} skipped.",
+        "deleted": "{count, plural, one {# record} other {# records}} deleted successfully.",
+        "updated": "{count, plural, one {# record} other {# records}} updated."
+      },
+      "confirm": {
+        "deleteTitle": "Delete Records Permanently",
+        "deleteMessage": "{count, plural, one {# record} other {# records}} will be permanently deleted. This action cannot be undone.",
+        "updateTextTitle": "Article Text Will Be Updated",
+        "updateTextMessage": "The article title or content will be permanently changed. Are you sure?"
+      },
+      "errors": {
+        "titleRequired": "Title is required.",
+        "categoryRequired": "Please select a category.",
+        "contentRequired": "Content is required.",
+        "noSession": "No session found. Please refresh the page.",
+        "unknown": "Unknown error",
+        "saveError": "Save error: {error}",
+        "updateError": "Update error: {error}"
+      },
+      "word": {
+        "modalTitle": "Knowledge Base Report",
+        "modalSubtitle": "Choose the articles to include in the report.",
+        "modeAll": "All Articles",
+        "modeCategory": "Selected Category Only",
+        "modeFiltered": "Filtered Results Only",
+        "modeViewed": "Viewed Records Only",
+        "articleCount": "{count, plural, one {# article} other {# articles}}",
+        "noViewedHint": "No articles viewed in this search session",
+        "preparing": "Preparing your professional Word report…",
+        "preparingShort": "Preparing…",
+        "generate": "Generate Report",
+        "success": "Your Word report download has started. You'll find the file in your browser's Downloads.",
+        "errors": {
+          "selectCategory": "Please select a category.",
+          "noUser": "User ID not found. Please sign in again.",
+          "noFiltered": "No filtered results found.",
+          "noViewed": "No articles viewed in this search session yet.",
+          "reportFailed": "Unable to generate the Word report. Please try again."
+        }
+      },
+      "detail": {
+        "searchLabel": "🔍 Search: {q}",
+        "matchCount": "{count, plural, one {# match} other {# matches}}",
+        "edit": "✏️ Edit"
+      },
+      "edit": {
+        "mainCategoryLabel": "Main Category",
+        "subCategoryLabel": "Subcategory / Tag",
+        "subCategoryPlaceholder": "Subcategory or tag…",
+        "contentLabel": "Content"
+      },
+      "list": {
+        "viewed": "✓ Viewed"
+      },
+      "empty": {
+        "noArticles": "No articles yet. Use the Add Knowledge Record button to create one.",
+        "noResults": "No records found",
+        "detailPrompt": "Select an article from the left panel to read it. Use the search engine to search the full text."
+      },
+      "demo": {
+        "hiddenContent": "This content is hidden in the demo version. An expert account is required to access the full content."
+      },
+      "bulkUpdate": {
+        "titleSingle": "Update Record",
+        "titleMulti": "Bulk Update ({count, plural, one {# record} other {# records}})",
+        "subtitleSingle": "Category fields left blank stay unchanged.",
+        "subtitleMulti": "In multi-select, only category fields are updated.",
+        "categoryNoChange": "— No change —",
+        "subCategoryLabel": "Subcategory",
+        "noChangePlaceholder": "Left blank stays unchanged",
+        "articleTextLabel": "Article Text",
+        "editingText": "✏️ Editing Text",
+        "editText": "✏️ Edit Text",
+        "titleLabel": "Title",
+        "multiWarning": "In multi-select, title and content fields aren't updated. Only category fields are applied.",
+        "updating": "Updating…",
+        "update": "Update",
+        "errorNoChange": "Change at least one field.",
+        "errorFailed": "Unable to update. Please try again."
+      },
+      "colorOptions": {
+        "emerald": "Green",
+        "blue": "Blue",
+        "violet": "Purple",
+        "amber": "Amber",
+        "slate": "Gray",
+        "rose": "Pink",
+        "cyan": "Light Blue",
+        "orange": "Orange",
+        "green": "Light Green",
+        "indigo": "Indigo",
+        "teal": "Teal"
+      },
+      "allCategory": "All",
+      "categoryLabels": {
+        "Şifa": "Healing",
+        "Araştırma": "Research",
+        "Mineroloji": "Mineralogy",
+        "Uygulamalar": "Applications",
+        "Genel": "General"
+      }
+    }
+  }
+}

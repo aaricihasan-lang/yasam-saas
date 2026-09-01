@@ -1,7 +1,9 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -127,16 +129,6 @@ function stoneToForm(stone: ClientStone): StoneFormState {
     otherNotes: stone.other_notes || "",
     stoneDate: stone.stone_date || "",
   };
-}
-
-function formatDate(date: string | null) {
-  if (!date) return "Tarih belirtilmedi";
-
-  return new Date(date).toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 }
 
 function inputClass(
@@ -268,31 +260,32 @@ type FormFieldsProps = {
 };
 
 function FormFields({ data, onChange }: FormFieldsProps) {
+  const t = useTranslations("clients.stones");
   return (
     <>
       <div className="grid gap-2 md:grid-cols-3">
         <div className={boxClass("emerald")}>
-          <SectionLabel icon="💎" title="Taş Adı" tone="emerald" />
+          <SectionLabel icon="💎" title={t("form.nameLabel")} tone="emerald" />
           <input
             value={data.stoneName}
             onChange={(e) => onChange("stoneName", e.target.value)}
-            placeholder="Örn: Ametist, Şungit, Pirit"
+            placeholder={t("form.namePlaceholder")}
             className={inputClass("emerald")}
           />
         </div>
 
         <div className={boxClass("blue")}>
-          <SectionLabel icon="📿" title="Kullanım / Tür" tone="blue" />
+          <SectionLabel icon="📿" title={t("form.typeLabel")} tone="blue" />
           <input
             value={data.stoneType}
             onChange={(e) => onChange("stoneType", e.target.value)}
-            placeholder="Kolye, bileklik, cep taşı..."
+            placeholder={t("form.typePlaceholder")}
             className={inputClass("blue")}
           />
         </div>
 
         <div className={boxClass("violet")}>
-          <SectionLabel icon="📅" title="Tarih" tone="violet" />
+          <SectionLabel icon="📅" title={t("form.dateLabel")} tone="violet" />
           <input
             type="date"
             value={data.stoneDate}
@@ -304,22 +297,22 @@ function FormFields({ data, onChange }: FormFieldsProps) {
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <div className={boxClass("emerald")}>
-          <SectionLabel icon="📋" title="Kullanım Detayı" tone="emerald" />
+          <SectionLabel icon="📋" title={t("form.usageLabel")} tone="emerald" />
           <textarea
             value={data.usageArea}
             onChange={(e) => onChange("usageArea", e.target.value)}
-            placeholder="Nasıl kullanılacak? Süre, bölge, yöntem..."
+            placeholder={t("form.usagePlaceholder")}
             rows={3}
             className={`${inputClass("emerald")} resize-none leading-5`}
           />
         </div>
 
         <div className={boxClass("violet")}>
-          <SectionLabel icon="🧩" title="Kombin" tone="violet" />
+          <SectionLabel icon="🧩" title={t("form.combinationLabel")} tone="violet" />
           <textarea
             value={data.combinationText}
             onChange={(e) => onChange("combinationText", e.target.value)}
-            placeholder="Birlikte verilen taşlar veya kombin mantığı..."
+            placeholder={t("form.combinationPlaceholder")}
             rows={3}
             className={`${inputClass("violet")} resize-none leading-5`}
           />
@@ -328,22 +321,22 @@ function FormFields({ data, onChange }: FormFieldsProps) {
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <div className={boxClass("amber")}>
-          <SectionLabel icon="⚠️" title="Uyarı" tone="amber" />
+          <SectionLabel icon="⚠️" title={t("form.warningLabel")} tone="amber" />
           <textarea
             value={data.warningText}
             onChange={(e) => onChange("warningText", e.target.value)}
-            placeholder="Suyla temas, gece kullanımı, hassasiyet vb."
+            placeholder={t("form.warningPlaceholder")}
             rows={3}
             className={`${inputClass("amber")} resize-none leading-5`}
           />
         </div>
 
         <div className={boxClass("blue")}>
-          <SectionLabel icon="ℹ️" title="Diğer" tone="blue" />
+          <SectionLabel icon="ℹ️" title={t("form.otherLabel")} tone="blue" />
           <textarea
             value={data.otherNotes}
             onChange={(e) => onChange("otherNotes", e.target.value)}
-            placeholder="Serbest alan..."
+            placeholder={t("form.otherPlaceholder")}
             rows={3}
             className={`${inputClass("blue")} resize-none leading-5`}
           />
@@ -351,11 +344,11 @@ function FormFields({ data, onChange }: FormFieldsProps) {
       </div>
 
       <div className={`mt-3 ${boxClass("emerald")}`}>
-        <SectionLabel icon="📝" title="Genel Not" tone="emerald" />
+        <SectionLabel icon="📝" title={t("form.noteLabel")} tone="emerald" />
         <textarea
           value={data.note}
           onChange={(e) => onChange("note", e.target.value)}
-          placeholder="Taşla ilgili genel öneri, takip notu, seans yorumu..."
+          placeholder={t("form.notePlaceholder")}
           rows={3}
           className={`${inputClass("emerald")} resize-none leading-5`}
         />
@@ -379,14 +372,15 @@ function CreatePhotoPicker({
   onClear,
   onRemove,
 }: CreatePhotoPickerProps) {
+  const t = useTranslations("clients.stones");
   return (
     <div className={`mt-3 ${boxClass("rose")}`}>
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <SectionLabel icon="📷" title="Fotoğraflar" tone="rose" />
+        <SectionLabel icon="📷" title={t("photoPicker.title")} tone="rose" />
 
         <div className="flex flex-wrap gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50">
-            Bilgisayardan Foto Seç
+            {t("photoPicker.select")}
             <input
               type="file"
               multiple
@@ -402,7 +396,7 @@ function CreatePhotoPicker({
               onClick={onClear}
               className="rounded-2xl border border-slate-200 bg-white px-2 py-1 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
             >
-              Seçimi Temizle
+              {t("photoPicker.clear")}
             </button>
           )}
         </div>
@@ -410,7 +404,7 @@ function CreatePhotoPicker({
 
       {selectedPreviews.length === 0 ? (
         <div className="mt-2 rounded-xl border border-dashed border-rose-200 bg-white/70 p-3 text-xs font-semibold text-slate-400">
-          Taşı kaydetmeden önce bilgisayardan birden fazla fotoğraf seçebilirsin.
+          {t("photoPicker.hint")}
         </div>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-7">
@@ -421,7 +415,7 @@ function CreatePhotoPicker({
             >
               <img
                 src={preview}
-                alt={`Seçilen fotoğraf ${index + 1}`}
+                alt={t("photoPicker.previewAlt", { n: index + 1 })}
                 className="h-20 w-full object-cover"
               />
 
@@ -430,7 +424,7 @@ function CreatePhotoPicker({
                 onClick={() => onRemove(index)}
                 className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2 py-1 text-[10px] font-black text-white shadow-sm"
               >
-                Sil
+                {t("item.delete")}
               </button>
 
               <div className="truncate px-2 py-1 text-[10px] font-bold text-slate-500">
@@ -463,20 +457,21 @@ function PhotoGallery({
   onDeletePhoto,
   onSelectPhoto,
 }: PhotoGalleryProps) {
+  const t = useTranslations("clients.stones");
   return (
     <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-sm font-black text-slate-950">
-            📷 Taş Fotoğrafları
+            {t("gallery.title")}
           </div>
           <div className="mt-1 text-xs font-bold text-slate-500">
-            {stonePhotos.length} fotoğraf kayıtlı
+            {t("gallery.count", { count: stonePhotos.length })}
           </div>
         </div>
 
         <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
-          {uploadingStoneId === stone.id ? "Yükleniyor..." : "Fotoğraf Ekle"}
+          {uploadingStoneId === stone.id ? t("gallery.uploading") : t("gallery.add")}
           <input
             type="file"
             multiple
@@ -490,8 +485,7 @@ function PhotoGallery({
 
       {stonePhotos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/70 p-4 text-sm font-semibold text-slate-400">
-          Henüz fotoğraf eklenmemiş. “Fotoğraf Ekle” ile sonradan da fotoğraf
-          ekleyebilirsin.
+          {t("gallery.empty")}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
@@ -507,7 +501,7 @@ function PhotoGallery({
               >
                 <img
                   src={photo.image_url}
-                  alt={stone.stone_name || "Taş fotoğrafı"}
+                  alt={stone.stone_name || t("photoAlt")}
                   className="h-full w-full object-cover transition group-hover:scale-105"
                 />
               </button>
@@ -518,7 +512,7 @@ function PhotoGallery({
                 disabled={deletingPhotoId === photo.id}
                 className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2.5 py-1.5 text-xs font-black text-white opacity-100 shadow-sm transition group-hover:opacity-100 disabled:opacity-50 md:opacity-0"
               >
-                {deletingPhotoId === photo.id ? "..." : "Sil"}
+                {deletingPhotoId === photo.id ? "..." : t("item.delete")}
               </button>
             </div>
           ))}
@@ -529,8 +523,16 @@ function PhotoGallery({
 }
 
 export default function StonesTab({ clientId }: StonesTabProps) {
+  const t = useTranslations("clients.stones");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+
+  // Mutlak tarih (global sözleşme: tüm locale'lerde DD.MM.YYYY); boş tarihte sistem etiketi (DISPLAY-only).
+  const fmtDate = useCallback(
+    (date: string | null) =>
+      date ? formatDateAbsolute(date) : t("noDate"),
+    [t],
+  );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [stones, setStones] = useState<ClientStone[]>([]);
   const [photos, setPhotos] = useState<StonePhoto[]>([]);
@@ -611,8 +613,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (imageFiles.length !== files.length) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Sadece fotoğraf dosyası seçebilirsin.",
+        title: t("toast.failTitle"),
+        message: t("toast.onlyImages"),
         type: "error",
       });
     }
@@ -652,7 +654,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (!res.ok) {
       console.error("Taş kayıtları yüklenemedi");
-      setErrorMessage("Taş kayıtları yüklenemedi");
+      setErrorMessage(t("error.loadStones"));
       setLoading(false);
       return;
     }
@@ -686,7 +688,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (!res.ok || !json.ok) {
       console.error("Taş fotoğrafları yüklenemedi:", json.error);
-      setErrorMessage("Taş fotoğrafları yüklenemedi: " + (json.error ?? ""));
+      setErrorMessage(t("error.loadPhotos") + ": " + (json.error ?? ""));
       setPhotosLoading(false);
       return;
     }
@@ -732,8 +734,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       if (uploadError) {
         console.error("Foto yüklenemedi:", uploadError);
         showToast({
-          title: "İşlem başarısız",
-          message: "Foto yüklenemedi: " + uploadError.message,
+          title: t("toast.failTitle"),
+          message: t("toast.uploadFailed") + ": " + uploadError.message,
           type: "error",
         });
         continue;
@@ -763,8 +765,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       if (!insertRes.ok || !insertJson.ok) {
         console.error("Foto kaydı veritabanına yazılamadı:", insertJson.error);
         showToast({
-          title: "İşlem başarısız",
-          message: "Foto kaydı yazılamadı: " + (insertJson.error ?? ""),
+          title: t("toast.failTitle"),
+          message: t("toast.photoInsertFailed") + ": " + (insertJson.error ?? ""),
           type: "error",
         });
 
@@ -776,8 +778,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   async function addStone() {
     if (!clientId) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Danışan bilgisi bulunamadı.",
+        title: t("toast.failTitle"),
+        message: t("toast.noClient"),
         type: "error",
       });
       return;
@@ -785,8 +787,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (isFormEmpty(form, selectedFiles.length)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Lütfen en az bir alan doldurun veya fotoğraf seçin.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyForm"),
         type: "error",
       });
       return;
@@ -828,8 +830,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (!data?.id) {
       console.error("Taş kaydı eklenemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Taş kaydı eklenemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.addFailed"),
         type: "error",
       });
       setSaving(false);
@@ -848,8 +850,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setSaving(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Taş kaydı eklendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.added"),
       type: "success",
     });
   }
@@ -867,8 +869,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   async function updateStone(id: string) {
     if (isFormEmpty(editForm, 0)) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Boş kayıt güncellenemez.",
+        title: t("toast.failTitle"),
+        message: t("toast.emptyUpdate"),
         type: "error",
       });
       return;
@@ -907,8 +909,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (!updRes.ok) {
       console.error("Taş kaydı güncellenemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Taş kaydı güncellenemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.updateFailed"),
         type: "error",
       });
       setUpdating(false);
@@ -920,16 +922,16 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setUpdating(false);
 
     showToast({
-      title: "Başarılı",
-      message: "Taş kaydı güncellendi.",
+      title: t("toast.successTitle"),
+      message: t("toast.updated"),
       type: "success",
     });
   }
 
   async function deleteStone(id: string) {
     const ok = await deleteConfirm({
-      title: "Taşı sil",
-      message: "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar.",
+      title: t("delete.stone.title"),
+      message: t("delete.stone.message"),
     });
     if (!ok) return;
 
@@ -961,8 +963,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (!delRes.ok) {
       console.error("Taş kaydı silinemedi");
       showToast({
-        title: "İşlem başarısız",
-        message: "Taş kaydı silinemedi.",
+        title: t("toast.failTitle"),
+        message: t("toast.deleteFailed"),
         type: "error",
       });
       return;
@@ -975,8 +977,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     await refreshAll();
 
     showToast({
-      title: "Başarılı",
-      message: "Taş kaydı silindi.",
+      title: t("toast.successTitle"),
+      message: t("toast.deleted"),
       type: "success",
     });
   }
@@ -1001,8 +1003,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   async function deletePhoto(photo: StonePhoto) {
     const ok = await deleteConfirm({
-      title: "Fotoğrafı sil",
-      message: "Bu fotoğraf silinsin mi?",
+      title: t("delete.photo.title"),
+      message: t("delete.photo.message"),
     });
     if (!ok) return;
 
@@ -1033,8 +1035,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     if (!res.ok || !json.ok) {
       console.error("Foto kaydı silinemedi:", json.error);
       showToast({
-        title: "İşlem başarısız",
-        message: "Foto kaydı silinemedi: " + (json.error ?? ""),
+        title: t("toast.failTitle"),
+        message: t("toast.photoDeleteFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
       setDeletingPhotoId(null);
@@ -1051,8 +1053,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setDeletingPhotoId(null);
 
     showToast({
-      title: "Başarılı",
-      message: "Fotoğraf silindi.",
+      title: t("toast.successTitle"),
+      message: t("toast.photoDeleted"),
       type: "success",
     });
   }
@@ -1090,16 +1092,15 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 shadow-sm">
-                Profesyonel Taş Takip Sistemi
+                {t("header.badge")}
               </div>
 
               <h2 className="text-base font-black tracking-tight text-slate-950">
-                Danışan Taşları
+                {t("header.title")}
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
-                Taş bilgilerini ve fotoğrafları tek ekrandan seçip tek tuşla
-                kaydedebilirsin.
+                {t("header.subtitle")}
               </p>
             </div>
 
@@ -1110,7 +1111,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                     {stones.length}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    kayıt
+                    {t("stats.records")}
                   </div>
                 </div>
 
@@ -1119,7 +1120,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                     {totalWithPhoto}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    foto taş
+                    {t("stats.photoStones")}
                   </div>
                 </div>
 
@@ -1128,7 +1129,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                     {photos.length}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    foto
+                    {t("stats.photos")}
                   </div>
                 </div>
               </div>
@@ -1140,7 +1141,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                   ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
                   : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"}
               >
-                {showForm ? "Formu Kapat" : "+ Yeni Taş Ekle"}
+                {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
@@ -1154,15 +1155,15 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-md shadow-slate-200/50">
           <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
             <div>
-              <h3 className="text-base font-black text-slate-950">Yeni Taş Kaydı</h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-500">Taş bilgilerini ve fotoğraflarını girerek kaydet.</p>
+              <h3 className="text-base font-black text-slate-950">{t("newForm.title")}</h3>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
           <div className="p-4">
@@ -1187,9 +1188,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
               >
                 {saving
                   ? selectedFiles.length > 0
-                    ? "Taş ve fotoğraflar kaydediliyor..."
-                    : "Kaydediliyor..."
-                  : "💾 Taşı Kaydet"}
+                    ? t("newForm.savingWithPhotos")
+                    : t("newForm.saving")
+                  : t("newForm.save")}
               </button>
             </div>
           </div>
@@ -1200,11 +1201,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-base font-black tracking-tight text-slate-950">
-              Kayıtlı Taşlar
+              {t("list.title")}
             </h3>
             <p className="mt-1 text-sm font-medium text-slate-600">
-              Bu danışana ait taş önerileri, kombinleri, fotoğrafları ve takip
-              notları.
+              {t("list.subtitle")}
             </p>
           </div>
 
@@ -1213,21 +1213,21 @@ export default function StonesTab({ clientId }: StonesTabProps) {
             disabled={loading || photosLoading}
             className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading || photosLoading ? "Yükleniyor..." : "Listeyi Yenile"}
+            {loading || photosLoading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
           <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-            Taş kayıtları yükleniyor...
+            {t("list.loadingRecords")}
           </div>
         ) : stones.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
             <div className="text-base font-black text-slate-800">
-              Henüz taş kaydı yok
+              {t("empty.title")}
             </div>
             <p className="mt-2 text-sm font-medium text-slate-500">
-              "+ Yeni Taş Ekle" butonundan ilk kaydı oluşturabilirsin.
+              {t("empty.hint")}
             </p>
           </div>
         ) : (
@@ -1254,13 +1254,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                             >
                               <img
                                 src={coverPhoto.image_url}
-                                alt={stone.stone_name || "Taş fotoğrafı"}
+                                alt={stone.stone_name || t("photoAlt")}
                                 className="h-full w-full object-cover transition hover:scale-105"
                               />
                             </button>
                           ) : (
                             <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center text-sm font-black text-slate-400">
-                              📷 Foto yok
+                              {t("card.noPhoto")}
                             </div>
                           )}
                         </div>
@@ -1269,27 +1269,27 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                             <div>
                               <div className="mb-2 inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
-                                {stone.stone_type || "Kullanım türü belirtilmedi"}
+                                {stone.stone_type || t("card.noType")}
                               </div>
 
                               <h4 className="text-base font-black tracking-tight text-slate-950">
-                                {stone.stone_name || "İsimsiz taş"}
+                                {stone.stone_name || t("card.noName")}
                               </h4>
 
                               <p className="mt-1 text-xs font-bold text-slate-500">
-                                Taş tarihi: {formatDate(stone.stone_date)}
+                                {t("card.stoneDate", { date: fmtDate(stone.stone_date) })}
                               </p>
 
                               <p className="mt-1 text-xs font-bold text-slate-500">
-                                Kayıt tarihi: {formatDate(stone.created_at)}
+                                {t("card.recordDate", { date: fmtDate(stone.created_at) })}
                               </p>
                             </div>
 
                             <div className="flex flex-wrap gap-2.5">
                               <label className="cursor-pointer rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
                                 {uploadingStoneId === stone.id
-                                  ? "Yükleniyor..."
-                                  : "Fotoğraf Ekle"}
+                                  ? t("gallery.uploading")
+                                  : t("gallery.add")}
                                 <input
                                   type="file"
                                   multiple
@@ -1306,39 +1306,39 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                                 onClick={() => startEdit(stone)}
                                 className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                               >
-                                Düzenle
+                                {t("item.edit")}
                               </button>
 
                               <button
                                 onClick={() => deleteStone(stone.id)}
                                 className="ml-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                               >
-                                Sil
+                                {t("item.delete")}
                               </button>
                             </div>
                           </div>
 
                           <div className="mt-3 grid gap-2 md:grid-cols-2">
                             <DetailBlock
-                              title="Kullanım"
+                              title={t("detail.usage")}
                               value={stone.usage_area}
                               tone="emerald"
                               icon="📋"
                             />
                             <DetailBlock
-                              title="Kombin"
+                              title={t("detail.combination")}
                               value={stone.combination_text}
                               tone="violet"
                               icon="🧩"
                             />
                             <DetailBlock
-                              title="Uyarı"
+                              title={t("detail.warning")}
                               value={stone.warning_text}
                               tone="amber"
                               icon="⚠️"
                             />
                             <DetailBlock
-                              title="Diğer"
+                              title={t("detail.other")}
                               value={stone.other_notes}
                               tone="blue"
                               icon="ℹ️"
@@ -1348,7 +1348,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                           {stone.note ? (
                             <div className="mt-3">
                               <DetailBlock
-                                title="Genel Not"
+                                title={t("detail.note")}
                                 value={stone.note}
                                 tone="slate"
                                 icon="📝"
@@ -1356,7 +1356,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                             </div>
                           ) : (
                             <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-400">
-                              Bu taş için henüz genel not eklenmemiş.
+                              {t("card.noNote")}
                             </div>
                           )}
 
@@ -1377,12 +1377,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <h4 className="text-base font-black text-slate-950">
-                            Taş Kaydını Düzenle
+                            {t("editForm.title")}
                           </h4>
                           <p className="mt-1 text-sm font-medium text-slate-600">
-                            Kullanım, kombin, uyarı ve not alanlarını
-                            güncelleyebilirsin. Fotoğraflar kayıt kartı
-                            üzerinden ayrıca eklenir.
+                            {t("editForm.subtitle")}
                           </p>
                         </div>
 
@@ -1390,7 +1388,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                           onClick={cancelEdit}
                           className="self-start rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                         >
-                          İptal
+                          {t("cancelTop")}
                         </button>
                       </div>
 
@@ -1401,7 +1399,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                           onClick={cancelEdit}
                           className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
-                          Vazgeç
+                          {t("cancel")}
                         </button>
 
                         <button
@@ -1409,7 +1407,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                           disabled={updating}
                           className="btn-primary px-4 py-2 text-sm"
                         >
-                          {updating ? "Güncelleniyor..." : "Güncelle"}
+                          {updating ? t("editForm.updating") : t("editForm.update")}
                         </button>
                       </div>
                     </div>
@@ -1436,7 +1434,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-violet-50 px-3 py-2">
               <div>
                 <div className="text-sm font-black text-slate-950">
-                  Fotoğraf Galerisi
+                  {t("lightbox.title")}
                 </div>
                 <div className="mt-1 text-xs font-bold text-slate-500">
                   {lightboxIndex + 1} / {lightboxPhotos.length}
@@ -1448,7 +1446,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 onClick={closeLightbox}
                 className="rounded-full border border-slate-200 bg-white px-2 py-1 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
-                Kapat
+                {t("close")}
               </button>
             </div>
 
@@ -1465,7 +1463,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
               <img
                 src={activeLightboxPhoto.image_url}
-                alt="Taş fotoğrafı"
+                alt={t("photoAlt")}
                 className="max-h-[62vh] w-full rounded-xl object-contain"
               />
 
@@ -1495,7 +1493,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                   >
                     <img
                       src={photo.image_url}
-                      alt="Galeri küçük fotoğraf"
+                      alt={t("lightbox.thumbAlt")}
                       className="h-full w-full object-cover"
                     />
                   </button>
@@ -1509,8 +1507,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 className="rounded-2xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100 disabled:opacity-50"
               >
                 {deletingPhotoId === activeLightboxPhoto.id
-                  ? "Siliniyor..."
-                  : "Bu Fotoğrafı Sil"}
+                  ? t("lightbox.deleting")
+                  : t("lightbox.deletePhoto")}
               </button>
             </div>
           </div>

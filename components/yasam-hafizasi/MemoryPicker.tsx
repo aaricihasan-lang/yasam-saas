@@ -12,6 +12,7 @@
  * client ID isim/serbest metinden TÜRETİLMEZ (yalnız /api/clients'tan gelen id).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Search, X, Check, Trash2, AlertTriangle } from "lucide-react";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchYhSearch } from "@/lib/yasam-hafizasi/ui/searchApiClient";
@@ -20,6 +21,7 @@ import { fetchClientYhSearch } from "@/lib/yasam-hafizasi/client/clientSearchApi
 import type { ClientSearchResponse } from "@/lib/yasam-hafizasi/client/clientSearchResult";
 import { createSnapshotSelectionGroup } from "@/lib/yasam-hafizasi/client/snapshotApiClient";
 import type { SnapshotTargetKind } from "@/lib/yasam-hafizasi/client/snapshotDto";
+import { formatDateAbsolute } from "@/lib/i18n/format";
 
 type Scope = "professional" | "client";
 type Status = "idle" | "loading" | "done" | "error" | "disabled";
@@ -65,10 +67,11 @@ export interface MemoryPickerProps {
   onConfirmed: (result: { selectionGroupId: string; clientId: string; total: number }) => void;
 }
 
-const DISABLED_MSG: Record<string, { title: string; msg: string }> = {
-  "not-active": { title: "Danışan Hafızası henüz etkin değil", msg: "Bu özellik etkinleştirildiğinde bu danışanın kayıtlarında arama yapabilirsiniz." },
-  "flag-disabled": { title: "Yaşam Hafızası bu hesapta aktif değil", msg: "Bu özellik hesabınız için etkinleştirildiğinde arama yapabilirsiniz." },
-  demo: { title: "Demo hesabında kullanılamaz", msg: "Demo hesaplarında Yaşam Hafızası seçimi yapılmaz." },
+/** Sunucudan gelen "disabled" nedeni → i18n alt-anahtar eşlemesi. */
+const DISABLED_REASON_KEY: Record<string, string> = {
+  "not-active": "notActive",
+  "flag-disabled": "flagDisabled",
+  demo: "demo",
 };
 
 function selKey(scope: Scope, id: string): string {
@@ -76,6 +79,7 @@ function selKey(scope: Scope, id: string): string {
 }
 
 export default function MemoryPicker({ open, onClose, targetKind, targetRef, fixedClient, onConfirmed }: MemoryPickerProps) {
+  const t = useTranslations("memoryPicker");
   const [scope, setScope] = useState<Scope>("professional");
   const [q, setQ] = useState("");
   const [submitted, setSubmitted] = useState("");
@@ -107,10 +111,10 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
     const load = async (): Promise<void> => {
       setClientsLoading(true);
       const u = readYasamUser();
-      const t = readSessionToken();
+      const token = readSessionToken();
       try {
         const res = await fetch("/api/clients?order=asc&limit=1000", {
-          headers: { "x-user-id": u?.id ?? "", ...(t ? { "x-session-token": t } : {}) },
+          headers: { "x-user-id": u?.id ?? "", ...(token ? { "x-session-token": token } : {}) },
           cache: "no-store",
         });
         const data: unknown = await res.json().catch(() => null);
@@ -121,7 +125,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
         setClients(
           list.map((c) => ({
             id: String(c.id ?? ""),
-            name: `${String(c.ad ?? "").trim()} ${String(c.soyad ?? "").trim()}`.trim() || "İsimsiz Danışan",
+            name: `${String(c.ad ?? "").trim()} ${String(c.soyad ?? "").trim()}`.trim() || t("unnamedClient"),
           })).filter((c) => c.id),
         );
       } catch {
@@ -134,7 +138,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
     return () => {
       cancelled = true;
     };
-  }, [open, fixedClient]);
+  }, [open, fixedClient, t]);
 
   const runSearch = useCallback(
     async (query: string, useScope: Scope) => {
@@ -212,7 +216,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
       const next = new Map(prev);
       const k = selKey(r.scope, r.id);
       if (next.has(k)) next.delete(k);
-      else next.set(k, { scope: r.scope, indexId: r.id, moduleLabel: r.moduleLabel, title: r.title ?? "Kayıt" });
+      else next.set(k, { scope: r.scope, indexId: r.id, moduleLabel: r.moduleLabel, title: r.title ?? t("recordFallbackTitle") });
       return next;
     });
   };
@@ -249,9 +253,9 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
     setSaving(false);
     if (!res.ok || !res.selectionGroupId) {
       setSaveError(
-        res.code === "YH_NOT_ACTIVE" ? "Yaşam Hafızası bu hesapta aktif değil."
-          : res.code === "YH_DEMO_READONLY" ? "Demo hesabında bu işlem yapılamaz."
-            : "Seçim kaydedilemedi. Lütfen tekrar deneyin.",
+        res.code === "YH_NOT_ACTIVE" ? t("saveError.notActive")
+          : res.code === "YH_DEMO_READONLY" ? t("saveError.demoReadonly")
+            : t("saveError.generic"),
       );
       return;
     }
@@ -263,18 +267,18 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
   const needsClient = !fixedClient && !pickedClient;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Yaşam Hafızası'ndan seç">
-      <button type="button" aria-label="Kapat" onClick={onClose} className="absolute inset-0 bg-slate-900/40" />
+    <div className="fixed inset-0 z-[60] flex items-stretch justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={t("aria.dialog")}>
+      <button type="button" aria-label={t("aria.close")} onClick={onClose} className="absolute inset-0 bg-slate-900/40" />
       <div className="relative flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[88vh] sm:rounded-2xl">
         {/* Başlık */}
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <div>
-            <h2 className="text-base font-black text-slate-900">Yaşam Hafızası&apos;ndan Seç</h2>
+            <h2 className="text-base font-black text-slate-900">{t("title")}</h2>
             <p className="text-xs text-slate-500">
-              Seçtiğiniz kayıtlar bu teslime <span className="font-semibold">değişmez kopya</span> olarak eklenir.
+              {t.rich("subtitle", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100">
+          <button type="button" onClick={onClose} aria-label={t("aria.close")} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100">
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
@@ -282,7 +286,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
         {/* Danışan seçici (fixedClient yoksa) */}
         {!fixedClient ? (
           <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Danışan (teslim için zorunlu)</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">{t("clientRequiredLabel")}</label>
             <select
               value={pickedClient?.id ?? ""}
               onChange={(e) => {
@@ -293,38 +297,38 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
               }}
               className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
             >
-              <option value="">{clientsLoading ? "Danışanlar yükleniyor…" : "— Danışan seçin —"}</option>
+              <option value="">{clientsLoading ? t("clientsLoading") : t("clientSelectPlaceholder")}</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         ) : (
           <div className="border-b border-slate-100 bg-violet-50/60 px-4 py-2 text-xs text-violet-700">
-            Danışan: <span className="font-bold">{fixedClient.name}</span>
+            {t("clientBanner")} <span className="font-bold">{fixedClient.name}</span>
           </div>
         )}
 
         {/* Sekmeler */}
         <div className="flex gap-1 border-b border-slate-100 px-3 pt-2">
-          <TabBtn active={scope === "professional"} onClick={() => switchScope("professional")}>Mesleki Hafıza</TabBtn>
-          <TabBtn active={scope === "client"} onClick={() => switchScope("client")} disabled={needsClient}>Danışan Hafızası</TabBtn>
+          <TabBtn active={scope === "professional"} onClick={() => switchScope("professional")}>{t("tabs.professional")}</TabBtn>
+          <TabBtn active={scope === "client"} onClick={() => switchScope("client")} disabled={needsClient}>{t("tabs.client")}</TabBtn>
         </div>
 
         {/* Arama */}
         <div className="border-b border-slate-100 px-4 py-3">
           {scope === "client" && needsClient ? (
-            <p className="text-sm text-slate-500">Önce yukarıdan bir danışan seçin.</p>
+            <p className="text-sm text-slate-500">{t("selectClientFirst")}</p>
           ) : (
             <form onSubmit={(e) => { e.preventDefault(); void runSearch(q, scope); }} className="flex items-stretch gap-2" role="search">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden />
                 <input
                   type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={200}
-                  aria-label={scope === "professional" ? "Mesleki hafıza araması" : "Danışan hafızası araması"}
-                  placeholder={scope === "professional" ? "Mesleki bilgi ara…" : "Danışan kaydı ara…"}
+                  aria-label={scope === "professional" ? t("aria.professionalSearch") : t("aria.clientSearch")}
+                  placeholder={scope === "professional" ? t("placeholder.professional") : t("placeholder.client")}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 text-base outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                 />
               </div>
-              <button type="submit" className="btn-primary inline-flex min-h-[44px] items-center rounded-xl px-4 text-sm">Ara</button>
+              <button type="submit" className="btn-primary inline-flex min-h-[44px] items-center rounded-xl px-4 text-sm">{t("searchBtn")}</button>
             </form>
           )}
         </div>
@@ -332,20 +336,24 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
         {/* Sonuçlar */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {status === "idle" ? (
-            <StateCard icon="🔎" title="Aramaya başlayın" msg={scope === "professional" ? "Mesleki bilgi havuzunuzda arayın." : "Bu danışanın geçmiş kayıtlarında arayın."} />
+            <StateCard icon="🔎" title={t("idle.title")} msg={scope === "professional" ? t("idle.professionalMsg") : t("idle.clientMsg")} />
           ) : null}
           {status === "loading" ? <Skeleton /> : null}
           {status === "disabled" ? (
-            <StateCard icon="🔒" title={DISABLED_MSG[disabledReason]?.title ?? "Kullanılamaz"} msg={DISABLED_MSG[disabledReason]?.msg ?? ""} />
+            <StateCard
+              icon="🔒"
+              title={DISABLED_REASON_KEY[disabledReason] ? t(`disabled.${DISABLED_REASON_KEY[disabledReason]}.title`) : t("disabled.fallbackTitle")}
+              msg={DISABLED_REASON_KEY[disabledReason] ? t(`disabled.${DISABLED_REASON_KEY[disabledReason]}.msg`) : ""}
+            />
           ) : null}
           {status === "error" ? (
-            <StateCard icon="⚠️" title="Bir şeyler ters gitti" msg="Arama tamamlanamadı." action={
-              <button type="button" onClick={() => void runSearch(submitted, scope)} className="btn-primary inline-flex items-center rounded-lg px-3 py-1.5 text-sm">Tekrar dene</button>
+            <StateCard icon="⚠️" title={t("error.title")} msg={t("error.msg")} action={
+              <button type="button" onClick={() => void runSearch(submitted, scope)} className="btn-primary inline-flex items-center rounded-lg px-3 py-1.5 text-sm">{t("error.retry")}</button>
             } />
           ) : null}
           {status === "done" ? (
             rows.length === 0 ? (
-              <StateCard icon="🗂️" title="Kayıt bulunamadı" msg={emptyReason === "filtered" ? "Bu filtrede kayıt yok." : "Bu arama için kayıt bulunamadı."} />
+              <StateCard icon="🗂️" title={t("empty.title")} msg={emptyReason === "filtered" ? t("empty.filtered") : t("empty.noResults")} />
             ) : (
               <>
                 {facets.length > 0 ? (
@@ -362,21 +370,21 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                   </div>
                 ) : null}
                 {displayed.length === 0 ? (
-                  <StateCard icon="🧭" title="Seçili filtrede sonuç yok" msg="Filtreyi kaldırın." />
+                  <StateCard icon="🧭" title={t("filteredEmpty.title")} msg={t("filteredEmpty.msg")} />
                 ) : (
                   <div className="space-y-2">
                     {displayed.map((r) => {
                       const isSel = selected.has(selKey(r.scope, r.id));
                       return (
                         <div key={selKey(r.scope, r.id)} className={`flex items-start gap-2 rounded-xl border p-3 ${isSel ? "border-violet-300 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
-                          <input type="checkbox" checked={isSel} onChange={() => toggleSelect(r)} aria-label="Kaydı seç" className="mt-1 h-4 w-4 accent-violet-600" />
+                          <input type="checkbox" checked={isSel} onChange={() => toggleSelect(r)} aria-label={t("aria.selectRecord")} className="mt-1 h-4 w-4 accent-violet-600" />
                           <button type="button" onClick={() => setDetail(r)} className="min-w-0 flex-1 text-left">
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase text-violet-700">{r.moduleLabel}</span>
-                              {r.scope === "professional" && r.isShared ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Kütüphane</span> : null}
-                              {r.date ? <span className="text-[11px] text-slate-400">{r.date.slice(0, 10)}</span> : null}
+                              {r.scope === "professional" && r.isShared ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t("sharedBadge")}</span> : null}
+                              {r.date ? <span className="text-[11px] text-slate-400">{formatDateAbsolute(r.date)}</span> : null}
                             </div>
-                            <h4 className="line-clamp-1 text-sm font-bold text-slate-900">{r.title ?? "Kayıt"}</h4>
+                            <h4 className="line-clamp-1 text-sm font-bold text-slate-900">{r.title ?? t("recordFallbackTitle")}</h4>
                             {r.snippet ? <p className="line-clamp-1 text-sm text-slate-600">{r.snippet}</p> : null}
                           </button>
                         </div>
@@ -398,7 +406,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                   <span key={k} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">
                     <span className="font-semibold">{s.moduleLabel}</span>
                     <span className="max-w-[140px] truncate">· {s.title}</span>
-                    <button type="button" onClick={() => removeSelected(k)} aria-label="Seçimi kaldır" className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
+                    <button type="button" onClick={() => removeSelected(k)} aria-label={t("aria.removeSelection")} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
                   </span>
                 ))}
               </div>
@@ -408,12 +416,12 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
             <p className="mb-2 flex items-center gap-1.5 text-sm text-rose-600"><AlertTriangle className="h-4 w-4" aria-hidden />{saveError}</p>
           ) : null}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm text-slate-500"><span className="font-bold text-slate-800">{selected.size}</span> kayıt seçildi</span>
+            <span className="text-sm text-slate-500">{t.rich("selectedCount", { count: selected.size, b: (chunks) => <span className="font-bold text-slate-800">{chunks}</span> })}</span>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="btn-secondary inline-flex min-h-[40px] items-center rounded-lg px-4 text-sm">Vazgeç</button>
+              <button type="button" onClick={onClose} className="btn-secondary inline-flex min-h-[40px] items-center rounded-lg px-4 text-sm">{t("cancel")}</button>
               <button type="button" onClick={() => void confirm()} disabled={selected.size === 0 || !activeClient || saving}
                 className="btn-primary inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-4 text-sm disabled:opacity-50">
-                <Check className="h-4 w-4" aria-hidden />{saving ? "Ekleniyor…" : "Teslime Ekle"}
+                <Check className="h-4 w-4" aria-hidden />{saving ? t("adding") : t("add")}
               </button>
             </div>
           </div>
@@ -421,16 +429,16 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
 
         {/* Detay */}
         {detail ? (
-          <div className="absolute inset-0 z-10 flex justify-end" role="dialog" aria-modal="true" aria-label="Kayıt detayı">
-            <button type="button" aria-label="Kapat" onClick={() => setDetail(null)} className="absolute inset-0 bg-slate-900/30" />
+          <div className="absolute inset-0 z-10 flex justify-end" role="dialog" aria-modal="true" aria-label={t("aria.recordDetail")}>
+            <button type="button" aria-label={t("aria.close")} onClick={() => setDetail(null)} className="absolute inset-0 bg-slate-900/30" />
             <aside className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                 <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-black uppercase text-violet-700">{detail.moduleLabel}</span>
-                <button type="button" onClick={() => setDetail(null)} aria-label="Kapat" className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" aria-hidden /></button>
+                <button type="button" onClick={() => setDetail(null)} aria-label={t("aria.close")} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" aria-hidden /></button>
               </div>
               <div className="space-y-3 px-4 py-4">
-                <h3 className="text-xl font-black text-slate-900">{detail.title ?? "Kayıt"}</h3>
-                {detail.date ? <p className="text-sm text-slate-500">Tarih: {detail.date.slice(0, 10)}</p> : null}
+                <h3 className="text-xl font-black text-slate-900">{detail.title ?? t("recordFallbackTitle")}</h3>
+                {detail.date ? <p className="text-sm text-slate-500">{t("detail.dateLabel")} {formatDateAbsolute(detail.date)}</p> : null}
                 {detail.snippet ? <p className="text-sm text-slate-700">{detail.snippet}</p> : null}
                 {detail.evidence.length > 0 ? (
                   <ul className="space-y-1.5">
@@ -440,9 +448,9 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                 {detail.topicTags.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">{detail.topicTags.map((t) => <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">#{t}</span>)}</div>
                 ) : null}
-                {!detail.sourceAvailable ? <p className="text-sm text-amber-700">Kaynak kaydı artık mevcut değil (snapshot korunur).</p> : null}
+                {!detail.sourceAvailable ? <p className="text-sm text-amber-700">{t("detail.sourceGone")}</p> : null}
                 <button type="button" onClick={() => { toggleSelect(detail); }} className="btn-primary inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm">
-                  <Check className="h-4 w-4" aria-hidden />{selected.has(selKey(detail.scope, detail.id)) ? "Seçimden çıkar" : "Seç"}
+                  <Check className="h-4 w-4" aria-hidden />{selected.has(selKey(detail.scope, detail.id)) ? t("detail.deselect") : t("detail.select")}
                 </button>
               </div>
             </aside>

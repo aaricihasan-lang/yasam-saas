@@ -1,0 +1,91 @@
+{
+  "stones": {
+    "hub": {
+      "sidebar": {
+        "brand": "YAŞAM SİSTEMİ",
+        "moduleName": "Doğaltaş Modülü",
+        "modulesHeading": "MODÜLLER"
+      },
+      "hero": {
+        "titleAccent": "Doğaltaş",
+        "titleSuffix": "Yönetimi",
+        "subtitle": "Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.",
+        "reportButton": "📄 Profesyonel Rapor"
+      },
+      "search": {
+        "aria": "Taş adı veya içerikte ara",
+        "placeholderNarrow": "Taş ara...",
+        "placeholderWide": "Taş adı veya içerikte ara (ör. mide, şifa)...",
+        "submit": "Ara",
+        "submitting": "Aranıyor...",
+        "dataError": "Arama verisi okunamadı.",
+        "recordsError": "Taş kayıtları okunamadı: {message}"
+      },
+      "results": {
+        "title": "Arama Sonuçları",
+        "count": " · {count} kayıt",
+        "loading": "Yükleniyor...",
+        "empty": "Bu arama için sonuç bulunamadı.",
+        "noDescription": "Kısa açıklama eklenmemiş.",
+        "viewed": "Bakıldı",
+        "matched": "Eşleşme: {field}",
+        "detail": "Detaya Git"
+      },
+      "field": {
+        "stoneName": "Taş adı",
+        "shortDescription": "Kısa açıklama",
+        "generalInfo": "Genel bilgi",
+        "physicalEffects": "Fiziksel etkiler",
+        "spiritualEffects": "Ruhsal etkiler",
+        "otherEffects": "Diğer etkiler",
+        "warning": "Uyarı",
+        "chakra": "Çakra",
+        "tag": "Etiket",
+        "assignments": "Atamalar"
+      },
+      "analytics": {
+        "title": "Hesaplanmış Analizler",
+        "subtitle": "Supabase stones, minerals ve combinations verilerine göre",
+        "failedCounters": "Bazı sayaçlar okunamadı ({items}). Lütfen sayfayı yenileyin.",
+        "failedLabel": {
+          "stones": "taş kaydı",
+          "combinations": "kombinasyon",
+          "minerals": "mineral"
+        },
+        "trendTitle": "Aylık Kayıt Trendi",
+        "trendSubtitle": "Son 6 ay · stones.created_at",
+        "loading": "Yükleniyor...",
+        "barTitle": "{label}: {count} kayıt",
+        "totalStones": "Toplam Taş Kaydı",
+        "mineralBank": "Mineral Bankası",
+        "activeCombinations": "Aktif Kombinasyonlar"
+      },
+      "report": {
+        "title": "Profesyonel Word Raporu Oluştur",
+        "subtitle": "Rapora dahil edilecek bölümleri seçin.",
+        "selectAll": "Tümünü Seç",
+        "section": {
+          "stones": "Doğaltaş Kayıtları",
+          "minerals": "Mineral Bankası",
+          "combinations": "Kombinasyonlar",
+          "knowledge": "Taş Bilgi Kütüphanesi",
+          "analytics": "Stok / Analiz Özeti"
+        },
+        "errorEmpty": "Lütfen rapora dahil edilecek en az bir bölüm seçin.",
+        "errorSession": "Oturum bulunamadı. Lütfen sayfayı yenileyin.",
+        "errorUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
+        "errorGeneric": "Rapor oluşturulamadı.",
+        "success": "Word raporu başarıyla oluşturuldu.",
+        "preparing": "Profesyonel Word raporu hazırlanıyor...",
+        "clear": "Seçimi Temizle",
+        "submit": "Rapor Oluştur",
+        "submitting": "Hazırlanıyor..."
+      },
+      "fallbackLoading": "Yükleniyor…",
+      "meta": {
+        "titleDefault": "Doğaltaş · Yaşam Sistemi",
+        "titleTemplate": "%s · Doğaltaş · Yaşam Sistemi"
+      }
+    }
+  }
+}

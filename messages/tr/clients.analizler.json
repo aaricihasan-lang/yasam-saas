@@ -1,0 +1,140 @@
+{
+  "clients": {
+    "analizler": {
+      "loading": "Yükleniyor...",
+      "refresh": "Yenile",
+      "cancel": "Vazgeç",
+      "analysisType": {
+        "chakra": "Çakra Analizi",
+        "planet": "Çakra-Gezegen Analizi",
+        "default": "Analiz"
+      },
+      "bodies": {
+        "ruhsal": "RUHSAL ENERJİ BEDENİ",
+        "zihinsel": "ZİHİNSEL ENERJİ BEDENİ",
+        "duygusal": "DUYGUSAL ENERJİ BEDENİ",
+        "eterik": "ETERİK ENERJİ BEDENİ",
+        "fiziksel": "FİZİKSEL ENERJİ BEDENİ"
+      },
+      "chakra": {
+        "tac": "TEPE / TAÇ ÇAKRASI",
+        "goz": "3. GÖZ ÇAKRASI",
+        "bogaz": "BOĞAZ ÇAKRASI",
+        "kalp": "KALP ÇAKRASI",
+        "mide": "MİDE ÇAKRASI",
+        "sakral": "SAKRAL (KARIN) ÇAKRASI",
+        "kok": "KÖK ÇAKRASI"
+      },
+      "planetRow": {
+        "tac": "TEPE / TAÇ",
+        "goz": "3. GÖZ",
+        "bogaz": "BOĞAZ",
+        "kalp": "KALP",
+        "mide": "MİDE",
+        "sakral": "SAKRAL (KARIN)",
+        "kok": "KÖK"
+      },
+      "planet": {
+        "gunes": "GÜNEŞ",
+        "ay": "AY",
+        "merkur": "MERKÜR",
+        "mars": "MARS",
+        "venus": "VENÜS"
+      },
+      "header": {
+        "badge": "Enerji & Analiz Merkezi",
+        "title": "Danışan Analizleri",
+        "subtitle": "{name} için çakra, Ç.Gezegen, numeroloji ve Human Design analizleri burada toplanacak."
+      },
+      "card": {
+        "openButton": "Analizi Aç",
+        "chakra": {
+          "badge": "Enerji Analizi",
+          "title": "Çakra Analizi",
+          "text": "Seans öncesi ve sonrası enerji değişimlerini çakra düzeni üzerinden takip edin."
+        },
+        "planet": {
+          "badge": "Gezegen Analizi",
+          "title": "Ç.Gezegen Analizi",
+          "text": "Çakraların gezegensel enerji dengesini seans bazlı değerlendirin."
+        }
+      },
+      "saved": {
+        "badge": "Kayıtlı Analizler",
+        "title": "Analiz Geçmişi",
+        "subtitle": "Kaydedilen analizleri buradan tekrar açabilir veya silebilirsin.",
+        "empty": "Henüz kayıtlı analiz yok."
+      },
+      "item": {
+        "open": "Aç",
+        "delete": "Sil"
+      },
+      "modal": {
+        "badge": "Analiz Formu",
+        "clientLabel": "Danışan:",
+        "dateLabel": "Tarih:",
+        "noteLabel": "Analiz Notu",
+        "notePlaceholder": "Analiz yorumu, seans gözlemi veya danışana özel not...",
+        "clearAll": "Tümünü Temizle",
+        "pdf": "PDF Al",
+        "pdfPreparing": "PDF Hazırlanıyor...",
+        "word": "Word Al",
+        "wordPreparing": "Word Hazırlanıyor...",
+        "save": "Kaydet",
+        "saving": "Kaydediliyor..."
+      },
+      "section": {
+        "beforeEnergy": "Seans Öncesi — Enerji Bedenleri",
+        "afterEnergy": "Seans Sonrası — Enerji Bedenleri",
+        "beforeChakra": "Çakralar — Seans Öncesi",
+        "afterChakra": "Çakralar — Seans Sonrası",
+        "before": "Seans Öncesi",
+        "after": "Seans Sonrası"
+      },
+      "colHeader": {
+        "mark": "İŞARET +/- · SAYI %",
+        "male": "ERİL ENERJİ",
+        "female": "DİŞİL ENERJİ"
+      },
+      "input": {
+        "markPlaceholder": "+10 / -20",
+        "malePlaceholder": "Eril",
+        "femalePlaceholder": "Dişil",
+        "planetPlaceholder": "+30 / -20"
+      },
+      "delete": {
+        "title": "Analizi sil",
+        "message": "Bu analiz kaydı silinsin mi?"
+      },
+      "clearConfirm": {
+        "title": "Alanları temizle",
+        "message": "Bu analizdeki tüm alanlar temizlensin mi?",
+        "confirm": "Temizle"
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "warningTitle": "Uyarı",
+        "infoTitle": "Bilgi",
+        "loadFailed": "Analizler yüklenemedi",
+        "deleteFailed": "Analiz silinemedi",
+        "deleted": "Analiz silindi.",
+        "pdfAreaNotFound": "PDF alanı bulunamadı.",
+        "pdfDownloaded": "PDF dosyası indirildi.",
+        "pdfFailed": "PDF oluşturulamadı. Konsolu kontrol edelim.",
+        "selectFirst": "Önce analiz seçmelisiniz.",
+        "saveFailed": "Analiz kaydedilemedi",
+        "saved": "Analiz kaydedildi.",
+        "imageUploadFailed": "Analiz kaydedildi, görsel eklenemedi.",
+        "wordNeedsSave": "Word çıktısı için önce analizi kaydedin.",
+        "sessionInvalid": "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.",
+        "wordFailed": "Word oluşturulamadı.",
+        "wordDownloaded": "Word dosyası indirildi.",
+        "wordFailedRetry": "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin."
+      },
+      "error": {
+        "pdfNoContent": "PDF içeriği bulunamadı."
+      }
+    }
+  }
+}

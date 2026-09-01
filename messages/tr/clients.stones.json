@@ -1,0 +1,145 @@
+{
+  "clients": {
+    "stones": {
+      "noDate": "Tarih belirtilmedi",
+      "cancel": "Vazgeç",
+      "cancelTop": "İptal",
+      "close": "Kapat",
+      "item": {
+        "edit": "Düzenle",
+        "delete": "Sil"
+      },
+      "form": {
+        "nameLabel": "Taş Adı",
+        "namePlaceholder": "Örn: Ametist, Şungit, Pirit",
+        "typeLabel": "Kullanım / Tür",
+        "typePlaceholder": "Kolye, bileklik, cep taşı...",
+        "dateLabel": "Tarih",
+        "usageLabel": "Kullanım Detayı",
+        "usagePlaceholder": "Nasıl kullanılacak? Süre, bölge, yöntem...",
+        "combinationLabel": "Kombin",
+        "combinationPlaceholder": "Birlikte verilen taşlar veya kombin mantığı...",
+        "warningLabel": "Uyarı",
+        "warningPlaceholder": "Suyla temas, gece kullanımı, hassasiyet vb.",
+        "otherLabel": "Diğer",
+        "otherPlaceholder": "Serbest alan...",
+        "noteLabel": "Genel Not",
+        "notePlaceholder": "Taşla ilgili genel öneri, takip notu, seans yorumu..."
+      },
+      "photoPicker": {
+        "title": "Fotoğraflar",
+        "select": "Bilgisayardan Foto Seç",
+        "clear": "Seçimi Temizle",
+        "hint": "Taşı kaydetmeden önce bilgisayardan birden fazla fotoğraf seçebilirsin.",
+        "previewAlt": "Seçilen fotoğraf {n}"
+      },
+      "gallery": {
+        "title": "📷 Taş Fotoğrafları",
+        "count": "{count} fotoğraf kayıtlı",
+        "uploading": "Yükleniyor...",
+        "add": "Fotoğraf Ekle",
+        "empty": "Henüz fotoğraf eklenmemiş. “Fotoğraf Ekle” ile sonradan da fotoğraf ekleyebilirsin."
+      },
+      "photoAlt": "Taş fotoğrafı",
+      "header": {
+        "badge": "Profesyonel Taş Takip Sistemi",
+        "title": "Danışan Taşları",
+        "subtitle": "Taş bilgilerini ve fotoğrafları tek ekrandan seçip tek tuşla kaydedebilirsin."
+      },
+      "stats": {
+        "records": "kayıt",
+        "photoStones": "foto taş",
+        "photos": "foto"
+      },
+      "toggleFormOpen": "+ Yeni Taş Ekle",
+      "toggleFormClose": "Formu Kapat",
+      "newForm": {
+        "title": "Yeni Taş Kaydı",
+        "subtitle": "Taş bilgilerini ve fotoğraflarını girerek kaydet.",
+        "saving": "Kaydediliyor...",
+        "savingWithPhotos": "Taş ve fotoğraflar kaydediliyor...",
+        "save": "💾 Taşı Kaydet"
+      },
+      "list": {
+        "title": "Kayıtlı Taşlar",
+        "subtitle": "Bu danışana ait taş önerileri, kombinleri, fotoğrafları ve takip notları.",
+        "loading": "Yükleniyor...",
+        "refresh": "Listeyi Yenile",
+        "loadingRecords": "Taş kayıtları yükleniyor..."
+      },
+      "empty": {
+        "title": "Henüz taş kaydı yok",
+        "hint": "\"+ Yeni Taş Ekle\" butonundan ilk kaydı oluşturabilirsin."
+      },
+      "card": {
+        "noPhoto": "📷 Foto yok",
+        "noType": "Kullanım türü belirtilmedi",
+        "noName": "İsimsiz taş",
+        "stoneDate": "Taş tarihi: {date}",
+        "recordDate": "Kayıt tarihi: {date}",
+        "noNote": "Bu taş için henüz genel not eklenmemiş."
+      },
+      "detail": {
+        "usage": "Kullanım",
+        "combination": "Kombin",
+        "warning": "Uyarı",
+        "other": "Diğer",
+        "note": "Genel Not"
+      },
+      "editForm": {
+        "title": "Taş Kaydını Düzenle",
+        "subtitle": "Kullanım, kombin, uyarı ve not alanlarını güncelleyebilirsin. Fotoğraflar kayıt kartı üzerinden ayrıca eklenir.",
+        "updating": "Güncelleniyor...",
+        "update": "Güncelle"
+      },
+      "lightbox": {
+        "title": "Fotoğraf Galerisi",
+        "thumbAlt": "Galeri küçük fotoğraf",
+        "deleting": "Siliniyor...",
+        "deletePhoto": "Bu Fotoğrafı Sil"
+      },
+      "warningModal": {
+        "badge": "TAŞLARA KAYITLI UYARI",
+        "title": "Önerilen taşlarda kayıtlı uyarılar var",
+        "subtitle": "Doğaltaş modülünde bu taşlar için uyarı kaydı bulunuyor. Yine de kaydetmek istiyor musunuz?",
+        "tagsLabel": "Uyarı Etiketleri:",
+        "textLabel": "Uyarı Metni:",
+        "openRecord": "Doğaltaş kaydını aç",
+        "cancel": "İptal",
+        "confirm": "Yine de Kaydet"
+      },
+      "delete": {
+        "stone": {
+          "title": "Taşı sil",
+          "message": "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar."
+        },
+        "photo": {
+          "title": "Fotoğrafı sil",
+          "message": "Bu fotoğraf silinsin mi?"
+        }
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "onlyImages": "Sadece fotoğraf dosyası seçebilirsin.",
+        "noClient": "Danışan bilgisi bulunamadı.",
+        "emptyForm": "Lütfen en az bir alan doldurun veya fotoğraf seçin.",
+        "added": "Taş kaydı eklendi.",
+        "addFailed": "Taş kaydı eklenemedi.",
+        "emptyUpdate": "Boş kayıt güncellenemez.",
+        "updated": "Taş kaydı güncellendi.",
+        "updateFailed": "Taş kaydı güncellenemedi.",
+        "deleted": "Taş kaydı silindi.",
+        "deleteFailed": "Taş kaydı silinemedi.",
+        "uploadFailed": "Foto yüklenemedi",
+        "photoInsertFailed": "Foto kaydı yazılamadı",
+        "photoDeleted": "Fotoğraf silindi.",
+        "photoDeleteFailed": "Foto kaydı silinemedi"
+      },
+      "error": {
+        "loadStones": "Taş kayıtları yüklenemedi",
+        "loadPhotos": "Taş fotoğrafları yüklenemedi"
+      }
+    }
+  }
+}

@@ -3,15 +3,27 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 
 const inputClass =
   "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
 
+/** API error `code` → i18n toast alt-anahtarı (bkz. app/api/register/route.ts). */
+const ERROR_CODE_KEY: Record<string, string> = {
+  missing_fields: "allFields",
+  config: "config",
+  hash: "hash",
+  already_exists: "alreadyExists",
+  idempotency: "idempotency",
+  failed: "generic",
+};
+
 export default function RegisterPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const t = useTranslations("home.register");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,8 +41,8 @@ export default function RegisterPage() {
 
     if (!name || !mail || !pass) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Tüm alanları doldurunuz.",
+        title: t("toast.errorTitle"),
+        message: t("toast.allFields"),
         type: "error",
       });
       return;
@@ -38,8 +50,8 @@ export default function RegisterPage() {
 
     if (pass !== passRepeat) {
       showToast({
-        title: "İşlem başarısız",
-        message: "Şifreler eşleşmiyor.",
+        title: t("toast.errorTitle"),
+        message: t("toast.passwordMismatch"),
         type: "error",
       });
       return;
@@ -53,12 +65,16 @@ export default function RegisterPage() {
       body: JSON.stringify({ fullName: name, email: mail, password: pass }),
     });
 
-    const json = (await res.json()) as { ok?: boolean; error?: string };
+    const json = (await res.json()) as { ok?: boolean; error?: string; code?: string };
 
     if (!res.ok || !json.ok) {
+      // API artık kararlı bir `code` döndürür → locale'e göre i18n mesaj. Bilinmeyen
+      // kod / eski yanıt için ham `error`'a, o da yoksa generic'e düşülür.
+      const codeKey = json.code ? ERROR_CODE_KEY[json.code] : undefined;
+      const message = codeKey ? t(`toast.${codeKey}`) : json.error ?? t("toast.generic");
       showToast({
-        title: "İşlem başarısız",
-        message: json.error ?? "Kayıt tamamlanamadı.",
+        title: t("toast.errorTitle"),
+        message,
         type: "error",
       });
       setSaving(false);
@@ -66,9 +82,8 @@ export default function RegisterPage() {
     }
 
     showToast({
-      title: "Başarılı",
-      message:
-        "Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.",
+      title: t("toast.successTitle"),
+      message: t("toast.success"),
       type: "success",
     });
 
@@ -89,24 +104,23 @@ export default function RegisterPage() {
 
           <div className="relative z-10">
             <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
-              Uzman Kaydı
+              {t("badge")}
             </div>
-            <h1 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">Kayıt Ol</h1>
+            <h1 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">{t("title")}</h1>
             <p className="mt-2 text-base leading-7 text-slate-500 md:text-lg">
-              Uzman hesabınızı oluşturun. Yönetici onayından sonra giriş
-              yapabilirsiniz.
+              {t("subtitle")}
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <div>
                 <label className="mb-2 block text-base font-semibold text-slate-700">
-                  Ad Soyad
+                  {t("fullNameLabel")}
                 </label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Adınız Soyadınız"
+                  placeholder={t("fullNamePlaceholder")}
                   className={inputClass}
                   autoComplete="name"
                 />
@@ -114,13 +128,13 @@ export default function RegisterPage() {
 
               <div>
                 <label className="mb-2 block text-base font-semibold text-slate-700">
-                  E-posta
+                  {t("emailLabel")}
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="uzman@ornek.com"
+                  placeholder={t("emailPlaceholder")}
                   className={inputClass}
                   autoComplete="email"
                 />
@@ -128,7 +142,7 @@ export default function RegisterPage() {
 
               <div>
                 <label className="mb-2 block text-base font-semibold text-slate-700">
-                  Şifre
+                  {t("passwordLabel")}
                 </label>
                 <input
                   type="password"
@@ -142,7 +156,7 @@ export default function RegisterPage() {
 
               <div>
                 <label className="mb-2 block text-base font-semibold text-slate-700">
-                  Şifre Tekrar
+                  {t("passwordRepeatLabel")}
                 </label>
                 <input
                   type="password"
@@ -162,21 +176,21 @@ export default function RegisterPage() {
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    Kaydediliyor…
+                    {t("submitting")}
                   </span>
                 ) : (
-                  "Kayıt Ol"
+                  t("submit")
                 )}
               </button>
             </form>
 
             <p className="relative z-10 mt-5 text-center text-sm font-semibold text-slate-600">
-              Zaten hesabınız var mı?{" "}
+              {t("haveAccount")}{" "}
               <Link
                 href="/?login=1"
                 className="font-black text-violet-700 no-underline hover:text-violet-900"
               >
-                Giriş yapın
+                {t("signIn")}
               </Link>
             </p>
           </div>

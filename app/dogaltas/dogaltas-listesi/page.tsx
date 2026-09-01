@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
@@ -21,7 +22,6 @@ import {
   ADMIN_LIBRARY_TENANT_ID,
   getSessionTenantId,
   getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import {
   excludeStonesForTenant,
@@ -57,9 +57,6 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-
-const DEMO_ACTION_MESSAGE =
-  "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
 const LAST_VIEWED_STONE_KEY = "yasam-dogaltas-last-viewed-stone-id";
@@ -169,13 +166,13 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-function safeText(value: string | null | undefined, limit = 115) {
-  if (!value) return "Kısa açıklama eklenmemiş.";
+function safeText(
+  value: string | null | undefined,
+  limit = 115,
+  emptyLabel = "Kısa açıklama eklenmemiş.",
+) {
+  if (!value) return emptyLabel;
   return value.length > limit ? `${value.slice(0, limit)}...` : value;
-}
-
-function listSummaryLabel(stone: StoneListItem): string {
-  return stone.short_description?.trim() ? "Özet var" : "—";
 }
 
 // FAZ-4A: Yükleme iskeleti de kart görünümüyle uyumlu — StoneCard grid ile aynı
@@ -265,12 +262,15 @@ const StoneCard = memo(function StoneCard({
   onNavigate,
   onDelete,
 }: StoneRowSharedProps) {
+  const t = useTranslations("stones.list");
+  const tf = useTranslations("stones");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const imageCount = stoneListImageCount(stone.images);
   // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
   const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
-  const displayName = stone.stone_name || "İsimsiz taş";
-  const displayDescription = safeText(stone.short_description, 120);
+  const displayName = stone.stone_name || tf("common.unnamedStone");
+  const displayDescription = safeText(stone.short_description, 120, t("card.noShortDescription"));
 
   return (
     <div
@@ -301,12 +301,12 @@ const StoneCard = memo(function StoneCard({
             checked={isSelected}
             onChange={() => onToggleSelect(stone.id)}
             onClick={(event) => event.stopPropagation()}
-            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+            aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
             className={uiRowCheckbox}
           />
         ) : <span />}
         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-          {isLibraryStone ? "Kütüphane" : isDemo ? "" : "Seç"}
+          {isLibraryStone ? t("card.library") : isDemo ? "" : t("card.select")}
         </span>
       </div>
       <Link
@@ -318,10 +318,10 @@ const StoneCard = memo(function StoneCard({
       >
         {isSearchActive ? (
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+            <span className={SEARCH_MATCH_BADGE_CLASS}>{t("card.matchBadge")}</span>
             {isViewedInSearch ? (
               <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                Bakıldı
+                {t("card.viewed")}
               </span>
             ) : null}
           </div>
@@ -368,17 +368,19 @@ const StoneCard = memo(function StoneCard({
                   key={chakra}
                   className={uiBadgeChakra}
                 >
-                  {chakra}
+                  {facet(chakra)}
                 </span>
               ))}
 
-              <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
+              <span className={uiBadgeSection}>
+                {stone.short_description?.trim() ? t("card.summaryYes") : "—"}
+              </span>
 
               <AdminTransferBadge originType={stone.origin_type} />
 
               {imageCount > 0 && (
                 <span className={uiBadgeImage}>
-                  {imageCount} görsel
+                  {t("card.imageCount", { count: imageCount })}
                 </span>
               )}
             </div>
@@ -394,7 +396,7 @@ const StoneCard = memo(function StoneCard({
           }}
           className="text-xs font-bold text-emerald-700 transition hover:text-violet-700 xl:text-sm"
         >
-          Detay sayfasında oku →
+          {t("card.readOnDetail")}
         </Link>
 
         {!isDemo && (
@@ -405,11 +407,11 @@ const StoneCard = memo(function StoneCard({
               event.stopPropagation();
               onDelete(stone);
             }}
-            aria-label={`${stone.stone_name || "İsimsiz taş"} kaydını sil`}
+            aria-label={t("card.deleteAria", { name: stone.stone_name || tf("common.unnamedStone") })}
             // F-015a: destructive dokunma hedefi ~44×44px (mobil erişilebilirlik).
             className="btn-danger shrink-0 !min-h-[44px] !min-w-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
           >
-            Sil
+            {t("card.delete")}
           </button>
         )}
       </div>
@@ -418,6 +420,12 @@ const StoneCard = memo(function StoneCard({
 });
 
 function DogaltasListesiPageContent() {
+  const t = useTranslations("stones.list");
+  // Facet chip display: filtre value KANONİK Türkçe (detailFilters.chakra + containsTr eşleşme);
+  // yalnız etiket localize. Anahtar yoksa canonical'a düşer.
+  const tf = useTranslations("stones");
+  const tc = useTranslations("stones.common");
+  const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const { isDemo } = useDemoGuard();
@@ -465,7 +473,7 @@ function DogaltasListesiPageContent() {
       if (!tenantId) {
         setListLoading(false);
         setLoadingMore(false);
-        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        setErrorMessage(tc("workspaceUnavailable"));
         return;
       }
 
@@ -526,7 +534,7 @@ function DogaltasListesiPageContent() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setErrorMessage(`Kayıtlar alınamadı: ${pageRes.error}`);
+        setErrorMessage(t("error.fetchFailed", { error: pageRes.error }));
         // stale cache gösterildiyse listeyi boşaltma; yalnız hiç veri yoksa boşalt.
         if (opts.reset && !shownFromCache) setStones([]);
         return;
@@ -534,7 +542,7 @@ function DogaltasListesiPageContent() {
 
       applyResult(pageRes.rows, opts.reset ? pageRes.count : undefined);
     },
-    [debouncedSearch, searchMode, queryTenantId],
+    [debouncedSearch, searchMode, queryTenantId, t, tc],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -561,7 +569,7 @@ function DogaltasListesiPageContent() {
     if (!stoneToDelete) return;
     if (isDemo) {
       setStoneToDelete(null);
-      showToast({ type: "info", message: DEMO_ACTION_MESSAGE });
+      showToast({ type: "info", message: t("toast.demoAction") });
       return;
     }
 
@@ -571,7 +579,7 @@ function DogaltasListesiPageContent() {
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
       setDeleteLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -585,7 +593,7 @@ function DogaltasListesiPageContent() {
       const { error } = await excludeStonesForTenant(tenantId, [stoneId]);
       setDeleteLoading(false);
       if (error) {
-        setErrorMessage(`Kayıt kaldırılamadı: ${error}`);
+        setErrorMessage(t("error.removeFailed", { error }));
         return;
       }
       setExcludedStoneIds((prev) => new Set([...prev, stoneId]));
@@ -596,7 +604,7 @@ function DogaltasListesiPageContent() {
       setDeleteLoading(false);
 
       if (!ok) {
-        setErrorMessage(`Kayıt silinemedi: ${error ?? "Lütfen tekrar deneyin."}`);
+        setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
         return;
       }
 
@@ -634,7 +642,7 @@ function DogaltasListesiPageContent() {
     // Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir (yanlış toplu silme koruması).
     const cur = selectedIdsRef.current;
     if (isMobileRef.current && !cur.has(stoneId) && cur.size >= 2) {
-      showToastRef.current({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToastRef.current({ type: "info", message: t("toast.maxSelectMobile") });
       return;
     }
     setSelectedIds((current) => {
@@ -644,7 +652,7 @@ function DogaltasListesiPageContent() {
       else next.add(stoneId);
       return next;
     });
-  }, []);
+  }, [t]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -876,11 +884,11 @@ function DogaltasListesiPageContent() {
   const selectAllFiltered = useCallback(() => {
     // FAZ-1: Mobilde "Tümünü Seç" sınırsız seçim yaptırmaz (max 2 kuralı).
     if (isMobile) {
-      showToast({ type: "info", message: "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz." });
+      showToast({ type: "info", message: t("toast.maxSelectMobile") });
       return;
     }
     setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
-  }, [filteredStones, isMobile, showToast]);
+  }, [filteredStones, isMobile, showToast, t]);
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || listLoading || !hasMore) return;
@@ -890,21 +898,21 @@ function DogaltasListesiPageContent() {
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
     if (isDemo) {
-      showToast({ type: "info", message: DEMO_ACTION_MESSAGE });
+      showToast({ type: "info", message: t("toast.demoAction") });
       return;
     }
 
     const confirmed = await deleteConfirm({
-      title: "Seçili kayıtları kaldır",
-      message: `${selectedIds.size} taş kaydını listenden kaldırmak istediğinden emin misin?`,
-      secondMessage: "Kendi eklediğin kayıtlar kalıcı silinir. Kütüphane taşları yalnızca senin görünümünden kaldırılır.",
+      title: t("confirm.bulkTitle"),
+      message: t("confirm.bulkMessage", { count: selectedIds.size }),
+      secondMessage: t("confirm.bulkSecond"),
     });
 
     if (!confirmed) return;
 
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
 
@@ -956,14 +964,14 @@ function DogaltasListesiPageContent() {
     setDeleteLoading(false);
 
     if (ownError || libError) {
-      setErrorMessage(`Bazı kayıtlar kaldırılamadı: ${ownError ?? libError}`);
+      setErrorMessage(t("error.someRemoveFailed", { error: ownError ?? libError ?? "" }));
       return;
     }
 
-    showToast({ type: "success", message: `${deletedCount} kayıt listenizden kaldırıldı.` });
+    showToast({ type: "success", message: t("toast.removedCount", { count: deletedCount }) });
     setSelectedIds(new Set());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo]);
+  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo, t, tc]);
 
   const loadedImages = useMemo(
     () =>
@@ -975,11 +983,11 @@ function DogaltasListesiPageContent() {
   );
 
   const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
-    if (isDemo) { showToast({ type: "info", message: DEMO_ACTION_MESSAGE }); return; }
+    if (isDemo) { showToast({ type: "info", message: t("toast.demoAction") }); return; }
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
-    if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    if (!tenantId) { showToast({ type: "error", message: tc("workspaceUnavailable") }); return; }
     const userId = readYasamUser()?.id;
-    if (!userId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    if (!userId) { showToast({ type: "error", message: tc("workspaceUnavailable") }); return; }
     const sessionToken = readSessionToken();
 
     setWordBusy(true);
@@ -987,10 +995,10 @@ function DogaltasListesiPageContent() {
       let selectedStoneIds: string[] | undefined;
       if (mode === "selected") {
         selectedStoneIds = [...selectedIds];
-        if (!selectedStoneIds.length) { showToast({ type: "warning", message: "Önce taş seçin." }); return; }
+        if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.selectStoneFirst") }); return; }
       } else if (mode === "filtered") {
         selectedStoneIds = filteredStones.map((s) => s.id);
-        if (!selectedStoneIds.length) { showToast({ type: "warning", message: "Filtrelenmiş sonuç yok." }); return; }
+        if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.noFilteredResult") }); return; }
       }
 
       // F-018: kimlik header'dan; body'de userId/tenantId GÖNDERİLMEZ.
@@ -1024,20 +1032,20 @@ function DogaltasListesiPageContent() {
       a.click();
       URL.revokeObjectURL(url);
       // FAZ-4A: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
-      showToast({ type: "success", message: "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz." });
+      showToast({ type: "success", message: t("toast.wordStarted") });
     } catch (err) {
       console.error("[dogaltas-listesi] Word raporu hatası:", err);
-      showToast({ type: "error", message: "Word raporu oluşturulamadı. Lütfen tekrar deneyin." });
+      showToast({ type: "error", message: t("toast.wordFailed") });
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo]);
+  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo, t, tc]);
 
   return (
     <DogaltasSectionShell
-      eyebrow="DOĞALTAŞ · DOĞALTAŞ KÜTÜPHANESİ"
-      title="Doğaltaş Listesi"
-      subtitle="Kayıtları arayın, filtreleyin ve detay sayfasında okuyun."
+      eyebrow={t("eyebrow")}
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon="💎"
       actions={
         <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
@@ -1045,7 +1053,7 @@ function DogaltasListesiPageContent() {
             <div className="text-lg font-black text-slate-950">
               {totalCount}
             </div>
-            <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
+            <div className="text-xs font-bold text-slate-500">{t("stat.total")}</div>
           </div>
 
           <div className={uiStatCard}>
@@ -1053,20 +1061,20 @@ function DogaltasListesiPageContent() {
               {filteredStones.length}
             </div>
             <div className="text-xs font-bold text-slate-500">
-              {isDetailFilterActive ? "Eşleşen" : "Yüklü"}
+              {isDetailFilterActive ? t("stat.matched") : t("stat.loaded")}
             </div>
           </div>
 
           <div className={uiStatCard}>
             <div className="text-lg font-black text-slate-950">{loadedImages}</div>
-            <div className="text-xs font-bold text-slate-500">Görsel</div>
+            <div className="text-xs font-bold text-slate-500">{t("stat.image")}</div>
           </div>
         </div>
       }
     >
       <div className={pageContent}>
         {isDemo && (
-          <DemoModuleBanner message="Doğaltaş listesini inceleyebilirsiniz. Yeni kayıt, düzenleme, silme ve Word/PDF dışa aktarma demo hesabında kapalıdır." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
 
         <section className={uiFilterCard}>
@@ -1085,7 +1093,7 @@ function DogaltasListesiPageContent() {
                         : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
-                    Taş İsmi
+                    {t("search.modeName")}
                   </button>
                   <button
                     type="button"
@@ -1096,7 +1104,7 @@ function DogaltasListesiPageContent() {
                         : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
-                    İçerik
+                    {t("search.modeContent")}
                   </button>
                 </div>
 
@@ -1113,8 +1121,8 @@ function DogaltasListesiPageContent() {
                     // F-015b: yalnız placeholder erişilebilir ad değildir → aria-label.
                     aria-label={
                       searchMode === "name"
-                        ? "Taş adında ara"
-                        : "Açıklama ve içerikte ara"
+                        ? t("search.ariaName")
+                        : t("search.ariaContent")
                     }
                     value={searchTerm}
                     onChange={(event) => handleSearchChange(event.target.value)}
@@ -1123,8 +1131,8 @@ function DogaltasListesiPageContent() {
                     }}
                     placeholder={
                       searchMode === "name"
-                        ? "Taş adında ara..."
-                        : "Açıklama ve içerikte ara..."
+                        ? t("search.placeholderName")
+                        : t("search.placeholderContent")
                     }
                     className={uiSearchInput}
                     enterKeyHint="search"
@@ -1142,7 +1150,7 @@ function DogaltasListesiPageContent() {
                       : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
                   }`}
                 >
-                  {isDetailFilterActive ? "Filtreli ▾" : "Detay ▾"}
+                  {isDetailFilterActive ? t("search.filtered") : t("search.detail")}
                 </button>
               </div>
 
@@ -1151,12 +1159,12 @@ function DogaltasListesiPageContent() {
                 <div className="flex flex-wrap items-center gap-1.5">
                   {detailFilters.zodiac && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">
-                      ♈ Astroloji: {detailFilters.zodiac}
+                      {t("filters.badgeAstro", { value: detailFilters.zodiac })}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, zodiac: "" }))}
                         className="ml-0.5 text-violet-400 hover:text-violet-900"
-                        aria-label="Astroloji filtresini kaldır"
+                        aria-label={t("filters.removeAstroAria")}
                       >
                         ×
                       </button>
@@ -1164,12 +1172,12 @@ function DogaltasListesiPageContent() {
                   )}
                   {detailFilters.chakra && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black text-indigo-800">
-                      🔵 Çakra: {detailFilters.chakra}
+                      {t("filters.badgeChakra", { value: detailFilters.chakra })}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, chakra: "" }))}
                         className="ml-0.5 text-indigo-400 hover:text-indigo-900"
-                        aria-label="Çakra filtresini kaldır"
+                        aria-label={t("filters.removeChakraAria")}
                       >
                         ×
                       </button>
@@ -1177,12 +1185,12 @@ function DogaltasListesiPageContent() {
                   )}
                   {detailFilters.warningOnly && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
-                      ⚠️ Uyarısı olanlar
+                      {t("filters.badgeWarning")}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, warningOnly: false }))}
                         className="ml-0.5 text-amber-400 hover:text-amber-900"
-                        aria-label="Uyarı filtresini kaldır"
+                        aria-label={t("filters.removeWarningAria")}
                       >
                         ×
                       </button>
@@ -1190,12 +1198,12 @@ function DogaltasListesiPageContent() {
                   )}
                   {detailFilters.mineral && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
-                      💎 Mineral: {detailFilters.mineral}
+                      {t("filters.badgeMineral", { value: detailFilters.mineral })}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, mineral: "" }))}
                         className="ml-0.5 text-emerald-400 hover:text-emerald-900"
-                        aria-label="Mineral filtresini kaldır"
+                        aria-label={t("filters.removeMineralAria")}
                       >
                         ×
                       </button>
@@ -1206,7 +1214,7 @@ function DogaltasListesiPageContent() {
                     onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
                     className="text-[10px] font-bold text-rose-500 hover:text-rose-700"
                   >
-                    Tümünü Temizle
+                    {t("filters.clearAll")}
                   </button>
                 </div>
               )}
@@ -1219,7 +1227,7 @@ function DogaltasListesiPageContent() {
                   href="/dogaltas/dogaltas-kayit"
                   className="btn-primary"
                 >
-                  + Yeni Kayıt
+                  {t("newRecord")}
                 </Link>
               )}
             </div>
@@ -1228,19 +1236,19 @@ function DogaltasListesiPageContent() {
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
               {isDetailFilterActive
-                ? `${filteredStones.length} eşleşme (detay filtre)`
+                ? t("status.matchDetail", { count: filteredStones.length })
                 : isSearchActive
-                  ? `Arama: ${activeSearch} · ${filteredStones.length} sonuç`
-                  : `${filteredStones.length} kayıt gösteriliyor`}
+                  ? t("status.searchResult", { query: activeSearch, count: filteredStones.length })
+                  : t("status.showingRecords", { count: filteredStones.length })}
             </p>
 
             {listBusy && (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
                 {detailLoading
-                  ? "Filtre yükleniyor..."
+                  ? t("status.filterLoading")
                   : isSearchActive && searchTerm.trim() !== debouncedSearch
-                    ? "Aranıyor..."
-                    : "Yükleniyor..."}
+                    ? t("status.searching")
+                    : t("status.loading")}
               </span>
             )}
           </div>
@@ -1253,11 +1261,11 @@ function DogaltasListesiPageContent() {
                 totalCount={totalCount}
                 filteredCount={filteredStones.length}
                 hasActiveFilter={isSearchActive || isDetailFilterActive}
-                selectAllLabel="Görünenleri Seç"
+                selectAllLabel={t("bulk.selectAll")}
                 selectAllCount={filteredStones.length}
                 onSelectAll={selectAllFiltered}
                 hideSelectAll={isMobile}
-                exportSelectedLabel="Seçilenleri Word'e Aktar"
+                exportSelectedLabel={t("bulk.exportSelected")}
                 onClearSelection={clearSelection}
                 onExportSelected={() => void exportStonesWord("selected")}
                 onExportFiltered={() => void exportStonesWord("filtered")}
@@ -1290,11 +1298,10 @@ function DogaltasListesiPageContent() {
                 /* Filtre / arama sonucu boş */
                 <>
                   <h3 className="mt-4 text-lg font-black text-slate-900">
-                    Sonuç bulunamadı
+                    {t("empty.noResultTitle")}
                   </h3>
                   <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                    Arama kriterlerinize uygun kayıt bulunamadı. Farklı bir
-                    arama yapmayı veya filtreleri temizlemeyi deneyebilirsiniz.
+                    {t("empty.noResultDesc")}
                   </p>
                   <div className="mt-5 flex flex-wrap justify-center gap-2">
                     {isSearchActive && (
@@ -1303,7 +1310,7 @@ function DogaltasListesiPageContent() {
                         onClick={clearSearch}
                         className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                       >
-                        Aramayı Temizle
+                        {t("empty.clearSearch")}
                       </button>
                     )}
                     {isDetailFilterActive && (
@@ -1312,7 +1319,7 @@ function DogaltasListesiPageContent() {
                         onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
                         className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
                       >
-                        Filtreleri Temizle
+                        {t("clearFilters")}
                       </button>
                     )}
                   </div>
@@ -1321,18 +1328,16 @@ function DogaltasListesiPageContent() {
                 /* Kütüphane boş */
                 <>
                   <h3 className="mt-4 text-lg font-black text-slate-900">
-                    Henüz kayıt bulunamadı
+                    {t("empty.noRecordTitle")}
                   </h3>
                   <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                    Doğaltaş kütüphanenizde henüz kayıt bulunmuyor. İlk
-                    kaydınızı oluşturmak için aşağıdaki butonu
-                    kullanabilirsiniz.
+                    {t("empty.noRecordDesc")}
                   </p>
                   <Link
                     href="/dogaltas/dogaltas-kayit"
                     className="btn-primary mt-5"
                   >
-                    + Yeni Kayıt Ekle
+                    {t("empty.newRecordAdd")}
                   </Link>
                 </>
               )}
@@ -1368,8 +1373,8 @@ function DogaltasListesiPageContent() {
                 className={`${uiViewBtn} border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-violet-50 text-slate-800 hover:from-emerald-100 hover:to-violet-100 disabled:opacity-60`}
               >
                 {loadingMore
-                  ? "Yükleniyor..."
-                  : `Daha Fazla Göster (${stones.length} / ${totalCount})`}
+                  ? t("status.loading")
+                  : t("loadMore", { loaded: stones.length, total: totalCount })}
               </button>
             </div>
           ) : null}
@@ -1391,15 +1396,15 @@ function DogaltasListesiPageContent() {
             <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 py-4">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">
-                  Gelişmiş Filtreler
+                  {t("panel.eyebrow")}
                 </div>
-                <h2 className="text-base font-black text-slate-950">Detay Arama</h2>
+                <h2 className="text-base font-black text-slate-950">{t("panel.title")}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsDetailPanelOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-                aria-label="Paneli kapat"
+                aria-label={t("panel.closeAria")}
               >
                 ×
               </button>
@@ -1407,18 +1412,18 @@ function DogaltasListesiPageContent() {
 
             {/* A) Astrolojik Atama — manuel text input */}
             <div className="border-b border-slate-100 px-5 py-4">
-              <div className="mb-2 text-xs font-black text-slate-700">♈ Astrolojik Atama / Burç</div>
+              <div className="mb-2 text-xs font-black text-slate-700">{t("panel.astroLabel")}</div>
               <input
                 type="text"
                 value={detailFilters.zodiac}
                 onChange={(e) =>
                   setDetailFilters((f) => ({ ...f, zodiac: e.target.value }))
                 }
-                placeholder="Burç, gezegen veya astrolojik atama yazın…"
+                placeholder={t("panel.astroPlaceholder")}
                 className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               />
               <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                Örn: yengeç, merkür, venüs, ay, koç — Türkçe karakter uyumlu
+                {t("panel.astroHint")}
               </p>
             </div>
 
@@ -1434,17 +1439,17 @@ function DogaltasListesiPageContent() {
                   className="h-4 w-4 rounded border-amber-300 accent-amber-500"
                 />
                 <span className="text-sm font-black text-slate-700">
-                  ⚠️ Sadece uyarısı olan taşlar
+                  {t("panel.warningLabel")}
                 </span>
               </label>
               <p className="mt-1.5 pl-6 text-[10px] font-medium text-slate-400">
-                warning_text veya warning_tags alanı dolu olan taşlar.
+                {t("panel.warningHint")}
               </p>
             </div>
 
             {/* C) Çakra Filtresi — chip seçim + manuel input */}
             <div className="border-b border-slate-100 px-5 py-4">
-              <div className="mb-2 text-xs font-black text-slate-700">🔵 Çakra</div>
+              <div className="mb-2 text-xs font-black text-slate-700">{t("panel.chakraLabel")}</div>
               <div className="mb-2.5 flex flex-wrap gap-1.5">
                 {CHAKRA_CHIPS.map((chip) => (
                   <button
@@ -1462,7 +1467,7 @@ function DogaltasListesiPageContent() {
                         : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
                     }`}
                   >
-                    {chip}
+                    {facet(chip)}
                   </button>
                 ))}
               </div>
@@ -1472,18 +1477,18 @@ function DogaltasListesiPageContent() {
                 onChange={(e) =>
                   setDetailFilters((f) => ({ ...f, chakra: e.target.value }))
                 }
-                placeholder="Çakra adı veya bağlantılı ifade yazın…"
+                placeholder={t("panel.chakraPlaceholder")}
                 className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
               />
               <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                Örn: kalp, boğaz, taç, 4. çakra — Türkçe karakter uyumlu
+                {t("panel.chakraHint")}
               </p>
             </div>
 
             {/* D) Mineral Arama */}
             <div className="border-b border-slate-100 px-5 py-4">
               <div className="mb-2 text-xs font-black text-slate-700">
-                💎 Mineral Araması
+                {t("panel.mineralLabel")}
               </div>
               <input
                 type="text"
@@ -1491,11 +1496,11 @@ function DogaltasListesiPageContent() {
                 onChange={(e) =>
                   setDetailFilters((f) => ({ ...f, mineral: e.target.value }))
                 }
-                placeholder="Mineral adı girin... (min 2 karakter)"
+                placeholder={t("panel.mineralPlaceholder")}
                 className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               />
               <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                Sadece mineral atamasında eşleşen taşlar. Türkçe karakter uyumlu.
+                {t("panel.mineralHint")}
               </p>
             </div>
 
@@ -1506,14 +1511,14 @@ function DogaltasListesiPageContent() {
                 onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
                 className="text-xs font-bold text-slate-500 transition hover:text-rose-600"
               >
-                Filtreleri Temizle
+                {t("clearFilters")}
               </button>
               <button
                 type="button"
                 onClick={() => setIsDetailPanelOpen(false)}
                 className="btn-primary"
               >
-                Uygula
+                {t("panel.apply")}
               </button>
             </div>
           </div>
@@ -1529,10 +1534,10 @@ function DogaltasListesiPageContent() {
                   🚨
                 </div>
                 <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  Son Onay
+                  {t("deleteDialog.finalTitle")}
                 </h2>
                 <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  Bu işlem <b>geri alınamaz.</b> Kalıcı olarak silinsin mi?
+                  {t.rich("deleteDialog.finalDesc", { b: (chunks) => <b>{chunks}</b> })}
                 </p>
                 <div className="mt-6 flex justify-center gap-3">
                   <button
@@ -1541,7 +1546,7 @@ function DogaltasListesiPageContent() {
                     disabled={deleteLoading}
                     className="btn-soft !min-h-[44px]"
                   >
-                    Vazgeç
+                    {t("deleteDialog.cancel")}
                   </button>
                   <button
                     type="button"
@@ -1549,7 +1554,7 @@ function DogaltasListesiPageContent() {
                     disabled={deleteLoading}
                     className="btn-danger !min-h-[44px]"
                   >
-                    {deleteLoading ? "Siliniyor..." : "Evet, Kalıcı Sil"}
+                    {deleteLoading ? t("deleteDialog.deleting") : t("deleteDialog.confirmPermanent")}
                   </button>
                 </div>
               </>
@@ -1559,10 +1564,13 @@ function DogaltasListesiPageContent() {
                   ⚠️
                 </div>
                 <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  Taşı Sil
+                  {t("deleteDialog.title")}
                 </h2>
                 <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  <b>{stoneToDelete.stone_name || "İsimsiz taş"}</b> kaydını silmek istiyor musunuz?
+                  {t.rich("deleteDialog.mobileQuestion", {
+                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
+                    b: (chunks) => <b>{chunks}</b>,
+                  })}
                 </p>
                 <div className="mt-6 flex justify-center gap-3">
                   <button
@@ -1570,14 +1578,14 @@ function DogaltasListesiPageContent() {
                     onClick={() => setStoneToDelete(null)}
                     className="btn-soft !min-h-[44px]"
                   >
-                    Hayır
+                    {t("deleteDialog.no")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setMobileDeleteStep(2)}
                     className="btn-danger !min-h-[44px]"
                   >
-                    Evet
+                    {t("deleteDialog.yes")}
                   </button>
                 </div>
               </>
@@ -1587,13 +1595,16 @@ function DogaltasListesiPageContent() {
                   ⚠️
                 </div>
                 <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  Taşı Sil
+                  {t("deleteDialog.title")}
                 </h2>
                 <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  <b>{stoneToDelete.stone_name || "İsimsiz taş"}</b> kaydını silmek istediğinizden emin misiniz?
+                  {t.rich("deleteDialog.desktopQuestion", {
+                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
+                    b: (chunks) => <b>{chunks}</b>,
+                  })}
                 </p>
                 <p className="mt-2 text-[12px] font-bold text-rose-600">
-                  Bu işlem geri alınamaz.
+                  {t("deleteDialog.irreversible")}
                 </p>
                 <div className="mt-6 flex justify-center gap-3">
                   <button
@@ -1602,7 +1613,7 @@ function DogaltasListesiPageContent() {
                     disabled={deleteLoading}
                     className="btn-soft !min-h-[44px]"
                   >
-                    Vazgeç
+                    {t("deleteDialog.cancel")}
                   </button>
                   <button
                     type="button"
@@ -1610,7 +1621,7 @@ function DogaltasListesiPageContent() {
                     disabled={deleteLoading}
                     className="btn-danger !min-h-[44px]"
                   >
-                    {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
+                    {deleteLoading ? t("deleteDialog.deleting") : t("deleteDialog.confirm")}
                   </button>
                 </div>
               </>

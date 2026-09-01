@@ -1,0 +1,140 @@
+{
+  "clients": {
+    "analizler": {
+      "loading": "Loading...",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "analysisType": {
+        "chakra": "Chakra Analysis",
+        "planet": "Chakra–Planetary Analysis",
+        "default": "Analysis"
+      },
+      "bodies": {
+        "ruhsal": "SPIRITUAL ENERGY BODY",
+        "zihinsel": "MENTAL ENERGY BODY",
+        "duygusal": "EMOTIONAL ENERGY BODY",
+        "eterik": "ETHERIC ENERGY BODY",
+        "fiziksel": "PHYSICAL ENERGY BODY"
+      },
+      "chakra": {
+        "tac": "CROWN CHAKRA",
+        "goz": "THIRD EYE CHAKRA",
+        "bogaz": "THROAT CHAKRA",
+        "kalp": "HEART CHAKRA",
+        "mide": "SOLAR PLEXUS CHAKRA",
+        "sakral": "SACRAL CHAKRA",
+        "kok": "ROOT CHAKRA"
+      },
+      "planetRow": {
+        "tac": "CROWN",
+        "goz": "THIRD EYE",
+        "bogaz": "THROAT",
+        "kalp": "HEART",
+        "mide": "SOLAR PLEXUS",
+        "sakral": "SACRAL",
+        "kok": "ROOT"
+      },
+      "planet": {
+        "gunes": "SUN",
+        "ay": "MOON",
+        "merkur": "MERCURY",
+        "mars": "MARS",
+        "venus": "VENUS"
+      },
+      "header": {
+        "badge": "Energy & Analysis Center",
+        "title": "Client Analyses",
+        "subtitle": "Chakra, Chakra–Planetary, numerology and Human Design analyses for {name} will be collected here."
+      },
+      "card": {
+        "openButton": "Open Analysis",
+        "chakra": {
+          "badge": "Energy Analysis",
+          "title": "Chakra Analysis",
+          "text": "Track the energy changes before and after a session through the chakra layout."
+        },
+        "planet": {
+          "badge": "Planetary Analysis",
+          "title": "Chakra–Planetary Analysis",
+          "text": "Evaluate the planetary energy balance of the chakras on a per-session basis."
+        }
+      },
+      "saved": {
+        "badge": "Saved Analyses",
+        "title": "Analysis History",
+        "subtitle": "You can reopen or delete saved analyses here.",
+        "empty": "No saved analyses yet."
+      },
+      "item": {
+        "open": "Open",
+        "delete": "Delete"
+      },
+      "modal": {
+        "badge": "Analysis Form",
+        "clientLabel": "Client:",
+        "dateLabel": "Date:",
+        "noteLabel": "Analysis Note",
+        "notePlaceholder": "Analysis comment, session observation or a client-specific note...",
+        "clearAll": "Clear All",
+        "pdf": "Export to PDF",
+        "pdfPreparing": "Preparing PDF...",
+        "word": "Export to Word",
+        "wordPreparing": "Preparing Word...",
+        "save": "Save",
+        "saving": "Saving..."
+      },
+      "section": {
+        "beforeEnergy": "Before Session — Energy Bodies",
+        "afterEnergy": "After Session — Energy Bodies",
+        "beforeChakra": "Chakras — Before Session",
+        "afterChakra": "Chakras — After Session",
+        "before": "Before Session",
+        "after": "After Session"
+      },
+      "colHeader": {
+        "mark": "VALUE (+/−) %",
+        "male": "MASCULINE ENERGY",
+        "female": "FEMININE ENERGY"
+      },
+      "input": {
+        "markPlaceholder": "+10 / -20",
+        "malePlaceholder": "Masculine",
+        "femalePlaceholder": "Feminine",
+        "planetPlaceholder": "+30 / -20"
+      },
+      "delete": {
+        "title": "Delete analysis",
+        "message": "Delete this analysis record?"
+      },
+      "clearConfirm": {
+        "title": "Clear fields",
+        "message": "Clear all fields in this analysis?",
+        "confirm": "Clear"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "warningTitle": "Warning",
+        "infoTitle": "Info",
+        "loadFailed": "Analyses could not be loaded",
+        "deleteFailed": "Analysis could not be deleted",
+        "deleted": "Analysis deleted.",
+        "pdfAreaNotFound": "PDF area not found.",
+        "pdfDownloaded": "PDF file downloaded.",
+        "pdfFailed": "PDF could not be generated. Let's check the console.",
+        "selectFirst": "Select an analysis first.",
+        "saveFailed": "Analysis could not be saved",
+        "saved": "Analysis saved.",
+        "imageUploadFailed": "Analysis saved, but the image could not be added.",
+        "wordNeedsSave": "Save the analysis first to export Word.",
+        "sessionInvalid": "Session could not be verified, refresh the page and try again.",
+        "wordFailed": "Word could not be generated.",
+        "wordDownloaded": "Word file downloaded.",
+        "wordFailedRetry": "Word could not be generated. Check your connection and try again."
+      },
+      "error": {
+        "pdfNoContent": "No PDF content found."
+      }
+    }
+  }
+}
