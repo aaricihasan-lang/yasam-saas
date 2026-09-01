@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { resolveAdminUserIdFromSessionToken } from "@/lib/auth/credentialLogin";
 
 export const runtime = "nodejs";
 
@@ -18,33 +19,34 @@ const isProduction = process.env.NODE_ENV === "production";
 
 /**
  * POST /api/auth/admin-session
- * Admin login sonrası çağrılır. userId doğrulanır; geçerliyse httpOnly cookie set edilir.
+ * Admin httpOnly cookie'sini set eder.
+ *
+ * P0-1 KAPANIŞI: cookie yalnızca, GEÇERLİ bir OTURUM TOKEN'ının (x-session-token)
+ * sahibi role='admin' + active=true bir kullanıcıysa verilir. Oturum token'ı artık
+ * credential-gated `/api/auth/session` ile üretildiği için bu, önceden yapılmış
+ * gerçek kimlik doğrulamasının server-side kanıtıdır. Çıplak bir admin UUID'sine
+ * ASLA güvenilmez; "role='admin' olması" tek başına kimlik doğrulama değildir.
+ * adminId, cookie'ye client'tan değil, DOĞRULANMIŞ token sahibinden yazılır.
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { userId?: unknown };
-    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId gerekli." }, { status: 400 });
+    const sessionToken = request.headers.get("x-session-token")?.trim() ?? "";
+    if (!sessionToken) {
+      return NextResponse.json(
+        { error: "Admin oturum doğrulaması gerekli." },
+        { status: 401 },
+      );
     }
 
     const db = getDb();
 
-    const { data, error } = await db
-      .from("users")
-      .select("id, role")
-      .eq("id", userId)
-      .eq("role", "admin")
-      .eq("active", true)
-      .maybeSingle();
-
-    if (error || !data) {
+    const adminId = await resolveAdminUserIdFromSessionToken(db, sessionToken);
+    if (!adminId) {
       return NextResponse.json({ error: "Yetki yok." }, { status: 401 });
     }
 
     const response = NextResponse.json({ ok: true });
-    response.cookies.set(COOKIE_NAME, userId, {
+    response.cookies.set(COOKIE_NAME, adminId, {
       httpOnly: true,
       sameSite: "strict",
       secure: isProduction,
@@ -53,9 +55,9 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Hata ayrıntısı/stack client'a sızdırılmaz.
+    return NextResponse.json({ error: "Admin oturumu başlatılamadı." }, { status: 500 });
   }
 }
 
