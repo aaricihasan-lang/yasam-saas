@@ -18,6 +18,7 @@ export const CLIENT_DETAIL_TABS = [
   "analizler",
   "yolculuk",
   "hafiza",
+  "beslenme",
 ] as const;
 
 export type ClientDetailTab = (typeof CLIENT_DETAIL_TABS)[number];

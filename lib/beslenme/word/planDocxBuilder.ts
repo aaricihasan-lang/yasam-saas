@@ -81,7 +81,7 @@ export type PlanDocxPlan = {
   revision_number: number | null;
 };
 
-export type PlanDocxTree = { plan: PlanDocxPlan; days: PlanDocxDay[] };
+export type PlanDocxTree = { plan: PlanDocxPlan; days: PlanDocxDay[]; recipientName?: string | null };
 
 export type PlanDocxError = { code: string; status: number };
 export type PlanDocxOk = { ok: true; buffer: Buffer; filename: string };
@@ -214,6 +214,8 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
     subtitle: plan.title || "Beslenme Planı",
     date: range,
     stats: [
+      // Danışan adı (FAZ 7) — yalnız bağlıysa; export anındaki current ad, PII snapshot YOK (§34).
+      ...(tree.recipientName ? [{ label: "Danışan", value: tree.recipientName }] : []),
       { label: "Durum", value: statusLabel(plan.status) },
       { label: "Revizyon", value: `V${rev}` },
       { label: "Günlük Enerji Hedefi", value: target != null ? fmtKcal(target) : "—" },

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   CalendarDays,
@@ -14,8 +15,10 @@ import {
   Package,
   Plus,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { fetchCounts } from "@/lib/beslenme/beslenmeClient";
+import ClientPicker from "@/components/danisan/ClientPicker";
 import {
   BeslenmeGate,
   BeslenmeShell,
@@ -74,9 +77,11 @@ const MODULES = [
 
 export default function BeslenmeHubPage() {
   const guard = useBeslenmeOwnerGuard();
+  const router = useRouter();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [clientPickerOpen, setClientPickerOpen] = useState(false); // FAZ 7: Danışan Planları girişi
 
   useEffect(() => {
     if (guard !== "ok") return;
@@ -198,6 +203,28 @@ export default function BeslenmeHubPage() {
           </span>
         </Link>
 
+        {/* Danışan Planları — danışan seç → o danışanın Beslenme sekmesi (FAZ 7) */}
+        <button
+          type="button"
+          onClick={() => setClientPickerOpen(true)}
+          className="group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm" aria-hidden>
+              <Users className="h-6 w-6" />
+            </span>
+          </div>
+          <div className="mt-3 min-w-0 flex-1">
+            <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Danışan Planları</h2>
+            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
+              Bir danışan seçin; beslenme profili, ölçümleri ve planlarına ulaşın.
+            </p>
+          </div>
+          <span className="mt-4 block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
+            Danışan Seç →
+          </span>
+        </button>
+
         {MODULES.map((m) => {
           const Icon = m.icon;
           const value = counts?.[m.countKey];
@@ -242,6 +269,21 @@ export default function BeslenmeHubPage() {
           Beslenme Merkezi — besin kütüphanesi, kaynak temelli beslenme rehberleri ve geleneksel profil sistemleri.
         </p>
       </footer>
+
+      {clientPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setClientPickerOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-emerald-900">Danışan Seç</h3>
+              <button className="text-sm text-slate-400 hover:text-slate-600" onClick={() => setClientPickerOpen(false)}>Kapat</button>
+            </div>
+            <ClientPicker
+              autoFocus
+              onSelect={(c) => { setClientPickerOpen(false); router.push(`/dashboard/clients/${c.id}?tab=beslenme`); }}
+            />
+          </div>
+        </div>
+      )}
     </BeslenmeShell>
   );
 }

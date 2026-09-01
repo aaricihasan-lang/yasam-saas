@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { resolveClientDetailTab } from "@/lib/danisan/clientDetailTabs";
+import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -40,6 +41,7 @@ const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading:
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
+const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -180,6 +182,14 @@ function ClientDetailPageInner() {
   const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel", activeTab]));
   const [loading, setLoading] = useState(true);
   const [deletingClient, setDeletingClient] = useState(false);
+  // Beslenme sekmesi yalnız sistem sahibine (super-admin) görünür. Client-side gizleme
+  // güvenlik sınırı DEĞİL (API'ler owner-authoritative); yalnız UX. §22
+  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void checkBeslenmeAccess().then((ok) => { if (alive) setBeslenmeOwner(ok === true); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const [noteId, setNoteId] = useState<string | null>(null);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -663,6 +673,9 @@ function ClientDetailPageInner() {
             <Tab label="Analizler"           id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label="✦ Danışan Yolculuğu" id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
             <Tab label="🧠 Yaşam Hafızası"    id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
+            {beslenmeOwner && (
+              <Tab label="🥗 Beslenme"         id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
+            )}
             <button
               onClick={() => setYhPickerOpen(true)}
               aria-label="Yaşam Hafızası'ndan rapora kayıt seç"
@@ -925,6 +938,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
             <ClientMemoryTab clientId={client.id} clientName={fullName || "Danışan"} />
+          </div>
+          )}
+          {beslenmeOwner && openedTabs.has("beslenme") && (
+          <div role="tabpanel" id="tabpanel-beslenme" aria-labelledby="tab-beslenme" hidden={activeTab !== "beslenme"}>
+            <BeslenmeTab clientId={client.id} clientName={fullName || "Danışan"} />
           </div>
           )}
         </DanisanSectionShell>

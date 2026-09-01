@@ -39,6 +39,8 @@
     "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts",
     "beslenme:class-a:harness": "node scripts/beslenme-class-a/ddlHarness.mjs",
     "beslenme:knowledge:harness": "node scripts/beslenme-knowledge/ddlHarness.mjs",
+    "beslenme:client:ddl:harness": "node scripts/beslenme-client/ddlHarness.mjs",
+    "beslenme:client:behavior:harness": "node scripts/beslenme-client/behaviorHarness.mjs",
     "beslenme:food-engine:harness": "node scripts/beslenme-food-engine/ddlHarness.mjs",
     "beslenme:food-engine:calc": "tsx scripts/beslenme-food-engine/calcHarness.ts",
     "beslenme:food-engine:fixture": "node scripts/beslenme-food-engine/validateFixture.mjs",
