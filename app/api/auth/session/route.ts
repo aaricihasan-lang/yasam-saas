@@ -7,41 +7,54 @@ import {
   validateSessionToken,
 } from "@/lib/auth/sessionSecurity";
 import { limitReasonMessage } from "@/lib/auth/sessionLimits";
+import { verifyLoginCredentials } from "@/lib/auth/credentialLogin";
 
 export const runtime = "nodejs";
 
 /**
  * POST /api/auth/session
- * Başarılı giriş sonrası oturum kaydı oluşturur.
- * Body: { userId: string }
+ * Başarılı KİMLİK DOĞRULAMASI sonrası oturum kaydı oluşturur.
+ *
+ * P0-1 KAPANIŞI (atomik server-login): token yalnızca, credential'lar bu güvenilir
+ * server yürütmesi içinde `login_user` ile doğrulandıktan sonra üretilir. Çıplak bir
+ * userId ARTIK KABUL EDİLMEZ — yalnız UUID bilmek token üretmeye yetmez.
+ *
+ * Body: { email: string, password: string }
  * Returns (başarı): { sessionToken, suspiciousLogin, highRisk }
- * Returns (limit reddi): 403 { error, reason } — sessionToken DÖNMEZ (P3 reject-new).
+ * Returns (geçersiz credential): 401 · (inaktif): 403 · (limit reddi): 403 { error, reason }.
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { userId?: unknown };
-    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-    if (!userId) {
-      return NextResponse.json({ error: "userId gerekli." }, { status: 400 });
+    const body = (await req.json().catch(() => null)) as
+      | { email?: unknown; password?: unknown }
+      | null;
+    const email = typeof body?.email === "string" ? body.email : "";
+    const password = typeof body?.password === "string" ? body.password : "";
+
+    if (!email.trim() || !password.trim()) {
+      // Credential yok → kimlik kanıtı yok. Token ÜRETİLMEZ.
+      return NextResponse.json({ error: "Kimlik doğrulama gerekli." }, { status: 401 });
     }
 
     const db = getServerDb();
 
-    const { data: user } = await db
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .eq("active", true)
-      .maybeSingle();
+    // SUNUCU-TARAFI credential doğrulaması (bcrypt/login_user). userId doğrulanmış
+    // sonuçtan TÜRETİLİR; client'tan gelen bir kimliğe güvenilmez.
+    const verified = await verifyLoginCredentials(db, email, password);
+    if (!verified) {
+      // Account enumeration'ı artırmamak için tek genel mesaj.
+      return NextResponse.json({ error: "E-posta veya şifre hatalı." }, { status: 401 });
+    }
 
-    if (!user) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
+    // Mevcut davranışı koru: yalnızca aktif kullanıcı oturum açabilir.
+    if (!verified.active) {
+      return NextResponse.json({ error: "Hesabınız aktif değil." }, { status: 403 });
     }
 
     const location     = extractLocationFromHeaders(req.headers);
     const sessionToken = randomUUID();
 
-    const result = await createUserSession(db, userId, location, sessionToken);
+    const result = await createUserSession(db, verified.userId, location, sessionToken);
 
     // P3 reject-new: limit aşımında yeni oturum OLUŞTURULMAZ (mevcut oturumlar korunur).
     if (!result.ok) {
@@ -56,9 +69,9 @@ export async function POST(req: NextRequest) {
       suspiciousLogin: result.suspiciousLogin,
       highRisk: result.highRisk,
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Hata ayrıntısı/stack client'a sızdırılmaz.
+    return NextResponse.json({ error: "Oturum oluşturulamadı." }, { status: 500 });
   }
 }
 
