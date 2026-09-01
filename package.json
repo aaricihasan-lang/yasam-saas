@@ -37,6 +37,7 @@
     "yh:bf11e:harness": "tsx scripts/yh-bf11e/activationHarness.ts",
     "yh:bf11e:preflight": "tsx scripts/yh-bf11e/preflight.ts",
     "yh:bf11e:cohort1:harness": "tsx scripts/yh-bf11e/cohort1Harness.ts",
+    "test:auth:p0": "tsx scripts/auth-session-p0-harness.ts",
     "beslenme:class-a:harness": "node scripts/beslenme-class-a/ddlHarness.mjs",
     "beslenme:knowledge:harness": "node scripts/beslenme-knowledge/ddlHarness.mjs",
     "beslenme:client:ddl:harness": "node scripts/beslenme-client/ddlHarness.mjs",
