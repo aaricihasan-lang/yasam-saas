@@ -19,8 +19,11 @@ import {
   type PlanItem,
   type PlanMeal,
 } from "@/lib/beslenme/planClient";
+import { useTranslations } from "next-intl";
 import { MEAL_TYPE_LABELS, type MealType } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
+import { isAvoidedFood } from "@/lib/beslenme/avoidedMatch";
+import { useAvoidedFoodIds } from "./avoidedFoods";
 import { Field, GhostButton, PrimaryButton, DangerButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { ActionMenu, EnergyTargetLine, MacroChips, Modal, energyValue, type MenuItem } from "./planUi";
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
@@ -208,6 +211,9 @@ function ItemRow({
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [altOpen, setAltOpen] = useState(false);
   const [err, setErr] = useState("");
+  const tp = useTranslations("beslenme.plan");
+  const avoidedFoodIds = useAvoidedFoodIds();
+  const isAvoided = isAvoidedFood(item.food_id, avoidedFoodIds);
 
   const totals = mealTotals([item]);
   const energy = totals.find((t) => t.nutrient_code === "energy");
@@ -260,6 +266,9 @@ function ItemRow({
           <p className="mt-0.5 text-[11px] font-bold text-slate-400">{amountText}</p>
           {item.food_id === null ? (
             <p className="mt-0.5 text-[10px] font-bold text-amber-600">Kaynak besin katalogda yok</p>
+          ) : null}
+          {isAvoided ? (
+            <p className="mt-0.5 text-[10px] font-bold text-rose-600">⚠ {tp("avoidedItem")}</p>
           ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold text-slate-400">
             {protein ? <span>P {formatAmount(protein.amount, protein.unit_code)}</span> : null}

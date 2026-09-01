@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { runInEffect } from "@/lib/runInEffect";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Copy, GitBranch, Plus } from "lucide-react";
 import {
@@ -56,6 +57,19 @@ export default function PlanlarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState("");
+  // FAZ 7: danışan detayından "Yeni Beslenme Planı" → ?newForClient=&clientName= ile ön-seçili danışan.
+  // useSearchParams yerine window.location (Suspense sınırı gerektirmez).
+  const [presetClient, setPresetClient] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const cid = p.get("newForClient");
+    if (cid) {
+      runInEffect(() => {
+        setPresetClient({ id: cid, name: p.get("clientName") || "Danışan" });
+        setDialogOpen(true);
+      });
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -244,9 +258,11 @@ export default function PlanlarPage() {
       {dialogOpen ? (
         <NewPlanDialog
           open
-          onClose={() => setDialogOpen(false)}
+          presetClient={presetClient}
+          onClose={() => { setDialogOpen(false); setPresetClient(null); }}
           onCreated={(plan) => {
             setDialogOpen(false);
+            setPresetClient(null);
             router.push(`/beslenme/planlar/${plan.id}`);
           }}
         />

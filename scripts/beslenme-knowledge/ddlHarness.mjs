@@ -112,11 +112,15 @@ check("access route mevcut", !!routeSrc["/app/api/beslenme/access/route.ts"]);
 const mutationRe = /export async function (POST|PATCH|DELETE)/;
 let routeGateOk = true, demoOk = true, uuidOk = true, tenantTrustOk = true, massOk = true;
 for (const [path, s] of Object.entries(routeSrc)) {
-  if (!/requireBeslenmeOwner/.test(s)) { routeGateOk = false; bad(`owner gate eksik: ${path}`); }
+  // owner gate: requireBeslenmeOwner VEYA requireBeslenmeClient (FAZ 7 paylaşılan owner+client
+  // kapısı; lib/beslenme/clientRouteGuard.ts requireBeslenmeOwner'ı SARAR + client ownership doğrular).
+  if (!/requireBeslenmeOwner|requireBeslenmeClient/.test(s)) { routeGateOk = false; bad(`owner gate eksik: ${path}`); }
   if (mutationRe.test(s) && !/denyDemoMutation/.test(s)) { demoOk = false; bad(`demo guard eksik (mutation): ${path}`); }
   // mass-assignment guard yalnız GÖVDE OKUYAN (req.json()) route'lar için gereklidir.
   if (/req\.json\(\)/.test(s) && !/hasOnlyKeys/.test(s)) { massOk = false; bad(`mass-assignment guard (hasOnlyKeys) eksik: ${path}`); }
-  if (/\[/.test(path) && !/isUuid/.test(s)) { uuidOk = false; bad(`UUID validation eksik: ${path}`); }
+  // dinamik segment id doğrulaması: isUuid VEYA requireBeslenmeClient (paylaşılan kapı clientId'yi
+  // isUuid ile doğrular + DB ownership kontrolü yapar — literal isUuid'den güçlüdür).
+  if (/\[/.test(path) && !/isUuid/.test(s) && !/requireBeslenmeClient/.test(s)) { uuidOk = false; bad(`UUID validation eksik: ${path}`); }
   // tenant client body'den alınmamalı: insert tenant_id: tenantId (guard) olmalı, body.tenant_id OLMAMALI
   if (/body\.tenant_id|tenant_id:\s*body/.test(s)) { tenantTrustOk = false; bad(`body tenant trust: ${path}`); }
 }

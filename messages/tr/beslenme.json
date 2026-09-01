@@ -1,0 +1,143 @@
+{
+  "beslenme": {
+    "detail": {
+      "loading": "Yükleniyor…",
+      "denied": "Bu bölüm yalnız sistem sahibine açıktır.",
+      "clientFallback": "Danışan",
+      "eyebrow": "Beslenme",
+      "bloodLabel": "Kan Grubu",
+      "temperamentLabel": "Mizaç",
+      "integrativeNote": "Kan grubu / mizaç bütüncül bağlamdır; besin bilimsel değerlerinden ayrıdır ve otomatik öneri üretmez.",
+      "banner": {
+        "profileSaved": "Profil kaydedildi.",
+        "profileSaveFailed": "Profil kaydedilemedi",
+        "allergensUpdated": "Alerjiler güncellendi.",
+        "allergensSaveFailed": "Alerjiler kaydedilemedi",
+        "measurementAdded": "Ölçüm eklendi.",
+        "measurementAddFailed": "Ölçüm eklenemedi",
+        "measurementDeleted": "Ölçüm silindi.",
+        "weightRequired": "Kilo gerekli.",
+        "foodNameRequired": "Besin adı gerekli.",
+        "prefAdded": "Eklendi.",
+        "prefAddFailed": "Eklenemedi"
+      },
+      "profile": {
+        "title": "Beslenme Profili",
+        "edit": "Düzenle",
+        "save": "Kaydet",
+        "cancel": "Vazgeç",
+        "goal": "Hedef",
+        "activity": "Aktivite",
+        "dietaryPattern": "Beslenme Düzeni",
+        "mealCount": "Öğün Sayısı",
+        "mealCountEdit": "Öğün Sayısı (1-12)",
+        "targetWeight": "Hedef Kilo",
+        "targetWeightEdit": "Hedef Kilo (20-500)",
+        "targetWeightValue": "{kg} kg",
+        "waterNote": "Su Notu",
+        "lifestyle": "Yaşam Tarzı",
+        "lifestyleEdit": "Yaşam Tarzı Notu",
+        "generalNote": "Genel Not"
+      },
+      "measurements": {
+        "title": "Son Ölçümler",
+        "date": "Tarih",
+        "weight": "Kilo",
+        "height": "Boy",
+        "waist": "Bel",
+        "hip": "Kalça",
+        "bmi": "BMI",
+        "note": "Not",
+        "empty": "Ölçüm yok.",
+        "weightValue": "{kg} kg",
+        "delete": "Sil",
+        "phWeight": "Kilo*",
+        "phHeight": "Boy",
+        "phWaist": "Bel",
+        "phHip": "Kalça",
+        "phNote": "Not",
+        "add": "Ekle"
+      },
+      "allergens": {
+        "title": "Beyan Edilen Alerjiler",
+        "save": "Kaydet",
+        "advisory": "Bu bilgiler danışanın beyanına dayanır. Besinlerle otomatik alerjen eşlemesi yapılmaz.",
+        "loadingVocab": "Alerjen listesi yükleniyor…"
+      },
+      "preferences": {
+        "title": "Tercih Edilen / Kaçınılan Besinler",
+        "preferredGroup": "Tercih Edilenler",
+        "avoidedGroup": "Kaçınılanlar",
+        "empty": "—",
+        "delete": "sil",
+        "optPreferred": "Tercih",
+        "optAvoided": "Kaçınılan",
+        "phFood": "Besin adı*",
+        "phNote": "Not",
+        "add": "Ekle"
+      },
+      "plans": {
+        "title": "Beslenme Planları",
+        "new": "Yeni Beslenme Planı",
+        "empty": "Bu danışana bağlı plan yok."
+      },
+      "goalType": {
+        "weight_loss": "Kilo Verme",
+        "weight_gain": "Kilo Alma",
+        "maintenance": "Koruma / Denge",
+        "muscle_gain": "Kas Kazanımı",
+        "healthy_lifestyle": "Sağlıklı Yaşam",
+        "other": "Diğer"
+      },
+      "activity": {
+        "sedentary": "Hareketsiz",
+        "light": "Az Hareketli",
+        "moderate": "Orta Hareketli",
+        "active": "Hareketli",
+        "very_active": "Çok Hareketli"
+      },
+      "status": {
+        "draft": "Taslak",
+        "active": "Aktif",
+        "archived": "Arşiv"
+      },
+      "mizac": {
+        "dem": "Dem (Sıcak-Yaş)",
+        "safra": "Safra (Sıcak-Kuru)",
+        "sovdavi": "Sevda (Soğuk-Kuru)",
+        "balgam": "Balgam (Soğuk-Yaş)"
+      },
+      "kan": {
+        "0": "0 (Sıfır)",
+        "A": "A",
+        "B": "B",
+        "AB": "AB"
+      }
+    },
+    "plan": {
+      "context": {
+        "clientLabel": "Danışan",
+        "clientFallback": "İsimsiz Danışan",
+        "goalLabel": "Hedef",
+        "allergensLabel": "Beyan Edilen Alerjiler",
+        "avoidedLabel": "Kaçınılan Besinler",
+        "bloodLabel": "Kan Grubu",
+        "temperamentLabel": "Mizaç",
+        "none": "—",
+        "unbound": "Bu plan bir danışana bağlı değil.",
+        "bind": "Danışana Bağla",
+        "close": "Kapat",
+        "lockedArchived": "Bu plan arşiv revizyonu içerdiğinden danışana bağlanamaz.",
+        "immutableError": "Bu plan zaten başka bir danışana bağlı; değiştirilemez.",
+        "bindFailed": "Danışana bağlanamadı.",
+        "advisory": "Beyan edilen alerjiler danışan bildirimidir; besinlerle otomatik eşleme yapılmaz."
+      },
+      "avoidedItem": "Bu besin danışanın kaçınılan besinleri arasında.",
+      "newPlan": {
+        "remove": "kaldır",
+        "bindOptional": "+ Danışana bağla (opsiyonel)",
+        "bindFailedStandalone": "Plan oluşturuldu ancak danışana bağlanamadı; plan bağsız kaydedildi."
+      }
+    }
+  }
+}

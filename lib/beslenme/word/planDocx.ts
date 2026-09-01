@@ -29,13 +29,34 @@ import { daysBetween } from "@/lib/beslenme/planContracts";
 export type { PlanDocxResult } from "./planDocxBuilder";
 
 const PLAN_SELECT =
-  "id, title, note, start_date, end_date, daily_energy_target, status, revision_number";
+  "id, title, note, start_date, end_date, daily_energy_target, status, revision_number, plan_family_id";
 
 type PlanRow = {
   id: string; title: string; note: string | null;
   start_date: string; end_date: string;
   daily_energy_target: number | null; status: string; revision_number: number | null;
+  plan_family_id: string;
 };
+
+/**
+ * Bağlı danışan adı (FAZ 7) — export anındaki CURRENT ad (snapshot DEĞİL; plan'a PII
+ * yazılmaz). Bağlı değilse null. Yalnız ad+soyad; telefon/email/adres KONMAZ (§34).
+ */
+async function boundClientName(db: SupabaseClient, tenantId: string, planFamilyId: string): Promise<string | null> {
+  const { data: bind } = await db
+    .from("nutrition_plan_clients")
+    .select("client_id")
+    .eq("tenant_id", tenantId).eq("plan_family_id", planFamilyId)
+    .maybeSingle();
+  const clientId = (bind as { client_id?: string } | null)?.client_id;
+  if (!clientId) return null;
+  const { data: cli } = await db
+    .from("clients").select("ad, soyad").eq("tenant_id", tenantId).eq("id", clientId).maybeSingle();
+  if (!cli) return null;
+  const c = cli as { ad: string | null; soyad: string | null };
+  const raw = `${c.ad ?? ""} ${c.soyad ?? ""}`.trim();
+  return raw || null;
+}
 
 /** .in() URL sınırını aşmamak için item id chunk'ları (büyük planlar). */
 function chunk<T>(arr: T[], size = 400): T[][] {
@@ -136,8 +157,11 @@ export async function buildPlanDocxBuffer(
     mealsByDay.set(m.plan_day_id, arr);
   }
 
+  const recipientName = await boundClientName(db, tenantId, plan.plan_family_id);
+
   const tree: PlanDocxTree = {
     plan: { ...plan },
+    recipientName,
     days: dayRows.map<PlanDocxDay>((d) => ({
       id: d.id,
       plan_date: d.plan_date,

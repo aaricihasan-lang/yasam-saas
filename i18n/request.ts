@@ -24,6 +24,7 @@ import trStonesList from "@/messages/tr/stones.list.json";
 import trStonesMinerals from "@/messages/tr/stones.minerals.json";
 import trStonesCombinations from "@/messages/tr/stones.combinations.json";
 import trStonesKnowledge from "@/messages/tr/stones.knowledge.json";
+import trBeslenme from "@/messages/tr/beslenme.json";
 
 import enCommon from "@/messages/en/common.json";
 import enNavigation from "@/messages/en/navigation.json";
@@ -47,6 +48,7 @@ import enStonesList from "@/messages/en/stones.list.json";
 import enStonesMinerals from "@/messages/en/stones.minerals.json";
 import enStonesCombinations from "@/messages/en/stones.combinations.json";
 import enStonesKnowledge from "@/messages/en/stones.knowledge.json";
+import enBeslenme from "@/messages/en/beslenme.json";
 
 type Messages = Record<string, unknown>;
 
@@ -96,6 +98,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trStonesMinerals,
     trStonesCombinations,
     trStonesKnowledge,
+    trBeslenme,
   ]),
   en: buildMessages([
     enCommon,
@@ -120,6 +123,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     enStonesMinerals,
     enStonesCombinations,
     enStonesKnowledge,
+    enBeslenme,
   ]),
 };
 
