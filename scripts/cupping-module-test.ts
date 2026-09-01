@@ -60,6 +60,17 @@ function listRoutes(dir: string): string[] {
   return out;
 }
 
+/** dir altındaki tüm .tsx dosyalarını (recursive) döndürür. */
+function listTsx(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const p = `${dir}/${entry}`;
+    if (statSync(p).isDirectory()) out.push(...listTsx(p));
+    else if (entry.endsWith(".tsx")) out.push(p);
+  }
+  return out;
+}
+
 function run(): void {
   // ── A) API ROUTE SÖZLEŞMESİ — her /api/kupa route'u gate'li + güvenli ──────────
   const routes = listRoutes("app/api/kupa");
@@ -1003,8 +1014,22 @@ function run(): void {
   ok(!/window\.confirm|window\.alert/.test(confirmDlg),
     "faz4b-delete: KupaConfirmDialog native confirm/alert KULLANMAZ");
 
-  ok(/Kaydedilmemiş değişiklikler|dirty/.test(tEdit) && /window\.confirm\(/.test(tEdit),
-    "faz4b-unsaved: editor kaydedilmemiş-değişiklik koruması (silme UX kapsamı DIŞI)");
+  // Kirli-editör "Vazgeç" onayı — owner FINAL: native window.confirm KALDIRILDI → KupaConfirmDialog.
+  ok(!/window\.confirm\(/.test(tEdit) && !/window\.alert\(/.test(tEdit),
+    "faz4b-unsaved: editor native window.confirm/alert KULLANMAZ");
+  ok(/KupaConfirmDialog/.test(tEdit) && /from "\.\.\/\.\.\/components\/ConfirmDialog"/.test(tEdit),
+    "faz4b-unsaved: kirli-cancel onayı app-standart KupaConfirmDialog ile (custom modal)");
+  ok(/if \(dirty\)/.test(tEdit) && /setConfirmCancelOpen\(true\)/.test(tEdit),
+    "faz4b-unsaved: kirliyken Vazgeç modalı açar (dirty → setConfirmCancelOpen)");
+  ok(/Değişikliklerden vazgeç\?/.test(tEdit) && /confirmLabel="Değişikliklerden Vazgeç"/.test(tEdit) &&
+     /cancelLabel="Vazgeçme"/.test(tEdit) && /onConfirm=\{\(\) => \{[\s\S]*?onCancel\(\);[\s\S]*?\}\}/.test(tEdit),
+    "faz4b-unsaved: kirli-cancel modal içeriği + onConfirm→onCancel (temizken doğrudan onCancel)");
+
+  // Kupa-geneli: HİÇBİR user-facing Kupa .tsx dosyası native window.confirm/alert İÇERMEZ.
+  const kupaTsx = listTsx("app/kupa");
+  const nativeConfirmHits = kupaTsx.filter((f) => /window\.confirm\(|window\.alert\(/.test(read(f)));
+  ok(nativeConfirmHits.length === 0,
+    `faz4-native-zero: app/kupa/** native window.confirm/alert = 0 (${nativeConfirmHits.join(", ") || "temiz"})`);
 
   // source_note normal reader/editor kodunda primary alan DEĞİL (yorumlar hariç).
   ok(!/source_note/.test(tReadCode) && !/source_note/.test(tEditCode),

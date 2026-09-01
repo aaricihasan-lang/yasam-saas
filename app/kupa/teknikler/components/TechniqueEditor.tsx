@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { kupaBtnGhost, kupaBtnSuccess, kupaInput } from "../../components/KupaShell";
 import { BigNoteEditorDialog } from "../../components/BigNoteEditorDialog";
+import { KupaConfirmDialog } from "../../components/ConfirmDialog";
 import { normalizeMasterName } from "../../protokoller/components/QuickCreateMasterForm";
 import { createTechnique, updateTechnique, type CuppingTechnique } from "../../lib/api";
 import { MOVEMENT_OPTIONS, TYPE_OPTIONS } from "../lib/labels";
@@ -41,6 +42,7 @@ export function TechniqueEditor({
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
 
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,8 +62,13 @@ export function TechniqueEditor({
     [isEdit, normName, existing],
   );
 
+  // Kirli editörde "Vazgeç": native window.confirm YERİNE Kupa app-standart modal
+  // (KupaConfirmDialog). Temizken doğrudan onCancel() — modal açılmaz.
   const cancel = () => {
-    if (dirty && !window.confirm("Kaydedilmemiş değişiklikler var. Vazgeçilsin mi?")) return;
+    if (dirty) {
+      setConfirmCancelOpen(true);
+      return;
+    }
     onCancel();
   };
 
@@ -235,6 +242,19 @@ export function TechniqueEditor({
           setNoteEditorOpen(false);
         }}
         onCancel={() => setNoteEditorOpen(false)}
+      />
+
+      <KupaConfirmDialog
+        open={confirmCancelOpen}
+        title="Değişikliklerden vazgeç?"
+        description="Kaydedilmemiş değişiklikleriniz var. Vazgeçerseniz bu değişiklikler kaybolacak."
+        confirmLabel="Değişikliklerden Vazgeç"
+        cancelLabel="Vazgeçme"
+        onConfirm={() => {
+          setConfirmCancelOpen(false);
+          onCancel();
+        }}
+        onClose={() => setConfirmCancelOpen(false)}
       />
     </div>
   );
