@@ -272,6 +272,14 @@ async function run(): Promise<void> {
     add("worker-env-gate-off-default", worker.includes("YH_CLIENT_OUTBOX_WORKER_ENABLED") && /=== "true"/.test(worker), "");
     add("worker-activation-gate-wired", /isSourceProcessingActive:\s*\(sourceKey\)\s*=>\s*isSourceProcessingActive\(sourceKey, serverDb\)/.test(worker), "");
     add("worker-no-backfill", !/backfill|reconcile|full.?scan/i.test(worker), "");
+    // Event-driven + 15dk safety cron (her-dakika cron KALDIRILDI); professional worker ile aynı desen.
+    add(
+      "worker-event-driven-plus-safety-cron",
+      /YH_CLIENT_OUTBOX_SAFETY_CRON\s*=\s*"\*\/15 \* \* \* \*"/.test(worker)
+        && /triggers:\s*\[\s*\{\s*event:\s*YH_CLIENT_OUTBOX_EVENT_NAME\s*\}\s*,\s*\{\s*cron:\s*YH_CLIENT_OUTBOX_SAFETY_CRON\s*\}\s*\]/.test(worker)
+        && !/"\*\s\*\s\*\s\*\s\*"/.test(worker),
+      "",
+    );
 
     // Professional worker + eventProcessor client-memory referansı içermez (fiziksel ayrım).
     const proWorker = read("lib/inngest/functions/yhOutboxWorker.ts");

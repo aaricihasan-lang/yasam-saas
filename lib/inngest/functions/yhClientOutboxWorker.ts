@@ -16,11 +16,17 @@ import "server-only";
  *      kaynakları FUTURE_ONLY_READY/registryEnabled:false → inactive → index YAZILMAZ
  *      (complete no-op). Yani env açık olsa DAHİ activation flip'i olmadan index üretilmez.
  *
- * BAĞLAYICI SABİTLER (professional worker ile aynı reliability): cron 1dk · claim 10 ·
+ * TETİKLEME (professional worker ile AYNI mimari): EVENT-DRIVEN (webhook bridge →
+ *   inngest.send(YH_CLIENT_OUTBOX_ENQUEUED_EVENT)) + 15 dakikalık safety cron
+ *   (YH_CLIENT_OUTBOX_SAFETY_CRON). Eski her-dakika cron KALDIRILDI; correctness event'e
+ *   tek başına bağlı değil (safety cron kaçan event / stale lease / orphan pending'i toparlar).
+ *
+ * BAĞLAYICI SABİTLER (professional worker ile aynı reliability): claim 10 ·
  *   lease 300s · concurrency 1 · retries 0 (retry/dead otoritesi PostgreSQL).
  */
 
 import { inngest } from "@/lib/inngest/client";
+import { YH_CLIENT_OUTBOX_ENQUEUED_EVENT } from "@/lib/inngest/events";
 import { getServerDb } from "@/lib/supabase-server";
 import { YH_CLIENT_INDEX_SOURCES, type ClientSourceConfig } from "@/lib/yasam-hafizasi/client/clientSources";
 import { createClientIndexAdapters, type ClientIndexDbClient } from "@/lib/yasam-hafizasi/client/clientIndexServerAdapters";
@@ -39,7 +45,10 @@ import {
   DEFAULT_MAX_DELAY_SECONDS,
 } from "@/lib/yasam-hafizasi/outbox/outboxState";
 
-export const YH_CLIENT_OUTBOX_CRON = "* * * * *";
+/** Kaçan event / stale lease / orphan pending için 15 dakikalık safety cron (her dakika DEĞİL). */
+export const YH_CLIENT_OUTBOX_SAFETY_CRON = "*/15 * * * *";
+/** Event-driven uyanma sinyali (webhook bridge → inngest.send). */
+export const YH_CLIENT_OUTBOX_EVENT_NAME = YH_CLIENT_OUTBOX_ENQUEUED_EVENT;
 export const YH_CLIENT_OUTBOX_CLAIM_BATCH = 10;
 export const YH_CLIENT_OUTBOX_LEASE_SECONDS = 300;
 export const YH_CLIENT_OUTBOX_CONCURRENCY = 1;
@@ -67,12 +76,17 @@ export const yhClientOutboxWorkerFunction = inngest.createFunction(
     name: "Yaşam Hafızası Client Outbox Worker",
     concurrency: YH_CLIENT_OUTBOX_CONCURRENCY,
     retries: YH_CLIENT_OUTBOX_RETRIES,
-    triggers: [{ cron: YH_CLIENT_OUTBOX_CRON }],
+    // EVENT-DRIVEN (primary) + SAFETY CRON (recovery); professional worker ile aynı desen.
+    triggers: [{ event: YH_CLIENT_OUTBOX_EVENT_NAME }, { cron: YH_CLIENT_OUTBOX_SAFETY_CRON }],
   },
-  async ({ runId }) => {
+  async ({ runId, event }) => {
+    // Gözlemlenebilirlik: event mi safety cron mu tetikledi (davranışı DEĞİŞTİRMEZ).
+    const triggerSource: "event" | "safety-cron" =
+      event?.name === YH_CLIENT_OUTBOX_EVENT_NAME ? "event" : "safety-cron";
+
     // PRODUCTION GATE 1: kapalıysa hiçbir DB client / RPC / IO yapılmadan çık.
     if (!isClientOutboxWorkerEnabled()) {
-      return { status: "disabled" as const };
+      return { status: "disabled" as const, triggerSource };
     }
 
     const worker = `yh-client-outbox@${runId}`;
@@ -150,8 +164,8 @@ export const yhClientOutboxWorkerFunction = inngest.createFunction(
 
     const summary =
       batch.claimed === 0
-        ? { status: "empty" as const, swept: batch.swept }
-        : { status: "processed" as const, ...batch };
+        ? { status: "empty" as const, triggerSource, swept: batch.swept }
+        : { status: "processed" as const, triggerSource, ...batch };
     console.info("[yh-client-outbox-worker]", summary);
     return summary;
   },

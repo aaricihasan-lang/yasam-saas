@@ -538,7 +538,12 @@ async function main() {
   const pkgSrc = read("package.json");
   const newFiles = workerSrc + "\n" + processorSrc + "\n" + rpcSrc;
 
-  check("E", "55 cron every minute", /YH_OUTBOX_CRON\s*=\s*"\*\s\*\s\*\s\*\s\*"/.test(workerSrc) && /triggers:\s*\[\{\s*cron:\s*YH_OUTBOX_CRON\s*\}\]/.test(workerSrc));
+  check("E", "55 event-driven trigger + 15dk safety cron (her-dakika cron KALDIRILDI)",
+    /YH_OUTBOX_SAFETY_CRON\s*=\s*"\*\/15 \* \* \* \*"/.test(workerSrc)
+    && /YH_OUTBOX_EVENT_NAME\s*=\s*YH_OUTBOX_ENQUEUED_EVENT/.test(workerSrc)
+    && /triggers:\s*\[\s*\{\s*event:\s*YH_OUTBOX_EVENT_NAME\s*\}\s*,\s*\{\s*cron:\s*YH_OUTBOX_SAFETY_CRON\s*\}\s*\]/.test(workerSrc)
+    && /triggerSource/.test(workerSrc)
+    && !/"\*\s\*\s\*\s\*\s\*"/.test(workerSrc));
   check("E", "56 retries 0", /YH_OUTBOX_RETRIES\s*=\s*0\b/.test(workerSrc) && /retries:\s*YH_OUTBOX_RETRIES/.test(workerSrc));
   check("E", "57 concurrency 1", /YH_OUTBOX_CONCURRENCY\s*=\s*1\b/.test(workerSrc) && /concurrency:\s*YH_OUTBOX_CONCURRENCY/.test(workerSrc));
   check("E", "58 claim batch 10", /YH_OUTBOX_CLAIM_BATCH\s*=\s*10\b/.test(workerSrc));
@@ -552,7 +557,10 @@ async function main() {
   check("E", "65 source registry (sources.ts) unchanged marker + reader/writer preserved", /YH_INDEX_SOURCES/.test(sourcesSrc) && /createSupabaseSourceReader/.test(adapterSrc) && /createSupabaseIndexWriter/.test(adapterSrc));
   check("E", "66 no new package deps introduced (only existing: inngest/@supabase/node builtins)", /"inngest":\s*"\^4\.5\.0"/.test(pkgSrc) && !/\brequire\(|from\s+"axios"|from\s+"node-fetch"/.test(newFiles));
   check("E", "67 no direct production/network in new files (no fetch/http/createClient)", !/\bfetch\(|https?:\/\/|createClient\(/.test(newFiles));
-  check("E", "68 no BF-11C scope (no trigger/enqueue/ALTER source table in new files)", !/enqueue|ALTER\s+TABLE|CREATE\s+TRIGGER/i.test(newFiles));
+  // BF-11C SQL DDL kapsamı YOK: gerçek trigger/enqueue FONKSİYONU / ALTER / outbox INSERT
+  // aranır. (Event-driven tasarımın `YH_OUTBOX_ENQUEUED_EVENT` sabiti bir SQL DDL DEĞİL →
+  // `yh_outbox_enqueue(` çağrı biçimiyle ayrılır; sabit adı asla `(` ile takip edilmez.)
+  check("E", "68 no BF-11C SQL DDL scope (no trigger/enqueue-fn/ALTER/outbox INSERT in new files)", !/CREATE\s+TRIGGER|ALTER\s+TABLE|yh_outbox_enqueue\s*\(|INSERT\s+INTO\s+public\.yasam_hafizasi/i.test(newFiles));
 
   // ── FIX1: TYPE SAFETY STATIC (BF-11B kodu; pre-existing writer cast HARİÇ) ──
   // deindex region = benim eklediğim deindexer (createSupabaseIndexDeindexer→EOF);
