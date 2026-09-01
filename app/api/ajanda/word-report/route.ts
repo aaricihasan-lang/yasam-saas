@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
@@ -59,35 +60,38 @@ function dayKey(d: string): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
+  // P0-4 KAPANIŞI: AUTH ÖNCE. Kimlik + oturum token doğrulanır, modül erişimi
+  // (appointments) ve tenant SUNUCUDA çözülür. Sıra: authenticate → authorize →
+  // resolve tenant → validate → query. Client-supplied tenantId bir GÜVENLİK
+  // SINIRI DEĞİLDİR; tüm sorgular yalnız doğrulanmış guard.tenantId kullanır.
+  const guard = await requireModuleAccess(req, "appointments");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId } = guard;
+
   let body: unknown;
-  try { body = await request.json(); }
+  try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", appointmentIds, appointmentId, dateRange } = body as {
-    tenantId?: string;
+  const { tenantId: bodyTenantId, exportMode = "all", appointmentIds, appointmentId, dateRange } = body as {
+    tenantId?: string;        // yalnız uyumluluk alanı — yetkilendirme kaynağı DEĞİL
     exportMode?: ExportMode;
     appointmentIds?: string[];
     appointmentId?: string;   // single mode için
     dateRange?: { start: string; end: string };
   };
 
-  if (!tenantId || typeof tenantId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
+  // Uyumluluk: body.tenantId gönderilebilir AMA doğrulanmış tenant ile eşleşmiyorsa
+  // (başka tenant export denemesi) reddedilir. Sorgular yalnız guard.tenantId kullanır.
+  if (typeof bodyTenantId === "string" && bodyTenantId.trim() && bodyTenantId.trim() !== tenantId)
+    return Response.json({ ok: false, error: "Yetki yok." }, { status: 403 });
 
   if (exportMode === "single" && !appointmentId)
     return Response.json({ ok: false, error: "Tek randevu için appointmentId zorunludur." }, { status: 400 });
   if ((exportMode === "selected" || exportMode === "filtered") && (!Array.isArray(appointmentIds) || appointmentIds.length === 0))
     return Response.json({ ok: false, error: "Seçili randevular için appointmentIds zorunludur." }, { status: 400 });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // Demo tenant gerçek tenant verisini export edemez (body yalnızca tenantId taşır)
+  // Demo hesap gerçek export üretemez — mevcut kontrat korunur (tenant SUNUCUDAN türetildi).
   if (await isDemoTenantId(tenantId, db))
     return Response.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
@@ -103,7 +107,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const { data, error } = await query.order("appointment_date", { ascending: true });
   if (error)
-    return Response.json({ ok: false, error: `Randevular okunamadı: ${error.message}` }, { status: 500 });
+    return Response.json({ ok: false, error: "Randevular okunamadı." }, { status: 500 });
 
   const appointments = (data || []) as AppointmentRow[];
   if (!appointments.length)
