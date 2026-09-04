@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 const HIDE_ON: string[] = ["/", "/register"];
 
 export default function AppLogoLink() {
+  const t = useTranslations("navigation");
   const pathname = usePathname();
   const visible = !HIDE_ON.includes(pathname ?? "/");
 
@@ -40,7 +42,7 @@ export default function AppLogoLink() {
         <Link
           href="/"
           className="group mx-auto flex h-[44px] max-w-screen-2xl items-center gap-2.5 px-4 transition-colors hover:bg-slate-50/80 sm:px-6"
-          aria-label="Yaşam Sistemi — Ana Sayfaya Dön"
+          aria-label={t("homeAria")}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-sm text-white shadow-sm shadow-violet-300/30 transition-shadow group-hover:shadow-violet-300/50">
             ✨
@@ -49,7 +51,7 @@ export default function AppLogoLink() {
             YAŞAM SİSTEMİ
           </span>
           <span className="hidden text-xs font-medium text-slate-400 transition-colors group-hover:text-slate-500 sm:inline">
-            Bütüncül Yaşam Analizi Platformu
+            {t("tagline")}
           </span>
         </Link>
       </div>

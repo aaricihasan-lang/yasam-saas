@@ -1,0 +1,47 @@
+{
+  "clients": {
+    "memory": {
+      "intro": "Bu danışanın geçmiş kayıtlarında (kombinasyon, taş, seans, ödev, randevu, Human Design) arayın. Danışanın kişisel/sağlık serbest metni burada aranmaz.",
+      "searchAria": "Danışan hafızası araması",
+      "searchPlaceholder": "Ara: taş, kombinasyon, seans türü, HD kodu…",
+      "searchButton": "Ara",
+      "dateLabel": "Tarih:",
+      "dateFromAria": "Başlangıç tarihi",
+      "dateToAria": "Bitiş tarihi",
+      "resultsCount": "<b>{count}</b> sonuç",
+      "recordFallbackTitle": "Kayıt",
+      "pickAria": "Kaydı seç",
+      "pickedBanner": "{count} kayıt seçildi · Rapora/protokole ekleme <b>yakında (Paket 2)</b>",
+      "detailDialogAria": "Kayıt detayı",
+      "close": "Kapat",
+      "detailDateLabel": "Tarih: {date}",
+      "sourceGone": "Kaynak kaydı artık mevcut değil (snapshot korundu).",
+      "states": {
+        "idleTitle": "Aramaya başlayın",
+        "idleMsg": "Bir kelime yazın; bu danışanın geçmiş kayıtlarında arayalım.",
+        "errorTitle": "Bir şeyler ters gitti",
+        "errorMsg": "Arama tamamlanamadı.",
+        "retry": "Tekrar dene",
+        "emptyTitle": "Kayıt bulunamadı",
+        "emptyMsg": "Bu arama için danışan kaydı bulunamadı.",
+        "filteredEmptyTitle": "Seçili filtrede sonuç yok",
+        "filteredEmptyMsg": "Filtreyi genişletin."
+      },
+      "disabled": {
+        "fallbackTitle": "Kullanılamaz",
+        "not-active": {
+          "title": "Danışan Hafızası henüz etkin değil",
+          "msg": "Bu özellik etkinleştirildiğinde bu danışanın geçmiş kayıtlarında arama yapabilirsiniz."
+        },
+        "flag-disabled": {
+          "title": "Yaşam Hafızası bu hesapta henüz aktif değil",
+          "msg": "Bu özellik hesabınız için etkinleştirildiğinde arama yapabilirsiniz."
+        },
+        "demo": {
+          "title": "Demo hesabında kullanılamaz",
+          "msg": "Demo hesaplarında danışan hafızası araması yapılmaz."
+        }
+      }
+    }
+  }
+}

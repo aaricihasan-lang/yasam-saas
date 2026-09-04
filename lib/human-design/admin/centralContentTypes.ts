@@ -37,6 +37,16 @@ export type HdCanonicalEntityRow = {
   updated_at: string;
 };
 
+/**
+ * Admin liste satırı = canonical kimlik + o kimliğe bağlı İÇERİĞİN yayın durumu.
+ * `content_status`, hd_canonical_content.status'tan gelir (entity başına UNIQUE(entity_id)
+ * ⇒ en fazla 1 satır); içerik yoksa null. Entity'nin kendi `status` alanı AYRI semantiktir
+ * (registry/kimlik durumu) ve ASLA content_status ile karıştırılmaz/üzerine yazılmaz.
+ */
+export type HdCanonicalAdminListRow = HdCanonicalEntityRow & {
+  content_status: HdContentStatus | null;
+};
+
 // ── Kaynaklandırılmış Ana Metin (hd_canonical_content) ──────────────────────
 export type HdCanonicalContentRow = {
   id: string;

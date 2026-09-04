@@ -299,7 +299,7 @@ function zirveCards(motor: NonNullable<Motor>): Block[] {
   ] })) })] })];
 }
 function mucadeleBlocks(motor: NonNullable<Motor>): Block[] {
-  const m = motor.mucadeleYillari as { method1?: { index: number; age: number; topic: string }[]; method2?: { index: number; age: number; topic: string }[] } | null;
+  const m = motor.mucadeleYillari as { method1?: { index: number; age: number; topic: string }[] } | null;
   if (!m) return [];
   const out: Block[] = [];
   const blk = (title: string, items: { index: number; age: number; topic: string }[]) => {
@@ -310,8 +310,7 @@ function mucadeleBlocks(motor: NonNullable<Motor>): Block[] {
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(String(it.topic), { color: BODY, size: S_SMALL })] }),
     ] })) })] }));
   };
-  if (m.method1?.length) blk("1. yöntem (36 yıl arayla)", m.method1);
-  if (m.method2?.length) blk("2. yöntem (9 yıl arayla)", m.method2);
+  if (m.method1?.length) blk("Mücadele Yılları", m.method1);
   return out;
 }
 function harflerTable(motor: NonNullable<Motor>): Block | null {

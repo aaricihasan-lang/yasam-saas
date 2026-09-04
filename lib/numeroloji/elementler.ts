@@ -14,6 +14,29 @@ const DIGIT_ELEMENT_MAP: Record<number, ElementName | undefined> = {
   8: "Toprak",
 };
 
+export type ElementNameOrNeutral = ElementName | "Nötr";
+export const ELEMENT_ORDER_WITH_NEUTRAL = ["Hava", "Su", "Ateş", "Toprak", "Nötr"] as const;
+
+/**
+ * CANONICAL rakam→element eşlemesi (tek kaynak).
+ *   Hava = 1,5 · Su = 2,7 · Ateş = 3,6 · Toprak = 4,8 · 9 = Nötr
+ * Component-local kopya mantık yerine bu helper kullanılmalıdır.
+ */
+export function elementOfDigit(d: number): ElementNameOrNeutral | null {
+  if (d === 9) return "Nötr";
+  return DIGIT_ELEMENT_MAP[d] ?? null;
+}
+
+/** Rakam dizisinden element sayımı (Nötr dahil). Tie'lar KORUNUR (sıralama yapılmaz). */
+export function countElementsWithNeutral(digits: number[]): Record<ElementNameOrNeutral, number> {
+  const counts: Record<ElementNameOrNeutral, number> = { Hava: 0, Su: 0, Ateş: 0, Toprak: 0, Nötr: 0 };
+  for (const d of digits) {
+    const el = elementOfDigit(d);
+    if (el) counts[el] += 1;
+  }
+  return counts;
+}
+
 export type ElementResult = {
   counts: Record<ElementName, number>;
   neutralCount: number;

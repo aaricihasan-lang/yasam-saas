@@ -1,0 +1,103 @@
+{
+  "clients": {
+    "sessions": {
+      "noDate": "No date",
+      "expand": "Expand",
+      "open": "Open",
+      "close": "Close",
+      "cancel": "Cancel",
+      "cancelTop": "Cancel",
+      "unitMin": "min",
+      "sessionN": "Session {n}",
+      "toggleFormOpen": "+ Add Session",
+      "toggleFormClose": "Close Form",
+      "form": {
+        "dateLabel": "Session Date",
+        "typeLabel": "Session Type",
+        "typePlaceholder": "Reflexology, online, bioenergy...",
+        "durationLabel": "Duration",
+        "durationPlaceholder": "Minutes",
+        "feeLabel": "Fee",
+        "feePlaceholder": "e.g. 750",
+        "noteLabel": "Session Note",
+        "notePlaceholder": "General session note...",
+        "actionsLabel": "Actions Taken",
+        "actionsPlaceholder": "Techniques applied in this session...",
+        "suggestionsLabel": "Suggestions",
+        "suggestionsPlaceholder": "Suggestions given to the client...",
+        "nextPlanLabel": "Next Session Plan",
+        "nextPlanPlaceholder": "Plan for the next session..."
+      },
+      "header": {
+        "badge": "Client Session Tracking",
+        "title": "Sessions",
+        "subtitle": "Open longer session notes in a larger editor for easier reading and writing."
+      },
+      "stats": {
+        "sessions": "sessions",
+        "total": "total",
+        "duration": "duration",
+        "lastSession": "last session"
+      },
+      "newForm": {
+        "title": "New Session Record",
+        "subtitle": "Write your longer notes comfortably on an enlarged text screen.",
+        "saving": "Saving...",
+        "save": "💾 Save Session"
+      },
+      "list": {
+        "title": "Saved Sessions",
+        "subtitle": "Open any session to view its full notes.",
+        "loading": "Loading...",
+        "refresh": "Refresh List",
+        "loadingRecords": "Loading session records..."
+      },
+      "empty": {
+        "title": "No session records yet",
+        "hint": "You can create the first record using the \"+ Add Session\" button."
+      },
+      "detail": {
+        "note": "Session Note",
+        "actions": "Actions Taken",
+        "suggestions": "Suggestions",
+        "nextPlan": "Next Plan"
+      },
+      "item": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "editForm": {
+        "title": "Edit Session",
+        "subtitle": "You can edit long fields on a wide screen with “Expand”.",
+        "updating": "Updating...",
+        "update": "Update"
+      },
+      "modal": {
+        "editorSubtitle": "Wide writing screen",
+        "placeholder": "Type your text here...",
+        "apply": "Insert Text",
+        "readerSubtitle": "Large reading screen"
+      },
+      "delete": {
+        "title": "Delete session",
+        "message": "Delete this session record?"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "noClient": "Client information not found.",
+        "emptyForm": "Please fill in at least one field.",
+        "added": "Session record added.",
+        "addFailed": "Session record could not be added.",
+        "emptyUpdate": "An empty session cannot be updated.",
+        "updated": "Session updated.",
+        "updateFailed": "Session record could not be updated.",
+        "deleted": "Session deleted.",
+        "deleteFailed": "Session record could not be deleted."
+      },
+      "error": {
+        "loadFailed": "Session records could not be loaded"
+      }
+    }
+  }
+}

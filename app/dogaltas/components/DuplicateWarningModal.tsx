@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * DuplicateWarningModal — modül-bazlı çift kayıt uyarısı (DT-P1-1).
  * Hata DEĞİL uyarıdır → amber ton (kırmızı kullanılmaz). Mobil uyumlu.
@@ -20,6 +22,8 @@ export function DuplicateWarningModal({
   onCreateAnyway: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("stones.duplicateModal");
+  const tc = useTranslations("stones.common");
   if (!open) return null;
 
   return (
@@ -42,17 +46,17 @@ export function DuplicateWarningModal({
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="dup-warning-title" className="text-base font-black text-slate-950">
-              Bu isimde bir kayıt zaten var
+              {t("title")}
             </h2>
             <p className="mt-0.5 text-xs font-medium leading-snug text-slate-500">
-              Mevcut kaydı kontrol etmek ister misiniz?
+              {t("subtitle")}
             </p>
           </div>
         </div>
 
         <div className="px-5 py-4">
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-3.5 py-2.5">
-            <span className="text-[11px] font-black uppercase tracking-wider text-amber-700">Mevcut kayıt</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-amber-700">{t("existingLabel")}</span>
             <p className="mt-0.5 break-words text-sm font-bold text-slate-800">{label}</p>
           </div>
 
@@ -64,7 +68,7 @@ export function DuplicateWarningModal({
                 disabled={busy}
                 className="w-full rounded-2xl border-2 border-amber-300 bg-amber-100/70 px-4 py-2.5 text-sm font-black text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
               >
-                Mevcut Kaydı Aç
+                {t("openExisting")}
               </button>
             ) : null}
             <button
@@ -73,7 +77,7 @@ export function DuplicateWarningModal({
               disabled={busy}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
             >
-              {busy ? "Oluşturuluyor..." : "Yine de Oluştur"}
+              {busy ? t("creating") : t("createAnyway")}
             </button>
             <button
               type="button"
@@ -81,7 +85,7 @@ export function DuplicateWarningModal({
               disabled={busy}
               className="w-full rounded-2xl px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-slate-700 disabled:opacity-60"
             >
-              Vazgeç
+              {tc("giveUp")}
             </button>
           </div>
         </div>

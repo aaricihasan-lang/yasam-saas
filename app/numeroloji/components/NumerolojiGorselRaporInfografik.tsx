@@ -959,9 +959,9 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const mucObj = out.mucadeleYillari;
   let mucGoster: string[] = [];
   if (mucObj) {
-    const m1 = (mucObj.method1 ?? []).map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`);
-    const m2 = (mucObj.method2 ?? []).map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`);
-    mucGoster = [...m1, ...m2].slice(0, Y);
+    mucGoster = (mucObj.method1 ?? [])
+      .map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`)
+      .slice(0, Y);
   }
   if (mucGoster.length === 0) mucGoster = gorselMeaningfulLines(out.mucadeleYillariMetni, Y);
 

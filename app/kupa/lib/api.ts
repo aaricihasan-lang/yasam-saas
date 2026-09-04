@@ -87,7 +87,17 @@ export type CuppingTechnique = {
   application_info?: string | null;
   safety_note?: string | null;
   source_note?: string | null;
+  /** FAZ 4 — "Uzman Notum" (kişisel not; source_note/safety_note'tan AYRI). */
+  practitioner_note?: string | null;
   sort_order?: number;
+  is_active?: boolean;
+};
+
+/** FAZ 4 — "Kullanıldığı Protokoller" read-only sade metadata. */
+export type CuppingTechniqueProtocolRef = {
+  id: string;
+  title: string;
+  category?: string | null;
   is_active?: boolean;
 };
 
@@ -218,12 +228,18 @@ export const deletePointTopic = (id: string) =>
 // Techniques
 export const listTechniques = () =>
   call<CuppingTechnique[]>(`${BASE}/techniques`, { method: "GET" }, "techniques");
+export const getTechnique = (id: string) =>
+  call<CuppingTechnique>(`${BASE}/techniques/${id}`, { method: "GET" }, "technique");
 export const createTechnique = (body: Partial<CuppingTechnique>) =>
   call<CuppingTechnique>(`${BASE}/techniques`, { method: "POST", body: JSON.stringify(body) }, "technique");
 export const updateTechnique = (id: string, body: Partial<CuppingTechnique>) =>
   call<CuppingTechnique>(`${BASE}/techniques/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "technique");
 export const deleteTechnique = (id: string) =>
   call<number>(`${BASE}/techniques/${id}`, { method: "DELETE" }, "deleted");
+
+// Technique "Kullanıldığı Protokoller" (read-only, FAZ 4)
+export const listTechniqueProtocols = (techniqueId: string) =>
+  call<CuppingTechniqueProtocolRef[]>(`${BASE}/techniques/${techniqueId}/protocols`, { method: "GET" }, "protocols");
 
 // Knowledge
 export const listKnowledge = () =>
@@ -298,3 +314,162 @@ export const updateCitation = (
   );
 export const deleteCitation = (entity: CuppingCitationEntity, id: string) =>
   call<number>(`${BASE}/citations/${entity}/${id}`, { method: "DELETE" }, "deleted");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 CLEAN CORE — Hacamat Protokolleri (yalnız ADDITIVE; legacy wrapper'lar üstte
+// AYNEN korunur). Response key'leri /api/kupa/protocol* route'larıyla birebir.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type CuppingProtocol = {
+  id: string;
+  title: string;
+  category?: string | null;
+  summary?: string | null;
+  tags?: string[] | null;
+  preparation_note?: string | null;
+  aftercare_note?: string | null;
+  follow_up_note?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CuppingProtocolPoint = {
+  id: string;
+  protocol_id: string;
+  point_id: string;
+  protocol_note?: string | null;
+  sort_order?: number;
+};
+
+export type CuppingProtocolTechnique = {
+  id: string;
+  protocol_id: string;
+  technique_id: string;
+  protocol_note?: string | null;
+  sort_order?: number;
+};
+
+export type CuppingProtocolSafety = {
+  id: string;
+  protocol_id: string;
+  safety_id: string;
+  protocol_note?: string | null;
+  sort_order?: number;
+};
+
+export type CuppingProtocolStep = {
+  id: string;
+  protocol_id: string;
+  title?: string | null;
+  body: string;
+  stage_label?: string | null;
+  ref_point_id?: string | null;
+  ref_technique_id?: string | null;
+  sort_order?: number;
+};
+
+/** UNIFIED "Bilgiler" — kaynaklı/kaynaksız TEK sınıf. */
+export type CuppingProtocolEntry = {
+  id: string;
+  protocol_id: string;
+  title?: string | null;
+  content: string;
+  source_id?: string | null;
+  source_label?: string | null;
+  locator?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  point_ids?: string[];
+};
+
+export type CuppingProtocolSourceLink = {
+  id: string;
+  protocol_id: string;
+  source_id: string;
+  locator?: string | null;
+  note?: string | null;
+  sort_order?: number;
+};
+
+// Protocols
+export const listProtocols = () =>
+  call<CuppingProtocol[]>(`${BASE}/protocols`, { method: "GET" }, "protocols");
+export const createProtocol = (body: Partial<CuppingProtocol>) =>
+  call<CuppingProtocol>(`${BASE}/protocols`, { method: "POST", body: JSON.stringify(body) }, "protocol");
+export const getProtocol = (id: string) =>
+  call<CuppingProtocol>(`${BASE}/protocols/${id}`, { method: "GET" }, "protocol");
+export const updateProtocol = (id: string, body: Partial<CuppingProtocol>) =>
+  call<CuppingProtocol>(`${BASE}/protocols/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "protocol");
+export const deleteProtocol = (id: string) =>
+  call<number>(`${BASE}/protocols/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol points
+export const listProtocolPoints = (protocolId: string) =>
+  call<CuppingProtocolPoint[]>(`${BASE}/protocol-points?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "relations");
+export const addProtocolPoint = (body: { protocol_id: string; point_id: string; protocol_note?: string | null; sort_order?: number }) =>
+  call<CuppingProtocolPoint>(`${BASE}/protocol-points`, { method: "POST", body: JSON.stringify(body) }, "relation");
+export const updateProtocolPoint = (id: string, body: Partial<Pick<CuppingProtocolPoint, "protocol_note" | "sort_order">>) =>
+  call<CuppingProtocolPoint>(`${BASE}/protocol-points/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "relation");
+export const deleteProtocolPoint = (id: string) =>
+  call<number>(`${BASE}/protocol-points/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol techniques
+export const listProtocolTechniques = (protocolId: string) =>
+  call<CuppingProtocolTechnique[]>(`${BASE}/protocol-techniques?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "relations");
+export const addProtocolTechnique = (body: { protocol_id: string; technique_id: string; protocol_note?: string | null; sort_order?: number }) =>
+  call<CuppingProtocolTechnique>(`${BASE}/protocol-techniques`, { method: "POST", body: JSON.stringify(body) }, "relation");
+export const updateProtocolTechnique = (id: string, body: Partial<Pick<CuppingProtocolTechnique, "protocol_note" | "sort_order">>) =>
+  call<CuppingProtocolTechnique>(`${BASE}/protocol-techniques/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "relation");
+export const deleteProtocolTechnique = (id: string) =>
+  call<number>(`${BASE}/protocol-techniques/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol safety
+export const listProtocolSafety = (protocolId: string) =>
+  call<CuppingProtocolSafety[]>(`${BASE}/protocol-safety?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "relations");
+export const addProtocolSafety = (body: { protocol_id: string; safety_id: string; protocol_note?: string | null; sort_order?: number }) =>
+  call<CuppingProtocolSafety>(`${BASE}/protocol-safety`, { method: "POST", body: JSON.stringify(body) }, "relation");
+export const updateProtocolSafety = (id: string, body: Partial<Pick<CuppingProtocolSafety, "protocol_note" | "sort_order">>) =>
+  call<CuppingProtocolSafety>(`${BASE}/protocol-safety/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "relation");
+export const deleteProtocolSafety = (id: string) =>
+  call<number>(`${BASE}/protocol-safety/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol steps
+export const listProtocolSteps = (protocolId: string) =>
+  call<CuppingProtocolStep[]>(`${BASE}/protocol-steps?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "steps");
+export const addProtocolStep = (body: { protocol_id: string; title?: string | null; body: string; stage_label?: string | null; ref_point_id?: string | null; ref_technique_id?: string | null; sort_order?: number }) =>
+  call<CuppingProtocolStep>(`${BASE}/protocol-steps`, { method: "POST", body: JSON.stringify(body) }, "step");
+export const updateProtocolStep = (id: string, body: Partial<Omit<CuppingProtocolStep, "id" | "protocol_id">>) =>
+  call<CuppingProtocolStep>(`${BASE}/protocol-steps/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "step");
+export const deleteProtocolStep = (id: string) =>
+  call<number>(`${BASE}/protocol-steps/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol entries (UNIFIED "Bilgiler"; create/update atomik RPC route'una gider)
+export const listProtocolEntries = (protocolId: string) =>
+  call<CuppingProtocolEntry[]>(`${BASE}/protocol-entries?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "entries");
+export const createProtocolEntry = (body: {
+  protocol_id: string;
+  title?: string | null;
+  content: string;
+  source_id?: string | null;
+  source_label?: string | null;
+  locator?: string | null;
+  point_ids?: string[];
+}) => call<CuppingProtocolEntry>(`${BASE}/protocol-entries`, { method: "POST", body: JSON.stringify(body) }, "entry");
+export const updateProtocolEntry = (
+  id: string,
+  body: Partial<{ title: string | null; content: string; source_id: string | null; source_label: string | null; locator: string | null; sort_order: number; is_active: boolean; point_ids: string[] }>,
+) => call<CuppingProtocolEntry>(`${BASE}/protocol-entries/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "entry");
+export const deleteProtocolEntry = (id: string) =>
+  call<number>(`${BASE}/protocol-entries/${id}`, { method: "DELETE" }, "deleted");
+
+// Protocol sources (protokol-seviye künye)
+export const listProtocolSources = (protocolId: string) =>
+  call<CuppingProtocolSourceLink[]>(`${BASE}/protocol-sources?protocolId=${encodeURIComponent(protocolId)}`, { method: "GET" }, "sources");
+export const addProtocolSource = (body: { protocol_id: string; source_id: string; locator?: string | null; note?: string | null; sort_order?: number }) =>
+  call<CuppingProtocolSourceLink>(`${BASE}/protocol-sources`, { method: "POST", body: JSON.stringify(body) }, "source");
+export const updateProtocolSource = (id: string, body: Partial<Pick<CuppingProtocolSourceLink, "locator" | "note" | "sort_order">>) =>
+  call<CuppingProtocolSourceLink>(`${BASE}/protocol-sources/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "source");
+export const deleteProtocolSource = (id: string) =>
+  call<number>(`${BASE}/protocol-sources/${id}`, { method: "DELETE" }, "deleted");

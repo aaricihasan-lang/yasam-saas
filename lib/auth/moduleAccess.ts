@@ -36,7 +36,8 @@ export type ModuleGateKey =
   | "human_design"
   | "digital_content"
   | "cosmic_calendar"
-  | "cupping";
+  | "cupping"
+  | "beslenme";
 
 /** Kanonik anahtar → kabul edilen alias'lar (DB'de her iki biçim de saklanabilir). */
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -57,6 +58,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   human_design: [],
   digital_content: [],
   cosmic_calendar: [],
+  beslenme: [],
 };
 
 function toFlags(raw: unknown): Record<string, boolean> {
@@ -89,6 +91,10 @@ export function resolveModuleAccess(
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
   if (moduleKey === "cosmic_calendar") return true;
+  // Beslenme: OWNER-ONLY (super-admin) faz. Admin (üstte short-circuit) API'de ayrıca
+  // requireMainAdmin ile owner'a daraltılır; uzman/anon buradan reddedilir (defense-in-depth).
+  // Uzmanlara açılınca bu satır `return hasFlag(flags, "beslenme")` olur (bkz. §G expert-opening).
+  if (moduleKey === "beslenme") return false;
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {

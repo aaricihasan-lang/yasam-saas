@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
 /**
  * Doğaltaş bölüm layout'u.
@@ -8,12 +10,15 @@ import type { ReactNode } from "react";
  * görsel chrome eklenmez — yalnızca tüm /dogaltas/* sayfaları için tutarlı
  * sekme başlığı şablonu tanımlanır.
  */
-export const metadata = {
-  title: {
-    default: "Doğaltaş · Yaşam Sistemi",
-    template: "%s · Doğaltaş · Yaşam Sistemi",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("stones.hub");
+  return {
+    title: {
+      default: t("meta.titleDefault"),
+      template: t("meta.titleTemplate"),
+    },
+  };
+}
 
 export default function DogaltasLayout({ children }: { children: ReactNode }) {
   return children;

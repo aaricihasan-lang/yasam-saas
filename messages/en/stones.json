@@ -1,0 +1,200 @@
+{
+  "stones": {
+    "common": {
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "delete": "Delete",
+      "edit": "Edit",
+      "back": "← Back",
+      "clear": "Clear",
+      "loading": "Loading…",
+      "giveUp": "Cancel",
+      "unnamedStone": "Untitled Stone",
+      "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again."
+    },
+    "modules": {
+      "home": {
+        "title": "Natural Stone"
+      },
+      "dogaltas-kayit": {
+        "title": "Stone Record",
+        "subtitle": "Create a new stone record."
+      },
+      "mineral-bankasi": {
+        "title": "Mineral Library",
+        "subtitle": "Add a new mineral record."
+      },
+      "mineral-listesi": {
+        "title": "Minerals",
+        "subtitle": "View and manage minerals."
+      },
+      "dogaltas-listesi": {
+        "title": "Stone Records",
+        "subtitle": "Saved stones."
+      },
+      "kombinasyonlar": {
+        "title": "Stone Combinations",
+        "subtitle": "Stone combinations."
+      },
+      "kombinasyon-olustur": {
+        "title": "Create Combination",
+        "subtitle": "Find stones by mineral."
+      },
+      "tas-bilgi-kutuphanesi": {
+        "title": "Stone Knowledge Base",
+        "subtitle": "Learning and reference."
+      }
+    },
+    "photos": {
+      "noImage": "No photo added",
+      "imageAlt": "Photo {n}"
+    },
+    "breadcrumb": {
+      "aria": "Page location",
+      "home": "Home",
+      "panel": "Natural Stone Panel"
+    },
+    "fontSize": {
+      "groupAria": "Font size",
+      "label": "Font Size",
+      "decreaseAria": "Decrease font size",
+      "decreaseTitle": "Decrease (A-)",
+      "resetAria": "Default font size ({px}px)",
+      "resetTitle": "Default ({px}px)",
+      "increaseAria": "Increase font size",
+      "increaseTitle": "Increase (A+)"
+    },
+    "duplicateModal": {
+      "title": "A record with this name already exists",
+      "subtitle": "Would you like to review the existing record?",
+      "existingLabel": "Existing record",
+      "openExisting": "Open Existing Record",
+      "creating": "Creating…",
+      "createAnyway": "Create Anyway"
+    },
+    "mineralCombo": {
+      "stoneCount": "{count, plural, one {# stone} other {# stones}}"
+    },
+    "saveCombo": {
+      "dialogAria": "Save combination",
+      "title": "Where should this combination be saved?",
+      "saveToClient": "Save to a Client",
+      "summary": "{name} · {count, plural, one {# stone} other {# stones}}",
+      "combinationFallback": "Combination",
+      "saveGeneral": "Save to General Combinations",
+      "generalDesc": "A template combination you can reuse across all clients.",
+      "clientDesc": "Visible only in the selected client's file.",
+      "searchLabel": "Search Clients",
+      "searchPlaceholder": "Name, phone or client no…",
+      "errNoSession": "No session found.",
+      "errLoadFailed": "Unable to load clients.",
+      "errNetwork": "Network error",
+      "loadingClients": "Loading clients…",
+      "noMatch": "No matching clients.",
+      "noClients": "No clients found.",
+      "selectedSummary": "Selected: \"{combo}\" ({count, plural, one {# stone} other {# stones}}) will be saved to {name}.",
+      "saveToClientBtn": "💾 Save to Client"
+    },
+    "detailDrawer": {
+      "detailAria": "{name} details",
+      "stoneFallback": "Stone",
+      "badge": "💎 STONE DETAILS",
+      "addToCart": "+ Add to Combination",
+      "removeFromCart": "Remove from Cart",
+      "shortTitle": "Short Description",
+      "shortBadge": "GENERAL INFORMATION",
+      "generalTitle": "General Stone Description",
+      "generalBadge": "DETAILED INFORMATION",
+      "assignmentsTitle": "Mineral Content & Assignments",
+      "assignmentsBadge": "ASSIGNMENT",
+      "chakrasTitle": "Chakras",
+      "chakrasBadge": "CHAKRA",
+      "physicalTitle": "Physical Effects",
+      "physicalBadge": "PHYSICAL EFFECT",
+      "spiritualTitle": "Spiritual Effects",
+      "spiritualBadge": "SPIRITUAL EFFECT",
+      "otherTitle": "Other Effects",
+      "otherBadge": "SUPPLEMENTARY NOTE",
+      "sourceTitle": "Source Note",
+      "sourceBadge": "SOURCE",
+      "usageTitle": "Use / Application",
+      "usageBadge": "AREA OF USE",
+      "usageFengShui": "Feng Shui",
+      "usageMeditation": "Meditation",
+      "usageCare": "Care",
+      "usageApplication": "Application",
+      "warningsTitle": "Warnings & Sensitivities",
+      "warningsBadge": "CLINICAL NOTE",
+      "stockTitle": "Inventory Status",
+      "stockBadge": "INVENTORY",
+      "inStockYes": "✓ This stone is in stock.",
+      "inStockNo": "This stone does not appear to be in stock right now."
+    },
+    "reader": {
+      "demoProtected": "🔒 This content is protected in the demo account"
+    },
+    "facetLabels": {
+      "Kök": "Root",
+      "Kök Çakra": "Root Chakra",
+      "Sakral": "Sacral",
+      "Sakral Çakra": "Sacral Chakra",
+      "Solar Pleksus": "Solar Plexus",
+      "Kalp": "Heart",
+      "Kalp Çakra": "Heart Chakra",
+      "Kalp Çakrası": "Heart Chakra",
+      "Boğaz": "Throat",
+      "Boğaz Çakra": "Throat Chakra",
+      "Boğaz Çakrası": "Throat Chakra",
+      "Alın": "Brow",
+      "Üçüncü Göz": "Third Eye",
+      "Taç": "Crown",
+      "Taç Çakra": "Crown Chakra",
+      "Genel Uyarı": "General Warning",
+      "Hamilelik": "Pregnancy",
+      "Hamileler": "Pregnant Women",
+      "Çocuklar": "Children",
+      "Tansiyon / Kalp": "Blood Pressure / Heart",
+      "Tansiyon": "Blood Pressure",
+      "Uyku / Huzursuzluk": "Sleep / Restlessness",
+      "Uyku": "Sleep",
+      "Enerji Hassasiyeti": "Energy Sensitivity",
+      "Kalp Rahatsızlığı": "Heart Condition",
+      "Epilepsi": "Epilepsy",
+      "Alerji": "Allergy",
+      "Böbrek": "Kidney",
+      "Psikolojik Hassasiyet": "Psychological Sensitivity",
+      "Uzman Kontrolü": "Specialist Supervision"
+    },
+    "assignmentLabels": {
+      "Mineraller": "Minerals",
+      "Etkili Organlar": "Affected Organs",
+      "Astrolojik Atama": "Astrological Associations",
+      "Elementler": "Elements",
+      "Çakra Atama": "Chakra Assignment",
+      "Burçlar": "Zodiac Signs",
+      "Mizaçlar": "Temperaments",
+      "Kan Grupları": "Blood Types"
+    },
+    "assignmentDesc": {
+      "Mineraller": "Add a mineral name and percentage.",
+      "Etkili Organlar": "Add an affected organ or a short note.",
+      "Astrolojik Atama": "Add a zodiac sign, planet, or astrological association.",
+      "Elementler": "Add elements such as Fire, Water, Air, or Earth."
+    },
+    "assignmentFields": {
+      "Mineral": "Mineral",
+      "Oran %": "Percentage",
+      "Etkili Organ / Not": "Affected Organ / Note",
+      "Astrolojik Atama": "Astrological Association",
+      "Element": "Element"
+    },
+    "assignmentFieldPlaceholders": {
+      "Oran %": "Enter percentage..."
+    },
+    "validation": {
+      "mineralPercentInvalid": "Enter a mineral percentage between 0 and 100."
+    }
+  }
+}

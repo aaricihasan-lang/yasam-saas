@@ -1,0 +1,131 @@
+{
+  "clients": {
+    "landing": {
+      "hero": {
+        "eyebrow": "Yaşam Sistemi",
+        "title": "Danışan Yolculuğu",
+        "subtitle": "Danışan sürecinizi üç ana klasörde yönetin: yeni kayıt, danışan listesi ve takip & ajanda."
+      },
+      "quickActions": {
+        "title": "Hızlı İşlemler",
+        "subtitle": "Danışan yönetimi için üç ana klasöre hızlıca erişin."
+      },
+      "folders": {
+        "kayit": {
+          "title": "Danışan Kayıt",
+          "desc": "Yeni danışan ekle, kişisel bilgileri ve görüşme tarihini kaydet.",
+          "badge": "Yeni Kayıt",
+          "cta": "Danışan Ekle"
+        },
+        "liste": {
+          "title": "Danışan Listesi",
+          "desc": "Kayıtlı danışanları görüntüle, ara, düzenle ve detaylara eriş.",
+          "badge": "Liste & Detay",
+          "cta": "Danışanları Gör"
+        },
+        "takip": {
+          "title": "Danışan Takip",
+          "desc": "Randevular, seans planlama, günlük takip ve danışan süreç yönetimi.",
+          "badge": "Takip & Plan",
+          "cta": "Takvimi Aç"
+        }
+      },
+      "summary": {
+        "title": "Genel Özet",
+        "subtitle": "Danışan ve randevu süreçlerinizin anonim genel görünümü.",
+        "privacyTitle": "Gizlilik Önceliğimiz",
+        "privacyDesc": "Kişisel bilgiler bu ekranda gösterilmez."
+      },
+      "stats": {
+        "total": "Toplam Danışan",
+        "thisMonthNew": "Bu Ay Yeni",
+        "lastCreated": "Son Kayıt",
+        "thisMonthAppts": "Bu Ay Randevu",
+        "nextAppt": "En Yakın Randevu",
+        "thisMonthCompleted": "Bu Ay Tamamlanan"
+      }
+    },
+    "form": {
+      "badge": {
+        "demo": "Demo Danışan",
+        "new": "Yeni Danışan"
+      },
+      "title": "Danışanı Kaydet",
+      "subtitle": "Tüm alanlar isteğe bağlıdır; ad ve soyad zorunludur.",
+      "fields": {
+        "ad": "Ad",
+        "soyad": "Soyad",
+        "telefon": "Telefon",
+        "dogum": "Doğum Tarihi",
+        "gorusme": "Görüşme Tarihi",
+        "burc": "Burç (Otomatik)",
+        "kan": "Kan Grubu",
+        "mizac": "Mizaç"
+      },
+      "placeholders": {
+        "ad": "Ad",
+        "soyad": "Soyad",
+        "telefon": "05xx xxx xx xx",
+        "burc": "Doğum tarihinden otomatik hesaplanır",
+        "select": "Seçiniz"
+      },
+      "mizacOptions": {
+        "safra": "Safra",
+        "sovdavi": "Sovdavi",
+        "dem": "Dem",
+        "balgam": "Balgam"
+      },
+      "gorusmeInvalid": "Geçerli bir tarih girin (DD.MM.YYYY) veya alanı boş bırakın.",
+      "gorusmeHint": "Danışanın ilk/son görüşme tarihi. Planlı seanslar için <b>Ajanda & Randevu</b>’yu kullanın.",
+      "submit": {
+        "saving": "Kaydediliyor...",
+        "demo": "Demo Danışan Oluştur",
+        "default": "Danışanı Kaydet"
+      },
+      "backToList": "Listeye Dön",
+      "demoNotice": {
+        "title": "Demo Modu — Geçici Kayıt",
+        "desc": "Bu danışan veritabanına kaydedilmeyecek; yalnızca oturumunuz süresince tarayıcınızda saklanacak. Çıkış yaptığınızda otomatik olarak silinir."
+      },
+      "tenantMissing": {
+        "noSession": "Oturum bulunamadı. Danışan kaydı için lütfen tekrar giriş yapın.",
+        "noTenant": "Çalışma alanı (tenant) bilgisi bulunamadı. Kayıt yapılamaz."
+      },
+      "duplicate": {
+        "warning": "\"{name}\" adında bir danışan zaten kayıtlı. Aynı kişiyi tekrar kaydetmek istiyor musunuz?",
+        "cancel": "İptal",
+        "confirm": "Yine de Kaydet"
+      },
+      "datePicker": {
+        "placeholder": "DD.MM.YYYY",
+        "openCalendar": "Takvimden tarih seç",
+        "dialogLabel": "Tarih seçici",
+        "prevMonth": "Önceki ay",
+        "nextMonth": "Sonraki ay",
+        "clear": "Temizle",
+        "today": "Bugün"
+      },
+      "toast": {
+        "sessionWarningTitle": "Oturum uyarısı",
+        "noSession": "Oturum bulunamadı. Lütfen tekrar giriş yapın.",
+        "noTenant": "Hesabınızda çalışma alanı (tenant) bilgisi yok. İşlem yapılamaz.",
+        "failTitle": "İşlem başarısız",
+        "nameRequired": "Ad ve soyad gerekli",
+        "invalidDateTitle": "Geçersiz tarih",
+        "invalidDateMsg": "Görüşme tarihini DD.MM.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.",
+        "successTitle": "Başarılı",
+        "demoCreated": "Demo danışan oluşturuldu.",
+        "saved": "Danışan kaydedildi.",
+        "saveError": "Kayıt hatası"
+      }
+    },
+    "picker": {
+      "searchPlaceholder": "Danışan ara (ad/soyad)…",
+      "searchAria": "Danışan ara",
+      "loading": "Yükleniyor…",
+      "empty": "Danışan bulunamadı.",
+      "error": "Danışan listesi alınamadı.",
+      "unnamed": "İsimsiz Danışan"
+    }
+  }
+}

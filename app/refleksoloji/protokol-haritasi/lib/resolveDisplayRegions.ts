@@ -9,8 +9,36 @@ import type {
 } from "../types";
 import { getOrganColor } from "../types";
 import { isRenderableAtlasRegion, resolveOrganNameInAtlas } from "./atlasMatch";
+import {
+  resolveProtocolAtlas,
+  ALL_ATLAS_GROUPS,
+  type AtlasBackgroundGroup,
+  type ResolvedAtlas,
+} from "@/lib/refleksoloji/atlasRegionsCore";
 
-const ALL_VIEWS: ProtocolFootView[] = ["taban", "yan"];
+const ALL_VIEWS: ProtocolFootView[] = ["taban", "yan_ic", "yan_dis"];
+
+/**
+ * PROTOKOL UI (Protokol Haritası + Kayıtlı Protokol Detay) için TEK giriş.
+ *
+ * Ekole bağımsız: üç AYRI görünüm (Taban / Yan İç / Yan Dış) uzman tarafından
+ * MANUEL seçilir. Gruplama TEK kaynaktan (`resolveProtocolAtlas` →
+ * `regionBackgroundGroup` = region'ın EXPLICIT view'ı; organ adı KULLANILMAZ) gelir;
+ * Word raporuyla aynı çekirdek. Bir grubun bölgesi asla başka grubun arka planına sızmaz.
+ *
+ * `availableViews`: en az bir bölgesi olan gruplar (taban/yan_ic/yan_dis sırası).
+ * UI yalnız anlamlı görünüm düğmelerini gösterir ve boş sekme açmaz.
+ */
+export function resolveProtocolViews(organNames: string[]): {
+  resolved: ResolvedAtlas;
+  availableViews: AtlasBackgroundGroup[];
+} {
+  const resolved = resolveProtocolAtlas(loadAtlas(), organNames);
+  const availableViews = ALL_ATLAS_GROUPS.filter((group) =>
+    resolved.organs.some((organ) => organ.byGroup[group] > 0),
+  );
+  return { resolved, availableViews };
+}
 
 export function atlasRegionToDisplay(region: Region): ProtocolDisplayRegion | null {
   if (!isRenderableAtlasRegion(region)) return null;

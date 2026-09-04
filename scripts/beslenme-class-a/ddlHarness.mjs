@@ -238,8 +238,10 @@ check("seed yalnız INSERT (UPDATE/DELETE/DROP/ALTER yok)",
 // ── Beklenmeyen ek nutrition tablosu var mı? (scope disiplini) ───────────────
 console.log("\n[scope] beklenmeyen ek nutrition migration/tablo YOK");
 const allMig = readdirSync(MIG).filter((f) => f.endsWith(".sql"));
-const nutritionMig = allMig.filter((f) => /nutrition/.test(f));
-check("yalnız 7 nutrition migration", nutritionMig.length === 7, `bulundu: ${nutritionMig.length} → ${nutritionMig.join(", ")}`);
+// Class A kapsamı yalnız kendi timestamp bloğu (20261228*). Class B (20261229*+) ayrı fazdır
+// ve bu Class A harness'ini bozmaz — count assertion Class A dosyalarına göre yapılır.
+const nutritionMig = allMig.filter((f) => /nutrition/.test(f) && f.startsWith("20261228"));
+check("yalnız 7 Class A (20261228*) nutrition migration", nutritionMig.length === 7, `bulundu: ${nutritionMig.length} → ${nutritionMig.join(", ")}`);
 const createdTables = [...ALL_DDL.matchAll(/CREATE TABLE public\.(nutrition_\w+)/g)].map((m) => m[1]);
 check("yalnız 6 canonical tablo CREATE", createdTables.length === 6 && createdTables.every((t) => Object.values(TABLES).includes(t)),
   `bulundu: ${createdTables.join(", ")}`);

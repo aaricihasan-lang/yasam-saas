@@ -22,6 +22,7 @@ import {
   TabPlainAnaliz,
   TabTasAtamalari,
 } from "../components/NumerolojiAnalizSonucTabs";
+import { NumerolojiZamanlamaGelisimTab } from "../components/NumerolojiZamanlamaGelisimTab";
 import {
   ContentFontSizeProvider,
   NumerolojiFontSizeControl,
@@ -36,7 +37,7 @@ import {
   GorselRaporTamEkranKontrolCubugu,
 } from "../components/NumerolojiGorselRaporKontrolPaneli";
 
-type TabId = "summary" | "plain" | "detailed" | "tas" | "gorsel";
+type TabId = "summary" | "plain" | "detailed" | "zamanlama" | "tas" | "gorsel";
 
 const DEMO_LIMIT_TEXT =
   "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
@@ -101,6 +102,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
   { id: "plain", label: "Numerolojik Analiz" },
   { id: "detailed", label: "Sayısal Hesaplama" },
+  { id: "zamanlama", label: "Zamanlama & Gelişim" },
   { id: "tas", label: "Taş Notlarım" },
   { id: "gorsel", label: "Görsel Rapor" },
 ];
@@ -576,6 +578,14 @@ export default function NumerolojiAnalizPage() {
 
                   {tab === "tas" ? <TabTasAtamalari out={out} /> : null}
                 </ContentFontSizeProvider>
+              ) : null}
+
+              {tab === "zamanlama" ? (
+                <NumerolojiZamanlamaGelisimTab
+                  firstName={firstName}
+                  lastName={lastName}
+                  birthDate={birthDate}
+                />
               ) : null}
 
               {tab === "gorsel" ? (

@@ -1,0 +1,131 @@
+{
+  "clients": {
+    "landing": {
+      "hero": {
+        "eyebrow": "Yaşam Sistemi",
+        "title": "Client Journey",
+        "subtitle": "Manage your client workflow across three key areas: new clients, client records, and follow-up & scheduling."
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "subtitle": "Jump straight to the three key areas of client management."
+      },
+      "folders": {
+        "kayit": {
+          "title": "New Client",
+          "desc": "Add a new client and record their personal details and meeting date.",
+          "badge": "New Record",
+          "cta": "Add Client"
+        },
+        "liste": {
+          "title": "Client List",
+          "desc": "View, search, edit registered clients and open their details.",
+          "badge": "List & Detail",
+          "cta": "View Clients"
+        },
+        "takip": {
+          "title": "Client Follow-up",
+          "desc": "Manage appointments, session planning and day-to-day client follow-up.",
+          "badge": "Follow-up & Plan",
+          "cta": "Open Schedule"
+        }
+      },
+      "summary": {
+        "title": "Overview",
+        "subtitle": "An overview of client and appointment activity without displaying personal details.",
+        "privacyTitle": "Privacy First",
+        "privacyDesc": "Personal details are not shown on this screen."
+      },
+      "stats": {
+        "total": "Total Clients",
+        "thisMonthNew": "New This Month",
+        "lastCreated": "Latest Record",
+        "thisMonthAppts": "Monthly Appointments",
+        "nextAppt": "Next Appointment",
+        "thisMonthCompleted": "Completed This Month"
+      }
+    },
+    "form": {
+      "badge": {
+        "demo": "Demo Client",
+        "new": "New Client"
+      },
+      "title": "Add New Client",
+      "subtitle": "All fields are optional except first and last name.",
+      "fields": {
+        "ad": "First Name",
+        "soyad": "Last Name",
+        "telefon": "Phone",
+        "dogum": "Date of Birth",
+        "gorusme": "Meeting Date",
+        "burc": "Zodiac Sign (Auto)",
+        "kan": "Blood Type",
+        "mizac": "Temperament"
+      },
+      "placeholders": {
+        "ad": "First Name",
+        "soyad": "Last Name",
+        "telefon": "05xx xxx xx xx",
+        "burc": "Calculated from date of birth",
+        "select": "Select"
+      },
+      "mizacOptions": {
+        "safra": "Choleric",
+        "sovdavi": "Melancholic",
+        "dem": "Sanguine",
+        "balgam": "Phlegmatic"
+      },
+      "gorusmeInvalid": "Enter a valid date (DD.MM.YYYY) or leave the field empty.",
+      "gorusmeHint": "The client's first/last meeting date. For scheduled sessions, use <b>Schedule & Appointments</b>.",
+      "submit": {
+        "saving": "Saving...",
+        "demo": "Create Demo Client",
+        "default": "Save Client"
+      },
+      "backToList": "Back to List",
+      "demoNotice": {
+        "title": "Demo Mode — Temporary Record",
+        "desc": "This client will not be saved to the database; it is kept in your browser only for the duration of your session. It is deleted automatically when you sign out."
+      },
+      "tenantMissing": {
+        "noSession": "Session not found. Please sign in again to save a client.",
+        "noTenant": "Workspace (tenant) information not found. The record cannot be saved."
+      },
+      "duplicate": {
+        "warning": "A client named \"{name}\" is already registered. Do you want to save the same person again?",
+        "cancel": "Cancel",
+        "confirm": "Save Anyway"
+      },
+      "datePicker": {
+        "placeholder": "DD.MM.YYYY",
+        "openCalendar": "Pick a date from the calendar",
+        "dialogLabel": "Date picker",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "clear": "Clear",
+        "today": "Today"
+      },
+      "toast": {
+        "sessionWarningTitle": "Session warning",
+        "noSession": "Session not found. Please sign in again.",
+        "noTenant": "Your account has no workspace (tenant) information. The action cannot be performed.",
+        "failTitle": "Action failed",
+        "nameRequired": "First and last name are required",
+        "invalidDateTitle": "Invalid date",
+        "invalidDateMsg": "Enter the meeting date as a valid date in DD.MM.YYYY format, or leave it empty.",
+        "successTitle": "Success",
+        "demoCreated": "Demo client created.",
+        "saved": "Client saved.",
+        "saveError": "Save error"
+      }
+    },
+    "picker": {
+      "searchPlaceholder": "Search clients (name/surname)…",
+      "searchAria": "Search clients",
+      "loading": "Loading…",
+      "empty": "No clients found.",
+      "error": "Could not load client list.",
+      "unnamed": "Unnamed Client"
+    }
+  }
+}

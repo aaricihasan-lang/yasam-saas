@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
@@ -53,6 +54,8 @@ export function SaveCombinationModal({
   onSaveGeneral,
   onSaveToClient,
 }: SaveCombinationModalProps) {
+  const t = useTranslations("stones.saveCombo");
+  const tc = useTranslations("stones.common");
   const [step, setStep] = useState<Step>("choose");
   const [clients, setClients] = useState<PickerClient[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
@@ -94,7 +97,7 @@ export function SaveCombinationModal({
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
     if (!userId || !sessionToken) {
-      setClientError("Oturum bulunamadı.");
+      setClientError(t("errNoSession"));
       return;
     }
 
@@ -107,16 +110,16 @@ export function SaveCombinationModal({
       .then((res) => res.json().catch(() => ({})))
       .then((json: { ok?: boolean; error?: string; clients?: PickerClient[] }) => {
         if (!json.ok) {
-          setClientError(json.error ?? "Danışanlar yüklenemedi.");
+          setClientError(json.error ?? t("errLoadFailed"));
           return;
         }
         setClients(json.clients ?? []);
       })
       .catch((err) => {
-        setClientError(err instanceof Error ? err.message : "Ağ hatası");
+        setClientError(err instanceof Error ? err.message : t("errNetwork"));
       })
       .finally(() => setLoadingClients(false));
-  }, [step]);
+  }, [step, t]);
 
   const results = useMemo(() => {
     const q = normalizeTr(query.trim());
@@ -145,24 +148,25 @@ export function SaveCombinationModal({
         className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:max-w-[460px] sm:rounded-[24px]"
         role="dialog"
         aria-modal="true"
-        aria-label="Kombinasyon kaydet"
+        aria-label={t("dialogAria")}
       >
         {/* Başlık */}
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
             <h2 className="text-base font-black text-slate-950">
-              {step === "choose"
-                ? "Kombinasyon nereye kaydedilsin?"
-                : "Danışana Özel Kaydet"}
+              {step === "choose" ? t("title") : t("saveToClient")}
             </h2>
             <p className="mt-0.5 text-xs font-medium text-slate-500">
-              {combinationName.trim() || "Kombinasyon"} · {cartCount} taş
+              {t("summary", {
+                name: combinationName.trim() || t("combinationFallback"),
+                count: cartCount,
+              })}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={tc("close")}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-600 transition hover:bg-slate-200"
           >
             ×
@@ -181,11 +185,11 @@ export function SaveCombinationModal({
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🟣</span>
                   <span className="text-sm font-black text-slate-950">
-                    {saving ? "Kaydediliyor..." : "Genel Kombinasyonlara Kaydet"}
+                    {saving ? tc("saving") : t("saveGeneral")}
                   </span>
                 </div>
                 <p className="mt-1 pl-7 text-xs font-medium leading-snug text-slate-500">
-                  Tüm danışanlarda tekrar kullanılabilecek şablon kombinasyon.
+                  {t("generalDesc")}
                 </p>
               </button>
 
@@ -198,11 +202,11 @@ export function SaveCombinationModal({
                 <div className="flex items-center gap-2">
                   <span className="text-lg">👤</span>
                   <span className="text-sm font-black text-slate-950">
-                    Danışana Özel Kaydet
+                    {t("saveToClient")}
                   </span>
                 </div>
                 <p className="mt-1 pl-7 text-xs font-medium leading-snug text-slate-500">
-                  Yalnızca seçilen danışanın dosyasında görünür.
+                  {t("clientDesc")}
                 </p>
               </button>
             </div>
@@ -211,14 +215,14 @@ export function SaveCombinationModal({
               {/* Danışan ara */}
               <div>
                 <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">
-                  Danışan Ara
+                  {t("searchLabel")}
                 </label>
                 <input
                   type="text"
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="İsim, telefon veya danışan no…"
+                  placeholder={t("searchPlaceholder")}
                   className={DOGALTAS_INPUT_CLASS}
                 />
               </div>
@@ -233,11 +237,11 @@ export function SaveCombinationModal({
               <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200">
                 {loadingClients ? (
                   <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
-                    Danışanlar yükleniyor…
+                    {t("loadingClients")}
                   </p>
                 ) : results.length === 0 ? (
                   <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
-                    {query.trim() ? "Eşleşen danışan yok." : "Danışan bulunamadı."}
+                    {query.trim() ? t("noMatch") : t("noClients")}
                   </p>
                 ) : (
                   <ul className="divide-y divide-slate-100">
@@ -277,9 +281,11 @@ export function SaveCombinationModal({
 
               {selected && (
                 <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                  Seçili: {clientFullName(selected)} · &quot;
-                  {combinationName.trim() || "Kombinasyon"}&quot; ({cartCount} taş)
-                  bu danışana kaydedilecek.
+                  {t("selectedSummary", {
+                    name: clientFullName(selected),
+                    combo: combinationName.trim() || t("combinationFallback"),
+                    count: cartCount,
+                  })}
                 </div>
               )}
             </div>
@@ -295,7 +301,7 @@ export function SaveCombinationModal({
               disabled={savingClient}
               className="btn-soft !px-4 !py-2 !text-xs"
             >
-              ← Geri
+              {tc("back")}
             </button>
           ) : (
             <button
@@ -303,7 +309,7 @@ export function SaveCombinationModal({
               onClick={onClose}
               className="btn-soft !px-4 !py-2 !text-xs"
             >
-              İptal
+              {tc("cancel")}
             </button>
           )}
 
@@ -314,7 +320,7 @@ export function SaveCombinationModal({
               disabled={!selected || savingClient}
               className="btn-primary !px-5 !py-2"
             >
-              {savingClient ? "Kaydediliyor..." : "💾 Danışana Kaydet"}
+              {savingClient ? tc("saving") : t("saveToClientBtn")}
             </button>
           )}
         </footer>

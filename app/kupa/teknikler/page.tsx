@@ -1,71 +1,27 @@
 "use client";
 
 import { KupaShell } from "../components/KupaShell";
-import { CrudManager, type FieldDef } from "../components/CrudManager";
-import { CuppingCitationManager } from "../components/CitationManager";
-import { createTechnique, deleteTechnique, listTechniques, updateTechnique, type CuppingTechnique } from "../lib/api";
+import { TechniqueWorkspace } from "./components/TechniqueWorkspace";
 
-const FIELDS: FieldDef[] = [
-  { key: "name", label: "Teknik Adı", type: "text", required: true },
-  {
-    key: "kind",
-    label: "Tür (serbest etiket)",
-    type: "select",
-    options: [
-      { value: "kuru", label: "Kuru Kupa" },
-      { value: "yas", label: "Yaş Kupa (Hacamat)" },
-      { value: "sabit", label: "Sabit Kupa" },
-      { value: "hareketli", label: "Hareketli / Kaydırmalı Kupa" },
-    ],
-  },
-  {
-    key: "technique_type",
-    label: "Ana Tip (müdahale ekseni)",
-    type: "select",
-    options: [
-      { value: "dry", label: "Kuru (dry)" },
-      { value: "wet", label: "Yaş / Hacamat (wet)" },
-      { value: "unspecified", label: "Belirtilmemiş" },
-    ],
-  },
-  {
-    key: "movement_style",
-    label: "Hareket Stili (uygulama ekseni)",
-    type: "select",
-    options: [
-      { value: "stationary", label: "Sabit (stationary)" },
-      { value: "gliding", label: "Kaydırmalı (gliding)" },
-      { value: "flash", label: "Flash" },
-      { value: "unspecified", label: "Belirtilmemiş" },
-    ],
-  },
-  { key: "description", label: "Açıklama", type: "textarea" },
-  { key: "application_info", label: "Uygulama Bilgisi", type: "textarea" },
-  { key: "safety_note", label: "Güvenlik / Dikkat", type: "textarea" },
-  { key: "source_note", label: "Kaynak Bilgisi (serbest)", type: "textarea" },
-  { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
-];
-
+/**
+ * KUPA TEKNİKLERİ — reader-first çalışma alanı (FAZ 4 / 2B).
+ *
+ * Index route: liste-önce. <1024px yalnız liste; >=1024px liste + "teknik seçin"
+ * boş sağ panel. Teknik seçimi /kupa/teknikler/[id] deep-link'idir. Eski generic
+ * form-tabanlı düzenleme ekranı KALDIRILDI (reader-first workspace ile değiştirildi).
+ */
 export default function TekniklerPage() {
   return (
     <KupaShell
       title="Kupa Teknikleri"
-      subtitle="Kuru, yaş (hacamat), sabit ve hareketli/kaydırmalı teknik kayıtları. Tür serbesttir."
+      subtitle="Tekniklerinizi tek çalışma alanında okuyun, düzenleyin; güvenlik ve kaynaklarını bağlayın."
       breadcrumb={[{ label: "Kupa Teknikleri" }]}
     >
-      <CrudManager<CuppingTechnique>
-        titleKey="name"
-        subtitleKey="kind"
-        fields={FIELDS}
-        load={listTechniques}
-        create={createTechnique}
-        update={updateTechnique}
-        remove={deleteTechnique}
-        emptyLabel="Henüz teknik yok. Yeni ekleyin."
-        addLabel="Teknik"
-        renderExtra={(rec) => <CuppingCitationManager entity="technique" entityId={rec.id} />}
-      />
+      <TechniqueWorkspace selectedId={null}>
+        <div className="flex h-full min-h-[200px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 p-8 text-center">
+          <p className="text-[14px] text-slate-400">Okumak veya düzenlemek için soldan bir teknik seçin.</p>
+        </div>
+      </TechniqueWorkspace>
     </KupaShell>
   );
 }

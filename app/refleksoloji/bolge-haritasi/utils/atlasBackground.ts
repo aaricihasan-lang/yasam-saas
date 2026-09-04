@@ -1,26 +1,24 @@
 import type { FootView } from "../types";
 
-export type AtlasBackgroundKey = "taban" | "yan_dis" | "yan_ic";
+/**
+ * Arka plan asset anahtarı = canonical görünüm (FootView). Ekole bağımsız:
+ * selectedView DOĞRUDAN asset'i belirler; organ adı ASLA karışmaz.
+ */
+export type AtlasBackgroundKey = FootView; // "taban" | "yan_ic" | "yan_dis"
 
 export const ATLAS_IMAGE_SRC: Record<AtlasBackgroundKey, string> = {
   taban: "/refleksoloji/klinik_taban.png",
-  yan_dis: "/refleksoloji/klinik_yan_dis.png",
   yan_ic: "/refleksoloji/klinik_yan_ic.png",
+  yan_dis: "/refleksoloji/klinik_yan_dis.png",
 };
 
-/** Masaüstü: Rahim / Prostat / Mesane → yan iç görünüm */
-export function isInnerYanOrgan(organ: string): boolean {
-  const n = organ.trim().toLocaleLowerCase("tr");
-  return n.includes("mesane") || n.includes("rahim") || n.includes("prostat");
-}
-
-export function resolveAtlasBackgroundKey(
-  footView: FootView,
-  selectedOrgan: string | null,
-): AtlasBackgroundKey {
-  if (footView === "taban") return "taban";
-  if (selectedOrgan && isInnerYanOrgan(selectedOrgan)) return "yan_ic";
-  return "yan_dis";
+/**
+ * Görünüm → arka plan anahtarı. Artık BİRE BİR (organ parametresi YOK).
+ * Organ-adı çıkarımı runtime'dan kaldırıldı; yan_ic/yan_dis ayrımı yalnız uzmanın
+ * seçtiği `selectedView`'dan gelir. (Legacy belge dönüşümü: lib/refleksoloji/atlasNormalize.)
+ */
+export function resolveAtlasBackgroundKey(view: FootView): AtlasBackgroundKey {
+  return view;
 }
 
 export function atlasBackgroundLabel(key: AtlasBackgroundKey): string {

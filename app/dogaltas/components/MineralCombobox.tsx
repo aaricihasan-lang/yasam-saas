@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { rankMineralOptions } from "@/lib/dogaltas/mineralCombination";
 
 type MineralComboboxProps = {
@@ -38,6 +39,7 @@ export function MineralCombobox({
   const [highlight, setHighlight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const t = useTranslations("stones.mineralCombo");
 
   const ranked = useMemo(
     () => rankMineralOptions(options, counts, value, 60),
@@ -149,7 +151,7 @@ export function MineralCombobox({
                     : "bg-slate-100 text-slate-400"
                 }`}
               >
-                {item.count} taş
+                {t("stoneCount", { count: item.count })}
               </span>
             </li>
           ))}

@@ -9,6 +9,7 @@ import {
   type AtlasDocLike,
   type OrganTimeMap,
 } from "@/lib/refleksoloji/atlasMerge";
+import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 
 export const ATLAS_STORAGE_KEY = "yasam-refleksoloji-atlas-v1";
 export const ORGAN_LIST_STORAGE_KEY = "yasam-refleksoloji-organs-v1";
@@ -44,7 +45,19 @@ export type AtlasFootBucket = {
   sag: StoredRegion[];
 };
 
+/**
+ * Canonical organ entry — EKOLE BAĞIMSIZ 3 görünüm bucket'ı. Region'ın görünüm
+ * kimliği bucket konumundan türer (region.view = bucket). "yan" bucket'ı YENİ
+ * kayıtta YAZILMAZ; yalnız legacy belgede bulunur ve normalizasyonda dönüştürülür.
+ */
 export type AtlasOrganEntry = {
+  taban: AtlasFootBucket;
+  yan_ic: AtlasFootBucket;
+  yan_dis: AtlasFootBucket;
+};
+
+/** Legacy (eski) organ entry — yalnız normalizasyon girdisi olarak tanınır. */
+export type LegacyAtlasOrganEntry = {
   taban: AtlasFootBucket;
   yan: AtlasFootBucket;
 };
@@ -58,7 +71,11 @@ function emptyFootBucket(): AtlasFootBucket {
 }
 
 export function emptyOrganEntry(): AtlasOrganEntry {
-  return { taban: emptyFootBucket(), yan: emptyFootBucket() };
+  return {
+    taban: emptyFootBucket(),
+    yan_ic: emptyFootBucket(),
+    yan_dis: emptyFootBucket(),
+  };
 }
 
 function createEmptyAtlas(): AtlasDocument {
@@ -68,11 +85,11 @@ function createEmptyAtlas(): AtlasDocument {
 }
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
+  if (typeof value !== "object" || value === null) return false;
+  // Organ entry = taban + en az bir yan varyantı. Yeni: yan_ic/yan_dis; legacy: yan.
   return (
-    typeof value === "object" &&
-    value !== null &&
     "taban" in value &&
-    "yan" in value
+    ("yan_ic" in value || "yan_dis" in value || "yan" in value)
   );
 }
 
@@ -135,7 +152,10 @@ function regionsToOrganEntry(regions: Region[]): AtlasOrganEntry {
 
   for (const region of regions) {
     const footKey = footToStorageKey(region.footSide);
-    entry[region.view][footKey].push(regionToStored(region));
+    // region.view canonical (taban/yan_ic/yan_dis) → doğrudan bucket. "yan" YAZILMAZ.
+    const bucket = entry[region.view];
+    if (!bucket) continue; // savunmacı: normalize edilmemiş legacy "yan" region asla buraya gelmemeli
+    bucket[footKey].push(regionToStored(region));
   }
 
   return entry;
@@ -210,7 +230,9 @@ export function loadAtlas(): AtlasDocument {
     if (!parsed._meta) {
       parsed._meta = { version: "1", updated_at: new Date().toISOString() };
     }
-    return parsed;
+    // CANONICAL SINIR: legacy `{taban,yan}` → `{taban,yan_ic,yan_dis}`. Downstream
+    // yalnız 3-görünüm görür; UI legacy şekli asla bilmez. Idempotent (yeni → no-op).
+    return normalizeAtlasDocument(parsed);
   } catch {
     return createEmptyAtlas();
   }
@@ -243,7 +265,7 @@ export function getRegionsForOrgan(
   const entry = atlas[organ];
   if (!isOrganEntry(entry)) return [];
 
-  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan"];
+  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan_ic", "yan_dis"];
   const footKeys: ("sol" | "sag")[] = filter?.foot
     ? [footToStorageKey(filter.foot)]
     : ["sol", "sag"];
@@ -251,8 +273,10 @@ export function getRegionsForOrgan(
   const result: Region[] = [];
 
   for (const view of views) {
+    const bucket = entry[view];
+    if (!bucket) continue; // normalize edilmiş belgede 3 bucket da vardır
     for (const footKey of footKeys) {
-      const storedList = entry[view][footKey] ?? [];
+      const storedList = bucket[footKey] ?? [];
       for (const stored of storedList) {
         result.push(storedToRegion(stored, organ, storageKeyToFoot(footKey), view));
       }

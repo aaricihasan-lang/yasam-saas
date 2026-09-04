@@ -8,12 +8,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
-import {
-  buildOrganStatuses,
-  missingAtlasOrgans,
-  resolveColoredRegionsForOrgans,
-} from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
-import type { ProtocolFootView } from "@/app/refleksoloji/protokol-haritasi/types";
+import { resolveProtocolViews } from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
+import type { AtlasBackgroundGroup, OrganResolved } from "@/lib/refleksoloji/atlasRegionsCore";
 import {
   DEMO_FIXTURE_PROTO_PREFIX,
   DEMO_SEED_PROTOCOLS,
@@ -118,28 +114,22 @@ function ApplicationNotesBody({ text }: { text: string }) {
   );
 }
 
-function OrganPills({
-  organs,
-  organStatuses,
-}: {
-  organs: string[];
-  organStatuses: ReturnType<typeof buildOrganStatuses>;
-}) {
+function OrganPills({ organs }: { organs: OrganResolved[] }) {
   if (organs.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5">
-      {organStatuses.map((status) => (
+      {organs.map((organ) => (
         <span
-          key={status.name}
-          className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm ${status.color.chipClass}`}
+          key={organ.label}
+          className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm ${organ.color.chipClass}`}
         >
           <span
             className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: status.color.stroke }}
+            style={{ backgroundColor: organ.color.stroke }}
             aria-hidden
           />
-          <span className="truncate">{status.name}</span>
+          <span className="truncate">{organ.label}</span>
         </span>
       ))}
     </div>
@@ -169,7 +159,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [loading, setLoading] = useState(true);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
-  const [footView, setFootView] = useState<ProtocolFootView>("taban");
+  const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [wordBusy, setWordBusy] = useState(false);
   // BF-14 P2: danışana özel Yaşam Hafızası teslim eki (protocol target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
@@ -289,17 +279,20 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const atlasVersion = useHydratedAtlasVersion();
 
   const organs = useMemo(() => parseOrgansList(protocol?.organs), [protocol?.organs]);
-  const { regions } = useMemo(
-    () => resolveColoredRegionsForOrgans(organs, footView),
+  const { resolved, availableViews } = useMemo(
+    () => resolveProtocolViews(organs),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [organs, footView, atlasVersion],
+    [organs, atlasVersion],
   );
-  const organStatuses = useMemo(
-    () => buildOrganStatuses(organs, footView),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [organs, footView, atlasVersion],
-  );
-  const missingOrgans = useMemo(() => missingAtlasOrgans(organStatuses), [organStatuses]);
+
+  // Aktif görünüm anlamlı değilse ilk anlamlı görünümü TÜRET (setState-in-effect yok;
+  // boş sekme açma). Kullanıcı yalnız mevcut görünüm düğmelerine basabildiğinden
+  // footView her zaman geçerli kalır; bu yalnız organ değişince fallback sağlar.
+  const effectiveFootView = availableViews.includes(footView)
+    ? footView
+    : availableViews[0] ?? footView;
+  const regions = resolved.regionsByGroup[effectiveFootView];
+  const missingOrgans = resolved.missingOrgans;
   const rawJson = protocol?.raw_json ?? null;
 
   const clinical = useMemo(
@@ -329,7 +322,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   );
 
   const showDevJson = process.env.NODE_ENV === "development" && Boolean(rawJsonDevText.trim()) && !isDemo;
-  const hasAtlasMapping = organs.length > 0 && regions.length > 0;
+  // Harita paneli, HERHANGİ bir görünümde bölge varsa gösterilir (aktif görünüm
+  // otomatik anlamlı görünüme geçer). Aktif görünümde bölge yoksa da panel gizlenmez.
+  const hasAtlasMapping = organs.length > 0 && availableViews.length > 0;
 
   const notesParagraphs = applicationNotesDisplay
     ? applicationNotesDisplay.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
@@ -491,7 +486,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 </ClinicalCard>
 
                 <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
-                  <OrganPills organs={organs} organStatuses={organStatuses} />
+                  <OrganPills organs={resolved.organs} />
                 </ClinicalCard>
 
                 <ClinicalProtocolStepsCard grouped={groupedProtocol} />
@@ -543,17 +538,28 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               </div>
 
               <div className="relative min-h-[min(62vh,720px)] flex-1 p-3 sm:min-h-[min(68vh,800px)] sm:p-4">
-                <div className="relative h-full min-h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:min-h-[min(64vh,760px)]">
-                  <div className="absolute inset-0 origin-center scale-[1.06] sm:scale-[1.08]">
-                    <ProtocolFootMap
-                      regions={regions}
-                      footView={footView}
-                      missingOrgans={missingOrgans}
-                      onFootViewChange={setFootView}
-                      prominentControls
-                      embedded
-                    />
-                  </div>
+                {/* SEV-1 fix: NO CSS transform:scale wrapper here. ProtocolFootMap ölçümü
+                    getBoundingClientRect'e dayanır; ölçekli bir ata, overlay px'ini iki kez
+                    ölçekleyip bölgeleri ayak görselinden kaydırıyordu (creation ↔ detail drift).
+                    Bölge Haritası ile birebir aynı geometri için doğrudan (ölçeksiz) render. */}
+                {/* SEV-1 fix (Saved Detail boş harita): KESİN yükseklik. Önceki `h-full`,
+                    yüzde-yükseklik olduğundan ata zinciri (section/flex-1 kutuları) yalnız
+                    `min-height` taşıdığı için ÇÖZÜLMÜYORDU → ProtocolFootMap kabuğu içeriğe
+                    (yalnız başlık) çöküp canvas 0px, ayak PNG'si + overlay 0px kalıyordu.
+                    (Yüzde yükseklik `min-height` üzerinden zincirlenmez.) Oluşturma ekranı
+                    zaten `h-[68vh]` KESİN yükseklikle çalıştığı için etkilenmiyordu; burada da
+                    kırılım-başına KESİN yükseklik verilir. Ölçekleme YOK → koordinat paritesi
+                    korunur; grup/görünüm mantığı (PR #222) değişmez. */}
+                <div className="relative h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:h-[min(64vh,760px)] xl:h-[min(72vh,820px)]">
+                  <ProtocolFootMap
+                    regions={regions}
+                    footView={effectiveFootView}
+                    availableViews={availableViews}
+                    missingOrgans={missingOrgans}
+                    onFootViewChange={setFootView}
+                    prominentControls
+                    embedded
+                  />
                 </div>
               </div>
             </section>

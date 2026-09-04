@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -20,7 +22,8 @@ type AnalysisType = "chakra" | "planet";
 
 type ChakraRow = {
   key: string;
-  label: string;
+  /** i18n anahtarı (görünen etiket). `key` canonical'dır; DEĞİŞMEZ. */
+  labelKey: string;
   color: string;
 };
 
@@ -41,35 +44,41 @@ type SavedAnalysis = {
 };
 
 // ─── Data constants ───────────────────────────────────────────────────────────
+// `key` = canonical satır kimliği (persisted values anahtarı türetiminde kullanılır) → DEĞİŞMEZ.
+// `labelKey` = yalnız görünen etiketin i18n anahtarı (DISPLAY-only).
 const energyBodies: ChakraRow[] = [
-  { key: "ruhsal",   label: "RUHSAL ENERJİ BEDENİ",   color: "#6d5bd0" },
-  { key: "zihinsel", label: "ZİHİNSEL ENERJİ BEDENİ", color: "#43a047" },
-  { key: "duygusal", label: "DUYGUSAL ENERJİ BEDENİ", color: "#f2b824" },
-  { key: "eterik",   label: "ETERİK ENERJİ BEDENİ",   color: "#2196c9" },
-  { key: "fiziksel", label: "FİZİKSEL ENERJİ BEDENİ", color: "#4b5563" },
+  { key: "ruhsal",   labelKey: "bodies.ruhsal",   color: "#6d5bd0" },
+  { key: "zihinsel", labelKey: "bodies.zihinsel", color: "#43a047" },
+  { key: "duygusal", labelKey: "bodies.duygusal", color: "#f2b824" },
+  { key: "eterik",   labelKey: "bodies.eterik",   color: "#2196c9" },
+  { key: "fiziksel", labelKey: "bodies.fiziksel", color: "#4b5563" },
 ];
 
 const chakras: ChakraRow[] = [
-  { key: "tac",    label: "TEPE / TAÇ ÇAKRASI",     color: "#a78bfa" },
-  { key: "goz",    label: "3. GÖZ ÇAKRASI",          color: "#6366f1" },
-  { key: "bogaz",  label: "BOĞAZ ÇAKRASI",            color: "#38bdf8" },
-  { key: "kalp",   label: "KALP ÇAKRASI",             color: "#22c55e" },
-  { key: "mide",   label: "MİDE ÇAKRASI",             color: "#facc15" },
-  { key: "sakral", label: "SAKRAL (KARIN) ÇAKRASI",   color: "#f97316" },
-  { key: "kok",    label: "KÖK ÇAKRASI",              color: "#ef4444" },
+  { key: "tac",    labelKey: "chakra.tac",    color: "#a78bfa" },
+  { key: "goz",    labelKey: "chakra.goz",    color: "#6366f1" },
+  { key: "bogaz",  labelKey: "chakra.bogaz",  color: "#38bdf8" },
+  { key: "kalp",   labelKey: "chakra.kalp",   color: "#22c55e" },
+  { key: "mide",   labelKey: "chakra.mide",   color: "#facc15" },
+  { key: "sakral", labelKey: "chakra.sakral", color: "#f97316" },
+  { key: "kok",    labelKey: "chakra.kok",    color: "#ef4444" },
 ];
 
+// ⚠️ P0: planetLabels persisted DATA anahtarıdır (values[`${scope}_${row.key}_${planet}`]).
+// ASLA çevrilmez/yeniden adlandırılmaz. Görünen başlık planetDisplayKeys ile i18n'den gelir
+// (index hizalı; canonical değer key/veri tarafında aynen kalır).
 const planetLabels = ["GÜNEŞ", "AY", "MERKÜR", "MARS", "VENÜS"];
+const planetDisplayKeys = ["planet.gunes", "planet.ay", "planet.merkur", "planet.mars", "planet.venus"];
 const planetColors = ["#facc15", "#93c5fd", "#86efac", "#fca5a5", "#f9a8d4"];
 
 const planetRows: ChakraRow[] = [
-  { key: "tac",    label: "TEPE / TAÇ",        color: "#a78bfa" },
-  { key: "goz",    label: "3. GÖZ",             color: "#6366f1" },
-  { key: "bogaz",  label: "BOĞAZ",              color: "#38bdf8" },
-  { key: "kalp",   label: "KALP",               color: "#22c55e" },
-  { key: "mide",   label: "MİDE",               color: "#facc15" },
-  { key: "sakral", label: "SAKRAL (KARIN)",      color: "#f97316" },
-  { key: "kok",    label: "KÖK",                color: "#ef4444" },
+  { key: "tac",    labelKey: "planetRow.tac",    color: "#a78bfa" },
+  { key: "goz",    labelKey: "planetRow.goz",    color: "#6366f1" },
+  { key: "bogaz",  labelKey: "planetRow.bogaz",  color: "#38bdf8" },
+  { key: "kalp",   labelKey: "planetRow.kalp",   color: "#22c55e" },
+  { key: "mide",   labelKey: "planetRow.mide",   color: "#facc15" },
+  { key: "sakral", labelKey: "planetRow.sakral", color: "#f97316" },
+  { key: "kok",    labelKey: "planetRow.kok",    color: "#ef4444" },
 ];
 
 // ─── Init helpers ─────────────────────────────────────────────────────────────
@@ -112,16 +121,9 @@ function valueClass(value: string): string {
 }
 
 function formatDateTimeTR(value: string) {
-  return new Date(value).toLocaleString("tr-TR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  return formatDateTimeAbsolute(value);
 }
 
-// Merkezi etiket helper'ına delege eder (tek doğruluk kaynağı).
-function getAnalysisLabel(type: string | null | undefined) {
-  return analysisTypeLabel(type);
-}
 
 // ─── Shared input class strings ───────────────────────────────────────────────
 const schemaInputBase =
@@ -140,6 +142,7 @@ const PDF_EXPORT_ENABLED = false;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
+  const t = useTranslations("clients.analizler");
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
   const deleteConfirm                = useDeleteConfirm();
@@ -157,9 +160,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   const [openedAnalysisId, setOpenedAnalysisId] = useState<string | null>(null);
   const [exportingWord, setExportingWord]   = useState(false);
 
+  // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
   const activeTitle = analysisTypeLabel(activeAnalysis);
+  // DISPLAY (modal başlığı, dosya adı) için yerelleştirilmiş etiket.
+  const analysisTypeDisplay = (code: string | null | undefined): string =>
+    code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
+  const activeTitleDisplay = analysisTypeDisplay(activeAnalysis);
 
-  const todayText = useMemo(() => new Date().toLocaleDateString("tr-TR"), []);
+  const todayText = useMemo(() => formatDateAbsolute(new Date()), []);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
@@ -183,7 +191,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; analyses?: SavedAnalysis[] };
     if (!res.ok || !json.ok) {
       console.error("Analizler yüklenemedi:", json.error);
-      showToast({ title: "İşlem başarısız", message: "Analizler yüklenemedi: " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.loadFailed") + ": " + (json.error ?? ""), type: "error" });
       setLoadingSaved(false);
       return;
     }
@@ -215,8 +223,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   async function deleteSavedAnalysis(id: string) {
     const ok = await deleteConfirm({
-      title: "Analizi sil",
-      message: "Bu analiz kaydı silinsin mi?",
+      title: t("delete.title"),
+      message: t("delete.message"),
     });
     if (!ok) return;
     const userId = readYasamUser()?.id;
@@ -231,9 +239,9 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       body: JSON.stringify({ analysisId: id }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    if (!res.ok || !json.ok) { showToast({ title: "İşlem başarısız", message: "Analiz silinemedi: " + (json.error ?? ""), type: "error" }); return; }
+    if (!res.ok || !json.ok) { showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed") + ": " + (json.error ?? ""), type: "error" }); return; }
     setSavedAnalyses((old) => old.filter((item) => item.id !== id));
-    showToast({ title: "Başarılı", message: "Analiz silindi.", type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.deleted"), type: "success" });
   }
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
@@ -245,7 +253,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function clearAll() {
-    const ok = await confirm({ message: "Bu analizdeki tüm alanlar temizlensin mi?", tone: "warning", title: "Alanları temizle", confirmText: "Temizle", cancelText: "Vazgeç" });
+    const ok = await confirm({ message: t("clearConfirm.message"), tone: "warning", title: t("clearConfirm.title"), confirmText: t("clearConfirm.confirm"), cancelText: t("cancel") });
     if (!ok) return;
     if (activeAnalysis === "planet") setPlanetValues(makePlanetInitialValues());
     else setChakraValues(makeChakraInitialValues());
@@ -284,7 +292,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   async function printPdf() {
     const element = document.getElementById("analysis-print-area");
-    if (!element) { showToast({ title: "İşlem başarısız", message: "PDF alanı bulunamadı.", type: "error" }); return; }
+    if (!element) { showToast({ title: t("toast.failTitle"), message: t("toast.pdfAreaNotFound"), type: "error" }); return; }
     try {
       setCreatingPdf(true);
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -300,7 +308,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         ...sectionNodes,
         ...(noteNode ? [noteNode] : []),
       ];
-      if (units.length === 0) throw new Error("PDF içeriği bulunamadı.");
+      if (units.length === 0) throw new Error(t("error.pdfNoContent"));
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();   // 210
@@ -332,16 +340,16 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         placed++;
       }
 
-      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`);
-      showToast({ title: "Başarılı", message: "PDF dosyası indirildi.", type: "success" });
+      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.pdf`);
+      showToast({ title: t("toast.successTitle"), message: t("toast.pdfDownloaded"), type: "success" });
     } catch (error) {
       console.error("PDF oluşturma hatası:", error);
-      showToast({ title: "İşlem başarısız", message: "PDF oluşturulamadı. Konsolu kontrol edelim.", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.pdfFailed"), type: "error" });
     } finally { setCreatingPdf(false); }
   }
 
   async function saveAnalysis() {
-    if (!activeAnalysis) { showToast({ title: "İşlem başarısız", message: "Önce analiz seçmelisiniz.", type: "error" }); return; }
+    if (!activeAnalysis) { showToast({ title: t("toast.failTitle"), message: t("toast.selectFirst"), type: "error" }); return; }
     setSavingAnalysis(true);
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
     const userId = readYasamUser()?.id;
@@ -357,7 +365,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveFailed") + ": " + (json.error ?? ""), type: "error" });
       setSavingAnalysis(false);
       return;
     }
@@ -365,7 +373,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     // Yeni kaydedilen analiz artık modalde "açık kayıt" olur; Word Al hemen çalışır.
     if (newId) setOpenedAnalysisId(newId);
     await loadSavedAnalyses();
-    showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.saved"), type: "success" });
     setSavingAnalysis(false);
     // Fire-and-forget snapshot — only for chakra analyses; failure doesn't affect the saved record
     if (activeAnalysis === "chakra" && newId && tenantId) {
@@ -402,10 +410,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         body: fd,
       });
       if (!res.ok) {
-        showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
+        showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });
       }
     } catch {
-      showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
+      showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });
     }
   }
 
@@ -413,16 +421,16 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     if (exportingWord) return;
     // Word çıktısı yalnız KAYITLI analiz için üretilir (tek kayıt).
     if (!openedAnalysisId) {
-      showToast({ title: "Bilgi", message: "Word çıktısı için önce analizi kaydedin.", type: "info" });
+      showToast({ title: t("toast.infoTitle"), message: t("toast.wordNeedsSave"), type: "info" });
       return;
     }
     if (!tenantId) {
-      showToast({ title: "İşlem başarısız", message: "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.sessionInvalid"), type: "error" });
       return;
     }
     const userId = readYasamUser()?.id;
     if (!userId) {
-      showToast({ title: "İşlem başarısız", message: "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.sessionInvalid"), type: "error" });
       return;
     }
     try {
@@ -442,13 +450,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ title: "İşlem başarısız", message: json.error || "Word oluşturulamadı.", type: "error" });
+        showToast({ title: t("toast.failTitle"), message: json.error || t("toast.wordFailed"), type: "error" });
         return;
       }
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") || "";
       const match = cd.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.docx`;
+      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.docx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -457,10 +465,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      showToast({ title: "Başarılı", message: "Word dosyası indirildi.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.wordDownloaded"), type: "success" });
     } catch (error) {
       console.error("Analiz Word hatası:", error);
-      showToast({ title: "İşlem başarısız", message: "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.wordFailedRetry"), type: "error" });
     } finally {
       setExportingWord(false);
     }
@@ -471,25 +479,25 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       {/* Header */}
       <div className="mb-2.5">
         <span className="inline-flex bg-purple-100 text-purple-800 px-2.5 py-[5px] rounded-full text-[11px] font-black">
-          Enerji &amp; Analiz Merkezi
+          {t("header.badge")}
         </span>
-        <h2 className="mt-1.5 text-[20px] font-black text-slate-950">Danışan Analizleri</h2>
+        <h2 className="mt-1.5 text-[20px] font-black text-slate-950">{t("header.title")}</h2>
         <p className="mt-1.5 text-slate-500 text-[13px]">
-          {clientName} için çakra, Ç.Gezegen, numeroloji ve Human Design analizleri burada toplanacak.
+          {t("header.subtitle", { name: clientName })}
         </p>
       </div>
 
       {/* Analysis type cards */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3 mt-3.5">
         <AnalysisCard
-          badge="Enerji Analizi" title="Çakra Analizi"
-          text="Seans öncesi ve sonrası enerji değişimlerini çakra düzeni üzerinden takip edin."
+          badge={t("card.chakra.badge")} title={t("card.chakra.title")}
+          text={t("card.chakra.text")}
           gradient="linear-gradient(135deg,#8b5cf6,#6d28d9)" buttonColor="#6d28d9"
           onOpen={() => openNewAnalysis("chakra")}
         />
         <AnalysisCard
-          badge="Gezegen Analizi" title="Ç.Gezegen Analizi"
-          text="Çakraların gezegensel enerji dengesini seans bazlı değerlendirin."
+          badge={t("card.planet.badge")} title={t("card.planet.title")}
+          text={t("card.planet.text")}
           gradient="linear-gradient(135deg,#0ea5e9,#2563eb)" buttonColor="#2563eb"
           onOpen={() => openNewAnalysis("planet")}
         />
@@ -500,29 +508,29 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         <div className="flex justify-between gap-3 items-start flex-wrap">
           <div>
             <span className="inline-flex bg-sky-100 text-sky-700 px-2.5 py-[5px] rounded-full text-[11px] font-black">
-              Kayıtlı Analizler
+              {t("saved.badge")}
             </span>
-            <h3 className="mt-[7px] text-[18px] font-black text-slate-950">Analiz Geçmişi</h3>
-            <p className="mt-1 text-slate-500 text-[12px]">Kaydedilen analizleri buradan tekrar açabilir veya silebilirsin.</p>
+            <h3 className="mt-[7px] text-[18px] font-black text-slate-950">{t("saved.title")}</h3>
+            <p className="mt-1 text-slate-500 text-[12px]">{t("saved.subtitle")}</p>
           </div>
           <button
             type="button" onClick={loadSavedAnalyses}
             className="border border-slate-300 bg-slate-50 text-slate-700 rounded-xl px-3 py-2 font-black text-[12px] cursor-pointer hover:bg-slate-100 transition-colors"
           >
-            {loadingSaved ? "Yükleniyor..." : "Yenile"}
+            {loadingSaved ? t("loading") : t("refresh")}
           </button>
         </div>
 
         {savedAnalyses.length === 0 ? (
           <div className="mt-3 border border-dashed border-slate-300 bg-slate-50 rounded-[14px] p-3.5 text-slate-500 text-[13px] font-bold">
-            Henüz kayıtlı analiz yok.
+            {t("saved.empty")}
           </div>
         ) : (
           <div className="mt-3 grid gap-[9px]">
             {savedAnalyses.map((item) => (
               <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
-                  <div className="text-[14px] font-black text-slate-950">{getAnalysisLabel(item.analysis_type)}</div>
+                  <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
                   <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
                   {item.note && (
                     <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
@@ -533,11 +541,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 <div className="flex gap-[7px] flex-wrap justify-end">
                   <button type="button" onClick={() => openSavedAnalysis(item)}
                     className="border-0 bg-blue-600 text-white rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-blue-700 transition-colors">
-                    Aç
+                    {t("item.open")}
                   </button>
                   <button type="button" onClick={() => deleteSavedAnalysis(item.id)}
                     className="border border-red-200 bg-red-50 text-red-600 rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-red-100 transition-colors">
-                    Sil
+                    {t("item.delete")}
                   </button>
                 </div>
               </div>
@@ -557,11 +565,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
               <div className="bg-gradient-to-r from-[#111827] via-[#4c1d95] to-[#be185d] text-white p-3 sm:p-3.5 flex justify-between gap-2.5 items-start">
                 <div className="min-w-0">
                   <span className="inline-flex bg-white/16 text-white px-2 py-[3px] rounded-full text-[10px] font-black">
-                    Analiz Formu
+                    {t("modal.badge")}
                   </span>
-                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitle}</h3>
+                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitleDisplay}</h3>
                   <p className="mt-[5px] text-[12px] opacity-[0.92] break-words">
-                    Danışan: <strong>{clientName}</strong> · Tarih: <strong>{todayText}</strong>
+                    {t("modal.clientLabel")} <strong>{clientName}</strong> · {t("modal.dateLabel")} <strong>{todayText}</strong>
                   </p>
                 </div>
                 {/* no-pdf: excluded from html2canvas capture */}
@@ -584,11 +592,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
                 {/* Note */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-[7px]">
-                  <label className="text-[10px] font-black text-amber-800">Analiz Notu</label>
+                  <label className="text-[10px] font-black text-amber-800">{t("modal.noteLabel")}</label>
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="Analiz yorumu, seans gözlemi veya danışana özel not..."
+                    placeholder={t("modal.notePlaceholder")}
                     className="w-full min-h-[48px] mt-1 rounded-[9px] border border-amber-300 p-1.5 text-[10px] outline-none resize-y bg-white box-border"
                   />
                 </div>
@@ -599,23 +607,23 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
             <div className="no-pdf sticky bottom-0 z-[3] grid grid-cols-2 md:flex md:justify-end md:flex-wrap gap-2 bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] pb-[max(9px,env(safe-area-inset-bottom))] backdrop-blur-[10px]">
               <button type="button" onClick={clearAll}
                 className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
-                Tümünü Temizle
+                {t("modal.clearAll")}
               </button>
               {/* PDF Al: ürün kararıyla gizlendi (flag false). printPdf/creatingPdf
                   referansları burada korunur ki kod pasif ama derli toplu kalsın. */}
               {PDF_EXPORT_ENABLED && (
                 <button type="button" onClick={printPdf} disabled={creatingPdf}
                   className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
-                  {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
+                  {creatingPdf ? t("modal.pdfPreparing") : t("modal.pdf")}
                 </button>
               )}
               <button type="button" onClick={exportWord} disabled={exportingWord}
                 className={`${toolbarBtnBase} !hidden md:!inline-flex bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
-                {exportingWord ? "Word Hazırlanıyor..." : "Word Al"}
+                {exportingWord ? t("modal.wordPreparing") : t("modal.word")}
               </button>
               <button type="button" onClick={saveAnalysis} disabled={savingAnalysis}
                 className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
-                {savingAnalysis ? "Kaydediliyor..." : "Kaydet"}
+                {savingAnalysis ? t("modal.saving") : t("modal.save")}
               </button>
             </div>
           </div>
@@ -632,12 +640,13 @@ function ChakraAnalysis({
   values: Record<string, ChakraRowValue>;
   updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
 }) {
+  const t = useTranslations("clients.analizler");
   return (
     <div className="grid grid-cols-1 gap-[9px] xl:grid-cols-2">
-      <ChakraSection title="Seans Öncesi — Enerji Bedenleri" scope="before_energy" rows={energyBodies} values={values} updateValue={updateValue} />
-      <ChakraSection title="Seans Sonrası — Enerji Bedenleri" scope="after_energy"  rows={energyBodies} values={values} updateValue={updateValue} />
-      <ChakraSection title="Çakralar — Seans Öncesi"          scope="before_chakra" rows={chakras}       values={values} updateValue={updateValue} />
-      <ChakraSection title="Çakralar — Seans Sonrası"         scope="after_chakra"  rows={chakras}       values={values} updateValue={updateValue} />
+      <ChakraSection title={t("section.beforeEnergy")} scope="before_energy" rows={energyBodies} values={values} updateValue={updateValue} />
+      <ChakraSection title={t("section.afterEnergy")}  scope="after_energy"  rows={energyBodies} values={values} updateValue={updateValue} />
+      <ChakraSection title={t("section.beforeChakra")} scope="before_chakra" rows={chakras}       values={values} updateValue={updateValue} />
+      <ChakraSection title={t("section.afterChakra")}  scope="after_chakra"  rows={chakras}       values={values} updateValue={updateValue} />
     </div>
   );
 }
@@ -652,6 +661,7 @@ function ChakraSection({
   values: Record<string, ChakraRowValue>;
   updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
 }) {
+  const t = useTranslations("clients.analizler");
   return (
     <section className="bg-white border border-blue-200 rounded-[15px] p-2.5 shadow-sm">
       <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
@@ -661,9 +671,9 @@ function ChakraSection({
       {/* Header row — mobilde gizli (dar ekranda input placeholder'ları etiket görevi görür) */}
       <div className="hidden md:grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-blue-600 text-[10px]">
         <div />
-        <strong>İŞARET +/- · SAYI %</strong>
-        <strong>ERİL ENERJİ</strong>
-        <strong>DİŞİL ENERJİ</strong>
+        <strong>{t("colHeader.mark")}</strong>
+        <strong>{t("colHeader.male")}</strong>
+        <strong>{t("colHeader.female")}</strong>
       </div>
 
       {rows.map((row) => {
@@ -676,7 +686,7 @@ function ChakraSection({
               className="min-h-[31px] rounded-none text-white flex items-center px-[11px] text-[11px] font-black"
               style={{ background: row.color }}
             >
-              {row.label}
+              {t(row.labelKey)}
             </div>
 
             {/* Değer alanları: mobilde 3 dar kolon, md+ ana ızgaranın parçası (contents) */}
@@ -684,19 +694,19 @@ function ChakraSection({
               <input
                 value={rowValue.mark}
                 onChange={(e) => updateValue(key, "mark", e.target.value)}
-                placeholder="+10 / -20"
+                placeholder={t("input.markPlaceholder")}
                 className={`${schemaInputBase} ${valueClass(rowValue.mark)}`}
               />
               <input
                 value={rowValue.male}
                 onChange={(e) => updateValue(key, "male", e.target.value)}
-                placeholder="Eril"
+                placeholder={t("input.malePlaceholder")}
                 className={`${schemaInputBase} ${valueClass(rowValue.male)}`}
               />
               <input
                 value={rowValue.female}
                 onChange={(e) => updateValue(key, "female", e.target.value)}
-                placeholder="Dişil"
+                placeholder={t("input.femalePlaceholder")}
                 className={`${schemaInputBase} ${valueClass(rowValue.female)}`}
               />
             </div>
@@ -714,10 +724,11 @@ function PlanetAnalysis({
   values: Record<string, string>;
   updateValue: (key: string, value: string) => void;
 }) {
+  const t = useTranslations("clients.analizler");
   return (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-      <PlanetPanel title="Seans Öncesi"  scope="before" values={values} updateValue={updateValue} />
-      <PlanetPanel title="Seans Sonrası" scope="after"  values={values} updateValue={updateValue} />
+      <PlanetPanel title={t("section.before")} scope="before" values={values} updateValue={updateValue} />
+      <PlanetPanel title={t("section.after")}  scope="after"  values={values} updateValue={updateValue} />
     </div>
   );
 }
@@ -731,6 +742,7 @@ function PlanetPanel({
   values: Record<string, string>;
   updateValue: (key: string, value: string) => void;
 }) {
+  const t = useTranslations("clients.analizler");
   return (
     <section className="min-w-0 bg-white border border-blue-200 rounded-[13px] p-2 shadow-sm overflow-x-auto">
       <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
@@ -746,13 +758,13 @@ function PlanetPanel({
         <div className="bg-slate-50 rounded-xl min-h-[98px]" />
 
         {planetLabels.map((planet, index) => (
-          // Header cell background is a runtime array value — must stay inline
+          // key = canonical gezegen değeri (DATA, DEĞİŞMEZ); görünen başlık i18n'den.
           <div
             key={planet}
             className="min-h-[98px] rounded-xl flex items-center justify-center text-sky-800 text-[11px] font-black"
             style={{ background: planetColors[index] }}
           >
-            {planet}
+            {t(planetDisplayKeys[index])}
           </div>
         ))}
 
@@ -763,7 +775,7 @@ function PlanetPanel({
               className="min-h-[30px] rounded-full flex items-center px-2 text-white text-[10px] font-black"
               style={{ background: row.color }}
             >
-              {row.label}
+              {t(row.labelKey)}
             </div>
 
             {planetLabels.map((planet) => {
@@ -774,7 +786,7 @@ function PlanetPanel({
                   key={key}
                   value={value}
                   onChange={(e) => updateValue(key, e.target.value)}
-                  placeholder="+30 / -20"
+                  placeholder={t("input.planetPlaceholder")}
                   className={`${planetInputBase} ${valueClass(value)}`}
                 />
               );
@@ -797,6 +809,7 @@ function AnalysisCard({
   buttonColor: string;
   onOpen: () => void;
 }) {
+  const t = useTranslations("clients.analizler");
   return (
     // gradient is a runtime prop (inline-gradient string) — must stay inline
     <div className="rounded-[18px] p-4 text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]" style={{ background: gradient }}>
@@ -809,7 +822,7 @@ function AnalysisCard({
         className="mt-3 border-0 bg-white px-3 py-2 rounded-xl font-black cursor-pointer hover:opacity-90 transition-opacity"
         style={{ color: buttonColor }}
       >
-        Analizi Aç
+        {t("card.openButton")}
       </button>
     </div>
   );

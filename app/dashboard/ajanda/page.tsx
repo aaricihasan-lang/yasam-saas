@@ -284,7 +284,7 @@ export default function AjandaPage() {
 
       const res = await fetch("/api/ajanda/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: userHeaders(true),
         body: JSON.stringify({ tenantId, exportMode: mode, appointmentIds, dateRange }),
       });
       if (!res.ok) {
@@ -313,7 +313,7 @@ export default function AjandaPage() {
     try {
       const res = await fetch("/api/ajanda/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: userHeaders(true),
         body: JSON.stringify({ tenantId, exportMode: "single", appointmentId: apptId }),
       });
       if (!res.ok) {

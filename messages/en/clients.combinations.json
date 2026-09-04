@@ -1,0 +1,59 @@
+{
+  "clients": {
+    "combinations": {
+      "cancel": "Cancel",
+      "header": {
+        "title": "🧩 Saved Combinations",
+        "subtitle": "Mineral combinations saved specifically for this client."
+      },
+      "loading": "Loading...",
+      "refresh": "Refresh",
+      "loadingRecords": "Loading combinations...",
+      "empty": {
+        "title": "No combinations yet",
+        "hint": "You can add a combination for this client via \"Save for Client\" on the \"Create Combination\" screen."
+      },
+      "stonesCount": "{count, plural, one {# stone} other {# stones}}",
+      "toggle": {
+        "show": "Detail",
+        "hide": "Hide"
+      },
+      "item": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "edit": {
+        "title": "Edit Combination",
+        "namePlaceholder": "Combination name",
+        "descPlaceholder": "Purpose / description (optional)",
+        "notePlaceholder": "Note (optional)",
+        "saving": "Updating...",
+        "save": "Update"
+      },
+      "detail": {
+        "stones": "Stones",
+        "noStones": "No stone information.",
+        "purpose": "Purpose",
+        "note": "Note",
+        "mineralSummary": "Mineral Summary",
+        "warningSummary": "Warning / Stock Summary"
+      },
+      "delete": {
+        "title": "Delete combination",
+        "message": "Remove the \"{name}\" combination from this client?"
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Action failed",
+        "emptyName": "The combination name cannot be empty.",
+        "updated": "Combination updated.",
+        "updateFailed": "Could not be updated.",
+        "deleted": "Combination deleted.",
+        "deleteFailed": "Could not be deleted."
+      },
+      "error": {
+        "loadFailed": "Combinations could not be loaded."
+      }
+    }
+  }
+}

@@ -1,26 +1,30 @@
 "use client";
 
-import type { OrganAtlasStatus, ProtocolFootView, ProtocolFormDraft } from "../types";
+import {
+  ATLAS_GROUP_LABEL,
+  type AtlasBackgroundGroup,
+  type OrganResolved,
+} from "@/lib/refleksoloji/atlasRegionsCore";
+import type { ProtocolFormDraft } from "../types";
 
 type ProtocolSummaryPanelProps = {
   draft: ProtocolFormDraft;
-  statuses: OrganAtlasStatus[];
-  footView: ProtocolFootView;
+  organs: OrganResolved[];
+  footView: AtlasBackgroundGroup;
 };
 
-function viewLabel(view: ProtocolFootView): string {
-  return view === "taban" ? "Taban" : "Yan";
-}
-
-/** Aktif görünümde bölge yoksa, bölgesi olan diğer görünümü tarif eder. */
-function otherViewsHint(status: OrganAtlasStatus, currentView: ProtocolFootView): string | null {
-  const others = status.availableViews.filter((v) => v !== currentView);
+/**
+ * Aktif görünümde bölge yoksa, bölgesi olan diğer görünüm(ler)i grup-bazında
+ * tarif eder. "Yan" genel dili YOK: Taban / Yan İç / Yan Dış ayrı adlandırılır.
+ */
+function otherViewsHint(organ: OrganResolved, currentView: AtlasBackgroundGroup): string | null {
+  const others = organ.groups.filter((g) => g !== currentView);
   if (others.length === 0) return null;
-  const parts = others.map((v) => `${viewLabel(v)} görünümünde ${status.regionCount} bölge`);
-  return `Bu organın ${viewLabel(currentView)} görünümünde kayıtlı bölgesi yok. ${parts.join(", ")} var.`;
+  const parts = others.map((g) => `${ATLAS_GROUP_LABEL[g]} görünümünde ${organ.byGroup[g]} bölge`);
+  return `Bu organın ${ATLAS_GROUP_LABEL[currentView]} görünümünde kayıtlı bölgesi yok. ${parts.join(", ")} var.`;
 }
 
-export function ProtocolSummaryPanel({ draft, statuses, footView }: ProtocolSummaryPanelProps) {
+export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummaryPanelProps) {
   const hasContent =
     draft.title.trim() || draft.description.trim() || draft.organs.length > 0 || draft.notes.trim();
 
@@ -48,29 +52,29 @@ export function ProtocolSummaryPanel({ draft, statuses, footView }: ProtocolSumm
 
       <div>
         <h3 className="text-xs font-bold text-violet-900">Organlar</h3>
-        {statuses.length === 0 ? (
+        {organs.length === 0 ? (
           <p className="mt-1 text-xs font-medium text-slate-500">Organ eklenmedi.</p>
         ) : (
           <ul className="mt-2 flex flex-col gap-2">
-            {statuses.map((status) => {
-              const currentViewEmpty = status.found && status.currentViewRegionCount === 0;
-              const hint = currentViewEmpty ? otherViewsHint(status, footView) : null;
+            {organs.map((organ) => {
+              const currentViewEmpty = organ.found && organ.byGroup[footView] === 0;
+              const hint = currentViewEmpty ? otherViewsHint(organ, footView) : null;
               return (
                 <li
-                  key={status.name}
-                  className={`rounded-xl border p-2.5 ${status.color.chipClass}`}
+                  key={organ.label}
+                  className={`rounded-xl border p-2.5 ${organ.color.chipClass}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <span className="text-sm font-bold">{status.name}</span>
+                    <span className="text-sm font-bold">{organ.label}</span>
                     <span
                       className={`rounded-lg px-2 py-0.5 text-xs font-bold ${
-                        status.found
+                        organ.found
                           ? "bg-white/80 text-emerald-800"
                           : "bg-white/80 text-amber-900"
                       }`}
                     >
-                      {status.found
-                        ? `Atlas bulundu (${status.regionCount} bölge)`
+                      {organ.found
+                        ? `Atlas bulundu (${organ.totalRegions} bölge)`
                         : "Atlas bulunamadı"}
                     </span>
                   </div>
@@ -79,7 +83,7 @@ export function ProtocolSummaryPanel({ draft, statuses, footView }: ProtocolSumm
                   {hint ? (
                     <p className="mt-1 text-xs font-medium opacity-90">{hint}</p>
                   ) : null}
-                  {!status.found ? (
+                  {!organ.found ? (
                     <p className="mt-1 text-xs font-medium opacity-90">
                       Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası&apos;ndan ekleyin.
                     </p>

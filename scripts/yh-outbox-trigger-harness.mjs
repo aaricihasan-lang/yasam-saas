@@ -131,10 +131,14 @@ const tsCount = (ts) => migFiles.filter((f) => f.startsWith(ts)).length;
 check("E", "43 migration timestamp benzersiz (20260825000000 tek)", tsCount("20260825000000") === 1);
 check("E", "44 outbox INSERT yalnız 1 (function içi enqueue; seed/manuel event yok)", count(/INSERT\s+INTO\s+public\.yasam_hafizasi_outbox/gi) === 1);
 check("E", "45 DELETE/UPDATE/TRUNCATE DML (seed/backfill) yok", !/\bTRUNCATE\b/i.test(BODY) && !/DELETE\s+FROM\s+public\./i.test(BODY) && !/UPDATE\s+public\.\w+\s+SET/i.test(BODY.replace(/DO\s+UPDATE[\s\S]*?event_version[^;]*/i, "")));
-check("E", "46 BF-11B worker dosyası değişmemiş (marker)", (() => {
+check("E", "46 BF-11B worker sözleşmesi (server-only + retries 0 + event-driven + 15dk safety cron)", (() => {
   try {
     const w = readFileSync(join(repo, "lib/inngest/functions/yhOutboxWorker.ts"), "utf8");
-    return /import\s+"server-only"/.test(w) && /YH_OUTBOX_CRON\s*=\s*"\*\s\*\s\*\s\*\s\*"/.test(w) && /YH_OUTBOX_RETRIES\s*=\s*0/.test(w);
+    return /import\s+"server-only"/.test(w)
+      && /YH_OUTBOX_RETRIES\s*=\s*0/.test(w)
+      && /YH_OUTBOX_SAFETY_CRON\s*=\s*"\*\/15 \* \* \* \*"/.test(w)
+      && /triggers:\s*\[\s*\{\s*event:\s*YH_OUTBOX_EVENT_NAME\s*\}\s*,\s*\{\s*cron:\s*YH_OUTBOX_SAFETY_CRON\s*\}\s*\]/.test(w)
+      && !/"\*\s\*\s\*\s\*\s\*"/.test(w);
   } catch { return false; }
 })());
 check("E", "47 package.json değişmemiş (inngest ^4.5.0 marker)", (() => {

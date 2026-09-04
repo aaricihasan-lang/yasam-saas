@@ -22,6 +22,7 @@ import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
+  hasAnyModulePermissionFlag,
   hasModulePermission,
   LOCKED_PERMISSION_TOAST,
   COMING_SOON_MODULE_KEYS,
@@ -38,8 +39,13 @@ import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useTranslations, useLocale, useMessages } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -49,11 +55,13 @@ import {
   Check,
   Gem,
   Layers,
+  Leaf,
   Loader2,
   Lock,
   Mail,
   MessageCircle,
   Package,
+  Salad,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -141,16 +149,22 @@ type RecentItem = {
   relDate: string;
 };
 
+// Görünen başlık/açıklama/sayaç i18n'den `home.modules.<permissionKey>.*` ile gelir.
+// permissionKey canonical'dır (izin/kilit mantığı buna bağlı) → DEĞİŞMEZ.
 type ModuleCard = {
-  title: string;
-  desc: string;
-  count: string;
-  badge: string;
   href: string;
   permissionKey: ModulePermissionKey;
+  /**
+   * Çok-modüllü hub kartı için AÇIK OR izin listesi. Verildiğinde kartın görünürlüğü
+   * ve kilit kararı bu anahtarlardan HERHANGİ biriyle (hasAnyModulePermissionFlag)
+   * belirlenir; permissionKey yalnız tip/stat/tarih araması için placeholder kalır.
+   * Global permission alias semantiği DEĞİŞTİRİLMEZ (aroma izni ≠ şifa izni).
+   */
+  anyPermissionKeys?: string[];
   emoji: string;
   featured?: boolean;
-  statFormat?: (n: number) => string;
+  /** Bu modülün i18n `.stat` sayaç metni var mı (n interpolasyonlu). */
+  hasStat?: boolean;
   Icon: LucideIcon;
   theme: ModuleTheme;
 };
@@ -164,147 +178,90 @@ const MODULE_STAT_TABLES: Partial<Record<ModulePermissionKey, string>> = {
   numerology: "numerology_analyses",
 };
 
+// slug = branch/dallanma anahtarı (canonical; render koşulları buna bağlı).
+// titleKey/descKey = i18n anahtarları (görünen metin).
 type LandingModule = {
-  title: string;
-  desc: string;
+  slug: string;
+  titleKey: string;
+  descKey: string;
   icon: string;
 };
 
 type FeatureItem = {
-  title: string;
-  desc: string;
+  slug: string;
+  titleKey: string;
+  descKey: string;
   icon: string;
 };
 
 const landingModules: LandingModule[] = [
-  {
-    title: "Danışan Yönetimi",
-    desc: "Danışan kayıtları, notlar, analizler ve randevu sistemi.",
-    icon: "👥",
-  },
-  {
-    title: "Doğaltaş",
-    desc: "Taş, mineral, kombinasyon ve enerji eşleştirme altyapısı.",
-    icon: "💎",
-  },
-  {
-    title: "Biyoenerji",
-    desc: "Enerji bedenleri, çakra ve analiz süreç yönetimi.",
-    icon: "✨",
-  },
-  {
-    title: "Refleksoloji",
-    desc: "Refleksoloji kayıtları ve profesyonel seans sistemi.",
-    icon: "🦶",
-  },
-  {
-    title: "Aromaterapi",
-    desc: "Uçucu yağ, sabit yağ ve karışım yönetim sistemi.",
-    icon: "🌸",
-  },
-  {
-    title: "Şifa Rehberi",
-    desc: "Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici öneriler.",
-    icon: "🌿",
-  },
-  {
-    title: "Numeroloji",
-    desc: "Profesyonel numeroloji analizleri ve danışan kayıt sistemi.",
-    icon: "🔢",
-  },
-  {
-    title: "Video Çeviri",
-    desc: "Video ve ses dosyalarını metne çevirip Türkçeye aktaran yapay zekâ destekli modül.",
-    icon: "🎬",
-  },
-  {
-    title: "Belge Çeviri",
-    desc: "PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi.",
-    icon: "📄",
-  },
-  {
-    title: "Kişisel Arşiv",
-    desc: "Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın.",
-    icon: "🗂️",
-  },
-  {
-    title: "Human Design",
-    desc: "Bilgi bankasına yüklediğiniz Human Design içeriklerini kullanarak kişiye özel raporlar oluşturun.",
-    icon: "🔮",
-  },
+  { slug: "danisanYonetimi", titleKey: "landing.danisanYonetimi.title", descKey: "landing.danisanYonetimi.desc", icon: "👥" },
+  { slug: "dogaltas",        titleKey: "landing.dogaltas.title",        descKey: "landing.dogaltas.desc",        icon: "💎" },
+  { slug: "biyoenerji",      titleKey: "landing.biyoenerji.title",      descKey: "landing.biyoenerji.desc",      icon: "✨" },
+  { slug: "refleksoloji",    titleKey: "landing.refleksoloji.title",    descKey: "landing.refleksoloji.desc",    icon: "🦶" },
+  { slug: "aromaterapi",     titleKey: "landing.aromaterapi.title",     descKey: "landing.aromaterapi.desc",     icon: "🌸" },
+  { slug: "sifaRehberi",     titleKey: "landing.sifaRehberi.title",     descKey: "landing.sifaRehberi.desc",     icon: "🌿" },
+  { slug: "numeroloji",      titleKey: "landing.numeroloji.title",      descKey: "landing.numeroloji.desc",      icon: "🔢" },
+  { slug: "videoCeviri",     titleKey: "landing.videoCeviri.title",     descKey: "landing.videoCeviri.desc",     icon: "🎬" },
+  { slug: "belgeCeviri",     titleKey: "landing.belgeCeviri.title",     descKey: "landing.belgeCeviri.desc",     icon: "📄" },
+  { slug: "kisiselArsiv",    titleKey: "landing.kisiselArsiv.title",    descKey: "landing.kisiselArsiv.desc",    icon: "🗂️" },
+  { slug: "humanDesign",     titleKey: "landing.humanDesign.title",     descKey: "landing.humanDesign.desc",     icon: "🔮" },
 ];
 
-const trustPrinciples: string[] = [
-  "Özel notlarınız, analizleriniz ve tüm çalışma içerikleriniz yalnızca size aittir",
-  "Sistem sahibi dahil hiçbir yönetici özel çalışma verilerinize erişemez veya içeriklerinizi inceleyemez",
-  "Admin paneli yalnızca üyelik, ödeme, modül ve sistem yönetimi içindir",
-  "Verileriniz güvenli altyapıda korunur",
+// i18n anahtarları (görünen metin t ile çözülür).
+const trustPrincipleKeys: string[] = [
+  "trust.principle1",
+  "trust.principle2",
+  "trust.principle3",
+  "trust.principle4",
 ];
 
 const featureItems: FeatureItem[] = [
-  {
-    title: "Güvenli Veri Yapısı",
-    desc: "Verileriniz kontrollü ve güvenli kullanım yapısında korunur.",
-    icon: "🔒",
-  },
-  {
-    title: "Analiz & Raporlama",
-    desc: "Detaylı analiz, raporlama ve profesyonel çıktı alanları.",
-    icon: "📈",
-  },
-  {
-    title: "Web & Mobil Uyum",
-    desc: "Telefon, tablet ve bilgisayardan kesintisiz erişim.",
-    icon: "📱",
-  },
-  {
-    title: "Yedekleme",
-    desc: "Düzenli takip ve veri güvenliği odaklı altyapı.",
-    icon: "☁️",
-  },
-  {
-    title: "Modüler Yapı",
-    desc: "İhtiyaca göre genişleyen çalışma alanları ve modüller.",
-    icon: "🧩",
-  },
+  { slug: "guvenli",   titleKey: "featureItems.guvenli.title",   descKey: "featureItems.guvenli.desc",   icon: "🔒" },
+  { slug: "analiz",    titleKey: "featureItems.analiz.title",    descKey: "featureItems.analiz.desc",    icon: "📈" },
+  { slug: "webMobil",  titleKey: "featureItems.webMobil.title",  descKey: "featureItems.webMobil.desc",  icon: "📱" },
+  { slug: "yedekleme", titleKey: "featureItems.yedekleme.title", descKey: "featureItems.yedekleme.desc", icon: "☁️" },
+  { slug: "moduler",   titleKey: "featureItems.moduler.title",   descKey: "featureItems.moduler.desc",   icon: "🧩" },
 ];
 
+// label = görünen etiketin i18n anahtarı (home.gallery.<mod>.<n> dizisine index).
+// src/cover DEĞİŞMEZ (asset yolu / kapak bayrağı).
 const danisanYonetimiGallerySlides = [
-  { label: "Danışan Yolculuğu",       src: "/assets/danisan-yolculugu.png",    cover: true },
-  { label: "Yeni Danışan Kaydı",      src: "/assets/danisan-yeni-kayit.png",   cover: false },
-  { label: "Danışan Listesi",         src: "/assets/danisan-listesi.png",      cover: false },
-  { label: "Ajanda & Randevu",        src: "/assets/danisan-ajanda.png",       cover: false },
-  { label: "Yeni Randevu Oluştur",    src: "/assets/danisan-yeni-randevu.png", cover: false },
+  { label: "gallery.danisanYonetimi.0", src: "/assets/danisan-yolculugu.png",    cover: true },
+  { label: "gallery.danisanYonetimi.1", src: "/assets/danisan-yeni-kayit.png",   cover: false },
+  { label: "gallery.danisanYonetimi.2", src: "/assets/danisan-listesi.png",      cover: false },
+  { label: "gallery.danisanYonetimi.3", src: "/assets/danisan-ajanda.png",       cover: false },
+  { label: "gallery.danisanYonetimi.4", src: "/assets/danisan-yeni-randevu.png", cover: false },
 ];
 
 const sifaRehberiGallerySlides = [
-  { label: "Şifa Rehberi Tanıtım",     src: "/assets/sifa-rehberi-tanitim.png" },
-  { label: "Ana Menü",                 src: "/assets/sifa-rehberi-ana-menu.png" },
-  { label: "Yeni Rahatsızlık Kaydı",   src: "/assets/sifa-rehberi-yeni-kayit.png" },
-  { label: "Destekleyici Öneriler",    src: "/assets/sifa-rehberi-destekleyici.png" },
-  { label: "Kayıtlı Rehber Listesi",   src: "/assets/sifa-rehberi-liste.png" },
-  { label: "Detay Görünümü",           src: "/assets/sifa-rehberi-detay.png" },
+  { label: "gallery.sifaRehberi.0", src: "/assets/sifa-rehberi-tanitim.png" },
+  { label: "gallery.sifaRehberi.1", src: "/assets/sifa-rehberi-ana-menu.png" },
+  { label: "gallery.sifaRehberi.2", src: "/assets/sifa-rehberi-yeni-kayit.png" },
+  { label: "gallery.sifaRehberi.3", src: "/assets/sifa-rehberi-destekleyici.png" },
+  { label: "gallery.sifaRehberi.4", src: "/assets/sifa-rehberi-liste.png" },
+  { label: "gallery.sifaRehberi.5", src: "/assets/sifa-rehberi-detay.png" },
 ];
 
 const refleksolojiGallerySlides = [
-  { label: "Kolaj Görünüm",           src: "/assets/refleksoloji-tanitim.png" },
-  { label: "Ana Menü",                src: "/assets/refleksoloji-anamenu.png" },
-  { label: "Bölge Haritası",          src: "/assets/refleksoloji-bolge-haritasi.png" },
-  { label: "Kayıtlı Atlas",           src: "/assets/refleksoloji-kayitli-atlas.png" },
-  { label: "Protokol Haritası",       src: "/assets/refleksoloji-protokol-haritasi.png" },
-  { label: "Kayıtlı Protokoller",     src: "/assets/refleksoloji-kayitli-protokoller.png" },
-  { label: "Klinik Notlar",           src: "/assets/refleksoloji-klinik-notlar.png" },
+  { label: "gallery.refleksoloji.0", src: "/assets/refleksoloji-tanitim.png" },
+  { label: "gallery.refleksoloji.1", src: "/assets/refleksoloji-anamenu.png" },
+  { label: "gallery.refleksoloji.2", src: "/assets/refleksoloji-bolge-haritasi.png" },
+  { label: "gallery.refleksoloji.3", src: "/assets/refleksoloji-kayitli-atlas.png" },
+  { label: "gallery.refleksoloji.4", src: "/assets/refleksoloji-protokol-haritasi.png" },
+  { label: "gallery.refleksoloji.5", src: "/assets/refleksoloji-kayitli-protokoller.png" },
+  { label: "gallery.refleksoloji.6", src: "/assets/refleksoloji-klinik-notlar.png" },
 ];
 
 const biyoenerjiGallerySlides = [
-  { label: "Biyoenerji Tanıtım",        src: "/assets/biyoenerji-tanitim.png" },
-  { label: "Biyoenerji Ana Sayfa",      src: "/assets/biyoenerji-anasayfa.png" },
-  { label: "Biyoenerji Seansları",      src: "/assets/biyoenerji-seanslar.png" },
-  { label: "Enerji Bedenleri",          src: "/assets/biyoenerji-enerji-bedenleri.png" },
-  { label: "Bilinçaltı Sebepleri",      src: "/assets/biyoenerji-bilincoltu.png" },
-  { label: "İmajinasyon Kütüphanesi",   src: "/assets/biyoenerji-imajinasyon.png" },
-  { label: "Sembol Dili Kütüphanesi",   src: "/assets/biyoenerji-sembol.png" },
-  { label: "Çakra Kütüphanesi",         src: "/assets/biyoenerji-cakra.png" },
+  { label: "gallery.biyoenerji.0", src: "/assets/biyoenerji-tanitim.png" },
+  { label: "gallery.biyoenerji.1", src: "/assets/biyoenerji-anasayfa.png" },
+  { label: "gallery.biyoenerji.2", src: "/assets/biyoenerji-seanslar.png" },
+  { label: "gallery.biyoenerji.3", src: "/assets/biyoenerji-enerji-bedenleri.png" },
+  { label: "gallery.biyoenerji.4", src: "/assets/biyoenerji-bilincoltu.png" },
+  { label: "gallery.biyoenerji.5", src: "/assets/biyoenerji-imajinasyon.png" },
+  { label: "gallery.biyoenerji.6", src: "/assets/biyoenerji-sembol.png" },
+  { label: "gallery.biyoenerji.7", src: "/assets/biyoenerji-cakra.png" },
 ];
 
 const numerologiFeatures = [
@@ -320,15 +277,11 @@ const numerologiFeatures = [
 
 const dashboardModules: ModuleCard[] = [
   {
-    title: "Danışan Yolculuğu",
-    desc: "Danışan kayıtları, randevu ve seans takibi tek merkezde",
-    count: "Aktif",
-    badge: "Ana Modül",
     href: "/danisan-yolculugu",
     permissionKey: "clients",
     emoji: "👥",
     featured: true,
-    statFormat: (n) => `${n} danışan kaydı`,
+    hasStat: true,
     Icon: UsersRound,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -337,10 +290,6 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Yaşam Hafızası",
-    desc: "Modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın",
-    count: "Aktif",
-    badge: "Modül",
     href: "/yasam-hafizasi",
     permissionKey: "yasam_hafizasi",
     emoji: "🧠",
@@ -352,15 +301,11 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Doğaltaş",
-    desc: "Taş, mineral ve danışan eşleştirmeleri",
-    count: "Aktif",
-    badge: "Modül",
     href: "/dogaltas",
     permissionKey: "stones",
     emoji: "💎",
     featured: true,
-    statFormat: (n) => `${n} taş kayıtlı`,
+    hasStat: true,
     Icon: Gem,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -369,14 +314,10 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Ürün & Stok Merkezi",
-    desc: "Tüm ürünler, stok, satış ve fiyatlandırma merkezi",
-    count: "Aktif",
-    badge: "Modül",
     href: "/urun-stok",
     permissionKey: "stok",
     emoji: "📦",
-    statFormat: (n) => `${n} ürün`,
+    hasStat: true,
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -385,10 +326,6 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Enerji & Beden",
-    desc: "Biyoenerji, Refleksoloji, Aromaterapi, Şifa Rehberi ve Kupa & Hacamat çalışma alanları",
-    count: "Aktif",
-    badge: "Modül",
     href: "/enerji-beden",
     permissionKey: "energy_body",
     emoji: "✨",
@@ -400,14 +337,25 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Dijital İçerik Merkezi",
-    desc: "Belgeler, videolar, ders notları ve kişisel arşiv yönetimi",
-    count: "Aktif",
-    badge: "Merkez",
+    href: "/dogal-destek",
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi izni yeterli. permissionKey
+    // yalnız tip placeholder'ı (stat/tarih yok); gerçek karar anyPermissionKeys üzerinden.
+    // Görünen başlık/açıklama i18n'den `home.modules.sifa_rehberi.*` ile gelir.
+    permissionKey: "sifa_rehberi",
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing"],
+    emoji: "🌿",
+    Icon: Leaf,
+    theme: {
+      iconWrap: "from-emerald-500 to-teal-600",
+      cardBg: "from-emerald-100/90 via-teal-50/95 to-white",
+      border: "border-emerald-200/70",
+    },
+  },
+  {
     href: "/digital-content",
     permissionKey: "digital_content",
     emoji: "📚",
-    statFormat: (n) => `${n} içerik`,
+    hasStat: true,
     Icon: Layers,
     theme: {
       iconWrap: "from-indigo-600 to-sky-600",
@@ -416,14 +364,10 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Yaşam Analiz Merkezi",
-    desc: "Numeroloji ve Human Design analiz araçları",
-    count: "Aktif",
-    badge: "Merkez",
     href: "/life-analysis",
     permissionKey: "numerology",
     emoji: "🧠",
-    statFormat: (n) => `${n} analiz`,
+    hasStat: true,
     Icon: Brain,
     theme: {
       iconWrap: "from-violet-600 to-purple-700",
@@ -432,10 +376,6 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Yaşam Takvimi / Kozmik Ajanda",
-    desc: "Hicri takvim, hacamat günleri ve günlük kozmik akış",
-    count: "Aktif",
-    badge: "Merkez",
     href: "/cosmic-calendar",
     permissionKey: "cosmic_calendar",
     emoji: "🌙",
@@ -456,12 +396,12 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   stones: ["dogaltas"],
   stok: ["stock"],
   sifa_rehberi: ["healing"],
+  // Enerji & Beden umbrella'sı artık Aromaterapi'yi KAPSAMAZ (Doğal Destek'e taşındı).
+  // aromatherapy/aromaterapi alias'ları kaldırıldı; Biyoenerji + Refleksoloji kalır.
   energy_body: [
     "biyoenerji",
     "reflexology",
     "refleksoloji",
-    "aromatherapy",
-    "aromaterapi",
   ],
   personal_archive: ["kisisel_arsiv"],
   video_ceviri: [],
@@ -493,6 +433,12 @@ function isExpertDashboardModuleVisible(
 ): boolean {
   if (!hasExpertMembershipAccess(user)) return false;
 
+  // Çok-modüllü hub kartı (ör. Doğal Destek & Rehber): AÇIK OR — anahtarlardan
+  // herhangi biri yeterli. Global alias semantiği değişmeden merkezî yardımcı reuse.
+  if (item.anyPermissionKeys) {
+    return hasAnyModulePermissionFlag(user, item.anyPermissionKeys);
+  }
+
   const key = item.permissionKey;
 
   // P3: Premium otomatik-tüm-modül bypass'ı KALDIRILDI — kişiye özel izinlere dayanır
@@ -515,6 +461,23 @@ function isExpertDashboardModuleVisible(
 function isExpertMembershipExpired(user: YasamUser): boolean {
   if (isAdminUser(user)) return false;
   return !hasExpertMembershipAccess(user);
+}
+
+/**
+ * Çok-modüllü hub kartı için kilit kararı — getModuleLockReason'ın OR karşılığı.
+ * Anahtarlardan herhangi biri açıksa kilit yok; hiçbiri yoksa "permission".
+ * coming_soon burada geçersiz (hub kartı yakında-modül değil).
+ */
+function getAnyPermissionLockReason(
+  user: YasamUser | null | undefined,
+  keys: string[],
+  hasHref: boolean,
+  subscriptionOpen: boolean,
+): ModuleLockReason {
+  if (!hasHref) return null;
+  if (!subscriptionOpen) return "subscription";
+  if (!hasAnyModulePermissionFlag(user, keys)) return "permission";
+  return null;
 }
 
 function expertHasAnyGrantedModule(user: YasamUser): boolean {
@@ -546,32 +509,21 @@ function numerologicalDay(date: Date): number {
 
 
 
-const NUMEROLOGY_DESC: Record<number, string> = {
-  1: "Yeni başlangıçlar · Liderlik",
-  2: "Denge · İşbirliği",
-  3: "Yaratıcılık · Neşe",
-  4: "Düzen · Kararlılık",
-  5: "Değişim · Özgürlük",
-  6: "Aşk · Uyum",
-  7: "Spiritüel derinlik",
-  8: "Güç · Bolluk",
-  9: "Tamamlanma · Bilgelik",
-  11: "Sezgi · Aydınlanma",
-  22: "Büyük inşaacı",
-  33: "Evrensel öğretmen",
-};
+// i18n translator tipi — modül-seviyesi saf fonksiyonlara/bileşenlere t geçirmek için.
+type T = ReturnType<typeof useTranslations>;
 
-function fmtRelDate(iso: string): string {
+function fmtRelDate(iso: string, t: T, bcp47: string): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 2) return "az önce";
-  if (mins < 60) return `${mins} dk önce`;
+  if (mins < 2) return t("rel.justNow");
+  if (mins < 60) return t("rel.minsAgo", { mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} sa önce`;
+  if (hrs < 24) return t("rel.hrsAgo", { hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days} gün önce`;
-  return new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  if (days < 30) return t("rel.daysAgo", { days });
+  // >30 gün: locale-aware kısa tarih (ay adı locale'e göre; TR "24 Ağu", EN "24 Aug").
+  return new Date(iso).toLocaleDateString(bcp47, { day: "numeric", month: "short" });
 }
 
 function getDayGreeting(date: Date): string {
@@ -585,34 +537,44 @@ function getDayGreeting(date: Date): string {
 // ─── Dashboard components ──────────────────────────────────────────────────────
 
 function LivePanel({ date }: { date: Date | null }) {
+  const t = useTranslations("home");
+  const messages = useMessages() as {
+    home?: { livePanel?: { display?: Record<string, Record<string, string>> } };
+  };
+  // Canonical (persisted/computed) TR adlar → locale'e uygun görüntü etiketi.
+  // Harita yalnız DISPLAY katmanıdır; motor/canonical değerler DEĞİŞMEZ.
+  // Eksik/bilinmeyen ad → ham canonical'a düşer (güvenli fallback).
+  const displayMaps = messages?.home?.livePanel?.display ?? {};
+  const dispName = (kind: "zodiac" | "moonPhase" | "planet", name: string): string =>
+    displayMaps?.[kind]?.[name] ?? name;
   date = date ?? new Date();
   const phase = getMoonPhase(date);
   const sun = getSunSignInfo(date);
   const moon = getMoonSign(date);
   const planetary = getPlanetaryHour(date);
   const numDay = numerologicalDay(date);
-  const numDesc = NUMEROLOGY_DESC[numDay] ?? "";
+  const numDesc = t(`numDesc.${numDay}`);
 
   function fmtTime(d: Date): string {
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   }
 
   const rows = [
-    { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.name}` },
-    { label: "Ay Burcu",       value: `${moon.emoji} ${moon.name}` },
-    { label: "Ay Fazı",        value: `${phase.emoji} ${phase.name}` },
-    { label: "Numeroloji",     value: `🔢 ${numDay} · ${numDesc}` },
+    { label: t("livePanel.sunSign"),    value: `${sun.emoji} ${dispName("zodiac", sun.name)}` },
+    { label: t("livePanel.moonSign"),   value: `${moon.emoji} ${dispName("zodiac", moon.name)}` },
+    { label: t("livePanel.moonPhase"),  value: `${phase.emoji} ${dispName("moonPhase", phase.name)}` },
+    { label: t("livePanel.numerology"), value: `🔢 ${numDay} · ${numDesc}` },
     {
-      label: "Gezegen Saati",
-      value: `${planetary.aktifGezegen.symbol} ${planetary.aktifGezegen.name}`,
-      sub: `${fmtTime(planetary.hourStart)}–${fmtTime(planetary.hourEnd)} · ${planetary.kalanDakika} dk kaldı`,
+      label: t("livePanel.planetaryHour"),
+      value: `${planetary.aktifGezegen.symbol} ${dispName("planet", planetary.aktifGezegen.name)}`,
+      sub: t("livePanel.planetarySub", { start: fmtTime(planetary.hourStart), end: fmtTime(planetary.hourEnd), mins: planetary.kalanDakika }),
     },
   ];
 
   return (
     <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
       <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
-        Bugünün Enerjisi
+        {t("livePanel.title")}
       </p>
 
       <div className="space-y-0.5">
@@ -638,6 +600,7 @@ function LivePanel({ date }: { date: Date | null }) {
 }
 
 function AuthBootScreen() {
+  const t = useTranslations("home");
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-32 top-0 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
@@ -654,14 +617,17 @@ function AuthBootScreen() {
             aria-hidden
           />
         </div>
-        <p className="text-lg font-black text-slate-900">Yaşam Sistemi hazırlanıyor...</p>
-        <p className="text-sm font-medium text-slate-600">Oturum bilgileri kontrol ediliyor</p>
+        <p className="text-lg font-black text-slate-900">{t("boot.preparing")}</p>
+        <p className="text-sm font-medium text-slate-600">{t("boot.checkingSession")}</p>
       </div>
     </main>
   );
 }
 
 export default function Home() {
+  const t = useTranslations("home");
+  const locale = useLocale() as ActiveLocale;
+  const bcp47 = localeTag(locale);
   const router = useRouter();
   const { showToast } = useToast();
   const [email, setEmail] = useState("");
@@ -699,6 +665,10 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
+  // Beslenme OWNER-ONLY (super-admin) kart görünürlüğü. isAdminUser TEK BAŞINA yetmez;
+  // gerçek owner (users.is_super_admin) server probe'u (/api/beslenme/access) ile doğrulanır.
+  // Default hidden → owner doğrulanırsa render (normal admin/expert asla görmez; fail-closed).
+  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -709,9 +679,7 @@ export default function Home() {
       clearYasamUser();
       setUser(null);
       setLoginModalOpen(true);
-      setMessage(
-        "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
-      );
+      setMessage(t("auth.sessionInvalid"));
     },
   });
 
@@ -752,6 +720,21 @@ export default function Home() {
     loginBackdropPressed.current = false;
   };
 
+  // Beslenme owner-only kart: yalnız admin için server owner-probe (super-admin). Fail-closed.
+  useEffect(() => {
+    if (!user || !isAdminUser(user)) {
+      setBeslenmeOwner(false);
+      return;
+    }
+    let alive = true;
+    void checkBeslenmeAccess().then((ok) => {
+      if (alive) setBeslenmeOwner(ok === true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
   useEffect(() => {
     const stored = readYasamUser();
     if (!stored) {
@@ -767,11 +750,19 @@ export default function Home() {
     if (isAdminUser(stored)) {
       setProfileSynced(true);
       // Cookie refresh DB sync'ten önce (paralel) başlatılıyor.
-      adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: stored.id }),
-      }).then(() => {}).catch(() => {});
+      // P0-1: sayfa yüklemesinde admin cookie tazelemesi yalnız GEÇERLİ oturum
+      // token'ı (credential-gated login'de üretilmiş) varsa yapılır. Token yoksa
+      // sessizce atlanır; erişim /admin nav veya yeniden login'de doğrulanır.
+      const adminRefreshToken = readSessionToken();
+      adminCookiePromiseRef.current = adminRefreshToken
+        ? fetch("/api/auth/admin-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-token": adminRefreshToken,
+            },
+          }).then(() => {}).catch(() => {})
+        : Promise.resolve();
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (fresh) setUser(fresh);
       });
@@ -1010,7 +1001,7 @@ export default function Home() {
       };
       return (json.clients ?? []).slice(0, 3).map((c) => ({
         icon: "👥",
-        label: `${c.ad ?? ""} ${c.soyad ?? ""}`.trim() || "Yeni kayıt",
+        label: `${c.ad ?? ""} ${c.soyad ?? ""}`.trim() || t("dashboard.newRecord"),
         rawDate: String(c.created_at ?? ""),
       }));
     })();
@@ -1024,7 +1015,7 @@ export default function Home() {
       };
       return (json.rows ?? []).map((r) => ({
         icon: "🧠",
-        label: String(r.full_name ?? "Yeni kayıt").trim() || "Yeni kayıt",
+        label: String(r.full_name ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
         rawDate: String(r.created_at ?? ""),
       }));
     })();
@@ -1043,7 +1034,7 @@ export default function Home() {
           const r = row as unknown as Record<string, unknown>;
           return {
             icon,
-            label: String(r[col] ?? "Yeni kayıt").trim() || "Yeni kayıt",
+            label: String(r[col] ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
             rawDate: String(r["created_at"] ?? ""),
           } satisfies RawItem;
         });
@@ -1055,12 +1046,13 @@ export default function Home() {
         .flatMap((r) => (r as PromiseFulfilledResult<RawItem[]>).value);
       all.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
       setRecentActivity(
-        all.slice(0, 5).map((item) => ({ ...item, relDate: fmtRelDate(item.rawDate) })),
+        all.slice(0, 5).map((item) => ({ ...item, relDate: fmtRelDate(item.rawDate, t, bcp47) })),
       );
     });
 
     return () => { cancelled = true; };
-  }, [user?.id, user?.tenant_id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.tenant_id, t]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1103,23 +1095,23 @@ export default function Home() {
     const trimmedPassword = password.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
-      setMessage("Email ve şifre giriniz.");
+      setMessage(t("auth.emailPasswordRequired"));
       return;
     }
 
     setLoading(true);
-    setMessage("Giriş yapılıyor...");
+    setMessage(t("auth.loggingIn"));
 
     const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
 
     if (attempt.rpcError) {
-      setMessage("Sistem hatası oluştu.");
+      setMessage(t("auth.systemError"));
       setLoading(false);
       return;
     }
 
     if (attempt.rows.length === 0) {
-      setMessage("Email veya şifre hatalı.");
+      setMessage(t("auth.emailPasswordWrong"));
       setLoading(false);
       return;
     }
@@ -1127,16 +1119,14 @@ export default function Home() {
     let loggedUser = parseLoginUserRecord(attempt.rows[0]);
 
     if (!loggedUser) {
-      setMessage(
-        "Giriş başarısız: hesabınızda geçerli bir rol (admin / expert) tanımlı değil. Supabase users kaydını kontrol edin.",
-      );
+      setMessage(t("auth.noValidRole"));
       setLoading(false);
       return;
     }
 
     const freshUser = await syncYasamUserFromDb(loggedUser, { force: true });
     if (!freshUser) {
-      setMessage("Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.");
+      setMessage(t("auth.userVerifyFailed"));
       setLoading(false);
       return;
     }
@@ -1155,14 +1145,14 @@ export default function Home() {
       const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: loggedUser.id }),
+        // P0-1: token yalnız SERVER-SIDE credential doğrulamasıyla üretilir.
+        // Çıplak userId artık kabul edilmez; e-posta+şifre server'da yeniden doğrulanır.
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
       });
       // P3 reject-new: limit aşımında server 403 döner ve token vermez → giriş DURDURULUR.
       if (sessionRes.status === 403) {
         const errJson = (await sessionRes.json().catch(() => ({}))) as { error?: string };
-        setMessage(
-          errJson.error ?? "Oturum limiti nedeniyle giriş yapılamadı. Yöneticinizle iletişime geçin.",
-        );
+        setMessage(errJson.error ?? t("auth.sessionLimit"));
         setLoading(false);
         return;
       }
@@ -1207,9 +1197,8 @@ export default function Home() {
 
     if (isSuspiciousLogin) {
       showToast({
-        title: "Güvenlik Uyarısı",
-        message:
-          "Hesabınız farklı bir konumdan kullanılıyor olabilir. Şifrenizi yenilemeniz önerilir.",
+        title: t("auth.securityWarningTitle"),
+        message: t("auth.securityWarningMsg"),
         type: "warning",
       });
     }
@@ -1218,11 +1207,14 @@ export default function Home() {
       // Admin httpOnly session cookie set et (server-side doğrulama ile)
       const cookieRes = await fetch("/api/auth/admin-session", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: loggedUser.id }),
+        // P0-1: admin cookie yalnız GEÇERLİ (credential-gated) oturum token'ıyla verilir.
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": readSessionToken() ?? "",
+        },
       });
       if (!cookieRes.ok) {
-        setMessage("Admin oturumu başlatılamadı. Lütfen tekrar deneyin.");
+        setMessage(t("auth.adminSessionFailed"));
         setLoading(false);
         return;
       }
@@ -1285,8 +1277,11 @@ export default function Home() {
         try {
           await fetch("/api/auth/admin-session", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user!.id }),
+            // P0-1: admin cookie yalnız geçerli (credential-gated) oturum token'ıyla verilir.
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-token": readSessionToken() ?? "",
+            },
           });
         } catch {}
       }
@@ -1339,19 +1334,19 @@ export default function Home() {
                 <div className="min-w-0 space-y-2.5">
                   {/* Başlık + açıklama tek satır */}
                   <p className="text-sm font-black leading-snug text-amber-900">
-                    Demo Hesabı{" "}
+                    {t("demo.titleBadge")}{" "}
                     <span className="font-medium text-amber-800">
-                      — Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
+                      {t("demo.subtitle")}
                     </span>
                   </p>
 
                   {/* Madde listesi */}
                   <ul className="space-y-0.5">
                     {[
-                      "Danışan ekleyebilir",
-                      "Not oluşturabilir",
-                      "Modülleri inceleyebilir",
-                      "Kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz",
+                      t("demo.item1"),
+                      t("demo.item2"),
+                      t("demo.item3"),
+                      t("demo.item4"),
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-1.5 text-xs font-medium text-amber-800">
                         <span className="mt-px shrink-0 text-amber-500" aria-hidden>•</span>
@@ -1362,12 +1357,12 @@ export default function Home() {
 
                   {/* Uyarı */}
                   <p className="text-xs font-medium leading-relaxed text-amber-700">
-                    Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.
+                    {t("demo.warning")}
                   </p>
 
                   {/* Çağrı */}
                   <p className="pt-0.5 text-xs font-black text-amber-900">
-                    🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi&apos;nin uzmanlara sunduğu çalışma deneyimini keşfedin.
+                    {t("demo.cta")}
                   </p>
                 </div>
               </div>
@@ -1379,7 +1374,12 @@ export default function Home() {
           ═══════════════════════════════════════════ */}
           {(() => {
             const d = effectiveNow;
-            const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
+            const heroDate = t("dashboard.heroDate", {
+              day: d.getDate(),
+              month: d.toLocaleDateString(bcp47, { month: "long" }),
+              year: d.getFullYear(),
+              weekday: d.toLocaleDateString(bcp47, { weekday: "long" }),
+            });
             return (
               <>
               <section className="relative mb-0 overflow-hidden rounded-[22px] border border-white/90 bg-gradient-to-br from-violet-200 via-sky-100 to-pink-200 px-5 py-5 shadow-[0_20px_60px_rgba(124,58,237,0.18),0_8px_24px_rgba(236,72,153,0.10)] backdrop-blur-xl sm:px-7 sm:py-6">
@@ -1398,24 +1398,27 @@ export default function Home() {
                       <h1 className="leading-tight tracking-tight">
                         {firstName ? (
                           <>
+                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">{t("dashboard.welcomePrefix")}</span>
                             <span className="block bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
-                              {firstName}
+                              {firstName} ✨
                             </span>
-                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">hoş geldiniz ✨</span>
                           </>
                         ) : (
-                          <span className="block text-3xl font-black text-slate-900 sm:text-4xl">Hoş geldiniz ✨</span>
+                          <span className="block text-3xl font-black text-slate-900 sm:text-4xl">{t("dashboard.welcomePlain")}</span>
                         )}
                       </h1>
                       <p className="mt-2 text-sm font-medium text-slate-600">{heroDate}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={logout}
-                      className="mt-1 shrink-0 rounded-xl border border-white/80 bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
-                    >
-                      Çıkış Yap
-                    </button>
+                    <div className="mt-1 flex shrink-0 items-center gap-1.5">
+                      <LanguageSelector className="!min-h-0 !px-2 !py-1 text-[11px]" />
+                      <button
+                        type="button"
+                        onClick={logout}
+                        className="rounded-xl border border-white/80 bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
+                      >
+                        {t("dashboard.logout")}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Admin linki */}
@@ -1430,8 +1433,8 @@ export default function Home() {
                         <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">Sistem Sahibi</p>
-                        <p className="text-xs font-black text-slate-800">Admin Paneli</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">{t("dashboard.systemOwner")}</p>
+                        <p className="text-xs font-black text-slate-800">{t("dashboard.adminPanel")}</p>
                       </div>
                       {adminNavLoading ? (
                         <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-violet-500" strokeWidth={2.5} />
@@ -1457,30 +1460,29 @@ export default function Home() {
             {/* ── Left: Module Grid ── */}
             <div>
               <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                Ana Merkezler
+                {t("dashboard.centersLabel")}
               </p>
 
               {!permissionsReady ? (
                 profileError ? (
                   <div role="alert" className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
-                    <p className="text-base font-black text-rose-700">Modül izinleri yüklenemedi</p>
+                    <p className="text-base font-black text-rose-700">{t("dashboard.profileErrorTitle")}</p>
                     <p className="mt-2 max-w-md text-sm text-rose-500">
-                      Bağlantı veya oturum doğrulama hatası nedeniyle modül erişiminiz alınamadı.
-                      Lütfen tekrar deneyin.
+                      {t("dashboard.profileErrorDesc")}
                     </p>
                     <button
                       type="button"
                       onClick={retryProfileSync}
                       className="mt-4 rounded-full border border-rose-300 bg-white px-4 py-1.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-100"
                     >
-                      Tekrar dene
+                      {t("dashboard.retry")}
                     </button>
                   </div>
                 ) : (
                   <div
                     className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
                     aria-busy="true"
-                    aria-label="Modüller yükleniyor"
+                    aria-label={t("dashboard.modulesBusy")}
                   >
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div
@@ -1502,15 +1504,15 @@ export default function Home() {
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
                   {membershipDenyReason === "pending" ? (
                     <p className="text-base font-black text-rose-700">
-                      Hesabınız yönetici onayı bekliyor.
+                      {t("dashboard.membershipPending")}
                     </p>
                   ) : (
                     <>
                       <p className="text-base font-black text-rose-700">
-                        Hesabınız şu anda aktif değil.
+                        {t("dashboard.membershipInactiveTitle")}
                       </p>
                       <p className="mt-2 max-w-md text-sm text-rose-500">
-                        Sisteme erişim için yönetici ile iletişime geçin.
+                        {t("dashboard.membershipInactiveDesc")}
                       </p>
                     </>
                   )}
@@ -1530,16 +1532,18 @@ export default function Home() {
                 </div>
               ) : expertModulesEmpty ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-white/60 px-6 py-8 text-center backdrop-blur-sm">
-                  <p className="text-base font-black text-slate-700">Henüz modül izniniz tanımlanmamış</p>
+                  <p className="text-base font-black text-slate-700">{t("dashboard.noModulesTitle")}</p>
                   <p className="mt-2 max-w-md text-sm text-slate-400">
-                    Erişim için yönetici ile iletişime geçin.
+                    {t("dashboard.noModulesDesc")}
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                   {visibleDashboardModules.map((item) => {
                     const hasHref = item.href !== "#";
-                    const lockReason = getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+                    const lockReason = item.anyPermissionKeys
+                      ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
+                      : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const { Icon, theme } = item;
@@ -1562,7 +1566,7 @@ export default function Home() {
                       >
                         {isLocked && !isComingSoon ? (
                           <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
-                            {lockReason === "permission" ? "🔒 Yetki yok" : "🔒 Üyelik"}
+                            {lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
                           </span>
                         ) : null}
 
@@ -1570,24 +1574,24 @@ export default function Home() {
                           {item.emoji}
                         </span>
 
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">{item.title}</h3>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">{t(`modules.${item.permissionKey}.title`)}</h3>
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          {item.desc}
+                          {t(`modules.${item.permissionKey}.desc`)}
                         </p>
                         <p className="mt-1.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
-                          {item.statFormat
+                          {item.hasStat
                             ? moduleStats[item.permissionKey] === undefined
-                              ? "Yükleniyor"
+                              ? t("moduleCard.loading")
                               : moduleStats[item.permissionKey] === null
                                 ? "—"
                                 : moduleStats[item.permissionKey] === 0
-                                  ? "Henüz kayıt yok"
-                                  : item.statFormat(moduleStats[item.permissionKey] as number)
-                            : "İçerik hazır"}
+                                  ? t("moduleCard.noRecords")
+                                  : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
+                            : t("common.contentReady")}
                         </p>
                         {lastDateByKey[item.permissionKey] ? (
                           <p className="mt-0.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
-                            📅 Son: {lastDateByKey[item.permissionKey]}
+                            {t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] })}
                           </p>
                         ) : null}
 
@@ -1599,7 +1603,7 @@ export default function Home() {
                                 ? "bg-rose-100 text-rose-800 ring-rose-200/80"
                                 : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
                           }`}>
-                            {isComingSoon ? "Yakında" : isLocked ? (lockReason === "permission" ? "Yetki yok" : "Pasif") : item.count}
+                            {isComingSoon ? t("common.comingSoon") : isLocked ? (lockReason === "permission" ? t("moduleCard.badgeNoPermission") : t("moduleCard.badgeInactive")) : t("common.active")}
                           </span>
                           <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-opacity ${isOpen ? "" : "opacity-40"}`} aria-hidden>
                             <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
@@ -1610,14 +1614,14 @@ export default function Home() {
 
                     if (isOpen) {
                       return (
-                        <Link key={item.title} href={item.href} className="block text-inherit no-underline">
+                        <Link key={item.permissionKey} href={item.href} className="block text-inherit no-underline">
                           {card}
                         </Link>
                       );
                     }
                     return (
                       <div
-                        key={item.title}
+                        key={item.permissionKey}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
@@ -1634,14 +1638,14 @@ export default function Home() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-sm">
                         <Shield className="h-4 w-4" strokeWidth={2.25} />
                       </div>
-                      <h3 className="mt-2.5 text-base font-black text-slate-900">Ayarlar & Güvenlik</h3>
+                      <h3 className="mt-2.5 text-base font-black text-slate-900">{t("settingsCard.title")}</h3>
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                        Şifre, destek, yedekleme ve dışa aktarma işlemleri
+                        {t("settingsCard.desc")}
                       </p>
-                      <p className="mt-1.5 text-xs text-slate-500">İçerik hazır</p>
+                      <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
                       <div className="mt-3 flex items-center justify-between gap-2">
                         <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                          Aktif
+                          {t("common.active")}
                         </span>
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
                           <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
@@ -1649,6 +1653,10 @@ export default function Home() {
                       </div>
                     </div>
                   </Link>
+
+                  {/* Doğal Pazar public vitrin kartı — PRIVATE OWNER PREVIEW LOCK sırasında
+                      GİZLİ. Public açılış ileride ayrı release ile geri getirilecek. Sahip
+                      önizlemesi /admin/magaza/onizleme üzerinden yapılır. */}
 
                   {/* YEBS — YALNIZ yönetici hesabında görünür admin-only kart.
                       Gerçek güvenlik server-side verifyAdminRequest'tedir; bu kart
@@ -1658,19 +1666,48 @@ export default function Home() {
                     <Link href="/yebs" data-yebs-admin-card data-admin-only="true" className="block text-inherit no-underline">
                       <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-emerald-100/90 via-teal-50/95 to-white border-emerald-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
                         <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-emerald-200/90 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          Yönetici
+                          {t("yebsCard.adminBadge")}
                         </span>
                         <span className="text-3xl leading-none" aria-hidden>
                           🌿
                         </span>
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">Yaşam Enerjisi Bilgi Sistemi</h3>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">{t("yebsCard.title")}</h3>
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          Gelenekler, kavramlar, kaynaklar ve profesyonel bilgi ağı
+                          {t("yebsCard.desc")}
                         </p>
-                        <p className="mt-1.5 text-xs text-slate-500">İçerik hazır</p>
+                        <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
                             YEBS
+                          </span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
+
+                  {/* Beslenme — OWNER-ONLY (super-admin) kart. isAdminUser + server owner
+                      probe (beslenmeOwner) birlikte gerekli; normal admin/expert görmez.
+                      Asıl güvenlik server-side requireMainAdmin'dedir (defense-in-depth). */}
+                  {beslenmeOwner ? (
+                    <Link href="/beslenme" data-beslenme-owner-card data-admin-only="true" className="block text-inherit no-underline">
+                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-lime-200/90 bg-lime-50 px-2 py-0.5 text-[10px] font-bold text-lime-700">
+                          Sahip
+                        </span>
+                        <span className="text-3xl leading-none" aria-hidden>
+                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
+                        </span>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">Beslenme</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                          Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri
+                        </p>
+                        <p className="mt-1.5 text-xs text-slate-500">Geliştirme (yalnız sahip)</p>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                            Beslenme
                           </span>
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
                             <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
@@ -1691,7 +1728,7 @@ export default function Home() {
               {recentActivity !== null && recentActivity.length > 0 ? (
                 <div>
                   <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                    Son Aktiviteler
+                    {t("dashboard.recentActivity")}
                   </p>
                   <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
                     <div className="space-y-0.5">
@@ -1715,7 +1752,7 @@ export default function Home() {
               {/* Canlı Yaşam Paneli */}
               <div>
                 <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                  Canlı Yaşam Paneli
+                  {t("dashboard.livePanelLabel")}
                 </p>
                 <LivePanel date={effectiveNow} />
               </div>
@@ -1744,11 +1781,12 @@ export default function Home() {
               ✨
             </div>
             <p className="text-sm font-black tracking-wide text-slate-950">
-              YAŞAM SİSTEMİ
+              {t("brand")}
             </p>
           </div>
 
-          <div className="flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <LanguageSelector />
             <button
               type="button"
               onClick={() => {
@@ -1759,7 +1797,7 @@ export default function Home() {
               }}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
-              Giriş Yap
+              {t("nav.login")}
             </button>
           </div>
         </header>
@@ -1770,8 +1808,8 @@ export default function Home() {
             {/* Dekoratif sol kartlar */}
             <div className="pointer-events-none absolute left-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
-                { label: "10+ Modül", icon: "🧩", sub: "Tek Panel" },
-                { label: "Tek Panel", icon: "🖥️", sub: "Her yerden erişim" },
+                { label: t("hero.cardModules"), icon: "🧩", sub: t("hero.cardSinglePanel") },
+                { label: t("hero.cardSinglePanel"), icon: "🖥️", sub: t("hero.cardSinglePanelSub") },
               ].map((c) => (
                 <div
                   key={c.label}
@@ -1789,15 +1827,15 @@ export default function Home() {
             {/* Center text */}
             <div className="flex max-w-2xl flex-col items-center">
               <h1 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
-                Danışan, analiz ve seans süreçlerinizi{" "}
+                {t("hero.titlePart1")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
-                  tek merkezden
+                  {t("hero.titleHighlight")}
                 </span>{" "}
-                yönetin
+                {t("hero.titlePart2")}
               </h1>
 
               <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500">
-                Numeroloji, doğaltaş, biyoenerji, refleksoloji, şifa rehberi, belge çeviri ve danışan yönetimi modülleriyle profesyonel çalışma akışınızı düzenleyin.
+                {t("hero.subtitle")}
               </p>
 
               <div className="mt-7 flex justify-center">
@@ -1808,7 +1846,7 @@ export default function Home() {
                   }}
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
                 >
-                  Modülleri Keşfet ↓
+                  {t("hero.discoverModules")}
                 </button>
               </div>
             </div>
@@ -1816,8 +1854,8 @@ export default function Home() {
             {/* Dekoratif sağ kartlar */}
             <div className="pointer-events-none absolute right-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
-                { label: "Güvenli Kayıt", icon: "🔒", sub: "Verileriniz korumalı" },
-                { label: "AI Destekli", icon: "✨", sub: "Akıllı analiz" },
+                { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
+                { label: t("hero.cardAi"), icon: "✨", sub: t("hero.cardAiSub") },
               ].map((c) => (
                 <div
                   key={c.label}
@@ -1838,10 +1876,10 @@ export default function Home() {
         <div data-fade className="mt-8 w-full">
           <div className="mb-4">
             <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
-              Yaşam Sistemi İçinde Bir Danışan
+              {t("mockup.heading")}
             </h2>
             <p className="mt-1.5 text-sm text-slate-500">
-              Bir danışanın tüm çalışma geçmişi tek ekranda görüntülenebilir.
+              {t("mockup.subtitle")}
             </p>
           </div>
 
@@ -1854,7 +1892,7 @@ export default function Home() {
                 <div className="h-2.5 w-2.5 rounded-full bg-amber-400/75" />
                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/75" />
               </div>
-              <p className="ml-2 text-xs text-slate-500">Danışan Yolculuğu — Ahmet Yılmaz</p>
+              <p className="ml-2 text-xs text-slate-500">{t("mockup.windowTitle")}</p>
             </div>
 
             {/* App layout */}
@@ -1870,18 +1908,18 @@ export default function Home() {
                       AY
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900">Ahmet Yılmaz</p>
+                      <p className="text-sm font-black text-slate-900">{t("mockup.clientName")}</p>
                       <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Aktif Danışan
+                        {t("mockup.activeClient")}
                       </span>
                     </div>
                   </div>
                   <dl className="mt-3 space-y-1.5">
                     {[
-                      { label: "Son görüşme", value: "04.06.2026" },
-                      { label: "Kayıtlı çalışma", value: "5 kayıt" },
-                      { label: "Yaklaşan randevu", value: "2 randevu" },
+                      { label: t("mockup.rowLastMeeting"), value: "04.06.2026" },
+                      { label: t("mockup.rowSavedWork"), value: t("mockup.savedWorkValue") },
+                      { label: t("mockup.rowUpcoming"), value: t("mockup.upcomingValue") },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-2">
                         <dt className="text-xs text-slate-500">{row.label}</dt>
@@ -1892,15 +1930,15 @@ export default function Home() {
                 </div>
 
                 {/* Nav tabs */}
-                <nav className="flex gap-0.5 overflow-x-auto p-2 sm:flex-col" aria-label="Danışan sekmeleri">
+                <nav className="flex gap-0.5 overflow-x-auto p-2 sm:flex-col" aria-label={t("mockup.tabsAria")}>
                   {[
-                    { label: "Genel Bilgiler", active: true },
-                    { label: "Numeroloji" },
-                    { label: "Refleksoloji" },
-                    { label: "Doğaltaş" },
-                    { label: "Notlar" },
-                    { label: "Randevular" },
-                    { label: "Dosyalar" },
+                    { label: t("mockup.tabGenel"), active: true },
+                    { label: t("mockup.tabNumeroloji") },
+                    { label: t("mockup.tabRefleksoloji") },
+                    { label: t("mockup.tabDogaltas") },
+                    { label: t("mockup.tabNotlar") },
+                    { label: t("mockup.tabRandevular") },
+                    { label: t("mockup.tabDosyalar") },
                   ].map((tab) => (
                     <div
                       key={tab.label}
@@ -1922,10 +1960,10 @@ export default function Home() {
                 {/* Danışan Özeti */}
                 <div className="grid grid-cols-4 divide-x divide-slate-100 border-b border-slate-100">
                   {[
-                    { value: "5", label: "Analiz" },
-                    { value: "8", label: "Seans" },
-                    { value: "3", label: "Dosya" },
-                    { value: "4", label: "Not" },
+                    { value: "5", label: t("mockup.statAnaliz") },
+                    { value: "8", label: t("mockup.statSeans") },
+                    { value: "3", label: t("mockup.statDosya") },
+                    { value: "4", label: t("mockup.statNot") },
                   ].map((stat) => (
                     <div key={stat.label} className="flex flex-col items-center gap-0.5 py-3">
                       <span className="text-base font-black tabular-nums text-slate-900">{stat.value}</span>
@@ -1937,15 +1975,15 @@ export default function Home() {
                 {/* Son Çalışmalar */}
                 <div className="p-4">
                   <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    Son Çalışmalar
+                    {t("mockup.recentWorks")}
                   </p>
                   <div className="flex flex-col gap-1.5">
                     {[
-                      { text: "Numeroloji Analizi Tamamlandı", detail: "Kişisel yıl & yaşam yolu hesabı", date: "2 gün önce", dot: "bg-violet-400" },
-                      { text: "Refleksoloji Protokolü Eklendi", detail: "Ayak haritası · 3 bölge", date: "4 gün önce", dot: "bg-fuchsia-400" },
-                      { text: "Doğaltaş Önerisi Kaydedildi", detail: "Ametist, Labradorit kombinasyonu", date: "1 hafta önce", dot: "bg-teal-400" },
-                      { text: "Seans Notu Eklendi", detail: "45 dk · 3. seans", date: "1 hafta önce", dot: "bg-sky-400" },
-                      { text: "Yeni Randevu Oluşturuldu", detail: "12 Haziran 2026, 14:00", date: "2 hafta önce", dot: "bg-emerald-400" },
+                      { text: t("mockup.work1"), detail: t("mockup.work1detail"), date: t("mockup.work1date"), dot: "bg-violet-400" },
+                      { text: t("mockup.work2"), detail: t("mockup.work2detail"), date: t("mockup.work2date"), dot: "bg-fuchsia-400" },
+                      { text: t("mockup.work3"), detail: t("mockup.work3detail"), date: t("mockup.work3date"), dot: "bg-teal-400" },
+                      { text: t("mockup.work4"), detail: t("mockup.work4detail"), date: t("mockup.work4date"), dot: "bg-sky-400" },
+                      { text: t("mockup.work5"), detail: t("mockup.work5detail"), date: t("mockup.work5date"), dot: "bg-emerald-400" },
                     ].map((item) => (
                       <div
                         key={item.text}
@@ -1973,24 +2011,19 @@ export default function Home() {
         <div data-fade className="mt-10 w-full">
           <div className="mb-5">
             <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
-              Bilgileriniz farklı dosyalarda mı dağınık duruyor?
+              {t("problem.heading")}
             </h2>
             <p className="mt-2.5 max-w-2xl text-sm leading-[1.7] text-slate-500">
-              Birçok uzman yıllar boyunca oluşturduğu Word dosyalarını, PDF arşivlerini, danışan
-              notlarını ve çalışma kayıtlarını farklı klasörlerde saklıyor. Zamanla bilgiye ulaşmak
-              zorlaşıyor ve aynı araştırmalar tekrar tekrar yapılıyor.
+              {t("problem.desc")}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              { icon: "📂", text: "Yüzlerce Word ve PDF dosyası arasında bilgi aramak" },
-              { icon: "🔍", text: "Aynı konuyu tekrar tekrar araştırmak zorunda kalmak" },
-              { icon: "📝", text: "Danışan notlarının farklı klasörlerde bulunması" },
-              { icon: "📅", text: "Randevu, seans ve kayıtların dağınık olması" },
-              {
-                icon: "💎",
-                text: "Doğaltaş, numeroloji ve çalışma notlarının ayrı yerlerde tutulması",
-              },
+              { icon: "📂", text: t("problem.item1") },
+              { icon: "🔍", text: t("problem.item2") },
+              { icon: "📝", text: t("problem.item3") },
+              { icon: "📅", text: t("problem.item4") },
+              { icon: "💎", text: t("problem.item5") },
             ].map((item) => (
               <div
                 key={item.text}
@@ -2013,22 +2046,22 @@ export default function Home() {
           <div className="mb-3.5 flex items-baseline justify-between">
             <div>
               <h2 className="text-lg font-black text-slate-950 sm:text-xl">
-                Çalışma Alanları
+                {t("workspaces.heading")}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
-                Platform içindeki ana modüller
+                {t("workspaces.subtitle")}
               </p>
             </div>
           </div>
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {landingModules.map((item) =>
-            item.title === "Numeroloji" ? (
+            item.slug === "numeroloji" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-blue-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(109,40,217,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Analiz Var
+                  {t("landing.sampleAnalysisBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2036,11 +2069,11 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {item.title}
+                  {t("landing.numeroloji.title")}
                 </h3>
 
                 <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  Ali AL örneğiyle analiz ekranlarını inceleyin.
+                  {t("landing.numeroloji.desc")}
                 </p>
 
                 <button
@@ -2048,7 +2081,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setNumerologiPreviewOpen(true); }}
                   className="mt-3 w-full rounded-xl bg-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-violet-700"
                 >
-                  Örnek Analizi Gör
+                  {t("landing.seeSampleAnalysis")}
                 </button>
 
                 <Link
@@ -2056,17 +2089,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-violet-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Doğaltaş" ? (
+            ) : item.slug === "dogaltas" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-teal-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(20,184,166,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-teal-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-xl text-white shadow-md shadow-teal-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2074,11 +2107,11 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {item.title}
+                  {t("landing.dogaltas.title")}
                 </h3>
 
                 <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  Doğaltaş kayıtları, mineral bilgileri, kombinasyonlar ve stok yönetimi tek merkezde.
+                  {t("landing.dogaltas.desc")}
                 </p>
 
                 <button
@@ -2086,7 +2119,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setDogaltasPreviewOpen(true); }}
                   className="mt-3 w-full rounded-xl bg-teal-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-teal-800"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2094,17 +2127,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-teal-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Biyoenerji" ? (
+            ) : item.slug === "biyoenerji" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-cyan-200/70 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-cyan-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(6,182,212,0.16)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-xl text-white shadow-md shadow-cyan-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2112,22 +2145,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Biyoenerji
+                  {t("landing.biyoenerji.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Enerji analizleri, bilinçaltı çalışmaları, sembol dili, çakra kütüphanesi ve seans yönetimini tek merkezden yönetin.
+                  {t("landing.biyoenerji.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Biyoenerji Seansları",
-                    "Enerji Bedenleri",
-                    "Bilinçaltı Sebepleri",
-                    "İmajinasyon Kütüphanesi",
-                    "Sembol Dili",
-                    "Çakra Kütüphanesi",
-                  ].map((feat) => (
+                  {(t.raw("feats.biyoenerji") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-cyan-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2140,7 +2166,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setBiyoenerjiSlide(0); setBiyoenerjiPreviewOpen(true); }}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-sky-400 hover:to-cyan-500 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2148,17 +2174,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-cyan-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Kişisel Arşiv" ? (
+            ) : item.slug === "kisiselArsiv" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-yellow-200/70 bg-gradient-to-br from-yellow-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-yellow-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(234,179,8,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-yellow-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-xl text-white shadow-md shadow-yellow-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2166,22 +2192,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Kişisel Arşiv
+                  {t("landing.kisiselArsiv.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın.
+                  {t("landing.kisiselArsiv.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Ses & Video",
-                    "Belge & Resim",
-                    "Kişisel Notlar",
-                    "Arama Sistemi",
-                    "Dosya Takibi",
-                    "Güvenli Arşiv",
-                  ].map((feat) => (
+                  {(t.raw("feats.kisiselArsiv") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-amber-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2194,7 +2213,7 @@ export default function Home() {
                   onClick={() => setKisiselArsivPreviewOpen(true)}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-yellow-400 hover:to-amber-400 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2202,17 +2221,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-amber-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Belge Çeviri" ? (
+            ) : item.slug === "belgeCeviri" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-blue-200/70 bg-gradient-to-br from-blue-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-blue-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(59,130,246,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-blue-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-xl text-white shadow-md shadow-blue-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2220,22 +2239,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Belge Çeviri
+                  {t("landing.belgeCeviri.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi.
+                  {t("landing.belgeCeviri.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "PDF → Word",
-                    "PDF → Türkçe Word",
-                    "Görsel OCR",
-                    "Çoklu Dil Desteği",
-                    "Format Koruma",
-                    "Güvenli İşlem",
-                  ].map((feat) => (
+                  {(t.raw("feats.belgeCeviri") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-sky-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2248,7 +2260,7 @@ export default function Home() {
                   onClick={() => setBelgeCeviriPreviewOpen(true)}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-blue-500 hover:to-cyan-500 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2256,17 +2268,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-sky-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Video Çeviri" ? (
+            ) : item.slug === "videoCeviri" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-orange-200/70 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-orange-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(249,115,22,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Önizleme
+                  {t("landing.previewBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-xl text-white shadow-md shadow-orange-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2274,22 +2286,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Video Çeviri
+                  {t("landing.videoCeviri.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Video ve ses dosyalarını metne çevirip Türkçeye aktararak Word/PDF çıktısı hazırlayan yapay zekâ destekli modül.
+                  {t("landing.videoCeviri.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Video → Metin",
-                    "Otomatik Dil Algılama",
-                    "Türkçeye Çeviri",
-                    "Word/PDF Çıktı",
-                    "Eğitim İçeriği Hazırlama",
-                    "Gizlilik Odaklı İşlem",
-                  ].map((feat) => (
+                  {(t.raw("feats.videoCeviri") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-orange-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2298,7 +2303,7 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-orange-200/60 bg-orange-100/50 py-2 text-center text-xs font-bold text-orange-400">
-                  Geliştirme Aşamasında
+                  {t("landing.inDevelopment")}
                 </div>
 
                 <button
@@ -2306,17 +2311,17 @@ export default function Home() {
                   onClick={() => setVideoCeviriPreviewOpen(true)}
                   className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 text-[11px] font-semibold text-orange-600 transition hover:text-orange-800 hover:underline"
                 >
-                  Ekrana Göz At
+                  {t("landing.peekScreen")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </button>
               </div>
-            ) : item.title === "Danışan Yönetimi" ? (
+            ) : item.slug === "danisanYonetimi" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(124,58,237,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-xl text-white shadow-md shadow-violet-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2324,22 +2329,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Danışan Yönetimi
+                  {t("landing.danisanYonetimi.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Danışan kayıtları, detay sayfaları ve randevu yönetimini tek merkezden yönetin.
+                  {t("landing.danisanYonetimi.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Danışan Kayıtları",
-                    "Danışan Detayları",
-                    "Randevu Takibi",
-                    "Ajanda Yönetimi",
-                    "Görüşme Geçmişi",
-                    "Takip Süreci",
-                  ].map((feat) => (
+                  {(t.raw("feats.danisanYonetimi") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-violet-600" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2352,7 +2350,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setDanisanYonetimiSlide(0); setDanisanYonetimiPreviewOpen(true); }}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-violet-600 hover:to-indigo-600 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2360,17 +2358,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-indigo-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Şifa Rehberi" ? (
+            ) : item.slug === "sifaRehberi" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-green-200/70 bg-gradient-to-br from-green-50/90 via-white to-mint-50/60 p-4 shadow-md ring-1 ring-green-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(34,197,94,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-green-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-xl text-white shadow-md shadow-green-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2378,22 +2376,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Şifa Rehberi
+                  {t("landing.sifaRehberi.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Rahatsızlık kayıtları, belirtiler, uygulamalar, doğaltaş, aromaterapi ve destekleyici önerileri tek merkezden yönetin.
+                  {t("landing.sifaRehberi.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Yeni Rahatsızlık Kaydı",
-                    "Kayıtlı Şifa Rehberi",
-                    "Belirtiler / Sebepler",
-                    "Uygulamalar / Yöntemler",
-                    "Doğaltaş & Mineral",
-                    "Aromaterapi",
-                  ].map((feat) => (
+                  {(t.raw("feats.sifaRehberi") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-green-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2406,7 +2397,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setSifaRehberiSlide(0); setSifaRehberiPreviewOpen(true); }}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-green-500 hover:to-emerald-400 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2414,17 +2405,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-green-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Refleksoloji" ? (
+            ) : item.slug === "refleksoloji" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-pink-200/70 bg-gradient-to-br from-pink-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-pink-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(236,72,153,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-pink-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Örnek Ekranlar Var
+                  {t("common.sampleScreensBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-xl text-white shadow-md shadow-pink-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2432,22 +2423,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Refleksoloji
+                  {t("landing.refleksoloji.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Ayak refleksoloji atlası, protokoller, kayıtlı atlaslar, klinik notlar ve seans çalışma alanı.
+                  {t("landing.refleksoloji.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Bölge Haritası",
-                    "Kayıtlı Atlas",
-                    "Protokol Haritası",
-                    "Kayıtlı Protokoller",
-                    "Klinik Notlar",
-                    "Seans Takibi",
-                  ].map((feat) => (
+                  {(t.raw("feats.refleksoloji") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-pink-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2460,7 +2444,7 @@ export default function Home() {
                   onClick={(e) => { e.stopPropagation(); setRefleksolojiSlide(0); setRefleksolojiPreviewOpen(true); }}
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-pink-500 hover:to-purple-500 hover:shadow-md"
                 >
-                  Örnek Ekranları Gör
+                  {t("common.seeSampleScreens")}
                 </button>
 
                 <Link
@@ -2468,17 +2452,17 @@ export default function Home() {
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-pink-700"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Aromaterapi" ? (
+            ) : item.slug === "aromaterapi" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-fuchsia-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.12)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-fuchsia-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Aktif Modül
+                  {t("landing.activeModuleBadge")}
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-xl text-white shadow-md shadow-fuchsia-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2486,11 +2470,11 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {item.title}
+                  {t(item.titleKey)}
                 </h3>
 
                 <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {item.desc}
+                  {t(item.descKey)}
                 </p>
 
                 <Link
@@ -2498,12 +2482,12 @@ export default function Home() {
                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-fuchsia-500 hover:to-purple-500 hover:shadow-md"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                 </Link>
               </div>
-            ) : item.title === "Human Design" ? (
+            ) : item.slug === "humanDesign" ? (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-purple-200/70 bg-gradient-to-br from-purple-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(147,51,234,0.12)]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 text-xl text-white shadow-md shadow-purple-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2511,22 +2495,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  Human Design
+                  {t("landing.humanDesign.title")}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  Bilgi bankasına yüklediğiniz Human Design içeriklerini kullanarak danışanlarınıza kişiye özel profesyonel raporlar ve yorumlar oluşturun.
+                  {t("landing.humanDesign.desc")}
                 </p>
 
                 <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {[
-                    "Bilgi Bankası Yönetimi",
-                    "Kapı ve Kanal Yorumları",
-                    "Merkez Analizleri",
-                    "Tip ve Profil Açıklamaları",
-                    "Otomatik Rapor Oluşturma",
-                    "Kişiye Özel Raporlar",
-                  ].map((feat) => (
+                  {(t.raw("feats.humanDesign") as string[]).map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
                       <Check className="h-2.5 w-2.5 shrink-0 text-indigo-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
@@ -2539,12 +2516,12 @@ export default function Home() {
                   className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-purple-500 hover:to-indigo-600 hover:shadow-md"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Modüle Git
+                  {t("common.moduleGo")}
                 </Link>
               </div>
             ) : (
               <div
-                key={item.title}
+                key={item.slug}
                 className="group relative flex flex-col rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm ring-1 ring-white/50 transition-all duration-200 hover:-translate-y-1 hover:border-violet-200/60 hover:shadow-[0_8px_20px_rgba(109,40,217,0.08)] hover:ring-violet-100/50"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2552,15 +2529,15 @@ export default function Home() {
                 </div>
 
                 <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {item.title}
+                  {t(item.titleKey)}
                 </h3>
 
                 <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {item.desc}
+                  {t(item.descKey)}
                 </p>
 
                 <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
-                  Keşfet
+                  {t("landing.discover")}
                   <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
                 </span>
               </div>
@@ -2578,22 +2555,22 @@ export default function Home() {
               <div className="p-7 sm:p-9 lg:py-10 lg:pl-10 lg:pr-8">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-100/80 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-800 shadow-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                  Android Uygulaması Yayında
+                  {t("mobile.badge")}
                 </div>
 
                 <h2 className="mt-4 text-2xl font-black leading-snug tracking-tight text-slate-950 sm:text-3xl">
-                  Mobil Uygulama ile<br className="hidden sm:block" /> Her Yerden Erişim
+                  {t("mobile.heading1")}<br className="hidden sm:block" /> {t("mobile.heading2")}
                 </h2>
 
                 <p className="mt-3 max-w-md text-sm leading-[1.75] text-slate-600">
-                  Yaşam Sistemi Android uygulamasıyla danışan kayıtlarınıza, modüllerinize ve çalışma alanlarınıza mobil cihazınızdan kolayca ulaşabilirsiniz.
+                  {t("mobile.desc")}
                 </p>
 
                 <ul className="mt-5 space-y-2.5">
                   {[
-                    "Danışan kayıtları ve randevu yönetimi",
-                    "Tüm modüllere mobil erişim",
-                    "Hızlı ve güvenli kullanım",
+                    t("mobile.item1"),
+                    t("mobile.item2"),
+                    t("mobile.item3"),
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -2611,11 +2588,11 @@ export default function Home() {
                     rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 text-sm font-bold text-white no-underline shadow-[0_4px_14px_rgba(5,150,105,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(5,150,105,0.45)]"
                   >
-                    Android Uygulamasını Aç
+                    {t("mobile.openApp")}
                     <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                   </a>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm">
-                    Google Play üzerinden erişilebilir
+                    {t("mobile.googlePlay")}
                   </span>
                 </div>
               </div>
@@ -2644,8 +2621,8 @@ export default function Home() {
                             YS
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-black text-slate-900">Yaşam Sistemi</p>
-                            <p className="text-[9px] font-semibold text-emerald-700">Yaşam Sistemi</p>
+                            <p className="text-[11px] font-black text-slate-900">{t("mobile.phoneAppName")}</p>
+                            <p className="text-[9px] font-semibold text-emerald-700">{t("mobile.phoneAppName")}</p>
                             <p className="mt-0.5 text-[10px] font-bold leading-none text-amber-700">★★★★★</p>
                           </div>
                         </div>
@@ -2653,31 +2630,31 @@ export default function Home() {
                         {/* Action buttons */}
                         <div className="mt-2 flex gap-1.5">
                           <div className="flex-1 rounded-full border border-slate-200 bg-white py-1.5 text-center text-[10px] font-bold text-slate-600">
-                            Kaldır
+                            {t("mobile.phoneRemove")}
                           </div>
                           <div className="flex-1 rounded-full bg-emerald-700 py-1.5 text-center text-[10px] font-bold text-white">
-                            Aç
+                            {t("mobile.phoneOpen")}
                           </div>
                         </div>
 
                         {/* Status */}
                         <div className="mt-2 flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-1.5">
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-                          <p className="text-[9px] font-black text-emerald-700">Android uygulaması yayında</p>
+                          <p className="text-[9px] font-black text-emerald-700">{t("mobile.phoneStatus")}</p>
                         </div>
 
                         {/* Updates */}
                         <div className="mt-2.5 px-0.5">
                           <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-black text-slate-800">Yenilikler</p>
-                            <span className="text-[8px] text-slate-600">Haz 2026</span>
+                            <p className="text-[9px] font-black text-slate-800">{t("mobile.phoneNews")}</p>
+                            <span className="text-[8px] text-slate-600">{t("mobile.phoneNewsDate")}</span>
                           </div>
-                          <p className="mt-0.5 text-[8px] leading-4 text-slate-500">Güvenlik güncellemeleri yapıldı</p>
+                          <p className="mt-0.5 text-[8px] leading-4 text-slate-500">{t("mobile.phoneNewsDetail")}</p>
                         </div>
 
                         {/* Device tags */}
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {["Telefon", "Tablet"].map((tag) => (
+                          {[t("mobile.phoneTagPhone"), t("mobile.phoneTagTablet")].map((tag) => (
                             <span key={tag} className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[8px] font-semibold text-slate-600">
                               <Check className="h-1.5 w-1.5 text-emerald-500" strokeWidth={3} />
                               {tag}
@@ -2705,7 +2682,7 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {featureItems.map((item, index) => (
             <div
-              key={item.title}
+              key={item.slug}
               className={`flex flex-col gap-3 p-5 ${
                 index !== featureItems.length - 1
                   ? "xl:border-r xl:border-white/10"
@@ -2717,9 +2694,9 @@ export default function Home() {
               </div>
 
               <div>
-                <h3 className="text-sm font-black text-white">{item.title}</h3>
+                <h3 className="text-sm font-black text-white">{t(item.titleKey)}</h3>
                 <p className="mt-1.5 text-xs leading-5 text-indigo-100/90">
-                  {item.desc}
+                  {t(item.descKey)}
                 </p>
               </div>
             </div>
@@ -2736,21 +2713,19 @@ export default function Home() {
           <div className="relative z-10 grid grid-cols-1 items-center gap-7 lg:grid-cols-[1.35fr_1fr] lg:gap-10 xl:gap-12">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-800/90">
-                🔒 Güven İlkemiz
+                {t("trust.badge")}
               </p>
               <h2
                 id="trust-principles-heading"
                 className="mt-2 text-xl font-black leading-snug text-slate-950 sm:text-2xl xl:text-[1.75rem]"
               >
-                Yaşam Sistemi yalnızca bir yazılım değil, uzmanların yıllarca
-                oluşturduğu emek ve bilgi birikimini koruyan güvenli bir çalışma
-                alanıdır.
+                {t("trust.heading")}
               </h2>
 
               <ul className="mt-4 space-y-2">
-                {trustPrinciples.map((item) => (
+                {trustPrincipleKeys.map((key) => (
                   <li
-                    key={item}
+                    key={key}
                     className="flex items-start gap-3 rounded-[18px] border border-white/80 bg-white/80 px-4 py-2.5 shadow-sm transition duration-200 hover:border-violet-200/80 hover:bg-white/95"
                   >
                     <span
@@ -2760,14 +2735,14 @@ export default function Home() {
                       <Check className="h-3.5 w-3.5" strokeWidth={2.75} />
                     </span>
                     <span className="text-sm font-bold leading-5 text-slate-800">
-                      {item}
+                      {t(key)}
                     </span>
                   </li>
                 ))}
               </ul>
 
               <p className="mt-4 border-t border-violet-200/60 pt-4 text-xs font-semibold italic text-slate-600">
-                &ldquo;Güven bizim için özellik değil, sistemin temelidir.&rdquo;
+                {t("trust.quote")}
               </p>
             </div>
 
@@ -2785,10 +2760,10 @@ export default function Home() {
                   </div>
                 </div>
                 <p className="mt-5 text-center text-xs font-black uppercase tracking-[0.2em] text-violet-800/90">
-                  Gizlilik · Güven · Saygı
+                  {t("trust.shieldLabel")}
                 </p>
                 <p className="mt-1.5 max-w-[220px] text-center text-sm font-semibold leading-5 text-slate-600">
-                  Uzman emeğiniz ve danışan mahremiyetiniz önceliğimizdir.
+                  {t("trust.shieldSub")}
                 </p>
               </div>
             </div>
@@ -2798,26 +2773,26 @@ export default function Home() {
         <footer className="mt-6 border-t border-slate-200/60 py-6" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
             <p className="text-sm font-semibold text-slate-500">
-              © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
+              {t("footer.copyright")}
             </p>
-            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label="Footer navigasyon">
+            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label={t("footer.nav")}>
               <Link
                 href="/gizlilik-politikasi"
                 className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
-                Gizlilik Politikası
+                {t("footer.privacy")}
               </Link>
               <Link
                 href="/kullanim-sartlari"
                 className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
-                Kullanım Şartları
+                {t("footer.terms")}
               </Link>
               <Link
                 href="/iletisim"
                 className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
-                İletişim
+                {t("footer.contact")}
               </Link>
             </nav>
           </div>
@@ -2830,7 +2805,7 @@ export default function Home() {
           onClick={() => setNumerologiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Numeroloji modülü ön izlemesi"
+          aria-label={t("preview.numeroloji.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -2840,24 +2815,24 @@ export default function Home() {
               type="button"
               onClick={() => setNumerologiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
             {/* Modal header */}
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-violet-200/70 bg-violet-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
-                Numeroloji Modülü
+                {t("preview.numeroloji.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Numeroloji Analizi — Ürün Ön İzlemesi
+                {t("preview.numeroloji.title")}
               </h4>
-              <p className="mt-1 text-sm text-slate-400">Doğum tarihinizden yaşam haritanızı çıkarın, detaylı analizleri gözlemleyin.</p>
+              <p className="mt-1 text-sm text-slate-400">{t("preview.numeroloji.subtitle")}</p>
             </div>
             <div className="overflow-hidden rounded-xl">
               <img
                 src="/assets/numeroloji-preview.png"
-                alt="Numeroloji Modülü — Ön İzleme"
+                alt={t("preview.numeroloji.alt")}
                 className="w-full rounded-xl"
               />
             </div>
@@ -2871,7 +2846,7 @@ export default function Home() {
           onClick={() => setDogaltasPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Doğaltaş modülü ön izlemesi"
+          aria-label={t("preview.dogaltas.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -2881,7 +2856,7 @@ export default function Home() {
               type="button"
               onClick={() => setDogaltasPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
@@ -2889,13 +2864,13 @@ export default function Home() {
             {/* Header */}
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-teal-400/40 bg-teal-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-teal-300">
-                Doğaltaş Modülü
+                {t("preview.dogaltas.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Doğaltaş Modülü — Gerçek Ürün Ekranları
+                {t("preview.dogaltas.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Kayıt, arama, filtreleme, kombinasyon ve bilgi yönetimini tek merkezden yönetin.
+                {t("preview.dogaltas.subtitle")}
               </p>
             </div>
 
@@ -2903,7 +2878,7 @@ export default function Home() {
             <div className="overflow-hidden rounded-xl">
               <img
                 src="/assets/dogaltas-preview.png"
-                alt="Doğaltaş Modülü — Ön İzleme"
+                alt={t("preview.dogaltas.alt")}
                 className="w-full rounded-xl"
               />
             </div>
@@ -2911,25 +2886,13 @@ export default function Home() {
             {/* Description + feature badges */}
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Doğaltaş Modülü ile Tüm Taş Verilerinizi Tek Merkezden Yönetin
+                {t("preview.dogaltas.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Doğaltaş Modülü; taş kayıtları, mineral bankası, kombinasyon yönetimi, gelişmiş
-                arama ve filtreleme araçlarıyla tüm verilerinizi tek merkezde toplar. Yüzlerce
-                kayıt arasında saniyeler içinde arama yapabilir, kategorilere göre filtreleme
-                uygulayabilir ve detaylı taş bilgilerine kolayca erişebilirsiniz.
+                {t("preview.dogaltas.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  "Taş Kayıt Yönetimi",
-                  "Mineral Bankası",
-                  "Kombinasyon Yönetimi",
-                  "Akıllı Arama",
-                  "Kategori Filtreleme",
-                  "Detay Sayfaları",
-                  "İstatistikler",
-                  "Görsel Arşivi",
-                ].map((feat) => (
+                {(t.raw("feats.dogaltas") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -2950,7 +2913,7 @@ export default function Home() {
           onClick={() => setKisiselArsivPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Kişisel Arşiv modülü ön izlemesi"
+          aria-label={t("preview.kisiselArsiv.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -2960,40 +2923,40 @@ export default function Home() {
               type="button"
               onClick={() => setKisiselArsivPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
 
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
-                Kişisel Arşiv Modülü
+                {t("preview.kisiselArsiv.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Kişisel Arşiv — Gerçek Ürün Ekranı
+                {t("preview.kisiselArsiv.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Ses, video, belge, resim ve notlarınızı tek merkezde güvenle saklayın.
+                {t("preview.kisiselArsiv.subtitle")}
               </p>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
               <img
                 src="/assets/kisisel-arsiv-preview.png"
-                alt="Kişisel Arşiv Önizleme"
+                alt={t("preview.kisiselArsiv.alt")}
                 className="w-full max-h-[75vh] object-contain rounded-2xl"
               />
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Kişisel Arşiv ile Güvenli Kayıt Sistemi
+                {t("preview.kisiselArsiv.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Her türlü kişisel dosyayı kategorilere göre saklayın, arayın ve takip edin.
+                {t("preview.kisiselArsiv.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["Ses & Video", "Belge & Resim", "Kişisel Notlar", "Arama Sistemi", "Dosya Takibi", "Güvenli Arşiv"].map((feat) => (
+                {(t.raw("feats.kisiselArsiv") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3014,7 +2977,7 @@ export default function Home() {
           onClick={() => setBelgeCeviriPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Belge Çeviri modülü ön izlemesi"
+          aria-label={t("preview.belgeCeviri.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3024,40 +2987,40 @@ export default function Home() {
               type="button"
               onClick={() => setBelgeCeviriPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
 
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-sky-400/40 bg-sky-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-300">
-                Belge Çeviri Modülü
+                {t("preview.belgeCeviri.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Belge Çeviri — Gerçek Ürün Ekranı
+                {t("preview.belgeCeviri.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                PDF, Word ve görselleri yapay zekâ ile dönüştürün, Türkçeye çevirin.
+                {t("preview.belgeCeviri.subtitle")}
               </p>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
               <img
                 src="/assets/belge-ceviri-preview.png"
-                alt="Belge Çeviri Önizleme"
+                alt={t("preview.belgeCeviri.alt")}
                 className="w-full max-h-[75vh] object-contain rounded-2xl"
               />
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Belge Çeviri ile Hızlı Dönüşüm
+                {t("preview.belgeCeviri.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                PDF belgelerini Word'e dönüştürün, Türkçeye çevirin; taranmış görsellerden metin okuyun.
+                {t("preview.belgeCeviri.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["PDF → Word", "PDF → Türkçe Word", "Görsel OCR", "Çoklu Dil Desteği", "Format Koruma", "Güvenli İşlem"].map((feat) => (
+                {(t.raw("feats.belgeCeviri") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3078,7 +3041,7 @@ export default function Home() {
           onClick={() => setVideoCeviriPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Video Çeviri modülü ön izlemesi"
+          aria-label={t("preview.videoCeviri.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3088,7 +3051,7 @@ export default function Home() {
               type="button"
               onClick={() => setVideoCeviriPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
@@ -3096,20 +3059,20 @@ export default function Home() {
             <div className="mb-4 text-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Geliştirme Aşamasında
+                {t("preview.videoCeviri.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Video Çeviri — Modül Ön İzlemesi
+                {t("preview.videoCeviri.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.
+                {t("preview.videoCeviri.subtitle")}
               </p>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
               <img
                 src="/assets/video-ceviri-preview.png"
-                alt="Video Çeviri Önizleme"
+                alt={t("preview.videoCeviri.alt")}
                 className="w-full max-h-[75vh] object-contain rounded-2xl"
               />
             </div>
@@ -3120,15 +3083,14 @@ export default function Home() {
                   ⚠️
                 </span>
                 <div>
-                  <p className="text-sm font-black text-white">Geliştirme Aşamasında</p>
+                  <p className="text-sm font-black text-white">{t("preview.videoCeviri.devTitle")}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-400">
-                    Bu modül aktif kullanıma açılmadan önce altyapı ve üyelik planları tamamlanacaktır.
-                    Dosya limitleri altyapı paketine göre artırılacaktır.
+                    {t("preview.videoCeviri.devDesc")}
                   </p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["Video → Metin", "Otomatik Dil Algılama", "Türkçeye Çeviri", "Word/PDF Çıktı", "Eğitim İçeriği Hazırlama", "Gizlilik Odaklı İşlem"].map((feat) => (
+                {(t.raw("feats.videoCeviri") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3149,7 +3111,7 @@ export default function Home() {
           onClick={() => setDanisanYonetimiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Danışan Yönetimi modülü ön izlemesi"
+          aria-label={t("preview.danisanYonetimi.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3159,27 +3121,27 @@ export default function Home() {
               type="button"
               onClick={() => setDanisanYonetimiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
 
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-indigo-400/40 bg-indigo-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-300">
-                Danışan Yönetimi Modülü
+                {t("preview.danisanYonetimi.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Danışan Yönetimi — Gerçek Ürün Ekranları
+                {t("preview.danisanYonetimi.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Danışan kayıtları, randevu ve ajanda yönetimini tek merkezden yönetin.
+                {t("preview.danisanYonetimi.subtitle")}
               </p>
             </div>
 
             <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-indigo-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
                 <span className="text-[11px] font-bold text-indigo-300">
-                  {danisanYonetimiGallerySlides[danisanYonetimiSlide].label}
+                  {t(danisanYonetimiGallerySlides[danisanYonetimiSlide].label)}
                 </span>
                 <span className="text-[10px] text-slate-500">
                   {danisanYonetimiSlide + 1} / {danisanYonetimiGallerySlides.length}
@@ -3190,7 +3152,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setDanisanYonetimiSlide((s) => (s - 1 + danisanYonetimiGallerySlides.length) % danisanYonetimiGallerySlides.length)}
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-indigo-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Önceki ekran"
+                aria-label={t("common.prevScreen")}
               >
                 ‹
               </button>
@@ -3198,7 +3160,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setDanisanYonetimiSlide((s) => (s + 1) % danisanYonetimiGallerySlides.length)}
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-indigo-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Sonraki ekran"
+                aria-label={t("common.nextScreen")}
               >
                 ›
               </button>
@@ -3207,16 +3169,16 @@ export default function Home() {
                 <img
                   key={danisanYonetimiGallerySlides[danisanYonetimiSlide].src}
                   src={danisanYonetimiGallerySlides[danisanYonetimiSlide].src}
-                  alt={"Danışan Yönetimi — " + danisanYonetimiGallerySlides[danisanYonetimiSlide].label}
+                  alt={t("preview.danisanYonetimi.altPrefix") + t(danisanYonetimiGallerySlides[danisanYonetimiSlide].label)}
                   className="w-full"
                 />
                 {danisanYonetimiGallerySlides[danisanYonetimiSlide].cover && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/90 to-transparent px-5 py-5">
                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">
-                      Danışan Yönetimi
+                      {t("preview.danisanYonetimi.coverBadge")}
                     </p>
                     <p className="mt-0.5 text-sm font-bold text-white">
-                      Danışan Yolculuğu — Genel Bakış
+                      {t("preview.danisanYonetimi.coverTitle")}
                     </p>
                   </div>
                 )}
@@ -3230,20 +3192,20 @@ export default function Home() {
                   type="button"
                   onClick={() => setDanisanYonetimiSlide(idx)}
                   className={"rounded-full transition-all duration-200 " + (idx === danisanYonetimiSlide ? "h-1.5 w-5 bg-indigo-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400")}
-                  aria-label={slide.label}
+                  aria-label={t(slide.label)}
                 />
               ))}
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Danışan Yönetimi ile Profesyonel Takip Sistemi
+                {t("preview.danisanYonetimi.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Danışan kayıtları, detay sayfaları, randevu ve ajanda yönetimini tek merkezden yönetin.
+                {t("preview.danisanYonetimi.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["Danışan Kayıtları", "Danışan Detayları", "Randevu Takibi", "Ajanda Yönetimi", "Görüşme Geçmişi", "Takip Süreci"].map((feat) => (
+                {(t.raw("feats.danisanYonetimi") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3264,7 +3226,7 @@ export default function Home() {
           onClick={() => setSifaRehberiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Şifa Rehberi modülü ön izlemesi"
+          aria-label={t("preview.sifaRehberi.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3274,27 +3236,27 @@ export default function Home() {
               type="button"
               onClick={() => setSifaRehberiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
 
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">
-                Şifa Rehberi Modülü
+                {t("preview.sifaRehberi.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Şifa Rehberi — Gerçek Ürün Ekranları
+                {t("preview.sifaRehberi.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici önerileri tek merkezden yönetin.
+                {t("preview.sifaRehberi.subtitle")}
               </p>
             </div>
 
             <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-emerald-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
                 <span className="text-[11px] font-bold text-emerald-300">
-                  {sifaRehberiGallerySlides[sifaRehberiSlide].label}
+                  {t(sifaRehberiGallerySlides[sifaRehberiSlide].label)}
                 </span>
                 <span className="text-[10px] text-slate-500">
                   {sifaRehberiSlide + 1} / {sifaRehberiGallerySlides.length}
@@ -3305,7 +3267,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setSifaRehberiSlide((s) => (s - 1 + sifaRehberiGallerySlides.length) % sifaRehberiGallerySlides.length)}
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-emerald-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Önceki ekran"
+                aria-label={t("common.prevScreen")}
               >
                 ‹
               </button>
@@ -3313,7 +3275,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setSifaRehberiSlide((s) => (s + 1) % sifaRehberiGallerySlides.length)}
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-emerald-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Sonraki ekran"
+                aria-label={t("common.nextScreen")}
               >
                 ›
               </button>
@@ -3321,7 +3283,7 @@ export default function Home() {
               <img
                 key={sifaRehberiGallerySlides[sifaRehberiSlide].src}
                 src={sifaRehberiGallerySlides[sifaRehberiSlide].src}
-                alt={"Şifa Rehberi — " + sifaRehberiGallerySlides[sifaRehberiSlide].label}
+                alt={t("preview.sifaRehberi.altPrefix") + t(sifaRehberiGallerySlides[sifaRehberiSlide].label)}
                 className="w-full"
               />
             </div>
@@ -3333,21 +3295,20 @@ export default function Home() {
                   type="button"
                   onClick={() => setSifaRehberiSlide(idx)}
                   className={"rounded-full transition-all duration-200 " + (idx === sifaRehberiSlide ? "h-1.5 w-5 bg-emerald-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400")}
-                  aria-label={slide.label}
+                  aria-label={t(slide.label)}
                 />
               ))}
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Şifa Rehberi ile Kapsamlı Destek Yönetimi
+                {t("preview.sifaRehberi.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Rahatsızlık kayıtları, belirtiler, sebepler, uygulamalar, doğaltaş ve aromaterapi
-                önerilerini tek merkezden yönetin.
+                {t("preview.sifaRehberi.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["Yeni Rahatsızlık Kaydı", "Kayıtlı Şifa Rehberi", "Belirtiler / Sebepler", "Uygulamalar / Yöntemler", "Doğaltaş & Mineral", "Aromaterapi"].map((feat) => (
+                {(t.raw("feats.sifaRehberi") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3368,7 +3329,7 @@ export default function Home() {
           onClick={() => setRefleksolojiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Refleksoloji modülü ön izlemesi"
+          aria-label={t("preview.refleksoloji.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3379,7 +3340,7 @@ export default function Home() {
               type="button"
               onClick={() => setRefleksolojiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
@@ -3387,13 +3348,13 @@ export default function Home() {
             {/* Header */}
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-violet-400/40 bg-violet-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">
-                Refleksoloji Modülü
+                {t("preview.refleksoloji.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Refleksoloji — Gerçek Ürün Ekranları
+                {t("preview.refleksoloji.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Atlas, protokol, klinik notlar ve bölge haritasından oluşan profesyonel seans sistemi.
+                {t("preview.refleksoloji.subtitle")}
               </p>
             </div>
 
@@ -3402,7 +3363,7 @@ export default function Home() {
               {/* Slide etiketi */}
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-violet-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
                 <span className="text-[11px] font-bold text-violet-300">
-                  {refleksolojiGallerySlides[refleksolojiSlide].label}
+                  {t(refleksolojiGallerySlides[refleksolojiSlide].label)}
                 </span>
                 <span className="text-[10px] text-slate-500">
                   {refleksolojiSlide + 1} / {refleksolojiGallerySlides.length}
@@ -3414,7 +3375,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setRefleksolojiSlide((s) => (s - 1 + refleksolojiGallerySlides.length) % refleksolojiGallerySlides.length)}
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Önceki ekran"
+                aria-label={t("common.prevScreen")}
               >
                 ‹
               </button>
@@ -3424,7 +3385,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setRefleksolojiSlide((s) => (s + 1) % refleksolojiGallerySlides.length)}
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:bg-slate-800/80 hover:text-white"
-                aria-label="Sonraki ekran"
+                aria-label={t("common.nextScreen")}
               >
                 ›
               </button>
@@ -3433,7 +3394,7 @@ export default function Home() {
               <img
                 key={refleksolojiGallerySlides[refleksolojiSlide].src}
                 src={refleksolojiGallerySlides[refleksolojiSlide].src}
-                alt={"Refleksoloji — " + refleksolojiGallerySlides[refleksolojiSlide].label}
+                alt={t("preview.refleksoloji.altPrefix") + t(refleksolojiGallerySlides[refleksolojiSlide].label)}
                 className="w-full"
               />
             </div>
@@ -3446,7 +3407,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setRefleksolojiSlide(idx)}
                   className={"rounded-full transition-all duration-200 " + (idx === refleksolojiSlide ? "h-1.5 w-5 bg-violet-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400")}
-                  aria-label={slide.label}
+                  aria-label={t(slide.label)}
                 />
               ))}
             </div>
@@ -3454,14 +3415,13 @@ export default function Home() {
             {/* Özellik paneli */}
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Refleksoloji Modülü ile Profesyonel Seans Sistemi
+                {t("preview.refleksoloji.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Bölge haritası, kayıtlı atlas, protokol yönetimi, klinik notlar ve seans takibiyle
-                eksiksiz bir refleksoloji çalışma ortamı sunar.
+                {t("preview.refleksoloji.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {["Bölge Haritası", "Kayıtlı Atlas", "Protokol Haritası", "Kayıtlı Protokoller", "Klinik Notlar", "Seans Takibi"].map((feat) => (
+                {(t.raw("feats.refleksoloji") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3482,7 +3442,7 @@ export default function Home() {
           onClick={() => setBiyoenerjiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Biyoenerji modülü ön izlemesi"
+          aria-label={t("preview.biyoenerji.aria")}
         >
           <div
             className="relative mt-6 w-full max-w-4xl"
@@ -3493,7 +3453,7 @@ export default function Home() {
               type="button"
               onClick={() => setBiyoenerjiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={t("common.close")}
             >
               ×
             </button>
@@ -3501,13 +3461,13 @@ export default function Home() {
             {/* Header */}
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-cyan-400/40 bg-cyan-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">
-                Biyoenerji Modülü
+                {t("preview.biyoenerji.badge")}
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Biyoenerji — Gerçek Ürün Ekranları
+                {t("preview.biyoenerji.title")}
               </h4>
               <p className="mt-1 text-sm text-slate-400">
-                Seans yönetimi, enerji bedenleri, bilinçaltı, semboller ve çakralardan oluşan kapsamlı çalışma sistemi.
+                {t("preview.biyoenerji.subtitle")}
               </p>
             </div>
 
@@ -3516,7 +3476,7 @@ export default function Home() {
               {/* Slide label + counter */}
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
                 <span className="text-[11px] font-bold text-cyan-300">
-                  {biyoenerjiGallerySlides[biyoenerjiSlide].label}
+                  {t(biyoenerjiGallerySlides[biyoenerjiSlide].label)}
                 </span>
                 <span className="text-[10px] text-slate-500">
                   {biyoenerjiSlide + 1}&thinsp;/&thinsp;{biyoenerjiGallerySlides.length}
@@ -3528,7 +3488,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setBiyoenerjiSlide(s => (s - 1 + biyoenerjiGallerySlides.length) % biyoenerjiGallerySlides.length)}
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-cyan-400/40 hover:text-white hover:bg-slate-800/80"
-                aria-label="Önceki ekran"
+                aria-label={t("common.prevScreen")}
               >
                 ‹
               </button>
@@ -3538,7 +3498,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setBiyoenerjiSlide(s => (s + 1) % biyoenerjiGallerySlides.length)}
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-cyan-400/40 hover:text-white hover:bg-slate-800/80"
-                aria-label="Sonraki ekran"
+                aria-label={t("common.nextScreen")}
               >
                 ›
               </button>
@@ -3546,7 +3506,7 @@ export default function Home() {
               <img
                 key={biyoenerjiGallerySlides[biyoenerjiSlide].src}
                 src={biyoenerjiGallerySlides[biyoenerjiSlide].src}
-                alt={`Biyoenerji Modülü — ${biyoenerjiGallerySlides[biyoenerjiSlide].label}`}
+                alt={t("preview.biyoenerji.altPrefix") + t(biyoenerjiGallerySlides[biyoenerjiSlide].label)}
                 className="w-full"
               />
             </div>
@@ -3559,7 +3519,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setBiyoenerjiSlide(idx)}
                   className={`rounded-full transition-all duration-200 ${idx === biyoenerjiSlide ? "h-1.5 w-5 bg-cyan-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400"}`}
-                  aria-label={slide.label}
+                  aria-label={t(slide.label)}
                   aria-current={idx === biyoenerjiSlide ? "true" : undefined}
                 />
               ))}
@@ -3568,21 +3528,13 @@ export default function Home() {
             {/* Feature panel */}
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
-                Biyoenerji Modülü ile Kapsamlı Enerji Çalışması
+                {t("preview.biyoenerji.panelTitle")}
               </h5>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Biyoenerji Modülü; seans yönetimi, enerji bedenleri analizi, bilinçaltı sebepleri kütüphanesi,
-                imajinasyon rehberleri, sembol dili ve çakra kütüphanesiyle bütünsel bir çalışma sistemi sunar.
+                {t("preview.biyoenerji.panelDesc")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {[
-                  "Biyoenerji Seansları",
-                  "Enerji Bedenleri",
-                  "Bilinçaltı Sebepleri",
-                  "İmajinasyon Kütüphanesi",
-                  "Sembol Dili",
-                  "Çakra Kütüphanesi",
-                ].map((feat) => (
+                {(t.raw("feats.biyoenerji") as string[]).map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
@@ -3626,7 +3578,7 @@ export default function Home() {
                     ? "Şifre Desteği"
                     : authModalView === "membership"
                       ? "Üyelik İletişimi"
-                      : "Uzman Paneli"}
+                      : t("login.badge")}
                 </div>
 
                 <h3
@@ -3637,15 +3589,15 @@ export default function Home() {
                     ? "Giriş Sorunu Bildir"
                     : authModalView === "membership"
                       ? "Üyelik ve Fiyat Bilgisi"
-                      : "Giriş Yap"}
+                      : t("login.title")}
                 </h3>
 
-                <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                <p className="mt-1.5 text-sm leading-6 text-slate-500">
                   {authModalView === "support"
                     ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
                     : authModalView === "membership"
                       ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize doğrudan mesaj bırakabilirsiniz."
-                      : "Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz."}
+                      : t("login.subtitle")}
                 </p>
               </div>
 
@@ -3679,14 +3631,14 @@ export default function Home() {
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  E-Posta
+                  {t("login.emailLabel")}
                 </label>
 
                 <input
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="uzman@test.com"
+                  placeholder={t("login.emailPlaceholder")}
                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   autoFocus
                 />
@@ -3694,7 +3646,7 @@ export default function Home() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Şifre
+                  {t("login.passwordLabel")}
                 </label>
 
                 <input
@@ -3719,7 +3671,7 @@ export default function Home() {
                     }}
                     className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline focus-visible:text-violet-900 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                   >
-                    Şifremi Unuttum
+                    {t("login.forgot")}
                   </button>
                 </div>
               </div>
@@ -3731,7 +3683,7 @@ export default function Home() {
               disabled={loading}
               className="relative z-10 mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? "Giriş Yapılıyor..." : "Uzman Paneline Gir →"}
+              {loading ? t("login.submitting") : t("login.submit")}
             </button>
 
             {message && (

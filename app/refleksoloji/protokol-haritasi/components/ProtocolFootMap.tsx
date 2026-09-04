@@ -2,21 +2,25 @@
 
 import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  ATLAS_IMAGE_SRC,
-  atlasBackgroundLabel,
-  resolveAtlasBackgroundKey,
-} from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
+import { ATLAS_IMAGE_SRC } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
 import { THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
 import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
-import type { ColoredDisplayRegion, ProtocolFootView } from "../types";
+import {
+  ALL_ATLAS_GROUPS,
+  ATLAS_GROUP_LABEL,
+  type AtlasBackgroundGroup,
+  type RenderRegion,
+} from "@/lib/refleksoloji/atlasRegionsCore";
 
 type ProtocolFootMapProps = {
-  regions: ColoredDisplayRegion[];
-  footView: ProtocolFootView;
+  /** Yalnız aktif görünüme (grup) ait bölgeler — çözümleyici filtreler. */
+  regions: RenderRegion[];
+  footView: AtlasBackgroundGroup;
+  /** Anlamlı görünümler (en az bir bölgesi olanlar). Boşsa üç grup da gösterilir. */
+  availableViews: AtlasBackgroundGroup[];
   missingOrgans: string[];
-  onFootViewChange: (view: ProtocolFootView) => void;
+  onFootViewChange: (view: AtlasBackgroundGroup) => void;
   /** Kayıtlı protokol detay — daha belirgin görünüm kontrolleri */
   prominentControls?: boolean;
   /** Üst kart başlığı dışarıda — çift başlık ve fazla çerçeveyi kaldırır */
@@ -26,6 +30,7 @@ type ProtocolFootMapProps = {
 export function ProtocolFootMap({
   regions,
   footView,
+  availableViews,
   missingOrgans,
   onFootViewChange,
   prominentControls = false,
@@ -35,9 +40,14 @@ export function ProtocolFootMap({
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
 
-  const backgroundKey = resolveAtlasBackgroundKey(footView, null);
-  const imageSrc = ATLAS_IMAGE_SRC[backgroundKey];
-  const imageLabel = atlasBackgroundLabel(backgroundKey);
+  // Görünüm = arka plan grubu (taban / yan_ic / yan_dis). Bölgeler zaten bu gruba
+  // göre çözümlendiği için arka plan DOĞRUDAN görünümden gelir. Yan görünümde artık
+  // organsız `resolveAtlasBackgroundKey(view, null)` → yan_dis fallback'i YOK; böylece
+  // yan_ic (mesane/rahim/prostat) bölgeleri asla yan_dis üzerine sızmaz.
+  const imageSrc = ATLAS_IMAGE_SRC[footView];
+  const imageLabel = ATLAS_GROUP_LABEL[footView];
+  // Gösterilecek görünüm düğmeleri: anlamlı olanlar; hiç yoksa üç grubun tamamı.
+  const viewButtons = availableViews.length > 0 ? availableViews : ALL_ATLAS_GROUPS;
 
   const imageRect = useMemo(
     () => computeObjectContainRect(containerSize.w, containerSize.h, naturalSize.w, naturalSize.h),
@@ -89,47 +99,33 @@ export function ProtocolFootMap({
               </>
             )}
           </div>
-          <div className={`flex gap-1.5 ${prominentControls ? "rounded-2xl bg-violet-100/60 p-1.5 ring-1 ring-violet-200/80" : ""}`}>
-            <button
-              type="button"
-              onClick={() => onFootViewChange("taban")}
-              aria-pressed={footView === "taban"}
-              className={
-                prominentControls
-                  ? `rounded-xl border-2 px-4 py-2 text-sm font-black shadow-md transition ${
-                      footView === "taban"
-                        ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
-                        : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
-                    }`
-                  : `rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
-                      footView === "taban"
-                        ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                        : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-                    }`
-              }
-            >
-              Taban
-            </button>
-            <button
-              type="button"
-              onClick={() => onFootViewChange("yan")}
-              aria-pressed={footView === "yan"}
-              className={
-                prominentControls
-                  ? `rounded-xl border-2 px-4 py-2 text-sm font-black shadow-md transition ${
-                      footView === "yan"
-                        ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
-                        : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
-                    }`
-                  : `rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
-                      footView === "yan"
-                        ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                        : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-                    }`
-              }
-            >
-              Yan
-            </button>
+          <div className={`flex flex-wrap gap-1.5 ${prominentControls ? "rounded-2xl bg-violet-100/60 p-1.5 ring-1 ring-violet-200/80" : ""}`}>
+            {viewButtons.map((view) => {
+              const active = footView === view;
+              return (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => onFootViewChange(view)}
+                  aria-pressed={active}
+                  className={
+                    prominentControls
+                      ? `rounded-xl border-2 px-4 py-2 text-sm font-black shadow-md transition ${
+                          active
+                            ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
+                            : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
+                        }`
+                      : `rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
+                          active
+                            ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
+                            : "border-violet-200/80 bg-violet-50/80 text-violet-800"
+                        }`
+                  }
+                >
+                  {ATLAS_GROUP_LABEL[view]}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -184,6 +180,9 @@ export function ProtocolFootMap({
                     const top = (region.cy! - region.ry!) * 100;
                     const width = region.rx! * 2 * 100;
                     const height = region.ry! * 2 * 100;
+                    // Atlas ile parite: Bölge Haritası/Kayıtlı Atlas oval/rect döndürmeyi
+                    // (RegionShape) merkez etrafında uygular. Aynı contract'ı burada da uygula.
+                    const angle = region.angle ?? 0;
 
                     return (
                       <div
@@ -194,6 +193,8 @@ export function ProtocolFootMap({
                           top: `${top}%`,
                           width: `${width}%`,
                           height: `${height}%`,
+                          transform: angle !== 0 ? `rotate(${angle}deg)` : undefined,
+                          transformOrigin: "center center",
                         }}
                       >
                         <div

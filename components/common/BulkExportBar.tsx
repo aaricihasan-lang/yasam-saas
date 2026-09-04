@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export type BulkExportBarProps = {
   selectedCount: number;
   totalCount: number;
@@ -16,7 +18,7 @@ export type BulkExportBarProps = {
   isDeleting?: boolean;
   /** "Tümünü Sil" aksiyonu (çok güvenli, doğrulama kodlu modal tetikler) */
   onDeleteAll?: () => void;
-  /** Seç butonu etiketi (varsayılan "Tümünü Seç"). Örn. "Görünenleri Seç" */
+  /** Seç butonu etiketi (varsayılan i18n `common.bulk.selectAll`). Örn. "Görünenleri Seç" */
   selectAllLabel?: string;
   /** Seç butonunda gösterilecek sayı (varsayılan totalCount). Örn. görünen kayıt sayısı */
   selectAllCount?: number;
@@ -45,12 +47,13 @@ export function BulkExportBar({
   onDeleteSelected,
   isDeleting,
   onDeleteAll,
-  selectAllLabel = "Tümünü Seç",
+  selectAllLabel,
   selectAllCount,
   hideSelectAll,
   exportSelectedLabel,
   hideWordOnMobile,
 }: BulkExportBarProps) {
+  const t = useTranslations("common");
   const busy = Boolean(isExporting) || Boolean(isDeleting);
   const hasExport = Boolean(onExportSelected || onExportAll);
   const selectCountDisplay = selectAllCount ?? totalCount;
@@ -62,7 +65,7 @@ export function BulkExportBar({
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-2 shadow-sm sm:gap-1.5 sm:py-1.5">
         <span className="shrink-0 rounded-full border border-blue-300 bg-white px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-blue-800 shadow-sm">
-          {selectedCount > 0 ? `✓ ${selectedCount} seçili` : "Seçim yok"}
+          {selectedCount > 0 ? `✓ ${t("bulk.selected", { n: selectedCount })}` : t("bulk.noSelection")}
         </span>
 
         {!hideSelectAll && (
@@ -72,7 +75,7 @@ export function BulkExportBar({
             disabled={busy}
             className="rounded-lg border border-slate-200 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           >
-            {selectAllLabel} ({selectCountDisplay})
+            {selectAllLabel ?? t("bulk.selectAll")} ({selectCountDisplay})
           </button>
         )}
 
@@ -83,7 +86,7 @@ export function BulkExportBar({
             disabled={busy}
             className="rounded-lg border border-slate-200 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           >
-            Seçimi Temizle
+            {t("bulk.clearSelection")}
           </button>
         )}
 
@@ -98,7 +101,7 @@ export function BulkExportBar({
                 disabled={selectedCount === 0 || busy}
                 className={`rounded-lg border border-blue-400 bg-blue-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
               >
-                {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri"} (${selectedCount})`}
+                {busy ? `⏳ ${t("bulk.preparing")}` : `📄 ${exportSelectedLabel ?? t("bulk.exportSelectedShort")} (${selectedCount})`}
               </button>
             )}
 
@@ -109,7 +112,7 @@ export function BulkExportBar({
                 disabled={busy || filteredCount === 0}
                 className={`rounded-lg border border-violet-400 bg-violet-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
               >
-                {busy ? "⏳..." : `📄 Filtreli (${filteredCount})`}
+                {busy ? "⏳..." : `📄 ${t("bulk.exportFilteredShort")} (${filteredCount})`}
               </button>
             )}
 
@@ -120,7 +123,7 @@ export function BulkExportBar({
                 disabled={busy}
                 className={`rounded-lg border border-slate-400 bg-slate-700 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40${wordHideCls}`}
               >
-                {busy ? "⏳..." : `📄 Tümü (${totalCount})`}
+                {busy ? "⏳..." : `📄 ${t("bulk.exportAllShort")} (${totalCount})`}
               </button>
             )}
           </>
@@ -135,7 +138,7 @@ export function BulkExportBar({
               disabled={selectedCount === 0 || busy}
               className="rounded-lg border border-red-300 bg-red-600 px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
+              {isDeleting ? `⏳ ${t("bulk.deleting")}` : `🗑 ${t("bulk.deleteSelected")} (${selectedCount})`}
             </button>
           </>
         )}
@@ -147,7 +150,7 @@ export function BulkExportBar({
             disabled={busy || totalCount === 0}
             className="rounded-lg border border-red-300 bg-white px-2.5 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            🗑 Tümünü Sil
+            {t("bulk.deleteAll")}
           </button>
         )}
       </div>
@@ -158,7 +161,7 @@ export function BulkExportBar({
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-2 shadow-sm">
       {/* Seçim sayacı */}
       <span className="shrink-0 rounded-full border border-blue-300 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-blue-800 shadow-sm">
-        {selectedCount > 0 ? `✓ ${selectedCount} seçili` : "Seçim yok"}
+        {selectedCount > 0 ? `✓ ${t("bulk.selected", { n: selectedCount })}` : t("bulk.noSelection")}
       </span>
 
       {/* Seçim kontrolleri */}
@@ -169,7 +172,7 @@ export function BulkExportBar({
           disabled={busy}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
         >
-          {selectAllLabel} ({selectCountDisplay})
+          {selectAllLabel ?? t("bulk.selectAll")} ({selectCountDisplay})
         </button>
       )}
 
@@ -180,7 +183,7 @@ export function BulkExportBar({
           disabled={busy}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
         >
-          Seçimi Temizle
+          {t("bulk.clearSelection")}
         </button>
       )}
 
@@ -195,7 +198,7 @@ export function BulkExportBar({
               disabled={selectedCount === 0 || busy}
               className={`rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
             >
-              {busy ? "⏳ Hazırlanıyor..." : `📄 ${exportSelectedLabel ?? "Seçilenleri Word"} (${selectedCount})`}
+              {busy ? `⏳ ${t("bulk.preparing")}` : `📄 ${exportSelectedLabel ?? t("bulk.exportSelected")} (${selectedCount})`}
             </button>
           )}
 
@@ -206,7 +209,7 @@ export function BulkExportBar({
               disabled={busy || filteredCount === 0}
               className={`rounded-lg border border-violet-400 bg-violet-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40${wordHideCls}`}
             >
-              {busy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredCount})`}
+              {busy ? "⏳..." : `📄 ${t("bulk.exportFiltered")} (${filteredCount})`}
             </button>
           )}
 
@@ -217,7 +220,7 @@ export function BulkExportBar({
               disabled={busy}
               className={`rounded-lg border border-slate-400 bg-slate-700 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40${wordHideCls}`}
             >
-              {busy ? "⏳..." : `📄 Tümünü Word (${totalCount})`}
+              {busy ? "⏳..." : `📄 ${t("bulk.exportAll")} (${totalCount})`}
             </button>
           )}
         </>
@@ -232,7 +235,7 @@ export function BulkExportBar({
             disabled={selectedCount === 0 || busy}
             className="rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
+            {isDeleting ? `⏳ ${t("bulk.deleting")}` : `🗑 ${t("bulk.deleteSelected")} (${selectedCount})`}
           </button>
         </>
       )}
@@ -246,7 +249,7 @@ export function BulkExportBar({
             disabled={busy || totalCount === 0}
             className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            🗑 Tümünü Sil ({totalCount})
+            {t("bulk.deleteAll")} ({totalCount})
           </button>
         </>
       )}

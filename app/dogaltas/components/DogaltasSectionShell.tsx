@@ -1,13 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
 import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
-import {
-  DOGALTAS_HOME,
-  findDogaltasModuleByPath,
-} from "@/lib/dogaltas/dogaltasModules";
+import { findDogaltasModuleByPath } from "@/lib/dogaltas/dogaltasModules";
 
 export type DogaltasSectionShellProps = {
   /** Üstte küçük büyük-harf etiket; verilmezse aktif modül başlığı kullanılır. */
@@ -43,8 +41,10 @@ export function DogaltasSectionShell({
 }: DogaltasSectionShellProps) {
   const pathname = usePathname() ?? "";
   const current = findDogaltasModuleByPath(pathname);
+  const tm = useTranslations("stones.modules");
   const accent = DOGALTAS_ACCENT[current?.accent ?? "emerald"];
-  const eyebrowText = eyebrow ?? current?.title ?? DOGALTAS_HOME.title;
+  const eyebrowText =
+    eyebrow ?? (current ? tm(`${current.slug}.title`) : tm("home.title"));
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950">

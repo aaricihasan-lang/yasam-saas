@@ -64,7 +64,7 @@ const thickLine = (id: string): StoredRegion => ({
   id, shape: "thick_line", x1: 0.1, y1: 0.1, x2: 0.4, y2: 0.42, lineWidth: 0.004,
 });
 
-function organEntry(regions: StoredRegion[], view: "taban" | "yan" = "taban") {
+function organEntry(regions: StoredRegion[], view: "taban" | "yan_ic" = "taban") {
   const e = emptyOrganEntry();
   for (const r of regions) e[view].sol.push(r);
   return e;
@@ -76,10 +76,10 @@ const atlas: AtlasDocument = {
   ["böbrek"]: organEntry([freeDraw("bo1"), freeDraw("bo2")], "taban"),
   ["kalp"]: organEntry([oval("ka1"), oval("ka2")], "taban"),
   ["karaciğer"]: organEntry([rect("kc1"), rect("kc2")], "taban"),
-  ["mesane"]: organEntry([rect("me1"), rect("me2")], "yan"),
+  ["mesane"]: organEntry([rect("me1"), rect("me2")], "yan_ic"),
 };
 
-const st = (name: string, view: "taban" | "yan") => computeOrganStatus(atlas, name, 0, view);
+const st = (name: string, view: "taban" | "yan_ic") => computeOrganStatus(atlas, name, 0, view);
 
 console.log("=== A) SHAPE — tüm geçerli şekiller geçerli/renderlanabilir ===");
 check("A1 oval renderable", isRenderableAtlasRegion({ ...oval("x"), organ: "k", footSide: "left", view: "taban" } as Region));
@@ -108,11 +108,11 @@ check("A''3 rect DTO cx/cy/rx/ry korunur (regresyon yok)", !!dtoRect && dtoRect.
 
 console.log("\n=== B) VIEW — mesane yalnız YAN'da; global VAR, Taban current=0 ===");
 const meTaban = st("mesane", "taban");
-const meYan = st("mesane", "yan");
+const meYan = st("mesane", "yan_ic");
 check("B1 mesane global found=true (Taban açıkken bile)", meTaban.found);
 check("B2 mesane total=2", meTaban.regionCount === 2);
 check("B3 mesane Taban current=0", meTaban.currentViewRegionCount === 0);
-check("B4 mesane availableViews = [yan]", meTaban.availableViews.length === 1 && meTaban.availableViews[0] === "yan");
+check("B4 mesane availableViews = [yan]", meTaban.availableViews.length === 1 && meTaban.availableViews[0] === "yan_ic");
 check("B5 mesane Taban açıkken 'Atlas bulunamadı' listesine GİRMEZ (found=true)", meTaban.found === true);
 check("B6 mesane Yan current=2", meYan.currentViewRegionCount === 2);
 
@@ -152,7 +152,7 @@ check("E-kalp oval 2 Taban → bulundu(2)", st("kalp", "taban").found && st("kal
 check("E-karaciğer rect 2 Taban → bulundu(2)", st("karaciğer", "taban").found && st("karaciğer", "taban").regionCount === 2);
 const meAcc = st("mesane", "taban");
 check("E-mesane global bulundu(2), Taban current=0, Yan current=2",
-  meAcc.found && meAcc.regionCount === 2 && meAcc.currentViewRegionCount === 0 && st("mesane", "yan").currentViewRegionCount === 2);
+  meAcc.found && meAcc.regionCount === 2 && meAcc.currentViewRegionCount === 0 && st("mesane", "yan_ic").currentViewRegionCount === 2);
 
 console.log("\n=== F) GHOST-ONLY ORGAN YÖNETİMİ + SİLME (yeni ürün akışı) ===");
 // F1: orphan tespiti — organ_list'te var, atlas'ta yok → orphan listesinde.

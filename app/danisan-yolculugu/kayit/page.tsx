@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -88,6 +89,7 @@ function PremiumDatePicker({
   // Manuel metin boş değil ama geçerli tam tarihe çözülmüyorsa true (kayıt anında engel için).
   onInvalidChange?: (invalid: boolean) => void;
 }) {
+  const t = useTranslations("clients.form.datePicker");
   const today = todayForInput();
   const parsedToday = parseInputDate(today);
   const parsedValue = parseInputDate(value);
@@ -179,7 +181,7 @@ function PremiumDatePicker({
           inputMode="numeric"
           value={text}
           onChange={handleManualChange}
-          placeholder="GG.AA.YYYY"
+          placeholder={t("placeholder")}
           maxLength={10}
           className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
         />
@@ -189,14 +191,14 @@ function PremiumDatePicker({
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg text-indigo-500 transition-colors hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-400"
           aria-expanded={open}
           aria-haspopup="dialog"
-          aria-label="Takvimden tarih seç"
+          aria-label={t("openCalendar")}
         >📅</button>
       </div>
 
       {open && (
         <div
           role="dialog"
-          aria-label="Tarih seçici"
+          aria-label={t("dialogLabel")}
           className={`${popupPositionClass} z-50 w-[360px] max-w-[calc(100vw-48px)] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl`}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -204,7 +206,7 @@ function PremiumDatePicker({
               type="button"
               onClick={() => goMonth(-1)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-all hover:scale-110 hover:bg-indigo-100"
-              aria-label="Önceki ay"
+              aria-label={t("prevMonth")}
             >‹</button>
             <p className="text-lg font-black text-slate-900">
               {MONTH_NAMES_TR[viewMonth - 1]} {viewYear}
@@ -213,7 +215,7 @@ function PremiumDatePicker({
               type="button"
               onClick={() => goMonth(1)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-all hover:scale-110 hover:bg-indigo-100"
-              aria-label="Sonraki ay"
+              aria-label={t("nextMonth")}
             >›</button>
           </div>
 
@@ -253,7 +255,7 @@ function PremiumDatePicker({
               type="button"
               onClick={() => { onChange(""); setText(""); onInvalidChange?.(false); setOpen(false); }}
               className="rounded-xl px-3 py-2 font-bold text-slate-600 transition-all hover:scale-110 hover:bg-indigo-100"
-            >Temizle</button>
+            >{t("clear")}</button>
             <button
               type="button"
               onClick={() => {
@@ -264,7 +266,7 @@ function PremiumDatePicker({
                 setOpen(false);
               }}
               className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-2 font-bold text-white shadow-md transition-all hover:scale-110"
-            >Bugün</button>
+            >{t("today")}</button>
           </div>
         </div>
       )}
@@ -282,6 +284,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function DanisanKayitPage() {
+  const t = useTranslations("clients.form");
   const router = useRouter();
   useBfcacheRefresh();
   const { showToast } = useToast();
@@ -319,24 +322,22 @@ export default function DanisanKayitPage() {
 
   function showTenantWarning() {
     showToast({
-      title: "Oturum uyarısı",
-      message: !sessionUser
-        ? "Oturum bulunamadı. Lütfen tekrar giriş yapın."
-        : "Hesabınızda çalışma alanı (tenant) bilgisi yok. İşlem yapılamaz.",
+      title: t("toast.sessionWarningTitle"),
+      message: !sessionUser ? t("toast.noSession") : t("toast.noTenant"),
       type: "warning",
     });
   }
 
   async function saveClient() {
     if (!ad.trim() || !soyad.trim()) {
-      showToast({ title: "İşlem başarısız", message: "Ad ve soyad gerekli", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
       return;
     }
 
     // Görüşme tarihi opsiyoneldir; ama yazılmış ve geçerli bir tam tarihe çözülmüyorsa
     // (yarım giriş veya 31.02.2026 gibi olmayan gün) kayıt kabul edilmez.
     if (gorusmeInvalid) {
-      showToast({ title: "Geçersiz tarih", message: "Görüşme tarihini GG.AA.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.", type: "error" });
+      showToast({ title: t("toast.invalidDateTitle"), message: t("toast.invalidDateMsg"), type: "error" });
       return;
     }
 
@@ -354,7 +355,7 @@ export default function DanisanKayitPage() {
         kan,
         mizac,
       });
-      showToast({ title: "Başarılı", message: "Demo danışan oluşturuldu.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.demoCreated"), type: "success" });
       router.push("/danisan-yolculugu/liste");
       return;
     }
@@ -386,8 +387,10 @@ export default function DanisanKayitPage() {
       );
 
       if (existing && existing.length > 0) {
+        // Danışan adı KULLANICI İÇERİĞİDİR: yalnız interpolasyon parametresi olarak
+        // geçirilir, çeviri fonksiyonuna metin olarak verilmez.
         setDuplicateWarning(
-          `"${ad.trim()} ${soyad.trim()}" adında bir danışan zaten kayıtlı. Aynı kişiyi tekrar kaydetmek istiyor musunuz?`
+          t("duplicate.warning", { name: `${ad.trim()} ${soyad.trim()}` })
         );
         return;
       }
@@ -418,13 +421,13 @@ export default function DanisanKayitPage() {
     });
 
     if (!insRes.ok) {
-      showToast({ title: "İşlem başarısız", message: "Kayıt hatası", type: "error" });
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveError"), type: "error" });
       setSaving(false);
       return;
     }
 
     invalidateDanisanListCache(); // liste önbelleği bayat → yeni danışan görünür
-    showToast({ title: "Başarılı", message: "Danışan kaydedildi.", type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.saved"), type: "success" });
     router.push("/danisan-yolculugu/liste");
   }
 
@@ -445,10 +448,9 @@ export default function DanisanKayitPage() {
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-lg leading-none">🔎</span>
               <div>
-                <p className="text-sm font-black text-blue-900">Demo Modu — Geçici Kayıt</p>
+                <p className="text-sm font-black text-blue-900">{t("demoNotice.title")}</p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                  Bu danışan veritabanına kaydedilmeyecek; yalnızca oturumunuz süresince tarayıcınızda saklanacak.
-                  Çıkış yaptığınızda otomatik olarak silinir.
+                  {t("demoNotice.desc")}
                 </p>
               </div>
             </div>
@@ -457,9 +459,7 @@ export default function DanisanKayitPage() {
 
         {tenantMissing && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
-            {!sessionUser
-              ? "Oturum bulunamadı. Danışan kaydı için lütfen tekrar giriş yapın."
-              : "Çalışma alanı (tenant) bilgisi bulunamadı. Kayıt yapılamaz."}
+            {!sessionUser ? t("tenantMissing.noSession") : t("tenantMissing.noTenant")}
           </div>
         )}
 
@@ -472,56 +472,63 @@ export default function DanisanKayitPage() {
             <span className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-black ${
               isDemo ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
             }`}>
-              {isDemo ? "Demo Danışan" : "Yeni Danışan"}
+              {isDemo ? t("badge.demo") : t("badge.new")}
             </span>
-            <h2 className="mt-3 text-2xl font-black text-slate-950">Danışanı Kaydet</h2>
-            <p className="mt-1 text-sm text-slate-500">Tüm alanlar isteğe bağlıdır; ad ve soyad zorunludur.</p>
+            <h2 className="mt-3 text-2xl font-black text-slate-950">{t("title")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <Field label="Ad">
-              <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder="Ad" />
+            <Field label={t("fields.ad")}>
+              <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder={t("placeholders.ad")} />
             </Field>
-            <Field label="Soyad">
-              <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder="Soyad" />
+            <Field label={t("fields.soyad")}>
+              <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder={t("placeholders.soyad")} />
             </Field>
-            <Field label="Telefon">
-              <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder="05xx xxx xx xx" />
+            <Field label={t("fields.telefon")}>
+              <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder={t("placeholders.telefon")} />
             </Field>
-            <Field label="Doğum Tarihi">
+            <Field label={t("fields.dogum")}>
               <BirthDateInput value={dogum} onChange={setDogum} className={inputClassName} />
             </Field>
-            <Field label="Görüşme Tarihi">
+            <Field label={t("fields.gorusme")}>
               <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />
               {gorusmeInvalid && (
                 <p className="text-[11px] font-bold leading-snug text-rose-500">
-                  Geçerli bir tarih girin (GG.AA.YYYY) veya alanı boş bırakın.
+                  {t("gorusmeInvalid")}
                 </p>
               )}
               <p className="text-[11px] font-medium leading-snug text-slate-400">
-                Danışanın ilk/son görüşme tarihi. Planlı seanslar için{" "}
-                <span className="font-bold text-slate-500">Ajanda &amp; Randevu</span>’yu kullanın.
+                {t.rich("gorusmeHint", {
+                  b: (chunks) => <span className="font-bold text-slate-500">{chunks}</span>,
+                })}
               </p>
             </Field>
-            <Field label="Burç (Otomatik)">
-              <input value={burc} disabled placeholder="Doğum tarihinden otomatik hesaplanır" className={`${inputClassName} bg-slate-100 text-slate-600`} />
+            <Field label={t("fields.burc")}>
+              {/* burc = computeBurc() ile türetilen KANONİK değer; yalnız gösterilir,
+                  çeviriye SARILMAZ. */}
+              <input value={burc} disabled placeholder={t("placeholders.burc")} className={`${inputClassName} bg-slate-100 text-slate-600`} />
             </Field>
-            <Field label="Kan Grubu">
+            <Field label={t("fields.kan")}>
+              {/* Kan grubu option'ları KANONİK değerdir (value == görünen etiket);
+                  DB'ye bu string yazılır → ÇEVRİLMEZ, dokunulmaz. */}
               <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>
-                <option value="">Seçiniz</option>
+                <option value="">{t("placeholders.select")}</option>
                 <option>A Rh+</option><option>A Rh-</option>
                 <option>B Rh+</option><option>B Rh-</option>
                 <option>AB Rh+</option><option>AB Rh-</option>
                 <option>0 Rh+</option><option>0 Rh-</option>
               </select>
             </Field>
-            <Field label="Mizaç">
+            <Field label={t("fields.mizac")}>
+              {/* Mizaç: value (safra/sovdavi/dem/balgam) KANONİK ve DEĞİŞMEZ;
+                  yalnız görünen etiket çevrilir (value ≠ label güvenli pattern). */}
               <select value={mizac} onChange={(e) => setMizac(e.target.value)} className={inputClassName}>
-                <option value="">Seçiniz</option>
-                <option value="safra">Safra</option>
-                <option value="sovdavi">Sovdavi</option>
-                <option value="dem">Dem</option>
-                <option value="balgam">Balgam</option>
+                <option value="">{t("placeholders.select")}</option>
+                <option value="safra">{t("mizacOptions.safra")}</option>
+                <option value="sovdavi">{t("mizacOptions.sovdavi")}</option>
+                <option value="dem">{t("mizacOptions.dem")}</option>
+                <option value="balgam">{t("mizacOptions.balgam")}</option>
               </select>
             </Field>
           </div>
@@ -535,14 +542,14 @@ export default function DanisanKayitPage() {
                   onClick={() => setDuplicateWarning(null)}
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
-                  İptal
+                  {t("duplicate.cancel")}
                 </button>
                 <button
                   type="button"
                   onClick={() => { forceSaveRef.current = true; void saveClient(); }}
                   className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white hover:bg-amber-700"
                 >
-                  Yine de Kaydet
+                  {t("duplicate.confirm")}
                 </button>
               </div>
             </div>
@@ -555,13 +562,13 @@ export default function DanisanKayitPage() {
               disabled={saving || tenantMissing}
               className="btn-primary px-7 py-3 text-sm hover:-translate-y-0.5 hover:scale-[1.02]"
             >
-              {saving ? "Kaydediliyor..." : isDemo ? "Demo Danışan Oluştur" : "Danışanı Kaydet"}
+              {saving ? t("submit.saving") : isDemo ? t("submit.demo") : t("submit.default")}
             </button>
             <Link
               href="/danisan-yolculugu/liste"
               className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              Listeye Dön
+              {t("backToList")}
             </Link>
           </div>
         </DanisanSectionShell>

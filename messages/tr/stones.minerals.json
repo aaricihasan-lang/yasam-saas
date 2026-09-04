@@ -1,0 +1,207 @@
+{
+  "stones": {
+    "minerals": {
+      "searchMatchBadge": "🔎 Eşleşme Var",
+      "unknownError": "Bilinmeyen hata",
+      "fallbackLoading": "Yükleniyor…",
+      "validation": {
+        "nameRequired": "Mineral adı boş bırakılamaz."
+      },
+      "bank": {
+        "eyebrow": "DOĞALTAŞ · MİNERAL BANKASI",
+        "title": "Mineral Kayıt Ekranı",
+        "subtitle": "Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır.",
+        "listLink": "Mineral Listesi",
+        "closeForm": "Formu Kapat",
+        "introDescription": "Yeni mineral kaydı oluşturmak için aşağıdaki butona basın. Mevcut mineralleri Mineral Listesi'nden görüntüleyebilirsiniz.",
+        "createButton": "+ Yeni Kayıt Oluştur",
+        "nameLabel": "MİNERAL ADI",
+        "namePlaceholder": "Örn: KROM",
+        "categoryLabel": "KATEGORİ",
+        "categoryPlaceholder": "Örn: İz mineral",
+        "sectionsHeading": "Kayıt Bölümleri",
+        "filledBadge": "dolu",
+        "activeSectionBadge": "AKTİF BÖLÜM",
+        "charCount": "{n} karakter",
+        "writeHint": "Yazmak için tıkla",
+        "newMineralFallback": "Yeni mineral",
+        "editorSubtitle": "Satır satır liste alanları desteklenir.",
+        "saveSection": "Bu Alanı Kaydet",
+        "sectionSavedMessage": "{label} alanı kaydedildi. Genel kayıt için Kaydet butonuna basın.",
+        "unsavedWarning": "Kaydedilmeden ayrılırsanız girdiğiniz bilgiler kaybolabilir.",
+        "checking": "Kontrol ediliyor...",
+        "saveFailedPrefix": "Mineral kaydedilemedi: {error}",
+        "toastSaveFailedTitle": "Kayıt başarısız",
+        "toastSaveFailedMessage": "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+        "toastSavedTitle": "Kaydedildi",
+        "toastSavedMessage": "Mineral kaydı başarıyla oluşturuldu.",
+        "sections": {
+          "aciklama": {
+            "label": "Açıklama",
+            "placeholder": "Mineralin genel tanımı ve temel görevi..."
+          },
+          "fiziksel": {
+            "label": "Fiziksel",
+            "placeholder": "Her satıra bir fiziksel etki yazın..."
+          },
+          "zihinsel": {
+            "label": "Zihinsel",
+            "placeholder": "Her satıra bir zihinsel etki yazın..."
+          },
+          "fizyoloji": {
+            "label": "Fizyoloji",
+            "placeholder": "Fizyolojik etkiler (satır satır)..."
+          },
+          "eksiklik_belirtileri": {
+            "label": "Eksiklik belirtileri",
+            "placeholder": "Eksiklik belirtileri (satır satır)..."
+          },
+          "doz_asimi": {
+            "label": "Doz aşımı",
+            "placeholder": "Doz aşımı / toksisite notları (satır satır)..."
+          },
+          "iceren_taslar": {
+            "label": "İçeren taşlar",
+            "placeholder": "Her satıra bir taş adı yazın..."
+          },
+          "organ_etkileri": {
+            "label": "Organ etkileri",
+            "placeholder": "Organ etkileri (satır satır)..."
+          },
+          "cakralar": {
+            "label": "Çakralar",
+            "placeholder": "Çakra ilişkileri (satır satır)..."
+          },
+          "fazlalik_belirtileri": {
+            "label": "Fazlalık belirtileri",
+            "placeholder": "Fazlalık belirtileri (satır satır)..."
+          }
+        }
+      },
+      "list": {
+        "eyebrow": "DOĞALTAŞ · MİNERAL LİSTESİ",
+        "title": "Mineral Listesi",
+        "subtitle": "public.minerals tablosundan mineral kayıtları.",
+        "totalLabel": "Toplam kayıt",
+        "loadedTotal": "Yüklü / toplam",
+        "visibleResult": "Görünen sonuç",
+        "searchPlaceholder": "İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara...",
+        "categoryFilterAria": "Kategori filtresi",
+        "allCategories": "Tüm kategoriler",
+        "searching": "Aranıyor...",
+        "searchResult": "Arama: “{q}” · {n} sonuç",
+        "wordReportButton": "📄 Word Raporu",
+        "newMineral": "+ Yeni Mineral",
+        "mobileSelectLimit": "Mobilde aynı anda en fazla 2 kayıt seçebilirsiniz.",
+        "deleteConfirmTitle": "Mineralleri Kalıcı Olarak Sil",
+        "deleteConfirmMessage": "{n} mineral kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        "deleteFailed": "Silme başarısız: {error}",
+        "deleteSuccess": "{n} mineral başarıyla silindi.",
+        "wordDownloadStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
+        "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+        "selectAllLabel": "Görünenleri Seç",
+        "exportSelectedLabel": "Seçilenleri Word'e Aktar",
+        "loadingList": "Mineraller yükleniyor...",
+        "emptyDbTitle": "Henüz mineral kaydı yok",
+        "emptyDbText": "Supabase minerals tablosunda henüz kayıt bulunmuyor.",
+        "emptyFilteredTitle": "Sonuç bulunamadı",
+        "emptyFilteredText": "Arama veya kategori filtresini değiştirin.",
+        "viewedBadge": "Bakıldı",
+        "noDescription": "Açıklama henüz girilmedi.",
+        "detailLink": "Detayı Gör →",
+        "loadMore": "Daha Fazla Göster ({loaded} / {total})",
+        "uncategorized": "Kategorisiz",
+        "loadError": "Mineral kayıtları okunamadı: {error}",
+        "countError": "Kayıt sayısı alınamadı: {error}"
+      },
+      "word": {
+        "reportTitle": "Mineral Bankası Raporu",
+        "selectPrompt": "Rapora dahil edilecek mineralleri seçin.",
+        "modeAll": "Tüm Mineraller",
+        "modeFiltered": "Sadece Filtrelenmiş Sonuçlar",
+        "modeViewed": "Sadece Görüntülenen Kayıtlar",
+        "modeSelected": "Seçili Mineraller",
+        "modeSelectedCount": "📄 Seçili Mineraller ({n} adet)",
+        "countMineral": "{n} mineral",
+        "loadedSuffix": " (yüklü)",
+        "noViewedInSession": "Bu oturumda henüz görüntülenen mineral yok",
+        "selectHint": "Listeden mineral seçmek için kart üzerindeki checkbox'ları kullanın.",
+        "selectedInfo": "✓ {n} mineral seçili — rapora dahil edilecek.",
+        "preparing": "Mineral raporu hazırlanıyor...",
+        "generateButton": "Rapor Oluştur",
+        "generating": "Hazırlanıyor...",
+        "errNoSession": "Oturum bulunamadı. Lütfen sayfayı yenileyin.",
+        "errNoUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
+        "errNoFiltered": "Filtrelenmiş sonuç bulunamadı.",
+        "errNoViewed": "Bu oturumda henüz görüntülenen mineral yok.",
+        "errNoSelected": "Önce listede mineral seçin (checkbox ile)."
+      },
+      "detail": {
+        "badgeDetail": "⚗️ MİNERAL DETAY",
+        "categoryPlaceholder": "Kategori (örn: İz mineral)",
+        "categoryAria": "Mineral kategorisi",
+        "namePlaceholder": "Mineral adı",
+        "filledSuffix": "{n, plural, other { Dolu Bölüm · }}",
+        "icerenSuffix": "{n, plural, other { İçeren Taş}}",
+        "wordButton": "📄 Word",
+        "wordBusy": "⏳...",
+        "refresh": "Yenile",
+        "editButton": "✏️ Düzenle",
+        "matchLabel": "Eşleşme:",
+        "loading": "Mineral yükleniyor...",
+        "loadFailedTitle": "Mineral yüklenemedi",
+        "updateFailed": "Mineral güncellenemedi. Lütfen tekrar deneyin.",
+        "noInfo": "Henüz bilgi girilmedi.",
+        "icerenTaslarBadge": "{n} TAŞ",
+        "sections": {
+          "aciklama": {
+            "title": "Açıklama",
+            "badge": "AÇIKLAMA"
+          },
+          "fiziksel": {
+            "title": "Fiziksel",
+            "badge": "FİZİKSEL"
+          },
+          "zihinsel": {
+            "title": "Zihinsel",
+            "badge": "ZİHİNSEL"
+          },
+          "fizyoloji": {
+            "title": "Fizyoloji",
+            "badge": "FİZYOLOJİ"
+          },
+          "organ_etkileri": {
+            "title": "Organ etkileri",
+            "badge": "ORGAN"
+          },
+          "cakralar": {
+            "title": "Çakralar",
+            "badge": "ÇAKRA"
+          },
+          "eksiklik_belirtileri": {
+            "title": "Eksiklik belirtileri",
+            "badge": "EKSİKLİK"
+          },
+          "fazlalik_belirtileri": {
+            "title": "Fazlalık belirtileri",
+            "badge": "FAZLALIK"
+          },
+          "doz_asimi": {
+            "title": "Doz aşımı",
+            "badge": "DOZ"
+          },
+          "iceren_taslar": {
+            "title": "İçeren taşlar"
+          }
+        },
+        "invalidId": "Geçersiz mineral kimliği.",
+        "notFound": "Mineral kaydı bulunamadı.",
+        "loadError": "Mineral kayıtları okunamadı: {error}"
+      },
+      "edit": {
+        "lineHint": "her satır bir madde",
+        "fieldPlaceholder": "{label} — her satıra bir madde yazın"
+      }
+    }
+  }
+}

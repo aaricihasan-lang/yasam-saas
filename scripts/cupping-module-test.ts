@@ -12,14 +12,16 @@ import {
   POINT_WRITABLE,
   PLACEMENT_WRITABLE,
   SAFETY_WRITABLE,
-  POINT_TOPIC_WRITABLE,
-  TOPIC_WRITABLE,
+  TECHNIQUE_WRITABLE,
+  TECHNIQUE_SAFETY_WRITABLE,
+  TECHNIQUE_SAFETY_META_WRITABLE,
   CUPPING_TABLES,
   CITATION_SPECS,
   isCitationEntity,
   PROTOCOL_WRITABLE,
   PROTOCOL_POINT_WRITABLE,
   PROTOCOL_POINT_META_WRITABLE,
+  PROTOCOL_TECHNIQUE_WRITABLE,
   PROTOCOL_TECHNIQUE_META_WRITABLE,
   PROTOCOL_SAFETY_META_WRITABLE,
   PROTOCOL_STEP_WRITABLE,
@@ -28,7 +30,7 @@ import {
   PROTOCOL_SOURCE_META_WRITABLE,
 } from "../lib/cupping/fields";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
-import { CUPPING_EVIDENCE_CLASSES, CUPPING_RELATION_STRENGTHS } from "../lib/cupping/vocab";
+import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/moduleRouteRegistry";
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
@@ -54,6 +56,17 @@ function listRoutes(dir: string): string[] {
     const p = `${dir}/${entry}`;
     if (statSync(p).isDirectory()) out.push(...listRoutes(p));
     else if (entry === "route.ts") out.push(p);
+  }
+  return out;
+}
+
+/** dir altındaki tüm .tsx dosyalarını (recursive) döndürür. */
+function listTsx(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const p = `${dir}/${entry}`;
+    if (statSync(p).isDirectory()) out.push(...listTsx(p));
+    else if (entry.endsWith(".tsx")) out.push(p);
   }
   return out;
 }
@@ -266,114 +279,39 @@ function run(): void {
   ok(/relation_strength[\s\S]{0,160}NOT VALID/.test(cf) && /source_type[\s\S]{0,220}NOT VALID/.test(cf), "foundation: mevcut kolon CHECK NOT VALID (apply-safe, legacy korunur)");
   ok(!/DROP TABLE|DROP COLUMN/.test(cf.replace(/--[^\n]*/g, "")), "foundation: destructive DDL YOK (additive)");
 
-  // ══ K) GAP-1 + GAP-2 — AMAÇ REHBERİ İLİŞKİ/KONU DETAY UI (migration YOK) ═══════
-  // Bu bölüm: schema/API'de zaten var olan relation_strength/note + topic detay
-  // alanlarının UI'ya BAĞLI olduğunu (create + edit) statik olarak doğrular.
-  const amac = read("app/kupa/amac-rehberi/page.tsx");
+  // ══ AMAÇ REHBERİ — USER-FACING KALDIRILDI (owner FINAL, ürün sadeleştirme) ════════
+  // Konu/rahatsızlık bilgisi artık TEK yerde (Hacamat Protokolleri) tutulur. Bağımsız
+  // /kupa/amac-rehberi CRUD/okuma çalışma alanı normal akıştan kaldırıldı: üç rota da
+  // /kupa/protokoller'e redirect eder; legacy okuma/oluşturma UI bileşenleri silindi.
+  // Legacy DB/tablo/migration/citation altyapısı DOKUNULMADAN DORMANT korunur (aşağıdaki
+  // N/O/atomik + legacy-data bölümleri doğrular).
+  const fileGone = (fp: string) => { try { statSync(fp); return false; } catch { return true; } };
+  const amacPage = read("app/kupa/amac-rehberi/page.tsx");
+  const amacYeni = read("app/kupa/amac-rehberi/yeni/page.tsx");
+  const amacDetail = read("app/kupa/amac-rehberi/[topicId]/page.tsx");
   const clientApi = read("app/kupa/lib/api.ts");
-  const ptItemRoute = read("app/api/kupa/point-topics/[id]/route.ts");
-  // FAZ (mobil/tablet reading UX): TEK-kaynak okuma bileşeni + ayrı detay route + shell.
-  const readView = read("app/kupa/amac-rehberi/components/TopicReadView.tsx");
-  const readHook = read("app/kupa/amac-rehberi/hooks/useTopicReadData.ts");
-  const detailPage = read("app/kupa/amac-rehberi/[topicId]/page.tsx");
-  const detailClient = read("app/kupa/amac-rehberi/[topicId]/TopicDetailClient.tsx");
-  const shell = read("app/kupa/components/KupaShell.tsx");
-
-  // GAP-1 API kontratı (mevcut — regresyon guard): PATCH FK'leri değiştirmez, meta yazılır
-  ok(/updatePointTopic\b/.test(clientApi) && /point-topics\/\$\{id\}[\s\S]{0,60}"PATCH"/.test(clientApi),
-    "gap1[api]: client updatePointTopic (PATCH point-topics/:id)");
-  ok(/RELATION_META_WRITABLE\s*=\s*POINT_TOPIC_WRITABLE\.filter/.test(ptItemRoute) &&
-     /f\s*!==\s*"point_id"[\s\S]{0,40}f\s*!==\s*"topic_id"/.test(ptItemRoute),
-    "gap1[api]: PATCH allowlist FK (point_id/topic_id) HARİÇ (yalnız meta güncellenir)");
-  ok((POINT_TOPIC_WRITABLE as readonly string[]).includes("relation_strength") &&
-     (POINT_TOPIC_WRITABLE as readonly string[]).includes("note"),
-    "gap1[fields]: POINT_TOPIC_WRITABLE relation_strength + note içerir");
-
-  // GAP-1 UI: create ilişki relation_strength + note gönderir
-  ok(/createPointTopic\(\{[\s\S]*?relation_strength[\s\S]*?note[\s\S]*?\}\)/.test(amac),
-    "gap1[ui]: ilişki create relation_strength + note gönderir");
-  // GAP-1 UI: mevcut ilişki DÜZENLENEBİLİR (silip-yeniden değil) → updatePointTopic
-  ok(/updatePointTopic\(/.test(amac), "gap1[ui]: mevcut ilişki edit (updatePointTopic) UI'da");
-  ok(/editRelId/.test(amac) && /İlişki Türü/.test(amac) && /İlişki Açıklaması/.test(amac),
-    "gap1[ui]: satır-içi ilişki edit (İlişki Türü + İlişki Açıklaması)");
-  // GAP-1 UI: relation_strength kontrollü sözlükten (vocab tek kaynak); 4 değer
-  ok(/CUPPING_RELATION_STRENGTHS/.test(amac), "gap1[ui]: relation_strength seçenekleri vocab'dan türetilir");
-  ok(CUPPING_RELATION_STRENGTHS.length === 4 &&
-     (CUPPING_RELATION_STRENGTHS as readonly string[]).includes("traditional_primary") &&
-     (CUPPING_RELATION_STRENGTHS as readonly string[]).includes("modern_supported"),
-    "gap1[vocab]: relation_strength 4 kanonik değer");
-  ok(/ilişkisinin türünü belirtir/.test(amac), "gap1[ui]: relation_strength helper metni");
-
-  // GAP-2 UI: topic detay alanları create + edit (title/category/description/notes/source_note)
-  ok((TOPIC_WRITABLE as readonly string[]).includes("description") &&
-     (TOPIC_WRITABLE as readonly string[]).includes("category") &&
-     (TOPIC_WRITABLE as readonly string[]).includes("notes") &&
-     (TOPIC_WRITABLE as readonly string[]).includes("source_note"),
-    "gap2[fields]: TOPIC_WRITABLE description/category/notes/source_note içerir");
-  ok(/createTopic\(/.test(amac) && /updateTopic\(/.test(amac),
-    "gap2[ui]: topic create + edit (updateTopic) UI'da");
-  ok(/topicFormMode/.test(amac) && /"create"/.test(amac) && /"edit"/.test(amac),
-    "gap2[ui]: tek form create+edit modu");
-  for (const [key, lbl] of [
-    ["title", "Başlık"], ["category", "Kategori"], ["description", "Açıklama"],
-    ["notes", "Çalışma Notu"], ["source_note", "Serbest Kaynak Notu"],
-  ] as const) {
-    ok(new RegExp(lbl).test(amac), `gap2[ui]: topic form alanı '${key}' (${lbl})`);
-  }
-  ok(/description:\s*[\s\S]{0,40}\.trim\(\)/.test(amac) && /category:/.test(amac) &&
-     /notes:/.test(amac) && /source_note:/.test(amac),
-    "gap2[ui]: form → API body description/category/notes/source_note map eder");
-  ok(/serbest\/editöryal kaynak notu/.test(amac), "gap2[ui]: source_note serbest-not helper (yapısal atıf ayrımı)");
-
-  // TEDAVİ DİLİ yasağı: label'larda 'Tedavi Noktaları' vb. kullanılmaz
-  ok(!/Tedavi Noktalar/i.test(amac), "dil: 'Tedavi Noktaları' etiketi kullanılmaz (ilişki dili)");
-
-  // CITATION korunumu: point-topic + topic CitationManager AYNEN korunur
-  ok(/CuppingCitationManager[\s\S]{0,60}entity="point-topic"/.test(amac) &&
-     /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac),
-    "gap1/2: point-topic + topic CitationManager korunur (yeniden yazılmadı)");
-
-  // ══ L) SADE OKUMA MODU — FORMAL kaynak-karşılaştırma (TEK KAYNAK TopicReadView) ══════
-  // Okuma UI'sı artık reusable TopicReadView'dadır; amac desktop okuma modunda onu kullanır.
-  ok(/Gelişmiş Düzenleme/.test(amac) && /Okuma Modu/.test(amac),
-    "read[ui]: Gelişmiş Düzenleme toggle (okuma modu default) — amac'ta korunur");
-  ok(/<TopicReadView/.test(amac) && /from "\.\/components\/TopicReadView"/.test(amac),
-    "read[reuse]: amac desktop okuma paneli TopicReadView bileşenini kullanır (inline read UI YOK)");
-  ok(/İlişkili Bölgeler/.test(readView), "read[ui]: 'İlişkili Bölgeler' bölümü (TopicReadView)");
-  ok(/Kaynaklar Ne Diyor\?/.test(readView), "read[ui]: 'Kaynaklar Ne Diyor?' bölümü (TopicReadView)");
-  ok(/new Set\([\s\S]{0,90}source_id/.test(readView),
-    "read[ui]: formal kaynak sayısı DISTINCT source_id (Set) — aynı kaynak tekrarı şişmez");
-  ok(/rr\.count >= 2/.test(readView), "read[ui]: yalnız >=2 formal kaynaklı bölgede sayı gösterilir");
-  ok(/\{rr\.count\}[\s\S]{0,20}kaynakta geçiyor/.test(readView),
-    "read[ui]: 'N kaynakta geçiyor' DİNAMİK (hard-code değil)");
-  ok(/for \(const ts of topicSources\)/.test(readView),
-    "read[ui]: kaynak kartları topic-source'lı DISTINCT source'lardan OTOMATİK türer");
-  ok(/SOURCE_TYPE_LABEL\[/.test(readView) && /expert_educational[\s\S]{0,24}Uzman/.test(readView),
-    "read[ui]: source_type rozetle resolve (expert_educational→Uzman/Eğitim)");
-  ok(!/Zakir Benli|Süleyman Gök|Hacamat 2\b/.test(readView),
-    "read[ui]: sabit kaynak ADI hard-code YOK (DB'den çözülür)");
-  ok(!/[23] kaynakta geçiyor/.test(readView.replace(/\{[^}]*\}/g, "")),
-    "read[ui]: sabit kaynak SAYISI hard-code YOK");
-  ok(!/Önerilen Uygulama Sırası|Önerilen Sıra/.test(readView),
-    "read[ui]: kaynakları birleştiren global 'uygulama sırası' ÜRETİLMEZ");
-  ok(!/Migren|migren/.test(readView) && !/Migren|migren/.test(readHook),
-    "read[reuse]: TopicReadView/loader Migren'e özel hard-code içermez (generic topic)");
-
-  // ══ M) KULLANICI NOTLARI — formal citation'dan AYRI katman (TopicReadView) ═══════════
-  ok(/Notlarım/.test(readView), "note[ui]: 'Notlarım' bölümü (formal kaynaklardan ayrı)");
-  ok(/\+ Yeni Bilgi \/ Not Ekle/.test(readView), "note[ui]: '+ Yeni Bilgi / Not Ekle'");
-  ok(/Kendi Notum/.test(readView), "note[ui]: source_label boşsa 'Kendi Notum'");
-  ok(/createTopicNote\(/.test(readView) && /updateTopicNote\(/.test(readView) && /deleteTopicNote\(/.test(readView),
-    "note[ui]: not create/edit/delete gerçek API'ye bağlı (TopicReadView)");
-  ok(/listTopicNotes\(/.test(readView), "note[ui]: notlar DB'den okunur (listTopicNotes)");
-  ok(/relSourceCount[\s\S]{0,120}relCitations/.test(readView),
-    "note[semantik]: formal 'N kaynakta geçiyor' relCitations'tan (FORMAL); notlar bu sayıyı ETKİLEMEZ");
-  // Notlar okuma UI'sında yönetildiği için amac artık not-CRUD içermez (tek kaynak).
-  ok(!/createTopicNote\(|updateTopicNote\(|deleteTopicNote\(/.test(amac),
-    "note[reuse]: amac not-CRUD'u DUPLICATE ETMEZ (TopicReadView sahiplenir)");
-  ok((clientApi.includes("listTopicNotes") && clientApi.includes("createTopicNote") &&
-      clientApi.includes("deleteTopicNote")),
-    "note[client]: topic-notes CRUD client'ta");
+  const landing = read("app/kupa/page.tsx");
+  ok(/redirect\("\/kupa\/protokoller"\)/.test(amacPage) &&
+     /redirect\("\/kupa\/protokoller"\)/.test(amacYeni) &&
+     /redirect\("\/kupa\/protokoller"\)/.test(amacDetail),
+    "amac-removed: /kupa/amac-rehberi (+/yeni +/[topicId]) → /kupa/protokoller redirect");
+  ok(!/CrudManager|createTopic\(|createPointTopic\(|CuppingCitationManager|BigNoteEditorDialog|TopicReadView/.test(amacPage) &&
+     !/CrudManager|createTopic\(|BigNoteEditorDialog|TopicReadView/.test(amacYeni) &&
+     !/TopicDetailClient|TopicReadView/.test(amacDetail),
+    "amac-removed: redirect stub'ları legacy CRUD/okuma/oluşturma UI RENDER ETMEZ");
+  ok(fileGone("app/kupa/amac-rehberi/components/TopicReadView.tsx") &&
+     fileGone("app/kupa/amac-rehberi/hooks/useTopicReadData.ts") &&
+     fileGone("app/kupa/amac-rehberi/[topicId]/TopicDetailClient.tsx") &&
+     fileGone("app/kupa/amac-rehberi/[topicId]/loading.tsx"),
+    "amac-removed: legacy okuma bileşenleri (TopicReadView/useTopicReadData/TopicDetailClient/loading) SİLİNDİ");
+  // Legacy backend/client altyapısı DORMANT korunur (silinmez): topic-notes wrapper'ları.
+  ok(/listTopicNotes/.test(clientApi) && /createTopicNote/.test(clientApi) && /deleteTopicNote/.test(clientApi),
+    "amac-legacy: topic-notes client wrapper'ları DORMANT korunur (silinmedi)");
+  // Landing: 'Amaç / Rahatsızlık Rehberi' / 'Mevcut Rehber' kartı KALDIRILDI.
+  ok(!/amac-rehberi/.test(landing) && !/Amaç \/ Rahatsızlık Rehberi/.test(landing) && !/Mevcut Rehber/.test(landing),
+    "amac-removed: Kupa landing 'Amaç / Rahatsızlık Rehberi' / 'Mevcut Rehber' kartı KALDIRILDI");
+  ok(/\/kupa\/protokoller/.test(landing) && /\/kupa\/noktalar/.test(landing) && /\/kupa\/teknikler/.test(landing),
+    "amac-removed: landing yalnız Protokoller (hero) + Noktalar + Teknikler içerir");
 
   // ══ N) NOT API GÜVENLİK (topic-notes route'ları) ════════════════════════════════
   const notesRoute = read("app/api/kupa/topic-notes/route.ts");
@@ -420,86 +358,7 @@ function run(): void {
   ok(/TOPIC_NOTE_WRITABLE/.test(fields) && /topicNotes:/.test(fields) && /topicNotePoints:/.test(fields),
     "note[fields]: CUPPING_TABLES + TOPIC_NOTE_WRITABLE tanımlı");
 
-  // ══ P) YENİ KAYIT UX — ayrı sayfa + büyük not editörü (migration YOK) ═════════════
-  const yeni = read("app/kupa/amac-rehberi/yeni/page.tsx");
-  const dialog = read("app/kupa/components/BigNoteEditorDialog.tsx");
-
-  // 1) Sol panel butonu "+ Yeni" değil "+ Yeni Kayıt"; ayrı /yeni sayfasına link.
-  ok(/\+ Yeni Kayıt/.test(amac), "yeniux[ui]: sol panel butonu '+ Yeni Kayıt' (belirgin)");
-  ok(!/>\s*\+ Yeni\s*</.test(amac), "yeniux[ui]: eski belirsiz '+ Yeni' butonu kaldırıldı");
-  ok(/href="\/kupa\/amac-rehberi\/yeni"/.test(amac),
-    "yeniux[ui]: '+ Yeni Kayıt' ayrı /yeni sayfasına gider (inline form açmaz)");
-
-  // 2) Yeni kayıt AYRI route dosyası.
-  ok(yeni.includes("Yeni Rahatsızlık Kaydı"),
-    "yeniux[route]: /yeni ayrı sayfa 'Yeni Rahatsızlık Kaydı' başlığı");
-  ok(/breadcrumb=\{\[[\s\S]{0,180}Yeni Kayıt/.test(yeni),
-    "yeniux[route]: breadcrumb 'Amaç / Rahatsızlık Rehberi > Yeni Kayıt'");
-  // "Rehbere Dön" / özel geri butonu KALDIRILDI — kullanıcı tarayıcı ileri/geri kullanır.
-  ok(!/Rehbere Dön/.test(yeni) && !/actions=\{/.test(yeni),
-    "yeniux[nav]: 'Rehbere Dön'/özel geri butonu yok (KupaShell actions verilmez)");
-
-  // 3) Yeni route'ta rahatsızlık detayı / kaynak / ilişki / teknik edit RENDER edilmez.
-  ok(!/CuppingCitationManager/.test(yeni) &&
-     !/listPointTopics|listCitations|İlişkili Bölgeler|Kaynaklar Ne Diyor/.test(yeni),
-    "yeniux[route]: yeni sayfada detay/kaynak/ilişki/teknik-edit YOK (yalnız form)");
-
-  // 4+5) Profesyonel/Serbest not: form içinde küçük textarea DEĞİL → büyük editör dialog.
-  ok(/BigNoteEditorDialog/.test(yeni), "yeniux[ui]: not alanları büyük editör (BigNoteEditorDialog) kullanır");
-  ok(/NoteFieldCard/.test(yeni) && /Not eklemek için tıklayın/.test(yeni) &&
-     /Kaynak notu eklemek için tıklayın/.test(yeni),
-    "yeniux[ui]: her iki not alanı tıklanabilir kart ('… eklemek için tıklayın')");
-  ok(/karakterlik not eklendi/.test(yeni), "yeniux[ui]: dolu not kartı 'N karakterlik not eklendi'");
-  ok(/80vh/.test(dialog) && /<textarea/.test(dialog), "yeniux[ui]: editör ~80vh büyük textarea");
-  ok(/Notu Kaydet/.test(dialog) && /Vazgeç/.test(dialog), "yeniux[ui]: editör 'Notu Kaydet' + 'Vazgeç'");
-
-  // ── RESPONSIVE genişlik + edge-to-edge (bu turun konusu) ──────────────────────────
-  // Desktop: dar ortalı kolon YOK (max-w-2xl kaldırıldı) → geniş çalışma ekranı.
-  ok(!/mx-auto[^"]*max-w-2xl/.test(yeni) && !/\bmax-w-2xl\b/.test(yeni),
-    "yeniux[resp]: dar max-w-2xl kolon kaldırıldı (desktop geniş)");
-  ok(/lg:grid-cols-3/.test(yeni) && /lg:col-span-2/.test(yeni) && /lg:grid-cols-2/.test(yeni),
-    "yeniux[resp]: desktop grid (Ad geniş+Kategori dar / iki not kartı yan yana)");
-  // Mobile/tablet: GERÇEK edge-to-edge — KupaShell fullBleedBelowLg + shared kupaEdgeCard.
-  // Negatif-margin HACK'İ YASAK (kullanıcı bunu reddetti): -mx-* class'ı /yeni'de olmamalı.
-  ok(/fullBleedBelowLg/.test(yeni), "yeniux[resp]: /yeni KupaShell fullBleedBelowLg kullanır (page-level edge-to-edge)");
-  ok(/kupaEdgeCard/.test(yeni), "yeniux[resp]: /yeni paylaşılan kupaEdgeCard kullanır (formCardCls hack kaldırıldı)");
-  ok(!/-mx-4|-mx-6|sm:-mx-/.test(yeni), "yeniux[resp]: negatif-margin gutter HACK'i /yeni'de YOK (page-level çözüm)");
-  ok(/border-y/.test(shell) && /lg:rounded-2xl/.test(shell),
-    "yeniux[resp]: kupaEdgeCard mobil köşesiz (border-y), desktop rounded-2xl premium (KupaShell)");
-  // BigNoteEditorDialog responsive: <1024px (768 TABLET DAHİL) full-screen; >=1024px desktop modal.
-  ok(/100dvh/.test(dialog) && /lg:h-\[80vh\]/.test(dialog),
-    "yeniux[resp]: editör mobile/tablet 100dvh doldurur / desktop (lg) 80vh");
-  ok(/p-0 lg:items-center lg:p-6/.test(dialog) && /lg:rounded-2xl/.test(dialog),
-    "yeniux[resp]: editör <1024 kenara sıfır (p-0, köşesiz), >=1024 ortalı/rounded");
-  // KRİTİK: desktop modal `sm:` breakpoint'inden BAŞLAMAZ (768 tablet full-screen kalmalı).
-  ok(!/sm:h-\[80vh\]|sm:max-w-3xl|sm:rounded-2xl|sm:items-center/.test(dialog),
-    "yeniux[resp]: dialog desktop modal'a `sm`/768'de GEÇMEZ (lg breakpoint)");
-
-  // 6+7) modal save → parent FORM STATE (DB'ye ayrı yazmaz); tekrar aç → metin durur.
-  ok(/onSave\(draft\)/.test(dialog) && !/createTopicNote|fetch\(/.test(dialog),
-    "yeniux[ui]: 'Notu Kaydet' parent state'e aktarır (DB'ye ayrı yazmaz)");
-  ok(/setNotes\(t\)/.test(yeni) && /setSourceNote\(t\)/.test(yeni),
-    "yeniux[ui]: editör kaydı formun notes/source_note state'ini günceller (tekrar açınca metin durur)");
-  ok(/useState\(value\)/.test(dialog) && /value:\s*string/.test(dialog),
-    "yeniux[ui]: editör açılışta mevcut değeri (value prop) yükler (kaydedilen metin korunur)");
-
-  // 8/10) Vazgeç: create çağırmadan rehbere döner (yanlış state yazmaz).
-  ok(/onCancel/.test(dialog) && /GUIDE_HREF/.test(yeni),
-    "yeniux[ui]: Vazgeç create çağırmadan iptal/rehbere döner");
-  // ESC/overlay veri kaybı guard: yalnız 'temiz' (dirty değil) iken kapanır.
-  ok(/!dirty[\s\S]{0,24}onCancel/.test(dialog),
-    "yeniux[ui]: ESC/overlay yalnız değişiklik yokken kapatır (veri kaybı guard)");
-
-  // 9) main save → mevcut createTopic (aynı DB alanları; yeni field YOK).
-  ok(/createTopic\(/.test(yeni) &&
-     /title:[\s\S]{0,220}category:[\s\S]{0,140}description:[\s\S]{0,140}notes:[\s\S]{0,140}source_note:/.test(yeni),
-    "yeniux[api]: create body mevcut alanlar (title/category/description/notes/source_note)");
-
-  // 11) başarılı create sonrası created topic'e dönüş + rehber ?topic= okur.
-  ok(/GUIDE_HREF\}\?topic=/.test(yeni) && /\/kupa\/amac-rehberi/.test(yeni),
-    "yeniux[flow]: create → ?topic=<id> ile rehbere dönüş");
-  ok(/useSearchParams/.test(amac) && /topicParam/.test(amac),
-    "yeniux[flow]: rehber ?topic= parametresini okuyup ilgili kaydı seçer");
+  // ══ P) YENİ KAYIT UX — KALDIRILDI (amac-rehberi user-facing removed; bkz. üstteki AMAÇ REHBERİ bloğu) ══
 
   // 12) PATCH ATOMİKLİK — GERÇEK TRANSACTION (RPC). Eski "önce yaz sonra doğrula"
   //     yarım-güncelleme + delete→insert→best-effort-restore ANTI-PATTERN'i KALDIRILDI.
@@ -568,91 +427,7 @@ function run(): void {
   ok(!/DROP TABLE|DROP COLUMN|ALTER TABLE|TRUNCATE/i.test(atomicCode),
     "note[rpc-mig]: destructive DDL YOK (yalnız CREATE OR REPLACE FUNCTION)");
 
-  // ══ Q) MOBİL/TABLET OKUMA UX — list-only ana sayfa + ayrı detay route + full-bleed ═══
-  //     (bu turun konusu; migration YOK. Breakpoint POLİTİKASI: <1024 mobil/tablet, >=1024 desktop.)
-
-  // Q1) Ayrı /[topicId] detay route mevcut (server page, Next 16 params Promise + await).
-  ok(/params:\s*Promise<\{\s*topicId:\s*string\s*\}>/.test(detailPage) && /await params/.test(detailPage),
-    "readux[route]: /[topicId] server page params Promise + await (Next 16)");
-  ok(/<TopicDetailClient\s+topicId=\{decodeURIComponent/.test(detailPage),
-    "readux[route]: detay client'e decode edilmiş topicId geçer");
-
-  // Q2) Statik /yeni route KORUNUR (App Router'da dinamik segmentten önce eşleşir → çakışma yok).
-  ok(yeni.includes("Yeni Rahatsızlık Kaydı"), "readux[route]: statik /yeni sayfası korunur");
-
-  // Q3) Mobil/tablet: rahatsızlık kartı AYRI okuma route'una Link (lg:hidden); JS innerWidth YOK.
-  ok(/href=\{`\/kupa\/amac-rehberi\/\$\{encodeURIComponent\(t\.id\)\}`\}/.test(amac) &&
-     /lg:hidden/.test(amac),
-    "readux[nav]: mobil/tablet topic kartı dedicated /[topicId] Link (lg:hidden)");
-  ok(!/window\.innerWidth|useMediaQuery|matchMedia/.test(amac),
-    "readux[nav]: responsive ayrım saf CSS (innerWidth/matchMedia/hydration bağımlılığı YOK)");
-
-  // Q4) Desktop: beğenilen inline seçim (selectTopic) button ile korunur (hidden lg:block).
-  ok(/hidden lg:block[\s\S]{0,120}onClick=\{\(\) => selectTopic\(t\.id\)\}/.test(amac) ||
-     /onClick=\{\(\) => selectTopic\(t\.id\)\}[\s\S]{0,160}hidden lg:block/.test(amac),
-    "readux[nav]: desktop topic button inline selectTopic (hidden lg:block)");
-
-  // Q5) Mobil ana sayfa: sağ okuma/düzenleme paneli GİZLİ (list-only; detay inline AÇILMAZ).
-  ok(/hidden lg:flex/.test(amac), "readux[list]: mobil/tablet sağ panel gizli (hidden lg:flex) — list-only");
-
-  // Q6) Reusable TEK-kaynak TopicReadView bileşeni var.
-  ok(/export function TopicReadView/.test(readView), "readux[reuse]: TopicReadView bileşeni tanımlı");
-
-  // Q7) Desktop okuma paneli + mobil detay route AYNI TopicReadView'ı kullanır (duplicate YOK).
-  ok(/<TopicReadView/.test(amac), "readux[reuse]: desktop (amac) TopicReadView kullanır");
-  ok(/<TopicReadView/.test(detailClient) && /from "\.\.\/components\/TopicReadView"/.test(detailClient),
-    "readux[reuse]: mobil detay (TopicDetailClient) AYNI TopicReadView'ı kullanır");
-
-  // Q8) Detay verisi topicId ile GERÇEK data'dan yüklenir (hard-code YOK): topics/point_topics/citations.
-  ok(/listTopics\(\)/.test(readHook) && /listPointTopics\(\{\s*topicId\s*\}\)/.test(readHook) &&
-     /listCitations\("topic",\s*topicId\)/.test(readHook) && /listCitations\("point-topic"/.test(readHook),
-    "readux[data]: useTopicReadData topicId ile gerçek data yükler (topics/point_topics/citations)");
-  ok(/find\(\(t\) => t\.id === topicId\)/.test(readHook) && /notFound/.test(readHook),
-    "readux[data]: topic id ile bulunur; yoksa notFound (hard-code Migren YOK)");
-
-  // Q9) Ayrı okuma sayfasında sidebar/liste/yeni-form YOK (yalnız seçili rahatsızlık okuması).
-  ok(!/Rahatsızlıklar<\/h3>|Rahatsızlık ara|\+ Yeni Kayıt/.test(detailClient) &&
-     !/Rahatsızlıklar<\/h3>|Rahatsızlık ara|\+ Yeni Kayıt/.test(detailPage),
-    "readux[detail]: ayrı okuma sayfasında sol sidebar/liste/yeni-form YOK");
-
-  // Q10) Özel geri/"Rehbere Dön"/floating back butonu YOK (tarayıcı ileri/geri; breadcrumb bilgi amaçlı).
-  ok(!/Rehbere Dön/.test(detailClient) && !/Rehbere Dön/.test(detailPage) && !/Rehbere Dön/.test(readView),
-    "readux[nav]: detay okuma sayfasında özel 'Rehbere Dön'/floating geri butonu YOK");
-
-  // Q11) KupaShell fullBleedBelowLg opt-in prop (default false → diğer sayfalar değişmez).
-  ok(/fullBleedBelowLg\s*=\s*false/.test(shell) && /fullBleedBelowLg\?:\s*boolean/.test(shell),
-    "readux[shell]: KupaShell fullBleedBelowLg opt-in (default false)");
-  ok(/const containerPad\s*=\s*fullBleedBelowLg\s*\?\s*"px-0 lg:px-8"/.test(shell),
-    "readux[shell]: fullBleed <1024 dış padding=0, >=1024 lg:px-8 (premium geri gelir)");
-
-  // Q12) /yeni + /[topicId] fullBleed kullanır (gerçek edge-to-edge).
-  ok(/fullBleedBelowLg/.test(yeni), "readux[shell]: /yeni fullBleedBelowLg kullanır");
-  ok(/fullBleedBelowLg/.test(detailClient), "readux[shell]: /[topicId] detay fullBleedBelowLg kullanır");
-
-  // Q13) Mobil ana liste de edge-to-edge (fullBleed + köşesiz sidebar kart).
-  ok(/fullBleedBelowLg/.test(amac) && /sidebarCardCls/.test(amac) && /border-y/.test(amac),
-    "readux[shell]: ana liste mobilde edge-to-edge (fullBleed + köşesiz sidebar kart)");
-
-  // Q14) Açıklama: mobil büyük editör tetikleyicisi (lg:hidden) + desktop inline textarea (hidden lg:block).
-  ok(/setNoteDialog\("description"\)/.test(yeni) && /noteDialog === "description"/.test(yeni),
-    "readux[desc]: /yeni Açıklama mobilde büyük editör (BigNoteEditorDialog title 'Açıklama')");
-  ok(/lg:hidden[\s\S]{0,220}Açıklama eklemek için tıklayın/.test(yeni),
-    "readux[desc]: mobil Açıklama tıklanabilir kart (büyük editör tetikler)");
-  ok(/hidden lg:block[\s\S]{0,260}id="new-desc"/.test(yeni),
-    "readux[desc]: desktop Açıklama INLINE textarea korunur (aynı description state)");
-
-  // Q15) Notlarım not METNİ: mobil büyük (full-screen) editör + desktop inline textarea (aynı nfNote).
-  ok(/BigNoteEditorDialog/.test(readView) && /title="Not"/.test(readView),
-    "readux[note]: mobil not metni büyük (full-screen) editör kullanır (TopicReadView)");
-  ok(/setNoteTextEditor\(true\)/.test(readView) && /lg:hidden/.test(readView) &&
-     /className=\{`\$\{kupaInput\} hidden lg:block`\}/.test(readView),
-    "readux[note]: not metni mobil editör tetikleyici (lg:hidden) + desktop inline textarea (hidden lg:block)");
-
-  // Q16) REGRESYON: Gelişmiş Düzenleme (teknik yönetim) amac'ta AYNEN korunur (citation manager + link/edit).
-  ok(/CuppingCitationManager[\s\S]{0,60}entity="point-topic"/.test(amac) &&
-     /CuppingCitationManager[\s\S]{0,60}entity="topic"/.test(amac) &&
-     /updatePointTopic\(/.test(amac) && /createPointTopic\(/.test(amac),
-    "readux[regresyon]: Gelişmiş Düzenleme (citation/relation) amac'ta korunur");
+  // ══ Q) MOBİL/TABLET OKUMA UX — KALDIRILDI (amac-rehberi user-facing removed; bkz. üstteki AMAÇ REHBERİ bloğu) ══
 
   // ══════════════════════════════════════════════════════════════════════════
   // V2 CLEAN CORE — Hacamat Protokolleri (FAZ 1). Legacy topics ağacından AYRI.
@@ -802,6 +577,557 @@ function run(): void {
   ok(!(PROTOCOL_SOURCE_META_WRITABLE as readonly string[]).includes("source_id"), "v2-mass: protocol_sources META FK immutable");
   ok(CUPPING_TABLES.protocols === "cupping_protocols" && CUPPING_TABLES.topics === "cupping_topics", "v2-legacy: protocols AYRI tablo; legacy topics korunur");
   ok(!Object.prototype.hasOwnProperty.call(CITATION_SPECS, "protocol"), "v2-legacy: protocol legacy citation ağacına EKLENMEDİ");
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FAZ 2 — Hacamat Protokolleri UI (kontrat). Legacy amac-rehberi DEĞİŞMEZ.
+  // ══════════════════════════════════════════════════════════════════════════
+  const exists = (p: string) => { try { statSync(p); return true; } catch { return false; } };
+
+  // ── FAZ2-A) Canonical route'lar var; legacy amac-rehberi korunur ────────────────
+  ok(exists("app/kupa/protokoller/page.tsx"), "faz2-route: /kupa/protokoller liste");
+  ok(exists("app/kupa/protokoller/yeni/page.tsx"), "faz2-route: /kupa/protokoller/yeni");
+  ok(exists("app/kupa/protokoller/[id]/page.tsx"), "faz2-route: /kupa/protokoller/[id]");
+  ok(exists("app/kupa/protokoller/[id]/loading.tsx") && exists("app/kupa/protokoller/loading.tsx"), "faz2-route: loading.tsx (liste + [id])");
+  ok(exists("app/kupa/amac-rehberi/page.tsx") && exists("app/kupa/amac-rehberi/[topicId]/page.tsx"), "faz2-legacy: amac-rehberi route dosyaları mevcut (redirect stub → /kupa/protokoller)");
+
+  const pApi = read("app/kupa/lib/api.ts");
+  const pList = read("app/kupa/protokoller/page.tsx");
+  const pNew = read("app/kupa/protokoller/yeni/page.tsx");
+  const pDoc = read("app/kupa/protokoller/[id]/ProtocolDocumentClient.tsx");
+  const pRel = read("app/kupa/protokoller/components/RelationSection.tsx");
+  const pSteps = read("app/kupa/protokoller/components/StepsSection.tsx");
+  const pEntries = read("app/kupa/protokoller/components/EntriesSection.tsx");
+  const pPicker = read("app/kupa/protokoller/components/MasterPickerDialog.tsx");
+  const pHook = read("app/kupa/protokoller/hooks/useProtocolDocument.ts");
+  const pListHook = read("app/kupa/protokoller/hooks/useProtocolList.ts");
+  const pCard = read("app/kupa/protokoller/components/ProtocolListCard.tsx");
+  const pInline = read("app/kupa/protokoller/components/InlineLongText.tsx");
+  const pSources = read("app/kupa/protokoller/components/SourcesSection.tsx");
+  const pQuick = read("app/kupa/protokoller/components/QuickCreateMasterForm.tsx");
+  const newFiles = [pList, pNew, pDoc, pRel, pSteps, pEntries, pPicker, pCard].join("\n\n");
+
+  // ── FAZ2-B) CLIENT wrappers (V2 additive; legacy korunur) ──────────────────────
+  for (const fn of ["listProtocols", "createProtocol", "getProtocol", "updateProtocol", "deleteProtocol",
+    "listProtocolPoints", "addProtocolPoint", "deleteProtocolPoint", "listProtocolSteps", "addProtocolStep",
+    "listProtocolEntries", "createProtocolEntry", "updateProtocolEntry", "deleteProtocolEntry",
+    "listProtocolSources", "addProtocolSource"]) {
+    ok(new RegExp(`export const ${fn}\\b`).test(pApi), `faz2-client: ${fn}`);
+  }
+  ok(/export const listTopics\b/.test(pApi) && /export const listTopicNotes\b/.test(pApi), "faz2-client: legacy wrapper'lar KORUNUR");
+  ok(/point_ids/.test(pApi) && /createProtocolEntry[\s\S]*?point_ids/.test(pApi), "faz2-entry: create/update wrappers point_ids taşır");
+
+  // ── FAZ2-C) UX kontratı ────────────────────────────────────────────────────────
+  ok(!/Gelişmiş Düzenleme/.test(newFiles), "faz2-ux: global 'Gelişmiş Düzenleme' mod YOK (section-level edit)");
+  ok(/ProtocolSectionShell/.test(pDoc) || /RelationSection/.test(pDoc), "faz2-ux: section-level bileşen mimarisi");
+  ok(/useConfirm/.test(pDoc) && /deleteProtocol\(/.test(pDoc), "faz2-delete: protokol silme useConfirm");
+  ok(/useConfirm/.test(pList) && /deleteProtocol\(/.test(pList), "faz2-delete: liste kartı silme useConfirm");
+  ok(/useConfirm/.test(pRel) && /useConfirm/.test(pSteps) && /useConfirm/.test(pEntries), "faz2-delete: child (relation/step/entry) silme useConfirm");
+  ok(/useToast/.test(pDoc) && /useToast/.test(pRel) && /useToast/.test(pEntries), "faz2-ux: useToast bildirimleri");
+
+  // Unified Bilgiler: tek başlık; "Notlarım"/"Kaynaklar Ne Diyor?"/formal-personal badge YOK.
+  ok(/title="Bilgiler"|"Bilgiler"/.test(pEntries), "faz2-bilgiler: tek 'Bilgiler' başlığı");
+  ok(!/Notlar[ıi]m/.test(newFiles) && !/Kaynaklar Ne Diyor/.test(newFiles), "faz2-bilgiler: 'Notlarım'/'Kaynaklar Ne Diyor?' YOK");
+  ok(!/Kişisel Not|formal kayıt|Formal Bilgi/i.test(newFiles), "faz2-bilgiler: formal/personal discriminator badge YOK");
+
+  // Mobil tam CRUD + full-screen editör + edge-to-edge.
+  ok(/fullBleedBelowLg/.test(pList) && /fullBleedBelowLg/.test(pNew) && /fullBleedBelowLg/.test(pDoc), "faz2-mobile: fullBleedBelowLg edge-to-edge");
+  ok(/BigNoteEditorDialog/.test(pInline) && /lg:hidden/.test(pInline) && /hidden lg:block/.test(pInline), "faz2-mobile: uzun metin <1024 full-screen editör + desktop inline");
+  // PrepSection (Hazırlık/Sonrası/Takip) 3 uzun-metin alanı InlineLongText → BigNoteEditorDialog
+  // full-screen path'ine ULAŞMALI (owner UAT blocker'ı buradaydı). Ham <textarea> KULLANMAZ.
+  const pPrep = read("app/kupa/protokoller/components/PrepSection.tsx");
+  ok(/InlineLongText/.test(pPrep) && (pPrep.match(/<InlineLongText\b/g) || []).length >= 3 && !/<textarea\b/.test(pPrep),
+    "faz2-mobile: PrepSection 3 alan (prep/after/follow) InlineLongText full-screen path'i kullanır (ham textarea YOK)");
+  ok(!/Rehbere Dön|Geri Dön|floating.*back/i.test(newFiles), "faz2-nav: özel geri/floating-back butonu YOK");
+
+  // FAZ 3A: quick-create ARTIK VAR (technique/safety) — ama YALNIZ gerçek create+attach,
+  // sahte/disabled CTA değil. Point quick-create HÂLÂ YOK (aşağıda faz3a-point-exclude).
+
+  // ── FAZ2-D) N+1 HARD GATE ──────────────────────────────────────────────────────
+  ok(!/listProtocolPoints|listProtocolTechniques|listProtocolSafety/.test(pList) && !/listProtocol/.test(pCard),
+    "faz2-n+1: liste/kart per-kart relation fetch YAPMAZ ('N bölge' sayacı OMIT)");
+  ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pRel) &&
+     !/listPoints\(|listTechniques\(/.test(pSteps) &&
+     !/listPoints\(|listSources\(/.test(pEntries),
+    "faz2-n+1: section bileşenleri master GET yapmaz (doc.master* map kullanır)");
+  ok(/listPoints\(\)/.test(pHook) && /listTechniques\(\)/.test(pHook) && /listSafety\(\)/.test(pHook) && /listSources\(\)/.test(pHook) && /Promise\.all/.test(pHook),
+    "faz2-n+1: useProtocolDocument master listelerini TEK KEZ (Promise.all) yükler");
+  ok(/new Map\(/.test(pHook) && /pointName|pointMap/.test(pHook), "faz2-n+1: master isim çözümü Map ile (loop-içi GET yok)");
+  ok(!/listProtocolPoints/.test(pListHook), "faz2-n+1: liste hook'u relation yüklemez");
+
+  // ── FAZ2-E) ENTRY atomik tüketimi (optimistic YOK) ─────────────────────────────
+  ok(/createProtocolEntry\(|updateProtocolEntry\(/.test(pEntries) && /doc\.reload\.entries\(\)/.test(pEntries),
+    "faz2-entry: create/update sonrası server canonical yeniden çekilir (optimistic YOK)");
+  // Kaynak OPSİYONEL — FAZ 3A sade akış: serbest metin (source_label) birincil; ayrı <select>
+  // katalog picker KALDIRILDI. Mevcut source_id bağlı entry düzenlenebilir (chip + Kaldır).
+  ok(/source_label/.test(pEntries) && /kimden öğrendim/i.test(pEntries) && !/<select/.test(pEntries),
+    "faz2-entry: kaynak OPSİYONEL + sade serbest metin (ayrı katalog <select> YOK)");
+
+  // ── FAZ2-F) STEP membership UI ─────────────────────────────────────────────────
+  ok(/doc\.points\.map/.test(pSteps) && /doc\.techniques\.map/.test(pSteps),
+    "faz2-step: ref_point/ref_technique seçenekleri YALNIZ protokole-bağlı (doc.points/doc.techniques)");
+  ok(!/masterPoints\.map[\s\S]{0,80}ref_point|doc\.masterPoints[\s\S]{0,120}Bağlı bölge/.test(pSteps),
+    "faz2-step: step ref dropdown master listeden DOĞRUDAN seçtirmez");
+
+  // ── FAZ2-G) Picker erişilebilirlik ─────────────────────────────────────────────
+  ok(/role="dialog"/.test(pPicker) && /aria-modal="true"/.test(pPicker) && /Escape/.test(pPicker) && /min-h-\[44px\]/.test(pPicker),
+    "faz2-a11y: MasterPickerDialog dialog/aria/Escape/44px");
+
+  // ══ FAZ 3A) MASTER QUICK-CREATE + SADE KAYNAK ════════════════════════════════════
+
+  // A) Picker gerçek-viewport portal (BigNoteEditorDialog ile aynı çözülen sınıf).
+  ok(/from "react-dom"/.test(pPicker) && /createPortal\(/.test(pPicker) && /document\.body/.test(pPicker),
+    "faz3a-portal: MasterPickerDialog createPortal(document.body) ile ata containing-block tuzağını AŞAR");
+  ok(/document\.body\.style\.overflow/.test(pPicker) && /fixed inset-0/.test(pPicker) && /h-\[100dvh\]/.test(pPicker),
+    "faz3a-portal: picker body-scroll-lock + fixed inset-0 + 100dvh (gerçek tam-ekran)");
+  ok(/typeof document === "undefined"/.test(pPicker),
+    "faz3a-portal: picker SSR guard (document yoksa null)");
+
+  // B) Tek surface pick⇄create mode (nested modal YOK).
+  ok(/"pick"/.test(pPicker) && /"create"/.test(pPicker) && /quickCreate/.test(pPicker),
+    "faz3a-picker: tek surface pick⇄create mode + quickCreate prop (nested modal YOK)");
+  ok(/QuickCreateMasterForm/.test(pPicker), "faz3a-picker: create view paylaşılan QuickCreateMasterForm kullanır");
+
+  // C) Quick-create form YALNIZ technique + safety (discriminated union) — point/createPoint YOK.
+  ok(/"technique"/.test(pQuick) && /"safety"/.test(pQuick), "faz3a-form: quick-create technique + safety");
+  ok(!/"point"/.test(pQuick) && !/createPoint/.test(pQuick), "faz3a-form: quick-create form point İÇERMEZ");
+
+  // D) TR enum eşlemeleri + kod GÖSTERİLMEZ (enum sadece value; UI label Türkçe).
+  ok(/dry/.test(pQuick) && /wet/.test(pQuick) && /stationary/.test(pQuick) && /gliding/.test(pQuick) && /flash/.test(pQuick),
+    "faz3a-enum: technique_type/movement_style enum value'ları mevcut");
+  ok(/Kuru Kupa/.test(pQuick) && /Yaş Kupa/.test(pQuick) && /Sabit/.test(pQuick) && /Kaydırmalı/.test(pQuick),
+    "faz3a-enum: technique UI Türkçe etiketler (kod değil)");
+  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /Bilgi/.test(pQuick) && /Uyarı/.test(pQuick) && /Kontrendikasyon/.test(pQuick),
+    "faz3a-enum: safety severity enum + Türkçe etiketler");
+  // severity !== contraindication → contraindication_class DAİMA null.
+  ok(/severity === "contraindication" \? contraClass \|\| null : null/.test(pQuick),
+    "faz3a-safety: severity kontrendikasyon değilse contraindication_class temizlenir (null)");
+
+  // E) Advisory duplicate — TR-fold normalize (NFKC + tr-lower), agresif değil.
+  ok(/normalize\("NFKC"\)/.test(pQuick) && /toLocaleLowerCase\("tr-TR"\)/.test(pQuick),
+    "faz3a-dup: normalizeMasterName NFKC + tr-lower");
+  ok(/Mevcut Kaydı Kullan/.test(pQuick) && /Yine de Oluştur/.test(pQuick) && /!duplicate \?/.test(pQuick),
+    "faz3a-dup: dup varken sessiz create YOK (Mevcut Kaydı Kullan / Yine de Oluştur; birincil oluştur gizli)");
+
+  // F) create → attach orchestration (technique + safety).
+  ok(/createTechnique\(/.test(pRel) && /addProtocolTechnique\(/.test(pRel) &&
+     /createSafety\(/.test(pRel) && /addProtocolSafety\(/.test(pRel),
+    "faz3a-attach: technique/safety create→immediate attach wired");
+  // demo/null id → attach YAPMA.
+  ok(/!created \|\| !created\.id/.test(pRel), "faz3a-demo: created id yoksa (demo) attach YAPMAZ");
+  // create OK / attach FAIL → master rollback YOK (compensating delete YOK).
+  ok(!/deleteTechnique\(/.test(pRel) && !/deleteSafety\(/.test(pRel),
+    "faz3a-consistency: attach fail'de master rollback/compensating-delete YOK (standalone entity)");
+  // targeted master refresh (full reload YOK).
+  ok(/reload\.masterTechniques\(\)/.test(pRel) && /reload\.masterSafety\(\)/.test(pRel) && !/reload\.all\(/.test(pRel),
+    "faz3a-refresh: quick-create sonrası hedefli master refresh (reload.all YOK)");
+
+  // G) POINT hard exclusion.
+  ok(!/entity: "point"/.test(pRel) && !/createPoint\(/.test(pRel), "faz3a-point-exclude: RelationSection point quick-create YOK");
+  ok(!/quickCreate/.test(pEntries) && !/createPoint\(/.test(pEntries), "faz3a-point-exclude: EntriesSection point picker quickCreate ALMAZ");
+  ok(!/createPoint\(/.test([pRel, pEntries, pSources, pQuick, pPicker].join("\n")),
+    "faz3a-point-exclude: FAZ3 quick-create yollarının HİÇBİRİ createPoint çağırmaz");
+
+  // H) Hook targeted master reload (N+1 yok).
+  ok(/reloadMasterTechniques/.test(pHook) && /reloadMasterSafety/.test(pHook) && /reloadMasterSources/.test(pHook),
+    "faz3a-n+1: useProtocolDocument hedefli master reload sağlar (full reload spam YOK)");
+  ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pSources),
+    "faz3a-n+1: SourcesSection loop/section master GET yapmaz");
+
+  // I) SADE KAYNAK — SourcesSection: serbest metin, katalog picker/bibliyografik metadata YOK.
+  ok(/Kimden öğrendim/.test(pSources) && !/<select/.test(pSources),
+    "faz3a-source: sade 'Kaynak / Kimden öğrendim' serbest metin (ayrı katalog <select> YOK)");
+  ok(!/author_or_organization|publication|identifier|source_type|\blanguage\b/.test(pSources),
+    "faz3a-source: bibliyografik metadata (yazar/yayın/identifier/tür/dil) UI'da YOK");
+  ok(/createSource\(/.test(pSources) && /source_name: text/.test(pSources) && /normalizeMasterName/.test(pSources),
+    "faz3a-source: exact-normalized reuse veya arka planda minimal source create (source_name)");
+  ok(/datalist/.test(pSources), "faz3a-source: autocomplete datalist (öneri; seçime ZORLAMAZ)");
+  ok(/!created \|\| !created\.id/.test(pSources), "faz3a-source: demo/null id → attach YAPMAZ");
+
+  // J) SADE KAYNAK — EntriesSection: serbest metin + datalist + mevcut source_id chip korunur.
+  ok(/list="kupa-entry-source-suggestions"/.test(pEntries) && /datalist/.test(pEntries),
+    "faz3a-entry-source: serbest metin + autocomplete datalist");
+  ok(/draft\.source_id \?/.test(pEntries) && /Kaldır/.test(pEntries),
+    "faz3a-entry-source: mevcut kayıtlı kaynak (source_id) chip + Kaldır ile korunur/temizlenir");
+
+  // ══ FAZ 3B/4) LANDING — FINAL SIMPLIFICATION (app/kupa/page.tsx) ═════════════════
+  // Owner FINAL: günlük landing yalnız Protokoller (hero) + Noktalar + Teknikler +
+  // medical disclaimer gösterir. Bağımsız "Amaç / Rahatsızlık Rehberi" kartı KALDIRILDI
+  // (ürün sadeleştirme). Güvenlik / Kaynaklar / Bilgi & Eğitim standalone ekranları
+  // ve TÜM backend (route/API/DB) KORUNUR — yalnız landing navigasyonunda görünmez.
+  const pLanding = read("app/kupa/page.tsx");
+  const render = pLanding.slice(Math.max(0, pLanding.indexOf("<KupaShell")));
+  const rHero = render.indexOf("/kupa/protokoller");
+  const rSupport = render.indexOf("Destek Kütüphaneleri");
+  const rMap = render.indexOf("SUPPORT.map");
+
+  // Primary hero — dominant ama KOMPAKT.
+  ok(rHero >= 0 && /Hacamat Protokolleri/.test(pLanding) && /Protokolleri Aç/.test(pLanding),
+    "faz3b-hero: primary 'Hacamat Protokolleri' + tek CTA 'Protokolleri Aç' (href /kupa/protokoller)");
+  ok(!/Bölge · Teknik · Akış/.test(pLanding),
+    "faz3b-hero: kompakt hero korunur — 'Bölge · Teknik · Akış · …' chip satırı kaldırılmış");
+  ok(rHero >= 0 && rSupport > rHero && rMap > rSupport,
+    "faz3b-hero: RENDER sırası hero → Destek Kütüphaneleri → destek kartları");
+
+  // Support libraries — FINAL: yalnız Noktalar + Teknikler landing'de görünür.
+  ok(rSupport >= 0, "faz3b-support: 'Destek Kütüphaneleri' başlığı mevcut");
+  for (const r of ["/kupa/noktalar", "/kupa/teknikler"]) {
+    ok(pLanding.includes(r), `faz3b-support: landing kartı korunur ${r}`);
+  }
+
+  // FINAL SIMPLIFICATION — Güvenlik / Kaynaklar / Bilgi & Eğitim + Amaç Rehberi landing
+  // NAVIGASYONUNDAN kaldırıldı. NOT: backend/route/DB silme kontratı DEĞİLDİR; yalnız
+  // landing kartının yokluğunu doğrular (ilgili ekranlar + API + tablo aynen yaşar).
+  for (const r of ["/kupa/guvenlik", "/kupa/kaynaklar", "/kupa/bilgi-kutuphanesi", "/kupa/amac-rehberi"]) {
+    ok(!pLanding.includes(r), `faz3b-simplify: ${r} landing navigasyonunda GÖRÜNMEZ (backend korunur, yalnız kart kaldırıldı)`);
+  }
+
+  // Legacy 'Amaç / Rahatsızlık Rehberi' kartı TAMAMEN kaldırıldı (subordinate kart YOK).
+  ok(!/Mevcut Rehber/.test(pLanding) && !/Amaç \/ Rahatsızlık Rehberi/.test(pLanding),
+    "faz3b-legacy: 'Mevcut Rehber' / 'Amaç / Rahatsızlık Rehberi' landing kartı KALDIRILDI");
+  ok(!/deprecated|eski sistem|\bV1\b|kaldırılacak|yakında kapan/i.test(pLanding),
+    "faz3b-legacy: deprecated/eski-sistem/kaldırılacak kullanıcı copy'si YOK");
+
+  // Medical disclaimer korunur.
+  ok(/tedavi eder/.test(pLanding), "faz3b-medical: 'tedavi eder anlamı taşımaz' disclaimer korunur");
+
+  // Statik navigasyon — yeni fetch/API/sayaç state YOK.
+  ok(!/fetch\(|\/api\/|useState|useEffect/.test(pLanding),
+    "faz3b-static: landing statik navigasyon (fetch/API/counter-state YOK)");
+  ok(!/tenant-izole|source_id|künye|Konu ↔ nokta|anatomik bölge|canonical/i.test(pLanding),
+    "faz3b-copy: DB/mimari jargonu YOK (sade kullanıcı dili)");
+
+  // ══ FAZ 4 / AŞAMA 2A — KUPA TEKNİKLERİ VERİ TEMELİ ══════════════════════════════
+  // Additive: practitioner_note + cupping_technique_safety (DORMANT — prod'a uygulandı,
+  // şema korunur) + read-only "Kullanıldığı Protokoller". Destructive DDL / backfill YOK.
+  // NOT: structured technique-safety uygulama/API yüzeyi owner FINAL ile KALDIRILDI;
+  // yalnız tablo/şema geriye-dönük dormant infra olarak repoda kalır (bkz. FAZ 4 UX).
+  const f4mig = read("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql");
+  // Migration version hygiene (drift reconciliation): yeni benzersiz slot; eski çakışan yok.
+  ok(exists("supabase/migrations/20270101000600_cupping_technique_workspace_foundation.sql") &&
+     !exists("supabase/migrations/20270101000100_cupping_technique_workspace_foundation.sql"),
+    "faz4-mig-version: cupping migration 20270101000600 (eski 20270101000100 çakışan slot yok)");
+  ok(/-- 20270101000600_cupping_technique_workspace_foundation\.sql/.test(f4mig) &&
+     !/20270101000100/.test(f4mig),
+    "faz4-mig-version: migration başlığı yeni versiyonla tutarlı (eski versiyon referansı yok)");
+
+  // — Migration: practitioner_note additive kolon (backfill YOK) —
+  ok(/ADD COLUMN IF NOT EXISTS practitioner_note text/.test(f4mig),
+    "faz4-mig: cupping_techniques.practitioner_note additive (IF NOT EXISTS)");
+  ok(!/UPDATE\s+public\./i.test(f4mig) && !/INSERT\s+INTO\s+public\./i.test(f4mig),
+    "faz4-mig: veri backfill/UPDATE/INSERT YOK (schema-only additive)");
+  ok(!/DROP\s+COLUMN|DROP\s+TABLE|RENAME\s+(COLUMN|TO)/i.test(f4mig),
+    "faz4-mig: destructive DDL YOK (DROP/RENAME yok)");
+
+  // — Migration: cupping_technique_safety tablosu + kontrat —
+  ok(/CREATE TABLE IF NOT EXISTS public\.cupping_technique_safety/.test(f4mig),
+    "faz4-mig: cupping_technique_safety CREATE TABLE IF NOT EXISTS");
+  ok(/tenant_id\s+uuid\s+NOT NULL/.test(f4mig) && /technique_id\s+uuid\s+NOT NULL/.test(f4mig) && /safety_id\s+uuid\s+NOT NULL/.test(f4mig),
+    "faz4-mig: tenant_id/technique_id/safety_id NOT NULL");
+  ok(/FOREIGN KEY \(tenant_id, technique_id\) REFERENCES public\.cupping_techniques \(tenant_id, id\) ON DELETE CASCADE/.test(f4mig),
+    "faz4-mig: technique composite FK → CASCADE (tenant-safe)");
+  ok(/FOREIGN KEY \(tenant_id, safety_id\) REFERENCES public\.cupping_safety_notes \(tenant_id, id\) ON DELETE RESTRICT/.test(f4mig),
+    "faz4-mig: safety composite FK → RESTRICT (tenant-safe)");
+  ok(/UNIQUE \(tenant_id, technique_id, safety_id\)/.test(f4mig),
+    "faz4-mig: natural unique (tenant, technique, safety)");
+  ok(/cupping_technique_safety_technique_idx[\s\S]*\(tenant_id, technique_id, sort_order\)/.test(f4mig) &&
+     /cupping_technique_safety_safety_idx[\s\S]*\(tenant_id, safety_id\)/.test(f4mig),
+    "faz4-mig: indexler (technique+sort, safety)");
+
+  // — Migration: güvenlik kilidi (schema deseniyle birebir) —
+  ok(/REVOKE ALL PRIVILEGES ON TABLE public\.cupping_technique_safety FROM anon, authenticated/.test(f4mig),
+    "faz4-mig: anon/authenticated REVOKE ALL");
+  ok(/ALTER TABLE public\.cupping_technique_safety ENABLE ROW LEVEL SECURITY/.test(f4mig),
+    "faz4-mig: RLS ENABLE");
+  ok(!/FORCE ROW LEVEL SECURITY/i.test(f4mig) && !/CREATE POLICY/i.test(f4mig),
+    "faz4-mig: FORCE RLS YOK + permissive policy YOK (service-role only)");
+  ok(/BEGIN;[\s\S]*COMMIT;/.test(f4mig),
+    "faz4-mig: transaction BEGIN/COMMIT dengeli");
+
+  // — fields.ts: tablo + allowlist'ler —
+  ok(CUPPING_TABLES.techniqueSafety === "cupping_technique_safety",
+    "faz4-fields: CUPPING_TABLES.techniqueSafety = cupping_technique_safety");
+  ok((TECHNIQUE_WRITABLE as readonly string[]).includes("practitioner_note"),
+    "faz4-fields: TECHNIQUE_WRITABLE practitioner_note içerir");
+  ok((TECHNIQUE_WRITABLE as readonly string[]).includes("kind") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("description") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("application_info") &&
+     (TECHNIQUE_WRITABLE as readonly string[]).includes("source_note"),
+    "faz4-fields: legacy alanlar (kind/description/application_info/source_note) KORUNUR (backward-compat)");
+  ok((TECHNIQUE_SAFETY_WRITABLE as readonly string[]).join(",") === "technique_id,safety_id,note,sort_order",
+    "faz4-fields: TECHNIQUE_SAFETY_WRITABLE = technique_id,safety_id,note,sort_order");
+  ok((TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).join(",") === "note,sort_order",
+    "faz4-fields: TECHNIQUE_SAFETY_META_WRITABLE = note,sort_order (yalnız META)");
+  ok(!(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("technique_id") &&
+     !(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("safety_id") &&
+     !(TECHNIQUE_SAFETY_META_WRITABLE as readonly string[]).includes("tenant_id"),
+    "faz4-fields: PATCH META FK/tenant immutable (technique_id/safety_id/tenant_id yok)");
+
+  // — REDDEDİLEN structured technique-safety API tamamen KALDIRILDI (owner FINAL) —
+  // Teknik güvenliği artık yalnız cupping_techniques.safety_note serbest alanıdır.
+  // Not: cupping_technique_safety tablosu prod'a uygulandığı için DORMANT olarak kalır
+  // (migration şeması korunur); yalnız uygulama/API yüzeyi kaldırılmıştır.
+  ok(!exists("app/api/kupa/technique-safety/route.ts") &&
+     !exists("app/api/kupa/technique-safety/[id]/route.ts"),
+    "faz4-api: technique-safety route'ları KALDIRILDI (structured teknik güvenliği reddedildi)");
+
+  // — used-in-protocols: read-only, tenant-safe, N+1'siz —
+  const tsProto = read("app/api/kupa/techniques/[id]/protocols/route.ts");
+  ok(/requireModuleAccess\(req, "cupping"\)/.test(tsProto),
+    "faz4-proto: used-in-protocols cupping gate");
+  ok(/assertOwnedRef\(db, CUPPING_TABLES\.techniques, tenantId, id\)/.test(tsProto),
+    "faz4-proto: teknik sahipliği doğrulanır (cross-tenant title sızıntısı yok)");
+  ok(/\.in\("id", protocolIds\)/.test(tsProto) && /select\("id, title, category, is_active"\)/.test(tsProto),
+    "faz4-proto: tek IN sorgusu + SADE metadata (N+1 yok, DB ayrıntısı yok)");
+  ok(!/PATCH|POST|DELETE/.test(tsProto),
+    "faz4-proto: yalnız GET (read-only)");
+
+  // — client api.ts: type + wrappers —
+  const cApi = read("app/kupa/lib/api.ts");
+  ok(/practitioner_note\?: string \| null/.test(cApi),
+    "faz4-client: CuppingTechnique.practitioner_note");
+  ok(!/CuppingTechniqueSafety/.test(cApi) &&
+     !/listTechniqueSafety/.test(cApi) &&
+     !/createTechniqueSafety/.test(cApi) &&
+     !/updateTechniqueSafety/.test(cApi) &&
+     !/deleteTechniqueSafety/.test(cApi),
+    "faz4-client: technique-safety type + wrapper'lar KALDIRILDI (client surface temiz)");
+  ok(/export const listTechniqueProtocols/.test(cApi) && /export type CuppingTechniqueProtocolRef =/.test(cApi),
+    "faz4-client: used-in-protocols type + wrapper");
+
+  // — Quick-create HÂLÂ minimal: practitioner_note/application_info/safety EKLENMEDİ —
+  const qc = read("app/kupa/protokoller/components/QuickCreateMasterForm.tsx");
+  ok(/name:\s*string;\s*technique_type: string \| null;\s*movement_style: string \| null;\s*description: string \| null;/.test(qc),
+    "faz4-quick: TechniqueQuickValues minimal (name/type/movement/description)");
+  ok(!/practitioner_note/.test(qc) && !/application_info/.test(qc),
+    "faz4-quick: quick-create'e practitioner_note/application_info EKLENMEDİ");
+
+  // — description & application_info İKİSİ DE korunur (owner: deprecate REDDEDİLDİ) —
+  ok(/application_info\?: string \| null/.test(cApi) && /description\?: string \| null/.test(cApi),
+    "faz4-owner: description + application_info İKİSİ DE korunur (client type)");
+
+  // ══ FAZ 4 / AŞAMA 2B — READER-FIRST TEKNİKLER ÇALIŞMA ALANI ═════════════════════
+  const tPage = read("app/kupa/teknikler/page.tsx");
+  const tWork = read("app/kupa/teknikler/components/TechniqueWorkspace.tsx");
+  const tList = read("app/kupa/teknikler/components/TechniqueList.tsx");
+  const tRead = read("app/kupa/teknikler/components/TechniqueReadView.tsx");
+  const tEdit = read("app/kupa/teknikler/components/TechniqueEditor.tsx");
+  const tProt = read("app/kupa/teknikler/components/TechniqueProtocolsSection.tsx");
+  const tLabels = read("app/kupa/teknikler/lib/labels.ts");
+
+  // Route mimarisi: index + [id] + yeni mevcut.
+  ok(exists("app/kupa/teknikler/page.tsx") && exists("app/kupa/teknikler/[id]/page.tsx") && exists("app/kupa/teknikler/yeni/page.tsx"),
+    "faz4b-route: /kupa/teknikler + [id] + yeni route'ları");
+
+  // Generic CrudManager ARTIK /kupa/teknikler'i sürmüyor (reader-first workspace).
+  ok(!/CrudManager/.test(tPage) && /TechniqueWorkspace/.test(tPage),
+    "faz4b-ux: generic CrudManager kaldırıldı → reader-first TechniqueWorkspace");
+
+  // Desktop split eşiği >=1024 (lg); mobil liste-önce (seçiliyse detay).
+  ok(/lg:flex/.test(tWork) && /hidden lg:block/.test(tWork),
+    "faz4b-responsive: desktop split lg (>=1024) + mobil liste/detay geçişi");
+
+  // Liste satırları [id] deep-link (browser back/forward temiz).
+  ok(/href=\{`\/kupa\/teknikler\/\$\{t\.id\}`\}/.test(tList),
+    "faz4b-nav: liste satırları /kupa/teknikler/[id] deep-link");
+
+  // Normal UI ham enum kodu GÖSTERMEZ (label helper üzerinden).
+  ok(/techniqueTypeLabel/.test(tList) && /techniqueTypeLabel/.test(tRead),
+    "faz4b-labels: tür TR etiketle gösterilir (ham dry/wet değil)");
+  ok(/dry: "Kuru Kupa"/.test(tLabels) && /wet: "Yaş Kupa \/ Hacamat"/.test(tLabels) &&
+     /stationary: "Sabit"/.test(tLabels) && /gliding: "Kaydırmalı"/.test(tLabels) && /flash: "Flaş"/.test(tLabels),
+    "faz4b-labels: technique_type/movement_style TR etiket haritası");
+
+  // Yorumları çıkar → yalnız GERÇEK kod üzerinde legacy-alan yokluğu ölç (yorumlar
+  // "kind/source_note DEĞİŞMEZ" gibi açıklamalar içerebilir; bunlar false-positive olmasın).
+  const stripComments = (s: string) =>
+    s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const tListCode = stripComments(tList);
+  const tReadCode = stripComments(tRead);
+  const tEditCode = stripComments(tEdit);
+
+  // kind normal UI'da YOK (list/read/edit); create/edit payload'da GÖNDERİLMEZ.
+  ok(!/\bkind\b/.test(tListCode) && !/\bkind\b/.test(tReadCode) && !/\bkind\b/.test(tEditCode),
+    "faz4b-legacy-kind: kind normal UI kodunda render/edit EDİLMEZ");
+  ok(!/kind:/.test(tEditCode) && !/source_note/.test(tEditCode) && !/sort_order/.test(tEditCode),
+    "faz4b-legacy: editor payload kodunda kind/source_note/sort_order YOK");
+
+  // description + application_info İKİSİ DE editor + reader'da (owner: deprecate REDDEDİLDİ).
+  ok(/description/.test(tEdit) && /applicationInfo|application_info/.test(tEdit),
+    "faz4b-fields: description + application_info İKİSİ DE editor'da");
+  ok(/Teknik Özeti/.test(tRead) && /Genel Uygulama Yaklaşımı/.test(tRead),
+    "faz4b-fields: reader'da Teknik Özeti + Genel Uygulama Yaklaşımı AYRI bölüm");
+
+  // practitioner_note ("Uzman Notum") reader + editor'da.
+  ok(/Uzman Notum/.test(tRead) && /practitioner_note|practitionerNote/.test(tEdit),
+    "faz4b-practitioner: 'Uzman Notum' reader + editor");
+
+  // Güvenlik: TEK katman — yalnız safety_note (owner FINAL: structured teknik güvenliği reddedildi).
+  ok(!exists("app/kupa/teknikler/components/TechniqueSafetySection.tsx") &&
+     !exists("app/kupa/teknikler/components/SafetyPickerDialog.tsx"),
+    "faz4b-safety: structured TechniqueSafetySection + SafetyPickerDialog KALDIRILDI");
+  ok(/Güvenlik ve Dikkat/.test(tRead) && /technique\.safety_note/.test(tReadCode),
+    "faz4b-safety: reader 'Güvenlik ve Dikkat' yalnız safety_note gösterir");
+  ok(!/Güvenlik Kaydı Ekle/.test(tRead) && !/SafetyPicker/.test(tRead) && !/TechniqueSafetySection/.test(tRead),
+    "faz4b-safety: '+ Güvenlik Kaydı Ekle' CTA + structured picker/section reader'da YOK");
+  // Editor tek kullanıcı-yüzlü güvenlik alanı olarak safety_note'u KORUR.
+  ok(/safety_note/.test(tEdit) && /Güvenlik \/ Dikkat/.test(tEdit),
+    "faz4b-safety: editor safety_note alanını ('Güvenlik / Dikkat') KORUR");
+
+  // Kullanıldığı Protokoller: read-only + protokol adı clickable.
+  ok(/listTechniqueProtocols/.test(tProt) && /href=\{`\/kupa\/protokoller\/\$\{p\.id\}`\}/.test(tProt),
+    "faz4b-protocols: used-in-protocols + protokol adı /kupa/protokoller/[id] link");
+  ok(/Kullanıldığı Protokoller/.test(tRead) || /Kullanıldığı Protokoller/.test(tProt),
+    "faz4b-protocols: 'Kullanıldığı Protokoller' bölümü mevcut");
+
+  // Duplicate advisory + APP-STANDARD delete modal (native confirm YOK) + unsaved-changes.
+  ok(/normalizeMasterName/.test(tEdit),
+    "faz4b-duplicate: create advisory (normalizeMasterName) reuse");
+
+  // Silme UX — owner FINAL: native window.confirm/alert KALDIRILDI → app-standart custom modal.
+  const confirmDlg = read("app/kupa/components/ConfirmDialog.tsx");
+  ok(!/window\.confirm\(/.test(tRead) && !/window\.alert\(/.test(tRead),
+    "faz4b-delete: reader native window.confirm/alert KULLANMAZ");
+  ok(/KupaConfirmDialog/.test(tRead) && /from "\.\.\/\.\.\/components\/ConfirmDialog"/.test(tRead),
+    "faz4b-delete: silme onayı app-standart KupaConfirmDialog ile (custom modal)");
+  // A) Referanslı teknik: 'Sil' önce precheck → uyarı modalı; yıkıcı aksiyon SUNULMAZ.
+  ok(/listTechniqueProtocols\(id\)/.test(tRead) && /variant: "blocked"/.test(tRead),
+    "faz4b-delete: 'Sil' önce protokol-kullanım prechecki yapar (blocked state)");
+  ok(/Teknik silinemiyor/.test(tRead) && /kullanılıyor/.test(tRead) && /closeLabel="Kapat"/.test(tRead),
+    "faz4b-delete: referanslı teknik uyarı modalı ('Teknik silinemiyor' + 'Kapat')");
+  // B) Referanssız teknik: yıkıcı onay modalı ('Tekniği sil?' + 'Tekniği Sil').
+  ok(/Tekniği sil\?/.test(tRead) && /confirmLabel="Tekniği Sil"/.test(tRead),
+    "faz4b-delete: referanssız teknik yıkıcı onay modalı ('Tekniği sil?' + 'Tekniği Sil')");
+  // Yıkıcı aksiyon YALNIZ confirm modunda: tek onConfirm={confirmDelete} (blocked modda YOK).
+  ok((tRead.match(/onConfirm=/g) ?? []).length === 1 && /onConfirm=\{confirmDelete\}/.test(tRead),
+    "faz4b-delete: tek yıkıcı onConfirm (confirmDelete) — blocked modda yıkıcı aksiyon YOK");
+  // Server-side yetkili koruma korunur: silme yine deleteTechnique (API FK RESTRICT enforce).
+  ok(/deleteTechnique\(id\)/.test(tRead),
+    "faz4b-delete: onay sonrası mevcut deleteTechnique çağrılır (FK RESTRICT sunucu koruması korunur)");
+
+  // KupaConfirmDialog a11y: role/aria-modal + portal(body) + Escape + scroll-lock + focus + no-native.
+  ok(/role="dialog"/.test(confirmDlg) && /aria-modal="true"/.test(confirmDlg) &&
+     /aria-labelledby/.test(confirmDlg) && /createPortal\(/.test(confirmDlg) && /document\.body/.test(confirmDlg),
+    "faz4b-delete: modal role/aria-modal/aria-labelledby + createPortal(document.body)");
+  ok(/"Escape"/.test(confirmDlg) && /body\.style\.overflow = "hidden"/.test(confirmDlg) &&
+     /\.focus\(\)/.test(confirmDlg) && /"Tab"/.test(confirmDlg),
+    "faz4b-delete: modal Escape + scroll-lock + focus yönetimi + focus-trap (Tab)");
+  ok(!/window\.confirm|window\.alert/.test(confirmDlg),
+    "faz4b-delete: KupaConfirmDialog native confirm/alert KULLANMAZ");
+
+  // Kirli-editör "Vazgeç" onayı — owner FINAL: native window.confirm KALDIRILDI → KupaConfirmDialog.
+  ok(!/window\.confirm\(/.test(tEdit) && !/window\.alert\(/.test(tEdit),
+    "faz4b-unsaved: editor native window.confirm/alert KULLANMAZ");
+  ok(/KupaConfirmDialog/.test(tEdit) && /from "\.\.\/\.\.\/components\/ConfirmDialog"/.test(tEdit),
+    "faz4b-unsaved: kirli-cancel onayı app-standart KupaConfirmDialog ile (custom modal)");
+  ok(/if \(dirty\)/.test(tEdit) && /setConfirmCancelOpen\(true\)/.test(tEdit),
+    "faz4b-unsaved: kirliyken Vazgeç modalı açar (dirty → setConfirmCancelOpen)");
+  ok(/Değişikliklerden vazgeç\?/.test(tEdit) && /confirmLabel="Değişikliklerden Vazgeç"/.test(tEdit) &&
+     /cancelLabel="Vazgeçme"/.test(tEdit) && /onConfirm=\{\(\) => \{[\s\S]*?onCancel\(\);[\s\S]*?\}\}/.test(tEdit),
+    "faz4b-unsaved: kirli-cancel modal içeriği + onConfirm→onCancel (temizken doğrudan onCancel)");
+
+  // Kupa-geneli: HİÇBİR user-facing Kupa .tsx dosyası native window.confirm/alert İÇERMEZ.
+  const kupaTsx = listTsx("app/kupa");
+  const nativeConfirmHits = kupaTsx.filter((f) => /window\.confirm\(|window\.alert\(/.test(read(f)));
+  ok(nativeConfirmHits.length === 0,
+    `faz4-native-zero: app/kupa/** native window.confirm/alert = 0 (${nativeConfirmHits.join(", ") || "temiz"})`);
+
+  // source_note normal reader/editor kodunda primary alan DEĞİL (yorumlar hariç).
+  ok(!/source_note/.test(tReadCode) && !/source_note/.test(tEditCode),
+    "faz4b-legacy-source: source_note normal UI kodunda primary alan DEĞİL");
+
+  // ══ FAZ 4 / AŞAMA 2C — PROTOCOL INTEGRATION + STATE CONSISTENCY ═════════════════
+  const rSec = read("app/kupa/protokoller/components/RelationSection.tsx");
+  const tWork2 = read("app/kupa/teknikler/components/TechniqueWorkspace.tsx");
+  const tList2 = read("app/kupa/teknikler/components/TechniqueList.tsx");
+  const tRead2 = read("app/kupa/teknikler/components/TechniqueEditor.tsx");
+  const tReadView2 = read("app/kupa/teknikler/components/TechniqueReadView.tsx");
+  const stepRoute = read("app/api/kupa/protocol-steps/route.ts");
+  const protoUsageRoute = read("app/api/kupa/techniques/[id]/protocols/route.ts");
+
+  // Tek master: standalone create + protokol quick-create AYNI createTechnique API'sini kullanır.
+  ok(/createTechnique\(/.test(tRead2),
+    "faz4c-single-master: standalone editor createTechnique kullanır");
+  ok(/createTechnique\(\{/.test(rSec) && /addProtocolTechnique\(\{ protocol_id: protocolId, technique_id: created\.id \}\)/.test(rSec),
+    "faz4c-single-master: protokol quick-create AYNI createTechnique → dönen created.id ile attach");
+  ok(!/create[A-Za-z]*Technique.*master.*store|technique_master|protocolTechnique.*name/i.test(rSec),
+    "faz4c-single-master: ayrı protokole-özel teknik master store YOK");
+
+  // Protokol relation SADECE technique_id + META taşır (kopyalanmış tür/ad/stil YOK).
+  ok((PROTOCOL_TECHNIQUE_WRITABLE as readonly string[]).join(",") === "protocol_id,technique_id,protocol_note,sort_order",
+    "faz4c-relation: protocol_techniques yalnız FK + protocol_note/sort_order (kopya alan yok)");
+  ok(!(PROTOCOL_TECHNIQUE_WRITABLE as readonly string[]).some((k) => ["technique_type", "movement_style", "name", "description"].includes(k)),
+    "faz4c-relation: relation'a technique_type/movement_style/name/description KOPYALANMAZ");
+  ok((PROTOCOL_TECHNIQUE_META_WRITABLE as readonly string[]).join(",") === "protocol_note,sort_order",
+    "faz4c-protocol-note: PATCH yalnız protocol_note/sort_order (relation-specific)");
+
+  // Tür/stil propagasyonu: RelationSection master listfrom join → dinamik TR etiket (ham kod YOK).
+  ok(/techniqueTypeLabel/.test(rSec) && /movementStyleLabel/.test(rSec),
+    "faz4c-labels: protokol picker TR etiket (techniqueTypeLabel/movementStyleLabel)");
+  ok(!/\[t\.technique_type, t\.movement_style\]\.filter/.test(rSec),
+    "faz4c-labels: ham technique_type/movement_style kod join'i KALDIRILDI");
+  ok(/doc\.masterTechniques/.test(rSec),
+    "faz4c-propagation: picker/relation master listeden join (relation'da snapshot alan yok)");
+
+  // Standalone edit → sol liste tazelenir (workspace nonce + context; hard reload YOK).
+  ok(/TechniqueListRefreshContext/.test(tWork2) && /refreshList/.test(tWork2) && /version=\{listVersion\}/.test(tWork2),
+    "faz4c-state: workspace liste-versiyon nonce + refresh context sağlar");
+  ok(/version\??: number/.test(tList2) && /\}, \[version\]\)/.test(tList2),
+    "faz4c-state: TechniqueList version prop ile yeniden yükler");
+  ok(/useTechniqueListRefresh/.test(tReadView2) && /refreshList\(\)/.test(tReadView2),
+    "faz4c-state: reader başarılı düzenleme sonrası refreshList çağırır");
+
+  // Hard reload YOK (idiomatic router/state; window.location.reload/href YOK).
+  const noHardReload = (s: string) => !/window\.location\.reload|window\.location\.href\s*=/.test(s);
+  ok(noHardReload(tReadView2) && noHardReload(tList2) && noHardReload(tWork2) && noHardReload(tRead2),
+    "faz4c-no-hard-reload: window.location.reload/href ile durum senkronu YOK");
+
+  // Protokol step referans bütünlüğü: ref_technique yalnız protokole EKLİ teknik olabilir.
+  ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolTechniques/.test(stepRoute),
+    "faz4c-step: step ref_technique protokol-üyeliği doğrulanır (attached-only)");
+
+  // Used-in-protocols: N+1 yok (tek IN) + boş set malformed .in([]) üretmez.
+  ok(/protocolIds\.length === 0/.test(protoUsageRoute) && /\.in\("id", protocolIds\)/.test(protoUsageRoute),
+    "faz4c-usage: boş-set guard + tek IN sorgusu (N+1 yok)");
+
+  // Sınır: teknik ekleme akışı protokol safety'yi OTOMATİK kopyalamaz/eklemez.
+  ok(!/addProtocolSafety\(/.test(rSec.slice(rSec.indexOf("entity: \"technique\""), rSec.indexOf("entity: \"safety\""))),
+    "faz4c-boundary: teknik ekleme akışı safety'yi OTO-eklemez");
+
+  // ══ FAZ 4 / AŞAMA 2D — inactive-picker contract (owner-locked) ══════════════════
+  // Pasif teknik YENİ attach picker'ında sunulmaz; ekli pasif relation'da kalır; global
+  // listTechniques DEĞİŞMEZ (ekli pasif çözümlensin); otomatik detach/arşiv YOK.
+  ok(/kind === "technique"[\s\S]{0,120}master\.filter\(\(m\) =>[\s\S]{0,60}is_active !== false\)/.test(rSec),
+    "faz4d-inactive: teknik picker aday kümesi is_active !== false ile filtrelenir");
+  ok(/const items: PickerItem\[\] = pickerMaster\.map/.test(rSec),
+    "faz4d-inactive: picker items filtrelenmiş pickerMaster'dan (master DEĞİL) türetilir");
+  const apiSrc = read("lib/cupping/api.ts");
+  ok(!/is_active/.test(apiSrc),
+    "faz4d-inactive: global listEntity/listTechniques'e is_active filtresi EKLENMEDİ (ekli pasif çözümlenir)");
+  ok(!/detachProtocolTechnique|archive|deleteTechnique\(/.test(rSec.slice(rSec.indexOf("pickerMaster"), rSec.indexOf("const items"))),
+    "faz4d-inactive: pasif filtre otomatik detach/arşiv/silme YAPMAZ");
+
+  // ══ FAZ 4 / UX SADELEŞTİRME — standalone /kupa/guvenlik + protokol güvenlik koruması ═
+  // owner FINAL: bağımsız güvenlik CRUD çalışma alanı normal akıştan KALDIRILDI; rota
+  // artık doğrudan URL ile gizli CRUD paneli açmaz → /kupa'ya redirect. Protokol güvenlik
+  // (QuickCreate + backend master + /api/kupa/safety) AYNEN korunur.
+  const guvPage = read("app/kupa/guvenlik/page.tsx");
+  ok(/redirect\("\/kupa"\)/.test(guvPage),
+    "faz4-ux: /kupa/guvenlik server redirect → /kupa (standalone CRUD kaldırıldı)");
+  ok(!/CrudManager/.test(guvPage) && !/createSafety|updateSafety|deleteSafety/.test(guvPage),
+    "faz4-ux: /kupa/guvenlik artık CRUD/mutasyon iskeleti render ETMEZ");
+  // Protokol güvenlik master altyapısı KORUNUR (backend + QuickCreate).
+  ok(exists("app/api/kupa/safety/route.ts") && exists("app/api/kupa/safety/[id]/route.ts") &&
+     exists("app/api/kupa/protocol-safety/route.ts") && exists("app/api/kupa/protocol-safety/[id]/route.ts"),
+    "faz4-ux: protokol güvenlik backend (safety + protocol-safety route'ları) DOKUNULMADI");
+  ok(/entity: "safety"/.test(rSec) && /createSafety\(/.test(rSec),
+    "faz4-ux: protokol QuickCreate yeni güvenlik master (createSafety) + attach KORUNUR");
+  ok(/listSafety\b/.test(read("app/kupa/protokoller/hooks/useProtocolDocument.ts")),
+    "faz4-ux: protokol dokümanı master güvenlik listesini (listSafety) KORUR");
+  // cupping_technique_safety tablosu prod'a uygulandı → migration şeması DORMANT olarak kalır
+  // (repo şeması prod'dan bilerek sapmaz); yalnız uygulama/API yüzeyi kaldırıldı.
+  ok(/CREATE TABLE IF NOT EXISTS public\.cupping_technique_safety/.test(f4mig) &&
+     !/DROP\s+TABLE[^;]*cupping_technique_safety/i.test(f4mig),
+    "faz4-ux: cupping_technique_safety tablosu migration'da DORMANT korunur (DROP YOK)");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {

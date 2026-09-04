@@ -1,0 +1,145 @@
+{
+  "stones": {
+    "records": {
+      "shell": {
+        "eyebrow": "DOĞALTAŞ · DOĞALTAŞ MODÜLÜ",
+        "title": "Doğaltaş Kayıt",
+        "subtitle": "Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin."
+      },
+      "actions": {
+        "closeForm": "Formu Kapat"
+      },
+      "intro": {
+        "title": "Doğaltaş Kayıt Ekranı",
+        "description": "Yeni taş kaydı oluşturmak için \"+ Yeni Kayıt\" butonuna basın. Kayıtlı taşları Taş Listesi'nden görüntüleyebilirsiniz.",
+        "createCta": "+ Yeni Kayıt Oluştur",
+        "listCta": "Taş Listesi"
+      },
+      "basic": {
+        "title": "Temel Bilgi",
+        "desc": "Masaüstündeki temel kayıt alanının sade web uyarlaması.",
+        "badge": "Ana Kayıt"
+      },
+      "fields": {
+        "stoneName": "Taş Adı",
+        "stoneNamePlaceholder": "Örn. Ametist",
+        "shortDescription": "Kısa Açıklama",
+        "optional": "(isteğe bağlı)",
+        "shortDescriptionPlaceholder": "Taşın kısa tanımı, temel özelliği ve öne çıkan etkisi..."
+      },
+      "image": {
+        "areaLabel": "Görsel Alanı",
+        "addMultiple": "Birden fazla taş görseli ekle",
+        "hint": "Seçtiğiniz görseller bu kayda eklenir.",
+        "pickFromGallery": "Galeriden Seç",
+        "takePhoto": "Fotoğraf Çek",
+        "pickFromGalleryAria": "Galeriden seç",
+        "takePhotoAria": "Fotoğraf çek",
+        "removePhotoAria": "Fotoğrafı kaldır"
+      },
+      "general": {
+        "title": "Genel Bilgi",
+        "desc": "Bilgi paneli / tablo / özet mantığının sade web karşılığı.",
+        "general_info": "Genel Bilgi / Tanım",
+        "source_note": "Oluşum / Kaynak Notu"
+      },
+      "effects": {
+        "physical_effects": {
+          "title": "Fiziksel Etkiler",
+          "desc": "Bedensel etkiler, destek alanları ve kullanım notları."
+        },
+        "spiritual_effects": {
+          "title": "Ruhsal Etkiler",
+          "desc": "Ruhsal denge, farkındalık ve içsel çalışma notları."
+        },
+        "other_effects": {
+          "title": "Diğer Etkiler",
+          "desc": "Ek bilgiler, gözlemler ve tamamlayıcı notlar."
+        }
+      },
+      "usage": {
+        "feng_shui": "Feng Shui",
+        "meditation": "Meditasyon",
+        "care": "Bakım",
+        "application": "Uygulama"
+      },
+      "advanced": {
+        "title": "İleri Seviye Notlar",
+        "desc": "Feng Shui, meditasyon, bakım, uygulama ve uyarı notları."
+      },
+      "toggle": {
+        "hide": "▲ Gizle",
+        "show": "▼ Göster"
+      },
+      "warnings": {
+        "title": "Uyarılar ve Hassasiyetler",
+        "integrationNote": "Danışan modülü ile entegre — bu alan taş önerilerinde otomatik kontrol edilir.",
+        "clinicalBadge": "Klinik Not",
+        "textLabel": "Uyarı Metni",
+        "textPlaceholder": "Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez...",
+        "largeEditorTitle": "Uyarılar",
+        "tagsLabel": "Uyarı Etiketleri"
+      },
+      "assignments": {
+        "title": "Atamalar",
+        "desc": "Mineral, organ, astroloji, element ve çakra alanları.",
+        "editAdd": "Düzenle / ekle",
+        "chakraTitle": "Çakra Atama"
+      },
+      "expand": {
+        "editWide": "Geniş ekranda düzenle"
+      },
+      "placeholderWrite": "{field} yaz...",
+      "placeholderNote": "{field} notu...",
+      "bottomBar": {
+        "leaveWarning": "Kaydedilmeden ayrılırsanız taslak kaybolabilir.",
+        "checking": "Kontrol ediliyor..."
+      },
+      "largeEditor": {
+        "badge": "BÜYÜK YAZI EKRANI",
+        "subtitle": "Uzun metinleri rahat yazmak için geniş düzen.",
+        "placeholder": "Notunuzu geniş ekranda yazın..."
+      },
+      "assignModal": {
+        "badge": "ATAMA PANELİ",
+        "addRow": "Satır Ekle",
+        "actionColumn": "İşlem",
+        "empty": "Henüz kayıt eklenmedi."
+      },
+      "assignRow": {
+        "deleteTitle": "{section} satırını sil",
+        "deleteMessage": "\"{label}\" satırını kaldırmak istiyor musunuz?",
+        "deleteSecondMessage": "\"{label}\" satırı kaldırılacak. Emin misiniz?",
+        "rowFallback": "{section} satırı"
+      },
+      "photoConfirm": {
+        "title": "Fotoğrafı kaldır",
+        "message": "Bu fotoğraf kalıcı olarak kaldırılacak ve geri alınamayacak. Devam etmek istiyor musunuz?",
+        "secondMessage": "Bu fotoğraf kalıcı olarak kaldırılacak. Emin misiniz?",
+        "confirm": "Kaldır",
+        "cancel": "Vazgeç"
+      },
+      "toasts": {
+        "onlyImages": "Yalnızca görsel dosyaları eklenebilir.",
+        "demoNoUpload": "Demo modunda görsel yüklenmez.",
+        "imageUploadFailed": "Görsel yüklenemedi. Lütfen tekrar deneyin.",
+        "imagesUploaded": "{count} resim yüklendi.",
+        "photoRemoveFailed": "Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.",
+        "photoRemoved": "Fotoğraf kaldırıldı.",
+        "stoneNameRequired": "Taş adı zorunlu hocam.",
+        "saveFailed": "Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.",
+        "saveFailedTitle": "Kayıt başarısız",
+        "savedTitle": "Kaydedildi",
+        "savedMessage": "Taş kaydı başarıyla oluşturuldu.",
+        "formCleared": "Form temizlendi."
+      },
+      "common": {
+        "save": "Kaydet",
+        "saving": "Kaydediliyor...",
+        "cancel": "İptal",
+        "clear": "Temizle",
+        "delete": "Sil"
+      }
+    }
+  }
+}
