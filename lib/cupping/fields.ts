@@ -36,6 +36,11 @@ export const CUPPING_TABLES = {
   protocolEntries: "cupping_protocol_entries",
   protocolEntryPoints: "cupping_protocol_entry_points",
   protocolSources: "cupping_protocol_sources",
+  // ── FAZ 5 — Hacamat Takvimi + Bilgilendirme (Kozmik Hacamat'tan TAMAMEN AYRI) ──
+  adviceTemplates: "cupping_advice_templates",
+  calendarPlans: "cupping_calendar_plans",
+  calendarPlanDays: "cupping_calendar_plan_days",
+  clientAdvice: "cupping_client_advice",
 } as const;
 
 /**
@@ -254,3 +259,42 @@ export const PROTOCOL_ENTRY_WRITABLE = [
 /** cupping_protocol_sources — protokol-seviye künye. POST (FK dahil) / PATCH (META). */
 export const PROTOCOL_SOURCE_WRITABLE = ["protocol_id", "source_id", "locator", "note", "sort_order"] as const;
 export const PROTOCOL_SOURCE_META_WRITABLE = ["locator", "note", "sort_order"] as const;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FAZ 5 — HACAMAT TAKVİMİ + BİLGİLENDİRME yazılabilir alanları (server-side)
+//
+// id / tenant_id / created_at / updated_at ASLA client'tan alınmaz (server yazar).
+// is_default GENEL allowlist DIŞINDADIR — yalnız atomik RPC (default-switch) ile
+// yönetilir (partial-unique invariant korunur). gregorian_date / client_id /
+// source_template_id / plan_id da allowlist DIŞIDIR — server-side KATI doğrulanır.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** cupping_advice_templates — genel bilgilendirme şablonu. is_default HARİÇ (RPC ile). */
+export const ADVICE_TEMPLATE_WRITABLE = [
+  "title",
+  "before_text",
+  "after_text",
+  "general_note",
+  "is_active",
+] as const;
+
+/** cupping_calendar_plans — yıllık plan temel bilgisi. advice_template_id ownership doğrulanır. */
+export const CALENDAR_PLAN_WRITABLE = [
+  "name",
+  "year",
+  "description",
+  "advice_template_id",
+  "is_active",
+] as const;
+
+/** cupping_calendar_plan_days — seçili gün meta'sı. gregorian_date/plan_id server-side. */
+export const CALENDAR_PLAN_DAY_WRITABLE = ["user_label", "note"] as const;
+
+/** cupping_client_advice — danışana-özel snapshot. client_id/source_template_id server-side. */
+export const CLIENT_ADVICE_WRITABLE = [
+  "title",
+  "before_text",
+  "after_text",
+  "general_note",
+  "is_active",
+] as const;
