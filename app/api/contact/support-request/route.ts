@@ -6,21 +6,44 @@ export const runtime = "nodejs";
 /**
  * POST /api/contact/support-request
  *
- * Public (giriş yapılmadan) şifre/giriş desteği talebi. Ziyaretçi login
- * modalındaki "Şifremi Unuttum" formundan gönderir. Yeni tablo/migration YOK:
- * mevcut `support_messages` + admin destek gelen-kutusu (/admin/support) reuse
- * edilir. `support_messages.user_id/tenant_id NOT NULL` olduğundan talep bir
- * admin/sistem hesabına iliştirilir; ziyaretçinin bilgileri konu + gövdeye
- * yazılır ve konu "Şifre Desteği" ile otomatik etiketlenir.
+ * Public (giriş yapılmadan) destek/iletişim talebi. Ziyaretçi login
+ * modalındaki iki akıştan gönderir:
+ *   - "password_support"  → "Şifremi Unuttum" / giriş sorunu bildirimi
+ *   - "membership_contact" → "Üyelik ve Fiyat Bilgisi Al → Doğrudan Mesaj"
  *
+ * Yeni tablo/endpoint/migration YOK: mevcut `support_messages` + admin destek
+ * gelen-kutusu (/admin/support) reuse edilir. `support_messages.user_id/tenant_id
+ * NOT NULL` olduğundan talep bir admin/sistem hesabına iliştirilir; ziyaretçinin
+ * bilgileri konu + gövdeye yazılır.
+ *
+ * Güvenlik: subject CLIENT'tan GÜVENİLMEZ. Yalnız `context` allowlist'ine göre
+ * sunucu tarafında üretilir; admin panelde iki akış konudan ayırt edilir.
  * Kişisel GSM / hassas veri sunucuya gömülmez. Anonim spam'e karşı: alan
  * validasyonu + uzunluk sınırı + gizli honeypot alanı (aşırı altyapı yok).
  */
-const SUBJECT_PREFIX = "Şifre Desteği";
+type SupportContext = "password_support" | "membership_contact";
+
+const CONTEXT_CONFIG: Record<
+  SupportContext,
+  { subjectPrefix: string; leadLine: string }
+> = {
+  password_support: {
+    subjectPrefix: "Şifre Desteği",
+    leadLine:
+      "Giriş/şifre desteği talebi (ziyaretçi — giriş yapılmadan gönderildi).",
+  },
+  membership_contact: {
+    subjectPrefix: "Üyelik ve Fiyat Bilgisi",
+    leadLine:
+      "Üyelik & fiyat bilgisi talebi (ziyaretçi — giriş yapılmadan gönderildi).",
+  },
+};
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
   let body: {
+    context?: unknown;
     fullName?: unknown;
     email?: unknown;
     phone?: unknown;
@@ -32,6 +55,15 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
+
+  // Context allowlist. Eski istemci uyumluluğu için boş bırakılırsa
+  // "password_support" varsayılır; tanınmayan değer reddedilir.
+  const rawContext = String(body.context ?? "password_support").trim();
+  if (!(rawContext in CONTEXT_CONFIG)) {
+    return NextResponse.json({ error: "Geçersiz talep türü." }, { status: 400 });
+  }
+  const context = rawContext as SupportContext;
+  const { subjectPrefix, leadLine } = CONTEXT_CONFIG[context];
 
   // Honeypot: gerçek kullanıcı bu gizli alanı doldurmaz. Doluysa sessizce kabul
   // et (bot'a hata sinyali verme) ama hiçbir şey yazma.
@@ -85,9 +117,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Talep şu an alınamıyor. Lütfen sonra tekrar deneyin." }, { status: 503 });
   }
 
-  const subject = `${SUBJECT_PREFIX} — ${fullName}`.slice(0, 200);
+  const subject = `${subjectPrefix} — ${fullName}`.slice(0, 200);
   const composed = [
-    "Giriş/şifre desteği talebi (ziyaretçi — giriş yapılmadan gönderildi).",
+    leadLine,
     "",
     `Ad Soyad: ${fullName}`,
     `E-posta: ${email}`,

@@ -33,7 +33,7 @@ import {
   WHATSAPP_CONTACT_ENABLED,
   buildWhatsAppUrl,
 } from "@/lib/contact/whatsapp";
-import PasswordSupportForm from "@/components/auth/PasswordSupportForm";
+import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -64,17 +64,21 @@ import {
  * Üyelik & fiyat iletişim aksiyonları — hem login modalında hem
  * pending/inactive panelinde kullanılır (tek kaynak, tutarlı UX).
  *
- * WhatsApp aksiyonu yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
- * render edilir; kapalıyken kullanıcıya kırık wa.me linki GÖSTERİLMEZ.
- * "Mesaj Bırak" her durumda çalışır (public /iletisim sayfası).
+ * İki gerçek iletişim seçeneği sunar:
+ *   A) WhatsApp'tan Görüş  — yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
+ *      render edilir; kapalıyken kullanıcıya kırık wa.me linki GÖSTERİLMEZ.
+ *   B) Doğrudan Mesaj Gönder — `onDirectMessage` ile aynı modal içindeki
+ *      membership_contact formunu açar (kullanıcı /iletisim'e gönderilmez).
  */
 function MembershipContactCTA({
   variant = "modal",
-  onNavigate,
+  onWhatsAppNavigate,
+  onDirectMessage,
   defaultOpen = false,
 }: {
   variant?: "modal" | "panel";
-  onNavigate?: () => void;
+  onWhatsAppNavigate?: () => void;
+  onDirectMessage: () => void;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -87,21 +91,21 @@ function MembershipContactCTA({
           href={whatsappUrl}
           target="_blank"
           rel="noreferrer noopener"
-          onClick={onNavigate}
+          onClick={onWhatsAppNavigate}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white no-underline shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
         >
           <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
           WhatsApp&apos;tan Görüş
         </a>
       )}
-      <Link
-        href="/iletisim"
-        onClick={onNavigate}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-700 no-underline shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      <button
+        type="button"
+        onClick={onDirectMessage}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
       >
         <Mail className="h-4 w-4" strokeWidth={2.5} />
-        Mesaj Bırak
-      </Link>
+        Doğrudan Mesaj Gönder
+      </button>
     </div>
   );
 
@@ -674,7 +678,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [membershipIntent, setMembershipIntent] = useState(false);
-  const [authModalView, setAuthModalView] = useState<"login" | "support">("login");
+  const [authModalView, setAuthModalView] = useState<
+    "login" | "support" | "membership"
+  >("login");
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
@@ -1512,7 +1518,14 @@ export default function Home() {
                     Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.
                   </p>
                   <div className="mt-3 w-full max-w-xs">
-                    <MembershipContactCTA variant="panel" />
+                    <MembershipContactCTA
+                      variant="panel"
+                      onDirectMessage={() => {
+                        setMessage("");
+                        setAuthModalView("membership");
+                        setLoginModalOpen(true);
+                      }}
+                    />
                   </div>
                 </div>
               ) : expertModulesEmpty ? (
@@ -3609,20 +3622,30 @@ export default function Home() {
             <div className="relative z-10 flex items-start justify-between gap-4">
               <div>
                 <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
-                  {authModalView === "support" ? "Şifre Desteği" : "Uzman Paneli"}
+                  {authModalView === "support"
+                    ? "Şifre Desteği"
+                    : authModalView === "membership"
+                      ? "Üyelik İletişimi"
+                      : "Uzman Paneli"}
                 </div>
 
                 <h3
                   id="login-modal-title"
                   className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl"
                 >
-                  {authModalView === "support" ? "Giriş Sorunu Bildir" : "Giriş Yap"}
+                  {authModalView === "support"
+                    ? "Giriş Sorunu Bildir"
+                    : authModalView === "membership"
+                      ? "Üyelik ve Fiyat Bilgisi"
+                      : "Giriş Yap"}
                 </h3>
 
                 <p className="mt-1.5 text-sm leading-6 text-slate-600">
                   {authModalView === "support"
                     ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
-                    : "Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz."}
+                    : authModalView === "membership"
+                      ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize doğrudan mesaj bırakabilirsiniz."
+                      : "Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz."}
                 </p>
               </div>
 
@@ -3636,7 +3659,16 @@ export default function Home() {
             </div>
 
             {authModalView === "support" ? (
-              <PasswordSupportForm
+              <SupportRequestForm
+                mode="password_support"
+                onBack={() => {
+                  setMessage("");
+                  setAuthModalView("login");
+                }}
+              />
+            ) : authModalView === "membership" ? (
+              <SupportRequestForm
+                mode="membership_contact"
                 onBack={() => {
                   setMessage("");
                   setAuthModalView("login");
@@ -3715,7 +3747,11 @@ export default function Home() {
               <MembershipContactCTA
                 variant="modal"
                 defaultOpen={membershipIntent}
-                onNavigate={closeLoginModal}
+                onWhatsAppNavigate={closeLoginModal}
+                onDirectMessage={() => {
+                  setMessage("");
+                  setAuthModalView("membership");
+                }}
               />
               <div className="mt-4 text-center">
                 <Link
