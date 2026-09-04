@@ -7,7 +7,6 @@ import type {
   SourceStatus,
   TriangleNode,
 } from "./types";
-import { classifyCompatibilityNumber, compatibilityNameSum } from "./compatibilityAlphabet";
 import {
   CATALOG_SOURCE_PAGES,
   DIRECTIONAL_REL,
@@ -37,7 +36,6 @@ import {
   elementLevel,
   highlightedElements,
   pin8From,
-  rawBirthDigitSum,
 } from "./calculations";
 
 export * from "./types";
@@ -59,7 +57,6 @@ function statusOf(text: string | null): SourceStatus {
 export type RelationshipInput = {
   person1: { name: string; surname: string; birthDate: string };
   person2: { name: string; surname: string; birthDate: string };
-  marriageDate?: string;
 };
 
 function normDate(raw: string): string {
@@ -68,11 +65,6 @@ function normDate(raw: string): string {
 
 export function isRelationshipInputValid(input: RelationshipInput): boolean {
   return parseBirthDate(normDate(input.person1.birthDate)) !== null && parseBirthDate(normDate(input.person2.birthDate)) !== null;
-}
-
-/** Bir tarihin BÜTÜN rakamlarının ham toplamı (nikâh tarihi vb.). */
-function rawDateDigitSum(dateStr: string): number {
-  return Array.from(dateStr).filter((c) => /\d/.test(c)).reduce((a, c) => a + Number(c), 0);
 }
 
 function buildPerson(p: { name: string; surname: string; birthDate: string }): RelationshipPerson | null {
@@ -123,41 +115,11 @@ export function analyzeRelationship(input: RelationshipInput): RelationshipAnaly
     return { position, field: TRIANGLE_FIELD_BY_POSITION[position], value, text: lookup(HANE_REL[position] ?? {}, value) };
   });
 
-  // ── Eş Uyumu (uçtan uca canonical) ─────────────────────────────────────────
-  const aName = compatibilityNameSum(a.name);
-  const bName = compatibilityNameSum(b.name);
-  const aNameSur = compatibilityNameSum(`${a.name} ${a.surname}`);
-  const bNameSur = compatibilityNameSum(`${b.name} ${b.surname}`);
-  const aDobSum = rawBirthDigitSum(a.birthDate) ?? 0;
-  const bDobSum = rawBirthDigitSum(b.birthDate) ?? 0;
-  const aValue = aName.sum + aDobSum;
-  const bValue = bName.sum + bDobSum;
-  const coupleValue = aValue + bValue;
-  const aValueSur = aNameSur.sum + aDobSum;
-  const bValueSur = bNameSur.sum + bDobSum;
-  const coupleValueSur = aValueSur + bValueSur;
-  const unmapped = Array.from(new Set([...aNameSur.unmapped, ...bNameSur.unmapped]));
-
-  // ── Nikâh / Birliktelik Tarihi ─────────────────────────────────────────────
-  // GERÇEK takvim doğrulaması: GG/AA/YYYY geçerli değilse katman üretilmez.
-  // (Kaynak örneğindeki "12/22/2002" GG/AA/YYYY olarak GEÇERSİZDİR; ürün standardı
-  //  "22/12/2002" olarak normalize edilir — SOURCE_DATE_FORMAT_VARIANT.)
-  const marriageDate = input.marriageDate ? normDate(input.marriageDate) : "";
-  const marriageValid = marriageDate !== "" && parseBirthDate(marriageDate) !== null;
-  const marriageLayer = marriageValid
-    ? (() => {
-        const marriageDigitSum = rawDateDigitSum(marriageDate);
-        const combinedValue = coupleValue + marriageDigitSum;
-        return {
-          marriageDate,
-          marriageDigitSum,
-          baseCoupleValue: coupleValue,
-          combinedValue,
-          classification: classifyCompatibilityNumber(combinedValue),
-          provenance: prov("course_marriage_date_effect_v1", CATALOG_SOURCE_PAGES.esUyumu),
-        };
-      })()
-    : null;
+  // FAZ 6: Eş Uyumu (spouseCompatibility) ve Nikâh/Birliktelik Tarihi Etkisi
+  // (marriageDateEffect) ürün kapsamından KALDIRILDI. Sinerji PIN / üçgen / ortak
+  // rakam katmanları bunlardan bağımsızdır. Ev/İşyeri uyum motorunun paylaştığı
+  // compatibilityAlphabet + rawBirthDigitSum + CompatClass primitive'leri korunur
+  // (bu dosyadan re-export edilir), yalnız burada tüketilmez.
 
   const lifeA = lookup(YASAM_KODU_REL, a.lifeCodeDigit);
   const lifeB = lookup(YASAM_KODU_REL, b.lifeCodeDigit);
@@ -198,25 +160,5 @@ export function analyzeRelationship(input: RelationshipInput): RelationshipAnaly
 
     elementBalance: { counts, highlighted, levels, provenance: prov("course_relationship_elements_v1") },
     dominance: { baskin: dom.baskin, edilgen: dom.edilgen, provenance: prov("course_relationship_processing_type_v1") },
-
-    spouseCompatibility: {
-      aNameSum: aName.sum,
-      bNameSum: bName.sum,
-      aDobSum,
-      bDobSum,
-      aValue,
-      bValue,
-      coupleValue,
-      classification: classifyCompatibilityNumber(coupleValue),
-      aNameWithSurnameSum: aNameSur.sum,
-      bNameWithSurnameSum: bNameSur.sum,
-      aValueWithSurname: aValueSur,
-      bValueWithSurname: bValueSur,
-      coupleValueWithSurname: coupleValueSur,
-      classificationWithSurname: classifyCompatibilityNumber(coupleValueSur),
-      unmappedLetters: unmapped,
-      provenance: prov("course_spouse_compatibility_v1", CATALOG_SOURCE_PAGES.esUyumu),
-    },
-    marriageDateEffect: marriageLayer,
   };
 }

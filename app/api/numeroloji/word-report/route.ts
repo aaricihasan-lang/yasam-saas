@@ -14,6 +14,8 @@ import {
   type WordSharedData,
   type WordStoneRow,
 } from "@/app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild";
+import { isValidCalendarDate } from "@/lib/numeroloji";
+import type { CalendarDate } from "@/lib/numeroloji/timing";
 import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
 import { buildStockIndex, type StockIndex } from "@/app/numeroloji/bilgi-bankasi/helpers/stoneStockLogic";
@@ -27,17 +29,30 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw } = body as {
+  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw, referenceDate: referenceDateRaw } = body as {
     tenantId?: string;
     userId?: string;
     exportMode?: ExportMode;
     ids?: string[];
     recordId?: string;
     sections?: unknown;
+    referenceDate?: unknown;
   };
 
   const sections = normalizeWordPersonSections(sectionsRaw);
   const selectedTabs = WORD_TAB_ORDER.filter((k) => sections[k]);
+
+  // FAZ 6: "Zamanlama & Gelişim" seçiliyse referans tarih ZORUNLU ve GEÇERLİ olmalı.
+  // Engine'e açık CalendarDate geçirilir; sunucuda gizli new Date() KULLANILMAZ.
+  let refCalendar: CalendarDate | null = null;
+  if (sections.zamanlama) {
+    const m = typeof referenceDateRaw === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(referenceDateRaw) : null;
+    if (!m) return Response.json({ ok: false, error: "Zamanlama & Gelişim için geçerli bir referans tarihi (YYYY-AA-GG) gereklidir." }, { status: 400 });
+    const year = Number(m[1]); const month = Number(m[2]); const day = Number(m[3]);
+    if (!isValidCalendarDate(day, month, year))
+      return Response.json({ ok: false, error: "Geçersiz zamanlama referans tarihi." }, { status: 400 });
+    refCalendar = { year, month, day };
+  }
 
   if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
@@ -98,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
     stockIndex = buildStockIndex((invRes.data || []) as { name?: unknown; adet?: unknown }[]);
   }
 
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex);
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar);
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {

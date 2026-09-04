@@ -14,6 +14,15 @@ import {
   type WordPersonSections,
 } from "../bilgi-bankasi/helpers/wordPersonSections";
 
+/** Bugünün LOKAL takvim tarihi → YYYY-MM-DD (UI'da bir kez çözülür; engine'e açıkça geçer). */
+function todayInputValue(): string {
+  const now = new Date();
+  const y = now.getFullYear().toString().padStart(4, "0");
+  const m = (now.getMonth() + 1).toString().padStart(2, "0");
+  const d = now.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function WordPersonSectionPicker({
   open,
   busy,
@@ -25,13 +34,16 @@ export function WordPersonSectionPicker({
   busy: boolean;
   title?: string;
   onCancel: () => void;
-  onConfirm: (sections: WordPersonSections) => void;
+  onConfirm: (sections: WordPersonSections, referenceDate?: string) => void;
 }) {
   const [sections, setSections] = useState<WordPersonSections>(defaultWordPersonSections());
+  // Zamanlama & Gelişim referans tarihi — VARSAYILAN bugün. Kullanıcı değiştirebilir.
+  const [referenceDate, setReferenceDate] = useState<string>(() => todayInputValue());
 
   if (!open) return null;
 
   const canGenerate = atLeastOneWordPersonSection(sections);
+  const timingSelected = sections.zamanlama === true;
 
   return (
     <div
@@ -62,8 +74,28 @@ export function WordPersonSectionPicker({
               </label>
             ))}
           </div>
+          {timingSelected ? (
+            <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/40 p-3">
+              <label htmlFor="word-timing-ref" className="block text-xs font-black text-slate-800">
+                Zamanlama referans tarihi
+              </label>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                Yıl, ay, gün ve gelişim hesapları bu tarihe göre oluşturulur.
+              </p>
+              <input
+                id="word-timing-ref"
+                type="date"
+                value={referenceDate}
+                onChange={(e) => setReferenceDate(e.target.value)}
+                className="mt-2 h-10 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/50"
+              />
+            </div>
+          ) : null}
           {!canGenerate ? (
             <p className="mt-3 text-xs font-bold text-rose-600">En az bir bölüm seçin.</p>
+          ) : null}
+          {timingSelected && !referenceDate ? (
+            <p className="mt-2 text-xs font-bold text-rose-600">Zamanlama için geçerli bir referans tarihi seçin.</p>
           ) : null}
           <div className="mt-5 flex justify-end gap-2.5">
             <button
@@ -76,8 +108,8 @@ export function WordPersonSectionPicker({
             </button>
             <button
               type="button"
-              disabled={!canGenerate || busy}
-              onClick={() => onConfirm(sections)}
+              disabled={!canGenerate || busy || (timingSelected && !referenceDate)}
+              onClick={() => onConfirm(sections, timingSelected ? referenceDate : undefined)}
               className="h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-black text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? "Hazırlanıyor…" : "Word Oluştur"}

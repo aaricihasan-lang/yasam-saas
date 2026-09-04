@@ -9,6 +9,7 @@ import {
 } from "./NumerolojiGorselRaporInfografik";
 import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
 import { NumerolojiIliskiAnaliziTab } from "./NumerolojiIliskiAnaliziTab";
+import { NumerolojiZamanlamaGelisimTab } from "./NumerolojiZamanlamaGelisimTab";
 import { NumerolojiEvIsYeriSayisiTab } from "./NumerolojiEvIsYeriSayisiTab";
 import {
   ContentFontSizeProvider,
@@ -132,6 +133,7 @@ const DETAY_TABS = [
   { id: "summary" as const, label: "Sonuç Özeti" },
   { id: "plain" as const, label: "Analiz (Hesap Özetsiz)" },
   { id: "detailed" as const, label: "Analiz (Hesap Özetli)" },
+  { id: "zamanlama" as const, label: "Zamanlama & Gelişim" },
   { id: "tas" as const, label: "Taş Açıklamaları" },
   { id: "gorsel" as const, label: "Görsel Rapor" },
   { id: "iliski" as const, label: "İlişki Analizi" },
@@ -514,6 +516,16 @@ export function NumerolojiKayitDetayPanel({
               </div>
             ) : null}
           </ContentFontSizeProvider>
+        ) : null}
+
+        {/* FAZ 6 P0: kayıtlı analizde de Zamanlama & Gelişim — ilk analizle AYNI component,
+            CANLI hesap (name/surname/birth_date row'dan; yeni engine/DB/snapshot YOK). */}
+        {tab === "zamanlama" ? (
+          <NumerolojiZamanlamaGelisimTab
+            firstName={name}
+            lastName={surname}
+            birthDate={birthDate}
+          />
         ) : null}
 
         {isIliskiTab ? (

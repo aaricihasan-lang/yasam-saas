@@ -43,10 +43,14 @@ export function calcAcquisition(birthDate: string): number | null {
 /**
  * İsim Sayısı (tek hane): isim+soyisim harflerinin CHAKRA_LETTER_MAP toplamı → 1–9.
  *
- * NOT: Bu, İfade Sayısı primitive'i ile AYNI harf tablosunu kullanır fakat özel
- * sayıları (11/19/22/33) korumadan tam sadeleştirir. PDF'deki "isim sayısı"
- * teriminin bu primitive ile birebir eşdeğer olduğu KAYNAKTAN DOĞRULANMADI
- * → tüketici tarafında UNVERIFIED_PRIMITIVE olarak işaretlenir.
+ * KAYNAK DOĞRULANDI (kitap 2. seviye(3).pdf — "İsim sayısı, isminizin içindeki
+ * harflerin sayısal olarak toplamından bulunan..." + "Ortak Rakam" yöntemi):
+ *   İsim+soyisim harflerinin rakamsal karşılıkları toplanır, tek haneye indirilir.
+ *   Kaynak örnekleri: SEMA (1+5+4+1=11→2), DURMAZ (4+3+9+4+1+8=29→11→2),
+ *   SEMA ÇAYLAR = 2, ELİF YILMAZ = 1. İki kişinin tek-hane değeri toplanıp yine
+ *   tek haneye indirilince ORTAK RAKAM bulunur (örn. 2+1=3).
+ * Bu, İfade Sayısı primitive'i ile AYNI harf tablosunu kullanır ama kaynak "isim
+ * sayısı" tanımı gereği özel sayı korumaz; tam sadeleştirme (1–9) uygulanır.
  */
 export function calcNameNumberSingle(firstName: string, lastName: string): number | null {
   const full = `${firstName || ""} ${lastName || ""}`;

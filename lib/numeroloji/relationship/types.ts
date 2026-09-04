@@ -121,6 +121,9 @@ export type DominanceLayer = {
   provenance: Provenance;
 };
 
+// CompatClass / CompatibilityClassification — Ev/İşyeri (Business) uyum motorunun
+// PAYLAŞTIĞI sınıflandırma tipleridir (lib/numeroloji/business bunları import eder).
+// FAZ 6'da Eş Uyumu / Nikâh KALDIRILDI ama bu tipler KORUNUR (shared primitive).
 export type CompatClass = "İYİ" | "KÖTÜ" | "KÇB";
 
 export type CompatibilityClassification = {
@@ -132,37 +135,6 @@ export type CompatibilityClassification = {
   polarity: "UYUMLU" | "UYUMSUZ" | null;
   label: string | null;
   note?: string;
-};
-
-export type SpouseCompatibilityLayer = {
-  // İsim + Doğum Tarihi Uyumu
-  aNameSum: number;
-  bNameSum: number;
-  aDobSum: number;
-  bDobSum: number;
-  aValue: number;
-  bValue: number;
-  coupleValue: number;
-  classification: CompatibilityClassification;
-  // İsim + Soyisim + Doğum Tarihi Uyumu (Soyadı Etkisi)
-  aNameWithSurnameSum: number;
-  bNameWithSurnameSum: number;
-  aValueWithSurname: number;
-  bValueWithSurname: number;
-  coupleValueWithSurname: number;
-  classificationWithSurname: CompatibilityClassification;
-  unmappedLetters: string[];
-  provenance: Provenance;
-};
-
-export type MarriageDateEffectLayer = {
-  marriageDate: string;
-  marriageDigitSum: number; // nikâh tarihi ham rakam toplamı
-  /** İsim+Doğum couple değeri + nikâh toplamı → yeni sayı. */
-  baseCoupleValue: number;
-  combinedValue: number;
-  classification: CompatibilityClassification;
-  provenance: Provenance;
 };
 
 export type RelationshipAnalysisResult = {
@@ -183,8 +155,6 @@ export type RelationshipAnalysisResult = {
   elementBalance: ElementBalanceLayer;
   dominance: DominanceLayer;
 
-  spouseCompatibility: SpouseCompatibilityLayer;
-  marriageDateEffect: MarriageDateEffectLayer | null;
-
   // BİLEREK YOK: globalScore / overallScore / compatibilityScore
+  // FAZ 6'da KALDIRILDI: spouseCompatibility (Eş Uyumu) + marriageDateEffect (Nikâh/Birliktelik Tarihi).
 };
