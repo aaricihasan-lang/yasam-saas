@@ -1206,6 +1206,7 @@ function run(): void {
   const calMigName = "supabase/migrations/20270103000000_cupping_calendar_advice_foundation.sql";
   ok(exists(calMigName), "faz5-mig: takvim/bilgilendirme migration mevcut (fresh version)");
   const calMig = read(calMigName);
+  const calMigCode = stripSql(calMig); // yorum-arındırılmış DDL/DML (negatif kontroller için)
   const FAZ5_TABLES = [
     "cupping_advice_templates",
     "cupping_calendar_plans",
@@ -1231,12 +1232,25 @@ function run(): void {
     "faz5-mig: plan_days → plans composite FK CASCADE");
   // Plan-gün: duplicate seçili tarih UNIQUE (tenant, plan, tarih).
   ok(/UNIQUE \(tenant_id, plan_id, gregorian_date\)/.test(calMig), "faz5-mig: seçili-tarih UNIQUE (tenant,plan,tarih)");
-  // Plan → şablon SET NULL.
-  ok(/FOREIGN KEY \(tenant_id, advice_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL/.test(calMig),
-    "faz5-mig: plan → şablon SET NULL");
-  // ClientAdvice → şablon SET NULL (provenance).
-  ok(/FOREIGN KEY \(tenant_id, source_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL/.test(calMig),
-    "faz5-mig: client_advice → şablon SET NULL (provenance)");
+  // Plan → şablon: KOLON-KAPSAMLI SET NULL (yalnız advice_template_id; tenant_id korunur).
+  ok(/FOREIGN KEY \(tenant_id, advice_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL \(advice_template_id\)/.test(calMig),
+    "faz5-mig: plan → şablon SET NULL (advice_template_id) — kolon-kapsamlı");
+  // ClientAdvice → şablon: KOLON-KAPSAMLI SET NULL (yalnız source_template_id; provenance).
+  ok(/FOREIGN KEY \(tenant_id, source_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL \(source_template_id\)/.test(calMig),
+    "faz5-mig: client_advice → şablon SET NULL (source_template_id) — kolon-kapsamlı");
+  // KORUMA: hiçbir template FK'sinde ÇIPLAK (kolon-listesiz) SET NULL yok → tenant_id
+  // ASLA NULL'lanmaz (composite SET NULL tüm kolonları temizler; bu bug ENGELLENDİ).
+  ok(!/ON DELETE SET NULL(?!\s*\()/.test(calMigCode),
+    "faz5-mig: ÇIPLAK composite SET NULL YOK (tenant_id korunur)");
+  // tenant_id her iki template FK'sinde composite anahtar parçası + NOT NULL (nullable DEĞİL).
+  ok(/tenant_id\s+uuid\s+NOT NULL/.test(calMig) &&
+     /FOREIGN KEY \(tenant_id, advice_template_id\)/.test(calMig) &&
+     /FOREIGN KEY \(tenant_id, source_template_id\)/.test(calMig),
+    "faz5-mig: tenant_id composite FK parçası + NOT NULL (korunur)");
+  // DEFAULT RPC: TENANT-KAPSAMLI serileştirme (advisory xact lock) — yalnız hedef-satır
+  // kilidine GÜVENMEZ. Namespace 'cupping_advice_default' + tenant.
+  ok(/pg_advisory_xact_lock\(hashtext\('cupping_advice_default'\),\s*hashtext\(p_tenant_id::text\)\)/.test(calMig),
+    "faz5-mig: default RPC tenant-kapsamlı advisory xact lock (serileştirme)");
   // ClientAdvice → clients (kanonik) composite FK CASCADE.
   ok(/FOREIGN KEY \(tenant_id, client_id\)\s*REFERENCES public\.clients \(tenant_id, id\) ON DELETE CASCADE/.test(calMig),
     "faz5-mig: client_advice → clients composite FK CASCADE (kanonik)");
@@ -1255,7 +1269,6 @@ function run(): void {
   // Yapısal yıl aralığı (tıbbi gün doğrulaması YOK).
   ok(/CHECK \(year BETWEEN 1900 AND 2200\)/.test(calMig), "faz5-mig: plan yıl aralığı 1900–2200 (yapısal)");
   // Additive: DROP/TRUNCATE/DELETE/UPDATE-backfill/seed YOK; ready-day sabiti YOK (KOD).
-  const calMigCode = stripSql(calMig);
   ok(!/\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(calMigCode), "faz5-mig: DROP/TRUNCATE/DELETE YOK (additive)");
   ok(!/\bINSERT\s+INTO\s+public\.cupping_(advice_templates|calendar_plans|calendar_plan_days|client_advice)\b/i.test(calMigCode),
     "faz5-mig: seed satır YOK");
