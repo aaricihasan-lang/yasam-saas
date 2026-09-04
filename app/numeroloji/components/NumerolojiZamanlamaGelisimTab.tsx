@@ -14,6 +14,25 @@ import {
 } from "@/lib/numeroloji/timing";
 import { computeDevelopment } from "@/lib/numeroloji/development";
 import { isValidBirthDateDisplay } from "@/lib/numeroloji";
+import { NumerolojiCalculationInfo, type CalculationExplanation } from "./NumerolojiCalculationInfo";
+import { CONCEPT_HELP } from "../helpers/conceptHelp";
+import {
+  nominalPersonalYearExplain,
+  activePersonalYearExplain,
+  personalMonthExplain,
+  personalDayExplain,
+  universalYearExplain,
+  universalMonthExplain,
+  universalDayExplain,
+  yearChakraExplain,
+  maturityExplain,
+  birthDayEnergyExplain,
+  personalityEnergyExplain,
+  lifeLessonExplain,
+  destinyExplain,
+  evreExplain,
+  donguExplain,
+} from "../utils/teachingExplain";
 
 type Props = {
   firstName: string;
@@ -47,12 +66,16 @@ function Card({
   interpretation,
   accent = "violet",
   hint,
+  explanation,
+  meaning,
 }: {
   label: string;
   value: string;
   interpretation?: string;
   accent?: "violet" | "amber" | "emerald" | "sky";
   hint?: string;
+  explanation?: CalculationExplanation;
+  meaning?: string;
 }) {
   const ring = {
     violet: "border-violet-200/70 from-violet-50/80",
@@ -77,7 +100,17 @@ function Card({
           {value}
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+            {explanation || meaning ? (
+              <NumerolojiCalculationInfo
+                title={label}
+                meaning={meaning}
+                explanation={explanation}
+                tone={accent}
+              />
+            ) : null}
+          </div>
           {hint ? <p className="text-xs font-medium text-slate-500">{hint}</p> : null}
         </div>
       </div>
@@ -125,6 +158,31 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
 
   const { universal: u, personal: p, cycle: c, dev: d } = data;
   const py = p.personalYear;
+  // Aktif Kişisel Yıl: aktif dönemin başladığı doğum gününün takvim yılı → öğretici hesap açıklaması.
+  const activeCalendarYear = py.active.periodStart.year;
+
+  // ── Öğretici "Nasıl hesaplandı?" açıklamaları (engine sonucuyla birebir) ──────
+  const nominalPyExp = nominalPersonalYearExplain(birthDate, ref.year)?.explanation;
+  const activePyExp = activePersonalYearExplain(
+    birthDate,
+    ref,
+    activeCalendarYear,
+    formatTR(py.active.periodStart),
+    formatTR(py.active.periodEnd),
+  )?.explanation;
+  const personalMonthExp = personalMonthExplain(birthDate, ref)?.explanation;
+  const personalDayExp = personalDayExplain(birthDate, ref)?.explanation;
+  const universalYearExp = universalYearExplain(ref.year).explanation;
+  const universalMonthExp = universalMonthExplain(ref.year, ref.month).explanation;
+  const universalDayExp = universalDayExplain(ref.year, ref.month, ref.day).explanation;
+  const yearChakraExp = yearChakraExplain(birthDate, ref.year)?.explanation;
+  const maturityExp = maturityExplain(firstName, lastName, birthDate)?.explanation;
+  const birthDayEnergyExp = birthDayEnergyExplain(birthDate)?.explanation;
+  const personalityEnergyExp = personalityEnergyExplain(birthDate)?.explanation;
+  const lifeLessonExp = lifeLessonExplain(birthDate)?.explanation;
+  const destinyExp = destinyExplain(firstName, lastName)?.explanation;
+  const evreExp = c.evre ? evreExplain(c.age, c.evre.index, c.evre.energy).explanation : undefined;
+  const donguExp = c.evre && c.dongu ? donguExplain(c.age, c.dongu.index).explanation : undefined;
 
   return (
     <div className="space-y-1">
@@ -152,9 +210,9 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
       {/* B) EVRENSEL ZAMANLAMA */}
       <SectionTitle>Evrensel Zamanlama</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card label="Evrensel Yıl" value={rr(u.universalYear)} interpretation={u.universalYear.interpretation} accent="sky" />
-        <Card label="Evrensel Ay" value={rr(u.universalMonth)} interpretation={u.universalMonth.interpretation} accent="sky" />
-        <Card label="Evrensel Gün" value={rr(u.universalDay)} interpretation={u.universalDay.interpretation} accent="sky" />
+        <Card label="Evrensel Yıl" value={rr(u.universalYear)} interpretation={u.universalYear.interpretation} accent="sky" explanation={universalYearExp} meaning={CONCEPT_HELP.universalYear} />
+        <Card label="Evrensel Ay" value={rr(u.universalMonth)} interpretation={u.universalMonth.interpretation} accent="sky" explanation={universalMonthExp} meaning={CONCEPT_HELP.universalMonth} />
+        <Card label="Evrensel Gün" value={rr(u.universalDay)} interpretation={u.universalDay.interpretation} accent="sky" explanation={universalDayExp} meaning={CONCEPT_HELP.universalDay} />
       </div>
 
       {/* C) KİŞİSEL ZAMANLAMA */}
@@ -169,16 +227,21 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
           value={rr(py.nominal)}
           interpretation={py.nominal.interpretation}
           accent="violet"
+          hint="Takvim yılı hesabı"
+          explanation={nominalPyExp}
+          meaning={CONCEPT_HELP.nominalPersonalYear}
         />
         <Card
           label="Aktif Kişisel Yıl"
           value={rr(py.active)}
           interpretation={py.active.interpretation}
           accent="violet"
-          hint={`Aktif dönem: ${formatTR(py.active.periodStart)} – ${formatTR(py.active.periodEnd)}`}
+          hint={`Şu anda içinde bulunulan dönem: ${formatTR(py.active.periodStart)} – ${formatTR(py.active.periodEnd)}`}
+          meaning={CONCEPT_HELP.activePersonalYear}
+          explanation={activePyExp}
         />
-        <Card label="Kişisel Ay" value={rr(p.personalMonth)} interpretation={p.personalMonth.interpretation} accent="violet" />
-        <Card label="Kişisel Gün" value={rr(p.personalDay)} interpretation={p.personalDay.interpretation} accent="violet" />
+        <Card label="Kişisel Ay" value={rr(p.personalMonth)} interpretation={p.personalMonth.interpretation} accent="violet" explanation={personalMonthExp} meaning={CONCEPT_HELP.personalMonth} />
+        <Card label="Kişisel Gün" value={rr(p.personalDay)} interpretation={p.personalDay.interpretation} accent="violet" explanation={personalDayExp} meaning={CONCEPT_HELP.personalDay} />
       </div>
 
       {/* D) YAŞAM EVRESİ */}
@@ -192,12 +255,16 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
               interpretation={c.evre.interpretation}
               accent="emerald"
               hint="Evre enerjisi (PIN)"
+              meaning={CONCEPT_HELP.evre}
+              explanation={evreExp}
             />
             <Card
               label={`Döngü ${c.dongu?.index ?? "—"}`}
               value={String(c.dongu?.index ?? "—")}
               interpretation={c.dongu?.interpretation}
               accent="emerald"
+              meaning={CONCEPT_HELP.dongu}
+              explanation={donguExp}
             />
           </div>
           {/* 9 yıllık timeline */}
@@ -238,17 +305,19 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
       {/* E) BİREYSEL GELİŞİM */}
       <SectionTitle>Bireysel Gelişim</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Card label="Güncel Yıl Çakrası" value={rr(d.yearChakra)} interpretation={d.yearChakra.interpretation} accent="amber" />
-        <Card label="Olgunluk" value={rr(d.maturity)} interpretation={d.maturity.interpretation} accent="amber" hint="~45 yaştan itibaren belirginleşir" />
+        <Card label="Güncel Yıl Çakrası" value={rr(d.yearChakra)} interpretation={d.yearChakra.interpretation} accent="amber" explanation={yearChakraExp} meaning={CONCEPT_HELP.yearChakra} />
+        <Card label="Olgunluk" value={rr(d.maturity)} interpretation={d.maturity.interpretation} accent="amber" hint="~45 yaştan itibaren belirginleşir" explanation={maturityExp} meaning={CONCEPT_HELP.maturity} />
         <Card
           label={`Doğum Günü Enerjisi (Ayın ${d.birthDayEnergy.display}. günü)`}
           value={d.birthDayEnergy.display}
           interpretation={d.birthDayEnergy.interpretation}
           accent="amber"
+          explanation={birthDayEnergyExp}
+          meaning={CONCEPT_HELP.birthDayEnergy}
         />
-        <Card label="Kişilik Enerjisi" value={rr(d.personalityEnergy)} interpretation={d.personalityEnergy.interpretation} accent="amber" />
-        <Card label="Hayat Dersi" value={rr(d.lifeLesson)} interpretation={d.lifeLesson.interpretation} accent="amber" />
-        <Card label="Kader Sayısı" value={rr(d.destiny)} interpretation={d.destiny.interpretation} accent="amber" />
+        <Card label="Kişilik Enerjisi" value={rr(d.personalityEnergy)} interpretation={d.personalityEnergy.interpretation} accent="amber" explanation={personalityEnergyExp} meaning={CONCEPT_HELP.personalityEnergy} />
+        <Card label="Hayat Dersi" value={rr(d.lifeLesson)} interpretation={d.lifeLesson.interpretation} accent="amber" explanation={lifeLessonExp} meaning={CONCEPT_HELP.lifeLesson} />
+        <Card label="Kader Sayısı" value={rr(d.destiny)} interpretation={d.destiny.interpretation} accent="amber" explanation={destinyExp} meaning={CONCEPT_HELP.destiny} />
       </div>
     </div>
   );

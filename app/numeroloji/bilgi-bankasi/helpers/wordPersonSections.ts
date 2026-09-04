@@ -18,17 +18,18 @@ import {
   type SourceEntryRow,
 } from "./sourceEntryUiLogic";
 
-export type WordTabKey = "summary" | "plain" | "detailed" | "tas";
+export type WordTabKey = "summary" | "plain" | "detailed" | "zamanlama" | "tas";
 
 export type WordPersonSections = Record<WordTabKey, boolean>;
 
-export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "tas"];
+export const WORD_TAB_ORDER: WordTabKey[] = ["summary", "plain", "detailed", "zamanlama", "tas"];
 
 /** Ekrandaki sekme adlarıyla BİREBİR (değiştirilmez). Görsel Rapor Word'den kaldırıldı. */
 export const WORD_TAB_LABELS: Record<WordTabKey, string> = {
   summary: "Sonuç Özeti",
   plain: "Analiz (Hesap Özetsiz)",
   detailed: "Analiz (Hesap Özetli)",
+  zamanlama: "Zamanlama & Gelişim",
   tas: "Taş Açıklamaları",
 };
 
@@ -37,11 +38,16 @@ export const WORD_TAB_FILENAME: Record<WordTabKey, string> = {
   summary: "Sonuc_Ozeti",
   plain: "Hesap_Ozetsiz",
   detailed: "Hesap_Ozetli",
+  zamanlama: "Zamanlama_Gelisim",
   tas: "Tas_Aciklamalari",
 };
 
+/**
+ * Varsayılan seçim. FAZ 6: "zamanlama" VARSAYILAN OLARAK KAPALI — çünkü referans tarih
+ * gerektirir; sections göndermeyen eski istemcilerin 400 almasını önler (geriye uyum).
+ */
 export function defaultWordPersonSections(): WordPersonSections {
-  return { summary: true, plain: true, detailed: true, tas: true };
+  return { summary: true, plain: true, detailed: true, zamanlama: false, tas: true };
 }
 
 export function atLeastOneWordPersonSection(s: WordPersonSections): boolean {
@@ -53,7 +59,7 @@ export function normalizeWordPersonSections(input: unknown): WordPersonSections 
     return defaultWordPersonSections();
   }
   const o = input as Record<string, unknown>;
-  const out: WordPersonSections = { summary: false, plain: false, detailed: false, tas: false };
+  const out: WordPersonSections = { summary: false, plain: false, detailed: false, zamanlama: false, tas: false };
   for (const k of WORD_TAB_ORDER) out[k] = o[k] === true;
   if (!atLeastOneWordPersonSection(out)) return defaultWordPersonSections();
   return out;

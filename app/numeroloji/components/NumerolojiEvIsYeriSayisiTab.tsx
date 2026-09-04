@@ -4,6 +4,8 @@ import { useState } from "react";
 import { calcPlaceNumber } from "@/lib/numeroloji/place";
 import { analyzeBusinessCompatibility } from "@/lib/numeroloji/business";
 import type { BusinessCompatibilityLayer, BusinessIdentityVariant } from "@/lib/numeroloji/business";
+import { NumerolojiCalculationInfo } from "./NumerolojiCalculationInfo";
+import { CONCEPT_HELP } from "../helpers/conceptHelp";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EV / OFİS SAYISI (Motor A, kitap 1) + İŞYERİ UYUMU (Motor B, kitap 2)
@@ -134,7 +136,10 @@ export function NumerolojiEvIsYeriSayisiTab() {
       {/* ══════════ A) EV / OFİS SAYISI ══════════ */}
       <div className="space-y-3">
         <div className="px-[clamp(8px,2.5vw,14px)] py-2.5 md:rounded-[12px] md:border md:border-violet-200/60 md:bg-gradient-to-r md:from-violet-50/80 md:to-fuchsia-50/60 md:px-4">
-          <p className="text-xs font-black uppercase tracking-wider text-violet-600">A · Ev / Ofis Sayısı</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-xs font-black uppercase tracking-wider text-violet-600">A · Ev / Ofis Sayısı</p>
+            <NumerolojiCalculationInfo title="Ev / Ofis Sayısı" meaning={CONCEPT_HELP.evOfisSayisi} tone="violet" />
+          </div>
           <p className="mt-0.5 text-[11px] text-slate-500">
             Kapı/apartman numarası ile daire numarası toplanarak ev veya ofis numeroloji sayısı hesaplanır.
           </p>
@@ -209,7 +214,10 @@ export function NumerolojiEvIsYeriSayisiTab() {
       {/* ══════════ B) İŞYERİ UYUMU ══════════ */}
       <div className="space-y-3">
         <div className="px-[clamp(8px,2.5vw,14px)] py-2.5 md:rounded-[12px] md:border md:border-teal-200/60 md:bg-gradient-to-r md:from-teal-50/80 md:to-emerald-50/60 md:px-4">
-          <p className="text-xs font-black uppercase tracking-wider text-teal-700">B · İşyeri Uyumu</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-xs font-black uppercase tracking-wider text-teal-700">B · İşyeri Uyumu</p>
+            <NumerolojiCalculationInfo title="İşyeri Uyumu" meaning={CONCEPT_HELP.isyeriUyumu} tone="emerald" />
+          </div>
           <p className="mt-0.5 text-[11px] text-slate-500">
             Kişi (ad{` `}+{` `}doğum tarihi) ile işyeri/marka adının uyumu değerlendirilir. Ev/Ofis Sayısından ayrı bir hesaptır.
           </p>

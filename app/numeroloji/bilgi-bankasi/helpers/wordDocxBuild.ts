@@ -28,6 +28,13 @@ import {
 } from "docx";
 import { calcDegisimByYearOnly, calcDegisimByFullDate, parseBirthDate } from "@/lib/numeroloji";
 import {
+  computeUniversalTiming,
+  computePersonalTiming,
+  computeCycleTiming,
+  type CalendarDate,
+} from "@/lib/numeroloji/timing";
+import { computeDevelopment } from "@/lib/numeroloji/development";
+import {
   WORD_TAB_LABELS,
   WORD_TAB_ORDER,
   personSourceNotesForRecords,
@@ -319,6 +326,86 @@ function harflerTable(motor: NonNullable<Motor>): Block | null {
   return dataTable(["Sıra", "Harf", "Çakra", "Yaş Aralığı", "Yıl Aralığı"], hy.map((s, i) => [String(i + 1), s.letter, `${s.chakra}. çakra`, `${s.ageStart}–${s.ageEnd}`, s.yearStart != null && s.yearEnd != null ? `${s.yearStart}–${s.yearEnd}` : "—"]), [12, 14, 20, 27, 27]);
 }
 
+// ── FAZ 6: Zamanlama & Gelişim (referans tarihe göre; canonical engine reuse) ──
+function fmtCalendar(cd: CalendarDate): string {
+  return `${String(cd.day).padStart(2, "0")}/${String(cd.month).padStart(2, "0")}/${cd.year}`;
+}
+/** FAZ 6: başlık altı 1 cümlelik kavram tanımı (italik, ikincil renk). Yorum/skor DEĞİL. */
+function conceptDef(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 0, after: 90, line: 264 },
+    children: [new TextRun({ text, font: FONT, size: S_SMALL, color: SECONDARY, italics: true })],
+  });
+}
+/** Sol-mor vurgulu "Etiket: Değer" + (varsa) yorum kartı. */
+function timingItemCard(label: string, value: string, interpretation?: string): Table {
+  const lines = [`Değer: ${value}`];
+  if (interpretation && interpretation.trim()) lines.push(interpretation.trim());
+  return timelineCard(label, lines);
+}
+/**
+ * "Zamanlama & Gelişim" Word bölümü. UI'daki FAZ 4 canonical engine'lerini AYNEN kullanır
+ * (ikinci motor YOK). Referans tarih AÇIKÇA geçirilir; new Date() KULLANILMAZ.
+ */
+function timingBlocks(firstName: string, lastName: string, birthDate: string, ref: CalendarDate): Block[] {
+  const bd = (birthDate || "").replace(/\//g, ".");
+  if (!parseBirthDate(bd)) return [];
+  const u = computeUniversalTiming(ref);
+  const per = computePersonalTiming(bd, ref);
+  const cyc = computeCycleTiming(bd, ref);
+  const dev = computeDevelopment(firstName, lastName, bd, ref);
+  const py = per.personalYear;
+
+  const out: Block[] = [];
+  // Referans tarih — rapor yıllar sonra açıldığında bağlam netliği için AÇIKÇA yazılır.
+  out.push(p(`Zamanlama Referans Tarihi: ${fmtCalendar(ref)}`, { bold: true, color: INDIGO, size: S_SMALL, after: 140 }));
+
+  out.push(subHeading("Evrensel Zamanlama"));
+  out.push(timingItemCard("Evrensel Yıl", u.universalYear.display, u.universalYear.interpretation));
+  out.push(timingItemCard("Evrensel Ay", u.universalMonth.display, u.universalMonth.interpretation));
+  out.push(timingItemCard("Evrensel Gün", u.universalDay.display, u.universalDay.interpretation));
+
+  out.push(subHeading("Kişisel Zamanlama"));
+  out.push(conceptDef("Nominal Kişisel Yıl: seçilen takvim yılının kişisel yıl hesabıdır; o tarihte fiilen aktif olan kişisel yıl farklı olabilir."));
+  out.push(timingItemCard(`Nominal Kişisel Yıl (${ref.year})`, py.nominal.display, py.nominal.interpretation));
+  out.push(conceptDef("Aktif Kişisel Yıl: referans tarihte içinde bulunduğunuz, doğum gününüzde başlayıp bir sonraki doğum gününe kadar süren kişisel yıl dönemidir."));
+  out.push(
+    timelineCard("Aktif Kişisel Yıl", [
+      `Değer: ${py.active.display}`,
+      `Aktif Dönem: ${fmtCalendar(py.active.periodStart)} – ${fmtCalendar(py.active.periodEnd)}`,
+      ...(py.active.interpretation ? [py.active.interpretation] : []),
+    ]),
+  );
+  out.push(timingItemCard("Kişisel Ay", per.personalMonth.display, per.personalMonth.interpretation));
+  out.push(timingItemCard("Kişisel Gün", per.personalDay.display, per.personalDay.interpretation));
+
+  out.push(subHeading("Yaşam Evresi"));
+  out.push(conceptDef("Evre: yaşamın dokuz yıllık büyük gelişim dönemlerinden bulunduğunuz dönemi gösterir. Döngü: bu evrenin içinde kaçıncı yılda olduğunuzu gösterir (Evre ile aynı şey değildir)."));
+  if (cyc.evre) {
+    out.push(
+      timelineCard(`Evre ${cyc.evre.index} · Yaş ${cyc.age}`, [
+        `Evre Enerjisi: ${cyc.evre.energy}`,
+        ...(cyc.evre.interpretation ? [cyc.evre.interpretation] : []),
+      ]),
+    );
+    if (cyc.dongu) {
+      out.push(timingItemCard(`Döngü ${cyc.dongu.index}`, String(cyc.dongu.index), cyc.dongu.interpretation));
+    }
+  } else {
+    out.push(p(`Yaş ${cyc.age}. Bu yaş için yaşam evresi döngü aralığı tanımlı değildir.`, { color: SECONDARY, size: S_SMALL }));
+  }
+
+  out.push(subHeading("Bireysel Gelişim"));
+  out.push(timingItemCard("Güncel Yıl Çakrası", dev.yearChakra.display, dev.yearChakra.interpretation));
+  out.push(timingItemCard("Olgunluk", dev.maturity.display, dev.maturity.interpretation));
+  out.push(timingItemCard(`Doğum Günü Enerjisi (Ayın ${dev.birthDayEnergy.display}. günü)`, dev.birthDayEnergy.display, dev.birthDayEnergy.interpretation));
+  out.push(timingItemCard("Kişilik Enerjisi", dev.personalityEnergy.display, dev.personalityEnergy.interpretation));
+  out.push(timingItemCard("Hayat Dersi", dev.lifeLesson.display, dev.lifeLesson.interpretation));
+  out.push(timingItemCard("Kader Sayısı", dev.destiny.display, dev.destiny.interpretation));
+
+  return out;
+}
+
 // ── Yorum kartları (potansiyel bölümleri pastel) ─────────────────────────────
 function potentialBlock(label: string, body: string, fill: string): Paragraph {
   return new Paragraph({ spacing: { before: 40, after: 60, line: 264 }, shading: { type: ShadingType.CLEAR, fill, color: "auto" }, border: { left: { style: BorderStyle.SINGLE, size: 14, color: MOR, space: 6 } }, children: [tr(`${label}: `, { bold: true, color: INDIGO, size: S_SMALL }), tr(body, {})] });
@@ -440,6 +527,7 @@ export function buildPersonSections(
   selectedLabels: string[],
   personIndex: number,
   stockIndex: StockIndex,
+  refCalendar: CalendarDate | null = null,
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
@@ -515,6 +603,9 @@ export function buildPersonSections(
       }
       const yorum = commentCards(matched, shared);
       if (yorum.length) { blocks.push(subHeading("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları")); blocks.push(...yorum); }
+    } else if (tab === "zamanlama") {
+      // Referans tarih route'ta doğrulanır; yoksa (savunma) bölüm boş kalır.
+      if (refCalendar) blocks = timingBlocks(row.name, row.surname, row.birth_date, refCalendar);
     } else if (tab === "tas") {
       blocks = tasBlocks(motor, shared, stockIndex);
       if (blocks.length) blocks.unshift(subHeading("Kişiye Özel Taş Destekleri"));
@@ -531,6 +622,7 @@ export function buildNumerolojiWordChildren(
   sections: WordPersonSections,
   shared: WordSharedData,
   stockIndex: StockIndex = new Map(),
+  refCalendar: CalendarDate | null = null,
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
   const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
@@ -540,7 +632,7 @@ export function buildNumerolojiWordChildren(
   let anyContent = false;
 
   rows.forEach((row, i) => {
-    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex);
+    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar);
     for (const t of emptyTabs) emptyTabSet.add(t);
     // Bu kişi en az bir seçili sekmede içerik ürettiyse belge içerik taşıyor.
     if (selected.some((k) => !emptyTabs.includes(k))) anyContent = true;

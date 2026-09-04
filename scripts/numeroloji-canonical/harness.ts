@@ -6,10 +6,11 @@
  *   • Mücadele düzeltmesi (36 − M1, +27, +27; tek yöntem)
  *   • Harflerin Yankılanışı tam yaşam çizgisi (güncel yılda kesilmiyor)
  *   • Sinerji PIN + 9. hane + Ruh Duygusu + element (tie) + baskın/edilgen
- *   • Eş Uyumu sınıflandırma tablosu (kaynak-içi çelişkide TABLO üstün)
+ *   • Paylaşılan uyum primitive'leri (compatibilityNameSum/classify — Ev/İşyeri ile ortak)
+ *   • FAZ 6: Eş Uyumu (spouseCompatibility) + Nikâh (marriageDateEffect) result'tan KALDIRILDI
  *   • İlişki sonucunda GENEL UYUM SKORU alanının OLMAMASI
  *
- * Çalıştır:  npm run numeroloji:canonical:harness
+ * Çalıştır:  tsx scripts/numeroloji-canonical/harness.ts
  */
 import {
   hesaplaNumeroloji,
@@ -226,72 +227,38 @@ function eq<T>(actual: T, expected: T, label: string) {
   assert(anyR.compatibilityScore === undefined && anyR.globalScore === undefined && anyR.overallScore === undefined, "N12 skor alanları hâlâ YOK");
 }
 
-// ── EŞ UYUMU UÇTAN UCA + NİKÂH + SOYADI (kaynak s.205-211) ───────────────────
+// ── PAYLAŞILAN UYUM PRIMITIVE'LERİ (Ev/İşyeri motoru kullanır → KORUNUR) ──────
+// FAZ 6: Eş Uyumu (spouseCompatibility) ve Nikâh (marriageDateEffect) ürün kapsamından
+// KALDIRILDI. Ancak compatibilityNameSum / classifyCompatibilityNumber Business (Ev/İşyeri)
+// tarafından paylaşılır; bu SHARED primitive'ler doğrulanmaya devam eder.
 {
-  // PDF isim toplamları (compatibility alphabet)
-  eq(compatibilityNameSum("Züleyha").sum, 44, "ES ZÜLEYHA isim = 44");
-  eq(compatibilityNameSum("Hakan").sum, 16, "ES HAKAN isim = 16");
-  eq(compatibilityNameSum("Sevilay").sum, 38, "ES SEVİLAY isim = 38");
-  eq(compatibilityNameSum("Kalaycı").sum, 35, "ES KALAYCI soyisim = 35");
-  eq(compatibilityNameSum("Murat").sum, 24, "ES MURAT isim = 24");
+  eq(compatibilityNameSum("Züleyha").sum, 44, "SHARED ZÜLEYHA isim = 44");
+  eq(compatibilityNameSum("Hakan").sum, 16, "SHARED HAKAN isim = 16");
+  eq(compatibilityNameSum("Sevilay").sum, 38, "SHARED SEVİLAY isim = 38");
+  eq(compatibilityNameSum("Kalaycı").sum, 35, "SHARED KALAYCI soyisim = 35");
+  eq(compatibilityNameSum("Murat").sum, 24, "SHARED MURAT isim = 24");
+  eq(classifyCompatibilityNumber(118).percentage, 75, "SHARED classify 118 → %75");
 
-  // Uçtan uca: Züleyha 01/08/1973 + Hakan 17/12/1971 → 118 → %75 UYUMLU (s.207)
-  const r = analyzeRelationship({
-    person1: { name: "Züleyha", surname: "", birthDate: "01/08/1973" },
-    person2: { name: "Hakan", surname: "", birthDate: "17/12/1971" },
-  })!;
-  const sp = r.spouseCompatibility;
-  eq([sp.aDobSum, sp.bDobSum], [29, 29], "ES DOB ham toplamları 29 / 29");
-  eq([sp.aValue, sp.bValue], [73, 45], "ES kişi değerleri 73 / 45");
-  eq(sp.coupleValue, 118, "ES çift değeri 118");
-  eq([sp.classification.percentage, sp.classification.polarity], [75, "UYUMLU"], "ES 118 → %75 UYUMLU");
-
-  // Nikâh golden (s.210): SEVİLAY 09/08/1985 + MURAT 07/07/1977 → couple 140.
-  // SOURCE_DATE_FORMAT_VARIANT: PDF örneği "12/22/2002" yazar (GG/AA/YYYY olarak GEÇERSİZ);
-  //   ürün standardı GG/AA/YYYY → "22/12/2002" olarak normalize edilir. Rakam toplamı DEĞİŞMEZ.
-  //   22/12/2002 → 2+2+1+2+2+0+0+2 = 11; 140+11=151 → TABLO %75 UYUMLU
-  //   (örnekteki '%75 UYUMSUZ' hatası KODLANMADI).
-  const rn = analyzeRelationship({
-    person1: { name: "Sevilay", surname: "", birthDate: "09/08/1985" },
-    person2: { name: "Murat", surname: "", birthDate: "07/07/1977" },
-    marriageDate: "22/12/2002",
-  })!;
-  eq(rn.spouseCompatibility.coupleValue, 140, "NİKAH baz çift değeri 140 (SEVİLAY+MURAT)");
-  const md = rn.marriageDateEffect!;
-  eq(md.marriageDate, "22.12.2002", "NİKAH kullanılan tarih 22.12.2002 (GG/AA/YYYY normalize)");
-  eq(md.marriageDigitSum, 11, "NİKAH 22/12/2002 ham toplam = 11");
-  eq(md.combinedValue, 151, "NİKAH 140 + 11 = 151");
-  eq([md.classification.percentage, md.classification.polarity], [75, "UYUMLU"], "NİKAH 151 → %75 UYUMLU (tablo)");
-
-  // Gerçek takvim doğrulaması: "12/22/2002" (ay=22) GG/AA/YYYY olarak REDDEDİLMELİ.
-  const rInvalid = analyzeRelationship({
-    person1: { name: "Sevilay", surname: "", birthDate: "09/08/1985" },
-    person2: { name: "Murat", surname: "", birthDate: "07/07/1977" },
-    marriageDate: "12/22/2002",
-  })!;
-  assert(rInvalid.marriageDateEffect === null, "NİKAH geçersiz tarih (12/22/2002, ay=22) REDDEDİLDİ");
-
-  // Tarih girilmediğinde de analiz tam çalışır
+  // REL-NO-SPOUSE-01 / REL-NO-MARRIAGE-01: result'ta bu alanlar ARTIK YOK.
   const r2 = analyzeRelationship({
     person1: { name: "Ali", surname: "TUNA", birthDate: "10/03/2026" },
     person2: { name: "Esra Nur", surname: "KONUK", birthDate: "15/03/1990" },
   })!;
-  assert(r2.marriageDateEffect === null, "NİKAH tarih yoksa marriageDateEffect null");
-  assert(r2.synergyPin.pin.length === 8, "NİKAH yokken ilişki analizi tam çalışır");
-
-  // Soyadı etkisi ayrı katman (isim+soyisim couple değeri ayrı sınıflandırılır)
-  assert(r2.spouseCompatibility.coupleValueWithSurname !== r2.spouseCompatibility.coupleValue, "SOYADI etkisi ayrı sonuç üretir");
+  const anyR2 = r2 as Record<string, unknown>;
+  assert(anyR2.spouseCompatibility === undefined, "REL-NO-SPOUSE-01 spouseCompatibility result'ta YOK");
+  assert(anyR2.marriageDateEffect === undefined, "REL-NO-MARRIAGE-01 marriageDateEffect result'ta YOK");
+  assert(JSON.stringify(r2).toLowerCase().indexOf("marriage") === -1, "REL-NO-MARRIAGE-01b marriage residue YOK");
+  assert(r2.synergyPin.pin.length === 8, "FAZ6 ilişki analizi Eş Uyumu/Nikâh olmadan tam çalışır");
 }
 
-// ── SOURCE ANOMALIES (belgelenmiş, golden yapılmadı) ─────────────────────────
+// ── SOURCE ANOMALIES (belgelenmiş; classify SHARED primitive üzerinden) ──────
 {
-  // AYŞE/DAVUT (s.207): DOB ara toplamı aritmetik hatalı (43 ≠ 38) → SOURCE_SAMPLE_CONFLICT.
-  //   Golden yapılmadı; sınıflandırma tablosu 106 → İYİ/KÇB/KÖTÜ → %75 UYUMSUZ ile tutarlıdır.
+  // 106 (s.207): tablo 106 → İYİ/KÇB/KÖTÜ → %75 UYUMSUZ.
   const ayse = classifyCompatibilityNumber(106);
-  eq([ayse.percentage, ayse.polarity], [75, "UYUMSUZ"], "ANOMALY 106 tablo-tutarlı %75 UYUMSUZ (AYŞE örneği DOB aritmetiği hatalı, golden değil)");
+  eq([ayse.percentage, ayse.polarity], [75, "UYUMSUZ"], "ANOMALY 106 tablo-tutarlı %75 UYUMSUZ");
   // 151 (s.210): örnek metin '%75 UYUMSUZ' der; TABLO %75 UYUMLU → tablo üstün.
   const c151 = classifyCompatibilityNumber(151);
-  eq([c151.percentage, c151.polarity], [75, "UYUMLU"], "ANOMALY 151 tablo üstün → %75 UYUMLU (hatalı örnek KODLANMADI)");
+  eq([c151.percentage, c151.polarity], [75, "UYUMLU"], "ANOMALY 151 tablo üstün → %75 UYUMLU");
 }
 
 // ── Sonuç ────────────────────────────────────────────────────────────────────

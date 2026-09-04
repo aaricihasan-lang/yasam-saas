@@ -40,7 +40,7 @@ export default function NumerolojiKayitDetayPage() {
   const isOpenRecord = row ? isDemoNumerologiOpenRecord(row) : false;
   const gateActive = isDemo && !isOpenRecord;
 
-  const downloadWord = useCallback(async (sections: WordPersonSections) => {
+  const downloadWord = useCallback(async (sections: WordPersonSections, referenceDate?: string) => {
     if (!row) return;
     if (gateActive) return;
     const session = await resolveNumerolojiUserAndTenant();
@@ -54,7 +54,7 @@ export default function NumerolojiKayitDetayPage() {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections, referenceDate }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -158,7 +158,7 @@ export default function NumerolojiKayitDetayPage() {
           open={wordPicker}
           busy={wordBusy}
           onCancel={() => setWordPicker(false)}
-          onConfirm={(sections) => void downloadWord(sections)}
+          onConfirm={(sections, referenceDate) => void downloadWord(sections, referenceDate)}
         />
 
         {loading ? (
