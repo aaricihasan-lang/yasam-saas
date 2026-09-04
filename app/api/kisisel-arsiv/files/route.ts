@@ -136,18 +136,25 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .map((r) => (r as { file_path?: unknown }).file_path)
     .filter((p): p is string => isOwnedPersonalArchivePath(p, tenantId, archiveId));
 
+  // P1-3 veri tutarlılığı: storage silme BAŞARISIZ olursa metadata satırlarını SİLME.
+  // Aksi halde metadata-yok + storage-orphan (erişilemez) durumu oluşurdu. Hata → 500,
+  // kullanıcı retry eder. Retry idempotent: kalan objeler silinir, zaten silinmiş (missing)
+  // objeler Supabase remove'da hata ÜRETMEZ (fatal değil), sonra metadata silinir.
   if (ownedPaths.length > 0) {
-    // Supabase storage remove tek çağrıda çoklu path alır; büyük arşivler için batch'le.
     for (let i = 0; i < ownedPaths.length; i += 100) {
       const batch = ownedPaths.slice(i, i + 100);
       const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(batch);
       if (rmError) {
-        // Storage silme hatası veri tutarlılığını bozmamalı: logla, metadata silmeye devam et.
         console.error("[kisisel-arsiv/files] storage remove on delete", rmError);
+        return NextResponse.json(
+          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin." },
+          { status: 500 },
+        );
       }
     }
   }
 
+  // Storage objeleri güvenle kaldırıldı → metadata satırlarını sil.
   const { error } = await db
     .from(TABLE)
     .delete()

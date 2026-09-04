@@ -9,29 +9,32 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
 
 /**
- * POST /api/kisisel-arsiv/files/upload — SUNUCU-YETKİLİ kişisel arşiv dosyası yükleme (P1-3).
+ * POST /api/kisisel-arsiv/files/upload — SUNUCU-YETKİLİ SIGNED UPLOAD HAZIRLIĞI (P1-3).
  *
- * Önceki durum: dosya storage'a doğrudan TARAYICIDAN anon supabase client ile yükleniyordu
- * (`supabase.storage.from("personal-archive").upload(...)`), path client-kurulu
- * (`${tenantId}/${archiveId}/...`) ve bucket public + anon INSERT policy taşıyordu →
- * cross-tenant yazma mümkündü. Bu route yükleme yolunu tamamen server'a taşır:
+ * NEDEN SIGNED UPLOAD (byte-proxy DEĞİL):
+ *   Dosya byte'larını Vercel Function üzerinden geçirmek KABUL EDİLEMEZ — Vercel
+ *   Functions request body limiti ~4.5 MB'dir (next.config serverActions.bodySizeLimit
+ *   platform sınırını AŞMAZ). Bu yüzden dosya byte'ları API route'tan GEÇMEZ; sunucu
+ *   yalnız kısa ömürlü, tek-kullanımlık signed upload capability üretir.
+ *
+ * GÜVENLİK:
  *   - requireModuleAccess → x-user-id + x-session-token binding + modül izni.
  *   - tenantId SUNUCUDAN (guard.tenantId); client body/query/path'inden ALINMAZ.
  *   - archive ownership (personal_archives.id = archiveId AND tenant_id = guard.tenantId)
  *     SUNUCUDA doğrulanır (IDOR engeli).
- *   - obje yolu SUNUCUDA üretilir (uuid + sanitized dosya adı) → client path enjekte edemez.
- *   - storage upload service_role ile (guard.db), upsert=false.
- *   - metadata (personal_archive_files) aynı server akışında yazılır; başarısızsa yeni
- *     yüklenen obje SERVER-SIDE best-effort temizlenir (client storage.remove ÇAĞIRMAZ).
+ *   - obje yolu SUNUCUDA üretilir (uuid + sanitize edilmiş dosya adı) → client path enjekte edemez.
+ *   - createSignedUploadUrl service_role ile, { upsert: false } → var olan objeyi ezemez.
+ *   Bucket PRIVATE kalır; anon INSERT policy GEREKMEZ — signed token capability yeterlidir.
  *
- * İstek: multipart/form-data → { archiveId: string, file: File }
- * Yanıt: { ok: true, row: <personal_archive_files satırı> }
+ * İstek (JSON, DOSYA BYTES YOK):
+ *   { archiveId: string, fileName: string, fileType?: string, fileSize?: number }
+ * Yanıt:
+ *   { ok: true, path: string, token: string }
+ * Ardından tarayıcı: supabase.storage.from(bucket).uploadToSignedUrl(path, token, file)
+ * ve son olarak POST /api/kisisel-arsiv/files/finalize ile metadata yazılır.
  */
-
-const FILES_TABLE = "personal_archive_files";
 
 async function archiveInTenant(
   db: SupabaseClient,
@@ -55,26 +58,24 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Demo hesap: mevcut ürün semantiği — yazma yapılmaz, fail-safe no-op.
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  let form: FormData;
+  let body: Record<string, unknown>;
   try {
-    form = await req.formData();
+    body = (await req.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const archiveId = String(form.get("archiveId") ?? "").trim();
+  const archiveId = String(body.archiveId ?? "").trim();
   if (!archiveId) {
     return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });
   }
 
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ ok: false, error: "Dosya bulunamadı." }, { status: 400 });
-  }
-  if (file.size <= 0) {
-    return NextResponse.json({ ok: false, error: "Boş dosya yüklenemez." }, { status: 400 });
-  }
-  if (file.size > PERSONAL_ARCHIVE_MAX_BYTES) {
+  const rawName = typeof body.fileName === "string" && body.fileName.trim() ? body.fileName : "dosya";
+  const fileSize = body.fileSize != null ? Number(body.fileSize) : null;
+
+  // Client'ın bildirdiği boyut ürün limitini aşamaz (soft guard; gerçek yükleme signed
+  // URL ile yapıldığından byte'lar sunucudan geçmez, ancak kendi tenant namespace'i).
+  if (fileSize != null && Number.isFinite(fileSize) && fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
     return NextResponse.json(
       { ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." },
       { status: 413 },
@@ -87,47 +88,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
-  const originalName = typeof file.name === "string" && file.name ? file.name : "dosya";
-  const safeName = sanitizePersonalArchiveFileName(originalName);
+  const safeName = sanitizePersonalArchiveFileName(rawName);
   const uuid = crypto.randomUUID();
-  const filePath = buildPersonalArchivePath(tenantId, archiveId, uuid, safeName);
-  const contentType = file.type || "application/octet-stream";
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const path = buildPersonalArchivePath(tenantId, archiveId, uuid, safeName);
 
-  const { error: uploadError } = await db.storage
+  const { data: signed, error: signError } = await db.storage
     .from(PERSONAL_ARCHIVE_BUCKET)
-    .upload(filePath, bytes, { upsert: false, contentType });
+    .createSignedUploadUrl(path, { upsert: false });
 
-  if (uploadError) {
-    console.error("[kisisel-arsiv/files/upload] storage upload", uploadError);
-    return NextResponse.json({ ok: false, error: "Dosya yüklenemedi." }, { status: 500 });
+  if (signError || !signed?.token) {
+    console.error("[kisisel-arsiv/files/upload] createSignedUploadUrl", signError);
+    return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
   }
 
-  // Metadata satırı — tenant_id ve file_path SUNUCUDAN; client değeri kullanılmaz.
-  const { data: row, error: metaError } = await db
-    .from(FILES_TABLE)
-    .insert({
-      tenant_id: tenantId,
-      archive_id: archiveId,
-      file_name: originalName,
-      file_path: filePath,
-      file_type: contentType,
-      file_size: file.size,
-    })
-    .select("*")
-    .single();
-
-  if (metaError || !row) {
-    // Metadata başarısız → orphan obje kalmasın. SERVER-SIDE best-effort cleanup.
-    const { error: cleanupError } = await db.storage
-      .from(PERSONAL_ARCHIVE_BUCKET)
-      .remove([filePath]);
-    if (cleanupError) {
-      console.error("[kisisel-arsiv/files/upload] cleanup after metadata fail", cleanupError);
-    }
-    console.error("[kisisel-arsiv/files/upload] metadata insert", metaError);
-    return NextResponse.json({ ok: false, error: "Dosya kaydedilemedi." }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true, row });
+  return NextResponse.json({ ok: true, path: signed.path, token: signed.token });
 }

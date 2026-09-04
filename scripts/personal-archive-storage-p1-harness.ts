@@ -3,9 +3,13 @@
  *
  * Bu testler ASLA silinmemelidir. Kalıcı güvenlik kontratı:
  *
- *   Kişisel Arşiv storage yükleme/silme yalnız SUNUCU-YETKİLİ akıştan geçer.
- *   Tarayıcı asla personal-archive bucket'ına doğrudan yazmaz/silmez; bucket PRIVATE;
- *   public/anon storage policy YOKTUR; tenant path client-controlled DEĞİLDİR.
+ *   Kişisel Arşiv storage yükleme/silme yalnız SUNUCU-YETKİLİ akıştan geçer:
+ *     - Yükleme: server signed upload hazırlığı (createSignedUploadUrl) → tarayıcı
+ *       uploadToSignedUrl (path SUNUCUDAN) → server finalize (metadata).
+ *       Dosya byte'ları API route'tan GEÇMEZ (Vercel ~4.5MB body limiti aşılmaz).
+ *     - Silme: server path'leri DB'den (tenant+archive scoped) çözer; storage silme
+ *       BAŞARISIZ olursa metadata satırları SİLİNMEZ (orphan/metadata-yok üretmez).
+ *   Bucket PRIVATE; public/anon storage policy YOKTUR; tenant path client-controlled DEĞİLDİR.
  *
  * Çalıştır:  npx tsx scripts/personal-archive-storage-p1-harness.ts
  *            (package script: npm run test:personal-archive:storage:p1)
@@ -39,19 +43,23 @@ function read(rel: string): string {
 }
 
 const PAGE = "app/dashboard/kisisel-arsiv/page.tsx";
-const UPLOAD_ROUTE = "app/api/kisisel-arsiv/files/upload/route.ts";
+const PREPARE_ROUTE = "app/api/kisisel-arsiv/files/upload/route.ts";
+const FINALIZE_ROUTE = "app/api/kisisel-arsiv/files/finalize/route.ts";
+const CLEANUP_ROUTE = "app/api/kisisel-arsiv/files/cleanup/route.ts";
 const FILES_ROUTE = "app/api/kisisel-arsiv/files/route.ts";
 const MIGRATION = "supabase/migrations/20270103000000_personal_archive_private_lockdown.sql";
 
 const page = read(PAGE);
-const uploadRoute = read(UPLOAD_ROUTE);
+const prepareRoute = read(PREPARE_ROUTE);
+const finalizeRoute = read(FINALIZE_ROUTE);
+const cleanupRoute = read(CLEANUP_ROUTE);
 const filesRoute = read(FILES_ROUTE);
 const migration = read(MIGRATION);
 
-// ─── SOURCE CONTRACT ─────────────────────────────────────────────────────────
-console.log("SOURCE CONTRACT");
+// ─── SOURCE CONTRACT — CLIENT ────────────────────────────────────────────────
+console.log("SOURCE CONTRACT — CLIENT");
 
-// 1 + 2: aktif page'de doğrudan personal-archive storage mutation YOK.
+// 1 + 2: aktif page'de NORMAL anon storage mutation (.upload/.remove) YOK.
 ok(
   "1. page: .storage.from(\"personal-archive\").upload( YOK",
   !/\.storage\s*\.\s*from\(\s*["']personal-archive["']\s*\)\s*\.\s*upload\s*\(/.test(page),
@@ -60,72 +68,123 @@ ok(
   "2. page: .storage.from(\"personal-archive\").remove( YOK",
   !/\.storage\s*\.\s*from\(\s*["']personal-archive["']\s*\)\s*\.\s*remove\s*\(/.test(page),
 );
-// Ek savunma: page hiçbir supabase storage mutation'ı yapmamalı (import bile kalkmış olmalı).
+// 3: signed upload capability İZİNLİ ve KULLANILIYOR (server-authorized).
 ok(
-  "2b. page: @/lib/supabase (anon client) import edilmiyor",
-  !/from\s+["']@\/lib\/supabase["']/.test(page),
+  "3. page: uploadToSignedUrl kullanılıyor (server-authorized capability)",
+  /\.uploadToSignedUrl\s*\(/.test(page),
 );
-// Aktif UI yükleme için server endpoint'ini FormData ile kullanmalı.
+// 4: signed upload path client tarafından ÜRETİLMİYOR (tenant/archive path template yok).
 ok(
-  "2c. page: /api/kisisel-arsiv/files/upload FormData ile kullanılıyor",
-  page.includes("/api/kisisel-arsiv/files/upload") && /new FormData\(\)/.test(page),
+  "4. page: client-built `${tenantId}/${archiveId}/...` storage path YOK",
+  !/`\$\{tenantId\}\/\$\{archiveId\}\//.test(page),
+);
+// 5: path server response'tan geliyor (prepare çağrısı + path alan akış).
+ok(
+  "5. page: /api/kisisel-arsiv/files/upload (prepare) + /finalize kullanılıyor",
+  page.includes("/api/kisisel-arsiv/files/upload") && page.includes("/api/kisisel-arsiv/files/finalize"),
+);
+// 6: byte-proxy YOK — page dosyayı FormData ile files/upload'a POST etmiyor.
+ok(
+  "6. page: dosya byte'ı files/upload'a FormData ile GÖNDERİLMİYOR (byte-proxy yok)",
+  !/files\/upload[\s\S]{0,400}new FormData\(\)/.test(page),
 );
 
-// 3: server upload route modül-kapılı.
+// ─── SOURCE CONTRACT — PREPARE (signed upload hazırlığı) ─────────────────────
+console.log("SOURCE CONTRACT — PREPARE ROUTE");
 ok(
-  '3. upload route: requireModuleAccess(req, "personal_archive") VAR',
-  /requireModuleAccess\(\s*req\s*,\s*["']personal_archive["']\s*\)/.test(uploadRoute),
-);
-// 4: server tenantId oturumdan (guard.tenantId destructure).
-ok(
-  "4. upload route: tenantId guard'dan (server-derived) alınıyor",
-  /const\s*\{[^}]*\btenantId\b[^}]*\}\s*=\s*guard/.test(uploadRoute),
-);
-// 5: client-supplied tenantId query/body kaynağı DEĞİL.
-ok(
-  "5. upload route: client tenantId (form/query) OKUNMUYOR",
-  !/get\(\s*["']tenantId["']\s*\)/.test(uploadRoute),
-);
-// 6: obje yolu SUNUCUDA üretiliyor (uuid + builder).
-ok(
-  "6. upload route: server-generated path (buildPersonalArchivePath + randomUUID)",
-  uploadRoute.includes("buildPersonalArchivePath") && /crypto\.randomUUID\(\)/.test(uploadRoute),
+  '7. prepare: requireModuleAccess(req, "personal_archive") VAR',
+  /requireModuleAccess\(\s*req\s*,\s*["']personal_archive["']\s*\)/.test(prepareRoute),
 );
 ok(
-  "6b. upload route: client file_path KABUL EDİLMİYOR (path server üretir)",
-  !/get\(\s*["']file_path["']\s*\)/.test(uploadRoute),
+  "8. prepare: tenantId guard'dan (server-derived) alınıyor",
+  /const\s*\{[^}]*\btenantId\b[^}]*\}\s*=\s*guard/.test(prepareRoute),
 );
-// 7: archive tenant ownership doğrulaması.
 ok(
-  "7. upload route: archive tenant ownership check (archiveInTenant)",
-  /archiveInTenant\(/.test(uploadRoute) &&
-    /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(uploadRoute),
+  "9. prepare: client tenantId (body/query) OKUNMUYOR",
+  !/get\(\s*["']tenantId["']\s*\)/.test(prepareRoute) && !/body\.tenantId/.test(prepareRoute),
 );
-// 8: delete server-side tenant+archive scoped + storage removal service_role.
 ok(
-  "8. files route DELETE: path DB'den tenant+archive scoped çözülüyor",
+  "10. prepare: client file_path/path OKUNMUYOR (path server üretir)",
+  !/body\.(file_path|path)\b/.test(prepareRoute),
+);
+ok(
+  "11. prepare: archive tenant ownership (archiveInTenant + tenant_id eq)",
+  /archiveInTenant\(/.test(prepareRoute) &&
+    /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(prepareRoute),
+);
+ok(
+  "12. prepare: server-generated path (buildPersonalArchivePath + randomUUID)",
+  prepareRoute.includes("buildPersonalArchivePath") && /crypto\.randomUUID\(\)/.test(prepareRoute),
+);
+ok(
+  "13. prepare: createSignedUploadUrl service_role (guard.db) + upsert:false",
+  /db\.storage\s*\.\s*from\(\s*PERSONAL_ARCHIVE_BUCKET\s*\)\s*\.\s*createSignedUploadUrl\(/.test(prepareRoute) &&
+    /upsert\s*:\s*false/.test(prepareRoute),
+);
+ok(
+  "14. prepare: byte-proxy YOK (formData/arrayBuffer/.upload( kullanmıyor)",
+  !/formData\(/.test(prepareRoute) && !/arrayBuffer\(/.test(prepareRoute) &&
+    !/\.upload\(/.test(prepareRoute),
+);
+
+// ─── SOURCE CONTRACT — FINALIZE + CLEANUP ────────────────────────────────────
+console.log("SOURCE CONTRACT — FINALIZE / CLEANUP");
+ok(
+  '15. finalize: requireModuleAccess("personal_archive") + tenantId guard',
+  /requireModuleAccess\(\s*req\s*,\s*["']personal_archive["']\s*\)/.test(finalizeRoute) &&
+    /const\s*\{[^}]*\btenantId\b[^}]*\}\s*=\s*guard/.test(finalizeRoute),
+);
+ok(
+  "16. finalize: path tenant+archive öneki zorunlu (isOwnedPersonalArchivePath)",
+  /isOwnedPersonalArchivePath\(/.test(finalizeRoute),
+);
+ok(
+  "17. finalize: güçlü bağlama — obje varlığı doğrulanıyor (exists)",
+  /\.exists\(/.test(finalizeRoute),
+);
+ok(
+  "18. cleanup: yalnız orphan (metadata'sız) + tenant+archive-scoped path siler",
+  /isOwnedPersonalArchivePath\(/.test(cleanupRoute) &&
+    /file_path/.test(cleanupRoute) &&
+    /remove\(/.test(cleanupRoute),
+);
+
+// ─── SOURCE CONTRACT — DELETE DATA CONSISTENCY ───────────────────────────────
+console.log("SOURCE CONTRACT — DELETE CONSISTENCY");
+ok(
+  "19. files DELETE: path DB'den tenant+archive scoped çözülüyor",
   /\.select\(\s*["']file_path["']\s*\)/.test(filesRoute) &&
     /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(filesRoute) &&
     /\.eq\(\s*["']archive_id["']\s*,\s*archiveId\s*\)/.test(filesRoute),
 );
 ok(
-  "8b. files route DELETE: storage.remove service_role (guard.db) ile",
+  "20. files DELETE: storage.remove service_role (guard.db) ile",
   /db\.storage\.from\(\s*PERSONAL_ARCHIVE_BUCKET\s*\)\.remove\(/.test(filesRoute),
 );
+// KRİTİK: storage remove hata verirse metadata delete YAPILMAZ → 500 döner (retryable).
+// rmError-guarded 500 dönüşü, metadata delete bloğundan ÖNCE gelmeli (whitespace-insensitive).
+{
+  const idxAbort = filesRoute.indexOf("Dosyalar silinemedi");
+  const idxMetaDeleteComment = filesRoute.indexOf("Storage objeleri güvenle kaldırıldı");
+  const abortsBeforeMetaDelete =
+    idxAbort > -1 && idxMetaDeleteComment > -1 && idxAbort < idxMetaDeleteComment;
+  ok(
+    "21. files DELETE: storage hata → metadata delete ÖNCESİ 500 (retryable, orphan üretmez)",
+    abortsBeforeMetaDelete,
+  );
+}
 ok(
-  "8c. files route: legacy JSON POST file_path tenant+archive öneki zorunlu",
+  "22. files: legacy JSON POST file_path tenant+archive öneki zorunlu",
   /isOwnedPersonalArchivePath\(/.test(filesRoute),
 );
 
 // ─── MIGRATION CONTRACT ──────────────────────────────────────────────────────
 console.log("MIGRATION CONTRACT");
 const mig = migration.toLowerCase();
-// 9: bucket public=false.
 ok(
-  "9. migration: personal-archive public=false",
+  "23. migration: personal-archive public=false",
   /update\s+storage\.buckets\s+set\s+public\s*=\s*false\s+where\s+id\s*=\s*'personal-archive'/.test(mig),
 );
-// 10: 5 güvensiz production policy DROP.
 const REQUIRED_DROPS = [
   "allow public personal archive read",
   "allow public personal archive uploads",
@@ -135,13 +194,12 @@ const REQUIRED_DROPS = [
 ];
 for (const name of REQUIRED_DROPS) {
   ok(
-    `10. migration DROP POLICY "${name}"`,
+    `24. migration DROP POLICY "${name}"`,
     new RegExp(`drop\\s+policy\\s+if\\s+exists\\s+"${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"\\s+on\\s+storage\\.objects`).test(mig),
   );
 }
-// 11: yeni anon/public replacement policy YOK.
 ok(
-  "11. migration: yeni CREATE POLICY YOK (anon/public replacement yok)",
+  "25. migration: yeni CREATE POLICY YOK (anon/public replacement yok)",
   !/create\s+policy/.test(mig),
 );
 
@@ -153,20 +211,16 @@ const A1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const A2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 ok("bucket sabiti personal-archive", PERSONAL_ARCHIVE_BUCKET === "personal-archive");
-ok("max bytes = 50MB (bodySizeLimit ile hizalı)", PERSONAL_ARCHIVE_MAX_BYTES === 50 * 1024 * 1024);
+ok("max bytes = 50MB", PERSONAL_ARCHIVE_MAX_BYTES === 50 * 1024 * 1024);
 
 const built = buildPersonalArchivePath(T1, A1, "uuid123", "belge.pdf");
 ok("path: tenant/archive/uuid_name biçimi", built === `${T1}/${A1}/uuid123_belge.pdf`);
 ok("path: kendi tenant+archive önekinde owned", isOwnedPersonalArchivePath(built, T1, A1));
-
-// Cross-tenant / cross-archive / traversal reddi.
 ok("owned: cross-tenant path RED", !isOwnedPersonalArchivePath(`${T2}/${A1}/x_belge.pdf`, T1, A1));
 ok("owned: cross-archive path RED", !isOwnedPersonalArchivePath(`${T1}/${A2}/x_belge.pdf`, T1, A1));
 ok("owned: path traversal RED", !isOwnedPersonalArchivePath(`${T1}/${A1}/../../etc`, T1, A1));
 ok("owned: absolute URL RED", !isOwnedPersonalArchivePath(`https://evil/${T1}/${A1}/x`, T1, A1));
 ok("owned: non-string RED", !isOwnedPersonalArchivePath(null, T1, A1) && !isOwnedPersonalArchivePath(123, T1, A1));
-
-// Sanitize.
 ok("sanitize: tehlikeli karakterler _ olur", sanitizePersonalArchiveFileName("a/b\\c:*?\"<>|.txt").indexOf("/") === -1);
 ok("sanitize: boş → dosya", sanitizePersonalArchiveFileName("") === "dosya" && sanitizePersonalArchiveFileName("///") !== "");
 ok("sanitize: 180 karakter sınırı", sanitizePersonalArchiveFileName("x".repeat(500)).length <= 180);

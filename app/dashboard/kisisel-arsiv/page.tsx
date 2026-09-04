@@ -15,6 +15,7 @@ import {
 } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { supabase } from "@/lib/supabase";
 
 /** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
 function userHeaders(json = false): Record<string, string> {
@@ -23,6 +24,81 @@ function userHeaders(json = false): Record<string, string> {
   if (token) h["x-session-token"] = token;
   if (json) h["Content-Type"] = "application/json";
   return h;
+}
+
+/**
+ * P1-3 SUNUCU-YETKİLİ signed upload akışı — dosya byte'ları API route'tan GEÇMEZ
+ * (Vercel Functions ~4.5MB body limiti aşılmaz). Akış:
+ *   1) prepare  : POST /files/upload (JSON) → server obje yolu + signed upload token,
+ *   2) upload   : supabase.storage.uploadToSignedUrl(path, token, file) — path SUNUCUDAN,
+ *                 normal anon .upload() DEĞİL; server-authorized kısa ömürlü capability,
+ *   3) finalize : POST /files/finalize (JSON) → metadata SUNUCUDA yazılır.
+ * Finalize başarısızsa orphan obje server cleanup ile (tenant+archive-scoped) temizlenir.
+ * Client hiçbir zaman tenant/obje yolu ÜRETMEZ.
+ */
+async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean> {
+  let path = "";
+  let token = "";
+  try {
+    const res = await fetch("/api/kisisel-arsiv/files/upload", {
+      method: "POST",
+      headers: userHeaders(true),
+      body: JSON.stringify({
+        archiveId,
+        fileName: file.name,
+        fileType: file.type || null,
+        fileSize: file.size,
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean; path?: string; token?: string;
+    };
+    if (!res.ok || !json.ok || !json.path || !json.token) throw new Error(`HTTP ${res.status}`);
+    path = json.path;
+    token = json.token;
+  } catch (prepErr) {
+    console.error("[kisisel-arsiv] upload prepare", prepErr);
+    return false;
+  }
+
+  const { error: upErr } = await supabase.storage
+    .from("personal-archive")
+    .uploadToSignedUrl(path, token, file);
+  if (upErr) {
+    // Obje yüklenmedi → metadata oluşturulmaz, orphan yok.
+    console.error("[kisisel-arsiv] uploadToSignedUrl", upErr);
+    return false;
+  }
+
+  try {
+    const res = await fetch("/api/kisisel-arsiv/files/finalize", {
+      method: "POST",
+      headers: userHeaders(true),
+      body: JSON.stringify({
+        archiveId,
+        path,
+        fileName: file.name,
+        fileType: file.type || null,
+        fileSize: file.size,
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
+    if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
+  } catch (finErr) {
+    console.error("[kisisel-arsiv] finalize", finErr);
+    // Finalize başarısız → orphan obje best-effort server cleanup (arbitrary delete DEĞİL).
+    try {
+      await fetch("/api/kisisel-arsiv/files/cleanup", {
+        method: "POST",
+        headers: userHeaders(true),
+        body: JSON.stringify({ archiveId, path }),
+      });
+    } catch (clErr) {
+      console.error("[kisisel-arsiv] cleanup", clErr);
+    }
+    return false;
+  }
 }
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
@@ -856,24 +932,11 @@ export default function KisiselArsivPage() {
         return;
       }
 
-      // P1-3: ek dosyalar da SUNUCU-YETKİLİ yüklenir. Tarayıcı storage.upload/remove ÇAĞIRMAZ;
-      // upload + metadata + hata temizliği tek server akışında (/api/kisisel-arsiv/files/upload).
+      // P1-3: ek dosyalar da SUNUCU-YETKİLİ signed upload akışıyla yüklenir.
       for (let i = 0; i < detailExtraFiles.length; i++) {
         const file = detailExtraFiles[i]!;
-        try {
-          const fd = new FormData();
-          fd.append("archiveId", archiveId);
-          fd.append("file", file);
-          const res = await fetch("/api/kisisel-arsiv/files/upload", {
-            method: "POST",
-            headers: userHeaders(),
-            body: fd,
-          });
-          const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
-          if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
-        } catch (upErr) {
-          console.error("[kisisel-arsiv] detail extra upload", upErr);
-        }
+        const okUp = await uploadArchiveFile(archiveId, file);
+        if (!okUp) console.error("[kisisel-arsiv] detail extra upload", file.name);
       }
 
       await loadRecords();
@@ -988,23 +1051,10 @@ export default function KisiselArsivPage() {
       return;
     }
 
-    // P1-3: yükleme SUNUCU-YETKİLİ. Tarayıcı storage'a DOKUNMAZ; dosya multipart olarak
-    // /api/kisisel-arsiv/files/upload'a gider, path + metadata SUNUCUDA üretilir/yazılır.
+    // P1-3: yükleme SUNUCU-YETKİLİ signed upload akışıyla (byte'lar API'den geçmez).
     for (const file of selectedFiles) {
-      try {
-        const fd = new FormData();
-        fd.append("archiveId", archiveId);
-        fd.append("file", file);
-        const res = await fetch("/api/kisisel-arsiv/files/upload", {
-          method: "POST",
-          headers: userHeaders(),
-          body: fd,
-        });
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
-        if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
-      } catch (upErr) {
-        console.error("Dosya yükleme hatası:", upErr);
-      }
+      const okUp = await uploadArchiveFile(archiveId, file);
+      if (!okUp) console.error("Dosya yükleme hatası:", file.name);
     }
 
     await loadRecords();
