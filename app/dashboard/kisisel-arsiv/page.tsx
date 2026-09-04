@@ -15,7 +15,6 @@ import {
 } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 /** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
 function userHeaders(json = false): Record<string, string> {
@@ -212,12 +211,6 @@ function highlightText(text: string, query: string): ReactNode {
     i = idx + fn.length;
   }
   return nodes.length === 1 ? nodes[0] : <Fragment>{nodes}</Fragment>;
-}
-
-function chunkPaths(paths: string[], size: number) {
-  const out: string[][] = [];
-  for (let i = 0; i < paths.length; i += size) out.push(paths.slice(i, i + size));
-  return out;
 }
 
 function formatFileSize(bytes: number | null | undefined): string {
@@ -863,34 +856,23 @@ export default function KisiselArsivPage() {
         return;
       }
 
+      // P1-3: ek dosyalar da SUNUCU-YETKİLİ yüklenir. Tarayıcı storage.upload/remove ÇAĞIRMAZ;
+      // upload + metadata + hata temizliği tek server akışında (/api/kisisel-arsiv/files/upload).
       for (let i = 0; i < detailExtraFiles.length; i++) {
         const file = detailExtraFiles[i]!;
-        const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
-        const path = `${tenantId}/${archiveId}/${Date.now()}_${i}_${safeName}`;
-
-        const { error: upErr } = await supabase.storage
-          .from("personal-archive")
-          .upload(path, file, { upsert: false });
-
-        if (upErr) {
-          console.error("[kisisel-arsiv] detail extra upload", upErr);
-          continue;
-        }
-
         try {
-          const res = await fetch("/api/kisisel-arsiv/files", {
+          const fd = new FormData();
+          fd.append("archiveId", archiveId);
+          fd.append("file", file);
+          const res = await fetch("/api/kisisel-arsiv/files/upload", {
             method: "POST",
-            headers: userHeaders(true),
-            body: JSON.stringify({
-              archiveId,
-              files: [{ file_name: file.name, file_path: path, file_type: file.type || null, file_size: file.size }],
-            }),
+            headers: userHeaders(),
+            body: fd,
           });
           const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
           if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
-        } catch (metaErr) {
-          console.error("[kisisel-arsiv] detail extra file row", metaErr);
-          void supabase.storage.from("personal-archive").remove([path]);
+        } catch (upErr) {
+          console.error("[kisisel-arsiv] detail extra upload", upErr);
         }
       }
 
@@ -916,19 +898,9 @@ export default function KisiselArsivPage() {
     setInfo(null);
 
     try {
-      const fileRows = row.personal_archive_files ?? [];
-      const paths = fileRows.map((f) => f.file_path).filter(Boolean);
-
-      for (const batch of chunkPaths(paths, 50)) {
-        if (batch.length === 0) continue;
-        const { error: rmErr } = await supabase.storage
-          .from("personal-archive")
-          .remove(batch);
-        if (rmErr) {
-          console.error("[kisisel-arsiv] storage remove on delete", rmErr);
-        }
-      }
-
+      // P1-3: storage silme SUNUCUDA yapılır. Tarayıcı artık storage.remove ÇAĞIRMAZ;
+      // /api/kisisel-arsiv/files DELETE ucu path'leri DB'den (tenant+archive scoped) çözüp
+      // service_role ile hem storage objelerini hem metadata satırlarını siler.
       try {
         const res = await fetch(
           `/api/kisisel-arsiv/files?archiveId=${encodeURIComponent(row.id)}`,
@@ -1016,33 +988,22 @@ export default function KisiselArsivPage() {
       return;
     }
 
+    // P1-3: yükleme SUNUCU-YETKİLİ. Tarayıcı storage'a DOKUNMAZ; dosya multipart olarak
+    // /api/kisisel-arsiv/files/upload'a gider, path + metadata SUNUCUDA üretilir/yazılır.
     for (const file of selectedFiles) {
-      const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
-      const path = `${tenantId}/${archiveId}/${Date.now()}_${safeName}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("personal-archive")
-        .upload(path, file, { upsert: false });
-
-      if (upErr) {
-        console.error("Dosya yükleme hatası:", upErr);
-        continue;
-      }
-
       try {
-        const res = await fetch("/api/kisisel-arsiv/files", {
+        const fd = new FormData();
+        fd.append("archiveId", archiveId);
+        fd.append("file", file);
+        const res = await fetch("/api/kisisel-arsiv/files/upload", {
           method: "POST",
-          headers: userHeaders(true),
-          body: JSON.stringify({
-            archiveId,
-            files: [{ file_name: file.name, file_path: path, file_type: file.type || null, file_size: file.size }],
-          }),
+          headers: userHeaders(),
+          body: fd,
         });
         const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
         if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
-      } catch (metaErr) {
-        console.error("Dosya tablo kayıt hatası:", metaErr);
-        void supabase.storage.from("personal-archive").remove([path]);
+      } catch (upErr) {
+        console.error("Dosya yükleme hatası:", upErr);
       }
     }
 
