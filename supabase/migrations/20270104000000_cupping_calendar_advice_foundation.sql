@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20270103000000_cupping_calendar_advice_foundation.sql
+-- 20270104000000_cupping_calendar_advice_foundation.sql
 --
 -- KUPA & HACAMAT — FAZ 5 / AŞAMA 2 — HACAMAT TAKVİMİ + BİLGİLENDİRME VERİ TEMELİ.
 --

@@ -1203,7 +1203,7 @@ function run(): void {
     "faz5-hijri: monthHijriCells türetilmiş hücreler");
 
   // ── FAZ5-B) ŞEMA MIGRATION — 4 tablo + FK + unique + RLS ────────────────────────
-  const calMigName = "supabase/migrations/20270103000000_cupping_calendar_advice_foundation.sql";
+  const calMigName = "supabase/migrations/20270104000000_cupping_calendar_advice_foundation.sql";
   ok(exists(calMigName), "faz5-mig: takvim/bilgilendirme migration mevcut (fresh version)");
   const calMig = read(calMigName);
   const calMigCode = stripSql(calMig); // yorum-arındırılmış DDL/DML (negatif kontroller için)
