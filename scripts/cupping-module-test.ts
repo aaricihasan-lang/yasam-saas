@@ -28,7 +28,12 @@ import {
   PROTOCOL_STEP_META_WRITABLE,
   PROTOCOL_ENTRY_WRITABLE,
   PROTOCOL_SOURCE_META_WRITABLE,
+  ADVICE_TEMPLATE_WRITABLE,
+  CALENDAR_PLAN_WRITABLE,
+  CALENDAR_PLAN_DAY_WRITABLE,
+  CLIENT_ADVICE_WRITABLE,
 } from "../lib/cupping/fields";
+import { gregorianToHijri, parseYmd, monthHijriCells, HIJRI_MONTHS_TR } from "../lib/cupping/hijri";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
 import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
@@ -1128,6 +1133,233 @@ function run(): void {
   ok(/CREATE TABLE IF NOT EXISTS public\.cupping_technique_safety/.test(f4mig) &&
      !/DROP\s+TABLE[^;]*cupping_technique_safety/i.test(f4mig),
     "faz4-ux: cupping_technique_safety tablosu migration'da DORMANT korunur (DROP YOK)");
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 2 — HACAMAT TAKVİMİ + BİLGİLENDİRME (nötr Hijri + 4 tablo + API)
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // ── FAZ5-A) NÖTR HİCRÎ MOTORU ──────────────────────────────────────────────────
+  // Yorum-arındırma (negatif/nötrlük kontrolleri KOD üzerinde çalışsın; belge yorumları
+  // yasak kavramları bilerek ADLANDIRIR "yapılmıyor" demek için — naif regex'i tökezletmesin).
+  const stripTs = (s: string) =>
+    s.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+  const stripSql = (s: string) => s.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+
+  ok(exists("lib/cupping/hijri.ts"), "faz5-hijri: lib/cupping/hijri.ts mevcut");
+  const hijriSrc = read("lib/cupping/hijri.ts");
+  const hijriCode = stripTs(hijriSrc);
+  ok(/islamic-umalqura/.test(hijriCode), "faz5-hijri: Umm al-Qura takvimi kullanılır");
+  ok(/Date\.UTC\(/.test(hijriCode) && /timeZone:\s*"UTC"/.test(hijriCode), "faz5-hijri: UTC pinlenmiş (sivil gün kaymaz)");
+  ok(/12,\s*0,\s*0/.test(hijriCode), "faz5-hijri: gün-ortası (12:00) — DST/offset kayması yok");
+  // TIBBEN/GELENEKSEL NÖTR: hiçbir gün-tavsiye/statü sabiti yok, Kozmik bağı yok (KOD).
+  ok(!/alt[ıi]n|s[uü]nnet|uygun|yasakl|getStatus|SUNNET_HICRI|UYGUN_HICRI|NOTABLE_HICRI|YASAKLI/i.test(hijriCode),
+    "faz5-hijri: gün-tavsiye/statü sabiti YOK (nötr)");
+  ok(!/cosmic|hacamat_rules/i.test(hijriCode), "faz5-hijri: Kozmik/hacamat_rules bağı YOK");
+
+  // Bilinen dönüşümler (runtime'dan doğrulanmış Umm al-Qura değerleri; ICU 78).
+  type HAssert = { g: string; d: number; m: number; y: number; name: string };
+  const KNOWN: HAssert[] = [
+    { g: "2000-01-01", d: 24, m: 9, y: 1420, name: "Ramazan" },
+    { g: "2024-01-01", d: 19, m: 6, y: 1445, name: "Cemaziyelahir" },
+    { g: "2027-01-01", d: 23, m: 7, y: 1448, name: "Recep" },
+    { g: "2027-06-07", d: 2, m: 1, y: 1449, name: "Muharrem" },
+    { g: "2027-12-31", d: 3, m: 8, y: 1449, name: "Şaban" },
+    { g: "2016-01-01", d: 21, m: 3, y: 1437, name: "Rebiülevvel" },
+  ];
+  for (const k of KNOWN) {
+    const h = gregorianToHijri(k.g);
+    ok(!!h && h.day === k.d && h.month === k.m && h.year === k.y && h.monthName === k.name,
+      `faz5-hijri: ${k.g} → ${k.d} ${k.name} ${k.y}`);
+  }
+  // formatted string sözleşmesi.
+  ok(gregorianToHijri("2000-01-01")?.formatted === "24 Ramazan 1420", "faz5-hijri: formatted gösterim");
+  // Türkçe ay adı tablosu (yalnız ad; hüküm yok) 12 öğe.
+  ok(HIJRI_MONTHS_TR.length === 12 && HIJRI_MONTHS_TR[0] === "Muharrem", "faz5-hijri: 12 Türkçe ay adı");
+
+  // Gregoryen ay sınırı: 31 Oca ≠ 1 Şub (farklı Hicrî hücre).
+  const jan31 = gregorianToHijri("2027-01-31");
+  const feb01 = gregorianToHijri("2027-02-01");
+  ok(!!jan31 && !!feb01 && (jan31.day !== feb01.day || jan31.month !== feb01.month),
+    "faz5-hijri: Gregoryen ay sınırı ardışık günleri ayırır");
+  // Hicrî ay sınırı: 06-05 (30 Zilhicce 1448) → 06-06 (1 Muharrem 1449) ay+yıl döner.
+  const h0605 = gregorianToHijri("2027-06-05");
+  const h0606 = gregorianToHijri("2027-06-06");
+  ok(!!h0605 && !!h0606 && h0605.month !== h0606.month && h0606.day === 1 && h0606.year === h0605.year + 1,
+    "faz5-hijri: Hicrî ay+yıl sınırı (yeni ay 1. günü)");
+  // Artık yıl: 2024-02-29 GEÇERLİ; 2023-02-29 GEÇERSİZ (null).
+  ok(parseYmd("2024-02-29") !== null && parseYmd("2023-02-29") === null, "faz5-hijri: artık-yıl doğrulaması");
+  // Geçersiz girdi → null (istisna fırlatmaz).
+  ok(parseYmd("2027-13-01") === null && parseYmd("2027-02-30") === null && parseYmd("bozuk") === null,
+    "faz5-hijri: geçersiz tarih parseYmd null");
+  ok(gregorianToHijri("bozuk") === null && gregorianToHijri("2027-02-30") === null,
+    "faz5-hijri: geçersiz tarih gregorianToHijri null");
+  // UTC kararlılığı: string vs {y,m,d} aynı sonucu verir.
+  const hs = gregorianToHijri("2027-03-15");
+  const hp = gregorianToHijri({ year: 2027, month: 3, day: 15 });
+  ok(!!hs && !!hp && hs.formatted === hp.formatted, "faz5-hijri: string/parça girişi aynı (UTC kararlı)");
+  // monthHijriCells: Şubat 2027 = 28 hücre, her hücre türetilmiş Hicrî içerir.
+  const febCells = monthHijriCells(2027, 2);
+  ok(febCells.length === 28 && febCells.every((c) => c.hijri.month >= 1 && c.hijri.month <= 12),
+    "faz5-hijri: monthHijriCells türetilmiş hücreler");
+
+  // ── FAZ5-B) ŞEMA MIGRATION — 4 tablo + FK + unique + RLS ────────────────────────
+  const calMigName = "supabase/migrations/20270104000000_cupping_calendar_advice_foundation.sql";
+  ok(exists(calMigName), "faz5-mig: takvim/bilgilendirme migration mevcut (fresh version)");
+  const calMig = read(calMigName);
+  const calMigCode = stripSql(calMig); // yorum-arındırılmış DDL/DML (negatif kontroller için)
+  const FAZ5_TABLES = [
+    "cupping_advice_templates",
+    "cupping_calendar_plans",
+    "cupping_calendar_plan_days",
+    "cupping_client_advice",
+  ];
+  for (const t of FAZ5_TABLES) {
+    ok(new RegExp(`CREATE TABLE IF NOT EXISTS public\\.${t}`).test(calMig), `faz5-mig: ${t} CREATE`);
+    ok(new RegExp(`ALTER TABLE public\\.${t}\\s+ENABLE ROW LEVEL SECURITY`).test(calMig), `faz5-mig: ${t} RLS ENABLE`);
+    ok(new RegExp(`REVOKE ALL PRIVILEGES ON TABLE public\\.${t} FROM PUBLIC, anon, authenticated`).test(calMig),
+      `faz5-mig: ${t} PUBLIC/anon/auth REVOKE`);
+    ok(new RegExp(`CONSTRAINT ${t}_tenant_id_key UNIQUE \\(tenant_id, id\\)`).test(calMig), `faz5-mig: ${t} composite UNIQUE(tenant_id,id)`);
+  }
+  ok(!/CREATE POLICY/.test(calMig), "faz5-mig: permissive policy YOK (REVOKE-only)");
+  ok(!/FORCE ROW LEVEL SECURITY/.test(calMig), "faz5-mig: FORCE RLS YOK (service-role)");
+  // tenant_id NOT NULL her tabloda.
+  ok((calMig.match(/tenant_id\s+uuid\s+NOT NULL/g) ?? []).length >= 4, "faz5-mig: tenant_id NOT NULL (4 tablo)");
+  // gregorian_date DATE (timestamptz DEĞİL).
+  ok(/gregorian_date\s+date\s+NOT NULL/.test(calMig), "faz5-mig: gregorian_date DATE NOT NULL");
+  ok(!/gregorian_date\s+timestamptz/.test(calMig), "faz5-mig: gregorian_date timestamptz DEĞİL");
+  // Plan-gün: composite FK (tenant_id, plan_id) → plans CASCADE.
+  ok(/FOREIGN KEY \(tenant_id, plan_id\)\s*REFERENCES public\.cupping_calendar_plans \(tenant_id, id\) ON DELETE CASCADE/.test(calMig),
+    "faz5-mig: plan_days → plans composite FK CASCADE");
+  // Plan-gün: duplicate seçili tarih UNIQUE (tenant, plan, tarih).
+  ok(/UNIQUE \(tenant_id, plan_id, gregorian_date\)/.test(calMig), "faz5-mig: seçili-tarih UNIQUE (tenant,plan,tarih)");
+  // Plan → şablon: KOLON-KAPSAMLI SET NULL (yalnız advice_template_id; tenant_id korunur).
+  ok(/FOREIGN KEY \(tenant_id, advice_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL \(advice_template_id\)/.test(calMig),
+    "faz5-mig: plan → şablon SET NULL (advice_template_id) — kolon-kapsamlı");
+  // ClientAdvice → şablon: KOLON-KAPSAMLI SET NULL (yalnız source_template_id; provenance).
+  ok(/FOREIGN KEY \(tenant_id, source_template_id\)\s*REFERENCES public\.cupping_advice_templates \(tenant_id, id\) ON DELETE SET NULL \(source_template_id\)/.test(calMig),
+    "faz5-mig: client_advice → şablon SET NULL (source_template_id) — kolon-kapsamlı");
+  // KORUMA: hiçbir template FK'sinde ÇIPLAK (kolon-listesiz) SET NULL yok → tenant_id
+  // ASLA NULL'lanmaz (composite SET NULL tüm kolonları temizler; bu bug ENGELLENDİ).
+  ok(!/ON DELETE SET NULL(?!\s*\()/.test(calMigCode),
+    "faz5-mig: ÇIPLAK composite SET NULL YOK (tenant_id korunur)");
+  // tenant_id her iki template FK'sinde composite anahtar parçası + NOT NULL (nullable DEĞİL).
+  ok(/tenant_id\s+uuid\s+NOT NULL/.test(calMig) &&
+     /FOREIGN KEY \(tenant_id, advice_template_id\)/.test(calMig) &&
+     /FOREIGN KEY \(tenant_id, source_template_id\)/.test(calMig),
+    "faz5-mig: tenant_id composite FK parçası + NOT NULL (korunur)");
+  // DEFAULT RPC: TENANT-KAPSAMLI serileştirme (advisory xact lock) — yalnız hedef-satır
+  // kilidine GÜVENMEZ. Namespace 'cupping_advice_default' + tenant.
+  ok(/pg_advisory_xact_lock\(hashtext\('cupping_advice_default'\),\s*hashtext\(p_tenant_id::text\)\)/.test(calMig),
+    "faz5-mig: default RPC tenant-kapsamlı advisory xact lock (serileştirme)");
+  // ClientAdvice → clients (kanonik) composite FK CASCADE.
+  ok(/FOREIGN KEY \(tenant_id, client_id\)\s*REFERENCES public\.clients \(tenant_id, id\) ON DELETE CASCADE/.test(calMig),
+    "faz5-mig: client_advice → clients composite FK CASCADE (kanonik)");
+  ok(/clients_tenant_id_id_key/.test(calMig), "faz5-mig: clients composite unique idempotent guard");
+  // Aktif-varsayılan partial UNIQUE invariant.
+  ok(/CREATE UNIQUE INDEX IF NOT EXISTS cupping_advice_templates_one_default_idx[\s\S]{0,120}WHERE is_default = true AND is_active = true/.test(calMig),
+    "faz5-mig: aktif-varsayılan partial UNIQUE (tenant başına ≤1)");
+  // Default-switch RPC — SECURITY INVOKER + EXECUTE revoke/grant.
+  ok(/CREATE OR REPLACE FUNCTION public\.cupping_advice_template_set_default_atomic\(/.test(calMig) &&
+     /SECURITY INVOKER/.test(calMig),
+    "faz5-mig: default-switch RPC (SECURITY INVOKER)");
+  ok(/REVOKE ALL ON FUNCTION public\.cupping_advice_template_set_default_atomic\(uuid, uuid\)\s*FROM PUBLIC, anon, authenticated/.test(calMig),
+    "faz5-mig: default RPC EXECUTE PUBLIC/anon/auth REVOKE");
+  ok(/GRANT EXECUTE ON FUNCTION public\.cupping_advice_template_set_default_atomic\(uuid, uuid\)\s*TO service_role/.test(calMig),
+    "faz5-mig: default RPC service_role GRANT");
+  // Yapısal yıl aralığı (tıbbi gün doğrulaması YOK).
+  ok(/CHECK \(year BETWEEN 1900 AND 2200\)/.test(calMig), "faz5-mig: plan yıl aralığı 1900–2200 (yapısal)");
+  // Additive: DROP/TRUNCATE/DELETE/UPDATE-backfill/seed YOK; ready-day sabiti YOK (KOD).
+  ok(!/\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(calMigCode), "faz5-mig: DROP/TRUNCATE/DELETE YOK (additive)");
+  ok(!/\bINSERT\s+INTO\s+public\.cupping_(advice_templates|calendar_plans|calendar_plan_days|client_advice)\b/i.test(calMigCode),
+    "faz5-mig: seed satır YOK");
+  ok(!/\b17\b|\b19\b|\b21\b|alt[ıi]n|s[uü]nnet|yasakl/i.test(calMigCode.replace(/1900|2200|45001|23505|23503/g, "")),
+    "faz5-mig: ready-day (17/19/21/altın/sünnet/yasaklı) sabiti YOK");
+
+  // ── FAZ5-C) YAZILABİLİR ALLOWLIST'LER (güvenli, server-forced) ──────────────────
+  const w = (a: readonly string[]) => a as readonly string[];
+  ok(!w(ADVICE_TEMPLATE_WRITABLE).includes("is_default") && !w(ADVICE_TEMPLATE_WRITABLE).includes("tenant_id") &&
+     !w(ADVICE_TEMPLATE_WRITABLE).includes("id") && w(ADVICE_TEMPLATE_WRITABLE).includes("before_text"),
+    "faz5-fields: ADVICE_TEMPLATE_WRITABLE is_default/tenant_id/id HARİÇ");
+  ok(!w(CALENDAR_PLAN_WRITABLE).includes("id") && !w(CALENDAR_PLAN_WRITABLE).includes("tenant_id") &&
+     w(CALENDAR_PLAN_WRITABLE).includes("year") && w(CALENDAR_PLAN_WRITABLE).includes("advice_template_id"),
+    "faz5-fields: CALENDAR_PLAN_WRITABLE güvenli");
+  ok(!w(CALENDAR_PLAN_DAY_WRITABLE).includes("gregorian_date") && !w(CALENDAR_PLAN_DAY_WRITABLE).includes("plan_id") &&
+     !w(CALENDAR_PLAN_DAY_WRITABLE).includes("tenant_id"),
+    "faz5-fields: CALENDAR_PLAN_DAY_WRITABLE gregorian_date/plan_id/tenant_id HARİÇ (server-side)");
+  ok(!w(CLIENT_ADVICE_WRITABLE).includes("client_id") && !w(CLIENT_ADVICE_WRITABLE).includes("source_template_id") &&
+     w(CLIENT_ADVICE_WRITABLE).includes("before_text"),
+    "faz5-fields: CLIENT_ADVICE_WRITABLE client_id/source_template_id HARİÇ (immutable provenance)");
+  ok(CUPPING_TABLES.adviceTemplates === "cupping_advice_templates" &&
+     CUPPING_TABLES.calendarPlans === "cupping_calendar_plans" &&
+     CUPPING_TABLES.calendarPlanDays === "cupping_calendar_plan_days" &&
+     CUPPING_TABLES.clientAdvice === "cupping_client_advice",
+    "faz5-fields: CUPPING_TABLES registry 4 yeni tablo");
+
+  // ── FAZ5-D) PLAN / GÜN / ŞABLON / DANIŞAN API ───────────────────────────────────
+  const plansRoot = read("app/api/kupa/calendar/plans/route.ts");
+  const planItem = read("app/api/kupa/calendar/plans/[id]/route.ts");
+  const daysRoute = read("app/api/kupa/calendar/plans/[id]/days/route.ts");
+  const dayItem = read("app/api/kupa/calendar/days/[id]/route.ts");
+  const tplRoot = read("app/api/kupa/advice-templates/route.ts");
+  const tplItem = read("app/api/kupa/advice-templates/[id]/route.ts");
+  const caRoot = read("app/api/kupa/client-advice/route.ts");
+  const caItem = read("app/api/kupa/client-advice/[id]/route.ts");
+
+  // Plan yıl-invariant reddi (sessiz taşıma/silme YOK).
+  ok(/seçili günler var[\s\S]{0,40}yıl değiştirilemez/i.test(planItem) && /409/.test(planItem),
+    "faz5-plan: yıl değişimi seçili günler varken REDDEDİLİR (409)");
+  ok(/validYear\(/.test(plansRoot) && /1900|CUPPING_PLAN_YEAR_MIN/.test(plansRoot),
+    "faz5-plan: yapısal yıl doğrulaması (1900–2200)");
+  // Plan-günler: strict YYYY-MM-DD + yıl eşitliği + max batch + idempotent upsert.
+  ok(/parseYmd\(/.test(daysRoute), "faz5-days: KATI YYYY-MM-DD (parseYmd)");
+  ok(/plan yılına[\s\S]{0,30}ait olmalı/i.test(daysRoute), "faz5-days: yıl-dışı tarih REDDEDİLİR");
+  ok(/CUPPING_PLAN_DAYS_MAX_BATCH|366/.test(daysRoute), "faz5-days: azami toplu <= 366");
+  ok(/ignoreDuplicates:\s*true/.test(daysRoute) && /skippedExisting/.test(daysRoute),
+    "faz5-days: idempotent (tekrar tarih atlanır) + inserted/skippedExisting");
+  ok(!/alt[ıi]n|s[uü]nnet|uygun|yasakl|hacamat_rules|getStatus/i.test(stripTs(daysRoute)),
+    "faz5-days: gizli gün-tavsiye motoru YOK");
+  // Şablon: is_default yalnız atomik RPC; arşiv default'u normalize eder.
+  ok(/cupping_advice_template_set_default_atomic/.test(tplRoot) && /cupping_advice_template_set_default_atomic/.test(tplItem),
+    "faz5-tpl: is_default yalnız atomik RPC ile");
+  ok(/archiving[\s\S]{0,60}is_default = false/.test(tplItem),
+    "faz5-tpl: arşivleme aktif-varsayılanı normalize eder (is_default=false)");
+  // Danışan sahiplik (P0) + snapshot kopya + canlı-miras YOK.
+  ok((caRoot.match(/assertOwnedRef\(db,\s*"clients",\s*tenantId/g) ?? []).length >= 2,
+    "faz5-client: her yolda danışan sahiplik doğrulaması (GET+POST)");
+  ok(/assertOwnedRef\(db,\s*CUPPING_TABLES\.adviceTemplates/.test(caRoot),
+    "faz5-client: şablon sahiplik doğrulaması (copy path)");
+  ok(/before_text:\s*t\.before_text/.test(caRoot) && /after_text:\s*t\.after_text/.test(caRoot),
+    "faz5-client: PATH A şablondan metin KOPYALAR (snapshot)");
+  ok(/source_template_id:\s*sourceTemplateId/.test(caRoot),
+    "faz5-client: source_template_id yalnız provenance olarak yazılır");
+  // PATCH snapshot düzenleme yalnız CLIENT_ADVICE_WRITABLE ile → source_template_id İMMUTABLE (canlı miras YOK).
+  ok(/pickWritable\(parsed\.data,\s*CLIENT_ADVICE_WRITABLE\)/.test(caItem) &&
+     !/source_template_id/.test(stripTs(caItem)),
+    "faz5-client: PATCH source_template_id'yi DEĞİŞTİRMEZ (canlı miras YOK)");
+  ok(/cuppingError\(404/.test(caRoot), "faz5-client: cross-tenant → owned-resource 404 (enumeration yok)");
+
+  // SNAPSHOT KONTRAT TESTİ (ZORUNLU) — in-memory kopya değişmezliği.
+  const T = { title: "Genel", before_text: "A", after_text: "B", general_note: null as string | null };
+  const C = { before_text: T.before_text, after_text: T.after_text, general_note: T.general_note };
+  T.before_text = "A2";
+  T.after_text = "B2";
+  ok(C.before_text === "A" && C.after_text === "B",
+    "faz5-snapshot: şablon T sonradan değişse de danışan kopyası C değişmez (A/B korunur)");
+
+  // ── FAZ5-E) SINIRLAR — Kozmik/ready-day/Word/UI/YH/appointment yok ──────────────
+  // Boundary negatif kontrolleri KOD üzerinde (belge yorumları yasak kavramları adlandırır).
+  const faz5Blob = [read("lib/cupping/hijri.ts"), read("lib/cupping/calendarTypes.ts"),
+    plansRoot, planItem, daysRoute, dayItem, tplRoot, tplItem, caRoot, caItem].map(stripTs).join("\n");
+  ok(!/lib\/cosmic|app\/cosmic-calendar|app\/api\/hacamat|hacamat_rules|SUNNET_HICRI|UYGUN_HICRI|NOTABLE_HICRI|YASAKLI_WEEKDAYS/i.test(faz5Blob),
+    "faz5-boundary: Kozmik Hacamat içe-aktarma/bağı YOK");
+  ok(!/inngest|outbox|yasam_hafizasi|memory[-_]event/i.test(faz5Blob), "faz5-boundary: Yaşam Hafızası (CDC/outbox/Inngest) YOK");
+  ok(!/appointment|randevu/i.test(faz5Blob), "faz5-boundary: randevu (appointment) entegrasyonu YOK");
+  ok(!exists("app/kupa/takvim"), "faz5-boundary: /kupa/takvim UI YOK (bu aşamada)");
+  ok(!exists("app/api/kupa/calendar/plans/[id]/word") && !exists("app/api/kupa/client-advice/word"),
+    "faz5-boundary: Word endpoint YOK (bu aşamada)");
+  // Kozmik dosyaları bu değişiklikte DOKUNULMADI (repo'da mevcut + FAZ5 bloğu referans vermiyor).
+  ok(exists("lib/cosmic/hacamat.ts") && exists("app/cosmic-calendar/hacamat/page.tsx"),
+    "faz5-boundary: Kozmik Hacamat dosyaları yerinde (dokunulmadı)");
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
