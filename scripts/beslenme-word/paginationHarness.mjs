@@ -13,7 +13,7 @@
 // Çalıştır:  npx tsx scripts/beslenme-word/paginationHarness.mjs
 // FAIL → exit 1.
 // ============================================================
-import { fetchAllPaged, PAGE_SIZE } from "../../lib/beslenme/word/pagedFetch.ts";
+import { fetchAllPaged, PAGE_SIZE } from "../../lib/beslenme/pagedFetch.ts";
 
 let pass = 0, fail = 0;
 const failures = [];

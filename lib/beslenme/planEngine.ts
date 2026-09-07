@@ -7,6 +7,7 @@ import {
   PLAN_DAY_COLUMNS,
   itemNutrientContribution,
 } from "./planContracts";
+import { fetchAllPaged, chunkIds } from "./pagedFetch";
 
 /**
  * Beslenme FAZ 5 / Plan Motoru — server-authoritative snapshot + scoped resolver kapısı.
@@ -119,10 +120,15 @@ export async function loadPlanDaySummaries(
   const dayRows = (days as Array<{ id: string; plan_date: string; energy_target_override: number | null; note: string | null }> | null) ?? [];
   if (dayRows.length === 0) return [];
 
-  const { data: meals } = await db
-    .from("nutrition_plan_meals").select("id, plan_day_id")
-    .eq("tenant_id", tenantId).eq("plan_id", planId);
-  const mealRows = (meals as Array<{ id: string; plan_day_id: string }> | null) ?? [];
+  // Öğünler (SAYFALI: büyük planlarda öğün sayısı 1000-satır yanıt sınırını aşabilir).
+  const mealRows = await fetchAllPaged<{ id: string; plan_day_id: string }>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_meals").select("id, plan_day_id")
+        .eq("tenant_id", tenantId).eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
   const mealToDay = new Map<string, string>();
   const mealCount = new Map<string, number>();
   for (const m of mealRows) {
@@ -130,10 +136,15 @@ export async function loadPlanDaySummaries(
     mealCount.set(m.plan_day_id, (mealCount.get(m.plan_day_id) ?? 0) + 1);
   }
 
-  const { data: items } = await db
-    .from("nutrition_plan_items").select("id, meal_id, grams")
-    .eq("tenant_id", tenantId).eq("plan_id", planId);
-  const itemRows = (items as Array<{ id: string; meal_id: string; grams: number }> | null) ?? [];
+  // Item'lar (SAYFALI: item sayısı MAX_PLAN_ITEMS'e kadar → 1000 sınırını aşabilir).
+  const itemRows = await fetchAllPaged<{ id: string; meal_id: string; grams: number }>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_items").select("id, meal_id, grams")
+        .eq("tenant_id", tenantId).eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
   const itemGrams = new Map<string, number>();
   const itemToDay = new Map<string, string>();
   for (const it of itemRows) {
@@ -142,17 +153,26 @@ export async function loadPlanDaySummaries(
     if (d) itemToDay.set(it.id, d);
   }
 
+  // Enerji nutrient'ları (SAYFALI + item_id chunk'lı: item başına 1 energy satırı olsa da
+  // büyük planlarda toplam 1000-satır sınırını aşabilir → sessiz kayıp gün enerjisini bozar).
   const energyByDay = new Map<string, number>();
   if (itemRows.length > 0) {
-    const { data: nutr } = await db
-      .from("nutrition_plan_item_nutrients").select("item_id, amount")
-      .eq("tenant_id", tenantId).eq("nutrient_code", "energy")
-      .in("item_id", itemRows.map((i) => i.id));
-    for (const n of (nutr as Array<{ item_id: string; amount: number }> | null) ?? []) {
-      const day = itemToDay.get(n.item_id);
-      if (!day) continue;
-      const grams = itemGrams.get(n.item_id) ?? 0;
-      energyByDay.set(day, (energyByDay.get(day) ?? 0) + itemNutrientContribution(grams, Number(n.amount)));
+    for (const ids of chunkIds(itemRows.map((i) => i.id))) {
+      const nutr = await fetchAllPaged<{ item_id: string; amount: number }>(
+        (from, to) =>
+          db
+            .from("nutrition_plan_item_nutrients").select("item_id, amount")
+            .eq("tenant_id", tenantId).eq("nutrient_code", "energy")
+            .in("item_id", ids)
+            .order("id", { ascending: true })
+            .range(from, to),
+      );
+      for (const n of nutr) {
+        const day = itemToDay.get(n.item_id);
+        if (!day) continue;
+        const grams = itemGrams.get(n.item_id) ?? 0;
+        energyByDay.set(day, (energyByDay.get(day) ?? 0) + itemNutrientContribution(grams, Number(n.amount)));
+      }
     }
   }
 

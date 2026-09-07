@@ -19,6 +19,13 @@
  * verdiği Supabase sorgu üreticisini çalıştırır (SSRF-güvenli).
  */
 
+/** `.in(...)` URL uzunluk sınırını aşmamak için id listesi chunk'ları (büyük planlar). */
+export function chunkIds<T>(arr: T[], size = 400): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 /** PostgREST yanıt sayfa boyutu. Supabase varsayılan max-row (≈1000) ile uyumlu. */
 export const PAGE_SIZE = 1000;
 

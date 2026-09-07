@@ -12,7 +12,7 @@ import {
   type PlanDocxItem,
 } from "./planDocxBuilder";
 import { daysBetween } from "@/lib/beslenme/planContracts";
-import { fetchAllPaged } from "./pagedFetch";
+import { fetchAllPaged, chunkIds } from "../pagedFetch";
 
 /**
  * Beslenme FAZ 6 / Plan Word — server yükleyici (SNAPSHOT-only).
@@ -57,13 +57,6 @@ async function boundClientName(db: SupabaseClient, tenantId: string, planFamilyI
   const c = cli as { ad: string | null; soyad: string | null };
   const raw = `${c.ad ?? ""} ${c.soyad ?? ""}`.trim();
   return raw || null;
-}
-
-/** .in() URL sınırını aşmamak için item id chunk'ları (büyük planlar). */
-function chunk<T>(arr: T[], size = 400): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
 }
 
 /**
@@ -127,7 +120,7 @@ export async function buildPlanDocxBuffer(
   // nutrient'ları SESSİZCE düşer → Word'de yanlış gün toplamı/ortalama. `.range()` ile tam çekilir.
   const nutrByItem = new Map<string, ItemNutrientSnapshot[]>();
   if (itemRows.length > 0) {
-    for (const ids of chunk(itemRows.map((i) => i.id))) {
+    for (const ids of chunkIds(itemRows.map((i) => i.id))) {
       const nutr = await fetchAllPaged<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }>(
         (from, to) =>
           db
