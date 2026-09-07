@@ -34,6 +34,12 @@ import {
   WHATSAPP_CONTACT_ENABLED,
   buildWhatsAppUrl,
 } from "@/lib/contact/whatsapp";
+import {
+  CONTACT_EMAIL,
+  CUSTOMER_SERVICE_DISPLAY,
+  buildMailtoHref,
+  buildTelHref,
+} from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
@@ -49,6 +55,7 @@ import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeft,
   ArrowRight,
   Brain,
   CalendarDays,
@@ -61,6 +68,7 @@ import {
   Mail,
   MessageCircle,
   Package,
+  Phone,
   Salad,
   Shield,
   ShieldCheck,
@@ -69,69 +77,118 @@ import {
 } from "lucide-react";
 
 /**
- * Üyelik & fiyat iletişim aksiyonları — hem login modalında hem
- * pending/inactive panelinde kullanılır (tek kaynak, tutarlı UX).
+ * Üyelik & fiyat iletişim seçenekleri paneli — login modalı içinde tek, net
+ * bir "üyelik iletişimi" görünümü olarak açılır (ayrı sayfa/route YOK).
  *
- * İki gerçek iletişim seçeneği sunar:
- *   A) WhatsApp'tan Görüş  — yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
- *      render edilir; kapalıyken kullanıcıya kırık wa.me linki GÖSTERİLMEZ.
- *   B) Doğrudan Mesaj Gönder — `onDirectMessage` ile aynı modal içindeki
- *      membership_contact formunu açar (kullanıcı /iletisim'e gönderilmez).
+ * Üç ana iletişim seçeneği sunar:
+ *   1) Yöneticiye Mesaj Gönder — `onManagerMessage` ile aynı modal içindeki
+ *      membership_contact formunu açar (kullanıcı başka sayfaya gönderilmez).
+ *   2) WhatsApp'tan Görüş — yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
+ *      render edilir; kapalıyken kırık wa.me linki GÖSTERİLMEZ. Yeni sekmede
+ *      açılır; panel state'i açık kalır (modal kapanmaz).
+ *   3) Müşteri Hizmetleri — canonical telefon (tel: deep-link).
+ * Altında sakin bir e-posta iletişim satırı (mailto) yer alır.
+ *
+ * Telefon/e-posta bilgileri kişisel GSM DEĞİL; yalnız `lib/contact/info.ts`
+ * canonical kurumsal kaynağından gelir. WhatsApp numarası `lib/contact/whatsapp.ts`.
  */
-function MembershipContactCTA({
-  variant = "modal",
-  onWhatsAppNavigate,
-  onDirectMessage,
-  defaultOpen = false,
+function MembershipOptionsPanel({
+  onManagerMessage,
+  onBack,
 }: {
-  variant?: "modal" | "panel";
-  onWhatsAppNavigate?: () => void;
-  onDirectMessage: () => void;
-  defaultOpen?: boolean;
+  onManagerMessage: () => void;
+  onBack: () => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   const whatsappUrl = buildWhatsAppUrl();
 
-  const options = (
-    <div className="mt-3 space-y-2">
+  return (
+    <div className="relative z-10 mt-5 space-y-3">
+      {/* 1) Yöneticiye Mesaj Gönder — ana sistem violet/gradient kimliği */}
+      <button
+        type="button"
+        onClick={onManagerMessage}
+        className="flex w-full items-start gap-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50/60 p-4 text-left transition hover:border-violet-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-sm">
+          <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] font-black text-slate-900">
+            Yöneticiye Mesaj Gönder
+          </span>
+          <span className="mt-0.5 block text-[13px] leading-5 text-slate-600">
+            Üyelik ve fiyatlandırma hakkında sorunuzu bize iletin. Size en kısa
+            sürede geri dönüş yapalım.
+          </span>
+        </span>
+      </button>
+
+      {/* 2) WhatsApp'tan Görüş — yalnız gate açıkken */}
       {WHATSAPP_CONTACT_ENABLED && (
         <a
           href={whatsappUrl}
           target="_blank"
           rel="noreferrer noopener"
-          onClick={onWhatsAppNavigate}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white no-underline shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+          className="flex w-full items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left no-underline transition hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
         >
-          <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
-          WhatsApp&apos;tan Görüş
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+            <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[15px] font-black text-emerald-900">
+              WhatsApp&apos;tan Görüş
+            </span>
+            <span className="mt-0.5 block text-[13px] leading-5 text-emerald-700/90">
+              Üyelik ve fiyatlandırma hakkında hızlıca WhatsApp üzerinden bilgi
+              alabilirsiniz.
+            </span>
+          </span>
         </a>
       )}
+
+      {/* 3) Müşteri Hizmetleri — canonical telefon */}
+      <a
+        href={buildTelHref()}
+        className="flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left no-underline transition hover:border-slate-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+          <Phone className="h-5 w-5" strokeWidth={2.25} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] font-black text-slate-900">
+            Müşteri Hizmetleri
+          </span>
+          <span className="mt-0.5 block text-lg font-black tracking-tight text-violet-800">
+            {CUSTOMER_SERVICE_DISPLAY}
+          </span>
+          <span className="mt-0.5 block text-[13px] leading-5 text-slate-600">
+            Dilerseniz müşteri hizmetlerimizi arayarak üyelik ve fiyatlandırma
+            hakkında doğrudan bilgi alabilirsiniz.
+          </span>
+        </span>
+      </a>
+
+      {/* E-posta — 4. büyük CTA değil; sakin iletişim satırı */}
+      <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-xl bg-slate-50 px-4 py-3 text-center text-[13px] text-slate-500">
+        <Mail className="h-3.5 w-3.5 text-slate-400" strokeWidth={2.25} />
+        <span>E-posta ile ulaşmak isterseniz bize doğrudan yazabilirsiniz.</span>
+        <a
+          href={buildMailtoHref()}
+          className="font-semibold text-violet-700 no-underline hover:text-violet-900 hover:underline focus-visible:underline focus-visible:outline-none"
+        >
+          {CONTACT_EMAIL}
+        </a>
+      </div>
+
+      {/* Giriş ekranına dön */}
       <button
         type="button"
-        onClick={onDirectMessage}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+        onClick={onBack}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:text-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
       >
-        <Mail className="h-4 w-4" strokeWidth={2.5} />
-        Doğrudan Mesaj Gönder
+        <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
+        Giriş ekranına dön
       </button>
-    </div>
-  );
-
-  if (variant === "panel") {
-    return <div className="mt-1 w-full">{options}</div>;
-  }
-
-  return (
-    <div className="mt-3">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
-      >
-        Üyelik ve Fiyat Bilgisi Al
-      </button>
-      {open && options}
     </div>
   );
 }
@@ -643,9 +700,8 @@ export default function Home() {
   const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [membershipIntent, setMembershipIntent] = useState(false);
   const [authModalView, setAuthModalView] = useState<
-    "login" | "support" | "membership"
+    "login" | "support" | "membership" | "membershipOptions"
   >("login");
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
@@ -685,7 +741,6 @@ export default function Home() {
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
-    setMembershipIntent(false);
     setAuthModalView("login");
   };
 
@@ -1520,14 +1575,19 @@ export default function Home() {
                     Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.
                   </p>
                   <div className="mt-3 w-full max-w-xs">
-                    <MembershipContactCTA
-                      variant="panel"
-                      onDirectMessage={() => {
+                    {/* Aynı 3 seçenekli iletişim panelini reuse eder (paralel
+                        sistem yok): modal membershipOptions görünümünde açılır. */}
+                    <button
+                      type="button"
+                      onClick={() => {
                         setMessage("");
-                        setAuthModalView("membership");
+                        setAuthModalView("membershipOptions");
                         setLoginModalOpen(true);
                       }}
-                    />
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                    >
+                      Üyelik ve Fiyat Bilgisi Al
+                    </button>
                   </div>
                 </div>
               ) : expertModulesEmpty ? (
@@ -1791,7 +1851,6 @@ export default function Home() {
               type="button"
               onClick={() => {
                 setMessage("");
-                setMembershipIntent(false);
                 setAuthModalView("login");
                 setLoginModalOpen(true);
               }}
@@ -3576,7 +3635,8 @@ export default function Home() {
                 <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
                   {authModalView === "support"
                     ? "Şifre Desteği"
-                    : authModalView === "membership"
+                    : authModalView === "membership" ||
+                        authModalView === "membershipOptions"
                       ? "Üyelik İletişimi"
                       : t("login.badge")}
                 </div>
@@ -3587,7 +3647,8 @@ export default function Home() {
                 >
                   {authModalView === "support"
                     ? "Giriş Sorunu Bildir"
-                    : authModalView === "membership"
+                    : authModalView === "membership" ||
+                        authModalView === "membershipOptions"
                       ? "Üyelik ve Fiyat Bilgisi"
                       : t("login.title")}
                 </h3>
@@ -3595,9 +3656,11 @@ export default function Home() {
                 <p className="mt-1.5 text-sm leading-6 text-slate-500">
                   {authModalView === "support"
                     ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
-                    : authModalView === "membership"
-                      ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize doğrudan mesaj bırakabilirsiniz."
-                      : t("login.subtitle")}
+                    : authModalView === "membershipOptions"
+                      ? "Size en uygun iletişim yöntemini seçin; en kısa sürede dönüş yapalım."
+                      : authModalView === "membership"
+                        ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize mesaj bırakabilirsiniz."
+                        : t("login.subtitle")}
                 </p>
               </div>
 
@@ -3618,12 +3681,25 @@ export default function Home() {
                   setAuthModalView("login");
                 }}
               />
-            ) : authModalView === "membership" ? (
-              <SupportRequestForm
-                mode="membership_contact"
+            ) : authModalView === "membershipOptions" ? (
+              <MembershipOptionsPanel
+                onManagerMessage={() => {
+                  setMessage("");
+                  setAuthModalView("membership");
+                }}
                 onBack={() => {
                   setMessage("");
                   setAuthModalView("login");
+                }}
+              />
+            ) : authModalView === "membership" ? (
+              <SupportRequestForm
+                mode="membership_contact"
+                // Formdan geri → doğrudan 3 seçenekli iletişim paneli (login'e
+                // dönüp CTA'yı tekrar açmaya gerek yok; dolaşma/loop kalkar).
+                onBack={() => {
+                  setMessage("");
+                  setAuthModalView("membershipOptions");
                 }}
               />
             ) : (
@@ -3696,15 +3772,18 @@ export default function Home() {
               <p className="text-center text-[15px] font-semibold text-slate-700">
                 Henüz Yaşam Sistemi üyesi değil misiniz?
               </p>
-              <MembershipContactCTA
-                variant="modal"
-                defaultOpen={membershipIntent}
-                onWhatsAppNavigate={closeLoginModal}
-                onDirectMessage={() => {
-                  setMessage("");
-                  setAuthModalView("membership");
-                }}
-              />
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMessage("");
+                    setAuthModalView("membershipOptions");
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                >
+                  Üyelik ve Fiyat Bilgisi Al
+                </button>
+              </div>
               <div className="mt-4 text-center">
                 <Link
                   href="/register"

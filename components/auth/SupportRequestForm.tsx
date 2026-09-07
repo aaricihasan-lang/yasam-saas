@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
+import { CONTACT_EMAIL, buildMailtoHref } from "@/lib/contact/info";
 
 /**
  * Ortak, giriş yapılmadan (public) çalışan destek/iletişim formu.
@@ -29,6 +30,13 @@ const COPY: Record<
     backLabel: string;
     successTitle: string;
     successBody: string;
+    /**
+     * membership_contact: e-posta VEYA telefon'dan en az biri zorunlu (ikisi de
+     * tek başına zorunlu değil). password_support: mevcut davranış — e-posta
+     * zorunlu, telefon opsiyonel. (Sunucu tarafında da bağlama göre doğrulanır.)
+     */
+    requireEmail: boolean;
+    contactHelper?: string;
   }
 > = {
   password_support: {
@@ -40,6 +48,7 @@ const COPY: Record<
     successTitle: "Talebiniz alındı",
     successBody:
       "Giriş/şifre desteği talebiniz yöneticimize iletildi. En kısa sürede sizinle iletişime geçilecektir.",
+    requireEmail: true,
   },
   membership_contact: {
     messageLabel: "Mesaj",
@@ -49,6 +58,9 @@ const COPY: Record<
     backLabel: "Üyelik seçeneklerine dön",
     successTitle: "Mesajınız iletildi",
     successBody: "En kısa sürede size dönüş yapılacaktır.",
+    requireEmail: false,
+    contactHelper:
+      "Size dönüş yapabilmemiz için e-posta veya telefon bilgilerinizden en az birini giriniz.",
   },
 };
 
@@ -76,8 +88,19 @@ export default function SupportRequestForm({
 
   const submit = async () => {
     setError("");
-    if (!fullName.trim() || !email.trim() || !message.trim()) {
-      setError("Ad Soyad, e-posta ve mesaj alanları zorunludur.");
+    if (!fullName.trim() || !message.trim()) {
+      setError("Ad Soyad ve mesaj alanları zorunludur.");
+      return;
+    }
+    if (copy.requireEmail) {
+      // password_support: mevcut davranış korunur — e-posta zorunlu.
+      if (!email.trim()) {
+        setError("Ad Soyad, e-posta ve mesaj alanları zorunludur.");
+        return;
+      }
+    } else if (!email.trim() && !phone.trim()) {
+      // membership_contact: e-posta VEYA telefon'dan en az biri zorunlu.
+      setError("Lütfen e-posta veya telefon bilgilerinizden en az birini girin.");
       return;
     }
     setLoading(true);
@@ -170,7 +193,10 @@ export default function SupportRequestForm({
 
       <div>
         <label className={labelClass}>
-          Telefon <span className="font-normal text-slate-400">(opsiyonel)</span>
+          Telefon{" "}
+          {copy.requireEmail && (
+            <span className="font-normal text-slate-400">(opsiyonel)</span>
+          )}
         </label>
         <input
           type="tel"
@@ -180,6 +206,12 @@ export default function SupportRequestForm({
           className={inputClass}
         />
       </div>
+
+      {copy.contactHelper && (
+        <p className="-mt-1 text-[13px] leading-5 text-slate-500">
+          {copy.contactHelper}
+        </p>
+      )}
 
       <div>
         <label className={labelClass}>{copy.messageLabel}</label>
@@ -215,6 +247,19 @@ export default function SupportRequestForm({
         <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
         {copy.backLabel}
       </button>
+
+      {mode === "membership_contact" && (
+        <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 border-t border-slate-100 pt-3 text-center text-[13px] text-slate-500">
+          <Mail className="h-3.5 w-3.5 text-slate-400" strokeWidth={2.25} />
+          <span>Dilerseniz e-posta ile de bize ulaşabilirsiniz.</span>
+          <a
+            href={buildMailtoHref()}
+            className="font-semibold text-violet-700 no-underline hover:text-violet-900 hover:underline focus-visible:underline focus-visible:outline-none"
+          >
+            {CONTACT_EMAIL}
+          </a>
+        </p>
+      )}
     </div>
   );
 }
