@@ -428,11 +428,12 @@ function DetailArchiveFileCard({
   useEffect(() => {
     if (!tenantId || !userId) return;
     let cancelled = false;
+    // P1-1: signed URL AUTH artık header-token bağlaması ile (x-user-id + x-session-token).
+    // tenantId/userId QUERY'ye EKLENMEZ; sunucu kimliği guard'dan türetir. Yalnız filePath.
     fetch(
       `/api/kisisel-arsiv/signed-url` +
-      `?filePath=${encodeURIComponent(file.file_path)}` +
-      `&tenantId=${encodeURIComponent(tenantId)}` +
-      `&userId=${encodeURIComponent(userId)}`,
+      `?filePath=${encodeURIComponent(file.file_path)}`,
+      { headers: userHeaders() },
     )
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((data: { signedUrl?: string }) => {
@@ -696,11 +697,11 @@ export default function KisiselArsivPage() {
         return;
       }
       try {
+        // P1-1: signed URL AUTH header-token bağlaması ile; QUERY yalnız filePath taşır.
         const res = await fetch(
           `/api/kisisel-arsiv/signed-url` +
-          `?filePath=${encodeURIComponent(file.file_path)}` +
-          `&tenantId=${encodeURIComponent(tenantId)}` +
-          `&userId=${encodeURIComponent(userId)}`,
+          `?filePath=${encodeURIComponent(file.file_path)}`,
+          { headers: userHeaders() },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { signedUrl?: string };
