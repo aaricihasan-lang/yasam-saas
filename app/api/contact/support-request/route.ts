@@ -76,13 +76,34 @@ export async function POST(req: NextRequest) {
   const phone = String(body.phone ?? "").trim();
   const message = String(body.message ?? "").trim();
 
-  if (!fullName || !email || !message) {
+  // Ad Soyad + Mesaj her iki bağlamda da zorunlu.
+  if (!fullName || !message) {
     return NextResponse.json(
-      { error: "Ad Soyad, e-posta ve mesaj alanları zorunludur." },
+      { error: "Ad Soyad ve mesaj alanları zorunludur." },
       { status: 400 },
     );
   }
-  if (!EMAIL_RE.test(email)) {
+
+  // Bağlama göre iletişim bilgisi zorunluluğu (client'a GÜVENİLMEZ):
+  //   - password_support  → e-posta zorunlu (mevcut davranış korunur).
+  //   - membership_contact → e-posta VEYA telefon'dan en az biri zorunlu.
+  if (context === "password_support") {
+    if (!email) {
+      return NextResponse.json(
+        { error: "Ad Soyad, e-posta ve mesaj alanları zorunludur." },
+        { status: 400 },
+      );
+    }
+  } else if (!email && !phone) {
+    return NextResponse.json(
+      { error: "Lütfen e-posta veya telefon bilgilerinizden en az birini girin." },
+      { status: 400 },
+    );
+  }
+
+  // E-posta gönderildiyse (her iki bağlamda) format doğrulanır. Boş telefon
+  // için sahte/placeholder e-posta ÜRETİLMEZ.
+  if (email && !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Geçerli bir e-posta adresi girin." }, { status: 400 });
   }
   if (fullName.length > 120) {
@@ -122,7 +143,9 @@ export async function POST(req: NextRequest) {
     leadLine,
     "",
     `Ad Soyad: ${fullName}`,
-    `E-posta: ${email}`,
+    // Sahte e-posta üretilmez: boşsa satır tamamen atlanır. Telefon gerçek
+    // haliyle eklenir; en az biri (bağlama göre) mutlaka mevcuttur.
+    ...(email ? [`E-posta: ${email}`] : []),
     ...(phone ? [`Telefon: ${phone}`] : []),
     "",
     "Mesaj:",
