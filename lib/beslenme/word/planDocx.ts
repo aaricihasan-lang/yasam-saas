@@ -12,6 +12,7 @@ import {
   type PlanDocxItem,
 } from "./planDocxBuilder";
 import { daysBetween } from "@/lib/beslenme/planContracts";
+import { fetchAllPaged } from "./pagedFetch";
 
 /**
  * Beslenme FAZ 6 / Plan Word — server yükleyici (SNAPSHOT-only).
@@ -91,19 +92,28 @@ export async function buildPlanDocxBuffer(
     .order("plan_date", { ascending: true });
   const dayRows = (dayData as Array<{ id: string; plan_date: string; energy_target_override: number | null; note: string | null }> | null) ?? [];
 
-  // Öğünler.
-  const { data: mealData } = await db
-    .from("nutrition_plan_meals")
-    .select("id, plan_day_id, meal_type, label, sort_order")
-    .eq("tenant_id", tenantId).eq("plan_id", planId);
-  const mealRows = (mealData as Array<{ id: string; plan_day_id: string; meal_type: string | null; label: string; sort_order: number }> | null) ?? [];
+  // Öğünler (sayfalı: büyük planlarda öğün sayısı 1000-satır yanıt sınırını aşabilir).
+  const mealRows = await fetchAllPaged<{ id: string; plan_day_id: string; meal_type: string | null; label: string; sort_order: number }>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_meals")
+        .select("id, plan_day_id, meal_type, label, sort_order")
+        .eq("tenant_id", tenantId).eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
 
-  // Item'lar (donmuş snapshot alanları).
-  const { data: itemData } = await db
-    .from("nutrition_plan_items")
-    .select("id, meal_id, grams, quantity, food_name_snapshot, portion_label_snapshot, sort_order")
-    .eq("tenant_id", tenantId).eq("plan_id", planId);
-  const itemRows = (itemData as Array<{ id: string; meal_id: string; grams: number; quantity: number | null; food_name_snapshot: string; portion_label_snapshot: string | null; sort_order: number }> | null) ?? [];
+  // Item'lar (donmuş snapshot alanları; sayfalı: item sayısı MAX_PLAN_ITEMS'e kadar → 1000
+  // yanıt sınırını aşabilir. Boyut kontrolü aşağıda TAM sayı üzerinden yapılır, kırpılmış değil).
+  const itemRows = await fetchAllPaged<{ id: string; meal_id: string; grams: number; quantity: number | null; food_name_snapshot: string; portion_label_snapshot: string | null; sort_order: number }>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_items")
+        .select("id, meal_id, grams, quantity, food_name_snapshot, portion_label_snapshot, sort_order")
+        .eq("tenant_id", tenantId).eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
 
   // Erken boyut kontrolü (nutrient yükünden ÖNCE): span ≤ 366 ve item ≤ 3000.
   const span = daysBetween(plan.start_date, plan.end_date);
@@ -111,16 +121,24 @@ export async function buildPlanDocxBuffer(
     return { ok: false, error: { code: "PLAN_TOO_LARGE", status: 413 } };
   }
 
-  // Nutrient snapshot'ları (item_id chunk'lı; tenant-scoped).
+  // Nutrient snapshot'ları (item_id chunk'lı + satır SAYFALI; tenant-scoped, snapshot-only).
+  // KRİTİK: item başına birden çok nutrient satırı olduğundan tek chunk bile 1000-satır yanıt
+  // sınırını kolayca aşar (ör. 84 item ≈ 1430 satır). Sayfalamadan çekilirse son item'ların
+  // nutrient'ları SESSİZCE düşer → Word'de yanlış gün toplamı/ortalama. `.range()` ile tam çekilir.
   const nutrByItem = new Map<string, ItemNutrientSnapshot[]>();
   if (itemRows.length > 0) {
     for (const ids of chunk(itemRows.map((i) => i.id))) {
-      const { data: nutr } = await db
-        .from("nutrition_plan_item_nutrients")
-        .select("item_id, nutrient_code, amount, unit_code")
-        .eq("tenant_id", tenantId)
-        .in("item_id", ids);
-      for (const n of (nutr as Array<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }> | null) ?? []) {
+      const nutr = await fetchAllPaged<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }>(
+        (from, to) =>
+          db
+            .from("nutrition_plan_item_nutrients")
+            .select("item_id, nutrient_code, amount, unit_code")
+            .eq("tenant_id", tenantId)
+            .in("item_id", ids)
+            .order("id", { ascending: true })
+            .range(from, to),
+      );
+      for (const n of nutr) {
         const arr = nutrByItem.get(n.item_id) ?? [];
         arr.push({ nutrient_code: n.nutrient_code, amount: Number(n.amount), unit_code: n.unit_code });
         nutrByItem.set(n.item_id, arr);
