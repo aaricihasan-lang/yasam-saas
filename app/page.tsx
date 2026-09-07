@@ -30,6 +30,11 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
+import {
+  WHATSAPP_CONTACT_ENABLED,
+  buildWhatsAppUrl,
+} from "@/lib/contact/whatsapp";
+import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -53,6 +58,8 @@ import {
   Leaf,
   Loader2,
   Lock,
+  Mail,
+  MessageCircle,
   Package,
   Salad,
   Shield,
@@ -60,6 +67,74 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
+
+/**
+ * Üyelik & fiyat iletişim aksiyonları — hem login modalında hem
+ * pending/inactive panelinde kullanılır (tek kaynak, tutarlı UX).
+ *
+ * İki gerçek iletişim seçeneği sunar:
+ *   A) WhatsApp'tan Görüş  — yalnızca gate açıkken (WHATSAPP_CONTACT_ENABLED)
+ *      render edilir; kapalıyken kullanıcıya kırık wa.me linki GÖSTERİLMEZ.
+ *   B) Doğrudan Mesaj Gönder — `onDirectMessage` ile aynı modal içindeki
+ *      membership_contact formunu açar (kullanıcı /iletisim'e gönderilmez).
+ */
+function MembershipContactCTA({
+  variant = "modal",
+  onWhatsAppNavigate,
+  onDirectMessage,
+  defaultOpen = false,
+}: {
+  variant?: "modal" | "panel";
+  onWhatsAppNavigate?: () => void;
+  onDirectMessage: () => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const whatsappUrl = buildWhatsAppUrl();
+
+  const options = (
+    <div className="mt-3 space-y-2">
+      {WHATSAPP_CONTACT_ENABLED && (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          onClick={onWhatsAppNavigate}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white no-underline shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+        >
+          <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
+          WhatsApp&apos;tan Görüş
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={onDirectMessage}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      >
+        <Mail className="h-4 w-4" strokeWidth={2.5} />
+        Doğrudan Mesaj Gönder
+      </button>
+    </div>
+  );
+
+  if (variant === "panel") {
+    return <div className="mt-1 w-full">{options}</div>;
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+      >
+        Üyelik ve Fiyat Bilgisi Al
+      </button>
+      {open && options}
+    </div>
+  );
+}
 
 type ModuleTheme = {
   iconWrap: string;
@@ -568,6 +643,10 @@ export default function Home() {
   const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [membershipIntent, setMembershipIntent] = useState(false);
+  const [authModalView, setAuthModalView] = useState<
+    "login" | "support" | "membership"
+  >("login");
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
@@ -606,6 +685,8 @@ export default function Home() {
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
+    setMembershipIntent(false);
+    setAuthModalView("login");
   };
 
   const handleLoginBackdropMouseDown = (
@@ -1435,6 +1516,19 @@ export default function Home() {
                       </p>
                     </>
                   )}
+                  <p className="mt-4 max-w-md text-sm font-semibold text-rose-600">
+                    Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.
+                  </p>
+                  <div className="mt-3 w-full max-w-xs">
+                    <MembershipContactCTA
+                      variant="panel"
+                      onDirectMessage={() => {
+                        setMessage("");
+                        setAuthModalView("membership");
+                        setLoginModalOpen(true);
+                      }}
+                    />
+                  </div>
                 </div>
               ) : expertModulesEmpty ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-white/60 px-6 py-8 text-center backdrop-blur-sm">
@@ -1697,18 +1791,14 @@ export default function Home() {
               type="button"
               onClick={() => {
                 setMessage("");
+                setMembershipIntent(false);
+                setAuthModalView("login");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               {t("nav.login")}
             </button>
-            <Link
-              href="/register"
-              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)]"
-            >
-              {t("nav.register")}
-            </Link>
           </div>
         </header>
 
@@ -3470,7 +3560,7 @@ export default function Home() {
           />
           <div
             ref={loginModalRef}
-            className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
+            className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/95 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-modal-title"
@@ -3484,18 +3574,30 @@ export default function Home() {
             <div className="relative z-10 flex items-start justify-between gap-4">
               <div>
                 <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
-                  {t("login.badge")}
+                  {authModalView === "support"
+                    ? "Şifre Desteği"
+                    : authModalView === "membership"
+                      ? "Üyelik İletişimi"
+                      : t("login.badge")}
                 </div>
 
                 <h3
                   id="login-modal-title"
                   className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl"
                 >
-                  {t("login.title")}
+                  {authModalView === "support"
+                    ? "Giriş Sorunu Bildir"
+                    : authModalView === "membership"
+                      ? "Üyelik ve Fiyat Bilgisi"
+                      : t("login.title")}
                 </h3>
 
                 <p className="mt-1.5 text-sm leading-6 text-slate-500">
-                  {t("login.subtitle")}
+                  {authModalView === "support"
+                    ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
+                    : authModalView === "membership"
+                      ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize doğrudan mesaj bırakabilirsiniz."
+                      : t("login.subtitle")}
                 </p>
               </div>
 
@@ -3508,6 +3610,24 @@ export default function Home() {
               </button>
             </div>
 
+            {authModalView === "support" ? (
+              <SupportRequestForm
+                mode="password_support"
+                onBack={() => {
+                  setMessage("");
+                  setAuthModalView("login");
+                }}
+              />
+            ) : authModalView === "membership" ? (
+              <SupportRequestForm
+                mode="membership_contact"
+                onBack={() => {
+                  setMessage("");
+                  setAuthModalView("login");
+                }}
+              />
+            ) : (
+              <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -3519,7 +3639,7 @@ export default function Home() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder={t("login.emailPlaceholder")}
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   autoFocus
                 />
               </div>
@@ -3534,7 +3654,7 @@ export default function Home() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       handleLogin();
@@ -3542,20 +3662,14 @@ export default function Home() {
                   }}
                 />
 
-                <div className="mt-2 flex items-center justify-between gap-4">
-                  <Link
-                    href="/register"
-                    onClick={() => setLoginModalOpen(false)}
-                    className="text-[12px] font-semibold tracking-wide text-violet-700/90 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline"
-                  >
-                    {t("login.register")}
-                  </Link>
+                <div className="mt-2 flex justify-end">
                   <button
                     type="button"
-                    onClick={() =>
-                      setMessage(t("login.forgotMsg"))
-                    }
-                    className="bg-transparent p-0 text-[12px] font-semibold tracking-wide text-violet-600/85 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                    onClick={() => {
+                      setMessage("");
+                      setAuthModalView("support");
+                    }}
+                    className="rounded bg-transparent p-0 text-[13px] font-semibold tracking-wide text-violet-700 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline focus-visible:text-violet-900 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                   >
                     {t("login.forgot")}
                   </button>
@@ -3576,6 +3690,32 @@ export default function Home() {
               <div className="relative z-10 mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
                 {message}
               </div>
+            )}
+
+            <div className="relative z-10 mt-6 border-t border-slate-200/70 pt-5">
+              <p className="text-center text-[15px] font-semibold text-slate-700">
+                Henüz Yaşam Sistemi üyesi değil misiniz?
+              </p>
+              <MembershipContactCTA
+                variant="modal"
+                defaultOpen={membershipIntent}
+                onWhatsAppNavigate={closeLoginModal}
+                onDirectMessage={() => {
+                  setMessage("");
+                  setAuthModalView("membership");
+                }}
+              />
+              <div className="mt-4 text-center">
+                <Link
+                  href="/register"
+                  onClick={closeLoginModal}
+                  className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 no-underline transition hover:text-violet-800 hover:underline focus-visible:text-violet-800 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+                >
+                  Üyelik sürecimi tamamla
+                </Link>
+              </div>
+            </div>
+              </>
             )}
           </div>
         </div>
