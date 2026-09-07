@@ -9,6 +9,7 @@ import {
   type AnalyticsItemRow,
   type AnalyticsNutrientRow,
 } from "./analyticsReduce";
+import { fetchAllPaged, chunkIds } from "./pagedFetch";
 
 /**
  * Beslenme FAZ 6 / Plan Analitiği — server-authoritative yükleyici (SNAPSHOT-only).
@@ -47,34 +48,49 @@ export async function computePlanAnalytics(
     .order("plan_date", { ascending: true });
   const days = (dayData as AnalyticsDayRow[] | null) ?? [];
 
-  // 2) tüm öğünler (id, plan_day_id).
-  const { data: mealData } = await db
-    .from("nutrition_plan_meals")
-    .select("id, plan_day_id")
-    .eq("tenant_id", tenantId)
-    .eq("plan_id", planId);
-  const meals = (mealData as AnalyticsMealRow[] | null) ?? [];
+  // 2) tüm öğünler (SAYFALI: büyük planlarda öğün sayısı 1000-satır yanıt sınırını aşabilir).
+  const meals = await fetchAllPaged<AnalyticsMealRow>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_meals")
+        .select("id, plan_day_id")
+        .eq("tenant_id", tenantId)
+        .eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
 
-  // 3) tüm item'lar (id, meal_id, grams).
-  const { data: itemData } = await db
-    .from("nutrition_plan_items")
-    .select("id, meal_id, grams")
-    .eq("tenant_id", tenantId)
-    .eq("plan_id", planId);
-  const items = (itemData as AnalyticsItemRow[] | null) ?? [];
+  // 3) tüm item'lar (SAYFALI: item sayısı MAX_PLAN_ITEMS'e kadar → 1000 sınırını aşabilir).
+  const items = await fetchAllPaged<AnalyticsItemRow>(
+    (from, to) =>
+      db
+        .from("nutrition_plan_items")
+        .select("id, meal_id, grams")
+        .eq("tenant_id", tenantId)
+        .eq("plan_id", planId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
 
-  // 4) frozen nutrient snapshot'lar (yalnız item varsa).
+  // 4) frozen nutrient snapshot'lar (SAYFALI + item_id chunk'lı; yalnız item varsa).
+  // KRİTİK: item başına birden çok nutrient kodu → toplam satır 1000'i kolayca aşar
+  // (84 item ≈ 1430 satır). Sayfalamadan çekilirse son item'ların nutrient'ları düşer
+  // → analytics gün toplamı/ortalaması YANLIŞ. Snapshot-only; canlı food okuma YOK.
   let nutrients: AnalyticsNutrientRow[] = [];
   if (items.length > 0) {
-    const { data: nutrData } = await db
-      .from("nutrition_plan_item_nutrients")
-      .select("item_id, nutrient_code, amount, unit_code")
-      .eq("tenant_id", tenantId)
-      .in(
-        "item_id",
-        items.map((i) => i.id),
+    for (const ids of chunkIds(items.map((i) => i.id))) {
+      const page = await fetchAllPaged<AnalyticsNutrientRow>(
+        (from, to) =>
+          db
+            .from("nutrition_plan_item_nutrients")
+            .select("item_id, nutrient_code, amount, unit_code")
+            .eq("tenant_id", tenantId)
+            .in("item_id", ids)
+            .order("id", { ascending: true })
+            .range(from, to),
       );
-    nutrients = (nutrData as AnalyticsNutrientRow[] | null) ?? [];
+      nutrients = nutrients.length === 0 ? page : nutrients.concat(page);
+    }
   }
 
   const analytics = reducePlanAnalytics({
