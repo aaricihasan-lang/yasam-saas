@@ -38,29 +38,7 @@ import {
   type NumerolojiMotorOut,
 } from "../utils/numerolojiPlainMetin";
 import { filterHarfSegmentsThroughActive } from "../utils/harfSummary";
-import { NumerolojiCalculationInfo } from "./NumerolojiCalculationInfo";
-import { CONCEPT_HELP } from "../helpers/conceptHelp";
 import { useContentTypography } from "./numerolojiContentTypography";
-
-type HelpTone = "violet" | "sky" | "amber" | "emerald" | "fuchsia" | "white";
-
-/** NumerolojiResult → "Bu ne demek?" + "Nasıl hesaplandı?" (engine steps'i aynen render eder). */
-function ResultCalcInfo({ title, r, tone = "violet", meaning }: { title: string; r: NumerolojiResult; tone?: HelpTone; meaning?: string }) {
-  return (
-    <NumerolojiCalculationInfo
-      title={title}
-      meaning={meaning}
-      steps={r.steps?.length ? r.steps : undefined}
-      result={`${title}: ${nrDisplay(r)}`}
-      tone={tone}
-    />
-  );
-}
-
-/** Yalnız "Bu ne demek?" chip'i (hesap dökümü ayrı yerde/pre olarak gösterilen kartlar için). */
-function MeaningInfo({ title, conceptKey, tone = "violet" }: { title: string; conceptKey: string; tone?: HelpTone }) {
-  return <NumerolojiCalculationInfo title={title} meaning={CONCEPT_HELP[conceptKey]} tone={tone} />;
-}
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
@@ -172,7 +150,6 @@ export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
     <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-violet-200/70 md:bg-white/85 md:p-3 md:shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       <div className="flex flex-wrap items-center gap-1.5">
         <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Çakra Sütunu & Çakra Omurgası</h3>
-        <MeaningInfo title="Çakra Omurgası" conceptKey="cakraOmurgasi" />
       </div>
       <div className="mt-2 space-y-0.5">
         {CAKRA_TABLO_SIRA.map((cNo) => {
@@ -232,7 +209,6 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
     <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-amber-300/35 md:bg-white/80 md:p-3 md:shadow-[0_0_12px_rgba(245,158,11,0.07)] md:backdrop-blur-xl">
       <div className="flex flex-wrap items-center gap-1.5">
         <h3 className="text-xs font-black uppercase tracking-wider text-violet-600">Harflerin Yankılanışı</h3>
-        <MeaningInfo title="Harflerin Yankılanışı" conceptKey="harflerinYankilanisi" tone="amber" />
       </div>
       <div className="mt-2 grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
         {segments.length === 0 ? (
@@ -286,14 +262,12 @@ function OzetPremiumKart({
   icon,
   tint,
   gold = false,
-  info,
 }: {
   title: string;
   value: string;
   icon: ReactNode;
   tint: string;
   gold?: boolean;
-  info?: ReactNode;
 }) {
   // NUM-MOB-2-FIX1: mobilde kutusuz (yalnız sayı+etiket düz); md+ mevcut mini-kart.
   return (
@@ -312,7 +286,6 @@ function OzetPremiumKart({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <p className={`text-[9px] font-black uppercase tracking-wider ${gold ? "text-amber-700/90" : "text-slate-500"}`}>{title}</p>
-            {info}
           </div>
           <p className={`mt-0.5 w-full whitespace-normal break-words text-2xl font-black leading-tight ${gold ? "text-amber-700" : "text-slate-950"}`}>
             {value}
@@ -347,10 +320,10 @@ function TabSonucOzetiPremium({
 
   // NUM-MOB-2-FIX1: tint yalnız md+ (mobilde kutu/bg yok). md:* literalleri Tailwind JIT için burada.
   const ustKartlar = [
-    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), r: out.anaKulvar, mean: CONCEPT_HELP.anaKulvar, tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
-    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), r: out.yanKulvar, mean: CONCEPT_HELP.yanKulvar, tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
-    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), r: out.ifadeSayisi, mean: CONCEPT_HELP.ifadeSayisi, tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
-    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), r: out.hayatYolu, mean: CONCEPT_HELP.hayatYolu, tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
+    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
+    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
+    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
+    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
   ];
 
   return (
@@ -378,7 +351,6 @@ function TabSonucOzetiPremium({
             tint={k.tint}
             gold={k.gold}
             icon={<span className="text-sm">{k.icon}</span>}
-            info={<ResultCalcInfo title={k.title} r={k.r} tone={k.gold ? "amber" : "violet"} meaning={k.mean} />}
           />
         ))}
       </div>
@@ -396,7 +368,6 @@ function TabSonucOzetiPremium({
         <section className={`min-w-0 w-full md:border md:border-violet-200/70 md:bg-white/85 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] ${mdPad(typo.boxPadding)}`}>
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Elementler</h3>
-            <MeaningInfo title="Elementler" conceptKey="elementler" />
           </div>
           <div className="mt-2 w-full min-w-0 space-y-2">
             {ELEMENT_ORDER.map((name) => (
@@ -563,13 +534,12 @@ export function TabSonucOzeti({
   );
 }
 
-function DetayCard({ title, children, meaning }: { title: string; children: ReactNode; meaning?: string }) {
+function DetayCard({ title, children }: { title: string; children: ReactNode }) {
   // Mobil: kutusuz — başlık + ince alt ayraç + dikey boşluk. md+: mevcut kart.
   return (
     <section className="min-w-0 border-b border-violet-100/70 pb-4 last:border-b-0 last:pb-0 md:rounded-[12px] md:border md:border-violet-200/70 md:bg-white/85 md:p-3 md:pb-3 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] md:last:border md:last:pb-3">
       <div className="flex flex-wrap items-center gap-1.5 md:border-b md:border-violet-100/60 md:pb-1.5">
         <h3 className="text-sm font-black uppercase tracking-wider text-violet-700 md:text-xs md:text-slate-500">{title}</h3>
-        {meaning ? <NumerolojiCalculationInfo title={title} meaning={meaning} /> : null}
       </div>
       <div className="w-full min-w-0 pt-2">{children}</div>
     </section>
@@ -877,42 +847,42 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       : `mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`;
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
-      <DetayCard title="Ana Kulvar" meaning={CONCEPT_HELP.anaKulvar}>
+      <DetayCard title="Ana Kulvar">
         <NumeroCardBody
           r={out.anaKulvar}
           knowledgeNotes={knowledgeNotes?.anaKulvar}
         />
       </DetayCard>
-      <DetayCard title="Yan Kulvar" meaning={CONCEPT_HELP.yanKulvar}>
+      <DetayCard title="Yan Kulvar">
         <NumeroCardBody
           r={out.yanKulvar}
           knowledgeNotes={knowledgeNotes?.yanKulvar}
         />
       </DetayCard>
-      <DetayCard title="İfade Sayısı" meaning={CONCEPT_HELP.ifadeSayisi}>
+      <DetayCard title="İfade Sayısı">
         <NumeroCardBody
           r={out.ifadeSayisi}
           knowledgeNotes={knowledgeNotes?.ifadeSayisi}
         />
       </DetayCard>
-      <DetayCard title="Hayat Yolu" meaning={CONCEPT_HELP.hayatYolu}>
+      <DetayCard title="Hayat Yolu">
         <NumeroCardBody
           r={out.hayatYolu}
           knowledgeNotes={knowledgeNotes?.hayatYolu}
         />
       </DetayCard>
-      <DetayCard title="PIN" meaning={CONCEPT_HELP.pin}>
+      <DetayCard title="PIN">
         <p className={`break-all ${typo.pre} font-semibold text-slate-800`}>{pinOneLine(out.pinKodu)}</p>
         <pre className={preScrollSm}>{out.pinKoduMetni || "—"}</pre>
       </DetayCard>
-      <DetayCard title="Çakra" meaning={CONCEPT_HELP.cakraOmurgasi}>
+      <DetayCard title="Çakra">
         <pre className={preScroll}>{out.cakraOmurgasiMetni || "—"}</pre>
         {knowledgeNotes?.cakraOmurga.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
         ) : null}
         <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} stockIndex={stockIndex} />
       </DetayCard>
-      <DetayCard title="Elementler" meaning={CONCEPT_HELP.elementler}>
+      <DetayCard title="Elementler">
         <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
         {out.elementler.steps?.length ? (
           <pre className={preSteps}>{out.elementler.steps.join("\n")}</pre>
@@ -922,16 +892,16 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         ) : null}
         <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
-      <DetayCard title="Değişim Dönüşüm" meaning={CONCEPT_HELP.degisimDonusum}>
+      <DetayCard title="Değişim Dönüşüm">
         <pre className={preScroll}>{out.degisimDonusumMetni || "—"}</pre>
       </DetayCard>
-      <DetayCard title="Zirve" meaning={CONCEPT_HELP.zirve}>
+      <DetayCard title="Zirve">
         <pre className={preScroll}>{out.zirveYillariMetni || "—"}</pre>
       </DetayCard>
-      <DetayCard title="Mücadele" meaning={CONCEPT_HELP.mucadele}>
+      <DetayCard title="Mücadele">
         <pre className={preScroll}>{out.mucadeleYillariMetni || "—"}</pre>
       </DetayCard>
-      <DetayCard title="Harflerin Yankılanışı" meaning={CONCEPT_HELP.harflerinYankilanisi}>
+      <DetayCard title="Harflerin Yankılanışı">
         {harfListe ? <pre className={harfPre}>{harfListe}</pre> : null}
         {harfMetin ? (
           <pre className={preScroll}>{harfMetin}</pre>

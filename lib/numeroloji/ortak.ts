@@ -2,6 +2,13 @@ export type NumerolojiResult = {
   display: string;
   key: string;
   steps: string[];
+  /**
+   * OWNER ÜRÜN DISPLAY KURALI (presentation-only) — ayrı isim/soyisim parçalarından gelen
+   * ÖZEL component'lerin ALTERNATİF BİRLEŞİK OKUMASI (ör. 11+11 → "22"). CANONICAL DEĞİLDİR;
+   * `key`/knowledge-lookup'ı ETKİLEMEZ (lookup bu değeri aday olarak KULLANMAZ). Yalnız
+   * numeroloğa ikinci bir okuma hatırlatması olarak `display` parantezinde gösterilir.
+   */
+  combinedReading?: string;
 };
 
 // 19, bu sistemde karma borç sayısı olarak master sayı setine dahil edilmiştir.
@@ -146,6 +153,29 @@ export function isValidBirthDateDisplay(display: string): boolean {
 
 export function repeatX(count: number): string {
   return count > 0 ? "X".repeat(count) : "-----";
+}
+
+/**
+ * OWNER ÜRÜN DISPLAY KURALI (presentation-only; canonical result/key/lookup DEĞİŞMEZ):
+ * Birden fazla gerçek isim/soyisim component'inin (≥2) DOĞRUDAN RAW TOPLAMI TAM OLARAK
+ * 22 ya da 33 ise, numeroloğa alternatif ÖZEL SAYI okumasını hatırlatmak için parantez
+ * gösterilir. BAŞKA HİÇBİR DURUMDA parantez üretilmez.
+ *
+ *   raw toplam === 22 → "22"
+ *   raw toplam === 33 → "33"
+ *   diğer her şey      → "" (parantez YOK)
+ *
+ * REDUCTION YOK: reduceNumber/reduceKeepMaster ÇAĞRILMAZ. 44→8, 30→3, 38→11, 55→1 gibi
+ * indirgeme-tabanlı parantezler ÜRETİLMEZ. Bu SOURCE FORMULA değildir; yalnız presentation
+ * hatırlatmasıdır ve knowledge lookup adayı OLMAZ. Kriter component'lerin özel olması değil,
+ * RAW SUM'ın tam 22/33 olmasıdır (genel algoritma; hardcode özel-case zinciri değil).
+ */
+export function combinedReadingDisplay(components: number[]): string {
+  if (components.length < 2) return "";
+  const rawSum = components.reduce((a, b) => a + b, 0);
+  if (rawSum === 22) return "22";
+  if (rawSum === 33) return "33";
+  return "";
 }
 
 /**
