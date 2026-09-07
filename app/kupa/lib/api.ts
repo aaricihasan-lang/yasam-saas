@@ -1,6 +1,19 @@
 "use client";
 
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import type {
+  CuppingAdviceTemplate,
+  CuppingCalendarPlan,
+  CuppingCalendarPlanDay,
+  CuppingClientAdvice,
+} from "@/lib/cupping/calendarTypes";
+
+export type {
+  CuppingAdviceTemplate,
+  CuppingCalendarPlan,
+  CuppingCalendarPlanDay,
+  CuppingClientAdvice,
+} from "@/lib/cupping/calendarTypes";
 
 /** Uzman API çağrıları için kimlik başlıkları (dashboard deseniyle aynı). */
 export function userHeaders(): Record<string, string> {
@@ -473,3 +486,102 @@ export const updateProtocolSource = (id: string, body: Partial<Pick<CuppingProto
   call<CuppingProtocolSourceLink>(`${BASE}/protocol-sources/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "source");
 export const deleteProtocolSource = (id: string) =>
   call<number>(`${BASE}/protocol-sources/${id}`, { method: "DELETE" }, "deleted");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FAZ 5 — HACAMAT TAKVİMİ + ÇIKTI BİLGİLENDİRME (yalnız ADDITIVE; AŞAMA 2 API'leri).
+// Response key'leri /api/kupa/{calendar,advice-templates,client-advice} ile birebir.
+// YENİ backend/migration YOK — mevcut tenant-güvenli uçlar yeniden kullanılır.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Çok-anahtarlı yanıt (plan+days, inserted/skippedExisting) için ham çağrı. */
+async function callRaw<T extends { ok: true }>(url: string, init: RequestInit): Promise<T> {
+  const res = await fetch(url, { ...init, headers: userHeaders() });
+  const json = (await res.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error ?? "İşlem başarısız.");
+  }
+  return json as T;
+}
+
+// ── Hacamat Takvim Planları ────────────────────────────────────────────────
+export const listCalendarPlans = (year?: number) =>
+  call<CuppingCalendarPlan[]>(
+    `${BASE}/calendar/plans${typeof year === "number" ? `?year=${year}` : ""}`,
+    { method: "GET" },
+    "plans",
+  );
+export const createCalendarPlan = (body: {
+  name: string;
+  year: number;
+  description?: string | null;
+  advice_template_id?: string | null;
+}) => call<CuppingCalendarPlan>(`${BASE}/calendar/plans`, { method: "POST", body: JSON.stringify(body) }, "plan");
+/** Plan + seçili günleri birlikte döner (tek istek; hücre başına fetch YOK). */
+export const getCalendarPlan = (id: string) =>
+  callRaw<{ ok: true; plan: CuppingCalendarPlan; days: CuppingCalendarPlanDay[] }>(
+    `${BASE}/calendar/plans/${id}`,
+    { method: "GET" },
+  );
+export const updateCalendarPlan = (
+  id: string,
+  body: Partial<{ name: string; year: number; description: string | null; advice_template_id: string | null; is_active: boolean }>,
+) => call<CuppingCalendarPlan>(`${BASE}/calendar/plans/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "plan");
+export const deleteCalendarPlan = (id: string) =>
+  call<number>(`${BASE}/calendar/plans/${id}`, { method: "DELETE" }, "deleted");
+
+// ── Plan günleri (somut GREGORYEN tarih; kriter DEĞİL) ──────────────────────
+/** Toplu ekle: mevcut UNIQUE(tenant,plan,date) çakışmaları sunucuda idempotent atlanır. */
+export const addCalendarPlanDays = (
+  id: string,
+  body: { dates: string[]; user_label?: string | null; note?: string | null },
+) =>
+  callRaw<{ ok: true; inserted: number; skippedExisting: number }>(
+    `${BASE}/calendar/plans/${id}/days`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+export const deleteCalendarDay = (dayId: string) =>
+  call<number>(`${BASE}/calendar/days/${dayId}`, { method: "DELETE" }, "deleted");
+
+// ── Çıktı Bilgilendirme Şablonları (genel, yeniden kullanılabilir) ──────────
+export const listAdviceTemplates = () =>
+  call<CuppingAdviceTemplate[]>(`${BASE}/advice-templates`, { method: "GET" }, "templates");
+export const createAdviceTemplate = (body: {
+  title: string;
+  before_text?: string;
+  after_text?: string;
+  general_note?: string | null;
+  is_default?: boolean;
+}) => call<CuppingAdviceTemplate>(`${BASE}/advice-templates`, { method: "POST", body: JSON.stringify(body) }, "template");
+export const getAdviceTemplate = (id: string) =>
+  call<CuppingAdviceTemplate>(`${BASE}/advice-templates/${id}`, { method: "GET" }, "template");
+/** is_default niyeti server-side atomik RPC ile çözülür (client concurrency logic YOK). */
+export const updateAdviceTemplate = (
+  id: string,
+  body: Partial<{ title: string; before_text: string; after_text: string; general_note: string | null; is_active: boolean; is_default: boolean }>,
+) => call<CuppingAdviceTemplate>(`${BASE}/advice-templates/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "template");
+export const deleteAdviceTemplate = (id: string) =>
+  call<number>(`${BASE}/advice-templates/${id}`, { method: "DELETE" }, "deleted");
+
+// ── Danışana-özel bilgilendirme SNAPSHOT'ı (şablondan KOPYA; canlı miras DEĞİL) ─
+export const listClientAdvice = (clientId: string) =>
+  call<CuppingClientAdvice[]>(
+    `${BASE}/client-advice?clientId=${encodeURIComponent(clientId)}`,
+    { method: "GET" },
+    "advice",
+  );
+/** source_template_id verilirse SUNUCU kopyalar (provenance); client-side sahte provenance YOK. */
+export const createClientAdvice = (body: {
+  client_id: string;
+  source_template_id?: string | null;
+  title?: string;
+  before_text?: string;
+  after_text?: string;
+  general_note?: string | null;
+}) => call<CuppingClientAdvice>(`${BASE}/client-advice`, { method: "POST", body: JSON.stringify(body) }, "advice");
+/** Yalnız snapshot metni düzenlenir; client_id/source_template_id DEĞİŞTİRİLEMEZ (server allowlist). */
+export const updateClientAdvice = (
+  id: string,
+  body: Partial<{ title: string; before_text: string; after_text: string; general_note: string | null; is_active: boolean }>,
+) => call<CuppingClientAdvice>(`${BASE}/client-advice/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "advice");
+export const deleteClientAdvice = (id: string) =>
+  call<number>(`${BASE}/client-advice/${id}`, { method: "DELETE" }, "deleted");

@@ -41,6 +41,14 @@ import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/mod
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
 import { ALL_TRANSFER_GROUP_KEYS, emptyTransferCounts } from "../lib/admin/veriPaylasimiTransfer";
 import { remapJunctionRows } from "../lib/admin/transferJunction";
+import {
+  computeBulkDates,
+  isoWeekday,
+  hasAnyCriteria,
+  validHijriDay,
+  validWeekday,
+  WEEKDAYS_TR,
+} from "../app/kupa/takvim/lib/bulk";
 
 let passed = 0;
 let failed = 0;
@@ -1354,12 +1362,158 @@ function run(): void {
     "faz5-boundary: Kozmik Hacamat içe-aktarma/bağı YOK");
   ok(!/inngest|outbox|yasam_hafizasi|memory[-_]event/i.test(faz5Blob), "faz5-boundary: Yaşam Hafızası (CDC/outbox/Inngest) YOK");
   ok(!/appointment|randevu/i.test(faz5Blob), "faz5-boundary: randevu (appointment) entegrasyonu YOK");
-  ok(!exists("app/kupa/takvim"), "faz5-boundary: /kupa/takvim UI YOK (bu aşamada)");
+  ok(exists("app/kupa/takvim/page.tsx"), "faz5-a3: /kupa/takvim UI rotası MEVCUT (AŞAMA 3)");
   ok(!exists("app/api/kupa/calendar/plans/[id]/word") && !exists("app/api/kupa/client-advice/word"),
     "faz5-boundary: Word endpoint YOK (bu aşamada)");
   // Kozmik dosyaları bu değişiklikte DOKUNULMADI (repo'da mevcut + FAZ5 bloğu referans vermiyor).
   ok(exists("lib/cosmic/hacamat.ts") && exists("app/cosmic-calendar/hacamat/page.tsx"),
     "faz5-boundary: Kozmik Hacamat dosyaları yerinde (dokunulmadı)");
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — HACAMAT TAKVİMİ KULLANICI ÇALIŞMA ALANI (UI + nötr toplu seçim)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const pageSrc = read("app/kupa/takvim/page.tsx");
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const mcSrc = read("app/kupa/takvim/components/MonthCalendar.tsx");
+    const navSrc = read("app/kupa/takvim/components/MonthNav.tsx");
+    const bulkUiSrc = read("app/kupa/takvim/components/BulkDateSelector.tsx");
+    const adviceSrc = read("app/kupa/takvim/components/OutputAdviceSection.tsx");
+    const clientSrc = read("app/kupa/takvim/components/ClientAdviceSection.tsx");
+    const bulkLibSrc = read("app/kupa/takvim/lib/bulk.ts");
+    const apiSrc = read("app/kupa/lib/api.ts");
+    const landingSrc = read("app/kupa/page.tsx");
+    const takvimBlob = [pageSrc, wsSrc, mcSrc, navSrc, bulkUiSrc, adviceSrc, clientSrc, bulkLibSrc].map(stripTs).join("\n");
+
+    // — Rota + landing —
+    ok(exists("app/kupa/takvim/page.tsx"), "faz5-a3: /kupa/takvim rotası var");
+    ok(/href="\/kupa\/takvim"/.test(landingSrc), "faz5-a3: landing → /kupa/takvim bağlantısı var");
+    ok(/Hacamat Takvimi/.test(landingSrc) && /Hacamat Protokolleri/.test(landingSrc),
+      "faz5-a3: landing hiyerarşisi Protokoller + Takvim içerir");
+
+    // — Gregoryen + Hicrî HER GÜN, lib/cupping/hijri.ts türetimi —
+    ok(/from "@\/lib\/cupping\/hijri"/.test(mcSrc) && /monthHijriCells/.test(mcSrc),
+      "faz5-a3: takvim ızgarası lib/cupping/hijri.ts kullanır (Hicrî türetilir)");
+    ok(/hijri\.day/.test(mcSrc) && /HIJRI_MONTHS_TR|shortHijriMonth/.test(mcSrc),
+      "faz5-a3: her gün Gregoryen + Hicrî gösterir");
+    ok(/aria-pressed/.test(mcSrc) && /aria-label/.test(mcSrc),
+      "faz5-a3: gün butonları erişilebilir (aria-pressed + aria-label)");
+    ok(/grid-cols-7/.test(mcSrc) && /sm:/.test(mcSrc),
+      "faz5-a3: 7-kolon takvim + responsive sınıflar (mobil)");
+
+    // — Kozmik: yalnız NAVİGASYON linki; KOD importu/sync YOK —
+    ok(/href="\/cosmic-calendar\/hacamat"/.test(wsSrc), "faz5-a3: Kozmik referans yalnız NAVİGASYON linki");
+    ok(!/from ["'][^"']*cosmic[^"']*["']/.test(takvimBlob),
+      "faz5-a3: takvim dosyaları Kozmik KOD importu YAPMAZ");
+    ok(!/getStatus|SUNNET_HICRI|UYGUN_HICRI|NOTABLE_HICRI|YASAKLI_WEEKDAYS|hacamat_rules/i.test(takvimBlob),
+      "faz5-a3: ready-day/kozmik kural sabiti YOK");
+
+    // — Nötrlük: ön-seçili/17-19-21/ekol/yasak YOK —
+    ok(/useState<number\[\]>\(\[\]\)/.test(bulkUiSrc),
+      "faz5-a3: toplu seçim ölçütleri ön-seçili DEĞİL (boş başlar)");
+    ok(!/\b17\s*,\s*19\s*,\s*21\b|\b19\s*,\s*21\b/.test(takvimBlob),
+      "faz5-a3: 17/19/21 preset seti YOK");
+    // Preset/statü vocab HİÇBİR yerde (disclaimer'lar bunları kullanmaz). "uygun/önerilen gün"
+    // ifadeleri NEGATİF disclaimer metninde geçebildiği için burada aranmaz (import/preset odaklı).
+    ok(!/yasakl[ıi]|forbidden|prohibit|s[uü]nnet|alt[ıi]n g[uü]n/i.test(takvimBlob),
+      "faz5-a3: yasak/sünnet/altın gün preset semantiği YOK");
+
+    // — Toplu ölçüt EPHEMERAL: DB/localStorage'a KALICILAŞTIRILMAZ —
+    ok(!/localStorage|sessionStorage/.test(stripTs(bulkUiSrc)) && !/localStorage|sessionStorage/.test(stripTs(bulkLibSrc)),
+      "faz5-a3: toplu ölçütler localStorage'a yazılmaz (kod)");
+    ok(!/\/api\//.test(bulkUiSrc) && !/\/api\//.test(bulkLibSrc),
+      "faz5-a3: toplu ölçüt yardımcısı DB'ye yazmaz (yalnız yerel taslak)");
+
+    // — Kayıt mevcut AŞAMA 2 API'lerini kullanır (yeni RPC YOK) —
+    ok(/addCalendarPlanDays/.test(wsSrc) && /deleteCalendarDay/.test(wsSrc),
+      "faz5-a3: kayıt mevcut days POST + day DELETE uçlarını kullanır");
+    ok(/runPool\(/.test(wsSrc), "faz5-a3: çoklu silme SINIRLI eşzamanlılık (yüzlerce eşzamanlı istek yok)");
+    ok(/CUPPING_PLAN_DAYS_MAX_BATCH/.test(wsSrc), "faz5-a3: toplu POST azami batch'e göre parçalanır");
+    ok(/loadPlanInto\(plan\.id\)/.test(wsSrc),
+      "faz5-a3: kayıt sonrası/kısmi hatada otoriter durum yeniden yüklenir");
+
+    // — Kaydedilmemiş değişiklik onayı (native confirm/alert YOK) —
+    ok(/confirmDiscardIfDirty/.test(wsSrc) && /Kaydedilmemiş/.test(wsSrc),
+      "faz5-a3: kaydedilmemiş değişiklik onayı (özel ConfirmDialog)");
+    ok(!/window\.confirm|window\.alert/.test(takvimBlob) && !/\balert\(/.test(takvimBlob),
+      "faz5-a3: native window.confirm/alert YOK");
+    ok(/useConfirm/.test(wsSrc) && /useToast/.test(wsSrc),
+      "faz5-a3: proje standardı useConfirm + useToast kullanılır");
+
+    // — Yıl invariantı —
+    ok(/yearLocked/.test(read("app/kupa/takvim/components/PlanPicker.tsx")) &&
+       /Seçili günleri olan takvimin yılı değiştirilemez/.test(read("app/kupa/takvim/components/PlanPicker.tsx")),
+      "faz5-a3: seçili günü olan planın yılı kilitli (invariant)");
+
+    // — Çıktı bilgilendirme ENTEGRE + sıra Öncesi→Sonrası→Genel —
+    ok(/OutputAdviceSection/.test(wsSrc), "faz5-a3: Çıktı Bilgilendirme bölümü takvime entegre");
+    ok(adviceSrc.indexOf("Hacamat Öncesi") < adviceSrc.indexOf("Hacamat Sonrası") &&
+       adviceSrc.indexOf("Hacamat Sonrası") < adviceSrc.indexOf("Genel / Ek Not"),
+      "faz5-a3: bilgilendirme sırası Öncesi → Sonrası → Genel");
+    ok(/updateCalendarPlan\([^)]*advice_template_id/.test(stripTs(wsSrc).replace(/\n/g, " ")),
+      "faz5-a3: şablon plana mevcut tenant-güvenli API ile bağlanır");
+
+    // — Danışan snapshot: mevcut güvenli picker + client-advice API + bağımsızlık —
+    ok(/from "@\/components\/danisan\/ClientPicker"/.test(clientSrc),
+      "faz5-a3: danışan seçimi mevcut tenant-güvenli ClientPicker'ı REUSE eder");
+    ok(!/all[-_]?clients|admin\/clients|owner.*bypass/i.test(clientSrc),
+      "faz5-a3: geniş/admin danışan API'si UYDURULMAZ");
+    ok(/listClientAdvice/.test(clientSrc) && /createClientAdvice/.test(clientSrc),
+      "faz5-a3: danışan snapshot mevcut client-advice API'sini kullanır");
+    const updSig = /updateClientAdvice = \(\s*id: string,\s*body: Partial<\{([^}]*)\}>/.exec(apiSrc)?.[1] ?? "";
+    ok(updSig.length > 0 && !/source_template_id|client_id/.test(updSig),
+      "faz5-a3: client-advice PATCH source_template_id/client_id GÖNDERMEZ (canlı miras YOK)");
+    ok(!/onChange[^\n]*source_template_id|source_template_id:\s*(edit|form)\./.test(clientSrc),
+      "faz5-a3: source_template_id kullanıcı-düzenlenebilir alan DEĞİL");
+
+    // — Sınırlar: Word/YH/appointment yok (UI katmanı) —
+    ok(!/docx|word oluştur|\.docx|api\/kupa\/[^"']*\/word/i.test(takvimBlob),
+      "faz5-a3: Word/DOCX üretimi YOK (bu aşamada)");
+    ok(!/inngest|yasam_hafizasi|outbox|memory[-_]event/i.test(takvimBlob),
+      "faz5-a3: Yaşam Hafızası entegrasyonu YOK");
+    // "randevu" NEGATİF disclaimer'da geçer ("randevu sistemi değildir") → import/API odaklı ara.
+    ok(!/import[^\n]*(appointment|randevu)|\/api\/[^"'\s]*(appointment|randevu)|appointmentId|randevu_id/i.test(takvimBlob),
+      "faz5-a3: randevu (appointment) entegrasyonu YOK");
+
+    // — Auth: mevcut userHeaders yeniden kullanılır (ikinci mekanizma YOK) —
+    ok(/userHeaders\(\)/.test(apiSrc) && /readSessionToken/.test(apiSrc),
+      "faz5-a3: mevcut kimlik başlığı (userHeaders/x-session-token) yeniden kullanılır");
+    ok(!/readSessionToken/.test(takvimBlob),
+      "faz5-a3: takvim bileşenleri ikinci auth mekanizması kurmaz (api.ts üzerinden)");
+
+    // ── DAVRANIŞ: nötr toplu seçim mantığı (saf) ──────────────────────────────
+    const Y = 2027;
+    ok(computeBulkDates(Y, {}).length === 0, "faz5-a3-bulk: ölçüt yoksa sonuç BOŞ (yıl geneli seçilmez)");
+    ok(hasAnyCriteria({}) === false && hasAnyCriteria({ weekdays: [1] }) === true,
+      "faz5-a3-bulk: hasAnyCriteria doğru");
+    const h1 = computeBulkDates(Y, { hijriDays: [1] });
+    ok(h1.length > 0 && h1.every((d) => gregorianToHijri(d)?.day === 1),
+      "faz5-a3-bulk: Hicrî gün=1 ölçütü yalnız 1. günleri döner");
+    const tue = computeBulkDates(Y, { weekdays: [2] });
+    ok(tue.length > 0 && tue.every((d) => isoWeekday(d) === 2),
+      "faz5-a3-bulk: haftagünü=Salı ölçütü yalnız Salıları döner");
+    const both = computeBulkDates(Y, { hijriDays: [1], weekdays: [2] });
+    ok(both.every((d) => gregorianToHijri(d)?.day === 1 && isoWeekday(d) === 2),
+      "faz5-a3-bulk: çoklu grup AND semantiği (Hicrî-1 VE Salı)");
+    const marMon = computeBulkDates(Y, { rangeStart: `${Y}-03-01`, rangeEnd: `${Y}-03-31`, weekdays: [1] });
+    ok(marMon.length > 0 && marMon.every((d) => d >= `${Y}-03-01` && d <= `${Y}-03-31` && isoWeekday(d) === 1),
+      "faz5-a3-bulk: tarih aralığı + haftagünü aralık içinde kalır");
+    ok(marMon.every((d) => d.startsWith(`${Y}-`)), "faz5-a3-bulk: tüm sonuçlar plan yılı içinde");
+    const h30 = computeBulkDates(Y, { hijriDays: [30] });
+    ok(h30.every((d) => gregorianToHijri(d)?.day === 30),
+      "faz5-a3-bulk: 30 olmayan Hicrî ay için tarih UYDURULMAZ (yalnız gerçek 30'lar)");
+    ok(validHijriDay(15) && !validHijriDay(0) && !validHijriDay(31),
+      "faz5-a3-bulk: Hicrî gün doğrulama 1–30");
+    ok(validWeekday(1) && validWeekday(7) && !validWeekday(0) && !validWeekday(8),
+      "faz5-a3-bulk: haftagünü doğrulama 1–7");
+    ok(WEEKDAYS_TR.length === 7 && WEEKDAYS_TR[0].iso === 1 && WEEKDAYS_TR[6].iso === 7,
+      "faz5-a3-bulk: 7 haftagünü (Pzt=1 … Paz=7)");
+    // start>end güvenli boş; sıralı + tekil sonuç.
+    ok(computeBulkDates(Y, { rangeStart: `${Y}-05-01`, rangeEnd: `${Y}-04-01` }).length === 0,
+      "faz5-a3-bulk: start>end → boş (uydurma yok)");
+    const sortedUniq = [...new Set(h1)].sort();
+    ok(JSON.stringify(h1) === JSON.stringify(sortedUniq), "faz5-a3-bulk: sonuç artan + tekil");
+  }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
