@@ -8,6 +8,7 @@ import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { isMobileViewport, resolveViewerControls } from "../helpers/mobileUxLogic";
+import { formatFirstNameTurkish, formatLastNameTurkish } from "../helpers/nameInputFormat";
 import {
   readDemoNumerolojiAnaliz,
   saveDemoNumerolojiAnaliz,
@@ -41,36 +42,6 @@ type TabId = "summary" | "plain" | "detailed" | "zamanlama" | "tas" | "gorsel";
 
 const DEMO_LIMIT_TEXT =
   "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
-
-function collapseSpaces(value: string): string {
-  return value.replace(/\s+/g, " ");
-}
-
-function formatFirstNameTurkish(value: string): string {
-  const s = collapseSpaces(value.trimStart());
-  if (!s) return "";
-  const trailingSpace = s.endsWith(" ") ? " " : "";
-  return (
-    s
-      .split(" ")
-      .filter(Boolean)
-      .map((word) => {
-        const lower = word.toLocaleLowerCase("tr-TR");
-        return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
-      })
-      .join(" ") + trailingSpace
-  );
-}
-
-function formatLastNameTurkish(value: string): string {
-  const s = collapseSpaces(value.trimStart());
-  if (!s) return "";
-  return s
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.toLocaleUpperCase("tr-TR"))
-    .join(" ");
-}
 
 function formatBirthDigitsInput(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 8);

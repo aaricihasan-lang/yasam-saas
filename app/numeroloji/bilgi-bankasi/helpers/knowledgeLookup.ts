@@ -105,7 +105,14 @@ export function valueCandidatesFromDisplay(display: string): string[] {
 }
 
 export function valueCandidatesFromResult(r: NumerolojiResult): string[] {
-  const fromDisplay = valueCandidatesFromDisplay(r.display);
+  // OWNER: combinedReading yalnız display assist'tir — canonical DEĞİL. Knowledge lookup
+  // bu ALTERNATİF birleşik okumayı ASLA aday olarak kullanmamalı. display'in sonundaki
+  // " (combinedReading)" ekini soyup öyle aday üret (canonical component'ler + key kalır).
+  const cr = (r.combinedReading || "").trim();
+  const suffix = cr ? ` (${cr})` : "";
+  const displayForLookup =
+    suffix && r.display.endsWith(suffix) ? r.display.slice(0, -suffix.length).trim() : r.display;
+  const fromDisplay = valueCandidatesFromDisplay(displayForLookup);
   const seen = new Set(fromDisplay);
   const ordered = [...fromDisplay];
 

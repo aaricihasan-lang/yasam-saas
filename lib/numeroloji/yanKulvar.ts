@@ -1,4 +1,4 @@
-import { CHAKRA_LETTER_MAP, NumerolojiResult, SPECIAL_NUMBERS, VOWELS, buildSpecialPathDisplay, reduceNumber, splitNameParts, turkishUpper } from "./ortak";
+import { CHAKRA_LETTER_MAP, NumerolojiResult, SPECIAL_NUMBERS, VOWELS, buildSpecialPathDisplay, combinedReadingDisplay, reduceNumber, splitNameParts, turkishUpper } from "./ortak";
 
 type PartResult = {
   finalValue: number;
@@ -128,7 +128,12 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
         }
       }
 
-      const display = bracketStr ? `${mainDisplay} ${bracketStr}` : mainDisplay;
+      // Parantez, ana display'in alternatif bileşen okumasıdır; ana ile BİREBİR aynı
+      // render ediliyorsa (örn. "11/11 (11/11)") anlamsız tekrardır ve gösterilmez.
+      // (buildSpecialPathDisplay'deki mainPath===origPath susturma kuralıyla tutarlı.)
+      const bracketInner = bracketStr.replace(/^\(|\)$/g, "");
+      const showBracket = Boolean(bracketStr) && bracketInner !== mainDisplay;
+      const display = showBracket ? `${mainDisplay} ${bracketStr}` : mainDisplay;
       steps.push(`SONUÇ → Yan Kulvar: ${display}`);
       return { display, key: String(reducedNonSpecial), steps };
     }
@@ -154,12 +159,35 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
       mainDigit = usedValues.length >= 2 ? Math.min(...usedValues) : specialNum;
     }
 
-    const pathDisplay = buildSpecialPathDisplay(values);
-    const display = pathDisplay !== "" ? pathDisplay : `${specialNum}/${mainDigit}`;
+    // OWNER combined-reading display (presentation-only; key/lookup DEĞİŞMEZ):
+    // TÜM component'ler özel (≥2) ise ana display parça sırasında "/" ile component'leri,
+    // parantezde ise BİRLEŞİK OKUMAYI gösterir (ör. 11/11 (22), 11/22 (33)).
+    // Aksi halde mevcut path display korunur. combinedReading canonical DEĞİLDİR.
+    const nonZeroInOrder = values.filter((v) => v > 0);
+    const allSpecialMulti =
+      nonZeroInOrder.length >= 2 && nonZeroInOrder.every((v) => SPECIAL_NUMBERS.has(v));
+    let display: string;
+    let combinedReading: string | undefined;
+    if (allSpecialMulti) {
+      const mainComponents = nonZeroInOrder.join("/");
+      const cr = combinedReadingDisplay(nonZeroInOrder);
+      if (cr && cr !== mainComponents) {
+        combinedReading = cr;
+        display = `${mainComponents} (${cr})`;
+        steps.push(
+          `Birleşik okuma (alternatif, canonical değil): ${nonZeroInOrder.join(" + ")} = ${nonZeroInOrder.reduce((a, b) => a + b, 0)} → ${cr}`
+        );
+      } else {
+        display = mainComponents;
+      }
+    } else {
+      const pathDisplay = buildSpecialPathDisplay(values);
+      display = pathDisplay !== "" ? pathDisplay : `${specialNum}/${mainDigit}`;
+    }
     const uniqueSpecialNums = [...new Set(specialCandidates.map((c) => c.specialNum))].sort((a, b) => a - b);
     steps.push(`Özel sayılar (Yan Kulvar): ${uniqueSpecialNums.join(", ")}`);
     steps.push(`SONUÇ → Yan Kulvar: ${display}`);
-    return { display, key: String(mainDigit), steps };
+    return { display, key: String(mainDigit), steps, ...(combinedReading ? { combinedReading } : {}) };
   }
 
   const total = nonZeroValues.reduce((a, b) => a + b, 0);

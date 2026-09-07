@@ -8,15 +8,6 @@ import {
   listNumerologyAnalyses,
   type NumerologyRecordListItem,
 } from "../helpers/numerolojiKayit";
-import { NumerolojiCalculationInfo } from "./NumerolojiCalculationInfo";
-import { CONCEPT_HELP } from "../helpers/conceptHelp";
-import {
-  lifeCodeBreakdown,
-  birthdayBreakdown,
-  acquisitionBreakdown,
-  nameNumberBreakdown,
-  commonDigitBreakdown,
-} from "../utils/relationshipCalcBreakdown";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFESYONEL İLİŞKİ ANALİZİ (canonical v2)
@@ -228,26 +219,7 @@ export function NumerolojiIliskiAnaliziTab({
 
   const normalizedBirthDate = kisi2BirthDate.trim().replace(/\//g, ".");
 
-  // ── "Nasıl hesaplandı?" sunum dökümleri (presentation-only; motor değişmez) ──────
   const kisi2Label = kisi2AdSoyad ?? "2. Kişi";
-  const pairSteps = (
-    aBd: { steps: string[] } | null,
-    bBd: { steps: string[] } | null,
-  ): string[] => {
-    const lines: string[] = [];
-    if (aBd) lines.push(`1. Kişi — ${kisi1AdSoyad}`, ...aBd.steps);
-    if (bBd) lines.push("", `2. Kişi — ${kisi2Label}`, ...bBd.steps);
-    return lines;
-  };
-  const lifeBdA = lifeCodeBreakdown(kisi1BirthDate);
-  const lifeBdB = lifeCodeBreakdown(kisi2BirthDate);
-  const nameBdA = nameNumberBreakdown(kisi1Name, kisi1Surname);
-  const nameBdB = nameNumberBreakdown(kisi2Name, kisi2Surname);
-  const edBdA = acquisitionBreakdown(kisi1BirthDate);
-  const edBdB = acquisitionBreakdown(kisi2BirthDate);
-  const bdBdA = birthdayBreakdown(kisi1BirthDate);
-  const bdBdB = birthdayBreakdown(kisi2BirthDate);
-  const commonBd = commonDigitBreakdown(kisi1Name, kisi1Surname, kisi2Name, kisi2Surname);
 
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
@@ -259,7 +231,6 @@ export function NumerolojiIliskiAnaliziTab({
         <div className="relative min-w-0 overflow-hidden border-b border-slate-100/70 pb-3 md:border-b-0 md:pb-0 md:rounded-[14px] md:border md:border-violet-200/70 md:bg-gradient-to-br md:from-violet-50/80 md:via-white md:to-white md:px-3 md:py-2.5 md:shadow-[0_0_12px_rgba(139,92,246,0.07)]">
           <div className="mb-1 flex flex-wrap items-center gap-1">
             <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">1. Kişi · Mevcut Kayıt</p>
-            <NumerolojiCalculationInfo title="Kişisel PIN" meaning={CONCEPT_HELP.kisiselPin} tone="violet" />
           </div>
           <p className="text-sm font-black text-slate-900 leading-tight">{kisi1AdSoyad}</p>
           <p className="text-[10px] text-slate-400 tabular-nums">{kisi1BirthDate || "—"}</p>
@@ -356,16 +327,6 @@ export function NumerolojiIliskiAnaliziTab({
             <div className="pointer-events-none absolute -left-8 -top-8 hidden h-32 w-32 rounded-full bg-white/10 blur-2xl md:block" aria-hidden />
             <div className="relative mb-3 flex items-center gap-1.5">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">Sinerji PIN Kodu</p>
-              <NumerolojiCalculationInfo
-                title="Sinerji PIN Kodu"
-                tone="white"
-                meaning={CONCEPT_HELP.synergyPin}
-                formula="İki kişinin PIN kodunun ilk 8 hanesi aynı pozisyonda toplanır; çift haneli sonuçlar tek haneye indirilir."
-                steps={analiz.synergyPin.steps.map(
-                  (s) => `${s.index}. Hane: ${s.a} + ${s.b} = ${s.sum}${s.sum > 9 ? ` → ${s.result}` : ""}`,
-                )}
-                result={`Sinerji PIN: ${analiz.synergyPin.pin.join(" ")}`}
-              />
             </div>
             <div className="relative grid grid-cols-4 gap-2 sm:grid-cols-8">
               {analiz.synergyPin.pin.map((d, i) => {
@@ -398,7 +359,7 @@ export function NumerolojiIliskiAnaliziTab({
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-bold text-violet-700">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-violet-200 bg-white text-[11px] leading-none text-violet-600">ⓘ</span>
-                <span className="group-open:hidden">Hane karşılaştırmasını göster · Nasıl hesaplandı?</span>
+                <span className="group-open:hidden">Hane karşılaştırmasını göster</span>
                 <span className="hidden group-open:inline">Hane karşılaştırmasını gizle</span>
               </summary>
               <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
@@ -420,7 +381,7 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* 4) İlişki Üçgeni — Sinerji PIN Yorumu (canonical hane→alan eşlemesi) */}
-          <SectionCard title="İlişki Üçgeni — Sinerji PIN Yorumu" subtitle="Sinerji PIN haneleri 1,2,3,6,7,8 · dışında: 4 (Yaşam Döngüsü), 5 (Ders)" accent="violet" info={<NumerolojiCalculationInfo title="İlişki Üçgeni" meaning={CONCEPT_HELP.relationshipTriangle} tone="violet" />}>
+          <SectionCard title="İlişki Üçgeni — Sinerji PIN Yorumu" subtitle="Sinerji PIN haneleri 1,2,3,6,7,8 · dışında: 4 (Yaşam Döngüsü), 5 (Ders)" accent="violet">
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {analiz.relationshipTriangle.nodes.map((n) => (
                 <div key={n.position} className="min-w-0 rounded-lg bg-violet-50/70 p-2 ring-1 ring-violet-200/50">
@@ -439,7 +400,7 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* 5) Ruh Duygusu — Sinerji PIN 8. hane */}
-          <SectionCard title="Ruh Duygusu" subtitle="Sinerji PIN · 8. hane" accent="violet" info={<NumerolojiCalculationInfo title="Ruh Duygusu" meaning={CONCEPT_HELP.relationshipSoulFeeling} tone="violet" />}>
+          <SectionCard title="Ruh Duygusu" subtitle="Sinerji PIN · 8. hane" accent="violet">
             <div className="flex items-start gap-2">
               <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500 text-sm font-black text-white">{analiz.relationshipSoulFeeling.digit}</span>
               <p className="min-w-0 text-[11px] leading-[1.55] text-slate-700">
@@ -453,19 +414,6 @@ export function NumerolojiIliskiAnaliziTab({
             title="Neden Bir Aradayız?"
             subtitle={`Sinerji PIN · 9. hane · Σ=${analiz.whyTogether.sum}`}
             accent="violet"
-            info={
-              <NumerolojiCalculationInfo
-                title="Neden Bir Aradayız (9. Hane)"
-                tone="fuchsia"
-                meaning={CONCEPT_HELP.whyTogether}
-                formula="Sinerji PIN'in ilk 8 hanesi toplanır, tek haneye indirilir."
-                steps={[
-                  `${analiz.synergyPin.pin.join(" + ")} = ${analiz.whyTogether.sum ?? 0}`,
-                  ...((analiz.whyTogether.sum ?? 0) > 9 ? [`${String(analiz.whyTogether.sum ?? 0).split("").join(" + ")} = ${analiz.whyTogether.digit}`] : []),
-                ]}
-                result={`9. Hane: ${analiz.whyTogether.digit}`}
-              />
-            }
           >
             <div className="flex items-start gap-2">
               <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fuchsia-500 text-sm font-black text-white">{analiz.whyTogether.digit}</span>
@@ -482,64 +430,24 @@ export function NumerolojiIliskiAnaliziTab({
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.lifeCodeCompatibility}
-              info={
-                <NumerolojiCalculationInfo
-                  title="Yaşam Kodu Sayısı"
-                  tone="sky"
-                  meaning={CONCEPT_HELP.lifeCode}
-                  formula="Her kişinin doğum tarihindeki tüm rakamlar toplanır, tek haneye indirilir."
-                  steps={pairSteps(lifeBdA, lifeBdB)}
-                  result={`1. Kişi: ${analiz.lifeCodeCompatibility.aDigit} · 2. Kişi: ${analiz.lifeCodeCompatibility.bDigit}`}
-                />
-              }
             />
             <PerPersonLayer
               label="İsim Sayısı"
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.nameNumberCompatibility}
-              info={
-                <NumerolojiCalculationInfo
-                  title="İsim Sayısı"
-                  tone="sky"
-                  meaning={CONCEPT_HELP.nameNumber}
-                  formula="İsim + soyisim harflerinin sayısal karşılıkları toplanır, tek haneye indirilir (kaynak: kitap 2. seviye)."
-                  steps={pairSteps(nameBdA, nameBdB)}
-                  result={`1. Kişi: ${analiz.nameNumberCompatibility.aDigit} · 2. Kişi: ${analiz.nameNumberCompatibility.bDigit}`}
-                />
-              }
             />
             <PerPersonLayer
               label="Edinim Sayısı"
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.acquisitionCompatibility}
-              info={
-                <NumerolojiCalculationInfo
-                  title="Edinim Sayısı"
-                  tone="sky"
-                  meaning={CONCEPT_HELP.acquisition}
-                  formula="Doğum günü ve doğum ayının rakamları toplanır, tek haneye indirilir."
-                  steps={pairSteps(edBdA, edBdB)}
-                  result={`1. Kişi: ${analiz.acquisitionCompatibility.aDigit} · 2. Kişi: ${analiz.acquisitionCompatibility.bDigit}`}
-                />
-              }
             />
             <PerPersonLayer
               label="Doğum Günü Sayısı"
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.birthdayCompatibility}
-              info={
-                <NumerolojiCalculationInfo
-                  title="Doğum Günü Sayısı"
-                  tone="sky"
-                  meaning={CONCEPT_HELP.birthdayNumber}
-                  formula="Doğum gününün rakamları toplanır, tek haneye indirilir."
-                  steps={pairSteps(bdBdA, bdBdB)}
-                  result={`1. Kişi: ${analiz.birthdayCompatibility.aDigit} · 2. Kişi: ${analiz.birthdayCompatibility.bDigit}`}
-                />
-              }
             />
 
             {/* Kiminle ne tür ilişki — yönlü (kişi adı + Yaşam Kodu ile bağlamlı) */}
@@ -570,14 +478,6 @@ export function NumerolojiIliskiAnaliziTab({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Ortak Konu Sayısı — Hangi Konularda Anlaşırız?</p>
-                  <NumerolojiCalculationInfo
-                    title="Ortak Konu Sayısı"
-                    tone="sky"
-                    meaning={CONCEPT_HELP.commonDigit}
-                    formula="Her iki kişinin İsim Sayısı (isim + soyisim harfleri → tek hane) toplanır, yine tek haneye indirilir. Kaynak terimi: “Ortak Rakam”."
-                    steps={commonBd ? commonBd.steps : undefined}
-                    result={`Ortak Rakam: ${analiz.commonTopics.commonDigit}`}
-                  />
                 </div>
                 <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-sky-500 px-2 text-sm font-black text-white">{analiz.commonTopics.commonDigit}</span>
               </div>
@@ -593,7 +493,7 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* 8) Enerji Dağılımı — element (tie korunur) + işleme tipi */}
-          <SectionCard title="Enerji Dağılımı" accent="amber" info={<NumerolojiCalculationInfo title="Enerji Dağılımı" meaning={CONCEPT_HELP.elementBalance} tone="amber" />}>
+          <SectionCard title="Enerji Dağılımı" accent="amber">
             {/* Öne çıkan elementler — TIE KORUNUR (keyfi sıralama yok) */}
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-bold text-slate-500">Öne Çıkan Elementler:</span>
@@ -629,7 +529,7 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* İşleme Tipi (Baskın/Edilgen) — SKOR DEĞİLDİR */}
-          <SectionCard title="İlişkinin İşleme Tipi" subtitle="Baskın / Edilgen dağılımı — bu bir uyum puanı DEĞİLDİR" accent="rose" info={<NumerolojiCalculationInfo title="İlişkinin İşleme Tipi" meaning={CONCEPT_HELP.dominance} tone="rose" />}>
+          <SectionCard title="İlişkinin İşleme Tipi" subtitle="Baskın / Edilgen dağılımı — bu bir uyum puanı DEĞİLDİR" accent="rose">
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-rose-50 p-3 text-center ring-1 ring-rose-200/60">
                 <p className="text-[8px] font-black uppercase tracking-widest text-rose-400">Baskın (Etken)</p>
