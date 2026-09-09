@@ -54,6 +54,7 @@
     "beslenme:plan-engine:calc": "tsx scripts/beslenme-plan-engine/calcHarness.ts",
     "beslenme:word:harness": "tsx scripts/beslenme-word/wordHarness.mjs",
     "beslenme:word:pagination:harness": "tsx scripts/beslenme-word/paginationHarness.mjs",
+    "beslenme:portion:harness": "tsx scripts/beslenme-word/portionDisplayHarness.mjs",
     "beslenme:templates:harness": "node scripts/beslenme-templates/ddlHarness.mjs",
     "beslenme:food-engine:search": "node scripts/beslenme-food-engine/searchHarness.mjs",
     "beslenme:food-engine:catalog": "node scripts/beslenme-food-engine/catalogHarness.mjs",
