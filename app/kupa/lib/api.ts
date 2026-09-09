@@ -542,6 +542,21 @@ export const addCalendarPlanDays = (
 export const deleteCalendarDay = (dayId: string) =>
   call<number>(`${BASE}/calendar/days/${dayId}`, { method: "DELETE" }, "deleted");
 
+// ── Sistem-otomatik geleneksel günler (Sünnet/Altın; köken sunucu-sahipli) ──────
+/**
+ * EKSİK geleneksel günleri (Hicrî 17/19/21 + izinli haftagünü; 17+Salı=Altın) plana
+ * sunnah_auto olarak ekler (restore / add-missing / seed). IDEMPOTENT + MANUEL-KORUR:
+ * var olan gün değişmez; formüle uyan MANUEL gün manuel kalır (sunnah_auto'ya çevrilmez).
+ */
+export const restoreTraditionalDays = (planId: string) =>
+  callRaw<{ ok: true; inserted: number; skippedExisting: number }>(
+    `${BASE}/calendar/plans/${planId}/traditional-days`,
+    { method: "POST", body: JSON.stringify({ action: "restore" }) },
+  );
+/** "Sünnet Günlerini Temizle": YALNIZ sunnah_auto satırları siler; manuel günler korunur. */
+export const clearTraditionalDays = (planId: string) =>
+  call<number>(`${BASE}/calendar/plans/${planId}/traditional-days`, { method: "DELETE" }, "deleted");
+
 // ── Çıktı Bilgilendirme Şablonları (genel, yeniden kullanılabilir) ──────────
 export const listAdviceTemplates = () =>
   call<CuppingAdviceTemplate[]>(`${BASE}/advice-templates`, { method: "GET" }, "templates");

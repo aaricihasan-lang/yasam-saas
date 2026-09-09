@@ -15,15 +15,19 @@ import {
   deleteCalendarPlan,
   updateCalendarPlan,
   listAdviceTemplates,
+  restoreTraditionalDays,
+  clearTraditionalDays,
   type CuppingAdviceTemplate,
   type CuppingCalendarPlan,
 } from "@/app/kupa/lib/api";
+import type { CuppingSelectionSource } from "@/lib/cupping/traditionalDays";
 import { MonthCalendar } from "./MonthCalendar";
 import { MonthNav } from "./MonthNav";
 import { PlanPicker } from "./PlanPicker";
 import { BulkDateSelector } from "./BulkDateSelector";
 import { OutputAdviceSection } from "./OutputAdviceSection";
 import { ClientAdviceSection } from "./ClientAdviceSection";
+import { SunnahDaysControl } from "./SunnahDaysControl";
 
 /** İstemci-yerel bugün "YYYY-MM-DD" (nötr; yalnız "bugün" halkası için). */
 function todayYmd(): string {
@@ -59,16 +63,26 @@ export function CalendarWorkspace() {
   const [templates, setTemplates] = useState<CuppingAdviceTemplate[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plan, setPlan] = useState<CuppingCalendarPlan | null>(null);
-  const [savedDays, setSavedDays] = useState<Map<string, string>>(new Map()); // ymd -> dayId
+  // ymd -> { kayıt id, KÖKEN }. Köken renk (Sünnet/Altın) ve "Temizle" kapsamı için gerekir.
+  const [savedDays, setSavedDays] = useState<Map<string, { id: string; source: CuppingSelectionSource }>>(new Map());
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const [month, setMonth] = useState(1);
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sunnahBusy, setSunnahBusy] = useState(false);
   const today = useMemo(() => todayYmd(), []);
 
-  const savedSet = useMemo(() => new Set(savedDays.keys()), [savedDays]);
+  const savedSource = useMemo(() => {
+    const m = new Map<string, CuppingSelectionSource>();
+    for (const [ymd, v] of savedDays) m.set(ymd, v.source);
+    return m;
+  }, [savedDays]);
+  const autoCount = useMemo(
+    () => [...savedDays.values()].filter((v) => v.source === "sunnah_auto").length,
+    [savedDays],
+  );
   const additions = useMemo(() => [...draft].filter((d) => !savedDays.has(d)), [draft, savedDays]);
   const removals = useMemo(() => [...savedDays.keys()].filter((d) => !draft.has(d)), [savedDays, draft]);
   const dirty = additions.length > 0 || removals.length > 0;
@@ -87,8 +101,8 @@ export function CalendarWorkspace() {
     try {
       const { plan: p, days } = await getCalendarPlan(id);
       setPlan(p);
-      const map = new Map<string, string>();
-      for (const d of days) map.set(d.gregorian_date, d.id);
+      const map = new Map<string, { id: string; source: CuppingSelectionSource }>();
+      for (const d of days) map.set(d.gregorian_date, { id: d.id, source: d.selection_source });
       setSavedDays(map);
       setDraft(new Set(map.keys()));
       // Plan yılı bu yıla eşitse mevcut ayı aç; değilse Ocak.
@@ -196,8 +210,9 @@ export function CalendarWorkspace() {
         const chunk = additions.slice(i, i + CUPPING_PLAN_DAYS_MAX_BATCH);
         if (chunk.length > 0) await addCalendarPlanDays(plan.id, { dates: chunk });
       }
-      // 2) Silmeler — mevcut gün-id ile, SINIRLI eşzamanlılık.
-      const removeIds = removals.map((d) => savedDays.get(d)!).filter(Boolean);
+      // 2) Silmeler — mevcut gün-id ile, SINIRLI eşzamanlılık (manuel VE otomatik günler için
+      //    aynı: bir günü takvimden çıkarmak o satırı siler; kaydedilince kalıcı olur).
+      const removeIds = removals.map((d) => savedDays.get(d)?.id).filter((v): v is string => !!v);
       const { failCount } = await runPool(removeIds, 4, (id) => deleteCalendarDay(id));
       // 3) Otoriter durumu yeniden yükle (başarı da olsa kısmi de olsa TEK doğruluk kaynağı server).
       await loadPlanInto(plan.id);
@@ -245,6 +260,53 @@ export function CalendarWorkspace() {
     setPlan(updated);
   }
 
+  // Eksik geleneksel günleri (Sünnet/Altın) yeniden ekle — idempotent + manuel-korur.
+  async function handleRestoreSunnah() {
+    if (!plan) return;
+    if (!(await confirmDiscardIfDirty())) return;
+    setSunnahBusy(true);
+    try {
+      const { inserted } = await restoreTraditionalDays(plan.id);
+      await loadPlanInto(plan.id);
+      showToast({
+        message:
+          inserted > 0
+            ? `${inserted} geleneksel gün takvime eklendi.`
+            : "Eklenecek yeni geleneksel gün yok (takvim güncel).",
+        type: "success",
+      });
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Eklenemedi.", type: "error" });
+    } finally {
+      setSunnahBusy(false);
+    }
+  }
+
+  // "Sünnet Günlerini Temizle" — YALNIZ sistem-otomatik günler; manuel günler korunur.
+  async function handleClearSunnah() {
+    if (!plan) return;
+    if (!(await confirmDiscardIfDirty())) return;
+    const ok = await confirm({
+      title: "Sünnet Günlerini Temizle",
+      message:
+        "Takvime otomatik eklenen Sünnet ve Altın günleri kaldırılacak. Kendi eklediğiniz günler korunacak.",
+      confirmText: "Sünnet Günlerini Temizle",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setSunnahBusy(true);
+    try {
+      const deleted = await clearTraditionalDays(plan.id);
+      await loadPlanInto(plan.id);
+      showToast({ message: `${deleted} otomatik gün kaldırıldı. Kendi günleriniz korundu.`, type: "success" });
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Temizlenemedi.", type: "error" });
+    } finally {
+      setSunnahBusy(false);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return <div className={`${kupaCard}`}><p className="py-8 text-center text-sm text-slate-400">Yükleniyor…</p></div>;
@@ -274,10 +336,13 @@ export function CalendarWorkspace() {
       {/* Header açıklama + Kozmik referans (yalnız NAVİGASYON; veri aktarımı YOK) */}
       <div className={`${kupaCard}`}>
         <p className="text-sm leading-relaxed text-slate-600">
-          Bu takvim sizin çalışma planınızdır. Uygulama günlerinizi kendi yaklaşımınıza göre siz belirlersiniz.
+          Bu takvim sizin çalışma planınızdır. Geleneksel Sünnet günleri (ve Salı gününe denk gelen
+          Altın Gün) takvime otomatik eklenir; uygulama günlerinizi ise kendi yaklaşımınıza göre siz
+          belirlersiniz.
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
-          Yaşam Sistemi belirli günleri otomatik olarak doğru veya uygun gün olarak işaretlemez.
+          Bu günler geleneksel takvim tercihi olarak otomatik eklenir. Farklı ekollerde uygulama
+          değişebileceği için dilediğiniz günü kaldırabilir veya takvimi tamamen kendiniz oluşturabilirsiniz.
         </p>
         <Link href="/cosmic-calendar/hacamat" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 no-underline hover:text-amber-800">
           Kozmik Yaşam Hacamat Takvimine Bak
@@ -308,10 +373,25 @@ export function CalendarWorkspace() {
               year={plan.year}
               month={month}
               selected={draft}
-              savedSet={savedSet}
+              savedSource={savedSource}
               today={today}
               onToggle={toggleDay}
             />
+            {/* Renk açıklaması (legend) — kompakt, profesyonel; çalışma alanını ezmez. */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded border border-emerald-400 bg-emerald-50" aria-hidden />
+                Sünnet Günü
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded border border-amber-400 bg-gradient-to-b from-amber-200 to-yellow-50" aria-hidden />
+                Altın Gün <span className="text-amber-500" aria-hidden>★★★★★</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded border border-slate-400 bg-slate-100" aria-hidden />
+                Uzmanın Seçtiği Gün
+              </span>
+            </div>
             {/* Kaydet aksiyon barı (mobilde sticky) */}
             <div className="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm font-semibold text-slate-600" aria-live="polite">
@@ -333,7 +413,15 @@ export function CalendarWorkspace() {
             </div>
           </div>
 
-          {/* Toplu gün seçimi */}
+          {/* Sünnet Günleri kontrolü (AYNI takvim; ikinci takvim DEĞİL) */}
+          <SunnahDaysControl
+            autoCount={autoCount}
+            busy={sunnahBusy}
+            onRestore={handleRestoreSunnah}
+            onClear={handleClearSunnah}
+          />
+
+          {/* Toplu gün seçimi (uzmanın KENDİ ölçütü; otomatik Sünnet üreticisiyle AYNI DEĞİL) */}
           <BulkDateSelector year={plan.year} onAddDates={addBulk} />
 
           {/* Çıktı bilgilendirme notları */}

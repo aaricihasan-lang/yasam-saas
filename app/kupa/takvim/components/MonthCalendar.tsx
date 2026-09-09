@@ -1,36 +1,40 @@
 "use client";
 
 import { useMemo } from "react";
-import { monthHijriCells, HIJRI_MONTHS_TR } from "@/lib/cupping/hijri";
+import { monthHijriCells } from "@/lib/cupping/hijri";
+import {
+  getCuppingTraditionalDayStatus,
+  type CuppingSelectionSource,
+} from "@/lib/cupping/traditionalDays";
 import { WEEKDAYS_TR, isoWeekday } from "../lib/bulk";
 
 /**
- * FAZ 5 / AŞAMA 3 — Aylık takvim (Gregoryen + Hicrî HER GÜN).
+ * FAZ 5 / AŞAMA 3 — Aylık takvim (Gregoryen + Hicrî HER GÜN, TAM ay adı).
  *
- * NÖTR: Hiçbir gün sistemce "doğru/uygun/önerilen" işaretlenmez. Seçili durum YALNIZCA
- *   "kullanıcı seçti" demektir (yeşil=iyi / kırmızı=yasak / altın=sünnet SEMANTİĞİ YOK).
- * Hicrî değer lib/cupping/hijri.ts'ten TÜRETİLİR (saklanmaz). Hücre başına API çağrısı YOK.
- * Hafta Pazartesi başlar (uygulama geneli Türkçe takvim düzeni).
+ * TAM HİCRÎ AD: Hiçbir kısaltma YOK (Rec./Şab./Reb.ev. gibi). Her hücre Gregoryen gün
+ *   numarası + TAM Hicrî tarih (gün + tam ay adı + yıl) görünür şekilde render eder;
+ *   dar ekranda satır kaydırma ile okunur (yatay taşma YOK). Hicrî değer lib/cupping/hijri.ts
+ *   üzerinden TÜRETİLİR (saklanmaz). Hücre başına API çağrısı YOK. Hafta Pazartesi başlar.
+ *
+ * GELENEKSEL SINIF (renk): YALNIZCA seçili + KÖKEN 'sunnah_auto' olan gün geleneksel
+ *   renk alır (yeşil=Sünnet / altın=Altın Gün ★★★★★). Uzmanın MANUEL seçtiği gün — kurala
+ *   uysa bile — nötr "seçili" görünümündedir (otomatik yeşil/altın OLMAZ). Sınıf tarihten
+ *   TÜRETİLİR (getCuppingTraditionalDayStatus); DB'de saklanmaz.
  */
-
-/** Kısa Hicrî ay adı (dar hücre için); tam ad a11y etiketinde kalır. */
-function shortHijriMonth(monthNo: number): string {
-  const name = HIJRI_MONTHS_TR[monthNo - 1] ?? "";
-  return name.length > 4 ? `${name.slice(0, 3)}.` : name;
-}
 
 export function MonthCalendar({
   year,
   month,
   selected,
-  savedSet,
+  savedSource,
   today,
   onToggle,
 }: {
   year: number;
   month: number; // 1–12
   selected: Set<string>;
-  savedSet: Set<string>;
+  /** ymd → KÖKEN (yalnız KAYITLI günler için). Renk kararında kullanılır. */
+  savedSource: Map<string, CuppingSelectionSource>;
   today: string | null; // "YYYY-MM-DD"
   onToggle: (ymd: string) => void;
 }) {
@@ -61,11 +65,43 @@ export function MonthCalendar({
         {cells.map((cell) => {
           const ymd = cell.gregorian;
           const isSel = selected.has(ymd);
-          const isSaved = savedSet.has(ymd);
+          const source = savedSource.get(ymd);
+          const isSaved = source !== undefined;
           const isToday = today === ymd;
           const gDay = Number(ymd.slice(8, 10));
-          const hLabel = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
-          const aria = `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${hLabel}${isSel ? " — seçili" : ""}`;
+
+          // Geleneksel sınıf YALNIZCA seçili + sistem-otomatik günlerde renk verir.
+          const isAutoSelected = isSel && source === "sunnah_auto";
+          const trad = isAutoSelected ? getCuppingTraditionalDayStatus(ymd) ?? "sunnah" : null;
+          const isGolden = trad === "golden";
+          const isSunnah = trad === "sunnah";
+
+          const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
+          const statusWord = isGolden ? " — Altın Gün" : isSunnah ? " — Sünnet Günü" : isSel ? " — seçili" : "";
+          const aria = `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${fullHijri}${statusWord}`;
+
+          const stateClass = isGolden
+            ? "border-amber-400 bg-gradient-to-b from-amber-200 to-yellow-50 shadow-sm ring-1 ring-amber-300"
+            : isSunnah
+              ? "border-emerald-400 bg-emerald-50"
+              : isSel
+                ? "border-slate-400 bg-slate-100 shadow-sm"
+                : "border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/40";
+
+          const gregClass = isGolden
+            ? "text-amber-900"
+            : isSunnah
+              ? "text-emerald-900"
+              : isSel
+                ? "text-slate-800"
+                : "text-slate-800";
+
+          const hijriClass = isGolden
+            ? "text-amber-700"
+            : isSunnah
+              ? "text-emerald-700"
+              : "text-slate-500";
+
           return (
             <button
               key={ymd}
@@ -75,36 +111,35 @@ export function MonthCalendar({
               aria-label={aria}
               title={aria}
               className={[
-                "group relative flex min-h-[46px] flex-col items-center justify-center rounded-lg border px-0.5 py-1 text-center outline-none transition sm:min-h-[58px]",
+                "group relative flex min-h-[62px] flex-col items-center justify-start gap-0.5 rounded-lg border px-0.5 py-1 text-center outline-none transition sm:min-h-[76px]",
                 "focus-visible:ring-2 focus-visible:ring-amber-400/70",
-                isSel
-                  ? "border-amber-400 bg-gradient-to-b from-amber-100 to-amber-50 shadow-sm"
-                  : "border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/50",
+                stateClass,
                 isToday && !isSel ? "ring-1 ring-inset ring-slate-300" : "",
               ].join(" ")}
             >
-              <span
-                className={[
-                  "text-sm font-bold leading-none sm:text-base",
-                  isSel ? "text-amber-900" : "text-slate-800",
-                ].join(" ")}
-              >
+              <span className={["text-sm font-bold leading-none sm:text-base", gregClass].join(" ")}>
                 {gDay}
               </span>
+              {/* TAM Hicrî tarih (kısaltma YOK). Dar hücrede kontrollü kelime kaydırma. */}
               <span
-                className={[
-                  "mt-0.5 truncate text-[9px] leading-none sm:text-[11px]",
-                  isSel ? "text-amber-700" : "text-slate-400",
-                ].join(" ")}
+                className={["text-[9px] leading-tight [overflow-wrap:anywhere] sm:text-[10px]", hijriClass].join(" ")}
               >
-                {cell.hijri.day} {shortHijriMonth(cell.hijri.month)}
+                {cell.hijri.day} {cell.hijri.monthName} {cell.hijri.year}
               </span>
-              {/* Kaydedilmiş gün göstergesi (nötr nokta; durum semantiği YOK). */}
-              {isSaved ? (
-                <span
-                  className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${isSel ? "bg-amber-500" : "bg-slate-300"}`}
-                  aria-hidden
-                />
+              {/* Altın Gün: BEŞ altın yıldız (dar ekranda kaybolmaz; tek yıldıza inmez). */}
+              {isGolden ? (
+                <span className="text-[9px] font-bold leading-none tracking-tight text-amber-500 sm:text-[11px]" aria-hidden>
+                  ★★★★★
+                </span>
+              ) : isSunnah ? (
+                <span className="rounded bg-emerald-100 px-1 text-[8px] font-bold uppercase leading-tight text-emerald-700" aria-hidden>
+                  Sünnet
+                </span>
+              ) : isSaved && !isSel ? (
+                // Kaydedilmiş ama seçimden çıkarılmış (kaydedilince silinecek) — nötr işaret.
+                <span className="text-[8px] font-medium leading-none text-slate-400" aria-hidden>
+                  kaldırılacak
+                </span>
               ) : null}
             </button>
           );

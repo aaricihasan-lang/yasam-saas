@@ -9,6 +9,7 @@ import {
   listEntity,
   parseJsonBody,
   pickWritable,
+  seedSunnahAutoDays,
 } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
@@ -74,5 +75,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
   if (!ins.ok) return ins.response;
-  return NextResponse.json({ ok: true, plan: ins.data });
+
+  // YENİ plan: uzmanın VARSAYILAN geleneksel Sünnet/Altın günleri AYNI takvime otomatik
+  // eklenir (ikinci tık gerektirmez; ayrı hesaplanmış takvim YOK). Tohumlama sunucu-sahipli
+  // sunnah_auto kökeniyle yapılır. Başarısız olursa plan yine döner (SESSİZ DEĞİL: autoSeeded
+  // + seededDays ile bildirilir) ve UI "Eksik Sünnet Günlerini Yeniden Ekle" ile telafi sunar.
+  const created = ins.data as { id: string; year: number };
+  const seed = await seedSunnahAutoDays(db, CUPPING_TABLES.calendarPlanDays, tenantId, created.id, created.year);
+  return NextResponse.json({
+    ok: true,
+    plan: ins.data,
+    autoSeeded: seed.ok,
+    seededDays: seed.ok ? seed.data.inserted : 0,
+  });
 }
