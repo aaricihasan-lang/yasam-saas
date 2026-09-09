@@ -22,6 +22,7 @@ import {
 import { useTranslations } from "next-intl";
 import { MEAL_TYPE_LABELS, type MealType } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
+import { formatPortionLabel } from "@/lib/beslenme/portionDisplay";
 import { isAvoidedFood } from "@/lib/beslenme/avoidedMatch";
 import { useAvoidedFoodIds } from "./avoidedFoods";
 import { Field, GhostButton, PrimaryButton, DangerButton, StatusMessage, TextInput } from "../../_components/primitives";
@@ -221,8 +222,14 @@ function ItemRow({
   const carb = totals.find((t) => t.nutrient_code === "carbohydrate");
   const fat = totals.find((t) => t.nutrient_code === "total_fat");
 
-  const amountText = item.portion_label_snapshot
-    ? `${item.quantity && item.quantity !== 1 ? `${formatAmount(item.quantity, "g")} × ` : ""}${item.portion_label_snapshot} · ${formatAmount(item.grams, "g")} g`
+  // Porsiyon gösterimi: ortak SAF formatter (web + Word aynı contract). "su bardağı" gibi
+  // ithal ölçüler gizlenip gram fallback'e düşer; doğal porsiyonlar sadeleşir (bkz. portionDisplay).
+  const naturalPortion = formatPortionLabel({
+    quantity: item.quantity,
+    portionLabel: item.portion_label_snapshot,
+  });
+  const amountText = naturalPortion
+    ? `${naturalPortion} · ${formatAmount(item.grams, "g")} g`
     : `${formatAmount(item.grams, "g")} g`;
 
   async function onDuplicate() {

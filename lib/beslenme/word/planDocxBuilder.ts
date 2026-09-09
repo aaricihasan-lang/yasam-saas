@@ -41,6 +41,7 @@ import {
   daysBetween,
   type ItemNutrientSnapshot,
 } from "@/lib/beslenme/planContracts";
+import { formatPortionLabel } from "@/lib/beslenme/portionDisplay";
 
 // ── Girdi ağacı (snapshot-only; server loader bu şekli üretir) ─────────────────
 
@@ -263,9 +264,11 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
       }
       hasAnyItem = true;
       const rows = items.map((it) => {
-        const miktar = it.portion_label_snapshot
-          ? `${fmtNum(it.quantity ?? 1)} × ${it.portion_label_snapshot}`
-          : "—";
+        // Miktar: ortak SAF formatter (web ile aynı contract). "su bardağı" gibi ithal ölçü
+        // veya güvenle normalize edilemeyen hâl → "—" (gram kolonu authoritative kalır).
+        const miktar =
+          formatPortionLabel({ quantity: it.quantity, portionLabel: it.portion_label_snapshot }) ??
+          "—";
         return [it.food_name_snapshot || "—", miktar, fmtGram(it.grams), fmtKcal(itemEnergy(it))];
       });
       body.push(...repeatingHeaderTable(HEADERS, WIDTHS, rows));

@@ -15,6 +15,7 @@ import {
   type TemplateListRow,
 } from "@/lib/beslenme/faz6Client";
 import { TEMPLATE_TYPE_LABELS, type TemplateType } from "@/lib/beslenme/templateContracts";
+import { EXPORT_DESKTOP_ONLY_CLASS } from "@/lib/beslenme/exportVisibility";
 import { Modal } from "./planUi";
 import { GhostButton, PrimaryButton, StatusMessage, TextInput, InlineSpinner, EmptyState } from "../../_components/primitives";
 import { runInEffect } from "@/lib/runInEffect";
@@ -92,9 +93,13 @@ export function PlanTools({
       <GhostButton icon={<BarChart3 className="h-4 w-4" />} onClick={() => setAnalyticsOpen(true)}>
         Analiz
       </GhostButton>
-      <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
-        Word İndir
-      </GhostButton>
+      {/* Word/PDF export CTA yalnız masaüstünde (≥xl); mobil/tablet gizli. Sarmalayıcı span
+          görünürlüğü taşır (buton display'i bozulmaz). Backend endpoint değişmez. */}
+      <span className={EXPORT_DESKTOP_ONLY_CLASS}>
+        <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
+          Word İndir
+        </GhostButton>
+      </span>
       {!archived ? (
         <>
           <GhostButton
