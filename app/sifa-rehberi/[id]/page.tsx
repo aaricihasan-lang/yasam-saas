@@ -29,7 +29,12 @@ import {
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
-import { supabase } from "@/lib/supabase";
+import {
+  uploadSifaPhoto,
+  deleteSifaPhoto,
+  cleanupSifaPhoto,
+  fetchSifaPhotoSignedUrls,
+} from "@/lib/sifa-rehberi/stonePhotoClient";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -39,7 +44,10 @@ import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 type GuideImage = {
   id: string;
   name: string;
-  url: string;
+  // P1 PHASE A: `file_path` source-of-truth. `url` yalnız LEGACY kayıtlarda bulunur ve
+  // ARTIK render için primary DEĞİL (kalıcı public URL persist edilmez). Render, guide-scoped
+  // signed READ endpoint'inden gelen kısa ömürlü signed URL (signedUrls[img.id]) iledir.
+  url?: string;
   file_path?: string;
   section?: string;
 };
@@ -408,6 +416,9 @@ export default function SifaRehberiDetailPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [lightbox, setLightbox] = useState<GuideImage | null>(null);
+  // P1 PHASE A: görsel render kaynağı — guide-scoped signed READ endpoint'inden gelen
+  // kısa ömürlü signed URL'ler (imageId → signedUrl). DB'ye persist EDİLMEZ.
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadTargetSection, setUploadTargetSection] = useState<DetailTabId | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -581,6 +592,20 @@ export default function SifaRehberiDetailPage() {
 
   useBfcacheRefresh();
 
+  // P1 PHASE A: guide görselleri için kısa ömürlü signed READ URL'lerini yükle. Kaynak
+  // AUTHORITATIVE olarak sunucudaki guide DB metadata'sıdır (arbitrary path oracle DEĞİL).
+  // Demo fixture'lar storage'a dokunmaz → yalnız gerçek kayıtlar için çağrılır.
+  useEffect(() => {
+    if (isDemo || !id || !record?.id) return;
+    let cancelled = false;
+    void fetchSifaPhotoSignedUrls(id).then(({ byId }) => {
+      if (!cancelled) setSignedUrls((prev) => ({ ...prev, ...byId }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isDemo, record?.id]);
+
   function setDraftField<K extends DraftTextKey>(key: K, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
@@ -605,41 +630,34 @@ export default function SifaRehberiDetailPage() {
     setUploadTargetSection(null);
     if (!file || !section || !draft || !id) return;
 
-    setUploadingImage(true);
-    setErrorMessage("");
-
-    const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "") || "jpg";
-    const basename = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
     if (!queryTenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
-    const file_path = `healing-guides/${queryTenantId}/${id}/${section}/${basename}`;
+    setUploadingImage(true);
+    setErrorMessage("");
 
-    const { error: upErr } = await supabase.storage.from("stone-photos").upload(file_path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-    setUploadingImage(false);
-
-    if (upErr) {
-      setErrorMessage(`Görsel yüklenemedi: ${upErr.message}`);
+    // P1 PHASE A: SUNUCU-YETKİLİ signed upload + finalize. Tarayıcı stone-photos üzerinde
+    // anon upload/getPublicUrl KULLANMAZ; path SUNUCUDA üretilir. Dönen entry `file_path`
+    // source-of-truth'tur; preview signed URL yalnız UI state'ine (signedUrls) yazılır.
+    let prepared: Awaited<ReturnType<typeof uploadSifaPhoto>>;
+    try {
+      prepared = await uploadSifaPhoto({ file, guideId: id, section });
+    } catch (e) {
+      setUploadingImage(false);
+      setErrorMessage(e instanceof Error ? e.message : "Görsel yüklenemedi.");
       return;
     }
+    setUploadingImage(false);
 
-    const { data: pub } = supabase.storage.from("stone-photos").getPublicUrl(file_path);
     const entry: GuideImage = {
-      id:
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-      name: file.name,
-      url: pub.publicUrl,
-      file_path,
+      id: prepared.id,
+      name: prepared.name,
+      file_path: prepared.file_path,
       section,
     };
+    setSignedUrls((prev) => ({ ...prev, [entry.id]: prepared.previewUrl }));
 
     const nextImages = [...draft.images, entry];
     setDraft((prev) => (prev ? { ...prev, images: nextImages } : prev));
@@ -647,8 +665,10 @@ export default function SifaRehberiDetailPage() {
     const { error: dbErr } = await persistImages(nextImages);
     if (dbErr) {
       setErrorMessage(`Görsel kaydedilemedi: ${dbErr}`);
+      // Rollback: metadata yazılamadıysa obje ORPHAN'dır (DB'de üye değil) → SUNUCU-YETKİLİ
+      // orphan cleanup ile temizle (membership-tabanlı delete burada uygun değildir).
       try {
-        await supabase.storage.from("stone-photos").remove([file_path]);
+        await cleanupSifaPhoto(entry.file_path!);
       } catch {
         /* ignore */
       }
@@ -664,13 +684,16 @@ export default function SifaRehberiDetailPage() {
   }
 
   async function removeGuideImage(img: GuideImage) {
-    if (!draft) return;
+    if (!draft || !id) return;
     setErrorMessage("");
 
+    // P1 PHASE A: SUNUCU-YETKİLİ silme. Membership + guide ownership sunucuda doğrulanır.
+    // DB metadata henüz bu görseli içerdiğinden (aşağıdaki persist ÖNCESİ) membership geçer.
     if (img.file_path) {
-      const { error: rmErr } = await supabase.storage.from("stone-photos").remove([img.file_path]);
-      if (rmErr) {
-        setErrorMessage(`Depolama silinemedi: ${rmErr.message}`);
+      try {
+        await deleteSifaPhoto(id, img.file_path);
+      } catch (e) {
+        setErrorMessage(e instanceof Error ? e.message : "Görsel silinemedi.");
         return;
       }
     }
@@ -1135,7 +1158,7 @@ export default function SifaRehberiDetailPage() {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={img.url}
+                          src={signedUrls[img.id] ?? img.url ?? ""}
                           alt=""
                           className="aspect-square h-20 w-full object-cover"
                         />
@@ -1304,7 +1327,7 @@ export default function SifaRehberiDetailPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={lightbox.url}
+              src={signedUrls[lightbox.id] ?? lightbox.url ?? ""}
               alt={lightbox.name}
               className="max-h-[min(78vh,720px)] w-auto max-w-full rounded-2xl object-contain"
             />
