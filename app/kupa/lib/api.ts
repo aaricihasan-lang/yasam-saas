@@ -510,12 +510,29 @@ export const listCalendarPlans = (year?: number) =>
     { method: "GET" },
     "plans",
   );
+/**
+ * Plan oluşturma yanıtı. Sunucu yeni planda otomatik geleneksel günleri (Sünnet/Altın)
+ * BEST-EFFORT tohumlar; sonucu `autoSeeded`/`seededDays` ile DÜRÜSTÇE bildirir. İstemci bu
+ * alanları KORUR (generic `call` gibi ATMAZ) → tohumlama başarısızlığı UI'da yüzeye çıkar.
+ * Demo hesabında sunucu `plan: null` döndürebilir (persist=0); çağıran null'ı ele alır.
+ */
+export type CreateCalendarPlanResult = {
+  ok: true;
+  plan: CuppingCalendarPlan | null;
+  autoSeeded?: boolean;
+  seededDays?: number;
+  demo?: boolean;
+};
 export const createCalendarPlan = (body: {
   name: string;
   year: number;
   description?: string | null;
   advice_template_id?: string | null;
-}) => call<CuppingCalendarPlan>(`${BASE}/calendar/plans`, { method: "POST", body: JSON.stringify(body) }, "plan");
+}): Promise<CreateCalendarPlanResult> =>
+  callRaw<CreateCalendarPlanResult>(`${BASE}/calendar/plans`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 /** Plan + seçili günleri birlikte döner (tek istek; hücre başına fetch YOK). */
 export const getCalendarPlan = (id: string) =>
   callRaw<{ ok: true; plan: CuppingCalendarPlan; days: CuppingCalendarPlanDay[] }>(

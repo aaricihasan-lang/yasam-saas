@@ -73,9 +73,25 @@ export function PlanPicker({
     setBusy(true);
     try {
       if (mode === "new") {
-        const plan = await createCalendarPlan({ name: name.trim(), year, description: description.trim() || null });
-        await onPlansChanged(plan.id);
-        showToast({ message: "Takvim oluşturuldu.", type: "success" });
+        const res = await createCalendarPlan({ name: name.trim(), year, description: description.trim() || null });
+        // Demo hesabı: sunucu plan:null döndürür (persist=0) — sahte gün göstermeyiz.
+        if (!res.plan) {
+          showToast({ message: "Takvim oluşturuldu.", type: "success" });
+          setMode("none");
+          return;
+        }
+        // OTORİTER durumu getir (sunnah_auto günler DB'den; client-side sahte satır YOK).
+        await onPlansChanged(res.plan.id);
+        // Tohumlama sonucu DÜRÜST: başarısızsa sessiz geçme, restore aksiyonuna yönlendir.
+        if (res.autoSeeded === false) {
+          showToast({
+            message:
+              "Takvim oluşturuldu ancak otomatik Sünnet günleri eklenemedi. 'Sünnet Günlerini Ekle' ile tekrar deneyebilirsiniz.",
+            type: "warning",
+          });
+        } else {
+          showToast({ message: "Takvim oluşturuldu.", type: "success" });
+        }
       } else if (mode === "edit" && active) {
         // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
         const body: Parameters<typeof updateCalendarPlan>[1] = {

@@ -1673,6 +1673,45 @@ function run(): void {
       "faz5-trad: kanonik yardımcı Kozmik'i/hacamat_rules'ı IMPORT ETMEZ (kendi kuralı)");
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — AUTO-SEED SONUÇ SÖZLEŞMESİ (sessiz DEĞİL) — pre-migration fix
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const clientApi = read("app/kupa/lib/api.ts");
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const plannerSrc = read("app/kupa/takvim/components/PlanPicker.tsx");
+    const sunnahSrc = read("app/kupa/takvim/components/SunnahDaysControl.tsx");
+
+    // createCalendarPlan artık TAM yanıtı korur (callRaw; autoSeeded + seededDays ATILMAZ).
+    const createBlock =
+      /export const createCalendarPlan = \([\s\S]*?\}\): Promise<CreateCalendarPlanResult> =>\s*callRaw<CreateCalendarPlanResult>\(/;
+    ok(createBlock.test(clientApi),
+      "faz5-seed: createCalendarPlan callRaw ile TAM yanıtı korur (Promise<CreateCalendarPlanResult>)");
+    ok(!/createCalendarPlan[\s\S]*?call<CuppingCalendarPlan>\([^)]*"plan"\)/.test(clientApi),
+      "faz5-seed: createCalendarPlan artık generic call(...,'plan') KULLANMAZ (autoSeeded/seededDays atılmaz)");
+    ok(/type CreateCalendarPlanResult = \{[\s\S]*?autoSeeded\?: boolean;[\s\S]*?seededDays\?: number;[\s\S]*?\}/.test(clientApi),
+      "faz5-seed: CreateCalendarPlanResult autoSeeded + seededDays alanlarını taşır");
+
+    // Çağıranlar autoSeeded=false sonucunu YÜZEYE ÇIKARIR (sessiz DEĞİL).
+    ok(/autoSeeded === false/.test(plannerSrc) && /autoSeeded === false/.test(wsSrc),
+      "faz5-seed: PlanPicker + CalendarWorkspace autoSeeded=false durumunu gözlemler");
+    const NOTICE = "otomatik Sünnet günleri eklenemedi";
+    ok(plannerSrc.includes(NOTICE) && wsSrc.includes(NOTICE),
+      "faz5-seed: autoSeeded=false için güvenli Türkçe bildirim gösterilir");
+
+    // autoSeeded=false olsa bile plan KULLANILABİLİR + OTORİTER reload + restore mevcut.
+    ok(/onPlansChanged\(res\.plan\.id\)/.test(plannerSrc) && /onCreated\(res\.plan\.id\)/.test(wsSrc),
+      "faz5-seed: oluşturma sonrası OTORİTER plan durumu getirilir (client-side sahte satır YOK)");
+    ok(/res\.plan/.test(plannerSrc) && /res\.plan/.test(wsSrc),
+      "faz5-seed: demo/null-plan güvenli ele alınır (plan yine kullanılabilir)");
+    ok(/Sünnet Günlerini Ekle/.test(sunnahSrc),
+      "faz5-seed: restore aksiyonu ('Sünnet Günlerini Ekle') autoSeed başarısızlığında mevcut");
+
+    // Ham DB hatası sızmaz: callRaw yalnız json.error mesajını fırlatır.
+    ok(/json\.error \?\? "İşlem başarısız\."/.test(clientApi),
+      "faz5-seed: callRaw ham DB hatası sızdırmaz (yalnız sanitized json.error)");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);

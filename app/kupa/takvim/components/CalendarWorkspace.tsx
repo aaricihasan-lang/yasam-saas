@@ -456,9 +456,24 @@ function FirstPlanButton({ onCreated }: { onCreated: (id: string) => void }) {
     try {
       const y = new Date().getFullYear();
       const { createCalendarPlan } = await import("@/app/kupa/lib/api");
-      const plan = await createCalendarPlan({ name: `${y} Hacamat Takvimi`, year: y });
-      onCreated(plan.id);
-      showToast({ message: "Takvim oluşturuldu.", type: "success" });
+      const res = await createCalendarPlan({ name: `${y} Hacamat Takvimi`, year: y });
+      if (!res.plan) {
+        // Demo hesabı (persist=0): sahte gün göstermeyiz.
+        showToast({ message: "Takvim oluşturuldu.", type: "success" });
+        return;
+      }
+      // OTORİTER durumu getir (sunnah_auto günler DB'den; client-side sahte satır YOK).
+      onCreated(res.plan.id);
+      // Tohumlama sonucu DÜRÜST: başarısızsa sessiz geçmeyiz, restore aksiyonuna yönlendiririz.
+      showToast(
+        res.autoSeeded === false
+          ? {
+              message:
+                "Takvim oluşturuldu ancak otomatik Sünnet günleri eklenemedi. 'Sünnet Günlerini Ekle' ile tekrar deneyebilirsiniz.",
+              type: "warning",
+            }
+          : { message: "Takvim oluşturuldu.", type: "success" },
+      );
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Oluşturulamadı.", type: "error" });
     } finally {
