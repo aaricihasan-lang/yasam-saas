@@ -3,9 +3,9 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   STONE_PHOTOS_BUCKET,
   isGuideOwnedHealingPath,
-  resolveHealingImagePath,
-  storageHostFromEnv,
+  isStagingHealingPath,
 } from "@/lib/sifa-rehberi/stonePhotoStorage";
+import { loadGuideImageMembership } from "@/lib/sifa-rehberi/guideImageMembership";
 
 export const runtime = "nodejs";
 
@@ -17,17 +17,18 @@ export const runtime = "nodejs";
  * GÜVENLİK (arbitrary client path delete DEĞİL):
  *   - requireModuleAccess("sifa_rehberi") + tenantId SUNUCUDAN.
  *   - guide ownership (healing_guides.id = guideId AND tenant_id = guard.tenantId).
- *   - file_path YALNIZ `healing-guides/{tenant}/{guideId}/` öneki altında olabilir.
- *   - RESOURCE MEMBERSHIP: file_path bu guide'ın DB image metadata'sında GERÇEKTEN var olmalı
- *     — path'i bilmek/tenant öneki YETMEZ. (file_path authorization proof DEĞİL.)
+ *   - file_path YALNIZ `healing-guides/{tenant}/{guideId}/` (guide-owned) VEYA
+ *     `healing-guides/{tenant}/staging/` (create-flow'da persist edilen) öneki altında olabilir.
+ *   - RESOURCE MEMBERSHIP: file_path bu guide'ın AUTHORITATIVE DB image metadata'sında
+ *     (top-level `healing_guides.images` + section `healing_guide_sections.images` BİRLEŞİK)
+ *     GERÇEKTEN var olmalı — path'i bilmek / tenant|staging önekini bilmek YETMEZ.
+ *     (file_path authorization proof DEĞİL.) → arbitrary staging + cross-guide delete engellenir.
  *   - service_role storage remove; metadata JSONB güncellemesi mevcut ürün akışında
- *     (updateHealingGuide → module-authed guide route) yapılır.
+ *     (updateHealingGuide / replace_healing_guide_sections → module-authed route) yapılır.
  *   - Demo hesap: DENY.
  *
  * İstek (JSON): { guideId: string, file_path: string }
  */
-
-type GuideImageRow = { file_path?: unknown; url?: unknown };
 
 export async function DELETE(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "sifa_rehberi");
@@ -51,35 +52,26 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "guideId ve file_path gerekli." }, { status: 400 });
   }
 
-  // Prefix savunması — path yalnız bu tenant+guide öneki altında.
-  if (!isGuideOwnedHealingPath(filePath, tenantId, guideId)) {
+  // Prefix savunması — path yalnız bu tenant+guide öneki VEYA tenant staging öneki altında.
+  // (Nihai yetki AŞAĞIDAKİ DB membership'tir; bu yalnız erken/ucuz reddir.)
+  const isGuideOwned = isGuideOwnedHealingPath(filePath, tenantId, guideId);
+  const isStaging = isStagingHealingPath(filePath, tenantId);
+  if (!isGuideOwned && !isStaging) {
     return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
   }
 
-  // Guide ownership + membership: file_path bu guide'ın image metadata'sında olmalı.
-  const { data: guide, error: guideErr } = await db
-    .from("healing_guides")
-    .select("id, images")
-    .eq("id", guideId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-
-  if (guideErr) {
-    console.error("[sifa-rehberi/photos DELETE] guide lookup", guideErr);
+  // AUTHORITATIVE membership: guide ownership + top-level + section görsel birleşik set.
+  const result = await loadGuideImageMembership(db, tenantId, guideId);
+  if (!result.ok) {
+    if (result.reason === "not_found") {
+      return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    }
+    console.error("[sifa-rehberi/photos DELETE] membership load failed");
     return NextResponse.json({ ok: false, error: "Kayıt doğrulanamadı." }, { status: 500 });
   }
-  if (!guide) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
-  }
 
-  const allowedHost = storageHostFromEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const images = Array.isArray(guide.images) ? (guide.images as GuideImageRow[]) : [];
-  const isMember = images.some(
-    (img) =>
-      (typeof img.file_path === "string" && img.file_path === filePath) ||
-      resolveHealingImagePath(img, tenantId, allowedHost) === filePath,
-  );
-  if (!isMember) {
+  // file_path bu guide'ın AUTHORITATIVE image set'inde GERÇEKTEN olmalı (staging dahil).
+  if (!result.membership.paths.has(filePath)) {
     return NextResponse.json({ ok: false, error: "Görsel bu kayda ait değil." }, { status: 403 });
   }
 

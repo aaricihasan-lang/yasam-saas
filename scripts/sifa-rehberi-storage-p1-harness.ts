@@ -38,6 +38,7 @@ import {
   parseStonePhotoPathFromPublicUrl,
   resolveHealingImagePath,
 } from "@/lib/sifa-rehberi/stonePhotoStorage";
+import { computeGuideImageMembership } from "@/lib/sifa-rehberi/guideImageMembership";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -61,6 +62,8 @@ const DELETE_ROUTE = "app/api/sifa-rehberi/photos/route.ts";
 const CLEANUP = "app/api/sifa-rehberi/photos/cleanup/route.ts";
 const CLIENT = "lib/sifa-rehberi/stonePhotoClient.ts";
 const WORD = "app/api/sifa-rehberi/word-report/route.ts";
+const MEMBERSHIP = "lib/sifa-rehberi/guideImageMembership.ts";
+const GUIDES_POST = "app/api/sifa-rehberi/guides/route.ts";
 const STONES_TAB = "app/dashboard/clients/[id]/components/StonesTab.tsx";
 
 const list = read(LIST);
@@ -72,6 +75,8 @@ const del = read(DELETE_ROUTE);
 const cleanup = read(CLEANUP);
 const client = read(CLIENT);
 const word = read(WORD);
+const membership = read(MEMBERSHIP);
+const guidesPost = read(GUIDES_POST);
 
 // stone-photos üzerinde browser anon storage-mutation regex'leri (bucket'a bağlı).
 const UPLOAD_RE = /\.storage\s*\.\s*from\(\s*["']stone-photos["']\s*\)\s*\.\s*upload\s*\(/;
@@ -133,20 +138,24 @@ ok("28. finalize: demo DENY", /is_demo_account/.test(finalize));
 // ─── SIGNED-READ ROUTE ────────────────────────────────────────────────────────
 console.log("SIGNED-READ ROUTE");
 ok('29. signed-urls: requireModuleAccess("sifa_rehberi") + tenantId guard', /requireModuleAccess\(\s*req\s*,\s*["']sifa_rehberi["']\s*\)/.test(signed) && /const\s*\{[^}]*\btenantId\b[^}]*\}\s*=\s*guard/.test(signed));
-ok("30. signed-urls: guide ownership (tenant_id eq) zorunlu", /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(signed));
-ok("31. signed-urls: ARBITRARY path oracle DEĞİL (client path array OKUNMUYOR; DB metadata'dan türetilir)", !/body\.paths\b/.test(signed) && /resolveHealingImagePath\(/.test(signed) && /guide\.images/.test(signed));
+ok("30. signed-urls: guide ownership membership helper üzerinden (loadGuideImageMembership → tenant_id eq)", /loadGuideImageMembership\(\s*db\s*,\s*tenantId\s*,\s*guideId\s*\)/.test(signed) && /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(membership));
+ok("31. signed-urls: ARBITRARY path oracle DEĞİL (client path array OKUNMUYOR; DB metadata'dan türetilir)", !/body\.paths\b/.test(signed) && /loadGuideImageMembership\(/.test(signed));
 ok("32. signed-urls: short-lived TTL (SIGNED_URL_TTL_SECONDS) + createSignedUrls", /SIGNED_URL_TTL_SECONDS/.test(signed) && /createSignedUrls\(/.test(signed));
+ok("32b. signed-urls: membership helper üzerinden section images de kapsanır (paths seti imzalanır)", /result\.membership\.paths|const\s*\{\s*paths/.test(signed) && !/\.select\(\s*["']id, images["']\s*\)/.test(signed));
 
 // ─── DELETE ROUTE ────────────────────────────────────────────────────────────
 console.log("DELETE ROUTE");
 ok('33. delete: requireModuleAccess("sifa_rehberi") + tenantId guard + demo DENY', /requireModuleAccess\(\s*req\s*,\s*["']sifa_rehberi["']\s*\)/.test(del) && /is_demo_account/.test(del));
-ok("34. delete: guide ownership + path prefix + DB membership doğrulaması", /\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(del) && /isGuideOwnedHealingPath\(/.test(del) && /isMember/.test(del));
+ok("34. delete: guide ownership (membership helper) + path prefix + AUTHORITATIVE membership", /loadGuideImageMembership\(/.test(del) && /isGuideOwnedHealingPath\(/.test(del) && /membership\.paths\.has\(/.test(del));
+ok("34b. delete: staging path da kabul edilir (guide-owned VEYA staging) ama membership zorunlu", /isStagingHealingPath\(/.test(del) && /isGuideOwned\s*&&\s*!isStaging|!isGuideOwned\s*&&\s*!isStaging/.test(del));
 ok("35. delete: service_role storage remove (guard.db)", /db\.storage\.from\(\s*STONE_PHOTOS_BUCKET\s*\)\.remove\(/.test(del));
 
 // ─── CLEANUP ROUTE ─────────────────────────────────────────────────────────────
 console.log("CLEANUP ROUTE");
 ok('36. cleanup: requireModuleAccess + tenant-owned path + demo DENY', /requireModuleAccess\(\s*req\s*,\s*["']sifa_rehberi["']\s*\)/.test(cleanup) && /isTenantOwnedHealingPath\(/.test(cleanup) && /is_demo_account/.test(cleanup));
 ok("37. cleanup: SADECE orphan (DB reference varsa 409) + service_role remove", /409/.test(cleanup) && /db\.storage\.from\(\s*STONE_PHOTOS_BUCKET\s*\)\.remove\(/.test(cleanup));
+ok("37a. cleanup: top-level healing_guides.images referans kontrolü", /from\(\s*["']healing_guides["']\s*\)[\s\S]*?filter\(\s*["']images["']/.test(cleanup));
+ok("37b. cleanup: section healing_guide_sections.images referans kontrolü (tenant inner join)", /from\(\s*["']healing_guide_sections["']\s*\)[\s\S]*?healing_guides!inner[\s\S]*?filter\(\s*["']images["']/.test(cleanup));
 
 // ─── WORD REPORT ───────────────────────────────────────────────────────────────
 console.log("WORD REPORT");
@@ -155,6 +164,16 @@ ok("39. word: getPublicUrl( ZERO", !GETPUBLIC_RE.test(word));
 ok("40. word: `/storage/v1/object/public/` FETCH dependency YOK", !/\/storage\/v1\/object\/public\//.test(word));
 ok("41. word: tenant-owned file_path → service_role download", /resolveHealingImagePath\(/.test(word) && /downloadSafeStonePhotos\(/.test(word));
 ok("42. word: legacy public-URL fetch (fetchSafeImages/extractImageUrls) ARTIK ÇAĞRILMIYOR", !/fetchSafeImages\(/.test(word) && !/extractImageUrls\(/.test(word));
+ok("42a. word: top-level (guide.images) VE section (healing_guide_sections.images) görselleri işlenir", /pushPaths\(\s*["']guide["']/.test(word) && /pushPaths\(\s*["']section["']/.test(word) && /healing_guide_sections/.test(word));
+ok("42b. word: yalnız DB metadata path'leri indirilir (arbitrary staging download YOK)", /downloadSafeStonePhotos\(\s*db\s*,\s*STONE_PHOTOS_BUCKET\s*,\s*capped\.map/.test(word) && !/body\.paths\b/.test(word));
+
+// ─── MEMBERSHIP HELPER — AUTHORITATIVE SET (contract merkezi) ──────────────────
+console.log("MEMBERSHIP HELPER");
+ok("H1. helper: parent guide tenant ownership (id + tenant_id) doğrular", /from\(\s*["']healing_guides["']\s*\)[\s\S]*?\.eq\(\s*["']id["']\s*,\s*guideId\s*\)[\s\S]*?\.eq\(\s*["']tenant_id["']\s*,\s*tenantId\s*\)/.test(membership));
+ok("H2. helper: section görselleri healing_guide_sections'tan (guide_id) okunur", /from\(\s*["']healing_guide_sections["']\s*\)[\s\S]*?\.eq\(\s*["']guide_id["']\s*,\s*guideId\s*\)/.test(membership));
+ok("H3. helper: top-level + section BİRLEŞİK (computeGuideImageMembership)", /computeGuideImageMembership\(/.test(membership));
+ok("H4. helper: her path resolveHealingImagePath ile tenant-owned doğrulanır", /resolveHealingImagePath\(/.test(membership));
+ok("H5. guides POST: section images persist edilir (healing_guide_sections.images)", /images:\s*Array\.isArray\(\s*s\.images\s*\)/.test(guidesPost) && /from\(\s*["']healing_guide_sections["']\s*\)\.insert/.test(guidesPost));
 
 // ─── SCOPE ISOLATION ──────────────────────────────────────────────────────────
 console.log("SCOPE ISOLATION");
@@ -230,6 +249,60 @@ ok("resolve: file_path yok → legacy trusted public URL parse", resolveHealingI
 ok("resolve: arbitrary dış URL → null", resolveHealingImagePath({ url: "https://evil.example/pic.png" }, T1, HOST) === null);
 ok("resolve: cross-tenant public URL → null", resolveHealingImagePath({ url: `https://${HOST}/storage/v1/object/public/stone-photos/healing-guides/${T2}/${G1}/dogaltas/x.png` }, T1, HOST) === null);
 ok("resolve: boş/null görsel → null", resolveHealingImagePath(null, T1, HOST) === null && resolveHealingImagePath({}, T1, HOST) === null);
+
+// ─── MEMBERSHIP BEHAVIOR (computeGuideImageMembership — PURE, gerçek davranış) ──
+console.log("MEMBERSHIP BEHAVIOR");
+const topImg = { id: "img-top", file_path: gp };                       // top-level guide-owned
+const secGuidePath = buildGuidePhotoPath(T1, G1, "belirtiler", "uuidS", "png");
+const secImg = { id: "img-sec", file_path: secGuidePath };             // section guide-owned
+const stagingPath = buildStagingPhotoPath(T1, "uuidStg", "png");
+const stagingImg = { id: "img-stg", file_path: stagingPath };          // DB-member staging
+
+// Guide A AUTHORITATIVE set: top-level [topImg, stagingImg] + section [[secImg]].
+const mA = computeGuideImageMembership([topImg, stagingImg], [[secImg]], T1, HOST);
+ok("M1. TOP-LEVEL image path AUTHORITATIVE (signed read + delete)", mA.paths.has(gp));
+ok("M2. SECTION image path AUTHORITATIVE (signed read + delete)", mA.paths.has(secGuidePath));
+ok("M3. POST-CREATE DB-member STAGING path AUTHORITATIVE (signed read + delete)", mA.paths.has(stagingPath));
+ok(
+  "M4. imageId→path haritası (top + section + staging)",
+  mA.pathByImageId.get("img-top") === gp &&
+    mA.pathByImageId.get("img-sec") === secGuidePath &&
+    mA.pathByImageId.get("img-stg") === stagingPath,
+);
+
+// Arbitrary staging (metadata'da OLMAYAN) → AUTHORITATIVE DEĞİL → sign/delete ZERO.
+const arbitraryStaging = buildStagingPhotoPath(T1, "not-a-member", "png");
+ok("M5. ARBITRARY staging (metadata dışı) sign/delete ZERO", !mA.paths.has(arbitraryStaging));
+
+// Cross-guide normal image (guide B path guide A metadata'sında yok) → ZERO.
+const guideBPath = buildGuidePhotoPath(T1, G2, "dogaltas", "uuidB", "png");
+ok("M6. CROSS-GUIDE normal image sign/delete ZERO", !mA.paths.has(guideBPath));
+
+// Cross-guide staging izolasyonu: guide B'nin kendi staging'i guide A set'inde YOK.
+const guideBStaging = buildStagingPhotoPath(T1, "uuidBstg", "png");
+const mB = computeGuideImageMembership([{ id: "b", file_path: guideBStaging }], [], T1, HOST);
+ok(
+  "M7. CROSS-GUIDE staging izolasyonu (B'nin staging'i A set'inde YOK)",
+  mB.paths.has(guideBStaging) && !mA.paths.has(guideBStaging),
+);
+
+// Cross-tenant path guide A (T1) metadata'sında OLSA bile resolve REDDEDER → set boş.
+const crossTenant = buildGuidePhotoPath(T2, G1, "dogaltas", "uuidX", "png");
+const mCross = computeGuideImageMembership([{ file_path: crossTenant }], [], T1, HOST);
+ok("M8. CROSS-TENANT path resolve reddi → set boş", mCross.paths.size === 0);
+
+// Legacy: section image url-form (trusted public stone-photos) → path AUTHORITATIVE.
+const legacyUrl = `https://${HOST}/storage/v1/object/public/stone-photos/${secGuidePath}`;
+const mLegacy = computeGuideImageMembership([], [[{ url: legacyUrl }]], T1, HOST);
+ok("M9. LEGACY section url (trusted public) → path AUTHORITATIVE", mLegacy.paths.has(secGuidePath));
+
+// Arbitrary external url section görseli → AUTHORITATIVE DEĞİL.
+const mEvil = computeGuideImageMembership([], [[{ url: "https://evil.example/x.png" }]], T1, HOST);
+ok("M10. ARBITRARY dış url section görseli AUTHORITATIVE DEĞİL", mEvil.paths.size === 0);
+
+// Boş/bozuk girdi → boş set (throw etmez).
+const mEmpty = computeGuideImageMembership(null, [null, undefined, "x"], T1, HOST);
+ok("M11. boş/bozuk girdi → boş set (dayanıklı)", mEmpty.paths.size === 0);
 
 // ─── SONUÇ ───────────────────────────────────────────────────────────────────
 console.log(`\nP1 STONE-PHOTOS PHASE A · ŞİFA REHBERİ HARNESS: ${pass} passed, ${fail} failed`);

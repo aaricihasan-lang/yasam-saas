@@ -17,9 +17,10 @@ export const runtime = "nodejs";
  * GÜVENLİK (arbitrary client path delete DEĞİL):
  *   - requireModuleAccess("sifa_rehberi") + tenantId SUNUCUDAN.
  *   - path YALNIZ `healing-guides/{tenant}/` öneki altında olabilir (cross-tenant/traversal reddi).
- *   - SADECE ORPHAN: bu path'e referans veren bir healing_guides.images satırı (bu tenant'ta)
- *     VARSA silme YAPILMAZ (persist edilmiş gerçek veri korunur). Böylece bu uçla başka tenant
- *     objesi ya da kendi KAYITLI görseli silinemez — yalnız metadata'sız kendi orphan'ı.
+ *   - SADECE ORPHAN: bu path'e referans veren bir kayıt VARSA silme YAPILMAZ (persist edilmiş
+ *     gerçek veri korunur). Referans İKİ kaynakta da aranır: `healing_guides.images` (top-level)
+ *     VE `healing_guide_sections.images` (section; parent guide bu tenant'a ait). Böylece
+ *     create-flow'da bir section'a persist edilmiş staging file_path yanlışlıkla silinemez.
  *   - service_role storage remove.
  *   - Demo hesap: DENY.
  *
@@ -50,18 +51,38 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
   }
 
-  // Yalnız ORPHAN: bu path'e referans veren bir kayıt (images JSONB) varsa DOKUNMA.
-  const { data: refRows, error: refErr } = await db
+  // Yalnız ORPHAN — bu path'e referans veren bir kayıt varsa DOKUNMA. İKİ kaynağı da tara:
+  // (1) top-level healing_guides.images (bu tenant), (2) section healing_guide_sections.images
+  // (parent guide bu tenant'a ait). Herhangi biri referanslıysa 409 (persist veri korunur).
+  const filter = JSON.stringify([{ file_path: path }]);
+
+  const { data: guideRefRows, error: guideRefErr } = await db
     .from("healing_guides")
     .select("id")
     .eq("tenant_id", tenantId)
-    .filter("images", "cs", JSON.stringify([{ file_path: path }]))
+    .filter("images", "cs", filter)
     .limit(1);
-  if (refErr) {
-    console.error("[sifa-rehberi/photos/cleanup] reference check", refErr);
+  if (guideRefErr) {
+    console.error("[sifa-rehberi/photos/cleanup] guide reference check", guideRefErr);
     return NextResponse.json({ ok: false, error: "Doğrulanamadı." }, { status: 500 });
   }
-  if (refRows && refRows.length > 0) {
+  if (guideRefRows && guideRefRows.length > 0) {
+    return NextResponse.json({ ok: false, error: "Görsel kayıtlı; temizlenemez." }, { status: 409 });
+  }
+
+  // Section referansı — healing_guide_sections tenant_id taşımaz → parent guide üzerinden
+  // INNER JOIN ile bu tenant'a bağlanır (cross-tenant leak yok).
+  const { data: sectionRefRows, error: sectionRefErr } = await db
+    .from("healing_guide_sections")
+    .select("guide_id, healing_guides!inner(tenant_id)")
+    .eq("healing_guides.tenant_id", tenantId)
+    .filter("images", "cs", filter)
+    .limit(1);
+  if (sectionRefErr) {
+    console.error("[sifa-rehberi/photos/cleanup] section reference check", sectionRefErr);
+    return NextResponse.json({ ok: false, error: "Doğrulanamadı." }, { status: 500 });
+  }
+  if (sectionRefRows && sectionRefRows.length > 0) {
     return NextResponse.json({ ok: false, error: "Görsel kayıtlı; temizlenemez." }, { status: 409 });
   }
 
