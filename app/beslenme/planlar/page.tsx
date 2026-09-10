@@ -224,7 +224,7 @@ export default function PlanlarPage() {
                     loading={busyId === p.id}
                     onClick={() => void doCopy(p)}
                   >
-                    Kopyala
+                    Planı Kopyala
                   </GhostButton>
                   {!archived ? (
                     <>

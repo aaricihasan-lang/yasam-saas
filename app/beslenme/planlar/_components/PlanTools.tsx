@@ -107,7 +107,7 @@ export function PlanTools({
             disabled={!selectedDay}
             onClick={() => setSaveOpen(true)}
           >
-            Günü Şablonla
+            Günü Şablona Kaydet
           </GhostButton>
           <GhostButton
             icon={<LayoutTemplate className="h-4 w-4" />}
