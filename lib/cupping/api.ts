@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getTraditionalCuppingDatesForYear, SELECTION_SOURCE_SUNNAH } from "./traditionalDays";
 
 /**
  * KUPA & HACAMAT — server CRUD yardımcıları.
@@ -153,6 +154,40 @@ export async function assertOwnedRef(
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return !error && !!data;
+}
+
+/**
+ * FAZ 5 / AŞAMA 3 — Bir plan yılının otomatik geleneksel günlerini (Sünnet/Altın) plana
+ * `sunnah_auto` kökeniyle ekler. Kural lib/cupping/traditionalDays.ts'ten TÜRETİLİR
+ * (17/19/21 + izinli haftagünü; 17+Salı=Altın). Kozmik'e DOKUNMAZ.
+ *
+ * IDEMPOTENT + MANUEL-KORUR: UNIQUE(tenant,plan,date) çakışmaları YOKSAYILIR
+ *   (ignoreDuplicates) → hâlihazırda VAR olan gün (manuel VEYA otomatik) DEĞİŞTİRİLMEZ;
+ *   yalnız EKSİK aday günler eklenir. Formüle uyan MANUEL bir gün manuel KALIR (asla
+ *   sunnah_auto'ya çevrilmez — manuel kazanır). Kozmik/Word/appointment yan-etkisi YOK.
+ */
+export async function seedSunnahAutoDays(
+  db: SupabaseClient,
+  table: string,
+  tenantId: string,
+  planId: string,
+  year: number,
+): Promise<Ok<{ inserted: number; skippedExisting: number }> | Fail> {
+  const dates = getTraditionalCuppingDatesForYear(year);
+  if (dates.length === 0) return { ok: true, data: { inserted: 0, skippedExisting: 0 } };
+  const rows = dates.map((d) => ({
+    tenant_id: tenantId,
+    plan_id: planId,
+    gregorian_date: d.gregorian_date,
+    selection_source: SELECTION_SOURCE_SUNNAH,
+  }));
+  const { data, error } = await db
+    .from(table)
+    .upsert(rows, { onConflict: "tenant_id,plan_id,gregorian_date", ignoreDuplicates: true })
+    .select("id");
+  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
+  const inserted = data?.length ?? 0;
+  return { ok: true, data: { inserted, skippedExisting: rows.length - inserted } };
 }
 
 /**

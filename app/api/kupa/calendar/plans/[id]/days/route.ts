@@ -72,10 +72,13 @@ export async function POST(
   const note =
     typeof parsed.data.note === "string" && parsed.data.note.trim() !== "" ? parsed.data.note : null;
 
+  // Bu genel uç YALNIZ MANUEL gün üretir (köken sunucu-sahipli; client 'sunnah_auto'
+  // enjekte EDEMEZ). Sistem-otomatik Sünnet/Altın günleri ayrı traditional-days ucu yazar.
   const rows = dates.map((gregorian_date) => ({
     tenant_id: tenantId,
     plan_id: id,
     gregorian_date,
+    selection_source: "manual" as const,
     user_label: userLabel,
     note,
   }));

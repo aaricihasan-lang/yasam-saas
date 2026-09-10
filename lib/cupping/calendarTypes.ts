@@ -48,6 +48,12 @@ export type CuppingCalendarPlanDay = {
   plan_id: string;
   /** "YYYY-MM-DD" (PostgreSQL DATE). */
   gregorian_date: string;
+  /**
+   * KÖKEN (provenance): "manual" (uzman seçti) | "sunnah_auto" (sistem geleneksel kural).
+   * Sunucu-sahipli; client ASLA yazamaz. "Sünnet Günlerini Temizle" yalnız sunnah_auto siler.
+   * (Geleneksel gösterim sınıfı — Sünnet/Altın — tarihten TÜRETİLİR; burada saklanmaz.)
+   */
+  selection_source: "manual" | "sunnah_auto";
   user_label: string | null;
   note: string | null;
   created_at: string;

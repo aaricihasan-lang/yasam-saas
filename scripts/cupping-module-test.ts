@@ -34,6 +34,16 @@ import {
   CLIENT_ADVICE_WRITABLE,
 } from "../lib/cupping/fields";
 import { gregorianToHijri, parseYmd, monthHijriCells, HIJRI_MONTHS_TR } from "../lib/cupping/hijri";
+import {
+  getCuppingTraditionalDayStatus,
+  getTraditionalCuppingDatesForYear,
+  isCuppingSelectionSource,
+  CUPPING_SUNNAH_HIJRI_DAYS,
+  CUPPING_SUNNAH_ALLOWED_ISO_WEEKDAYS,
+  CUPPING_SELECTION_SOURCES,
+  CUPPING_ALTIN_HIJRI_DAY,
+  CUPPING_ALTIN_ISO_WEEKDAY,
+} from "../lib/cupping/traditionalDays";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
 import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
@@ -41,6 +51,21 @@ import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/mod
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
 import { ALL_TRANSFER_GROUP_KEYS, emptyTransferCounts } from "../lib/admin/veriPaylasimiTransfer";
 import { remapJunctionRows } from "../lib/admin/transferJunction";
+import {
+  computeBulkDates,
+  isoWeekday,
+  hasAnyCriteria,
+  validHijriDay,
+  validWeekday,
+  validMonth,
+  WEEKDAYS_TR,
+} from "../app/kupa/takvim/lib/bulk";
+import {
+  getCuppingCellState,
+  computeCalendarCounts,
+  cuppingCellBadge,
+  CUPPING_CELL_PALETTE,
+} from "../app/kupa/takvim/lib/cellState";
 
 let passed = 0;
 let failed = 0;
@@ -1354,12 +1379,548 @@ function run(): void {
     "faz5-boundary: Kozmik Hacamat içe-aktarma/bağı YOK");
   ok(!/inngest|outbox|yasam_hafizasi|memory[-_]event/i.test(faz5Blob), "faz5-boundary: Yaşam Hafızası (CDC/outbox/Inngest) YOK");
   ok(!/appointment|randevu/i.test(faz5Blob), "faz5-boundary: randevu (appointment) entegrasyonu YOK");
-  ok(!exists("app/kupa/takvim"), "faz5-boundary: /kupa/takvim UI YOK (bu aşamada)");
+  ok(exists("app/kupa/takvim/page.tsx"), "faz5-a3: /kupa/takvim UI rotası MEVCUT (AŞAMA 3)");
   ok(!exists("app/api/kupa/calendar/plans/[id]/word") && !exists("app/api/kupa/client-advice/word"),
     "faz5-boundary: Word endpoint YOK (bu aşamada)");
   // Kozmik dosyaları bu değişiklikte DOKUNULMADI (repo'da mevcut + FAZ5 bloğu referans vermiyor).
   ok(exists("lib/cosmic/hacamat.ts") && exists("app/cosmic-calendar/hacamat/page.tsx"),
     "faz5-boundary: Kozmik Hacamat dosyaları yerinde (dokunulmadı)");
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — HACAMAT TAKVİMİ KULLANICI ÇALIŞMA ALANI (UI + nötr toplu seçim)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const pageSrc = read("app/kupa/takvim/page.tsx");
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const mcSrc = read("app/kupa/takvim/components/MonthCalendar.tsx");
+    const navSrc = read("app/kupa/takvim/components/MonthNav.tsx");
+    const bulkUiSrc = read("app/kupa/takvim/components/BulkDateSelector.tsx");
+    const adviceSrc = read("app/kupa/takvim/components/OutputAdviceSection.tsx");
+    const clientSrc = read("app/kupa/takvim/components/ClientAdviceSection.tsx");
+    const bulkLibSrc = read("app/kupa/takvim/lib/bulk.ts");
+    const sunnahSrc = read("app/kupa/takvim/components/SunnahDaysControl.tsx");
+    const toggleSrc = read("app/kupa/takvim/components/CalendarViewToggle.tsx");
+    const summarySrc = read("app/kupa/takvim/components/CalendarSummary.tsx");
+    const annualSrc = read("app/kupa/takvim/components/AnnualCalendarOverview.tsx");
+    const cellStateSrc = read("app/kupa/takvim/lib/cellState.ts");
+    const apiSrc = read("app/kupa/lib/api.ts");
+    const landingSrc = read("app/kupa/page.tsx");
+    const takvimBlob = [pageSrc, wsSrc, mcSrc, navSrc, bulkUiSrc, adviceSrc, clientSrc, bulkLibSrc, sunnahSrc, toggleSrc, summarySrc, annualSrc, cellStateSrc].map(stripTs).join("\n");
+
+    // — Rota + landing —
+    ok(exists("app/kupa/takvim/page.tsx"), "faz5-a3: /kupa/takvim rotası var");
+    ok(/href="\/kupa\/takvim"/.test(landingSrc), "faz5-a3: landing → /kupa/takvim bağlantısı var");
+    ok(/Hacamat Takvimi/.test(landingSrc) && /Hacamat Protokolleri/.test(landingSrc),
+      "faz5-a3: landing hiyerarşisi Protokoller + Takvim içerir");
+
+    // — Gregoryen + Hicrî HER GÜN, lib/cupping/hijri.ts türetimi —
+    ok(/from "@\/lib\/cupping\/hijri"/.test(mcSrc) && /monthHijriCells/.test(mcSrc),
+      "faz5-a3: takvim ızgarası lib/cupping/hijri.ts kullanır (Hicrî türetilir)");
+    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+      "faz5-a3: her gün Gregoryen + TAM Hicrî (gün + ay adı + yıl) gösterir");
+    ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
+      "faz5-a3: Hicrî ay adı KISALTILMAZ (shortHijriMonth/slice YOK — görünür tam ad)");
+    ok(/aria-pressed/.test(mcSrc) && /aria-label/.test(mcSrc),
+      "faz5-a3: gün butonları erişilebilir (aria-pressed + aria-label)");
+    ok(/grid-cols-7/.test(mcSrc) && /sm:/.test(mcSrc),
+      "faz5-a3: 7-kolon takvim + responsive sınıflar (mobil)");
+
+    // — Kozmik: yalnız NAVİGASYON linki; KOD importu/sync YOK —
+    ok(/href="\/cosmic-calendar\/hacamat"/.test(wsSrc), "faz5-a3: Kozmik referans yalnız NAVİGASYON linki");
+    ok(!/from ["'][^"']*cosmic[^"']*["']/.test(takvimBlob),
+      "faz5-a3: takvim dosyaları Kozmik KOD importu YAPMAZ");
+    ok(!/hacamat_rules|SUNNET_HICRI|UYGUN_HICRI|NOTABLE_HICRI|YASAKLI_WEEKDAYS/i.test(takvimBlob),
+      "faz5-a3: Kozmik hacamat_rules/kural sabiti KOPYALANMAZ (Kupa kendi kilitli kuralı)");
+
+    // — YENİ ÜRÜN KURALI (owner KİLİTLİ): otomatik Sünnet/Altın günler AYNI takvimde —
+    ok(/useState<number\[\]>\(\[\]\)/.test(bulkUiSrc),
+      "faz5-a3: TOPLU seçim ölçütleri hâlâ ön-seçili DEĞİL (bulk nötr kalır)");
+    // Geleneksel sınıf artık paylaşılan cellState.ts üzerinden TÜRETİLİR (tek doğruluk
+    // kaynağı; Aylık + Yıllık aynı). cellState.ts kanonik getCuppingTraditionalDayStatus'u
+    // import eder; JSX'e 17/19/21 kuralı dağıtılmaz.
+    ok(/getCuppingCellState/.test(mcSrc) && /getCuppingCellState/.test(annualSrc),
+      "faz5-a3: Aylık + Yıllık gün durumunu paylaşılan getCuppingCellState'ten TÜRETİR");
+    ok(/getCuppingTraditionalDayStatus/.test(cellStateSrc),
+      "faz5-a3: cellState.ts geleneksel sınıfı KANONİK yardımcıdan türetir (JSX'e dağıtılmaz)");
+    ok(!/\[\s*17\s*,\s*19\s*,\s*21\s*\]/.test(takvimBlob),
+      "faz5-a3: 17/19/21 kural dizisi UI'da DEĞİL (yalnız lib/cupping/traditionalDays.ts)");
+    ok(/Sünnet Günü/.test(wsSrc) && /Altın Gün/.test(wsSrc),
+      "faz5-a3: legend Sünnet Günü + Altın Gün açıklaması içerir");
+    ok(/★★★★★/.test(mcSrc), "faz5-a3: Altın Gün BEŞ altın yıldız gösterir (tek yıldıza inmez)");
+    ok(/Sünnet Günlerini Temizle/.test(sunnahSrc) || /Sünnet Günlerini Temizle/.test(wsSrc),
+      "faz5-a3: 'Sünnet Günlerini Temizle' kontrolü mevcut");
+    ok(!exists("app/kupa/takvim/sunnet") && !exists("app/sunnet-calendar"),
+      "faz5-a3: İKİNCİ hesaplanmış takvim YOK (her şey aynı /kupa/takvim)");
+
+    // — Toplu ölçüt EPHEMERAL: DB/localStorage'a KALICILAŞTIRILMAZ —
+    ok(!/localStorage|sessionStorage/.test(stripTs(bulkUiSrc)) && !/localStorage|sessionStorage/.test(stripTs(bulkLibSrc)),
+      "faz5-a3: toplu ölçütler localStorage'a yazılmaz (kod)");
+    ok(!/\/api\//.test(bulkUiSrc) && !/\/api\//.test(bulkLibSrc),
+      "faz5-a3: toplu ölçüt yardımcısı DB'ye yazmaz (yalnız yerel taslak)");
+
+    // — Kayıt mevcut AŞAMA 2 API'lerini kullanır (yeni RPC YOK) —
+    ok(/addCalendarPlanDays/.test(wsSrc) && /deleteCalendarDay/.test(wsSrc),
+      "faz5-a3: kayıt mevcut days POST + day DELETE uçlarını kullanır");
+    ok(/runPool\(/.test(wsSrc), "faz5-a3: çoklu silme SINIRLI eşzamanlılık (yüzlerce eşzamanlı istek yok)");
+    ok(/CUPPING_PLAN_DAYS_MAX_BATCH/.test(wsSrc), "faz5-a3: toplu POST azami batch'e göre parçalanır");
+    ok(/loadPlanInto\(plan\.id\)/.test(wsSrc),
+      "faz5-a3: kayıt sonrası/kısmi hatada otoriter durum yeniden yüklenir");
+
+    // — Kaydedilmemiş değişiklik onayı (native confirm/alert YOK) —
+    ok(/confirmDiscardIfDirty/.test(wsSrc) && /Kaydedilmemiş/.test(wsSrc),
+      "faz5-a3: kaydedilmemiş değişiklik onayı (özel ConfirmDialog)");
+    ok(!/window\.confirm|window\.alert/.test(takvimBlob) && !/\balert\(/.test(takvimBlob),
+      "faz5-a3: native window.confirm/alert YOK");
+    ok(/useConfirm/.test(wsSrc) && /useToast/.test(wsSrc),
+      "faz5-a3: proje standardı useConfirm + useToast kullanılır");
+
+    // — Yıl invariantı —
+    ok(/yearLocked/.test(read("app/kupa/takvim/components/PlanPicker.tsx")) &&
+       /Seçili günleri olan takvimin yılı değiştirilemez/.test(read("app/kupa/takvim/components/PlanPicker.tsx")),
+      "faz5-a3: seçili günü olan planın yılı kilitli (invariant)");
+
+    // — Çıktı bilgilendirme ENTEGRE + sıra Öncesi→Sonrası→Genel —
+    ok(/OutputAdviceSection/.test(wsSrc), "faz5-a3: Çıktı Bilgilendirme bölümü takvime entegre");
+    ok(adviceSrc.indexOf("Hacamat Öncesi") < adviceSrc.indexOf("Hacamat Sonrası") &&
+       adviceSrc.indexOf("Hacamat Sonrası") < adviceSrc.indexOf("Genel / Ek Not"),
+      "faz5-a3: bilgilendirme sırası Öncesi → Sonrası → Genel");
+    ok(/updateCalendarPlan\([^)]*advice_template_id/.test(stripTs(wsSrc).replace(/\n/g, " ")),
+      "faz5-a3: şablon plana mevcut tenant-güvenli API ile bağlanır");
+
+    // — Danışan snapshot: mevcut güvenli picker + client-advice API + bağımsızlık —
+    ok(/from "@\/components\/danisan\/ClientPicker"/.test(clientSrc),
+      "faz5-a3: danışan seçimi mevcut tenant-güvenli ClientPicker'ı REUSE eder");
+    ok(!/all[-_]?clients|admin\/clients|owner.*bypass/i.test(clientSrc),
+      "faz5-a3: geniş/admin danışan API'si UYDURULMAZ");
+    ok(/listClientAdvice/.test(clientSrc) && /createClientAdvice/.test(clientSrc),
+      "faz5-a3: danışan snapshot mevcut client-advice API'sini kullanır");
+    const updSig = /updateClientAdvice = \(\s*id: string,\s*body: Partial<\{([^}]*)\}>/.exec(apiSrc)?.[1] ?? "";
+    ok(updSig.length > 0 && !/source_template_id|client_id/.test(updSig),
+      "faz5-a3: client-advice PATCH source_template_id/client_id GÖNDERMEZ (canlı miras YOK)");
+    ok(!/onChange[^\n]*source_template_id|source_template_id:\s*(edit|form)\./.test(clientSrc),
+      "faz5-a3: source_template_id kullanıcı-düzenlenebilir alan DEĞİL");
+
+    // — Sınırlar: Word/YH/appointment yok (UI katmanı) —
+    ok(!/docx|word oluştur|\.docx|api\/kupa\/[^"']*\/word/i.test(takvimBlob),
+      "faz5-a3: Word/DOCX üretimi YOK (bu aşamada)");
+    ok(!/inngest|yasam_hafizasi|outbox|memory[-_]event/i.test(takvimBlob),
+      "faz5-a3: Yaşam Hafızası entegrasyonu YOK");
+    // "randevu" NEGATİF disclaimer'da geçer ("randevu sistemi değildir") → import/API odaklı ara.
+    ok(!/import[^\n]*(appointment|randevu)|\/api\/[^"'\s]*(appointment|randevu)|appointmentId|randevu_id/i.test(takvimBlob),
+      "faz5-a3: randevu (appointment) entegrasyonu YOK");
+
+    // — Auth: mevcut userHeaders yeniden kullanılır (ikinci mekanizma YOK) —
+    ok(/userHeaders\(\)/.test(apiSrc) && /readSessionToken/.test(apiSrc),
+      "faz5-a3: mevcut kimlik başlığı (userHeaders/x-session-token) yeniden kullanılır");
+    ok(!/readSessionToken/.test(takvimBlob),
+      "faz5-a3: takvim bileşenleri ikinci auth mekanizması kurmaz (api.ts üzerinden)");
+
+    // ── DAVRANIŞ: nötr toplu seçim mantığı (saf) ──────────────────────────────
+    const Y = 2027;
+    ok(computeBulkDates(Y, {}).length === 0, "faz5-a3-bulk: ölçüt yoksa sonuç BOŞ (yıl geneli seçilmez)");
+    ok(hasAnyCriteria({}) === false && hasAnyCriteria({ weekdays: [1] }) === true,
+      "faz5-a3-bulk: hasAnyCriteria doğru");
+    const h1 = computeBulkDates(Y, { hijriDays: [1] });
+    ok(h1.length > 0 && h1.every((d) => gregorianToHijri(d)?.day === 1),
+      "faz5-a3-bulk: Hicrî gün=1 ölçütü yalnız 1. günleri döner");
+    const tue = computeBulkDates(Y, { weekdays: [2] });
+    ok(tue.length > 0 && tue.every((d) => isoWeekday(d) === 2),
+      "faz5-a3-bulk: haftagünü=Salı ölçütü yalnız Salıları döner");
+    const both = computeBulkDates(Y, { hijriDays: [1], weekdays: [2] });
+    ok(both.every((d) => gregorianToHijri(d)?.day === 1 && isoWeekday(d) === 2),
+      "faz5-a3-bulk: çoklu grup AND semantiği (Hicrî-1 VE Salı)");
+    const marMon = computeBulkDates(Y, { rangeStart: `${Y}-03-01`, rangeEnd: `${Y}-03-31`, weekdays: [1] });
+    ok(marMon.length > 0 && marMon.every((d) => d >= `${Y}-03-01` && d <= `${Y}-03-31` && isoWeekday(d) === 1),
+      "faz5-a3-bulk: tarih aralığı + haftagünü aralık içinde kalır");
+    ok(marMon.every((d) => d.startsWith(`${Y}-`)), "faz5-a3-bulk: tüm sonuçlar plan yılı içinde");
+    const h30 = computeBulkDates(Y, { hijriDays: [30] });
+    ok(h30.every((d) => gregorianToHijri(d)?.day === 30),
+      "faz5-a3-bulk: 30 olmayan Hicrî ay için tarih UYDURULMAZ (yalnız gerçek 30'lar)");
+    ok(validHijriDay(15) && !validHijriDay(0) && !validHijriDay(31),
+      "faz5-a3-bulk: Hicrî gün doğrulama 1–30");
+    ok(validWeekday(1) && validWeekday(7) && !validWeekday(0) && !validWeekday(8),
+      "faz5-a3-bulk: haftagünü doğrulama 1–7");
+    ok(WEEKDAYS_TR.length === 7 && WEEKDAYS_TR[0].iso === 1 && WEEKDAYS_TR[6].iso === 7,
+      "faz5-a3-bulk: 7 haftagünü (Pzt=1 … Paz=7)");
+    // start>end güvenli boş; sıralı + tekil sonuç.
+    ok(computeBulkDates(Y, { rangeStart: `${Y}-05-01`, rangeEnd: `${Y}-04-01` }).length === 0,
+      "faz5-a3-bulk: start>end → boş (uydurma yok)");
+    const sortedUniq = [...new Set(h1)].sort();
+    ok(JSON.stringify(h1) === JSON.stringify(sortedUniq), "faz5-a3-bulk: sonuç artan + tekil");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — GELENEKSEL SÜNNET/ALTIN GÜN KURALI + KÖKEN (owner KİLİTLİ)
+  //   AŞAMA 2'nin "otomatik 17/19/21 YOK" kuralı owner tarafından BİLİNÇLİ DEĞİŞTİRİLDİ.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    // Kanonik kural sabitleri (owner formülü EXACT).
+    ok(JSON.stringify([...CUPPING_SUNNAH_HIJRI_DAYS]) === JSON.stringify([17, 19, 21]),
+      "faz5-trad: aday Hicrî günler tam olarak 17/19/21");
+    ok(JSON.stringify([...CUPPING_SUNNAH_ALLOWED_ISO_WEEKDAYS].sort((a, b) => a - b)) === JSON.stringify([1, 2, 4, 7]),
+      "faz5-trad: izinli haftagünleri Pzt(1)/Salı(2)/Per(4)/Paz(7) (Çar/Cuma/Cmt HARİÇ)");
+    ok(CUPPING_ALTIN_HIJRI_DAY === 17 && CUPPING_ALTIN_ISO_WEEKDAY === 2,
+      "faz5-trad: Altın Gün = Hicrî 17 + Salı");
+
+    // Belirli Hicrî-gün + haftagünü örneği MOTORDAN bulunur (tarih UYDURULMAZ; doğrulanır).
+    const YEARS: number[] = [];
+    for (let y = 2024; y <= 2050; y++) YEARS.push(y);
+    function scan(hDay: number, isoWd: number): string | null {
+      for (const y of YEARS)
+        for (let m = 1; m <= 12; m++)
+          for (const cell of monthHijriCells(y, m))
+            if (cell.hijri.day === hDay && isoWeekday(cell.gregorian) === isoWd) return cell.gregorian;
+      return null;
+    }
+
+    // A. 17 + Salı → golden
+    const g17tue = scan(17, 2);
+    ok(!!g17tue && getCuppingTraditionalDayStatus(g17tue) === "golden",
+      "faz5-trad-A: Hicrî 17 + Salı => ALTIN (golden)");
+    // B. 17 + Pazar/Pazartesi/Perşembe → sunnah
+    for (const [wd, name] of [[7, "Pazar"], [1, "Pazartesi"], [4, "Perşembe"]] as [number, string][]) {
+      const d = scan(17, wd);
+      ok(!!d && getCuppingTraditionalDayStatus(d) === "sunnah",
+        `faz5-trad-B: Hicrî 17 + ${name} => Sünnet (golden DEĞİL)`);
+    }
+    // C. 19 + izinli haftagünü → sunnah
+    const g19mon = scan(19, 1);
+    ok(!!g19mon && getCuppingTraditionalDayStatus(g19mon) === "sunnah",
+      "faz5-trad-C: Hicrî 19 + izinli haftagünü => Sünnet");
+    // D. 21 + izinli haftagünü → sunnah
+    const g21thu = scan(21, 4);
+    ok(!!g21thu && getCuppingTraditionalDayStatus(g21thu) === "sunnah",
+      "faz5-trad-D: Hicrî 21 + izinli haftagünü => Sünnet");
+    // E/F/G. 17/19/21 + Çarşamba/Cuma/Cumartesi → otomatik DEĞİL (null; ama YASAK değil)
+    for (const hd of [17, 19, 21])
+      for (const [wd, name] of [[3, "Çarşamba"], [5, "Cuma"], [6, "Cumartesi"]] as [number, string][]) {
+        const d = scan(hd, wd);
+        ok(!!d && getCuppingTraditionalDayStatus(d) === null,
+          `faz5-trad-EFG: Hicrî ${hd} + ${name} => otomatik DEĞİL (null)`);
+      }
+    // H. 19 + Salı → sunnah (Altın DEĞİL)
+    const g19tue = scan(19, 2);
+    ok(!!g19tue && getCuppingTraditionalDayStatus(g19tue) === "sunnah",
+      "faz5-trad-H: Hicrî 19 + Salı => Sünnet (ALTIN DEĞİL)");
+    // I. 21 + Salı → sunnah (Altın DEĞİL)
+    const g21tue = scan(21, 2);
+    ok(!!g21tue && getCuppingTraditionalDayStatus(g21tue) === "sunnah",
+      "faz5-trad-I: Hicrî 21 + Salı => Sünnet (ALTIN DEĞİL)");
+    // 17/19/21 dışında Hicrî gün asla otomatik değil.
+    ok(getCuppingTraditionalDayStatus(scan(18, 1) ?? "") === null &&
+       getCuppingTraditionalDayStatus(scan(20, 1) ?? "") === null,
+      "faz5-trad: Hicrî 18/20 gibi günler asla otomatik değil");
+
+    // Yıl çözümleyici invariant: her sonuç {17,19,21} + izinli haftagünü; golden ⇔ 17+Salı; getStatus tutarlı.
+    const ALLOWED = new Set([1, 2, 4, 7]);
+    let goldenSeen = 0;
+    let sunnahSeen = 0;
+    for (const y of [2027, 2028, 2030]) {
+      const list = getTraditionalCuppingDatesForYear(y);
+      for (const it of list) {
+        const h = gregorianToHijri(it.gregorian_date)!;
+        const wd = isoWeekday(it.gregorian_date);
+        ok([17, 19, 21].includes(h.day), `faz5-trad-year(${y}): sonuç Hicrî günü 17/19/21`);
+        ok(ALLOWED.has(wd), `faz5-trad-year(${y}): sonuç haftagünü izinli`);
+        ok(it.status === getCuppingTraditionalDayStatus(it.gregorian_date),
+          `faz5-trad-year(${y}): status getCuppingTraditionalDayStatus ile tutarlı`);
+        if (it.status === "golden") {
+          ok(h.day === 17 && wd === 2, `faz5-trad-year(${y}): golden ⇔ 17+Salı`);
+          goldenSeen++;
+        } else {
+          sunnahSeen++;
+        }
+      }
+      const dates = list.map((x) => x.gregorian_date);
+      ok(JSON.stringify(dates) === JSON.stringify([...dates].sort()), `faz5-trad-year(${y}): artan tarih sırası`);
+    }
+    ok(goldenSeen > 0 && sunnahSeen > 0, "faz5-trad-year: örneklem golden + sunnah içerir");
+
+    // — KÖKEN (provenance) sözleşmesi —
+    ok(JSON.stringify([...CUPPING_SELECTION_SOURCES]) === JSON.stringify(["manual", "sunnah_auto"]),
+      "faz5-trad: köken kümesi tam olarak manual|sunnah_auto");
+    ok(isCuppingSelectionSource("manual") && isCuppingSelectionSource("sunnah_auto") && !isCuppingSelectionSource("x"),
+      "faz5-trad: isCuppingSelectionSource doğrular");
+    ok(!(CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("selection_source"),
+      "faz5-trad: selection_source client-yazılabilir DEĞİL (allowlist DIŞI; sunucu-sahipli)");
+
+    // — Additive migration —
+    const migDir = "supabase/migrations";
+    const migFile = readdirSync(migDir).find((f) => /selection_source/.test(f));
+    ok(!!migFile, "faz5-trad-mig: selection_source migration dosyası mevcut");
+    const migSrc = migFile ? read(`${migDir}/${migFile}`) : "";
+    ok(/ADD COLUMN IF NOT EXISTS selection_source text NOT NULL DEFAULT 'manual'/.test(migSrc),
+      "faz5-trad-mig: additive kolon NOT NULL DEFAULT 'manual' (mevcut satırlar manual)");
+    ok(/CHECK \(selection_source IN \('manual', 'sunnah_auto'\)\)/.test(migSrc),
+      "faz5-trad-mig: CHECK kontrollü değer kümesi");
+    const migHead = migSrc.split("ROLLBACK")[0];
+    ok(!/DROP TABLE|TRUNCATE|\bDROP COLUMN\b/.test(migHead),
+      "faz5-trad-mig: uygulama kısmı ADDITIVE (DROP TABLE/TRUNCATE/DROP COLUMN yok)");
+
+    // — Sunucu uçları: traditional-days route + köken sözleşmesi —
+    ok(exists("app/api/kupa/calendar/plans/[id]/traditional-days/route.ts"),
+      "faz5-trad: traditional-days rotası mevcut (AYNI plan; ikinci takvim değil)");
+    const tdRoute = read("app/api/kupa/calendar/plans/[id]/traditional-days/route.ts");
+    ok(/requireModuleAccess\(req, "cupping"\)/.test(tdRoute),
+      "faz5-trad: traditional-days requireModuleAccess('cupping') ile korunur");
+    ok(/export async function POST/.test(tdRoute) && /export async function DELETE/.test(tdRoute),
+      "faz5-trad: POST (ekle/restore) + DELETE (temizle) mevcut");
+    ok(/\.eq\("selection_source", "sunnah_auto"\)/.test(tdRoute),
+      "faz5-trad: DELETE YALNIZ sunnah_auto satırları hedefler (manuel korunur)");
+    ok(/is_demo_account/.test(tdRoute), "faz5-trad: traditional-days demo hesapta persist=0");
+
+    // — Yeni plan otomatik tohumlama; genel /days YALNIZ manual —
+    const plansRoute = read("app/api/kupa/calendar/plans/route.ts");
+    ok(/seedSunnahAutoDays/.test(plansRoute),
+      "faz5-trad: yeni plan oluşturulunca otomatik geleneksel günler tohumlanır (ikinci tık yok)");
+    const daysRoute = read("app/api/kupa/calendar/plans/[id]/days/route.ts");
+    ok(/selection_source: "manual"/.test(daysRoute),
+      "faz5-trad: genel /days POST günleri MANUAL köken ile yazar (sunnah_auto client'tan GELMEZ)");
+    const cupApiSrc = read("lib/cupping/api.ts");
+    ok(/ignoreDuplicates: true/.test(cupApiSrc) && /SELECTION_SOURCE_SUNNAH/.test(cupApiSrc),
+      "faz5-trad: seed idempotent (ignoreDuplicates) + sunnah_auto köken (manuel üzerine YAZMAZ)");
+
+    // — Word/appointment/YH hâlâ YOK (regresyon kalkanı) —
+    const tradBlob = [tdRoute, plansRoute, daysRoute, read("lib/cupping/traditionalDays.ts")].join("\n");
+    ok(!/docx|\.docx|inngest|yasam_hafizasi|appointmentId|randevu_id/i.test(tradBlob),
+      "faz5-trad: Word/DOCX/YH/appointment entegrasyonu YOK");
+    // Yalnız GERÇEK kod bağı (import) aranır; sınırı AÇIKLAYAN yorum metni serbesttir.
+    ok(!/import[^\n]*cosmic|from ["'][^"']*cosmic[^"']*["']|from ["'][^"']*hacamat[^"']*["']/.test(read("lib/cupping/traditionalDays.ts")),
+      "faz5-trad: kanonik yardımcı Kozmik'i/hacamat_rules'ı IMPORT ETMEZ (kendi kuralı)");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — AUTO-SEED SONUÇ SÖZLEŞMESİ (sessiz DEĞİL) — pre-migration fix
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const clientApi = read("app/kupa/lib/api.ts");
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const plannerSrc = read("app/kupa/takvim/components/PlanPicker.tsx");
+    const sunnahSrc = read("app/kupa/takvim/components/SunnahDaysControl.tsx");
+
+    // createCalendarPlan artık TAM yanıtı korur (callRaw; autoSeeded + seededDays ATILMAZ).
+    const createBlock =
+      /export const createCalendarPlan = \([\s\S]*?\}\): Promise<CreateCalendarPlanResult> =>\s*callRaw<CreateCalendarPlanResult>\(/;
+    ok(createBlock.test(clientApi),
+      "faz5-seed: createCalendarPlan callRaw ile TAM yanıtı korur (Promise<CreateCalendarPlanResult>)");
+    ok(!/createCalendarPlan[\s\S]*?call<CuppingCalendarPlan>\([^)]*"plan"\)/.test(clientApi),
+      "faz5-seed: createCalendarPlan artık generic call(...,'plan') KULLANMAZ (autoSeeded/seededDays atılmaz)");
+    ok(/type CreateCalendarPlanResult = \{[\s\S]*?autoSeeded\?: boolean;[\s\S]*?seededDays\?: number;[\s\S]*?\}/.test(clientApi),
+      "faz5-seed: CreateCalendarPlanResult autoSeeded + seededDays alanlarını taşır");
+
+    // Çağıranlar autoSeeded=false sonucunu YÜZEYE ÇIKARIR (sessiz DEĞİL).
+    ok(/autoSeeded === false/.test(plannerSrc) && /autoSeeded === false/.test(wsSrc),
+      "faz5-seed: PlanPicker + CalendarWorkspace autoSeeded=false durumunu gözlemler");
+    const NOTICE = "otomatik Sünnet günleri eklenemedi";
+    ok(plannerSrc.includes(NOTICE) && wsSrc.includes(NOTICE),
+      "faz5-seed: autoSeeded=false için güvenli Türkçe bildirim gösterilir");
+
+    // autoSeeded=false olsa bile plan KULLANILABİLİR + OTORİTER reload + restore mevcut.
+    ok(/onPlansChanged\(res\.plan\.id\)/.test(plannerSrc) && /onCreated\(res\.plan\.id\)/.test(wsSrc),
+      "faz5-seed: oluşturma sonrası OTORİTER plan durumu getirilir (client-side sahte satır YOK)");
+    ok(/res\.plan/.test(plannerSrc) && /res\.plan/.test(wsSrc),
+      "faz5-seed: demo/null-plan güvenli ele alınır (plan yine kullanılabilir)");
+    ok(/Sünnet Günlerini Ekle/.test(sunnahSrc),
+      "faz5-seed: restore aksiyonu ('Sünnet Günlerini Ekle') autoSeed başarısızlığında mevcut");
+
+    // Ham DB hatası sızmaz: callRaw yalnız json.error mesajını fırlatır.
+    ok(/json\.error \?\? "İşlem başarısız\."/.test(clientApi),
+      "faz5-seed: callRaw ham DB hatası sızdırmaz (yalnız sanitized json.error)");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 3 — OWNER GÖRSEL YENİDEN TASARIMI
+  //   Anlamsal sayılar (Otomatik/Uzman/Toplam) + tek-ay seçici + çok-aylı planlama +
+  //   Yıllık Özet + pastel durumlar + toplu ay filtresi. Tek plan; ikinci takvim YOK.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const navSrc = read("app/kupa/takvim/components/MonthNav.tsx");
+    const mcSrc = read("app/kupa/takvim/components/MonthCalendar.tsx");
+    const bulkUiSrc = read("app/kupa/takvim/components/BulkDateSelector.tsx");
+    const summarySrc = read("app/kupa/takvim/components/CalendarSummary.tsx");
+    const toggleSrc = read("app/kupa/takvim/components/CalendarViewToggle.tsx");
+    const annualSrc = read("app/kupa/takvim/components/AnnualCalendarOverview.tsx");
+    const cellStateSrc = read("app/kupa/takvim/lib/cellState.ts");
+
+    // ── COUNT MODEL — pür yardımcı (auto+practitioner=total) ─────────────────────
+    const src = (ymd: string, s: "manual" | "sunnah_auto") => [ymd, s] as const;
+    // Senaryo: 3 kayıtlı auto + 2 kayıtlı manuel + 1 kaydedilmemiş yeni manuel; 1 auto çıkarılmış.
+    const saved = new Map<string, "manual" | "sunnah_auto">([
+      src("2027-01-05", "sunnah_auto"),
+      src("2027-02-10", "sunnah_auto"),
+      src("2027-03-15", "sunnah_auto"), // bu çıkarılacak (draft'ta YOK)
+      src("2027-04-20", "manual"),
+      src("2027-05-25", "manual"),
+    ]);
+    const draft = new Set<string>([
+      "2027-01-05", // auto seçili
+      "2027-02-10", // auto seçili
+      "2027-04-20", // manuel seçili (kayıtlı)
+      "2027-05-25", // manuel seçili (kayıtlı)
+      "2027-06-30", // YENİ manuel (kaydedilmemiş)
+      // 2027-03-15 çıkarıldı (kayıtlı auto ama draft'ta yok) → auto sayımına GİRMEZ
+    ]);
+    const c = computeCalendarCounts(draft, saved);
+    ok(c.auto === 2, `faz5-redesign-count: auto YALNIZ seçili sunnah_auto (2), oldu ${c.auto}`);
+    ok(c.practitioner === 3, `faz5-redesign-count: practitioner = 2 kayıtlı manuel + 1 yeni (3), oldu ${c.practitioner}`);
+    ok(c.total === 5, `faz5-redesign-count: total = draft tekil (5), oldu ${c.total}`);
+    ok(c.auto + c.practitioner === c.total, "faz5-redesign-count: auto + practitioner = total (değişmez)");
+    // Çıkarılmış auto (draft dışı) auto'ya sayılmaz; toplam yalnız draft'ı yansıtır.
+    ok(!draft.has("2027-03-15") && c.auto === 2, "faz5-redesign-count: seçimden çıkarılmış auto sayılmaz");
+    // Manuel-owned kurala uyan tarih bile practitioner (auto DEĞİL): golden 17+Salı örneği manuel köken.
+    {
+      const YEARS: number[] = [];
+      for (let y = 2024; y <= 2050; y++) YEARS.push(y);
+      let g17tue: string | null = null;
+      for (const y of YEARS) { for (let m = 1; m <= 12 && !g17tue; m++) for (const cell of monthHijriCells(y, m)) if (cell.hijri.day === 17 && isoWeekday(cell.gregorian) === 2) { g17tue = cell.gregorian; break; } if (g17tue) break; }
+      const savedManualGolden = new Map<string, "manual" | "sunnah_auto">([[g17tue!, "manual"]]);
+      const draftManualGolden = new Set<string>([g17tue!]);
+      const cg = computeCalendarCounts(draftManualGolden, savedManualGolden);
+      ok(cg.auto === 0 && cg.practitioner === 1, "faz5-redesign-count: kurala uyan MANUEL gün Uzman'dır (auto DEĞİL)");
+      const st = getCuppingCellState(g17tue!, true, "manual");
+      ok(st.kind === "manual-saved", "faz5-redesign-cell: manuel-owned golden tarih 'manual-saved' (yeşil/altın DEĞİL)");
+    }
+    // Ambiguous "X gün seçili" birincil özeti KALDIRILDI (anlamsal özetle değişti).
+    ok(!/\{draft\.size\} gün seçili/.test(wsSrc) && !/\{totalCount\} gün seçili/.test(wsSrc),
+      "faz5-redesign-count: belirsiz '{draft.size} gün seçili' birincil özeti KALDIRILDI");
+    ok(/Otomatik/.test(summarySrc) && /Uzman Seçimi/.test(summarySrc) && /Toplam/.test(summarySrc),
+      "faz5-redesign-count: CalendarSummary Otomatik/Uzman Seçimi/Toplam gösterir");
+    ok(/computeCalendarCounts/.test(wsSrc),
+      "faz5-redesign-count: workspace sayıları pür computeCalendarCounts ile hesaplar");
+    ok(/değişiklik/.test(summarySrc) && /kaydedilmedi/.test(summarySrc),
+      "faz5-redesign-count: bekleyen değişiklikler AYRI (ikincil) satırda");
+
+    // ── CELL STATE — 7 anlamsal durum + pastel palet + rozet ─────────────────────
+    ok(getCuppingCellState("2027-01-01", false, undefined).kind === "none",
+      "faz5-redesign-cell: seçili değil + kayıtsız => none");
+    ok(getCuppingCellState("2027-01-01", true, undefined).kind === "manual-unsaved",
+      "faz5-redesign-cell: seçili + kayıtsız => manual-unsaved (Kaydedilecek)");
+    ok(getCuppingCellState("2027-01-01", true, "manual").kind === "manual-saved",
+      "faz5-redesign-cell: seçili + kayıtlı manuel => manual-saved (Uzman)");
+    ok(getCuppingCellState("2027-01-01", false, "manual").kind === "removal-manual",
+      "faz5-redesign-cell: seçimden çıkarılmış manuel => removal-manual (Kaldırılacak)");
+    ok(getCuppingCellState("2027-01-01", false, "sunnah_auto").kind === "removal-auto",
+      "faz5-redesign-cell: seçimden çıkarılmış auto => removal-auto (kökeni korunur)");
+    {
+      // Seçili + auto + golden/sunnah türetimi tarihten gelir.
+      let g17tue: string | null = null, g19mon: string | null = null;
+      for (let y = 2024; y <= 2050 && (!g17tue || !g19mon); y++)
+        for (let m = 1; m <= 12; m++)
+          for (const cell of monthHijriCells(y, m)) {
+            if (!g17tue && cell.hijri.day === 17 && isoWeekday(cell.gregorian) === 2) g17tue = cell.gregorian;
+            if (!g19mon && cell.hijri.day === 19 && isoWeekday(cell.gregorian) === 1) g19mon = cell.gregorian;
+          }
+      ok(getCuppingCellState(g17tue!, true, "sunnah_auto").kind === "golden",
+        "faz5-redesign-cell: seçili + auto + 17/Salı => golden");
+      ok(getCuppingCellState(g19mon!, true, "sunnah_auto").kind === "sunnah",
+        "faz5-redesign-cell: seçili + auto + izinli haftagünü => sunnah");
+    }
+    for (const k of ["none", "sunnah", "golden", "manual-saved", "manual-unsaved", "removal-auto", "removal-manual"] as const) {
+      ok(!!CUPPING_CELL_PALETTE[k]?.cell, `faz5-redesign-cell: pastel palet '${k}' tanımlı`);
+    }
+    ok(cuppingCellBadge("sunnah") === "Sünnet" && cuppingCellBadge("golden") === "Altın Gün" &&
+       cuppingCellBadge("manual-saved") === "Uzman" && cuppingCellBadge("manual-unsaved") === "Kaydedilecek" &&
+       cuppingCellBadge("removal-auto") === "Kaldırılacak",
+      "faz5-redesign-cell: rozet metinleri (renk TEK sinyal değil)");
+    // Uzman pastel indigo/lavanta (owner düz gri/slate'i REDDETTİ).
+    ok(/indigo/.test(CUPPING_CELL_PALETTE["manual-saved"].cell) && !/bg-slate-100/.test(CUPPING_CELL_PALETTE["manual-saved"].cell),
+      "faz5-redesign-cell: Uzman Seçimi pastel indigo (düz gri/slate DEĞİL)");
+    ok(/border-dashed/.test(CUPPING_CELL_PALETTE["manual-unsaved"].cell),
+      "faz5-redesign-cell: kaydedilmemiş manuel KESİKLİ kenarlık (bekleyen)");
+    ok(/emerald/.test(CUPPING_CELL_PALETTE["removal-auto"].cell) && /indigo/.test(CUPPING_CELL_PALETTE["removal-manual"].cell),
+      "faz5-redesign-cell: kaldırılacak günler kökeni (yeşil vs indigo) korur");
+    ok(/Uzman/.test(mcSrc) && /Kaydedilecek/.test(mcSrc) && /Kaldırılacak/.test(mcSrc),
+      "faz5-redesign-cell: aylık takvim Uzman/Kaydedilecek/Kaldırılacak rozetleri gösterir");
+
+    // ── MONTH NAV — tek-ay seçici; 12-buton duvarı YOK ──────────────────────────
+    ok(/<select/.test(navSrc), "faz5-redesign-nav: tek ay <select> mevcut");
+    ok(!/grid-cols-6/.test(navSrc) && !/MONTHS_SHORT/.test(navSrc),
+      "faz5-redesign-nav: kalıcı 12-buton ay duvarı KALDIRILDI");
+    ok(/Önceki ay/.test(navSrc) && /Sonraki ay/.test(navSrc),
+      "faz5-redesign-nav: önceki/sonraki mevcut");
+    ok(/month <= 1/.test(navSrc) && /month >= 12/.test(navSrc),
+      "faz5-redesign-nav: yıl sınırı (Ocak öncesi / Aralık sonrası devre dışı)");
+    // Ay değişimi taslağı SIFIRLAMAZ: MonthNav onChange yalnız setMonth; draft'a dokunmaz.
+    ok(/onChange=\{setMonth\}/.test(wsSrc),
+      "faz5-redesign-nav: ay değişimi yalnız setMonth (yıl-geneli taslağı korur)");
+
+    // ── VIEW TOGGLE — Aylık ↔ Yıllık; aynı plan/taslak ─────────────────────────
+    ok(/Aylık Düzenleme/.test(toggleSrc) && /Yıllık Özet/.test(toggleSrc),
+      "faz5-redesign-view: segmented control Aylık Düzenleme + Yıllık Özet");
+    ok(/aria-pressed/.test(toggleSrc), "faz5-redesign-view: segmented control erişilebilir (aria-pressed)");
+    ok(/useState<CalendarView>\("monthly"\)/.test(wsSrc),
+      "faz5-redesign-view: varsayılan görünüm Aylık Düzenleme");
+    ok(/setView\("monthly"\)/.test(wsSrc) && /setMonth\(m\)/.test(wsSrc),
+      "faz5-redesign-view: Yıllık'tan ay tıklaması Aylık'ı tam o ayda açar");
+
+    // ── ANNUAL OVERVIEW — aynı plan/taslak; 12 ay; DB yazmaz ───────────────────
+    ok(exists("app/kupa/takvim/components/AnnualCalendarOverview.tsx"),
+      "faz5-redesign-annual: AnnualCalendarOverview bileşeni mevcut");
+    ok(/annualHijriCells/.test(annualSrc), "faz5-redesign-annual: 12 ayı annualHijriCells'ten üretir");
+    ok(/getCuppingCellState/.test(annualSrc),
+      "faz5-redesign-annual: durum paylaşılan getCuppingCellState'ten (renk bağımsız hesaplanmaz)");
+    ok(/selected=\{draft\}/.test(wsSrc) && /savedSource=\{savedSource\}/.test(wsSrc),
+      "faz5-redesign-annual: Yıllık Özet AYNI draft + savedSource alır (kaydedilmemiş dâhil)");
+    ok(!/\/api\//.test(annualSrc) && !/localStorage|sessionStorage/.test(stripTs(annualSrc)),
+      "faz5-redesign-annual: bağımsız DB/localStorage saklama YOK (aynı plan)");
+    ok(/grid-cols-1/.test(annualSrc) && /sm:grid-cols-2/.test(annualSrc) && /lg:grid-cols-3/.test(annualSrc) && /xl:grid-cols-4/.test(annualSrc),
+      "faz5-redesign-annual: responsive minik-ay ızgarası (12 kolonluk sıkışma YOK)");
+    ok(!exists("app/kupa/takvim/yillik") && !exists("app/kupa/yillik-takvim"),
+      "faz5-redesign-annual: İKİNCİ yıllık takvim rotası/tablosu YOK");
+
+    // ── BULK MONTH FILTER — ephemeral; AND; birleşim ───────────────────────────
+    const Y = 2027;
+    // Ay yoksa eski davranış korunur: yalnız Salı == ay-filtresiz Salı.
+    const tueNoMonth = computeBulkDates(Y, { weekdays: [2] });
+    const tueMonthUndef = computeBulkDates(Y, { weekdays: [2], months: [] });
+    ok(JSON.stringify(tueNoMonth) === JSON.stringify(tueMonthUndef),
+      "faz5-redesign-bulk: ay seçilmezse eski davranış korunur");
+    // Tek ay filtreler: Mart Salıları yalnız Mart'ta.
+    const marTue = computeBulkDates(Y, { weekdays: [2], months: [3] });
+    ok(marTue.length > 0 && marTue.every((d) => d.slice(5, 7) === "03" && isoWeekday(d) === 2),
+      "faz5-redesign-bulk: tek ay filtresi + haftagünü (Mart Salıları)");
+    // Çoklu ay birleşimi: Mart+Nisan+Mayıs Salıları.
+    const q2Tue = computeBulkDates(Y, { weekdays: [2], months: [3, 4, 5] });
+    ok(q2Tue.length > marTue.length && q2Tue.every((d) => ["03", "04", "05"].includes(d.slice(5, 7)) && isoWeekday(d) === 2),
+      "faz5-redesign-bulk: çoklu ay BİRLEŞİM (Mart+Nisan+Mayıs Salıları)");
+    // AND: Mart+Nisan + Hicrî 15 + Pazartesi → hepsi sağlanır.
+    const andCase = computeBulkDates(Y, { months: [3, 4], hijriDays: [15], weekdays: [1] });
+    ok(andCase.every((d) => ["03", "04"].includes(d.slice(5, 7)) && gregorianToHijri(d)?.day === 15 && isoWeekday(d) === 1),
+      "faz5-redesign-bulk: ay + Hicrî gün + haftagünü AND semantiği");
+    // Yalnız ay ölçütü de geçerli bir gruptur (hasAnyCriteria true).
+    ok(hasAnyCriteria({ months: [6] }) === true, "faz5-redesign-bulk: yalnız ay ölçütü aktif gruptur");
+    const juneAll = computeBulkDates(Y, { months: [6] });
+    ok(juneAll.length > 0 && juneAll.every((d) => d.slice(5, 7) === "06"),
+      "faz5-redesign-bulk: yalnız ay ölçütü o ayın tüm günlerini döner");
+    ok(validMonth(1) && validMonth(12) && !validMonth(0) && !validMonth(13),
+      "faz5-redesign-bulk: ay doğrulama 1–12");
+    // Ephemeral: months UI'da useState; DB/localStorage'a yazılmaz.
+    ok(/useState<number\[\]>\(\[\]\)/.test(bulkUiSrc) && /months/.test(bulkUiSrc),
+      "faz5-redesign-bulk: ay filtresi ephemeral UI state (ön-seçili değil)");
+    ok(!/localStorage|sessionStorage/.test(stripTs(bulkUiSrc)) && !/\/api\//.test(bulkUiSrc),
+      "faz5-redesign-bulk: ay filtresi KALICILAŞTIRILMAZ (localStorage/API yok)");
+    ok(/Aylar/.test(bulkUiSrc) && /Tüm ayları temizle/.test(bulkUiSrc),
+      "faz5-redesign-bulk: 'Aylar' çoklu seçim + 'Tüm ayları temizle'");
+
+    // ── PRESERVATION — kural/köken/sınır regresyonu YOK ────────────────────────
+    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+      "faz5-redesign-preserve: TAM Hicrî ad korunur (aylık hücre)");
+    ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
+      "faz5-redesign-preserve: Hicrî ay adı KISALTILMAZ");
+    ok(/★★★★★/.test(mcSrc), "faz5-redesign-preserve: Altın Gün BEŞ yıldız korunur");
+    ok(!/import[^\n]*cosmic|from ["'][^"']*cosmic[^"']*["']/.test([toggleSrc, summarySrc, annualSrc, cellStateSrc].join("\n")),
+      "faz5-redesign-preserve: yeni bileşenler Kozmik KOD importu YAPMAZ");
+    ok(!/docx|\.docx|inngest|yasam_hafizasi|appointmentId|randevu_id|api\/[^"'\s]*word/i.test([toggleSrc, summarySrc, annualSrc, cellStateSrc].join("\n")),
+      "faz5-redesign-preserve: yeni bileşenlerde Word/YH/appointment YOK");
+    ok(!/\[\s*17\s*,\s*19\s*,\s*21\s*\]/.test([toggleSrc, summarySrc, annualSrc, cellStateSrc].join("\n")),
+      "faz5-redesign-preserve: 17/19/21 kuralı yeni bileşenlere dağıtılmaz");
+    // Disclaimer artık geleneksel sınıflandırmayı YOK saymaz (owner düzeltmesi).
+    ok(!/hiçbir günü tıbbi\/geleneksel olarak/.test(wsSrc),
+      "faz5-redesign-preserve: eski çelişkili disclaimer ('hiçbir günü … önermez') KALDIRILDI");
+    ok(/geleneksel takvim sınıflandırmasıdır/.test(wsSrc) && /tıbbi uygunluk hükmü değildir/.test(wsSrc),
+      "faz5-redesign-preserve: disclaimer geleneksel sınıflandırmayı doğru anlatır (tıbbi hüküm değil)");
+  }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
