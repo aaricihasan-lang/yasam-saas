@@ -93,8 +93,10 @@ export function PlanTools({
       <GhostButton icon={<BarChart3 className="h-4 w-4" />} onClick={() => setAnalyticsOpen(true)}>
         Analiz
       </GhostButton>
-      {/* Word/PDF export CTA yalnız masaüstünde (≥xl); mobil/tablet gizli. Sarmalayıcı span
-          görünürlüğü taşır (buton display'i bozulmaz). Backend endpoint değişmez. */}
+      {/* Word export CTA yalnız gerçek masaüstü input'unda (hover+fine pointer); mobil/tablet
+          gizli. Karar CİHAZ YETENEĞİYLE verilir, viewport genişliğiyle DEĞİL — pencere 1280
+          altına inse de masaüstünde kaybolmaz. Sarmalayıcı span görünürlüğü taşır (buton
+          display'i bozulmaz). Backend endpoint değişmez. */}
       <span className={EXPORT_DESKTOP_ONLY_CLASS}>
         <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
           Word İndir
