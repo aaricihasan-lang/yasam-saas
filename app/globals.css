@@ -286,6 +286,25 @@ button,
   }
 }
 
+/*
+  Beslenme — Word export CTA görünürlük contract'ı (CİHAZ YETENEĞİ, GENİŞLİK DEĞİL).
+  Politika (Hasan Hoca): export CTA YALNIZ gerçek masaüstü input'unda görünür.
+  Karar viewport GENİŞLİĞİYLE DEĞİL, işaretleyici yeteneğiyle verilir:
+    (hover: hover) AND (pointer: fine) → fare/trackpad = masaüstü → GÖRÜNÜR.
+  Dokunmatik (coarse pointer / hover yok) → mobil & tablet → GİZLİ.
+  Genişlik 1280 altına inse bile (1024/1100/1200) masaüstünde buton kaybolmaz.
+  Bu blok @tailwind utilities sonrası, @layer DIŞI → Tailwind display utility'lerini geçer.
+  Koşul lib/beslenme/exportVisibility.ts → EXPORT_DESKTOP_MEDIA_QUERY ile birebir aynıdır.
+*/
+.beslenme-export-desktop-only {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .beslenme-export-desktop-only {
+    display: inline-flex;
+  }
+}
+
 /* ── Scrollbar stilleri — Doğaltaş okuyucu + paylaşılan ReaderModal (aynı görünüm) ── */
 .stone-reader-scroll,
 .reader-modal-scroll {
