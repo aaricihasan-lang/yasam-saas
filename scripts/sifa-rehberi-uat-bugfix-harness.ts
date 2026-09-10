@@ -138,14 +138,22 @@ const globals = read(GLOBALS);
 const logo = read(LOGO);
 
 // new-view dış kabı: canonical screen utility (logo-h ayarlı), ham dvh DEĞİL.
-const newViewShell = /if \(isNewView\)[\s\S]{0,600}?<div className="([^"]*)"/.exec(list);
+const newViewShell = /if \(isNewView\)[\s\S]{0,1400}?<div className="([^"]*)"/.exec(list);
 const shellClass = newViewShell?.[1] ?? "";
 ok("20. new-view dış kabı bulundu",
   shellClass.length > 0);
-ok("21. new-view dış kabı canonical `min-h-screen` + `lg:h-screen` kullanır",
-  /\bmin-h-screen\b/.test(shellClass) && /\blg:h-screen\b/.test(shellClass));
+// KRİTİK: globals.css YALNIZ düz `.h-screen`/`.min-h-screen`'i --logo-h ile daraltır.
+// Tailwind responsive varyantı `.lg\:h-screen` AYRI sınıftır ve daraltılMAZ (canlı
+// tarayıcıda ölçüldü: h-screen=651px ✓, lg:h-screen=695px ✗). Bu yüzden desktop yüksekliği
+// DÜZ `h-screen` ile kurulur; liste görünümüyle birebir aynı desen.
+ok("21. new-view dış kabı DÜZ `h-screen` kullanır (globals.css --logo-h ile daraltılan sınıf)",
+  /(^|\s)h-screen(\s|$)/.test(shellClass));
+ok("21b. AYARLANMAYAN `lg:h-screen` responsive varyantı KULLANILMAZ (yoksa footer kesilir)",
+  !/\blg:h-screen\b/.test(shellClass));
 ok("22. new-view dış kabı ham `h-dvh`/`min-h-dvh` KULLANMAZ (logo-h hesaba katılmaz)",
-  !/\bmin-h-dvh\b/.test(shellClass) && !/\blg:h-dvh\b/.test(shellClass));
+  !/\bmin-h-dvh\b/.test(shellClass) && !/\blg:h-dvh\b/.test(shellClass) && !/(^|\s)h-dvh(\s|$)/.test(shellClass));
+ok("22b. mobilde belge scroll'u için relax eder (max-lg:h-auto + max-lg:overflow-y-auto)",
+  /\bmax-lg:h-auto\b/.test(shellClass) && /\bmax-lg:overflow-y-auto\b/.test(shellClass));
 ok("23. globals.css .h-screen'i logo bar'a göre daraltır (calc(100vh - --logo-h))",
   /\.h-screen\s*\{[^}]*calc\(100vh\s*-\s*var\(--logo-h/.test(globals));
 ok("24. globals.css .min-h-screen'i logo bar'a göre daraltır",
