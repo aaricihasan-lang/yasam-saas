@@ -40,12 +40,15 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { getDemoGuideListRows } from "@/lib/demo/demoSifaRehberi";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { supabase } from "@/lib/supabase";
+import { uploadSifaPhoto, cleanupSifaPhoto } from "@/lib/sifa-rehberi/stonePhotoClient";
 
 type GuideImage = {
   id: string;
   name: string;
-  url: string;
+  // P1 PHASE A: `file_path` source-of-truth. `url` yalnız LEGACY kayıtlarda bulunur ve render
+  // için primary DEĞİL. Yeni kayıt akışında görsel önizlemesi kısa ömürlü signed URL iledir
+  // (formSignedUrls[img.id]); kalıcı public URL DB'ye persist EDİLMEZ.
+  url?: string;
   file_path?: string;
   section?: string;
 };
@@ -356,6 +359,9 @@ function SifaRehberiContent() {
   const [createSections, setCreateSections] = useState<EditableSection[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [formImages, setFormImages] = useState<GuideImage[]>([]);
+  // P1 PHASE A: yeni-kayıt önizlemesi — kısa ömürlü signed URL (imageId → signedUrl).
+  // DB'ye persist EDİLMEZ (kalıcı public URL yok).
+  const [formSignedUrls, setFormSignedUrls] = useState<Record<string, string>>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [lightbox, setLightbox] = useState<GuideImage | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -655,59 +661,60 @@ function SifaRehberiContent() {
     e.target.value = "";
     if (!file) return;
 
-    setUploadingImage(true);
-    setErrorMessage("");
-
-    const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "") || "jpg";
-    const basename = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
     if (!queryTenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
-    const file_path = `healing-guides/${queryTenantId}/${basename}`;
+    setUploadingImage(true);
+    setErrorMessage("");
 
-    const { error: upErr } = await supabase.storage.from("stone-photos").upload(file_path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-    setUploadingImage(false);
-
-    if (upErr) {
-      setErrorMessage(`Görsel yüklenemedi: ${upErr.message}`);
+    // P1 PHASE A: SUNUCU-YETKİLİ signed upload + finalize (guide henüz yok → staging path,
+    // SUNUCUDA üretilir). Tarayıcı stone-photos üzerinde anon upload/getPublicUrl KULLANMAZ.
+    let prepared: Awaited<ReturnType<typeof uploadSifaPhoto>>;
+    try {
+      prepared = await uploadSifaPhoto({ file });
+    } catch (err) {
+      setUploadingImage(false);
+      setErrorMessage(err instanceof Error ? err.message : "Görsel yüklenemedi.");
       return;
     }
+    setUploadingImage(false);
 
-    const { data: pub } = supabase.storage.from("stone-photos").getPublicUrl(file_path);
     const entry: GuideImage = {
-      id:
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-      name: file.name,
-      url: pub.publicUrl,
-      file_path,
+      id: prepared.id,
+      name: prepared.name,
+      file_path: prepared.file_path,
     };
+    setFormSignedUrls((prev) => ({ ...prev, [entry.id]: prepared.previewUrl }));
     setFormImages((prev) => [...prev, entry]);
   }
 
   async function removeGuideImage(img: GuideImage) {
     if (isDemo) return;
     setErrorMessage("");
+    // P1 PHASE A: yeni-kayıt görselleri henüz persist EDİLMEMİŞTİR (orphan staging) →
+    // SUNUCU-YETKİLİ orphan cleanup. Tarayıcı `.remove()` KULLANMAZ.
     if (img.file_path) {
-      const { error: rmErr } = await supabase.storage.from("stone-photos").remove([img.file_path]);
-      if (rmErr) {
-        setErrorMessage(`Görsel silinemedi: ${rmErr.message}`);
+      try {
+        await cleanupSifaPhoto(img.file_path);
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : "Görsel silinemedi.");
         return;
       }
     }
     setFormImages((prev) => prev.filter((i) => i.id !== img.id));
+    setFormSignedUrls((prev) => {
+      const next = { ...prev };
+      delete next[img.id];
+      return next;
+    });
     setLightbox((cur) => (cur?.id === img.id ? null : cur));
   }
 
   function resetForm() {
     setFormImages([]);
+    setFormSignedUrls({});
     setForm(() => ({ ...emptyForm }));
     setCreateSections([]);
   }
@@ -813,7 +820,7 @@ function SifaRehberiContent() {
               <div key={img.id} className="relative w-16 shrink-0 rounded-lg border border-emerald-100 p-0.5">
                 <button type="button" onClick={() => setLightbox(img)} className="block w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.url} alt="" className="aspect-square h-14 w-full rounded-md object-cover" />
+                  <img src={formSignedUrls[img.id] ?? img.url ?? ""} alt="" className="aspect-square h-14 w-full rounded-md object-cover" />
                 </button>
                 <button
                   type="button"
@@ -961,7 +968,7 @@ function SifaRehberiContent() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={lightbox.url}
+                src={formSignedUrls[lightbox.id] ?? lightbox.url ?? ""}
                 alt={lightbox.name}
                 className="max-h-[min(78vh,720px)] w-auto max-w-full rounded-2xl object-contain"
               />
@@ -1471,7 +1478,7 @@ function SifaRehberiContent() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={lightbox.url}
+              src={formSignedUrls[lightbox.id] ?? lightbox.url ?? ""}
               alt={lightbox.name}
               className="max-h-[min(78vh,720px)] w-auto max-w-full rounded-2xl object-contain"
             />

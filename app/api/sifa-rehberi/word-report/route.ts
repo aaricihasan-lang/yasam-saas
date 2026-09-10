@@ -14,12 +14,14 @@ import {
   type SifaExportMode,
   type WordGuideRaw,
 } from "@/lib/sifa-rehberi/wordDocument";
-// EK FAZ 3 Premium Word: GÜVENLİ (SSRF-korumalı) uzak görsel getirme.
+// P1 PHASE A: görseller `file_path` (source-of-truth) üzerinden service_role storage download
+// ile getirilir — kalıcı public URL / getPublicUrl FETCH edilmez (private-bucket-ready).
+import { downloadSafeStonePhotos } from "@/lib/sifa-rehberi/wordImages";
 import {
-  extractImageUrls,
-  fetchSafeImages,
+  STONE_PHOTOS_BUCKET,
+  resolveHealingImagePath,
   storageHostFromEnv,
-} from "@/lib/sifa-rehberi/wordImages";
+} from "@/lib/sifa-rehberi/stonePhotoStorage";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 
@@ -173,35 +175,43 @@ export async function POST(request: NextRequest): Promise<Response> {
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
 
-  // ── Güvenli görsel embedding (EK FAZ 3) ──────────────────────────────────────
-  // URL'ler YALNIZ Şifa'nın kendi Supabase Storage public host'undan getirilir (EXACT host;
-  // SSRF/localhost/private-IP/file/data/non-https reddedilir). Broken/oversize/bad-MIME/
-  // timeout/invalid-boyut → sessizce atlanır; TEK kötü görsel export'u bozmaz. İçerik/URL
-  // LOGLANMAZ. Belge sırası deterministik (guide görselleri → o guide'ın section görselleri).
+  // ── Güvenli görsel embedding (P1 PHASE A: service_role file_path download) ────
+  // Görseller `file_path` (source-of-truth) üzerinden service_role storage `download` ile
+  // getirilir — kalıcı public URL / getPublicUrl / `/object/public/...` FETCH EDİLMEZ. Her
+  // path YALNIZ ait olduğu guide'ın tenant'ı için `healing-guides/{tenant}/...` altında
+  // doğrulanır (resolveHealingImagePath) → cross-tenant download OLAMAZ. Legacy kayıtlarda
+  // `file_path` yoksa YALNIZ güvenilir stone-photos public URL'inden path parse edilir (dış
+  // URL kabul edilmez). Eksik obje/bad-MIME/oversize → sessizce atlanır; tek kötü görsel
+  // export'u bozmaz. İçerik/path LOGLANMAZ. Sıra deterministik (guide → o guide'ın section'ları).
   const guideImages: ImagesByKey = new Map();
   const sectionImages: ImagesByKey = new Map();
   const allowedHost = storageHostFromEnv(supabaseUrl);
-  if (allowedHost) {
-    type ImgEntry = { kind: "guide" | "section"; key: string; url: string };
+  {
+    type ImgEntry = { kind: "guide" | "section"; key: string; path: string };
     const entries: ImgEntry[] = [];
-    for (const g of guides) {
-      for (const u of extractImageUrls(g.images)) entries.push({ kind: "guide", key: g.id, url: u });
-      const secs = Array.isArray(g.healing_guide_sections) ? g.healing_guide_sections : [];
-      for (const s of secs) {
-        for (const u of extractImageUrls(s.images)) entries.push({ kind: "section", key: s.id, url: u });
+    const pushPaths = (kind: "guide" | "section", key: string, tenant: string, images: unknown) => {
+      if (!Array.isArray(images)) return;
+      for (const img of images) {
+        const path = resolveHealingImagePath(img as Record<string, unknown>, tenant, allowedHost);
+        if (path) entries.push({ kind, key, path });
       }
+    };
+    for (const g of guides) {
+      pushPaths("guide", g.id, g.tenant_id, g.images);
+      const secs = Array.isArray(g.healing_guide_sections) ? g.healing_guide_sections : [];
+      for (const s of secs) pushPaths("section", s.id, g.tenant_id, s.images);
     }
-    // Sessiz-tavan DEĞİL: aşılırsa yalnız SAYI loglanır (içerik/URL yok), fazlası atlanır.
+    // Sessiz-tavan DEĞİL: aşılırsa yalnız SAYI loglanır (içerik/path yok), fazlası atlanır.
     let capped = entries;
     if (entries.length > MAX_TOTAL_IMAGES) {
       console.warn(`[sifa/word-report] image count capped: ${entries.length} -> ${MAX_TOTAL_IMAGES}`);
       capped = entries.slice(0, MAX_TOTAL_IMAGES);
     }
     if (capped.length) {
-      const fetched = await fetchSafeImages(capped.map((e) => e.url), allowedHost, { fetchFn: fetch });
+      const fetched = await downloadSafeStonePhotos(db, STONE_PHOTOS_BUCKET, capped.map((e) => e.path));
       capped.forEach((e, i) => {
         const img = fetched[i];
-        if (!img) return;                              // broken/oversize/bad-MIME/timeout/disallowed
+        if (!img) return;                              // eksik obje/oversize/bad-MIME
         if (!getImgDimensions(img.data)) return;       // geçersiz boyut → atla (placeholder yok)
         const map = e.kind === "guide" ? guideImages : sectionImages;
         const arr = map.get(e.key) ?? [];
