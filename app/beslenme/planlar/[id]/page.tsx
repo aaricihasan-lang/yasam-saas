@@ -149,7 +149,7 @@ export default function PlanEditorPage() {
         onChanged={() => void reloadPlan()}
       />
       <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
-        Kopyala
+        Planı Kopyala
       </GhostButton>
       {!archived ? (
         <>
