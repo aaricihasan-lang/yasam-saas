@@ -42,6 +42,7 @@
     "test:personal-archive:storage:p1": "tsx scripts/personal-archive-storage-p1-harness.ts",
     "test:personal-archive:signed-url:p1": "tsx scripts/personal-archive-signed-url-p1-harness.ts",
     "test:sifa-rehberi:storage:p1": "tsx scripts/sifa-rehberi-storage-p1-harness.ts",
+    "test:sifa-rehberi:uat-bugfix": "tsx scripts/sifa-rehberi-uat-bugfix-harness.ts",
     "beslenme:class-a:harness": "node scripts/beslenme-class-a/ddlHarness.mjs",
     "beslenme:knowledge:harness": "node scripts/beslenme-knowledge/ddlHarness.mjs",
     "beslenme:client:ddl:harness": "node scripts/beslenme-client/ddlHarness.mjs",

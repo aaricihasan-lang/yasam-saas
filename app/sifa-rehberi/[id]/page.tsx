@@ -28,6 +28,7 @@ import {
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import { selectTabImages } from "@/lib/sifa-rehberi/guideImageView";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import {
   uploadSifaPhoto,
@@ -473,8 +474,12 @@ export default function SifaRehberiDetailPage() {
 
   const sectionsInActiveTab = groupedSections[sectionTab] ?? [];
 
+  // Section'sız (top-level / "Yeni kayıt" Görseller alanı) görseller varsayılan
+  // "Rahatsızlık" sekmesinde gösterilir; section atanmışlar kendi sekmesinde. Böylece
+  // healing_guides.images içindeki { id, name, file_path } (section YOK) kayıtları
+  // DB rewrite YAPILMADAN görünür kalır. Aynı görsel iki sekmede render EDİLMEZ.
   const tabImages = useMemo(
-    () => (draft?.images ?? []).filter((img) => img.section === tab),
+    () => selectTabImages(draft?.images ?? [], tab, DETAIL_TABS[0].id),
     [draft?.images, tab]
   );
 
