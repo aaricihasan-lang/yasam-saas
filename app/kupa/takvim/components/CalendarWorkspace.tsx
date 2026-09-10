@@ -21,6 +21,7 @@ import {
   type CuppingCalendarPlan,
 } from "@/app/kupa/lib/api";
 import type { CuppingSelectionSource } from "@/lib/cupping/traditionalDays";
+import { computeCalendarCounts } from "../lib/cellState";
 import { MonthCalendar } from "./MonthCalendar";
 import { MonthNav } from "./MonthNav";
 import { PlanPicker } from "./PlanPicker";
@@ -28,6 +29,9 @@ import { BulkDateSelector } from "./BulkDateSelector";
 import { OutputAdviceSection } from "./OutputAdviceSection";
 import { ClientAdviceSection } from "./ClientAdviceSection";
 import { SunnahDaysControl } from "./SunnahDaysControl";
+import { CalendarViewToggle, type CalendarView } from "./CalendarViewToggle";
+import { CalendarSummary } from "./CalendarSummary";
+import { AnnualCalendarOverview } from "./AnnualCalendarOverview";
 
 /** İstemci-yerel bugün "YYYY-MM-DD" (nötr; yalnız "bugün" halkası için). */
 function todayYmd(): string {
@@ -67,6 +71,7 @@ export function CalendarWorkspace() {
   const [savedDays, setSavedDays] = useState<Map<string, { id: string; source: CuppingSelectionSource }>>(new Map());
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const [month, setMonth] = useState(1);
+  const [view, setView] = useState<CalendarView>("monthly");
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,10 +84,20 @@ export function CalendarWorkspace() {
     for (const [ymd, v] of savedDays) m.set(ymd, v.source);
     return m;
   }, [savedDays]);
-  const autoCount = useMemo(
+
+  // ── ANLAMSAL SAYILAR (ŞU ANKİ taslak; owner görsel gereksinimi) ──────────────────
+  // Pür yardımcı (cellState.ts) → değişmez: auto + practitioner = total. Kurala uyan
+  //   MANUEL gün Uzman Seçimi'dir (otomatik sayılmaz).
+  const counts = useMemo(() => computeCalendarCounts(draft, savedSource), [draft, savedSource]);
+  const autoCount = counts.auto;
+  const totalCount = counts.total;
+  const practitionerCount = counts.practitioner;
+  // Sunucuda kayıtlı sunnah_auto satır sayısı (Sünnet paneli aksiyonları bunun üzerinde çalışır).
+  const savedAutoCount = useMemo(
     () => [...savedDays.values()].filter((v) => v.source === "sunnah_auto").length,
     [savedDays],
   );
+
   const additions = useMemo(() => [...draft].filter((d) => !savedDays.has(d)), [draft, savedDays]);
   const removals = useMemo(() => [...savedDays.keys()].filter((d) => !draft.has(d)), [savedDays, draft]);
   const dirty = additions.length > 0 || removals.length > 0;
@@ -366,41 +381,24 @@ export function CalendarWorkspace() {
         <div className={`${kupaCard}`}><p className="py-6 text-center text-sm text-slate-400">Takvim yükleniyor…</p></div>
       ) : plan ? (
         <>
-          {/* Takvim + kaydet */}
+          {/* Görünüm anahtarı + anlamsal özet + kaydet (AYNI plan/taslak; iki görünüm) */}
           <div className={`${kupaCard} flex flex-col gap-4`}>
-            <MonthNav year={plan.year} month={month} onChange={setMonth} />
-            <MonthCalendar
-              year={plan.year}
-              month={month}
-              selected={draft}
-              savedSource={savedSource}
-              today={today}
-              onToggle={toggleDay}
-            />
-            {/* Renk açıklaması (legend) — kompakt, profesyonel; çalışma alanını ezmez. */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded border border-emerald-400 bg-emerald-50" aria-hidden />
-                Sünnet Günü
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded border border-amber-400 bg-gradient-to-b from-amber-200 to-yellow-50" aria-hidden />
-                Altın Gün <span className="text-amber-500" aria-hidden>★★★★★</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded border border-slate-400 bg-slate-100" aria-hidden />
-                Uzmanın Seçtiği Gün
-              </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CalendarViewToggle view={view} onChange={setView} />
             </div>
-            {/* Kaydet aksiyon barı (mobilde sticky) */}
+            <CalendarSummary
+              autoCount={autoCount}
+              practitionerCount={practitionerCount}
+              totalCount={totalCount}
+              additions={additions.length}
+              removals={removals.length}
+            />
+            {/* Kaydet aksiyon barı (mobilde sticky; iki görünümden de erişilir) */}
             <div className="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm font-semibold text-slate-600" aria-live="polite">
-                {draft.size} gün seçili
-                {dirty ? (
-                  <span className="ml-2 text-xs font-medium text-amber-700">
-                    ({additions.length} eklenecek, {removals.length} kaldırılacak)
-                  </span>
-                ) : null}
+              <span className="text-sm font-medium text-slate-500" aria-live="polite">
+                {dirty
+                  ? `${additions.length + removals.length} değişiklik kaydedilmeyi bekliyor`
+                  : "Tüm değişiklikler kaydedildi"}
               </span>
               <button
                 type="button"
@@ -413,36 +411,93 @@ export function CalendarWorkspace() {
             </div>
           </div>
 
-          {/* Sünnet Günleri kontrolü (AYNI takvim; ikinci takvim DEĞİL) */}
-          <SunnahDaysControl
-            autoCount={autoCount}
-            busy={sunnahBusy}
-            onRestore={handleRestoreSunnah}
-            onClear={handleClearSunnah}
-          />
+          {view === "monthly" ? (
+            <>
+              {/* Aylık Düzenleme — TEK ay görünür (kalıcı 12-buton duvarı YOK) */}
+              <div className={`${kupaCard} flex flex-col gap-4`}>
+                <MonthNav year={plan.year} month={month} onChange={setMonth} />
+                <MonthCalendar
+                  year={plan.year}
+                  month={month}
+                  selected={draft}
+                  savedSource={savedSource}
+                  today={today}
+                  onToggle={toggleDay}
+                />
+                {/* Renk açıklaması (legend) — pastel; çalışma alanını ezmez. */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded border border-emerald-300 bg-emerald-50" aria-hidden />
+                    Sünnet Günü
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded border border-amber-300 bg-gradient-to-b from-amber-100 to-yellow-50" aria-hidden />
+                    Altın Gün <span className="text-amber-500" aria-hidden>★★★★★</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded border border-indigo-300 bg-indigo-50" aria-hidden />
+                    Uzman Seçimi
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded border border-dashed border-indigo-400 bg-indigo-50/70" aria-hidden />
+                    Kaydedilecek
+                  </span>
+                </div>
+              </div>
 
-          {/* Toplu gün seçimi (uzmanın KENDİ ölçütü; otomatik Sünnet üreticisiyle AYNI DEĞİL) */}
-          <BulkDateSelector year={plan.year} onAddDates={addBulk} />
+              {/* Sünnet Günleri kontrolü (AYNI takvim; ikinci takvim DEĞİL) */}
+              <SunnahDaysControl
+                autoCount={autoCount}
+                hasSavedAuto={savedAutoCount > 0}
+                busy={sunnahBusy}
+                onRestore={handleRestoreSunnah}
+                onClear={handleClearSunnah}
+              />
 
-          {/* Çıktı bilgilendirme notları */}
-          <div className={`${kupaCard}`}>
-            <OutputAdviceSection
-              plan={plan}
-              templates={templates}
-              onTemplatesChanged={refreshTemplates}
-              onAttach={handleAttachTemplate}
-            />
-          </div>
+              {/* Toplu gün seçimi (uzmanın KENDİ ölçütü; otomatik Sünnet üreticisiyle AYNI DEĞİL) */}
+              <BulkDateSelector year={plan.year} onAddDates={addBulk} />
 
-          {/* Danışana özel (opsiyonel, katlanır, lazy) */}
-          <ClientAdviceSection templates={templates} />
+              {/* Çıktı bilgilendirme notları */}
+              <div className={`${kupaCard}`}>
+                <OutputAdviceSection
+                  plan={plan}
+                  templates={templates}
+                  onTemplatesChanged={refreshTemplates}
+                  onAttach={handleAttachTemplate}
+                />
+              </div>
+
+              {/* Danışana özel (opsiyonel, katlanır, lazy) */}
+              <ClientAdviceSection templates={templates} />
+            </>
+          ) : (
+            /* Yıllık Özet — AYNI plan/taslak; 12 minik ay; ay tıklaması Aylık'ı açar */
+            <div className={`${kupaCard}`}>
+              <AnnualCalendarOverview
+                year={plan.year}
+                title={plan.name}
+                description={plan.description}
+                selected={draft}
+                savedSource={savedSource}
+                today={today}
+                autoCount={autoCount}
+                practitionerCount={practitionerCount}
+                totalCount={totalCount}
+                onMonthClick={(m) => {
+                  setMonth(m);
+                  setView("monthly");
+                }}
+              />
+            </div>
+          )}
         </>
       ) : null}
 
-      {/* Sakin açıklayıcı dipnot */}
+      {/* Sakin açıklayıcı dipnot — geleneksel sınıflandırma SUNULUR; tıbbi hüküm DEĞİL. */}
       <p className="px-1 text-xs leading-relaxed text-slate-400">
-        Not: Bu takvim kişisel çalışma planınızdır; randevu sistemi değildir ve hiçbir günü tıbbi/geleneksel olarak
-        &quot;doğru gün&quot; şeklinde önermez.
+        Not: Bu takvim kişisel çalışma planınızdır; randevu sistemi değildir. Sünnet ve Altın günleri
+        geleneksel takvim sınıflandırmasıdır — tıbbi uygunluk hükmü değildir ve ekoller arasında
+        farklılık gösterebilir. Bu günleri kaldırabilir veya takvimi tamamen kendiniz oluşturabilirsiniz.
       </p>
     </div>
   );

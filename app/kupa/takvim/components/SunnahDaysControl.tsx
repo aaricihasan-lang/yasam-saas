@@ -14,11 +14,15 @@ import { kupaBtnGhost, kupaBtnPrimary } from "@/app/kupa/components/KupaShell";
  */
 export function SunnahDaysControl({
   autoCount,
+  hasSavedAuto,
   busy,
   onRestore,
   onClear,
 }: {
+  /** ŞU ANKİ taslakta seçili otomatik (sunnah_auto) gün sayısı — ana özetle tutarlı. */
   autoCount: number;
+  /** Sunucuda kayıtlı sunnah_auto satır var mı (Temizle aksiyonu bunun üzerinde çalışır). */
+  hasSavedAuto: boolean;
   busy: boolean;
   onRestore: () => void;
   onClear: () => void;
@@ -39,7 +43,7 @@ export function SunnahDaysControl({
           </span>
           <span className="text-sm font-black text-slate-800">Sünnet Günleri</span>
           <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-            {autoCount} otomatik gün
+            {autoCount} otomatik Sünnet/Altın günü
           </span>
         </span>
         <span className="text-xs font-semibold text-amber-700" aria-hidden>
@@ -65,11 +69,11 @@ export function SunnahDaysControl({
             >
               {busy
                 ? "İşleniyor…"
-                : autoCount > 0
-                  ? "Eksik Sünnet Günlerini Yeniden Ekle"
+                : hasSavedAuto
+                  ? "Eksik Günleri Yeniden Ekle"
                   : "Sünnet Günlerini Ekle"}
             </button>
-            {autoCount > 0 ? (
+            {hasSavedAuto ? (
               <button
                 type="button"
                 className={`${kupaBtnGhost} min-h-[40px] border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50`}

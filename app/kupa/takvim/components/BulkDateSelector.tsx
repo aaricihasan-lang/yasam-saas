@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput, kupaPill, kupaPillActive } from "@/app/kupa/components/KupaShell";
 import { computeBulkDates, hasAnyCriteria, WEEKDAYS_TR, type BulkCriteria } from "../lib/bulk";
+import { MONTHS_TR } from "./MonthCalendar";
 
 /**
  * FAZ 5 / AŞAMA 3 — NÖTR Toplu Gün Seçimi (opsiyonel yardımcı; sayfayı BASKILAMAZ).
@@ -26,6 +27,8 @@ export function BulkDateSelector({
   const [rangeEnd, setRangeEnd] = useState("");
   const [hijriDays, setHijriDays] = useState<number[]>([]);
   const [weekdays, setWeekdays] = useState<number[]>([]);
+  // Gregoryen ay çoklu-seçimi — EPHEMERAL; ön-seçili DEĞİL; DB/localStorage'a YAZILMAZ.
+  const [months, setMonths] = useState<number[]>([]);
 
   const yearMin = `${year}-01-01`;
   const yearMax = `${year}-12-31`;
@@ -36,8 +39,9 @@ export function BulkDateSelector({
       rangeEnd: useRange && rangeEnd ? rangeEnd : null,
       hijriDays,
       weekdays,
+      months,
     }),
-    [useRange, rangeStart, rangeEnd, hijriDays, weekdays],
+    [useRange, rangeStart, rangeEnd, hijriDays, weekdays, months],
   );
 
   const preview = useMemo(() => computeBulkDates(year, criteria), [year, criteria]);
@@ -49,12 +53,16 @@ export function BulkDateSelector({
   function toggleWeekday(iso: number) {
     setWeekdays((prev) => (prev.includes(iso) ? prev.filter((x) => x !== iso) : [...prev, iso].sort((a, b) => a - b)));
   }
+  function toggleMonth(m: number) {
+    setMonths((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m].sort((a, b) => a - b)));
+  }
   function reset() {
     setUseRange(false);
     setRangeStart("");
     setRangeEnd("");
     setHijriDays([]);
     setWeekdays([]);
+    setMonths([]);
   }
   function apply() {
     if (!canApply) return;
@@ -124,7 +132,42 @@ export function BulkDateSelector({
             </div>
           </div>
 
-          {/* C) Gregoryen tarih aralığı (opsiyonel) */}
+          {/* C) Gregoryen aylar — çoklu seçim (opsiyonel; ephemeral). Seçiliyse sonuç
+                yalnız bu aylarda kalır (diğer ölçütlerle AND). Boşsa ay filtresi yok. */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Aylar</p>
+              {months.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setMonths([])}
+                  className="text-[11px] font-semibold text-amber-700 hover:text-amber-800"
+                >
+                  Tüm ayları temizle
+                </button>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-4 gap-1 sm:grid-cols-6">
+              {MONTHS_TR.map((label, i) => {
+                const m = i + 1;
+                const active = months.includes(m);
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => toggleMonth(m)}
+                    aria-pressed={active}
+                    aria-label={`${label} ${year}`}
+                    className={`${active ? kupaPillActive : kupaPill} min-h-[36px] px-0 text-center`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* D) Gregoryen tarih aralığı (opsiyonel) */}
           <div>
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
               <input type="checkbox" checked={useRange} onChange={(e) => setUseRange(e.target.checked)} />
