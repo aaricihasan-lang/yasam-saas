@@ -1,7 +1,13 @@
 /**
- * Şifa Rehberi — Premium Word görsel embedding için GÜVENLİ uzak görsel getirme.
+ * Şifa Rehberi — Premium Word görsel embedding için GÜVENLİ görsel getirme.
  *
- * SSRF / abuse kapıları (EK FAZ 3 Premium Word):
+ * P1 PHASE A NOTU: Word raporu ARTIK kalıcı public storage URL FETCH etmez. Görseller
+ * `file_path` (source-of-truth) üzerinden service_role storage `download` ile getirilir
+ * (aşağıdaki downloadSafeStonePhoto[s]). Aşağıdaki SSRF-korumalı public-URL fetch yardımcıları
+ * (isSafeImageUrl / fetchSafeImage / fetchSafeImages / extractImageUrls) GERİYE DÖNÜK
+ * uyumluluk ve mevcut birim testleri için KORUNUR; Word ROUTE'u bunları artık ÇAĞIRMAZ.
+ *
+ * SSRF / abuse kapıları (EK FAZ 3 Premium Word — legacy public-URL yolu):
  *   - Yalnız Şifa'nın kendi Supabase Storage public host'undan (EXACT host eşleşmesi;
  *     endsWith DEĞİL) ve `/storage/v1/object/public/` yolundan HTTPS URL'ler getirilir.
  *   - credentials/localhost/private-IP/file/data/javascript şeması reddedilir (host
@@ -111,6 +117,64 @@ export async function fetchSafeImages(
     const slice = urls.slice(i, i + concurrency);
     const settled = await Promise.all(
       slice.map((u) => fetchSafeImage(u, allowedHost, deps)),
+    );
+    settled.forEach((r, j) => {
+      out[i + j] = r;
+    });
+  }
+  return out;
+}
+
+// ── P1 PHASE A: service_role STORAGE DOWNLOAD (public-URL fetch YERİNE) ──────────
+//
+// Word raporu görselleri artık `file_path` ile PRIVATE-ready service_role download'dan gelir.
+// Kalıcı public URL / `/storage/v1/object/public/...` FETCH edilmez; cross-tenant download
+// olamaz (path'ler çağıran route'ta tenant-owned doğrulanır). Bad-MIME/oversize/eksik obje →
+// sessizce null (tek kötü görsel export'u bozmaz — mevcut ürün semantiği korunur).
+
+/** wordImages'ın ihtiyaç duyduğu minimal storage download arayüzü (service_role db). */
+export type StorageDownloader = {
+  storage: {
+    from(bucket: string): {
+      download(path: string): Promise<{ data: Blob | null; error: unknown }>;
+    };
+  };
+};
+
+/** Tek objeyi service_role ile indir + MIME/size doğrula. İhlal → null. */
+export async function downloadSafeStonePhoto(
+  db: StorageDownloader,
+  bucket: string,
+  path: string,
+  maxBytes = IMAGE_MAX_BYTES,
+): Promise<SafeImage | null> {
+  try {
+    const { data, error } = await db.storage.from(bucket).download(path);
+    if (error || !data) return null;
+    const mime = (data.type || "").split(";")[0].trim().toLowerCase();
+    if (!ALLOWED_IMAGE_MIME.has(mime)) return null;
+    if (typeof data.size === "number" && data.size > maxBytes) return null; // precheck
+    const ab = await data.arrayBuffer();
+    if (ab.byteLength === 0 || ab.byteLength > maxBytes) return null; // hard cap
+    return { data: Buffer.from(ab), mime };
+  } catch {
+    return null; // eksik obje / bozuk indirme → sessiz atla
+  }
+}
+
+/** Path listesini sabit eşzamanlılıkla indirir; sıra KORUNUR (deterministik). */
+export async function downloadSafeStonePhotos(
+  db: StorageDownloader,
+  bucket: string,
+  paths: string[],
+  maxBytes = IMAGE_MAX_BYTES,
+  concurrency = 6,
+): Promise<(SafeImage | null)[]> {
+  const out: (SafeImage | null)[] = new Array(paths.length).fill(null);
+  for (let i = 0; i < paths.length; i += concurrency) {
+    const slice = paths.slice(i, i + concurrency);
+    const settled = await Promise.all(
+      slice.map((p) => downloadSafeStonePhoto(db, bucket, p, maxBytes)),
     );
     settled.forEach((r, j) => {
       out[i + j] = r;
