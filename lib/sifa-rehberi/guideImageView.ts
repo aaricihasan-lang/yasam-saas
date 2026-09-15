@@ -37,6 +37,12 @@ export function isImageInTab(
  * Aktif sekmede gösterilecek görselleri süzer. Girdi sırası korunur; hiçbir görsel
  * birden fazla kez döndürülmez (her görsel ya section'sız → defaultTab, ya da tek bir
  * section'a ait).
+ *
+ * NOT: Bu YALNIZ LEGACY (section-native OLMAYAN) detay görünümü içindir. Görünen sekme
+ * legacy `tab` state'ine bağlıdır. Section-native görünümde RECORD-LEVEL görseller için
+ * bunu KULLANMA; `selectRecordLevelImages` kullan (aşağıya bakın) — çünkü section-native
+ * navigasyon legacy `tab` state'ini DEĞİŞTİRMEZ ve bu seçici her section sekmesinde aynı
+ * section'sız görselleri tekrar döndürürdü (duplicate render).
  */
 export function selectTabImages<T extends { section?: string | null }>(
   images: readonly T[],
@@ -44,4 +50,30 @@ export function selectTabImages<T extends { section?: string | null }>(
   defaultTab: string
 ): T[] {
   return images.filter((img) => isImageInTab(img.section, tab, defaultTab));
+}
+
+// ── RECORD-LEVEL SINIFLANDIRMA (LEGACY TAB FİLTRESİNDEN AYRI) ──────────────────
+// Aşağıdaki iki yardımcı, "Yeni kayıt" üst "Görseller" alanından gelen GUIDE/RECORD
+// seviyesindeki (section'sız) görselleri sınıflandırır. Bunlar legacy `tab` state'iyle
+// veya section-native `sectionTab` state'iyle İLİŞKİLİ DEĞİLDİR: section navigasyonundan
+// BAĞIMSIZ, guide-level tek bir "Görseller" galerisinde gösterilirler.
+
+/**
+ * Bir görselin RECORD-LEVEL (section'sız) olup olmadığını belirler.
+ * section undefined/null/boş string/yalnız-whitespace ise record-level kabul edilir.
+ */
+export function isUnsectionedImage(section: string | null | undefined): boolean {
+  return (typeof section === "string" ? section.trim() : "").length === 0;
+}
+
+/**
+ * RECORD-LEVEL (section'sız) görselleri süzer. Section-native detay görünümündeki
+ * guide-level "Görseller" galerisi bu seçiciyi kullanır. Sonuç herhangi bir sekme
+ * (`tab` / `sectionTab`) state'inden BAĞIMSIZDIR; girdi sırası korunur. Section atanmış
+ * görseller bu galeriye GİRMEZ.
+ */
+export function selectRecordLevelImages<T extends { section?: string | null }>(
+  images: readonly T[]
+): T[] {
+  return images.filter((img) => isUnsectionedImage(img.section));
 }

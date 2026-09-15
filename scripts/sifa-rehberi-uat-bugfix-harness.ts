@@ -26,7 +26,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { isImageInTab, selectTabImages } from "@/lib/sifa-rehberi/guideImageView";
+import {
+  isImageInTab,
+  selectTabImages,
+  isUnsectionedImage,
+  selectRecordLevelImages,
+} from "@/lib/sifa-rehberi/guideImageView";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -166,6 +171,71 @@ ok("27. footer içinde Kaydet + Kapat butonları mevcut",
   /Kaydediliyor\.\.\.|Kaydet/.test(list) && /Kapat/.test(list));
 ok("28. içerik alanı iç scroll ile taşabilir (lg:overflow-y-auto)",
   /lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(list));
+
+// ── RED-TEAM · RECORD-LEVEL IMAGE WIRING (SECTION-NATIVE) ──────────────────────
+// KÖK NEDEN: Detay sayfasında İKİ navigasyon modeli var:
+//   LEGACY   → `tab` state (DetailTabId; init "rahatsizlik")
+//   SECTION  → `sectionTab` state (HealingGuideSectionType; init "reasons")
+// `useSectionView = sections.length > 0 && !editEnabled` iken kullanıcı section-native
+// sekmelerde gezerken legacy `tab` DEĞİŞMEZ. Eski `tabImages` bloğu KOŞULSUZ render
+// edildiğinden section'sız (record-level) görseller HER section sekmesinde tekrar
+// görünüyordu. Pure helper doğru olsa da COMPONENT WIRING yanlıştı; eski harness bunu
+// yalnız izole helper test ettiği için kaçırdı. Bu blok gerçek source contract'ı kilitler.
+console.log("\nRED-TEAM — RECORD-LEVEL IMAGE WIRING (SECTION-NATIVE)");
+
+// Davranış: RECORD-LEVEL sınıflandırma (LEGACY tab filtresinden AYRI).
+ok("29. isUnsectionedImage: undefined/null/''/whitespace → record-level (true)",
+  isUnsectionedImage(undefined) && isUnsectionedImage(null) &&
+  isUnsectionedImage("") && isUnsectionedImage("   "));
+ok("30. isUnsectionedImage: section atanmış → record-level DEĞİL (false)",
+  isUnsectionedImage("uygulamalar") === false && isUnsectionedImage("reasons") === false);
+
+const recordCorpus: Img[] = [topLevel, sectioned, whitespaceSection, rahatsizlikImg, prodEntry];
+const recordSel = selectRecordLevelImages(recordCorpus);
+ok("31. selectRecordLevelImages: yalnız section'sız görseller, giriş sırası korunur",
+  recordSel.length === 3 &&
+  recordSel[0].id === "t1" && recordSel[1].id === "w1" && recordSel[2].id === "p1");
+ok("32. selectRecordLevelImages: section atanmış görseller (uygulamalar/rahatsizlik) HARİÇ",
+  !recordSel.some((i) => i.id === "s1") && !recordSel.some((i) => i.id === "r1"));
+ok("33. production-style { id, name, file_path } (section YOK) record-level seçilir",
+  selectRecordLevelImages([prodEntry]).length === 1);
+ok("34. record-level seçici herhangi bir `tab`/`sectionTab` argümanı ALMAZ (tab-bağımsız)",
+  selectRecordLevelImages.length === 1); // arity: yalnız images
+
+// Source contract: gerçek component wiring.
+ok("35. detay `selectRecordLevelImages` import edip kullanır",
+  /import\s*\{[^}]*selectRecordLevelImages[^}]*\}\s*from\s*"@\/lib\/sifa-rehberi\/guideImageView"/.test(detail) &&
+  /selectRecordLevelImages\(\s*draft\?\.images\s*\?\?\s*\[\]\s*\)/.test(detail));
+ok("36. `recordLevelImages` memo YALNIZ [draft?.images]'e bağlıdır (legacy `tab` YOK)",
+  /const recordLevelImages = useMemo\(\s*\(\)\s*=>\s*selectRecordLevelImages\(draft\?\.images \?\? \[\]\),\s*\[draft\?\.images\]\s*\)/.test(detail));
+ok("37. guide-level galeri `useSectionView && recordLevelImages.length > 0` ile gate'lenir",
+  /\{useSectionView && recordLevelImages\.length > 0 \?/.test(detail));
+ok("38. guide-level galeri record-level görselleri map eder",
+  /recordLevelImages\.map\(\(img\)/.test(detail));
+ok("39. guide-level galeri TEK canonical render placement'ına sahiptir (map tam 1 kez)",
+  (detail.match(/recordLevelImages\.map\(/g) ?? []).length === 1);
+ok("40. guide-level galeri signedUrls[img.id] PRIMARY render kaynağı kullanır",
+  (() => {
+    const block = /recordLevelImages\.map\([\s\S]*?\)\)\}/.exec(detail)?.[0] ?? "";
+    return /src=\{signedUrls\[img\.id\]\s*\?\?\s*img\.url\s*\?\?\s*""\}/.test(block);
+  })());
+ok("41. LEGACY `tabImages` galerisi YALNIZ `!useSectionView` branch'inde render edilir",
+  /\{!useSectionView && tabImages\.length > 0 \?/.test(detail));
+ok("42. guide-level record-level galeri, section içerik branch'inin DIŞINDA (ana <section> container'ından ÖNCE)",
+  (() => {
+    const galleryIdx = detail.indexOf("recordLevelImages.map");
+    // section-native içerik branch işaretçileri (per-tab content container içinde)
+    const sectionContentIdx = detail.indexOf("sectionsInActiveTab.map");
+    const mainSectionIdx = detail.search(/<section className="flex max-h-\[min\(92vh,900px\)\]/);
+    return galleryIdx > 0 && mainSectionIdx > 0 && sectionContentIdx > 0 &&
+      galleryIdx < mainSectionIdx && galleryIdx < sectionContentIdx;
+  })());
+ok("43. section-native record-level yerleşimi için legacy `tab` state'i KULLANILMAZ",
+  (() => {
+    // guide-level galeri bloğu `tab` (legacy) referansı içermemeli
+    const block = /\{useSectionView && recordLevelImages\.length > 0 \?[\s\S]*?recordLevelImages\.map\([\s\S]*?\)\)\}/.exec(detail)?.[0] ?? "";
+    return block.length > 0 && !/\bsetTab\(|\btab ===|selectTabImages\(/.test(block);
+  })());
 
 // ── SONUÇ ──────────────────────────────────────────────────────────────────────
 console.log(`\nŞİFA REHBERİ · UAT BUGFIX HARNESS: ${pass} passed, ${fail} failed`);
