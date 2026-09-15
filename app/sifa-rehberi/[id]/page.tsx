@@ -28,6 +28,7 @@ import {
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import { selectTabImages, selectRecordLevelImages } from "@/lib/sifa-rehberi/guideImageView";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import {
   uploadSifaPhoto,
@@ -473,9 +474,21 @@ export default function SifaRehberiDetailPage() {
 
   const sectionsInActiveTab = groupedSections[sectionTab] ?? [];
 
+  // LEGACY (section-native OLMAYAN) görünüm için sekme-bazlı görsel süzme. Section'sız
+  // görseller varsayılan "Rahatsızlık" sekmesinde; section atanmışlar kendi sekmesinde.
+  // Yalnız `!useSectionView` (legacy) branch'inde render edilir — section-native modda
+  // legacy `tab` state'i sabit kalacağından duplicate render'a yol açardı.
   const tabImages = useMemo(
-    () => (draft?.images ?? []).filter((img) => img.section === tab),
+    () => selectTabImages(draft?.images ?? [], tab, DETAIL_TABS[0].id),
     [draft?.images, tab]
+  );
+
+  // RECORD-LEVEL (section'sız) görseller — section-native görünümdeki tek canonical
+  // guide-level "Görseller" galerisinin kaynağıdır. `tab`/`sectionTab` state'inden
+  // BAĞIMSIZDIR: section navigasyonunda tekrar/duplicate render OLMAZ. DB rewrite YOK.
+  const recordLevelImages = useMemo(
+    () => selectRecordLevelImages(draft?.images ?? []),
+    [draft?.images]
   );
 
   const loadRecord = useCallback(async () => {
@@ -1027,6 +1040,47 @@ export default function SifaRehberiDetailPage() {
           </div>
         ) : null}
 
+        {/*
+          RECORD-LEVEL GÖRSELLER — GUIDE-LEVEL TEK CANONICAL GALERİ.
+          Section-native görünümde ("Nedenler / Uygulamalar / Doğaltaş …" sekmeleri)
+          section'sız (record-level) görseller BURADA, section içerik branch'inin DIŞINDA,
+          TEK KEZ gösterilir. Kaynak `recordLevelImages`; `sectionTab`/`tab` state'inden
+          BAĞIMSIZDIR → sekme geçişlerinde duplicate render OLMAZ. Legacy görünümde
+          (useSectionView === false) görseller eskisi gibi sekme-bazlı `tabImages`
+          bloğunda kalır; bu galeri gösterilmez.
+        */}
+        {useSectionView && recordLevelImages.length > 0 ? (
+          <section className="mb-3 rounded-2xl border border-white/80 bg-white/86 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
+            <h2 className="text-[15px] font-bold tracking-tight text-slate-950 max-md:text-lg">
+              Görseller
+            </h2>
+            <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">
+              Bu kaydın genel görselleri — bölüm sekmelerinden bağımsızdır.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              {recordLevelImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="relative w-[88px] shrink-0 rounded-2xl border border-slate-200/90 bg-white p-1 shadow-sm ring-1 ring-slate-100/80"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(img)}
+                    className="block w-full overflow-hidden rounded-xl outline-none ring-emerald-200/0 transition focus-visible:ring-2 focus-visible:ring-emerald-400"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={signedUrls[img.id] ?? img.url ?? ""}
+                      alt=""
+                      className="aspect-square h-20 w-full object-cover"
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <section className="flex max-h-[min(92vh,900px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 max-md:max-h-none max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none max-md:ring-0 lg:max-h-[min(88vh,960px)] lg:flex-row">
           {sectionEditMode ? (
             <div className="min-h-0 flex-1 overflow-y-auto p-4 max-md:overflow-visible max-md:p-0 max-md:pt-3 lg:p-5">
@@ -1144,7 +1198,7 @@ export default function SifaRehberiDetailPage() {
                 </div>
               ) : null}
 
-              {tabImages.length > 0 ? (
+              {!useSectionView && tabImages.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   {tabImages.map((img) => (
                     <div

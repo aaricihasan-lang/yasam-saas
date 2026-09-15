@@ -843,7 +843,14 @@ function SifaRehberiContent() {
   if (isNewView) {
     return (
       <>
-        <div className="flex min-h-dvh flex-col bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 lg:h-dvh lg:overflow-hidden">
+        {/* Yükseklik kontratı — LİSTE görünümüyle (bkz. contentShell) BİREBİR aynı desen.
+            globals.css YALNIZ düz `.h-screen`/`.min-h-screen`'i logo bar'a (44px, `--logo-h`)
+            göre daraltır: calc(100vh - var(--logo-h)). Tailwind'in responsive varyantı
+            `.lg\:h-screen` AYRI bir sınıftır ve globals.css onu daraltMAZ (ölçüldü: lg:h-screen
+            = 100vh ham) → bu yüzden desktop'ta düz `h-screen` kullanılır. Ham `h-dvh/min-h-dvh`
+            de daraltılmaz; kullanılırsa sayfa 100vh+44px olur ve Kaydet/Kapat barı KESİLİR.
+            Mobilde `max-lg:h-auto/min-h-screen/overflow-y-auto` → doğal belge scroll'u. */}
+        <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 max-lg:h-auto max-lg:min-h-screen max-lg:overflow-y-auto">
           <header className="mx-auto mb-4 flex h-16 w-full max-w-[1100px] shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
             <SifaRehberiToolbarMenuButton onClick={() => void guardedLeaveCreate(goToMainMenu)} />
             <div className="min-w-0 pl-4 text-right">
