@@ -80,18 +80,9 @@ export function PlanPicker({
           setMode("none");
           return;
         }
-        // OTORİTER durumu getir (sunnah_auto günler DB'den; client-side sahte satır YOK).
+        // OTORİTER durumu getir. Yeni plan SIFIR seçili günle açılır (hazır gün YOK).
         await onPlansChanged(res.plan.id);
-        // Tohumlama sonucu DÜRÜST: başarısızsa sessiz geçme, restore aksiyonuna yönlendir.
-        if (res.autoSeeded === false) {
-          showToast({
-            message:
-              "Takvim oluşturuldu ancak otomatik Sünnet günleri eklenemedi. 'Sünnet Günlerini Ekle' ile tekrar deneyebilirsiniz.",
-            type: "warning",
-          });
-        } else {
-          showToast({ message: "Takvim oluşturuldu.", type: "success" });
-        }
+        showToast({ message: "Takvim oluşturuldu.", type: "success" });
       } else if (mode === "edit" && active) {
         // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
         const body: Parameters<typeof updateCalendarPlan>[1] = {

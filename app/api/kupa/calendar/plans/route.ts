@@ -9,7 +9,6 @@ import {
   listEntity,
   parseJsonBody,
   pickWritable,
-  seedSunnahAutoDays,
 } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
@@ -17,7 +16,9 @@ export const runtime = "nodejs";
 /**
  * /api/kupa/calendar/plans — FAZ 5 HACAMAT TAKVİMİ planları (root).
  *
- * Ürün: profesyonel KENDİ takvimini oluşturur; sistem "doğru gün" EMPOZE ETMEZ.
+ * Ürün (owner KİLİTLİ): profesyonel KENDİ takvimini TAMAMEN kendisi oluşturur; sistem HAZIR
+ *   gün EMPOZE ETMEZ. Yeni plan SIFIR seçili günle başlar (otomatik tohumlama YOK). Her
+ *   uygulama günü uzman tarafından /days ucundan MANUEL eklenir.
  * Güvenlik: requireModuleAccess("cupping"); tenant SUNUCUDA; yalnız CALENDAR_PLAN_WRITABLE;
  *   advice_template_id verilirse AYNI tenant'a ait olmalı; demo → persist=0; safe error.
  */
@@ -73,19 +74,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     delete fields.advice_template_id;
   }
 
+  // YENİ plan YALNIZ metadata oluşturur — SIFIR seçili gün. Otomatik tohumlama YOK; hazır
+  // Sünnet/Altın günü YOK. Uzman her uygulama gününü kendisi /days ucundan ekler.
   const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
   if (!ins.ok) return ins.response;
 
-  // YENİ plan: uzmanın VARSAYILAN geleneksel Sünnet/Altın günleri AYNI takvime otomatik
-  // eklenir (ikinci tık gerektirmez; ayrı hesaplanmış takvim YOK). Tohumlama sunucu-sahipli
-  // sunnah_auto kökeniyle yapılır. Başarısız olursa plan yine döner (SESSİZ DEĞİL: autoSeeded
-  // + seededDays ile bildirilir) ve UI "Eksik Sünnet Günlerini Yeniden Ekle" ile telafi sunar.
-  const created = ins.data as { id: string; year: number };
-  const seed = await seedSunnahAutoDays(db, CUPPING_TABLES.calendarPlanDays, tenantId, created.id, created.year);
-  return NextResponse.json({
-    ok: true,
-    plan: ins.data,
-    autoSeeded: seed.ok,
-    seededDays: seed.ok ? seed.data.inserted : 0,
-  });
+  return NextResponse.json({ ok: true, plan: ins.data });
 }

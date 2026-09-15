@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { monthHijriCells } from "@/lib/cupping/hijri";
-import type { CuppingSelectionSource } from "@/lib/cupping/traditionalDays";
 import {
   getCuppingCellState,
   CUPPING_CELL_PALETTE,
@@ -18,26 +17,25 @@ import { WEEKDAYS_TR, isoWeekday } from "../lib/bulk";
  *   dar ekranda satır kaydırma ile okunur (yatay taşma YOK). Hicrî değer lib/cupping/hijri.ts
  *   üzerinden TÜRETİLİR (saklanmaz). Hücre başına API çağrısı YOK. Hafta Pazartesi başlar.
  *
- * ANLAMSAL DURUM (renk + rozet): getCuppingCellState TEK doğruluk kaynağıdır (Yıllık Özet
- *   ile AYNI). Sünnet=pastel nane, Altın=pastel şampanya ★★★★★, Uzman=pastel indigo,
- *   Kaydedilecek=kesikli indigo, Kaldırılacak=soluk (kökeni korunur). Renk TEK sinyal
- *   DEĞİL — her durum ayrıca Türkçe rozet/etiket taşır (a11y). Manuel gün — kurala uysa
- *   bile — "Uzman"dır (selection_source=manual daima kazanır; otomatik yeşil/altın OLMAZ).
+ * DURUM (renk + rozet): getCuppingCellState TEK doğruluk kaynağıdır (Yıllık Özet ile AYNI).
+ *   Takvim UZMAN-SAHİPLİDİR — hazır gün, Sünnet/Altın, 17/19/21 KAVRAMI YOKTUR. Yalnız dört
+ *   sade durum: normal, Seçili (pastel indigo), Kaydedilecek (kesikli), Kaldırılacak (soluk).
+ *   Renk TEK sinyal DEĞİL — her durum ayrıca Türkçe rozet/etiket taşır (a11y).
  */
 
 export function MonthCalendar({
   year,
   month,
   selected,
-  savedSource,
+  saved,
   today,
   onToggle,
 }: {
   year: number;
   month: number; // 1–12
   selected: Set<string>;
-  /** ymd → KÖKEN (yalnız KAYITLI günler için). Renk kararında kullanılır. */
-  savedSource: Map<string, CuppingSelectionSource>;
+  /** ymd kümesi — sunucuda KAYITLI günler. Bekleyen ekleme/kaldırma kararında kullanılır. */
+  saved: Set<string>;
   today: string | null; // "YYYY-MM-DD"
   onToggle: (ymd: string) => void;
 }) {
@@ -68,7 +66,7 @@ export function MonthCalendar({
         {cells.map((cell) => {
           const ymd = cell.gregorian;
           const isSel = selected.has(ymd);
-          const state = getCuppingCellState(ymd, isSel, savedSource.get(ymd));
+          const state = getCuppingCellState(isSel, saved.has(ymd));
           const isToday = today === ymd;
           const gDay = Number(ymd.slice(8, 10));
           const palette = CUPPING_CELL_PALETTE[state.kind];
@@ -76,17 +74,13 @@ export function MonthCalendar({
 
           const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
           const statusWord =
-            state.kind === "golden"
-              ? " — Altın Gün"
-              : state.kind === "sunnah"
-                ? " — Sünnet Günü"
-                : state.kind === "manual-saved"
-                  ? " — Uzman seçimi"
-                  : state.kind === "manual-unsaved"
-                    ? " — Uzman seçimi (kaydedilecek)"
-                    : state.kind === "removal-auto" || state.kind === "removal-manual"
-                      ? " — kaldırılacak"
-                      : "";
+            state.kind === "selected_saved"
+              ? " — seçili gün"
+              : state.kind === "selected_pending_add"
+                ? " — seçili gün (kaydedilecek)"
+                : state.kind === "pending_remove"
+                  ? " — kaldırılacak"
+                  : "";
           const aria = `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${fullHijri}${statusWord}`;
 
           return (
@@ -113,29 +107,16 @@ export function MonthCalendar({
               >
                 {cell.hijri.day} {cell.hijri.monthName} {cell.hijri.year}
               </span>
-              {/* Durum rozeti (renk TEK sinyal değil). Altın Gün: BEŞ altın yıldız. */}
-              {state.kind === "golden" ? (
-                <span className="flex flex-col items-center leading-none">
-                  <span className="text-[9px] font-bold tracking-tight text-amber-500 sm:text-[11px]" aria-hidden>
-                    ★★★★★
-                  </span>
-                  <span className="rounded bg-amber-100 px-1 text-[8px] font-bold uppercase leading-tight text-amber-700" aria-hidden>
-                    Altın
-                  </span>
-                </span>
-              ) : state.kind === "sunnah" ? (
-                <span className="rounded bg-emerald-100 px-1 text-[8px] font-bold uppercase leading-tight text-emerald-700" aria-hidden>
-                  Sünnet
-                </span>
-              ) : state.kind === "manual-saved" ? (
+              {/* Durum rozeti (renk TEK sinyal değil). Tüm günler uzman-sahipli. */}
+              {state.kind === "selected_saved" ? (
                 <span className="rounded bg-indigo-100 px-1 text-[8px] font-bold uppercase leading-tight text-indigo-700" aria-hidden>
-                  Uzman
+                  Seçili
                 </span>
-              ) : state.kind === "manual-unsaved" ? (
+              ) : state.kind === "selected_pending_add" ? (
                 <span className="rounded border border-dashed border-indigo-400 px-1 text-[8px] font-bold uppercase leading-tight text-indigo-600" aria-hidden>
                   Kaydedilecek
                 </span>
-              ) : state.kind === "removal-auto" || state.kind === "removal-manual" ? (
+              ) : state.kind === "pending_remove" ? (
                 <span className="text-[8px] font-medium leading-none text-slate-400" aria-hidden>
                   Kaldırılacak
                 </span>

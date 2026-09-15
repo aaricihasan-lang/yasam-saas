@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { annualHijriCells } from "@/lib/cupping/hijri";
-import type { CuppingSelectionSource } from "@/lib/cupping/traditionalDays";
 import { getCuppingCellState, type CuppingCellKind } from "../lib/cellState";
 import { isoWeekday } from "../lib/bulk";
 import { MONTHS_TR } from "./MonthCalendar";
@@ -10,27 +9,25 @@ import { MONTHS_TR } from "./MonthCalendar";
 /**
  * FAZ 5 / AŞAMA 3 — YILLIK ÖZET (profesyonel 12-ay planı).
  *
- * TEK PLAN, İKİNCİ TAKVİM YOK: Aylık Düzenleme ile AYNI plan/taslak/köken haritasını alır.
- *   Anlamsal durum getCuppingCellState ile TÜRETİLİR (renk bağımsız hesaplanmaz) → iki
- *   görünüm HER ZAMAN aynı doğruluğu gösterir; KAYDEDİLMEMİŞ taslak dâhil.
+ * TEK PLAN, İKİNCİ TAKVİM YOK: Aylık Düzenleme ile AYNI plan/taslak/kayıt kümesini alır.
+ *   Durum getCuppingCellState ile TÜRETİLİR (renk bağımsız hesaplanmaz) → iki görünüm HER
+ *   ZAMAN aynı doğruluğu gösterir; KAYDEDİLMEMİŞ taslak dâhil.
+ * UZMAN-SAHİPLİ: Hazır gün, Sünnet/Altın, otomatik statü YOKTUR — yalnız uzmanın seçtiği
+ *   günler pastel indigo ile vurgulanır. Hiç gün seçilmemişse 12 ay yine gösterilir (sakin
+ *   boş-durum mesajı).
  * NAVİGASYON: Yıllık Özet öncelikle ÖZET + GEZİNMEDİR (minik hücrede tekil düzenleme YOK).
  *   Bir ay kartına tıklamak Aylık Düzenleme'yi tam o ayda açar.
- * Minik hücrelerde tam Hicrî METİN gösterilmez (kalabalık olmasın) ama title/aria-label
- *   aynı kanonik yardımcıdan tam Hicrî tarihi taşır. Tıbbi/A3/A4/Word/print YOK.
  */
 
 /** Haftagünü baş harfleri (Pzt→Paz; minik grid için 2 harf, okunur). */
 const WD_INITIALS = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pa"] as const;
 
-/** Minik gün hücresi için kompakt PASTEL dolgu (Aylık ile AYNI anlamsal aileler). */
+/** Minik gün hücresi için kompakt PASTEL dolgu (Aylık ile AYNI durum aileleri). */
 const MINI_FILL: Record<CuppingCellKind, string> = {
   none: "text-slate-600",
-  sunnah: "bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300",
-  golden: "bg-amber-100 text-amber-900 font-bold ring-1 ring-amber-300",
-  "manual-saved": "bg-indigo-100 text-indigo-800 font-bold ring-1 ring-indigo-300",
-  "manual-unsaved": "bg-indigo-50 text-indigo-700 font-bold border border-dashed border-indigo-400",
-  "removal-auto": "bg-emerald-50 text-emerald-400 line-through opacity-70",
-  "removal-manual": "bg-indigo-50 text-indigo-400 line-through opacity-70",
+  selected_saved: "bg-indigo-100 text-indigo-800 font-bold ring-1 ring-indigo-300",
+  selected_pending_add: "bg-indigo-50 text-indigo-700 font-bold border border-dashed border-indigo-400",
+  pending_remove: "bg-indigo-50 text-indigo-400 line-through opacity-70",
 };
 
 export function AnnualCalendarOverview({
@@ -38,29 +35,24 @@ export function AnnualCalendarOverview({
   title,
   description,
   selected,
-  savedSource,
+  saved,
   today,
-  autoCount,
-  practitionerCount,
-  totalCount,
   onMonthClick,
 }: {
   year: number;
   title: string;
   description?: string | null;
   selected: Set<string>;
-  savedSource: Map<string, CuppingSelectionSource>;
+  saved: Set<string>;
   today: string | null;
-  autoCount: number;
-  practitionerCount: number;
-  totalCount: number;
   onMonthClick: (month: number) => void;
 }) {
   const months = useMemo(() => annualHijriCells(year), [year]);
+  const hasSelection = selected.size > 0;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Başlık + özet + legend */}
+      {/* Başlık + sade legend */}
       <div className="flex flex-col gap-3 border-b border-amber-100 pb-3">
         <div>
           <h2 className="text-lg font-black text-slate-900 sm:text-xl">{year} Hacamat Takvimi</h2>
@@ -68,19 +60,21 @@ export function AnnualCalendarOverview({
             <p className="mt-0.5 text-sm text-slate-500">{title}</p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <span className="font-semibold text-emerald-700">{autoCount} Otomatik</span>
-          <span className="text-slate-300" aria-hidden>•</span>
-          <span className="font-semibold text-indigo-700">{practitionerCount} Uzman</span>
-          <span className="text-slate-300" aria-hidden>•</span>
-          <span className="font-semibold text-amber-700">{totalCount} Toplam</span>
-        </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
-          <LegendDot className="bg-emerald-100 ring-1 ring-emerald-300" label="Sünnet" />
-          <LegendDot className="bg-amber-100 ring-1 ring-amber-300" label="Altın" />
-          <LegendDot className="bg-indigo-100 ring-1 ring-indigo-300" label="Uzman" />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded bg-indigo-100 ring-1 ring-indigo-300" aria-hidden />
+            Seçili Gün
+          </span>
         </div>
       </div>
+
+      {/* Hiç gün seçilmemişse sakin boş-durum notu (12 ay yine gösterilir). */}
+      {!hasSelection ? (
+        <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
+          Bu yıl için henüz uygulama günü seçilmedi. Bir ay kartına dokunup Aylık Düzenleme&apos;den
+          kendi günlerinizi işaretleyebilirsiniz.
+        </p>
+      ) : null}
 
       {/* 12 minik ay — responsive (mobil 1, sm 2, lg 3, xl 4 kolon; yatay taşma YOK) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -117,23 +111,19 @@ export function AnnualCalendarOverview({
                 {cells.map((cell) => {
                   const ymd = cell.gregorian;
                   const isSel = selected.has(ymd);
-                  const state = getCuppingCellState(ymd, isSel, savedSource.get(ymd));
+                  const state = getCuppingCellState(isSel, saved.has(ymd));
                   const gDay = Number(ymd.slice(8, 10));
                   const isToday = today === ymd;
                   const fill = MINI_FILL[state.kind];
                   const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
                   const statusWord =
-                    state.kind === "golden"
-                      ? " — Altın Gün ★★★★★"
-                      : state.kind === "sunnah"
-                        ? " — Sünnet Günü"
-                        : state.kind === "manual-saved"
-                          ? " — Uzman seçimi"
-                          : state.kind === "manual-unsaved"
-                            ? " — Uzman seçimi (kaydedilecek)"
-                            : state.kind === "removal-auto" || state.kind === "removal-manual"
-                              ? " — kaldırılacak"
-                              : "";
+                    state.kind === "selected_saved"
+                      ? " — seçili gün"
+                      : state.kind === "selected_pending_add"
+                        ? " — seçili gün (kaydedilecek)"
+                        : state.kind === "pending_remove"
+                          ? " — kaldırılacak"
+                          : "";
                   return (
                     <span
                       key={ymd}
@@ -145,9 +135,6 @@ export function AnnualCalendarOverview({
                       ].join(" ")}
                     >
                       {gDay}
-                      {state.kind === "golden" ? (
-                        <span className="absolute -right-0.5 -top-0.5 text-[7px] text-amber-500" aria-hidden>★</span>
-                      ) : null}
                     </span>
                   );
                 })}
@@ -162,14 +149,5 @@ export function AnnualCalendarOverview({
         kaydedilmemiş seçimleriniz dâhil güncel planınızı gösterir.
       </p>
     </div>
-  );
-}
-
-function LegendDot({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-3 w-3 rounded ${className}`} aria-hidden />
-      {label}
-    </span>
   );
 }
