@@ -14,6 +14,17 @@ export const CUPPING_PLAN_YEAR_MAX = 2200;
 /** Bir plan-gün toplu (bulk) POST'ta izin verilen azami tarih sayısı. */
 export const CUPPING_PLAN_DAYS_MAX_BATCH = 366;
 
+/**
+ * Bir plan-gün satırının KÖKENİ — DB kolonu `selection_source` ile birebir.
+ *
+ * ⚠️ LEGACY / ŞEMA UYUMLULUĞU: Ürün artık HAZIR gün üretmez (otomatik Sünnet/Altın
+ *   kaldırıldı). Her yeni satır `selection_source = 'manual'` (uzman-sahipli). Union'da
+ *   `'sunnah_auto'` YALNIZ üretim şemasındaki CHECK kısıtı ve temizlenmemiş eski satırlarla
+ *   uyumluluk içindir; uygulama katmanı ARTIK 'sunnah_auto' YAZMAZ ve ona özel bir görünüm
+ *   (yeşil/altın) UYGULAMAZ — varsa nötr "seçili" gün olarak gösterilir.
+ */
+export type CuppingSelectionSource = "manual" | "sunnah_auto";
+
 /** A) Genel, yeniden kullanılabilir bilgilendirme şablonu. */
 export type CuppingAdviceTemplate = {
   id: string;
@@ -48,6 +59,12 @@ export type CuppingCalendarPlanDay = {
   plan_id: string;
   /** "YYYY-MM-DD" (PostgreSQL DATE). */
   gregorian_date: string;
+  /**
+   * KÖKEN — DB `selection_source`. Sunucu-sahipli; client ASLA yazamaz. Yeni satırlar
+   * DAİMA 'manual'. 'sunnah_auto' yalnız şema/eski-satır uyumluluğu içindir (bkz.
+   * CuppingSelectionSource) — uygulama artık üretmez.
+   */
+  selection_source: CuppingSelectionSource;
   user_label: string | null;
   note: string | null;
   created_at: string;

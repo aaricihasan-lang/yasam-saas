@@ -16,7 +16,9 @@ export const runtime = "nodejs";
 /**
  * /api/kupa/calendar/plans — FAZ 5 HACAMAT TAKVİMİ planları (root).
  *
- * Ürün: profesyonel KENDİ takvimini oluşturur; sistem "doğru gün" EMPOZE ETMEZ.
+ * Ürün (owner KİLİTLİ): profesyonel KENDİ takvimini TAMAMEN kendisi oluşturur; sistem HAZIR
+ *   gün EMPOZE ETMEZ. Yeni plan SIFIR seçili günle başlar (otomatik tohumlama YOK). Her
+ *   uygulama günü uzman tarafından /days ucundan MANUEL eklenir.
  * Güvenlik: requireModuleAccess("cupping"); tenant SUNUCUDA; yalnız CALENDAR_PLAN_WRITABLE;
  *   advice_template_id verilirse AYNI tenant'a ait olmalı; demo → persist=0; safe error.
  */
@@ -72,7 +74,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     delete fields.advice_template_id;
   }
 
+  // YENİ plan YALNIZ metadata oluşturur — SIFIR seçili gün. Otomatik tohumlama YOK; hazır
+  // Sünnet/Altın günü YOK. Uzman her uygulama gününü kendisi /days ucundan ekler.
   const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
   if (!ins.ok) return ins.response;
+
   return NextResponse.json({ ok: true, plan: ins.data });
 }
