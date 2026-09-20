@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { annualHijriCells } from "@/lib/cupping/hijri";
-import { getCuppingCellState, type CuppingCellKind } from "../lib/cellState";
+import { getCuppingCellState, type CuppingCellKind, CUPPING_DAY_COLORS } from "../lib/cellState";
 import { isoWeekday } from "../lib/bulk";
-import { MONTHS_TR } from "./MonthCalendar";
+import { MONTHS_TR, type CuppingDayStyleView } from "./MonthCalendar";
 
 /**
  * FAZ 5 / AŞAMA 3 — YILLIK ÖZET (profesyonel 12-ay planı).
@@ -37,6 +37,7 @@ export function AnnualCalendarOverview({
   selected,
   saved,
   today,
+  styleOf,
   onMonthClick,
 }: {
   year: number;
@@ -45,6 +46,8 @@ export function AnnualCalendarOverview({
   selected: Set<string>;
   saved: Set<string>;
   today: string | null;
+  /** Bir günün taslak stili (renk + kısa açıklama) — Aylık ile AYNI kaynak. */
+  styleOf: (ymd: string) => CuppingDayStyleView | undefined;
   onMonthClick: (month: number) => void;
 }) {
   const months = useMemo(() => annualHijriCells(year), [year]);
@@ -114,7 +117,16 @@ export function AnnualCalendarOverview({
                   const state = getCuppingCellState(isSel, saved.has(ymd));
                   const gDay = Number(ymd.slice(8, 10));
                   const isToday = today === ymd;
-                  const fill = MINI_FILL[state.kind];
+
+                  // Renk yalnız seçili günlerde (Aylık ile AYNI eşleme). Kaldırılacak nötr kalır.
+                  const dayStyle = styleOf(ymd);
+                  const colorKey = dayStyle?.colorKey ?? null;
+                  const showColor =
+                    colorKey !== null &&
+                    (state.kind === "selected_saved" || state.kind === "selected_pending_add");
+                  const colorDef = showColor ? CUPPING_DAY_COLORS[colorKey] : null;
+                  const fill = colorDef ? colorDef.mini : MINI_FILL[state.kind];
+                  const dashed = colorDef && state.kind === "selected_pending_add" ? "border border-dashed" : "";
                   const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
                   const statusWord =
                     state.kind === "selected_saved"
@@ -124,13 +136,16 @@ export function AnnualCalendarOverview({
                         : state.kind === "pending_remove"
                           ? " — kaldırılacak"
                           : "";
+                  const colorWord = colorDef ? ` — ${colorDef.labelTr} renk` : "";
+                  const labelWord = isSel && dayStyle?.label ? ` — ${dayStyle.label}` : "";
                   return (
                     <span
                       key={ymd}
-                      title={`${gDay} ${MONTHS_TR[i]} ${year} — Hicrî ${fullHijri}${statusWord}`}
+                      title={`${gDay} ${MONTHS_TR[i]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}`}
                       className={[
                         "relative flex aspect-square items-center justify-center rounded text-[9px] leading-none sm:text-[10px]",
                         fill,
+                        dashed,
                         isToday && state.kind === "none" ? "ring-1 ring-inset ring-slate-300" : "",
                       ].join(" ")}
                     >

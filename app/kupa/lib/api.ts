@@ -6,6 +6,7 @@ import type {
   CuppingCalendarPlan,
   CuppingCalendarPlanDay,
   CuppingClientAdvice,
+  CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
 
 export type {
@@ -13,6 +14,7 @@ export type {
   CuppingCalendarPlan,
   CuppingCalendarPlanDay,
   CuppingClientAdvice,
+  CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
 
 /** Uzman API çağrıları için kimlik başlıkları (dashboard deseniyle aynı). */
@@ -544,14 +546,41 @@ export const deleteCalendarPlan = (id: string) =>
   call<number>(`${BASE}/calendar/plans/${id}`, { method: "DELETE" }, "deleted");
 
 // ── Plan günleri (somut GREGORYEN tarih; kriter DEĞİL) ──────────────────────
-/** Toplu ekle: mevcut UNIQUE(tenant,plan,date) çakışmaları sunucuda idempotent atlanır. */
+/** Per-day yeni gün girdisi — tarih + opsiyonel renk/kısa açıklama/detay notu (FAZ 5/5). */
+export type CuppingPlanDayInput = {
+  date: string;
+  color_key?: CuppingDayColorKey | null;
+  user_label?: string | null;
+  note?: string | null;
+};
+/**
+ * Toplu ekle (mevcut UNIQUE(tenant,plan,date) çakışmaları sunucuda idempotent atlanır).
+ * İki biçim (geriye uyumlu):
+ *   - Legacy: { dates, user_label?, note? } — tek etiket TÜM yeni günlere uygulanır.
+ *   - FAZ 5/5: { days: [{ date, color_key?, user_label?, note? }] } — PER-DAY stil.
+ */
 export const addCalendarPlanDays = (
   id: string,
-  body: { dates: string[]; user_label?: string | null; note?: string | null },
+  body:
+    | { dates: string[]; user_label?: string | null; note?: string | null }
+    | { days: CuppingPlanDayInput[] },
 ) =>
   callRaw<{ ok: true; inserted: number; skippedExisting: number }>(
     `${BASE}/calendar/plans/${id}/days`,
     { method: "POST", body: JSON.stringify(body) },
+  );
+/**
+ * Kaydedilmiş bir günün STİLİNİ güncelle (renk + kısa açıklama + detay notu). gregorian_date/
+ * plan_id/selection_source server-side (allowlist DIŞI) — DEĞİŞTİRİLEMEZ. Yanıt: güncel gün satırı.
+ */
+export const updateCalendarDay = (
+  dayId: string,
+  body: Partial<{ user_label: string | null; note: string | null; color_key: CuppingDayColorKey | null }>,
+) =>
+  call<CuppingCalendarPlanDay>(
+    `${BASE}/calendar/days/${dayId}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    "day",
   );
 export const deleteCalendarDay = (dayId: string) =>
   call<number>(`${BASE}/calendar/days/${dayId}`, { method: "DELETE" }, "deleted");

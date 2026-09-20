@@ -287,8 +287,12 @@ export const CALENDAR_PLAN_WRITABLE = [
   "is_active",
 ] as const;
 
-/** cupping_calendar_plan_days — seçili gün meta'sı. gregorian_date/plan_id server-side. */
-export const CALENDAR_PLAN_DAY_WRITABLE = ["user_label", "note"] as const;
+/**
+ * cupping_calendar_plan_days — seçili gün meta'sı. gregorian_date / plan_id / selection_source
+ * allowlist DIŞINDADIR (server-side; köken sunucu-sahipli). color_key kontrollü palet anahtarı
+ * (FAZ 5/5) — DB CHECK + route allowlist doğrular (bkz. CUPPING_DAY_COLOR_KEYS).
+ */
+export const CALENDAR_PLAN_DAY_WRITABLE = ["user_label", "note", "color_key"] as const;
 
 /** cupping_client_advice — danışana-özel snapshot. client_id/source_template_id server-side. */
 export const CLIENT_ADVICE_WRITABLE = [

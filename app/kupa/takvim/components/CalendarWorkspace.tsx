@@ -4,20 +4,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnSuccess, kupaCard } from "@/app/kupa/components/KupaShell";
-import { CUPPING_PLAN_DAYS_MAX_BATCH } from "@/lib/cupping/calendarTypes";
-import { toYmd } from "@/lib/cupping/hijri";
+import { CUPPING_PLAN_DAYS_MAX_BATCH, type CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
+import { gregorianToHijri, toYmd } from "@/lib/cupping/hijri";
 import {
   listCalendarPlans,
   getCalendarPlan,
   addCalendarPlanDays,
+  updateCalendarDay,
   deleteCalendarDay,
   deleteCalendarPlan,
   updateCalendarPlan,
   listAdviceTemplates,
   type CuppingAdviceTemplate,
   type CuppingCalendarPlan,
+  type CuppingPlanDayInput,
 } from "@/app/kupa/lib/api";
-import { MonthCalendar } from "./MonthCalendar";
+import { MonthCalendar, MONTHS_TR, type CuppingDayStyleView } from "./MonthCalendar";
 import { MonthNav } from "./MonthNav";
 import { PlanPicker } from "./PlanPicker";
 import { BulkDateSelector } from "./BulkDateSelector";
@@ -25,11 +27,34 @@ import { OutputAdviceSection } from "./OutputAdviceSection";
 import { ClientAdviceSection } from "./ClientAdviceSection";
 import { CalendarViewToggle, type CalendarView } from "./CalendarViewToggle";
 import { AnnualCalendarOverview } from "./AnnualCalendarOverview";
+import { DayEditPanel, type DayStyleDraft } from "./DayEditPanel";
 
 /** İstemci-yerel bugün "YYYY-MM-DD" (nötr; yalnız "bugün" halkası için). */
 function todayYmd(): string {
   const d = new Date();
   return toYmd({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() });
+}
+
+/** Kayıtlı gün satırının otoriter stili (server → client). */
+type SavedDay = { id: string; colorKey: CuppingDayColorKey | null; label: string | null; note: string | null };
+
+/** Boş taslak stili (renk yok, açıklama yok). */
+const EMPTY_STYLE: DayStyleDraft = { colorKey: null, label: "", note: "" };
+
+/** Metin normalizasyonu: boş/whitespace → null (kaydetme/karşılaştırma için tek ölçü). */
+function nz(s: string): string | null {
+  const t = s.trim();
+  return t === "" ? null : t;
+}
+
+/** Taslak stili → API yazma payload'u (renk + kısa açıklama + detay notu). */
+function toWritePayload(s: DayStyleDraft): { color_key: CuppingDayColorKey | null; user_label: string | null; note: string | null } {
+  return { color_key: s.colorKey, user_label: nz(s.label), note: nz(s.note) };
+}
+
+/** Taslak stili kayıtlı stilden farklı mı? (PATCH gerekliliği; boş↔null eşdeğer). */
+function styleDiffers(d: DayStyleDraft, saved: SavedDay): boolean {
+  return d.colorKey !== saved.colorKey || nz(d.label) !== (saved.label ?? null) || nz(d.note) !== (saved.note ?? null);
 }
 
 /** Sınırlı eşzamanlılık havuzu (yüzlerce eşzamanlı istek atmaz). */
@@ -53,11 +78,13 @@ async function runPool<T>(items: T[], size: number, fn: (item: T) => Promise<unk
 }
 
 /**
- * KUPA & HACAMAT — FAZ 5 / AŞAMA 3 — UZMAN-SAHİPLİ takvim çalışma alanı.
+ * KUPA & HACAMAT — FAZ 5 / AŞAMA 3 + 5 — UZMAN-SAHİPLİ takvim çalışma alanı.
  *
- * ÜRÜN KURALI (owner KİLİTLİ): Takvim tamamen uzmanındır. Sistem HAZIR gün üretmez — otomatik
- *   Sünnet/Altın, 17/19/21, önerilen gün, hafta-günü motoru YOKTUR. Yeni plan SIFIR seçili
- *   günle başlar; uzman her günü kendisi işaretler. Aylık + Yıllık AYNI planı/taslağı gösterir.
+ * ÜRÜN KURALI (owner KİLİTLİ): Takvim tamamen uzmanındır. Sistem HAZIR gün üretmez. Yeni plan
+ *   SIFIR seçili günle başlar; uzman her günü kendisi işaretler. Seçili bir güne kontrollü
+ *   paletten renk + kendi kısa açıklaması eklenebilir (opsiyonel; anlam platformca sabitlenmez).
+ *   Aylık + Yıllık AYNI planı/taslağı gösterir (renk/açıklama dâhil). Renk/açıklama nihai kaydı
+ *   ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu; kaydedilmemiş uyarısı stili de kapsar).
  */
 export function CalendarWorkspace() {
   const { showToast } = useToast();
@@ -67,11 +94,15 @@ export function CalendarWorkspace() {
   const [templates, setTemplates] = useState<CuppingAdviceTemplate[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plan, setPlan] = useState<CuppingCalendarPlan | null>(null);
-  // ymd -> kayıt id. Silme (deleteCalendarDay) için gün-id gerekir; köken renk anlamı YOK.
-  const [savedDays, setSavedDays] = useState<Map<string, string>>(new Map());
+  // ymd -> kayıtlı satır (id + otoriter stil). Silme/PATCH için gün-id gerekir.
+  const [savedDays, setSavedDays] = useState<Map<string, SavedDay>>(new Map());
+  // Seçim (yıl geneli). Bir gün seçili ⇔ draft.has(ymd).
   const [draft, setDraft] = useState<Set<string>>(new Set());
+  // Taslak stili (renk + kısa açıklama + detay notu) — seçili günler için; kayıttan türetilir.
+  const [draftStyle, setDraftStyle] = useState<Map<string, DayStyleDraft>>(new Map());
   const [month, setMonth] = useState(1);
   const [view, setView] = useState<CalendarView>("monthly");
+  const [editYmd, setEditYmd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +114,26 @@ export function CalendarWorkspace() {
 
   const additions = useMemo(() => [...draft].filter((d) => !savedDays.has(d)), [draft, savedDays]);
   const removals = useMemo(() => [...savedDays.keys()].filter((d) => !draft.has(d)), [savedDays, draft]);
-  const dirty = additions.length > 0 || removals.length > 0;
+  // Kayıtlı + hâlâ seçili günlerde renk/açıklama değişikliği (PATCH gerektirir).
+  const styleChanges = useMemo(
+    () =>
+      [...draft].filter((d) => {
+        const saved = savedDays.get(d);
+        return saved ? styleDiffers(draftStyle.get(d) ?? EMPTY_STYLE, saved) : false;
+      }),
+    [draft, savedDays, draftStyle],
+  );
+  const dirty = additions.length > 0 || removals.length > 0 || styleChanges.length > 0;
+
+  // Aylık + Yıllık görünüme geçirilen stil erişimcisi (taslak = tek doğruluk).
+  const styleOf = useCallback(
+    (ymd: string): CuppingDayStyleView | undefined => {
+      const s = draftStyle.get(ymd);
+      if (!s) return undefined;
+      return { colorKey: s.colorKey, label: nz(s.label) };
+    },
+    [draftStyle],
+  );
 
   const refreshTemplates = useCallback(async () => {
     try {
@@ -99,10 +149,25 @@ export function CalendarWorkspace() {
     try {
       const { plan: p, days } = await getCalendarPlan(id);
       setPlan(p);
-      const map = new Map<string, string>();
-      for (const d of days) map.set(d.gregorian_date, d.id);
+      const map = new Map<string, SavedDay>();
+      const styles = new Map<string, DayStyleDraft>();
+      for (const d of days) {
+        map.set(d.gregorian_date, {
+          id: d.id,
+          colorKey: d.color_key,
+          label: d.user_label,
+          note: d.note,
+        });
+        styles.set(d.gregorian_date, {
+          colorKey: d.color_key,
+          label: d.user_label ?? "",
+          note: d.note ?? "",
+        });
+      }
       setSavedDays(map);
       setDraft(new Set(map.keys()));
+      setDraftStyle(styles);
+      setEditYmd(null);
       // Plan yılı bu yıla eşitse mevcut ayı aç; değilse Ocak.
       const nowY = new Date().getFullYear();
       setMonth(p.year === nowY ? new Date().getMonth() + 1 : 1);
@@ -126,6 +191,7 @@ export function CalendarWorkspace() {
         setPlan(null);
         setSavedDays(new Map());
         setDraft(new Set());
+        setDraftStyle(new Map());
       }
     },
     [activeId, plan, loadPlanInto],
@@ -170,6 +236,15 @@ export function CalendarWorkspace() {
       else next.add(ymd);
       return next;
     });
+    // Seçimden çıkarılan günün taslak stili de kalkar (yeniden seçildiğinde eski renk geri gelmez).
+    setDraftStyle((prev) => {
+      if (!prev.has(ymd)) return prev;
+      // Yalnız SEÇİMDEN ÇIKARMA durumunda stili temizle (ekleme değil).
+      // (toggle sonrası draft.has kontrolü burada güncel değil → seçim kaldırma stili kaldırır.)
+      const next = new Map(prev);
+      next.delete(ymd);
+      return next;
+    });
   }, []);
 
   const addBulk = useCallback((dates: string[]) => {
@@ -178,8 +253,36 @@ export function CalendarWorkspace() {
       for (const d of dates) next.add(d);
       return next;
     });
+    // Toplu seçim varsayılan olarak RENKSİZ/normal seçili gün üretir (mevcut stili ezmez).
     showToast({ message: `${dates.length} gün taslak seçime eklendi. Kaydetmeyi unutmayın.`, type: "info" });
   }, [showToast]);
+
+  // Düzenleme panelinden gelen stil uygulaması (taslağa yazar; gün seçili kalır).
+  const applyDayStyle = useCallback((ymd: string, style: DayStyleDraft) => {
+    setDraft((prev) => (prev.has(ymd) ? prev : new Set(prev).add(ymd)));
+    setDraftStyle((prev) => {
+      const next = new Map(prev);
+      next.set(ymd, style);
+      return next;
+    });
+    setEditYmd(null);
+  }, []);
+
+  // "Gün Seçimini Kaldır" (panelden): seçimi ve stilini birlikte bırakır.
+  const deselectDay = useCallback((ymd: string) => {
+    setDraft((prev) => {
+      const next = new Set(prev);
+      next.delete(ymd);
+      return next;
+    });
+    setDraftStyle((prev) => {
+      if (!prev.has(ymd)) return prev;
+      const next = new Map(prev);
+      next.delete(ymd);
+      return next;
+    });
+    setEditYmd(null);
+  }, []);
 
   async function confirmDiscardIfDirty(): Promise<boolean> {
     if (!dirty) return true;
@@ -203,16 +306,28 @@ export function CalendarWorkspace() {
     if (!plan || !dirty) return;
     setSaving(true);
     try {
-      // 1) Eklemeler — toplu POST (max batch parçalanır; sunucu çakışmayı idempotent atlar).
-      for (let i = 0; i < additions.length; i += CUPPING_PLAN_DAYS_MAX_BATCH) {
-        const chunk = additions.slice(i, i + CUPPING_PLAN_DAYS_MAX_BATCH);
-        if (chunk.length > 0) await addCalendarPlanDays(plan.id, { dates: chunk });
+      let failCount = 0;
+      // 1) Eklemeler — PER-DAY stil (renk + kısa açıklama + detay notu) TEK istekte kalıcı olur.
+      //    Toplu POST max batch'e göre parçalanır; sunucu çakışmayı idempotent atlar.
+      const dayInputs: CuppingPlanDayInput[] = additions.map((d) => ({
+        date: d,
+        ...toWritePayload(draftStyle.get(d) ?? EMPTY_STYLE),
+      }));
+      for (let i = 0; i < dayInputs.length; i += CUPPING_PLAN_DAYS_MAX_BATCH) {
+        const chunk = dayInputs.slice(i, i + CUPPING_PLAN_DAYS_MAX_BATCH);
+        if (chunk.length > 0) await addCalendarPlanDays(plan.id, { days: chunk });
       }
-      // 2) Silmeler — mevcut gün-id ile, SINIRLI eşzamanlılık (bir günü takvimden çıkarmak o
-      //    satırı siler; kaydedilince kalıcı olur).
-      const removeIds = removals.map((d) => savedDays.get(d)).filter((v): v is string => !!v);
-      const { failCount } = await runPool(removeIds, 4, (id) => deleteCalendarDay(id));
-      // 3) Otoriter durumu yeniden yükle (başarı da olsa kısmi de olsa TEK doğruluk kaynağı server).
+      // 2) Stil değişiklikleri — kayıtlı+seçili günlerde renk/açıklama PATCH (SINIRLI eşzamanlılık).
+      const styleTargets = styleChanges
+        .map((d) => ({ id: savedDays.get(d)?.id, style: draftStyle.get(d) ?? EMPTY_STYLE }))
+        .filter((t): t is { id: string; style: DayStyleDraft } => !!t.id);
+      const styleRes = await runPool(styleTargets, 4, (t) => updateCalendarDay(t.id, toWritePayload(t.style)));
+      failCount += styleRes.failCount;
+      // 3) Silmeler — mevcut gün-id ile (bir günü takvimden çıkarmak o satırı siler).
+      const removeIds = removals.map((d) => savedDays.get(d)?.id).filter((v): v is string => !!v);
+      const delRes = await runPool(removeIds, 4, (id) => deleteCalendarDay(id));
+      failCount += delRes.failCount;
+      // 4) Otoriter durumu yeniden yükle (başarı da olsa kısmi de olsa TEK doğruluk kaynağı server).
       await loadPlanInto(plan.id);
       if (failCount > 0) {
         showToast({ message: "Bazı değişiklikler kaydedilemedi. Güncel durum yeniden yüklendi.", type: "warning" });
@@ -245,6 +360,7 @@ export function CalendarWorkspace() {
       setPlan(null);
       setSavedDays(new Map());
       setDraft(new Set());
+      setDraftStyle(new Map());
       await refreshPlansList();
       showToast({ message: "Takvim silindi.", type: "success" });
     } catch (e) {
@@ -257,6 +373,20 @@ export function CalendarWorkspace() {
     const updated = await updateCalendarPlan(plan.id, { advice_template_id: templateId });
     setPlan(updated);
   }
+
+  // Düzenleme paneli için tam Gregoryen + Hicrî tarih metni (motor: lib/cupping/hijri).
+  const editContext = useMemo(() => {
+    if (!editYmd) return null;
+    const y = Number(editYmd.slice(0, 4));
+    const m = Number(editYmd.slice(5, 7));
+    const d = Number(editYmd.slice(8, 10));
+    const h = gregorianToHijri(editYmd);
+    return {
+      gregText: `${d} ${MONTHS_TR[m - 1]} ${y}`,
+      hijriText: h?.formatted ?? "",
+      initial: draftStyle.get(editYmd) ?? EMPTY_STYLE,
+    };
+  }, [editYmd, draftStyle]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
@@ -291,7 +421,8 @@ export function CalendarWorkspace() {
           belirlersiniz.
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
-          Yaşam Sistemi takvime hazır uygulama günü eklemez.
+          Yaşam Sistemi takvime hazır uygulama günü eklemez. Seçtiğiniz günleri isterseniz kendi
+          renginiz ve kısa açıklamanızla işaretleyebilirsiniz (opsiyonel).
         </p>
       </div>
 
@@ -316,17 +447,20 @@ export function CalendarWorkspace() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CalendarViewToggle view={view} onChange={setView} />
             </div>
-            {/* Sade kaydet/durum barı (mobilde sticky; iki görünümden de erişilir). Büyük
-                sayısal özet kartı YOK — bu bir planlama aracı, analitik panosu değil. */}
+            {/* Sade kaydet/durum barı (mobilde sticky; iki görünümden de erişilir). */}
             <div className="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <span className="flex flex-col gap-0.5 text-sm" aria-live="polite">
                 {dirty ? (
                   <>
                     <span className="font-medium text-amber-700">Kaydedilmemiş değişiklikler var</span>
                     <span className="text-xs text-amber-500">
-                      {additions.length > 0 ? `${additions.length} kaydedilecek` : ""}
-                      {additions.length > 0 && removals.length > 0 ? " · " : ""}
-                      {removals.length > 0 ? `${removals.length} kaldırılacak` : ""}
+                      {[
+                        additions.length > 0 ? `${additions.length} kaydedilecek` : "",
+                        styleChanges.length > 0 ? `${styleChanges.length} güncellenecek` : "",
+                        removals.length > 0 ? `${removals.length} kaldırılacak` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </>
                 ) : (
@@ -355,7 +489,9 @@ export function CalendarWorkspace() {
                   selected={draft}
                   saved={savedSet}
                   today={today}
+                  styleOf={styleOf}
                   onToggle={toggleDay}
+                  onEditDay={setEditYmd}
                 />
                 {/* Sade legend — yalnız uzman-seçim durumları (pastel; çalışma alanını ezmez). */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
@@ -370,6 +506,10 @@ export function CalendarWorkspace() {
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded border border-indigo-200 bg-indigo-50/40 opacity-70" aria-hidden />
                     Kaldırılacak
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden>✎</span>
+                    Renk ve açıklama için seçili günü düzenleyin
                   </span>
                 </div>
               </div>
@@ -400,6 +540,7 @@ export function CalendarWorkspace() {
                 selected={draft}
                 saved={savedSet}
                 today={today}
+                styleOf={styleOf}
                 onMonthClick={(m) => {
                   setMonth(m);
                   setView("monthly");
@@ -410,10 +551,24 @@ export function CalendarWorkspace() {
         </>
       ) : null}
 
+      {/* Gün düzenleme paneli (renk + kısa açıklama + detay notu) — seçili gün için */}
+      {editContext ? (
+        <DayEditPanel
+          key={editYmd}
+          gregText={editContext.gregText}
+          hijriText={editContext.hijriText}
+          initial={editContext.initial}
+          onApply={(style) => editYmd && applyDayStyle(editYmd, style)}
+          onDeselect={() => editYmd && deselectDay(editYmd)}
+          onClose={() => setEditYmd(null)}
+        />
+      ) : null}
+
       {/* Sakin açıklayıcı dipnot — kişisel çalışma planı; randevu sistemi değildir. */}
       <p className="px-1 text-xs leading-relaxed text-slate-400">
         Not: Bu takvim kişisel çalışma planınızdır; randevu sistemi değildir. Uygulama günlerini
-        kendi yaklaşımınıza göre siz belirlersiniz; Yaşam Sistemi takvime hazır gün eklemez.
+        kendi yaklaşımınıza göre siz belirlersiniz; Yaşam Sistemi takvime hazır gün eklemez. Renklerin
+        anlamını siz belirlersiniz.
       </p>
     </div>
   );

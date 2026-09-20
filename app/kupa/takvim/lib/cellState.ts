@@ -1,3 +1,5 @@
+import { CUPPING_DAY_COLOR_KEYS, type CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
+
 /**
  * KUPA & HACAMAT — FAZ 5 / AŞAMA 3 — TAKVİM GÜN DURUMU (tek doğruluk kaynağı).
  *
@@ -95,3 +97,90 @@ export function cuppingCellBadge(kind: CuppingCellKind): string | null {
       return null;
   }
 }
+
+/**
+ * FAZ 5 / AŞAMA 5 — UZMAN-TANIMLI RENK PALETİ (görsel eşleme; tek doğruluk kaynağı).
+ *
+ * ANLAM SABİT DEĞİL: Bu eşleme yalnız GÖRSEL sınıfları (pastel arka plan + okunur metin) ve
+ *   Türkçe renk ADINI verir. Hiçbir renk hazır tıbbi/geleneksel anlam TAŞIMAZ — anlamı uzman
+ *   kendi kısa açıklamasıyla belirler. Anahtarlar CUPPING_DAY_COLOR_KEYS ile BİREBİR; ileride
+ *   Word çıktısı da bu SABİT anahtar→renk eşlemesini kullanır (aktarılabilir sözleşme).
+ * KONTRAST: Tüm pastel dolgular koyu metinle (text-*-900/800) okunur kalır; seçili durum renk
+ *   TEK sinyal değildir (durum rozeti + aria-pressed ayrıca taşınır).
+ */
+export type CuppingDayColorVisual = {
+  /** Palet ızgarası/erişilebilir etiket (a11y; renk anlamı DEĞİL, yalnız ad). */
+  labelTr: string;
+  /** Düzenleme panelindeki dolu renk kutucuğu. */
+  swatch: string;
+  /** Aylık hücre arka planı + kenarlık (seçili-renkli gün). */
+  cell: string;
+  /** Aylık hücrede Gregoryen gün numarası metni. */
+  greg: string;
+  /** Aylık hücrede Hicrî tarih metni. */
+  hijri: string;
+  /** Yıllık Özet minik hücre dolgusu (kompakt). */
+  mini: string;
+};
+
+export const CUPPING_DAY_COLORS: Record<CuppingDayColorKey, CuppingDayColorVisual> = {
+  blue: {
+    labelTr: "Mavi",
+    swatch: "bg-sky-200 border-sky-300",
+    cell: "border-sky-300 bg-sky-50 shadow-sm",
+    greg: "text-sky-900",
+    hijri: "text-sky-600",
+    mini: "bg-sky-100 text-sky-800 font-bold ring-1 ring-sky-300",
+  },
+  green: {
+    labelTr: "Yeşil",
+    swatch: "bg-emerald-200 border-emerald-300",
+    cell: "border-emerald-300 bg-emerald-50 shadow-sm",
+    greg: "text-emerald-900",
+    hijri: "text-emerald-600",
+    mini: "bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300",
+  },
+  yellow: {
+    labelTr: "Sarı",
+    swatch: "bg-yellow-200 border-yellow-300",
+    cell: "border-yellow-300 bg-yellow-50 shadow-sm",
+    greg: "text-yellow-800",
+    hijri: "text-yellow-700",
+    mini: "bg-yellow-100 text-yellow-800 font-bold ring-1 ring-yellow-300",
+  },
+  red: {
+    labelTr: "Kırmızı",
+    swatch: "bg-rose-200 border-rose-300",
+    cell: "border-rose-300 bg-rose-50 shadow-sm",
+    greg: "text-rose-900",
+    hijri: "text-rose-600",
+    mini: "bg-rose-100 text-rose-800 font-bold ring-1 ring-rose-300",
+  },
+  purple: {
+    labelTr: "Mor",
+    swatch: "bg-violet-200 border-violet-300",
+    cell: "border-violet-300 bg-violet-50 shadow-sm",
+    greg: "text-violet-900",
+    hijri: "text-violet-600",
+    mini: "bg-violet-100 text-violet-800 font-bold ring-1 ring-violet-300",
+  },
+  orange: {
+    labelTr: "Turuncu",
+    swatch: "bg-orange-200 border-orange-300",
+    cell: "border-orange-300 bg-orange-50 shadow-sm",
+    greg: "text-orange-900",
+    hijri: "text-orange-600",
+    mini: "bg-orange-100 text-orange-800 font-bold ring-1 ring-orange-300",
+  },
+  pink: {
+    labelTr: "Pembe",
+    swatch: "bg-pink-200 border-pink-300",
+    cell: "border-pink-300 bg-pink-50 shadow-sm",
+    greg: "text-pink-900",
+    hijri: "text-pink-600",
+    mini: "bg-pink-100 text-pink-800 font-bold ring-1 ring-pink-300",
+  },
+};
+
+/** Palet ızgarası sırası (düzenleme paneli + testler paylaşır). "Renk Yok" bunun DIŞINDA. */
+export const CUPPING_DAY_COLOR_ORDER: CuppingDayColorKey[] = [...CUPPING_DAY_COLOR_KEYS];

@@ -54,7 +54,15 @@ import {
   getCuppingCellState,
   cuppingCellBadge,
   CUPPING_CELL_PALETTE,
+  CUPPING_DAY_COLORS,
 } from "../app/kupa/takvim/lib/cellState";
+import {
+  CUPPING_DAY_COLOR_KEYS,
+  isCuppingDayColorKey,
+  CUPPING_DAY_LABEL_MAX,
+  CUPPING_DAY_NOTE_MAX,
+  normalizeCuppingDayStyle,
+} from "../lib/cupping/calendarTypes";
 
 let passed = 0;
 let failed = 0;
@@ -1624,8 +1632,8 @@ function run(): void {
     ok(!/DROP TABLE|TRUNCATE|\bDROP COLUMN\b/.test(migHead2),
       "faz5-final: migration uygulama kısmı ADDITIVE (yeni destructive migration EKLENMEDİ)");
     const calMigs = readdirSync(migDir2).filter((f) => /cupping_calendar/.test(f));
-    ok(calMigs.length === 2,
-      `faz5-final: takvim migration sayısı 2 (yeni migration YOK), oldu ${calMigs.length}`);
+    ok(calMigs.length === 3,
+      `faz5/5: takvim migration sayısı 3 (foundation + selection_source + day_color), oldu ${calMigs.length}`);
 
     // ── NÖTR TOPLU SEÇİM DAVRANIŞI (saf mantık; korunur) ─────────────────────────
     const Y = 2027;
@@ -1669,6 +1677,167 @@ function run(): void {
       "faz5-final: Hicrî ay adı KISALTILMAZ");
     ok(!/docx|\.docx|inngest|yasam_hafizasi|appointmentId|randevu_id|api\/[^"'\s]*word/i.test([toggleSrc, annualSrc, cellStateSrc, mcSrc].join("\n")),
       "faz5-final: yeni/refactor bileşenlerde Word/YH/appointment YOK");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAZ 5 / AŞAMA 5 — UZMANIN SEÇTİĞİ GÜNLERE RENK + KISA AÇIKLAMA
+  //   Renk anlamı platformca SABİTLENMEZ (hazır etiket YOK); renk + açıklama OPSİYONEL;
+  //   kontrollü palet + kısa metin; mevcut user_label yeniden değerlendirilir; additive migration.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  {
+    const wsSrc = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const mcSrc = read("app/kupa/takvim/components/MonthCalendar.tsx");
+    const annualSrc = read("app/kupa/takvim/components/AnnualCalendarOverview.tsx");
+    const cellStateSrc = read("app/kupa/takvim/lib/cellState.ts");
+    const apiSrc = read("app/kupa/lib/api.ts");
+    const daysRoute = read("app/api/kupa/calendar/plans/[id]/days/route.ts");
+    const dayItem = read("app/api/kupa/calendar/days/[id]/route.ts");
+    const typesSrc = read("lib/cupping/calendarTypes.ts");
+    const panelSrc = exists("app/kupa/takvim/components/DayEditPanel.tsx")
+      ? read("app/kupa/takvim/components/DayEditPanel.tsx")
+      : "";
+    const c5Blob = [wsSrc, mcSrc, annualSrc, cellStateSrc, panelSrc].map(stripTs).join("\n");
+
+    // ── PALET: 7 kontrollü anahtar + görsel eşleme (tek doğruluk) ─────────────────
+    ok(CUPPING_DAY_COLOR_KEYS.length === 7, `faz5/5-color: 7 kontrollü palet anahtarı (${CUPPING_DAY_COLOR_KEYS.length})`);
+    for (const k of CUPPING_DAY_COLOR_KEYS) {
+      ok(isCuppingDayColorKey(k), `faz5/5-color: '${k}' geçerli anahtar`);
+      const v = CUPPING_DAY_COLORS[k];
+      ok(!!v && !!v.cell && !!v.swatch && !!v.mini && !!v.labelTr, `faz5/5-color: '${k}' görsel eşleme (cell/swatch/mini/labelTr)`);
+    }
+    // [5]/[6] allowlist doğrulaması — geçersiz renk anahtar DEĞİL.
+    ok(!isCuppingDayColorKey("altin") && !isCuppingDayColorKey("uydurma") && !isCuppingDayColorKey("") && !isCuppingDayColorKey(null),
+      "faz5/5-color[5/6]: geçersiz/uydurma renk anahtarı REDDEDİLİR");
+    // Renk anlamı sabitlenmez: palet KODU (yorumlar hariç) hazır anlam ETİKETİ TAŞIMAZ (yalnız
+    // renk adı: Mavi/Yeşil/Sarı/… ). Yorumlar yasak kavramları "YOK" demek için adlandırabilir.
+    ok(!/[Ss][üu]nnet|[Aa]lt[ıi]n|uygun|yasak|golden|sunnah/.test(stripTs(cellStateSrc)),
+      "faz5/5-color: palet KODU hazır tıbbi/geleneksel anlam (Sünnet/Altın/uygun/yasak) TAŞIMAZ");
+    // labelTr yalnız nötr renk adıdır (hiçbir anlam yüklemesi yok).
+    ok(CUPPING_DAY_COLOR_KEYS.every((k) => /^(Mavi|Yeşil|Sarı|Kırmızı|Mor|Turuncu|Pembe)$/.test(CUPPING_DAY_COLORS[k].labelTr)),
+      "faz5/5-color: renk etiketleri yalnız nötr renk adı (anlam yüklemesi YOK)");
+
+    // ── SAF DOĞRULAMA (normalizeCuppingDayStyle) — renk + kısa açıklama + detay notu ─
+    // [3]/[4] renk + açıklama OPSİYONEL (boş girdi geçerli).
+    ok(normalizeCuppingDayStyle({}).ok === true, "faz5/5-norm[3/4]: boş stil geçerli (renk+açıklama opsiyonel)");
+    // requireAtLeastOne: boş PATCH reddedilir.
+    ok(normalizeCuppingDayStyle({}, { requireAtLeastOne: true }).ok === false, "faz5/5-norm: boş PATCH reddedilir (requireAtLeastOne)");
+    // [9] geçerli renk + açıklama birlikte doğrulanır.
+    {
+      const r = normalizeCuppingDayStyle({ color_key: "green", user_label: "  1. Grup  ", note: "detay" });
+      ok(r.ok && r.fields.color_key === "green" && r.fields.user_label === "1. Grup" && r.fields.note === "detay",
+        "faz5/5-norm[9]: renk + kısa açıklama (trim) + not birlikte doğrulanır");
+    }
+    // [6] geçersiz renk → hata.
+    ok(normalizeCuppingDayStyle({ color_key: "neon" }).ok === false, "faz5/5-norm[6]: geçersiz renk anahtarı → hata");
+    // [7] uzun açıklama → hata (SESSİZ KIRPMA YOK).
+    ok(normalizeCuppingDayStyle({ user_label: "x".repeat(CUPPING_DAY_LABEL_MAX + 1) }).ok === false,
+      "faz5/5-norm[7]: > MAX kısa açıklama REDDEDİLİR (kesme yok)");
+    ok((() => { const r = normalizeCuppingDayStyle({ user_label: "y".repeat(CUPPING_DAY_LABEL_MAX) }); return r.ok && r.fields.user_label?.length === CUPPING_DAY_LABEL_MAX; })(),
+      "faz5/5-norm: tam MAX uzunlukta açıklama geçerli");
+    // uzun detay notu → hata.
+    ok(normalizeCuppingDayStyle({ note: "z".repeat(CUPPING_DAY_NOTE_MAX + 1) }).ok === false,
+      "faz5/5-norm: > MAX detay notu REDDEDİLİR");
+    // boş/whitespace açıklama → null (kaydetme temiz).
+    ok((() => { const r = normalizeCuppingDayStyle({ user_label: "   ", color_key: null }); return r.ok && r.fields.user_label === null && r.fields.color_key === null; })(),
+      "faz5/5-norm: boş açıklama → null; renk null (renk kaldırma) geçerli");
+    // gönderilmeyen alanlar SONUÇTA yok (kısmi güncelleme; mevcut değer korunur).
+    ok((() => { const r = normalizeCuppingDayStyle({ color_key: "red" }); return r.ok && !("user_label" in r.fields) && !("note" in r.fields); })(),
+      "faz5/5-norm: yalnız gönderilen alan döner (kısmi PATCH güvenli)");
+
+    // ── ALLOWLIST + TİP (color_key server-forced allowlist; gregorian_date/plan_id DIŞI) ─
+    ok((CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("color_key") &&
+       (CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("user_label") &&
+       (CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("note"),
+      "faz5/5-fields: CALENDAR_PLAN_DAY_WRITABLE = user_label + note + color_key");
+    ok(!(CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("selection_source") &&
+       !(CALENDAR_PLAN_DAY_WRITABLE as readonly string[]).includes("gregorian_date"),
+      "faz5/5-fields: selection_source/gregorian_date allowlist DIŞI (server-sahipli)");
+    ok(/color_key: CuppingDayColorKey \| null/.test(typesSrc), "faz5/5-types: CuppingCalendarPlanDay.color_key tipli");
+
+    // ── PATCH GÜN (renk/açıklama sonradan değiştirilir) — tenant-safe + demo + güvenli ─
+    ok(/export async function PATCH/.test(dayItem), "faz5/5-patch[11/12]: gün PATCH ucu mevcut (renk/açıklama sonradan değişir)");
+    ok(/requireModuleAccess\(req, "cupping"\)/.test(dayItem), "faz5/5-patch: PATCH requireModuleAccess('cupping')");
+    ok(/normalizeCuppingDayStyle\(parsed\.data,\s*\{\s*requireAtLeastOne:\s*true\s*\}\)/.test(dayItem),
+      "faz5/5-patch: PATCH stil doğrulaması (boş PATCH reddi)");
+    ok(/updateEntity\(db, CUPPING_TABLES\.calendarPlanDays, tenantId, id/.test(dayItem),
+      "faz5/5-patch[20]: PATCH updateEntity tenant-bağlı (cross-tenant IDOR engeli)");
+    ok(/is_demo_account/.test(dayItem), "faz5/5-patch[21]: PATCH demo persist=0");
+    ok(!/error\.message/.test(dayItem), "faz5/5-patch: PATCH ham DB error.message DÖNMEZ");
+
+    // ── POST PER-DAY STİL (yeni gün + renk + açıklama TEK istekte) ────────────────
+    ok(/Array\.isArray\(parsed\.data\.days\)/.test(daysRoute),
+      "faz5/5-post[16]: /days POST per-day 'days' biçimini kabul eder (yeni gün + stil tek istek)");
+    ok(/normalizeCuppingDayStyle\(item\.style\)/.test(daysRoute),
+      "faz5/5-post: her günün stili doğrulanır (renk allowlist + açıklama sınırı)");
+    ok(/color_key: norm\.fields\.color_key \?\? null/.test(daysRoute),
+      "faz5/5-post[19]: stil verilmezse color_key NULL (toplu seçim varsayılan RENKSİZ)");
+    ok(/selection_source: "manual"/.test(daysRoute) && !/sunnah_auto/.test(stripTs(daysRoute)),
+      "faz5/5-post[23]: köken DAİMA 'manual' (client sunnah_auto YAZAMAZ; hazır gün yok)");
+    ok(/ignoreDuplicates:\s*true/.test(daysRoute) && /skippedExisting/.test(daysRoute),
+      "faz5/5-post: idempotent upsert korunur (geriye uyumlu)");
+
+    // ── CLIENT API (updateCalendarDay + days biçimi + tip) ───────────────────────
+    ok(/export const updateCalendarDay/.test(apiSrc) && /method: "PATCH"/.test(apiSrc) && /"day"/.test(apiSrc),
+      "faz5/5-api: updateCalendarDay PATCH (yanıt anahtarı 'day')");
+    ok(/days: CuppingPlanDayInput\[\]/.test(apiSrc) && /color_key\?: CuppingDayColorKey \| null/.test(apiSrc),
+      "faz5/5-api: addCalendarPlanDays per-day 'days' biçimi (color_key taşır)");
+
+    // ── WORKSPACE: durum + kayıt akışı (renksiz de çalışır; PATCH; korunum) ───────
+    ok(/styleOf/.test(wsSrc) && /styleOf=\{styleOf\}/.test(wsSrc),
+      "faz5/5-ws[2]: renk/açıklama styleOf ile Aylık+Yıllık'a AYNI kaynaktan geçer (renksiz gün de çalışır)");
+    ok(/addCalendarPlanDays\(plan\.id, \{ days: chunk \}\)/.test(wsSrc),
+      "faz5/5-ws[15/16]: kayıtta yeni günler PER-DAY stil ile eklenir (tek istek)");
+    ok(/updateCalendarDay\(t\.id, toWritePayload\(t\.style\)\)/.test(wsSrc) && /styleChanges/.test(wsSrc),
+      "faz5/5-ws[11/12]: kayıtlı günlerde renk/açıklama değişikliği PATCH ile kaydedilir");
+    ok(/colorKey: d\.color_key/.test(wsSrc) && /label: d\.user_label \?\? ""/.test(wsSrc),
+      "faz5/5-ws[10]: yeniden yüklemede kayıtlı renk/açıklama taslağa geri okunur (korunur)");
+    ok(/const dirty = additions\.length > 0 \|\| removals\.length > 0 \|\| styleChanges\.length > 0/.test(wsSrc),
+      "faz5/5-ws: kaydedilmemiş-değişiklik stil değişikliğini de KAPSAR");
+    ok(/güncellenecek/.test(wsSrc), "faz5/5-ws: durum barı stil güncellemesini de sayar");
+    ok(/gregorianToHijri\(editYmd\)/.test(wsSrc) && /hijriText/.test(wsSrc),
+      "faz5/5-ws[22]: düzenleme paneli TAM Hicrî tarihi motordan alır (türetilir)");
+    // [13]/[14] renk kaldırma vs seçim kaldırma AYRI; deselect stili de temizler.
+    ok(/deselectDay/.test(wsSrc) && /applyDayStyle/.test(wsSrc),
+      "faz5/5-ws[13/14]: 'Rengi Kaldır' (stil) ile 'Gün Seçimini Kaldır' (deselect) AYRI akışlar");
+
+    // ── DÜZENLEME PANELİ (premium, opsiyonel, düz metin, mobil) ──────────────────
+    ok(panelSrc.length > 0, "faz5/5-panel: DayEditPanel bileşeni mevcut");
+    ok(/Günü Düzenle/.test(panelSrc) && /Renk Yok/.test(panelSrc) && /Rengi Kaldır/.test(panelSrc) && /Gün Seçimini Kaldır/.test(panelSrc),
+      "faz5/5-panel[13/14]: renk/Renk Yok + Rengi Kaldır + Gün Seçimini Kaldır (ayrı kontroller)");
+    ok(/role="dialog"/.test(panelSrc) && /aria-modal="true"/.test(panelSrc) && /Escape/.test(panelSrc),
+      "faz5/5-panel: erişilebilir modal (dialog + aria-modal + Esc)");
+    ok(/items-end/.test(panelSrc) && /sm:items-center/.test(panelSrc) && /max-h-\[90vh\]/.test(panelSrc),
+      "faz5/5-panel: mobilde alt-panel / masaüstünde merkezî (ekranı taşırmaz)");
+    ok(/kupaBtnSuccess/.test(panelSrc), "faz5/5-panel: Kaydet yeşil (kupaBtnSuccess)");
+
+    // [8] KISA AÇIKLAMA GÜVENLİ DÜZ METİN — HTML render YOK (hiçbir takvim bileşeninde).
+    ok(!/dangerouslySetInnerHTML/.test(c5Blob), "faz5/5[8]: kullanıcı metni GÜVENLİ düz metin (dangerouslySetInnerHTML YOK)");
+    // Kontrollü kırpma (uzun açıklama takvimi bozmaz).
+    ok(/line-clamp-2/.test(mcSrc), "faz5/5-mc: uzun kısa açıklama hücrede kontrollü kırpılır (line-clamp)");
+    // [18] Yıllık Özet aynı renk eşlemesini kullanır.
+    ok(/CUPPING_DAY_COLORS/.test(annualSrc) && /styleOf/.test(annualSrc),
+      "faz5/5-annual[18]: Yıllık Özet renkli günleri AYNI eşleme + styleOf ile gösterir");
+
+    // ── [26] RENK MIGRATION — additive + idempotent + CHECK; mevcut veriyi korur ──
+    const colorMigName = readdirSync("supabase/migrations").find((f) => /cupping_calendar_day_color/.test(f));
+    ok(!!colorMigName, "faz5/5-mig[26]: color_key migration dosyası mevcut");
+    const colorMig = colorMigName ? read(`supabase/migrations/${colorMigName}`) : "";
+    const colorMigCode = colorMig.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    ok(/ADD COLUMN IF NOT EXISTS color_key text\b/.test(colorMig) && !/DEFAULT/.test(colorMigCode.split("CHECK")[0] ?? colorMigCode),
+      "faz5/5-mig[26]: color_key NULLABLE + DEFAULT YOK (mevcut satırlar NULL; otomatik renk atanmaz)");
+    ok(/CHECK \(\s*color_key IS NULL OR color_key IN/.test(colorMig) &&
+       /'blue', 'green', 'yellow', 'red', 'purple', 'orange', 'pink'/.test(colorMig),
+      "faz5/5-mig[26]: CHECK NULL veya kontrollü palet (calendarTypes ile birebir)");
+    ok(!/DROP TABLE|TRUNCATE|\bDROP COLUMN\b|\bDELETE FROM\b|UPDATE public/i.test(colorMigCode),
+      "faz5/5-mig[26]: additive (DROP/TRUNCATE/DELETE/backfill-UPDATE YOK)");
+    ok(!/CREATE POLICY|FORCE ROW LEVEL SECURITY|REVOKE|GRANT/.test(colorMigCode) &&
+       !/ALTER TABLE public\.cupping_calendar_plans\b|ALTER TABLE public\.cupping_advice_templates\b|ALTER TABLE public\.cupping_client_advice\b/.test(colorMigCode),
+      "faz5/5-mig[26]: RLS/grant modeli + diğer takvim tabloları DEĞİŞMEZ (yalnız plan_days.color_key)");
+    ok(/ADD COLUMN IF NOT EXISTS/.test(colorMig) && /IF NOT EXISTS[\s\S]*color_key_chk/.test(colorMig),
+      "faz5/5-mig[26]: idempotent (ADD COLUMN IF NOT EXISTS + koşullu CHECK)");
+    // Kozmik sınır: renk migration'ı Kozmik'e dokunmaz.
+    ok(!/hacamat_rules|lib\/cosmic|app\/cosmic-calendar|app\/api\/hacamat/i.test(colorMigCode),
+      "faz5/5-mig[26]: Kozmik Hacamat bağı/kopyası YOK");
   }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
