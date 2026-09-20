@@ -4,11 +4,13 @@
  * besin toplamı rozetleri ve enerji-hedef karşılaştırma satırı (nötr ton).
  * Salt sunum; iş mantığı yok.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { MoreVertical, X } from "lucide-react";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { NUTRIENT_LABELS, type NutrientTotal } from "@/lib/beslenme/planContracts";
 import { formatEnergy } from "./planFormat";
+import { ACTION_MENU_WIDTH, computeActionMenuPlacement, type ActionMenuPlacement } from "./actionMenuPlacement";
 
 /* ── Modal ── mobil: alttan tam-genişlik sayfa; masaüstü: ortalanmış kart. */
 export function Modal({
@@ -79,14 +81,77 @@ export type MenuItem = {
   danger?: boolean;
 };
 
+/**
+ * Kompakt aksiyon menüsü (üç nokta). VIEWPORT-AWARE + PORTAL:
+ *   - Menü document.body'e portal edilir → üst `overflow-hidden` kartlar tarafından KIRPILMAZ.
+ *   - Tetiğin ekran içi konumuna göre aşağı/yukarı otomatik açılır (altta yer yoksa yukarı "flip").
+ *   - Yatayda viewport'a kelepçelenir; ne alta ne üste taşar. Dar ekran / yüksek zoom'da
+ *     yükseklik viewport'a sığacak şekilde sınırlanır ve menü kendi içinde kayar (scroll).
+ *   - Yerleşim SAF `computeActionMenuPlacement` ile tetik tıklamasında hesaplanır → efekt-içi setState YOK.
+ *   - Kapatma: dışarı tıklama, Escape, scroll ve resize. Tüm seçenekler/davranışlar korunur.
+ */
 export function ActionMenu({ items, label = "İşlemler" }: { items: MenuItem[]; label?: string }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<ActionMenuPlacement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Tıklamada tetik dikdörtgeninden konumu hesapla (SAF; menü yüksekliği ölçülmez → çıpa ile flip).
+  function openMenu() {
+    const trigger = triggerRef.current;
+    const r = trigger?.getBoundingClientRect();
+    if (!r || typeof window === "undefined") {
+      setCoords(null);
+      setOpen(true);
+      return;
+    }
+    setCoords(
+      computeActionMenuPlacement(
+        { top: r.top, bottom: r.bottom, right: r.right },
+        { width: window.innerWidth, height: window.innerHeight },
+        items.length,
+      ),
+    );
+    setOpen(true);
+  }
+
+  // Dış etkiler: Escape kapatır; scroll/resize menüyü koparmamak için kapatır
+  // (menü kendi içinde kaydırılırken tetiklenen scroll hariç).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const onScroll = (e: Event) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onResize = () => setOpen(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
+
   if (items.length === 0) return null;
+
+  // Stil, ayrık birlik (discriminated union) üzerinden açıkça kurulur (yalnız geçerli CSS anahtarları).
+  const menuStyle: CSSProperties = !coords
+    ? { position: "fixed", width: ACTION_MENU_WIDTH, visibility: "hidden" }
+    : coords.placement === "down"
+      ? { position: "fixed", width: ACTION_MENU_WIDTH, left: coords.left, top: coords.top, maxHeight: coords.maxHeight }
+      : { position: "fixed", width: ACTION_MENU_WIDTH, left: coords.left, bottom: coords.bottom, maxHeight: coords.maxHeight };
+
   return (
-    <div className="relative shrink-0">
+    <div className="shrink-0">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-slate-50"
         aria-label={label}
         aria-haspopup="menu"
@@ -94,33 +159,38 @@ export function ActionMenu({ items, label = "İşlemler" }: { items: MenuItem[];
       >
         <MoreVertical className="h-4 w-4" aria-hidden />
       </button>
-      {open ? (
-        <>
-          <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
-          <div
-            role="menu"
-            className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-          >
-            {items.map((it, i) => (
-              <button
-                key={`${it.label}-${i}`}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  it.onClick();
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-bold transition hover:bg-slate-50 ${
-                  it.danger ? "text-rose-600" : "text-slate-700"
-                }`}
+      {open && coords && typeof document !== "undefined"
+        ? createPortal(
+            <>
+              <div className="fixed inset-0 z-[60]" aria-hidden onClick={() => setOpen(false)} />
+              <div
+                ref={menuRef}
+                role="menu"
+                style={menuStyle}
+                className="z-[61] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
               >
-                {it.icon ? <span className="shrink-0">{it.icon}</span> : null}
-                {it.label}
-              </button>
-            ))}
-          </div>
-        </>
-      ) : null}
+                {items.map((it, i) => (
+                  <button
+                    key={`${it.label}-${i}`}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      it.onClick();
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-bold transition hover:bg-slate-50 ${
+                      it.danger ? "text-rose-600" : "text-slate-700"
+                    }`}
+                  >
+                    {it.icon ? <span className="shrink-0">{it.icon}</span> : null}
+                    {it.label}
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

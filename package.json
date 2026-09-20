@@ -65,6 +65,7 @@
     "beslenme:alternatives:harness": "node scripts/beslenme-alternatives/altHarness.mjs",
     "beslenme:alternatives:retrieval:harness": "node scripts/beslenme-alternatives/altRetrievalHarness.mjs",
     "beslenme:analytics:harness": "tsx scripts/beslenme-analytics/analyticsHarness.mjs",
+    "beslenme:plan-ui:menu:harness": "node scripts/beslenme-plan-ui/actionMenuPlacementHarness.mjs",
     "yh:expert-rollout:harness": "tsx scripts/yh-expert-rollout/harness.ts",
     "sifa:search:harness": "tsx scripts/sifa-search/harness.ts",
     "sifa:word:scale:harness": "tsx scripts/sifa-search/wordScaleHarness.ts",
