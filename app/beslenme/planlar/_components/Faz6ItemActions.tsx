@@ -2,7 +2,8 @@
 /**
  * Beslenme FAZ 6 — plan editörü ek modalleri:
  *   SaveMealTemplateModal — öğünü şablon olarak kaydet (server snapshot verbatim).
- *   ItemAlternativesModal — yaklaşık besin alternatifleri (deterministik; AI YOK; tıbbi iddia YOK).
+ *   ItemAlternativesModal — "Kaloriye Göre Besin Değiştir" (deterministik; AI YOK; tıbbi iddia YOK).
+ *     Yalnız kalori-eşleşmeli miktar; besinsel eşdeğerlik İMA ETMEZ (UI dili netleştirildi).
  * MealCard'a additive; kilitli plan-motoru mantığını değiştirmez.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -83,7 +84,7 @@ export function ItemAlternativesModal({
     if (r.ok && r.data) {
       setAlts(r.data.alternatives ?? []);
       setTarget(r.data.target ?? null);
-    } else setErr("Alternatifler yüklenemedi.");
+    } else setErr("Değişim seçenekleri yüklenemedi.");
     setLoading(false);
   }, [planId, itemId, sameGroupOnly]);
 
@@ -104,13 +105,14 @@ export function ItemAlternativesModal({
     <Modal
       open
       onClose={onClose}
-      title="Yaklaşık Besin Alternatifleri"
+      title="Kaloriye Göre Besin Değiştir"
       subtitle={itemName}
       maxWidthClass="max-w-lg"
     >
       <div className="flex flex-col gap-3">
         <p className="text-[11px] font-medium leading-relaxed text-slate-400">
-          Benzer enerji ve makro besin profiline göre hesaplanır. Tıbbi eşdeğerlik/uygunluk iddiası değildir.
+          Seçilen besinin toplam kalorisine yaklaşık karşılık gelen miktarlar gösterilir. Bu besinler
+          besin değeri, alerjen veya beslenme amacı bakımından eşdeğer değildir.
         </p>
         <label className="inline-flex w-fit cursor-pointer items-center gap-2 text-[12px] font-bold text-slate-600">
           <input type="checkbox" checked={sameGroupOnly} onChange={(e) => setSameGroupOnly(e.target.checked)} />
@@ -122,7 +124,7 @@ export function ItemAlternativesModal({
         ) : err ? (
           <StatusMessage type="error">{err}</StatusMessage>
         ) : alts.length === 0 ? (
-          <EmptyState title="Uygun alternatif bulunamadı" description="Filtreyi genişletmeyi deneyin (tüm besinler)." />
+          <EmptyState title="Uygun değişim seçeneği bulunamadı" description="Bu filtreyle uygun değişim seçeneği bulunamadı. Filtreyi genişletmeyi deneyin (tüm besinler)." />
         ) : (
           <div className="flex flex-col gap-2">
             {target ? (
