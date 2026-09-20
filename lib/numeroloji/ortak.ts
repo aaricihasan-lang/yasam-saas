@@ -9,6 +9,14 @@ export type NumerolojiResult = {
    * numeroloğa ikinci bir okuma hatırlatması olarak `display` parantezinde gösterilir.
    */
   combinedReading?: string;
+  /**
+   * ANALYSIS-ASSIST METADATA (presentation-only; CANONICAL DEĞİL): Ana/Yan Kulvar için
+   * GERÇEK per-token component değerleri (ör. Yan [5,3,3,22,8]). `key`/`display`/`steps`/
+   * knowledge-lookup'ı ETKİLEMEZ. Yalnız "Farklı özel sayı kombinasyonları" (bkz.
+   * `findKulvarSpecialCombinations`) türetimi için engine'de zaten hesaplanan değerleri
+   * güvenli biçimde expose eder. Yalnız Ana/Yan Kulvar result'larında set edilir.
+   */
+  componentValues?: number[];
 };
 
 // 19, bu sistemde karma borç sayısı olarak master sayı setine dahil edilmiştir.

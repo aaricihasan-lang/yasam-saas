@@ -135,7 +135,7 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
       const showBracket = Boolean(bracketStr) && bracketInner !== mainDisplay;
       const display = showBracket ? `${mainDisplay} ${bracketStr}` : mainDisplay;
       steps.push(`SONUÇ → Yan Kulvar: ${display}`);
-      return { display, key: String(reducedNonSpecial), steps };
+      return { display, key: String(reducedNonSpecial), steps, componentValues: values };
     }
 
     // Mevcut mantık: tüm değerler özel veya yalnızca çift özel oluşumu var
@@ -187,7 +187,7 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
     const uniqueSpecialNums = [...new Set(specialCandidates.map((c) => c.specialNum))].sort((a, b) => a - b);
     steps.push(`Özel sayılar (Yan Kulvar): ${uniqueSpecialNums.join(", ")}`);
     steps.push(`SONUÇ → Yan Kulvar: ${display}`);
-    return { display, key: String(mainDigit), steps, ...(combinedReading ? { combinedReading } : {}) };
+    return { display, key: String(mainDigit), steps, componentValues: values, ...(combinedReading ? { combinedReading } : {}) };
   }
 
   const total = nonZeroValues.reduce((a, b) => a + b, 0);
@@ -195,5 +195,5 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
   const display = String(finalValue);
   steps.push(`Yan Kulvar toplamı: ${nonZeroValues.join(" + ")} = ${total} → ${finalValue}`);
   steps.push(`SONUÇ → Yan Kulvar: ${display}`);
-  return { display, key: display, steps };
+  return { display, key: display, steps, componentValues: values };
 }

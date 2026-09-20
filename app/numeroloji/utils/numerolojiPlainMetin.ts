@@ -8,6 +8,7 @@ import {
   type ElementResult,
   type PinKoduBoxes,
 } from "@/lib/numeroloji";
+import { findKulvarSpecialCombinationsDetailed } from "@/lib/numeroloji/alternativeCombinations";
 
 export type NumerolojiMotorOut = ReturnType<typeof hesaplaNumeroloji>;
 
@@ -15,6 +16,78 @@ export function nrDisplay(r: NumerolojiResult | null | undefined): string {
   // Bozuk/eksik kayıtlarda r veya r.display undefined olabilir → çökmemeli.
   const d = r && typeof r.display === "string" ? r.display : "";
   return d.trim() || "—";
+}
+
+/**
+ * SONUÇ ÖZETİ presentation-only formatı (Ana/Yan Kulvar). CANONICAL DEĞİL; engine/result
+ * mutate ETMEZ, key/lookup'ı ETKİLEMEZ. Yalnız Sonuç Özeti kartlarında gösterilen METİN.
+ *
+ * OWNER KARARI:
+ *  - `combinedReading` metadata'sı VARSA (owner birleşik hatırlatması "22"/"33"): display
+ *    AYNEN korunur. Örn: "11/11 (22)" → "11/11 (22)".
+ *  - `combinedReading` YOKSA: display'in sonundaki LEGACY decomposition parantezi Sonuç
+ *    Özeti için gizlenir (metadata-first; string-tahmini DEĞİL). Örn: "22/19 (11/3)" → "22/19",
+ *    "33/6 (22/11/6)" → "33/6", "22 (11-11)" → "22". Parantez yoksa değişmez ("19/9" → "19/9").
+ *
+ * Not: Ayrıntı (Hesap Özetli) sekmesi tam `display`i (`nrDisplay`) kullanmaya devam eder —
+ * bu helper YALNIZ Sonuç Özeti içindir. Legacy ve combined parantezleri engine'de birbirini
+ * dışladığı için (combinedReading yalnız all-special dalında set edilir) tek `(...)` grubu güvenlidir.
+ */
+export function formatKulvarSummaryDisplay(r: NumerolojiResult | null | undefined): string {
+  const full = nrDisplay(r);
+  if (!r || full === "—") return full;
+  const cr = typeof r.combinedReading === "string" ? r.combinedReading.trim() : "";
+  // Metadata-first: owner birleşik hatırlatması varsa display AYNEN korunur.
+  if (cr) return full;
+  // combinedReading yok → yalnız sondaki tek legacy parantez grubunu soy.
+  const stripped = full.replace(/\s*\([^()]*\)\s*$/, "").trim();
+  return stripped || full;
+}
+
+/**
+ * SONUÇ ÖZETİ / NUMEROLOJİK ANALİZ — "Farklı özel sayı kombinasyonları" YOL LİSTESİ.
+ * Ana/Yan Kulvar result'ının GERÇEK per-token component'lerinden türetilir (canonical DEĞİL).
+ * Kulvar olmayan (componentValues yok) result'larda `[]` döner.
+ */
+export function kulvarAlternativePaths(r: NumerolojiResult | null | undefined): string[] {
+  const comps = r && Array.isArray(r.componentValues) ? r.componentValues : [];
+  return findKulvarSpecialCombinationsDetailed(comps).map((d) => d.path);
+}
+
+/** Tek bir oluşum yolunun (variant) kısa köken satırları. */
+export type KulvarAlternativeVariant = { lines: string[] };
+/**
+ * Bir numeric path + onu oluşturan TÜM unique (değer-bazlı) oluşum yolları.
+ * `variants.length > 1` → aynı sayısal sonuç birden fazla gerçek gruplayışla oluşuyor.
+ */
+export type KulvarAlternativeProvenance = { path: string; variants: KulvarAlternativeVariant[] };
+
+/** Tek variant'ın groups+remainder'ından kısa köken satırları üretir. */
+function variantLines(v: { groups: { sum: number; parts: number[] }[]; remainderParts: number[]; remainderValue: number }): string[] {
+  const lines = v.groups.map((g) =>
+    g.parts.length <= 1 ? `${g.sum} (mevcut özel)` : `${g.parts.join("+")} → ${g.sum}`
+  );
+  if (v.remainderParts.length === 1) lines.push(`kalan ${v.remainderParts[0]}`);
+  else if (v.remainderParts.length > 1)
+    lines.push(`kalan ${v.remainderParts.join("+")} → ${v.remainderValue}`);
+  return lines;
+}
+
+/**
+ * HESAP ÖZETLİ için provenance'lı alternatif kombinasyon dökümü (yalnız kısa köken; YENİ
+ * numeroloji yorumu DEĞİL). NUMERIC path tekil; her path'in altında onu oluşturan TÜM unique
+ * (değer-bazlı) gerçek yollar korunur. Owner örneği:
+ *   22/11/8 → variants: [["22 (mevcut özel)","3+8 → 11","kalan 5+3 → 8"],
+ *                        ["22 (mevcut özel)","5+3+3 → 11","kalan 8"]]
+ */
+export function kulvarAlternativeProvenance(
+  r: NumerolojiResult | null | undefined
+): KulvarAlternativeProvenance[] {
+  const comps = r && Array.isArray(r.componentValues) ? r.componentValues : [];
+  return findKulvarSpecialCombinationsDetailed(comps).map((d) => ({
+    path: d.path,
+    variants: d.variants.map((v) => ({ lines: variantLines(v) })),
+  }));
 }
 
 export function pinOneLine(pin: PinKoduBoxes): string {
@@ -128,8 +201,10 @@ export function buildPlainAnalizFull(out: NumerolojiMotorOut): string {
     chunks.push(title, "", (body || "—").trim(), "", "——————————", "");
   };
 
-  pushBlock("ANA KULVAR", nrDisplay(out.anaKulvar));
-  pushBlock("YAN KULVAR", nrDisplay(out.yanKulvar));
+  // OWNER: Numerolojik Analiz'de Ana/Yan CLEAN gösterilir (legacy parantez YOK; combinedReading
+  // (22)/(33) KORUNUR). Detaylı aritmetik Sayısal Hesaplama (Hesap Özetli) sekmesinde durur.
+  pushBlock("ANA KULVAR", formatKulvarSummaryDisplay(out.anaKulvar));
+  pushBlock("YAN KULVAR", formatKulvarSummaryDisplay(out.yanKulvar));
   pushBlock("İFADE SAYISI", nrDisplay(out.ifadeSayisi));
   pushBlock("HAYAT YOLU / DM", nrDisplay(out.hayatYolu));
   pushBlock("PIN KODU", pinOneLine(out.pinKodu));
