@@ -1536,8 +1536,10 @@ function run(): void {
       "faz5-cell: Kaldırılacak soluk (bekleyen kaldırma)");
     ok(!/sunnah|golden/.test(cellStateSrc),
       "faz5-cell: cellState.ts'de sunnah/golden durumu YOK (kaldırıldı)");
-    ok(/Seçili/.test(mcSrc) && /Kaydedilecek/.test(mcSrc) && /Kaldırılacak/.test(mcSrc),
-      "faz5-cell: aylık takvim Seçili/Kaydedilecek/Kaldırılacak rozetleri gösterir");
+    ok(!/>\s*Seçili\s*</.test(mcSrc) && /Kaydedilecek/.test(mcSrc) && /Kaldırılacak/.test(mcSrc),
+      "faz5/5-cell: KAYDEDİLMİŞ günde görünür 'Seçili' YAZISI YOK (Kaydedilecek/Kaldırılacak korunur)");
+    ok(/sr-only/.test(mcSrc) && /cuppingCellBadge/.test(mcSrc),
+      "faz5/5-cell: seçim durumu ekran-okuyucu için sr-only rozetle korunur (renk TEK sinyal değil)");
     ok(/getCuppingCellState/.test(mcSrc) && /getCuppingCellState/.test(annualSrc),
       "faz5-cell: Aylık + Yıllık durumu paylaşılan getCuppingCellState'ten türetir (tek doğruluk)");
 
@@ -1758,8 +1760,8 @@ function run(): void {
     // ── PATCH GÜN (renk/açıklama sonradan değiştirilir) — tenant-safe + demo + güvenli ─
     ok(/export async function PATCH/.test(dayItem), "faz5/5-patch[11/12]: gün PATCH ucu mevcut (renk/açıklama sonradan değişir)");
     ok(/requireModuleAccess\(req, "cupping"\)/.test(dayItem), "faz5/5-patch: PATCH requireModuleAccess('cupping')");
-    ok(/normalizeCuppingDayStyle\(parsed\.data,\s*\{\s*requireAtLeastOne:\s*true\s*\}\)/.test(dayItem),
-      "faz5/5-patch: PATCH stil doğrulaması (boş PATCH reddi)");
+    ok(/normalizeCuppingDayStyle\(parsed\.data, \{ requireAtLeastOne: true, rejectNullColor: true \}\)/.test(dayItem),
+      "faz5/5-patch: PATCH stil doğrulaması (boş PATCH reddi + renk kaldırma yasağı)");
     ok(/updateEntity\(db, CUPPING_TABLES\.calendarPlanDays, tenantId, id/.test(dayItem),
       "faz5/5-patch[20]: PATCH updateEntity tenant-bağlı (cross-tenant IDOR engeli)");
     ok(/is_demo_account/.test(dayItem), "faz5/5-patch[21]: PATCH demo persist=0");
@@ -1768,36 +1770,43 @@ function run(): void {
     // ── POST PER-DAY STİL (yeni gün + renk + açıklama TEK istekte) ────────────────
     ok(/Array\.isArray\(parsed\.data\.days\)/.test(daysRoute),
       "faz5/5-post[16]: /days POST per-day 'days' biçimini kabul eder (yeni gün + stil tek istek)");
-    ok(/normalizeCuppingDayStyle\(item\.style\)/.test(daysRoute),
-      "faz5/5-post: her günün stili doğrulanır (renk allowlist + açıklama sınırı)");
+    ok(/normalizeCuppingDayStyle\(item\.style, \{ requireColorPresent: true \}\)/.test(daysRoute),
+      "faz5/5-post: her günün stili doğrulanır — YENİ günde renk zorunlu (requireColorPresent)");
 
-    // ── OPSİYONEL ALAN REGRESYONU — per-day style YALNIZ gönderilen alanları taşır ──
-    //    (undefined enjeksiyon YOK → {date} tek başına GEÇERLİ; sahte "geçersiz renk" reddi ÇÖZÜLDÜ.)
+    // ── RENK ZORUNLULUĞU (AŞAMA 5) — per-day POST'ta YENİ günde color_key GEREKLİ ──
+    //    pickCuppingDayStyleInput yalnız gönderilen alanları taşır (undefined enjeksiyonu YOK),
+    //    ardından route requireColorPresent:true ile renk yokluğunu REDDEDER.
     ok(/pickCuppingDayStyleInput\(e\)/.test(daysRoute),
-      "faz5/5-post-opt: /days POST pickCuppingDayStyleInput ile yalnız gönderilen alanları çıkarır");
-    // pick: gönderilmeyen alan SONUÇTA yer almaz (undefined enjekte etmez).
+      "faz5/5-post: /days POST pickCuppingDayStyleInput ile yalnız gönderilen alanları çıkarır");
+    ok(/requireColorPresent: true/.test(daysRoute),
+      "faz5/5-post[RENK]: /days POST YENİ günde renk ZORUNLU (requireColorPresent)");
     ok((() => { const s = pickCuppingDayStyleInput({ date: "2027-01-01" }); return Object.keys(s).length === 0; })(),
-      "faz5/5-post-opt: {date} → hiç stil alanı yok (color_key/user_label/note ENJEKTE EDİLMEZ)");
-    ok((() => { const s = pickCuppingDayStyleInput({ date: "2027-01-01", color_key: "blue" }); return !("user_label" in s) && !("note" in s) && s.color_key === "blue"; })(),
-      "faz5/5-post-opt: {date,color_key} → yalnız color_key taşınır");
-    ok((() => { const s = pickCuppingDayStyleInput({ date: "x", user_label: "Özel Gün" }); return !("color_key" in s) && !("note" in s) && s.user_label === "Özel Gün"; })(),
-      "faz5/5-post-opt: {date,user_label} → yalnız user_label taşınır");
-    // GERÇEK route davranışı: pick → normalize kombinasyonu (route'un tam per-day yolu).
-    const postOptCases: { entry: Record<string, unknown>; valid: boolean; label: string }[] = [
-      { entry: { date: "2027-01-01" }, valid: true, label: "{date} tek başına GEÇERLİ (renksiz/açıklamasız)" },
-      { entry: { date: "2027-01-01", color_key: "blue" }, valid: true, label: "{date,color_key:'blue'} GEÇERLİ" },
-      { entry: { date: "2027-01-01", user_label: "Özel Gün" }, valid: true, label: "{date,user_label:'Özel Gün'} GEÇERLİ" },
-      { entry: { date: "2027-01-01", color_key: null }, valid: true, label: "{date,color_key:null} GEÇERLİ (renk yok)" },
-      { entry: { date: "2027-01-01", color_key: "neon" }, valid: false, label: "{date,color_key:'neon'} açıkça geçersiz → REDDEDİLİR" },
-      { entry: { date: "2027-01-01", user_label: "x".repeat(CUPPING_DAY_LABEL_MAX + 1) }, valid: false, label: "aşırı uzun user_label → REDDEDİLİR" },
+      "faz5/5-post: {date} → hiç stil alanı ENJEKTE edilmez (pick temiz; undefined yok)");
+    // GERÇEK route yolu: pick → normalize(requireColorPresent) kombinasyonu.
+    const postCases: { entry: Record<string, unknown>; valid: boolean; label: string }[] = [
+      { entry: { date: "2027-01-01" }, valid: false, label: "{date} (renksiz) → RENK ZORUNLU reddi" },
+      { entry: { date: "2027-01-01", user_label: "Özel Gün" }, valid: false, label: "{date,user_label} (renksiz) → RENK ZORUNLU reddi" },
+      { entry: { date: "2027-01-01", color_key: null }, valid: false, label: "{date,color_key:null} → RENK ZORUNLU reddi" },
+      { entry: { date: "2027-01-01", color_key: "blue" }, valid: true, label: "{date,color_key:'blue'} → GEÇERLİ" },
+      { entry: { date: "2027-01-01", color_key: "green", user_label: "1. Grup" }, valid: true, label: "{date,color_key,user_label} → GEÇERLİ" },
+      { entry: { date: "2027-01-01", color_key: "neon" }, valid: false, label: "{date,color_key:'neon'} → geçersiz renk reddi" },
+      { entry: { date: "2027-01-01", color_key: "blue", user_label: "x".repeat(CUPPING_DAY_LABEL_MAX + 1) }, valid: false, label: "renkli ama aşırı uzun açıklama → reddi" },
     ];
-    for (const c of postOptCases) {
-      const res = normalizeCuppingDayStyle(pickCuppingDayStyleInput(c.entry));
-      ok(res.ok === c.valid, `faz5/5-post-opt: ${c.label}`);
+    for (const c of postCases) {
+      const res = normalizeCuppingDayStyle(pickCuppingDayStyleInput(c.entry), { requireColorPresent: true });
+      ok(res.ok === c.valid, `faz5/5-post[RENK]: ${c.label}`);
     }
-    // {date,color_key:'blue'} → normalize sonucu gerçekten blue taşır (row color_key dolu).
-    ok((() => { const r = normalizeCuppingDayStyle(pickCuppingDayStyleInput({ date: "2027-01-01", color_key: "blue" })); return r.ok && r.fields.color_key === "blue"; })(),
-      "faz5/5-post-opt: {date,color_key:'blue'} normalize → color_key 'blue' korunur");
+    ok((() => { const r = normalizeCuppingDayStyle(pickCuppingDayStyleInput({ date: "x", color_key: "blue" }), { requireColorPresent: true }); return r.ok && r.fields.color_key === "blue"; })(),
+      "faz5/5-post[RENK]: geçerli renk normalize sonucunda korunur (row color_key dolu)");
+    // PATCH: renk KALDIRILAMAZ (rejectNullColor); etiket-only düzenleme serbest; renk değiştirme serbest.
+    ok(/rejectNullColor: true/.test(dayItem),
+      "faz5/5-patch[RENK]: PATCH color_key:null REDDEDER (renk kaldırılamaz)");
+    ok(normalizeCuppingDayStyle({ color_key: null }, { requireAtLeastOne: true, rejectNullColor: true }).ok === false,
+      "faz5/5-patch[RENK]: PATCH {color_key:null} → REDDEDİLİR");
+    ok(normalizeCuppingDayStyle({ user_label: "Yeni Not" }, { requireAtLeastOne: true, rejectNullColor: true }).ok === true,
+      "faz5/5-patch[RENK]: PATCH etiket-only (renk gönderilmez) GEÇERLİ (renk korunur)");
+    ok(normalizeCuppingDayStyle({ color_key: "green" }, { requireAtLeastOne: true, rejectNullColor: true }).ok === true,
+      "faz5/5-patch[RENK]: PATCH renk DEĞİŞTİRME (yeni renk) GEÇERLİ");
     ok(/color_key: norm\.fields\.color_key \?\? null/.test(daysRoute),
       "faz5/5-post[19]: stil verilmezse color_key NULL (toplu seçim varsayılan RENKSİZ)");
     ok(/selection_source: "manual"/.test(daysRoute) && !/sunnah_auto/.test(stripTs(daysRoute)),
@@ -1825,14 +1834,54 @@ function run(): void {
     ok(/güncellenecek/.test(wsSrc), "faz5/5-ws: durum barı stil güncellemesini de sayar");
     ok(/gregorianToHijri\(editYmd\)/.test(wsSrc) && /hijriText/.test(wsSrc),
       "faz5/5-ws[22]: düzenleme paneli TAM Hicrî tarihi motordan alır (türetilir)");
-    // [13]/[14] renk kaldırma vs seçim kaldırma AYRI; deselect stili de temizler.
+    // Gün EKLE/DÜZENLE (applyDayStyle) ile 'Gün Seçimini Kaldır' (deselectDay) AYRI akışlar.
     ok(/deselectDay/.test(wsSrc) && /applyDayStyle/.test(wsSrc),
-      "faz5/5-ws[13/14]: 'Rengi Kaldır' (stil) ile 'Gün Seçimini Kaldır' (deselect) AYRI akışlar");
+      "faz5/5-ws: gün EKLE/DÜZENLE (applyDayStyle) ile seçim kaldırma (deselectDay) AYRI akışlar");
+    // Tık-ile-toggle KALDIRILDI → sıradan tık asla deselect etmez; panel açılır.
+    ok(!/toggleDay/.test(wsSrc) && !/onToggle/.test(wsSrc),
+      "faz5/5-ws[TIK]: tık-ile-toggle KALDIRILDI (sıradan tık seçimi kaldırmaz)");
+    ok(/onClick=\{\(\) => onEditDay\(ymd\)\}/.test(mcSrc) && !/onToggle/.test(mcSrc),
+      "faz5/5-mc[TIK]: gün tık PANELİ açar (onEditDay); toggle YOK (yanlış deselect engellenir)");
+    ok(/isSelected=\{editYmd \? draft\.has\(editYmd\) : false\}/.test(wsSrc),
+      "faz5/5-ws: panele isSelected geçilir (boş gün EKLE vs seçili gün DÜZENLE)");
+    // BULK: renk zorunlu + yalnız YENİ günlere uygulanır (mevcut stili ezmez).
+    ok(/addBulk = useCallback\(\(dates: string\[\], colorKey/.test(wsSrc) && /newlyAdded/.test(wsSrc) && /!draft\.has/.test(wsSrc),
+      "faz5/5-ws[BULK]: addBulk YENİ günlere renk atar; mevcut/kayıtlı stili EZMEZ");
+
+    // ── BULK UI: renk ZORUNLU + yalnız yeni günlere; hazır kural YOK ──────────────
+    const bulkUiSrc = read("app/kupa/takvim/components/BulkDateSelector.tsx");
+    ok(/onAddDates: \(dates: string\[\], colorKey: CuppingDayColorKey\) => void/.test(bulkUiSrc),
+      "faz5/5-bulk[RENK]: BulkDateSelector onAddDates renk taşır (imza)");
+    ok(/useState<CuppingDayColorKey \| null>\(null\)/.test(bulkUiSrc) && /colorKey !== null/.test(bulkUiSrc),
+      "faz5/5-bulk[RENK]: toplu renk ZORUNLU + ön-seçili DEĞİL (canApply renk şartı)");
+    ok(/onAddDates\(preview, colorKey\)/.test(bulkUiSrc),
+      "faz5/5-bulk[RENK]: uygulanınca seçilen renk geçirilir");
+    ok(/yeni eklenen/.test(bulkUiSrc),
+      "faz5/5-bulk[RENK]: renk yalnız YENİ eklenen günlere uygulanır (kullanıcıya açık)");
+    ok(!/[Ss][üu]nnet|[Aa]lt[ıi]n|preset|önerilen|varsay[ıi]lan renk/i.test(stripTs(bulkUiSrc)),
+      "faz5/5-bulk[RENK]: hazır ekol/preset/varsayılan renk kuralı YOK");
+    // Mevcut toplu filtreler (aralık/Hicrî/haftagünü/ay) KORUNUR.
+    ok(/computeBulkDates/.test(bulkUiSrc) && /hasAnyCriteria/.test(bulkUiSrc) && /Aylar/.test(bulkUiSrc),
+      "faz5/5-bulk: mevcut tarih/Hicrî/haftagünü/ay filtreleri korunur");
+
+    // ── ESKİ RENKSİZ KAYIT KORUNUMU (§6) — silme/gizleme/otomatik boyama YOK ─────
+    ok(/colorKey: d\.color_key/.test(wsSrc),
+      "faz5/5-legacy[6]: eski renksiz gün (color_key null) taslağa OKUNUR (silinmez/gizlenmez)");
+    ok(/colorKey !== null/.test(mcSrc) && /palette\.cell/.test(mcSrc),
+      "faz5/5-legacy[6]: renk yoksa varsayılan seçili görünüm (palette.cell) — renksiz eski gün görünür kalır");
 
     // ── DÜZENLEME PANELİ (premium, opsiyonel, düz metin, mobil) ──────────────────
     ok(panelSrc.length > 0, "faz5/5-panel: DayEditPanel bileşeni mevcut");
-    ok(/Günü Düzenle/.test(panelSrc) && /Renk Yok/.test(panelSrc) && /Rengi Kaldır/.test(panelSrc) && /Gün Seçimini Kaldır/.test(panelSrc),
-      "faz5/5-panel[13/14]: renk/Renk Yok + Rengi Kaldır + Gün Seçimini Kaldır (ayrı kontroller)");
+    ok(/Günü Düzenle/.test(panelSrc) && /Gün Ekle/.test(panelSrc) && /Gün Seçimini Kaldır/.test(panelSrc),
+      "faz5/5-panel: dinamik başlık (Gün Ekle / Günü Düzenle) + 'Gün Seçimini Kaldır' (deselect)");
+    ok(!/Renk Yok/.test(panelSrc) && !/Rengi Kaldır/.test(panelSrc),
+      "faz5/5-panel[RENK]: 'Renk Yok' + 'Rengi Kaldır' KALDIRILDI (renkli/seçili gün renksiz bırakılamaz)");
+    ok(/Renk \(zorunlu\)/.test(panelSrc) && /Devam etmek için bir renk seçin/.test(panelSrc),
+      "faz5/5-panel[RENK]: renk ZORUNLU (etiket 'Renk (zorunlu)' + eksikse açık uyarı)");
+    ok(/const canApply = !colorMissing/.test(panelSrc) && /disabled=\{!canApply\}/.test(panelSrc),
+      "faz5/5-panel[RENK]: renk seçilmeden 'Taslağa Uygula' devre dışı (canApply renk şartı)");
+    ok(/isSelected \? \(/.test(panelSrc),
+      "faz5/5-panel: 'Gün Seçimini Kaldır' YALNIZ seçili günde (isSelected koşullu; yeni EKLE'de yok)");
     ok(/role="dialog"/.test(panelSrc) && /aria-modal="true"/.test(panelSrc) && /Escape/.test(panelSrc),
       "faz5/5-panel: erişilebilir modal (dialog + aria-modal + Esc)");
     ok(/items-end/.test(panelSrc) && /sm:items-center/.test(panelSrc) && /max-h-\[90vh\]/.test(panelSrc),
@@ -1861,6 +1910,8 @@ function run(): void {
     const colorMigCode = colorMig.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
     ok(/ADD COLUMN IF NOT EXISTS color_key text\b/.test(colorMig) && !/DEFAULT/.test(colorMigCode.split("CHECK")[0] ?? colorMigCode),
       "faz5/5-mig[26]: color_key NULLABLE + DEFAULT YOK (mevcut satırlar NULL; otomatik renk atanmaz)");
+    ok(!/color_key text NOT NULL/.test(colorMig) && !/ALTER COLUMN color_key SET NOT NULL/.test(colorMig),
+      "faz5/5-legacy[6]: migration color_key'i NOT NULL YAPMAZ (eski renksiz veri korunur)");
     ok(/CHECK \(\s*color_key IS NULL OR color_key IN/.test(colorMig) &&
        /'blue', 'green', 'yellow', 'red', 'purple', 'orange', 'pink'/.test(colorMig),
       "faz5/5-mig[26]: CHECK NULL veya kontrollü palet (calendarTypes ile birebir)");

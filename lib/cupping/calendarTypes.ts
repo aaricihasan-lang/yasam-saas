@@ -80,11 +80,14 @@ export type CuppingDayStyleResult =
  *       (sessiz kırpma YOK); aksi hâlde trim'lenmiş metin (güvenli düz metin; HTML render EDİLMEZ).
  *   - note (detay notu): boş → null; > CUPPING_DAY_NOTE_MAX → hata.
  * `requireAtLeastOne` true iken hiç alan gönderilmemişse hata (boş PATCH engeli).
+ * `requireColorPresent` true iken (YENİ gün oluşturma) geçerli non-null color_key ZORUNLU.
+ * `rejectNullColor` true iken (mevcut gün PATCH) color_key AÇIKÇA null gönderilemez (renk
+ *   kaldırılamaz — renkli gün renksiz bırakılmaz; yalnız başka renkle değiştirilir).
  * Gönderilmeyen alanlar SONUÇTA YER ALMAZ (mevcut değeri korunur — kısmi güncelleme).
  */
 export function normalizeCuppingDayStyle(
   input: CuppingDayStyleInput,
-  opts?: { requireAtLeastOne?: boolean },
+  opts?: { requireAtLeastOne?: boolean; requireColorPresent?: boolean; rejectNullColor?: boolean },
 ): CuppingDayStyleResult {
   const fields: CuppingDayStyleFields = {};
   const has = (k: string) => Object.prototype.hasOwnProperty.call(input, k);
@@ -120,6 +123,14 @@ export function normalizeCuppingDayStyle(
     } else return { ok: false, error: "Detay notu geçersiz." };
   }
 
+  // Renk kaldırma yasağı (mevcut gün): color_key AÇIKÇA null → hata.
+  if (opts?.rejectNullColor && Object.prototype.hasOwnProperty.call(fields, "color_key") && fields.color_key === null) {
+    return { ok: false, error: "Renk kaldırılamaz; farklı bir renk seçin." };
+  }
+  // Renk zorunluluğu (yeni gün): geçerli non-null color_key GEREKLİ.
+  if (opts?.requireColorPresent && (!Object.prototype.hasOwnProperty.call(fields, "color_key") || fields.color_key == null)) {
+    return { ok: false, error: "Renk seçimi zorunludur." };
+  }
   if (opts?.requireAtLeastOne && Object.keys(fields).length === 0) {
     return { ok: false, error: "Güncellenecek alan yok." };
   }

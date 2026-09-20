@@ -10,17 +10,18 @@ import {
 import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
 
 /**
- * FAZ 5 / AŞAMA 5 — GÜN DÜZENLEME PANELİ (premium, sade, hızlı).
+ * FAZ 5 / AŞAMA 5 — GÜN DÜZENLEME / EKLEME PANELİ (premium, sade, hızlı).
  *
- * ÜRÜN KURALI (owner KİLİTLİ): Renk ve kısa açıklama TAMAMEN OPSİYONELDİR; renk anlamı platform
- *   tarafından SABİTLENMEZ (hazır etiket/anlam YOK) — uzman kendi metnini kendisi yazar. Panel,
- *   günün SEÇİM durumunu doğrudan değiştirmez; yalnız STİL uygular. "Gün Seçimini Kaldır" ile
- *   "Rengi Kaldır" açıkça AYRIDIR (yanlışlıkla seçim silme yok).
+ * ÜRÜN KURALI (owner KİLİTLİ): Uzmanın oluşturduğu HER yeni gün için RENK ZORUNLUDUR — uzman
+ *   yedi pastel renkten birini kendisi seçer; sistem varsayılan renk/anlam ÖNERMEZ, ilk renk
+ *   önceden seçili GELMEZ. Renk seçilmeden gün taslağa EKLENMEZ. Kısa açıklama ve detay notu
+ *   OPSİYONELDİR. Renkli/seçili bir gün renksiz BIRAKILAMAZ (yalnız başka renkle değiştirilir) →
+ *   renk-kaldırma / renksiz-bırakma seçeneği YOKTUR. Seçimi bırakma yalnız açık "Gün Seçimini
+ *   Kaldır" iledir (günü ve stilini birlikte kaldırır). Hiçbir renge hazır anlam yüklenmez.
  *
- * KALICILIK: "Taslağa Uygula" değişikliği takvimin çalışma taslağına yazar (henüz-kaydedilmemiş
- *   yeni gün dâhil); nihai DB kaydı ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu →
- *   kaydedilmemiş-değişiklik uyarısı gün stilini de kapsar). Panel bu farkı açıkça belirtir.
- *   Metin GÜVENLİ düz metindir (HTML render YOK).
+ * KALICILIK: "Taslağa Uygula" değişikliği takvimin çalışma taslağına yazar (yeni gün dâhil);
+ *   nihai DB kaydı ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu). Panel bu farkı
+ *   açıkça belirtir. Metin GÜVENLİ düz metindir (HTML render YOK).
  * MOBİL: masaüstünde küçük merkezî modal; mobilde ekranı taşırmayan alt-panel.
  */
 
@@ -39,6 +40,7 @@ export function DayEditPanel({
   gregText,
   hijriText,
   initial,
+  isSelected,
   onApply,
   onDeselect,
   onClose,
@@ -48,6 +50,8 @@ export function DayEditPanel({
   /** Tam Hicrî tarih (ör. "30 Cemaziyelahir 1448"). */
   hijriText: string;
   initial: DayStyleDraft;
+  /** Gün zaten seçili mi (taslak/kayıtlı)? false → yeni EKLEME (Gün Seçimini Kaldır gösterilmez). */
+  isSelected: boolean;
   onApply: (style: DayStyleDraft) => void;
   onDeselect: () => void;
   onClose: () => void;
@@ -71,8 +75,15 @@ export function DayEditPanel({
   const labelLen = cpLen(label.trim());
   const labelOver = labelLen > CUPPING_DAY_LABEL_MAX;
   const noteOver = cpLen(note.trim()) > CUPPING_DAY_NOTE_MAX;
+  const colorMissing = colorKey === null;
+  const canApply = !colorMissing && !labelOver && !noteOver;
 
   function save() {
+    // RENK ZORUNLU — seçilmeden uygulanamaz (yeni gün + eski renksiz kayıt düzenlemesi).
+    if (colorMissing) {
+      setError("Devam etmek için bir renk seçin.");
+      return;
+    }
     // SESSİZ KIRPMA YOK — sınır aşımında açık doğrulama; kaydetme engellenir.
     if (labelOver) {
       setError(`Kısa açıklama en fazla ${CUPPING_DAY_LABEL_MAX} karakter olabilir.`);
@@ -94,14 +105,14 @@ export function DayEditPanel({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Günü Düzenle"
+        aria-label={isSelected ? "Günü Düzenle" : "Gün Ekle"}
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-t-2xl border border-amber-100 bg-white p-4 shadow-xl sm:max-w-md sm:rounded-2xl sm:p-5"
       >
         {/* Başlık + tarih bilgisi */}
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-base font-black text-slate-900">Günü Düzenle</h3>
+            <h3 className="text-base font-black text-slate-900">{isSelected ? "Günü Düzenle" : "Gün Ekle"}</h3>
             <p className="mt-0.5 text-sm font-semibold text-slate-700">{gregText}</p>
             <p className="text-xs text-slate-500">Hicrî {hijriText}</p>
           </div>
@@ -115,9 +126,9 @@ export function DayEditPanel({
           </button>
         </div>
 
-        {/* Renk seçici — kontrollü palet + "Renk Yok" (opsiyonel) */}
+        {/* Renk seçici — kontrollü palet; RENK ZORUNLU (varsayılan/ön-seçili YOK) */}
         <div className="mb-4">
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Renk (opsiyonel)</p>
+          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Renk (zorunlu)</p>
           <div className="flex flex-wrap gap-2">
             {CUPPING_DAY_COLOR_ORDER.map((key) => {
               const def = CUPPING_DAY_COLORS[key];
@@ -126,7 +137,10 @@ export function DayEditPanel({
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setColorKey(key)}
+                  onClick={() => {
+                    setColorKey(key);
+                    if (error) setError(null);
+                  }}
                   aria-pressed={active}
                   aria-label={def.labelTr}
                   title={def.labelTr}
@@ -138,30 +152,16 @@ export function DayEditPanel({
                 />
               );
             })}
-            {/* Renk Yok / Varsayılan */}
-            <button
-              type="button"
-              onClick={() => setColorKey(null)}
-              aria-pressed={colorKey === null}
-              aria-label="Renk yok"
-              title="Renk yok"
-              className={[
-                "flex h-9 items-center gap-1 rounded-full border-2 border-slate-300 bg-white px-3 text-xs font-semibold text-slate-500 outline-none transition focus-visible:ring-2 focus-visible:ring-amber-400/70",
-                colorKey === null ? "ring-2 ring-slate-700 ring-offset-2" : "hover:border-slate-400",
-              ].join(" ")}
-            >
-              Renk Yok
-            </button>
           </div>
-          {colorKey !== null ? (
-            <button
-              type="button"
-              onClick={() => setColorKey(null)}
-              className="mt-2 text-[11px] font-semibold text-amber-700 hover:text-amber-800"
-            >
-              Rengi Kaldır
-            </button>
-          ) : null}
+          {colorMissing ? (
+            <p className="mt-1.5 text-[11px] font-medium text-amber-700">
+              Devam etmek için bir renk seçin.
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Rengi değiştirmek için başka bir renge dokunun.
+            </p>
+          )}
         </div>
 
         {/* Kısa açıklama — serbest metin; sessiz kırpma YOK (sayaç + doğrulama) */}
@@ -218,11 +218,15 @@ export function DayEditPanel({
           Kalıcı olarak kaydetmek için takvimde <span className="font-bold">Değişiklikleri Kaydet</span>&apos;e basın.
         </p>
 
-        {/* Aksiyonlar — "Gün Seçimini Kaldır" (seçimi bırakır) AYRI; Vazgeç / Taslağa Uygula */}
+        {/* Aksiyonlar — "Gün Seçimini Kaldır" (günü + stilini bırakır) YALNIZ seçili günde; Vazgeç / Taslağa Uygula */}
         <div className="mt-1 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" className={kupaBtnDanger} onClick={onDeselect}>
-            Gün Seçimini Kaldır
-          </button>
+          {isSelected ? (
+            <button type="button" className={kupaBtnDanger} onClick={onDeselect}>
+              Gün Seçimini Kaldır
+            </button>
+          ) : (
+            <span aria-hidden />
+          )}
           <div className="flex justify-end gap-2">
             <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={onClose}>
               Vazgeç
@@ -231,7 +235,7 @@ export function DayEditPanel({
               type="button"
               className={`${kupaBtnSuccess} min-h-[40px]`}
               onClick={save}
-              disabled={labelOver || noteOver}
+              disabled={!canApply}
             >
               Taslağa Uygula
             </button>

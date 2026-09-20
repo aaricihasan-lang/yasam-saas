@@ -3,23 +3,27 @@
 import { useMemo, useState } from "react";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput, kupaPill, kupaPillActive } from "@/app/kupa/components/KupaShell";
 import { computeBulkDates, hasAnyCriteria, WEEKDAYS_TR, type BulkCriteria } from "../lib/bulk";
+import type { CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
+import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
 import { MONTHS_TR } from "./MonthCalendar";
 
 /**
- * FAZ 5 / AŞAMA 3 — NÖTR Toplu Gün Seçimi (opsiyonel yardımcı; sayfayı BASKILAMAZ).
+ * FAZ 5 / AŞAMA 3 + 5 — NÖTR Toplu Gün Seçimi (opsiyonel yardımcı; sayfayı BASKILAMAZ).
  *
  * Profesyonel KENDİ ölçütünü seçer. Ön-seçili değer YOK; 17/19/21 preset YOK; ekol YOK;
  *   haftagünü yasağı YOK. Ölçütler EPHEMERAL React state'idir — DB'ye/localStorage'a
- *   KALICILAŞTIRILMAZ; panel kapanınca/yeniden yüklenince sıfırlanabilir.
- * Sonuç somut Gregoryen tarihlere çözülür ve YALNIZCA yerel taslak seçime eklenir
- *   (otomatik kayıt YOK; kullanıcı ayrıca "Değişiklikleri Kaydet" der).
+ *   KALICILAŞTIRILMAZ.
+ * RENK ZORUNLU (AŞAMA 5): tek gün kuralıyla tutarlı — toplu ekleme için de bir renk seçilmelidir
+ *   (varsayılan/ön-seçili YOK, hazır ekol kuralı YOK). Seçilen renk YALNIZ bu işlemle YENİ eklenen
+ *   günlere uygulanır; daha önce seçili/kayıtlı günlerin renkleri EZİLMEZ. Sonuç yerel taslağa
+ *   eklenir (otomatik kayıt YOK; kullanıcı ayrıca "Değişiklikleri Kaydet" der).
  */
 export function BulkDateSelector({
   year,
   onAddDates,
 }: {
   year: number;
-  onAddDates: (dates: string[]) => void;
+  onAddDates: (dates: string[], colorKey: CuppingDayColorKey) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [useRange, setUseRange] = useState(false);
@@ -29,6 +33,8 @@ export function BulkDateSelector({
   const [weekdays, setWeekdays] = useState<number[]>([]);
   // Gregoryen ay çoklu-seçimi — EPHEMERAL; ön-seçili DEĞİL; DB/localStorage'a YAZILMAZ.
   const [months, setMonths] = useState<number[]>([]);
+  // Toplu renk — ZORUNLU; ön-seçili DEĞİL (varsayılan/ekol kuralı YOK).
+  const [colorKey, setColorKey] = useState<CuppingDayColorKey | null>(null);
 
   const yearMin = `${year}-01-01`;
   const yearMax = `${year}-12-31`;
@@ -45,7 +51,8 @@ export function BulkDateSelector({
   );
 
   const preview = useMemo(() => computeBulkDates(year, criteria), [year, criteria]);
-  const canApply = hasAnyCriteria(criteria) && preview.length > 0;
+  // Renk ZORUNLU: ölçüt + sonuç + renk üçü de gerekli.
+  const canApply = hasAnyCriteria(criteria) && preview.length > 0 && colorKey !== null;
 
   function toggleHijri(n: number) {
     setHijriDays((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n].sort((a, b) => a - b)));
@@ -63,11 +70,12 @@ export function BulkDateSelector({
     setHijriDays([]);
     setWeekdays([]);
     setMonths([]);
+    setColorKey(null);
   }
   function apply() {
-    if (!canApply) return;
-    onAddDates(preview);
-    // Uygulama sonrası ölçütleri sıfırla (ephemeral; kalıcı kural YOK).
+    if (!canApply || colorKey === null) return;
+    onAddDates(preview, colorKey);
+    // Uygulama sonrası ölçütleri + rengi sıfırla (ephemeral; kalıcı kural/varsayılan renk YOK).
     reset();
     setOpen(false);
   }
@@ -91,8 +99,8 @@ export function BulkDateSelector({
       {open ? (
         <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4">
           <p className="text-xs leading-relaxed text-slate-500">
-            Kendi yaklaşımınıza göre ölçüt seçin; eşleşen günler taslak seçiminize eklenir.
-            Ölçütler kaydedilmez, yalnızca sonuç günleri saklanabilir.
+            Kendi yaklaşımınıza göre ölçüt seçin ve bir renk belirleyin; eşleşen yeni günler o renkle
+            taslak seçiminize eklenir. Ölçütler ve renk kaydedilmez, yalnızca sonuç günleri saklanabilir.
           </p>
 
           {/* A) Hicrî gün numaraları (1–30) — ön-seçili DEĞİL */}
@@ -197,12 +205,44 @@ export function BulkDateSelector({
             ) : null}
           </div>
 
+          {/* E) Toplu RENK — ZORUNLU; ön-seçili DEĞİL. Yalnız bu işlemle EKLENEN yeni günlere uygulanır. */}
+          <div>
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Renk (zorunlu)</p>
+            <div className="flex flex-wrap gap-2">
+              {CUPPING_DAY_COLOR_ORDER.map((key) => {
+                const def = CUPPING_DAY_COLORS[key];
+                const active = colorKey === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setColorKey(key)}
+                    aria-pressed={active}
+                    aria-label={def.labelTr}
+                    title={def.labelTr}
+                    className={[
+                      "h-8 w-8 rounded-full border-2 outline-none transition focus-visible:ring-2 focus-visible:ring-amber-400/70",
+                      def.swatch,
+                      active ? "ring-2 ring-slate-700 ring-offset-2" : "hover:scale-105",
+                    ].join(" ")}
+                  />
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+              Seçtiğiniz renk yalnızca bu toplu işlemle <span className="font-semibold">yeni eklenen</span> günlere
+              uygulanır; mevcut günlerin rengini değiştirmez.
+            </p>
+          </div>
+
           {/* Önizleme + aksiyon */}
           <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-semibold text-slate-600" aria-live="polite">
-              {hasAnyCriteria(criteria)
-                ? `${preview.length} gün eşleşti`
-                : "Ölçüt seçilmedi"}
+              {!hasAnyCriteria(criteria)
+                ? "Ölçüt seçilmedi"
+                : colorKey === null
+                  ? `${preview.length} gün eşleşti — renk seçin`
+                  : `${preview.length} gün eşleşti`}
             </span>
             <div className="flex gap-2">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={reset}>

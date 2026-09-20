@@ -69,6 +69,8 @@ export async function POST(
         ? [parsed.data.date]
         : [];
     const sharedStyle: CuppingDayStyleInput = {};
+    // Renk ZORUNLU (yeni gün): legacy biçimde de paylaşılan color_key kabul edilir (yoksa reddedilir).
+    if (Object.prototype.hasOwnProperty.call(parsed.data, "color_key")) sharedStyle.color_key = parsed.data.color_key;
     if (typeof parsed.data.user_label === "string") sharedStyle.user_label = parsed.data.user_label;
     if (typeof parsed.data.note === "string") sharedStyle.note = parsed.data.note;
     items = rawDates.map((date) => ({ date, style: sharedStyle }));
@@ -92,8 +94,8 @@ export async function POST(
     if (seen.has(ymd)) continue;
     seen.add(ymd);
 
-    // Per-day stil doğrulama (renk allowlist + kısa açıklama sınırı + detay notu sınırı).
-    const norm = normalizeCuppingDayStyle(item.style);
+    // Per-day stil doğrulama — YENİ günde RENK ZORUNLU (renk allowlist + kısa açıklama/not sınırı).
+    const norm = normalizeCuppingDayStyle(item.style, { requireColorPresent: true });
     if (!norm.ok) return cuppingError(400, norm.error);
 
     // Tüm günler MANUEL (uzman-sahipli) köken ile yazılır (client köken enjekte edemez).

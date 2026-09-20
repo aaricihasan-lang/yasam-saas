@@ -20,11 +20,13 @@ import { WEEKDAYS_TR, isoWeekday } from "../lib/bulk";
  *   lib/cupping/hijri.ts üzerinden TÜRETİLİR (saklanmaz). Hücre başına API çağrısı YOK.
  *
  * DURUM (renk + rozet): getCuppingCellState TEK doğruluk kaynağıdır (Yıllık Özet ile AYNI).
- *   Takvim UZMAN-SAHİPLİDİR — hazır gün KAVRAMI YOKTUR. Uzman seçili bir güne kontrollü paletten
- *   bir renk + kısa açıklama verebilir (opsiyonel); renk anlamı platform tarafından sabitlenmez.
- *   Renk TEK sinyal DEĞİL — seçili durum ayrıca rozet + aria-pressed taşır (a11y).
- * TIKLAMA: gün kutusuna tek tık seçimi açar/kapatır (mevcut davranış KORUNUR). Yalnız SEÇİLİ
- *   günlerde küçük "Düzenle" aksiyonu belirir; o aksiyon seçim durumunu DEĞİŞTİRMEZ (panel açar).
+ *   Takvim UZMAN-SAHİPLİDİR — hazır gün KAVRAMI YOKTUR. Yeni günde RENK ZORUNLUDUR; kısa açıklama
+ *   opsiyoneldir; renk anlamı platform tarafından sabitlenmez. Kaydedilmiş günlerde hücre ortasında
+ *   "SEÇİLİ" YAZISI GÖSTERİLMEZ — seçim renk + kenarlık + aria-pressed + ekran-okuyucu ile ifade
+ *   edilir (renk TEK sinyal değildir).
+ * TIKLAMA: gün kutusuna tek tık PANELİ AÇAR (boş gün → renk seçerek EKLE; seçili gün → DÜZENLE).
+ *   Sıradan tık seçimi ASLA yanlışlıkla KALDIRMAZ; seçimi kaldırma yalnız panelin ayrı
+ *   "Gün Seçimini Kaldır" aksiyonuyladır. Kalem simgesi seçili günde ayrıca korunur.
  */
 
 /** Bir günün mevcut stili (renk + kısa açıklama) — taslaktan türetilir. */
@@ -37,7 +39,6 @@ export function MonthCalendar({
   saved,
   today,
   styleOf,
-  onToggle,
   onEditDay,
 }: {
   year: number;
@@ -48,8 +49,7 @@ export function MonthCalendar({
   today: string | null; // "YYYY-MM-DD"
   /** Bir günün taslak stili (renk + kısa açıklama). Yoksa renk/açıklama yok. */
   styleOf: (ymd: string) => CuppingDayStyleView | undefined;
-  onToggle: (ymd: string) => void;
-  /** Seçili bir günün düzenleme panelini aç (seçim durumunu DEĞİŞTİRMEZ). */
+  /** Gün panelini aç: boş gün → renkle EKLE; seçili gün → DÜZENLE. Seçimi DEĞİŞTİRMEZ. */
   onEditDay: (ymd: string) => void;
 }) {
   const cells = useMemo(() => monthHijriCells(year, month), [year, month]);
@@ -118,7 +118,7 @@ export function MonthCalendar({
             <div key={ymd} className="relative">
               <button
                 type="button"
-                onClick={() => onToggle(ymd)}
+                onClick={() => onEditDay(ymd)}
                 aria-pressed={isSel}
                 aria-label={aria}
                 title={aria}
@@ -137,12 +137,9 @@ export function MonthCalendar({
                 <span className={["text-[9px] leading-tight [overflow-wrap:anywhere] sm:text-[10px]", hijriCls].join(" ")}>
                   {cell.hijri.day} {cell.hijri.monthName} {cell.hijri.year}
                 </span>
-                {/* Durum rozeti (renk TEK sinyal değil). Tüm günler uzman-sahipli. */}
-                {state.kind === "selected_saved" ? (
-                  <span className="rounded bg-indigo-100 px-1 text-[8px] font-bold uppercase leading-tight text-indigo-700" aria-hidden>
-                    Seçili
-                  </span>
-                ) : state.kind === "selected_pending_add" ? (
+                {/* Durum rozeti — KAYDEDİLMİŞ günde "SEÇİLİ" YAZISI YOK (renk+kenarlık+sr-only yeter).
+                    Yalnız bekleyen ekleme/kaldırma görünür etiket taşır. Renk TEK sinyal değil. */}
+                {state.kind === "selected_pending_add" ? (
                   <span className="rounded border border-dashed border-indigo-400 px-1 text-[8px] font-bold uppercase leading-tight text-indigo-600" aria-hidden>
                     Kaydedilecek
                   </span>

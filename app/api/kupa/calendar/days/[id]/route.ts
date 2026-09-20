@@ -30,9 +30,11 @@ export async function PATCH(
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
 
-  // TEK doğruluk kaynağı doğrulama (renk allowlist + kısa açıklama sınırı + detay notu sınırı).
-  // requireAtLeastOne: boş PATCH reddedilir (sessiz no-op yok).
-  const norm = normalizeCuppingDayStyle(parsed.data, { requireAtLeastOne: true });
+  // TEK doğruluk kaynağı doğrulama (renk allowlist + kısa açıklama/not sınırı).
+  // requireAtLeastOne: boş PATCH reddedilir. rejectNullColor: renk kaldırılamaz (renkli gün
+  // renksiz bırakılmaz; yalnız başka renkle değiştirilir). Eski renksiz kayıt PATCH ile renk
+  // ALIR (non-null); color_key gönderilmezse mevcut değer korunur (etiket-only düzenleme serbest).
+  const norm = normalizeCuppingDayStyle(parsed.data, { requireAtLeastOne: true, rejectNullColor: true });
   if (!norm.ok) return cuppingError(400, norm.error);
 
   // Tenant-safe UPDATE (updateEntity id + tenant_id ile bağlar → cross-tenant IDOR engeli).

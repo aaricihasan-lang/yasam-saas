@@ -229,33 +229,26 @@ export function CalendarWorkspace() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  const toggleDay = useCallback((ymd: string) => {
+  // Toplu ekleme — RENK ZORUNLU; seçilen renk YALNIZ bu işlemle YENİ eklenen günlere uygulanır.
+  //   Zaten seçili/kayıtlı günlerin stili SESSİZCE EZİLMEZ (yalnız draft'ta olmayanlara atanır).
+  const addBulk = useCallback((dates: string[], colorKey: CuppingDayColorKey) => {
+    const newlyAdded = dates.filter((d) => !draft.has(d));
+    if (newlyAdded.length === 0) {
+      showToast({ message: "Eklenecek yeni gün yok (seçilen günler zaten takvimde).", type: "info" });
+      return;
+    }
     setDraft((prev) => {
       const next = new Set(prev);
-      if (next.has(ymd)) next.delete(ymd);
-      else next.add(ymd);
+      for (const d of newlyAdded) next.add(d);
       return next;
     });
-    // Seçimden çıkarılan günün taslak stili de kalkar (yeniden seçildiğinde eski renk geri gelmez).
     setDraftStyle((prev) => {
-      if (!prev.has(ymd)) return prev;
-      // Yalnız SEÇİMDEN ÇIKARMA durumunda stili temizle (ekleme değil).
-      // (toggle sonrası draft.has kontrolü burada güncel değil → seçim kaldırma stili kaldırır.)
       const next = new Map(prev);
-      next.delete(ymd);
+      for (const d of newlyAdded) next.set(d, { colorKey, label: "", note: "" });
       return next;
     });
-  }, []);
-
-  const addBulk = useCallback((dates: string[]) => {
-    setDraft((prev) => {
-      const next = new Set(prev);
-      for (const d of dates) next.add(d);
-      return next;
-    });
-    // Toplu seçim varsayılan olarak RENKSİZ/normal seçili gün üretir (mevcut stili ezmez).
-    showToast({ message: `${dates.length} gün taslak seçime eklendi. Kaydetmeyi unutmayın.`, type: "info" });
-  }, [showToast]);
+    showToast({ message: `${newlyAdded.length} yeni gün seçtiğiniz renkle eklendi. Kaydetmeyi unutmayın.`, type: "info" });
+  }, [draft, showToast]);
 
   // Düzenleme panelinden gelen stil uygulaması (taslağa yazar; gün seçili kalır).
   const applyDayStyle = useCallback((ymd: string, style: DayStyleDraft) => {
@@ -421,8 +414,8 @@ export function CalendarWorkspace() {
           belirlersiniz.
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
-          Yaşam Sistemi takvime hazır uygulama günü eklemez. Seçtiğiniz günleri isterseniz kendi
-          renginiz ve kısa açıklamanızla işaretleyebilirsiniz (opsiyonel).
+          Yaşam Sistemi takvime hazır uygulama günü eklemez. Bir güne dokunduğunuzda açılan panelden
+          kendi renginizi seçersiniz (her yeni gün için renk zorunludur); kısa açıklama opsiyoneldir.
         </p>
       </div>
 
@@ -490,7 +483,6 @@ export function CalendarWorkspace() {
                   saved={savedSet}
                   today={today}
                   styleOf={styleOf}
-                  onToggle={toggleDay}
                   onEditDay={setEditYmd}
                 />
                 {/* Sade legend — yalnız uzman-seçim durumları (pastel; çalışma alanını ezmez). */}
@@ -509,7 +501,7 @@ export function CalendarWorkspace() {
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden>✎</span>
-                    Renk ve açıklama için seçili günü düzenleyin
+                    Eklemek/düzenlemek için güne dokunun (renk seçimi zorunlu)
                   </span>
                 </div>
               </div>
@@ -558,6 +550,7 @@ export function CalendarWorkspace() {
           gregText={editContext.gregText}
           hijriText={editContext.hijriText}
           initial={editContext.initial}
+          isSelected={editYmd ? draft.has(editYmd) : false}
           onApply={(style) => editYmd && applyDayStyle(editYmd, style)}
           onDeselect={() => editYmd && deselectDay(editYmd)}
           onClose={() => setEditYmd(null)}
