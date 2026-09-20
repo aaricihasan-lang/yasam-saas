@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SYSTEM_NUTRITION_TENANT_ID, foodOwnershipClass } from "./systemTenant";
+import { fetchAllPaged, chunkIds } from "./pagedFetch";
 
 /**
  * Beslenme FAZ 6 / Yaklaşık Besin Alternatifleri — DETERMİNİSTİK, SERVER-SIDE, AI YOK.
@@ -232,27 +233,37 @@ export async function resolveAlternativesForItem(
   }
   const energyTotal = (energyPer100 * grams) / 100;
 
+  // Okunabilir tenant kapsamı (SYSTEM ∪ caller) — hedef grup + aday + nutrient sorgularında paylaşılır.
+  const scope = readableScope(tenantId);
+
   // targetGroupId — item food'u hâlâ erişilebilirse.
   let targetGroupId: string | null = null;
   if (item.food_id) {
     const { data: gf } = await db
       .from("nutrition_foods")
       .select("food_group_id")
-      .in("tenant_id", readableScope(tenantId))
+      .in("tenant_id", scope)
       .eq("id", item.food_id)
       .maybeSingle();
     targetGroupId = (gf as { food_group_id: string | null } | null)?.food_group_id ?? null;
   }
 
   // Aday havuzu: aktif foods { SYSTEM, caller } − kendi food_id.
-  let foodQuery = db
-    .from("nutrition_foods")
-    .select("id, tenant_id, name_tr, food_group_id")
-    .in("tenant_id", readableScope(tenantId))
-    .eq("is_active", true);
-  if (item.food_id) foodQuery = foodQuery.neq("id", item.food_id);
-  const { data: foodRows } = await foodQuery;
-  const foods = (foodRows as Array<{ id: string; tenant_id: string; name_tr: string; food_group_id: string | null }> | null) ?? [];
+  // SAYFALI (SAYFA SINIRI): aday havuzu SYSTEM + caller katalog büyüklüğü ile 1000-satır
+  //   PostgREST yanıt sınırını aşabilir; range() olmadan çekilirse son adaylar SESSİZCE düşer
+  //   → alternatif önerileri eksik. `id` PK deterministik + benzersiz sıra (sayfa sınırında
+  //   satır atlanmaz/yinelenmez). Snapshot-only: yalnız verilen sorgu; canlı yeniden hesap YOK.
+  const foods = await fetchAllPaged<{ id: string; tenant_id: string; name_tr: string; food_group_id: string | null }>(
+    (from, to) => {
+      let q = db
+        .from("nutrition_foods")
+        .select("id, tenant_id, name_tr, food_group_id")
+        .in("tenant_id", scope)
+        .eq("is_active", true);
+      if (item.food_id) q = q.neq("id", item.food_id);
+      return q.order("id", { ascending: true }).range(from, to);
+    },
+  );
   if (foods.length === 0) {
     return {
       ok: true,
@@ -262,16 +273,30 @@ export async function resolveAlternativesForItem(
     };
   }
 
-  // Aday /100 g nutrient değerleri (energy + 4 makro) — tek sorgu, JS'te map.
+  // Aday /100 g nutrient değerleri (energy + 4 makro) — SAYFALI + food_id CHUNK'lı; JS'te map.
+  // KRİTİK (BES-01): aday başına birden çok nutrient satırı → toplam satır 1000-satır PostgREST
+  //   yanıt sınırını KOLAYCA aşar (örn. 313 food ≈ 5617 satır). range()/chunk olmadan çekilirse
+  //   son adayların energy/makro satırları SESSİZCE düşer → energyPer100=0 → aday yanlış dışlanır
+  //   veya yanlış sıralanır. chunkIds: `.in(food_id,...)` URL sınırı; fetchAllPaged: satır sınırı
+  //   (`id` PK deterministik + benzersiz sıra). Duplicate/eksik satır ÜRETMEZ.
   const foodIds = foods.map((f) => f.id);
-  const { data: nutrRows } = await db
-    .from("nutrition_food_nutrients")
-    .select("food_id, amount, nutrient:nutrition_nutrients(code)")
-    .in("tenant_id", readableScope(tenantId))
-    .in("food_id", foodIds);
+  const nutrRows: Array<{ food_id: string; amount: number; nutrient: NutrientCodeJoin }> = [];
+  for (const ids of chunkIds(foodIds)) {
+    const page = await fetchAllPaged<{ food_id: string; amount: number; nutrient: NutrientCodeJoin }>(
+      (from, to) =>
+        db
+          .from("nutrition_food_nutrients")
+          .select("food_id, amount, nutrient:nutrition_nutrients(code)")
+          .in("tenant_id", scope)
+          .in("food_id", ids)
+          .order("id", { ascending: true })
+          .range(from, to),
+    );
+    for (const r of page) nutrRows.push(r);
+  }
   const wanted = new Set<string>(["energy", ...ALT_MACRO_KEYS]);
   const byFood = new Map<string, { energyPer100: number; macrosPer100: Record<string, number> }>();
-  for (const r of (nutrRows as Array<{ food_id: string; amount: number; nutrient: NutrientCodeJoin }> | null) ?? []) {
+  for (const r of nutrRows) {
     const code = pickJoin(r.nutrient)?.code;
     if (!code || !wanted.has(code)) continue;
     const amount = Number(r.amount);
