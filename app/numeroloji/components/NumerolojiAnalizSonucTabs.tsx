@@ -33,6 +33,9 @@ import {
   buildPlainAnalizFull,
   harfSegmentsToText,
   nrDisplay,
+  formatKulvarSummaryDisplay,
+  kulvarAlternativePaths,
+  kulvarAlternativeProvenance,
   elementShort,
   pinOneLine,
   type NumerolojiMotorOut,
@@ -64,6 +67,72 @@ function OzetRow({ label, value }: { label: string; value: string }) {
     <div className="grid grid-cols-1 gap-0.5 border-b border-slate-100/90 py-2 last:border-b-0 sm:grid-cols-[minmax(8rem,10rem)_1fr] sm:items-baseline sm:gap-3">
       <div className={`${typo.label} text-slate-500`}>{label}</div>
       <div className={`${typo.body} font-semibold text-slate-900`}>{value}</div>
+    </div>
+  );
+}
+
+// OWNER: "Farklı özel sayı kombinasyonları" (presentation/analysis assist; CANONICAL DEĞİL).
+// Ana sonuç değişmez; aynı harf değerleri farklı gruplandığında ortaya çıkan 11/19/22/33
+// okumaları uzmana hatırlatma olarak gösterilir. Yollar `findKulvarSpecialCombinations`'tan.
+function KulvarAltKombinasyonlar({ out }: { out: NumerolojiMotorOut }) {
+  const rows = [
+    { label: "Ana Kulvar", paths: kulvarAlternativePaths(out.anaKulvar) },
+    { label: "Yan Kulvar", paths: kulvarAlternativePaths(out.yanKulvar) },
+  ].filter((r) => r.paths.length > 0);
+  if (!rows.length) return null;
+  return (
+    <section className="min-w-0 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/60 to-white p-3 shadow-sm ring-1 ring-violet-100/50">
+      <p className="text-[11px] font-black uppercase tracking-wider text-violet-600/90">Farklı özel sayı kombinasyonları</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+        Ana sonuç değişmez. Aynı harf değerleri farklı gruplandığında ortaya çıkan özel sayı okumalarıdır (uzman hatırlatması).
+      </p>
+      <div className="mt-2 space-y-2">
+        {rows.map((r) => (
+          <div key={r.label} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-violet-700/80">{r.label}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {r.paths.map((p) => (
+                <span key={p} className="rounded-md border border-violet-200/70 bg-white px-2 py-0.5 text-sm font-bold text-violet-900">
+                  {p}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// HESAP ÖZETLİ (NumeroCardBody) için provenance'lı alternatif kombinasyon dökümü.
+// Numeric path TEKİL; altında onu oluşturan TÜM gerçek yollar ("Oluşabilecek yollar").
+// Yalnız kısa köken (ör. "3+8 → 11"); YENİ numeroloji yorumu DEĞİL.
+function KulvarAltKombinasyonlarDetay({ r }: { r: NumerolojiResult }) {
+  const items = kulvarAlternativeProvenance(r);
+  if (!items.length) return null;
+  return (
+    <div className="mt-3 border-t border-violet-100 pt-3">
+      <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">Farklı özel sayı kombinasyonları</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">Ana sonuç değişmez; alternatif özel sayı gruplamaları (uzman hatırlatması).</p>
+      <div className="mt-2 space-y-2">
+        {items.map((it) => (
+          <div key={it.path} className="rounded-lg border border-violet-100 bg-violet-50/40 px-2.5 py-1.5">
+            <p className="text-sm font-black text-violet-900">{it.path}</p>
+            {it.variants.length > 1 ? (
+              <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-600/70">Oluşabilecek yollar</p>
+            ) : null}
+            <div className="mt-0.5 space-y-1.5">
+              {it.variants.map((v, vi) => (
+                <ul key={vi} className={`space-y-0.5 ${it.variants.length > 1 ? "border-l-2 border-violet-200/70 pl-2" : ""}`}>
+                  {v.lines.map((ln, i) => (
+                    <li key={i} className="text-[11px] text-slate-600">• {ln}</li>
+                  ))}
+                </ul>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -320,8 +389,8 @@ function TabSonucOzetiPremium({
 
   // NUM-MOB-2-FIX1: tint yalnız md+ (mobilde kutu/bg yok). md:* literalleri Tailwind JIT için burada.
   const ustKartlar = [
-    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
-    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
+    { title: "Ana Kulvar", value: formatKulvarSummaryDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
+    { title: "Yan Kulvar", value: formatKulvarSummaryDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
     { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
     { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
   ];
@@ -354,6 +423,8 @@ function TabSonucOzetiPremium({
           />
         ))}
       </div>
+
+      <KulvarAltKombinasyonlar out={out} />
 
       <div className="grid grid-cols-1 gap-2">
         {/* FAZ 6: Sonuç Özeti yalnız geçmiş + AKTİF segmenti gösterir (sunum filtresi;
@@ -446,11 +517,13 @@ export function TabSonucOzeti({
       </div>
 
       <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-1 px-4 shadow-sm ring-1 ring-slate-100/80 sm:px-5">
-        <OzetRow label="Ana Kulvar" value={nrDisplay(out.anaKulvar)} />
-        <OzetRow label="Yan Kulvar" value={nrDisplay(out.yanKulvar)} />
+        <OzetRow label="Ana Kulvar" value={formatKulvarSummaryDisplay(out.anaKulvar)} />
+        <OzetRow label="Yan Kulvar" value={formatKulvarSummaryDisplay(out.yanKulvar)} />
         <OzetRow label="İfade Sayısı" value={nrDisplay(out.ifadeSayisi)} />
         <OzetRow label="Hayat Yolu / DM" value={nrDisplay(out.hayatYolu)} />
       </div>
+
+      <KulvarAltKombinasyonlar out={out} />
 
       <div className={`rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white shadow-sm ring-1 ring-sky-100/50 ${typo.boxPadding}`}>
         <p className={`${typo.sectionTitle} text-sky-800/90`}>PIN Kodu</p>
@@ -683,12 +756,17 @@ function NumeroCardBody({
 }) {
   const k = (r.key || "").trim();
   const typo = useContentTypography();
+  // Ana/Yan Kulvar (componentValues var): ana result CLEAN (legacy parantez YOK) gösterilir;
+  // detaylı canonical aritmetik `steps`'te KORUNUR; alternatifler ayrıca listelenir.
+  const isKulvar = Array.isArray(r.componentValues);
+  const mainDisplay = isKulvar ? formatKulvarSummaryDisplay(r) : nrDisplay(r);
   // Mobil: düz hesap dökümü (kutusuz). md+: subtle tek yüzey.
   const stepsPre = `mt-2 whitespace-pre-wrap px-0 py-0 md:rounded-lg md:border md:border-slate-100 md:bg-slate-50/70 md:px-2.5 md:py-2 ${typo.pre} text-slate-700`;
   return (
     <div className="space-y-1.5">
-      <p className="text-3xl font-black text-violet-900">{nrDisplay(r)}</p>
+      <p className="text-3xl font-black text-violet-900">{mainDisplay}</p>
       {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>Anahtar: {k}</p> : null}
+      {isKulvar ? <KulvarAltKombinasyonlarDetay r={r} /> : null}
       {/* NKB-V2-H: iç scroll kaldırıldı → hesap dökümü normal document-scroll ile akar. */}
       {r.steps?.length ? (
         <pre className={stepsPre}>
@@ -735,6 +813,9 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
           )}
         </div>
       ))}
+    </div>
+    <div className="mt-2">
+      <KulvarAltKombinasyonlar out={out} />
     </div>
     </>
   );
