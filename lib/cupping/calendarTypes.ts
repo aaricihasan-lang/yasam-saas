@@ -127,6 +127,22 @@ export function normalizeCuppingDayStyle(
 }
 
 /**
+ * Ham per-day gün öğesinden YALNIZ gerçekten GÖNDERİLMİŞ stil alanlarını çıkarır.
+ *
+ * KRİTİK: `undefined` enjekte ETMEZ — `{ date }` (stilsiz) gönderildiğinde color_key/user_label/
+ *   note'u `undefined` ile eklemek, normalizeCuppingDayStyle'ın onları "mevcut ama geçersiz"
+ *   sayıp reddetmesine yol açar. Bu fonksiyon yalnız hasOwnProperty olan anahtarları taşır →
+ *   gönderilmeyen alan SONUÇTA yer almaz (mevcut değeri korunur; stilsiz gün geçerlidir).
+ */
+export function pickCuppingDayStyleInput(entry: Record<string, unknown>): CuppingDayStyleInput {
+  const style: CuppingDayStyleInput = {};
+  if (Object.prototype.hasOwnProperty.call(entry, "color_key")) style.color_key = entry.color_key;
+  if (Object.prototype.hasOwnProperty.call(entry, "user_label")) style.user_label = entry.user_label;
+  if (Object.prototype.hasOwnProperty.call(entry, "note")) style.note = entry.note;
+  return style;
+}
+
+/**
  * Bir plan-gün satırının KÖKENİ — DB kolonu `selection_source` ile birebir.
  *
  * ⚠️ LEGACY / ŞEMA UYUMLULUĞU: Ürün artık HAZIR gün üretmez (otomatik Sünnet/Altın

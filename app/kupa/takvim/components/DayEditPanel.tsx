@@ -17,9 +17,10 @@ import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
  *   günün SEÇİM durumunu doğrudan değiştirmez; yalnız STİL uygular. "Gün Seçimini Kaldır" ile
  *   "Rengi Kaldır" açıkça AYRIDIR (yanlışlıkla seçim silme yok).
  *
- * KALICILIK: "Kaydet" değişikliği takvimin çalışma taslağına uygular (henüz-kaydedilmemiş yeni
- *   gün dâhil); nihai DB kaydı ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu →
- *   kaydedilmemiş-değişiklik uyarısı gün stilini de kapsar). Metin GÜVENLİ düz metindir (HTML render YOK).
+ * KALICILIK: "Taslağa Uygula" değişikliği takvimin çalışma taslağına yazar (henüz-kaydedilmemiş
+ *   yeni gün dâhil); nihai DB kaydı ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu →
+ *   kaydedilmemiş-değişiklik uyarısı gün stilini de kapsar). Panel bu farkı açıkça belirtir.
+ *   Metin GÜVENLİ düz metindir (HTML render YOK).
  * MOBİL: masaüstünde küçük merkezî modal; mobilde ekranı taşırmayan alt-panel.
  */
 
@@ -211,7 +212,13 @@ export function DayEditPanel({
           </p>
         ) : null}
 
-        {/* Aksiyonlar — "Gün Seçimini Kaldır" (seçimi bırakır) AYRI; Vazgeç / Kaydet */}
+        {/* KAYIT NETLİĞİ: bu panel yalnız çalışma TASLAĞINI günceller; kalıcı DB kaydı ana
+            "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu). */}
+        <p className="mb-2 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+          Kalıcı olarak kaydetmek için takvimde <span className="font-bold">Değişiklikleri Kaydet</span>&apos;e basın.
+        </p>
+
+        {/* Aksiyonlar — "Gün Seçimini Kaldır" (seçimi bırakır) AYRI; Vazgeç / Taslağa Uygula */}
         <div className="mt-1 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button type="button" className={kupaBtnDanger} onClick={onDeselect}>
             Gün Seçimini Kaldır
@@ -226,7 +233,7 @@ export function DayEditPanel({
               onClick={save}
               disabled={labelOver || noteOver}
             >
-              Kaydet
+              Taslağa Uygula
             </button>
           </div>
         </div>

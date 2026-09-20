@@ -4,6 +4,7 @@ import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import {
   CUPPING_PLAN_DAYS_MAX_BATCH,
   normalizeCuppingDayStyle,
+  pickCuppingDayStyleInput,
   type CuppingDayStyleInput,
 } from "@/lib/cupping/calendarTypes";
 import { cuppingError, getEntity, parseJsonBody } from "@/lib/cupping/api";
@@ -57,7 +58,8 @@ export async function POST(
         return cuppingError(400, "Geçersiz gün öğesi.");
       }
       const e = entry as Record<string, unknown>;
-      items.push({ date: e.date, style: { color_key: e.color_key, user_label: e.user_label, note: e.note } });
+      // YALNIZ gerçekten gönderilmiş stil alanları (undefined enjekte YOK → stilsiz gün geçerli).
+      items.push({ date: e.date, style: pickCuppingDayStyleInput(e) });
     }
   } else {
     // Legacy: "dates" dizisi veya tek "date" + paylaşılan tek user_label/note.

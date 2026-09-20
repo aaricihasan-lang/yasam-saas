@@ -62,6 +62,7 @@ import {
   CUPPING_DAY_LABEL_MAX,
   CUPPING_DAY_NOTE_MAX,
   normalizeCuppingDayStyle,
+  pickCuppingDayStyleInput,
 } from "../lib/cupping/calendarTypes";
 
 let passed = 0;
@@ -1769,6 +1770,34 @@ function run(): void {
       "faz5/5-post[16]: /days POST per-day 'days' biçimini kabul eder (yeni gün + stil tek istek)");
     ok(/normalizeCuppingDayStyle\(item\.style\)/.test(daysRoute),
       "faz5/5-post: her günün stili doğrulanır (renk allowlist + açıklama sınırı)");
+
+    // ── OPSİYONEL ALAN REGRESYONU — per-day style YALNIZ gönderilen alanları taşır ──
+    //    (undefined enjeksiyon YOK → {date} tek başına GEÇERLİ; sahte "geçersiz renk" reddi ÇÖZÜLDÜ.)
+    ok(/pickCuppingDayStyleInput\(e\)/.test(daysRoute),
+      "faz5/5-post-opt: /days POST pickCuppingDayStyleInput ile yalnız gönderilen alanları çıkarır");
+    // pick: gönderilmeyen alan SONUÇTA yer almaz (undefined enjekte etmez).
+    ok((() => { const s = pickCuppingDayStyleInput({ date: "2027-01-01" }); return Object.keys(s).length === 0; })(),
+      "faz5/5-post-opt: {date} → hiç stil alanı yok (color_key/user_label/note ENJEKTE EDİLMEZ)");
+    ok((() => { const s = pickCuppingDayStyleInput({ date: "2027-01-01", color_key: "blue" }); return !("user_label" in s) && !("note" in s) && s.color_key === "blue"; })(),
+      "faz5/5-post-opt: {date,color_key} → yalnız color_key taşınır");
+    ok((() => { const s = pickCuppingDayStyleInput({ date: "x", user_label: "Özel Gün" }); return !("color_key" in s) && !("note" in s) && s.user_label === "Özel Gün"; })(),
+      "faz5/5-post-opt: {date,user_label} → yalnız user_label taşınır");
+    // GERÇEK route davranışı: pick → normalize kombinasyonu (route'un tam per-day yolu).
+    const postOptCases: { entry: Record<string, unknown>; valid: boolean; label: string }[] = [
+      { entry: { date: "2027-01-01" }, valid: true, label: "{date} tek başına GEÇERLİ (renksiz/açıklamasız)" },
+      { entry: { date: "2027-01-01", color_key: "blue" }, valid: true, label: "{date,color_key:'blue'} GEÇERLİ" },
+      { entry: { date: "2027-01-01", user_label: "Özel Gün" }, valid: true, label: "{date,user_label:'Özel Gün'} GEÇERLİ" },
+      { entry: { date: "2027-01-01", color_key: null }, valid: true, label: "{date,color_key:null} GEÇERLİ (renk yok)" },
+      { entry: { date: "2027-01-01", color_key: "neon" }, valid: false, label: "{date,color_key:'neon'} açıkça geçersiz → REDDEDİLİR" },
+      { entry: { date: "2027-01-01", user_label: "x".repeat(CUPPING_DAY_LABEL_MAX + 1) }, valid: false, label: "aşırı uzun user_label → REDDEDİLİR" },
+    ];
+    for (const c of postOptCases) {
+      const res = normalizeCuppingDayStyle(pickCuppingDayStyleInput(c.entry));
+      ok(res.ok === c.valid, `faz5/5-post-opt: ${c.label}`);
+    }
+    // {date,color_key:'blue'} → normalize sonucu gerçekten blue taşır (row color_key dolu).
+    ok((() => { const r = normalizeCuppingDayStyle(pickCuppingDayStyleInput({ date: "2027-01-01", color_key: "blue" })); return r.ok && r.fields.color_key === "blue"; })(),
+      "faz5/5-post-opt: {date,color_key:'blue'} normalize → color_key 'blue' korunur");
     ok(/color_key: norm\.fields\.color_key \?\? null/.test(daysRoute),
       "faz5/5-post[19]: stil verilmezse color_key NULL (toplu seçim varsayılan RENKSİZ)");
     ok(/selection_source: "manual"/.test(daysRoute) && !/sunnah_auto/.test(stripTs(daysRoute)),
@@ -1808,7 +1837,14 @@ function run(): void {
       "faz5/5-panel: erişilebilir modal (dialog + aria-modal + Esc)");
     ok(/items-end/.test(panelSrc) && /sm:items-center/.test(panelSrc) && /max-h-\[90vh\]/.test(panelSrc),
       "faz5/5-panel: mobilde alt-panel / masaüstünde merkezî (ekranı taşırmaz)");
-    ok(/kupaBtnSuccess/.test(panelSrc), "faz5/5-panel: Kaydet yeşil (kupaBtnSuccess)");
+    ok(/kupaBtnSuccess/.test(panelSrc), "faz5/5-panel: birincil aksiyon yeşil (kupaBtnSuccess)");
+    // KAYIT NETLİĞİ: panel yalnız taslağı günceller → buton 'Taslağa Uygula' + açık yardımcı metin.
+    ok(/Taslağa Uygula/.test(panelSrc),
+      "faz5/5-panel: birincil buton 'Taslağa Uygula' (panel yalnız taslağı günceller)");
+    ok(!/>\s*Kaydet\s*</.test(panelSrc),
+      "faz5/5-panel: panelde yalnız-taslak butonu 'Kaydet' DEĞİL (kalıcı kayıtla karışmaz)");
+    ok(/Kalıcı olarak kaydetmek için takvimde/.test(panelSrc) && /Değişiklikleri Kaydet/.test(panelSrc),
+      "faz5/5-panel: kalıcı kayıt için ana 'Değişiklikleri Kaydet' yönergesi açıkça gösterilir");
 
     // [8] KISA AÇIKLAMA GÜVENLİ DÜZ METİN — HTML render YOK (hiçbir takvim bileşeninde).
     ok(!/dangerouslySetInnerHTML/.test(c5Blob), "faz5/5[8]: kullanıcı metni GÜVENLİ düz metin (dangerouslySetInnerHTML YOK)");
