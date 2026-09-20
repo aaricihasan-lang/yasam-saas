@@ -170,7 +170,9 @@ export async function PATCH(
 }
 
 // ─── DELETE ───────────────────────────────────────────────────────────────────────
-// Query/body'de id varsa o satır silinir; yoksa danışanın TÜM seans kayıtları silinir.
+// GÜVENLİK: yalnız TEK kayıt silinir. Hedef satır id'si query (?id=) veya body'den
+// alınır. id yoksa 400 döner — implicit "tümünü sil" yolu KALDIRILDI (boş/bozuk
+// istek danışanın tüm seanslarını silemez). Silme filtresi id + tenant_id + client_id.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -195,20 +197,27 @@ export async function DELETE(
   if (!rowId) {
     try {
       const body = (await req.json()) as Record<string, unknown>;
-      if (body?.id != null) rowId = String(body.id);
+      if (body?.id != null) rowId = String(body.id).trim();
     } catch {
-      /* gövde yoksa: tümünü sil */
+      /* gövde yok/bozuk — id aşağıda zorunlu tutulur */
     }
   }
 
-  let query = db
+  // id zorunlu: id olmadan silme YOK (implicit toplu silme kaldırıldı).
+  if (!rowId) {
+    return NextResponse.json(
+      { ok: false, error: "Silinecek kayıt id gerekli." },
+      { status: 400 },
+    );
+  }
+
+  const { data, error } = await db
     .from("client_sessions")
     .delete()
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (rowId) query = query.eq("id", rowId);
-
-  const { data, error } = await query.select("id");
+    .eq("client_id", clientId)
+    .eq("id", rowId)
+    .select("id");
   if (error) {
     return serverErrorResponse({ route: "clients/[id]/sessions", action: "DELETE", tenantId, cause: error });
   }

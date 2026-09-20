@@ -23,6 +23,12 @@ export const runtime = "nodejs";
 
 const C_CLIENT = "1e3a5f";
 
+// DYA-05: toplu Word export için sonlu üst sınır. Her danışan bellekte bir DOCX
+// özet bloğuna dönüşür; sınırsız export RAM/timeout/OOM ve gereksiz sunucu maliyeti
+// riskidir. 500 tek bir pratisyenin gerçekçi danışan hacmini fazlasıyla kapsar ve
+// DOCX üretimini sonlu tutar. Aşımda pahalı sorgu/DOCX üretimi başlamadan 413 döner.
+const MAX_BULK_REPORT_CLIENTS = 500;
+
 type ExportMode = "all" | "selected" | "filtered";
 
 type ClientRow = {
@@ -88,11 +94,45 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account)
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
-  // ── Danışan çekimi
-  let clientQuery = db.from("clients").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
+  const isBoundedList =
+    (exportMode === "selected" || exportMode === "filtered") &&
+    Array.isArray(clientIds) && clientIds.length > 0;
 
-  if ((exportMode === "selected" || exportMode === "filtered") && Array.isArray(clientIds) && clientIds.length > 0) {
-    clientQuery = clientQuery.in("id", clientIds);
+  // ── DYA-05 hard cap ───────────────────────────────────────────────────────
+  // Seçili/filtrelenmiş liste: boyutu pahalı sorgu/DOCX'ten ÖNCE sınırla.
+  if (isBoundedList && clientIds!.length > MAX_BULK_REPORT_CLIENTS) {
+    return Response.json(
+      { ok: false, error: `Tek seferde en fazla ${MAX_BULK_REPORT_CLIENTS} danışan raporlanabilir. Lütfen seçimi daraltın.` },
+      { status: 413 },
+    );
+  }
+  // "all" (veya boş seçim → tüm tenant) modu: veri çekmeden ÖNCE say; sınır aşılırsa
+  // DOCX üretimine hiç başlamadan reddet.
+  if (!isBoundedList) {
+    const { count, error: countError } = await db
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    if (countError)
+      return serverErrorResponse({ route: "clients/word-report-bulk", action: "POST-count", tenantId, cause: countError });
+    if ((count ?? 0) > MAX_BULK_REPORT_CLIENTS) {
+      return Response.json(
+        { ok: false, error: `Toplam danışan sayısı (${count}) tek seferlik export sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen danışan seçerek dışa aktarın.` },
+        { status: 413 },
+      );
+    }
+  }
+
+  // ── Danışan çekimi (DB sorgusunda da sınır — defense-in-depth)
+  let clientQuery = db
+    .from("clients")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(MAX_BULK_REPORT_CLIENTS);
+
+  if (isBoundedList) {
+    clientQuery = clientQuery.in("id", clientIds!);
   }
 
   const { data: clientData, error: clientError } = await clientQuery;

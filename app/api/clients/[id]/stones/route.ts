@@ -214,7 +214,10 @@ export async function PATCH(
 }
 
 // ─── DELETE ───────────────────────────────────────────────────────────────────────
-// Query/body'de id varsa o satır silinir; yoksa danışanın TÜM taş kayıtları silinir.
+// GÜVENLİK: yalnız TEK kayıt silinir. Hedef satır id'si query (?id=) veya body'den
+// alınır. id yoksa 400 döner — implicit "tümünü sil" yolu KALDIRILDI (boş/bozuk
+// istek danışanın tüm taşlarını + fotoğraflarını silemez). Silme filtresi
+// id + tenant_id + client_id; fotoğraf temizliği yalnız hedef taşla sınırlıdır.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -239,29 +242,35 @@ export async function DELETE(
   if (!rowId) {
     try {
       const body = (await req.json()) as Record<string, unknown>;
-      if (body?.id != null) rowId = String(body.id);
+      if (body?.id != null) rowId = String(body.id).trim();
     } catch {
-      /* gövde yoksa: tümünü sil */
+      /* gövde yok/bozuk — id aşağıda zorunlu tutulur */
     }
   }
 
-  // O-6: taş(lar)ı silmeden ÖNCE bağlı fotoğrafları (DB satırı + storage) temizle
-  // → tekil silmede yetim client_stone_photos kaydı kalmaz. rowId yoksa danışanın
-  // tüm taş fotoğrafları silinir (tümünü-sil yolu). Foto silme hatasında dur (taşı
-  // silme) ki tutarsızlık oluşmasın.
-  const photoResult = await deleteStonePhotos(db, tenantId, clientId, rowId || null);
+  // id zorunlu: id olmadan silme YOK (implicit toplu silme kaldırıldı).
+  if (!rowId) {
+    return NextResponse.json(
+      { ok: false, error: "Silinecek kayıt id gerekli." },
+      { status: 400 },
+    );
+  }
+
+  // O-6: taşı silmeden ÖNCE yalnız o taşa bağlı fotoğrafları (DB satırı + storage)
+  // temizle → tekil silmede yetim client_stone_photos kaydı kalmaz. Foto silme
+  // hatasında dur (taşı silme) ki tutarsızlık oluşmasın.
+  const photoResult = await deleteStonePhotos(db, tenantId, clientId, rowId);
   if (photoResult.error) {
     return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE-photos", tenantId, cause: photoResult.error });
   }
 
-  let query = db
+  const { data, error } = await db
     .from("client_stones")
     .delete()
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (rowId) query = query.eq("id", rowId);
-
-  const { data, error } = await query.select("id");
+    .eq("client_id", clientId)
+    .eq("id", rowId)
+    .select("id");
   if (error) {
     return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE", tenantId, cause: error });
   }
