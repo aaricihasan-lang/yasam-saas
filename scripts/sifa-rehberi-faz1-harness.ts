@@ -8,12 +8,6 @@ import {
   matchesListSearch,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
-import {
-  formToSections,
-  sectionsToFormDraft,
-  isFormShapedSections,
-  emptyContentDraft,
-} from "@/lib/sifa-rehberi/formToSections";
 import { validateGuideBody, validateSectionsBody } from "@/lib/sifa-rehberi/limits";
 import { checkRateLimit, __resetRateLimitStore } from "@/lib/rateLimit";
 
@@ -97,53 +91,10 @@ eq(listRowPreview(makeRow({})), "Henüz özet eklenmedi.", "preview: boş fallba
 // placeholder + hiç section → fallback (placeholder yansımaz)
 eq(listRowPreview(makeRow({ symptoms: "Bu bölüm için henüz bilgi eklenmemiş." })), "Henüz özet eklenmedi.", "preview: yalnız placeholder → fallback");
 
-// ── CANONICAL (form ↔ sections) ─────────────────────────────────────────────────
-const draft = { ...emptyContentDraft(), medical_causes: "Neden A", herbal_methods: "Bitki B", aromatherapy: "Yağ C", general_summary: "Özet" };
-const secs = formToSections(draft);
-eq(secs.length, 4, "formToSections: 4 anlamlı alan → 4 section");
-const bySection = Object.fromEntries(secs.map((s) => [s.mode, s]));
-eq(bySection.medical_causes.section_type, "reasons", "medical_causes → reasons");
-eq(bySection.herbal_methods.section_type, "applications", "herbal_methods → applications");
-eq(bySection.aromatherapy.section_type, "supportive", "aromatherapy → supportive");
-eq(bySection.aromatherapy.title, "Aromaterapi", "aromatherapy title");
-eq(bySection.general_summary.section_type, "reasons", "general_summary → reasons");
-// boş/placeholder alan section üretmez
-const draft2 = { ...emptyContentDraft(), medical_causes: "  ", reflexology: "Bu bölüm için henüz bilgi eklenmemiş." };
-eq(formToSections(draft2).length, 0, "boş/placeholder alanlar section üretmez");
-
-// Round-trip: form → sections → form (kayıpsız)
-const storedFromForm = secs.map((s) => ({ ...s, source: null as string | null, images: [] as unknown[] }));
-ok(isFormShapedSections(storedFromForm), "form-üretimi section'lar form-şekilli");
-const back = sectionsToFormDraft(storedFromForm);
-ok(back !== null, "form-şekilli → geri-map null değil");
-eq(back!.medical_causes, "Neden A", "round-trip medical_causes");
-eq(back!.herbal_methods, "Bitki B", "round-trip herbal_methods");
-eq(back!.aromatherapy, "Yağ C", "round-trip aromatherapy");
-eq(back!.general_summary, "Özet", "round-trip general_summary");
-eq(back!.meditation, "", "round-trip boş alan boş kalır");
-
-// isFormShaped negatifler
-ok(!isFormShapedSections([]), "boş → form-şekilli değil");
-ok(!isFormShapedSections([{ section_type: "herbal", mode: "herbal", note: "x" }]), "bilinmeyen mode → değil");
-ok(
-  !isFormShapedSections([
-    { section_type: "reasons", mode: "medical_causes", note: "a" },
-    { section_type: "reasons", mode: "medical_causes", note: "b" },
-  ]),
-  "aynı alana iki section → değil",
-);
-ok(!isFormShapedSections([{ section_type: "reasons", mode: "medical_causes", note: "a", source: "Kaynak X" }]), "kaynaklı → değil");
-ok(!isFormShapedSections([{ section_type: "reasons", mode: "medical_causes", note: "a", images: [{ url: "x" }] }]), "görselli → değil");
-// EGZAMA benzeri karmaşık import kaydı → değil
-ok(
-  !isFormShapedSections([
-    { section_type: "reasons", mode: "bilincalti", note: "a" },
-    { section_type: "reasons", mode: "mizac", note: "b" },
-    { section_type: "herbal", mode: "herbal", note: "c" },
-  ]),
-  "EGZAMA-benzeri karmaşık → form-şekilli değil",
-);
-eq(sectionsToFormDraft([{ section_type: "herbal", mode: "herbal", note: "x" }]), null, "form-şekilli değil → geri-map null");
+// (FAZ 3 temizlik) "CANONICAL (form ↔ sections)" blok kaldırıldı: lib/sifa-rehberi/
+// formToSections.ts uygulama kodunda HİÇBİR yerden import edilmiyordu (create/edit
+// section-native; legacy detay flat form doğrudan düz kolonlara yazar) → ölü kod.
+// Dosya ve bu bloğun testleri (yalnız o ölü kodu doğruluyordu) birlikte silindi.
 
 // ── LIMITS ──────────────────────────────────────────────────────────────────────
 // Metadata: makul teknik uzunluk sınırı KORUNUR.

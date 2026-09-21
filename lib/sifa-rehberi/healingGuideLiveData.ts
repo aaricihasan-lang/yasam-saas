@@ -684,10 +684,16 @@ export async function fetchHealingGuideDetail(
 
 // ── Mutasyon yardımcıları — hepsi güvenli API üzerinden gider ────────────────────
 
-/** Yeni healing_guides kaydı oluşturur → POST /api/sifa-rehberi/guides. */
+/**
+ * Yeni healing_guides kaydı oluşturur → POST /api/sifa-rehberi/guides.
+ *
+ * Atomik + idempotent: `fields.request_id` (uuid) gönderilirse aynı isteğin tekrarı
+ * ikinci kayıt oluşturmaz (`idempotentReplay=true` ile aynı id döner). Aynı anahtar
+ * FARKLI içerikle gelirse sunucu 409 döndürür → `conflict=true` (sessizce eski kayıt DÖNMEZ).
+ */
 export async function createHealingGuide(
   fields: Record<string, unknown>,
-): Promise<{ id: string | null; error: string | null }> {
+): Promise<{ id: string | null; error: string | null; idempotentReplay?: boolean; conflict?: boolean }> {
   let res: Response;
   try {
     res = await fetch("/api/sifa-rehberi/guides", {
@@ -702,12 +708,18 @@ export async function createHealingGuide(
     ok?: boolean;
     guide?: { id?: string } | null;
     error?: string;
+    idempotentReplay?: boolean;
+    conflict?: boolean;
   };
+  // Idempotency çakışması (aynı anahtar, farklı içerik) → güvenli, ayrı sinyal.
+  if (res.status === 409 && json.conflict === true) {
+    return { id: null, error: json.error ?? "Bu istek farklı içerikle daha önce işlendi.", conflict: true };
+  }
   if (!res.ok || json.ok !== true) {
     return { id: null, error: json.error ?? `Kayıt eklenemedi (HTTP ${res.status}).` };
   }
   listCache = null; // yeni kayıt → liste önbelleğini düşür
-  return { id: json.guide?.id ?? null, error: null };
+  return { id: json.guide?.id ?? null, error: null, idempotentReplay: json.idempotentReplay === true };
 }
 
 /** healing_guides kaydını günceller → PATCH /api/sifa-rehberi/guides/[id]. */

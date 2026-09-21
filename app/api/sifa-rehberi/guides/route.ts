@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody, validateSectionsBody } from "@/lib/sifa-rehberi/limits";
+import { normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
 import {
   parseGuideSearchParams,
   encodeCursor,
@@ -68,6 +69,9 @@ function pickWritableFields(body: Record<string, unknown>): Record<string, unkno
   }
   return out;
 }
+
+// Idempotency anahtarı biçim guard'ı (create RPC p_request_id).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── GET /api/sifa-rehberi/guides?q=&category=&limit=&cursor= ───────────────────
 //
@@ -178,44 +182,74 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  // tenant_id payload'dan yok sayılır; server her zaman kendi tenant'ını yazar.
-  const fields = pickWritableFields(body);
-  fields.name = name;
+  // Idempotency anahtarı — opsiyonel; verilirse uuid olmalı. Aynı isteğin tekrarı
+  // (double-click / yanıtı düşen ağ / retry) ikinci kayıt oluşturmaz. Bilinçli yeni
+  // kayıtlar için istemci her denemede TAZE anahtar üretir → aynı-isim serbestliği bozulmaz.
+  let requestId: string | null = null;
+  if ("request_id" in body && body.request_id != null) {
+    if (typeof body.request_id !== "string" || !UUID_RE.test(body.request_id)) {
+      return NextResponse.json({ ok: false, error: "Geçersiz istek kimliği." }, { status: 400 });
+    }
+    requestId = body.request_id;
+  }
 
-  const { data, error } = await db
-    .from("healing_guides")
-    .insert({ ...fields, tenant_id: tenantId, updated_at: new Date().toISOString() })
-    .select("id")
-    .single();
+  // tenant_id payload'dan yok sayılır; RPC guide satırına ZORLA p_tenant_id yazar ve
+  // kolon allow-list uygular (fields yalnız yazılabilir kolonları taşır → çift allow-list).
+  const guideFields = pickWritableFields(body);
+  guideFields.name = name;
+
+  // Sections: edit yolu (PUT .../sections) ile AYNI kanonik serileştirici.
+  const sectionsPayload = hasSections
+    ? normalizeReplaceSections(body.sections as Record<string, unknown>[])
+    : [];
+
+  // ATOMİK + IDEMPOTENT: guide satırı + tüm section'lar TEK transaction (RPC). Herhangi
+  // bir hata → tamamı rollback (yarım kayıt / orphan / duplicate residue YOK). Tenant
+  // binding + section_type allow-list + kolon allow-list RPC içinde de doğrulanır.
+  const { data, error } = await db.rpc("create_healing_guide_with_sections", {
+    p_tenant_id: tenantId,
+    p_guide: guideFields,
+    p_sections: sectionsPayload,
+    p_request_id: requestId,
+  });
 
   if (error) {
-    return serverErrorResponse({ route: "sifa/guides", action: "POST.insert", tenantId, cause: error });
-  }
-
-  // Canonical model: yeni kayıt section'larla oluşturulduysa onları da yaz.
-  // Böylece yeni manuel kayıtlar da healing_guide_sections'a gider (flat-only borç yok).
-  const guideId = (data as { id: string }).id;
-  if (hasSections && Array.isArray(body.sections) && body.sections.length > 0) {
-    const sectionRows = (body.sections as Record<string, unknown>[]).map((s) => ({
-      guide_id: guideId,
-      section_type: String(s.section_type),
-      mode: s.mode == null ? null : String(s.mode),
-      title: s.title == null ? null : String(s.title),
-      note: s.note == null ? null : String(s.note),
-      source: s.source == null ? null : String(s.source),
-      images: Array.isArray(s.images) ? s.images : [],
-    }));
-
-    const { error: secErr } = await db.from("healing_guide_sections").insert(sectionRows);
-
-    if (secErr) {
-      // Section yazımı başarısızsa yeni oluşan guide'ı geri al (yarım kayıt bırakma).
-      await db.from("healing_guides").delete().eq("tenant_id", tenantId).eq("id", guideId);
-      return serverErrorResponse({ route: "sifa/guides", action: "POST.sections", tenantId, cause: secErr });
+    const msg = error.message || "";
+    // Kontrollü doğrulama tokenları → güvenli 400 (ham RPC/Postgres metni SIZMAZ).
+    if (/invalid_section_type|sections_must_be_array|invalid_arguments|name_required/.test(msg)) {
+      return NextResponse.json({ ok: false, error: "Kayıt verisi geçersiz." }, { status: 400 });
     }
+    return serverErrorResponse({ route: "sifa/guides", action: "POST.rpc", tenantId, cause: error });
   }
 
-  return NextResponse.json({ ok: true, guide: data });
+  const result = (data ?? {}) as {
+    outcome?: string;
+    guide_id?: string;
+    idempotent_replay?: boolean;
+  };
+
+  // Aynı anahtar FARKLI içerikle → güvenli çakışma (mutasyon YOK, sessizce eski kayıt DÖNMEZ).
+  if (result.outcome === "idempotency_key_conflict") {
+    return NextResponse.json(
+      { ok: false, conflict: true, error: "Bu istek farklı içerikle daha önce işlendi." },
+      { status: 409 },
+    );
+  }
+
+  if (!result.guide_id) {
+    return serverErrorResponse({
+      route: "sifa/guides",
+      action: "POST.rpc.result",
+      tenantId,
+      cause: new Error("create_healing_guide_with_sections returned no guide_id"),
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    guide: { id: result.guide_id },
+    idempotentReplay: result.idempotent_replay === true,
+  });
 }
 
 // ─── DELETE /api/sifa-rehberi/guides?ids=a,b,c (toplu silme) ────────────────────

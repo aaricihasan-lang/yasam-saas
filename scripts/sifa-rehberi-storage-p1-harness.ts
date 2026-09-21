@@ -173,7 +173,11 @@ ok("H1. helper: parent guide tenant ownership (id + tenant_id) doğrular", /from
 ok("H2. helper: section görselleri healing_guide_sections'tan (guide_id) okunur", /from\(\s*["']healing_guide_sections["']\s*\)[\s\S]*?\.eq\(\s*["']guide_id["']\s*,\s*guideId\s*\)/.test(membership));
 ok("H3. helper: top-level + section BİRLEŞİK (computeGuideImageMembership)", /computeGuideImageMembership\(/.test(membership));
 ok("H4. helper: her path resolveHealingImagePath ile tenant-owned doğrulanır", /resolveHealingImagePath\(/.test(membership));
-ok("H5. guides POST: section images persist edilir (healing_guide_sections.images)", /images:\s*Array\.isArray\(\s*s\.images\s*\)/.test(guidesPost) && /from\(\s*["']healing_guide_sections["']\s*\)\.insert/.test(guidesPost));
+// Canonical section persist: create yolu, edit yolu (PUT .../sections) ile AYNI
+// normalizeReplaceSections sözleşmesini kullanır ve guide+sections'ı tek atomik RPC
+// (create_healing_guide_with_sections) ile yazar → images + source_kind/expert_note/
+// attention/sort_order KAYIPSIZ persist edilir (tek merkez, create=edit paritesi).
+ok("H5. guides POST: section images + provenance atomik RPC ile persist edilir (normalizeReplaceSections → create_healing_guide_with_sections)", /normalizeReplaceSections\s*\(/.test(guidesPost) && /create_healing_guide_with_sections/.test(guidesPost));
 
 // ─── SCOPE ISOLATION ──────────────────────────────────────────────────────────
 console.log("SCOPE ISOLATION");
