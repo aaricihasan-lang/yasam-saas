@@ -357,15 +357,25 @@ export function CalendarWorkspace() {
     setWordBusy(true);
     try {
       const { blob, filename } = await downloadCalendarPlanWord(plan.id);
+      // İndirmeyi tarayıcıya İLET: blob URL + geçici gizli bağlantı. URL hemen iptal EDİLMEZ
+      //   (bazı tarayıcılarda indirmeyi bozar); geçici DOM bağlantısı hata halinde de temizlenir,
+      //   URL makul gecikmeyle serbest bırakılır (kalıcı Blob URL birikimi olmaz).
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
+      a.rel = "noopener";
+      a.style.display = "none";
       document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast({ message: "Word raporu indirildi.", type: "success" });
+      try {
+        a.click();
+      } finally {
+        a.remove();
+        // ~1 dk sonra serbest bırak (indirme başlatıldıktan sonra; erken revoke indirmeyi kesebilir).
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+      // Tarayıcının dosyayı diske yazdığını DOĞRULAYAMAYIZ → yalnız "başlatıldı" denir (kesin başarı iddiası yok).
+      showToast({ message: "Word dosyasının indirilmesi başlatıldı.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Word raporu oluşturulamadı.", type: "error" });
     } finally {

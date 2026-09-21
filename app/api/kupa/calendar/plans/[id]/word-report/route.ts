@@ -59,12 +59,26 @@ export async function GET(
   if (!daysRes.ok) return daysRes.response;
   const days = daysRes.data as unknown as CuppingCalendarPlanDay[];
 
-  // 3) Bağlı bilgilendirme şablonu (varsa) — tenant-scoped. Silinmiş/erişilemezse sessizce atla
-  //    (rapor günler bölümüyle yine geçerlidir; sağlık tavsiyesi UYDURULMAZ).
+  // 3) Bağlı bilgilendirme şablonu — üç durum AÇIKÇA ayrılır (sessiz eksik-rapor YOK):
+  //    A) Plana şablon BAĞLANMAMIŞ (advice_template_id yok) → normal Word; bölüm eklenmez; hata yok.
+  //    B) Bağlı ve BAŞARIYLA okundu → gerçek metinler aktarılır.
+  //    C) Bağlı ama OKUNAMIYOR (silinmiş/DB hatası) → sessizce şablonsuz rapor ÜRETME; güvenli hata döndür
+  //       (kullanıcı eksik rapordan habersiz kalmaz). 404 (bulunamadı) ile DB hatası teknik ayrılır.
   let template: CuppingAdviceTemplate | null = null;
   if (plan.advice_template_id) {
     const tRes = await getEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, plan.advice_template_id);
-    if (tRes.ok) template = tRes.data as unknown as CuppingAdviceTemplate;
+    if (tRes.ok) {
+      template = tRes.data as unknown as CuppingAdviceTemplate; // Durum B
+    } else if (tRes.response.status === 404) {
+      // Durum C-1: bağlı şablon bulunamadı (silinmiş veya bu tenant'a ait değil). Ham tenant/id sızmaz.
+      return cuppingError(
+        409,
+        "Takvime bağlı bilgilendirme şablonu bulunamadı. Şablonu yeniden bağlayın veya bağlantısını kaldırın.",
+      );
+    } else {
+      // Durum C-2: gerçek DB/erişim hatası. Ham Supabase mesajı gösterilmez.
+      return cuppingError(502, "Takvime bağlı bilgilendirme notları alınamadı. Lütfen tekrar deneyin.");
+    }
   }
 
   // 4) DOCX üret (SAF builder; DB'ye YAZMAZ).

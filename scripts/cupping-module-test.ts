@@ -1998,6 +1998,44 @@ function run(): void {
       "faz6[word]: renksiz(NULL) legacy gün için NÖTR eşleme (silinmez/boyanmaz)");
   }
 
+  // ── [FAZ 6 FIX] İndirme yaşam döngüsü + bilgilendirme şablonu hata yönetimi ──
+  {
+    // BULGU 1 — İndirme akışı (CalendarWorkspace.handleWordDownload).
+    const ws = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const hw = ws.slice(ws.indexOf("async function handleWordDownload"), ws.indexOf("async function handleDeletePlan"));
+    ok(/setTimeout\(\s*\(\)\s*=>\s*URL\.revokeObjectURL\(url\)/.test(hw),
+      "faz6-fix[dl1]: Blob URL GECİKMEYLE serbest bırakılır (setTimeout revoke)");
+    ok(!/a\.click\(\);\s*a\.remove\(\);\s*URL\.revokeObjectURL/.test(hw),
+      "faz6-fix[dl2]: URL a.click()'ten HEMEN sonra iptal EDİLMEZ");
+    ok(/finally\s*\{[\s\S]*a\.remove\(\)/.test(hw),
+      "faz6-fix[dl3]: geçici DOM bağlantısı hata halinde de temizlenir (finally)");
+    ok(/indirilmesi başlatıldı/.test(hw) && !/raporu indirildi/.test(hw),
+      "faz6-fix[dl4]: 'indirilmesi başlatıldı' (diske yazıldı iddiası YOK)");
+    ok(/if \(dirty\)[\s\S]{0,120}Önce değişikliklerinizi kaydedin/.test(hw),
+      "faz6-fix[dl5]: kaydedilmemiş taslak engeli korunur");
+    ok(/if \(!plan \|\| wordBusy\) return/.test(hw), "faz6-fix[dl6]: yalnız aktif plan + tek-seferde indirir");
+    ok(/setWordBusy\(false\)/.test(hw) && /finally/.test(hw), "faz6-fix[dl7]: wordBusy finally'de temizlenir");
+    ok(/catch[\s\S]{0,160}type:\s*"error"/.test(hw), "faz6-fix[dl8]: API hatasında error toast (başarı iddiası yok)");
+
+    // BULGU 2 — Bilgilendirme şablonu hata yönetimi (route.ts).
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/tRes\.response\.status === 404/.test(wr),
+      "faz6-fix[tpl1]: bağlı şablon 404 (bulunamadı) ile DB hatası TEKNİK ayrılır");
+    ok(/if \(plan\.advice_template_id\)[\s\S]*?cuppingError\(\s*409[\s\S]*?cuppingError\(\s*502/.test(wr),
+      "faz6-fix[tpl2]: bağlı-ama-okunamayan şablonda güvenli hata (409 bulunamadı / 502 DB) — sessiz şablonsuz rapor YOK");
+    // Şablon başarısızlığında SESSİZCE template=null ile devam ETMEZ (eski davranışın izi kalmadı).
+    ok(!/if \(tRes\.ok\) template = /.test(wr),
+      "faz6-fix[tpl3]: eski sessiz-atla ('if (tRes.ok) template =') kaldırıldı");
+    ok(/getEntity\(db, CUPPING_TABLES\.adviceTemplates, tenantId, plan\.advice_template_id\)/.test(wr),
+      "faz6-fix[tpl4]: şablon tenant-scoped okunur (başka tenant → 404 → C-1; cross-tenant sızmaz)");
+    ok(!/error\.message/.test(wr) && !/advice_template_id\}|tenantId\}/.test(wr),
+      "faz6-fix[tpl5]: ham DB mesajı / şablon-id / tenant sızmaz");
+    ok(!/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr), "faz6-fix[tpl6]: hata yolu dahil DB'ye YAZMAZ");
+    // Durum A korunur: advice_template_id YOKKEN hata yok (builder şablonsuz üretir — DOCX harness [15] doğrular).
+    ok(/if \(plan\.advice_template_id\)/.test(wr),
+      "faz6-fix[tpl7]: Durum A (şablon bağlı değil) → koşul dışı; normal rapor (hata yok)");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
