@@ -18,6 +18,9 @@ export default function KupaTakvimPage() {
       subtitle="Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün, uygulama günlerinizi kendiniz belirleyin."
       badge="Profesyonel Çalışma Alanı"
       breadcrumb={[{ label: "Hacamat Takvimi" }]}
+      /* Mobil/tablet: dış yatay boşluk 0 (takvim tam genişlik; başlık okuma payını korur).
+         Desktop (lg): mevcut premium max-w + lg:px-8 AYNEN geri gelir (değişmez). */
+      fullBleedBelowLg
     >
       <CalendarWorkspace />
     </KupaShell>

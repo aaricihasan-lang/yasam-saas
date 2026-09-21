@@ -41,6 +41,14 @@ type SavedDay = { id: string; colorKey: CuppingDayColorKey | null; label: string
 /** Boş taslak stili (renk yok, açıklama yok). */
 const EMPTY_STYLE: DayStyleDraft = { colorKey: null, label: "", note: "" };
 
+/**
+ * Kart stili — MOBİL/TABLET (<lg): fullBleed shell ile birlikte TAM GENİŞLİK bant (yan kenarlık +
+ *   köşe yuvarlama YOK → ekranın yatay alanını gerçekten kullanır; iç p-4 okuma payı korunur).
+ *   MASAÜSTÜ (lg): kupaCard varsayılanları (rounded-2xl + tam kenarlık + p-4) AYNEN geçerli —
+ *   `max-lg:` yalnız <lg'de uygulanır, desktop DEĞİŞMEZ. overflow-x-hidden HACK'i YOK.
+ */
+const edgeCard = kupaCard + " max-lg:rounded-none max-lg:border-x-0";
+
 /** Metin normalizasyonu: boş/whitespace → null (kaydetme/karşılaştırma için tek ölçü). */
 function nz(s: string): string | null {
   const t = s.trim();
@@ -383,16 +391,16 @@ export function CalendarWorkspace() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
-    return <div className={`${kupaCard}`}><p className="py-8 text-center text-sm text-slate-400">Yükleniyor…</p></div>;
+    return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-slate-400">Yükleniyor…</p></div>;
   }
   if (error && plans.length === 0) {
-    return <div className={`${kupaCard}`}><p className="py-8 text-center text-sm text-rose-600">{error}</p></div>;
+    return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-rose-600">{error}</p></div>;
   }
 
   // Boş durum — premium ilk-kez.
   if (plans.length === 0) {
     return (
-      <div className={`${kupaCard} flex flex-col items-center gap-4 py-10 text-center`}>
+      <div className={`${edgeCard} flex flex-col items-center gap-4 py-10 text-center`}>
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-3xl" aria-hidden>🗓️</span>
         <div>
           <h2 className="text-lg font-black text-slate-900">İlk Hacamat Takviminizi Oluşturun</h2>
@@ -409,7 +417,7 @@ export function CalendarWorkspace() {
     // Mobilde alt sabit kaydet barı içeriği örtmesin diye alt boşluk (lg'de gerek yok).
     <div className="flex flex-col gap-4 pb-28 lg:pb-0">
       {/* Header açıklama — takvim UZMAN-SAHİPLİDİR (hazır gün YOK) */}
-      <div className={`${kupaCard}`}>
+      <div className={`${edgeCard}`}>
         <p className="text-sm leading-relaxed text-slate-600">
           Bu takvim sizin çalışma planınızdır. Uygulama günlerinizi kendi yaklaşımınıza göre siz
           belirlersiniz.
@@ -421,7 +429,7 @@ export function CalendarWorkspace() {
       </div>
 
       {/* Plan kontrolü */}
-      <div className={`${kupaCard}`}>
+      <div className={`${edgeCard}`}>
         <PlanPicker
           plans={plans}
           activePlanId={activeId}
@@ -433,11 +441,11 @@ export function CalendarWorkspace() {
       </div>
 
       {planLoading ? (
-        <div className={`${kupaCard}`}><p className="py-6 text-center text-sm text-slate-400">Takvim yükleniyor…</p></div>
+        <div className={`${edgeCard}`}><p className="py-6 text-center text-sm text-slate-400">Takvim yükleniyor…</p></div>
       ) : plan ? (
         <>
           {/* Görünüm anahtarı + kaydet durumu (AYNI plan/taslak; iki görünüm) */}
-          <div className={`${kupaCard} flex flex-col gap-4`}>
+          <div className={`${edgeCard} flex flex-col gap-4`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CalendarViewToggle view={view} onChange={setView} />
             </div>
@@ -476,7 +484,7 @@ export function CalendarWorkspace() {
           {view === "monthly" ? (
             <>
               {/* Aylık Düzenleme — TEK ay görünür (kalıcı 12-buton duvarı YOK) */}
-              <div className={`${kupaCard} flex flex-col gap-4`}>
+              <div className={`${edgeCard} flex flex-col gap-4`}>
                 <MonthNav year={plan.year} month={month} onChange={setMonth} />
                 <MonthCalendar
                   year={plan.year}
@@ -512,7 +520,7 @@ export function CalendarWorkspace() {
               <BulkDateSelector year={plan.year} onAddDates={addBulk} />
 
               {/* Çıktı bilgilendirme notları */}
-              <div className={`${kupaCard}`}>
+              <div className={`${edgeCard}`}>
                 <OutputAdviceSection
                   plan={plan}
                   templates={templates}
@@ -526,7 +534,7 @@ export function CalendarWorkspace() {
             </>
           ) : (
             /* Yıllık Özet — AYNI plan/taslak; 12 minik ay; ay tıklaması Aylık'ı açar */
-            <div className={`${kupaCard}`}>
+            <div className={`${edgeCard}`}>
               <AnnualCalendarOverview
                 year={plan.year}
                 title={plan.name}

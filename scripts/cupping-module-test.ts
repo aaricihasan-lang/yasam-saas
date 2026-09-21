@@ -1926,6 +1926,19 @@ function run(): void {
     // Bulk: mobilde Hicrî gün seçici tap hedefleri (az sütun).
     ok(/grid-cols-6 gap-1 min-\[400px\]:grid-cols-8 sm:grid-cols-10/.test(bulkUiSrc),
       "faz5/5-mobil[BULK]: Hicrî gün seçici mobilde daha az sütun (rahat dokunma)");
+
+    // ── MOBİL YATAY GENİŞLİK (yan boşluk optimizasyonu; desktop DEĞİŞMEZ) ─────────
+    const takvimPageSrc = read("app/kupa/takvim/page.tsx");
+    ok(/fullBleedBelowLg/.test(takvimPageSrc),
+      "faz5/5-mobil[GENİŞLİK]: takvim sayfası fullBleedBelowLg (mobilde dış yan boşluk 0; başlık okuma payını korur; desktop lg:px-8 aynen)");
+    ok(/const edgeCard = kupaCard \+ " max-lg:rounded-none max-lg:border-x-0"/.test(wsSrc) && !/\$\{kupaCard\}/.test(wsSrc),
+      "faz5/5-mobil[GENİŞLİK]: içerik kartları <lg TAM-GENİŞLİK bant (edgeCard); lg'de kupaCard AYNEN (max-lg → desktop değişmez)");
+    ok(!/overflow-x-hidden/.test(stripTs(wsSrc)) && !/overflow-x-hidden/.test(stripTs(bulkUiSrc)),
+      "faz5/5-mobil[GENİŞLİK]: yatay taşma overflow-x-hidden ile MASKELENMEZ (gerçek genişlik geri kazanılır)");
+    // KupaShell fullBleed davranışı gerçekten <lg px-0 / lg:px-8 sağlar (mekanizma doğrulama).
+    const shellSrc = read("app/kupa/components/KupaShell.tsx");
+    ok(/fullBleedBelowLg \? "px-0 lg:px-8" : "px-4 sm:px-6 lg:px-8"/.test(shellSrc),
+      "faz5/5-mobil[GENİŞLİK]: KupaShell fullBleed <lg px-0 + lg:px-8 (desktop padding korunur)");
     // [18] Yıllık Özet aynı renk eşlemesini kullanır.
     ok(/CUPPING_DAY_COLORS/.test(annualSrc) && /styleOf/.test(annualSrc),
       "faz5/5-annual[18]: Yıllık Özet renkli günleri AYNI eşleme + styleOf ile gösterir");

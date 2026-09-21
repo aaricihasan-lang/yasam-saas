@@ -81,7 +81,7 @@ export function BulkDateSelector({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white/70">
+    <section className="rounded-xl border border-slate-200 bg-white/70 max-lg:rounded-none max-lg:border-x-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
