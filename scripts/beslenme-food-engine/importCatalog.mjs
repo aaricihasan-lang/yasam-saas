@@ -118,6 +118,31 @@ export async function execQuery(makeQuery, retries = 3) {
   }, retries);
 }
 
+const isTransientMsg = (m) => /fetch failed|ETIMEDOUT|ECONNRESET|EAI_AGAIN|network|timeout|ENOTFOUND|socket hang up|50[234]|429/i.test(String(m ?? ""));
+
+/**
+ * YAZMA yürütücüsü — SELECT'ten FARKLI: **OTOMATİK RETRY YOK**.
+ *   Ağ hatası sonrası bir INSERT'in DB'ye yazılıp yazılmadığı BELİRSİZDİR; körlemesine tekrar
+ *   duplicate satır üretebilir. Bu yüzden yazma TEK KEZ çalışır; error → throw (`.transient`
+ *   işareti taşınır). Uzlaştırma (reconciliation) gerekiyorsa çağıran tarafta doğal-anahtar
+ *   SELECT ile yapılır (execQuery). Böylece "DB yazdı ama yanıt kayboldu" senaryosu güvenli.
+ */
+export async function execWrite(makeQuery) {
+  try {
+    const res = await makeQuery();
+    if (res && res.error) {
+      const e = new Error(`db-write-error: ${res.error.message || res.error.code || JSON.stringify(res.error)}`);
+      e.dbError = res.error; e.transient = isTransientMsg(res.error.message || res.error.code); e.write = true;
+      throw e;
+    }
+    return res;
+  } catch (e) {
+    if (e.transient === undefined) e.transient = isTransientMsg(e.message);
+    e.write = true;
+    throw e;
+  }
+}
+
 /**
  * READ-ONLY sınıflandırma (yazma YOK): bir food'un import planını verir.
  *   created  → external_ref yok (yeni besin).
@@ -165,12 +190,15 @@ export function computePlan(doc) {
 }
 
 /**
- * Bir food'u güvenle YAZAR (retry + COMMIT-MARKER sıralaması, partial-heal).
- *   CREATE sırası: food → external_ref(content_hash=NULL) → children → external_ref.content_hash=hash (SON).
- *     content_hash bir "commit marker"dır: yarım kalırsa (children yazılmadan) ref hash'i NULL kalır →
- *     yeniden çalıştırınca "repair" olarak algılanıp children onarılır; DUPLICATE food OLUŞMAZ (ref var).
- *   REPAIR/UPDATE: mevcut food_id'ye children delete+reinsert + hash finalize.
- * external_ref (fdc) idempotency anahtarıdır; retry aynı besini ikinci kez OLUŞTURMAZ.
+ * Bir food'u güvenle YAZAR. YAZMA RETRY YOK (execWrite) — ağ hatası sonrası INSERT belirsizdir.
+ *   CREATE: food → external_ref(hash=NULL) → children → external_ref.hash=hash (commit-marker SON).
+ *   Reads (uzlaştırma/refId) execQuery ile retry'lı.
+ *   "DB yazdı ama yanıt kayboldu" politikası:
+ *     - food INSERT (doğal anahtar YOK): belirsiz hatada UZLAŞTIRILAMAZ → DUR + olası orphan raporla (fatal).
+ *     - external_ref INSERT (doğal anahtar tenant+provider+fdc VAR): hatada SELECT ile uzlaştır —
+ *         yazılmışsa devam (idempotent), yazılmamışsa orphan → DUR (fatal).
+ *     - nutrient/portion & commit-marker: hata → throw (commit-marker düşmez) → RE-RUN "repair"
+ *         (delete+reinsert + doğal anahtar) TEMİZ uzlaştırır; duplicate oluşmaz. Auto-retry gerekmez.
  */
 export async function writeFood(db, T, doc, food, cls, dicts, retries) {
   const hash = cls.hash;
@@ -182,10 +210,9 @@ export async function writeFood(db, T, doc, food, cls, dicts, retries) {
     external_dataset: doc.dataset, external_version: doc.manifest_version, retrieved_at: doc.retrieved_at,
     source_url: `https://fdc.nal.usda.gov/food-details/${food.fdc_id}/nutrients`,
   };
-  // q: THUNK ile çağrılır → her denemede sorgu YENİDEN kurulur + {data,error} kontrol edilir.
-  const q = (mk) => execQuery(mk, retries);
+  const selectRefId = () => execQuery(() => db.from("nutrition_food_external_refs").select("id").eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle(), retries);
 
-  // vocab guard (rejected zaten classify'de yakalanır; burada da yazma öncesi kesin güvence).
+  // vocab guard (rejected zaten classify'de; burada da yazma öncesi kesin güvence).
   const nutRows = Object.entries(food.nutrients ?? {}).map(([code, v]) => {
     const n = dicts.nutBy.get(code), u = dicts.unitBy.get(v.unit);
     if (!n || !u) throw new Error(`vocab miss ${code}/${v.unit}`);
@@ -199,39 +226,50 @@ export async function writeFood(db, T, doc, food, cls, dicts, retries) {
 
   let foodId = cls.ref?.food_id;
   if (cls.status === "created") {
-    const ins = await q(() => db.from("nutrition_foods").insert(foodCore).select("id").single());
-    foodId = ins.data?.id;
-    if (!foodId) throw new Error(`food insert döndü ama id yok (fdc ${food.fdc_id})`);
-    // ref (commit-marker boş). BAŞARISIZ olursa → REFERANSSIZ YARIM KAYIT: DURDUR + food_id ile raporla.
-    // (Otomatik silme YOK; çok-tablo transaction YOK → operatör kararı gerekir.)
+    // ── FOOD INSERT — doğal anahtar YOK → belirsiz (transient) hata UZLAŞTIRILAMAZ → DUR + raporla ──
     try {
-      await q(() => db.from("nutrition_food_external_refs").insert({
+      const ins = await execWrite(() => db.from("nutrition_foods").insert(foodCore).select("id").single());
+      foodId = ins.data?.id;
+      if (!foodId) throw new Error(`food insert döndü ama id yok`);
+    } catch (e) {
+      const ae = new Error(`AMBIGUOUS food INSERT (fdc=${food.fdc_id}): ${e.transient ? "ağ hatası → DB'ye yazıldı mı BELİRSİZ (olası orphan food; external_ref YOK)" : "yazma hatası"} — OTOMATİK RETRY YAPILMADI; manuel inceleme. Sebep: ${e.message}`);
+      ae.fdc = food.fdc_id; ae.fatal = true; ae.ambiguous = !!e.transient; ae.phase = "food_insert"; ae.orphanFoodId = null;
+      throw ae;
+    }
+    // ── EXTERNAL_REF INSERT — doğal anahtar (tenant,provider,fdc) VAR → hatada SELECT ile UZLAŞTIR ──
+    try {
+      await execWrite(() => db.from("nutrition_food_external_refs").insert({
         tenant_id: T, food_id: foodId, provider: "usda_fdc", external_id: food.fdc_id, content_hash: null, ...refPatch,
       }));
     } catch (e) {
-      const oe = new Error(`ORPHAN: nutrition_foods(id=${foodId}) yazıldı ama external_ref(fdc=${food.fdc_id}) YAZILAMADI. Otomatik silme YOK; manuel inceleme gerekli. Sebep: ${e.message}`);
-      oe.orphanFoodId = foodId; oe.fdc = food.fdc_id; oe.fatal = true;
-      throw oe;
+      const { data: existing } = await selectRefId(); // uzlaştırma: ref gerçekten yazıldı mı?
+      if (!existing) {
+        const oe = new Error(`ORPHAN: food(id=${foodId}) yazıldı ama external_ref(fdc=${food.fdc_id}) yazılamadı+uzlaştırılamadı. Otomatik silme YOK; manuel inceleme. Sebep: ${e.message}`);
+        oe.orphanFoodId = foodId; oe.fdc = food.fdc_id; oe.fatal = true; oe.phase = "ref_insert"; oe.ambiguous = !!e.transient;
+        throw oe;
+      }
+      // ref aslında yazılmış (yanıt kaybolmuştu) → idempotent uzlaşma → devam.
     }
   } else {
     // repair / updated: mevcut food_id; çekirdeği güncelle, ref hash'ini geçici NULL'la (commit-marker düşür).
-    await q(() => db.from("nutrition_foods").update(foodCore).eq("tenant_id", T).eq("id", foodId));
-    await q(() => db.from("nutrition_food_external_refs").update({ content_hash: null, ...refPatch }).eq("id", cls.ref.id));
+    await execWrite(() => db.from("nutrition_foods").update(foodCore).eq("tenant_id", T).eq("id", foodId));
+    await execWrite(() => db.from("nutrition_food_external_refs").update({ content_hash: null, ...refPatch }).eq("id", cls.ref.id));
   }
   for (const r of nutRows) r.food_id = foodId;
   const portRows = portDefs.map(({ p, i, unitId }) => ({ tenant_id: T, food_id: foodId, label_tr: p.label_tr, label_en: p.label_en ?? null, quantity: p.quantity ?? 1, measure_unit_id: unitId, gram_weight: p.gram_weight, is_default: p.is_default === true, sort_order: i }));
 
-  // children replace — HER op {data,error} kontrol edilir; herhangi biri fail → throw → commit-marker YAZILMAZ.
-  await q(() => db.from("nutrition_food_nutrients").delete().eq("tenant_id", T).eq("food_id", foodId));
-  for (let i = 0; i < nutRows.length; i += 500) { const chunk = nutRows.slice(i, i + 500); await q(() => db.from("nutrition_food_nutrients").insert(chunk)); }
-  await q(() => db.from("nutrition_food_portions").delete().eq("tenant_id", T).eq("food_id", foodId));
-  for (let i = 0; i < portRows.length; i += 500) { const chunk = portRows.slice(i, i + 500); await q(() => db.from("nutrition_food_portions").insert(chunk)); }
+  // children replace — execWrite (retry YOK). Hata → throw → commit-marker YAZILMAZ → re-run "repair"
+  //   (delete+reinsert + doğal anahtar) temiz uzlaştırır (belirsiz child INSERT'i tekrar-yazma DEĞİL, re-run onarır).
+  await execWrite(() => db.from("nutrition_food_nutrients").delete().eq("tenant_id", T).eq("food_id", foodId));
+  for (let i = 0; i < nutRows.length; i += 500) { const chunk = nutRows.slice(i, i + 500); await execWrite(() => db.from("nutrition_food_nutrients").insert(chunk)); }
+  await execWrite(() => db.from("nutrition_food_portions").delete().eq("tenant_id", T).eq("food_id", foodId));
+  for (let i = 0; i < portRows.length; i += 500) { const chunk = portRows.slice(i, i + 500); await execWrite(() => db.from("nutrition_food_portions").insert(chunk)); }
 
   // COMMIT MARKER — YALNIZ buraya (tüm child DELETE/INSERT başarılı) gelinirse hash finalize edilir.
   let refId = cls.ref?.id;
-  if (!refId) { const r = await q(() => db.from("nutrition_food_external_refs").select("id").eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle()); refId = r.data?.id; }
+  if (!refId) { const r = await selectRefId(); refId = r.data?.id; }
   if (!refId) throw new Error(`commit-marker: external_ref bulunamadı (fdc ${food.fdc_id})`);
-  await q(() => db.from("nutrition_food_external_refs").update({ content_hash: hash }).eq("id", refId));
+  await execWrite(() => db.from("nutrition_food_external_refs").update({ content_hash: hash }).eq("id", refId));
   return { foodId, nutrients: nutRows.length, portions: portRows.length };
 }
 
@@ -329,11 +367,12 @@ async function main() {
       if (checkpoint && apply) appendFileSync(checkpoint, `${f.fdc_id}\n`);
     } catch (e) {
       tally.errors++;
-      if (e && e.fatal && e.orphanFoodId) {
-        rec.orphans.push({ fdc: e.fdc, orphan_food_id: e.orphanFoodId, error: String(e.message) });
+      if (e && e.fatal) { // olası yarım kayıt (ambiguous food INSERT / orphan ref) → GÜVENLE DUR + raporla
+        const half = { fdc: e.fdc ?? f.fdc_id, phase: e.phase ?? null, ambiguous: !!e.ambiguous, orphan_food_id: e.orphanFoodId ?? null, error: String(e.message) };
+        rec.orphans.push(half);
         rec.errors.push({ fdc: f.fdc_id, name_tr: f.name_tr, error: String(e.message), fatal: true });
-        console.error(`[importCatalog] FATAL ORPHAN → DURDURULUYOR. food_id=${e.orphanFoodId} fdc=${e.fdc}`);
-        stopped = true; break; // referanssız yarım kayıt → güvenle DUR, otomatik silme YOK.
+        console.error(`[importCatalog] FATAL (${half.phase}) → DURDURULUYOR (olası yarım kayıt): ${JSON.stringify(half)}`);
+        stopped = true; break; // otomatik retry/silme YOK; operatör re-run ile uzlaştırır.
       }
       rec.errors.push({ fdc: f.fdc_id, name_tr: f.name_tr, error: String((e && e.message) || e) });
       console.error(`[importCatalog] HATA ${f.name_tr} (${f.fdc_id}): ${(e && e.message) || e}`);

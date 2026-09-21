@@ -43,28 +43,30 @@ function makeDb(seed = {}, faults = []) {
   function run(st) {
     calls.push({ table: st.table, op: st.op });
     const fa = faultAction(st.table, st.op);
-    if (fa) {
+    // fa.after=false → hata MUTASYONDAN ÖNCE (yazma OLMAZ). fa.after=true → MUTASYON UYGULANIR sonra hata
+    //   ("DB yazdı ama yanıt kayboldu" senaryosu). throw kinds vs {error}-return kinds.
+    const applyFault = () => {
       if (fa.kind === "transient") throw new Error("fetch failed (simulated transient thrown)");
       if (fa.kind === "hard") throw new Error("hard db error thrown");
       if (fa.kind === "error") return { data: null, error: { message: "permanent db error (returned)" } };
       if (fa.kind === "error-transient") return { data: null, error: { message: "fetch failed (returned transient)" } };
-    }
+      return null;
+    };
+    if (fa && !fa.after) { const r = applyFault(); if (r) return r; }
     const rowsOf = () => tables[st.table].filter((r) => st.filters.every((f) => f(r)));
+    let result;
     if (st.op === "select") {
       const found = rowsOf();
-      if (st.single) return { data: found[0], error: found[0] ? null : { message: "no row" } };
-      if (st.maybe) return { data: found[0] ?? null, error: null };
-      return { data: found, error: null };
-    }
-    if (st.op === "insert") {
+      result = st.single ? { data: found[0], error: found[0] ? null : { message: "no row" } } : st.maybe ? { data: found[0] ?? null, error: null } : { data: found, error: null };
+    } else if (st.op === "insert") {
       const ins = st.rows.map((r) => ({ ...r, id: r.id ?? nextId() }));
       tables[st.table].push(...ins);
-      if (st.single) return { data: { id: ins[0].id }, error: null };
-      return { data: ins, error: null };
-    }
-    if (st.op === "update") { for (const r of rowsOf()) Object.assign(r, st.patch); return { data: null, error: null }; }
-    if (st.op === "delete") { tables[st.table] = tables[st.table].filter((r) => !st.filters.every((f) => f(r))); return { data: null, error: null }; }
-    return { data: null, error: null };
+      result = st.single ? { data: { id: ins[0].id }, error: null } : { data: ins, error: null };
+    } else if (st.op === "update") { for (const r of rowsOf()) Object.assign(r, st.patch); result = { data: null, error: null }; }
+    else if (st.op === "delete") { tables[st.table] = tables[st.table].filter((r) => !st.filters.every((f) => f(r))); result = { data: null, error: null }; }
+    else result = { data: null, error: null };
+    if (fa && fa.after) { const r = applyFault(); if (r) return r; } // mutasyon uygulandı, sonra hata
+    return result;
   }
   return { from: builder, _tables: tables, _calls: calls };
 }
@@ -155,13 +157,14 @@ function seedExisting(db, food, hash, opts = {}) {
   chk("T6 repair: DUPLICATE food OLUŞMADI (hâlâ 1)", db._tables.nutrition_foods.length === 1);
   chk("T6 repair: children onarıldı + hash finalize", db._tables.nutrition_food_nutrients.filter((r)=>r.food_id===w2.foodId).length === 2 && ref.content_hash === hashFood(f));
 }
-// ── T7 retry: transient hata bir kez → withRetry toparlar ──
+// ── T7 YAZMA RETRY YOK: food INSERT transient (yazılmadan) → fatal, otomatik retry YOK ──
 {
   const f = mkFood("500", "Cheddar");
-  const db = makeDb({}, [{ table: "nutrition_foods", op: "insert", nth: 1, kind: "transient" }]);
+  const db = makeDb({}, [{ table: "nutrition_foods", op: "insert", nth: 1, kind: "transient" }]); // mutasyon ÖNCESİ throw
   const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
-  let ok = true; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch { ok = false; }
-  chk("T7 transient insert hatası → retry ile başarı", ok && db._tables.nutrition_foods.length === 1);
+  let err = null; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch (e) { err = e; }
+  chk("T7 food INSERT transient → YAZMA RETRY YOK → fatal (ambiguous)", err && err.fatal === true && err.phase === "food_insert");
+  chk("T7 yazılmadan hata → food satırı YOK (körlemesine tekrar YOK)", db._tables.nutrition_foods.length === 0);
 }
 // ── T8 foreign-tenant seed görünmez (izolasyon): classify yalnız SYSTEM ref'e bakar ──
 {
@@ -214,13 +217,11 @@ function seedExisting(db, food, hash, opts = {}) {
   chk("T13 food yazıldı (1) ama ref YOK → orphan food_id raporlandı", db._tables.nutrition_foods.length === 1 && orphanId === db._tables.nutrition_foods[0].id);
   chk("T13 otomatik silme YOK (food satırı duruyor)", db._tables.nutrition_foods.length === 1 && db._tables.nutrition_food_external_refs.length === 0);
 }
-// ── T14 RETURNED transient {error} (throw değil) → retry ile toparlar ──
+// ── T14 SELECT RETRY KORUNUR: classify SELECT returned-transient {error} bir kez → retry → başarı ──
 {
-  const f = mkFood("705", "Simit"); const db = makeDb({}, [{ table: "nutrition_foods", op: "insert", nth: 1, kind: "error-transient", once: true }]);
-  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
-  let ok = true; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch { ok = false; }
-  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "705");
-  chk("T14 returned-transient {error} → retry ile başarı + commit-marker", ok && !!ref && ref.content_hash === hashFood(f));
+  const f = mkFood("705", "Simit"); const db = makeDb({}, [{ table: "nutrition_food_external_refs", op: "select", nth: 1, kind: "error-transient", once: true }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts, retries: 3 });
+  chk("T14 SELECT transient {error} → retry ile toparlar (okuma retry KORUNDU)", cls.status === "created");
 }
 // ── T15 stale/mismatched checkpoint: tamamlanmamış fdc classify unchanged DEĞİL → atlanmamalı ──
 {
@@ -247,6 +248,44 @@ function seedExisting(db, food, hash, opts = {}) {
   const db = makeDb(seed);
   const d = await loadDicts(db, 0);
   chk("T18 dolu sözlük → loadDicts map'leri kurar", d.groupBy.get("dairy") === "g1" && d.nutBy.get("energy")?.id === "n1" && d.unitBy.get("kcal")?.id === "u1");
+}
+
+// ══ "DB YAZDI AMA YANIT KAYBOLDU" (mutasyon uygulandı + transient hata) — otomatik retry YOK ══
+// ── T19 food INSERT yazıldı-ama-yanıt-kayboldu → AMBIGUOUS fatal, RETRY YOK, food duplicate OLMAZ ──
+{
+  const f = mkFood("800", "Hellim");
+  const db = makeDb({}, [{ table: "nutrition_foods", op: "insert", nth: 1, kind: "transient", after: true }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let err = null; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch (e) { err = e; }
+  chk("T19 food INSERT belirsiz → fatal + ambiguous (retry YOK)", err && err.fatal === true && err.ambiguous === true && err.phase === "food_insert");
+  chk("T19 food DB'ye 1 kez yazıldı (retry ile ikinci food OLUŞMADI)", db._tables.nutrition_foods.length === 1);
+  chk("T19 external_ref YOK → olası orphan raporlanır", db._tables.nutrition_food_external_refs.length === 0);
+}
+// ── T20 external_ref INSERT yazıldı-ama-kayboldu → SELECT ile UZLAŞTIR → devam, duplicate YOK ──
+{
+  const f = mkFood("801", "Tulum");
+  const db = makeDb({}, [{ table: "nutrition_food_external_refs", op: "insert", nth: 1, kind: "transient", after: true }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let ok = true; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch { ok = false; }
+  const refs = db._tables.nutrition_food_external_refs.filter((r) => r.external_id === "801");
+  chk("T20 ref belirsiz → uzlaştır (SELECT) → tamamlandı", ok);
+  chk("T20 external_ref TEK (duplicate YOK)", refs.length === 1);
+  chk("T20 commit-marker finalize (hash yazıldı)", refs[0]?.content_hash === hashFood(f));
+}
+// ── T21 nutrient INSERT yazıldı-ama-kayboldu → throw, commit-marker YOK → re-run repair TEMİZ ──
+{
+  const f = mkFood("802", "Çökelek");
+  const db = makeDb({}, [{ table: "nutrition_food_nutrients", op: "insert", nth: 1, kind: "transient", after: true }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let threw = false; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch { threw = true; }
+  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "802");
+  chk("T21 nutrient INSERT belirsiz → throw (retry YOK)", threw);
+  chk("T21 commit-marker YAZILMADI (content_hash NULL)", !!ref && ref.content_hash == null);
+  // re-run repair: delete+reinsert → duplicate OLMAZ, doğru sayı, hash finalize
+  const cls2 = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  chk("T21 re-run → repair", cls2.status === "repair");
+  const w2 = await writeFood(db, T, doc, f, cls2, dicts, 3);
+  chk("T21 repair: nutrient satırları TAM 2 (duplicate YOK)", db._tables.nutrition_food_nutrients.filter((r) => r.food_id === w2.foodId).length === 2 && ref.content_hash === hashFood(f));
 }
 
 console.log(`\n${"=".repeat(52)}\n  CATALOG IMPORT HARNESS: ${pass} PASS / ${fail} FAIL`);
