@@ -76,7 +76,7 @@ async function main() {
     await su.query(USERS_DDL);
     await su.query(readMig("20260903000000_admin_audit_log.sql"));
     await su.query(readMig("20261221000000_yh_grade_expert_premium_rpc.sql"));
-    await su.query(readMig("20270105000000_admin_membership_atomic_rpcs.sql"));
+    await su.query(readMig("20270107000000_admin_membership_atomic_rpcs.sql"));
     // service_role users tablosuna erişebilsin (SECURITY DEFINER zaten owner ile çalışır; yine de yetki verelim)
     await su.query(`grant select, insert, update on all tables in schema public to service_role;`);
     await su.query(`insert into public.users(id, full_name, email, role, active, approval_status, is_super_admin, tenant_id)

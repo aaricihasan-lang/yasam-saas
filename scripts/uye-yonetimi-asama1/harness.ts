@@ -60,7 +60,7 @@ ok(APPROVAL_AUDIT_ACTION.approve === "user_approved" && APPROVAL_AUDIT_ACTION.re
 
 // ─── (2) MIGRATION SÖZLEŞMESİ (atomiklik + eşzamanlılık + güvenlik) ───────────
 console.log("\n[2] Migration RPC sözleşmesi");
-const mig = read("supabase/migrations/20270105000000_admin_membership_atomic_rpcs.sql");
+const mig = read("supabase/migrations/20270107000000_admin_membership_atomic_rpcs.sql");
 for (const fn of ["admin_approve_expert_premium", "admin_reject_user", "admin_set_user_active", "admin_archive_user"]) {
   ok(new RegExp(`create or replace function public\\.${fn}`, "i").test(mig), `migration: ${fn} tanımlı`);
 }
