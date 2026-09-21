@@ -33,7 +33,8 @@ export async function gradeExpertPremiumWithYasamHafizasi(
   db: SupabaseClient,
   userId: string,
   membershipPayload: Record<string, unknown>,
-  modulePermissions: Record<string, boolean>,
+  // null → RPC satır-içi mevcut module_permissions'ı korur (COALESCE); Record → o izinleri yazar.
+  modulePermissions: Record<string, boolean> | null,
 ): Promise<PremiumGradeResult> {
   if (!userId) return { ok: false, outcome: "error" };
   try {

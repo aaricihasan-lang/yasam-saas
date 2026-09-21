@@ -7,7 +7,6 @@ import {
   type PackagePlanUi,
 } from "@/lib/auth/membership";
 import { rowHasMembershipColumns } from "@/lib/admin/userManagement";
-import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
 import { gradeExpertPremiumWithYasamHafizasi } from "@/lib/yasam-hafizasi/expertPremiumGrant";
 
 export const runtime = "nodejs";
@@ -55,17 +54,20 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const rawPayload = buildMembershipUpdatePayload(packagePlan);
   const membershipPayload = filterMembershipPayloadForRow(rawPayload, row);
 
-  // PREMIUM: membership geçişi + modül izinleri + active/approved + YH izni + YH flags TEK
-  // ATOMİK DB transaction'ında (yh_grade_expert_premium RPC). YH/flags yazımı başarısız olursa
-  // PREMIUM GEÇİŞİ DE COMMIT EDİLMEZ → "premium ama YH kapalı" PARTIAL state İMKÂNSIZ. İki işlem
-  // transaction dışında ardışık kalmaz. FAIL-CLOSED: RPC hatası → 500 (retry idempotent). Ineligible
-  // (demo/non-expert) → RPC premium'u uygular, YH'yi atlar (fail-closed; hata değil).
+  // PREMIUM: membership geçişi + active/approved + YH izni + YH flags TEK ATOMİK DB
+  // transaction'ında (yh_grade_expert_premium RPC). YH/flags yazımı başarısız olursa PREMIUM
+  // GEÇİŞİ DE COMMIT EDİLMEZ → "premium ama YH kapalı" PARTIAL state İMKÂNSIZ. FAIL-CLOSED: RPC
+  // hatası → 500 (retry idempotent). Ineligible (demo/non-expert) → RPC premium'u uygular, YH'yi
+  // atlar (fail-closed; hata değil).
+  // AŞAMA 1: Premium ATAMA mevcut module_permissions'ı KORUR (topluca true YAPMAZ) — Premium ile
+  // modül izni iki bağımsız kavram. p_module_permissions=NULL → RPC satır-içi mevcut izinleri
+  // korur (eski snapshot ezmesi/TOCTOU yok); yeni onay akışı (status → approve) ile aynı davranış.
   if (packagePlan === "premium") {
     const graded = await gradeExpertPremiumWithYasamHafizasi(
       db,
       id,
       membershipPayload,
-      buildPremiumModulePermissionsPayload(),
+      null,
     );
     if (!graded.ok) {
       return NextResponse.json(

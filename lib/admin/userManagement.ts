@@ -452,6 +452,7 @@ export type ManagedUser = {
   licenseSettings: LicenseSettings;
   adminLevel?: string;
   createdAt?: string;
+  approvedAt?: string;
 };
 
 export function parseAdminModulePermissions(raw: unknown): AdminModulePermissions {
@@ -558,6 +559,7 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
     adminLevel:
       row.admin_level != null ? String(row.admin_level).trim() : undefined,
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
+    approvedAt: row.approved_at != null ? String(row.approved_at) : undefined,
   };
 }
 

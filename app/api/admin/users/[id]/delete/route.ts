@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { guardAdminLockoutById, requireMainAdmin } from "@/lib/admin/adminGuards";
+import { jsonNoStore } from "@/lib/admin/accountSessionControls";
 
 export const runtime = "nodejs";
 
@@ -9,14 +10,16 @@ type RouteContext = { params: Promise<{ id: string }> };
 /**
  * POST /api/admin/users/[id]/delete
  *
- * Soft delete: active=false olarak işaretler.
- * Gerçek silme değildir — gerekirse geri alınabilir.
+ * "Pasife Al ve Arşivle" (soft delete): active=false olarak işaretler ve user_archived
+ * audit kaydı yazar. Gerçek (kalıcı) silme DEĞİLDİR — geri alınabilir; hedef otomatik
+ * arşivde görünür. Audit sayesinde pasife alınma tarih+aktörü türetilebilir (toggle_active
+ * ile TUTARLI). Audit zorunludur (fail-closed): yazılamazsa hesap değişimi geri alınır.
  *
  * Güvenlik:
  *   1. x-admin-id header ile admin DB doğrulaması (adminGuard)
  *   2. verify_admin_login RPC ile admin şifre doğrulaması (server-side, plaintext geçmez)
  *   3. Adminin kendi hesabını silmesi engellenir
- *   4. Yalnızca owner admin seviyesi silebilir (admin_level = 'owner')
+ *   4. Yalnızca ana yönetici (is_super_admin) arşivleyebilir (requireMainAdmin)
  */
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
@@ -79,9 +82,16 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: lock.error }, { status: lock.status });
   }
 
-  // Soft delete: active=false
-  const { error } = await db.from("users").update({ active: false }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Atomik arşivle: active=false + user_archived audit TEK PostgreSQL transaction'ında
+  // (FOR UPDATE kilidi) — migration 20270105000000. Audit yazılamazsa hesap değişimi de
+  // COMMIT edilmez (uygulama-seviyesi telafi YOK). Pasife alınma tarih+aktörü bu kayıttan türetilir.
+  const { error } = await db.rpc("admin_archive_user", {
+    p_user_id: id,
+    p_actor_admin_id: adminId,
+  });
+  if (error) {
+    return NextResponse.json({ error: "Arşivleme tamamlanamadı." }, { status: 500 });
+  }
 
-  return NextResponse.json({ ok: true });
+  return jsonNoStore({ ok: true, active: false });
 }

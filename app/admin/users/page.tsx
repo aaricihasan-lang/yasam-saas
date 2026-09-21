@@ -5,10 +5,12 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Archive,
   ArrowRight,
   ChevronDown,
   Loader2,
   Plus,
+  RotateCcw,
   Search,
   Shield,
   Users,
@@ -16,6 +18,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   formatCreatedAt,
+  formatDateTimeTr,
   mapDbUser,
   sortUsersForAdmin,
   type ApprovalStatusUi,
@@ -402,6 +405,76 @@ function adminHeaders(adminId: string, json = false): Record<string, string> {
   return h;
 }
 
+type DeactivationInfo = {
+  at: string | null;
+  byId: string | null;
+  byName: string | null;
+  actorIsMainAdmin: boolean;
+};
+
+/** Arşiv kartı — pasife alınmış (approved+pasif) uzman: tarih + aktör + yeniden aktifleştirme. */
+function ArchiveUserRow({
+  user,
+  deactivation,
+  onReactivate,
+  reactivating,
+}: {
+  user: ManagedUser;
+  deactivation?: DeactivationInfo;
+  onReactivate: (user: ManagedUser) => void;
+  reactivating: boolean;
+}) {
+  return (
+    <article className="flex flex-col gap-4 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 opacity-95 shadow-sm transition hover:border-amber-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-base font-black text-slate-900 sm:text-lg">{user.fullName}</p>
+          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-black text-amber-950 ring-1 ring-amber-200">
+            Arşiv
+          </span>
+        </div>
+        <p className="truncate text-sm font-medium text-slate-600">{user.email}</p>
+        <div className="mt-2 grid gap-0.5 text-xs font-semibold text-slate-500">
+          <span>
+            Pasife alınma:{" "}
+            <span className="text-slate-700">
+              {deactivation?.at ? formatDateTimeTr(deactivation.at) : "—"}
+            </span>
+          </span>
+          <span>
+            İşlemi yapan:{" "}
+            <span className="text-slate-700">
+              {deactivation?.byName ?? "Kayıt bulunamadı"}
+            </span>
+          </span>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={() => onReactivate(user)}
+          disabled={reactivating}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-300/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 text-sm font-black text-emerald-950 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {reactivating ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <RotateCcw className="h-4 w-4" aria-hidden />
+          )}
+          Yeniden Aktifleştir
+        </button>
+        <Link
+          href={`/admin/users/${encodeURIComponent(user.id)}`}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-violet-300/90 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 text-sm font-black text-violet-950 no-underline transition hover:border-violet-400"
+        >
+          Detay
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
 export default function AdminUsersPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -417,6 +490,13 @@ export default function AdminUsersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<UserFilters>(DEFAULT_USER_FILTERS);
+  const [view, setView] = useState<"members" | "archive">("members");
+  const [archiveUsers, setArchiveUsers] = useState<ManagedUser[]>([]);
+  const [archiveDeactivations, setArchiveDeactivations] = useState<
+    Record<string, DeactivationInfo>
+  >({});
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [reactivatingId, setReactivatingId] = useState<string>("");
 
   const filteredUsers = useMemo(
     () =>
@@ -468,6 +548,33 @@ export default function AdminUsersPage() {
     setListLoading(false);
   }, [showToast]);
 
+  const loadArchive = useCallback(async (adminId: string) => {
+    setArchiveLoading(true);
+    const res = await fetch("/api/admin/users/archive", {
+      headers: adminHeaders(adminId),
+    });
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      showToast({
+        title: "İşlem başarısız",
+        message: json.error ?? "Arşiv yüklenemedi.",
+        type: "error",
+      });
+      setArchiveUsers([]);
+      setArchiveDeactivations({});
+      setArchiveLoading(false);
+      return;
+    }
+    const json = (await res.json()) as {
+      users?: Record<string, unknown>[];
+      deactivations?: Record<string, DeactivationInfo>;
+    };
+    const mapped = (json.users ?? []).map((row) => mapDbUser(row));
+    setArchiveUsers(mapped);
+    setArchiveDeactivations(json.deactivations ?? {});
+    setArchiveLoading(false);
+  }, [showToast]);
+
   useEffect(() => {
     const u = readYasamUser();
     setAllowed(isAdminUser(u));
@@ -479,6 +586,48 @@ export default function AdminUsersPage() {
     if (!sessionChecked || !allowed || !currentUserId) return;
     void loadUsers(currentUserId);
   }, [sessionChecked, allowed, currentUserId, loadUsers]);
+
+  // Arşiv verisi sekmeye geçiş OLAYINDA yüklenir — effect içinde senkron setState
+  // (react-hooks/set-state-in-effect) yerine olay-güdümlü yükleme. "Arşiv sekmesine
+  // her geçişte tazele" davranışı korunur.
+  const handleSelectView = useCallback(
+    (next: "members" | "archive") => {
+      setView(next);
+      if (next === "archive" && sessionChecked && allowed && currentUserId) {
+        void loadArchive(currentUserId);
+      }
+    },
+    [sessionChecked, allowed, currentUserId, loadArchive],
+  );
+
+  async function reactivateUser(target: ManagedUser) {
+    setReactivatingId(target.id);
+    const res = await fetch(
+      `/api/admin/users/${encodeURIComponent(target.id)}/status`,
+      {
+        method: "POST",
+        headers: adminHeaders(currentUserId, true),
+        body: JSON.stringify({ action: "toggle_active", currentActive: false }),
+      },
+    );
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    setReactivatingId("");
+    if (!res.ok || !json.ok) {
+      showToast({
+        title: "İşlem başarısız",
+        message: json.error ?? "Yeniden aktifleştirilemedi.",
+        type: "error",
+      });
+      return;
+    }
+    showToast({
+      title: "Başarılı",
+      message: `${target.fullName} yeniden aktifleştirildi.`,
+      type: "success",
+    });
+    // Arşivden çıkar + aktif listeye dönsün: her iki listeyi tazele.
+    await Promise.all([loadArchive(currentUserId), loadUsers(currentUserId)]);
+  }
 
   function handleLogout() {
     clearYasamUser();
@@ -577,6 +726,40 @@ export default function AdminUsersPage() {
           </div>
         </header>
 
+        <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Görünüm">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "members"}
+            onClick={() => handleSelectView("members")}
+            className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
+              view === "members"
+                ? "border-violet-400 bg-violet-100 text-violet-950"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
+            }`}
+          >
+            <Users className="h-4 w-4" aria-hidden />
+            Üyeler
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "archive"}
+            onClick={() => handleSelectView("archive")}
+            className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
+              view === "archive"
+                ? "border-amber-400 bg-amber-100 text-amber-950"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-amber-50/80"
+            }`}
+          >
+            <Archive className="h-4 w-4" aria-hidden />
+            Arşiv
+            {view === "archive" && !archiveLoading ? ` (${archiveUsers.length})` : ""}
+          </button>
+        </div>
+
+        {view === "members" ? (
+          <>
         <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryStatCard label="Toplam Üye" value={stats.total} tone="violet" />
           <SummaryStatCard label="Onay Bekleyen" value={stats.pending} tone="amber" />
@@ -744,6 +927,42 @@ export default function AdminUsersPage() {
               <CompactUserRow key={user.id} user={user} suspiciousCount={suspiciousCounts[user.id] ?? 0} />
             ))}
           </div>
+        )}
+          </>
+        ) : (
+          <>
+            <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-5 py-4">
+              <h2 className="flex items-center gap-2 text-base font-black text-amber-950">
+                <Archive className="h-4 w-4" aria-hidden />
+                Arşiv — Pasife Alınmış Uzmanlar
+              </h2>
+              <p className="mt-1 text-sm font-medium text-amber-900/80">
+                Onaylı ancak pasife alınmış uzmanlar. Hesap, dosya ve modül izinleri korunur;
+                yeniden aktifleştirildiğinde aktif üye listesine döner. (Onay bekleyen ve
+                reddedilen başvurular arşivde gösterilmez.)
+              </p>
+            </div>
+
+            {archiveLoading ? (
+              <PastelLoader label="Arşiv yükleniyor…" />
+            ) : archiveUsers.length === 0 ? (
+              <div className={`${panelClass} border-dashed text-center text-slate-600`}>
+                Arşivde uzman bulunmuyor.
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {archiveUsers.map((user) => (
+                  <ArchiveUserRow
+                    key={user.id}
+                    user={user}
+                    deactivation={archiveDeactivations[user.id]}
+                    onReactivate={reactivateUser}
+                    reactivating={reactivatingId === user.id}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
