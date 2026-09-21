@@ -229,34 +229,128 @@ export async function deleteStonePhotoRecords(
   if (delErr) return { deleted: 0, removed: [], error: delErr.message };
   const deleted = (deletedRows ?? []).length;
 
-  // 3) Referans-güvenli fiziksel silme.
-  let removed: string[] = [];
-  if (candidates.length > 0) {
-    const { data: refRows, error: refErr } = await db
-      .from("client_stone_photos")
-      .select("file_path")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
-      .in("file_path", candidates);
-    if (refErr) {
-      // Referans doğrulanamadı → güvenli taraf: fiziksel silme yapma (yetim temizliği sonra).
-      return { deleted, removed: [], error: null };
-    }
-    const referenced = new Set<string>(
-      (refRows ?? [])
-        .map((r) => (r as { file_path?: unknown }).file_path)
-        .filter((p): p is string => typeof p === "string"),
-    );
-    const toRemove = pathsToPhysicallyRemove(candidates, referenced);
-    if (toRemove.length > 0) {
-      const { error: rmErr } = await db.storage.from(bucket).remove(toRemove);
-      if (rmErr) {
-        // Yetim blob (geri kazanılabilir); DB zaten tutarlı → fatal değil.
-        console.error("[client stone-photos] storage remove:", rmErr.message);
-      } else {
-        removed = toRemove;
-      }
-    }
-  }
+  // 3) Referans-güvenli fiziksel silme (ortak dosya korunur; storage hatası non-fatal).
+  const { removed } = await removeUnreferencedStonePhotoObjects(db, bucket, tenantId, clientId, candidates);
   return { deleted, removed, error: null };
+}
+
+/**
+ * Aday path'lerden, hayatta kalan başka bir client_stone_photos satırı tarafından HÂLÂ
+ * referans edilmeyenleri (ve yalnız tenant+client'a ait olanları) service_role ile siler.
+ * - Referans sorgusu hata verirse: fiziksel silme YAPILMAZ (güvenli taraf; yetim temizliği sonra).
+ * - Storage.remove hatası: non-fatal (yetim blob, geri kazanılabilir) → loglanır.
+ * Ortak-dosya (mükerrer/paylaşılan file_path) korumasının TEK kaynağıdır.
+ */
+export async function removeUnreferencedStonePhotoObjects(
+  db: SupabaseClient,
+  bucket: string,
+  tenantId: string,
+  clientId: string,
+  candidatePaths: string[],
+): Promise<{ removed: string[] }> {
+  if (candidatePaths.length === 0) return { removed: [] };
+  const { data: refRows, error: refErr } = await db
+    .from("client_stone_photos")
+    .select("file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .in("file_path", candidatePaths);
+  if (refErr) return { removed: [] }; // doğrulanamadı → silme yok
+  const referenced = new Set<string>(
+    (refRows ?? [])
+      .map((r) => (r as { file_path?: unknown }).file_path)
+      .filter((p): p is string => typeof p === "string"),
+  );
+  const toRemove = pathsToPhysicallyRemove(candidatePaths, referenced);
+  if (toRemove.length === 0) return { removed: [] };
+  const { error: rmErr } = await db.storage.from(bucket).remove(toRemove);
+  if (rmErr) {
+    console.error("[client stone-photos] storage remove:", rmErr.message);
+    return { removed: [] };
+  }
+  return { removed: toRemove };
+}
+
+/**
+ * Bir taşın (veya tüm client'ın) sahip olduğu güvenli file_path'leri DB'den toplar
+ * (silmeden ÖNCE — stone-first akışında path'ler taş silinmeden yakalanır).
+ */
+export async function collectOwnedStonePhotoPaths(
+  db: SupabaseClient,
+  opts: { tenantId: string; clientId: string; stoneId?: string | null },
+): Promise<string[]> {
+  const { tenantId, clientId } = opts;
+  const stoneId = opts.stoneId ?? null;
+  let sel = db
+    .from("client_stone_photos")
+    .select("file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (stoneId) sel = sel.eq("stone_id", stoneId);
+  const { data, error } = await sel;
+  if (error) return [];
+  return filterOwnedStonePhotoPaths(
+    (data ?? []).map((r) => (r as { file_path?: unknown }).file_path),
+    tenantId,
+    clientId,
+    stoneId,
+  );
+}
+
+/**
+ * Bir taşı ve fotoğraflarını STONE-FIRST sırayla siler (PR #262 inceleme fix'i).
+ *
+ * NEDEN STONE-FIRST: `client_stone_photos → client_stones` üzerinde ON DELETE CASCADE
+ * YOKTUR (repo'da FK yok; O-6: "tekil silme silmiyordu") → taş+foto aynı DB
+ * transaction'ında ATOMİK silinemez. Eski sıra (önce foto, sonra taş) taş silme
+ * başarısız olursa YAŞAYAN taşın fotoğraflarını kaybettirebiliyordu. Yeni sıra:
+ *   0) foto path'lerini TOPLA (taş silinmeden önce),
+ *   1) TAŞI sil — başarısızsa fotoğraflara DOKUNULMAZ (yaşayan taş fotoğrafını korur),
+ *   2) foto DB satırlarını sil (best-effort; cascade YOK → app siler),
+ *   3) referans-güvenli storage temizliği (ortak dosya korunur; hata → yetim blob).
+ *
+ * ⚠️ TAM ATOMİKLİK: taş+foto satırlarının aynı transaction'da silinmesi için
+ *   `stone_id → client_stones(id) ON DELETE CASCADE` FK'si (veya RPC) GEREKİR = MIGRATION
+ *   (AYRI ONAY; bu fazda UYGULANMADI). Bu fonksiyon migration OLMADAN, yaşayan-taş foto
+ *   kaybını önleyen en küçük geriye-uyumlu düzeltmedir; kalan residü = silinen taşın
+ *   yetim foto satırı/blob'u (geri kazanılabilir).
+ */
+export async function deleteStoneAndPhotos(
+  db: SupabaseClient,
+  opts: { bucket: string; tenantId: string; clientId: string; stoneId: string },
+): Promise<{ stoneDeleted: number; removed: string[]; error: string | null; photoCleanupError: string | null }> {
+  const { bucket, tenantId, clientId, stoneId } = opts;
+
+  // 0) Path'leri taş silinmeden ÖNCE topla (stone cascade olsa bile kaybolmasın).
+  const candidatePaths = await collectOwnedStonePhotoPaths(db, { tenantId, clientId, stoneId });
+
+  // 1) TAŞI sil — ÖNCE. Hata → fotoğraflara dokunulmaz (yaşayan taş foto kaybı YOK).
+  const { data: stoneDel, error: stoneErr } = await db
+    .from("client_stones")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .eq("id", stoneId)
+    .select("id");
+  if (stoneErr) {
+    return { stoneDeleted: 0, removed: [], error: stoneErr.message, photoCleanupError: null };
+  }
+  const stoneDeleted = (stoneDel ?? []).length;
+  if (stoneDeleted === 0) {
+    // Taş bulunamadı/sahip değil → fotoğraflara dokunma (contract: deleted=0).
+    return { stoneDeleted: 0, removed: [], error: null, photoCleanupError: null };
+  }
+
+  // 2) Foto DB satırlarını sil (cascade YOK → app siler; best-effort).
+  const { error: rowErr } = await db
+    .from("client_stone_photos")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .eq("stone_id", stoneId);
+
+  // 3) Referans-güvenli storage temizliği (ortak dosya korunur; hata → yetim blob).
+  const { removed } = await removeUnreferencedStonePhotoObjects(db, bucket, tenantId, clientId, candidatePaths);
+
+  return { stoneDeleted, removed, error: null, photoCleanupError: rowErr?.message ?? null };
 }

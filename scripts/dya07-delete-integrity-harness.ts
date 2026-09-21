@@ -21,6 +21,7 @@ import {
   applySignedPhotoUrls,
   pathsToPhysicallyRemove,
   deleteStonePhotoRecords,
+  deleteStoneAndPhotos,
 } from "../lib/clients/stonePhotoStorage";
 
 let pass = 0, fail = 0;
@@ -176,6 +177,68 @@ async function main() {
     const r = await deleteStonePhotoRecords(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
     ok("INT-07 stone-scoped delete removes both unique objects", r.error === null && r.deleted === 2 &&
       storageRemoved(db).length === 2);
+  }
+
+  // ─── (C) STONE-FIRST DELETE (deleteStoneAndPhotos) — PR #262 review fix ──────────
+  // STONE-01: taş silme BAŞARISIZ → fotoğraflara DOKUNULMAZ (yaşayan taş foto kaybı YOK)
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect
+      { data: null, error: { message: "stone fail" } },              // stone delete FAILS
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-01 stone-delete fail → photos untouched", r.error === "stone fail" && r.stoneDeleted === 0 &&
+      r.removed.length === 0 && !storageWasCalled(db));
+  }
+
+  // STONE-02: taş silme başarılı, tekil path → foto satırları + obje silinir
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect
+      { data: [{ id: S }], error: null },                            // stone delete ok
+      { data: null, error: null },                                   // photo-row delete ok
+      { data: [], error: null },                                     // ref check: none remaining
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-02 stone deleted + object removed", r.error === null && r.stoneDeleted === 1 &&
+      r.photoCleanupError === null && JSON.stringify(r.removed) === JSON.stringify([`${T}/${C}/${S}/a.png`]));
+  }
+
+  // STONE-03: taş bulunamadı (deleted=0) → fotoğraflara dokunulmaz
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect
+      { data: [], error: null },                                     // stone delete: 0 rows (not found)
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-03 stone not found → photos untouched", r.error === null && r.stoneDeleted === 0 &&
+      r.removed.length === 0 && !storageWasCalled(db));
+  }
+
+  // STONE-04: taş silindi ama foto-satır silme HATA → non-fatal; satır hâlâ referanslı → obje SİLİNMEZ
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect
+      { data: [{ id: S }], error: null },                            // stone delete ok
+      { data: null, error: { message: "row fail" } },                // photo-row delete FAILS
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // ref: row still present
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-04 photo-row cleanup fail non-fatal, object kept", r.error === null && r.stoneDeleted === 1 &&
+      r.photoCleanupError === "row fail" && r.removed.length === 0 && !storageWasCalled(db));
+  }
+
+  // STONE-05: obje başka bir satırca hâlâ referanslı (ortak dosya) → fiziksel silinmez
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect
+      { data: [{ id: S }], error: null },                            // stone delete ok
+      { data: null, error: null },                                   // photo-row delete ok
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // ref: still referenced (another stone)
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-05 shared object preserved", r.error === null && r.stoneDeleted === 1 &&
+      r.removed.length === 0 && !storageWasCalled(db));
   }
 
   console.log(`\nDYA-07 delete-integrity harness: ${pass} passed, ${fail} failed`);
