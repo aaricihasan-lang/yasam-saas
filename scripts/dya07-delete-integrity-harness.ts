@@ -241,6 +241,22 @@ async function main() {
       r.removed.length === 0 && !storageWasCalled(db));
   }
 
+  // STONE-06: GERÇEK PROD ŞEMASI — stone_id→client_stones ON DELETE CASCADE VAR.
+  // Taş silinince DB foto satırlarını OTOMATİK siler → foto-row delete 0 satır, ref
+  // check 0 döner. ÖNCEDEN TOPLANAN path'lerle storage temizliği yine DOĞRU yapılmalı.
+  {
+    const db = makeFakeDb([
+      { data: [{ file_path: `${T}/${C}/${S}/a.png` }], error: null }, // collect (rows present BEFORE delete)
+      { data: [{ id: S }], error: null },                            // stone delete ok (cascade fires)
+      { data: [], error: null },                                     // photo-row delete: 0 (already cascaded)
+      { data: [], error: null },                                     // ref check: 0 (cascaded → unreferenced)
+    ], { error: null });
+    const r = await deleteStoneAndPhotos(db, { bucket: "stone-photos", tenantId: T, clientId: C, stoneId: S });
+    ok("STONE-06 cascade auto-removes rows → storage cleaned via pre-collected paths",
+      r.error === null && r.stoneDeleted === 1 && r.photoCleanupError === null &&
+      JSON.stringify(r.removed) === JSON.stringify([`${T}/${C}/${S}/a.png`]));
+  }
+
   console.log(`\nDYA-07 delete-integrity harness: ${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);
 }
