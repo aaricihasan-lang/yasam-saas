@@ -235,16 +235,26 @@ export async function writeFood(db, T, doc, food, cls, dicts, retries) {
   return { foodId, nutrients: nutRows.length, portions: portRows.length };
 }
 
-async function loadDicts(db) {
-  const [{ data: groups }, { data: nutrients }, { data: units }] = await Promise.all([
-    db.from("nutrition_food_groups").select("id, code"),
-    db.from("nutrition_nutrients").select("id, code, category").eq("is_active", true),
-    db.from("nutrition_units").select("id, code, unit_type").eq("is_active", true),
+/**
+ * Sözlükleri yükler — SELECT {error} KONTROL EDİLİR (execQuery). Hata sessizce yutulursa
+ * boş sözlük → TÜM food'lar yanlışlıkla "rejected" olurdu; bu yüzden:
+ *   - her SELECT error → throw (transient ise retry),
+ *   - sonuç BOŞ ise → throw (seed eksikliği/yanlış hedef; sessiz toplu-rejected engellenir).
+ */
+export async function loadDicts(db, retries = 3) {
+  const [gRes, nRes, uRes] = await Promise.all([
+    execQuery(() => db.from("nutrition_food_groups").select("id, code"), retries),
+    execQuery(() => db.from("nutrition_nutrients").select("id, code, category").eq("is_active", true), retries),
+    execQuery(() => db.from("nutrition_units").select("id, code, unit_type").eq("is_active", true), retries),
   ]);
+  const groups = gRes.data ?? [], nutrients = nRes.data ?? [], units = uRes.data ?? [];
+  if (!groups.length || !nutrients.length || !units.length) {
+    throw new Error(`sözlük BOŞ (groups=${groups.length} nutrients=${nutrients.length} units=${units.length}) → import iptal (yanlış hedef / seed eksik; toplu-rejected engellendi).`);
+  }
   return {
-    groupBy: new Map((groups ?? []).map((r) => [r.code, r.id])),
-    nutBy: new Map((nutrients ?? []).map((r) => [r.code, r])),
-    unitBy: new Map((units ?? []).map((r) => [r.code, r])),
+    groupBy: new Map(groups.map((r) => [r.code, r.id])),
+    nutBy: new Map(nutrients.map((r) => [r.code, r])),
+    unitBy: new Map(units.map((r) => [r.code, r])),
   };
 }
 
@@ -271,7 +281,7 @@ async function main() {
   if (!url || !key) { console.error("[importCatalog] ENV eksik: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
   const { createClient } = await import("@supabase/supabase-js");
   const db = createClient(url, key, { auth: { persistSession: false } });
-  const dicts = await loadDicts(db);
+  const dicts = await loadDicts(db, retries);
   const T = SYSTEM_NUTRITION_TENANT_ID;
   const targetRef = String(url).replace(/^https?:\/\//, "").split(".")[0];
 

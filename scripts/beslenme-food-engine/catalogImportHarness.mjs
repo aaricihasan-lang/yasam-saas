@@ -5,7 +5,7 @@
 //   + retry(transient) + commit-marker sıralaması + tenant izolasyonu + idempotent re-run.
 //   node scripts/beslenme-food-engine/catalogImportHarness.mjs  ·  FAIL → exit 1
 // ============================================================
-import { classifyFood, writeFood, hashFood } from "./importCatalog.mjs";
+import { classifyFood, writeFood, hashFood, loadDicts } from "./importCatalog.mjs";
 
 const T = "00000000-0000-4000-8000-000000000001";
 const FOREIGN = "ffffffff-ffff-ffff-ffff-ffffffffffff";
@@ -15,6 +15,7 @@ let uid = 0; const nextId = () => `id-${++uid}`;
 function makeDb(seed = {}, faults = []) {
   const tables = {
     nutrition_foods: [], nutrition_food_external_refs: [], nutrition_food_nutrients: [], nutrition_food_portions: [],
+    nutrition_food_groups: [], nutrition_nutrients: [], nutrition_units: [],
     ...seed,
   };
   const calls = [];
@@ -226,6 +227,26 @@ function seedExisting(db, food, hash, opts = {}) {
   const f = mkFood("706", "Lavaş"); const db = makeDb(); // hiç yazılmamış
   const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
   chk("T15 checkpoint'te olsa bile tamamlanmamış kayıt classify≠unchanged → resume ATLAMAZ", cls.status !== "unchanged");
+}
+// ── T16 sözlük SELECT {error} → loadDicts THROW (sessiz boş-sözlük/toplu-rejected ÖNLENDİ) ──
+{
+  const seed = { nutrition_food_groups: [{ id: "g1", code: "dairy" }], nutrition_nutrients: [{ id: "n1", code: "energy", category: "energy", is_active: true }], nutrition_units: [{ id: "u1", code: "kcal", unit_type: "energy", is_active: true }] };
+  const db = makeDb(seed, [{ table: "nutrition_food_groups", op: "select", nth: 1, kind: "error" }]);
+  let threw = false; try { await loadDicts(db, 0); } catch { threw = true; }
+  chk("T16 sözlük SELECT {error} → loadDicts THROW (boş sözlük sanılmaz)", threw);
+}
+// ── T17 sözlük BOŞ (0 satır) → loadDicts THROW (yanlış hedef/seed eksik → toplu-rejected engellendi) ──
+{
+  const db = makeDb(); // tüm dict tabloları boş
+  let threw = false, msg = ""; try { await loadDicts(db, 0); } catch (e) { threw = true; msg = String(e.message); }
+  chk("T17 boş sözlük → loadDicts THROW", threw && /BOŞ/.test(msg));
+}
+// ── T18 sözlükler dolu → loadDicts başarı (map'ler kurulur) ──
+{
+  const seed = { nutrition_food_groups: [{ id: "g1", code: "dairy" }], nutrition_nutrients: [{ id: "n1", code: "energy", category: "energy", is_active: true }], nutrition_units: [{ id: "u1", code: "kcal", unit_type: "energy", is_active: true }] };
+  const db = makeDb(seed);
+  const d = await loadDicts(db, 0);
+  chk("T18 dolu sözlük → loadDicts map'leri kurar", d.groupBy.get("dairy") === "g1" && d.nutBy.get("energy")?.id === "n1" && d.unitBy.get("kcal")?.id === "u1");
 }
 
 console.log(`\n${"=".repeat(52)}\n  CATALOG IMPORT HARNESS: ${pass} PASS / ${fail} FAIL`);
