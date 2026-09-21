@@ -74,23 +74,6 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function safeFileName(fileName: string) {
-  return fileName
-    .replaceAll("ı", "i")
-    .replaceAll("İ", "I")
-    .replaceAll("ğ", "g")
-    .replaceAll("Ğ", "G")
-    .replaceAll("ü", "u")
-    .replaceAll("Ü", "U")
-    .replaceAll("ş", "s")
-    .replaceAll("Ş", "S")
-    .replaceAll("ö", "o")
-    .replaceAll("Ö", "O")
-    .replaceAll("ç", "c")
-    .replaceAll("Ç", "C")
-    .replace(/[^a-zA-Z0-9._-]/g, "-");
-}
-
 function isFormEmpty(form: StoneFormState, selectedFilesCount = 0) {
   return (
     selectedFilesCount === 0 &&
@@ -693,7 +676,31 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       return;
     }
 
-    setPhotos((json.photos || []) as StonePhoto[]);
+    const loaded = (json.photos || []) as StonePhoto[];
+
+    // DYA-07: görsel okuma artık kalıcı public URL DEĞİL — kısa ömürlü signed URL.
+    // Sunucu, danışanın client_stone_photos metadata'sından imzalar; image_url alanı
+    // signed URL ile DOLDURULUR (render katmanı değişmez, yalnız veri kaynağı değişir).
+    let signedById: Record<string, string> = {};
+    try {
+      const sres = await fetch(`/api/clients/${clientId}/stone-photos/signed-urls`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const sjson = (await sres.json().catch(() => ({}))) as { ok?: boolean; byId?: Record<string, string> };
+      if (sres.ok && sjson.ok && sjson.byId) signedById = sjson.byId;
+    } catch {
+      /* signed URL alınamazsa görseller boş görünür; kayıt/metadata korunur */
+    }
+
+    setPhotos(
+      loaded.map((p) => (signedById[p.id] ? { ...p, image_url: signedById[p.id] } : p)),
+    );
     setPhotosLoading(false);
   }
 
@@ -718,18 +725,45 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }, [selectedPreviews]);
 
   async function uploadFilesForStone(stoneId: string, files: File[]) {
+    // DYA-07: SUNUCU-YETKİLİ signed upload. Tarayıcı stone-photos üzerinde anon
+    // .upload()/.getPublicUrl() KULLANMAZ; obje yolu SUNUCUDA üretilir. Akış:
+    //   1) prepare → { path, token }  (ownership + MIME + boyut sunucuda doğrulanır)
+    //   2) uploadToSignedUrl(path, token, file)
+    //   3) POST /stone-photos → obje varlığı sunucuda doğrulanır + DB satırı yazılır
     for (const file of files) {
-      const cleanName = safeFileName(file.name);
-      const filePath = `${tenantId}/${clientId}/${stoneId}/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}-${cleanName}`;
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const authHeaders = {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      };
 
+      // 1) PREPARE — signed upload capability (path SUNUCUDAN).
+      const prepRes = await fetch(`/api/clients/${clientId}/stone-photos/prepare`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ stoneId, mimeType: file.type, size: file.size }),
+      });
+      const prepJson = (await prepRes.json().catch(() => ({}))) as {
+        ok?: boolean; error?: string; demo?: boolean; path?: string; token?: string;
+      };
+
+      if (prepJson.demo) continue; // demo hesap: storage mutation yok
+      if (!prepRes.ok || !prepJson.ok || !prepJson.path || !prepJson.token) {
+        console.error("Foto yükleme hazırlanamadı:", prepJson.error);
+        showToast({
+          title: t("toast.failTitle"),
+          message: t("toast.uploadFailed") + ": " + (prepJson.error ?? ""),
+          type: "error",
+        });
+        continue;
+      }
+
+      // 2) UPLOAD — tarayıcı signed token ile yükler (anon ALL policy'ye BAĞLI DEĞİL).
       const { error: uploadError } = await supabase.storage
         .from(STONE_PHOTO_BUCKET)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+        .uploadToSignedUrl(prepJson.path, prepJson.token, file);
 
       if (uploadError) {
         console.error("Foto yüklenemedi:", uploadError);
@@ -741,23 +775,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         continue;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from(STONE_PHOTO_BUCKET)
-        .getPublicUrl(filePath);
-
-      const userId = readYasamUser()?.id;
-      const sessionToken = readSessionToken();
+      // 3) FINALIZE + DB kaydı — sunucu obje varlığını + path ownership'i doğrular.
       const insertRes = await fetch(`/api/clients/${clientId}/stone-photos`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId ?? "",
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           stone_id: stoneId,
-          image_url: publicUrlData.publicUrl,
-          file_path: filePath,
+          file_path: prepJson.path,
         }),
       });
       const insertJson = (await insertRes.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -769,8 +793,6 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           message: t("toast.photoInsertFailed") + ": " + (insertJson.error ?? ""),
           type: "error",
         });
-
-        await supabase.storage.from(STONE_PHOTO_BUCKET).remove([filePath]);
       }
     }
   }
@@ -937,20 +959,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     setErrorMessage("");
 
-    const stonePhotos = photosByStoneId[id] || [];
-
-    if (stonePhotos.length > 0) {
-      const paths = stonePhotos.map((photo) => photo.file_path);
-
-      const { error: storageError } = await supabase.storage
-        .from(STONE_PHOTO_BUCKET)
-        .remove(paths);
-
-      if (storageError) {
-        console.error("Taş fotoğrafları storage üzerinden silinemedi:", storageError);
-      }
-    }
-
+    // DYA-07: taş fotoğrafı storage temizliği SUNUCUDA yapılır (stones DELETE →
+    // deleteStonePhotos, service_role + path-ownership guard). Tarayıcı artık anon
+    // .remove() ÇAĞIRMAZ (private-ready + cross-tenant silme engeli).
     const delToken = readSessionToken();
     const delRes = await fetch(`/api/clients/${clientId}/stones?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
@@ -1011,14 +1022,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setDeletingPhotoId(photo.id);
     setErrorMessage("");
 
-    const { error: storageError } = await supabase.storage
-      .from(STONE_PHOTO_BUCKET)
-      .remove([photo.file_path]);
-
-    if (storageError) {
-      console.error("Foto storage üzerinden silinemedi:", storageError);
-    }
-
+    // DYA-07: storage temizliği SUNUCUDA (stone-photos DELETE → service_role +
+    // path-ownership guard). Tarayıcı anon .remove() ÇAĞIRMAZ.
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
     const res = await fetch(`/api/clients/${clientId}/stone-photos`, {

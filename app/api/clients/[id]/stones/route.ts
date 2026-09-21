@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
 
 export const runtime = "nodejs";
 
@@ -45,9 +46,13 @@ async function deleteStonePhotos(
   const { data: rows, error: selError } = await sel;
   if (selError) return { error: selError.message };
 
-  const paths = (rows ?? [])
-    .map((r) => (r as { file_path?: unknown }).file_path)
-    .filter((p): p is string => typeof p === "string" && p.length > 0);
+  // DYA-07: YALNIZ bu tenant+client'a ait path'ler service_role ile silinebilir.
+  // Yabancı-tenant / traversal / bozuk path'ler elenir → cross-tenant obje ASLA silinmez.
+  const paths = filterOwnedStonePhotoPaths(
+    (rows ?? []).map((r) => (r as { file_path?: unknown }).file_path),
+    tenantId,
+    clientId,
+  );
   if (paths.length > 0) {
     const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
     // Storage hatası veri bütünlüğünü bozmaz (DB satırı yine silinir) — sadece loglanır.
