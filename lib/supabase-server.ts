@@ -32,7 +32,7 @@ export function getServerDb() {
  * password ve password_hash hiçbir zaman client'a dönmez.
  */
 export const USERS_SAFE_SELECT =
-  "id, full_name, email, role, active, approval_status, module_permissions, " +
+  "id, full_name, email, role, active, approval_status, approved_at, module_permissions, " +
   "package_type, membership_status, subscription_status, trial_started_at, " +
   "trial_ends_at, membership_started_at, membership_ends_at, plan, " +
   "admin_level, tenant_id, created_at, " +

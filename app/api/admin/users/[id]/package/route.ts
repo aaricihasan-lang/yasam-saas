@@ -7,8 +7,6 @@ import {
   type PackagePlanUi,
 } from "@/lib/auth/membership";
 import { rowHasMembershipColumns } from "@/lib/admin/userManagement";
-import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
-import { gradeExpertPremiumWithYasamHafizasi } from "@/lib/yasam-hafizasi/expertPremiumGrant";
 
 export const runtime = "nodejs";
 
@@ -18,7 +16,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { adminId, db } = guard;
 
   const { id } = await ctx.params;
   if (!id) {
@@ -55,19 +53,18 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const rawPayload = buildMembershipUpdatePayload(packagePlan);
   const membershipPayload = filterMembershipPayloadForRow(rawPayload, row);
 
-  // PREMIUM: membership geçişi + modül izinleri + active/approved + YH izni + YH flags TEK
-  // ATOMİK DB transaction'ında (yh_grade_expert_premium RPC). YH/flags yazımı başarısız olursa
-  // PREMIUM GEÇİŞİ DE COMMIT EDİLMEZ → "premium ama YH kapalı" PARTIAL state İMKÂNSIZ. İki işlem
-  // transaction dışında ardışık kalmaz. FAIL-CLOSED: RPC hatası → 500 (retry idempotent). Ineligible
-  // (demo/non-expert) → RPC premium'u uygular, YH'yi atlar (fail-closed; hata değil).
+  // PREMIUM: AŞAMA 1 atomik onay/premium sözleşmesiyle TUTARLI olması için premium ATAMA da
+  // admin_approve_expert_premium RPC'sinden geçer. Böylece premium/YH geçişi + ZORUNLU audit
+  // (user_approved) + approved_at koru + module_permissions koru (NULL) + hedef satır FOR UPDATE
+  // TEK transaction'da olur. Bu, eski "audit'siz yh_grade doğrudan çağrısı" boşluğunu kapatır
+  // (status→approve ile birebir aynı yol). FAIL-CLOSED: RPC hatası → 500 (retry idempotent).
   if (packagePlan === "premium") {
-    const graded = await gradeExpertPremiumWithYasamHafizasi(
-      db,
-      id,
-      membershipPayload,
-      buildPremiumModulePermissionsPayload(),
-    );
-    if (!graded.ok) {
+    const { error } = await db.rpc("admin_approve_expert_premium", {
+      p_user_id: id,
+      p_membership: membershipPayload,
+      p_actor_admin_id: adminId,
+    });
+    if (error) {
       return NextResponse.json(
         { error: "Premium/Yaşam Hafızası erişimi verilemedi (tekrar deneyin)." },
         { status: 500 },

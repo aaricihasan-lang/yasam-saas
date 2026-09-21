@@ -35,6 +35,7 @@ import {
   adminPermissionsToPayload,
   DEFAULT_LICENSE_SETTINGS,
   formatCreatedAt,
+  formatDateTimeTr,
   isUserPremiumPackage,
   LICENSE_PRESETS,
   LICENSE_TYPE_OPTIONS,
@@ -43,7 +44,6 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_SELECT_OPTIONS,
   paymentSnapshotToEditDraft,
-  rowHasMembershipColumns,
   rowHasPaymentColumns,
   SECURITY_MODE_OPTIONS,
   type AdminModulePermissions,
@@ -62,6 +62,7 @@ import {
   readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { deriveBaseExpertAccess, approverForPreservedDate } from "@/lib/admin/membershipActions";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -81,7 +82,7 @@ const actionBtn =
   "inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50";
 
 const OWNER_FALLBACK_EMAIL = "admin@yasamsistemi.com";
-const DELETE_CONFIRM_PHRASE = "SİLMEYİ ONAYLIYORUM";
+const DELETE_CONFIRM_PHRASE = "PASİFE AL VE ARŞİVLE";
 /** Tüm cihazlardan çıkış ikinci onayı — tam metin (Türkçe karakter korunur). */
 const LOGOUT_ALL_PHRASE = "ÇIKIŞ YAPTIR";
 
@@ -263,6 +264,24 @@ type EditForm = {
   modulePermissions: AdminModulePermissions;
 };
 
+/** /api/admin/users/[id]/audit satırı (yeniden en yeni; metadata-only). */
+type AuditRow = {
+  id: string;
+  action: string;
+  actorAdminId: string | null;
+  actorName: string | null;
+  actorIsMainAdmin: boolean;
+  createdAt: string | null;
+};
+
+/** İlk (en eski) user_approved kaydı — korunan approved_at ile eşleşen onaylayan için. */
+type FirstApproval = {
+  actorAdminId: string | null;
+  actorName: string | null;
+  actorIsMainAdmin: boolean;
+  createdAt: string | null;
+};
+
 function RoleBadge({ role }: { role: ManagedUserRole }) {
   const isAdmin = role === "admin";
   return (
@@ -339,7 +358,7 @@ function ModulePermissionSwitches({
     <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
       <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
       <p className="mt-1 text-xs font-medium text-slate-600">
-        Premium kullanıcılar tüm uzman modüllerine otomatik erişir. Özel modül izinleri ayrıca yönetilebilir.
+        Modül erişimi yalnızca burada seçili izinlere göre verilir (Premium statüsü modülleri otomatik açmaz). Erişim server tarafında zorlanır.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {ADMIN_MODULE_UI_KEYS.map((key) => {
@@ -454,7 +473,6 @@ export default function AdminUserDetailPage() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [savingPackage, setSavingPackage] = useState(false);
   const [savingModules, setSavingModules] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -470,16 +488,13 @@ export default function AdminUserDetailPage() {
 
   const [canPersistModulePermissions, setCanPersistModulePermissions] =
     useState(true);
-  const [canPersistMembership, setCanPersistMembership] = useState(true);
-  const [membershipSampleRow, setMembershipSampleRow] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
   const [paymentDraft, setPaymentDraft] = useState<PaymentEditDraft | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [canPersistPayment, setCanPersistPayment] = useState(true);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
+  const [auditFirstApproval, setAuditFirstApproval] = useState<FirstApproval | null>(null);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState(false);
@@ -633,9 +648,7 @@ export default function AdminUserDetailPage() {
     };
 
     const row = json.user;
-    setMembershipSampleRow(row);
     setCanPersistModulePermissions("module_permissions" in row);
-    setCanPersistMembership(rowHasMembershipColumns(row));
     setCanPersistPayment(rowHasPaymentColumns(row));
 
     const mapped = mapDbUser(row);
@@ -655,7 +668,28 @@ export default function AdminUserDetailPage() {
     setActSessOffset(0);
     // Hafif özet: panel kapalıyken badge göstermek için
     void loadPanelSummaries(mapped.id, adminId);
+    // Onay/pasife-alma geçmişi (onaylayan + tarih türetimi için)
+    void loadAudit(mapped.id, adminId);
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadAudit(uid: string, adminId: string) {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/audit`, {
+        headers: adminHeaders(adminId),
+      });
+      if (!res.ok) {
+        setAuditRows([]);
+        setAuditFirstApproval(null);
+        return;
+      }
+      const j = (await res.json()) as { rows?: AuditRow[]; firstApproval?: FirstApproval | null };
+      setAuditRows(j.rows ?? []);
+      setAuditFirstApproval(j.firstApproval ?? null);
+    } catch {
+      setAuditRows([]);
+      setAuditFirstApproval(null);
+    }
+  }
 
   async function loadPanelSummaries(uid: string, adminId: string) {
     const [secRes, actRes] = await Promise.allSettled([
@@ -742,12 +776,16 @@ export default function AdminUserDetailPage() {
     setDeleteSubmitting(false);
 
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Silme başarısız.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
       return;
     }
 
     closeDeleteModals();
-    showToast({ title: "Başarılı", message: "Kullanıcı pasife alındı.", type: "success" });
+    showToast({
+      title: "Başarılı",
+      message: "Uzman pasife alınıp arşivlendi. Arşiv sekmesinden yeniden aktifleştirilebilir.",
+      type: "success",
+    });
     router.push("/admin/users");
   }
 
@@ -883,7 +921,11 @@ export default function AdminUserDetailPage() {
 
   async function approveUser() {
     if (await postStatus("approve")) {
-      showToast({ title: "Başarılı", message: "Kullanıcı onaylandı.", type: "success" });
+      showToast({
+        title: "Başarılı",
+        message: "Uzman onaylandı ve Premium yapıldı. Mevcut modül izinleri korundu.",
+        type: "success",
+      });
     }
   }
 
@@ -985,33 +1027,6 @@ export default function AdminUserDetailPage() {
       type: "success",
     });
     if (activeSessionsLoaded) await loadActiveSessions(user.id, currentAdminId);
-  }
-
-  async function savePackageMembership() {
-    if (!user) return;
-    if (!canPersistMembership) {
-      showToast({ title: "Kayıt yapılamadı", message: "Veritabanında paket kolonları bulunamadı.", type: "error" });
-      return;
-    }
-
-    setSavingPackage(true);
-    // Tek üyelik modeli: her zaman "premium". Route atomik olarak
-    // package_type=premium + active=true + approval_status=approved + approved_at yazar.
-    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/package`, {
-      method: "POST",
-      headers: adminHeaders(currentAdminId, true),
-      body: JSON.stringify({ packagePlan: "premium" }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    setSavingPackage(false);
-
-    if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Paket güncellenemedi.", type: "error" });
-      return;
-    }
-
-    showToast({ title: "Başarılı", message: "Kullanıcı Premium olarak kaydedildi (aktif + onaylı).", type: "success" });
-    await loadUser(currentAdminId);
   }
 
   async function savePayment() {
@@ -1371,6 +1386,116 @@ export default function AdminUserDetailPage() {
                   </dd>
                 </div>
               </dl>
+
+              {/* AŞAMA 1 — Onay & Gerçek Erişim (kalıcı: veriden türer, sayfa yenilense de kalır) */}
+              <div className="mt-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/40 p-4">
+                <p className="text-sm font-black text-indigo-950">Onay &amp; Erişim Durumu</p>
+                {(() => {
+                  // Onaylayan: tarih (approvedAt) ile AYNI gerçek onay işleminden türer.
+                  // Eşleşme yoksa (ör. ilk onay kaydı yok/erişilemez) yanlış isim yerine boş → fallback.
+                  const approverName = approverForPreservedDate(
+                    auditFirstApproval,
+                    user.approvedAt ?? null,
+                  );
+                  const deactivation = auditRows.find(
+                    (r) => r.action === "user_deactivated" || r.action === "user_archived",
+                  );
+                  const hasAccess = deriveBaseExpertAccess({
+                    role: user.role,
+                    active: user.active,
+                    approvalStatus: user.approvalStatus,
+                    packageType: user.membership.packageType,
+                  });
+                  const openModuleLabels = ADMIN_MODULE_UI_KEYS.filter(
+                    (k) => user.modulePermissions[k],
+                  ).map((k) => ADMIN_MODULE_UI_LABELS[k]);
+                  return (
+                    <>
+                      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <dt className="text-xs font-black uppercase text-slate-500">Onay tarihi</dt>
+                          <dd className="mt-1 font-bold text-slate-900">
+                            {user.approvedAt ? formatDateTimeTr(user.approvedAt) : "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-black uppercase text-slate-500">
+                            Onaylayan yönetici
+                          </dt>
+                          <dd className="mt-1 font-bold text-slate-900">
+                            {approverName
+                              ? approverName
+                              : "İlk onay kaydına ulaşılamadı — onaylayan bilgisi mevcut değil"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-black uppercase text-slate-500">
+                            Premium durumu
+                          </dt>
+                          <dd className="mt-1 font-bold text-slate-900">
+                            {user.membership.packageType === "premium"
+                              ? "Premium"
+                              : user.membershipDisplay.packageLabel}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-black uppercase text-slate-500">
+                            Uzman modüllerine erişim
+                          </dt>
+                          <dd className="mt-1">
+                            <span
+                              className={`inline-block rounded-full px-3 py-1 text-xs font-black ring-1 ${
+                                hasAccess
+                                  ? "bg-emerald-100 text-emerald-900 ring-emerald-200"
+                                  : "bg-rose-100 text-rose-900 ring-rose-200"
+                              }`}
+                            >
+                              {hasAccess ? "VAR" : "YOK"}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {user.role === "expert" ? (
+                        <p className="mt-3 text-xs font-semibold text-slate-600">
+                          Açık modüller:{" "}
+                          <span className="font-bold text-slate-800">
+                            {openModuleLabels.length > 0
+                              ? openModuleLabels.join(", ")
+                              : "Modül izni seçilmemiş"}
+                          </span>
+                        </p>
+                      ) : null}
+
+                      {!user.active ? (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs font-semibold text-amber-900">
+                          <p>
+                            Pasife alınma:{" "}
+                            <span className="font-bold">
+                              {deactivation?.createdAt
+                                ? formatDateTimeTr(deactivation.createdAt)
+                                : "Kayıt bulunamadı"}
+                            </span>
+                          </p>
+                          <p>
+                            İşlemi yapan:{" "}
+                            <span className="font-bold">
+                              {deactivation?.actorName ?? "Kayıt bulunamadı"}
+                            </span>
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <p className="mt-3 text-[11px] font-medium text-slate-500">
+                        Not: Hesap aktifliği (Aktif/Pasif), onay durumu, paket/üyelik ve modül
+                        erişimi birbirinden farklı kavramlardır. “Aktif” tek başına tüm modüllere
+                        erişim anlamına gelmez.
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+
               {user.adminLevel ? (
                 <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
                   Admin yetki seviyesi (salt okunur): {user.adminLevel}
@@ -1665,7 +1790,7 @@ export default function AdminUserDetailPage() {
                 </button>
                 {isSelf() ? (
                   <p className="w-full rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
-                    Kendi admin hesabınızı silemezsiniz.
+                    Kendi admin hesabınızı arşivleyemezsiniz.
                   </p>
                 ) : canDeleteAsOwner ? (
                   <button
@@ -1675,7 +1800,7 @@ export default function AdminUserDetailPage() {
                     className={`${actionBtn} border-rose-200 bg-rose-50 text-rose-950 hover:bg-rose-100`}
                   >
                     <Trash2 className="h-4 w-4" />
-                    Sil
+                    Pasife Al ve Arşivle
                   </button>
                 ) : (
                   <div className="flex w-full flex-col gap-1 sm:w-auto">
@@ -1685,10 +1810,10 @@ export default function AdminUserDetailPage() {
                       className={`${actionBtn} border-rose-200/60 bg-rose-50/50 text-rose-400`}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Sil
+                      Pasife Al ve Arşivle
                     </button>
                     <p className="text-xs font-bold text-slate-500">
-                      Silme yetkisi yalnızca ana admine aittir.
+                      Arşivleme yetkisi yalnızca ana admine aittir.
                     </p>
                   </div>
                 )}
@@ -1861,26 +1986,13 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="max-w-md text-xs font-bold text-amber-900/85">
-                    “Premium Olarak Kaydet” kullanıcıyı Premium · Aktif · Onaylı yapar.
-                    Erişimi kapatmak için “Pasif Yap” işlemini kullanın.
+                <div className="mt-5 rounded-xl border border-amber-200/80 bg-amber-50/70 px-4 py-3">
+                  <p className="text-xs font-bold text-amber-900/85">
+                    Premium statüsü, uzman <b>onaylandığında</b> tek işlemle otomatik verilir
+                    (yukarıdaki “Onayla”). Premium, tüm modülleri otomatik açmaz — modül erişimi
+                    aşağıdaki <b>Modül İzinleri</b>nden yönetilir. Erişimi kapatmak için
+                    “Pasif Yap” işlemini kullanın.
                   </p>
-                  <button
-                    type="button"
-                    onClick={savePackageMembership}
-                    disabled={savingPackage || !canPersistMembership}
-                    className={`${saveBtnClass} sm:shrink-0 sm:px-10`}
-                  >
-                    {savingPackage ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                        Kaydediliyor…
-                      </span>
-                    ) : (
-                      "Premium Olarak Kaydet"
-                    )}
-                  </button>
                 </div>
               </section>
             ) : null}
@@ -1891,8 +2003,8 @@ export default function AdminUserDetailPage() {
                 <div className="mt-4">
                   {isUserPremiumPackage(user) ? (
                     <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
-                      Premium: modüller varsayılan açık verildi. Kişiye özel olarak
-                      kapatıp açabilirsiniz — erişim server tarafında zorlanır.
+                      Premium ile modül erişimi iki ayrı kavramdır: modüller otomatik açılmaz.
+                      Erişim yalnızca aşağıda seçili izinlere göre server tarafında zorlanır.
                     </p>
                   ) : null}
                   <ModulePermissionSwitches
@@ -2788,11 +2900,13 @@ export default function AdminUserDetailPage() {
               id="delete-confirm-title"
               className="pr-8 text-xl font-black text-rose-950 sm:text-2xl"
             >
-              Kullanıcıyı silmek üzeresiniz
+              Uzmanı pasife al ve arşivle
             </h2>
             <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
-              Bu işlem geri alınamaz. Kullanıcı ve ona bağlı veriler kalıcı olarak
-              silinebilir. Devam etmek istediğinizden emin misiniz?
+              Bu işlem <b>kalıcı silme değildir</b>. Uzman pasife alınır ve Arşiv
+              sekmesinde görünür; hesap, dosyalar ve modül izinleri korunur ve daha sonra
+              yeniden aktifleştirilebilir. (Kalıcı silme ayrı bir işlemdir ve bu ekranda
+              yapılmaz.) Devam etmek istiyor musunuz?
             </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -2842,7 +2956,7 @@ export default function AdminUserDetailPage() {
               Admin doğrulaması gerekli
             </h2>
             <p className="mt-3 text-sm font-medium text-slate-700">
-              Silme işlemini tamamlamak için ana admin şifresini girin.
+              Pasife alma ve arşivleme işlemini tamamlamak için ana admin şifresini girin.
             </p>
             <div className="mt-6 space-y-4">
               <label className="block">
@@ -2898,10 +3012,10 @@ export default function AdminUserDetailPage() {
                 {deleteSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    Siliniyor…
+                    İşleniyor…
                   </>
                 ) : (
-                  "Kullanıcıyı sil"
+                  "Pasife Al ve Arşivle"
                 )}
               </button>
             </div>
