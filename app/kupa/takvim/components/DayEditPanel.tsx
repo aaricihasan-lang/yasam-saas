@@ -107,7 +107,9 @@ export function DayEditPanel({
         aria-modal="true"
         aria-label={isSelected ? "Günü Düzenle" : "Gün Ekle"}
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-t-2xl border border-amber-100 bg-white p-4 shadow-xl sm:max-w-md sm:rounded-2xl sm:p-5"
+        /* max-h dvh: sanal klavye açılınca panel küçülür ve içerik kaydırılır → alt aksiyonlar
+           kaybolmaz. Alt güvenli-alan payı (home indicator / klavye). */
+        className="flex max-h-[90dvh] w-full flex-col overflow-y-auto rounded-t-2xl border border-amber-100 bg-white p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] shadow-xl sm:max-w-md sm:rounded-2xl sm:p-5 sm:pb-[calc(1.25rem_+_env(safe-area-inset-bottom))]"
       >
         {/* Başlık + tarih bilgisi */}
         <div className="mb-3 flex items-start justify-between gap-3">

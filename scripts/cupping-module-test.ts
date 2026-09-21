@@ -1452,7 +1452,7 @@ function run(): void {
       "faz5-a3: Hicrî ay adı KISALTILMAZ (görünür tam ad)");
     ok(/aria-pressed/.test(mcSrc) && /aria-label/.test(mcSrc),
       "faz5-a3: gün butonları erişilebilir (aria-pressed + aria-label)");
-    ok(/grid-cols-7/.test(mcSrc) && /sm:/.test(mcSrc),
+    ok(/grid-cols-7/.test(mcSrc) && /(lg:|md:|min-\[360px\]:)/.test(mcSrc),
       "faz5-a3: 7-kolon takvim + responsive sınıflar (mobil)");
 
     // ── PLAN CREATION: SIFIR gün (client + server) ───────────────────────────────
@@ -1840,8 +1840,8 @@ function run(): void {
     // Tık-ile-toggle KALDIRILDI → sıradan tık asla deselect etmez; panel açılır.
     ok(!/toggleDay/.test(wsSrc) && !/onToggle/.test(wsSrc),
       "faz5/5-ws[TIK]: tık-ile-toggle KALDIRILDI (sıradan tık seçimi kaldırmaz)");
-    ok(/onClick=\{\(\) => onEditDay\(ymd\)\}/.test(mcSrc) && !/onToggle/.test(mcSrc),
-      "faz5/5-mc[TIK]: gün tık PANELİ açar (onEditDay); toggle YOK (yanlış deselect engellenir)");
+    ok(/onClick=\{\(\) => onEditDay\(d\.ymd\)\}/.test(mcSrc) && !/onToggle/.test(mcSrc),
+      "faz5/5-mc[TIK]: gün tık/kart PANELİ açar (onEditDay); toggle YOK (yanlış deselect engellenir)");
     ok(/isSelected=\{editYmd \? draft\.has\(editYmd\) : false\}/.test(wsSrc),
       "faz5/5-ws: panele isSelected geçilir (boş gün EKLE vs seçili gün DÜZENLE)");
     // BULK: renk zorunlu + yalnız YENİ günlere uygulanır (mevcut stili ezmez).
@@ -1884,8 +1884,10 @@ function run(): void {
       "faz5/5-panel: 'Gün Seçimini Kaldır' YALNIZ seçili günde (isSelected koşullu; yeni EKLE'de yok)");
     ok(/role="dialog"/.test(panelSrc) && /aria-modal="true"/.test(panelSrc) && /Escape/.test(panelSrc),
       "faz5/5-panel: erişilebilir modal (dialog + aria-modal + Esc)");
-    ok(/items-end/.test(panelSrc) && /sm:items-center/.test(panelSrc) && /max-h-\[90vh\]/.test(panelSrc),
-      "faz5/5-panel: mobilde alt-panel / masaüstünde merkezî (ekranı taşırmaz)");
+    ok(/items-end/.test(panelSrc) && /sm:items-center/.test(panelSrc) && /max-h-\[90dvh\]/.test(panelSrc),
+      "faz5/5-panel: mobilde alt-panel / masaüstünde merkezî; dvh + güvenli-alan (klavye alt aksiyonu gizlemez)");
+    ok(/env\(safe-area-inset-bottom\)/.test(panelSrc),
+      "faz5/5-panel[MOBİL]: alt güvenli-alan payı (home indicator/klavye)");
     ok(/kupaBtnSuccess/.test(panelSrc), "faz5/5-panel: birincil aksiyon yeşil (kupaBtnSuccess)");
     // KAYIT NETLİĞİ: panel yalnız taslağı günceller → buton 'Taslağa Uygula' + açık yardımcı metin.
     ok(/Taslağa Uygula/.test(panelSrc),
@@ -1899,6 +1901,31 @@ function run(): void {
     ok(!/dangerouslySetInnerHTML/.test(c5Blob), "faz5/5[8]: kullanıcı metni GÜVENLİ düz metin (dangerouslySetInnerHTML YOK)");
     // Kontrollü kırpma (uzun açıklama takvimi bozmaz).
     ok(/line-clamp-2/.test(mcSrc), "faz5/5-mc: uzun kısa açıklama hücrede kontrollü kırpılır (line-clamp)");
+
+    // ── MOBİL RESPONSIVE (AŞAMA 5) — masaüstü 7-sütun KORUNUR; <lg gün kartları (aynı veri) ──
+    ok(/hidden lg:block/.test(mcSrc) && /grid-cols-7/.test(mcSrc),
+      "faz5/5-mobil: MASAÜSTÜ 7 sütunlu ızgara KORUNUR (hidden lg:block + grid-cols-7)");
+    ok(/lg:hidden/.test(mcSrc) && /min-\[360px\]:grid-cols-2/.test(mcSrc) && /md:grid-cols-3/.test(mcSrc),
+      "faz5/5-mobil: <lg kronolojik GÜN KARTLARI (320→1, 360–430→2, tablet→3 sütun)");
+    ok(/const days: DerivedDay\[\]/.test(mcSrc) && (mcSrc.match(/days\.map\(/g) ?? []).length >= 2,
+      "faz5/5-mobil: kart + ızgara TEK türetilmiş veri kaynağını paylaşır (days.map iki sunumda; ikinci motor YOK)");
+    ok(/weekdayLong/.test(mcSrc),
+      "faz5/5-mobil: gün kartı haftanın gününü (tam) gösterir");
+    ok(!/overflow-wrap:anywhere/.test(mcSrc) && /break-words/.test(mcSrc),
+      "faz5/5-mobil: TAM Hicrî ad kelime sınırında sarar; HARF HARF bölünmez (anywhere YOK)");
+    ok(!/overflow-x-hidden/.test(mcSrc),
+      "faz5/5-mobil: yatay taşma overflow-x-hidden ile MASKELENMEZ (gerçek okunur düzen)");
+    // Mobil SABİT kaydet barı + sayfa alt boşluğu (uzun kart listesinde her zaman erişilir).
+    ok(/fixed inset-x-0 bottom-0/.test(wsSrc) && /lg:sticky/.test(wsSrc),
+      "faz5/5-mobil[KAYDET]: kaydet barı mobilde SABİT (lg'de sticky korunur) → her zaman erişilir");
+    ok(/pb-28 lg:pb-0/.test(wsSrc) && /env\(safe-area-inset-bottom\)/.test(wsSrc),
+      "faz5/5-mobil[KAYDET]: sabit bar için sayfa alt boşluğu + güvenli-alan payı");
+    // Yıllık Özet mobilde tek sütun (mini-ay ezilmez); AYNI plan.
+    ok(/grid-cols-1/.test(annualSrc) && /sm:grid-cols-2/.test(annualSrc),
+      "faz5/5-mobil[YILLIK]: mini-ay ızgarası mobilde tek sütun (ezilmez); aynı plan/taslak");
+    // Bulk: mobilde Hicrî gün seçici tap hedefleri (az sütun).
+    ok(/grid-cols-6 gap-1 min-\[400px\]:grid-cols-8 sm:grid-cols-10/.test(bulkUiSrc),
+      "faz5/5-mobil[BULK]: Hicrî gün seçici mobilde daha az sütun (rahat dokunma)");
     // [18] Yıllık Özet aynı renk eşlemesini kullanır.
     ok(/CUPPING_DAY_COLORS/.test(annualSrc) && /styleOf/.test(annualSrc),
       "faz5/5-annual[18]: Yıllık Özet renkli günleri AYNI eşleme + styleOf ile gösterir");

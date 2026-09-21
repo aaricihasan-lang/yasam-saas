@@ -406,7 +406,8 @@ export function CalendarWorkspace() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // Mobilde alt sabit kaydet barı içeriği örtmesin diye alt boşluk (lg'de gerek yok).
+    <div className="flex flex-col gap-4 pb-28 lg:pb-0">
       {/* Header açıklama — takvim UZMAN-SAHİPLİDİR (hazır gün YOK) */}
       <div className={`${kupaCard}`}>
         <p className="text-sm leading-relaxed text-slate-600">
@@ -440,8 +441,9 @@ export function CalendarWorkspace() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CalendarViewToggle view={view} onChange={setView} />
             </div>
-            {/* Sade kaydet/durum barı (mobilde sticky; iki görünümden de erişilir). */}
-            <div className="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            {/* Kaydet/durum barı — MOBİL/TABLET: ekran altına SABİT (uzun kart listesinde her zaman
+                erişilir; güvenli-alan payı). MASAÜSTÜ (lg): mevcut sticky davranış korunur. */}
+            <div className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(120,80,40,0.10)] backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:sticky lg:inset-x-auto lg:bottom-2 lg:z-10 lg:rounded-xl lg:border lg:pb-3 lg:shadow-sm">
               <span className="flex flex-col gap-0.5 text-sm" aria-live="polite">
                 {dirty ? (
                   <>

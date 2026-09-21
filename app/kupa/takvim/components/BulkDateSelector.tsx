@@ -106,7 +106,7 @@ export function BulkDateSelector({
           {/* A) Hicrî gün numaraları (1–30) — ön-seçili DEĞİL */}
           <div>
             <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Hicrî Gün Numarası</p>
-            <div className="grid grid-cols-10 gap-1">
+            <div className="grid grid-cols-6 gap-1 min-[400px]:grid-cols-8 sm:grid-cols-10">
               {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
