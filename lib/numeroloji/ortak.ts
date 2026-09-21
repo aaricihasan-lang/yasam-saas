@@ -39,10 +39,20 @@ export const CHAKRA_LETTER_MAP: Record<string, number> = {
 
 export const VOWELS = new Set(["A", "E", "I", "İ", "O", "Ö", "U", "Ü"]);
 
+// CANONICAL harf-değer eşlemesi için Türkçe büyük harf. İ (U+0130) → I (U+0049) İNDİRGEMESİ
+// BİLİNÇLİDİR: numeroloji harf-değer tablosunda İ ile I aynı değeri alır (kaynak/Python .upper()
+// davranışı). HESAPLAMA yolunda kullanılır; DEĞİŞTİRİLEMEZ (canonical).
 export function turkishUpper(text: string): string {
   return (text || "")
     .toLocaleUpperCase("tr-TR")
-    .replace(/İ/g, "I"); // İ (U+0130) → I (U+0049): Python .upper() davranışıyla uyumlu
+    .replace(/İ/g, "I");
+}
+
+// GÖSTERİM (display) için Türkçe büyük harf. turkishUpper()'dan tek farkı: İ→I İNDİRGEMESİ YOK.
+// Kullanıcının orijinal Türkçe karakteri ekranda korunur (i→İ, ı→I, İ→İ, I→I; ç/ğ/ö/ş/ü doğru).
+// CANONICAL DEĞİL — yalnız kullanıcıya gösterilen harfler için. Hesaplama turkishUpper kullanır.
+export function turkishUpperDisplay(text: string): string {
+  return (text || "").toLocaleUpperCase("tr-TR");
 }
 
 export function sumDigits(n: number): number {

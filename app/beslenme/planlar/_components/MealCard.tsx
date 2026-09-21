@@ -260,7 +260,7 @@ function ItemRow({
     : [
         { label: "Miktar / Porsiyon", icon: <PenLine className="h-4 w-4" />, onClick: () => setAmountOpen(true) },
         { label: "Besini Değiştir", icon: <Repeat className="h-4 w-4" />, onClick: () => setReplaceOpen(true) },
-        { label: "Alternatif Bul", icon: <Sparkles className="h-4 w-4" />, onClick: () => setAltOpen(true) },
+        { label: "Yaklaşık Kaloriyle Değiştir", icon: <Sparkles className="h-4 w-4" />, onClick: () => setAltOpen(true) },
         { label: "Çoğalt", icon: <Copy className="h-4 w-4" />, onClick: () => void onDuplicate() },
         { label: "Sil", icon: <Trash2 className="h-4 w-4" />, onClick: () => void onDelete(), danger: true },
       ];

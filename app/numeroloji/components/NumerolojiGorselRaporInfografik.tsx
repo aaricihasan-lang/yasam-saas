@@ -7,8 +7,15 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { turkishUpper, ELEMENT_ORDER, LETTER_TO_CHAKRA, type HarfYankilanisiSegment } from "@/lib/numeroloji";
+import { turkishUpper, turkishUpperDisplay, ELEMENT_ORDER, LETTER_TO_CHAKRA, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import { nrDisplay, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import {
+  CHRONO_CUTOFF_NOTE,
+  cutoffDegisimYearOnly,
+  dogumTarihiFromOut,
+  dogumYilindanOut,
+} from "../utils/chronoCutoff";
+import { useCurrentYear } from "../hooks/useCurrentYear";
 
 function mergeRefs<T>(...refs: Array<Ref<T> | undefined | null>) {
   return (node: T | null) => {
@@ -34,76 +41,10 @@ const GORSEL_CAKRA_TR_A4: Record<number, string> = {
   1: "1. Çakra — Kök",
 };
 
-function gorselMeaningfulLines(raw: string | null | undefined, maxLines: number): string[] {
-  const lines = (raw || "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .filter((l) => {
-      if (/^=+$/.test(l)) return false;
-      if (/={2,}/.test(l) && /(YILLARI|HARFLER|ZİRVE|MÜCADELE|DEĞİŞİM|YÖNTEM)/i.test(l)) return false;
-      if (/^={1,3}\s*$/.test(l)) return false;
-      if (/^İsim Soyisim:/i.test(l)) return false;
-      if (/^Doğum Tarihi:/i.test(l)) return false;
-      if (/^Kullanılan harf dizisi/i.test(l)) return false;
-      if (/^Harflerin yaşlara göre/i.test(l)) return false;
-      if (/^Not:/i.test(l)) return false;
-      if (/^Geçerli harf/i.test(l)) return false;
-      if (/^İsimde çakra tablosuna/i.test(l)) return false;
-      if (/^\d+ harf\)/.test(l)) return false;
-      if (/^Doğum tarihinin sadeleşmiş/i.test(l)) return false;
-      if (/^Doğum tarihinin sadeleştirilmiş/i.test(l)) return false;
-      if (/^Notlar:$/i.test(l)) return false;
-      if (/^\d+\. HESAPLAMA/i.test(l)) return false;
-      if (/^Konu için:/i.test(l)) return false;
-      if (/^İlk mücadele konusu/i.test(l)) return false;
-      if (/^Konu sayısı:/i.test(l)) return false;
-      if (/^\s*\d+\s*-\s*\d+\s*=/.test(l)) return false;
-      if (/^\d+\)\s/.test(l)) return false;
-      if (/^\d+\.\s*ZİRVE\s+YILI/i.test(l)) return false;
-      if (/^\d+\.\s*MÜCADELE/i.test(l)) return false;
-      if (/^Notlar:/i.test(l)) return false;
-      if (/^Numerolojide\s+36/i.test(l)) return false;
-      if (/^•\s/.test(l)) return false;
-      if (/^Gün\s*:/i.test(l)) return false;
-      if (/^Ay\s*:/i.test(l)) return false;
-      if (/^Yıl\s*:/i.test(l)) return false;
-      if (/^Etki Dönemi/i.test(l)) return false;
-      if (/^1\)\s*TARİH/i.test(l)) return false;
-      if (/^2\)\s*GÜN/i.test(l)) return false;
-      if (/^PUAN/i.test(l)) return false;
-      if (/^ÇIKTI/i.test(l)) return false;
-      if (/^\*{3,}/.test(l)) return false;
-      if (/^#{1,3}\s/.test(l)) return false;
-      if (/^\[[\d\s|]+\]$/i.test(l)) return false;
-      return true;
-    });
-  return lines.slice(0, maxLines);
-}
-
-/** Görsel rapor: yalnızca doğum yılına göre ilk değişim bloğu (metin motorundan) */
-function gorselDegisimIlkBlok(metni: string | null | undefined): string {
-  const s = metni || "";
-  const i = s.search(/2\)\s*GÜN/i);
-  if (i > 0) return s.slice(0, i);
-  return s;
-}
-
-function gorselDegisimOzetSatirlari(metni: string | null | undefined, maxN: number): string[] {
-  const out: string[] = [];
-  for (const raw of gorselDegisimIlkBlok(metni).split(/\r?\n/)) {
-    const l = raw.trim();
-    const m = l.match(/^(\d+)\.\s*Değişim:\s*(\d+)\s*(?:→|->)\s*Çakra:\s*(\d+)/i);
-    if (m) {
-      out.push(`${m[1]}. değişim · ${m[2]} · ${m[3]}. çakra`);
-      if (out.length >= maxN) break;
-    }
-  }
-  return out;
-}
-
+// TÜRKÇE KARAKTER BÜTÜNLÜĞÜ: gösterilen harfler display-safe (İ korunur). Eşleme ise CANONICAL
+// normalize (turkishUpper) ile yapılır → hem eski snapshot (I) hem yeni segment (İ) doğru eşleşir.
 function gorselNormalizeHarfDizisi(fn: string, ln: string): string[] {
-  return Array.from(turkishUpper(`${fn} ${ln}`.trim())).filter((ch) => /[A-ZÇĞİÖŞÜ]/.test(ch));
+  return Array.from(turkishUpperDisplay(`${fn} ${ln}`.trim())).filter((ch) => /[A-ZÇĞİÖŞÜ]/.test(ch));
 }
 
 type GorselHarfKart = HarfYankilanisiSegment | { letter: string; eksik: true };
@@ -112,10 +53,13 @@ function gorselHarfKartlari(fn: string, ln: string, motorSegs: HarfYankilanisiSe
   const chars = gorselNormalizeHarfDizisi(fn, ln);
   const pool = Array.isArray(motorSegs) ? [...motorSegs] : [];
   return chars.map((ch) => {
-    const i = pool.findIndex((s) => turkishUpper(s.letter) === ch);
+    // Eşleşme canonical-normalize üzerinden (İ↔I aynı sayılır) → snapshot letter'ı ne olursa olsun eşleşir.
+    const i = pool.findIndex((s) => turkishUpper(s.letter) === turkishUpper(ch));
     if (i >= 0) {
       const [s] = pool.splice(i, 1);
-      return s;
+      // Segment'in kendi (display-safe) letter'ını değil, orijinal isimden gelen display char'ı göster
+      // (eski snapshot'ta letter="I" olsa bile ekranda kullanıcının İ'si korunur — orijinal isimden türetilir).
+      return { ...s, letter: ch };
     }
     return { letter: ch, eksik: true as const };
   });
@@ -938,9 +882,20 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 ) {
   const css = GORSEL_TEMA_VARS[temaId];
   const Y = 5;
+  // OWNER YEAR-CUTOFF: görsel raporda da gelecek yıllar/dönemler gizli; devam eden aktif harf
+  // segmenti currentYear'a kırpılır. Canonical hesap DEĞİŞMEZ.
+  const currentYear = useCurrentYear();
+  const chronoBirthYear = dogumYilindanOut(out);
+  const chronoBirthDate = dogumTarihiFromOut(out);
   const hy = out.harflerinYankilanisi;
   const motorSegs = Array.isArray(hy) && hy.length ? hy : undefined;
-  const harfKartlari = gorselHarfKartlari(firstName, lastName, motorSegs);
+  const harfKartlari: GorselHarfKart[] = gorselHarfKartlari(firstName, lastName, motorSegs).flatMap((item): GorselHarfKart[] => {
+    if ("eksik" in item) return [item];
+    const seg = item;
+    // OWNER: başlangıç yılı > currentYear ise gizle; ≤ ise ORİJİNAL (tam) aralıkla göster (kırpma YOK).
+    if (seg.yearStart != null && seg.yearStart > currentYear) return [];
+    return [seg];
+  });
 
   const bileklikT = gorselTasMetinTemiz(tasBileklik);
   const kolyeT = gorselTasMetinTemiz(tasKolye);
@@ -949,25 +904,26 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const tasBolumuAcik = gorselTaslariGoster && tasAny;
   const uzmanGoster = gorselTasMetinTemiz(uzmanAdi);
 
-  const peaks = out.zirveYillari?.peaks ?? [];
-  const zirveGoster: string[] = (
-    peaks.length > 0
-      ? peaks.slice(0, Y).map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`)
-      : gorselMeaningfulLines(out.zirveYillariMetni, Y)
-  ).slice(0, Y);
+  // Zirve/Mücadele yaş-tabanlı: doğum yılı + yaş > currentYear ise gelecekte başlar → gizli.
+  const peaks = (out.zirveYillari?.peaks ?? []).filter(
+    (p) => chronoBirthYear == null || chronoBirthYear + p.age <= currentYear,
+  );
+  const zirveGoster: string[] = peaks
+    .slice(0, Y)
+    .map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`);
 
   const mucObj = out.mucadeleYillari;
-  let mucGoster: string[] = [];
-  if (mucObj) {
-    mucGoster = (mucObj.method1 ?? [])
-      .map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`)
-      .slice(0, Y);
-  }
-  if (mucGoster.length === 0) mucGoster = gorselMeaningfulLines(out.mucadeleYillariMetni, Y);
+  const mucGoster: string[] = (mucObj?.method1 ?? [])
+    .filter((m) => chronoBirthYear == null || chronoBirthYear + m.age <= currentYear)
+    .map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`)
+    .slice(0, Y);
 
-  let degGoster = gorselDegisimOzetSatirlari(out.degisimDonusumMetni, Y);
-  if (!degGoster.length) degGoster = gorselMeaningfulLines(out.degisimDonusumMetni, Y);
-  degGoster = degGoster.slice(0, Y);
+  // Değişim-Dönüşüm: takvim yılı bazlı yapısal cutoff (regex serbest-metin KESME YOK).
+  const degGoster: string[] = chronoBirthDate
+    ? cutoffDegisimYearOnly(chronoBirthDate, currentYear, Y)
+        .map((r) => `${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}–${r.effectEndYearDisplay})`)
+        .slice(0, Y)
+    : [];
 
   const harfBaslikStr = gorselHarfBaslikSpaced(firstName, lastName);
 
@@ -1236,6 +1192,9 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           </section>
         ))}
       </div>
+      <p className="relative z-[2] mt-2 text-center text-sm font-medium opacity-70" style={{ color: "var(--gr-line-text)" }}>
+        {CHRONO_CUTOFF_NOTE}
+      </p>
 
       <section
         className="gorsel-sec-harf relative z-[2] mt-6 min-h-[260px] overflow-visible rounded-2xl border p-7"
@@ -1321,6 +1280,9 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
             );
           })}
         </div>
+        <p className="mt-4 text-center text-sm font-medium opacity-70" style={{ color: "var(--gr-line-text)" }}>
+          {CHRONO_CUTOFF_NOTE}
+        </p>
       </section>
 
       {tasBolumuAcik ? (

@@ -73,7 +73,34 @@ export default function KupaLandingPage() {
         </span>
       </Link>
 
-      {/* ── 2) DESTEK KÜTÜPHANELERİ ─────────────────────────────────────────────── */}
+      {/* ── 2) İKİNCİ ÇALIŞMA ALANI — Hacamat Takvimi (destek kartlarından belirgin) ─ */}
+      <Link
+        href="/kupa/takvim"
+        className="group mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-orange-50 via-white to-amber-50/60 p-4 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_12px_32px_-22px_rgba(180,83,9,0.3)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_20px_44px_-24px_rgba(180,83,9,0.36)] focus-visible:ring-2 focus-visible:ring-amber-400/70 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-6 lg:py-4"
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white/80 text-2xl shadow-sm"
+            aria-hidden
+          >
+            🗓️
+          </span>
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Çalışma Alanı</span>
+            <h2 className="text-xl font-black tracking-tight text-slate-900">Hacamat Takvimi</h2>
+            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-slate-600">
+              Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün,
+              uygulama günlerinizi kendiniz belirleyin.
+            </p>
+          </div>
+        </div>
+        <span className={`${kupaBtnPrimary} shrink-0 self-start lg:self-center`}>
+          Takvimi Aç
+          <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
+        </span>
+      </Link>
+
+      {/* ── 3) DESTEK KÜTÜPHANELERİ ─────────────────────────────────────────────── */}
       <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Destek Kütüphaneleri</h2>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {SUPPORT.map((a) => (

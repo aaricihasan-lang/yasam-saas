@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { serverErrorResponse } from "@/lib/http/apiError";
+import { serverErrorResponse, logServerError } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deleteStoneAndPhotos, STONE_PHOTO_BUCKET } from "@/lib/clients/stonePhotoStorage";
 
 export const runtime = "nodejs";
 
@@ -20,49 +21,6 @@ export const runtime = "nodejs";
 
 const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "client_id"]);
 
-// Taş fotoğraflarının saklandığı storage bucket'ı (StonesTab ile aynı).
-const STONE_PHOTO_BUCKET = "stone-photos";
-
-/**
- * O-6: Bir taş (veya danışanın tüm taşları) silinmeden ÖNCE, o taş(lar)a bağlı
- * client_stone_photos DB satırlarını ve storage dosyalarını temizler. Aksi halde
- * tekil taş silmede yetim fotoğraf kaydı kalıyordu (cascade-delete siliyor, tekil
- * silme silmiyordu). service_role ile çalışır; tenant + client ile sınırlıdır.
- * Foto önce silinir: taş silme başarısız olsa bile yetim foto kalmaz.
- */
-async function deleteStonePhotos(
-  db: SupabaseClient,
-  tenantId: string,
-  clientId: string,
-  stoneId: string | null,
-): Promise<{ error: string | null }> {
-  let sel = db
-    .from("client_stone_photos")
-    .select("file_path")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (stoneId) sel = sel.eq("stone_id", stoneId);
-  const { data: rows, error: selError } = await sel;
-  if (selError) return { error: selError.message };
-
-  const paths = (rows ?? [])
-    .map((r) => (r as { file_path?: unknown }).file_path)
-    .filter((p): p is string => typeof p === "string" && p.length > 0);
-  if (paths.length > 0) {
-    const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
-    // Storage hatası veri bütünlüğünü bozmaz (DB satırı yine silinir) — sadece loglanır.
-    if (storageError) console.error("O-6 storage foto silme:", storageError.message);
-  }
-
-  let del = db
-    .from("client_stone_photos")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (stoneId) del = del.eq("stone_id", stoneId);
-  const { error: delError } = await del;
-  return { error: delError?.message ?? null };
-}
 
 function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -256,23 +214,23 @@ export async function DELETE(
     );
   }
 
-  // O-6: taşı silmeden ÖNCE yalnız o taşa bağlı fotoğrafları (DB satırı + storage)
-  // temizle → tekil silmede yetim client_stone_photos kaydı kalmaz. Foto silme
-  // hatasında dur (taşı silme) ki tutarsızlık oluşmasın.
-  const photoResult = await deleteStonePhotos(db, tenantId, clientId, rowId);
-  if (photoResult.error) {
-    return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE-photos", tenantId, cause: photoResult.error });
+  // PR #262 fix — STONE-FIRST silme (stone_id→client_stones ON DELETE CASCADE YOK):
+  //   1) path'ler toplanır, 2) TAŞ silinir (başarısızsa fotoğraflara dokunulmaz →
+  //   yaşayan taşın fotoğrafı KAYBOLMAZ), 3) foto satırları + referans-güvenli storage
+  //   temizlenir (ortak dosya korunur). Taş silme hatası → 500 (foto bütünlüğü korunur).
+  const result = await deleteStoneAndPhotos(db, {
+    bucket: STONE_PHOTO_BUCKET,
+    tenantId,
+    clientId,
+    stoneId: rowId,
+  });
+  if (result.error) {
+    return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE", tenantId, cause: result.error });
   }
-
-  const { data, error } = await db
-    .from("client_stones")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .eq("id", rowId)
-    .select("id");
-  if (error) {
-    return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE", tenantId, cause: error });
+  // Taş silindi; foto DB satırı temizliği best-effort'tur (yalnız yetim satır/blob riski,
+  // yaşayan taş etkilenmez) — hata sunucu logunda kalır, işlem ok döner.
+  if (result.photoCleanupError) {
+    logServerError({ route: "clients/[id]/stones", action: "DELETE-photo-cleanup", tenantId, cause: result.photoCleanupError });
   }
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  return NextResponse.json({ ok: true, deleted: result.stoneDeleted });
 }
