@@ -17,6 +17,14 @@ export {
   personalDay,
 } from "./personal";
 export { evreDonguFromAge, computeCycle } from "./cycles";
+// currentYear lib/numeroloji/currentYear.ts'te durur (deterministik timing ENGINE'in DIŞINDA;
+// güncel takvim yılını new Date()'ten türetir). Barrel'dan erişim için re-export.
+export {
+  currentIstanbulYear,
+  istanbulYearAt,
+  msUntilNextIstanbulYear,
+  ISTANBUL_UTC_OFFSET_MINUTES,
+} from "../currentYear";
 export * from "./catalogs";
 
 import { universalYear, universalMonth, universalDay } from "./universal";

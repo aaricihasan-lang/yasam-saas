@@ -1,4 +1,4 @@
-import { parseBirthDate, turkishUpper } from "./ortak";
+import { parseBirthDate, turkishUpperDisplay } from "./ortak";
 
 export const CHAKRA_LETTER_GROUPS: Record<number, string[]> = {
   1: Array.from("AJSŞ"),
@@ -26,8 +26,12 @@ export type HarfYankilanisiSegment = {
   yearEnd?: number;
 };
 
+// TÜRKÇE KARAKTER BÜTÜNLÜĞÜ: harf segmentlerinin GÖSTERİLEN `letter`'ı için display-safe büyük
+// harf kullanılır (i→İ korunur; turkishUpper'ın İ→I indirgemesi UYGULANMAZ). Bu CANONICAL'i
+// DEĞİŞTİRMEZ: LETTER_TO_CHAKRA hem İ hem I'yı aynı çakraya (9) eşler → çakra/yaş/yıl AYNI kalır;
+// yalnız ekranda gösterilen harf doğru Türkçe karaktere döner.
 function normalizeName(firstName: string, lastName: string): string {
-  return Array.from(turkishUpper(`${firstName} ${lastName}`.trim()))
+  return Array.from(turkishUpperDisplay(`${firstName} ${lastName}`.trim()))
     .filter((ch) => /[A-ZÇĞİÖŞÜ]/.test(ch))
     .join("");
 }

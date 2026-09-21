@@ -1,3 +1,4 @@
+import { turkishUpperDisplay, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import type { NumerolojiMotorOut } from "./numerolojiPlainMetin";
 
 export type GorselTemaIdKayit = "kozmikMor" | "altinMist" | "kuzeyIsiklari" | "okyanusDerinligi";
@@ -53,12 +54,35 @@ export function isValidMotorShape(motor: unknown): boolean {
   );
 }
 
+// TÜRKÇE KARAKTER BÜTÜNLÜĞÜ (display-only): Harflerin Yankılanışı segmentlerinin GÖSTERİLEN
+// `letter`'ı, kaydın KORUNMUŞ orijinal isim/soyisminden (row.name/surname) yeniden türetilir.
+// Neden: eski snapshot'lar harfi CANONICAL turkishUpper (İ→I) ile saklamış olabilir; orijinal
+// isim korunduğu için TAHMİN DEĞİL, birebir yeniden türetmedir. Snapshot/DB MUTATE EDİLMEZ
+// (kopya döner); canonical çakra/yaş/yıl DEĞİŞMEZ — segment sırası motor ile birebir olduğundan
+// segment[i] ↔ isim harfi (i mod L). İsim yoksa segmentler olduğu gibi kalır.
+function displayHarfSeq(firstName?: string, lastName?: string): string[] {
+  const full = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+  if (!full) return [];
+  return Array.from(turkishUpperDisplay(full)).filter((ch) => /[A-ZÇĞİÖŞÜ]/.test(ch));
+}
+
+function remapHarfDisplayLetters(motor: NumerolojiMotorOut, firstName?: string, lastName?: string): NumerolojiMotorOut {
+  const seq = displayHarfSeq(firstName, lastName);
+  const segs = motor.harflerinYankilanisi;
+  if (!seq.length || !Array.isArray(segs) || !segs.length) return motor;
+  const remapped = (segs as HarfYankilanisiSegment[]).map((s, i) => ({ ...s, letter: seq[i % seq.length] }));
+  return { ...motor, harflerinYankilanisi: remapped };
+}
+
 /**
  * Supabase `analysis_data` alanından motor çıktısını okur.
  * Şekli doğrulanamayan (eski/bozuk) kayıtlarda null döner — çağıran taraf
  * "kayıt okunamadı" durumunu gösterir; asla çökmez.
+ *
+ * `firstName`/`lastName` verilirse Harflerin Yankılanışı GÖSTERİM harfleri orijinal isimden
+ * yeniden türetilir (Türkçe karakter bütünlüğü; canonical DEĞİŞMEZ).
  */
-export function extractMotorFromAnalysisJson(raw: unknown): NumerolojiMotorOut | null {
+export function extractMotorFromAnalysisJson(raw: unknown, firstName?: string, lastName?: string): NumerolojiMotorOut | null {
   const o = asRecord(raw);
   if (!o) return null;
   const motor = o.motor;
@@ -66,7 +90,7 @@ export function extractMotorFromAnalysisJson(raw: unknown): NumerolojiMotorOut |
   const ver = o.version;
   if (ver !== undefined && ver !== 1) return null;
   if (!isValidMotorShape(motor)) return null;
-  return motor as NumerolojiMotorOut;
+  return remapHarfDisplayLetters(motor as NumerolojiMotorOut, firstName, lastName);
 }
 
 export function extractSummaryFromAnalysisData(raw: unknown): string | null {

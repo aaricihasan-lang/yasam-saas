@@ -118,7 +118,7 @@ export default function NumerolojiKayitDetayPage() {
     };
   }, [id]);
 
-  const motor = row ? extractMotorFromAnalysisJson(row.analysis_data) : null;
+  const motor = row ? extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname) : null;
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
 
   return (
