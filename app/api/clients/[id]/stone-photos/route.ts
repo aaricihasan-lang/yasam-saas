@@ -6,7 +6,7 @@ import {
   STONE_PHOTO_BUCKET,
   isOwnedClientStonePhotoPath,
   stonePhotoPrefix,
-  filterOwnedStonePhotoPaths,
+  deleteStonePhotoRecords,
 } from "@/lib/clients/stonePhotoStorage";
 
 export const runtime = "nodejs";
@@ -242,49 +242,21 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  // 1) Silinecek satırların file_path'lerini topla (tenant+client [+id] scoped).
-  let selectQ = db
-    .from("client_stone_photos")
-    .select("id, file_path")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (!all) selectQ = selectQ.eq("id", photoId);
-
-  const { data: rows, error: selError } = await selectQ;
-  if (selError) {
-    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE-select", tenantId, cause: selError });
+  // DB-FIRST + referans-güvenli silme (ortak dosya kullanan başka kayıt varsa obje
+  // fiziksel silinmez; DB hata verirse storage'a dokunulmaz → foto kaybı yok).
+  const result = await deleteStonePhotoRecords(db, {
+    bucket: STONE_PHOTO_BUCKET,
+    tenantId,
+    clientId,
+    photoId: all ? null : photoId,
+    all,
+  });
+  if (result.error) {
+    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE", tenantId, cause: result.error });
   }
-  if (!all && (!rows || rows.length === 0)) {
+  if (!all && result.deleted === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
 
-  // 2) Storage temizliği ÖNCE (service_role). YALNIZ tenant+client'a ait path'ler silinir
-  //    (yabancı-tenant path elenir → cross-tenant obje ASLA silinmez). Storage hatasında
-  //    DUR: DB satırı silinmez → foto referansı kaybolmaz (yeniden denenebilir).
-  const ownedPaths = filterOwnedStonePhotoPaths(
-    (rows ?? []).map((r) => (r as { file_path?: unknown }).file_path),
-    tenantId,
-    clientId,
-  );
-  if (ownedPaths.length > 0) {
-    const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(ownedPaths);
-    if (storageError) {
-      return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE-storage", tenantId, cause: storageError });
-    }
-  }
-
-  // 3) DB satır(lar)ını sil (storage temizliği başarılı olduktan sonra).
-  let delQuery = db
-    .from("client_stone_photos")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (!all) delQuery = delQuery.eq("id", photoId);
-
-  const { error } = await delQuery;
-  if (error) {
-    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE", tenantId, cause: error });
-  }
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, deleted: result.deleted });
 }

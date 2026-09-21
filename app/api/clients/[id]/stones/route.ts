@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
+import { deleteStonePhotoRecords, STONE_PHOTO_BUCKET } from "@/lib/clients/stonePhotoStorage";
 
 export const runtime = "nodejs";
 
@@ -21,15 +21,14 @@ export const runtime = "nodejs";
 
 const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "client_id"]);
 
-// Taş fotoğraflarının saklandığı storage bucket'ı (StonesTab ile aynı).
-const STONE_PHOTO_BUCKET = "stone-photos";
-
 /**
- * O-6: Bir taş (veya danışanın tüm taşları) silinmeden ÖNCE, o taş(lar)a bağlı
- * client_stone_photos DB satırlarını ve storage dosyalarını temizler. Aksi halde
- * tekil taş silmede yetim fotoğraf kaydı kalıyordu (cascade-delete siliyor, tekil
- * silme silmiyordu). service_role ile çalışır; tenant + client ile sınırlıdır.
- * Foto önce silinir: taş silme başarısız olsa bile yetim foto kalmaz.
+ * O-6 + DYA-07: Bir taş silinmeden ÖNCE, o taşa bağlı client_stone_photos DB
+ * satırlarını ve (referans-güvenli) storage dosyalarını temizler.
+ * Ortak çekirdek (deleteStonePhotoRecords) DB-FIRST çalışır:
+ *   - DB silme hata verirse storage'a DOKUNULMAZ → foto kaybı yok (taş silme aborte edilir).
+ *   - path'ler YALNIZ tenant+client+stone önekinde (yabancı obje ASLA silinmez).
+ *   - obje hâlâ başka kayıt tarafından referans ediliyorsa fiziksel silinmez (ortak dosya).
+ * Storage hatası (DB tutarlıyken) yetim blob'a indirilir → fatal değil.
  */
 async function deleteStonePhotos(
   db: SupabaseClient,
@@ -37,36 +36,14 @@ async function deleteStonePhotos(
   clientId: string,
   stoneId: string | null,
 ): Promise<{ error: string | null }> {
-  let sel = db
-    .from("client_stone_photos")
-    .select("file_path")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (stoneId) sel = sel.eq("stone_id", stoneId);
-  const { data: rows, error: selError } = await sel;
-  if (selError) return { error: selError.message };
-
-  // DYA-07: YALNIZ bu tenant+client'a ait path'ler service_role ile silinebilir.
-  // Yabancı-tenant / traversal / bozuk path'ler elenir → cross-tenant obje ASLA silinmez.
-  const paths = filterOwnedStonePhotoPaths(
-    (rows ?? []).map((r) => (r as { file_path?: unknown }).file_path),
+  const res = await deleteStonePhotoRecords(db, {
+    bucket: STONE_PHOTO_BUCKET,
     tenantId,
     clientId,
-  );
-  if (paths.length > 0) {
-    const { error: storageError } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
-    // Storage hatası veri bütünlüğünü bozmaz (DB satırı yine silinir) — sadece loglanır.
-    if (storageError) console.error("O-6 storage foto silme:", storageError.message);
-  }
-
-  let del = db
-    .from("client_stone_photos")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  if (stoneId) del = del.eq("stone_id", stoneId);
-  const { error: delError } = await del;
-  return { error: delError?.message ?? null };
+    stoneId,
+    all: !stoneId,
+  });
+  return { error: res.error };
 }
 
 function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {

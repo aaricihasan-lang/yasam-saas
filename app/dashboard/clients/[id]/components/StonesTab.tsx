@@ -16,7 +16,11 @@ import {
 } from "@/lib/stones/stoneWarningService";
 import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
+import { applySignedPhotoUrls } from "@/lib/clients/stonePhotoStorage";
 const STONE_PHOTO_BUCKET = "stone-photos";
+// DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
+// açık kalsa bile URL süresi dolmadan yenilenir).
+const SIGNED_URL_REFRESH_MS = 50 * 60 * 1000;
 
 type ClientStone = {
   id: string;
@@ -678,10 +682,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     const loaded = (json.photos || []) as StonePhoto[];
 
-    // DYA-07: görsel okuma artık kalıcı public URL DEĞİL — kısa ömürlü signed URL.
-    // Sunucu, danışanın client_stone_photos metadata'sından imzalar; image_url alanı
-    // signed URL ile DOLDURULUR (render katmanı değişmez, yalnız veri kaynağı değişir).
-    let signedById: Record<string, string> = {};
+    // DYA-07: görsel okuma artık kalıcı public URL DEĞİL — YALNIZ kısa ömürlü signed URL.
+    // Sunucu, danışanın client_stone_photos metadata'sından imzalar. signed-urls çağrısı
+    // GEÇİCİ olarak başarısız olursa: eski public URL veya geçersiz relative file_path'e
+    // DÜŞÜLMEZ (bucket private olduğunda kırık görsel gösterilmez). Bunun yerine mevcut
+    // fotoğraf durumu KORUNUR ve hata gösterilir → veri kalıcı kaybolmuş gibi görünmez,
+    // yeniden denenebilir. Yetki kaybında sunucu 401/403 döner → signed URL verilmez.
+    let signedById: Record<string, string> | null = null;
     try {
       const sres = await fetch(`/api/clients/${clientId}/stone-photos/signed-urls`, {
         method: "POST",
@@ -695,13 +702,46 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       const sjson = (await sres.json().catch(() => ({}))) as { ok?: boolean; byId?: Record<string, string> };
       if (sres.ok && sjson.ok && sjson.byId) signedById = sjson.byId;
     } catch {
-      /* signed URL alınamazsa görseller boş görünür; kayıt/metadata korunur */
+      signedById = null;
     }
 
-    setPhotos(
-      loaded.map((p) => (signedById[p.id] ? { ...p, image_url: signedById[p.id] } : p)),
-    );
+    if (signedById === null) {
+      // Geçici hata: mevcut fotoğraflar CLOBBER EDİLMEZ (kalıcı kayıp görünümü olmaz).
+      setErrorMessage(t("error.loadPhotos"));
+      setPhotosLoading(false);
+      return;
+    }
+
+    // signed URL olmayan kayıtların image_url'i BOŞ bırakılır (stale/geçersiz URL değil).
+    setPhotos(applySignedPhotoUrls(loaded, signedById));
     setPhotosLoading(false);
+  }
+
+  // DYA-07: yalnız signed READ URL'lerini tazeler (kayıt listesini yeniden çekmez).
+  // Süre dolması (uzun açık sayfa) + tekrar görünürlük/odak için. Başarısızlıkta mevcut
+  // URL'ler KORUNUR (clobber yok); yalnız gelen taze URL'ler güncellenir.
+  async function refreshSignedUrls() {
+    if (!clientId || !tenantId) return;
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    try {
+      const sres = await fetch(`/api/clients/${clientId}/stone-photos/signed-urls`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const sjson = (await sres.json().catch(() => ({}))) as { ok?: boolean; byId?: Record<string, string> };
+      if (sres.ok && sjson.ok && sjson.byId) {
+        const byId = sjson.byId;
+        setPhotos((prev) => prev.map((p) => (byId[p.id] ? { ...p, image_url: byId[p.id] } : p)));
+      }
+    } catch {
+      /* geçici hata → mevcut URL'ler korunur */
+    }
   }
 
   async function refreshAll() {
@@ -715,6 +755,21 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     runInEffect(() => {
       void refreshAll();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, tenantId]);
+
+  // DYA-07: signed READ URL süre-dolması yönetimi (veri erişim katmanı; UI değişmez).
+  useEffect(() => {
+    if (!clientId || !tenantId) return;
+    const interval = setInterval(() => { void refreshSignedUrls(); }, SIGNED_URL_REFRESH_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") void refreshSignedUrls(); };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, tenantId]);
 
