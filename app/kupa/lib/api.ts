@@ -545,6 +545,37 @@ export const updateCalendarPlan = (
 export const deleteCalendarPlan = (id: string) =>
   call<number>(`${BASE}/calendar/plans/${id}`, { method: "DELETE" }, "deleted");
 
+/**
+ * FAZ 6 — AKTİF planın Word (.docx) raporunu indirir (kaydedilmiş veriden; DB'ye YAZMAZ).
+ * Kimlik başlıklarıyla fetch → blob + sunucu dosya adı (Content-Disposition). DOM işini çağıran yapar.
+ * Hata durumunda güvenli mesajla throw eder (sahte başarı YOK).
+ */
+export async function downloadCalendarPlanWord(id: string): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${BASE}/calendar/plans/${encodeURIComponent(id)}/word-report`, {
+    method: "GET",
+    headers: userHeaders(),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? "Word raporu oluşturulamadı.");
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  const ascii = /filename="([^"]+)"/i.exec(cd);
+  let filename = `Hacamat-Takvimi.docx`;
+  if (utf8) {
+    try {
+      filename = decodeURIComponent(utf8[1]);
+    } catch {
+      /* bozuk header → varsayılan ad */
+    }
+  } else if (ascii) {
+    filename = ascii[1];
+  }
+  return { blob, filename };
+}
+
 // ── Plan günleri (somut GREGORYEN tarih; kriter DEĞİL) ──────────────────────
 /** Per-day yeni gün girdisi — tarih + opsiyonel renk/kısa açıklama/detay notu (FAZ 5/5). */
 export type CuppingPlanDayInput = {

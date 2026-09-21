@@ -1967,6 +1967,37 @@ function run(): void {
       "faz5/5-mig[26]: Kozmik Hacamat bağı/kopyası YOK");
   }
 
+  // ── [FAZ 6] YILLIK HACAMAT TAKVİMİ WORD (.docx) — route güvenliği + ürün kararları ──
+  {
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/export async function GET/.test(wr) && !/export async function (POST|PATCH|PUT|DELETE)/.test(wr),
+      "faz6[word]: yalnız GET (okuma) — mutasyon ucu yok");
+    ok(/getEntity\(db, CUPPING_TABLES\.calendarPlans, tenantId/.test(wr),
+      "faz6[word]: plan tenant-scoped getEntity (başka tenant → 404; IDOR engeli)");
+    ok(/eqFilters:\s*\{\s*plan_id:/.test(wr), "faz6[word]: günler plan_id filtreli tenant-scoped listEntity");
+    ok(!/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr), "faz6[word]: DB'ye YAZMAZ (insert/update/delete/upsert yok)");
+    ok(/const \{ db, tenantId \} = guard/.test(wr) && !/searchParams\.get\(\s*["']tenant/i.test(wr) && !/body[\s\S]*tenantId/.test(wr),
+      "faz6[word]: tenantId SERVER'dan (guard) — client'tan alınmaz");
+    ok(!/lib\/cosmic|app\/api\/hacamat/.test(wr), "faz6[word]: route'ta Kozmik Hacamat bağı yok");
+
+    const cw = read("lib/cupping/calendarWord.ts");
+    // Yorumları (import/geometri sözleşmesini açıklayan) çıkar → içerik testleri yalnız KODU denetler.
+    const cwCode = cw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    ok(/@\/lib\/cupping\/hijri/.test(cwCode), "faz6[word]: Hicrî TEK kanonik kaynaktan (lib/cupping/hijri); ikinci motor yok");
+    ok(!/lib\/cosmic|app\/api\/hacamat/.test(cwCode), "faz6[word]: builder KODUNDA Kozmik bağı/kopyası yok");
+    ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
+      "faz6[word]: builder KODUNDA otomatik Sünnet/Altın/17-19-21/yasaklı gün veya lejantı YOK (FAZ 5 ürün kararı)");
+    ok(/PageOrientation\.LANDSCAPE/.test(cwCode) && cwCode.includes("23811") && cwCode.includes("16838"),
+      "faz6[word]: A3 YATAY + A4 sayfa geometrisi (pgSz)");
+    ok(/WEEKDAYS_TR|isoWeekday/.test(cwCode), "faz6[word]: Pazartesi-başlangıç weekday TEK kaynağı (bulk.ts)");
+
+    const cc = read("lib/cupping/calendarWordColors.ts");
+    ok((CUPPING_DAY_COLOR_KEYS as readonly string[]).every((k) => new RegExp(`\\b${k}:`).test(cc)),
+      "faz6[word]: Word renk eşlemesi CUPPING_DAY_COLOR_KEYS ile birebir (7 anahtar)");
+    ok(/CUPPING_DAY_WORD_NEUTRAL/.test(cc),
+      "faz6[word]: renksiz(NULL) legacy gün için NÖTR eşleme (silinmez/boyanmaz)");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
