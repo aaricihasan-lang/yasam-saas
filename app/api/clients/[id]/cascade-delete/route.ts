@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
 
 export const runtime = "nodejs";
 
@@ -55,9 +56,13 @@ async function collectStonePhotoPaths(
     logServerError({ route: "clients/[id]/cascade-delete", action: "collectStonePhotoPaths", tenantId, cause: error });
     return [];
   }
-  return (data ?? [])
-    .map((r) => (r as { file_path?: unknown }).file_path)
-    .filter((p): p is string => typeof p === "string" && p.length > 0);
+  // DYA-07: YALNIZ bu tenant+client'a ait path'ler döner → service_role storage.remove
+  // yabancı-tenant objeye ASLA dokunmaz (client-controlled file_path guard'ı).
+  return filterOwnedStonePhotoPaths(
+    (data ?? []).map((r) => (r as { file_path?: unknown }).file_path),
+    tenantId,
+    clientId,
+  );
 }
 
 /**

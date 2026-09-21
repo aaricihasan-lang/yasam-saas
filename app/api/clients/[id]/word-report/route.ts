@@ -37,7 +37,6 @@ import {
   C_MID,
   divider,
   embedImageParagraph,
-  fetchImageBuffer,
   fieldInline,
   h1Colored,
   h2,
@@ -51,10 +50,15 @@ import {
 } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
+import { fetchProfileImageBuffer } from "@/lib/clients/profileImageFetch";
 
 export const runtime = "nodejs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// DYA-06 (SSRF): profil görseli güvenli indirme `@/lib/clients/profileImageFetch`
+// (fetchProfileImageBuffer) modülüne taşındı — trusted-host + redirect:"manual" +
+// byte cap + timeout + magic-byte format doğrulaması. Ortak reportHelpers DEĞİŞMEDİ.
 
 // ─── Bölüm renkleri ──────────────────────────────────────────────────────────
 
@@ -1368,7 +1372,7 @@ export async function POST(
     // Fotoğraf
     let drProfileImg: Buffer | null = null;
     if (drClient.profile_image_url?.trim()) {
-      drProfileImg = await fetchImageBuffer(drClient.profile_image_url.trim()).catch(() => null);
+      drProfileImg = await fetchProfileImageBuffer(drClient.profile_image_url);
     }
 
     // Analiz görselleri
@@ -1578,7 +1582,7 @@ export async function POST(
   // Fotoğraf (isteğe bağlı)
   let profileImgBuf: Buffer | null = null;
   if (client.profile_image_url?.trim()) {
-    profileImgBuf = await fetchImageBuffer(client.profile_image_url.trim()).catch(() => null);
+    profileImgBuf = await fetchProfileImageBuffer(client.profile_image_url);
   }
 
   // Analiz görselleri (paralel fetch)
