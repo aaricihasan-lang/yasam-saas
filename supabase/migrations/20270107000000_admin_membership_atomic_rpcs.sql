@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20270105000000_admin_membership_atomic_rpcs.sql   [EXPAND — CODE DEPENDENCY]
+-- 20270107000000_admin_membership_atomic_rpcs.sql   [EXPAND — CODE DEPENDENCY]
 --
 -- ÜYE YÖNETİMİ AŞAMA 1 — ATOMİKLİK & EŞZAMANLILIK.
 --
