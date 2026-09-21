@@ -18,10 +18,12 @@ function makeDb(seed = {}, faults = []) {
     ...seed,
   };
   const calls = [];
-  const maybeFault = (table, op) => {
+  // fault kinds: "transient"/"hard" = THROW (transport-level); "error"/"error-transient" = RETURN {error} (no throw).
+  const faultAction = (table, op) => {
     for (const f of faults) {
-      if (f.table === table && f.op === op) { f._n = (f._n || 0) + 1; if (f._n === f.nth) { if (f.once) f.nth = -1; throw new Error(f.kind === "transient" ? "fetch failed (simulated transient)" : "hard db error"); } }
+      if (f.table === table && f.op === op) { f._n = (f._n || 0) + 1; if (f._n === f.nth) { if (f.once) f.nth = -1; return f; } }
     }
+    return null;
   };
   function builder(table) {
     const st = { table, op: "select", filters: [], patch: null, rows: null, cols: "*", single: false, maybe: false };
@@ -39,7 +41,13 @@ function makeDb(seed = {}, faults = []) {
   }
   function run(st) {
     calls.push({ table: st.table, op: st.op });
-    maybeFault(st.table, st.op);
+    const fa = faultAction(st.table, st.op);
+    if (fa) {
+      if (fa.kind === "transient") throw new Error("fetch failed (simulated transient thrown)");
+      if (fa.kind === "hard") throw new Error("hard db error thrown");
+      if (fa.kind === "error") return { data: null, error: { message: "permanent db error (returned)" } };
+      if (fa.kind === "error-transient") return { data: null, error: { message: "fetch failed (returned transient)" } };
+    }
     const rowsOf = () => tables[st.table].filter((r) => st.filters.every((f) => f(r)));
     if (st.op === "select") {
       const found = rowsOf();
@@ -160,6 +168,64 @@ function seedExisting(db, food, hash, opts = {}) {
   db._tables.nutrition_food_external_refs.push({ id: nextId(), tenant_id: FOREIGN, food_id: "x", provider: "usda_fdc", external_id: "600", content_hash: hashFood(f) });
   const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
   chk("T8 foreign-tenant ref görünmez → created (SYSTEM izole)", cls.status === "created");
+}
+
+// ── T9 SELECT {error} (throw YOK) → classify BAŞARI SAYMAZ (created SANMAZ) ──
+{
+  const f = mkFood("700", "Süt"); const db = makeDb({}, [{ table: "nutrition_food_external_refs", op: "select", nth: 1, kind: "error" }]);
+  let threw = false; try { await classifyFood(db, T, f, { allowUpdate: false, dicts, retries: 0 }); } catch { threw = true; }
+  chk("T9 SELECT {error} → classify THROW (created/duplicate ÖNLENDİ)", threw);
+}
+// ── T10 nutrient DELETE {error} → writeFood throw, commit-marker YAZILMAZ ──
+{
+  const f = mkFood("701", "Ayran"); const db = makeDb({}, [{ table: "nutrition_food_nutrients", op: "delete", nth: 1, kind: "error" }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let threw = false; try { await writeFood(db, T, doc, f, cls, dicts, 0); } catch { threw = true; }
+  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "701");
+  chk("T10 nutrient DELETE {error} → throw", threw);
+  chk("T10 commit-marker YAZILMADI (content_hash NULL)", !!ref && ref.content_hash == null);
+}
+// ── T11 nutrient INSERT {error} → writeFood throw, commit-marker YAZILMAZ ──
+{
+  const f = mkFood("702", "Kefir"); const db = makeDb({}, [{ table: "nutrition_food_nutrients", op: "insert", nth: 1, kind: "error" }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let threw = false; try { await writeFood(db, T, doc, f, cls, dicts, 0); } catch { threw = true; }
+  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "702");
+  chk("T11 nutrient INSERT {error} → throw", threw);
+  chk("T11 commit-marker YAZILMADI", !!ref && ref.content_hash == null);
+}
+// ── T12 commit-marker UPDATE {error} → throw; hash NULL kalır → re-run repair ──
+{
+  const f = mkFood("703", "Sucuk"); const db = makeDb({}, [{ table: "nutrition_food_external_refs", op: "update", nth: 1, kind: "error" }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let threw = false; try { await writeFood(db, T, doc, f, cls, dicts, 0); } catch { threw = true; }
+  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "703");
+  chk("T12 commit-marker UPDATE {error} → throw", threw);
+  chk("T12 hash NULL kaldı (yarım işaret yok)", !!ref && ref.content_hash == null);
+  const cls2 = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  chk("T12 re-run → repair (content_hash boş)", cls2.status === "repair");
+}
+// ── T13 Food INSERT ok + external_ref INSERT {error} → ORPHAN: food_id ile raporla, otomatik silme YOK ──
+{
+  const f = mkFood("704", "Pastırma"); const db = makeDb({}, [{ table: "nutrition_food_external_refs", op: "insert", nth: 1, kind: "error" }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let orphanId = null; try { await writeFood(db, T, doc, f, cls, dicts, 0); } catch (e) { orphanId = e.orphanFoodId; chk("T13 orphan error fatal işaretli", e.fatal === true && e.fdc === "704"); }
+  chk("T13 food yazıldı (1) ama ref YOK → orphan food_id raporlandı", db._tables.nutrition_foods.length === 1 && orphanId === db._tables.nutrition_foods[0].id);
+  chk("T13 otomatik silme YOK (food satırı duruyor)", db._tables.nutrition_foods.length === 1 && db._tables.nutrition_food_external_refs.length === 0);
+}
+// ── T14 RETURNED transient {error} (throw değil) → retry ile toparlar ──
+{
+  const f = mkFood("705", "Simit"); const db = makeDb({}, [{ table: "nutrition_foods", op: "insert", nth: 1, kind: "error-transient", once: true }]);
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  let ok = true; try { await writeFood(db, T, doc, f, cls, dicts, 3); } catch { ok = false; }
+  const ref = db._tables.nutrition_food_external_refs.find((r) => r.external_id === "705");
+  chk("T14 returned-transient {error} → retry ile başarı + commit-marker", ok && !!ref && ref.content_hash === hashFood(f));
+}
+// ── T15 stale/mismatched checkpoint: tamamlanmamış fdc classify unchanged DEĞİL → atlanmamalı ──
+{
+  const f = mkFood("706", "Lavaş"); const db = makeDb(); // hiç yazılmamış
+  const cls = await classifyFood(db, T, f, { allowUpdate: false, dicts });
+  chk("T15 checkpoint'te olsa bile tamamlanmamış kayıt classify≠unchanged → resume ATLAMAZ", cls.status !== "unchanged");
 }
 
 console.log(`\n${"=".repeat(52)}\n  CATALOG IMPORT HARNESS: ${pass} PASS / ${fail} FAIL`);

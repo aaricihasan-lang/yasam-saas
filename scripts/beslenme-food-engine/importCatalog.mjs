@@ -99,6 +99,26 @@ export async function withRetry(fn, retries) {
 }
 
 /**
+ * Supabase sorgu YÜRÜTÜCÜSÜ — throw/catch YETMEZ: {data, error} sözleşmesini kontrol eder.
+ *   - `makeQuery` bir THUNK'tır: HER denemede sorguyu YENİDEN oluşturur (aynı builder'ı ikinci kez
+ *     await etmek güvenilir değildir).
+ *   - Sonuçta `error` varsa işlem BAŞARILI SAYILMAZ → hata fırlatılır (mesaj error'dan taşınır →
+ *     withRetry transient tespiti error mesajını da görür → yalnız transient'te retry).
+ *   - Başarıda {data,...} döner.
+ */
+export async function execQuery(makeQuery, retries = 3) {
+  return withRetry(async () => {
+    const res = await makeQuery();
+    if (res && res.error) {
+      const e = new Error(`db-error: ${res.error.message || res.error.code || JSON.stringify(res.error)}`);
+      e.dbError = res.error;
+      throw e;
+    }
+    return res;
+  }, retries);
+}
+
+/**
  * READ-ONLY sınıflandırma (yazma YOK): bir food'un import planını verir.
  *   created  → external_ref yok (yeni besin).
  *   unchanged→ ref var + content_hash aynı.
@@ -107,7 +127,7 @@ export async function withRetry(fn, retries) {
  *   repair   → ref var ama content_hash boş (yarım kalmış önceki import → onar).
  *   rejected → vocab miss (nutrient/unit/group sözlükte yok) → yazılamaz.
  */
-export async function classifyFood(db, T, food, { allowUpdate, dicts }) {
+export async function classifyFood(db, T, food, { allowUpdate, dicts, retries = 3 }) {
   const hash = hashFood(food);
   // vocab pre-check (rejected) — yazmadan önce sözlük uyumu.
   if (dicts) {
@@ -118,9 +138,10 @@ export async function classifyFood(db, T, food, { allowUpdate, dicts }) {
     }
     for (const p of food.portions ?? []) if (!dicts.unitBy.has(p.measure_unit)) return { status: "rejected", reason: `portion_unit:${p.measure_unit}` };
   }
-  const { data: ref } = await withRetry(() => db
+  // SELECT: {data,error} kontrol edilir (execQuery). error → throw (created SANILMAZ → duplicate önlenir).
+  const { data: ref } = await execQuery(() => db
     .from("nutrition_food_external_refs").select("id, food_id, content_hash")
-    .eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle(), 3);
+    .eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle(), retries);
   if (!ref) return { status: "created", hash };
   if (!ref.content_hash) return { status: "repair", hash, ref };
   if (ref.content_hash === hash) return { status: "unchanged", hash, ref };
@@ -161,43 +182,56 @@ export async function writeFood(db, T, doc, food, cls, dicts, retries) {
     external_dataset: doc.dataset, external_version: doc.manifest_version, retrieved_at: doc.retrieved_at,
     source_url: `https://fdc.nal.usda.gov/food-details/${food.fdc_id}/nutrients`,
   };
-  const run = (q) => withRetry(() => q, retries);
+  // q: THUNK ile çağrılır → her denemede sorgu YENİDEN kurulur + {data,error} kontrol edilir.
+  const q = (mk) => execQuery(mk, retries);
 
-  let foodId = cls.ref?.food_id;
-  if (cls.status === "created") {
-    const { data: inserted, error } = await run(db.from("nutrition_foods").insert(foodCore).select("id").single());
-    if (error) throw error;
-    foodId = inserted.id;
-    // ref ÖNCE hash'siz (commit marker boş) → children yazılana kadar "incomplete".
-    const { error: rErr } = await run(db.from("nutrition_food_external_refs").insert({
-      tenant_id: T, food_id: foodId, provider: "usda_fdc", external_id: food.fdc_id, content_hash: null, ...refPatch,
-    }));
-    if (rErr) throw rErr;
-  } else {
-    // repair / updated: mevcut food_id; besin çekirdeğini güncelle, ref hash'ini geçici NULL'la.
-    await run(db.from("nutrition_foods").update(foodCore).eq("tenant_id", T).eq("id", foodId));
-    await run(db.from("nutrition_food_external_refs").update({ content_hash: null, ...refPatch }).eq("id", cls.ref.id));
-  }
-
-  // children replace (delete + insert), chunk'lı.
-  await run(db.from("nutrition_food_nutrients").delete().eq("tenant_id", T).eq("food_id", foodId));
+  // vocab guard (rejected zaten classify'de yakalanır; burada da yazma öncesi kesin güvence).
   const nutRows = Object.entries(food.nutrients ?? {}).map(([code, v]) => {
     const n = dicts.nutBy.get(code), u = dicts.unitBy.get(v.unit);
     if (!n || !u) throw new Error(`vocab miss ${code}/${v.unit}`);
-    return { tenant_id: T, food_id: foodId, nutrient_id: n.id, amount: v.amount, unit_id: u.id, basis_grams: 100 };
+    return { tenant_id: T, food_id: null, nutrient_id: n.id, amount: v.amount, unit_id: u.id, basis_grams: 100 };
   });
-  for (let i = 0; i < nutRows.length; i += 500) await run(db.from("nutrition_food_nutrients").insert(nutRows.slice(i, i + 500)));
-  await run(db.from("nutrition_food_portions").delete().eq("tenant_id", T).eq("food_id", foodId));
-  const portRows = (food.portions ?? []).map((p, i) => {
+  const portDefs = (food.portions ?? []).map((p, i) => {
     const u = dicts.unitBy.get(p.measure_unit);
     if (!u) throw new Error(`unit miss ${p.measure_unit}`);
-    return { tenant_id: T, food_id: foodId, label_tr: p.label_tr, label_en: p.label_en ?? null, quantity: p.quantity ?? 1, measure_unit_id: u.id, gram_weight: p.gram_weight, is_default: p.is_default === true, sort_order: i };
+    return { p, i, unitId: u.id };
   });
-  for (let i = 0; i < portRows.length; i += 500) await run(db.from("nutrition_food_portions").insert(portRows.slice(i, i + 500)));
 
-  // COMMIT MARKER en son: hash finalize (children tam yazıldı).
-  const refId = cls.ref?.id ?? (await run(db.from("nutrition_food_external_refs").select("id").eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle())).data?.id;
-  await run(db.from("nutrition_food_external_refs").update({ content_hash: hash }).eq("id", refId));
+  let foodId = cls.ref?.food_id;
+  if (cls.status === "created") {
+    const ins = await q(() => db.from("nutrition_foods").insert(foodCore).select("id").single());
+    foodId = ins.data?.id;
+    if (!foodId) throw new Error(`food insert döndü ama id yok (fdc ${food.fdc_id})`);
+    // ref (commit-marker boş). BAŞARISIZ olursa → REFERANSSIZ YARIM KAYIT: DURDUR + food_id ile raporla.
+    // (Otomatik silme YOK; çok-tablo transaction YOK → operatör kararı gerekir.)
+    try {
+      await q(() => db.from("nutrition_food_external_refs").insert({
+        tenant_id: T, food_id: foodId, provider: "usda_fdc", external_id: food.fdc_id, content_hash: null, ...refPatch,
+      }));
+    } catch (e) {
+      const oe = new Error(`ORPHAN: nutrition_foods(id=${foodId}) yazıldı ama external_ref(fdc=${food.fdc_id}) YAZILAMADI. Otomatik silme YOK; manuel inceleme gerekli. Sebep: ${e.message}`);
+      oe.orphanFoodId = foodId; oe.fdc = food.fdc_id; oe.fatal = true;
+      throw oe;
+    }
+  } else {
+    // repair / updated: mevcut food_id; çekirdeği güncelle, ref hash'ini geçici NULL'la (commit-marker düşür).
+    await q(() => db.from("nutrition_foods").update(foodCore).eq("tenant_id", T).eq("id", foodId));
+    await q(() => db.from("nutrition_food_external_refs").update({ content_hash: null, ...refPatch }).eq("id", cls.ref.id));
+  }
+  for (const r of nutRows) r.food_id = foodId;
+  const portRows = portDefs.map(({ p, i, unitId }) => ({ tenant_id: T, food_id: foodId, label_tr: p.label_tr, label_en: p.label_en ?? null, quantity: p.quantity ?? 1, measure_unit_id: unitId, gram_weight: p.gram_weight, is_default: p.is_default === true, sort_order: i }));
+
+  // children replace — HER op {data,error} kontrol edilir; herhangi biri fail → throw → commit-marker YAZILMAZ.
+  await q(() => db.from("nutrition_food_nutrients").delete().eq("tenant_id", T).eq("food_id", foodId));
+  for (let i = 0; i < nutRows.length; i += 500) { const chunk = nutRows.slice(i, i + 500); await q(() => db.from("nutrition_food_nutrients").insert(chunk)); }
+  await q(() => db.from("nutrition_food_portions").delete().eq("tenant_id", T).eq("food_id", foodId));
+  for (let i = 0; i < portRows.length; i += 500) { const chunk = portRows.slice(i, i + 500); await q(() => db.from("nutrition_food_portions").insert(chunk)); }
+
+  // COMMIT MARKER — YALNIZ buraya (tüm child DELETE/INSERT başarılı) gelinirse hash finalize edilir.
+  let refId = cls.ref?.id;
+  if (!refId) { const r = await q(() => db.from("nutrition_food_external_refs").select("id").eq("tenant_id", T).eq("provider", "usda_fdc").eq("external_id", food.fdc_id).maybeSingle()); refId = r.data?.id; }
+  if (!refId) throw new Error(`commit-marker: external_ref bulunamadı (fdc ${food.fdc_id})`);
+  await q(() => db.from("nutrition_food_external_refs").update({ content_hash: hash }).eq("id", refId));
   return { foodId, nutrients: nutRows.length, portions: portRows.length };
 }
 
@@ -239,36 +273,59 @@ async function main() {
   const db = createClient(url, key, { auth: { persistSession: false } });
   const dicts = await loadDicts(db);
   const T = SYSTEM_NUTRITION_TENANT_ID;
+  const targetRef = String(url).replace(/^https?:\/\//, "").split(".")[0];
 
-  // checkpoint (resume): daha önce işlenmiş fdc_id'ler atlanır.
+  // ── CHECKPOINT (resume) — manifest/hedef GÜVENLİ + tamamlanma DOĞRULAMALI ──
+  // Header: `#v=<manifest_version>|url=<targetRef>`. Header uyuşmazsa checkpoint YOK SAYILIR
+  //   (yanlış manifest/sürüm/hedef için hatalı atlama engellenir). Ayrıca resume edilen her fdc
+  //   classify ile DOĞRULANIR (yalnız status===unchanged ise atlanır) → stale/eksik kayıt atlanmaz.
+  const cpHeader = `#v=${doc.manifest_version}|url=${targetRef}`;
   const done = new Set();
-  if (checkpoint && existsSync(checkpoint)) for (const l of readFileSync(checkpoint, "utf8").split(/\r?\n/)) { const s = l.trim(); if (s) done.add(s); }
+  if (checkpoint && existsSync(checkpoint)) {
+    const lines = readFileSync(checkpoint, "utf8").split(/\r?\n/);
+    if (lines[0] === cpHeader) { for (const l of lines.slice(1)) { const s = l.trim(); if (s && !s.startsWith("#")) done.add(s); } }
+    else console.warn(`[importCatalog] UYARI: checkpoint header uyuşmuyor (farklı manifest/sürüm/hedef) → checkpoint YOK SAYILDI (yanlış atlama engellendi).`);
+  }
+  if (checkpoint && apply && (!existsSync(checkpoint) || readFileSync(checkpoint, "utf8").split(/\r?\n/)[0] !== cpHeader)) {
+    writeFileSync(checkpoint, `${cpHeader}\n`); done.clear();
+  }
 
   const tally = { created: 0, updated: 0, unchanged: 0, skipped_existing: 0, repair: 0, rejected: 0, errors: 0, resumed_skipped: 0 };
-  const rec = { created: [], updated: [], unchanged: [], skipped_existing: [], repair: [], rejected: [], errors: [] };
-  let nutrientRows = 0, portionRows = 0;
+  const rec = { created: [], updated: [], unchanged: [], skipped_existing: [], repair: [], rejected: [], errors: [], orphans: [] };
+  let nutrientRows = 0, portionRows = 0, stopped = false;
   const seenFdc = new Set();
 
   for (const f of doc.foods) {
     if (f.fdc_id && seenFdc.has(f.fdc_id)) continue; // manifest-içi dedup
     if (f.fdc_id) seenFdc.add(f.fdc_id);
-    if (checkpoint && done.has(String(f.fdc_id))) { tally.resumed_skipped++; continue; }
     try {
-      const cls = await classifyFood(db, T, f, { allowUpdate, dicts });
+      // classify HER ZAMAN (checkpoint'li olsa da) → resume tamamlanma doğrulaması.
+      const cls = await classifyFood(db, T, f, { allowUpdate, dicts, retries });
+      if (checkpoint && done.has(String(f.fdc_id))) {
+        if (cls.status === "unchanged") { tally.resumed_skipped++; continue; } // gerçekten tamamlanmış → atla
+        // stale checkpoint: kayıt aslında tamam DEĞİL → normal işle (atlama YOK).
+      }
       if (cls.status === "rejected") { tally.rejected++; rec.rejected.push({ fdc: f.fdc_id, name_tr: f.name_tr, reason: cls.reason }); continue; }
-      if (cls.status === "unchanged") { tally.unchanged++; rec.unchanged.push(f.fdc_id); if (checkpoint) appendFileSync(checkpoint, `${f.fdc_id}\n`); continue; }
+      if (cls.status === "unchanged") { tally.unchanged++; rec.unchanged.push(f.fdc_id); if (checkpoint && apply) appendFileSync(checkpoint, `${f.fdc_id}\n`); continue; }
       if (cls.status === "skipped_existing") { tally.skipped_existing++; rec.skipped_existing.push({ fdc: f.fdc_id, name_tr: f.name_tr }); continue; } // MEVCUT KORUNUR
 
       if (diff) { // READ-ONLY: yazma YOK, yalnız sınıf say.
         tally[cls.status]++; rec[cls.status].push(f.fdc_id); continue;
       }
-      // APPLY: güvenli yazma.
+      // APPLY: güvenli yazma (commit-marker yalnız tüm child başarılıysa).
       const w = await writeFood(db, T, doc, f, cls, dicts, retries);
       nutrientRows += w.nutrients; portionRows += w.portions;
       tally[cls.status]++; rec[cls.status].push(f.fdc_id);
-      if (checkpoint) appendFileSync(checkpoint, `${f.fdc_id}\n`);
+      if (checkpoint && apply) appendFileSync(checkpoint, `${f.fdc_id}\n`);
     } catch (e) {
-      tally.errors++; rec.errors.push({ fdc: f.fdc_id, name_tr: f.name_tr, error: String((e && e.message) || e) });
+      tally.errors++;
+      if (e && e.fatal && e.orphanFoodId) {
+        rec.orphans.push({ fdc: e.fdc, orphan_food_id: e.orphanFoodId, error: String(e.message) });
+        rec.errors.push({ fdc: f.fdc_id, name_tr: f.name_tr, error: String(e.message), fatal: true });
+        console.error(`[importCatalog] FATAL ORPHAN → DURDURULUYOR. food_id=${e.orphanFoodId} fdc=${e.fdc}`);
+        stopped = true; break; // referanssız yarım kayıt → güvenle DUR, otomatik silme YOK.
+      }
+      rec.errors.push({ fdc: f.fdc_id, name_tr: f.name_tr, error: String((e && e.message) || e) });
       console.error(`[importCatalog] HATA ${f.name_tr} (${f.fdc_id}): ${(e && e.message) || e}`);
       if (tally.errors >= maxErrors) { console.error(`[importCatalog] SAFE-STOP: hata eşiği (${maxErrors}) aşıldı; güvenle durduruluyor.`); break; }
     }
@@ -277,7 +334,9 @@ async function main() {
   console.log(`[importCatalog] ${diff ? "DIFF" : "APPLY"} tally: ${JSON.stringify(tally)}`);
   if (!diff) console.log(`[importCatalog] yazılan çocuk satırlar: nutrients=${nutrientRows} portions=${portionRows}`);
   if (allowUpdate === false && tally.skipped_existing > 0) console.log(`[importCatalog] NOT: ${tally.skipped_existing} mevcut besin KORUNDU (--allow-update verilmedi → overwrite YOK).`);
-  if (report) { writeFileSync(report, JSON.stringify({ manifest: doc.manifest_version, mode, allowUpdate, tally, records: rec }, null, 2)); console.log(`[importCatalog] rapor → ${report}`); }
+  if (rec.orphans.length) console.error(`[importCatalog] ⚠ REFERANSSIZ YARIM KAYIT (${rec.orphans.length}): ${JSON.stringify(rec.orphans)} — manuel inceleme; otomatik silme YAPILMADI.`);
+  if (stopped) console.error(`[importCatalog] İŞLEM GÜVENLE DURDURULDU (fatal orphan / safe-stop).`);
+  if (report) { writeFileSync(report, JSON.stringify({ manifest: doc.manifest_version, mode, allowUpdate, stopped, tally, records: rec }, null, 2)); console.log(`[importCatalog] rapor → ${report}`); }
   if (tally.errors) process.exit(1);
 }
 
