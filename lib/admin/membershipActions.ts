@@ -117,3 +117,23 @@ export function pickLatestAuditByAction<
   }
   return latest;
 }
+
+/**
+ * "Onaylayan yönetici" adını YALNIZ, korunan ilk-onay tarihiyle (users.approved_at) AYNI gerçek
+ * onay işleminden türetir. firstApproval, en ESKİ user_approved audit kaydıdır (route'ta ayrı
+ * ASC sorgu ile alınır → 50-satır penceresi ilk onayı düşürse bile kaçmaz). Kaydın createdAt'i
+ * approvedAt ile (ms hassasiyetinde; her ikisi de onay tx'inin now()'ı) eşleşmezse ya da kayıt
+ * yoksa null döner → arayüz YANLIŞ isim yerine "bilgi bulunamadı" gösterir.
+ */
+export function approverForPreservedDate(
+  firstApproval: { actorName?: unknown; createdAt?: unknown } | null | undefined,
+  approvedAt: string | null | undefined,
+): string | null {
+  if (!firstApproval || approvedAt == null || String(approvedAt).trim() === "") return null;
+  const approvedMs = new Date(String(approvedAt)).getTime();
+  const recordMs =
+    firstApproval.createdAt != null ? new Date(String(firstApproval.createdAt)).getTime() : NaN;
+  if (Number.isNaN(approvedMs) || Number.isNaN(recordMs) || approvedMs !== recordMs) return null;
+  const name = typeof firstApproval.actorName === "string" ? firstApproval.actorName.trim() : "";
+  return name || null;
+}

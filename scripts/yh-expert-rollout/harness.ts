@@ -192,11 +192,14 @@ async function run(): Promise<void> {
 
   // ─── 8) STATIK: provisioning/grant yollarının HEPSİ tek atomik sözleşmeye uyar ──
   {
-    // package (premium grant): atomik premium-grade RPC + FAIL-CLOSED; eski best-effort/ayrı-write YOK.
+    // package (premium grant): AŞAMA 1 tutarlılık düzeltmesi — premium ATAMA da audited atomik
+    // admin_approve_expert_premium RPC'sinden geçer (RPC içeride yh_grade_expert_premium'u AYNI
+    // tx'te çağırır + ZORUNLU user_approved audit yazar). Eski audit'siz doğrudan yh_grade helper
+    // çağrısı KALDIRILDI. FAIL-CLOSED korunur (RPC hatası → 500). Atomiklik + fail-closed intent aynı.
     const pkg = read("app/api/admin/users/[id]/package/route.ts");
     const pkgCode = stripComments(pkg);
-    add("package-uses-atomic-grade", /gradeExpertPremiumWithYasamHafizasi\(/.test(pkgCode) && /packagePlan === "premium"/.test(pkgCode), "");
-    add("package-grade-fail-closed", /if \(!graded\.ok\)[\s\S]{0,140}status:\s*500/.test(pkgCode), "");
+    add("package-uses-atomic-grade", /rpc\("admin_approve_expert_premium"/.test(pkgCode) && /packagePlan === "premium"/.test(pkgCode), "");
+    add("package-grade-fail-closed", /if \(error\)[\s\S]{0,160}status:\s*500/.test(pkgCode), "");
     // Premium branch RPC'den ÖNCE ayrı users.update YAPMAZ (iki ardışık write yok); ayrıca eski
     // best-effort helper referansları kaldırıldı.
     add("package-no-legacy-helpers", !/grantYasamHafizasiExpertAccess|ensureTenantYasamHafizasiEnabled|flagsAdmin/.test(pkgCode), "");
@@ -432,7 +435,7 @@ async function run(): Promise<void> {
     const helperSrc2 = read("lib/yasam-hafizasi/expertPremiumGrant.ts");
     const pkgSrc = read("app/api/admin/users/[id]/package/route.ts");
     add("code-depends-on-expand-rpc-only",
-      /yh_grade_expert_premium/.test(helperSrc2) && /gradeExpertPremiumWithYasamHafizasi/.test(pkgSrc) &&
+      /yh_grade_expert_premium/.test(helperSrc2) && /admin_approve_expert_premium/.test(pkgSrc) &&
       !/yh_expert_rollout_activation/.test(helperSrc2) && !/yh_expert_rollout_activation/.test(pkgSrc), "");
   }
 }

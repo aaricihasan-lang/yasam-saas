@@ -126,7 +126,16 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
-  const willBeActive = !body.currentActive;
+  // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency). Bayat/eksik veriyle
+  // yanlış yönde toggle yapmamak için boolean şartı aranır (UI her iki çağrıda da gönderir).
+  if (typeof body.currentActive !== "boolean") {
+    return NextResponse.json(
+      { error: "Geçerli mevcut durum (currentActive) gerekli." },
+      { status: 400 },
+    );
+  }
+  const expectedActive = body.currentActive;
+  const willBeActive = !expectedActive;
 
   // Kilitlenme koruması: pasifleştirme owner'ı veya son aktif admini düşüremez.
   if (!willBeActive) {
@@ -137,12 +146,21 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
 
   // Atomik: active + user_activated/user_deactivated audit (tek tx, FOR UPDATE).
+  // p_expected_active: RPC KİLİT altında gerçek durumu bununla karşılaştırır; istemci verisi
+  // bayatsa (araya giren eşzamanlı işlem) ERRCODE=UY001 ile reddeder → yanlış yönde değişiklik yok.
   const { error } = await db.rpc("admin_set_user_active", {
     p_user_id: id,
     p_actor_admin_id: adminId,
     p_active: willBeActive,
+    p_expected_active: expectedActive,
   });
   if (error) {
+    if ((error as { code?: string }).code === "UY001") {
+      return NextResponse.json(
+        { error: "Kullanıcının güncel durumu değişmiş; listeyi yenileyip tekrar deneyin." },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: "Durum değişikliği tamamlanamadı." }, { status: 500 });
   }
 

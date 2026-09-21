@@ -134,10 +134,14 @@ END;
 $$;
 
 -- 3) PASİFE AL / AKTİFLEŞTİR (atomik: kilit + active + audit) ────────────────────────────────
+-- p_expected_active: istemcinin gördüğü mevcut durum (optimistic-concurrency). NULL → kontrol
+--   atlanır (geriye dönük uyum). Değer verilirse KİLİTLİ satırın gerçek durumu ile karşılaştırılır;
+--   uyuşmazsa RAISE (ERRCODE=UY001) → bayat istemci verisiyle YANLIŞ YÖNDE toggle engellenir.
 CREATE OR REPLACE FUNCTION public.admin_set_user_active(
   p_user_id        uuid,
   p_actor_admin_id uuid,
-  p_active         boolean
+  p_active         boolean,
+  p_expected_active boolean DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_catalog
@@ -162,6 +166,13 @@ BEGIN
     RAISE EXCEPTION 'admin_set_user_active: kullanici bulunamadi';
   END IF;
   v_prior_active := v_target.active;
+
+  -- Bayat-istemci / eşzamanlılık koruması: istemcinin beklediği mevcut durum, KİLİTLİ satırın
+  -- gerçek durumundan farklıysa işlem reddedilir (kilit sayesinde araya giren işlem serileşir).
+  IF p_expected_active IS NOT NULL AND v_prior_active IS DISTINCT FROM p_expected_active THEN
+    RAISE EXCEPTION 'admin_set_user_active: guncel durum degismis (beklenen=%, gercek=%)',
+      p_expected_active, v_prior_active USING ERRCODE = 'UY001';
+  END IF;
 
   UPDATE public.users SET active = p_active WHERE id = p_user_id;
 
@@ -226,7 +237,7 @@ BEGIN
   FOREACH fn IN ARRAY ARRAY[
     'public.admin_approve_expert_premium(uuid,jsonb,uuid)',
     'public.admin_reject_user(uuid,uuid)',
-    'public.admin_set_user_active(uuid,uuid,boolean)',
+    'public.admin_set_user_active(uuid,uuid,boolean,boolean)',
     'public.admin_archive_user(uuid,uuid)'
   ] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', fn);
@@ -246,6 +257,6 @@ COMMIT;
 -- ROLLBACK:
 --   DROP FUNCTION IF EXISTS public.admin_approve_expert_premium(uuid,jsonb,uuid);
 --   DROP FUNCTION IF EXISTS public.admin_reject_user(uuid,uuid);
---   DROP FUNCTION IF EXISTS public.admin_set_user_active(uuid,uuid,boolean);
+--   DROP FUNCTION IF EXISTS public.admin_set_user_active(uuid,uuid,boolean,boolean);
 --   DROP FUNCTION IF EXISTS public.admin_archive_user(uuid,uuid);
 -- =============================================================================

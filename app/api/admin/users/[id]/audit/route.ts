@@ -78,5 +78,47 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     };
   });
 
-  return NextResponse.json({ ok: true, rows: result });
+  // İLK (en eski) onay kaydı — AYRI ASC sorgu ile alınır ki yukarıdaki 50-satır (DESC) penceresi
+  // dolduğunda bile "onaylayan yönetici + korunan ilk-onay tarihi" eşleşmesi kaçmasın. Üye detayı
+  // bunu users.approved_at ile eşleştirip onaylayanı türetir (uyuşmazsa "bilgi bulunamadı").
+  const { data: firstApprovalRow } = await db
+    .from("admin_audit_log")
+    .select("actor_admin_id, actor_is_main_admin, created_at")
+    .eq("target_user_id", id)
+    .eq("action", "user_approved")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  let firstApproval: {
+    actorAdminId: string | null;
+    actorName: string | null;
+    actorIsMainAdmin: boolean;
+    createdAt: string | null;
+  } | null = null;
+  if (firstApprovalRow) {
+    const fr = firstApprovalRow as Record<string, unknown>;
+    const faId = fr.actor_admin_id != null ? String(fr.actor_admin_id) : null;
+    // Aktör adı yukarıda çözülmediyse (ilk onay 50-pencere dışındaysa) hedefli tek sorgu.
+    let faName = faId ? actorNameById.get(faId) ?? null : null;
+    if (faId && faName == null) {
+      const { data: faActor } = await db
+        .from("users")
+        .select("full_name, email")
+        .eq("id", faId)
+        .maybeSingle();
+      if (faActor) {
+        const a = faActor as Record<string, unknown>;
+        faName = String(a.full_name ?? "").trim() || String(a.email ?? "").trim() || null;
+      }
+    }
+    firstApproval = {
+      actorAdminId: faId,
+      actorName: faName,
+      actorIsMainAdmin: fr.actor_is_main_admin === true,
+      createdAt: fr.created_at != null ? String(fr.created_at) : null,
+    };
+  }
+
+  return NextResponse.json({ ok: true, rows: result, firstApproval });
 }

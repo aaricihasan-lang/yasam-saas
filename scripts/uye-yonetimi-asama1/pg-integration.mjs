@@ -250,6 +250,38 @@ async function main() {
     ok(f2match >= 1, "pasif+aktif: son durumu üreten işlemin audit kaydı VAR (kayıp/ezme yok)");
     ok(f2aud.includes("user_activated") && f2aud.includes("user_deactivated"), "pasif+aktif: her iki audit türü kaydedildi");
 
+    // ── F2: OPTIMISTIC-CONCURRENCY (Issue-1) — bayat istemci durumu yanlış yönde toggle YAPAMAZ ──
+    console.log("\n[F2] Optimistic-concurrency (p_expected_active, KİLİT altında)");
+    const E12 = "00000000-0000-0000-0000-0000000000f3";
+    await seedExpert(su, { id: E12, tenant: "f3f3f3f3-f3f3-f3f3-f3f3-f3f3f3f3f3f3", approval: "approved", active: true });
+    // (a) doğru beklenen (true) → pasife alır
+    await callAs("service_role", `select public.admin_set_user_active($1,$2,false,true)`, [E12, T_ADMIN]);
+    ok((await su.query(`select active from public.users where id=$1`, [E12])).rows[0].active === false, "expected=gerçek → geçerli değişiklik (active=false)");
+    // (b) BAYAT beklenen (hâlâ true sanıyor ama gerçek false) → tekrar pasife almaya çalışır → UY001, yön değişmez
+    let staleErr = null;
+    try { await callAs("service_role", `select public.admin_set_user_active($1,$2,false,true)`, [E12, T_ADMIN]); }
+    catch (e) { staleErr = e.code; }
+    ok(staleErr === "UY001", "bayat expected (≠gerçek) → UY001 reddi");
+    ok((await su.query(`select active from public.users where id=$1`, [E12])).rows[0].active === false, "bayat istekten SONRA durum DEĞİŞMEDİ (yanlış yön engellendi)");
+    // (c) expected=NULL (geriye dönük) → kontrol atlanır, mutlak değere set
+    await callAs("service_role", `select public.admin_set_user_active($1,$2,true)`, [E12, T_ADMIN]);
+    ok((await su.query(`select active from public.users where id=$1`, [E12])).rows[0].active === true, "expected=NULL (3-arg) → geriye dönük, mutlak set çalışır");
+    // (d) EŞZAMANLI iki toggle, İKİSİ de active=true bekliyor → tam olarak BİRİ uygular, diğeri UY001 (çift-flip yok)
+    const E13 = "00000000-0000-0000-0000-0000000000f4";
+    await seedExpert(su, { id: E13, tenant: "f4f4f4f4-f4f4-f4f4-f4f4-f4f4f4f4f4f4", approval: "approved", active: true });
+    const m1 = conn(), m2 = conn(); await m1.connect(); await m2.connect(); await m1.query("set role service_role"); await m2.query("set role service_role");
+    const settled = await Promise.allSettled([
+      m1.query(`select public.admin_set_user_active($1,$2,false,true)`, [E13, T_ADMIN]),
+      m2.query(`select public.admin_set_user_active($1,$2,false,true)`, [E13, T_ADMIN]),
+    ]);
+    await m1.end(); await m2.end();
+    const rejectedUY = settled.filter(s => s.status === "rejected" && s.reason?.code === "UY001").length;
+    const okCount = settled.filter(s => s.status === "fulfilled").length;
+    ok(okCount === 1 && rejectedUY === 1, "eşzamanlı aynı-expected: TAM 1 uygular, 1 UY001 (çift-flip YOK)");
+    ok((await su.query(`select active from public.users where id=$1`, [E13])).rows[0].active === false, "eşzamanlı sonrası tek yönde değişim (active=false)");
+    const e13deact = (await su.query(`select 1 from admin_audit_log where target_user_id=$1 and action='user_deactivated'`, [E13])).rowCount;
+    ok(e13deact === 1, "eşzamanlı: yalnız 1 user_deactivated audit (kayıp/çift yok)");
+
     // ── G: yaşam döngüsü (pasife al → arşiv → geri dön) ──
     console.log("\n[G] Pasife alma → arşiv → yeniden aktifleştirme");
     await callAs("service_role", `select public.admin_set_user_active($1,$2,false)`, [T_EXPERT, T_ADMIN]);

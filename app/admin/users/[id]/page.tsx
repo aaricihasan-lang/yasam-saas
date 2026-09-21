@@ -62,7 +62,7 @@ import {
   readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
-import { deriveBaseExpertAccess } from "@/lib/admin/membershipActions";
+import { deriveBaseExpertAccess, approverForPreservedDate } from "@/lib/admin/membershipActions";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -268,6 +268,14 @@ type EditForm = {
 type AuditRow = {
   id: string;
   action: string;
+  actorAdminId: string | null;
+  actorName: string | null;
+  actorIsMainAdmin: boolean;
+  createdAt: string | null;
+};
+
+/** İlk (en eski) user_approved kaydı — korunan approved_at ile eşleşen onaylayan için. */
+type FirstApproval = {
   actorAdminId: string | null;
   actorName: string | null;
   actorIsMainAdmin: boolean;
@@ -486,6 +494,7 @@ export default function AdminUserDetailPage() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
+  const [auditFirstApproval, setAuditFirstApproval] = useState<FirstApproval | null>(null);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState(false);
@@ -670,12 +679,15 @@ export default function AdminUserDetailPage() {
       });
       if (!res.ok) {
         setAuditRows([]);
+        setAuditFirstApproval(null);
         return;
       }
-      const j = (await res.json()) as { rows?: AuditRow[] };
+      const j = (await res.json()) as { rows?: AuditRow[]; firstApproval?: FirstApproval | null };
       setAuditRows(j.rows ?? []);
+      setAuditFirstApproval(j.firstApproval ?? null);
     } catch {
       setAuditRows([]);
+      setAuditFirstApproval(null);
     }
   }
 
@@ -1379,7 +1391,12 @@ export default function AdminUserDetailPage() {
               <div className="mt-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/40 p-4">
                 <p className="text-sm font-black text-indigo-950">Onay &amp; Erişim Durumu</p>
                 {(() => {
-                  const approver = auditRows.find((r) => r.action === "user_approved");
+                  // Onaylayan: tarih (approvedAt) ile AYNI gerçek onay işleminden türer.
+                  // Eşleşme yoksa (ör. ilk onay kaydı yok/erişilemez) yanlış isim yerine boş → fallback.
+                  const approverName = approverForPreservedDate(
+                    auditFirstApproval,
+                    user.approvedAt ?? null,
+                  );
                   const deactivation = auditRows.find(
                     (r) => r.action === "user_deactivated" || r.action === "user_archived",
                   );
@@ -1406,9 +1423,9 @@ export default function AdminUserDetailPage() {
                             Onaylayan yönetici
                           </dt>
                           <dd className="mt-1 font-bold text-slate-900">
-                            {approver?.actorName
-                              ? approver.actorName
-                              : "Önceki işlem — onaylayan bilgisi mevcut değil"}
+                            {approverName
+                              ? approverName
+                              : "İlk onay kaydına ulaşılamadı — onaylayan bilgisi mevcut değil"}
                           </dd>
                         </div>
                         <div>
