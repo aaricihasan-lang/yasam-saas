@@ -1,0 +1,7245 @@
+{
+ "manifest_version": "usda-expansion-batch1",
+ "provider": "usda_fdc",
+ "dataset": "Foundation Foods (JSON) 2026-04-30 + SR Legacy 2018-04",
+ "retrieved_at": "2026-09-21",
+ "license": "CC0 1.0 Universal (public domain)",
+ "attribution": "U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, fdc.nal.usda.gov.",
+ "basis": "per 100 g",
+ "_note": "Satış-öncesi genişletme 1. parti. Nutrient/enerji değerleri USDA bulk JSON'dan (stable nutrient.id map). name_tr küratörlü; porsiyonlar sonraki turda doğrulanacak.",
+ "foods": [
+  {
+   "fdc_id": "323121",
+   "name_tr": "Sosis (Dana, Frankfurter)",
+   "name_en": "Frankfurter, beef, unheated",
+   "aliases": [
+    "sosis",
+    "frankfurter"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "processed",
+   "nutrients": {
+    "total_fat": {
+     "amount": 28,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.89,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 15,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 343,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.06,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 0.97,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 11.4,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.003,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 11.7,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 1.14,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 11.5,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 872,
+     "unit": "mg"
+    },
+    "vitamin_a": {
+     "amount": 3,
+     "unit": "mcg"
+    },
+    "sugar": {
+     "amount": 1.26,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 314,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "325036",
+   "name_tr": "Parmesan Peyniri (Rendelenmiş)",
+   "name_en": "Cheese, parmesan, grated",
+   "aliases": [
+    "parmesan",
+    "parmesan peyniri"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.008,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 28,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 12.4,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 884,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 184,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 4.33,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 29.6,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 0.45,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 34.9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1750,
+     "unit": "mg"
+    },
+    "vitamin_a": {
+     "amount": 228,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 15.5,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 6,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 1.35,
+     "unit": "mcg"
+    },
+    "sugar": {
+     "amount": 0.07,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 421,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "325198",
+   "name_tr": "Amerikan Peyniri (İşlenmiş)",
+   "name_en": "Cheese, pasteurized process, American, vitamin D fortified",
+   "aliases": [
+    "amerikan peyniri",
+    "american cheese"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "calcium": {
+     "amount": 866,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 149,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.42,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 18.1,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.006,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.012,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 18,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 1.45,
+     "unit": "mcg"
+    },
+    "iron": {
+     "amount": 0.48,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 25.1,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1660,
+     "unit": "mg"
+    },
+    "vitamin_d": {
+     "amount": 7.5,
+     "unit": "mcg"
+    },
+    "vitamin_a": {
+     "amount": 300,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 30.6,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 5.27,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 2.63,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 366,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "328841",
+   "name_tr": "Cottage Peyniri (Az Yağlı)",
+   "name_en": "Cheese, cottage, lowfat, 2% milkfat",
+   "aliases": [
+    "cottage peyniri",
+    "cottage"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "vitamin_a": {
+     "amount": 69,
+     "unit": "mcg"
+    },
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 2.3,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.31,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 103,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 120,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.61,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 11,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.001,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 1.26,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 10,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 0.42,
+     "unit": "mcg"
+    },
+    "iron": {
+     "amount": 0.13,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 321,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 4.1,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 84,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "329370",
+   "name_tr": "Mozzarella Peyniri (Az Yağlı)",
+   "name_en": "Cheese, mozzarella, low moisture, part-skim",
+   "aliases": [
+    "mozzarella",
+    "mozarella"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 203,
+     "unit": "mcg"
+    },
+    "magnesium": {
+     "amount": 27.2,
+     "unit": "mg"
+    },
+    "vitamin_b12": {
+     "amount": 1.65,
+     "unit": "mcg"
+    },
+    "sodium": {
+     "amount": 699,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 23.7,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.006,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 11.7,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 20.4,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.44,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 693,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 116,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.62,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 26,
+     "unit": "mcg"
+    },
+    "sugar": {
+     "amount": 1.81,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 298,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "332397",
+   "name_tr": "Jambon (Dilimli, Yağsız)",
+   "name_en": "Ham, sliced, pre-packaged, deli meat (96%fat free, water added)",
+   "aliases": [
+    "jambon",
+    "ham"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "processed",
+   "nutrients": {
+    "dha": {
+     "amount": 0.001,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 1.12,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 0.58,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18.8,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1040,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 16.7,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 3.73,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.27,
+     "unit": "g"
+    },
+    "potassium": {
+     "amount": 425,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.52,
+     "unit": "mg"
+    },
+    "calcium": {
+     "amount": 5,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 106,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "334194",
+   "name_tr": "Ton Balığı (Light, Suda Konserve)",
+   "name_en": "Fish, tuna, light, canned in water, drained solids",
+   "aliases": [
+    "ton baligi konserve"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "processed",
+   "nutrients": {
+    "calcium": {
+     "amount": 18,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 176,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.66,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.94,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.197,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.025,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 1.2,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 2.57,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 0.224,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 19,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 1.67,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 22.7,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 219,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 0.08,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 90,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "746767",
+   "name_tr": "İsviçre Peyniri (Gravyer)",
+   "name_en": "Cheese, swiss",
+   "aliases": [
+    "gravyer",
+    "isvicre peyniri",
+    "swiss"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "epa": {
+     "amount": 0.009,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 31,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 1.44,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 890,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 71,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 4.37,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.13,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 33.4,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 185,
+     "unit": "mg"
+    },
+    "vitamin_a": {
+     "amount": 292,
+     "unit": "mcg"
+    },
+    "vitamin_d": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "folate": {
+     "amount": 9,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 3.02,
+     "unit": "mcg"
+    },
+    "protein": {
+     "amount": 27,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 18.2,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 393,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "746780",
+   "name_tr": "İtalyan Sosisi (Pişmiş)",
+   "name_en": "Sausage, Italian, pork, mild, cooked, pan-fried",
+   "aliases": [
+    "italyan sosisi"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "cooked",
+   "nutrients": {
+    "vitamin_a": {
+     "amount": 22,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 26.2,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.15,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 12,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 310,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.41,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 9.15,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.003,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.005,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 18.2,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 1.06,
+     "unit": "mcg"
+    },
+    "iron": {
+     "amount": 1.29,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18.6,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 766,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 1.46,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 322,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "746781",
+   "name_tr": "Chorizo Sucuğu (Pişmiş)",
+   "name_en": "Sausage, pork, chorizo, link or ground, cooked, pan-fried",
+   "aliases": [
+    "chorizo"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "cooked",
+   "nutrients": {
+    "epa": {
+     "amount": 0.003,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.005,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 28.1,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 37,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 2.34,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 30.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 435,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 983,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.19,
+     "unit": "mg"
+    },
+    "vitamin_b12": {
+     "amount": 1.21,
+     "unit": "mcg"
+    },
+    "folate": {
+     "amount": 10,
+     "unit": "mcg"
+    },
+    "protein": {
+     "amount": 19.3,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 9.45,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.63,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 346,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "746784",
+   "name_tr": "Toz Şeker (Beyaz, Granül)",
+   "name_en": "Sugars, granulated",
+   "aliases": [
+    "toz seker",
+    "beyaz seker"
+   ],
+   "food_group": "sweets",
+   "prep_state": "processed",
+   "nutrients": {
+    "protein": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 0.05,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 0.3,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.32,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.01,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 99.6,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 99.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 385,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "747997",
+   "name_tr": "Yumurta Akı (A Kalite, İri)",
+   "name_en": "Eggs, Grade A, Large, egg white",
+   "aliases": [
+    "yumurta beyazi",
+    "yumurta aki"
+   ],
+   "food_group": "eggs",
+   "prep_state": "raw",
+   "nutrients": {
+    "protein": {
+     "amount": 10.7,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.36,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 55,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "748236",
+   "name_tr": "Yumurta Sarısı (A Kalite, İri)",
+   "name_en": "Eggs, Grade A, Large, egg yolk",
+   "aliases": [
+    "yumurta sarisi"
+   ],
+   "food_group": "eggs",
+   "prep_state": "raw",
+   "nutrients": {
+    "total_fat": {
+     "amount": 28.8,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 16.2,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 1.02,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 334,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "748967",
+   "name_tr": "Yumurta (A Kalite, İri, Bütün)",
+   "name_en": "Eggs, Grade A, Large, egg whole",
+   "aliases": [
+    "bütün yumurta",
+    "grade a yumurta"
+   ],
+   "food_group": "eggs",
+   "prep_state": "raw",
+   "nutrients": {
+    "vitamin_b12": {
+     "amount": 1.02,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 3.2,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 12.4,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 1.67,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 11.4,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 129,
+     "unit": "mg"
+    },
+    "vitamin_a": {
+     "amount": 180,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 48,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 132,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.24,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 9.96,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.96,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 2.46,
+     "unit": "mcg"
+    },
+    "sugar": {
+     "amount": 0.2,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 71,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 148,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "790146",
+   "name_tr": "Ekmeklik Un (Beyaz, Zenginleştirilmiş)",
+   "name_en": "Flour, bread, white, enriched, unbleached",
+   "aliases": [
+    "ekmeklik un",
+    "bread flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 145,
+     "unit": "mcg"
+    },
+    "protein": {
+     "amount": 14.3,
+     "unit": "g"
+    },
+    "iron": {
+     "amount": 5.55,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 35.9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 3,
+     "unit": "mg"
+    },
+    "calcium": {
+     "amount": 19,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 127,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.06,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 1.65,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 72.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 363,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "790646",
+   "name_tr": "Sarı Soğan (Çiğ)",
+   "name_en": "Onions, yellow, raw",
+   "aliases": [
+    "sari sogan"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "fiber": {
+     "amount": 1.9,
+     "unit": "g"
+    },
+    "potassium": {
+     "amount": 182,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.2,
+     "unit": "mg"
+    },
+    "calcium": {
+     "amount": 15,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.28,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.83,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 0.05,
+     "unit": "g"
+    },
+    "vitamin_c": {
+     "amount": 8.2,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 5.82,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 8.61,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 38,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1104812",
+   "name_tr": "Pirinç Unu (Esmer)",
+   "name_en": "Flour, rice, brown",
+   "aliases": [
+    "esmer pirinc unu",
+    "brown rice flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 1.5,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 124,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 7.19,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 3.85,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 75.5,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 10,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 265,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.91,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 365,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1104962",
+   "name_tr": "Beyaz Soğan (Çiğ)",
+   "name_en": "Onions, white, raw",
+   "aliases": [
+    "beyaz sogan"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "fiber": {
+     "amount": 1.2,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 0.13,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 21,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.15,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 9.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 141,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.12,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 5.76,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.89,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 7.68,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 35,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1750340",
+   "name_tr": "Elma (Fuji, Kabuklu, Çiğ)",
+   "name_en": "Apples, fuji, with skin, raw",
+   "aliases": [
+    "fuji elma"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.015,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 4.67,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 104,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1.01,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.017,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 13.3,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.162,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.08,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.98,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.148,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 15.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 64.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1750342",
+   "name_tr": "Elma (Granny Smith, Yeşil, Çiğ)",
+   "name_en": "Apples, granny smith, with skin, raw",
+   "aliases": [
+    "granny smith",
+    "yesil elma"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.07,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 5.06,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 116,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.023,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 10.6,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.138,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.51,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.48,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.266,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 14.1,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 58.9,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999627",
+   "name_tr": "İstiridye Mantarı (Çiğ)",
+   "name_en": "Mushroom, oyster",
+   "aliases": [
+    "istiridye mantari",
+    "oyster mushroom"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.698,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 13.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 282,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1.13,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.684,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 63.1,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.188,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 6.94,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0.041,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 2.85,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 41,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999628",
+   "name_tr": "Shiitake Mantarı (Çiğ)",
+   "name_en": "Mushrooms, shiitake",
+   "aliases": [
+    "shiitake"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.144,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 14.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 243,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.936,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.764,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 32.1,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.195,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 0.766,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.41,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 8.17,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0.056,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 4.17,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 44.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999629",
+   "name_tr": "Beyaz Mantar (Kültür, Çiğ)",
+   "name_en": "Mushrooms, white button",
+   "aliases": [
+    "beyaz mantar",
+    "kultur mantari"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.227,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.2,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 373,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 6.44,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.511,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 34.8,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.371,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.46,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.89,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.08,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0.022,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 1.72,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 31.2,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999630",
+   "name_tr": "Soya Sütü (Şekersiz, Sade)",
+   "name_en": "Soy milk, unsweetened, plain, shelf stable",
+   "aliases": [
+    "soya sutu",
+    "soy milk"
+   ],
+   "food_group": "legumes",
+   "prep_state": "processed",
+   "nutrients": {
+    "fiber": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 101,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.542,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 21.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 158,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 34.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.312,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 19.7,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 0.393,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 0.314,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 2.12,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 3.55,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 1.29,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 58.2,
+     "unit": "mcg"
+    },
+    "vitamin_d": {
+     "amount": 0.681,
+     "unit": "mcg"
+    },
+    "sugar": {
+     "amount": 0.557,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 38.5,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999632",
+   "name_tr": "Bebek Ispanak (Çiğ)",
+   "name_en": "Spinach, baby",
+   "aliases": [
+    "bebek ispanak",
+    "baby spinach"
+   ],
+   "food_group": "leafy_greens",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.26,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 92.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 582,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 111,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.447,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 26.5,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 116,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.619,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.56,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 68.4,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.85,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.41,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 283,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 26.6,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999633",
+   "name_tr": "Ispanak (Olgun, Çiğ)",
+   "name_en": "Spinach, mature",
+   "aliases": [
+    "ispanak"
+   ],
+   "food_group": "leafy_greens",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.05,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 93,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 460,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 107,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.423,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 30.3,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 113,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.604,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.59,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 66.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.91,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.64,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 306,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 27.6,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "1999634",
+   "name_tr": "Roma Domatesi (Çiğ)",
+   "name_en": "Tomato, roma",
+   "aliases": [
+    "roma domates"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.103,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.09,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 193,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.082,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 17.8,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 9.99,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 0.425,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 0.971,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 9.96,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.696,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 3.84,
+     "unit": "g"
+    },
+    "vitamin_a": {
+     "amount": 23.9,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 22,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2003586",
+   "name_tr": "Un (00, İnce Öğütülmüş)",
+   "name_en": "Flour, 00",
+   "aliases": [
+    "00 un",
+    "tip 00 un"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 0.986,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 25.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 136,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.791,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 1.52,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.66,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 13.5,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 18.7,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 11.4,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 74.4,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 357,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2003598",
+   "name_tr": "Portobello Mantarı (Çiğ)",
+   "name_en": "Mushroom, portabella",
+   "aliases": [
+    "portobello"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.139,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 9.04,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 349,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 5.31,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.389,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.312,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 3.24,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.75,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.66,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 1.88,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 32.4,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2003601",
+   "name_tr": "Kestane Mantarı / Crimini (Çiğ)",
+   "name_en": "Mushroom, crimini",
+   "aliases": [
+    "crimini",
+    "kestane mantari"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.312,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.2,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 380,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 4.57,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.512,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.197,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 3.09,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.01,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 1.78,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 30.2,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2257045",
+   "name_tr": "Badem Sütü (Şekersiz, Sade)",
+   "name_en": "Almond milk, unsweetened, plain, refrigerated",
+   "aliases": [
+    "badem sutu",
+    "almond milk"
+   ],
+   "food_group": "beverages",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "vitamin_b12": {
+     "amount": 0.449,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 158,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 0.125,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.25,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 49.3,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 59.2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.077,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 1.56,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.656,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.671,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 1.59,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 19.3,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258586",
+   "name_tr": "Havuç (Olgun, Çiğ)",
+   "name_en": "Carrots, mature, raw",
+   "aliases": [
+    "havuc"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.15,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 12.4,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 280,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 86.6,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.236,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.351,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 3.1,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 37.1,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 30.5,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.941,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 10.3,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 48,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258587",
+   "name_tr": "Bebek Havuç (Çiğ)",
+   "name_en": "Carrots, baby, raw",
+   "aliases": [
+    "bebek havuc",
+    "baby carrot"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.088,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 11.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 237,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 62.7,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.16,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.138,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.69,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 43.6,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 42.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.805,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 9.08,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 40.8,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258588",
+   "name_tr": "Yeşil Dolmalık Biber (Çiğ)",
+   "name_en": "Peppers, bell, green, raw",
+   "aliases": [
+    "yesil biber",
+    "dolmalik biber"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.186,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 163,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.126,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 99.5,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.106,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 0.942,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 22.2,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 7.5,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.715,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.78,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 22.9,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258589",
+   "name_tr": "Sarı Dolmalık Biber (Çiğ)",
+   "name_en": "Peppers, bell, yellow, raw",
+   "aliases": [
+    "sari biber"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.36,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 197,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.193,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 139,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.121,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.07,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 41.6,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 6.69,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 6.6,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.819,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 30.8,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258590",
+   "name_tr": "Kırmızı Kapya / Dolmalık Biber (Çiğ)",
+   "name_en": "Peppers, bell, red, raw",
+   "aliases": [
+    "kirmizi biber",
+    "kapya"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.353,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 11,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 213,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.202,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 142,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.126,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.16,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 47.3,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 6.36,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 6.65,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.896,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 31.3,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2258591",
+   "name_tr": "Turuncu Dolmalık Biber (Çiğ)",
+   "name_en": "Peppers, bell, orange, raw",
+   "aliases": [
+    "turuncu biber"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.365,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.4,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 201,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.242,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 158,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.156,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 0.967,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.9,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.882,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 6.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 31.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2259792",
+   "name_tr": "Buttermilk (Az Yağlı)",
+   "name_en": "Buttermilk, low fat",
+   "aliases": [
+    "buttermilk"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 0.013,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 11,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 158,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 92.5,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.426,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 0.552,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 1.08,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 120,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 3.46,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.81,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0.543,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 42.8,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2261420",
+   "name_tr": "Badem Unu",
+   "name_en": "Flour, almond",
+   "aliases": [
+    "badem unu",
+    "almond flour"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 3.22,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 251,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 667,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.894,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.8,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 50.2,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 9.27,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 37.8,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 232,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 26.2,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 16.2,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 622,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2261421",
+   "name_tr": "Yulaf Unu (Tam Tahıl)",
+   "name_en": "Flour, oat, whole grain",
+   "aliases": [
+    "yulaf unu",
+    "oat flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 4,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 125,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 373,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 3.62,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.75,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 34.7,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 6.31,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 10.5,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 42.8,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 69.9,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 13.2,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 389,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2262072",
+   "name_tr": "Fıstık Ezmesi (Kremamsı)",
+   "name_en": "Peanut butter, creamy",
+   "aliases": [
+    "fistik ezmesi",
+    "peanut butter"
+   ],
+   "food_group": "legumes",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 97.3,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 6.32,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 49.8,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 1.85,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 193,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 654,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 221,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.06,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 8.42,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 49.4,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 24,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 22.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 632,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2262073",
+   "name_tr": "Susam Ezmesi / Tahin (Kremamsı)",
+   "name_en": "Sesame butter, creamy",
+   "aliases": [
+    "tahin",
+    "susam ezmesi"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 108,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 8.37,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 116,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 7,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 357,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 408,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 63.6,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 6.04,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 8.97,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 62.4,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 14.2,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 19.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 697,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2262074",
+   "name_tr": "Badem Ezmesi (Kremamsı)",
+   "name_en": "Almond butter, creamy",
+   "aliases": [
+    "badem ezmesi",
+    "almond butter"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 42.5,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 9.72,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 264,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 4.11,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 268,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 745,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.996,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.18,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 4.25,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 53,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 21.2,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 20.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 645,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2262075",
+   "name_tr": "Keten Tohumu (Öğütülmüş)",
+   "name_en": "Flaxseed, ground",
+   "aliases": [
+    "keten tohumu",
+    "flaxseed"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "processed",
+   "nutrients": {
+    "folate": {
+     "amount": 41.4,
+     "unit": "mcg"
+    },
+    "fiber": {
+     "amount": 23.1,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 230,
+     "unit": "mg"
+    },
+    "iron": {
+     "amount": 5.78,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 372,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 793,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 36.7,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 4.74,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 3.28,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 37.3,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 34.4,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 18,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 545,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346386",
+   "name_tr": "Krema (Yoğun / Heavy Cream)",
+   "name_en": "Cream, heavy",
+   "aliases": [
+    "krema",
+    "heavy cream"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 5.97,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 96.9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 20.6,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.223,
+     "unit": "mg"
+    },
+    "vitamin_b12": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "saturated_fat": {
+     "amount": 20.4,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 35.6,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 61.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 2.02,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 3.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 343,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346388",
+   "name_tr": "Aysberg Marul (Çiğ)",
+   "name_en": "Lettuce, iceberg, raw",
+   "aliases": [
+    "aysberg",
+    "iceberg"
+   ],
+   "food_group": "leafy_greens",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.033,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 6.31,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 139,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 16.1,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.173,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.074,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 14.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.742,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 3.37,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 17.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346389",
+   "name_tr": "Marul (Romaine/Yeşil, Çiğ)",
+   "name_en": "Lettuce, romaine, green, raw",
+   "aliases": [
+    "romaine",
+    "marul"
+   ],
+   "food_group": "leafy_greens",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.267,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 12,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 260,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 23,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.252,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.071,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 27.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.977,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.06,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 20.8,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346392",
+   "name_tr": "Çam Fıstığı (Çiğ)",
+   "name_en": "Nuts, pine nuts, raw",
+   "aliases": [
+    "cam fistigi",
+    "pine nut"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 5.36,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 206,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 655,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.71,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 61.3,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 3.94,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 8.74,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 18.6,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 15.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 689,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346393",
+   "name_tr": "Badem (Bütün, Çiğ)",
+   "name_en": "Nuts, almonds, whole, raw",
+   "aliases": [
+    "badem",
+    "almond"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 3.74,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 258,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 733,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.86,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 51.1,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 10.8,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 254,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 20,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 21.5,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 3.78,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 626,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346394",
+   "name_tr": "Ceviz (İngiliz, Yarım, Çiğ)",
+   "name_en": "Nuts, walnuts, English, halves, raw",
+   "aliases": [
+    "ingiliz ceviz"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 2.24,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 142,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 424,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.76,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 69.7,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 5.21,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 88.3,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 10.9,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 14.6,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 6.05,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 730,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346396",
+   "name_tr": "Yulaf Ezmesi (Klasik)",
+   "name_en": "Oats, whole grain, rolled, old fashioned",
+   "aliases": [
+    "yulaf ezmesi",
+    "rolled oats"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 4.34,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 126,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 350,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.668,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.74,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 32,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 5.89,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 45.5,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 68.7,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 13.5,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 382,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346397",
+   "name_tr": "Yulaf (Çelik Kesim)",
+   "name_en": "Oats, whole grain, steel cut",
+   "aliases": [
+    "celik kesim yulaf",
+    "steel cut oats"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 3.8,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 129,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 376,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.311,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.84,
+     "unit": "mg"
+    },
+    "folate": {
+     "amount": 30,
+     "unit": "mcg"
+    },
+    "total_fat": {
+     "amount": 5.8,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 51.3,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 69.8,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 12.5,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 381,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346399",
+   "name_tr": "Kiraz (Koyu Kırmızı, Çiğ)",
+   "name_en": "Cherries, sweet, dark red, raw",
+   "aliases": [
+    "kiraz"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.105,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 12.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 230,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.065,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 10.4,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.192,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 12.3,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.04,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 16.2,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 13.9,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 70.5,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346401",
+   "name_tr": "Patates (Russet, Kabuksuz, Çiğ)",
+   "name_en": "Potatoes, russet, without skin, raw",
+   "aliases": [
+    "russet patates"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.384,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 25.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 450,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 2.74,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.378,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 10.9,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.36,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 7.8,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 17.8,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 2.27,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 0.526,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 83.4,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346403",
+   "name_tr": "Patates (Altın, Kabuksuz, Çiğ)",
+   "name_en": "Potatoes, gold, without skin, raw",
+   "aliases": [
+    "altin patates",
+    "gold patates"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.373,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 22.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 446,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 2.24,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.374,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 23.3,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.264,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.94,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.81,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 16,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 0.645,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 73.5,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346404",
+   "name_tr": "Tatlı Patates (Turuncu, Kabuksuz, Çiğ)",
+   "name_en": "Sweet potatoes, orange flesh, without skin, raw",
+   "aliases": [
+    "tatli patates",
+    "sweet potato"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.398,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 19.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 486,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.337,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 14.8,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.375,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 22.3,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 17.3,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 1.58,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 6.06,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 79,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346405",
+   "name_tr": "Kereviz Sapı (Çiğ)",
+   "name_en": "Celery, raw",
+   "aliases": [
+    "kereviz sapi",
+    "celery"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 265,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 97.2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.093,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.162,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 46.3,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.492,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 3.32,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 16.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346406",
+   "name_tr": "Salatalık (Kabuklu, Çiğ)",
+   "name_en": "Cucumber, with peel, raw",
+   "aliases": [
+    "salatalik",
+    "hiyar"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 170,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1.52,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.204,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.178,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 16.3,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.625,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.95,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 15.9,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346407",
+   "name_tr": "Yeşil Lahana (Çiğ)",
+   "name_en": "Cabbage, green, raw",
+   "aliases": [
+    "yesil lahana"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.066,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 13.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 207,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 16.1,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.211,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 40.3,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.228,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 41.8,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.961,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 6.38,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 31.4,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346408",
+   "name_tr": "Kırmızı Lahana (Çiğ)",
+   "name_en": "Cabbage, red, raw",
+   "aliases": [
+    "kirmizi lahana",
+    "mor lahana"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 13.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 269,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 11.7,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.245,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 53.9,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.214,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 31,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.24,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 6.79,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 34.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346410",
+   "name_tr": "Ahududu (Çiğ)",
+   "name_en": "Raspberries, raw",
+   "aliases": [
+    "ahududu",
+    "raspberry"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.45,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 19.2,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 156,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.221,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 23,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.188,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 16.4,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 12.9,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 1.01,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 2.68,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 57.3,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346411",
+   "name_tr": "Yaban Mersini (Çiğ)",
+   "name_en": "Blueberries, raw",
+   "aliases": [
+    "yaban mersini",
+    "blueberry"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.34,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 6.18,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 85.6,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.085,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 8.06,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.306,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 11.7,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.703,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 14.6,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 9.36,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 63.9,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346412",
+   "name_tr": "Üzüm (Kırmızı, Çekirdeksiz, Çiğ)",
+   "name_en": "Grapes, red, seedless, raw",
+   "aliases": [
+    "kirmizi uzum"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.162,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.56,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 229,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 7,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.036,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 3.31,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.164,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 10.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.914,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 20.2,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 17.3,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 85.9,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2346413",
+   "name_tr": "Üzüm (Yeşil, Çekirdeksiz, Çiğ)",
+   "name_en": "Grapes, green, seedless, raw",
+   "aliases": [
+    "yesil uzum"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.199,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 7.12,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 218,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 3.17,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.027,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 3.02,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.232,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 9.9,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.899,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 18.6,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 16.1,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 80.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2512372",
+   "name_tr": "Kinoa Unu",
+   "name_en": "Flour, quinoa",
+   "aliases": [
+    "kinoa unu",
+    "quinoa flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 4.53,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 164,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 551,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 6.32,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.77,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 6.6,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 6.3,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 37.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 11.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 69.5,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 385,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2512374",
+   "name_tr": "Karabuğday Unu",
+   "name_en": "Flour, buckwheat",
+   "aliases": [
+    "karabugday unu",
+    "buckwheat flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 3.84,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 167,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 378,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.76,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 2.48,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 10.4,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 30.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 8.88,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 75,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 358,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2512376",
+   "name_tr": "Arpa Unu",
+   "name_en": "Flour, barley",
+   "aliases": [
+    "arpa unu",
+    "barley flour"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 3.3,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 88,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 367,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 20.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.14,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 2.45,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 12.8,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 35.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 8.72,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 77.4,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 367,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2514745",
+   "name_tr": "Domuz Kıyma (Çiğ)",
+   "name_en": "Pork, ground, raw",
+   "aliases": [
+    "domuz kiyma"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.788,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 19,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 318,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 53.6,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.23,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 17.5,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.86,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 17.8,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 6.28,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 228,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2514746",
+   "name_tr": "Tavuk Kıyma (Çiğ)",
+   "name_en": "Chicken, ground, with additives, raw",
+   "aliases": [
+    "tavuk kiyma"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.593,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 20.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 302,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 63,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.18,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 7.16,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.82,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 17.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 1.56,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 133,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2514747",
+   "name_tr": "Hindi Kıyma (%93 Yağsız, Çiğ)",
+   "name_en": "Turkey, ground, 93% lean/ 7% fat, raw",
+   "aliases": [
+    "hindi kiyma"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.09,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 17.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 246,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 80.2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.95,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 9.59,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 23.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 17.3,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 2.26,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 153,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2515373",
+   "name_tr": "Brezilya Cevizi (Çiğ)",
+   "name_en": "Nuts, brazilnuts, raw",
+   "aliases": [
+    "brezilya cevizi",
+    "brazil nut"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 2.47,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 351,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 592,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.82,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 57.4,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 5.98,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 168,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 15,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 21.6,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 664,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2515376",
+   "name_tr": "Yer Fıstığı (Çiğ)",
+   "name_en": "Peanuts, raw",
+   "aliases": [
+    "yer fistigi",
+    "peanut"
+   ],
+   "food_group": "legumes",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.55,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 180,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 636,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 1.49,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.78,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 43.3,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 8.01,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 49.1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 23.2,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 26.5,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 588,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2515380",
+   "name_tr": "Kabak Çekirdeği İçi (Pepita, Çiğ)",
+   "name_en": "Seeds, pumpkin seeds (pepitas), raw",
+   "aliases": [
+    "kabak cekirdegi",
+    "pepita"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 8.36,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 500,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 691,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 6.34,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 40,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 5.08,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 37.4,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 29.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 18.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 555,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2515381",
+   "name_tr": "Ay Çekirdeği İçi (Çiğ)",
+   "name_en": "Seeds, sunflower seed, kernel, raw",
+   "aliases": [
+    "ay cekirdegi",
+    "sunflower seed"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 4.37,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 302,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 657,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.58,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 48.4,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 7.22,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 116,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 18.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 24.5,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 609,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2515382",
+   "name_tr": "Hindistan Cevizi Unu",
+   "name_en": "Flour, coconut",
+   "aliases": [
+    "hindistan cevizi unu",
+    "coconut flour"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 8.02,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 248,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 2090,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 46.9,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.7,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 15.3,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 34.2,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 36,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 16.1,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 58.9,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 14,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 438,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2644281",
+   "name_tr": "Cannellini Fasulyesi (Kuru)",
+   "name_en": "Beans, cannellini, dry",
+   "aliases": [
+    "cannellini"
+   ],
+   "food_group": "legumes",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 6.67,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 154,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 1420,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.72,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 2.2,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 143,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 21.6,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 59.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 345,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2644282",
+   "name_tr": "Nohut (Kuru)",
+   "name_en": "Chickpeas, (garbanzo beans, bengal gram), dry",
+   "aliases": [
+    "kuru nohut"
+   ],
+   "food_group": "legumes",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 5.09,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 135,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 1070,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 8.78,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.12,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 6.27,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 111,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 60.4,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 21.3,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 383,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2644283",
+   "name_tr": "Mercimek (Kuru)",
+   "name_en": "Lentils, dry",
+   "aliases": [
+    "kuru mercimek"
+   ],
+   "food_group": "legumes",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 7.16,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 107,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 949,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.86,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 1.92,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 61.8,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 23.6,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 62.2,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 360,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2644284",
+   "name_tr": "Börülce (Kuru)",
+   "name_en": "Blackeye pea, dry",
+   "aliases": [
+    "kuru borulce",
+    "blackeye pea"
+   ],
+   "food_group": "legumes",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 5.93,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 184,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 1240,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 3.46,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.65,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 2.42,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 71.4,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 21.2,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 61.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 354,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2646170",
+   "name_tr": "Tavuk Göğsü (Kemiksiz Derisiz, Çiğ)",
+   "name_en": "Chicken, breast, boneless, skinless, raw",
+   "aliases": [
+    "tavuk gogsu"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.354,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 26.2,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 330,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 65.8,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.654,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 0.349,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 1.93,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 3.94,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 22.5,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 106,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2646171",
+   "name_tr": "Tavuk But (Kemiksiz Derisiz, Çiğ)",
+   "name_en": "Chicken, thigh, boneless, skinless, raw",
+   "aliases": [
+    "tavuk but",
+    "tavuk baget"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.602,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 21.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 272,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 62.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.35,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 1.66,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 7.92,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 5.65,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 18.6,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 144,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2646172",
+   "name_tr": "Dana Antrikot / Ribeye (Çiğ)",
+   "name_en": "Beef, ribeye, steak, boneless, choice, raw",
+   "aliases": [
+    "ribeye",
+    "antrikot"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.64,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 16.7,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 288,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 42.5,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 4.06,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 7.97,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 20,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.17,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 18.7,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 254,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2646174",
+   "name_tr": "Dana Kol / Chuck Rosto (Çiğ)",
+   "name_en": "Beef, chuck, roast, boneless, choice, raw",
+   "aliases": [
+    "chuck",
+    "kol rosto"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 2.06,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 17,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 281,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 48.4,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.39,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 6.34,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 17.8,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.58,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 18.4,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 232,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2646175",
+   "name_tr": "Dana Flank Biftek (Çiğ)",
+   "name_en": "Beef, flank, steak, boneless, choice, raw",
+   "aliases": [
+    "flank",
+    "flank biftek"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 1.83,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 332,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 51.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.56,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 3.55,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 9.4,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 3.84,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 20.1,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 164,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2647438",
+   "name_tr": "Monterey Jack Peyniri",
+   "name_en": "Cheese, monterey jack, solid",
+   "aliases": [
+    "monterey jack"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 29.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 82.9,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 662,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.78,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 19.2,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 32.6,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 715,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 1.9,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 22.6,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 392,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2647442",
+   "name_tr": "Taze Peynir (Queso Fresco)",
+   "name_en": "Cheese, queso fresco, solid",
+   "aliases": [
+    "queso fresco",
+    "taze peynir"
+   ],
+   "food_group": "dairy",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 27.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 126,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 626,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.91,
+     "unit": "mg"
+    },
+    "saturated_fat": {
+     "amount": 14,
+     "unit": "g"
+    },
+    "total_fat": {
+     "amount": 23.4,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 602,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 2.96,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 18.9,
+     "unit": "g"
+    },
+    "vitamin_d": {
+     "amount": 0,
+     "unit": "mcg"
+    },
+    "energy": {
+     "amount": 298,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2684444",
+   "name_tr": "Morina Balığı / Cod (Çiğ)",
+   "name_en": "Fish, cod, Atlantic, wild caught, raw",
+   "aliases": [
+    "morina",
+    "cod"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.065,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 245,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 299,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.305,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.668,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 1.25,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 6.59,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 16.1,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 0.044,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.054,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.018,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 66,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2684445",
+   "name_tr": "Yayın Balığı / Catfish (Çiğ)",
+   "name_en": "Fish, catfish, farm raised, raw",
+   "aliases": [
+    "yayin baligi",
+    "catfish"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 20.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 292,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 60.5,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.475,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 7.31,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 2.27,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 7.8,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 16.5,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0,
+     "unit": "g"
+    },
+    "saturated_fat": {
+     "amount": 1.6,
+     "unit": "g"
+    },
+    "dha": {
+     "amount": 0.046,
+     "unit": "g"
+    },
+    "epa": {
+     "amount": 0.015,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 129,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2685569",
+   "name_tr": "Sarı Kabak (Yazlık, Çiğ)",
+   "name_en": "Squash, summer, yellow, includes skin, raw",
+   "aliases": [
+    "sari kabak",
+    "yazlik kabak"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.137,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 16.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 220,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.203,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.135,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 0.956,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 22.7,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.891,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 4.39,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 36,
+     "unit": "mcg"
+    },
+    "vitamin_c": {
+     "amount": 17,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 22,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2685571",
+   "name_tr": "Meşe Palamudu Kabağı / Acorn (Çiğ)",
+   "name_en": "Squash, winter, acorn, raw",
+   "aliases": [
+    "acorn kabak",
+    "kislik kabak"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.308,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 23.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 332,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.294,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.182,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.64,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 24.8,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.25,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 10.5,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 50,
+     "unit": "mcg"
+    },
+    "vitamin_c": {
+     "amount": 7,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 48.6,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2685572",
+   "name_tr": "Bok Choy (Çin Lahanası, Çiğ)",
+   "name_en": "Cabbage, bok choy, raw",
+   "aliases": [
+    "bok choy",
+    "cin lahanasi"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.439,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 13.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 228,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 14.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.274,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.234,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.26,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 61.9,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.02,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 3.51,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 68,
+     "unit": "mcg"
+    },
+    "vitamin_c": {
+     "amount": 30.3,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 20.3,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2685579",
+   "name_tr": "Domates Sosu (Tuzlu, Konserve)",
+   "name_en": "Tomato, sauce, canned, with salt added",
+   "aliases": [
+    "domates sosu"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 1.11,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18.7,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 356,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 417,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.183,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.382,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.64,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 17.1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.35,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 6.33,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 3.52,
+     "unit": "g"
+    },
+    "vitamin_c": {
+     "amount": 9.2,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 34.2,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2685582",
+   "name_tr": "Domates Püresi (Konserve)",
+   "name_en": "Tomato, puree, canned",
+   "aliases": [
+    "domates puresi"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 1.24,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 19.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 416,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 29.4,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.208,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.265,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.97,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 17.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.58,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 8.04,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 4.31,
+     "unit": "g"
+    },
+    "vitamin_c": {
+     "amount": 10.4,
+     "unit": "mg"
+    },
+    "energy": {
+     "amount": 40.8,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710815",
+   "name_tr": "Kayısı (Kabuklu, Çiğ)",
+   "name_en": "Apricot, with skin, raw",
+   "aliases": [
+    "kayisi"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.163,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.88,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 231,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.148,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 3.07,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.405,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.51,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 11.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.961,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 10.2,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 6.25,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 48.4,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710816",
+   "name_tr": "Kavun (Balküpü / Honeydew, Çiğ)",
+   "name_en": "Melons, honeydew, raw",
+   "aliases": [
+    "honeydew",
+    "kavun"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 9.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 209,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 21.2,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.06,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 15.7,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.216,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 6.58,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 7.03,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.531,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 8.15,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 36.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710817",
+   "name_tr": "Muz Plantain (Olgun, Çiğ)",
+   "name_en": "Plantains, ripe, raw",
+   "aliases": [
+    "plantain",
+    "yemeklik muz"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.319,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 33.9,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 396,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.147,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 20.1,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.893,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.12,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 3.82,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.16,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 31,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 14.2,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 136,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710819",
+   "name_tr": "Chia Tohumu (Kuru)",
+   "name_en": "Chia seeds, dry, raw",
+   "aliases": [
+    "chia tohumu"
+   ],
+   "food_group": "nuts_seeds",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 6.04,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 326,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 642,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.56,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 32.9,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 595,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 17,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 38.3,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 517,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710824",
+   "name_tr": "Avokado (Hass, Çiğ)",
+   "name_en": "Avocado, Hass, peeled, raw",
+   "aliases": [
+    "avokado",
+    "avocado"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.613,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 32.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 576,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.46,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 20.3,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 129,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 14.5,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.81,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 8.32,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 223,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710827",
+   "name_tr": "Einkorn Buğdayı (Kuru)",
+   "name_en": "Einkorn, grain, dry, raw",
+   "aliases": [
+    "einkorn",
+    "siyez bugdayi"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 3.69,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 140,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 432,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 5.23,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 3.81,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 8.91,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 41.4,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 15.1,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 68.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 369,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710828",
+   "name_tr": "Farro (Kuru)",
+   "name_en": "Farro, pearled, dry, raw",
+   "aliases": [
+    "farro"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 3.2,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 119,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 385,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.845,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.97,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 3.1,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 7.31,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 25.9,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 12.6,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 72.1,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 367,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710831",
+   "name_tr": "Kivi (Yeşil, Soyulmuş, Çiğ)",
+   "name_en": "Kiwifruit (kiwi), green, peeled, raw",
+   "aliases": [
+    "kivi"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.037,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 14.8,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 302,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 2.28,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.455,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 58.8,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.64,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.13,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 32.8,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 24.4,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 8.56,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 1.01,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 13.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 65.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710834",
+   "name_tr": "Mango (Ataulfo, Soyulmuş, Çiğ)",
+   "name_en": "Mango, Ataulfo, peeled, raw",
+   "aliases": [
+    "mango"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 10.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 204,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.102,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 168,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.681,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.29,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 10,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 11.1,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.688,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 17.4,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 78.5,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710835",
+   "name_tr": "Mısır Unu (Masa Harina)",
+   "name_en": "Corn flour, masa harina, white or yellow, dry, raw",
+   "aliases": [
+    "masa harina",
+    "misir unu"
+   ],
+   "food_group": "grains_cereals",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 1.7,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 93.3,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 277,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 2.73,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.62,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 4.34,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 7.04,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 112,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 7.56,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 76.7,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 376,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710836",
+   "name_tr": "Armut (Anjou, Yeşil, Çiğ)",
+   "name_en": "Pear, Anjou, green, with skin, raw",
+   "aliases": [
+    "armut",
+    "anjou"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 6.49,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 122,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.398,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.107,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 5.51,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.371,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 2.64,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 9.99,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.312,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 14.8,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 7.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 63.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2710837",
+   "name_tr": "Erik (Siyah, Kabuklu, Çiğ)",
+   "name_en": "Plum, black, with skin, raw",
+   "aliases": [
+    "siyah erik"
+   ],
+   "food_group": "fruits",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 6.62,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 186,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.045,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 1.82,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.282,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.35,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.03,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 0.578,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 13.5,
+     "unit": "g"
+    },
+    "sugar": {
+     "amount": 7.96,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 58.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2727568",
+   "name_tr": "Tavuk Kanat (Etli Derili, Çiğ)",
+   "name_en": "Chicken, wing, meat and skin, raw",
+   "aliases": [
+    "tavuk kanat"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.511,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 16.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 194,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 84.1,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.18,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 10.6,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 13.6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 18.4,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 168,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2727571",
+   "name_tr": "Bizon Kıyma (Çiğ)",
+   "name_en": "Bison, ground, raw",
+   "aliases": [
+    "bizon",
+    "bison"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 2.17,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 18.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 301,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 55.7,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.76,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 8.88,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 6.83,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 19.9,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 159,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2727574",
+   "name_tr": "Dana Kontrfile / Sirloin (Çiğ)",
+   "name_en": "Beef, top sirloin steak, raw",
+   "aliases": [
+    "kontrfile",
+    "sirloin"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 2.22,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 22.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 349,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 42.8,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 3.45,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 5.71,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 3.7,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 22,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.218,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 140,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2727575",
+   "name_tr": "Domuz Pirzola (Çiğ)",
+   "name_en": "Pork, chop, center cut, raw",
+   "aliases": [
+    "domuz pirzola"
+   ],
+   "food_group": "meat_poultry",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.421,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 23.4,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 366,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 39.3,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1.32,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 5.48,
+     "unit": "g"
+    },
+    "calcium": {
+     "amount": 4.12,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 22.8,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 138,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747652",
+   "name_tr": "Ançüez (Zeytinyağında, Konserve)",
+   "name_en": "Anchovies, canned in olive oil, with salt, drained",
+   "aliases": [
+    "ancuez",
+    "anchovy",
+    "hamsi konserve"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "processed",
+   "nutrients": {
+    "iron": {
+     "amount": 2.69,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 228,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 298,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 5400,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 2.54,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 9.85,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 12.6,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 240,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 26.9,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 2.41,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 206,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747656",
+   "name_tr": "Halibut / Pisi Balığı (Çiğ)",
+   "name_en": "Halibut, frozen, wild caught",
+   "aliases": [
+    "halibut",
+    "pisi baligi"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 23.1,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 430,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 108,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.327,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.592,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 0.582,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 4.1,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 19.1,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 81.3,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747658",
+   "name_tr": "Mahi Mahi (Çiğ)",
+   "name_en": "Mahi mahi, frozen, wild caught",
+   "aliases": [
+    "mahi mahi"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.052,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 28,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 408,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 51.9,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.296,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.377,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 1.34,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 6,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 19.8,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.287,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 83.7,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747659",
+   "name_tr": "Yaban Havucu / Parsnip (Çiğ)",
+   "name_en": "Parsnips, raw",
+   "aliases": [
+    "yaban havucu",
+    "parsnip"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.505,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 22,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 493,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0.491,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 10.5,
+     "unit": "g"
+    },
+    "zinc": {
+     "amount": 0.328,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 11.8,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.538,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 5.35,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 83.4,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 44.2,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 1.27,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 19.3,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 87.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747661",
+   "name_tr": "Jalapeño Biberi (Çiğ)",
+   "name_en": "Peppers, jalapeno, seeded, raw",
+   "aliases": [
+    "jalapeno"
+   ],
+   "food_group": "vegetables",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.038,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 8.95,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 167,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 0,
+     "unit": "mg"
+    },
+    "sugar": {
+     "amount": 2.7,
+     "unit": "g"
+    },
+    "zinc": {
+     "amount": 0.094,
+     "unit": "mg"
+    },
+    "vitamin_c": {
+     "amount": 89.9,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.149,
+     "unit": "g"
+    },
+    "fiber": {
+     "amount": 1.72,
+     "unit": "g"
+    },
+    "folate": {
+     "amount": 27.4,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 10.1,
+     "unit": "mg"
+    },
+    "carbohydrate": {
+     "amount": 5.08,
+     "unit": "g"
+    },
+    "protein": {
+     "amount": 0.621,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 24.1,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747667",
+   "name_tr": "Deniz Tarağı / Scallop (Çiğ)",
+   "name_en": "Scallops, sea, frozen, wild caught",
+   "aliases": [
+    "scallop",
+    "deniz taragi"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.213,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 30.6,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 245,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 313,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 1,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.493,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 1.28,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 10.5,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 13.5,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 1.97,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 66.4,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  },
+  {
+   "fdc_id": "2747669",
+   "name_tr": "Mercan / Snapper (Çiğ)",
+   "name_en": "Snapper, frozen, wild caught",
+   "aliases": [
+    "snapper",
+    "mercan baligi"
+   ],
+   "food_group": "fish_seafood",
+   "prep_state": "raw",
+   "nutrients": {
+    "iron": {
+     "amount": 0.201,
+     "unit": "mg"
+    },
+    "magnesium": {
+     "amount": 27.5,
+     "unit": "mg"
+    },
+    "potassium": {
+     "amount": 349,
+     "unit": "mg"
+    },
+    "sodium": {
+     "amount": 93.1,
+     "unit": "mg"
+    },
+    "zinc": {
+     "amount": 0.364,
+     "unit": "mg"
+    },
+    "total_fat": {
+     "amount": 0.569,
+     "unit": "g"
+    },
+    "vitamin_b12": {
+     "amount": 1.57,
+     "unit": "mcg"
+    },
+    "calcium": {
+     "amount": 13.9,
+     "unit": "mg"
+    },
+    "protein": {
+     "amount": 20.7,
+     "unit": "g"
+    },
+    "carbohydrate": {
+     "amount": 0.441,
+     "unit": "g"
+    },
+    "energy": {
+     "amount": 89.5,
+     "unit": "kcal"
+    }
+   },
+   "portions": []
+  }
+ ]
+}
