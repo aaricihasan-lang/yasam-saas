@@ -32,7 +32,7 @@ export function NumerolojiListeKarti({
   onToggleSelect?: () => void;
 }) {
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
-  const motor = extractMotorFromAnalysisJson(row.analysis_data);
+  const motor = extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname);
 
   const pin = motor?.pinKodu;
   const pinStr = pin

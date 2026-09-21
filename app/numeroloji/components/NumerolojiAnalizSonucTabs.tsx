@@ -31,7 +31,10 @@ const STONE_SECTION_ORDER: { key: string; title: string }[] = [
 ];
 import {
   buildPlainAnalizFull,
-  harfSegmentsToText,
+  degisimBoundedText,
+  zirveBoundedText,
+  mucadeleBoundedText,
+  harfBoundedText,
   nrDisplay,
   formatKulvarSummaryDisplay,
   kulvarAlternativePaths,
@@ -40,7 +43,14 @@ import {
   pinOneLine,
   type NumerolojiMotorOut,
 } from "../utils/numerolojiPlainMetin";
-import { filterHarfSegmentsThroughActive } from "../utils/harfSummary";
+import {
+  CHRONO_CUTOFF_NOTE,
+  cutoffHarfSegments,
+  harfDisplayAgeEnd,
+  harfDisplayYearEnd,
+  type HarfCutoffSegment,
+} from "../utils/chronoCutoff";
+import { useCurrentYear } from "../hooks/useCurrentYear";
 import { useContentTypography } from "./numerolojiContentTypography";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -154,6 +164,16 @@ function OzetMetinPre({ text }: { text: string | undefined | null }) {
   return <pre className={`whitespace-pre-wrap ${typo.pre} text-slate-800`}>{text}</pre>;
 }
 
+// OWNER: kronolojik bölümlerde TEK KEZ gösterilen bilgilendirme notu (yıl NUMARASI içermez;
+// her yıl otomatik geçerli). Premium arayüzle uyumlu, hesap metnine karışmayan ince şerit.
+function ChronoNote() {
+  return (
+    <p className="mt-2 rounded-md border border-amber-200/60 bg-amber-50/50 px-2.5 py-1 text-[10px] font-medium leading-snug text-amber-800/90">
+      {CHRONO_CUTOFF_NOTE}
+    </p>
+  );
+}
+
 const CAKRA_TABLO_SIRA: readonly number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 const CHAKRA_TABLO_HEX: Record<number, string> = {
@@ -264,16 +284,17 @@ function harfYilMetni(yearStart?: number, yearEnd?: number): string | null {
   return yearStart === yearEnd ? `${yearStart}` : `${yearStart}–${yearEnd}`;
 }
 
-function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
-  const yil = new Date().getFullYear();
+function harfDonemAktif(seg: HarfYankilanisiSegment, currentYear: number): boolean {
   if (seg.yearStart !== undefined && seg.yearEnd !== undefined) {
-    return seg.yearStart <= yil && yil <= seg.yearEnd;
+    return seg.yearStart <= currentYear && currentYear <= seg.yearEnd;
   }
   return false;
 }
 
-function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] }) {
+function HarflerBuyukPanel({ segments, currentYear }: { segments: HarfCutoffSegment[]; currentYear: number }) {
   // NUM-MOB-2-FIX1: mobilde dış kart yok (yalnız başlık + harf hücre ızgarası); md+ kart korunur.
+  // OWNER: başlangıç yılı ≤ currentYear olan segmentler ORİJİNAL (tam) aralıkla; gelecekte
+  // başlayanlar gizli. Kırpma / "gösterilen bölüm" YOK. Ana sonuç/canonical değişmez.
   return (
     <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-amber-300/35 md:bg-white/80 md:p-3 md:shadow-[0_0_12px_rgba(245,158,11,0.07)] md:backdrop-blur-xl">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -287,8 +308,8 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
         ) : (
           segments.map((seg, idx) => {
             const tint = HARF_KART_TINT[seg.chakra] ?? HARF_KART_TINT[9];
-            const aktif = harfDonemAktif(seg);
-            const yilMetin = harfYilMetni(seg.yearStart, seg.yearEnd);
+            const aktif = harfDonemAktif(seg, currentYear);
+            const yilMetin = harfYilMetni(seg.yearStart, harfDisplayYearEnd(seg));
             return (
               <div
                 key={`${idx}-${seg.letter}-${seg.ageStart}`}
@@ -302,7 +323,7 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
                 <span className="w-full text-lg font-black leading-none text-slate-900">{seg.letter}</span>
                 <span className="mt-0.5 w-full text-sm font-black tabular-nums text-violet-700">{seg.chakra}</span>
                 <span className="mt-0.5 w-full whitespace-nowrap text-[9px] font-medium leading-3 text-slate-600">
-                  {harfYasMetni(seg.ageStart, seg.ageEnd)}
+                  {harfYasMetni(seg.ageStart, harfDisplayAgeEnd(seg))}
                 </span>
                 {yilMetin ? (
                   <span className="mt-0.5 w-full whitespace-nowrap text-[9px] font-medium leading-3 tabular-nums text-slate-500">
@@ -314,6 +335,7 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
           })
         )}
       </div>
+      <ChronoNote />
     </section>
   );
 }
@@ -384,6 +406,7 @@ function TabSonucOzetiPremium({
   lastName?: string;
 }) {
   const typo = useContentTypography();
+  const currentYear = useCurrentYear();
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
 
@@ -427,13 +450,14 @@ function TabSonucOzetiPremium({
       <KulvarAltKombinasyonlar out={out} />
 
       <div className="grid grid-cols-1 gap-2">
-        {/* FAZ 6: Sonuç Özeti yalnız geçmiş + AKTİF segmenti gösterir (sunum filtresi;
-            engine tam timeline üretmeye devam eder). Ayrıntılı ekran tam timeline'ı korur. */}
+        {/* FAZ 6 + YEAR-CUTOFF: Sonuç Özeti geçmiş + AKTİF segmenti gösterir; gelecek gizli.
+            Aktif segment currentYear'a kırpılır (devam eden dönem). Engine tam timeline üretir. */}
         <HarflerBuyukPanel
-          segments={filterHarfSegmentsThroughActive(
+          segments={cutoffHarfSegments(
             Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : [],
-            new Date().getFullYear(),
+            currentYear,
           )}
+          currentYear={currentYear}
         />
 
         <section className={`min-w-0 w-full md:border md:border-violet-200/70 md:bg-white/85 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] ${mdPad(typo.boxPadding)}`}>
@@ -479,6 +503,11 @@ export function TabSonucOzeti({
   lastName?: string;
   layout?: "default" | "detay" | "premium";
 }) {
+  // Hook'lar erken return'den ÖNCE, koşulsuz çağrılır (rules-of-hooks). Premium dalı
+  // kendi hook'larını kullanan TabSonucOzetiPremium'a devreder.
+  const typo = useContentTypography();
+  const currentYear = useCurrentYear();
+
   if (layout === "premium") {
     return (
       <TabSonucOzetiPremium
@@ -494,19 +523,11 @@ export function TabSonucOzeti({
   const pinMetin = (out.pinKoduMetni || "—").trim() || "—";
   const elementMetinKisa = (out.elementlerMetni || "").trim().split("\n").slice(0, 3).join("\n") || "—";
 
-  const zirveStr = out.zirveYillariMetni?.trim() ?? "";
-  const zirveObj = out.zirveYillari;
-  const zirveHasArray = Boolean(zirveObj?.peaks?.length);
-
-  const mucadeleStr = out.mucadeleYillariMetni?.trim() ?? "";
-  const mucadeleObj = out.mucadeleYillari;
-  const mucadeleHasArray = Boolean(mucadeleObj?.method1?.length);
-
   const hy = out.harflerinYankilanisi;
-  const harfStr = out.harflerinYankilanisiMetni?.trim() ?? "";
-  const harfIsArray = Array.isArray(hy);
-  const harfHasSegments = harfIsArray && hy.length > 0;
-  const typo = useContentTypography();
+  const harfHasSegments = Array.isArray(hy) && hy.length > 0;
+  // OWNER YEAR-CUTOFF: kronolojik bölümler yapısal veriden currentYear'a sınırlanır (canonical
+  // hesap DEĞİŞMEZ). İçerik plain-metin ile TEK kaynaktan (bounded builder) gelir; not styled.
+  const harfCut = harfHasSegments ? cutoffHarfSegments(hy as HarfYankilanisiSegment[], currentYear) : [];
 
   return (
     <div className="space-y-3">
@@ -546,62 +567,45 @@ export function TabSonucOzeti({
       </div>
 
       <OzetSectionCard title="Çakra Omurgası Özeti"><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
-      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti"><OzetMetinPre text={out.degisimDonusumMetni} /></OzetSectionCard>
+
+      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">
+        <OzetMetinPre text={degisimBoundedText(out, currentYear)} />
+        <ChronoNote />
+      </OzetSectionCard>
 
       <OzetSectionCard title="Zirve Yılları Özeti">
-        {zirveStr ? (
-          <OzetMetinPre text={out.zirveYillariMetni} />
-        ) : zirveHasArray && zirveObj ? (
-          <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
-            {zirveObj.peaks.map((p) => (
-              <li key={p.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
-                {p.index}. zirve — yaş {p.age}, konu {p.topic}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
-        )}
+        <OzetMetinPre text={zirveBoundedText(out, currentYear)} />
+        <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Mücadele Yılları Özeti">
-        {mucadeleStr ? (
-          <OzetMetinPre text={out.mucadeleYillariMetni} />
-        ) : mucadeleHasArray && mucadeleObj ? (
-          <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
-            {mucadeleObj.method1.map((m) => (
-              <li key={m.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
-                {m.index}. mücadele — yaş {m.age}, konu {m.topic}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
-        )}
+        <OzetMetinPre text={mucadeleBoundedText(out, currentYear)} />
+        <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Harflerin Yankılanışı Özeti">
-        {harfHasSegments ? (
+        {harfCut.length ? (
           <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
-            {/* FAZ 6: özet yalnız geçmiş + aktif segment (sunum filtresi). */}
-            {filterHarfSegmentsThroughActive(hy as HarfYankilanisiSegment[], new Date().getFullYear()).map((seg, idx) => {
+            {/* OWNER: başlangıç yılı ≤ currentYear → ORİJİNAL (tam) aralık; gelecekte başlayan
+                gizli. Kırpma YOK. Tekrarlayan uzun metin (=== ===) KALDIRILDI. */}
+            {harfCut.map((seg, idx) => {
+              const yearEnd = harfDisplayYearEnd(seg);
               const y =
                 seg.yearStart != null
-                  ? ` · yıl ${seg.yearStart}${seg.yearEnd != null ? `–${seg.yearEnd}` : ""}`
+                  ? ` · yıl ${seg.yearStart}${yearEnd != null ? `–${yearEnd}` : ""}`
                   : "";
               return (
                 <li key={`${seg.letter}-${idx}`} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
-                  {idx + 1}. {seg.letter} — çakra {seg.chakra} — yaş {seg.ageStart}–{seg.ageEnd}
+                  {idx + 1}. {seg.letter} — çakra {seg.chakra} — yaş {seg.ageStart}–{harfDisplayAgeEnd(seg)}
                   {y}
                 </li>
               );
             })}
           </ul>
-        ) : null}
-        {harfStr ? (
-          <div className={harfHasSegments ? "mt-3 border-t border-slate-100 pt-3" : ""}><OzetMetinPre text={out.harflerinYankilanisiMetni} /></div>
-        ) : null}
-        {!harfHasSegments && !harfStr ? <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p> : null}
+        ) : (
+          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
+        )}
+        {harfCut.length ? <ChronoNote /> : null}
       </OzetSectionCard>
     </div>
   );
@@ -779,7 +783,8 @@ function NumeroCardBody({
 }
 
 export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
-  const raw = buildPlainAnalizFull(out);
+  const currentYear = useCurrentYear();
+  const raw = buildPlainAnalizFull(out, currentYear);
   const blocks = raw
     .split(/\n——————————\n/)
     .map((chunk) => {
@@ -906,10 +911,11 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   const cakraStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_CAKRA);
   const elementStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
 
-  const hy = out.harflerinYankilanisi;
-  const harfListe = Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "";
-  const harfMetin = out.harflerinYankilanisiMetni?.trim() ?? "";
   const typo = useContentTypography();
+  const currentYear = useCurrentYear();
+  // OWNER (detaylı sekmede de gelecek gizli): kronolojik bölümler currentYear'a sınırlanır;
+  // Harflerin Yankılanışı TEK KEZ gösterilir (numaralı liste + === === tekrarı KALDIRILDI).
+  const harfListe = harfBoundedText(out, currentYear);
   const preScroll =
     layout === "detay"
       ? `whitespace-pre-wrap ${typo.pre} text-slate-800`
@@ -974,21 +980,26 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
-        <pre className={preScroll}>{out.degisimDonusumMetni || "—"}</pre>
+        <pre className={preScroll}>{degisimBoundedText(out, currentYear)}</pre>
+        <ChronoNote />
       </DetayCard>
       <DetayCard title="Zirve">
-        <pre className={preScroll}>{out.zirveYillariMetni || "—"}</pre>
+        <pre className={preScroll}>{zirveBoundedText(out, currentYear)}</pre>
+        <ChronoNote />
       </DetayCard>
       <DetayCard title="Mücadele">
-        <pre className={preScroll}>{out.mucadeleYillariMetni || "—"}</pre>
+        <pre className={preScroll}>{mucadeleBoundedText(out, currentYear)}</pre>
+        <ChronoNote />
       </DetayCard>
       <DetayCard title="Harflerin Yankılanışı">
-        {harfListe ? <pre className={harfPre}>{harfListe}</pre> : null}
-        {harfMetin ? (
-          <pre className={preScroll}>{harfMetin}</pre>
-        ) : !harfListe ? (
+        {harfListe && harfListe !== "—" ? (
+          <>
+            <pre className={harfPre}>{harfListe}</pre>
+            <ChronoNote />
+          </>
+        ) : (
           <p className={`${typo.body} text-slate-600`}>—</p>
-        ) : null}
+        )}
       </DetayCard>
     </div>
   );

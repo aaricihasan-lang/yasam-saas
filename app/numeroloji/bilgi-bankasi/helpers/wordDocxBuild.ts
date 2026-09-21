@@ -26,13 +26,22 @@ import {
   VerticalAlign,
   WidthType,
 } from "docx";
-import { calcDegisimByYearOnly, calcDegisimByFullDate, parseBirthDate } from "@/lib/numeroloji";
+import { parseBirthDate } from "@/lib/numeroloji";
 import {
   computeUniversalTiming,
   computePersonalTiming,
   computeCycleTiming,
+  currentIstanbulYear,
   type CalendarDate,
 } from "@/lib/numeroloji/timing";
+import {
+  CHRONO_CUTOFF_NOTE,
+  cutoffDegisimYearOnly,
+  cutoffDegisimFullDate,
+  cutoffHarfSegments,
+  harfDisplayAgeEnd,
+  harfDisplayYearEnd,
+} from "@/app/numeroloji/utils/chronoCutoff";
 import { computeDevelopment } from "@/lib/numeroloji/development";
 import {
   WORD_TAB_LABELS,
@@ -282,22 +291,22 @@ function timelineCard(title: string, lines: string[]): Table {
   ] })] })] });
 }
 
-function degisimBlocks(birthDate: string): Block[] {
-  const parts = parseBirthDate((birthDate || "").replace(/\//g, "."));
-  if (!parts) return [];
-  const { day, month, year } = parts;
+// OWNER YEAR-CUTOFF (Word): başlangıç yılı ≤ currentYear olan dönemler ORİJİNAL (tam) aralıkla
+// gösterilir; başlamamış dönemler gizli. Kırpma / "gösterilen bölüm" YOK. Canonical hesap DEĞİŞMEZ.
+function degisimBlocks(birthDate: string, currentYear: number): Block[] {
   const out: Block[] = [];
-  const y = calcDegisimByYearOnly(year, month, 5);
-  if (y.length) { out.push(subHeading("Doğum yılına göre")); for (const r of y) out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki Dönemi: ${r.effectStartYear}–${r.effectEndYear}`])); }
-  const f = calcDegisimByFullDate(day, month, year, 5);
+  const y = cutoffDegisimYearOnly(birthDate, currentYear, 5);
+  if (y.length) { out.push(subHeading("Doğum yılına göre")); for (const r of y) out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki Dönemi: ${r.effectStartYear}–${r.effectEndYearDisplay}`])); }
+  const f = cutoffDegisimFullDate(birthDate, currentYear, 5);
   if (f.length) {
     out.push(subHeading("Gün ve ay dâhil"));
-    for (const r of f) { const md = String(r.effectMonth).padStart(2, "0"); const dd = String(r.effectDay).padStart(2, "0"); out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki: ${r.effectStartYear}.${md}.${dd} – ${r.effectEndYear}.${md}.${dd}`])); }
+    for (const r of f) { const md = String(r.effectMonth).padStart(2, "0"); const dd = String(r.effectDay).padStart(2, "0"); out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki: ${r.effectStartYear}.${md}.${dd} – ${r.effectEndYearDisplay}.${md}.${dd}`])); }
   }
   return out;
 }
-function zirveCards(motor: NonNullable<Motor>): Block[] {
-  const peaks = (motor.zirveYillari as { peaks?: { index: number; age: number; topic: string }[] } | null)?.peaks;
+function zirveCards(motor: NonNullable<Motor>, birthYear: number | null, currentYear: number): Block[] {
+  const all = (motor.zirveYillari as { peaks?: { index: number; age: number; topic: string }[] } | null)?.peaks;
+  const peaks = all?.filter((pk) => birthYear == null || birthYear + pk.age <= currentYear);
   if (!peaks?.length) return [];
   return [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, rows: [new TableRow({ cantSplit: true, children: peaks.map((pk) => new TableCell({ shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" }, margins: { top: 90, bottom: 90, left: 40, right: 40 }, verticalAlign: VerticalAlign.CENTER, children: [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [tr(`${pk.index}. Zirve`, { bold: true, color: MOR, size: S_SMALL })] }),
@@ -305,7 +314,7 @@ function zirveCards(motor: NonNullable<Motor>): Block[] {
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(String(pk.topic), { color: BODY, size: S_SMALL })] }),
   ] })) })] })];
 }
-function mucadeleBlocks(motor: NonNullable<Motor>): Block[] {
+function mucadeleBlocks(motor: NonNullable<Motor>, birthYear: number | null, currentYear: number): Block[] {
   const m = motor.mucadeleYillari as { method1?: { index: number; age: number; topic: string }[] } | null;
   if (!m) return [];
   const out: Block[] = [];
@@ -317,13 +326,20 @@ function mucadeleBlocks(motor: NonNullable<Motor>): Block[] {
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(String(it.topic), { color: BODY, size: S_SMALL })] }),
     ] })) })] }));
   };
-  if (m.method1?.length) blk("Mücadele Yılları", m.method1);
+  const visible = m.method1?.filter((it) => birthYear == null || birthYear + it.age <= currentYear);
+  if (visible?.length) blk("Mücadele Yılları", visible);
   return out;
 }
-function harflerTable(motor: NonNullable<Motor>): Block | null {
+function harflerTable(motor: NonNullable<Motor>, currentYear: number): Block | null {
   const hy = motor.harflerinYankilanisi as { letter: string; chakra: number; ageStart: number; ageEnd: number; yearStart?: number; yearEnd?: number }[] | undefined;
   if (!Array.isArray(hy) || !hy.length) return null;
-  return dataTable(["Sıra", "Harf", "Çakra", "Yaş Aralığı", "Yıl Aralığı"], hy.map((s, i) => [String(i + 1), s.letter, `${s.chakra}. çakra`, `${s.ageStart}–${s.ageEnd}`, s.yearStart != null && s.yearEnd != null ? `${s.yearStart}–${s.yearEnd}` : "—"]), [12, 14, 20, 27, 27]);
+  const cut = cutoffHarfSegments(hy, currentYear);
+  if (!cut.length) return null;
+  return dataTable(["Sıra", "Harf", "Çakra", "Yaş Aralığı", "Yıl Aralığı"], cut.map((s, i) => {
+    const yearEnd = harfDisplayYearEnd(s);
+    const yil = s.yearStart != null && yearEnd != null ? `${s.yearStart}–${yearEnd}` : "—";
+    return [String(i + 1), s.letter, `${s.chakra}. çakra`, `${s.ageStart}–${harfDisplayAgeEnd(s)}`, yil];
+  }), [12, 14, 20, 27, 27]);
 }
 
 // ── FAZ 6: Zamanlama & Gelişim (referans tarihe göre; canonical engine reuse) ──
@@ -531,8 +547,13 @@ export function buildPersonSections(
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
-  const motor = extractMotorFromAnalysisJson(row.analysis_data);
+  const motor = extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname);
   const summary = extractSummaryFromAnalysisData(row.analysis_data);
+  // OWNER YEAR-CUTOFF: kronolojik bölümler rapor oluşturma anındaki Türkiye takvim yılına
+  // sınırlanır (yıl hardcode DEĞİL; her yıl otomatik güncellenir). refCalendar timing sekmesi
+  // içindir ve bu sınırı ETKİLEMEZ.
+  const chronoCutoffYear = currentIstanbulYear();
+  const chronoBirthYear = parseBirthDate((row.birth_date || "").replace(/\//g, "."))?.year ?? null;
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
   const analiz = new Date(row.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
   const created = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
@@ -583,11 +604,12 @@ export function buildPersonSections(
         blocks.push(...chakraSpine(motor));
         blocks.push(subHeading("Elementler"));
         blocks.push(...elementCards(motor));
-        const deg = degisimBlocks(row.birth_date);
-        if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); }
-        const z = zirveCards(motor); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); }
-        const muc = mucadeleBlocks(motor); if (muc.length) { blocks.push(subHeading("Mücadele Yılları")); blocks.push(...muc); }
-        const harf = harflerTable(motor); if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); }
+        const chronoNote = () => p(CHRONO_CUTOFF_NOTE, { size: S_SMALL, color: BODY, before: 40 });
+        const deg = degisimBlocks(row.birth_date, chronoCutoffYear);
+        if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); blocks.push(chronoNote()); }
+        const z = zirveCards(motor, chronoBirthYear, chronoCutoffYear); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); blocks.push(chronoNote()); }
+        const muc = mucadeleBlocks(motor, chronoBirthYear, chronoCutoffYear); if (muc.length) { blocks.push(subHeading("Mücadele Yılları")); blocks.push(...muc); blocks.push(chronoNote()); }
+        const harf = harflerTable(motor, chronoCutoffYear); if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); blocks.push(chronoNote()); }
       }
     } else if (tab === "detailed") {
       // Hesap Özetsiz de seçiliyse hesap bölümlerini TEKRAR ETME → doğrudan yorumlara geç.
