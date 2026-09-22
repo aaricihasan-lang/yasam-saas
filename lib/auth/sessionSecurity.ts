@@ -18,6 +18,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyDeviceType, normalizeLimit, UNLIMITED, type LimitReason } from "@/lib/auth/sessionLimits";
+import { resolveClientChannel, CLIENT_CHANNEL_HEADER, type ClientChannel } from "@/lib/auth/clientChannel";
 
 // ─── Eşikler ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,11 @@ export type LocationInfo = {
   country: string | null;
   city: string | null;
   userAgent: string;
+  /**
+   * FAZ 1 İP-3 — ileriye dönük istemci kanalı (analitik). Yalnız extractLocationFromHeaders
+   * doldurur; yoksa createUserSession UA-parse fallback uygular. Kimlik/yetki kanıtı DEĞİLDİR.
+   */
+  channel?: ClientChannel;
 };
 
 type ActiveSession = {
@@ -115,31 +121,45 @@ async function insertSession(
   sessionToken: string,
   platform: string,
   now: string,
+  clientChannel: ClientChannel,
 ): Promise<void> {
-  const payload: Record<string, unknown> = {
+  // Zorunlu (şemada her zaman var olan) alanlar.
+  const base: Record<string, unknown> = {
     user_id:       userId,
     ip_address:    location.ip,
     country:       location.country,
     city:          location.city,
     user_agent:    location.userAgent,
-    platform,
     session_token: sessionToken,
     is_active:     true,
     created_at:    now,
     last_seen_at:  now,
   };
+  // Opsiyonel kolonlar — şemada yoksa (migration uygulanmadan deploy) insert bunları
+  // NAME'iyle tanıyıp bırakır (fail-open: oturum yine oluşur). İP-3: client_channel de
+  // aynı platform deseniyle geriye-uyumlu ele alınır.
+  const optional: Record<string, unknown> = { platform, client_channel: clientChannel };
 
+  const payload = { ...base, ...optional };
   const { error } = await db.from("user_sessions").insert(payload);
+  if (!error) return;
 
-  if (error) {
-    if (error.message.includes("platform")) {
-      const { platform: _p, ...withoutPlatform } = payload;
-      const { error: retryError } = await db.from("user_sessions").insert(withoutPlatform);
-      if (retryError) throw new Error(`Oturum kaydedilemedi: ${retryError.message}`);
-    } else {
-      throw new Error(`Oturum kaydedilemedi: ${error.message}`);
-    }
+  // Şemada eksik olan opsiyonel kolonları hatayı okuyup düşürerek en fazla iki kez dene.
+  let attempt: Record<string, unknown> = payload;
+  let lastMsg = error.message;
+  for (let i = 0; i < Object.keys(optional).length; i++) {
+    const dropKey = Object.keys(optional).find(
+      (k) => k in attempt && lastMsg.includes(k),
+    );
+    if (!dropKey) break;
+    const rest = { ...attempt };
+    delete rest[dropKey];
+    attempt = rest;
+    const retry = await db.from("user_sessions").insert(attempt);
+    if (!retry.error) return;
+    lastMsg = retry.error.message;
   }
+  throw new Error(`Oturum kaydedilemedi: ${lastMsg}`);
 }
 
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
@@ -159,6 +179,8 @@ export async function createUserSession(
 ): Promise<CreateSessionResult> {
   const now      = new Date().toISOString();
   const platform = detectPlatform(location.userAgent);
+  // İP-3: kanal — extractLocationFromHeaders doldurur; doğrudan çağrılarda UA-parse fallback.
+  const clientChannel = location.channel ?? resolveClientChannel(location.userAgent, null);
 
   // ── Kullanıcı lisans + platform ayarları ─────────────────────────────────
   const { data: lr } = await db
@@ -185,7 +207,7 @@ export async function createUserSession(
 
   // ── Güvenlik muafiyeti ────────────────────────────────────────────────────
   if (securityExempt) {
-    await insertSession(db, userId, location, sessionToken, platform, now);
+    await insertSession(db, userId, location, sessionToken, platform, now, clientChannel);
     return { ok: true, suspiciousLogin: false, highRisk: false };
   }
 
@@ -459,6 +481,8 @@ export function extractLocationFromHeaders(headers: Headers): LocationInfo {
   const city    = rawCity ? decodeURIComponent(rawCity) : null;
 
   const userAgent = headers.get("user-agent") ?? "";
+  // İP-3: analitik kanal (android_app vs *_web) — istemci ipucu + UA fallback. Güvenlik DEĞİL.
+  const channel = resolveClientChannel(userAgent, headers.get(CLIENT_CHANNEL_HEADER));
 
-  return { ip, country, city, userAgent };
+  return { ip, country, city, userAgent, channel };
 }
