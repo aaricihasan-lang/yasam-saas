@@ -64,6 +64,7 @@
     "beslenme:food-engine:catalog-import-harness": "node scripts/beslenme-food-engine/catalogImportHarness.mjs",
     "beslenme:food-engine:catalog-validate": "node scripts/beslenme-food-engine/validateCatalog.mjs",
     "beslenme:food-engine:catalog-import": "node scripts/beslenme-food-engine/importCatalog.mjs",
+    "beslenme:food-engine:pagination:harness": "tsx scripts/beslenme-food-engine/foodPaginationHarness.ts",
     "beslenme:alternatives:harness": "node scripts/beslenme-alternatives/altHarness.mjs",
     "beslenme:alternatives:retrieval:harness": "node scripts/beslenme-alternatives/altRetrievalHarness.mjs",
     "beslenme:analytics:harness": "tsx scripts/beslenme-analytics/analyticsHarness.mjs",

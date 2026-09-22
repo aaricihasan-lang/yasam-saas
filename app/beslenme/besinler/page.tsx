@@ -26,10 +26,10 @@ import {
   fetchReference,
   getFood,
   linkFoodSource,
-  listFoods,
   unlinkFoodSource,
   updateFood,
 } from "@/lib/beslenme/beslenmeClient";
+import { useFoodPagination } from "@/lib/beslenme/foodPagination";
 import {
   BeslenmeGate,
   BeslenmeShell,
@@ -60,21 +60,27 @@ export default function BesinlerPage() {
 
   const [groups, setGroups] = useState<FoodGroupRef[]>([]);
   const [frameworks, setFrameworks] = useState<FrameworkRef[]>([]);
-  const [foods, setFoods] = useState<Food[]>([]);
-  const [listLoading, setListLoading] = useState(true);
-  const [listErr, setListErr] = useState("");
   const [q, setQ] = useState("");
   const [group, setGroup] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setListLoading(true);
-    setListErr("");
-    const r = await listFoods({ q: q.trim() || undefined, group: group || undefined });
-    setListLoading(false);
-    if (r.ok && r.data) setFoods(r.data.foods ?? []);
-    else setListErr(friendlyError(r.code, r.status));
-  }, [q, group]);
+  // Sayfalama: q/group değişiminde debounce + reset; "daha fazla yükle" ile tüm katalog gezilir.
+  const {
+    foods,
+    total,
+    loading: listLoading,
+    error: listHasError,
+    errorCode,
+    errorStatus,
+    loadingMore,
+    moreError,
+    moreErrorCode,
+    moreErrorStatus,
+    hasMore,
+    loadedCount,
+    loadMore,
+    reload,
+  } = useFoodPagination({ q, group, enabled: guard === "ok" });
 
   // Referans (besin grupları) tek sefer
   useEffect(() => {
@@ -87,13 +93,6 @@ export default function BesinlerPage() {
       }
     })();
   }, [guard]);
-
-  // Liste — arama/grup değişiminde debounce
-  useEffect(() => {
-    if (guard !== "ok") return;
-    const t = setTimeout(() => void load(), 250);
-    return () => clearTimeout(t);
-  }, [guard, load]);
 
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
@@ -117,14 +116,20 @@ export default function BesinlerPage() {
             foods={foods}
             groups={groups}
             loading={listLoading}
-            error={listErr}
+            error={listHasError ? friendlyError(errorCode, errorStatus) : ""}
+            total={total}
+            loadedCount={loadedCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            moreError={moreError ? friendlyError(moreErrorCode, moreErrorStatus) : ""}
             q={q}
             group={group}
             selectedId={selectedId}
             onQ={setQ}
             onGroup={setGroup}
             onSelect={setSelectedId}
-            onRetry={() => void load()}
+            onRetry={reload}
+            onLoadMore={loadMore}
           />
         }
         detail={
@@ -143,12 +148,12 @@ export default function BesinlerPage() {
               groups={groups}
               frameworks={frameworks}
               onBack={() => setSelectedId(null)}
-              onSaved={async (food) => {
-                await load();
+              onSaved={(food) => {
+                reload();
                 setSelectedId(food.id);
               }}
-              onDeleted={async () => {
-                await load();
+              onDeleted={() => {
+                reload();
                 setSelectedId(null);
               }}
             />
@@ -165,6 +170,11 @@ function FoodList({
   groups,
   loading,
   error,
+  total,
+  loadedCount,
+  hasMore,
+  loadingMore,
+  moreError,
   q,
   group,
   selectedId,
@@ -172,11 +182,17 @@ function FoodList({
   onGroup,
   onSelect,
   onRetry,
+  onLoadMore,
 }: {
   foods: Food[];
   groups: FoodGroupRef[];
   loading: boolean;
   error: string;
+  total: number;
+  loadedCount: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  moreError: string;
   q: string;
   group: string;
   selectedId: string | null;
@@ -184,6 +200,7 @@ function FoodList({
   onGroup: (v: string) => void;
   onSelect: (id: string) => void;
   onRetry: () => void;
+  onLoadMore: () => void;
 }) {
   const groupName = useMemo(() => {
     const m = new Map(groups.map((g) => [g.id, g.name_tr]));
@@ -212,6 +229,11 @@ function FoodList({
             ))}
           </SelectInput>
         </div>
+        {!loading && !error && total > 0 ? (
+          <p className="mt-2 px-1 text-[11px] font-bold text-slate-400">
+            {loadedCount < total ? `${loadedCount} / ${total} besin` : `${total} besin`}
+          </p>
+        ) : null}
       </div>
 
       <div className="max-h-[64vh] overflow-y-auto p-2">
@@ -233,32 +255,75 @@ function FoodList({
             />
           </div>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {foods.map((f) => (
-              <li key={f.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelect(f.id)}
-                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition ${
-                    selectedId === f.id
-                      ? "bg-emerald-50 ring-1 ring-emerald-200"
-                      : "hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
-                    <span className="block truncate text-[11px] font-medium text-slate-400">
-                      {groupName(f.food_group_id) ?? "Grupsuz"}
-                      {f.prep_state ? ` · ${PREP_STATE_LABELS[f.prep_state] ?? f.prep_state}` : ""}
+          <div className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1">
+              {foods.map((f) => (
+                <li key={f.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(f.id)}
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition ${
+                      selectedId === f.id
+                        ? "bg-emerald-50 ring-1 ring-emerald-200"
+                        : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
+                      <span className="block truncate text-[11px] font-medium text-slate-400">
+                        {groupName(f.food_group_id) ?? "Grupsuz"}
+                        {f.prep_state ? ` · ${PREP_STATE_LABELS[f.prep_state] ?? f.prep_state}` : ""}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <ListFooter
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              moreError={moreError}
+              onLoadMore={onLoadMore}
+            />
+          </div>
         )}
       </div>
     </Card>
+  );
+}
+
+/** Liste altı: "Daha fazla yükle" / yükleniyor / hata + tekrar dene. Son sayfada gizlenir. */
+function ListFooter({
+  hasMore,
+  loadingMore,
+  moreError,
+  onLoadMore,
+}: {
+  hasMore: boolean;
+  loadingMore: boolean;
+  moreError: string;
+  onLoadMore: () => void;
+}) {
+  if (loadingMore) {
+    return <InlineSpinner label="Daha fazla besin yükleniyor…" />;
+  }
+  if (moreError) {
+    return (
+      <div className="px-1 py-2">
+        <StatusMessage type="error">{moreError}</StatusMessage>
+        <div className="mt-2">
+          <GhostButton onClick={onLoadMore}>Tekrar Dene</GhostButton>
+        </div>
+      </div>
+    );
+  }
+  if (!hasMore) return null;
+  return (
+    <div className="px-1 pb-1">
+      <GhostButton onClick={onLoadMore} className="w-full justify-center">
+        Daha fazla yükle
+      </GhostButton>
+    </div>
   );
 }
 
