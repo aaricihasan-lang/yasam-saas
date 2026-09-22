@@ -30,10 +30,13 @@ import { SUGGESTED_CATEGORIES } from "@/lib/sifa-rehberi/categories";
 import {
   SectionEditor,
   editableToPayload,
+  emptyEditableSection,
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import { MODALITIES, modalityById, normalizeModeKey, sectionHasAnyLayer } from "@/lib/sifa-rehberi/sectionModel";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -64,6 +67,105 @@ const emptyForm: GuideForm = {
   name: "",
   category: "",
 };
+
+/**
+ * FAZ 2 — Yeni kayıt ekranındaki HER ZAMAN GÖRÜNÜR 7 ana bölüm. Detay ekranının
+ * kanonik section modeliyle (section_type / mode) tutarlı; görünen etiket ≠ kanonik değer.
+ * "rahatsizlik" özeldir (ad/kategori/görsel; section YOK). Diğer 6 alan, createSections'ı
+ * `matches` ile FİLTRELER; `defaultMode` o alanda "+ Yeni Bölüm"in ön-seçili modalitesidir.
+ * matches predikatları TÜM section_type'ları TAM ve ÖRTÜŞMESİZ kapsar (her section tam 1 alan).
+ */
+type CreateTabId =
+  | "rahatsizlik"
+  | "belirtiler"
+  | "uygulamalar"
+  | "dogaltas"
+  | "aromaterapi"
+  | "islami"
+  | "destekleyici";
+
+type CreateTab = {
+  id: CreateTabId;
+  label: string;
+  icon: string;
+  desc: string;
+  matches?: (s: EditableSection) => boolean;
+  defaultMode?: string;
+};
+
+const CREATE_TABS: CreateTab[] = [
+  { id: "rahatsizlik", label: "Rahatsızlık", icon: "📋", desc: "Ad, kategori ve görseller." },
+  {
+    id: "belirtiler",
+    label: "Belirtiler / Sebepler",
+    icon: "🔍",
+    desc: "Tıbbi, bilinçaltı, mizaç ve diğer nedenler.",
+    matches: (s) => s.section_type === "reasons",
+    defaultMode: "tibbi",
+  },
+  {
+    id: "uygulamalar",
+    label: "Uygulamalar / Yöntemler",
+    icon: "🙌",
+    desc: "Hacamat, refleksoloji, diyet, bitkisel ve diğer yöntemler.",
+    matches: (s) => s.section_type === "applications" || s.section_type === "herbal",
+    defaultMode: "uygulama",
+  },
+  {
+    id: "dogaltas",
+    label: "Doğaltaş & Mineral",
+    icon: "💎",
+    desc: "Taş ve mineral önerileri.",
+    matches: (s) => s.section_type === "stones_details",
+    defaultMode: "stones_details",
+  },
+  {
+    id: "aromaterapi",
+    label: "Aromaterapi",
+    icon: "🌸",
+    desc: "Aromaterapi notları ve önerileri.",
+    matches: (s) => s.section_type === "supportive" && normalizeModeKey(s.mode) === "aromaterapi",
+    defaultMode: "aromaterapi",
+  },
+  {
+    id: "islami",
+    label: "İslami Öneriler",
+    icon: "🕌",
+    desc: "Dua, sure, niyet ve manevi destek.",
+    matches: (s) => s.section_type === "islamic_suggestions",
+    defaultMode: "islamic_suggestions",
+  },
+  {
+    id: "destekleyici",
+    label: "Destekleyici",
+    icon: "✨",
+    desc: "Meditasyon, nefes, biyoenerji, masaj, rutin ve destekleyici uygulamalar.",
+    matches: (s) => s.section_type === "supportive" && normalizeModeKey(s.mode) !== "aromaterapi",
+    defaultMode: "destekleyici",
+  },
+];
+
+const CREATE_CONTENT_TABS = CREATE_TABS.filter((t) => t.matches);
+
+/** Aktif alanın "+ Yeni Bölüm" fabrikası — o alanın modalitesini ön-seçer. */
+function makeSectionForTab(tab: CreateTab): EditableSection {
+  const base = emptyEditableSection();
+  const m = tab.defaultMode ? modalityById(tab.defaultMode) : null;
+  if (!m) return base;
+  return { ...base, section_type: m.section_type, mode: m.id };
+}
+
+/**
+ * Bir ana bölümün izinli içerik-türü (modalite) id'leri — `matches` predikatı
+ * kanonik MODALITIES üzerine uygulanır. Böylece seçici YALNIZ o bölümün türlerini
+ * gösterir; tek eleman → SectionEditor seçiciyi gizler, tür otomatik.
+ */
+function createTabModalityIds(tab: CreateTab): string[] {
+  if (!tab.matches) return [];
+  return MODALITIES.filter((m) =>
+    tab.matches!({ section_type: m.section_type, mode: m.id } as EditableSection),
+  ).map((m) => m.id);
+}
 
 function trimOrNull(value: string) {
   const t = value.trim();
@@ -253,23 +355,9 @@ const menuHeaderCard =
 const menuStatCard =
   "rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 text-center shadow-sm sm:px-4 sm:py-3";
 
-function SifaRehberiMainMenuButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-400/50 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 sm:w-auto sm:justify-start"
-    >
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
-        aria-hidden
-      >
-        🏠
-      </span>
-      <span>← Şifa Rehberi Ana Menü</span>
-    </button>
-  );
-}
+// (FAZ 2) Kullanılmayan tam-genişlik "← Şifa Rehberi Ana Menü" bileşeni kaldırıldı
+// (hiçbir yerde render edilmiyordu). Liste görünümündeki menü butonu için
+// `SifaRehberiToolbarMenuButton` korunur.
 
 function SifaRehberiToolbarMenuButton({ onClick }: { onClick: () => void }) {
   return (
@@ -357,6 +445,8 @@ function SifaRehberiContent() {
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   // FAZ 3: create içeriği artık section-native (edit ile ortak SectionEditor).
   const [createSections, setCreateSections] = useState<EditableSection[]>([]);
+  // FAZ 2: yeni-kayıt aktif bölümü (7 alan). Yalnız arayüz; sayfa değişimi DEĞİL.
+  const [createTab, setCreateTab] = useState<CreateTabId>("rahatsizlik");
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [formImages, setFormImages] = useState<GuideImage[]>([]);
   // P1 PHASE A: yeni-kayıt önizlemesi — kısa ömürlü signed URL (imageId → signedUrl).
@@ -375,6 +465,16 @@ function SifaRehberiContent() {
   // Yarış koruması: her yeni arama bir sequence alır; yalnız en güncel yanıt uygulanır.
   const searchSeqRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  // Idempotency: create denemesi başına anahtar. Başarısız/belirsiz gönderimin
+  // tekrarı AYNI anahtarı kullanır (mükerrer kayıt önlenir); yeni kayıt formu
+  // açıldığında / başarıda sıfırlanır → bilinçli yeni kayıt TAZE anahtar alır.
+  const createRequestIdRef = useRef<string | null>(null);
+
+  function newRequestId(): string {
+    return typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 
   /**
    * Server araması (real hesap). append=false → yeni arama (rows replace, cursor reset,
@@ -717,6 +817,10 @@ function SifaRehberiContent() {
     setFormSignedUrls({});
     setForm(() => ({ ...emptyForm }));
     setCreateSections([]);
+    setCreateTab("rahatsizlik");
+    // Yeni/temiz form → sonraki kayıt TAZE idempotency anahtarı alsın (bilinçli
+    // yeni kayıt & aynı-isimli farklı kayıt engellenmez).
+    createRequestIdRef.current = null;
   }
 
   async function handleSave() {
@@ -742,26 +846,47 @@ function SifaRehberiContent() {
     // healing_guide_sections'a yazılır (create=edit tutarlı; provenance/expert/attention
     // create anında; gizli aromatherapy→supportive map YOK). Guide satırına yalnız
     // üst-düzey alanlar (ad, kategori, görseller) gider.
-    const { error: insertError } = await createHealingGuide({
+    //
+    // Idempotency: bu denemenin anahtarı yoksa üret; retry AYNI anahtarı kullanır →
+    // atomik RPC ikinci kaydı oluşturmaz. Başarıda resetForm anahtarı sıfırlar.
+    if (!createRequestIdRef.current) {
+      createRequestIdRef.current = newRequestId();
+    }
+    const { id: newId, error: insertError, conflict } = await createHealingGuide({
       name: nameTrim,
       category: trimOrNull(form.category),
       images: formImages.length > 0 ? formImages : null,
       sections: editableToPayload(createSections),
+      request_id: createRequestIdRef.current,
     });
 
     setSaving(false);
+
+    if (conflict) {
+      // Aynı anahtar farklı içerikle çakıştı → taze anahtarla yeniden denenebilsin.
+      createRequestIdRef.current = null;
+      setErrorMessage("Bu kayıt farklı içerikle daha önce işlenmiş görünüyor. Lütfen tekrar Kaydet'e basın.");
+      return;
+    }
 
     if (insertError) {
       setErrorMessage(`Kayıt eklenemedi: ${insertError}`);
       return;
     }
 
+    // Başarı: form + dirty temizlenir (ayrılma-guard'ı kapanır), sonra YÖNLENDİRME.
     resetForm();
-    await loadGuides();
-    setPageView("list");
-    router.push("/sifa-rehberi?view=list");
-    // Başarı geri bildirimi toast ile verilir; loadGuides successMessage'ı
-    // temizlediği için state banner yerine kalıcı toast kullanılır (K2 fix).
+    if (newId) {
+      // FAZ 2: doğrudan oluşturulan rahatsızlığın DETAY ekranına. replace → geçici
+      // create formu ileri-geçmiş tuzağı olmaz; detaydan geri önceki liste/menüye gider.
+      router.replace(`/sifa-rehberi/${newId}`);
+    } else {
+      // Beklenmedik: id dönmedi → güvenli şekilde listeye düş.
+      setPageView("list");
+      await loadGuides();
+      router.replace("/sifa-rehberi?view=list");
+    }
+    // Başarı geri bildirimi kalıcı toast ile.
     showToast({
       title: "Başarılı",
       message: "Şifa rehberi kaydı oluşturuldu.",
@@ -779,17 +904,36 @@ function SifaRehberiContent() {
     (editorSignature(form.name, form.category, createSections) !== editorSignature("", "", []) ||
       formImages.length > 0);
   useUnsavedGuard(createDirty);
+  // FAZ 2: tarayıcı geri/ileri (popstate) için de kaydedilmemiş-değişiklik guard'ı.
+  useBackNavigationGuard(
+    createDirty,
+    "Bu kayıttaki değişiklikler kaydedilmedi. Sayfadan ayrılırsanız girdiğiniz içerik kaybolur. Yine de ayrılmak istiyor musunuz?",
+  );
 
-  async function guardedLeaveCreate(dest: () => void) {
-    if (createDirty) {
-      const ok = await deleteConfirm({
-        title: "Kaydedilmemiş değişiklikler",
-        message: "Bu kayıttaki değişiklikler henüz kaydedilmedi.",
-        secondMessage: "Çıkarsanız girdiğiniz içerik kaybolur. Yine de çıkmak istiyor musunuz?",
-      });
-      if (!ok) return;
-    }
-    dest();
+  // Aktif alandaki section'lar (create). "rahatsizlik" alanı section tutmaz.
+  const activeCreateTab = CREATE_TABS.find((t) => t.id === createTab) ?? CREATE_TABS[0];
+  const sectionsInCreateTab = activeCreateTab.matches
+    ? createSections.filter(activeCreateTab.matches)
+    : [];
+
+  // Alan-kapsamlı SectionEditor değişikliğini global listeye BİRLEŞTİR (alan sırasına göre,
+  // kayıpsız + deterministik). Her section tam 1 alana ait olduğundan çift sayım olmaz.
+  function setSectionsForTab(tab: CreateTab, nextSubset: EditableSection[]) {
+    setCreateSections((all) => {
+      const rebuilt: EditableSection[] = [];
+      for (const t of CREATE_CONTENT_TABS) {
+        if (t.id === tab.id) rebuilt.push(...nextSubset);
+        else rebuilt.push(...all.filter((s) => t.matches!(s)));
+      }
+      return rebuilt;
+    });
+  }
+
+  // Alan doluluk göstergesi — GERÇEK form verisinden türetilir (yanlış "tamamlandı" YOK):
+  // yalnız yazdırılabilir katmanı olan (note/source/expert_note/attention…) section'lar sayılır.
+  function createTabFilledCount(tab: CreateTab): number {
+    if (!tab.matches) return 0;
+    return createSections.filter((s) => tab.matches!(s) && sectionHasAnyLayer(s)).length;
   }
 
   const newViewFieldInput =
@@ -843,24 +987,21 @@ function SifaRehberiContent() {
   if (isNewView) {
     return (
       <>
-        {/* Yükseklik kontratı — LİSTE görünümüyle (bkz. contentShell) BİREBİR aynı desen.
-            globals.css YALNIZ düz `.h-screen`/`.min-h-screen`'i logo bar'a (44px, `--logo-h`)
-            göre daraltır: calc(100vh - var(--logo-h)). Tailwind'in responsive varyantı
-            `.lg\:h-screen` AYRI bir sınıftır ve globals.css onu daraltMAZ (ölçüldü: lg:h-screen
-            = 100vh ham) → bu yüzden desktop'ta düz `h-screen` kullanılır. Ham `h-dvh/min-h-dvh`
-            de daraltılmaz; kullanılırsa sayfa 100vh+44px olur ve Kaydet/Kapat barı KESİLİR.
-            Mobilde `max-lg:h-auto/min-h-screen/overflow-y-auto` → doğal belge scroll'u. */}
+        {/* Yükseklik kontratı — düz `h-screen` globals.css tarafından logo bar'a (44px,
+            `--logo-h`) göre daraltılır (calc(100vh - var(--logo-h))); footer'daki Kaydet
+            barı KESİLMEZ. Mobilde `max-lg:h-auto/min-h-screen/overflow-y-auto` → doğal scroll.
+            FAZ 2: uygulama-içi geri/Kapat butonları YOK → tarayıcı geri/ileri kullanılır. */}
         <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 max-lg:h-auto max-lg:min-h-screen max-lg:overflow-y-auto">
-          <header className="mx-auto mb-4 flex h-16 w-full max-w-[1100px] shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
-            <SifaRehberiToolbarMenuButton onClick={() => void guardedLeaveCreate(goToMainMenu)} />
-            <div className="min-w-0 pl-4 text-right">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Yeni Kayıt</p>
-              <h2 className="truncate text-base font-black text-slate-950">Yeni rahatsızlık kaydı</h2>
-            </div>
+          <header className="mx-auto mb-3 w-full max-w-[1400px] shrink-0 rounded-2xl border border-emerald-100/70 bg-white/80 px-5 py-3 shadow-sm sm:px-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Şifa Rehberi / Yeni Rahatsızlık</p>
+            <h2 className="text-lg font-black leading-tight text-slate-950 lg:text-xl">Yeni Rahatsızlık Oluştur</h2>
+            <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+              Rahatsızlık bilgilerini ve ilgili içerikleri ekleyin. Yalnız ad zorunlu; tüm bölümler opsiyoneldir.
+            </p>
           </header>
 
           {(errorMessage || successMessage) ? (
-            <div className="mx-auto mb-3 w-full max-w-[1100px] shrink-0 space-y-1">
+            <div className="mx-auto mb-3 w-full max-w-[1400px] shrink-0 space-y-1">
               {errorMessage ? (
                 <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">
                   {errorMessage}
@@ -874,7 +1015,7 @@ function SifaRehberiContent() {
             </div>
           ) : null}
 
-          <div className="mx-auto flex w-full max-w-[1100px] flex-col lg:min-h-0 lg:flex-1">
+          <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[260px_1fr] lg:gap-5">
             <input
               ref={imageFileInputRef}
               type="file"
@@ -883,79 +1024,116 @@ function SifaRehberiContent() {
               onChange={handleGuideImageFileChange}
             />
 
+            {/* SOL — her zaman görünür 7 bölüm navigasyonu (mobilde yatay seçici) */}
+            <aside className="shrink-0 overflow-x-auto rounded-2xl border border-emerald-100/80 bg-white/85 p-3 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:h-full lg:min-h-0 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[28px] lg:p-4 lg:shadow-xl">
+              <p className="mb-2 hidden text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 lg:mb-3 lg:block">Bölümler</p>
+              <div className="flex gap-2 lg:flex-col lg:gap-2">
+                {CREATE_TABS.map((tab) => {
+                  const active = createTab === tab.id;
+                  const filled = tab.id === "rahatsizlik"
+                    ? (form.name.trim() ? 1 : 0)
+                    : createTabFilledCount(tab);
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setCreateTab(tab.id)}
+                      aria-current={active ? "true" : undefined}
+                      className={`flex shrink-0 items-center gap-2 rounded-xl px-3 text-left text-[12px] font-bold whitespace-nowrap transition lg:w-full lg:whitespace-normal lg:text-[13px] ${
+                        active
+                          ? "bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-[0_10px_28px_rgba(16,185,129,0.38)] ring-1 ring-emerald-300/50 h-10 lg:min-h-[44px] lg:h-auto lg:py-2"
+                          : "border border-emerald-100/80 bg-white/70 text-slate-700 hover:bg-emerald-50/80 h-10 lg:min-h-[44px] lg:h-auto lg:py-2"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{tab.icon}</span>
+                      <span className="min-w-0 flex-1 truncate lg:whitespace-normal">{tab.label}</span>
+                      {filled > 0 ? (
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            active ? "bg-white/25 text-white" : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {tab.id === "rahatsizlik" ? "✓" : filled}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            {/* SAĞ — aktif bölümün içerik editörü */}
             <section className="flex flex-col overflow-hidden rounded-2xl border border-emerald-100/80 bg-white/85 shadow-sm lg:h-full lg:min-h-0 lg:rounded-[28px] lg:shadow-xl">
-              <div className="p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+              <div className="p-4 sm:p-6 max-lg:pb-24 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
                 <div className="space-y-4 pb-4">
                   <header className="border-b border-emerald-100/80 pb-4">
-                    <h3 className="text-lg font-black tracking-tight text-slate-950">Rahatsızlık Bilgileri</h3>
-                    <p className="mt-1 text-[12px] font-medium text-slate-500">
-                      Ad zorunlu; kategori opsiyonel. İçeriği aşağıda bölümler halinde ekleyin.
-                    </p>
+                    <h3 className="flex items-center gap-2 text-lg font-black tracking-tight text-slate-950">
+                      <span aria-hidden>{activeCreateTab.icon}</span>
+                      {activeCreateTab.label}
+                    </h3>
+                    <p className="mt-1 text-[12px] font-medium text-slate-500">{activeCreateTab.desc}</p>
                   </header>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-                    <section className={newViewMiniCard}>
-                      <header className="mb-2.5">
-                        <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
-                        <p className="text-[11px] font-medium text-slate-500">Zorunlu</p>
-                      </header>
-                      <input
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        className={newViewFieldInput}
-                        placeholder="Örn. Migren"
-                      />
-                    </section>
-                    <section className={newViewMiniCard}>
-                      <header className="mb-2.5">
-                        <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
-                        <p className="text-[11px] font-medium text-slate-500">Opsiyonel</p>
-                      </header>
-                      <input
-                        value={form.category}
-                        onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className={newViewFieldInput}
-                        placeholder="Örn. Sinir sistemi"
-                        list="sifa-category-suggestions"
-                      />
-                      <datalist id="sifa-category-suggestions">
-                        {SUGGESTED_CATEGORIES.map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                    </section>
-                  </div>
-
-                  {renderNewViewImagesBlock()}
-
-                  <section className={newViewMiniCard}>
-                    <header className="mb-3">
-                      <h4 className="text-[13px] font-black tracking-tight text-slate-900">Bölümler</h4>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                        Modalite seçip içerik, kaynak, uzman notu ve dikkat notu ekleyin. İçerik uzunluk sınırı yoktur.
-                      </p>
-                    </header>
-                    <SectionEditor value={createSections} onChange={setCreateSections} disabled={saving} />
-                  </section>
+                  {createTab === "rahatsizlik" ? (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                        <section className={newViewMiniCard}>
+                          <header className="mb-2.5">
+                            <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
+                            <p className="text-[11px] font-medium text-slate-500">Zorunlu</p>
+                          </header>
+                          <input
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            className={newViewFieldInput}
+                            placeholder="Örn. Migren"
+                          />
+                        </section>
+                        <section className={newViewMiniCard}>
+                          <header className="mb-2.5">
+                            <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
+                            <p className="text-[11px] font-medium text-slate-500">Opsiyonel</p>
+                          </header>
+                          <input
+                            value={form.category}
+                            onChange={(e) => setForm({ ...form, category: e.target.value })}
+                            className={newViewFieldInput}
+                            placeholder="Örn. Sinir sistemi"
+                            list="sifa-category-suggestions"
+                          />
+                          <datalist id="sifa-category-suggestions">
+                            {SUGGESTED_CATEGORIES.map((c) => (
+                              <option key={c} value={c} />
+                            ))}
+                          </datalist>
+                        </section>
+                      </div>
+                      {renderNewViewImagesBlock()}
+                    </>
+                  ) : (
+                    <SectionEditor
+                      value={sectionsInCreateTab}
+                      onChange={(next) => setSectionsForTab(activeCreateTab, next)}
+                      disabled={saving}
+                      makeNewSection={() => makeSectionForTab(activeCreateTab)}
+                      allowedModalityIds={createTabModalityIds(activeCreateTab)}
+                    />
+                  )}
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2.5 border-t border-emerald-100/80 bg-white/95 px-5 py-3 backdrop-blur-sm">
+              <div className="flex shrink-0 items-center gap-3 border-t border-emerald-100/80 bg-white/95 px-5 py-3 backdrop-blur-sm max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-30 max-lg:px-4 max-lg:shadow-[0_-6px_20px_rgba(15,23,42,0.08)]">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60"
+                  className="inline-flex h-10 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 text-[13px] font-black text-white shadow-md transition hover:brightness-105 disabled:opacity-60"
                 >
                   {saving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void guardedLeaveCreate(goToMainMenu)}
-                  className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                  Kapat
-                </button>
+                <span className="hidden text-[11px] font-medium text-slate-500 sm:inline">
+                  Ad zorunlu; diğer bölümler opsiyoneldir. Tek Kaydet ile tümü kaydedilir.
+                </span>
               </div>
             </section>
           </div>

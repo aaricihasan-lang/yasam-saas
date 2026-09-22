@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useParams, useRouter } from "next/navigation";
-import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
@@ -447,22 +447,13 @@ export default function SifaRehberiDetailPage() {
     : "";
   const editDirty = editEnabled && editSig !== editInitialSig;
   useUnsavedGuard(editDirty);
-  const navConfirm = useDeleteConfirm();
+  // FAZ 2: tarayıcı geri/ileri (popstate) için düzenleme kaydedilmemiş-değişiklik guard'ı.
+  // (In-app listeye-dön butonu KALDIRILDI; tarayıcı geri/ileri kullanılır.)
+  useBackNavigationGuard(
+    editDirty,
+    "Bu kayıttaki değişiklikler kaydedilmedi. Sayfadan ayrılırsanız değişiklikleriniz kaybolur. Yine de ayrılmak istiyor musunuz?",
+  );
   const { isDemo } = useDemoGuard();
-
-  // FAZ 3 corrective: uygulamanın KENDİ bilinen in-app navigasyonu (Listeye dön) dirty
-  // iken sessiz route değiştirmez → onay. Clean iken onay yok. Fragile router hack YOK.
-  async function guardedBackToList() {
-    if (editDirty) {
-      const ok = await navConfirm({
-        title: "Kaydedilmemiş değişiklikler",
-        message: "Bu kayıttaki değişiklikler henüz kaydedilmedi.",
-        secondMessage: "Çıkarsanız değişiklikleriniz kaybolur. Listeye dönülsün mü?",
-      });
-      if (!ok) return;
-    }
-    router.push(SIFA_REHBERI_LIST_HREF);
-  }
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
   const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
@@ -930,15 +921,7 @@ export default function SifaRehberiDetailPage() {
         <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="mb-2">
-                <button
-                  type="button"
-                  onClick={() => void guardedBackToList()}
-                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                >
-                  ← Liste
-                </button>
-              </div>
+              {/* FAZ 2: uygulama-içi listeye-dön butonu kaldırıldı → tarayıcı geri/ileri kullanılır. */}
               <div className="mb-1.5 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-emerald-700 ring-1 ring-emerald-100">
                 ŞİFA REHBERİ DETAY
               </div>

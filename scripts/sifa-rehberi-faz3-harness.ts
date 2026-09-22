@@ -13,7 +13,7 @@ import {
   type EditableSection,
 } from "@/lib/sifa-rehberi/sectionEditorModel";
 import { validateSectionsBody } from "@/lib/sifa-rehberi/limits";
-import { MODALITIES, MODE_LABEL, modalityById } from "@/lib/sifa-rehberi/sectionModel";
+import { MODALITIES, MODE_LABEL, modalityById, normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
 import { foldTr, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
 import {
   matchesListSearch,
@@ -61,6 +61,27 @@ eq(reEmitted.expert_note, "gözlemim", "create→edit parity: expert_note");
 eq(reEmitted.attention, "sıcak uygulama", "create→edit parity: attention");
 eq(reEmitted.source_kind, "Geleneksel Kaynak", "create→edit parity: source_kind");
 
+// ── CREATE ROUTE SEAM (POST /guides section insert) — regresyon kilidi ─────────
+// Bug: POST /guides elle map ederken source_kind/expert_note/attention/sort_order
+// DÜŞÜRÜYORDU (yeni kayıtta sessiz veri kaybı; edit yolu bunları koruyordu).
+// Fix: route istemci payload'ını edit yolu ile AYNI normalizeReplaceSections'tan
+// geçirir. Aşağısı o seam'i birebir taklit eder ve tüm katmanların KAYIPSIZ
+// gittiğini + sıralamanın deterministik olduğunu doğrular.
+const routeRows = normalizeReplaceSections(payload as unknown as Record<string, unknown>[]);
+eq(routeRows[0].source_kind, "Geleneksel Kaynak", "create route seam: source_kind persist (drop DEĞİL)");
+eq(routeRows[0].expert_note, "gözlemim", "create route seam: expert_note persist (drop DEĞİL)");
+eq(routeRows[0].attention, "sıcak uygulama", "create route seam: attention persist (drop DEĞİL)");
+eq(routeRows[0].source, "Geleneksel", "create route seam: source persist");
+eq(routeRows[0].section_type, "herbal", "create route seam: section_type korunur");
+eq(routeRows.map((s) => s.sort_order), [0, 1], "create route seam: sort_order deterministik");
+eq(routeRows[1].note, "sırt", "create route seam: ikinci bölüm içeriği korunur");
+// Static: POST /guides canonical seam'i kullanıyor (elle lossy map DEĞİL) VE
+// guide+sections'ı tek atomik RPC ile yazıyor (A+key).
+const guidesPostRoute = read("app/api/sifa-rehberi/guides/route.ts");
+ok(/normalizeReplaceSections\s*\(/.test(guidesPostRoute), "create route: normalizeReplaceSections kullanılıyor (tek merkez)");
+ok(/create_healing_guide_with_sections/.test(guidesPostRoute), "create route: atomik RPC (create_healing_guide_with_sections) kullanılıyor");
+ok(!/from\(\s*["']healing_guides["']\s*\)\s*\.insert/.test(guidesPostRoute), "create route: elle iki-insert kaldırıldı (atomiklik RPC'de)");
+
 // ── TAXONOMY (herbal / aromaterapi) ───────────────────────────────────────────
 eq(modalityById("bitkisel")?.section_type, "herbal", "taxonomy: bitkisel → herbal");
 const aroma = MODALITIES.find((m) => m.id === "aromaterapi")!;
@@ -92,16 +113,44 @@ ok(/aria-label="Silmeyi onayla"/.test(editor) && /aria-label="Silmeyi iptal et"/
 ok(!/draggable|onDrag|DndContext/i.test(editor), "delete/reorder: drag YOK");
 ok(editor.includes("Yukarı taşı") && editor.includes("Aşağı taşı"), "reorder: ↑↓ kontrolleri korundu");
 
+// ── FAZ 2 son düzenleme: uzun-metin GENİŞ EDİTÖR (Doğaltaş UX) ─────────────────
+ok(/function ExpandableTextarea/.test(editor), "large-editor: ExpandableTextarea (⤢) bileşeni var");
+ok(/openLarge\(s\.key,\s*"note"/.test(editor) && /openLarge\(s\.key,\s*"expert_note"/.test(editor) && /openLarge\(s\.key,\s*"attention"/.test(editor), "large-editor: İçerik+Uzman Notu+Dikkat kapsanır");
+ok(!/openLarge\([^)]*"title"/.test(editor) && !/openLarge\([^)]*"source"/.test(editor), "large-editor: kısa alanlar (başlık/kaynak/kaynak türü) HARİÇ");
+ok(/const saveLarge/.test(editor) && /update\(large\.key/.test(editor), "large-editor: Kaydet → section alanına aktarır (form state)");
+ok(/const closeLarge/.test(editor), "large-editor: Vazgeç/× kapatır (mevcut metni silmez)");
+ok(!/fetch\s*\(/.test(editor), "large-editor: DB'ye bağımsız yazma YOK (nihai kayıt mevcut Kaydet ile)");
+ok(/Escape/.test(editor) && /autoFocus/.test(editor), "large-editor: klavye/erişilebilirlik (Escape + autoFocus + role=dialog)");
+ok(/role="dialog"/.test(editor) && /aria-modal="true"/.test(editor), "large-editor: erişilebilir modal (role/aria-modal)");
+
+// ── FAZ 2 son UX: bölüme-göre içerik türü + tıklayınca otomatik geniş editör ───
+// Fix 1 — bölüm-kapsamlı modalite seçimi:
+ok(/allowedModalityIds/.test(editor), "scope: SectionEditor allowedModalityIds prop");
+ok(/const scopedModalities/.test(editor), "scope: yalnız o bölümün türleri listelenir");
+ok(/const singleModality/.test(editor) && /Tek türlü bölüm/.test(editor), "scope: tek türlü bölümde açılır liste gizlenir (otomatik tür)");
+const createPageForScope = read("app/sifa-rehberi/page.tsx");
+ok(/function createTabModalityIds/.test(createPageForScope), "scope: bölüm→modalite id türetici (create)");
+ok(/allowedModalityIds=\{createTabModalityIds\(activeCreateTab\)\}/.test(createPageForScope), "scope: create aktif bölümün modalitelerini geçirir");
+// Fix 2 — yazı alanına tıklayınca geniş editör OTOMATİK açılır:
+ok(/readOnly/.test(editor), "auto-editor: uzun-metin alanı readOnly (inline yazım yok, tüm düzenleme modalde)");
+ok(/onClick=\{\(\)\s*=>\s*\{\s*if\s*\(!disabled\)\s*onExpand\(\);/.test(editor), "auto-editor: alana tıklayınca geniş editör açılır");
+// A11y (Faz 3): tıkla-aç korunur; onFocus-aç KALDIRILDI (odak-döndürme güvenli); klavye Enter/Space açar.
+ok(/role="button"/.test(editor) && /aria-haspopup="dialog"/.test(editor), "a11y: tetikleyici button semantiği (role/aria-haspopup)");
+ok(/e\.key === "Enter" \|\| e\.key === " "/.test(editor), "a11y: Enter/Space ile klavyeden açılır");
+ok(!/onFocus=\{\(e\)\s*=>[\s\S]*onExpand/.test(editor), "a11y: onFocus-aç kaldırıldı (odak buraya güvenle döner)");
+ok(/const returnFocusRef/.test(editor) && /el\.focus\(\)/.test(editor), "a11y: kapanınca odak açan alana döner");
+ok(/onModalKeyDown/.test(editor) && /const first = items\[0\]/.test(editor), "a11y: modal içi focus-trap (Tab döngüsü)");
+
 // ── STATIC: UNSAVED GUARD ─────────────────────────────────────────────────────
 const guard = read("hooks/useUnsavedGuard.ts");
 ok(/beforeunload/.test(guard), "unsaved: beforeunload dinleyicisi");
 ok(/if\s*\(!dirty\)\s*return/.test(guard), "unsaved: yalnız dirty iken aktif");
 ok(!/history\.pushState\(|addEventListener\(\s*["']popstate/i.test(guard), "unsaved: fragile router hack (pushState/popstate) YOK");
 const listPage = read("app/sifa-rehberi/page.tsx");
-ok(/useUnsavedGuard\(createDirty\)/.test(listPage), "unsaved: create dirty guard bağlı");
-ok(/guardedLeaveCreate/.test(listPage), "unsaved: create çıkış onayı");
+ok(/useUnsavedGuard\(createDirty\)/.test(listPage), "unsaved: create beforeunload guard bağlı");
+ok(/useBackNavigationGuard\(/.test(listPage), "unsaved: create geri/ileri (popstate) guard bağlı (FAZ 2)");
 const detailPage = read("app/sifa-rehberi/[id]/page.tsx");
-ok(/useUnsavedGuard\(editDirty\)/.test(detailPage), "unsaved: edit dirty guard bağlı");
+ok(/useUnsavedGuard\(editDirty\)/.test(detailPage), "unsaved: edit beforeunload guard bağlı");
 ok(/editInitialSig/.test(detailPage), "unsaved: edit başlangıç imzası yakalanıyor");
 
 // ── EDIT NAVIGATION GUARD (in-app) — pure state contract ──────────────────────
@@ -116,13 +165,32 @@ ok(editDirtyOf(true, initSig, initSig) === false, "edit-nav: cancel/kal → stat
 // beforeunload aktiflik: yalnız dirty
 ok(editDirtyOf(true, editorSignature("ASTIM", "", [{ ...secA, note: "x" }]), initSig) === true, "edit-nav: beforeunload dirty → active");
 ok(editDirtyOf(true, initSig, initSig) === false, "edit-nav: beforeunload clean → inactive");
-// static: guarded in-app back wiring
-ok(/guardedBackToList/.test(detailPage), "edit-nav: guarded in-app back fonksiyonu");
-ok(/← Liste/.test(detailPage), "edit-nav: Listeye dön butonu");
-ok(/navConfirm\(/.test(detailPage), "edit-nav: dirty iken onay modalı");
-ok(!/history\.pushState\(|addEventListener\(\s*["']popstate/.test(detailPage), "edit-nav: fragile router hack YOK");
-// create guard regresyonu
-ok(/useUnsavedGuard\(createDirty\)/.test(listPage) && /guardedLeaveCreate/.test(listPage), "edit-nav: create guard regresyon PASS");
+// static: FAZ 2 navigation model — in-app geri butonları KALDIRILDI; popstate guard EKLENDİ.
+ok(/useBackNavigationGuard\(/.test(detailPage), "edit-nav: edit geri/ileri (popstate) guard bağlı (FAZ 2)");
+ok(!/←\s*Liste/.test(detailPage), "edit-nav: '← Liste' butonu KALDIRILDI");
+ok(!/guardedBackToList/.test(detailPage), "edit-nav: eski in-app back fonksiyonu kaldırıldı");
+ok(!/history\.pushState\(|addEventListener\(\s*["']popstate/.test(detailPage), "edit-nav: fragile router hack detay sayfasında INLINE yok (hook'ta kapsüllü)");
+// create guard regresyonu (beforeunload + popstate)
+ok(/useUnsavedGuard\(createDirty\)/.test(listPage) && /useBackNavigationGuard\(/.test(listPage), "edit-nav: create guard regresyon PASS (beforeunload+popstate)");
+
+// ── FAZ 2: 7-alan navigasyon + geri-buton kaldırma + detay yönlendirme (static) ──
+ok(/CREATE_TABS\s*:\s*CreateTab\[\]/.test(listPage), "faz2: CREATE_TABS 7-alan modeli tanımlı");
+const createTabIds = ["rahatsizlik","belirtiler","uygulamalar","dogaltas","aromaterapi","islami","destekleyici"];
+ok(createTabIds.every((id) => new RegExp(`id:\\s*"${id}"`).test(listPage)), "faz2: 7 kanonik alan (rahatsizlik…destekleyici) mevcut");
+ok(!/SifaRehberiMainMenuButton/.test(listPage), "faz2: ölü SifaRehberiMainMenuButton kaldırıldı");
+ok(!/guardedLeaveCreate/.test(listPage), "faz2: create '← Ana Menü'/'Kapat' onay-wrapper kaldırıldı");
+ok(/router\.replace\(`\/sifa-rehberi\/\$\{newId\}`\)/.test(listPage), "faz2: başarılı kayıt → yeni kaydın DETAYINA yönlendirme");
+ok(/makeNewSection=\{/.test(listPage), "faz2: alan-kapsamlı SectionEditor default modalite fabrikası");
+ok(/setSectionsForTab\(/.test(listPage), "faz2: alan-kapsamlı section reconciliation");
+ok(/sectionHasAnyLayer\(s\)/.test(listPage), "faz2: doluluk göstergesi gerçek veriden (yanlış-tamamlandı YOK)");
+// SectionEditor makeNewSection prop'u geriye-uyumlu (edit yolu default davranış)
+const sectionEditorSrc = read("components/sifa-rehberi/SectionEditor.tsx");
+ok(/makeNewSection\?\:/.test(sectionEditorSrc), "faz2: SectionEditor makeNewSection opsiyonel prop");
+ok(/\(makeNewSection\s*\?\?\s*emptyEditableSection\)\(\)/.test(sectionEditorSrc), "faz2: makeNewSection yoksa default emptyEditableSection (edit yolu bozulmaz)");
+// popstate guard hook sözleşmesi
+const backGuard = read("hooks/useBackNavigationGuard.ts");
+ok(/addEventListener\("popstate"/.test(backGuard) && /removeEventListener\("popstate"/.test(backGuard), "faz2: popstate guard listener ekle/temizle (kalıcı kilit YOK)");
+ok(/history\.pushState/.test(backGuard) && /window\.confirm/.test(backGuard), "faz2: sentinel + senkron confirm deseni");
 
 // ── STATIC: CREATE/EDIT CONVERGENCE ───────────────────────────────────────────
 ok(/SectionEditor/.test(listPage) && /createSections/.test(listPage), "convergence: create section-native");
