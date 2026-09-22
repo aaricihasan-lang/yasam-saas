@@ -87,3 +87,35 @@ export function metricPlaceholder(kind: MetricDisplayKind): string {
 export function isConsistentCounts(active: number, passive: number, archived: number, total: number): boolean {
   return archived <= passive && active + passive === total;
 }
+
+/** YYYY-MM-DD tarihleri KESİNTİSİZ ardışık takvim günü mü (boşluk yok). <2 gün → false. */
+export function daysContiguous(datesYmd: string[]): boolean {
+  if (datesYmd.length < 2) return false;
+  const ms = datesYmd
+    .map((d) => Date.parse(d + "T00:00:00Z"))
+    .filter((t) => !Number.isNaN(t))
+    .sort((a, b) => a - b);
+  if (ms.length !== datesYmd.length) return false;
+  for (let i = 1; i < ms.length; i++) {
+    if (ms[i] - ms[i - 1] !== 86400000) return false; // tam 1 gün değilse boşluk/çakışma var
+  }
+  return true;
+}
+
+/**
+ * Günlük depolama büyümesi GERÇEKTEN karşılaştırılabilir mi? Çizgi ancak bu true iken çizilir:
+ *   - ≥2 nokta,
+ *   - tümü AYNI (boş olmayan) tenant kümesi (sig),
+ *   - tümü tam ölçüm (incomplete=0; partial VE failed hariç),
+ *   - KESİNTİSİZ ardışık takvim günleri (arada boş gün YOK).
+ * Aynı SAYIDA fakat farklı tenant, eksik gün veya kısmi/başarısız ölçüm → false.
+ */
+export function isGrowthComparable(
+  days: { date: string; sig: string; incomplete: number }[],
+): boolean {
+  if (days.length < 2) return false;
+  const sig0 = days[0].sig;
+  if (!sig0 || !days.every((d) => d.sig === sig0)) return false;
+  if (!days.every((d) => d.incomplete === 0)) return false;
+  return daysContiguous(days.map((d) => d.date));
+}

@@ -19,13 +19,14 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
   const [ov, setOv] = useState<OverviewData | null>(null);
   const [recent, setRecent] = useState<ExpertsData | null>(null);
   const [storage, setStorage] = useState<StorageOverviewData | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ok" | "error" | "invalidrange">("loading");
   const [err, setErr] = useState("");
   const [retry, setRetry] = useState(0);
 
   const days = period.days ?? 30;
 
   const load = useCallback((signal: AbortSignal) => {
+    if (period.invalid) { queueMicrotask(() => { if (!signal.aborted) setState("invalidrange"); }); return; }
     queueMicrotask(() => { if (!signal.aborted) setState("loading"); });
     Promise.all([
       statsApi.overview({ from: period.from, to: period.to, activeSinceDays: days }, signal),
@@ -39,7 +40,7 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
       setStorage(s.ok ? s.data : null);
       setState("ok");
     }).catch((x) => { if ((x as { name?: string })?.name !== "AbortError") { setErr("Veri alınamadı."); setState("error"); } });
-  }, [period.from, period.to, days]);
+  }, [period.from, period.to, period.invalid, days]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -47,6 +48,7 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
     return () => ac.abort();
   }, [load, refreshKey, retry]);
 
+  if (state === "invalidrange") return <ErrorBlock message="Geçersiz tarih aralığı — başlangıç ve bitiş seçin (başlangıç < bitiş olmalı)." />;
   if (state === "loading") return <LoadingBlock />;
   if (state === "error") return <ErrorBlock message={err || "Genel bakış yüklenemedi."} onRetry={() => setRetry((r) => r + 1)} />;
   if (!ov) return <ErrorBlock message="Genel bakış verisi yok." />;

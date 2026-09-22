@@ -32,10 +32,11 @@ export function ExpertDetailView({ userId, period, refreshKey }: { userId: strin
   const [act, setAct] = useState<ActivityData | null>(null);
   const [mods, setMods] = useState<ModulesData | null>(null);
   const [stor, setStor] = useState<StorageData | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "error" | "notfound">("loading");
+  const [state, setState] = useState<"loading" | "ok" | "error" | "notfound" | "invalidrange">("loading");
   const [err, setErr] = useState("");
 
   const load = useCallback((signal: AbortSignal) => {
+    if (period.invalid) { queueMicrotask(() => { if (!signal.aborted) setState("invalidrange"); }); return; }
     queueMicrotask(() => { if (!signal.aborted) setState("loading"); });
     Promise.all([
       statsApi.activity({ userId, from: period.from, to: period.to }, signal),
@@ -52,10 +53,11 @@ export function ExpertDetailView({ userId, period, refreshKey }: { userId: strin
       setStor(s.ok ? s.data : null);
       setState("ok");
     }).catch((x) => { if ((x as { name?: string })?.name !== "AbortError") { setErr("Detay alınamadı."); setState("error"); } });
-  }, [userId, period.from, period.to]);
+  }, [userId, period.from, period.to, period.invalid]);
 
   useEffect(() => { const ac = new AbortController(); load(ac.signal); return () => ac.abort(); }, [load, refreshKey]);
 
+  if (state === "invalidrange") return <ErrorBlock message="Geçersiz tarih aralığı — başlangıç ve bitiş seçin (başlangıç < bitiş olmalı)." />;
   if (state === "loading") return <LoadingBlock />;
   if (state === "notfound") return <EmptyBlock title="Uzman bulunamadı" hint="Bu ID ile bir kullanıcı yok." />;
   if (state === "error") return <ErrorBlock message={err || "Detay yüklenemedi."} />;

@@ -123,14 +123,15 @@ export type StorageGrowthPoint = {
   tenantCount: number;
   objectCount: number;
   totalBytes: number;
-  partialCount: number;
+  /** status <> 'complete' (partial VE failed dahil) gün-içi kayıt sayısı. */
+  incompleteCount: number;
 };
 export type StorageGrowthData = {
   points: StorageGrowthPoint[];
   /** Seçilen aralıkta en az 1 gün var mı. */
   measurementStarted: boolean;
-  /** Sistemde HİÇ günlük ölçüm var mı (aralıktan bağımsız) — "aralıkta yok" ≠ "hiç başlamadı" ayrımı. */
-  everMeasured: boolean;
+  /** Sistemde HİÇ günlük ölçüm var mı — true/false; SORGU HATASINDA null (belirsiz; "hiç başlamadı" UYDURULMAZ). */
+  everMeasured: boolean | null;
   /** ≥2 nokta VE aynı tenant kümesi VE tümü partial değil → gerçekten karşılaştırılabilir (çizgi çizilir). */
   comparable: boolean;
   range: { from: string | null; to: string | null };

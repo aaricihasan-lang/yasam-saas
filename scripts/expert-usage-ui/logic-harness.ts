@@ -6,6 +6,7 @@
 import {
   formatBytes, formatRelativeTr, formatDateTimeTr,
   metricDisplayKind, metricPlaceholder, isConsistentCounts, trCalendarDate,
+  daysContiguous, isGrowthComparable,
 } from "../../lib/admin/stats/uiFormat";
 import { makeMetric, unavailableMetric } from "../../lib/admin/stats/contract";
 
@@ -53,6 +54,22 @@ ok(trCalendarDate("2027-02-01T21:30:00Z") === "2027-02-02", "UTC 21:30 → TR er
 ok(trCalendarDate(new Date(Date.parse("2027-02-10T00:00:00+03:00") - 1).toISOString()) === "2027-02-09", "yarı-açık üst sınır -1ms → önceki takvim günü (bitiş kaymaz)");
 ok(trCalendarDate("2027-02-05T00:00:00+03:00") === "2027-02-05", "TR gece yarısı → o gün (from tarafı kaymaz)");
 ok(trCalendarDate(null) === null && trCalendarDate("bad") === null, "geçersiz → null");
+
+console.log("\n[6] daysContiguous + isGrowthComparable (depolama büyüme çizgisi kuralı)");
+ok(daysContiguous(["2027-09-01", "2027-09-02", "2027-09-03"]) === true, "ardışık 3 gün → true");
+ok(daysContiguous(["2027-09-01", "2027-09-03"]) === false, "boşluklu (02 eksik) → false");
+ok(daysContiguous(["2027-09-01"]) === false, "tek gün → false");
+const S = "sigAB"; // aynı tenant kümesi imzası
+// (c) ardışık, aynı sig, tam ölçüm → çizgi VAR
+ok(isGrowthComparable([{ date: "2027-09-01", sig: S, incomplete: 0 }, { date: "2027-09-02", sig: S, incomplete: 0 }]) === true, "(c) ardışık+aynı sig+tam → comparable");
+// (a) 01 ve 03, arada 02 boş → çizgi YOK
+ok(isGrowthComparable([{ date: "2027-09-01", sig: S, incomplete: 0 }, { date: "2027-09-03", sig: S, incomplete: 0 }]) === false, "(a) eksik gün → comparable DEĞİL");
+// (b) ardışık ama biri failed/partial (incomplete>0) → çizgi YOK
+ok(isGrowthComparable([{ date: "2027-09-01", sig: S, incomplete: 0 }, { date: "2027-09-02", sig: S, incomplete: 1 }]) === false, "(b) failed/partial → comparable DEĞİL");
+// (d) ardışık ama farklı tenant kümesi (sig) → çizgi YOK
+ok(isGrowthComparable([{ date: "2027-09-01", sig: "sigA", incomplete: 0 }, { date: "2027-09-02", sig: "sigB", incomplete: 0 }]) === false, "(d) farklı tenant kümesi → comparable DEĞİL");
+ok(isGrowthComparable([{ date: "2027-09-01", sig: "", incomplete: 0 }, { date: "2027-09-02", sig: "", incomplete: 0 }]) === false, "boş sig → comparable DEĞİL");
+ok(isGrowthComparable([{ date: "2027-09-01", sig: S, incomplete: 0 }]) === false, "tek nokta → comparable DEĞİL");
 
 console.log(`\n──────────\nUI LOGIC: PASS ${passed} · FAIL ${failed}`);
 if (failed > 0) process.exit(1);

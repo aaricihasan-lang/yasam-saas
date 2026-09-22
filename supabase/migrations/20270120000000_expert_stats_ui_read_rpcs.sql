@@ -78,19 +78,23 @@ AS $$
     LEFT JOIN sess se ON se.user_id = f.id
   ),
   page AS (
-    SELECT * FROM joined
-    ORDER BY
-      CASE WHEN p_sort = 'name'       THEN full_name END ASC  NULLS LAST,
-      CASE WHEN p_sort = 'created_at' THEN created_at END DESC NULLS LAST,
-      CASE WHEN p_sort NOT IN ('name','created_at') THEN last_login END DESC NULLS LAST,
-      created_at DESC,
-      user_id  -- STABİL ikinci anahtar: eşit değerlerde kayıtlar sayfalar arası kaymaz
+    SELECT joined.*, row_number() OVER (
+      ORDER BY
+        CASE WHEN p_sort = 'name'       THEN full_name END ASC  NULLS LAST,
+        CASE WHEN p_sort = 'created_at' THEN created_at END DESC NULLS LAST,
+        CASE WHEN p_sort NOT IN ('name','created_at') THEN last_login END DESC NULLS LAST,
+        created_at DESC,
+        user_id  -- STABİL ikinci anahtar: eşit değerlerde kayıtlar sayfalar arası kaymaz
+    ) AS rn
+    FROM joined
+    ORDER BY rn
     LIMIT  LEAST(coalesce(p_limit, 25), 100)
     OFFSET greatest(coalesce(p_offset, 0), 0)
   )
+  -- jsonb_agg SIRASI garanti değildir → ORDER BY rn ile açıkça sıralanır; rn anahtarı json'dan çıkarılır.
   SELECT jsonb_build_object(
     'total', (SELECT count(*)::bigint FROM filtered),
-    'rows',  coalesce((SELECT jsonb_agg(to_jsonb(page.*)) FROM page), '[]'::jsonb)
+    'rows',  coalesce((SELECT jsonb_agg(to_jsonb(p) - 'rn' ORDER BY p.rn) FROM page p), '[]'::jsonb)
   );
 $$;
 
@@ -103,12 +107,12 @@ CREATE OR REPLACE FUNCTION public.expert_storage_growth(
   p_to   date DEFAULT NULL
 )
 RETURNS TABLE (
-  snapshot_date date,
-  tenant_count  bigint,
-  object_count  bigint,
-  total_bytes   bigint,
-  partial_count bigint,
-  tenant_sig    text
+  snapshot_date   date,
+  tenant_count    bigint,
+  object_count    bigint,
+  total_bytes     bigint,
+  incomplete_count bigint,  -- status <> 'complete' (partial VE failed dahil)
+  tenant_sig      text
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_catalog
 AS $$
@@ -121,7 +125,7 @@ AS $$
     count(*)::bigint                                       AS tenant_count,
     coalesce(sum(d.object_count), 0)::bigint               AS object_count,
     coalesce(sum(d.total_bytes), 0)::bigint                AS total_bytes,
-    count(*) FILTER (WHERE d.status = 'partial')::bigint    AS partial_count,
+    count(*) FILTER (WHERE d.status <> 'complete')::bigint  AS incomplete_count,
     md5(coalesce(string_agg(DISTINCT d.tenant_id::text, ',' ORDER BY d.tenant_id::text), '')) AS tenant_sig
   FROM public.expert_storage_daily d
   WHERE (p_from IS NULL OR d.snapshot_date >= p_from)

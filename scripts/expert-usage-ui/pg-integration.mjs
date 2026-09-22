@@ -116,16 +116,18 @@ async function main() {
     await su.query(`insert into public.expert_storage_daily(tenant_id,snapshot_date,object_count,total_bytes,status) values
       ($1,'2027-01-20',5,500,'complete'), ($2,'2027-01-20',3,300,'partial'),
       ($1,'2027-01-21',6,600,'complete'),
-      ($1,'2027-01-22',7,700,'complete'), ($2,'2027-01-22',4,400,'complete')`, [T1, T2]);
-    const g = (await su.query(`select to_char(snapshot_date,'YYYY-MM-DD') d, tenant_count, object_count, total_bytes, partial_count, tenant_sig from public.expert_storage_growth(null,null) order by snapshot_date`)).rows;
-    ok(g.length === 3, "3 gün");
-    const d20 = g.find(r => r.d === "2027-01-20"), d21 = g.find(r => r.d === "2027-01-21"), d22 = g.find(r => r.d === "2027-01-22");
-    ok(Number(d20.tenant_count) === 2 && Number(d20.object_count) === 8 && Number(d20.total_bytes) === 800 && Number(d20.partial_count) === 1, "20 Ocak: tenant=2,obje=8,byte=800,partial=1");
-    ok(Number(d21.tenant_count) === 1 && Number(d21.partial_count) === 0, "21 Ocak: tenant=1,partial=0");
+      ($1,'2027-01-22',7,700,'complete'), ($2,'2027-01-22',4,400,'complete'),
+      ($1,'2027-01-23',8,800,'failed')`, [T1, T2]);
+    const g = (await su.query(`select to_char(snapshot_date,'YYYY-MM-DD') d, tenant_count, object_count, total_bytes, incomplete_count, tenant_sig from public.expert_storage_growth(null,null) order by snapshot_date`)).rows;
+    ok(g.length === 4, "4 gün");
+    const d20 = g.find(r => r.d === "2027-01-20"), d21 = g.find(r => r.d === "2027-01-21"), d22 = g.find(r => r.d === "2027-01-22"), d23 = g.find(r => r.d === "2027-01-23");
+    ok(Number(d20.tenant_count) === 2 && Number(d20.object_count) === 8 && Number(d20.total_bytes) === 800 && Number(d20.incomplete_count) === 1, "20 Ocak: tenant=2,obje=8,byte=800,incomplete=1 (partial)");
+    ok(Number(d21.tenant_count) === 1 && Number(d21.incomplete_count) === 0, "21 Ocak: tenant=1,incomplete=0");
+    ok(Number(d23.incomplete_count) === 1, "23 Ocak: status='failed' de INCOMPLETE sayılır (yalnız partial değil)");
     // tenant_sig: aynı tenant KÜMESİ (20 ve 22 = {T1,T2}) → aynı imza; farklı küme (21={T1}) → farklı.
-    ok(d20.tenant_sig === d22.tenant_sig, "20 ve 22 aynı tenant kümesi → aynı tenant_sig (karşılaştırılabilir)");
-    ok(d20.tenant_sig !== d21.tenant_sig, "21 farklı tenant kümesi → farklı tenant_sig (aynı SAYIYA rağmen DEĞİL — 21 zaten 1 tenant)");
-    ok((await su.query(`select count(*)::int c from public.expert_storage_growth('2027-01-21',null)`)).rows[0].c === 2, "range from=21 → 2 gün (21,22)");
+    ok(d20.tenant_sig === d22.tenant_sig, "20 ve 22 aynı tenant kümesi → aynı tenant_sig");
+    ok(d20.tenant_sig !== d21.tenant_sig, "21 farklı tenant kümesi → farklı tenant_sig");
+    ok((await su.query(`select count(*)::int c from public.expert_storage_growth('2027-01-21',null)`)).rows[0].c === 3, "range from=21 → 3 gün (21,22,23)");
     ok((await su.query(`select count(*)::int c from public.expert_storage_growth(null,'2027-01-20')`)).rows[0].c === 1, "range to=20 (inclusive) → 1 gün");
 
     // ── C: EXECUTE yetkileri ──
