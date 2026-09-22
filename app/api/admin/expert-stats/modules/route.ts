@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { isUuid, parseRange, resolveTargetExpert } from "@/lib/admin/stats/statsRequest";
-import { makeMetric, type MetricValue, type StatsEnvelope } from "@/lib/admin/stats/contract";
+import { makeMetric, deriveUsed, type MetricValue, type StatsEnvelope } from "@/lib/admin/stats/contract";
 import {
   MODULE_USAGE_REGISTRY,
   MODULE_USAGE_KEYS,
@@ -44,7 +44,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!isUuid(userId)) {
     return NextResponse.json({ ok: false, error: "Geçerli userId gerekli." }, { status: 400 });
   }
-  const range = parseRange(req.nextUrl.searchParams);
+  const parsed = parseRange(req.nextUrl.searchParams);
+  if (!parsed.ok) {
+    return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
+  }
+  const range = parsed.range;
 
   const target = await resolveTargetExpert(db, userId);
   if (!target) {
@@ -53,18 +57,38 @@ export async function GET(req: NextRequest): Promise<Response> {
   const measuredAt = new Date().toISOString();
 
   // İP-2C: usage_events özet (tenant) — DB'de gruplanır (expert_usage_summary RPC).
+  // RPC HATA verirse: enstrümante modüllerin sayısı measured=0 GÖSTERİLMEZ → unavailable.
   const usageByModule = new Map<string, { count: number; last: string | null }>();
   const { data: usageRows, error: usageErr } = await db.rpc("expert_usage_summary", {
     p_tenant_id: target.tenantId,
     p_from: range.from,
     p_to: range.to,
   });
-  if (!usageErr && Array.isArray(usageRows)) {
+  const usageMeasurementAvailable = !usageErr && Array.isArray(usageRows);
+  if (usageMeasurementAvailable) {
     for (const r of usageRows as Record<string, unknown>[]) {
       usageByModule.set(String(r.module_key), {
         count: Number(r.event_count ?? 0),
         last: r.last_occurred != null ? String(r.last_occurred) : null,
       });
+    }
+  }
+
+  // İP-4/İ4: usage_events ölçüm BAŞLANGICI = tablodaki en eski occurred_at (global). Yoksa
+  // (hiç olay yok) → ölçüm başlamamış/veri yok → measurementStartDate NULL + usageEventCount
+  // unavailable (başlangıç öncesi "0 kullanım" olarak GÖSTERİLMEZ; tarih UYDURULMAZ).
+  let usageMeasurementStart: string | null = null;
+  let usageStartKnown = false;
+  if (usageMeasurementAvailable) {
+    const { data: startRow, error: startErr } = await db
+      .from("expert_usage_events")
+      .select("occurred_at")
+      .order("occurred_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!startErr) {
+      usageStartKnown = true; // sorgu başarılı: tablo boşsa start null (ölçüm henüz veri üretmedi)
+      usageMeasurementStart = startRow?.occurred_at != null ? String(startRow.occurred_at) : null;
     }
   }
 
@@ -112,36 +136,48 @@ export async function GET(req: NextRequest): Promise<Response> {
           note: "kalıcı per-tenant kayıt yok (stateless/hub/always-on)",
         });
 
-    // usageEventCount — yalnız enstrümante modüllerde measured; aksi halde unavailable.
+    // usageEventCount — measured YALNIZ: enstrümante + RPC başarılı + ölçüm başlamış (global
+    // en az 1 olay). Aksi halde (enstrümante değil / RPC hatası / ölçüm henüz veri üretmedi)
+    // "unavailable" — measured=0 GÖSTERİLMEZ (başlangıç öncesi "0 kullanım" olarak sunulmaz).
     const instrumented = INSTRUMENTED_USAGE_MODULES.has(key);
     const usage = usageByModule.get(key);
-    const usageEventCount: MetricValue<number> = instrumented
-      ? makeMetric<number>(usage?.count ?? 0, "workspace", "measured", "event", {
-          measuredAt,
-          note: "başarılı anlamlı işlem olayları (usage_events)",
-        })
-      : makeMetric<number>(null, "workspace", "unavailable", "event", {
-          measuredAt,
-          note: "bu modül için işlem olayı henüz enstrümante edilmedi (0 değil, ölçülmüyor)",
-        });
-    const lastUsageAt: MetricValue<string> = instrumented
-      ? makeMetric<string>(usage?.last ?? null, "workspace", usage?.last ? "measured" : "unavailable", "timestamp", { measuredAt })
-      : makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
-
-    // used / allowedButUnused — yalnız ölçüm destekliyorsa kesin true/false.
-    const usedByRecords = existingRecordCount.value == null ? null : existingRecordCount.value > 0;
-    const usedByEvents = usageEventCount.value == null ? null : usageEventCount.value > 0;
-    let used: boolean | null;
-    if (usedByRecords === true || usedByEvents === true) {
-      used = true;
-    } else if ((usedByRecords === false || usedByRecords === null) && (usedByEvents === false || usedByEvents === null)) {
-      // Her iki sinyal de "yok" ise: en az biri gerçekten ÖLÇÜLDÜYSE false; ikisi de
-      // ölçülemiyorsa null (ölçülemez).
-      used = usedByRecords === false || usedByEvents === false ? false : null;
+    let usageEventCount: MetricValue<number>;
+    let lastUsageAt: MetricValue<string>;
+    if (!instrumented) {
+      usageEventCount = makeMetric<number>(null, "workspace", "unavailable", "event", {
+        measuredAt,
+        note: "bu modül için işlem olayı henüz enstrümante edilmedi (0 değil, ölçülmüyor)",
+      });
+      lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
+    } else if (!usageMeasurementAvailable) {
+      usageEventCount = makeMetric<number>(null, "workspace", "unavailable", "event", {
+        measuredAt,
+        note: "usage ölçümü geçici okunamadı (RPC hatası) — 0 değil",
+      });
+      lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
+    } else if (!usageStartKnown || usageMeasurementStart == null) {
+      usageEventCount = makeMetric<number>(null, "workspace", "unavailable", "event", {
+        measuredAt,
+        measurementStartDate: null,
+        note: "usage ölçümü henüz başlamadı/veri yok — başlangıç öncesi 0 gösterilmez (tarih uydurulmaz)",
+      });
+      lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
     } else {
-      used = null;
+      usageEventCount = makeMetric<number>(usage?.count ?? 0, "workspace", "measured", "event", {
+        measuredAt,
+        measurementStartDate: usageMeasurementStart,
+        note: "başarılı anlamlı işlem olayları (usage_events); ölçüm başlangıcı öncesi dönem KAPSANMAZ",
+      });
+      lastUsageAt = makeMetric<string>(usage?.last ?? null, "workspace", usage?.last ? "measured" : "unavailable", "timestamp", {
+        measuredAt,
+        measurementStartDate: usageMeasurementStart,
+      });
     }
-    const allowedButUnused = used === null ? null : allowed && used === false;
+
+    // used / allowedButUnused — SAF karar (deriveUsed): yeterli kanıt yoksa null; yalnız
+    // her iki sinyal de ölçülüp sıfırsa false (kayıt-yokluğu/limited kapsam tek başına yetmez).
+    const used = deriveUsed(existingRecordCount.value, usageEventCount.value);
+    const allowedButUnused = used === false ? allowed : null;
 
     return {
       key,

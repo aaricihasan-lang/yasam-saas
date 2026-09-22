@@ -54,7 +54,12 @@ AS $$
           THEN split_part(o.name, '/', 2)
         ELSE split_part(o.name, '/', 1)
       END AS tenant_seg,
-      NULLIF(o.metadata->>'size','')::bigint AS size_bytes
+      -- Boyutu GÜVENLİ ayrıştır: yalnız 1..18 haneli negatif-olmayan tamsayı kabul edilir.
+      -- Eksik/bozuk/negatif/bigint-taşıran değer → NULL (RPC ÇÖKMEZ; missing_size_count'a düşer).
+      -- (18 hane < 1e18, bigint sınırı 9.2e18 içinde; 19+ hane veya sayı-dışı → geçersiz.)
+      CASE WHEN o.metadata->>'size' ~ '^[0-9]{1,18}$'
+           THEN (o.metadata->>'size')::bigint
+           ELSE NULL END AS size_bytes
     FROM storage.objects o
     WHERE o.bucket_id IN (
       'stone-photos','hd-chart-images','client-analysis-images',

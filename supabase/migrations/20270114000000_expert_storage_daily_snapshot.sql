@@ -56,9 +56,11 @@ CREATE POLICY "service_role_expert_storage_daily"
   ON public.expert_storage_daily FOR ALL TO service_role
   USING (true) WITH CHECK (true);
 
--- Snapshot RPC: expert_storage_usage()'ı tenant bazında toplar, o gün için upsert eder.
--- Yalnız ATFEDİLEBİLEN (tenant_id NOT NULL) çalışma alanları snapshot'lanır. Döndürülen
--- değer = yazılan/güncellenen tenant satır sayısı.
+-- Snapshot RPC: kapsam = GEÇERLİ UZMAN çalışma alanları (users tablosundan; demo HARİÇ),
+-- storage kullanımıyla LEFT JOIN. Böylece son objesi silinen tenant o gün için 0 obje / 0 byte
+-- 'complete' olarak KAYDEDİLİR (kapsam yalnız "o an objesi olan" tenant'larla SINIRLANMAZ).
+-- Storage atfı (legacy/ortak/unattributed) expert_storage_usage() içinde AYNEN korunur.
+-- Döndürülen değer = yazılan/güncellenen tenant satır sayısı. Aynı gün tekrar → idempotent upsert.
 CREATE OR REPLACE FUNCTION public.expert_storage_snapshot_run(p_snapshot_date date DEFAULT current_date)
 RETURNS integer
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_catalog
@@ -66,23 +68,32 @@ AS $$
 DECLARE
   v_rows integer;
 BEGIN
-  WITH agg AS (
+  WITH expert_tenants AS (
+    SELECT DISTINCT u.tenant_id
+    FROM public.users u
+    WHERE lower(coalesce(u.role,'')) = 'expert'
+      AND coalesce(u.is_demo_account, false) = false
+      AND u.tenant_id IS NOT NULL
+  ),
+  usage AS (
     SELECT
-      u.tenant_id,
-      sum(u.object_count)::bigint       AS object_count,
-      sum(u.total_bytes)::bigint        AS total_bytes,
-      sum(u.missing_size_count)::bigint AS missing_size_count
-    FROM public.expert_storage_usage() u
-    WHERE u.tenant_id IS NOT NULL
-    GROUP BY u.tenant_id
+      s.tenant_id,
+      sum(s.object_count)::bigint       AS object_count,
+      sum(s.total_bytes)::bigint        AS total_bytes,
+      sum(s.missing_size_count)::bigint AS missing_size_count
+    FROM public.expert_storage_usage() s
+    WHERE s.tenant_id IS NOT NULL
+    GROUP BY s.tenant_id
   ),
   upserted AS (
     INSERT INTO public.expert_storage_daily
       (tenant_id, snapshot_date, measured_at, object_count, total_bytes, missing_size_count, status)
     SELECT
-      agg.tenant_id, p_snapshot_date, now(), agg.object_count, agg.total_bytes, agg.missing_size_count,
-      CASE WHEN agg.missing_size_count > 0 THEN 'partial' ELSE 'complete' END
-    FROM agg
+      et.tenant_id, p_snapshot_date, now(),
+      coalesce(u.object_count, 0), coalesce(u.total_bytes, 0), coalesce(u.missing_size_count, 0),
+      CASE WHEN coalesce(u.missing_size_count, 0) > 0 THEN 'partial' ELSE 'complete' END
+    FROM expert_tenants et
+    LEFT JOIN usage u ON u.tenant_id = et.tenant_id
     ON CONFLICT (tenant_id, snapshot_date) DO UPDATE SET
       measured_at        = excluded.measured_at,
       object_count       = excluded.object_count,

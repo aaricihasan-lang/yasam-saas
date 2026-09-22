@@ -72,6 +72,19 @@ export function unavailableMetric<T>(
   return makeMetric<T>(null, scope, "unavailable", unit, { note });
 }
 
+/**
+ * "Modül kullanıldı mı?" SAF kararı — yeterli ölçüm kanıtı yoksa null.
+ *   - recVal / evtVal: existingRecordCount.value / usageEventCount.value (ölçülemez → null).
+ *   - Pozitif kayıt VEYA pozitif olay → true.
+ *   - YALNIZ her İKİ sinyal de ÖLÇÜLDÜ ve sıfır ise → false (tek başına kayıt-yokluğu veya
+ *     sınırlı olay kapsamı "kullanılmadı" demeye YETMEZ → null).
+ */
+export function deriveUsed(recVal: number | null, evtVal: number | null): boolean | null {
+  if ((recVal != null && recVal > 0) || (evtVal != null && evtVal > 0)) return true;
+  if (recVal === 0 && evtVal === 0) return false;
+  return null;
+}
+
 /** Tüm expert-stats admin yanıtlarının ortak zarfı (FAZ 2 sözleşmesi). */
 export type StatsEnvelope<T> = {
   ok: true;

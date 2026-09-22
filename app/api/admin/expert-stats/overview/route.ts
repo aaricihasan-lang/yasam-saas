@@ -18,7 +18,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const range = parseRange(req.nextUrl.searchParams);
+  const parsed = parseRange(req.nextUrl.searchParams);
+  if (!parsed.ok) {
+    return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
+  }
+  const range = parsed.range;
   const sinceDaysRaw = Number(req.nextUrl.searchParams.get("activeSinceDays") ?? 30);
   const sinceDays = Number.isFinite(sinceDaysRaw) && sinceDaysRaw > 0 && sinceDaysRaw <= 365 ? Math.floor(sinceDaysRaw) : 30;
   const sinceIso = new Date(Date.now() - sinceDays * 86400_000).toISOString();

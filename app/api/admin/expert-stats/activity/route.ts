@@ -29,7 +29,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!isUuid(userId)) {
     return NextResponse.json({ ok: false, error: "Geçerli userId gerekli." }, { status: 400 });
   }
-  const range = parseRange(req.nextUrl.searchParams);
+  const parsed = parseRange(req.nextUrl.searchParams);
+  if (!parsed.ok) {
+    return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
+  }
+  const range = parsed.range;
 
   const target = await resolveTargetExpert(db, userId);
   if (!target) {

@@ -8,7 +8,8 @@
 import { resolveClientChannel, isClientChannel, CLIENT_CHANNELS, CLIENT_CHANNEL_HEADER } from "../../lib/auth/clientChannel";
 import { USAGE_EVENT_TYPES, buildUsageIdempotencyKey } from "../../lib/usage/usageEvents";
 import { MODULE_USAGE_REGISTRY, MODULE_USAGE_KEYS, INSTRUMENTED_USAGE_MODULES, LEGACY_TENANT_ID } from "../../lib/admin/stats/moduleUsageRegistry";
-import { makeMetric, unavailableMetric } from "../../lib/admin/stats/contract";
+import { makeMetric, unavailableMetric, deriveUsed } from "../../lib/admin/stats/contract";
+import { parseRange } from "../../lib/admin/stats/statsRequest";
 
 let passed = 0, failed = 0;
 function ok(cond: boolean, label: string): void {
@@ -60,6 +61,27 @@ const na = unavailableMetric<number>("workspace", "record", "ölçülmüyor");
 ok(zero.value === 0 && zero.status === "measured", "gerçek sıfır: value=0, status=measured");
 ok(na.value === null && na.status === "unavailable", "ölçülemez: value=null, status=unavailable");
 ok(zero.value !== na.value, "0 ile null KARIŞTIRILMAZ");
+
+// ── (5) deriveUsed (İ1: kanıt yoksa null; kayıt-yokluğu tek başına false DEĞİL) ──
+console.log("\n[5] deriveUsed");
+ok(deriveUsed(3, null) === true, "kayıt>0 → true (olay ölçülmese de)");
+ok(deriveUsed(null, 2) === true, "olay>0 → true");
+ok(deriveUsed(0, 0) === false, "kayıt=0 VE olay=0 (ikisi de ölçüldü) → false");
+ok(deriveUsed(0, null) === null, "kayıt=0 ama olay ölçülemez → null (tek başına 'kullanılmadı' DEĞİL)");
+ok(deriveUsed(null, 0) === null, "olay=0 ama kayıt ölçülemez → null (sınırlı kapsam tek başına yetmez)");
+ok(deriveUsed(null, null) === null, "ikisi de ölçülemez → null");
+
+// ── (6) parseRange KATI (geçersiz/ters → hata; verilmeyen → null) ──
+console.log("\n[6] parseRange (katı doğrulama)");
+const mk = (o: Record<string, string>) => new URLSearchParams(o);
+const rEmpty = parseRange(mk({}));
+ok(rEmpty.ok === true && rEmpty.range.from === null && rEmpty.range.to === null, "parametre yok → ok, filtre yok");
+const rValid = parseRange(mk({ from: "2027-01-01T00:00:00Z", to: "2027-02-01T00:00:00Z" }));
+ok(rValid.ok === true && rValid.range.from !== null && rValid.range.to !== null, "geçerli aralık → ok");
+ok(parseRange(mk({ from: "not-a-date" })).ok === false, "geçersiz from → HATA (sessizce filtresiz DEĞİL)");
+ok(parseRange(mk({ to: "13/13/2027" })).ok === false, "geçersiz to → HATA");
+ok(parseRange(mk({ from: "2027-02-01T00:00:00Z", to: "2027-01-01T00:00:00Z" })).ok === false, "ters aralık (from>=to) → HATA");
+ok(parseRange(mk({ from: "2027-01-01T00:00:00Z", to: "2027-01-01T00:00:00Z" })).ok === false, "from==to → HATA");
 
 console.log(`\n──────────\nLOGIC: PASS ${passed} · FAIL ${failed}`);
 if (failed > 0) process.exit(1);

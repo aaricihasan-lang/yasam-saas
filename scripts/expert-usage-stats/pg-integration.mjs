@@ -23,10 +23,13 @@ const conn = (database = "postgres") => new pg.Client({ host: "127.0.0.1", port:
 
 const T1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const T2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const T3 = "cccccccc-cccc-cccc-cccc-cccccccccccc"; // expert tenant, HİÇ storage objesi YOK (zero-storage snapshot)
+const T4 = "dddddddd-dddd-dddd-dddd-dddddddddddd"; // bad-size objeler (expert user YOK → snapshot dışı, usage RPC içinde)
 const U1 = "11111111-1111-1111-1111-111111111101"; // expert, non-demo, T1
 const U2 = "22222222-2222-2222-2222-222222222202"; // expert, non-demo, T2
 const U3 = "33333333-3333-3333-3333-333333333303"; // expert, DEMO, T1
 const U4 = "44444444-4444-4444-4444-444444444404"; // admin, T1
+const U5 = "55555555-5555-5555-5555-555555555505"; // expert, non-demo, T3 (objesi olmayan uzman)
 
 const SETUP = `
 create schema if not exists storage;
@@ -83,8 +86,9 @@ async function main() {
       ($1,$2,'expert',true,'approved',false,'{"numerology":true,"stones":true,"reflexology":true,"clients":true}'::jsonb),
       ($3,$4,'expert',true,'approved',false,'{"numerology":true}'::jsonb),
       ($5,$2,'expert',true,'approved',true,'{}'::jsonb),
-      ($6,$2,'admin',true,'approved',false,'{}'::jsonb)`,
-      [U1, T1, U2, T2, U3, U4]);
+      ($6,$2,'admin',true,'approved',false,'{}'::jsonb),
+      ($7,$8,'expert',true,'approved',false,'{}'::jsonb)`,
+      [U1, T1, U2, T2, U3, U4, U5, T3]);
 
     // ── A: usage_events (İP-2C) — grant/RLS/append-only/idempotency/CHECK ──
     console.log("\n[A] expert_usage_events güvenlik + idempotency");
@@ -176,14 +180,34 @@ async function main() {
     const t1obj2 = (await su.query(`select coalesce(sum(object_count),0) o, coalesce(sum(total_bytes),0) b from public.expert_storage_usage() where tenant_id=$1`,[T1])).rows[0];
     ok(Number(t1obj2.o) === 5 && Number(t1obj2.b) === 1350, "dosya silme sonrası T1 azaldı (5 obje / 1350 byte)");
 
-    // ── E: snapshot (İP-5) — idempotent, partial/complete ──
+    // ── D2: BOZUK boyut metadata'sı RPC'yi ÇÖKERTMEZ (İ2) — güvenli missing_size ──
+    console.log("\n[D2] storage boyut doğrulama (çökme yok)");
+    await su.query(`insert into storage.objects(bucket_id,name,metadata) values
+      ('personal-archive', $1||'/x/nonnum.pdf', '{"size":"abc"}'),
+      ('personal-archive', $1||'/x/negative.pdf', '{"size":"-5"}'),
+      ('personal-archive', $1||'/x/overflow.pdf', '{"size":"99999999999999999999"}'),
+      ('personal-archive', $1||'/x/empty.pdf', '{"size":""}'),
+      ('personal-archive', $1||'/x/valid.pdf', '{"size":"500"}')`, [T4]);
+    // RPC çağrısı hata FIRLATMADAN dönmeli (aksi halde bu satır throw ederdi).
+    const t4 = (await su.query(`select coalesce(sum(object_count),0) o, coalesce(sum(total_bytes),0) b, coalesce(sum(missing_size_count),0) m from public.expert_storage_usage() where tenant_id=$1`,[T4])).rows[0];
+    ok(Number(t4.o) === 5, `T4 obje=5 (bozuk boyutlular da fiziksel obje); bulundu ${t4.o}`);
+    ok(Number(t4.b) === 500, `T4 total_bytes=500 (yalnız geçerli boyut; abc/-5/overflow/empty HARİÇ); bulundu ${t4.b}`);
+    ok(Number(t4.m) === 4, `T4 missing_size_count=4 (abc,-5,overflow,empty); bulundu ${t4.m}`);
+
+    // ── E: snapshot (İP-5) — idempotent, partial/complete, ZERO-storage ──
     console.log("\n[E] expert_storage_snapshot_run");
+    // Kapsam = GEÇERLİ uzman tenant'ları (T1,T2,T3; demo T1-U3 ayrı sayılmaz, T4 expert-user YOK).
     const w1 = (await su.query(`select public.expert_storage_snapshot_run('2027-01-20') n`)).rows[0].n;
-    ok(Number(w1) === 2, `snapshot yazılan tenant=2 (T1,T2 atfedilen); bulundu ${w1}`);
-    ok((await su.query(`select count(*) c from public.expert_storage_daily where snapshot_date='2027-01-20'`)).rows[0].c === "2", "o gün 2 satır");
-    // Idempotent: aynı gün tekrar → hâlâ 2 satır (çift YOK).
+    ok(Number(w1) === 3, `snapshot yazılan tenant=3 (T1,T2,T3 uzman workspace); bulundu ${w1}`);
+    ok((await su.query(`select count(*) c from public.expert_storage_daily where snapshot_date='2027-01-20'`)).rows[0].c === "3", "o gün 3 satır (objesiz uzman dahil)");
+    // ZERO-STORAGE: T3'ün hiç objesi yok → 0 obje / 0 byte / complete KAYDEDİLİR (kapsam dışı bırakılmaz).
+    const t3snap = (await su.query(`select object_count, total_bytes, status from public.expert_storage_daily where tenant_id=$1 and snapshot_date='2027-01-20'`,[T3])).rows[0];
+    ok(t3snap && Number(t3snap.object_count) === 0 && Number(t3snap.total_bytes) === 0 && t3snap.status === "complete", "objesi silinmiş/hiç olmayan uzman T3 → 0/0 complete snapshot");
+    // T4 (expert user YOK) snapshot'a GİRMEZ.
+    ok((await su.query(`select count(*) c from public.expert_storage_daily where tenant_id=$1 and snapshot_date='2027-01-20'`,[T4])).rows[0].c === "0", "expert-user'ı olmayan tenant (T4) snapshot dışı");
+    // Idempotent: aynı gün tekrar → hâlâ 3 satır (çift YOK).
     await su.query(`select public.expert_storage_snapshot_run('2027-01-20')`);
-    ok((await su.query(`select count(*) c from public.expert_storage_daily where snapshot_date='2027-01-20'`)).rows[0].c === "2", "aynı gün tekrar çalıştırma çift kayıt AÇMAZ (idempotent)");
+    ok((await su.query(`select count(*) c from public.expert_storage_daily where snapshot_date='2027-01-20'`)).rows[0].c === "3", "aynı gün tekrar çalıştırma çift kayıt AÇMAZ (idempotent)");
     ok((await su.query(`select status from public.expert_storage_daily where tenant_id=$1 and snapshot_date='2027-01-20'`,[T1])).rows[0].status === "partial", "T1 status=partial (missing_size>0)");
     ok((await su.query(`select status from public.expert_storage_daily where tenant_id=$1 and snapshot_date='2027-01-20'`,[T2])).rows[0].status === "complete", "T2 status=complete");
     // Eksik boyut objesi kaldır → yeni gün complete.

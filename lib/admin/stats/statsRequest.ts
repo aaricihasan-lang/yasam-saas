@@ -13,18 +13,31 @@ export function isUuid(v: unknown): v is string {
 
 export type DateRange = { from: string | null; to: string | null };
 
+export type ParseRangeResult =
+  | { ok: true; range: DateRange }
+  | { ok: false; error: string };
+
 /**
- * ?from=&to= ISO tarih/zaman ayrıştırma. Geçersiz değer → null (filtre yok). Yalnız
- * parse edilebilen ISO kabul edilir; uygulama UTC saklar, gün gösterimi TR RPC içinde.
+ * ?from=&to= ISO tarih/zaman ayrıştırma — KATI. Verilmeyen parametre null (filtre yok);
+ * VERİLMİŞ ama parse edilemeyen değer → HATA (sessizce filtresiz sorguya DÖNMEZ). Ters
+ * aralık (from >= to) → HATA. Uygulama UTC saklar; gün gösterimi TR RPC içinde.
  */
-export function parseRange(params: URLSearchParams): DateRange {
-  const norm = (raw: string | null): string | null => {
-    if (!raw) return null;
+export function parseRange(params: URLSearchParams): ParseRangeResult {
+  const parseOne = (key: string): { ok: true; value: string | null } | { ok: false } => {
+    const raw = params.get(key);
+    if (raw == null || raw.trim() === "") return { ok: true, value: null };
     const t = Date.parse(raw);
-    if (Number.isNaN(t)) return null;
-    return new Date(t).toISOString();
+    if (Number.isNaN(t)) return { ok: false };
+    return { ok: true, value: new Date(t).toISOString() };
   };
-  return { from: norm(params.get("from")), to: norm(params.get("to")) };
+  const f = parseOne("from");
+  if (!f.ok) return { ok: false, error: "Geçersiz 'from' tarihi (ISO bekleniyor)." };
+  const t = parseOne("to");
+  if (!t.ok) return { ok: false, error: "Geçersiz 'to' tarihi (ISO bekleniyor)." };
+  if (f.value && t.value && Date.parse(f.value) >= Date.parse(t.value)) {
+    return { ok: false, error: "Geçersiz tarih aralığı: 'from' < 'to' olmalı." };
+  }
+  return { ok: true, range: { from: f.value, to: t.value } };
 }
 
 export type TargetExpert = {
