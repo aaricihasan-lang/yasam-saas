@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { isUuid, parseRange, resolveTargetExpert } from "@/lib/admin/stats/statsRequest";
-import { makeMetric, deriveUsed, type MetricValue, type StatsEnvelope } from "@/lib/admin/stats/contract";
+import { makeMetric, deriveUsed, classifyUsageWindow, type MetricValue, type StatsEnvelope } from "@/lib/admin/stats/contract";
 import {
   MODULE_USAGE_REGISTRY,
   MODULE_USAGE_KEYS,
   INSTRUMENTED_USAGE_MODULES,
+  FULLY_COVERED_USAGE_MODULES,
 } from "@/lib/admin/stats/moduleUsageRegistry";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 
@@ -155,28 +156,47 @@ export async function GET(req: NextRequest): Promise<Response> {
         note: "usage ölçümü geçici okunamadı (RPC hatası) — 0 değil",
       });
       lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
-    } else if (!usageStartKnown || usageMeasurementStart == null) {
-      usageEventCount = makeMetric<number>(null, "workspace", "unavailable", "event", {
-        measuredAt,
-        measurementStartDate: null,
-        note: "usage ölçümü henüz başlamadı/veri yok — başlangıç öncesi 0 gösterilmez (tarih uydurulmaz)",
-      });
-      lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt });
     } else {
-      usageEventCount = makeMetric<number>(usage?.count ?? 0, "workspace", "measured", "event", {
-        measuredAt,
-        measurementStartDate: usageMeasurementStart,
-        note: "başarılı anlamlı işlem olayları (usage_events); ölçüm başlangıcı öncesi dönem KAPSANMAZ",
-      });
-      lastUsageAt = makeMetric<string>(usage?.last ?? null, "workspace", usage?.last ? "measured" : "unavailable", "timestamp", {
-        measuredAt,
-        measurementStartDate: usageMeasurementStart,
-      });
+      // Ölçüm mevcut. usageStartKnown false ise (MIN sorgusu hatası) start=null → unavailable.
+      // İstenen tarih aralığını ölçüm başlangıcına göre sınıflandır (İ1: başlangıç öncesi
+      // measured=0 ÜRETME; aralık başlangıcı kesiyorsa kısmi/approximate).
+      const start = usageStartKnown ? usageMeasurementStart : null;
+      const cls = classifyUsageWindow(start, range.from, range.to);
+      if (cls === "unavailable") {
+        usageEventCount = makeMetric<number>(null, "workspace", "unavailable", "event", {
+          measuredAt,
+          measurementStartDate: start,
+          note: start == null
+            ? "usage ölçümü henüz başlamadı/veri yok — başlangıç öncesi 0 gösterilmez (tarih uydurulmaz)"
+            : "istenen aralık ölçüm başlangıcından (measurementStartDate) ÖNCE bitiyor — measured=0 gösterilmez",
+        });
+        lastUsageAt = makeMetric<string>(null, "workspace", "unavailable", "timestamp", { measuredAt, measurementStartDate: start });
+      } else {
+        usageEventCount = makeMetric<number>(usage?.count ?? 0, "workspace", cls, "event", {
+          measuredAt,
+          measurementStartDate: start,
+          note: cls === "approximate"
+            ? "yalnız ölçüm başlangıcından (measurementStartDate) itibaren ölçülür; öncesi KAPSANMAZ (kısmi)"
+            : "aralık tamamen ölçüm başlangıcı sonrasında (gerçek sayım; 0 = gerçek sıfır)",
+        });
+        lastUsageAt = makeMetric<string>(usage?.last ?? null, "workspace", usage?.last ? "measured" : "unavailable", "timestamp", {
+          measuredAt,
+          measurementStartDate: start,
+        });
+      }
     }
 
-    // used / allowedButUnused — SAF karar (deriveUsed): yeterli kanıt yoksa null; yalnız
-    // her iki sinyal de ölçülüp sıfırsa false (kayıt-yokluğu/limited kapsam tek başına yetmez).
-    const used = deriveUsed(existingRecordCount.value, usageEventCount.value);
+    // used / allowedButUnused — SAF karar (deriveUsed). NEGATİF sonuç yalnız modül TAM KAPSAMLI
+    // ise (FULLY_COVERED_USAGE_MODULES; şu an BOŞ) üretilir → kısmi enstrümantasyonda kayıt=0∧olay=0
+    // tek başına used=false/allowedButUnused=true VERMEZ. approximate (kısmi pencere) sıfır da
+    // negatif kanıt sayılmaz (yalnız pozitif >0 true'ya katkı verir).
+    const evtForUsed =
+      usageEventCount.value != null && usageEventCount.value > 0
+        ? usageEventCount.value
+        : usageEventCount.status === "measured"
+          ? usageEventCount.value
+          : null;
+    const used = deriveUsed(existingRecordCount.value, evtForUsed, FULLY_COVERED_USAGE_MODULES.has(key));
     const allowedButUnused = used === false ? allowed : null;
 
     return {

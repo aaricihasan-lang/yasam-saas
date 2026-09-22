@@ -75,14 +75,46 @@ export function unavailableMetric<T>(
 /**
  * "Modül kullanıldı mı?" SAF kararı — yeterli ölçüm kanıtı yoksa null.
  *   - recVal / evtVal: existingRecordCount.value / usageEventCount.value (ölçülemez → null).
- *   - Pozitif kayıt VEYA pozitif olay → true.
- *   - YALNIZ her İKİ sinyal de ÖLÇÜLDÜ ve sıfır ise → false (tek başına kayıt-yokluğu veya
- *     sınırlı olay kapsamı "kullanılmadı" demeye YETMEZ → null).
+ *   - Pozitif GÜVENİLİR kayıt VEYA pozitif olay → true (her zaman geçerli pozitif kanıt).
+ *   - NEGATİF sonuç (used=false) YALNIZ modülün TÜM anlamlı kullanım yolları gerçekten
+ *     kapsanıyorsa (coverageComplete=true) ve her iki sinyal de ölçülüp sıfırsa üretilir.
+ *     Aksi halde (kısmi enstrümantasyon / kayıt-yokluğu / limited kapsam) → null.
+ *   Bu; "yalnız belirli create'ler enstrümante" durumunda kayıt=0 ∧ olay=0'ın tek başına
+ *   used=false / allowedButUnused=true üretmesini ÖNLER.
  */
-export function deriveUsed(recVal: number | null, evtVal: number | null): boolean | null {
+export function deriveUsed(
+  recVal: number | null,
+  evtVal: number | null,
+  coverageComplete: boolean,
+): boolean | null {
   if ((recVal != null && recVal > 0) || (evtVal != null && evtVal > 0)) return true;
-  if (recVal === 0 && evtVal === 0) return false;
+  if (coverageComplete && recVal === 0 && evtVal === 0) return false;
   return null;
+}
+
+/**
+ * usageEventCount için istenen tarih aralığının ölçüm başlangıcına göre durumu (SAF).
+ *   - measurementStart null → "unavailable" (ölçüm başlamamış/bilinmiyor; tarih uydurulmaz).
+ *   - Aralık tamamen başlangıçtan ÖNCE bitiyorsa (to <= start) → "unavailable" (measured=0 üretme).
+ *   - Aralık başlangıcı KESİYORSA (from yok veya from < start) → "approximate" (yalnız kapsanan
+ *     kısım ölçülür; tüm dönem ölçülmüş gibi gösterilmez).
+ *   - Aralık tamamen başlangıç SONRASINDA (from >= start) → "measured" (gerçek sıfır/pozitif korunur).
+ * NOT: measurementStart = ilk kayıtlı olaydan (MIN occurred_at) türer → enstrümantasyonun
+ *   gerçek başlangıcına ilişkin SINIRLI bir göstergedir (kesin deploy tarihi değildir).
+ */
+export function classifyUsageWindow(
+  measurementStart: string | null,
+  from: string | null,
+  to: string | null,
+): "measured" | "approximate" | "unavailable" {
+  if (measurementStart == null) return "unavailable";
+  const startMs = Date.parse(measurementStart);
+  if (Number.isNaN(startMs)) return "unavailable";
+  const toMs = to ? Date.parse(to) : null;
+  if (toMs != null && !Number.isNaN(toMs) && toMs <= startMs) return "unavailable";
+  const fromMs = from ? Date.parse(from) : null;
+  if (fromMs == null || Number.isNaN(fromMs) || fromMs < startMs) return "approximate";
+  return "measured";
 }
 
 /** Tüm expert-stats admin yanıtlarının ortak zarfı (FAZ 2 sözleşmesi). */

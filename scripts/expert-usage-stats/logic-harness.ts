@@ -8,7 +8,7 @@
 import { resolveClientChannel, isClientChannel, CLIENT_CHANNELS, CLIENT_CHANNEL_HEADER } from "../../lib/auth/clientChannel";
 import { USAGE_EVENT_TYPES, buildUsageIdempotencyKey } from "../../lib/usage/usageEvents";
 import { MODULE_USAGE_REGISTRY, MODULE_USAGE_KEYS, INSTRUMENTED_USAGE_MODULES, LEGACY_TENANT_ID } from "../../lib/admin/stats/moduleUsageRegistry";
-import { makeMetric, unavailableMetric, deriveUsed } from "../../lib/admin/stats/contract";
+import { makeMetric, unavailableMetric, deriveUsed, classifyUsageWindow } from "../../lib/admin/stats/contract";
 import { parseRange } from "../../lib/admin/stats/statsRequest";
 
 let passed = 0, failed = 0;
@@ -62,14 +62,26 @@ ok(zero.value === 0 && zero.status === "measured", "gerçek sıfır: value=0, st
 ok(na.value === null && na.status === "unavailable", "ölçülemez: value=null, status=unavailable");
 ok(zero.value !== na.value, "0 ile null KARIŞTIRILMAZ");
 
-// ── (5) deriveUsed (İ1: kanıt yoksa null; kayıt-yokluğu tek başına false DEĞİL) ──
-console.log("\n[5] deriveUsed");
-ok(deriveUsed(3, null) === true, "kayıt>0 → true (olay ölçülmese de)");
-ok(deriveUsed(null, 2) === true, "olay>0 → true");
-ok(deriveUsed(0, 0) === false, "kayıt=0 VE olay=0 (ikisi de ölçüldü) → false");
-ok(deriveUsed(0, null) === null, "kayıt=0 ama olay ölçülemez → null (tek başına 'kullanılmadı' DEĞİL)");
-ok(deriveUsed(null, 0) === null, "olay=0 ama kayıt ölçülemez → null (sınırlı kapsam tek başına yetmez)");
-ok(deriveUsed(null, null) === null, "ikisi de ölçülemez → null");
+// ── (5) deriveUsed (negatif sonuç YALNIZ tam kapsamda; kısmi enstrümantasyonda null) ──
+console.log("\n[5] deriveUsed (coverage-aware)");
+ok(deriveUsed(3, null, false) === true, "kayıt>0 → true (olay ölçülmese/kapsam eksik olsa da)");
+ok(deriveUsed(null, 2, false) === true, "olay>0 → true");
+ok(deriveUsed(0, 0, false) === null, "kayıt=0 ∧ olay=0 ama kapsam EKSİK → null (used=false ÜRETİLMEZ)");
+ok(deriveUsed(0, 0, true) === false, "kayıt=0 ∧ olay=0 ∧ TAM KAPSAM → false");
+ok(deriveUsed(0, null, false) === null, "kayıt=0 ama olay ölçülemez → null");
+ok(deriveUsed(null, 0, true) === null, "olay=0 ama kayıt ölçülemez → null (tam kapsamda bile)");
+ok(deriveUsed(null, null, true) === null, "ikisi de ölçülemez → null");
+
+// ── (7) classifyUsageWindow (İ1: tarih aralığı × ölçüm başlangıcı) ──
+console.log("\n[7] classifyUsageWindow");
+const START = "2027-01-10T00:00:00Z";
+ok(classifyUsageWindow(null, null, null) === "unavailable", "başlangıç yok → unavailable (tarih uydurulmaz)");
+ok(classifyUsageWindow(START, "2027-01-01T00:00:00Z", "2027-01-05T00:00:00Z") === "unavailable", "aralık başlangıçtan ÖNCE bitiyor → unavailable (measured=0 üretme)");
+ok(classifyUsageWindow(START, "2027-01-05T00:00:00Z", "2027-01-20T00:00:00Z") === "approximate", "aralık başlangıcı kesiyor → approximate (kısmi)");
+ok(classifyUsageWindow(START, null, "2027-01-20T00:00:00Z") === "approximate", "from yok (tüm zaman) → approximate (öncesi kapsanmaz)");
+ok(classifyUsageWindow(START, "2027-01-15T00:00:00Z", "2027-01-20T00:00:00Z") === "measured", "aralık tamamen başlangıç sonrası → measured (gerçek sıfır/pozitif)");
+ok(classifyUsageWindow(START, START, null) === "measured", "from == başlangıç → measured (tam kapsanır)");
+ok(classifyUsageWindow(START, "2027-01-15T00:00:00Z", null) === "measured", "from>start, to yok → measured");
 
 // ── (6) parseRange KATI (geçersiz/ters → hata; verilmeyen → null) ──
 console.log("\n[6] parseRange (katı doğrulama)");

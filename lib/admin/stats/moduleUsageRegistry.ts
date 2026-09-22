@@ -178,5 +178,18 @@ export const INSTRUMENTED_USAGE_MODULES = new Set<ModuleGateKey>([
   "clients", // app/api/clients/[id]/analyses (POST) → analysis_created
 ]);
 
+/**
+ * KAPSAM (coverage) TANIMI: Bir modülün "tam kapsamlı" (fully covered) sayılması için,
+ * o modüldeki TÜM anlamlı kullanım yolları (yalnız belirli create değil; update/rapor/
+ * silme/analiz vb. tümü) usage_events ile enstrümante edilmiş VEYA mevcut kayıt sayısı bu
+ * yolları eksiksiz temsil ediyor olmalıdır. Ancak bu durumda "kayıt=0 ∧ olay=0" → used=false /
+ * allowedButUnused=true ÜRETİLEBİLİR (deriveUsed coverageComplete=true).
+ *
+ * ŞU AN HİÇBİR MODÜL TAM KAPSAMLI DEĞİLDİR: enstrümante 4 modülde yalnız BELİRLİ create
+ * işlemleri olay üretir → negatif "kullanılmadı" sonucu güvenilir değildir → boş küme.
+ * İleride tam kapsam sağlandıkça modüller BURAYA eklenir (tek doğruluk kaynağı).
+ */
+export const FULLY_COVERED_USAGE_MODULES = new Set<ModuleGateKey>([]);
+
 /** Bilinen legacy (pre-multitenant) çalışma alanı — kayıt/depolama atfında işaretlenir. */
 export const LEGACY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
