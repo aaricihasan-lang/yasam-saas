@@ -95,37 +95,45 @@ export async function PATCH(
     items,
   };
 
-  // ARO-008 iyimser kilit — expected_updated_at gönderildiyse yalnız o sürüm güncellenir.
+  // ARO-008 iyimser kilit — expected_updated_at ARTIK ZORUNLU (bypass kapalı).
+  // Boş / eksik / string-olmayan → 400 AROMA_MISSING_VERSION (güncelleme sorgusundan ÖNCE).
+  // Bu, KIRICI bir API sözleşmesi değişikliğidir: eski istemciler (PATCH'te
+  // expected_updated_at göndermeyen) artık 400 alır.
   const expectedUpdatedAt =
     typeof body.expected_updated_at === "string" && body.expected_updated_at.trim()
       ? body.expected_updated_at.trim()
       : null;
+  if (!expectedUpdatedAt) {
+    return NextResponse.json(
+      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
-  let query = db
+  // Atomik koşullu güncelleme — updated_at (timestamptz NOT NULL, set_updated_at trigger)
+  // tek-cümle iyimser kilit sağlar; SELECT-then-UPDATE'e zayıflatılMAZ.
+  const { data, error } = await db
     .from("aromatherapy_blends")
     .update(fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId); // oturumdan; başka tenant'ın kaydı güncellenemez
-  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
-
-  const { data, error } = await query.select("*");
+    .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydı güncellenemez
+    .eq("updated_at", expectedUpdatedAt) // iyimser kilit — yalnız beklenen sürüm
+    .select("*");
 
   if (error) return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
   if (!data || data.length === 0) {
-    // Satır güncellenmedi. Optimistic-lock modunda: kayıt varsa çakışma (409), yoksa 404.
-    if (expectedUpdatedAt) {
-      const { data: existing } = await db
-        .from("aromatherapy_blends")
-        .select("id,updated_at")
-        .eq("id", id)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-      if (existing) {
-        return NextResponse.json(
-          { ok: false, error: "AROMA_STALE_BLEND", stale: true },
-          { status: 409, headers: { "Cache-Control": "no-store" } },
-        );
-      }
+    // Satır güncellenmedi: kayıt varsa sürüm çakışması (409), yoksa 404.
+    const { data: existing } = await db
+      .from("aromatherapy_blends")
+      .select("id,updated_at")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json(
+        { ok: false, error: "AROMA_STALE_BLEND", stale: true },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
     }
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },

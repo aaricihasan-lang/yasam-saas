@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { parseExportBody, docxResponse } from "@/lib/aromaterapi/report/request";
 import { MAX_EXPORT_BODY_BYTES } from "@/lib/aromaterapi/report/theme";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
@@ -18,6 +19,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
+
+  // Maliyet-abuse koruması (ARO-010): DOCX üretimi pahalıdır; tenant başına dakikada makul
+  // sayıda export'a izin ver, art arda burst'ü kes. Anahtar DAİMA oturumdan doğrulanmış
+  // tenant (guard.tenantId) — body/query/header'dan ASLA. Kontrol guard'dan SONRA: başarısız
+  // kimlik kotayı TÜKETMEZ. In-memory/instance-başına (lib/rateLimit.ts): best-effort, global/
+  // atomik DEĞİL; kesin koruma sabit kayıt tavanıdır.
+  const rl = checkRateLimit(`aromaterapi-word:${guard.tenantId}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+    );
+  }
 
   // Genel rapor gövdesi opsiyoneldir: boş/geçersiz JSON → {} (mode=all enjekte edilir).
   // Yalnız too_large fail-closed 413; parse hatası tolere edilir (mevcut davranış korunur).

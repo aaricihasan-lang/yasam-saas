@@ -229,3 +229,120 @@ async function taxonNameMap(
   }
   return map;
 }
+
+// ------------------------------------------------------------------
+// TOPLU (batch) okuyucular — Word raporu N+1 azaltımı (ARO-010).
+// Tekil getPlantTaxon/getPreparation'ın DAVRANIŞINI KORUR ama çok id için
+// set-tabanlı .in(...) sorguları kullanır (tenant-scoped). Tekil fonksiyonlar
+// API detay route'ları için DEĞİŞMEDEN kalır. Girdi id sırası korunur; eksik
+// (tenant-dışı/silinmiş) id'ler atlanır (mapBounded+filter-null ile aynı).
+// ------------------------------------------------------------------
+
+const CATALOG_IN_CHUNK = 500;
+
+function chunkCatalogIds(ids: string[]): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < ids.length; i += CATALOG_IN_CHUNK) out.push(ids.slice(i, i + CATALOG_IN_CHUNK));
+  return out;
+}
+
+/** Çok takson id → PlantTaxonDetail[] (yalnız takson detayı; rapor preparat alt-listesini
+ *  KULLANMAZ — tekil getPlantTaxon'daki preparat sorgusu bilinçli atlanır). */
+export async function getPlantTaxaByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+): Promise<PlantTaxonDetail[]> {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  if (unique.length === 0) return [];
+  const byId = new Map<string, PlantTaxonDetail>();
+  for (const chunk of chunkCatalogIds(unique)) {
+    const { data, error } = await db
+      .from(TAXA_TABLE)
+      .select(TAXA_DETAIL_COLS)
+      .eq("tenant_id", tenantId)
+      .in("id", chunk);
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as PlantTaxonDetail[]) byId.set(r.id, r);
+  }
+  return ids.map((id) => byId.get(id)).filter((t): t is PlantTaxonDetail => !!t);
+}
+
+/** Çok preparat id → PreparationDetail[] (prep + bağlı takson + bilgi kaydı sayısı),
+ *  tekil getPreparation ile birebir aynı içerik; tenant-scoped; sıra korunur. */
+export async function getPreparationsByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+): Promise<PreparationDetail[]> {
+  const uniquePrepIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniquePrepIds.length === 0) return [];
+
+  // 1) Preparat satırları
+  const prepById = new Map<string, PreparationListItem & { created_at: string }>();
+  for (const chunk of chunkCatalogIds(uniquePrepIds)) {
+    const { data, error } = await db
+      .from(PREP_TABLE)
+      .select(`${PREP_LIST_COLS}, created_at`)
+      .eq("tenant_id", tenantId)
+      .in("id", chunk);
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as (PreparationListItem & { created_at: string })[]) {
+      prepById.set(r.id, r);
+    }
+  }
+
+  // 2) Bağlı taksonlar (tek harita)
+  const taxonIds = Array.from(
+    new Set(Array.from(prepById.values()).map((p) => p.taxon_id).filter(Boolean)),
+  );
+  const taxonById = new Map<string, PlantTaxonListItem>();
+  for (const chunk of chunkCatalogIds(taxonIds)) {
+    const { data, error } = await db
+      .from(TAXA_TABLE)
+      .select(TAXA_LIST_COLS)
+      .eq("tenant_id", tenantId)
+      .in("id", chunk);
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as PlantTaxonListItem[]) taxonById.set(r.id, r);
+  }
+
+  // 3) Preparat başına bilgi kaydı sayısı (claims → preparation_id gruplu, sayfalı;
+  //    N adet HEAD count yerine sayfalı tek akış — 1000-satır sessiz kesme yok).
+  const countByPrep = new Map<string, number>();
+  const PAGE = 1000;
+  for (const chunk of chunkCatalogIds([...prepById.keys()])) {
+    let from = 0;
+    for (;;) {
+      const { data, error } = await db
+        .from(CLAIMS_TABLE)
+        .select("id, preparation_id")
+        .eq("tenant_id", tenantId)
+        .in("preparation_id", chunk)
+        .order("id", { ascending: true }) // sayfalama kararlılığı (order'sız range tekrar/atlama üretebilir)
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as { preparation_id: string }[];
+      for (const r of rows) {
+        countByPrep.set(r.preparation_id, (countByPrep.get(r.preparation_id) ?? 0) + 1);
+      }
+      if (rows.length < PAGE) break;
+      from += PAGE;
+    }
+  }
+
+  // 4) Girdi sırasında birleştir (eksik id atlanır)
+  const out: PreparationDetail[] = [];
+  for (const id of ids) {
+    const prep = prepById.get(id);
+    if (!prep) continue;
+    const taxonItem = prep.taxon_id ? taxonById.get(prep.taxon_id) ?? null : null;
+    out.push({
+      ...prep,
+      taxon_canonical_name: taxonItem?.canonical_name ?? null,
+      taxon: taxonItem,
+      knowledge_record_count: countByPrep.get(id) ?? 0,
+    });
+  }
+  return out;
+}

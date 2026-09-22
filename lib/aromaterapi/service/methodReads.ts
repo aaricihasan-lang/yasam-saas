@@ -349,3 +349,180 @@ export async function preparationExists(
   if (error) throw error;
   return Boolean(data);
 }
+
+// ==================================================================
+// ARO-010 — Rapor TOPLU okuma (N+1 fan-out azaltma).
+//
+// getMethodSeries(N) + getMethodRevision(N) fan-out'unu çoklu-id KÜME sorgularıyla
+// birleştirir. getMethodSeries/getMethodRevision tek-kayıt fonksiyonları (API detay
+// route'ları) DEĞİŞTİRİLMEZ — bu yalnız EK yol. Her sorgu `.eq("tenant_id", tenantId)`.
+// Revizyon içeriği id ile toplu çekilir; revId'ler serilerinin kendi latest/verified
+// özetinden gelir (aynı tenant+seri kapsamı) → getMethodRevision ile eşdeğer.
+// Hata THROW → çağıran fail-closed indirir.
+// ==================================================================
+
+const REPORT_IN_CHUNK = 500; // .in(...) küme boyutu — EXPORT_READ_CHUNK ile hizalı
+const REPORT_READ_PAGE = 1000; // child .in okumalarında sessiz kesmeyi önleyen aralık sayfası
+
+type OrderCol = { col: string; asc: boolean };
+
+function chunkIds<T>(arr: T[], size = REPORT_IN_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/** Parent-id kümesine göre TÜM child satırlarını (tenant-scoped, chunk'lı + sayfalı) çeker; sessiz kesme YOK. */
+async function fetchChildrenIn(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  cols: string,
+  parentCol: string,
+  parentIds: string[],
+  order: OrderCol[],
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (const ch of chunkIds(parentIds)) {
+    if (ch.length === 0) continue;
+    let from = 0;
+    for (;;) {
+      let q = db.from(table).select(cols).eq("tenant_id", tenantId).in(parentCol, ch);
+      for (const o of order) q = q.order(o.col, { ascending: o.asc });
+      const { data, error } = await q.range(from, from + REPORT_READ_PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      out.push(...rows);
+      if (rows.length < REPORT_READ_PAGE) break;
+      from += REPORT_READ_PAGE;
+    }
+  }
+  return out;
+}
+
+/** Chunk'lı id → tek metin kolonu haritası (labelMap'in çoklu-küme eşi). */
+async function labelMapMany(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  ids: (string | null)[],
+  column: string,
+): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids.filter((v): v is string => Boolean(v))));
+  const map = new Map<string, string>();
+  for (const ch of chunkIds(unique)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(table).select(`id, ${column}`).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+      const id = r.id;
+      const val = r[column];
+      if (typeof id === "string" && typeof val === "string") map.set(id, val);
+    }
+  }
+  return map;
+}
+
+/** Ham revizyon satırını MethodRevisionDetail'e indirger (getMethodRevision ile aynı eşleme). */
+function toRevisionDetail(r: Record<string, unknown>): MethodRevisionDetail {
+  return {
+    id: r.id as string,
+    series_id: r.series_id as string,
+    revision: r.revision as number,
+    status: r.status as string,
+    created_at: r.created_at as string,
+    updated_at: r.updated_at as string,
+    plant_part_used: (r.plant_part_used as string | null) ?? null,
+    material_state: (r.material_state as string | null) ?? null,
+    method_text: r.method_text as string,
+    equipment: (r.equipment as string | null) ?? null,
+    amount_ratio: (r.amount_ratio as string | null) ?? null,
+    solvent_carrier: (r.solvent_carrier as string | null) ?? null,
+    duration_text: (r.duration_text as string | null) ?? null,
+    temperature_text: (r.temperature_text as string | null) ?? null,
+    steps: normalizeSteps(r.steps),
+    filtration: (r.filtration as string | null) ?? null,
+    resting: (r.resting as string | null) ?? null,
+    storage: (r.storage as string | null) ?? null,
+    quality_notes: (r.quality_notes as string | null) ?? null,
+    safety_notes: (r.safety_notes as string | null) ?? null,
+    note_hash: r.note_hash as string,
+  };
+}
+
+/**
+ * TOPLU seri detayları — getMethodSeries ile eşdeğer çıktı (revizyon özeti + geçmiş),
+ * `seriesIds` sırasını korur ve bulunamayanı atlar. Revizyon geçmişi seri başına
+ * revision desc (getMethodSeries ile aynı).
+ */
+export async function getMethodSeriesByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  seriesIds: string[],
+): Promise<MethodSeriesDetail[]> {
+  if (seriesIds.length === 0) return [];
+
+  const byId = new Map<string, SeriesRow>();
+  for (const ch of chunkIds(seriesIds)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(SERIES_TABLE).select(SERIES_COLS).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const row of (data ?? []) as unknown as SeriesRow[]) byId.set(row.id, row);
+  }
+  const present = Array.from(byId.keys());
+  if (present.length === 0) return [];
+
+  const revRows = (await fetchChildrenIn(db, tenantId, REV_TABLE, REV_META_COLS, "series_id", present, [
+    { col: "series_id", asc: true },
+    { col: "revision", asc: false },
+    { col: "id", asc: true },
+  ])) as unknown as RevMetaRow[];
+  const revsBySeries = new Map<string, RevMetaRow[]>();
+  for (const r of revRows) {
+    const l = revsBySeries.get(r.series_id);
+    if (l) l.push(r);
+    else revsBySeries.set(r.series_id, [r]);
+  }
+
+  const seriesList = Array.from(byId.values());
+  const sourceTitles = await labelMapMany(db, tenantId, SOURCES_TABLE, seriesList.map((s) => s.source_id), "title");
+  const passageLocators = await labelMapMany(db, tenantId, PASSAGES_TABLE, seriesList.map((s) => s.passage_id), "locator_label");
+
+  const out: MethodSeriesDetail[] = [];
+  for (const id of seriesIds) {
+    const s = byId.get(id);
+    if (!s) continue;
+    const revs = revsBySeries.get(id) ?? [];
+    const base = toSeriesListItem(s, revs, sourceTitles, passageLocators);
+    if (!base) continue;
+    const revisions: MethodRevisionListItem[] = revs.map((r) => ({
+      id: r.id,
+      series_id: r.series_id,
+      revision: r.revision,
+      status: r.status,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
+    out.push({ ...base, revisions });
+  }
+  return out;
+}
+
+/** TOPLU revizyon içeriği — revId → MethodRevisionDetail (getMethodRevision ile eşdeğer eşleme). */
+export async function getMethodRevisionsByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  revisionIds: string[],
+): Promise<Map<string, MethodRevisionDetail>> {
+  const map = new Map<string, MethodRevisionDetail>();
+  const unique = Array.from(new Set(revisionIds.filter((v): v is string => Boolean(v))));
+  for (const ch of chunkIds(unique)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(REV_TABLE).select(REV_DETAIL_COLS).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const raw of (data ?? []) as unknown as Record<string, unknown>[]) {
+      map.set(raw.id as string, toRevisionDetail(raw));
+    }
+  }
+  return map;
+}
