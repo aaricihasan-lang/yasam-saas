@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
 /**
  * /api/aromaterapi/reference — Bilgi Bankası referans sayfaları + satırları (K-2).
- * Salt-okuma. tenant_id DAİMA oturumdan; kullanıcının kendi kayıtları +
- * paylaşımlı (tenant_id IS NULL) admin içeriği döner.
+ * Salt-okuma. tenant_id DAİMA oturumdan; YALNIZ oturum tenant'ının kendi kayıtları
+ * döner. Paylaşımlı (tenant_id IS NULL) içerik DÖNMEZ (tenant izolasyonu; ARO-027).
  * Tarayıcı bu tablolara doğrudan erişmez (RLS-kilitli, yalnız service_role).
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
   const { data: sheets, error: sheetsErr } = await db
     .from("aromatherapy_reference_sheets")
     .select("id, sheet_name, display_title, headers, sort_order")
-    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+    .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .order("sort_order");
   if (sheetsErr) return NextResponse.json({ ok: false, error: sheetsErr.message }, { status: 500 });

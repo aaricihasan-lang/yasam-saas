@@ -1,6 +1,7 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 import { getList, buildQuery, type ListResult } from "@/lib/aromaterapi/readClient";
+import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -77,6 +78,11 @@ export type AromatherapyOil = {
   color: string;
   consistency: string;
   is_photosensitive: boolean;
+  // ARO-004 üç-durumlu fotosensitiflik. "unknown" = değerlendirilmedi (VERİ EKSİK).
+  // Legacy boolean ile senkron; derivePhotosensitivity ile türetilir. Ham DB satırı /
+  // demo fixture bu alanı taşımayabilir → OPSİYONEL; ancak tüm fetch* yolları
+  // (fetchOilDetail/List/Search) değeri derive edip GARANTİLER, oilToFormData daima set eder.
+  photosensitivity_status?: PhotosensitivityStatus;
 
   // Kimyasal İçerik
   main_components: string;
@@ -152,6 +158,7 @@ export type OilListRow = Pick<
   | "element_connection"
   | "therapeutic_properties"
   | "is_photosensitive"
+  | "photosensitivity_status"
   | "target_systems"
   | "origin_type"
 >;
@@ -177,7 +184,15 @@ export async function fetchOilListPage(
   params: URLSearchParams,
   signal?: AbortSignal,
 ): Promise<ListResult<OilListRow>> {
-  return getList<OilListRow>(`/api/aromaterapi/oils?${params.toString()}`, signal);
+  const res = await getList<OilListRow>(`/api/aromaterapi/oils?${params.toString()}`, signal);
+  // ARO-004: satırdaki üç-durumlu fotosensitifliği normalize et (legacy null → derive).
+  if (res.ok && res.envelope) {
+    res.envelope.rows = res.envelope.rows.map((r) => ({
+      ...r,
+      photosensitivity_status: derivePhotosensitivity(r),
+    }));
+  }
+  return res;
 }
 
 /**
@@ -203,7 +218,11 @@ export async function fetchOilSearch(
     if (res.errorCode === null) return { rows: [], error: null }; // abort → sessiz
     return { rows: [], error: res.errorCode };
   }
-  const rows = res.envelope?.rows ?? [];
+  // ARO-004: satır fotosensitifliğini normalize et (typeahead/blend güvenli okusun).
+  const rows = (res.envelope?.rows ?? []).map((r) => ({
+    ...r,
+    photosensitivity_status: derivePhotosensitivity(r),
+  }));
   const trimmed = q.trim();
   if (!trimmed) return { rows, error: null }; // carrier boş-q lookup: sıra değişmez (server A–Z)
 
@@ -220,16 +239,33 @@ export async function fetchOilSearch(
   return { rows: [...rows].sort((a, b) => rank(a) - rank(b)), error: null };
 }
 
+/**
+ * ARO-005 destek — açık hata/ok sözleşmesi. Blend Oluşturucu (Worker A)
+ * `const { oil, error } = await fetchOilDetail(...)` ile çağırır ve `error` set ise
+ * VEYA `oil` null ise ekleme reddeder → "detay YÜKLENEMEDİ" ile "yağın güvenlik alanı
+ * gerçekten boş" ayrışır. Ağ/HTTP hatası → {oil:null, error:<mesaj>}; başarı →
+ * {oil, error:null}. 404 not-found ayrı bayrak taşır (ama oil yine null → Worker A reddeder).
+ */
 export async function fetchOilDetail(
   _tenantId: string,
   id: string,
 ): Promise<{ oil: AromatherapyOil | null; error: string | null; notFound: boolean }> {
-  const res = await fetch(`/api/aromaterapi/oils/${id}`, { headers: authHeaders() });
+  let res: Response;
+  try {
+    res = await fetch(`/api/aromaterapi/oils/${id}`, { headers: authHeaders() });
+  } catch (e) {
+    // Ağ hatası — detay YÜKLENEMEDİ (boş güvenlik alanı DEĞİL).
+    return { oil: null, error: e instanceof Error ? e.message : "Ağ hatası", notFound: false };
+  }
   const j = await readJson(res);
   if (res.status === 404) return { oil: null, error: null, notFound: true };
   if (!res.ok || j.ok !== true)
     return { oil: null, error: String(j.error ?? `HTTP ${res.status}`), notFound: false };
-  return { oil: (j.oil as AromatherapyOil) ?? null, error: null, notFound: false };
+  const raw = (j.oil as AromatherapyOil) ?? null;
+  const oil = raw
+    ? { ...raw, photosensitivity_status: derivePhotosensitivity(raw) } // ARO-004 normalize
+    : null;
+  return { oil, error: null, notFound: false };
 }
 
 // Hub/facet sayaçları — tek çağrıda toplam + 6 oil_type (UI OIL_TYPES ile birebir).
@@ -459,6 +495,7 @@ export const EMPTY_OIL_FORM: OilFormData = {
   color: "",
   consistency: "",
   is_photosensitive: false,
+  photosensitivity_status: "unknown", // ARO-004 yeni kayıt varsayılanı = değerlendirilmedi
 
   // Kimyasal İçerik
   main_components: "",
@@ -515,6 +552,7 @@ export function oilToFormData(oil: AromatherapyOil): OilFormData {
     color: oil.color ?? "",
     consistency: oil.consistency ?? "",
     is_photosensitive: oil.is_photosensitive ?? false,
+    photosensitivity_status: derivePhotosensitivity(oil), // ARO-004 read-side türetim
 
     main_components: oil.main_components ?? "",
     therapeutic_properties: oil.therapeutic_properties ?? [],

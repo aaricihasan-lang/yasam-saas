@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { getPassage } from "@/lib/aromaterapi/service/sourceReads";
@@ -15,7 +15,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Out-of-tenant/eksik → 404.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { id } = await ctx.params;

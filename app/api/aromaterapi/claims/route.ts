@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   createClaim,
   resolveActorLabel,
@@ -26,7 +26,7 @@ export const runtime = "nodejs";
  * filtreleriyle güvenlik görünümü. Kullanıcıya "claim" terimi gösterilmez.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -117,7 +117,7 @@ type OptStr = { ok: true; value: string | null } | { ok: false };
 type OptArr = { ok: true; value: unknown[] | undefined } | { ok: false };
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json({ ok: false, code: "AROMA_DEMO_FORBIDDEN" }, { status: 403 });

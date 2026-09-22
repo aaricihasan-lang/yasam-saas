@@ -64,7 +64,7 @@ check("A05 seri detay route GET", has("app/api/aromaterapi/methods/[seriesId]/ro
 check("A06 preparat methods GET (seri listesi)", /export async function GET\b/.test(routeMethods));
 check("A07 revisions GET (geçmiş)", /export async function GET\b/.test(routeRevs));
 check("A08 revision detay GET", /export async function GET\b/.test(routeRev));
-check("A09 GET'ler guard'lı (verifyUserRequest)", [routeSeries, routeMethods, routeRevs, routeRev].every((s) => /verifyUserRequest\(req\)/.test(s)));
+check("A09 GET'ler guard'lı (requireModuleAccess)", [routeSeries, routeMethods, routeRevs, routeRev].every((s) => /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']/.test(s)));
 check("A10 out-of-tenant 404 (readNotFound)", [routeSeries, routeRevs, routeRev].every((s) => /readNotFound\(\)/.test(s)));
 check("A11 mevcut write POST/PATCH korundu", /export async function POST\b/.test(routeMethods) && /export async function PATCH\b/.test(routeRev));
 

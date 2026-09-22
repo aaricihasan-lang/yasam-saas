@@ -6,9 +6,9 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildAromaDoc } from "./document";
-import { reportFilename, oilTypeLabel, AROMA_MODULE_TITLE, classifyFrontMatter } from "./theme";
+import { reportFilename, oilTypeLabel, AROMA_MODULE_TITLE, classifyFrontMatter, MAX_EXPORT_ALL_RECORDS } from "./theme";
 import {
-  readOilsForExport, readBlendsForExport, readOneOil, readOneBlend,
+  readOilsForExport, readBlendsForExport, readOneOil, readOneBlend, countForExport,
   type ExportSelector, type OilExportRow,
 } from "./reads";
 import { renderOilMonograph, renderOilsSection } from "./render/oils";
@@ -27,6 +27,23 @@ export interface ReportCtx { expertName?: string | null; date: Date }
 export type BuildResult =
   | { ok: true; buffer: Buffer; filename: string; count: number }
   | { ok: false; status: number; error: string };
+
+/** ARO-010 — "all" üst-sınır ihlali mesajı (kontrollü, ham hata sızmaz). */
+const ALL_CAP_MSG = `Kayıt sayısı çok yüksek (>${MAX_EXPORT_ALL_RECORDS}). Lütfen seçili kayıtları dışa aktarın.`;
+
+/**
+ * mode=all için tenant-scoped sayım kapısı (ARO-010). selected'e DOKUNMAZ (parseExportBody
+ * zaten MAX_SELECTED_IDS ile capler). Aşımda 413 döndürür; okuma/build yapılmadan durur.
+ */
+async function guardAllCap(
+  db: SupabaseClient, tenantId: string, sel: ExportSelector, table: string, activeOnly: boolean,
+): Promise<BuildResult | null> {
+  if (sel.mode !== "all") return null;
+  const { count, error } = await countForExport(db, table, tenantId, sel, { activeOnly });
+  if (error) return { ok: false, status: 500, error };
+  if (count > MAX_EXPORT_ALL_RECORDS) return { ok: false, status: 413, error: ALL_CAP_MSG };
+  return null;
+}
 
 function oilStats(oils: OilExportRow[]): { label: string; value: string }[] {
   const by: Record<string, number> = {};
@@ -52,6 +69,8 @@ export async function buildSingleOilDoc(db: SupabaseClient, tenantId: string, id
 }
 
 export async function buildOilsCatalogDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_oils", true);
+  if (cap) return cap;
   const { rows, error } = await readOilsForExport(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   if (!rows.length) return { ok: false, status: 404, error: "Export edilecek yağ bulunamadı." };
@@ -82,6 +101,8 @@ export async function buildSingleBlendDoc(db: SupabaseClient, tenantId: string, 
 }
 
 export async function buildBlendsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_blends", true);
+  if (cap) return cap;
   const { rows, error } = await readBlendsForExport(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   if (!rows.length) return { ok: false, status: 404, error: "Export edilecek karışım bulunamadı." };
@@ -115,30 +136,40 @@ const scopeLbl = (sel: ExportSelector, all: string) => (sel.mode === "selected" 
 const scopePart = (sel: ExportSelector, all: string) => (sel.mode === "selected" ? "Secili" : all);
 
 export async function buildTaxaDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_plant_taxa", false);
+  if (cap) return cap;
   const { items, error } = await fetchTaxaDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderTaxaSection(items, { asMainSection: true }), items.length,
     { title2: "BİTKİ KATALOĞU", subtitle: scopeLbl(sel, "Tüm Bitkiler"), reportName: "Bitki Kataloğu", filenamePart: `${scopePart(sel, "Tum")}_Bitkiler` }, ctx);
 }
 export async function buildPreparationsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_preparations", false);
+  if (cap) return cap;
   const { items, error } = await fetchPreparationDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderPreparationsSection(items, { asMainSection: true }), items.length,
     { title2: "PREPARATLAR", subtitle: scopeLbl(sel, "Tüm Preparatlar"), reportName: "Preparatlar", filenamePart: `${scopePart(sel, "Tum")}_Preparatlar` }, ctx);
 }
 export async function buildMethodsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_preparation_method_series", false);
+  if (cap) return cap;
   const { items, error } = await fetchMethodExports(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderMethodsSection(items, { asMainSection: true }), items.length,
     { title2: "YÖNTEMLER & REVİZYONLAR", subtitle: scopeLbl(sel, "Tüm Yöntemler"), reportName: "Yöntemler", filenamePart: `${scopePart(sel, "Tum")}_Yontemler` }, ctx);
 }
 export async function buildKnowledgeDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_claims", false);
+  if (cap) return cap;
   const { items, error } = await fetchKnowledgeDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderKnowledgeSection(items, { asMainSection: true }), items.length,
     { title2: "BİLGİ KAYITLARI", subtitle: scopeLbl(sel, "Tüm Bilgi Kayıtları"), reportName: "Bilgi Kayıtları", filenamePart: `${scopePart(sel, "Tum")}_Bilgi_Kayitlari` }, ctx);
 }
 export async function buildSourcesDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_sources", false);
+  if (cap) return cap;
   const { items, sources, error } = await fetchSourceExports(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   const body = [...renderSourcesSection(items, { asMainSection: true }), ...renderBibliography(sources)];
@@ -146,6 +177,8 @@ export async function buildSourcesDoc(db: SupabaseClient, tenantId: string, sel:
     { title2: "KAYNAKLAR", subtitle: scopeLbl(sel, "Tüm Kaynaklar"), reportName: "Kaynaklar", filenamePart: `${scopePart(sel, "Tum")}_Kaynaklar` }, ctx);
 }
 export async function buildGlossaryDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_glossary_terms", false);
+  if (cap) return cap;
   const { items, error } = await fetchGlossary(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderGlossarySection(items, { asMainSection: true }), items.length,
@@ -161,9 +194,32 @@ export type GeneralSection = (typeof GENERAL_SECTIONS)[number];
  * Genel Aromaterapi raporu: tenant'ın TÜM export-eligible aktif kaydını tek DOCX'te,
  * profesyonel bölüm sırasıyla + sonda deduplicated Kaynakça. Boş bölüm başlık üretmez.
  */
+/** Genel rapor tablo eşlemesi (ARO-010 sayım + okuma tek kaynak). */
+const GENERAL_TABLES: readonly [GeneralSection, string, boolean][] = [
+  ["oils", "aromatherapy_oils", true],
+  ["taxa", "aromatherapy_plant_taxa", false],
+  ["preparations", "aromatherapy_preparations", false],
+  ["blends", "aromatherapy_blends", true],
+  ["methods", "aromatherapy_preparation_method_series", false],
+  ["knowledge", "aromatherapy_claims", false],
+  ["sources", "aromatherapy_sources", false],
+  ["glossary", "aromatherapy_glossary_terms", false],
+];
+
 export async function buildGeneralDoc(db: SupabaseClient, tenantId: string, sections: string[] | null, ctx: ReportCtx): Promise<BuildResult> {
   const want = (k: GeneralSection) => !sections || sections.includes(k);
   const all: ExportSelector = { mode: "all" };
+
+  // ARO-010: genel rapora dahil edilecek TÜM bölümlerin tenant-scoped toplamı üst sınırı aşarsa
+  // build yapılmadan fail-closed 413 (bkz. MAX_EXPORT_ALL_RECORDS — güvenlik bandı, kapasite garantisi değil).
+  let capTotal = 0;
+  for (const [key, table, activeOnly] of GENERAL_TABLES) {
+    if (!want(key)) continue;
+    const { count, error } = await countForExport(db, table, tenantId, all, { activeOnly });
+    if (error) return { ok: false, status: 500, error };
+    capTotal += count;
+  }
+  if (capTotal > MAX_EXPORT_ALL_RECORDS) return { ok: false, status: 413, error: ALL_CAP_MSG };
   const body: ReportChild[] = [];
   const stats: { label: string; value: string }[] = [];
   let allSources: import("@/lib/aromaterapi/readTypes").SourceDetail[] = [];
