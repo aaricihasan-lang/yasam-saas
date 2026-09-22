@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnPrimary, kupaBtnSuccess, kupaCard } from "@/app/kupa/components/KupaShell";
+import { kupaBtnPrimary, kupaBtnSuccess, kupaBtnGhost, kupaCard } from "@/app/kupa/components/KupaShell";
 import { CUPPING_PLAN_DAYS_MAX_BATCH, type CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
 import { gregorianToHijri, toYmd } from "@/lib/cupping/hijri";
 import {
@@ -14,6 +14,7 @@ import {
   deleteCalendarDay,
   deleteCalendarPlan,
   updateCalendarPlan,
+  downloadCalendarPlanWord,
   listAdviceTemplates,
   type CuppingAdviceTemplate,
   type CuppingCalendarPlan,
@@ -115,6 +116,7 @@ export function CalendarWorkspace() {
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
   const today = useMemo(() => todayYmd(), []);
 
   // Kayıtlı gün kümesi (yalnız ymd) — Aylık + Yıllık görünüme geçirilir (durum türetimi).
@@ -344,6 +346,43 @@ export function CalendarWorkspace() {
     }
   }
 
+  // FAZ 6 — AKTİF planın Word (.docx) raporunu indir. scope: undefined → YILLIK (12 ay); 1–12 → yalnız o AY.
+  //   Yalnız açık plan; kaydedilmemiş taslakla ÜRETME (sahte/eski rapor olmaz) → önce kaydetmesini iste.
+  async function handleWordDownload(scopeMonth?: number) {
+    if (!plan || wordBusy) return;
+    if (dirty) {
+      showToast({ message: "Önce değişikliklerinizi kaydedin.", type: "warning" });
+      return;
+    }
+    setWordBusy(true);
+    try {
+      const { blob, filename } = await downloadCalendarPlanWord(plan.id, scopeMonth);
+      // İndirmeyi tarayıcıya İLET: blob URL + geçici gizli bağlantı. URL hemen iptal EDİLMEZ
+      //   (bazı tarayıcılarda indirmeyi bozar); geçici DOM bağlantısı hata halinde de temizlenir,
+      //   URL makul gecikmeyle serbest bırakılır (kalıcı Blob URL birikimi olmaz).
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      try {
+        a.click();
+      } finally {
+        a.remove();
+        // ~1 dk sonra serbest bırak (indirme başlatıldıktan sonra; erken revoke indirmeyi kesebilir).
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+      // Tarayıcının dosyayı diske yazdığını DOĞRULAYAMAYIZ → yalnız "başlatıldı" denir (kesin başarı iddiası yok).
+      showToast({ message: "Word dosyasının indirilmesi başlatıldı.", type: "success" });
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Word raporu oluşturulamadı.", type: "error" });
+    } finally {
+      setWordBusy(false);
+    }
+  }
+
   async function handleDeletePlan(p: CuppingCalendarPlan) {
     if (!(await confirmDiscardIfDirty())) return;
     const ok = await confirm({
@@ -448,6 +487,31 @@ export function CalendarWorkspace() {
           <div className={`${edgeCard} flex flex-col gap-4`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CalendarViewToggle view={view} onChange={setView} />
+              {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
+                  kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
+              <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
+                <button
+                  type="button"
+                  className={`${kupaBtnGhost} min-h-[44px]`}
+                  onClick={() => handleWordDownload()}
+                  disabled={wordBusy || planLoading}
+                  title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
+                >
+                  <span aria-hidden>⤓</span>
+                  {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
+                </button>
+                <button
+                  type="button"
+                  className={`${kupaBtnGhost} min-h-[44px]`}
+                  onClick={() => handleWordDownload(month)}
+                  disabled={wordBusy || planLoading}
+                  title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
+                >
+                  <span aria-hidden>⤓</span>
+                  {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
+                </button>
+              </div>
             </div>
             {/* Kaydet/durum barı — MOBİL/TABLET: ekran altına SABİT (uzun kart listesinde her zaman
                 erişilir; güvenli-alan payı). MASAÜSTÜ (lg): mevcut sticky davranış korunur. */}
