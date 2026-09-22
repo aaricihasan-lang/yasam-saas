@@ -101,6 +101,15 @@ async function run() {
     "docx[1]: doğru DOCX MIME sabiti",
   );
 
+  // [1b] Footer güvenliği: TOTAL_PAGES (NUMPAGES) alanı KULLANILMAZ — bu alan içerik sayfa sınırına
+  //   denk gelen belgelerde Word PDF/print motorunu KİLİTLİYOR. Yalnız geçerli sayfa (PAGE) alanı olur.
+  const footerNames = Object.keys(zip.files).filter((f) => /^word\/footer\d+\.xml$/.test(f));
+  let footerXml = "";
+  for (const fn of footerNames) footerXml += await zip.file(fn)!.async("string");
+  ok(footerNames.length > 0, "docx[1b]: en az bir footer parçası var");
+  ok(!/NUMPAGES/.test(footerXml), "docx[1b]: footer'da NUMPAGES YOK (Word PDF-kilit hatası önlendi)");
+  ok(/\bPAGE\b/.test(footerXml), "docx[1b]: footer'da geçerli sayfa (PAGE) alanı var");
+
   // [2] Başlık + plan adı + yıl.
   ok(xml.includes("HACAMAT TAKVİMİ"), "içerik[2]: başlık 'HACAMAT TAKVİMİ' var");
   ok(xml.includes("Test Hacamat Takvimi"), "içerik[2]: plan adı aktarıldı");
@@ -118,13 +127,11 @@ async function run() {
   ok(wdIdx.every((v) => v >= 0) && wdIdx.every((v, i) => i === 0 || v > wdIdx[i - 1]),
     "takvim[4]: haftagünü başlığı Pzt→Paz sırasında (Pazartesi başlangıç)");
 
-  // [5] A3 YATAY ilk sayfa (pgSz) + A4 dikey ikinci sayfa.
-  ok(/w:pgSz[^>]*w:w="23811"[^>]*w:h="16838"[^>]*w:orient="landscape"/.test(xml) ||
-     /w:pgSz[^>]*w:orient="landscape"[^>]*w:w="23811"/.test(xml) ||
-     (xml.includes('w:w="23811"') && xml.includes('w:orient="landscape"')),
+  // [5] A3 YATAY ilk sayfa HER ZAMAN; KÜÇÜK plan (5 gün, şablonsuz) TEK A3 sayfa — gereksiz 2. sayfa YOK.
+  ok(xml.includes('w:w="23811"') && xml.includes('w:orient="landscape"'),
     "sayfa[5]: 1. sayfa A3 YATAY (pgSz 23811 + orient=landscape)");
-  ok(xml.includes('w:w="11906"'), "sayfa[5]: 2. sayfa A4 DİKEY (pgSz 11906)");
-  ok((xml.match(/w:sectPr/g)?.length ?? 0) >= 2, "sayfa[5]: en az 2 ayrı bölüm (A3 + A4)");
+  ok((xml.match(/w:pgSz/g)?.length ?? 0) === 1 && !xml.includes('w:w="11906"'),
+    "sayfa[5]: küçük plan TEK A3 bölüm (A4 devam yok; gereksiz ikinci sayfa kaldırıldı)");
 
   // [6] Seçili günler bölümü + kronolojik gün başlıkları + haftagünü adı.
   ok(xml.includes("SEÇİLİ GÜNLER VE AÇIKLAMALAR"), "günler[6]: seçili günler bölüm başlığı var");
@@ -146,14 +153,15 @@ async function run() {
   ok(xml.includes(CUPPING_DAY_WORD_COLORS.red.fill), "renk[8]: kırmızı gün dolgusu belgede");
   ok(xml.includes(CUPPING_DAY_WORD_NEUTRAL.fill), "renk[8]: renksiz(NULL) gün NÖTR dolguyla seçili görünür (E0E7FF)");
 
-  // [9] Kısa açıklama ↔ detay notu AYRI (birleştirilmez).
-  ok(xml.includes("Kısa açıklama:"), "açıklama[9]: 'Kısa açıklama:' etiketi var");
-  ok(xml.includes("Detay notu:"), "açıklama[9]: 'Detay notu:' etiketi var");
-  ok(xml.includes("aaaaa"), "açıklama[9]: kısa açıklama metni doğru güne bağlı");
+  // [9] Kısa açıklama (özet tablosu) ↔ detay notu (DETAY NOTLARI) AYRI; tekrar eden toplu liste YOK.
+  ok(xml.includes("aaaaa"), "açıklama[9]: kısa açıklama özet tablosunda doğru güne bağlı");
+  ok(xml.includes("Detay notu:"), "açıklama[9]: DETAY NOTLARI 'Detay notu:' etiketi var");
   ok(xml.includes("Uzmanın yazdığı detaylı metin."), "açıklama[9]: detay notu metni aktarıldı");
   ok(xml.includes("İkinci satır."), "açıklama[9]: detay notu satır sonu korunur (çok satır)");
   // Karışmama: 9 Eylül'ün kısa açıklaması ('aaaaa') detay notunun İÇİNDE değil.
   ok(!/aaaaa[^<]*Uzmanın yazdığı/.test(xml), "açıklama[9]: kısa açıklama ile detay notu tek alanda BİRLEŞMEZ");
+  // 'Detay notu:' YALNIZ notu olan günler için (mainDays'te 9 + 23 Eylül = 2); notsuz güne üretilmez.
+  ok((xml.match(/Detay notu:/g)?.length ?? 0) === 2, "açıklama[9]: 'Detay notu:' yalnız notu olan 2 gün için (notsuz güne boş kart yok)");
 
   // [10] Türkçe karakter parite.
   ok(xml.includes("Şşğ İıçö parite"), "türkçe[10]: Türkçe karakterler bozulmadan aktarıldı");
@@ -206,15 +214,162 @@ async function run() {
   const { xml: emptyTplXml } = await docXml(emptyTplBuf);
   ok(!emptyTplXml.includes("BİLGİLENDİRME NOTLARI"), "şablon[15]: tamamen boş şablonda bölüm/başlık üretilmez");
 
-  // [16] Güvenli dosya adı (ASCII; yıl dahil).
-  const fn = calendarWordFilename(mainPlan);
-  ok(/^Hacamat-Takvimi-[A-Za-z0-9-]*2026\.docx$/.test(fn), `dosya[16]: güvenli/anlaşılır ad ('${fn}')`);
-  ok(!/[^\x20-\x7E]/.test(fn), "dosya[16]: dosya adı ASCII (Türkçe→normalize)");
-  const fnNamed = calendarWordFilename({ name: "Şubat Özel", year: 2027 });
-  ok(fnNamed.endsWith("2027.docx") && !/[^\x20-\x7E]/.test(fnNamed), "dosya[16]: Türkçe plan adı güvenli normalize edilir");
+  // [16] Güvenli dosya adı — YILLIK: "…-<yıl>-Yillik.docx"; AYLIK: "…-<yıl>-<Ay>.docx" (ASCII).
+  const fnYear = calendarWordFilename(mainPlan);
+  ok(fnYear === "Hacamat-Takvimi-2026-Yillik.docx", `dosya[16]: yıllık ad ('${fnYear}')`);
+  ok(!/[^\x20-\x7E]/.test(fnYear), "dosya[16]: yıllık dosya adı ASCII");
+  const fnJan = calendarWordFilename({ year: 2026 }, 1);
+  const fnJul = calendarWordFilename({ year: 2026 }, 7);
+  ok(fnJan === "Hacamat-Takvimi-2026-Ocak.docx", `dosya[16]: Ocak ('${fnJan}')`);
+  ok(fnJul === "Hacamat-Takvimi-2026-Temmuz.docx", `dosya[16]: Temmuz ('${fnJul}')`);
+  ok(!/[^\x20-\x7E]/.test(calendarWordFilename({ year: 2026 }, 2)), "dosya[16]: Şubat→ASCII (Subat) güvenli normalize");
+  // Geçersiz month → YILLIK (route zaten katı doğrular; builder defansif).
+  ok(calendarWordFilename({ year: 2026 }, 13 as number) === "Hacamat-Takvimi-2026-Yillik.docx", "dosya[16]: geçersiz month → yıllık");
 
   // [17] Kanonik Hicrî sınır — 30 gün üstü UYDURMAZ (null güvenli). (Motor değişmez.)
   ok(gregorianToHijri("bozuk") === null, "hicri[17]: geçersiz tarih → null (ikinci motor yok; güvenli)");
+
+  // ── [18] TEK PER-GÜN GÖSTERİM + tekrar YOK (owner: gereksiz ikinci liste kaldırıldı) ──
+  ok(xml.includes("SEÇİLİ GÜNLER VE AÇIKLAMALARI"), "sayfa1[18]: 'SEÇİLİ GÜNLER VE AÇIKLAMALARI' özeti var");
+  // Özet başlığı TEK kez — her günü baştan sona tekrar eden ikinci toplu liste ARTIK YOK.
+  ok((xml.match(/SEÇİLİ GÜNLER VE AÇIKLAMALARI/g)?.length ?? 0) === 1,
+    "sayfa1[18]: özet başlığı tek kez (gün/Hicrî/kısa açıklama TEKRAR eden ikinci liste yok)");
+  // Detay notu olan günler için AYRI 'DETAY NOTLARI' bölümü (kısa açıklamaları tekrar etmez).
+  ok(xml.includes("DETAY NOTLARI"), "sayfa1[18]: notu olan günler için 'DETAY NOTLARI' bölümü");
+  ok(!xml.includes("Kullanılan renkler"), "sayfa1[18]: eski genel 'Kullanılan renkler' şeridi kaldırıldı");
+
+  // İlk sayfada gün↔Hicrî↔kısa açıklama ilişkisi: 9 Eylül (sarı) hem tarih hem Hicrî hem label taşır.
+  ok(xml.includes("9 Eylül 2026") && h909 !== null && xml.includes(h909.formatted),
+    "sayfa1[18]: seçili gün tarih + tam Hicrî ilk sayfada birlikte");
+
+  // Aynı renk (sarı) İKİ farklı günde FARKLI açıklama taşıyabilir (SARI=SÜNNET eşlemesi YOK).
+  const twoYellow = await buildCalendarPlanWordBuffer({
+    plan: mkPlan(),
+    days: [
+      mkDay("2026-09-09", { color_key: "yellow", user_label: "Sünnet günü" }),
+      mkDay("2026-09-16", { color_key: "yellow", user_label: "Özel uygulama" }),
+    ],
+  });
+  const { xml: yx } = await docXml(twoYellow);
+  ok(yx.includes("Sünnet günü") && yx.includes("Özel uygulama"),
+    "sayfa1[18]: aynı renkli iki gün FARKLI (uzman-yazılı) açıklama taşır");
+  // Sistem, uzman yazmadıkça renkten anlam TÜRETMEZ: 09'un labeli '16'nın altında görünmez (karışmaz).
+  ok(!/Özel uygulama[^<]*9 Eylül|Sünnet günü[^<]*16 Eylül/.test(yx),
+    "sayfa1[18]: bir günün açıklaması başka günün altında gösterilmez");
+
+  // Açıklaması OLMAYAN seçili gün ilk sayfada kaybolmaz; uydurma metin eklenmez.
+  const noLabel = await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: [mkDay("2026-09-14", { color_key: "blue" })] });
+  const { xml: nx } = await docXml(noLabel);
+  const h914 = gregorianToHijri("2026-09-14");
+  ok(nx.includes("14 Eylül 2026") && h914 !== null && nx.includes(h914.formatted),
+    "sayfa1[18]: açıklamasız seçili gün ilk sayfada tarih+Hicrî ile korunur");
+  ok(!/Sünnet|Altın|Uygun gün|Yasakl/i.test(nx), "sayfa1[18]: açıklamasız güne sistem 'Sünnet/Uygun/Yasaklı' UYDURMAZ");
+
+  // ── [19] SAYFALAMA — küçük plan TEK A3; TAŞMADA A3 (özet) + A4 devam; tekrar yok; veri kaybı yok ──
+  function bulkDays(n: number): CuppingCalendarPlanDay[] {
+    const out: CuppingCalendarPlanDay[] = [];
+    let count = 0;
+    for (let m = 1; m <= 12 && count < n; m++) {
+      const dim = new Date(Date.UTC(2026, m, 0, 12)).getUTCDate();
+      for (let d = 1; d <= dim && count < n; d += 3) {
+        out.push(mkDay(`2026-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, { color_key: "green", user_label: `G${count + 1}` }));
+        count++;
+      }
+    }
+    return out;
+  }
+  // 40 gün (şablonsuz, notsuz) → özet A3'e sığmaz → TAŞMA (A3 24 + A4 devam 16).
+  const many = bulkDays(40);
+  const { xml: mx } = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: many }));
+  ok((mx.match(/w:pgSz/g)?.length ?? 0) === 2 && mx.includes('w:w="11906"'),
+    "sayfa1[19]: taşmada A3 + A4 DİKEY devam bölümü (2 pgSz)");
+  ok(/\d+ gün daha/.test(mx), "sayfa1[19]: taşmada 'N gün daha' devam notu (yalnız gerçek taşmada)");
+  ok(/SEÇİLİ GÜNLER VE AÇIKLAMALARI \(devam\)/.test(mx),
+    "sayfa1[19]: A4'te 'özet (devam)' — kalan günler; ilk sayfadakiler TEKRAR edilmez");
+  // Her günün benzersiz etiketi (G1..G40) belgede → hiçbir gün düşmedi (sıkıştırma/kayıp yok).
+  const uniqueG = new Set(mx.match(/>G\d+</g) ?? []);
+  ok(uniqueG.size >= 40, `sayfa1[19]: 40 günün TAMAMI korunur (benzersiz etiket=${uniqueG.size} ≥ 40)`);
+  // Her gün ÖZET'te tam bir kez (24 A3 + 16 A4 = 40 giriş; ikinci toplu liste tekrarı olsaydı 80 olurdu).
+  const gTotal = mx.match(/>G\d+</g)?.length ?? 0;
+  ok(gTotal === 40, `sayfa1[19]: her gün özet'te TAM BİR kez (toplam giriş=${gTotal}=40; tekrar yok)`);
+  // Küçük plan (5 gün, tek A3 sayfa) → devam notu YOK.
+  ok(!/gün daha/.test(xml), "sayfa1[19]: küçük planda (tek A3 sayfa) 'devam' notu gösterilmez");
+
+  // ── [20] KÜÇÜK PLAN TEK SAYFA — şablonlu 10 gün de tek A3 (gereksiz 2. sayfa yok) ──
+  const tenTpl: CuppingAdviceTemplate = {
+    id: "t", tenant_id: "t", title: "Bilgilendirme", before_text: "Önce.", after_text: "Sonra.",
+    general_note: "Genel.", is_default: true, is_active: true, created_at: "", updated_at: "",
+  };
+  const { xml: tenXml } = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: bulkDays(10), template: tenTpl }));
+  ok((tenXml.match(/w:pgSz/g)?.length ?? 0) === 1 && !tenXml.includes('w:w="11906"'),
+    "sayfa1[20]: 10 gün + şablon TEK A3 sayfa (bilgilendirme aynı sayfada; 2. sayfa yok)");
+  ok(tenXml.includes("BİLGİLENDİRME NOTLARI") && !/gün daha/.test(tenXml),
+    "sayfa1[20]: bilgilendirme ilk sayfada; devam notu yok");
+
+  // ── [21] AYLIK RAPOR — tek ay, A4 dikey; başka ay SIZMAZ; Hicrî/etiket doğru; boş ay güvenli ──
+  const mTpl: CuppingAdviceTemplate = {
+    id: "t", tenant_id: "t", title: "Bilgilendirme", before_text: "Önce metni.", after_text: "Sonra metni.",
+    general_note: "Genel.", is_default: true, is_active: true, created_at: "", updated_at: "",
+  };
+  const mDays = [
+    mkDay("2026-01-05", { color_key: "blue", user_label: "Ocak günü", note: "Ocak detay notu." }),
+    mkDay("2026-01-19", { color_key: "green" }),
+    mkDay("2026-07-03", { color_key: "red", user_label: "Temmuz A" }),
+    mkDay("2026-07-28", { color_key: "yellow", user_label: "Sünnet günü", note: "Temmuz detay notu." }),
+    mkDay("2026-02-29", { color_key: "purple", user_label: "Artık gün" }), // 2026 artık DEĞİL → geçersiz; kullanılmaz
+    mkDay("2026-12-20", { color_key: "orange", user_label: "Aralık" }),
+  ].filter((d) => d.gregorian_date !== "2026-02-29");
+  // M1 Ocak
+  const jan = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: mDays, template: mTpl, month: 1 }));
+  ok((jan.xml.match(/w:pgSz/g)?.length ?? 0) === 1 && jan.xml.includes('w:w="11906"'),
+    "aylık[21/M1]: Ocak raporu A4 DİKEY tek bölüm");
+  ok(jan.xml.includes("Ocak 2026") && jan.xml.includes("5 Ocak 2026") && jan.xml.includes("19 Ocak 2026"),
+    "aylık[21/M1]: yalnız Ocak başlık + Ocak günleri");
+  const hJan = gregorianToHijri("2026-01-05");
+  ok(hJan !== null && jan.xml.includes(hJan.formatted), "aylık[21/M1]: Ocak günü tam Hicrî (kanonik)");
+  ok(jan.xml.includes("Ocak detay notu."), "aylık[21/M1]: Ocak detay notu var");
+  // M3 sızma yok: Temmuz/Aralık verisi Ocak raporunda YOK
+  ok(!jan.xml.includes("Temmuz") && !jan.xml.includes("3 Temmuz") && !jan.xml.includes("Temmuz detay notu.")
+     && !jan.xml.includes("20 Aralık 2026") && !jan.xml.includes("Aralık"),
+    "aylık[21/M3]: başka ayın takvimi/günü/notu SIZMAZ (Ocak)");
+  ok(jan.xml.includes("Pazartesi") && jan.xml.includes("Pazar"), "aylık[21]: Pazartesi başlangıç (uzun haftagünü)");
+  // M2 Temmuz
+  const jul = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: mDays, template: mTpl, month: 7 }));
+  ok(jul.xml.includes("Temmuz 2026") && jul.xml.includes("3 Temmuz 2026") && jul.xml.includes("28 Temmuz 2026"),
+    "aylık[21/M2]: yalnız Temmuz başlık + Temmuz günleri");
+  ok(!jul.xml.includes("5 Ocak") && !jul.xml.includes("Ocak detay notu."), "aylık[21/M3]: Ocak verisi Temmuz'a SIZMAZ");
+  // Aynı renkli farklı açıklama (Temmuz 28 sarı 'Sünnet günü' — uzman yazdı; sistem türetmedi)
+  ok(jul.xml.includes("Sünnet günü") && jul.xml.includes("Temmuz A"), "aylık[21/M7]: aynı planda farklı günler farklı açıklama");
+  // M5 boş ay
+  const empty = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan(), days: mDays, template: mTpl, month: 3 }));
+  ok(empty.xml.includes("Mart 2026") && empty.xml.includes("Bu ay için seçili gün bulunmuyor."),
+    "aylık[21/M5]: seçili günü olmayan ay → takvim + nötr durum metni");
+  ok(!/Sünnet|Altın|Uygun gün|Yasakl/i.test(empty.xml.replace(/Bu ay için/g, "")),
+    "aylık[21/M5]: boş ayda otomatik Sünnet/Altın/Uygun/Yasaklı üretilmez");
+  // M4 artık yıl 29 Şubat 2028
+  const leapDays = [mkDay("2028-02-29", { color_key: "purple", user_label: "Artık gün" }), mkDay("2028-02-10", { color_key: "blue" })];
+  const feb = await docXml(await buildCalendarPlanWordBuffer({ plan: mkPlan({ year: 2028 }), days: leapDays, month: 2 }));
+  ok(feb.xml.includes("Şubat 2028") && feb.xml.includes("29 Şubat 2028"), "aylık[21/M4]: artık yıl 29 Şubat 2028 doğru");
+  // M11 yıllık varsayılan (month=null) değişmedi — küçük yıllık plan tek A3 yatay (geriye uyumlu).
+  ok(!/w:w="11906"/.test(xml) && xml.includes('w:orient="landscape"'),
+    "aylık[21/M11]: yıllık (month yok) tek-bölüm A3 yatay — geriye uyumlu");
+
+  // ── [22] PREMIUM TASARIM — serif başlık + sıcak palet + bilgilendirme "pill" tablosu ──
+  // Serif başlık fontu (Cambria) başlıkta/bölüm başlıklarında kullanılır.
+  ok(/w:ascii="Cambria"/.test(jul.xml), "premium[22]: serif başlık fontu (Cambria) belgede");
+  // Sıcak ince çizgi rengi (E7E2D8) — sert siyah çizgi yerine.
+  ok(jul.xml.includes("E7E2D8"), "premium[22]: sıcak ince çizgi rengi (E7E2D8) kullanılır");
+  // Takvim haftagünü başlığı yumuşak zemin (F3F1EA).
+  ok(jul.xml.includes("F3F1EA"), "premium[22]: aylık takvim haftagünü satırı yumuşak zemin");
+  // Bilgilendirme "pill" etiket zemini (EDEBE3) + Öncesi/Sonrası/Genel tabloda.
+  ok(jul.xml.includes("EDEBE3") && jul.xml.includes("Öncesi") && jul.xml.includes("Sonrası") && jul.xml.includes("Genel"),
+    "premium[22]: bilgilendirme pill tablosu (Öncesi/Sonrası/Genel)");
+  // Bölüm başlığı teal aksan (■) + serif.
+  ok(/■\s+/.test(jul.xml.replace(/<[^>]+>/g, "")) || jul.xml.includes("■"), "premium[22]: bölüm başlığı teal aksan işareti");
+  // Ana başlık derin teal (134E4A).
+  ok(jul.xml.includes("134E4A"), "premium[22]: ana başlık derin teal (134E4A)");
+  // Renkler DEĞİŞMEDİ (7 gün rengi fill'i hâlâ paletten) — sarı fill korunur.
+  ok(jul.xml.includes(CUPPING_DAY_WORD_COLORS.yellow.fill), "premium[22]: 7 kontrollü gün rengi DEĞİŞMEDİ (sarı fill)");
 
   console.log(`\ncupping-calendar-word harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {

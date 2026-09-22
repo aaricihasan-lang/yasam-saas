@@ -2036,6 +2036,33 @@ function run(): void {
       "faz6-fix[tpl7]: Durum A (şablon bağlı değil) → koşul dışı; normal rapor (hata yok)");
   }
 
+  // ── [FAZ 6 AYLIK] ?month= parametresi — katı doğrulama + yıllık geriye uyumluluk ──
+  {
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/searchParams\.getAll\("month"\)/.test(wr), "faz6-ay[m1]: month searchParams.getAll ile okunur");
+    ok(/monthParams\.length > 1[\s\S]{0,120}cuppingError\(\s*400/.test(wr), "faz6-ay[m2]: çoklu month → 400");
+    ok(/\/\^\\d\{1,2\}\$\/\.test\(raw\)[\s\S]{0,120}cuppingError\(\s*400/.test(wr),
+      "faz6-ay[m3]: month yalnız 1–2 haneli tam sayı (boş/işaret/ondalık/metin → 400)");
+    ok(/n < 1 \|\| n > 12[\s\S]{0,80}cuppingError\(\s*400/.test(wr), "faz6-ay[m4]: 1–12 aralık dışı → 400");
+    ok(/buildCalendarPlanWordBuffer\(\{ plan, days, template, month \}\)/.test(wr) && /calendarWordFilename\(plan, month\)/.test(wr),
+      "faz6-ay[m5]: month builder + dosya adına geçirilir");
+    ok(!/searchParams[\s\S]{0,40}year|body[\s\S]{0,40}year/.test(wr),
+      "faz6-ay[m6]: yıl client'tan alınmaz (plan.year server-side)");
+    ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(wr) && !/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr),
+      "faz6-ay[m7]: gate korunur + DB'ye yazma yok (aylıkta da)");
+
+    const cw = read("lib/cupping/calendarWord.ts");
+    const cwCode = cw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    ok(/function isValidMonth/.test(cwCode) && /function buildMonthlyBuffer/.test(cwCode),
+      "faz6-ay[m8]: builder isValidMonth + buildMonthlyBuffer");
+    ok(/startsWith\(prefix\)/.test(cwCode) && /\$\{plan\.year\}-\$\{String\(month\)\.padStart\(2, "0"\)\}-/.test(cwCode),
+      "faz6-ay[m9]: aylık filtre plan.year + ay öneki (YYYY-MM-; TZ kayması yok)");
+    ok(/size: A4_PORTRAIT/.test(cwCode) && /monthCalendarTable/.test(cwCode),
+      "faz6-ay[m10]: aylık rapor A4 dikey + bağımsız tek-ay ızgarası");
+    ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
+      "faz6-ay[m11]: aylık kodda da otomatik Sünnet/Altın/yasaklı YOK");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);

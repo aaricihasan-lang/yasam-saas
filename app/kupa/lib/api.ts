@@ -549,9 +549,12 @@ export const deleteCalendarPlan = (id: string) =>
  * FAZ 6 — AKTİF planın Word (.docx) raporunu indirir (kaydedilmiş veriden; DB'ye YAZMAZ).
  * Kimlik başlıklarıyla fetch → blob + sunucu dosya adı (Content-Disposition). DOM işini çağıran yapar.
  * Hata durumunda güvenli mesajla throw eder (sahte başarı YOK).
+ *
+ * @param month  YOKSA/undefined → YILLIK (12 ay). 1–12 verilirse yalnız o AY. Yıl sunucuda plandan alınır.
  */
-export async function downloadCalendarPlanWord(id: string): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${BASE}/calendar/plans/${encodeURIComponent(id)}/word-report`, {
+export async function downloadCalendarPlanWord(id: string, month?: number): Promise<{ blob: Blob; filename: string }> {
+  const qs = typeof month === "number" ? `?month=${encodeURIComponent(String(month))}` : "";
+  const res = await fetch(`${BASE}/calendar/plans/${encodeURIComponent(id)}/word-report${qs}`, {
     method: "GET",
     headers: userHeaders(),
   });
