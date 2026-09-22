@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+// PERF (C1): html2canvas + jsPDF ağır kütüphaneler; statik import edilirse Analizler sekmesi
+// AÇILIR AÇILMAZ chunk'a girip indirilir/parse edilir. Yalnız PDF/snapshot üretimi anında
+// dynamic import edilir → sekmenin ilk açılış yükünden çıkarılır. Davranış/çıktı aynıdır.
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -268,6 +269,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       node.scrollWidth > node.clientWidth + 1 ||
       style.overflowX === "auto" ||
       style.overflowX === "scroll";
+    const { default: html2canvas } = await import("html2canvas");
     const canvas = await html2canvas(node, {
       scale: 3,
       useCORS: true,
@@ -310,6 +312,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       ];
       if (units.length === 0) throw new Error(t("error.pdfNoContent"));
 
+      const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();   // 210
       const pageHeight = pdf.internal.pageSize.getHeight();  // 297
@@ -385,6 +388,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const element = document.getElementById("analysis-print-area");
     if (!element) return;
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,

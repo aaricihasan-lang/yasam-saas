@@ -32,6 +32,40 @@ export const STONE_PHOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 export const STONE_PHOTO_SIGNED_TTL_SECONDS = 3600;
 
 /**
+ * Kart/thumbnail görselleri için sunucu-taraflı yeniden boyutlandırma (Supabase Storage
+ * image transform). Küçük kartlar 10 MB'a kadar orijinali indirmek yerine ~320px kapak
+ * indirir → aktarılan byte gerçekten azalır (CSS küçültme DEĞİL). Lightbox/büyütme tam
+ * çözünürlüğü (transform'suz signed URL) kullanmaya devam eder. Transform private bucket +
+ * signed URL ile uyumludur; imzalı token dönüşüm parametrelerini de kapsar (kurcalanamaz).
+ */
+export const STONE_PHOTO_THUMB = {
+  width: 320,
+  height: 320,
+  resize: "cover" as const,
+  quality: 70,
+};
+
+/**
+ * Signed READ URL'lerin gereksiz yeniden imzalanmasını önleyen eşik. Sadece pencereye/sekmeye
+ * dönüldü diye TÜM URL'leri yeniden imzalamak <img src> ve tarayıcı cache anahtarını değiştirir
+ * → tüm fotoğraflar yeniden indirilir. Bu fonksiyon YALNIZ URL'ler TTL'in `ratio`'sunu geçtiyse
+ * (varsayılan %80 → 60 dk TTL'de ≥48 dk) yenilenmesi gerektiğini söyler. PURE — test edilebilir.
+ * - lastSignedAtMs null (hiç imzalanmadı) → true.
+ * - saat geri sıçraması (age<0) → false (gereksiz yenileme yok).
+ */
+export function shouldRefreshSignedUrls(
+  lastSignedAtMs: number | null,
+  nowMs: number,
+  ttlSeconds: number = STONE_PHOTO_SIGNED_TTL_SECONDS,
+  ratio: number = 0.8,
+): boolean {
+  if (lastSignedAtMs == null) return true;
+  const ageMs = nowMs - lastSignedAtMs;
+  if (ageMs < 0) return false;
+  return ageMs >= ttlSeconds * 1000 * ratio;
+}
+
+/**
  * Güvenilir MIME → uzantı. Uzantı client dosya adından DEĞİL, doğrulanmış MIME'den
  * türetilir → path enjeksiyonu / çift-uzantı imkânsız. (Mevcut stone-photos allow-list
  * ile hizalı: png/jpeg/webp/gif.)
@@ -157,13 +191,19 @@ export type StonePhotoLike = { id: string; image_url: string;[k: string]: unknow
  * Fotoğraf kayıtlarına signed READ URL uygular. image_url artık kalıcı public URL
  * DEĞİL — signed URL varsa onunla DOLDURULUR; yoksa BOŞ bırakılır (eski public URL
  * veya geçersiz relative file_path RENDER EDİLMEZ → bucket private olduğunda kırık
- * görsel gösterilmez). PURE — test edilebilir.
+ * görsel gösterilmez). `thumbById` verilirse kart/thumbnail için ayrı (küçük) signed
+ * URL de doldurulur (verilmezse thumb_url'e dokunulmaz → geriye uyumlu). PURE — test edilebilir.
  */
 export function applySignedPhotoUrls<T extends StonePhotoLike>(
   photos: T[],
   byId: Record<string, string>,
+  thumbById?: Record<string, string>,
 ): T[] {
-  return photos.map((p) => ({ ...p, image_url: byId[p.id] ?? "" }));
+  return photos.map((p) => ({
+    ...p,
+    image_url: byId[p.id] ?? "",
+    ...(thumbById ? { thumb_url: thumbById[p.id] ?? "" } : {}),
+  }));
 }
 
 /**

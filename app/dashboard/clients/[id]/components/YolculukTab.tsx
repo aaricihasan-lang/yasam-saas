@@ -1311,74 +1311,61 @@ export default function YolculukTab({
           const j = (await r.json().catch(() => ({}))) as Record<string, unknown[]>;
           return { data: (j[key] ?? []) as unknown[] };
         };
-        const [sessionsRes, appointmentsRes, stonesRes] =
+        // C2: sessions/appointments/stones ZATEN paralel; ödevler/analizler/notlar önceden SERİ
+        // await ediliyordu (3 gereksiz seri round-trip). Hepsi birbirinden BAĞIMSIZ → aynı
+        // Promise.all'da 6'sı da PARALEL. Her opsiyonel çağrı kendi try/catch'iyle sessizce
+        // fallback döndürür (asla throw etmez) → kısmi-hata davranışı AYNEN korunur; güvenli
+        // service_role API'leri ve downstream .data şekli değişmez.
+        const [sessionsRes, appointmentsRes, stonesRes, homeworksData, analysesData, noteData] =
           await Promise.all([
             apiList(`/api/clients/${clientId}/sessions`, "sessions"),
             apiList(`/api/clients/${clientId}/appointments`, "appointments"),
             apiList(`/api/clients/${clientId}/stones`, "stones"),
+            // client_homeworks — güvenli API (publishable key ile doğrudan okunmaz).
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (async (): Promise<any[]> => {
+              try {
+                const hRes = await fetch(`/api/clients/${clientId}/homeworks`, { headers: yHeaders });
+                if (hRes.ok) {
+                  const hJson = (await hRes.json().catch(() => ({}))) as { homeworks?: unknown[] };
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  return (hJson.homeworks ?? []) as any[];
+                }
+              } catch {
+                /* sessiz — zaman çizelgesi ödevleri opsiyonel */
+              }
+              return [];
+            })(),
+            // client_analyses — güvenli API (publishable key ile doğrudan okunmaz).
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (async (): Promise<any[]> => {
+              try {
+                const aRes = await fetch(`/api/clients/${clientId}/analyses`, { headers: yHeaders });
+                if (aRes.ok) {
+                  const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: unknown[] };
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  return (aJson.analyses ?? []) as any[];
+                }
+              } catch {
+                /* sessiz — zaman çizelgesi analizleri opsiyonel */
+              }
+              return [];
+            })(),
+            // client_notes — güvenli API (publishable key ile doğrudan okunmaz).
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (async (): Promise<any> => {
+              try {
+                const notesRes = await fetch(`/api/clients/${clientId}/notes`, { headers: yHeaders });
+                if (notesRes.ok) {
+                  const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: unknown };
+                  return notesJson.note ?? null;
+                }
+              } catch {
+                /* sessiz — zaman çizelgesi notu opsiyonel */
+              }
+              return null;
+            })(),
           ]);
-
-        // client_homeworks artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let homeworksData: any[] = [];
-        try {
-          const userId = readYasamUser()?.id;
-          const sessionToken = readSessionToken();
-          const hRes = await fetch(`/api/clients/${clientId}/homeworks`, {
-            headers: {
-              "x-user-id": userId ?? "",
-              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-            },
-          });
-          if (hRes.ok) {
-            const hJson = (await hRes.json().catch(() => ({}))) as { homeworks?: unknown[] };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            homeworksData = (hJson.homeworks ?? []) as any[];
-          }
-        } catch {
-          /* sessiz — zaman çizelgesi ödevleri opsiyonel */
-        }
-
-        // client_analyses artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let analysesData: any[] = [];
-        try {
-          const userId = readYasamUser()?.id;
-          const sessionToken = readSessionToken();
-          const aRes = await fetch(`/api/clients/${clientId}/analyses`, {
-            headers: {
-              "x-user-id": userId ?? "",
-              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-            },
-          });
-          if (aRes.ok) {
-            const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: unknown[] };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            analysesData = (aJson.analyses ?? []) as any[];
-          }
-        } catch {
-          /* sessiz — zaman çizelgesi analizleri opsiyonel */
-        }
-
-        // client_notes artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let noteData: any = null;
-        try {
-          const userId = readYasamUser()?.id;
-          const sessionToken = readSessionToken();
-          const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
-            headers: {
-              "x-user-id": userId ?? "",
-              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-            },
-          });
-          if (notesRes.ok) {
-            const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: unknown };
-            noteData = notesJson.note ?? null;
-          }
-        } catch {
-          /* sessiz — zaman çizelgesi notu opsiyonel */
-        }
 
         const normalized: TimelineEntry[] = [];
 

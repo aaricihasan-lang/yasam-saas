@@ -1,7 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/stones/stoneWarningService";
 import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
-import { applySignedPhotoUrls } from "@/lib/clients/stonePhotoStorage";
+import { applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
 const STONE_PHOTO_BUCKET = "stone-photos";
 // DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
 // açık kalsa bile URL süresi dolmadan yenilenir).
@@ -44,6 +44,8 @@ type StonePhoto = {
   client_id: string;
   stone_id: string;
   image_url: string;
+  // Kart/thumbnail için küçük (transform) signed URL; yoksa image_url'e düşülür (geriye uyumlu).
+  thumb_url?: string;
   file_path: string;
   created_at: string;
 };
@@ -487,8 +489,10 @@ function PhotoGallery({
                 className="block h-20 w-full overflow-hidden"
               >
                 <img
-                  src={photo.image_url}
+                  src={photo.thumb_url || photo.image_url}
                   alt={stone.stone_name || t("photoAlt")}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover transition group-hover:scale-105"
                 />
               </button>
@@ -540,6 +544,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   const [loading, setLoading] = useState(false);
   const [photosLoading, setPhotosLoading] = useState(false);
+  // B3: signed READ URL'lerin son imzalanma anı (gereksiz yeniden imzalama/yeniden indirme önlenir)
+  // + eşzamanlı yenileme kilidi (duplicate request/race önler).
+  const lastSignedAtRef = useRef<number | null>(null);
+  const refreshingSignedRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [uploadingStoneId, setUploadingStoneId] = useState<string | null>(null);
@@ -665,12 +673,23 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
-    const res = await fetch(`/api/clients/${clientId}/stone-photos`, {
-      headers: {
-        "x-user-id": userId ?? "",
-        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-      },
-    });
+    const authHeaders: Record<string, string> = {
+      "x-user-id": userId ?? "",
+      ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+    };
+
+    // B4: metadata (GET) ve signed-URL (POST) çağrıları BAĞIMSIZ (signed-urls kendi
+    // authoritative sorgusunu yapar) → SERİ yerine PARALEL. Kimlik/tenant/ownership
+    // kontrolleri her iki route'ta da SUNUCUDA aynen korunur.
+    const [res, sres] = await Promise.all([
+      fetch(`/api/clients/${clientId}/stone-photos`, { headers: authHeaders }),
+      fetch(`/api/clients/${clientId}/stone-photos/signed-urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({}),
+      }).catch(() => null),
+    ]);
+
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; photos?: StonePhoto[] };
 
     if (!res.ok || !json.ok) {
@@ -689,20 +708,17 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     // fotoğraf durumu KORUNUR ve hata gösterilir → veri kalıcı kaybolmuş gibi görünmez,
     // yeniden denenebilir. Yetki kaybında sunucu 401/403 döner → signed URL verilmez.
     let signedById: Record<string, string> | null = null;
-    try {
-      const sres = await fetch(`/api/clients/${clientId}/stone-photos/signed-urls`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId ?? "",
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: JSON.stringify({}),
-      });
-      const sjson = (await sres.json().catch(() => ({}))) as { ok?: boolean; byId?: Record<string, string> };
-      if (sres.ok && sjson.ok && sjson.byId) signedById = sjson.byId;
-    } catch {
-      signedById = null;
+    let thumbById: Record<string, string> = {};
+    if (sres) {
+      const sjson = (await sres.json().catch(() => ({}))) as {
+        ok?: boolean;
+        byId?: Record<string, string>;
+        thumbById?: Record<string, string>;
+      };
+      if (sres.ok && sjson.ok && sjson.byId) {
+        signedById = sjson.byId;
+        thumbById = sjson.thumbById ?? {};
+      }
     }
 
     if (signedById === null) {
@@ -713,15 +729,21 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     // signed URL olmayan kayıtların image_url'i BOŞ bırakılır (stale/geçersiz URL değil).
-    setPhotos(applySignedPhotoUrls(loaded, signedById));
+    // B1: kart için thumb_url (küçük), lightbox için image_url (tam) doldurulur.
+    setPhotos(applySignedPhotoUrls(loaded, signedById, thumbById));
+    lastSignedAtRef.current = Date.now();
     setPhotosLoading(false);
   }
 
   // DYA-07: yalnız signed READ URL'lerini tazeler (kayıt listesini yeniden çekmez).
-  // Süre dolması (uzun açık sayfa) + tekrar görünürlük/odak için. Başarısızlıkta mevcut
-  // URL'ler KORUNUR (clobber yok); yalnız gelen taze URL'ler güncellenir.
+  // Süre dolması (uzun açık sayfa) için. Başarısızlıkta mevcut URL'ler KORUNUR (clobber yok);
+  // yalnız gelen taze URL'ler güncellenir. B3: eşzamanlı yenileme kilidi (duplicate/race önler);
+  // başarıda son-imzalama anı güncellenir. Eski isteğin yeni durumu ezmesini önlemek için
+  // güncelleme functional setState ile yapılır (yalnız gelen id'ler değişir).
   async function refreshSignedUrls() {
     if (!clientId || !tenantId) return;
+    if (refreshingSignedRef.current) return; // eşzamanlı yenilemeyi engelle
+    refreshingSignedRef.current = true;
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
     try {
@@ -734,19 +756,40 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         },
         body: JSON.stringify({}),
       });
-      const sjson = (await sres.json().catch(() => ({}))) as { ok?: boolean; byId?: Record<string, string> };
+      const sjson = (await sres.json().catch(() => ({}))) as {
+        ok?: boolean;
+        byId?: Record<string, string>;
+        thumbById?: Record<string, string>;
+      };
       if (sres.ok && sjson.ok && sjson.byId) {
         const byId = sjson.byId;
-        setPhotos((prev) => prev.map((p) => (byId[p.id] ? { ...p, image_url: byId[p.id] } : p)));
+        const thumbById = sjson.thumbById ?? {};
+        setPhotos((prev) =>
+          prev.map((p) =>
+            byId[p.id]
+              ? { ...p, image_url: byId[p.id], thumb_url: thumbById[p.id] ?? p.thumb_url }
+              : p,
+          ),
+        );
+        lastSignedAtRef.current = Date.now();
       }
     } catch {
       /* geçici hata → mevcut URL'ler korunur */
+    } finally {
+      refreshingSignedRef.current = false;
     }
   }
 
+  // B3: signed URL'leri YALNIZ TTL eşiğine (≈%80) ulaşıldıysa yeniler. Sırf pencereye/sekmeye
+  // dönüldü diye <img src>/cache anahtarını değiştirip tüm fotoğrafları yeniden indirmeyi önler.
+  function maybeRefreshSignedUrls() {
+    if (!shouldRefreshSignedUrls(lastSignedAtRef.current, Date.now())) return;
+    void refreshSignedUrls();
+  }
+
   async function refreshAll() {
-    await loadStones();
-    await loadPhotos();
+    // B4: taş listesi ve fotoğraf yüklemesi BAĞIMSIZ → paralel (farklı state; sıra bağımlılığı yok).
+    await Promise.all([loadStones(), loadPhotos()]);
   }
 
   useEffect(() => {
@@ -759,10 +802,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }, [clientId, tenantId]);
 
   // DYA-07: signed READ URL süre-dolması yönetimi (veri erişim katmanı; UI değişmez).
+  // B3: interval + focus/visibility yalnız EŞİĞE ulaşıldıysa yeniler (gereksiz yeniden indirme yok).
   useEffect(() => {
     if (!clientId || !tenantId) return;
-    const interval = setInterval(() => { void refreshSignedUrls(); }, SIGNED_URL_REFRESH_MS);
-    const onVisible = () => { if (document.visibilityState === "visible") void refreshSignedUrls(); };
+    const interval = setInterval(() => { maybeRefreshSignedUrls(); }, SIGNED_URL_REFRESH_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") maybeRefreshSignedUrls(); };
     window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -1313,8 +1357,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                               className="block h-32 w-full overflow-hidden rounded-2xl border border-slate-200 shadow-md"
                             >
                               <img
-                                src={coverPhoto.image_url}
+                                src={coverPhoto.thumb_url || coverPhoto.image_url}
                                 alt={stone.stone_name || t("photoAlt")}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-full w-full object-cover transition hover:scale-105"
                               />
                             </button>
@@ -1552,8 +1598,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                     }`}
                   >
                     <img
-                      src={photo.image_url}
+                      src={photo.thumb_url || photo.image_url}
                       alt={t("lightbox.thumbAlt")}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   </button>
