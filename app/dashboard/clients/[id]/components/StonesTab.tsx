@@ -493,6 +493,12 @@ function PhotoGallery({
                   alt={stone.stone_name || t("photoAlt")}
                   loading="lazy"
                   decoding="async"
+                  // B1 güvenlik ağı: transform (thumb) servis edilemezse (plan/kota) tam
+                  // görsele DÜŞ → kart asla kırık kalmaz (tek sefer; döngü yok).
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (photo.image_url && img.src !== photo.image_url) img.src = photo.image_url;
+                  }}
                   className="h-full w-full object-cover transition group-hover:scale-105"
                 />
               </button>
@@ -1361,6 +1367,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                                 alt={stone.stone_name || t("photoAlt")}
                                 loading="lazy"
                                 decoding="async"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  if (coverPhoto.image_url && img.src !== coverPhoto.image_url)
+                                    img.src = coverPhoto.image_url;
+                                }}
                                 className="h-full w-full object-cover transition hover:scale-105"
                               />
                             </button>
@@ -1602,6 +1613,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                       alt={t("lightbox.thumbAlt")}
                       loading="lazy"
                       decoding="async"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (photo.image_url && img.src !== photo.image_url) img.src = photo.image_url;
+                      }}
                       className="h-full w-full object-cover"
                     />
                   </button>
