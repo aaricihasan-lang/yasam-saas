@@ -148,7 +148,7 @@ console.log("\n[C2T-4] Create route (POST) sözleşmesi");
 // ============================================================
 check("C01 POST export", /export\s+async\s+function\s+POST\s*\(/.test(createRoute));
 check("C02 DELETE handler YOK", !/export\s+async\s+function\s+DELETE\s*\(/.test(createRoute));
-check("C03 verifyUserRequest includeProfile:true", /verifyUserRequest\(\s*req\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(createRoute));
+check("C03 requireModuleAccess includeProfile:true", /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(createRoute));
 check("C04 demo 403", /is_demo_account/.test(createRoute) && /status:\s*403/.test(createRoute));
 check("C05 createClaim adapter kullanır", /createClaim\(/.test(createRoute));
 check("C06 doğrudan claim-tablosu mutasyonu YOK", !hasDirectClaimMutation(createRoute));
@@ -170,7 +170,7 @@ check("U01 PATCH export", /export\s+async\s+function\s+PATCH\s*\(/.test(updateRo
 check("U02 DELETE handler YOK", !/export\s+async\s+function\s+DELETE\s*\(/.test(updateRoute));
 check("U03 params Promise + await ctx.params",
   /params:\s*Promise<\{\s*id:\s*string\s*\}>/.test(updateRoute) && /await\s+ctx\.params/.test(updateRoute));
-check("U04 verifyUserRequest includeProfile:true", /verifyUserRequest\(\s*req\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(updateRoute));
+check("U04 requireModuleAccess includeProfile:true", /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(updateRoute));
 check("U05 demo 403", /is_demo_account/.test(updateRoute) && /status:\s*403/.test(updateRoute));
 check("U06 updateClaim adapter kullanır", /updateClaim\(/.test(updateRoute));
 check("U07 doğrudan claim-tablosu mutasyonu YOK", !hasDirectClaimMutation(updateRoute));

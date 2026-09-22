@@ -80,7 +80,7 @@ check("Blend carrier lookup: boş q + carrier tipi (datalist tek çağrı)",
 check("Blend essential server typeahead: q(search) + abort signal",
   /fetchOilSearch\(\s*search\.trim\(\)\s*,\s*"essential"\s*,\s*\d+\s*,\s*controller\.signal\)/.test(BLEND));
 check("Blend carrier serbest-metin fallback (pickCarrier opsiyonel id-linkage; erişilemez değil)",
-  /function pickCarrier/.test(BLEND) && /setCarrierId\(match \? match\.id : null\)/.test(BLEND));
+  /function pickCarrier/.test(BLEND) && /const cid = match \? match\.id : null/.test(BLEND) && /setCarrierId\(cid\)/.test(BLEND));
 
 // --- Blend typeahead scope (kimlik-only arama; içerik-alan kirliliği YOK) ----
 check("fetchOilSearch typeahead qmode=name gönderir",

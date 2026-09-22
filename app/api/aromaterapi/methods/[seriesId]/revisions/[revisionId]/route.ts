@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   isUuid,
   isValidExpectedUpdatedAt,
@@ -39,7 +39,7 @@ type RouteContext = { params: Promise<{ seriesId: string; revisionId: string }> 
  * içeriği (salt-okunur, tenant-scoped). Seri/revizyon eşleşmezse veya out-of-tenant → 404.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { seriesId, revisionId } = await ctx.params;
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
 const PATCH_ALLOWED = new Set<string>(["target_status", "expected_updated_at", "reason"]);
 
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

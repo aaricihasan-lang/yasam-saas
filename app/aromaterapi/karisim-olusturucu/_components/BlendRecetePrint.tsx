@@ -1,13 +1,25 @@
 "use client";
 
-import { collectSafetyWarnings, type Blend } from "@/lib/aromaterapi/blendData";
+import { collectSafetyWarnings, sumDrops, type Blend } from "@/lib/aromaterapi/blendData";
 
 /** Yazdırılabilir reçetenin ihtiyaç duyduğu alt küme — hem kayıtlı Blend hem
  *  builder'daki aktif taslak bu şekle uyar. */
 export type PrintableBlend = Pick<
   Blend,
-  "name" | "notes" | "carrier_oil_name" | "bottle_ml" | "dilution_percent" | "total_drops" | "items"
->;
+  | "name"
+  | "notes"
+  | "carrier_oil_name"
+  | "carrier_photosensitivity_status"
+  | "carrier_contraindications"
+  | "carrier_safety_notes"
+  | "bottle_ml"
+  | "dilution_percent"
+  | "total_drops"
+  | "items"
+> & {
+  /** ARO-023 — güvenlik snapshot tarihi (kaydın updated_at/created_at'i veya aktif taslakta bugün). */
+  snapshotDate?: string;
+};
 
 /**
  * Aromaterapi karışım reçetesi — yazdırılabilir görünüm (window.print → "PDF olarak kaydet").
@@ -23,7 +35,16 @@ export function BlendRecetePrint({
   expertName: string;
   dateStr: string;
 }) {
-  const safety = collectSafetyWarnings(blend.items);
+  const carrier = blend.carrier_oil_name?.trim()
+    ? {
+        oil_name: blend.carrier_oil_name,
+        photosensitivity_status: blend.carrier_photosensitivity_status ?? "unknown",
+        contraindications: blend.carrier_contraindications ?? "",
+        safety_notes: blend.carrier_safety_notes ?? "",
+      }
+    : null;
+  const safety = collectSafetyWarnings(blend.items, carrier);
+  const oilsSum = sumDrops(blend.items);
 
   return (
     <div className="mx-auto max-w-[720px] bg-white p-8 text-slate-900 print:max-w-none print:p-6">
@@ -53,8 +74,19 @@ export function BlendRecetePrint({
             <td className="py-1.5 font-semibold">%{blend.dilution_percent}</td>
           </tr>
           <tr className="border-b border-slate-200">
-            <td className="py-1.5 pr-3 font-bold text-slate-500">Toplam damla</td>
+            <td className="py-1.5 pr-3 font-bold text-slate-500">Hedef damla</td>
             <td className="py-1.5 font-semibold">{blend.total_drops} damla</td>
+          </tr>
+          <tr className="border-b border-slate-200">
+            <td className="py-1.5 pr-3 font-bold text-slate-500">Yağların toplamı</td>
+            <td className="py-1.5 font-semibold">
+              {oilsSum} damla
+              {oilsSum !== blend.total_drops ? (
+                <span className="ml-1 text-[11px] font-bold text-amber-700">
+                  ({oilsSum < blend.total_drops ? `${blend.total_drops - oilsSum} damla eksik` : `${oilsSum - blend.total_drops} damla fazla`})
+                </span>
+              ) : null}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -94,6 +126,10 @@ export function BlendRecetePrint({
           ))}
         </ul>
       ) : null}
+      {/* ARO-023 — güvenlik bilgisi snapshot uyarısı */}
+      <p className="mt-2 text-[11px] italic text-slate-500">
+        Güvenlik bilgileri karışımın kaydedildiği tarihe aittir{blend.snapshotDate ? ` (${blend.snapshotDate})` : ""}. Güncel yağ bilgilerini kontrol edin.
+      </p>
 
       {/* Uzman notları */}
       {blend.notes?.trim() ? (

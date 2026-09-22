@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
+
+/** Fotosensitivite durumunu güvenli kümeye indirger (yes/no/unknown). */
+function normPhotoStatus(v: unknown): "yes" | "no" | "unknown" {
+  return v === "yes" || v === "no" || v === "unknown" ? v : "unknown";
+}
 
 // items[] snapshot yalnız bu 8 alanı taşır (istemci fazlasını enjekte edemez).
 function sanitizeItems(raw: unknown): Array<Record<string, unknown>> {
@@ -10,13 +15,21 @@ function sanitizeItems(raw: unknown): Array<Record<string, unknown>> {
   return raw.map((it) => {
     const o = (it ?? {}) as Record<string, unknown>;
     const oilId = o.oil_id;
+    // photosensitivity_status snapshot'ta korunur; yoksa legacy is_photosensitive'dan türetilir.
+    const status =
+      o.photosensitivity_status === "yes" || o.photosensitivity_status === "no" || o.photosensitivity_status === "unknown"
+        ? o.photosensitivity_status
+        : o.is_photosensitive === true
+          ? "yes"
+          : "unknown";
     return {
       oil_id: typeof oilId === "string" && oilId ? oilId : null,
       oil_name: String(o.oil_name ?? ""),
       latin_name: String(o.latin_name ?? ""),
       oil_type: String(o.oil_type ?? ""),
       drops: Math.max(0, Math.floor(Number(o.drops) || 0)),
-      is_photosensitive: o.is_photosensitive === true,
+      photosensitivity_status: status,
+      is_photosensitive: status === "yes" ? true : o.is_photosensitive === true,
       contraindications: String(o.contraindications ?? ""),
       safety_notes: String(o.safety_notes ?? ""),
     };
@@ -37,7 +50,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -72,6 +85,9 @@ export async function PATCH(
     notes: String(body.notes ?? ""),
     carrier_oil_id: typeof carrierId === "string" && carrierId ? carrierId : null,
     carrier_oil_name: String(body.carrier_oil_name ?? ""),
+    carrier_photosensitivity_status: normPhotoStatus(body.carrier_photosensitivity_status),
+    carrier_contraindications: String(body.carrier_contraindications ?? ""),
+    carrier_safety_notes: String(body.carrier_safety_notes ?? ""),
     bottle_ml: bottleMl,
     dilution_percent: dilutionPercent,
     drops_per_ml: Math.max(1, Math.floor(toNumber(body.drops_per_ml, 20))),
@@ -79,15 +95,38 @@ export async function PATCH(
     items,
   };
 
-  const { data, error } = await db
+  // ARO-008 iyimser kilit — expected_updated_at gönderildiyse yalnız o sürüm güncellenir.
+  const expectedUpdatedAt =
+    typeof body.expected_updated_at === "string" && body.expected_updated_at.trim()
+      ? body.expected_updated_at.trim()
+      : null;
+
+  let query = db
     .from("aromatherapy_blends")
     .update(fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId) // oturumdan; başka tenant'ın kaydı güncellenemez
-    .select("*");
+    .eq("tenant_id", tenantId); // oturumdan; başka tenant'ın kaydı güncellenemez
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+
+  const { data, error } = await query.select("*");
 
   if (error) return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
   if (!data || data.length === 0) {
+    // Satır güncellenmedi. Optimistic-lock modunda: kayıt varsa çakışma (409), yoksa 404.
+    if (expectedUpdatedAt) {
+      const { data: existing } = await db
+        .from("aromatherapy_blends")
+        .select("id,updated_at")
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json(
+          { ok: false, error: "AROMA_STALE_BLEND", stale: true },
+          { status: 409, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    }
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
@@ -100,7 +139,7 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

@@ -11,6 +11,16 @@ import {
 import { h2, h3 } from "../headings";
 import { AROMA_COLORS, oilTypeLabel, OIL_TYPE_ORDER } from "../theme";
 import type { OilExportRow } from "../reads";
+import { derivePhotosensitivity } from "@/lib/aromaterapi/oilFields";
+
+/** Fotosensitivite tri-state etiketi (ARO-004). 'no'/'unknown' ASLA "güvenli" iddiası değildir. */
+function photoLabel(status: "yes" | "no" | "unknown"): string {
+  return status === "yes"
+    ? "Fotosensitif / fototoksik"
+    : status === "no"
+      ? "Fotosensitif değil"
+      : "Bilinmiyor (değerlendirilmedi)";
+}
 
 const s = (v: unknown): string => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
 const has = (v: unknown): boolean => s(v).length > 0;
@@ -30,7 +40,8 @@ function kvRows(oil: OilExportRow): [string, string][] {
   add("Koku Notası", oil.aroma_note);
   add("Renk", oil.color);
   add("Kıvam", oil.consistency);
-  if (oil.is_photosensitive === true) rows.push(["Fotosensitif", "Evet (güneş ışığına dikkat)"]);
+  // ARO-004: tri-state (yes/no/unknown); geriye-uyum için derivePhotosensitivity (kolon yoksa is_photosensitive'e düşer).
+  rows.push(["Fotosensitivite", photoLabel(derivePhotosensitivity(oil))]);
   add("Seyreltme Oranı", oil.dilution_ratio);
   add("Çakra Bağlantısı", oil.chakra_connection);
   add("Element Bağlantısı", oil.element_connection);

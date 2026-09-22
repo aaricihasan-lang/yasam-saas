@@ -35,14 +35,14 @@ const ROUTES = [
 for (const r of ROUTES) {
   const src = read(r);
   check(`Route mevcut: ${r.split("/").slice(-2).join("/")}`, src.length > 0);
-  check(`  → verifyUserRequest guard (server-derived tenant)`, /verifyUserRequest\(req\)/.test(src) && /guard\.ok/.test(src));
+  check(`  → requireModuleAccess guard (module-gated, server-derived tenant)`, /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']/.test(src) && /guard\.ok/.test(src));
   check(`  → runtime nodejs`, /runtime = "nodejs"/.test(src));
   check(`  → body tenant/user GÜVENİLMEZ (body.tenant_id/user_id OKUNMAZ)`, !/body\.(tenant_id|tenantId|user_id|userId)/.test(src));
   check(`  → docxResponse (attachment)`, /docxResponse\(/.test(src));
 }
 // list route'larda body-size cap (tek-kayıt [param] route'ları hariç)
 for (const r of ROUTES.filter((r) => !/\[\w+\]/.test(r))) {
-  check(`Body-size cap (413): ${r.split("/").slice(-2).join("/")}`, /content-length/.test(read(r)) && /413/.test(read(r)) && /MAX_EXPORT_BODY_BYTES/.test(read(r)));
+  check(`Body-size cap (413): ${r.split("/").slice(-2).join("/")}`, /readJsonBounded\(/.test(read(r)) && /413/.test(read(r)) && /MAX_EXPORT_BODY_BYTES/.test(read(r)));
 }
 
 // request.ts — cap + UUID + mode + filename response

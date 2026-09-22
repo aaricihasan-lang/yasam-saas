@@ -39,7 +39,7 @@ for (const [label, rel, method, limit] of WRITE_ROUTES) {
   check(`${label}: dosya mevcut`, src.length > 0, rel);
   check(`${label}: runtime nodejs`, /runtime = "nodejs"/.test(src));
   check(`${label}: ${method} handler`, new RegExp(`export async function ${method}\\(`).test(src));
-  check(`${label}: verifyUserRequest includeProfile`, /verifyUserRequest\(req, \{ includeProfile: true \}\)/.test(src));
+  check(`${label}: requireModuleAccess includeProfile`, /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(src));
   check(`${label}: demo → catalogDemoForbidden`, /is_demo_account\)\s*return catalogDemoForbidden\(\)/.test(src));
   check(`${label}: readJsonBounded + doğru limit`,
     new RegExp(`readJsonBounded\\(req, CATALOG_BODY_LIMITS\\.${limit}\\)`).test(src));

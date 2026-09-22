@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 import { parseListParams, buildSearchNormIlike, buildIdentityNormIlike } from "@/lib/aromaterapi/service/readValidation";
@@ -37,7 +37,7 @@ const OILS_LIST_SPEC = {
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -129,7 +129,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
