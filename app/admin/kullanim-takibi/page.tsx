@@ -106,7 +106,7 @@ export default function KullanimTakibiPage() {
             <button type="button" onClick={refresh} className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
               <RefreshCw className="h-4 w-4" aria-hidden /> Yenile
             </button>
-            {refreshedAt ? <span className="text-[11px] text-white/70">Son güncelleme: {formatDateTimeTr(refreshedAt)}</span> : null}
+            {refreshedAt ? <span className="text-[11px] text-white/70" title="Yenilemenin başlatıldığı an; verinin ölçüm zamanı her metriğin ipucundadır.">Yenileme isteği: {formatDateTimeTr(refreshedAt)}</span> : null}
           </div>
         </header>
 

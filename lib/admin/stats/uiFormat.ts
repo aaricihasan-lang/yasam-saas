@@ -26,6 +26,21 @@ export function formatDateTimeTr(iso: string | null | undefined): string {
   }).format(new Date(t));
 }
 
+/**
+ * ISO instant → TÜRKİYE (Europe/Istanbul) takvim günü "YYYY-MM-DD". Günlük snapshot (takvim
+ * günü) sorgularında yarı-açık UTC ISO'nun ham tarih kısmını almak +03 offset nedeniyle günü
+ * kaydırır; bu yüzden TR takvim gününe göre dönüşüm yapılır. Geçersiz → null.
+ */
+export function trCalendarDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  // en-CA → "YYYY-MM-DD" biçimi.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(t));
+}
+
 /** ISO → "x önce" (TR). nowMs test için parametre. Geçersiz → "—". */
 export function formatRelativeTr(iso: string | null | undefined, nowMs: number): string {
   if (!iso) return "—";

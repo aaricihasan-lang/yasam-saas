@@ -34,7 +34,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   const includeDemo = sp.get("includeDemo") === "true";
   const pageRaw = Number(sp.get("page") ?? 1);
   const sizeRaw = Number(sp.get("pageSize") ?? 25);
-  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  // page üst sınırı: offset (page-1)*pageSize'ın PostgreSQL int4 (~2.1e9) sınırını aşmasını önler.
+  if (!Number.isFinite(pageRaw) || pageRaw < 1 || pageRaw > 100000) {
+    return NextResponse.json({ ok: false, error: "Geçersiz sayfa numarası." }, { status: 400 });
+  }
+  const page = Math.floor(pageRaw);
   const pageSize = Number.isFinite(sizeRaw) && sizeRaw >= 1 && sizeRaw <= 100 ? Math.floor(sizeRaw) : 25;
   const offset = (page - 1) * pageSize;
 
@@ -49,17 +53,21 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (error) {
     return NextResponse.json({ ok: false, error: "Uzman listesi okunamadı." }, { status: 500 });
   }
-  const raw = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
-  const total = raw.length > 0 ? Number(raw[0].total_count ?? 0) : 0;
+  // RPC jsonb döner: { total, rows[] }. total sayfadan BAĞIMSIZ → aralık-dışı/boş sayfada bile doğru.
+  const obj = (data ?? {}) as { total?: number; rows?: Record<string, unknown>[] };
+  const total = Number(obj.total ?? 0);
+  const rawRows = Array.isArray(obj.rows) ? obj.rows : [];
 
-  const rows: ExpertListRow[] = raw.map((r) => {
+  const rows: ExpertListRow[] = rawRows.map((r) => {
     const perms = r.module_permissions;
     // "Erişilebilir modül sayısı" = module_permissions'tan JSON anahtar sayısı DEĞİL;
     // resolveModuleAccess ile gerçek erişim (always-on + hub dahil) üzerinden hesaplanır.
     const accessibleModuleCount = MODULE_USAGE_KEYS.filter((k) =>
       resolveModuleAccess("expert", perms, k),
     ).length;
-    const active = r.active === true;
+    // active NULL KORUNUR (üçüncü durum). Arşiv = active IS FALSE ve approved (SQL ile aynı);
+    // NULL → arşiv DEĞİL, kesin pasif DEĞİL.
+    const active: boolean | null = r.active === true ? true : r.active === false ? false : null;
     const approval = String(r.approval_status ?? "");
     return {
       userId: String(r.user_id),
@@ -69,7 +77,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       active,
       approvalStatus: approval,
       isDemo: r.is_demo_account === true,
-      isArchived: !active && approval.trim().toLowerCase() === "approved",
+      isArchived: active === false && approval.trim().toLowerCase() === "approved",
       accountCreatedAt: r.created_at != null ? String(r.created_at) : null,
       lastLoginAt: r.last_login != null ? String(r.last_login) : null,
       lastSeenAt: r.last_seen != null ? String(r.last_seen) : null,

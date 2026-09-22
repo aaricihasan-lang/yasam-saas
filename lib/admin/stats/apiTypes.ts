@@ -82,10 +82,11 @@ export type ExpertListRow = {
   tenantId: string;
   fullName: string;
   email: string;
-  active: boolean;
+  /** active NULL olabilir (üçüncü durum) — false gibi kabul EDİLMEZ. */
+  active: boolean | null;
   approvalStatus: string;
   isDemo: boolean;
-  isArchived: boolean; // approved & !active (Aşama 1 arşiv tanımı)
+  isArchived: boolean; // approved & active IS FALSE (Aşama 1 arşiv tanımı; NULL → arşiv DEĞİL)
   accountCreatedAt: string | null;
   lastLoginAt: string | null;
   lastSeenAt: string | null; // ~ yaklaşık (heartbeat)
@@ -126,8 +127,12 @@ export type StorageGrowthPoint = {
 };
 export type StorageGrowthData = {
   points: StorageGrowthPoint[];
-  measurementStarted: boolean; // en az 1 gerçek gün var mı
-  comparable: boolean; // ≥2 nokta → çizgi çizilebilir
+  /** Seçilen aralıkta en az 1 gün var mı. */
+  measurementStarted: boolean;
+  /** Sistemde HİÇ günlük ölçüm var mı (aralıktan bağımsız) — "aralıkta yok" ≠ "hiç başlamadı" ayrımı. */
+  everMeasured: boolean;
+  /** ≥2 nokta VE aynı tenant kümesi VE tümü partial değil → gerçekten karşılaştırılabilir (çizgi çizilir). */
+  comparable: boolean;
   range: { from: string | null; to: string | null };
   note: string;
 };

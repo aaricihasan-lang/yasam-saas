@@ -26,6 +26,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
   const [data, setData] = useState<ExpertsData | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [err, setErr] = useState("");
+  const [retry, setRetry] = useState(0);
   const reqId = useRef(0);
 
   // Arama debounce (250ms) — eski yanıt yeni seçimi ezmesin (reqId + abort).
@@ -50,7 +51,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
     const ac = new AbortController();
     load(ac.signal);
     return () => ac.abort();
-  }, [load, refreshKey]);
+  }, [load, refreshKey, retry]);
 
   return (
     <SectionCard
@@ -73,7 +74,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
       }
     >
       {state === "loading" ? <LoadingBlock /> :
-       state === "error" ? <ErrorBlock message={err || "Liste yüklenemedi."} onRetry={() => setPage((p) => p)} /> :
+       state === "error" ? <ErrorBlock message={err || "Liste yüklenemedi."} onRetry={() => setRetry((r) => r + 1)} /> :
        !data || data.rows.length === 0 ? <EmptyBlock title="Uzman bulunamadı" hint="Filtre/aramaya uyan kayıt yok." /> : (
         <>
           <div className="overflow-x-auto">

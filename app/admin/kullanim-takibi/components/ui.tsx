@@ -185,12 +185,14 @@ export function Pagination({ page, totalPages, onPage }: { page: number; totalPa
   );
 }
 
-export function StatusPill({ active, approvalStatus, isArchived }: { active: boolean; approvalStatus: string; isArchived: boolean }) {
+export function StatusPill({ active, approvalStatus, isArchived }: { active: boolean | null; approvalStatus: string; isArchived: boolean }) {
   const s = approvalStatus.trim().toLowerCase();
-  let label = "Aktif", cls = "bg-emerald-100 text-emerald-800 ring-emerald-200";
+  let label: string, cls: string;
   if (s === "pending") { label = "Onay bekliyor"; cls = "bg-amber-100 text-amber-800 ring-amber-200"; }
   else if (s === "rejected") { label = "Reddedildi"; cls = "bg-rose-100 text-rose-800 ring-rose-200"; }
   else if (isArchived) { label = "Arşiv"; cls = "bg-slate-200 text-slate-700 ring-slate-300"; }
-  else if (!active) { label = "Pasif"; cls = "bg-slate-100 text-slate-600 ring-slate-200"; }
+  else if (active === false) { label = "Pasif"; cls = "bg-slate-100 text-slate-600 ring-slate-200"; }
+  else if (active === true) { label = "Aktif"; cls = "bg-emerald-100 text-emerald-800 ring-emerald-200"; }
+  else { label = "Belirsiz"; cls = "bg-slate-100 text-slate-500 ring-slate-200"; } // active NULL — uydurma yok
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${cls}`}>{label}</span>;
 }

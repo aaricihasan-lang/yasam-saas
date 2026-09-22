@@ -35,22 +35,10 @@ CREATE OR REPLACE FUNCTION public.expert_list(
   p_offset       integer DEFAULT 0,
   p_include_demo boolean DEFAULT false
 )
-RETURNS TABLE (
-  user_id            uuid,
-  tenant_id          uuid,
-  full_name          text,
-  email              text,
-  role               text,
-  active             boolean,
-  approval_status    text,
-  is_demo_account    boolean,
-  created_at         timestamptz,
-  last_login         timestamptz,
-  last_seen          timestamptz,
-  session_count      bigint,
-  module_permissions jsonb,
-  total_count        bigint
-)
+-- jsonb döner: { total: <filtrelenmiş TOPLAM, sayfadan BAĞIMSIZ>, rows: [ ... ] }.
+-- total, count(*) OVER() gibi dönen satıra bağlı DEĞİLDİR → aralık-dışı/boş sayfada da doğru
+-- kalır (route yanlış 0 üretmez). active NULL KORUNUR (üçüncü durum; route/UI ayırır).
+RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_catalog
 AS $$
   WITH filtered AS (
@@ -60,9 +48,9 @@ AS $$
       AND (p_include_demo OR coalesce(u.is_demo_account,false) = false)
       AND (
         p_status = 'all'
-        OR (p_status = 'active'  AND u.active = true)
-        OR (p_status = 'passive' AND u.active = false)
-        OR (p_status = 'archive' AND u.active = false AND lower(coalesce(u.approval_status,'')) = 'approved')
+        OR (p_status = 'active'  AND u.active IS TRUE)
+        OR (p_status = 'passive' AND u.active IS FALSE)
+        OR (p_status = 'archive' AND u.active IS FALSE AND lower(coalesce(u.approval_status,'')) = 'approved')
         OR (p_status = 'pending' AND lower(coalesce(u.approval_status,'')) = 'pending')
       )
       AND (
@@ -79,26 +67,35 @@ AS $$
     FROM public.user_sessions s
     WHERE s.user_id IN (SELECT id FROM filtered)
     GROUP BY s.user_id
+  ),
+  joined AS (
+    SELECT
+      f.id AS user_id, f.tenant_id, f.full_name, f.email, f.role, f.active, f.approval_status,
+      f.is_demo_account, f.created_at,
+      se.last_login, se.last_seen, coalesce(se.session_count, 0) AS session_count,
+      f.module_permissions
+    FROM filtered f
+    LEFT JOIN sess se ON se.user_id = f.id
+  ),
+  page AS (
+    SELECT * FROM joined
+    ORDER BY
+      CASE WHEN p_sort = 'name'       THEN full_name END ASC  NULLS LAST,
+      CASE WHEN p_sort = 'created_at' THEN created_at END DESC NULLS LAST,
+      CASE WHEN p_sort NOT IN ('name','created_at') THEN last_login END DESC NULLS LAST,
+      created_at DESC,
+      user_id  -- STABİL ikinci anahtar: eşit değerlerde kayıtlar sayfalar arası kaymaz
+    LIMIT  LEAST(coalesce(p_limit, 25), 100)
+    OFFSET greatest(coalesce(p_offset, 0), 0)
   )
-  SELECT
-    f.id, f.tenant_id, f.full_name, f.email, f.role, f.active, f.approval_status,
-    f.is_demo_account, f.created_at,
-    se.last_login, se.last_seen, coalesce(se.session_count, 0) AS session_count,
-    f.module_permissions,
-    count(*) OVER()::bigint AS total_count
-  FROM filtered f
-  LEFT JOIN sess se ON se.user_id = f.id
-  ORDER BY
-    CASE WHEN p_sort = 'name'       THEN f.full_name END ASC  NULLS LAST,
-    CASE WHEN p_sort = 'created_at' THEN f.created_at END DESC NULLS LAST,
-    CASE WHEN p_sort NOT IN ('name','created_at') THEN se.last_login END DESC NULLS LAST,
-    f.created_at DESC
-  LIMIT  LEAST(coalesce(p_limit, 25), 100)
-  OFFSET greatest(coalesce(p_offset, 0), 0);
+  SELECT jsonb_build_object(
+    'total', (SELECT count(*)::bigint FROM filtered),
+    'rows',  coalesce((SELECT jsonb_agg(to_jsonb(page.*)) FROM page), '[]'::jsonb)
+  );
 $$;
 
 COMMENT ON FUNCTION public.expert_list(text,text,text,integer,integer,boolean) IS
-  'FAZ 2 — sayfalı uzman listesi + toplu oturum özeti (N+1 yok). Salt-okur, service_role-only. Demo default hariç.';
+  'FAZ 2 — sayfalı uzman listesi + toplu oturum özeti (N+1 yok); jsonb {total,rows}, total sayfadan bağımsız. Salt-okur, service_role-only. Demo default hariç. active NULL korunur.';
 
 -- 2) SİSTEM GENELİ GÜNLÜK DEPOLAMA BÜYÜMESİ ─────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.expert_storage_growth(
@@ -110,16 +107,22 @@ RETURNS TABLE (
   tenant_count  bigint,
   object_count  bigint,
   total_bytes   bigint,
-  partial_count bigint
+  partial_count bigint,
+  tenant_sig    text
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_catalog
 AS $$
+  -- tenant_sig = o günün DAHİL tenant KÜMESİNİN md5 imzası (tenant ID'leri İSTEMCİYE DÖKÜLMEZ).
+  -- Karşılaştırılabilirlik (comparable): yalnız aynı tenant_sig'e ve partial_count=0'a sahip günler
+  -- gerçekten karşılaştırılabilir → route/UI eğri çizme kararını buna göre verir (aynı SAYIDA fakat
+  -- farklı tenant seti "comparable" DEĞİLDİR).
   SELECT
     d.snapshot_date,
     count(*)::bigint                                       AS tenant_count,
     coalesce(sum(d.object_count), 0)::bigint               AS object_count,
     coalesce(sum(d.total_bytes), 0)::bigint                AS total_bytes,
-    count(*) FILTER (WHERE d.status = 'partial')::bigint    AS partial_count
+    count(*) FILTER (WHERE d.status = 'partial')::bigint    AS partial_count,
+    md5(coalesce(string_agg(DISTINCT d.tenant_id::text, ',' ORDER BY d.tenant_id::text), '')) AS tenant_sig
   FROM public.expert_storage_daily d
   WHERE (p_from IS NULL OR d.snapshot_date >= p_from)
     AND (p_to   IS NULL OR d.snapshot_date <= p_to)

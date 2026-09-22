@@ -21,6 +21,7 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
   const [storage, setStorage] = useState<StorageOverviewData | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [err, setErr] = useState("");
+  const [retry, setRetry] = useState(0);
 
   const days = period.days ?? 30;
 
@@ -44,10 +45,10 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
     const ac = new AbortController();
     load(ac.signal);
     return () => ac.abort();
-  }, [load, refreshKey]);
+  }, [load, refreshKey, retry]);
 
   if (state === "loading") return <LoadingBlock />;
-  if (state === "error") return <ErrorBlock message={err || "Genel bakış yüklenemedi."} />;
+  if (state === "error") return <ErrorBlock message={err || "Genel bakış yüklenemedi."} onRetry={() => setRetry((r) => r + 1)} />;
   if (!ov) return <ErrorBlock message="Genel bakış verisi yok." />;
 
   const recentRows = (recent?.rows ?? []).filter((r) => r.lastLoginAt);

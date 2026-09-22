@@ -5,7 +5,7 @@
  */
 import {
   formatBytes, formatRelativeTr, formatDateTimeTr,
-  metricDisplayKind, metricPlaceholder, isConsistentCounts,
+  metricDisplayKind, metricPlaceholder, isConsistentCounts, trCalendarDate,
 } from "../../lib/admin/stats/uiFormat";
 import { makeMetric, unavailableMetric } from "../../lib/admin/stats/contract";
 
@@ -45,6 +45,14 @@ console.log("\n[4] isConsistentCounts (arşiv ⊆ pasif; toplam = aktif + pasif)
 ok(isConsistentCounts(30, 8, 4, 38) === true, "30+8=38, arşiv 4<=8 → tutarlı");
 ok(isConsistentCounts(30, 8, 10, 38) === false, "arşiv>pasif → tutarsız");
 ok(isConsistentCounts(30, 8, 4, 40) === false, "toplam≠aktif+pasif → tutarsız");
+
+console.log("\n[5] trCalendarDate (TR takvim günü; +03 sınır)");
+ok(trCalendarDate("2027-02-01T20:00:00Z") === "2027-02-01", "UTC 20:00 → TR aynı gün (23:00)");
+ok(trCalendarDate("2027-02-01T21:30:00Z") === "2027-02-02", "UTC 21:30 → TR ertesi gün (00:30)");
+// Yarı-açık üst sınır: (bitiş+1) 00:00 TR = bitiş 21:00 UTC; -1ms → bitiş günü (kaymaz).
+ok(trCalendarDate(new Date(Date.parse("2027-02-10T00:00:00+03:00") - 1).toISOString()) === "2027-02-09", "yarı-açık üst sınır -1ms → önceki takvim günü (bitiş kaymaz)");
+ok(trCalendarDate("2027-02-05T00:00:00+03:00") === "2027-02-05", "TR gece yarısı → o gün (from tarafı kaymaz)");
+ok(trCalendarDate(null) === null && trCalendarDate("bad") === null, "geçersiz → null");
 
 console.log(`\n──────────\nUI LOGIC: PASS ${passed} · FAIL ${failed}`);
 if (failed > 0) process.exit(1);

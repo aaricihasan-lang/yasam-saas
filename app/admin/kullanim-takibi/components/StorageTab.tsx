@@ -10,14 +10,37 @@ import { MetricValueView } from "./MetricValueView";
 
 function GrowthChart({ data }: { data: StorageGrowthData }) {
   if (!data.measurementStarted) {
-    return <EmptyBlock title="Günlük depolama ölçümü henüz başlamadı" hint="Snapshot verisi yok. Geçmiş büyüme uydurulmaz; ölçüm etkinleştikten sonra burada görünür." />;
+    // "aralıkta yok" ile "sistemde hiç başlamadı" AYRI (note API'den gelir).
+    return <EmptyBlock title={data.everMeasured ? "Bu aralıkta ölçüm noktası yok" : "Günlük depolama ölçümü henüz başlamadı"} hint={data.note} />;
   }
   if (!data.comparable) {
-    const p = data.points[0];
+    // ≥1 nokta var ama karşılaştırılabilir DEĞİL (tek nokta / farklı tenant kapsamı / kısmi ölçüm)
+    // → çizgi ÇİZİLMEZ; noktalar dürüst tablo + açıklama ile gösterilir.
     return (
-      <div className="py-4 text-sm text-slate-600">
-        Tek ölçüm noktası: <b>{formatBytes(p.totalBytes)}</b> · {p.snapshotDate}
-        <p className="mt-1 text-xs text-slate-400">Artış/azalış yorumu için en az iki karşılaştırılabilir gün gerekir.</p>
+      <div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                <th scope="col" className="py-1.5 pr-3">Gün</th>
+                <th scope="col" className="py-1.5 pr-3">Toplam boyut</th>
+                <th scope="col" className="py-1.5 pr-3">Çalışma alanı</th>
+                <th scope="col" className="py-1.5">Kısmi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.points.map((p) => (
+                <tr key={p.snapshotDate} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-3">{p.snapshotDate}</td>
+                  <td className="py-1.5 pr-3 tabular-nums">{formatBytes(p.totalBytes)}</td>
+                  <td className="py-1.5 pr-3 tabular-nums">{p.tenantCount}</td>
+                  <td className="py-1.5">{p.partialCount > 0 ? <span className="text-amber-600">evet ({p.partialCount})</span> : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-xs text-amber-600">{data.note}</p>
       </div>
     );
   }
@@ -48,6 +71,7 @@ export function StorageTab({ period, refreshKey }: { period: Period; refreshKey:
   const [growth, setGrowth] = useState<StorageGrowthData | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [err, setErr] = useState("");
+  const [retry, setRetry] = useState(0);
 
   const load = useCallback((signal: AbortSignal) => {
     queueMicrotask(() => { if (!signal.aborted) setState("loading"); });
@@ -63,10 +87,10 @@ export function StorageTab({ period, refreshKey }: { period: Period; refreshKey:
     }).catch((x) => { if ((x as { name?: string })?.name !== "AbortError") { setErr("Depolama alınamadı."); setState("error"); } });
   }, [period.from, period.to]);
 
-  useEffect(() => { const ac = new AbortController(); load(ac.signal); return () => ac.abort(); }, [load, refreshKey]);
+  useEffect(() => { const ac = new AbortController(); load(ac.signal); return () => ac.abort(); }, [load, refreshKey, retry]);
 
   if (state === "loading") return <LoadingBlock />;
-  if (state === "error") return <ErrorBlock message={err || "Depolama yüklenemedi."} />;
+  if (state === "error") return <ErrorBlock message={err || "Depolama yüklenemedi."} onRetry={() => setRetry((r) => r + 1)} />;
   if (!ov) return <ErrorBlock message="Depolama verisi yok." />;
 
   const buckets = Object.entries(ov.byBucket).sort((a, b) => b[1].totalBytes - a[1].totalBytes);
