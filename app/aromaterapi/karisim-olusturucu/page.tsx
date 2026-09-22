@@ -336,7 +336,8 @@ export default function KarisimOlusturucuPage() {
     setItems(blend.items);
     setManualDrops(true); // kaydedilmiş damla dağılımı korunur
     setEditingId(blend.id);
-    setEditingUpdatedAt(blend.updated_at ?? null); // ARO-008 token
+    // ARO-008 — sürüm token'ı düzenlemede ZORUNLU; updated_at yoksa created_at'e düş.
+    setEditingUpdatedAt(blend.updated_at ?? blend.created_at ?? null);
     setStaleConflict(false);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
     showToast({ title: "Yüklendi", message: `“${blend.name}” düzenleniyor.`, type: "info" });
@@ -382,6 +383,11 @@ export default function KarisimOlusturucuPage() {
     };
     const err = validateBlendInput(input);
     if (err) { showToast({ title: "Eksik bilgi", message: err, type: "warning" }); return; }
+    // ARO-008 — düzenlemede sürüm token'ı zorunlu; yoksa sürümsüz güncelleme GÖNDERME.
+    if (editingId && !editingUpdatedAt) {
+      showToast({ title: "Sürüm bulunamadı", message: "Karışım sürümü belirlenemedi. Lütfen sayfayı yenileyip düzenlemeyi tekrar açın.", type: "error" });
+      return;
+    }
     setSaving(true);
     const result = editingId
       ? await updateBlend(editingId, input)

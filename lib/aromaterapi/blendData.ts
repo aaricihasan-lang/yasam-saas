@@ -327,12 +327,25 @@ export async function saveBlend(
 export const BLEND_STALE_MESSAGE =
   "Bu karışım başka bir yerde değiştirildi. Sayfayı yenileyip değişikliklerinizi tekrar uygulayın.";
 
+// ARO-008 — sürüm (expected_updated_at) düzenlemede ZORUNLU. Sunucu eksik sürümü 400
+// AROMA_MISSING_VERSION ile reddeder; istemci de bu sözleşmeyi ihlal etmemek için
+// sürümsüz PATCH göndermeden önce burada durur.
+export const BLEND_MISSING_VERSION_MESSAGE =
+  "Karışım sürümü belirlenemedi. Lütfen sayfayı yenileyip düzenlemeyi tekrar açın.";
+
 export async function updateBlend(
   id: string,
   input: BlendInput,
 ): Promise<{ blend: Blend | null; error: string | null; demo?: boolean; stale?: boolean }> {
   const validationError = validateBlendInput(input);
   if (validationError) return { blend: null, error: validationError };
+
+  // ARO-008 — mecburi sürüm sözleşmesi: null/boş expected_updated_at ile API'ye GİDİLMEZ.
+  const expectedUpdatedAt =
+    typeof input.expected_updated_at === "string" && input.expected_updated_at.trim()
+      ? input.expected_updated_at.trim()
+      : null;
+  if (!expectedUpdatedAt) return { blend: null, error: BLEND_MISSING_VERSION_MESSAGE };
 
   const headers = authHeaders(true);
   if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
@@ -351,7 +364,7 @@ export async function updateBlend(
     drops_per_ml: input.drops_per_ml || DEFAULT_DROPS_PER_ML,
     total_drops: input.total_drops,
     items: input.items,
-    expected_updated_at: input.expected_updated_at ?? null,
+    expected_updated_at: expectedUpdatedAt,
   };
 
   try {

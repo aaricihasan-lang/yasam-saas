@@ -326,3 +326,255 @@ async function passageEditorialLayers(
   }
   return { explanations, interpretations };
 }
+
+// ==================================================================
+// ARO-010 — Rapor TOPLU okuma (N+1 fan-out azaltma).
+//
+// getSource + idsBy(passages) + getPassage(N) fan-out'unu, çoklu-id KÜME sorgularıyla
+// birleştirir; parent→child gruplamayı bellek içinde yapar. getSource/getPassage
+// tek-kayıt fonksiyonları (API detay route'ları) DEĞİŞTİRİLMEZ — bu yalnız EK yol.
+// Her sorgu `.eq("tenant_id", tenantId)`; child'lar var olan kaynak/pasaj id kümesine
+// bağlanır (çapraz-tenant/kayıt sızıntısı yok). Hata THROW → çağıran fail-closed indirir.
+// passage_count/knowledge_record_count HEAD-sayım yerine tam-sayfalı sayımla üretilir
+// (sessiz 1000-satır kesmesi yok) ve getSource ile aynı filtre kümesini kullanır.
+// ==================================================================
+
+const REPORT_IN_CHUNK = 500; // .in(...) küme boyutu — EXPORT_READ_CHUNK ile hizalı
+const REPORT_READ_PAGE = 1000; // child .in okumalarında sessiz kesmeyi önleyen aralık sayfası
+
+type SourceCore = Omit<SourceDetail, "passage_count" | "knowledge_record_count">;
+type OrderCol = { col: string; asc: boolean };
+
+function chunkIds<T>(arr: T[], size = REPORT_IN_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function groupBy<T extends Record<string, unknown>>(rows: T[], key: string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = r[key] as string;
+    const list = map.get(k);
+    if (list) list.push(r);
+    else map.set(k, [r]);
+  }
+  return map;
+}
+
+/** Parent-id kümesine göre TÜM child satırlarını (tenant-scoped, chunk'lı + sayfalı) çeker; sessiz kesme YOK. */
+async function fetchChildrenIn(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  cols: string,
+  parentCol: string,
+  parentIds: string[],
+  order: OrderCol[],
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (const ch of chunkIds(parentIds)) {
+    if (ch.length === 0) continue;
+    let from = 0;
+    for (;;) {
+      let q = db.from(table).select(cols).eq("tenant_id", tenantId).in(parentCol, ch);
+      for (const o of order) q = q.order(o.col, { ascending: o.asc });
+      const { data, error } = await q.range(from, from + REPORT_READ_PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      out.push(...rows);
+      if (rows.length < REPORT_READ_PAGE) break;
+      from += REPORT_READ_PAGE;
+    }
+  }
+  return out;
+}
+
+/** parentCol kümesine göre tam-sayfalı satır sayımı (HEAD-sayımın toplu, kesme-güvenli eşi). */
+async function groupedCount(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  parentCol: string,
+  parentIds: string[],
+): Promise<Map<string, number>> {
+  const rows = await fetchChildrenIn(db, tenantId, table, parentCol, parentCol, parentIds, [{ col: "id", asc: true }]);
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const k = r[parentCol] as string;
+    map.set(k, (map.get(k) ?? 0) + 1);
+  }
+  return map;
+}
+
+/** TOPLU kaynak detayları — getSource ile eşdeğer çıktı, `ids` sırasını korur, bulunamayanı atlar. */
+export async function getSourcesByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+): Promise<SourceDetail[]> {
+  if (ids.length === 0) return [];
+  const byId = new Map<string, SourceCore>();
+  for (const ch of chunkIds(ids)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(SOURCES_TABLE).select(SOURCE_DETAIL_COLS).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const row of (data ?? []) as unknown as SourceCore[]) byId.set(row.id, row);
+  }
+  const present = Array.from(byId.keys());
+  if (present.length === 0) return [];
+
+  const passageCounts = await groupedCount(db, tenantId, PASSAGES_TABLE, "source_id", present);
+  const krCounts = await groupedCount(db, tenantId, CLAIM_SOURCES_TABLE, "source_id", present);
+
+  const out: SourceDetail[] = [];
+  for (const id of ids) {
+    const core = byId.get(id);
+    if (!core) continue;
+    out.push({ ...core, passage_count: passageCounts.get(id) ?? 0, knowledge_record_count: krCounts.get(id) ?? 0 });
+  }
+  return out;
+}
+
+/**
+ * TOPLU pasaj detayları, kaynak id kümesine göre gruplu. Her pasaj getPassage ile
+ * eşdeğer (özgün + sadık çeviriler + editoryal açıklama/yorum katmanları). Kaynak başına
+ * sıra sort_key asc (getPassage'i besleyen idsBy sırası ile aynı).
+ */
+export async function getPassagesBySourceIds(
+  db: SupabaseClient,
+  tenantId: string,
+  sourceIds: string[],
+): Promise<Map<string, PassageDetail[]>> {
+  const map = new Map<string, PassageDetail[]>();
+  if (sourceIds.length === 0) return map;
+
+  const coreRows = await fetchChildrenIn(
+    db,
+    tenantId,
+    PASSAGES_TABLE,
+    "id, source_id, locator_label, passage_kind, original_lang, rights_status, rights_note, status, original_text, created_at, updated_at",
+    "source_id",
+    sourceIds,
+    [
+      { col: "source_id", asc: true },
+      { col: "sort_key", asc: true },
+      { col: "id", asc: true },
+    ],
+  );
+  const passageIds = coreRows.map((r) => r.id as string);
+  if (passageIds.length === 0) return map;
+
+  // Sadık çeviriler (getPassage sırası: target_lang asc, revision desc, id asc).
+  const translationsByPassage = groupBy(
+    await fetchChildrenIn(
+      db,
+      tenantId,
+      TRANSLATIONS_TABLE,
+      "id, passage_id, target_lang, source_lang, translated_text, fidelity, translation_method, translation_source, translator_name, status, review_status, revision",
+      "passage_id",
+      passageIds,
+      [
+        { col: "target_lang", asc: true },
+        { col: "revision", asc: false },
+        { col: "id", asc: true },
+      ],
+    ),
+    "passage_id",
+  );
+
+  // Editoryal seriler (created_at asc, id asc) + serilere göre en güncel not.
+  const seriesRows = await fetchChildrenIn(
+    db,
+    tenantId,
+    NOTE_SERIES_TABLE,
+    "id, passage_id, note_type, editorial_class, note_lang, created_at",
+    "passage_id",
+    passageIds,
+    [
+      { col: "created_at", asc: true },
+      { col: "id", asc: true },
+    ],
+  );
+  const seriesByPassage = groupBy(seriesRows, "passage_id");
+  const seriesIds = seriesRows.map((s) => s.id as string);
+  const latestNoteBySeries = new Map<string, Record<string, unknown>>();
+  if (seriesIds.length > 0) {
+    // revision desc küresel sıra → her seri için ilk görülen = o serinin en yüksek revizyonu.
+    const noteRows = await fetchChildrenIn(
+      db,
+      tenantId,
+      NOTES_TABLE,
+      "id, note_series_id, revision, note_text, author_name, creation_method, status, review_status",
+      "note_series_id",
+      seriesIds,
+      [
+        { col: "revision", asc: false },
+        { col: "id", asc: true },
+      ],
+    );
+    for (const n of noteRows) {
+      const sid = n.note_series_id as string;
+      if (!latestNoteBySeries.has(sid)) latestNoteBySeries.set(sid, n);
+    }
+  }
+
+  for (const core of coreRows) {
+    const pid = core.id as string;
+    const series = seriesByPassage.get(pid) ?? [];
+    const explanations: PassageEditorialLayer[] = [];
+    const interpretations: PassageEditorialLayer[] = [];
+    for (const s of series) {
+      const note = latestNoteBySeries.get(s.id as string);
+      if (!note) continue;
+      const layer: PassageEditorialLayer = {
+        id: note.id as string,
+        note_series_id: s.id as string,
+        note_type: s.note_type as string,
+        editorial_class: s.editorial_class as string,
+        note_lang: s.note_lang as string,
+        note_text: note.note_text as string,
+        author_name: (note.author_name as string | null) ?? null,
+        creation_method: note.creation_method as string,
+        status: note.status as string,
+        review_status: note.review_status as string,
+        revision: note.revision as number,
+      };
+      if ((s.editorial_class as string) === "editorial_interpretation") interpretations.push(layer);
+      else explanations.push(layer);
+    }
+    const detail: PassageDetail = {
+      id: core.id as string,
+      source_id: core.source_id as string,
+      locator_label: core.locator_label as string,
+      passage_kind: core.passage_kind as string,
+      original_lang: core.original_lang as string,
+      rights_status: core.rights_status as string,
+      rights_note: (core.rights_note as string | null) ?? null,
+      status: core.status as string,
+      original_text: (core.original_text as string | null) ?? null,
+      created_at: core.created_at as string,
+      updated_at: core.updated_at as string,
+      translations: (translationsByPassage.get(pid) ?? []).map((t) => ({
+        id: t.id as string,
+        target_lang: t.target_lang as string,
+        source_lang: t.source_lang as string,
+        translated_text: t.translated_text as string,
+        fidelity: t.fidelity as string,
+        translation_method: t.translation_method as string,
+        translation_source: t.translation_source as string,
+        translator_name: (t.translator_name as string | null) ?? null,
+        status: t.status as string,
+        review_status: t.review_status as string,
+        revision: t.revision as number,
+      })),
+      editorial_explanations: explanations,
+      editorial_interpretations: interpretations,
+    };
+    const sid = core.source_id as string;
+    const l = map.get(sid);
+    if (l) l.push(detail);
+    else map.set(sid, [detail]);
+  }
+  return map;
+}

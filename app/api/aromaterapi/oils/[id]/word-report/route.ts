@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { isUuid, docxResponse } from "@/lib/aromaterapi/report/request";
 import { buildSingleOilDoc } from "@/lib/aromaterapi/report/builders";
 
@@ -15,6 +16,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
+
+  // Maliyet-abuse koruması (ARO-010): DOCX üretimi pahalıdır; tenant başına dakikada makul
+  // sayıda export'a izin ver, art arda burst'ü kes. Anahtar DAİMA oturumdan doğrulanmış
+  // tenant (guard.tenantId) — body/query/header'dan ASLA. Kontrol guard'dan SONRA: başarısız
+  // kimlik kotayı TÜKETMEZ. In-memory/instance-başına (lib/rateLimit.ts): best-effort, global/
+  // atomik DEĞİL; kesin koruma sabit kayıt tavanıdır.
+  const rl = checkRateLimit(`aromaterapi-word:${guard.tenantId}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+    );
+  }
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
