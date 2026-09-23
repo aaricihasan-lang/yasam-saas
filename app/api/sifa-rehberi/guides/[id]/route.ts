@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
+import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
 export const runtime = "nodejs";
@@ -119,6 +120,12 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Kayıt kimliği eksik." }, { status: 400 });
   }
 
+  // Biçim guard'ı: geçersiz (non-UUID) id doğrudan `uuid` kolonuna gidip Postgres 22P02 →
+  // sanitize 500 üretiyordu. İstemci-kaynaklı bu durum "kayıt yok" ile aynıdır → temiz 404.
+  if (!isSifaUuid(id)) {
+    return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
+  }
+
   const { data, error } = await db
     .from("healing_guides")
     .select(GUIDE_DETAIL_SELECT)
@@ -147,6 +154,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
 
   if (!id) {
     return NextResponse.json({ ok: false, error: "Kayıt kimliği eksik." }, { status: 400 });
+  }
+
+  // Biçim guard'ı: geçersiz (non-UUID) id doğrudan `uuid` kolonuna gidip Postgres 22P02 →
+  // sanitize 500 üretiyordu. İstemci-kaynaklı bu durum "kayıt yok" ile aynıdır → temiz 404.
+  if (!isSifaUuid(id)) {
+    return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
   if (is_demo_account) {
@@ -206,6 +219,12 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
 
   if (!id) {
     return NextResponse.json({ ok: false, error: "Kayıt kimliği eksik." }, { status: 400 });
+  }
+
+  // Biçim guard'ı: geçersiz (non-UUID) id doğrudan `uuid` kolonuna gidip Postgres 22P02 →
+  // sanitize 500 üretiyordu. İstemci-kaynaklı bu durum "kayıt yok" ile aynıdır → temiz 404.
+  if (!isSifaUuid(id)) {
+    return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
   if (is_demo_account) {

@@ -225,7 +225,7 @@ ok("42. guide-level record-level galeri, section içerik branch'inin DIŞINDA (a
   (() => {
     const galleryIdx = detail.indexOf("recordLevelImages.map");
     // section-native içerik branch işaretçileri (per-tab content container içinde)
-    const sectionContentIdx = detail.indexOf("sectionsInActiveTab.map");
+    const sectionContentIdx = detail.indexOf("sectionsInActiveTopic.map");
     const mainSectionIdx = detail.search(/<section className="flex max-h-\[min\(92vh,900px\)\]/);
     return galleryIdx > 0 && mainSectionIdx > 0 && sectionContentIdx > 0 &&
       galleryIdx < mainSectionIdx && galleryIdx < sectionContentIdx;

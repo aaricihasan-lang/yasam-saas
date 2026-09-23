@@ -6,6 +6,7 @@ import {
   isStagingHealingPath,
 } from "@/lib/sifa-rehberi/stonePhotoStorage";
 import { loadGuideImageMembership } from "@/lib/sifa-rehberi/guideImageMembership";
+import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 
 export const runtime = "nodejs";
 
@@ -50,6 +51,11 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const filePath = String(body.file_path ?? "").trim();
   if (!guideId || !filePath) {
     return NextResponse.json({ ok: false, error: "guideId ve file_path gerekli." }, { status: 400 });
+  }
+  // Biçim guard'ı: geçersiz (non-UUID) guideId membership sorgusunda 22P02 → sanitize 500
+  // üretiyordu. İstemci-kaynaklı bu durum "kayıt yok" ile aynıdır → temiz 404.
+  if (!isSifaUuid(guideId)) {
+    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
 
   // Prefix savunması — path yalnız bu tenant+guide öneki VEYA tenant staging öneki altında.

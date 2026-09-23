@@ -164,8 +164,8 @@ ok(/guide_not_found_for_tenant/.test(route) && /404/.test(route), "route: cross-
 // ── STATIC: SECTION EDITOR (mobil/WebView) ──────────────────────────────────────
 const editor = read("components/sifa-rehberi/SectionEditor.tsx");
 ok(editor.includes("Yukarı taşı") && editor.includes("Aşağı taşı"), "editor: ↑↓ reorder kontrolleri (aria-label)");
-ok(editor.includes("+ Yeni Bölüm Ekle"), "editor: add section kontrolü");
-ok(/aria-label="Bölümü sil"/.test(editor), "editor: delete kontrolü erişilebilir");
+ok(editor.includes("+ Yeni Not Ekle"), "editor: add note kontrolü (Premium UX V2)");
+ok(/aria-label="Notu sil"/.test(editor), "editor: delete kontrolü erişilebilir");
 ok(!/draggable|onDrag|DndContext|react-dnd/i.test(editor), "editor: drag-and-drop YOK (WebView güvenli)");
 ok(/h-11/.test(editor) && /h-9/.test(editor), "editor: touch-friendly yükseklikler");
 ok(!editor.includes("SERVICE_ROLE"), "editor: browser'da service_role YOK");
