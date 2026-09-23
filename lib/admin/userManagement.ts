@@ -90,6 +90,8 @@ export const ADMIN_MODULE_UI_KEYS = [
   "belge_ceviri",
   "ders_notu",
   "digital_content",
+  // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
+  "cupping",
   // DAR yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
   // ekleyip düzenleyebilir. Beslenme modülünün tamamı owner-only kalır. Bayrak burada
   // olduğu için toggle render edilir + wholesale write'ta korunur (bkz. route.ts overwrite).
@@ -115,6 +117,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
+  cupping: "Kupa & Hacamat",
   beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
@@ -139,6 +142,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   belge_ceviri: false,
   ders_notu: false,
   digital_content: false,
+  cupping: false,
   beslenme_manual_food: false,
 };
 
@@ -153,6 +157,8 @@ const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
   biyoenerji: "energy_body",
   aromaterapi: "aromatherapy",
   kisisel_arsiv: "personal_archive",
+  kupa: "cupping",
+  hacamat_terapi: "cupping",
 };
 
 export type PaymentStatusUi = "paid" | "pending" | "overdue" | "exempt" | "unknown";

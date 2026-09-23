@@ -57,7 +57,25 @@ export const CUPPING_RELATION_STRENGTHS = [
 ] as const;
 export type CuppingRelationStrength = (typeof CUPPING_RELATION_STRENGTHS)[number];
 
+/** safety.severity (DB CHECK: cupping_safety_severity_chk IN (...)). */
+export const CUPPING_SEVERITIES = ["info", "warning", "contraindication"] as const;
+export type CuppingSeverity = (typeof CUPPING_SEVERITIES)[number];
+
 /** Değer kontrollü sözlükte mi (server-side citation doğrulaması için). */
 export function isEvidenceClass(v: unknown): v is CuppingEvidenceClass {
   return typeof v === "string" && (CUPPING_EVIDENCE_CLASSES as readonly string[]).includes(v);
 }
+
+// ─── Server-side enum guard'ları (UI/TypeScript'e EK; route-katmanı doğrulama) ──
+// Değerler UI select'lerindeki canonical değerlerle + DB CHECK'lerle birebir hizalı.
+// UI değerleri DEĞİŞTİRİLMEZ; bu guard'lar yalnız invalid değeri 400 ile reddetmek içindir.
+const memberOf = (values: readonly string[]) => (v: unknown): boolean =>
+  typeof v === "string" && values.includes(v);
+
+export const isLaterality = memberOf(CUPPING_LATERALITIES);
+export const isSourceType = memberOf(CUPPING_SOURCE_TYPES);
+export const isTechniqueType = memberOf(CUPPING_TECHNIQUE_TYPES);
+export const isMovementStyle = memberOf(CUPPING_MOVEMENT_STYLES);
+export const isContraindicationClass = memberOf(CUPPING_CONTRAINDICATION_CLASSES);
+export const isRelationStrength = memberOf(CUPPING_RELATION_STRENGTHS);
+export const isSeverity = memberOf(CUPPING_SEVERITIES);
