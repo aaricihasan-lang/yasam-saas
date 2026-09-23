@@ -26,9 +26,9 @@ import { formatPortionLabel } from "@/lib/beslenme/portionDisplay";
 import { isAvoidedFood } from "@/lib/beslenme/avoidedMatch";
 import { useAvoidedFoodIds } from "./avoidedFoods";
 import { Field, GhostButton, PrimaryButton, DangerButton, StatusMessage, TextInput } from "../../_components/primitives";
-import { ActionMenu, EnergyTargetLine, MacroChips, Modal, energyValue, type MenuItem } from "./planUi";
+import { ActionMenu, EnergyTargetLine, MacroChips, Modal, type MenuItem } from "./planUi";
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
-import { mealTotals, formatDateShort, friendlyPlanError } from "./planFormat";
+import { mealTotals, mealEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { SaveMealTemplateModal, ItemAlternativesModal } from "./Faz6ItemActions";
 
 function mealTypeLabel(t: string | null): string | null {
@@ -62,6 +62,7 @@ export function MealCard({
   const [err, setErr] = useState("");
 
   const totals = mealTotals(meal.items);
+  const energyCov = mealEnergyCoverage(meal.items);
   const typeLabel = mealTypeLabel(meal.meal_type);
 
   async function onAddFood(payload: FoodPickPayload) {
@@ -99,7 +100,7 @@ export function MealCard({
             ) : null}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <EnergyTargetLine energyRaw={energyValue(totals)} target={meal.energy_target} className="text-[13px]" />
+            <EnergyTargetLine energyRaw={energyCov.known} target={meal.energy_target} missingCount={energyCov.missingCount} className="text-[13px]" />
           </div>
           {meal.items.length > 0 ? (
             <div className="mt-1.5">
@@ -284,10 +285,19 @@ function ItemRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className="whitespace-nowrap text-[13px] font-black text-slate-700">
-            {energy ? formatAmount(energy.amount, energy.unit_code) : "0"}
-            <span className="ml-0.5 text-[10px] font-bold text-slate-400">kcal</span>
-          </span>
+          {energy ? (
+            <span className="whitespace-nowrap text-[13px] font-black text-slate-700">
+              {formatAmount(energy.amount, energy.unit_code)}
+              <span className="ml-0.5 text-[10px] font-bold text-slate-400">kcal</span>
+            </span>
+          ) : (
+            <span
+              className="whitespace-nowrap text-[10px] font-black text-amber-600"
+              title="Bu besinin kalori bilgisi girilmemiş; öğün/gün toplamına dahil edilmez. Besni düzenleyip kalori girebilirsiniz."
+            >
+              Kalori girilmemiş
+            </span>
+          )}
           {!readOnly ? <ActionMenu items={menuItems} label="Besin işlemleri" /> : null}
         </div>
       </div>

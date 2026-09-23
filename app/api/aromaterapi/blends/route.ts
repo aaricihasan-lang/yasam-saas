@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
 export const runtime = "nodejs";
+
+/** Fotosensitivite durumunu güvenli kümeye indirger (yes/no/unknown). */
+function normPhotoStatus(v: unknown): "yes" | "no" | "unknown" {
+  return v === "yes" || v === "no" || v === "unknown" ? v : "unknown";
+}
 
 /**
  * /api/aromaterapi/blends — aromatherapy_blends güvenli server kapısı (FAZ B1).
@@ -17,13 +22,21 @@ function sanitizeItems(raw: unknown): Array<Record<string, unknown>> {
   return raw.map((it) => {
     const o = (it ?? {}) as Record<string, unknown>;
     const oilId = o.oil_id;
+    // photosensitivity_status snapshot'ta korunur; yoksa legacy is_photosensitive'dan türetilir.
+    const status =
+      o.photosensitivity_status === "yes" || o.photosensitivity_status === "no" || o.photosensitivity_status === "unknown"
+        ? o.photosensitivity_status
+        : o.is_photosensitive === true
+          ? "yes"
+          : "unknown";
     return {
       oil_id: typeof oilId === "string" && oilId ? oilId : null,
       oil_name: String(o.oil_name ?? ""),
       latin_name: String(o.latin_name ?? ""),
       oil_type: String(o.oil_type ?? ""),
       drops: Math.max(0, Math.floor(Number(o.drops) || 0)),
-      is_photosensitive: o.is_photosensitive === true,
+      photosensitivity_status: status,
+      is_photosensitive: status === "yes" ? true : o.is_photosensitive === true,
       contraindications: String(o.contraindications ?? ""),
       safety_notes: String(o.safety_notes ?? ""),
     };
@@ -36,7 +49,7 @@ function toNumber(v: unknown, fallback = 0): number {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -52,7 +65,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -83,6 +96,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     notes: String(body.notes ?? ""),
     carrier_oil_id: typeof carrierId === "string" && carrierId ? carrierId : null,
     carrier_oil_name: String(body.carrier_oil_name ?? ""),
+    carrier_photosensitivity_status: normPhotoStatus(body.carrier_photosensitivity_status),
+    carrier_contraindications: String(body.carrier_contraindications ?? ""),
+    carrier_safety_notes: String(body.carrier_safety_notes ?? ""),
     bottle_ml: bottleMl,
     dilution_percent: dilutionPercent,
     drops_per_ml: Math.max(1, Math.floor(toNumber(body.drops_per_ml, 20))),

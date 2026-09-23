@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
@@ -17,7 +17,7 @@ export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -41,7 +41,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
@@ -53,8 +53,12 @@ export async function PATCH(
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const fields = pickWritableOilFields(body);
-  if (!fields.name) return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
+  // ARO-003: kısmi birleştirme — yalnız gövdede BULUNAN alanlar güncellenir; omit edilen
+  // güvenlik alanları (safety_notes/contraindications/photosensitivity_status) DOKUNULMAZ.
+  const fields = pickWritableOilFields(body, { partial: true });
+  // İsim yalnız gövdede gönderildiyse zorunluluk denetlenir (kısmi PATCH ismi omit edebilir).
+  if ("name" in (body as Record<string, unknown>) && !fields.name)
+    return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -77,7 +81,7 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 

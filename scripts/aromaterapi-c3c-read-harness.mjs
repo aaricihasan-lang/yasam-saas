@@ -85,7 +85,7 @@ console.log("\n[C3C-2] Tenant güvenliği (değişmez read sözleşmesi)");
 // ============================================================
 for (const r of [...READ_ROUTES, ...CLAIM_ROUTES]) {
   const src = read(r);
-  check(`T verifyUserRequest: ${r}`, src.includes("verifyUserRequest"));
+  check(`T requireModuleAccess: ${r}`, src.includes("requireModuleAccess"));
   // tenant istemciden alınmamalı: query/body'den tenant okuma yok.
   check(`T tenant query/body'den alınmıyor: ${r}`,
     !/searchParams\.get\(\s*["'](tenant_id|tenantId|p_tenant_id)["']/.test(src) &&

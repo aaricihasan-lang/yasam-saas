@@ -1,21 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { isUuid, docxResponse } from "@/lib/aromaterapi/report/request";
 import { buildSingleBlendDoc } from "@/lib/aromaterapi/report/builders";
 
 export const runtime = "nodejs";
+// GÜVENLİK BANDI (ARO-010): kesin platform süre tavanı ÖLÇÜLMEDİ; konservatif üst sınır.
+export const maxDuration = 60;
 
 /** POST /api/aromaterapi/blends/[id]/word-report — tek karışım reçetesi (.docx). */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
+
+  // Maliyet-abuse koruması (ARO-010): DOCX üretimi pahalıdır; tenant başına dakikada makul
+  // sayıda export'a izin ver, art arda burst'ü kes. Anahtar DAİMA oturumdan doğrulanmış
+  // tenant (guard.tenantId) — body/query/header'dan ASLA. Kontrol guard'dan SONRA: başarısız
+  // kimlik kotayı TÜKETMEZ. In-memory/instance-başına (lib/rateLimit.ts): best-effort, global/
+  // atomik DEĞİL; kesin koruma sabit kayıt tavanıdır.
+  const rl = checkRateLimit(`aromaterapi-word:${guard.tenantId}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+    );
+  }
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: null, date: new Date() });
-  if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
-  return docxResponse(res.buffer, res.filename);
+  try {
+    const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: null, date: new Date() });
+    if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+    return docxResponse(res.buffer, res.filename);
+  } catch {
+    return NextResponse.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
+  }
 }

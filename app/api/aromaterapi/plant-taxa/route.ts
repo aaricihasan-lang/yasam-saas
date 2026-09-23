@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listPlantTaxa, PLANT_TAXA_STATUS } from "@/lib/aromaterapi/service/catalogReads";
@@ -30,7 +30,7 @@ export const runtime = "nodejs";
  *   - Mutation YOK. Ham DB hatası istemciye sızmaz (readServerError → stabil 500).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const url = new URL(req.url);
@@ -76,7 +76,7 @@ const CREATE_ALLOWED = new Set<string>([
 ]);
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

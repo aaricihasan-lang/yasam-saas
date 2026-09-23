@@ -55,6 +55,17 @@ export async function checkBeslenmeAccess(): Promise<boolean> {
   return r.ok && r.data?.owner === true;
 }
 
+/**
+ * Manuel besin KATKI erişim probe'u (server-authoritative). Döner:
+ *   'owner'  → super-admin küratör, 'expert' → dar bayraklı uzman, null → yetkisiz.
+ * "Besinlerim" sayfası + nav girişi bununla gate edilir (UI gizleme tek katman değil).
+ */
+export async function checkBeslenmeFoodAccess(): Promise<"owner" | "expert" | null> {
+  const r = await req<{ authority?: "owner" | "expert" }>("/api/beslenme/foods/access", { headers: authHeaders() });
+  if (r.ok && (r.data?.authority === "owner" || r.data?.authority === "expert")) return r.data.authority;
+  return null;
+}
+
 export function fetchCounts() {
   return req<{ counts: { foods: number; guides: number; mizac: number; bloodType: number; sources: number } }>(
     "/api/beslenme/counts", { headers: authHeaders() },
@@ -90,6 +101,22 @@ export function getFood(id: string) {
 }
 export function createFood(body: Partial<Food>) {
   return req<{ food: Food }>("/api/beslenme/foods", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
+}
+// Manuel "Hızlı Besin Ekle": food + (opsiyonel) nutrient(100g) + (opsiyonel) porsiyon tek çağrıda.
+export type QuickAddPayload = {
+  name_tr: string;
+  name_en?: string | null;
+  food_group_id?: string | null;
+  prep_state?: string | null;
+  description?: string | null;
+  nutrients?: Array<{ nutrient_code: string; amount: number; unit_code: string }>;
+  portion?: { label_tr: string; gram_weight: number; measure_unit_code?: string; quantity?: number } | null;
+};
+export function quickCreateFood(body: QuickAddPayload) {
+  return req<{ food: Food; nutrientCount: number; portionCreated: boolean }>(
+    "/api/beslenme/foods/quick",
+    { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) },
+  );
 }
 export function updateFood(id: string, body: Partial<Food>) {
   return req<{ food: Food }>(`/api/beslenme/foods/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });

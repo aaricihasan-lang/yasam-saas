@@ -32,9 +32,11 @@ import {
   updateBlend,
   deleteBlend,
   blendToInput,
+  BLEND_STALE_MESSAGE,
   type BlendItem,
   type Blend,
 } from "@/lib/aromaterapi/blendData";
+import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 
 const pageBg =
   "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
@@ -54,6 +56,18 @@ function redistribute(items: BlendItem[], total: number): BlendItem[] {
   return items.map((it, i) => ({ ...it, drops: drops[i] ?? 0 }));
 }
 
+// ARO-020 — güvenli sayı ayrıştırıcı. Türkçe virgülü noktaya çevirir; NaN → 0.
+// Opsiyonel üst sınır (ARO-022 clamp) uygulanır.
+function parseNum(v: string | number, max?: number): number {
+  const n = Number(String(v).replace(",", "."));
+  if (!Number.isFinite(n)) return 0;
+  const nonNeg = Math.max(0, n);
+  return typeof max === "number" ? Math.min(max, nonNeg) : nonNeg;
+}
+
+const MAX_BOTTLE_ML = 2000; // ARO-022
+const MAX_DILUTION_PCT = 100; // ARO-022
+
 export default function KarisimOlusturucuPage() {
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
@@ -66,8 +80,16 @@ export default function KarisimOlusturucuPage() {
   const [notes, setNotes] = useState("");
   const [carrierName, setCarrierName] = useState("");
   const [carrierId, setCarrierId] = useState<string | null>(null);
+  // ARO-024 — taşıyıcı yağ güvenlik snapshot'ı (fotosensitivite/kontrendikasyon/not).
+  const [carrierPhoto, setCarrierPhoto] = useState<PhotosensitivityStatus>("unknown");
+  const [carrierContra, setCarrierContra] = useState("");
+  const [carrierNotes, setCarrierNotes] = useState("");
   const [bottleMl, setBottleMl] = useState<number>(30);
   const [dilution, setDilution] = useState<number>(2);
+  // ARO-021 — kayıttan yüklenen drops_per_ml korunur (20 hardcode etmeyiz).
+  const [dropsPerMl, setDropsPerMl] = useState<number>(DEFAULT_DROPS_PER_ML);
+  // ARO-019 — kullanıcı damlaları elle düzenlediyse ekle/çıkar otomatik dağıtmaz.
+  const [manualDrops, setManualDrops] = useState(false);
 
   // Orta panel (uçucu yağ arama) — FAZ 2: server typeahead (fetch-all YOK).
   const [searchResults, setSearchResults] = useState<OilListRow[]>([]);
@@ -80,8 +102,12 @@ export default function KarisimOlusturucuPage() {
 
   // Kaydedilenler
   const [saved, setSaved] = useState<Blend[]>([]);
+  const [savedError, setSavedError] = useState<string | null>(null); // ARO-017
   const [saving, setSaving] = useState(false);
+  const [copyingId, setCopyingId] = useState<string | null>(null); // ARO-007 çift-tık kilidi
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingUpdatedAt, setEditingUpdatedAt] = useState<string | null>(null); // ARO-008
+  const [staleConflict, setStaleConflict] = useState(false); // ARO-008 çakışma bandı
 
   // Yazdırılabilir reçete
   const [printBlend, setPrintBlend] = useState<PrintableBlend | null>(null);
@@ -119,27 +145,67 @@ export default function KarisimOlusturucuPage() {
     setPrintDate(new Date().toLocaleDateString("tr-TR"));
     setPrintBlend(blend);
   }
+  // Kayıtlı karışımı yazdır — güvenlik snapshot tarihi kaydın updated_at/created_at'idir (ARO-023).
+  function printSavedBlend(b: Blend) {
+    printReceteFor({
+      name: b.name,
+      notes: b.notes,
+      carrier_oil_name: b.carrier_oil_name,
+      carrier_photosensitivity_status: b.carrier_photosensitivity_status ?? "unknown",
+      carrier_contraindications: b.carrier_contraindications ?? "",
+      carrier_safety_notes: b.carrier_safety_notes ?? "",
+      bottle_ml: b.bottle_ml,
+      dilution_percent: b.dilution_percent,
+      total_drops: b.total_drops,
+      items: b.items,
+      snapshotDate: b.updated_at ?? b.created_at ?? undefined,
+    });
+  }
   function printActiveBlend() {
     if (items.length === 0) { showToast({ title: "Boş karışım", message: "Reçete için en az bir yağ ekleyin.", type: "warning" }); return; }
     printReceteFor({
       name: name || "(Adsız karışım)",
       notes,
       carrier_oil_name: carrierName,
+      carrier_photosensitivity_status: carrierPhoto,
+      carrier_contraindications: carrierContra,
+      carrier_safety_notes: carrierNotes,
       bottle_ml: bottleMl,
       dilution_percent: dilution,
       total_drops: targetDrops,
       items,
+      snapshotDate: new Date().toLocaleDateString("tr-TR"),
     });
   }
 
-  const targetDrops = useMemo(() => calcTotalDrops(bottleMl, dilution, DEFAULT_DROPS_PER_ML), [bottleMl, dilution]);
+  // Not: useMemo DEĞİL — `printActiveBlend` bu değeri tanımından önce (closure) kullanıyor;
+  // React Compiler manuel memoizasyonu bu sırada koruyamıyor (preserve-manual-memoization).
+  // Saf/ucuz hesap; React Compiler zaten otomatik memoize eder → davranış aynı.
+  const targetDrops = calcTotalDrops(bottleMl, dilution, dropsPerMl);
   const currentDrops = useMemo(() => sumDrops(items), [items]);
   const status = fillStatus(currentDrops, targetDrops);
-  const safety = useMemo(() => collectSafetyWarnings(items), [items]);
+  const safety = useMemo(
+    () =>
+      collectSafetyWarnings(
+        items,
+        carrierName.trim()
+          ? {
+              oil_name: carrierName,
+              photosensitivity_status: carrierPhoto,
+              contraindications: carrierContra,
+              safety_notes: carrierNotes,
+            }
+          : null,
+      ),
+    [items, carrierName, carrierPhoto, carrierContra, carrierNotes],
+  );
 
   const loadSaved = useCallback(async () => {
     const { blends, error } = await fetchBlends();
-    if (!error) setSaved(blends);
+    // ARO-017 — hatayı yutma; mevcut listeyi koru, hata durumunu göster.
+    if (error) { setSavedError(error); return; }
+    setSavedError(null);
+    setSaved(blends);
   }, []);
 
   useEffect(() => {
@@ -175,67 +241,124 @@ export default function KarisimOlusturucuPage() {
       showToast({ title: "Zaten ekli", message: `${row.name} karışımda mevcut.`, type: "info" });
       return;
     }
-    setAddingId(row.id);
-    // Tam detaydan snapshot (contraindications liste sorgusunda yok).
-    let item: BlendItem;
-    if (tenantId) {
-      const { oil } = await fetchOilDetail(tenantId, row.id);
-      item = makeBlendItem(oil ?? row, 0);
-    } else {
-      item = makeBlendItem(row, 0);
+    // ARO-005 — güvenlik bilgisi eksik snapshot kabul edilmez. Detay ZORUNLU; row'a düşülmez.
+    if (!tenantId) {
+      showToast({ title: "Yağ eklenemedi", message: "Yağ detayı yüklenemedi; güvenlik bilgisi eksik olabilir. Tekrar deneyin.", type: "error" });
+      return;
     }
+    setAddingId(row.id);
+    const { oil, error } = await fetchOilDetail(tenantId, row.id);
+    if (error || !oil) {
+      showToast({ title: "Yağ eklenemedi", message: "Yağ detayı yüklenemedi; güvenlik bilgisi eksik olabilir. Tekrar deneyin.", type: "error" });
+      setAddingId(null);
+      return; // mevcut kalemler korunur
+    }
+    const item = makeBlendItem(oil, 0);
     setAddingId(null);
-    setItems((prev) => redistribute([...prev, item], targetDrops));
+    // ARO-019 — elle düzenlenmişse diğer damlaları koru (0 damla ile ekle); değilse otomatik dağıt.
+    setItems((prev) => (manualDrops ? [...prev, item] : redistribute([...prev, item], targetDrops)));
   }
 
   function removeOil(oilId: string | null, idx: number) {
-    setItems((prev) => redistribute(prev.filter((_, i) => i !== idx), targetDrops));
+    // ARO-019 — elle düzenlenmişse diğer damlaları koru (yalnız filtrele); değilse yeniden dağıt.
+    setItems((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      return manualDrops ? next : redistribute(next, targetDrops);
+    });
   }
 
-  function setDrops(idx: number, value: number) {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, drops: Math.max(0, Math.floor(value || 0)) } : it)));
+  function setDrops(idx: number, value: string | number) {
+    setManualDrops(true); // ARO-019 — elle düzenleme başladı
+    const n = Math.floor(parseNum(value)); // ARO-020 güvenli ayrıştırma
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, drops: Math.max(0, n) } : it)));
   }
 
   function equalize() {
+    setManualDrops(false); // ARO-019 — açık yeniden dağıtım manuel bayrağını sıfırlar
     setItems((prev) => redistribute(prev, targetDrops));
   }
 
-  function pickCarrier(value: string) {
+  // ARO-024 — taşıyıcı seçilince güvenlik detayını çek; başarısız olursa 'unknown'/'' (güvenli DEME).
+  async function pickCarrier(value: string) {
     setCarrierName(value);
     const match = carrierOils.find((o) => o.name.toLocaleLowerCase("tr") === value.toLocaleLowerCase("tr"));
-    setCarrierId(match ? match.id : null);
+    const cid = match ? match.id : null;
+    setCarrierId(cid);
+    if (cid && tenantId) {
+      const { oil, error } = await fetchOilDetail(tenantId, cid);
+      if (error || !oil) {
+        setCarrierPhoto("unknown");
+        setCarrierContra("");
+        setCarrierNotes("");
+      } else {
+        setCarrierPhoto(derivePhotosensitivity(oil));
+        setCarrierContra(oil.contraindications ?? "");
+        setCarrierNotes(oil.safety_notes ?? "");
+      }
+    } else {
+      setCarrierPhoto("unknown");
+      setCarrierContra("");
+      setCarrierNotes("");
+    }
   }
 
   function resetForm() {
     setName("");
     setNotes("");
     setItems([]);
+    setManualDrops(false);
+  }
+
+  // ARO-009 — kaydedilmemiş değişiklik varsa, mevcut düzenlemeyi atmadan önce onay iste.
+  async function confirmDiscardIfDirty(): Promise<boolean> {
+    if (!isBlendDirty) return true;
+    return deleteConfirm({
+      title: "Kaydedilmemiş değişiklikler",
+      message: "Üzerinde çalıştığınız karışım kaydedilmedi.",
+      secondMessage: "Devam ederseniz bu değişiklikler kaybolur.",
+    });
   }
 
   // Kayıtlı blend'i builder'a yükle → düzenleme modu (editingId aktif).
-  function loadBlend(blend: Blend) {
+  async function loadBlend(blend: Blend) {
+    if (!(await confirmDiscardIfDirty())) return; // ARO-009
     setName(blend.name);
     setNotes(blend.notes);
     setCarrierName(blend.carrier_oil_name);
     setCarrierId(blend.carrier_oil_id);
+    // ARO-024 — taşıyıcı güvenlik snapshot'ını kayıttan geri yükle.
+    setCarrierPhoto(blend.carrier_photosensitivity_status ?? "unknown");
+    setCarrierContra(blend.carrier_contraindications ?? "");
+    setCarrierNotes(blend.carrier_safety_notes ?? "");
     setBottleMl(blend.bottle_ml);
     setDilution(blend.dilution_percent);
+    setDropsPerMl(blend.drops_per_ml || DEFAULT_DROPS_PER_ML); // ARO-021
     setItems(blend.items);
+    setManualDrops(true); // kaydedilmiş damla dağılımı korunur
     setEditingId(blend.id);
+    // ARO-008 — sürüm token'ı düzenlemede ZORUNLU; updated_at yoksa created_at'e düş.
+    setEditingUpdatedAt(blend.updated_at ?? blend.created_at ?? null);
+    setStaleConflict(false);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
     showToast({ title: "Yüklendi", message: `“${blend.name}” düzenleniyor.`, type: "info" });
   }
 
   // Düzenleme modundan çık → yeni blend modu.
-  function cancelEdit() {
+  async function cancelEdit() {
+    if (!(await confirmDiscardIfDirty())) return; // ARO-009
     setEditingId(null);
+    setEditingUpdatedAt(null);
+    setStaleConflict(false);
     resetForm();
   }
 
   // Tek tıkla kopya: "Ad (Kopya)" adıyla YENİ kayıt; orijinal değişmez.
   async function copyBlend(blend: Blend) {
+    if (copyingId) return; // ARO-007 çift-tık kilidi
+    setCopyingId(blend.id);
     const input = { ...blendToInput(blend), name: `${blend.name} (Kopya)` };
     const { blend: created, error, demo } = await saveBlend(input);
+    setCopyingId(null);
     if (demo) { showToast({ title: "Demo", message: "Demo hesabında kayıt yapılmaz.", type: "info" }); return; }
     if (error || !created) { showToast({ title: "Kopyalanamadı", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
     showToast({ title: "Kopyalandı", message: `“${created.name}” oluşturuldu.`, type: "success" });
@@ -248,23 +371,41 @@ export default function KarisimOlusturucuPage() {
       name, notes,
       carrier_oil_id: carrierId,
       carrier_oil_name: carrierName,
+      carrier_photosensitivity_status: carrierPhoto, // ARO-024
+      carrier_contraindications: carrierContra,
+      carrier_safety_notes: carrierNotes,
       bottle_ml: bottleMl,
       dilution_percent: dilution,
-      drops_per_ml: DEFAULT_DROPS_PER_ML,
+      drops_per_ml: dropsPerMl, // ARO-021
       total_drops: targetDrops,
       items,
+      expected_updated_at: editingId ? editingUpdatedAt : null, // ARO-008
     };
     const err = validateBlendInput(input);
     if (err) { showToast({ title: "Eksik bilgi", message: err, type: "warning" }); return; }
+    // ARO-008 — düzenlemede sürüm token'ı zorunlu; yoksa sürümsüz güncelleme GÖNDERME.
+    if (editingId && !editingUpdatedAt) {
+      showToast({ title: "Sürüm bulunamadı", message: "Karışım sürümü belirlenemedi. Lütfen sayfayı yenileyip düzenlemeyi tekrar açın.", type: "error" });
+      return;
+    }
     setSaving(true);
-    const { blend, error, demo } = editingId
+    const result = editingId
       ? await updateBlend(editingId, input)
       : await saveBlend(input);
     setSaving(false);
+    const { blend, error, demo } = result;
     if (demo) { showToast({ title: "Demo", message: "Demo hesabında kayıt yapılmaz.", type: "info" }); return; }
+    // ARO-008 — çakışma: formu SIFIRLAMA, kullanıcı düzenlemeleri korunur.
+    if ("stale" in result && result.stale) {
+      setStaleConflict(true);
+      showToast({ title: "Çakışma", message: BLEND_STALE_MESSAGE, type: "error" });
+      return;
+    }
     if (error || !blend) { showToast({ title: editingId ? "Güncellenemedi" : "Kaydedilemedi", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
     showToast({ title: editingId ? "Güncellendi" : "Kaydedildi", message: `“${blend.name}” ${editingId ? "güncellendi" : "kaydedildi"}.`, type: "success" });
+    setStaleConflict(false);
     setEditingId(null);
+    setEditingUpdatedAt(blend.updated_at ?? null); // ARO-008 — dönen taze token
     resetForm();
     await loadSaved();
   }
@@ -322,7 +463,13 @@ export default function KarisimOlusturucuPage() {
         {editingId ? (
           <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2 text-[12px] font-black text-amber-800">
             <span>✏️ Düzenleme modu — kaydedince mevcut karışım güncellenecek.</span>
-            <button type="button" onClick={cancelEdit} className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1 text-[11px] font-black text-amber-700 hover:bg-amber-100">İptal</button>
+            <button type="button" onClick={() => void cancelEdit()} className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1 text-[11px] font-black text-amber-700 hover:bg-amber-100">İptal</button>
+          </div>
+        ) : null}
+
+        {staleConflict ? (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-2 text-[12px] font-black text-rose-700 ring-1 ring-rose-100">
+            ⚠️ {BLEND_STALE_MESSAGE}
           </div>
         ) : null}
 
@@ -337,7 +484,7 @@ export default function KarisimOlusturucuPage() {
               </div>
               <div>
                 <label className={label}>Taşıyıcı (sabit) yağ</label>
-                <input className={input} list="carrier-oils" value={carrierName} onChange={(e) => pickCarrier(e.target.value)} placeholder="Örn. Jojoba" />
+                <input className={input} list="carrier-oils" value={carrierName} onChange={(e) => void pickCarrier(e.target.value)} placeholder="Örn. Jojoba" />
                 <datalist id="carrier-oils">
                   {carrierOils.map((o) => <option key={o.id} value={o.name} />)}
                 </datalist>
@@ -349,7 +496,7 @@ export default function KarisimOlusturucuPage() {
                     <button key={v} type="button" className={chip(bottleMl === v)} onClick={() => setBottleMl(v)}>{v} ml</button>
                   ))}
                 </div>
-                <input type="number" min={1} className={input} value={bottleMl} onChange={(e) => setBottleMl(Math.max(0, Number(e.target.value)))} placeholder="Özel ml" />
+                <input type="number" min={1} max={MAX_BOTTLE_ML} className={input} value={bottleMl} onChange={(e) => setBottleMl(parseNum(e.target.value, MAX_BOTTLE_ML))} placeholder="Özel ml" />
               </div>
               <div>
                 <label className={label}>Seyreltme oranı (%)</label>
@@ -358,7 +505,7 @@ export default function KarisimOlusturucuPage() {
                     <button key={v} type="button" className={chip(dilution === v)} onClick={() => setDilution(v)}>%{v}</button>
                   ))}
                 </div>
-                <input type="number" min={0} step={0.1} className={input} value={dilution} onChange={(e) => setDilution(Math.max(0, Number(e.target.value)))} placeholder="Özel oran" />
+                <input type="number" min={0} max={MAX_DILUTION_PCT} step={0.1} className={input} value={dilution} onChange={(e) => setDilution(parseNum(e.target.value, MAX_DILUTION_PCT))} placeholder="Özel oran" />
               </div>
               <div>
                 <label className={label}>Notlar</label>
@@ -366,7 +513,7 @@ export default function KarisimOlusturucuPage() {
               </div>
               <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 px-3 py-2 text-[11px] font-bold text-amber-800">
                 Hedef: <span className="text-sm font-black">{targetDrops}</span> damla
-                <span className="ml-1 font-medium text-amber-700">(1 ml ≈ {DEFAULT_DROPS_PER_ML} damla varsayımı)</span>
+                <span className="ml-1 font-medium text-amber-700">(1 ml ≈ {dropsPerMl} damla varsayımı)</span>
               </div>
             </div>
           </section>
@@ -427,7 +574,7 @@ export default function KarisimOlusturucuPage() {
                       </p>
                       {it.latin_name.trim() ? <p className="truncate text-[10px] italic text-slate-400">{it.latin_name}</p> : null}
                     </div>
-                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, Number(e.target.value))} aria-label={`${it.oil_name} damla sayısı`} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
+                    <input type="number" min={0} value={it.drops} onChange={(e) => setDrops(idx, e.target.value)} aria-label={`${it.oil_name} damla sayısı`} className="w-14 rounded-lg border border-amber-200 bg-white px-1.5 py-1 text-center text-[12px] font-black text-slate-900" />
                     <span className="text-[10px] font-bold text-slate-400">damla</span>
                     <button type="button" onClick={() => removeOil(it.oil_id, idx)} aria-label={`${it.oil_name} karışımdan çıkar`} title="Çıkar" className="shrink-0 rounded-lg px-1.5 py-1 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
@@ -481,7 +628,13 @@ export default function KarisimOlusturucuPage() {
               </button>
             ) : null}
           </div>
-          {saved.length === 0 ? (
+          {savedError && saved.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <p className="text-xs font-black text-rose-600">Kayıtlı karışımlar yüklenemedi.</p>
+              <p className="text-[11px] font-medium text-slate-500">{savedError}</p>
+              <button type="button" onClick={() => void loadSaved()} className="rounded-lg border border-amber-300 bg-white px-3 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Tekrar dene</button>
+            </div>
+          ) : saved.length === 0 ? (
             <p className="py-6 text-center text-xs font-bold text-slate-400">Henüz kayıtlı karışım yok.</p>
           ) : (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -492,7 +645,7 @@ export default function KarisimOlusturucuPage() {
                     <button type="button" onClick={() => void handleDeleteSaved(b)} aria-label={`${b.name} karışımını sil`} title="Sil" className="shrink-0 rounded-lg px-1.5 py-0.5 text-[12px] font-black text-rose-500 hover:bg-rose-50">✕</button>
                   </div>
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                    {b.bottle_ml} ml · %{b.dilution_percent} · {b.total_drops} damla · {b.items.length} yağ
+                    {b.bottle_ml} ml · %{b.dilution_percent} · Hedef {b.total_drops} · Yağ toplamı {sumDrops(b.items)} damla · {b.items.length} yağ
                   </p>
                   {b.carrier_oil_name ? <p className="text-[10px] text-slate-400">Taşıyıcı: {b.carrier_oil_name}</p> : null}
                   <div className="mt-1.5 flex flex-wrap gap-1">
@@ -503,11 +656,11 @@ export default function KarisimOlusturucuPage() {
                     ))}
                   </div>
                   <div className="mt-2 flex gap-1.5">
-                    <button type="button" onClick={() => loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
-                    <button type="button" onClick={() => void copyBlend(b)} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">Kopyala</button>
+                    <button type="button" onClick={() => void loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
+                    <button type="button" onClick={() => void copyBlend(b)} disabled={copyingId === b.id} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50 disabled:opacity-60">{copyingId === b.id ? "…" : "Kopyala"}</button>
                   </div>
                   <div className="mt-1.5 flex gap-1.5">
-                    <button type="button" onClick={() => printReceteFor(b)} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
+                    <button type="button" onClick={() => printSavedBlend(b)} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
                     <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
                   </div>
                 </div>

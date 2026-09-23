@@ -12,7 +12,8 @@ export interface OilExportRow {
   id: string; tenant_id: string | null; name: string; latin_name: string | null; english_name: string | null;
   oil_type: string; category: string | null; extraction_method: string | null; plant_part: string | null;
   origin: string | null; shelf_life: string | null; aroma_profile: string | null; aroma_note: string | null;
-  color: string | null; consistency: string | null; is_photosensitive: boolean | null; main_components: string | null;
+  color: string | null; consistency: string | null; is_photosensitive: boolean | null;
+  photosensitivity_status?: string | null; main_components: string | null;
   therapeutic_properties: string[] | null; emotional_benefits: string | null; spiritual_benefits: string | null;
   physical_benefits: string | null; skin_benefits: string | null; benefits: string | null; diffuser_usage: string | null;
   massage_usage: string | null; usage_methods: string | null; dilution_ratio: string | null;
@@ -24,11 +25,13 @@ export interface OilExportRow {
 
 export interface BlendItemSnapshot {
   oil_id: string | null; oil_name: string; latin_name: string; oil_type: string; drops: number;
-  is_photosensitive: boolean; contraindications: string; safety_notes: string;
+  is_photosensitive: boolean; photosensitivity_status?: string | null; contraindications: string; safety_notes: string;
 }
 export interface BlendExportRow {
   id: string; tenant_id: string | null; name: string; notes: string | null; carrier_oil_id: string | null;
-  carrier_oil_name: string | null; bottle_ml: number; dilution_percent: number; drops_per_ml: number;
+  carrier_oil_name: string | null;
+  carrier_photosensitivity_status?: string | null; carrier_contraindications?: string | null; carrier_safety_notes?: string | null;
+  bottle_ml: number; dilution_percent: number; drops_per_ml: number;
   total_drops: number; items: BlendItemSnapshot[]; is_active: boolean; created_at: string | null; updated_at: string | null;
 }
 
@@ -129,6 +132,25 @@ export async function collectIds(
   const { rows, error } = await readAll<{ id: string }>(db, table, tenantId, sel, order, { activeOnly: opts?.activeOnly ?? false, select: "id" });
   if (error) return { ids: [], error };
   return { ids: rows.map((r) => r.id), error: null };
+}
+
+/**
+ * Tenant-scoped kayıt sayımı (ARO-010 "all"/genel rapor üst-sınır kapısı).
+ * selected → sel.ids.length (istemci-cap zaten parseExportBody'de). all → HEAD count
+ * (satır çekilmez), readAll ile AYNI filtreler (tenant_id + activeOnly + oilType).
+ */
+export async function countForExport(
+  db: SupabaseClient, table: string, tenantId: string, sel: ExportSelector,
+  opts?: { activeOnly?: boolean },
+): Promise<{ count: number; error: string | null }> {
+  if (sel.mode === "selected") return { count: sel.ids.length, error: null };
+  const activeOnly = opts?.activeOnly !== false;
+  let q = db.from(table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
+  if (activeOnly) q = q.eq("is_active", true);
+  if (sel.oilType) q = q.eq("oil_type", sel.oilType);
+  const { count, error } = await q;
+  if (error) return { count: 0, error: error.message };
+  return { count: count ?? 0, error: null };
 }
 
 /** Tam-kolon status-tablo okuması (taxa/preparations/glossary — detay≈satır). */

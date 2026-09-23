@@ -47,6 +47,12 @@ export const MODALITIES: readonly Modality[] = [
   { id: "bilincalti", label: "Bilinçaltı Sebepleri", section_type: "reasons", group: "reasons", icon: "🧠" },
   { id: "mizac", label: "Mizaç Sebepleri", section_type: "reasons", group: "reasons", icon: "🌡️" },
   { id: "diger", label: "Diğer Sebepler", section_type: "reasons", group: "reasons", icon: "🔍" },
+  // İridoloji / El Analizi — Premium UX V2: Belirtiler/Sebepler altında ayrı, doğrudan
+  // seçilebilir alt konular. section_type=reasons (mevcut CHECK'i karşılar); mode serbest
+  // metin olduğu için ŞEMA MIGRATION'I GEREKMEZ. Legacy düz kolon karşılıkları:
+  // iridology_match / hand_analysis_match (topicTree.legacyKey ile "Önceki kayıt" gösterimi).
+  { id: "iridoloji", label: "İridolojide Karşılığı", section_type: "reasons", group: "reasons", icon: "👁️" },
+  { id: "el_analizi", label: "El Analizinde Karşılığı", section_type: "reasons", group: "reasons", icon: "✋" },
   // Uygulamalar / Yöntemler
   { id: "hacamat_suluk", label: "Hacamat & Sülük", section_type: "applications", group: "applications", icon: "💧" },
   { id: "refleksoloji", label: "Refleksoloji", section_type: "applications", group: "applications", icon: "👣" },
@@ -118,8 +124,10 @@ export const MODE_LABEL: Record<string, string> = {
   mizac: "Mizaç Sebepleri",
   other_causes: "Diğer Sebepler",
   diger: "Diğer Sebepler",
-  iridology_match: "İridoloji'de Karşılığı",
+  iridology_match: "İridolojide Karşılığı",
+  iridoloji: "İridolojide Karşılığı",
   hand_analysis_match: "El Analizinde Karşılığı",
+  el_analizi: "El Analizinde Karşılığı",
   cupping_leech: "Hacamat & Sülük",
   hacamat_suluk: "Hacamat & Sülük",
   hacamat: "Hacamat & Sülük",

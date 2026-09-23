@@ -1,12 +1,17 @@
 "use client";
 
 /**
- * Şifa Rehberi — Section-Native Editör (FAZ 2).
+ * Şifa Rehberi — Section-Native Not Editörü (Premium UX V2).
  *
- * Production'daki KARMAŞIK/imported section kayıtları (herbal, hacamat_suluk,
- * bilincalti, source'lu…) 21-alanlı forma geri-map ZORUNLULUĞU OLMADAN doğrudan
- * düzenlenir. section_type/mode/title/note/source/source_kind/expert_note/attention/
- * images KAYIPSIZ taşınır; sıra ↑↓ ile kalıcı değişir (drag YOK → WebView güvenli).
+ * Premium UX V2:
+ *  - KONU-KAPSAMLI kullanım (create): tür sabittir (soldaki konu ağacından gelir),
+ *    kart-üstü modalite dropdown'u GÖSTERİLMEZ → "türü değiştir" ile "yeni not" karışmaz.
+ *  - Her not KENDİ fotoğraflarını taşır (section.images) — konular arası karışmaz.
+ *  - Belirgin "+ Yeni Not Ekle" (başlıkta + altta) → yeni bağımsız not eklemek görünür.
+ *  - Geniş editör modalindeki buton "Forma Uygula" (DB'ye YAZMAZ; yalnız form taslağına).
+ *
+ * DB sözleşmesi değişmez: section_type/mode/title/note/source/source_kind/expert_note/
+ * attention/images KAYIPSIZ taşınır; sıra ↑↓ ile kalıcı (drag YOK → WebView güvenli).
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -33,6 +38,23 @@ export {
 
 const KEEP = "__keep__";
 
+/** Not fotoğrafı — section.images elemanı (photos/finalize ile aynı şekil). */
+export type NoteImage = {
+  id: string;
+  name?: string;
+  file_path?: string;
+  url?: string;
+  section?: string;
+};
+
+export type UploadedImage = { id: string; name: string; file_path: string; previewUrl: string };
+
+function asNoteImages(images: unknown[]): NoteImage[] {
+  return (Array.isArray(images) ? images : []).filter(
+    (x): x is NoteImage => Boolean(x) && typeof x === "object",
+  );
+}
+
 function keepLabel(s: EditableSection): string {
   const modeKey = normalizeModeKey(s.mode);
   return (
@@ -45,8 +67,6 @@ function keepLabel(s: EditableSection): string {
 
 function currentModalityValue(s: EditableSection): string {
   const m = modalityById(s.mode);
-  // Modalite yalnız mode + section_type birlikte eşleşiyorsa "resolved" sayılır;
-  // aksi halde mevcut (section_type,mode) KAYIPSIZ korunur (__keep__).
   if (m && m.section_type === s.section_type) return m.id;
   return KEEP;
 }
@@ -56,13 +76,9 @@ const fieldBase =
 const labelBase = "text-[11px] font-bold uppercase tracking-wide text-emerald-700";
 const ctrlBtn =
   "inline-flex h-9 min-w-[36px] items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
+const primaryAddBtn =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 text-[13px] font-black text-white shadow-md ring-1 ring-emerald-500/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50";
 
-/**
- * Uzun-metin alanı: inline textarea + sağ-üstte "⤢" geniş-düzenleyici butonu.
- * Doğaltaş modülündeki (dogaltas-kayit) ExpandableTextarea UX'iyle AYNI desen
- * (ikinci bir editör sistemi kurulmaz; kısa alanlara uygulanmaz). Inline yazım
- * korunur; ⤢ ile aynı içerik geniş modalde düzenlenir.
- */
 function ExpandableTextarea({
   value,
   onExpand,
@@ -76,10 +92,6 @@ function ExpandableTextarea({
   placeholder?: string;
   disabled?: boolean;
 }) {
-  // Alana tıklama → geniş editör OTOMATİK açılır (⤢ zorunlu değil). Klavye: alan
-  // odaktayken Enter/Space açar (button-benzeri). readOnly: inline yazım yok; tüm
-  // düzenleme geniş modalde (metin ASLA silinmez). A11y: role=button + aria-haspopup.
-  // (onFocus ile AÇMA KALDIRILDI → modal kapanınca odak buraya güvenle döndürülebilir.)
   return (
     <div className="relative mt-1">
       <textarea
@@ -118,7 +130,6 @@ function ExpandableTextarea({
   );
 }
 
-// MODALITIES'i görünüm grubuna göre optgroup'la (bitkisel section_type=herbal korunur).
 const MODALITY_GROUPS: { label: string; items: Modality[] }[] = [
   { label: "Nedenler / Sebepler", items: MODALITIES.filter((m) => m.group === "reasons") },
   { label: "Uygulamalar / Yöntemler", items: MODALITIES.filter((m) => m.group === "applications") },
@@ -133,38 +144,45 @@ export function SectionEditor({
   disabled,
   makeNewSection,
   allowedModalityIds,
+  title,
+  subtitle,
+  addLabel = "+ Yeni Not Ekle",
+  emptyHint = "Bu konu için henüz not yok. Yukarıdaki “Yeni Not Ekle” ile bağımsız bir not oluşturabilirsiniz.",
+  onUploadImage,
+  onRemoveImage,
+  imageUrls,
 }: {
   value: EditableSection[];
   onChange: (next: EditableSection[]) => void;
   disabled?: boolean;
-  /**
-   * "+ Yeni Bölüm Ekle" ile eklenecek boş bölümün fabrikası. Verilmezse varsayılan
-   * `emptyEditableSection` (ilk modalite) kullanılır. Bölüm-kapsamlı (create) kullanımda
-   * çağıran, aktif bölümün modalitesini önceden set eden bir fabrika geçirir.
-   */
   makeNewSection?: () => EditableSection;
-  /**
-   * Bölüm-kapsamlı (create) kullanımda AKTİF ana bölümün izinli modalite id'leri.
-   * Verilirse içerik-türü seçici YALNIZ bu türleri gösterir (başka ana bölüme ait tür
-   * seçilemez). Tek eleman → seçici gizlenir, tür otomatik (statik etiket). Verilmezse
-   * (edit yolu) mevcut TÜM gruplar (optgroup) gösterilir.
-   */
   allowedModalityIds?: string[];
+  /** Verilirse üstte "Konu başlığı · N not · + Yeni Not Ekle" başlığı gösterilir. */
+  title?: string;
+  subtitle?: string;
+  addLabel?: string;
+  emptyHint?: string;
+  /** Verilirse her notta fotoğraf ekleme/görüntüleme/silme kontrolleri açılır. */
+  onUploadImage?: (file: File) => Promise<UploadedImage>;
+  onRemoveImage?: (image: NoteImage) => Promise<void> | void;
+  /** imageId → görüntülenecek (signed/preview) URL. */
+  imageUrls?: Record<string, string>;
 }) {
-  // FAZ 3: yanlış dokunmaya karşı satır-içi silme onayı (ağır modal YOK).
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
-  // FAZ 2 son düzenleme: uzun-metin alanları için geniş düzenleyici (Doğaltaş UX'i).
-  // İçerik/Uzman Notu/Dikkat gibi uzun alanlarda ⤢ ile açılır; DB'ye bağımsız yazmaz —
-  // yalnız modal-yerel değeri tutar, "Kaydet" ile ilgili section alanına aktarır.
   type LargeField = "note" | "expert_note" | "attention";
   const [large, setLarge] = useState<{ key: string; field: LargeField; label: string } | null>(null);
   const [largeValue, setLargeValue] = useState("");
-  // A11y: modal kökü (focus-trap) + kapanınca odağın döneceği tetikleyici eleman.
   const modalRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
-  // Modal kapanınca (large=null) odağı açan alana geri ver (focus trap tamamlayıcısı).
+  // Fotoğraf: tek gizli input; hangi notun fotoğrafı yükleniyor (key) izlenir.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetKey, setUploadTargetKey] = useState<string | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [imgLightbox, setImgLightbox] = useState<{ url: string; name?: string } | null>(null);
+
   useEffect(() => {
     if (large === null && returnFocusRef.current) {
       const el = returnFocusRef.current;
@@ -174,7 +192,6 @@ export function SectionEditor({
   }, [large]);
 
   const openLarge = useCallback((key: string, field: LargeField, label: string, current: string) => {
-    // Açan elemanı sakla (kapanınca odak buraya döner). onFocus artık açmadığı için güvenli.
     returnFocusRef.current =
       typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
     setLarge({ key, field, label });
@@ -185,7 +202,6 @@ export function SectionEditor({
     setLargeValue("");
   }, []);
 
-  // Modal içi klavye: Escape kapatır; Tab odağı modal içinde döngüler (arka plana kaçmaz).
   const onModalKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Escape") {
@@ -219,8 +235,6 @@ export function SectionEditor({
     [value, onChange],
   );
 
-  // Geniş editörde "Kaydet": modal-yerel metni ilgili section alanına aktarır (DB'ye YAZMAZ).
-  // Vazgeç/× yalnız modalı kapatır → alandaki mevcut metin KORUNUR (yanlışlıkla silinmez).
   const saveLarge = useCallback(() => {
     if (large) update(large.key, { [large.field]: largeValue } as Partial<EditableSection>);
     setLarge(null);
@@ -253,7 +267,7 @@ export function SectionEditor({
 
   const onModalityChange = useCallback(
     (s: EditableSection, selected: string) => {
-      if (selected === KEEP) return; // mevcut section_type/mode kayıpsız korunur
+      if (selected === KEEP) return;
       const m = modalityById(selected);
       if (!m) return;
       update(s.key, { section_type: m.section_type, mode: m.id });
@@ -261,26 +275,101 @@ export function SectionEditor({
     [update],
   );
 
-  // Create: aktif bölümün izinli modaliteleri (sıra korunur). Edit: undefined → tüm gruplar.
+  // ── Fotoğraf işlemleri ─────────────────────────────────────────────────────
+  const photosEnabled = Boolean(onUploadImage);
+
+  const triggerPhotoPick = useCallback((key: string) => {
+    setUploadTargetKey(key);
+    fileInputRef.current?.click();
+  }, []);
+
+  const onPhotoFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      const key = uploadTargetKey;
+      e.target.value = "";
+      setUploadTargetKey(null);
+      if (!file || !key || !onUploadImage) return;
+      const target = value.find((s) => s.key === key);
+      if (!target) return;
+      setUploadingKey(key);
+      try {
+        const uploaded = await onUploadImage(file);
+        setPreviewUrls((prev) => ({ ...prev, [uploaded.id]: uploaded.previewUrl }));
+        const entry: NoteImage = { id: uploaded.id, name: uploaded.name, file_path: uploaded.file_path };
+        const nextImages = [...asNoteImages(target.images), entry];
+        update(key, { images: nextImages });
+      } catch {
+        /* hata: sessizce yut (üst katman kendi mesajını gösterebilir) */
+      } finally {
+        setUploadingKey(null);
+      }
+    },
+    [uploadTargetKey, onUploadImage, value, update],
+  );
+
+  const removePhoto = useCallback(
+    (key: string, img: NoteImage) => {
+      const target = value.find((s) => s.key === key);
+      if (!target) return;
+      const nextImages = asNoteImages(target.images).filter((i) => i.id !== img.id);
+      update(key, { images: nextImages });
+      if (onRemoveImage) void Promise.resolve(onRemoveImage(img)).catch(() => {});
+    },
+    [value, update, onRemoveImage],
+  );
+
+  const photoUrl = useCallback(
+    (img: NoteImage): string => previewUrls[img.id] ?? imageUrls?.[img.id] ?? img.url ?? "",
+    [previewUrls, imageUrls],
+  );
+
   const scopedModalities: Modality[] | null =
     allowedModalityIds && allowedModalityIds.length > 0
       ? MODALITIES.filter((m) => allowedModalityIds.includes(m.id))
       : null;
   const singleModality = scopedModalities !== null && scopedModalities.length === 1;
 
+  const noteCount = value.length;
+
   return (
     <div className="space-y-3">
+      {photosEnabled ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPhotoFileChange}
+        />
+      ) : null}
+
+      {/* Konu başlığı + not sayısı + belirgin "Yeni Not Ekle" (Premium UX V2). */}
+      {title ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/40 p-3.5 shadow-sm">
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-black tracking-tight text-slate-950">{title}</h3>
+            <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+              {subtitle ? `${subtitle} · ` : ""}
+              {noteCount > 0 ? `${noteCount} not` : "Not yok"}
+            </p>
+          </div>
+          <button type="button" disabled={disabled} onClick={add} className={primaryAddBtn}>
+            <span aria-hidden>＋</span> {addLabel.replace(/^\+\s*/, "")}
+          </button>
+        </div>
+      ) : null}
+
       {value.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center">
-          <p className="text-[14px] font-bold text-slate-600">Henüz bölüm yok</p>
-          <p className="mt-1 text-[12px] text-slate-500">
-            Aşağıdan yeni bir bölüm ekleyerek içerik oluşturabilirsiniz.
-          </p>
+          <p className="text-[14px] font-bold text-slate-600">Henüz not yok</p>
+          <p className="mt-1 text-[12px] text-slate-500">{emptyHint}</p>
         </div>
       ) : null}
 
       {value.map((s, i) => {
         const modalityValue = currentModalityValue(s);
+        const imgs = asNoteImages(s.images);
         return (
           <article
             key={s.key}
@@ -289,7 +378,6 @@ export function SectionEditor({
             {/* Üst kontrol satırı — içerik türü + ↑↓ + sil */}
             <div className="flex flex-wrap items-center gap-2">
               {singleModality ? (
-                // Tek türlü bölüm → açılır liste YOK; tür otomatik (statik etiket).
                 <span
                   className="flex h-9 flex-1 min-w-[160px] items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 text-[13px] font-black text-emerald-800"
                   aria-label="Bölüm türü"
@@ -309,14 +397,12 @@ export function SectionEditor({
                     <option value={KEEP}>{keepLabel(s)} (mevcut)</option>
                   ) : null}
                   {scopedModalities ? (
-                    // Bölüm-kapsamlı (create): yalnız bu bölümün türleri (düz liste).
                     scopedModalities.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.icon} {m.label}
                       </option>
                     ))
                   ) : (
-                    // Edit yolu: tüm gruplar (optgroup).
                     MODALITY_GROUPS.map((g) => (
                       <optgroup key={g.label} label={g.label}>
                         {g.items.map((m) => (
@@ -373,7 +459,7 @@ export function SectionEditor({
                 ) : (
                   <button
                     type="button"
-                    aria-label="Bölümü sil"
+                    aria-label="Notu sil"
                     disabled={disabled}
                     onClick={() => setConfirmKey(s.key)}
                     className={`${ctrlBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
@@ -438,7 +524,7 @@ export function SectionEditor({
               </div>
             </div>
 
-            {/* Uzman Notu — canonical içerikten AYRI */}
+            {/* Uzman Notu */}
             <div className="mt-3">
               <label className={`${labelBase} text-violet-700`}>Uzman Notu (opsiyonel)</label>
               <ExpandableTextarea
@@ -450,7 +536,7 @@ export function SectionEditor({
               />
             </div>
 
-            {/* Dikkat Edilmesi Gerekenler — opsiyonel, boş olabilir */}
+            {/* Dikkat Edilmesi Gerekenler */}
             <div className="mt-3">
               <label className={`${labelBase} text-amber-700`}>
                 Dikkat Edilmesi Gerekenler (opsiyonel)
@@ -460,20 +546,63 @@ export function SectionEditor({
                 value={s.attention}
                 onExpand={() => openLarge(s.key, "attention", "Dikkat Edilmesi Gerekenler", s.attention)}
                 rows={2}
-                placeholder="Bu bölüme özel dikkat notu (zorunlu değildir)…"
+                placeholder="Bu nota özel dikkat notu (zorunlu değildir)…"
               />
             </div>
+
+            {/* Bu NOTA ait fotoğraflar (Premium UX V2) — notlar arası karışmaz. */}
+            {photosEnabled ? (
+              <div className="mt-3 rounded-xl border border-emerald-100/80 bg-emerald-50/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <label className={labelBase}>Fotoğraflar (bu nota ait)</label>
+                  <button
+                    type="button"
+                    disabled={disabled || uploadingKey === s.key}
+                    onClick={() => triggerPhotoPick(s.key)}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    <span aria-hidden>📷</span>
+                    {uploadingKey === s.key ? "Yükleniyor…" : "Foto Ekle"}
+                  </button>
+                </div>
+                {imgs.length > 0 ? (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {imgs.map((img) => (
+                      <div key={img.id} className="relative w-[72px] shrink-0 rounded-lg border border-emerald-100 bg-white p-0.5 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => setImgLightbox({ url: photoUrl(img), name: img.name })}
+                          className="block w-full overflow-hidden rounded-md"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={photoUrl(img)} alt={img.name ?? ""} className="aspect-square h-16 w-full object-cover" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          aria-label="Fotoğrafı kaldır"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            removePhoto(s.key, img);
+                          }}
+                          className="absolute right-0 top-0 rounded bg-rose-600 px-1 text-[8px] font-black text-white shadow disabled:opacity-50"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">Bu nota henüz fotoğraf eklenmedi.</p>
+                )}
+              </div>
+            ) : null}
           </article>
         );
       })}
 
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={add}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 disabled:opacity-50"
-      >
-        + Yeni Bölüm Ekle
+      <button type="button" disabled={disabled} onClick={add} className={`${primaryAddBtn} w-full`}>
+        {addLabel}
       </button>
 
       {/* Geniş düzenleyici modal — uzun metinleri rahat yazmak için (DB'ye YAZMAZ). */}
@@ -494,7 +623,7 @@ export function SectionEditor({
                 </div>
                 <h2 className="truncate text-[20px] font-black text-slate-950 sm:text-[24px]">{large.label}</h2>
                 <p className="mt-0.5 text-[12px] font-medium text-slate-500">
-                  Uzun metni buradan rahat yazın. Uzunluk sınırı yoktur.
+                  Uzun metni buradan rahat yazın. “Forma Uygula” yalnız taslağa aktarır; kalıcı kayıt için sayfadaki Kaydet’i kullanın.
                 </p>
               </div>
               <button
@@ -528,9 +657,40 @@ export function SectionEditor({
                 onClick={saveLarge}
                 className="inline-flex h-10 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 text-[13px] font-black text-white shadow-md transition hover:brightness-105"
               >
-                Kaydet
+                Forma Uygula
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Fotoğraf önizleme (lightbox) */}
+      {imgLightbox ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
+          role="presentation"
+          onClick={() => setImgLightbox(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[min(960px,96vw)] rounded-[24px] bg-white p-3 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Fotoğraf önizleme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imgLightbox.url}
+              alt={imgLightbox.name ?? ""}
+              className="max-h-[min(78vh,720px)] w-auto max-w-full rounded-2xl object-contain"
+            />
+            <button
+              type="button"
+              onClick={() => setImgLightbox(null)}
+              className="absolute right-3 top-3 rounded-xl bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white"
+            >
+              Kapat
+            </button>
           </div>
         </div>
       ) : null}

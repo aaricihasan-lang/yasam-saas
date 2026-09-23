@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid, validateMandatoryReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { appendMethodRevision } from "@/lib/aromaterapi/service/catalogMethodMutations";
@@ -52,7 +52,7 @@ const APPEND_ALLOWED = new Set<string>([
  * (yeni → eski, yalnız meta). Salt-okunur, tenant-scoped. Seri out-of-tenant/eksik → 404.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req);
+  const guard = await requireModuleAccess(req, "aromatherapy");
   if (!guard.ok) return guard.response;
 
   const { seriesId } = await ctx.params;
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return catalogDemoForbidden();
 

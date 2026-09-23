@@ -5,16 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   deleteHealingGuide,
   fetchHealingGuideDetail,
-  firstSectionTabWithContent,
   getHealingGuideSectionDisplayTitle,
-  groupSectionsByType,
-  HEALING_SECTION_DISPLAY,
   peekCachedDetail,
   replaceHealingGuideSections,
   updateHealingGuide,
@@ -28,6 +24,13 @@ import {
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
+import {
+  TOPIC_GROUPS,
+  TOPICS,
+  topicById,
+  groupByTopic,
+  groupIdOfTopic,
+} from "@/lib/sifa-rehberi/topicTree";
 import { selectTabImages, selectRecordLevelImages } from "@/lib/sifa-rehberi/guideImageView";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import {
@@ -378,6 +381,13 @@ function recordToDraft(r: HealingGuideRecord): Draft {
   };
 }
 
+/** İçeriği (notu) olan ilk alt konu id'si — section-native görünüm/düzenleme varsayılanı. */
+function firstTopicWithNotes(sectionRows: HealingGuideSectionRow[]): string {
+  const grouped = groupByTopic(sectionRows);
+  const found = TOPICS.find((t) => (grouped[t.id]?.length ?? 0) > 0);
+  return found?.id ?? TOPICS[0]?.id ?? "genel_ozet";
+}
+
 // Demo hesapta korunan içerik başlığının yanında gösterilen küçük kilit rozeti.
 function DemoLockChip() {
   return (
@@ -405,7 +415,8 @@ export default function SifaRehberiDetailPage() {
   // FAZ 3: kaydedilmemiş değişiklik koruması — edit'e girişte alınan başlangıç imzası.
   const [editInitialSig, setEditInitialSig] = useState("");
   const [tab, setTab] = useState<DetailTabId>("rahatsizlik");
-  const [sectionTab, setSectionTab] = useState<HealingGuideSectionType>("reasons");
+  // PREMIUM UX V2: section-native görünüm/düzenleme aktif ALT KONUSU (topicTree id).
+  const [topicTab, setTopicTab] = useState<string>(TOPICS[0]?.id ?? "genel_ozet");
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
@@ -456,14 +467,18 @@ export default function SifaRehberiDetailPage() {
   const { isDemo } = useDemoGuard();
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
-  const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
+  // PREMIUM UX V2 — kanonik konu ağacına göre gruplama (create/detail/edit ORTAK).
+  // Aromaterapi supportive+mode=aromaterapi olsa da AYRI konudur; bilinmeyen mode kaybolmaz.
+  const groupedByTopic = useMemo(() => groupByTopic(sections), [sections]);
 
-  const activeSectionMeta = useMemo(
-    () => HEALING_SECTION_DISPLAY.find((t) => t.type === sectionTab) ?? HEALING_SECTION_DISPLAY[0],
-    [sectionTab]
-  );
+  const activeTopicMeta = useMemo(() => topicById(topicTab) ?? TOPICS[0], [topicTab]);
 
-  const sectionsInActiveTab = groupedSections[sectionTab] ?? [];
+  const sectionsInActiveTopic = groupedByTopic[topicTab] ?? [];
+
+  // Bu konunun legacy düz-kolon karşılığı (varsa) — "Önceki kayıt" olarak gösterilir.
+  const activeTopicLegacyKey = activeTopicMeta?.legacyKey;
+  const activeTopicLegacyText =
+    activeTopicLegacyKey && draft ? (draft[activeTopicLegacyKey as DraftTextKey] ?? "").trim() : "";
 
   // LEGACY (section-native OLMAYAN) görünüm için sekme-bazlı görsel süzme. Section'sız
   // görseller varsayılan "Rahatsızlık" sekmesinde; section atanmışlar kendi sekmesinde.
@@ -527,7 +542,7 @@ export default function SifaRehberiDetailPage() {
       setSymptoms(cached.guide.symptoms);
       setSections(cached.sections);
       if (cached.sections.length > 0) {
-        setSectionTab(firstSectionTabWithContent(groupSectionsByType(cached.sections)));
+        setTopicTab(firstTopicWithNotes(cached.sections));
       }
       setNotFound(false);
       setLoading(false);
@@ -583,7 +598,7 @@ export default function SifaRehberiDetailPage() {
     setSymptoms(detail.guide.symptoms);
     setSections(detail.sections);
     if (!hasCache && detail.sections.length > 0) {
-      setSectionTab(firstSectionTabWithContent(groupSectionsByType(detail.sections)));
+      setTopicTab(firstTopicWithNotes(detail.sections));
     }
     setNotFound(false);
   }, [id, isDemo]);
@@ -717,6 +732,27 @@ export default function SifaRehberiDetailPage() {
     setSuccessMessage("Görsel kaldırıldı.");
     setTimeout(() => setSuccessMessage(""), 2500);
   }
+
+  // PREMIUM UX V2 — per-not fotoğraf (edit). Guide-scoped signed upload; obje kayıtla
+  // (Save → replaceHealingGuideSections) section.images'a yazılıp AUTHORITATIVE olur.
+  // Kaldırma: cleanupSifaPhoto membership-korumalıdır → DB'de HÂLÂ referanslıysa (kaydedilmiş
+  // foto) güvenle reddeder; kaydedilmemiş (orphan) yüklemeyi güvenle temizler.
+  const uploadEditNoteImage = useCallback(
+    async (file: File) => {
+      if (!id) throw new Error("id yok");
+      const gid = groupIdOfTopic(topicTab) ?? "belirtiler";
+      const token = gid === "islami" ? "islami_oneriler" : gid;
+      const prep = await uploadSifaPhoto({ file, guideId: id, section: token });
+      setSignedUrls((prev) => ({ ...prev, [prep.id]: prep.previewUrl }));
+      return { id: prep.id, name: prep.name, file_path: prep.file_path, previewUrl: prep.previewUrl };
+    },
+    [id, topicTab],
+  );
+  const removeEditNoteImage = useCallback(async (img: { file_path?: string }) => {
+    if (img.file_path) {
+      try { await cleanupSifaPhoto(img.file_path); } catch { /* referanslıysa güvenle reddeder */ }
+    }
+  }, []);
 
   async function handleSaveFields() {
     if (!draft || !id) return;
@@ -1075,7 +1111,14 @@ export default function SifaRehberiDetailPage() {
                   Bölümleri ekleyin, düzenleyin, ↑↓ ile sıralayın veya silin. İçerik uzunluk sınırı yoktur.
                 </p>
                 <div className="mt-4">
-                  <SectionEditor value={editSections} onChange={setEditSections} disabled={saving} />
+                  <SectionEditor
+                    value={editSections}
+                    onChange={setEditSections}
+                    disabled={saving}
+                    onUploadImage={uploadEditNoteImage}
+                    onRemoveImage={removeEditNoteImage}
+                    imageUrls={signedUrls}
+                  />
                 </div>
               </div>
             </div>
@@ -1084,39 +1127,57 @@ export default function SifaRehberiDetailPage() {
           <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 max-md:block max-md:overflow-visible max-md:border-b-0 max-md:p-0 max-md:pb-1 lg:w-[240px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
             <div className="space-y-1.5 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-2 ring-1 ring-white/90 max-md:flex max-md:w-full max-md:flex-col max-md:gap-1.5 max-md:space-y-0 max-md:rounded-none max-md:bg-none max-md:p-0 max-md:ring-0">
               {useSectionView
-                ? HEALING_SECTION_DISPLAY.map((t) => {
-                    const active = sectionTab === t.type;
-                    const count = groupedSections[t.type]?.length ?? 0;
+                ? TOPIC_GROUPS.filter((g) => g.kind !== "rahatsizlik").map((group) => {
+                    const single = group.topics.length === 1;
+                    // Tek-konulu gruplar (Doğaltaş / Aromaterapi / İslami) → doğrudan seçilir.
+                    if (single) {
+                      const topic = group.topics[0];
+                      const active = topicTab === topic.id;
+                      const count = groupedByTopic[topic.id]?.length ?? 0;
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => setTopicTab(topic.id)}
+                          className={`${detailNavBtnBase} min-w-[148px] max-md:min-w-0 ${
+                            active ? detailNavBtnActive : detailNavBtnIdle
+                          }`}
+                        >
+                          <span className="text-sm leading-none">{group.icon}</span>
+                          <span className="flex-1 leading-snug">{group.label}</span>
+                          {count > 0 ? (
+                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>{count}</span>
+                          ) : null}
+                        </button>
+                      );
+                    }
+                    // Çok-konulu gruplar (Belirtiler / Uygulamalar / Destekleyici): başlık + alt konular.
                     return (
-                      <button
-                        key={t.type}
-                        type="button"
-                        onClick={() => setSectionTab(t.type)}
-                        className={`${detailNavBtnBase} min-w-[148px] max-md:min-w-0 ${
-                          active ? detailNavBtnActive : detailNavBtnIdle
-                        }`}
-                      >
-                        <span className="text-sm leading-none">{t.icon}</span>
-                        <span className="flex-1 leading-snug">{t.label}</span>
-                        {count > 0 ? (
-                          <span
-                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                              active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {count}
-                          </span>
-                        ) : (
-                          <span
-                            aria-hidden
-                            className={`hidden max-md:inline text-[13px] font-bold ${
-                              active ? "text-white/70" : "text-slate-300"
-                            }`}
-                          >
-                            —
-                          </span>
-                        )}
-                      </button>
+                      <div key={group.id} className="max-md:w-full">
+                        <p className="px-1 pb-0.5 pt-1.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                          <span aria-hidden>{group.icon}</span> {group.label}
+                        </p>
+                        {group.topics.map((topic) => {
+                          const active = topicTab === topic.id;
+                          const count = groupedByTopic[topic.id]?.length ?? 0;
+                          return (
+                            <button
+                              key={topic.id}
+                              type="button"
+                              onClick={() => setTopicTab(topic.id)}
+                              className={`${detailNavBtnBase} min-w-[148px] pl-4 max-md:min-w-0 ${
+                                active ? detailNavBtnActive : detailNavBtnIdle
+                              }`}
+                            >
+                              <span className="text-sm leading-none">{topic.icon}</span>
+                              <span className="flex-1 leading-snug">{topic.label}</span>
+                              {count > 0 ? (
+                                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>{count}</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
                     );
                   })
                 : DETAIL_TABS.map((t) => {
@@ -1155,7 +1216,7 @@ export default function SifaRehberiDetailPage() {
                     : "text-[15px] font-bold tracking-tight text-slate-950 max-md:text-lg"
                 }
               >
-                {useSectionView ? activeSectionMeta.label : activeTab.label}
+                {useSectionView ? (activeTopicMeta?.label ?? "İçerik") : activeTab.label}
               </h2>
               <p
                 className={
@@ -1164,7 +1225,9 @@ export default function SifaRehberiDetailPage() {
                     : "mt-1 text-[12px] font-medium leading-relaxed text-slate-500"
                 }
               >
-                {useSectionView ? activeSectionMeta.desc : activeTab.desc}
+                {useSectionView
+                  ? `Bu konuya ait notlar${sectionsInActiveTopic.length > 0 ? ` (${sectionsInActiveTopic.length})` : ""}.`
+                  : activeTab.desc}
               </p>
 
               {editEnabled ? (
@@ -1219,15 +1282,38 @@ export default function SifaRehberiDetailPage() {
 
               <div className="mt-3 space-y-3">
                 {useSectionView ? (
-                  sectionsInActiveTab.length === 0 ? (
-                    <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
-                      <p className="text-[15px] font-black text-slate-700">Henüz kayıt yok</p>
-                      <p className="mt-1 text-sm font-medium text-slate-500">
-                        Bu bölüm için içerik henüz eklenmemiş.
-                      </p>
-                    </div>
-                  ) : (
-                    sectionsInActiveTab.map((section) => {
+                  <>
+                    {activeTopicLegacyText ? (
+                      <article className={`${sectionPremiumCard} border-amber-100`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-amber-700">
+                            Önceki kayıt
+                          </span>
+                          <h3 className="text-[13px] font-semibold tracking-tight text-slate-950">
+                            {activeTopicMeta?.label}
+                          </h3>
+                          {isDemo ? <DemoLockChip /> : null}
+                        </div>
+                        <DemoBlur isProtected={isDemo}>
+                          <div className={`mt-2.5 ${sectionNoteBody}`}>{activeTopicLegacyText}</div>
+                        </DemoBlur>
+                        <p className="mt-2 text-[11px] font-medium text-slate-400">
+                          Bu içerik önceki (düz) kayıttan gelir ve korunur; “Düzenle” ile değiştirilebilir.
+                        </p>
+                      </article>
+                    ) : null}
+
+                    {sectionsInActiveTopic.length === 0 ? (
+                      activeTopicLegacyText ? null : (
+                        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                          <p className="text-[15px] font-black text-slate-700">Henüz not yok</p>
+                          <p className="mt-1 text-sm font-medium text-slate-500">
+                            Bu konu için içerik henüz eklenmemiş.
+                          </p>
+                        </div>
+                      )
+                    ) : (
+                      sectionsInActiveTopic.map((section) => {
                       const displayTitle = getHealingGuideSectionDisplayTitle(section);
                       const hasNote = Boolean(section.note?.trim());
                       const hasSource = Boolean(section.source?.trim());
@@ -1307,10 +1393,36 @@ export default function SifaRehberiDetailPage() {
                               Bu başlık için henüz açıklama eklenmemiş.
                             </p>
                           ) : null}
+                          {(() => {
+                            const secImgs = Array.isArray(section.images)
+                              ? (section.images as { id: string; name?: string; url?: string }[])
+                              : [];
+                            if (secImgs.length === 0) return null;
+                            return (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {secImgs.map((img) => (
+                                  <button
+                                    key={img.id}
+                                    type="button"
+                                    onClick={() => setLightbox(img as GuideImage)}
+                                    className="block w-[72px] shrink-0 overflow-hidden rounded-lg border border-emerald-100 bg-white p-0.5 shadow-sm"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={signedUrls[img.id] ?? img.url ?? ""}
+                                      alt={img.name ?? ""}
+                                      className="aspect-square h-16 w-full rounded-md object-cover"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </article>
                       );
                     })
-                  )
+                    )}
+                  </>
                 ) : (
                   activeTab.keys.map((key) => {
                     const label = FIELD_LABELS[key];

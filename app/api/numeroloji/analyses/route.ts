@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
 
 export const runtime = "nodejs";
 
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
-  const { db, tenantId, is_demo_account } = guard;
+  const { db, tenantId, userId, is_demo_account } = guard;
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -101,7 +102,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  const newId = (data as { id: string }).id;
+  // İP-2C: başarılı analiz oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
+  await recordUsageEvent(db, {
+    tenantId,
+    userId,
+    moduleKey: "numerology",
+    eventType: "analysis_created",
+    idempotencyKey: buildUsageIdempotencyKey("numerology", "analysis_created", newId),
+  });
+  return NextResponse.json({ ok: true, id: newId });
 }
 
 // ─── PATCH /api/numeroloji/analyses — kayıt güncelle (body.id) ──────────────────

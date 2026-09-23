@@ -127,10 +127,10 @@ ok(/role="dialog"/.test(editor) && /aria-modal="true"/.test(editor), "large-edit
 // Fix 1 — bölüm-kapsamlı modalite seçimi:
 ok(/allowedModalityIds/.test(editor), "scope: SectionEditor allowedModalityIds prop");
 ok(/const scopedModalities/.test(editor), "scope: yalnız o bölümün türleri listelenir");
-ok(/const singleModality/.test(editor) && /Tek türlü bölüm/.test(editor), "scope: tek türlü bölümde açılır liste gizlenir (otomatik tür)");
+ok(/const singleModality/.test(editor) && /aria-label="Bölüm türü"/.test(editor), "scope: tek modaliteli konuda açılır liste gizlenir (statik etiket)");
 const createPageForScope = read("app/sifa-rehberi/page.tsx");
-ok(/function createTabModalityIds/.test(createPageForScope), "scope: bölüm→modalite id türetici (create)");
-ok(/allowedModalityIds=\{createTabModalityIds\(activeCreateTab\)\}/.test(createPageForScope), "scope: create aktif bölümün modalitelerini geçirir");
+ok(/function makeSectionForTopic/.test(createPageForScope), "scope(v2): konu→section fabrikası (topicTree)");
+ok(/allowedModalityIds=\{activeTopic \? \[activeTopic\.mode\]/.test(createPageForScope), "scope(v2): create aktif konunun modalitesini geçirir (tek → statik etiket, dropdown YOK)");
 // Fix 2 — yazı alanına tıklayınca geniş editör OTOMATİK açılır:
 ok(/readOnly/.test(editor), "auto-editor: uzun-metin alanı readOnly (inline yazım yok, tüm düzenleme modalde)");
 ok(/onClick=\{\(\)\s*=>\s*\{\s*if\s*\(!disabled\)\s*onExpand\(\);/.test(editor), "auto-editor: alana tıklayınca geniş editör açılır");
@@ -174,19 +174,33 @@ ok(!/history\.pushState\(|addEventListener\(\s*["']popstate/.test(detailPage), "
 ok(/useUnsavedGuard\(createDirty\)/.test(listPage) && /useBackNavigationGuard\(/.test(listPage), "edit-nav: create guard regresyon PASS (beforeunload+popstate)");
 
 // ── FAZ 2: 7-alan navigasyon + geri-buton kaldırma + detay yönlendirme (static) ──
-ok(/CREATE_TABS\s*:\s*CreateTab\[\]/.test(listPage), "faz2: CREATE_TABS 7-alan modeli tanımlı");
+ok(/TOPIC_GROUPS/.test(listPage), "faz2/v2: create TEK KANONİK konu ağacını (TOPIC_GROUPS) kullanır");
 const createTabIds = ["rahatsizlik","belirtiler","uygulamalar","dogaltas","aromaterapi","islami","destekleyici"];
-ok(createTabIds.every((id) => new RegExp(`id:\\s*"${id}"`).test(listPage)), "faz2: 7 kanonik alan (rahatsizlik…destekleyici) mevcut");
+const topicTreeSrc = read("lib/sifa-rehberi/topicTree.ts");
+ok(createTabIds.every((id) => new RegExp(`id:\\s*"${id}"`).test(topicTreeSrc)), "faz2/v2: 7 kanonik ana bölüm (rahatsizlik…destekleyici) ağaçta");
 ok(!/SifaRehberiMainMenuButton/.test(listPage), "faz2: ölü SifaRehberiMainMenuButton kaldırıldı");
 ok(!/guardedLeaveCreate/.test(listPage), "faz2: create '← Ana Menü'/'Kapat' onay-wrapper kaldırıldı");
 ok(/router\.replace\(`\/sifa-rehberi\/\$\{newId\}`\)/.test(listPage), "faz2: başarılı kayıt → yeni kaydın DETAYINA yönlendirme");
 ok(/makeNewSection=\{/.test(listPage), "faz2: alan-kapsamlı SectionEditor default modalite fabrikası");
-ok(/setSectionsForTab\(/.test(listPage), "faz2: alan-kapsamlı section reconciliation");
+ok(/setSectionsForTopic\(/.test(listPage), "faz2/v2: konu-kapsamlı section reconciliation (kayıpsız)");
 ok(/sectionHasAnyLayer\(s\)/.test(listPage), "faz2: doluluk göstergesi gerçek veriden (yanlış-tamamlandı YOK)");
 // SectionEditor makeNewSection prop'u geriye-uyumlu (edit yolu default davranış)
 const sectionEditorSrc = read("components/sifa-rehberi/SectionEditor.tsx");
 ok(/makeNewSection\?\:/.test(sectionEditorSrc), "faz2: SectionEditor makeNewSection opsiyonel prop");
 ok(/\(makeNewSection\s*\?\?\s*emptyEditableSection\)\(\)/.test(sectionEditorSrc), "faz2: makeNewSection yoksa default emptyEditableSection (edit yolu bozulmaz)");
+
+// ── PREMIUM UX V2 statik değişmezleri ─────────────────────────────────────────
+// Editör: per-not fotoğraf + "Forma Uygula" (DB-save yanılsaması YOK) + belirgin "Yeni Not".
+ok(/onUploadImage/.test(sectionEditorSrc) && /onRemoveImage/.test(sectionEditorSrc), "v2-editor: per-not fotoğraf callback'leri");
+ok(/Fotoğraflar \(bu nota ait\)/.test(sectionEditorSrc), "v2-editor: her not KENDİ fotoğraflarını taşır (notlar arası karışmaz)");
+ok(/Forma Uygula/.test(sectionEditorSrc) && !/>\s*Kaydet\s*</.test(sectionEditorSrc), "v2-editor: geniş modal butonu 'Forma Uygula' (DB save değil)");
+ok(/\+ Yeni Not Ekle/.test(sectionEditorSrc), "v2-editor: belirgin '+ Yeni Not Ekle'");
+// Detay/edit: TEK kanonik konu ağacı; Aromaterapi ayrı; legacy 'Önceki kayıt'.
+ok(/groupByTopic/.test(detailPage) && /TOPIC_GROUPS/.test(detailPage), "v2-detail: detay TEK kanonik konu ağacını kullanır (create/detail ORTAK)");
+ok(/Önceki kayıt/.test(detailPage), "v2-detail: legacy düz-kolon içeriği 'Önceki kayıt' olarak KAYIPSIZ gösterilir");
+ok(/onUploadImage=\{uploadEditNoteImage\}/.test(detailPage), "v2-detail: edit per-not fotoğraf bağlı");
+// topicTree: Aromaterapi AYRI ana bölüm; iridoloji/el_analizi Belirtiler altında.
+ok(/id:\s*"aromaterapi"/.test(topicTreeSrc) && /id:\s*"iridoloji"/.test(topicTreeSrc) && /id:\s*"el_analizi"/.test(topicTreeSrc), "v2-tree: aromaterapi/iridoloji/el_analizi konuları tanımlı");
 // popstate guard hook sözleşmesi
 const backGuard = read("hooks/useBackNavigationGuard.ts");
 ok(/addEventListener\("popstate"/.test(backGuard) && /removeEventListener\("popstate"/.test(backGuard), "faz2: popstate guard listener ekle/temizle (kalıcı kilit YOK)");

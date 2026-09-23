@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid, cleanNumber, isUnitAllowedForCategory, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import {
   resolveFoodForRead,
@@ -18,7 +18,7 @@ const NUTRIENT_JOIN =
 
 /** GET: besnin /100 g nutrient kompozisyonu (SYSTEM veya kendi besni okunabilir). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
  * amount /100 g bazındadır (basis_grams=100 invariant). Yok = satır yok (0 yazma yok).
  */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

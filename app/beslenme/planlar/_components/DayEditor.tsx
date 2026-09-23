@@ -26,8 +26,8 @@ import {
 } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { DangerButton, Field, GhostButton, InlineSpinner, PrimaryButton, StatusMessage, TextArea, TextInput } from "../../_components/primitives";
-import { EnergyTargetLine, Modal, energyValue } from "./planUi";
-import { buildTotals, formatDateShort, friendlyPlanError } from "./planFormat";
+import { EnergyTargetLine, Modal } from "./planUi";
+import { buildTotals, dayEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { MealCard } from "./MealCard";
 
 export function DayEditor({
@@ -87,6 +87,7 @@ export function DayEditor({
   );
 
   const totals = useMemo(() => buildTotals(meals), [meals]);
+  const energyCov = useMemo(() => dayEnergyCoverage(meals), [meals]);
   const effectiveTarget = effectiveDailyTarget(
     dayDetail?.energy_target_override ?? summary?.energy_target_override,
     plan.daily_energy_target,
@@ -194,7 +195,7 @@ export function DayEditor({
           ) : null}
         </div>
         <div className="mt-1.5">
-          <EnergyTargetLine energyRaw={energyValue(totals)} target={effectiveTarget} className="text-2xl" />
+          <EnergyTargetLine energyRaw={energyCov.known} target={effectiveTarget} missingCount={energyCov.missingCount} className="text-2xl" />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {["protein", "carbohydrate", "total_fat", "fiber"].map((code) => {

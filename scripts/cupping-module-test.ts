@@ -1967,6 +1967,102 @@ function run(): void {
       "faz5/5-mig[26]: Kozmik Hacamat bağı/kopyası YOK");
   }
 
+  // ── [FAZ 6] YILLIK HACAMAT TAKVİMİ WORD (.docx) — route güvenliği + ürün kararları ──
+  {
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/export async function GET/.test(wr) && !/export async function (POST|PATCH|PUT|DELETE)/.test(wr),
+      "faz6[word]: yalnız GET (okuma) — mutasyon ucu yok");
+    ok(/getEntity\(db, CUPPING_TABLES\.calendarPlans, tenantId/.test(wr),
+      "faz6[word]: plan tenant-scoped getEntity (başka tenant → 404; IDOR engeli)");
+    ok(/eqFilters:\s*\{\s*plan_id:/.test(wr), "faz6[word]: günler plan_id filtreli tenant-scoped listEntity");
+    ok(!/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr), "faz6[word]: DB'ye YAZMAZ (insert/update/delete/upsert yok)");
+    ok(/const \{ db, tenantId \} = guard/.test(wr) && !/searchParams\.get\(\s*["']tenant/i.test(wr) && !/body[\s\S]*tenantId/.test(wr),
+      "faz6[word]: tenantId SERVER'dan (guard) — client'tan alınmaz");
+    ok(!/lib\/cosmic|app\/api\/hacamat/.test(wr), "faz6[word]: route'ta Kozmik Hacamat bağı yok");
+
+    const cw = read("lib/cupping/calendarWord.ts");
+    // Yorumları (import/geometri sözleşmesini açıklayan) çıkar → içerik testleri yalnız KODU denetler.
+    const cwCode = cw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    ok(/@\/lib\/cupping\/hijri/.test(cwCode), "faz6[word]: Hicrî TEK kanonik kaynaktan (lib/cupping/hijri); ikinci motor yok");
+    ok(!/lib\/cosmic|app\/api\/hacamat/.test(cwCode), "faz6[word]: builder KODUNDA Kozmik bağı/kopyası yok");
+    ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
+      "faz6[word]: builder KODUNDA otomatik Sünnet/Altın/17-19-21/yasaklı gün veya lejantı YOK (FAZ 5 ürün kararı)");
+    ok(/PageOrientation\.LANDSCAPE/.test(cwCode) && cwCode.includes("23811") && cwCode.includes("16838"),
+      "faz6[word]: A3 YATAY + A4 sayfa geometrisi (pgSz)");
+    ok(/WEEKDAYS_TR|isoWeekday/.test(cwCode), "faz6[word]: Pazartesi-başlangıç weekday TEK kaynağı (bulk.ts)");
+
+    const cc = read("lib/cupping/calendarWordColors.ts");
+    ok((CUPPING_DAY_COLOR_KEYS as readonly string[]).every((k) => new RegExp(`\\b${k}:`).test(cc)),
+      "faz6[word]: Word renk eşlemesi CUPPING_DAY_COLOR_KEYS ile birebir (7 anahtar)");
+    ok(/CUPPING_DAY_WORD_NEUTRAL/.test(cc),
+      "faz6[word]: renksiz(NULL) legacy gün için NÖTR eşleme (silinmez/boyanmaz)");
+  }
+
+  // ── [FAZ 6 FIX] İndirme yaşam döngüsü + bilgilendirme şablonu hata yönetimi ──
+  {
+    // BULGU 1 — İndirme akışı (CalendarWorkspace.handleWordDownload).
+    const ws = read("app/kupa/takvim/components/CalendarWorkspace.tsx");
+    const hw = ws.slice(ws.indexOf("async function handleWordDownload"), ws.indexOf("async function handleDeletePlan"));
+    ok(/setTimeout\(\s*\(\)\s*=>\s*URL\.revokeObjectURL\(url\)/.test(hw),
+      "faz6-fix[dl1]: Blob URL GECİKMEYLE serbest bırakılır (setTimeout revoke)");
+    ok(!/a\.click\(\);\s*a\.remove\(\);\s*URL\.revokeObjectURL/.test(hw),
+      "faz6-fix[dl2]: URL a.click()'ten HEMEN sonra iptal EDİLMEZ");
+    ok(/finally\s*\{[\s\S]*a\.remove\(\)/.test(hw),
+      "faz6-fix[dl3]: geçici DOM bağlantısı hata halinde de temizlenir (finally)");
+    ok(/indirilmesi başlatıldı/.test(hw) && !/raporu indirildi/.test(hw),
+      "faz6-fix[dl4]: 'indirilmesi başlatıldı' (diske yazıldı iddiası YOK)");
+    ok(/if \(dirty\)[\s\S]{0,120}Önce değişikliklerinizi kaydedin/.test(hw),
+      "faz6-fix[dl5]: kaydedilmemiş taslak engeli korunur");
+    ok(/if \(!plan \|\| wordBusy\) return/.test(hw), "faz6-fix[dl6]: yalnız aktif plan + tek-seferde indirir");
+    ok(/setWordBusy\(false\)/.test(hw) && /finally/.test(hw), "faz6-fix[dl7]: wordBusy finally'de temizlenir");
+    ok(/catch[\s\S]{0,160}type:\s*"error"/.test(hw), "faz6-fix[dl8]: API hatasında error toast (başarı iddiası yok)");
+
+    // BULGU 2 — Bilgilendirme şablonu hata yönetimi (route.ts).
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/tRes\.response\.status === 404/.test(wr),
+      "faz6-fix[tpl1]: bağlı şablon 404 (bulunamadı) ile DB hatası TEKNİK ayrılır");
+    ok(/if \(plan\.advice_template_id\)[\s\S]*?cuppingError\(\s*409[\s\S]*?cuppingError\(\s*502/.test(wr),
+      "faz6-fix[tpl2]: bağlı-ama-okunamayan şablonda güvenli hata (409 bulunamadı / 502 DB) — sessiz şablonsuz rapor YOK");
+    // Şablon başarısızlığında SESSİZCE template=null ile devam ETMEZ (eski davranışın izi kalmadı).
+    ok(!/if \(tRes\.ok\) template = /.test(wr),
+      "faz6-fix[tpl3]: eski sessiz-atla ('if (tRes.ok) template =') kaldırıldı");
+    ok(/getEntity\(db, CUPPING_TABLES\.adviceTemplates, tenantId, plan\.advice_template_id\)/.test(wr),
+      "faz6-fix[tpl4]: şablon tenant-scoped okunur (başka tenant → 404 → C-1; cross-tenant sızmaz)");
+    ok(!/error\.message/.test(wr) && !/advice_template_id\}|tenantId\}/.test(wr),
+      "faz6-fix[tpl5]: ham DB mesajı / şablon-id / tenant sızmaz");
+    ok(!/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr), "faz6-fix[tpl6]: hata yolu dahil DB'ye YAZMAZ");
+    // Durum A korunur: advice_template_id YOKKEN hata yok (builder şablonsuz üretir — DOCX harness [15] doğrular).
+    ok(/if \(plan\.advice_template_id\)/.test(wr),
+      "faz6-fix[tpl7]: Durum A (şablon bağlı değil) → koşul dışı; normal rapor (hata yok)");
+  }
+
+  // ── [FAZ 6 AYLIK] ?month= parametresi — katı doğrulama + yıllık geriye uyumluluk ──
+  {
+    const wr = read("app/api/kupa/calendar/plans/[id]/word-report/route.ts");
+    ok(/searchParams\.getAll\("month"\)/.test(wr), "faz6-ay[m1]: month searchParams.getAll ile okunur");
+    ok(/monthParams\.length > 1[\s\S]{0,120}cuppingError\(\s*400/.test(wr), "faz6-ay[m2]: çoklu month → 400");
+    ok(/\/\^\\d\{1,2\}\$\/\.test\(raw\)[\s\S]{0,120}cuppingError\(\s*400/.test(wr),
+      "faz6-ay[m3]: month yalnız 1–2 haneli tam sayı (boş/işaret/ondalık/metin → 400)");
+    ok(/n < 1 \|\| n > 12[\s\S]{0,80}cuppingError\(\s*400/.test(wr), "faz6-ay[m4]: 1–12 aralık dışı → 400");
+    ok(/buildCalendarPlanWordBuffer\(\{ plan, days, template, month \}\)/.test(wr) && /calendarWordFilename\(plan, month\)/.test(wr),
+      "faz6-ay[m5]: month builder + dosya adına geçirilir");
+    ok(!/searchParams[\s\S]{0,40}year|body[\s\S]{0,40}year/.test(wr),
+      "faz6-ay[m6]: yıl client'tan alınmaz (plan.year server-side)");
+    ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(wr) && !/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr),
+      "faz6-ay[m7]: gate korunur + DB'ye yazma yok (aylıkta da)");
+
+    const cw = read("lib/cupping/calendarWord.ts");
+    const cwCode = cw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    ok(/function isValidMonth/.test(cwCode) && /function buildMonthlyBuffer/.test(cwCode),
+      "faz6-ay[m8]: builder isValidMonth + buildMonthlyBuffer");
+    ok(/startsWith\(prefix\)/.test(cwCode) && /\$\{plan\.year\}-\$\{String\(month\)\.padStart\(2, "0"\)\}-/.test(cwCode),
+      "faz6-ay[m9]: aylık filtre plan.year + ay öneki (YYYY-MM-; TZ kayması yok)");
+    ok(/size: A4_PORTRAIT/.test(cwCode) && /monthCalendarTable/.test(cwCode),
+      "faz6-ay[m10]: aylık rapor A4 dikey + bağımsız tek-ay ızgarası");
+    ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
+      "faz6-ay[m11]: aylık kodda da otomatik Sünnet/Altın/yasaklı YOK");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);

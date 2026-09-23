@@ -1,4 +1,5 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 
 // =======================================================
 // Aromaterapi FAZ B1 — Blend / Karışım Oluşturucu veri katmanı
@@ -24,6 +25,9 @@ export type BlendItem = {
   latin_name: string;
   oil_type: string;
   drops: number;
+  /** Fotosensitivite durumu (yes/no/unknown). Yeni snapshot'larda daima set edilir. */
+  photosensitivity_status: PhotosensitivityStatus;
+  /** Geriye dönük uyumluluk: eski snapshot'larda yalnız bu alan vardı. */
   is_photosensitive: boolean;
   contraindications: string;
   safety_notes: string;
@@ -36,6 +40,9 @@ export type Blend = {
   notes: string;
   carrier_oil_id: string | null;
   carrier_oil_name: string;
+  carrier_photosensitivity_status: PhotosensitivityStatus;
+  carrier_contraindications: string;
+  carrier_safety_notes: string;
   bottle_ml: number;
   dilution_percent: number;
   drops_per_ml: number;
@@ -52,11 +59,16 @@ export type BlendInput = {
   notes: string;
   carrier_oil_id: string | null;
   carrier_oil_name: string;
+  carrier_photosensitivity_status: PhotosensitivityStatus;
+  carrier_contraindications: string;
+  carrier_safety_notes: string;
   bottle_ml: number;
   dilution_percent: number;
   drops_per_ml: number;
   total_drops: number;
   items: BlendItem[];
+  /** ARO-008 iyimser kilit — düzenlemede beklenen updated_at token'ı. Yeni kayıtta null. */
+  expected_updated_at?: string | null;
 };
 
 // -------------------------------------------------------
@@ -120,7 +132,7 @@ export function fillStatus(currentDrops: number, targetDrops: number): BlendFill
 
 export type BlendSafetyWarning = {
   oil_name: string;
-  kind: "photosensitive" | "contraindication" | "safety_note";
+  kind: "photosensitive" | "photosensitive_unknown" | "contraindication" | "safety_note";
   label: string;
   detail: string;
 };
@@ -133,38 +145,65 @@ export type BlendSafetyResult = {
 };
 
 /** Seçilen yağların snapshot alanlarından bilinen uyarıları toplar.
- *  Kaynak: is_photosensitive + contraindications + safety_notes.
+ *  Kaynak: photosensitivity_status (legacy: is_photosensitive) + contraindications + safety_notes.
+ *  Taşıyıcı yağ verilirse aynı mantık taşıyıcıya da uygulanır (ARO-024).
  *  Kesin tıbbi hüküm vermez; yalnız veriyi gösterir. */
-export function collectSafetyWarnings(items: BlendItem[]): BlendSafetyResult {
+export function collectSafetyWarnings(
+  items: BlendItem[],
+  carrier?: {
+    oil_name: string;
+    photosensitivity_status: PhotosensitivityStatus;
+    contraindications: string;
+    safety_notes: string;
+  } | null,
+): BlendSafetyResult {
   const warnings: BlendSafetyWarning[] = [];
 
-  for (const it of items) {
-    if (it.is_photosensitive) {
+  // Fotosensitivite: "yes" (veya legacy: status yok AND is_photosensitive===true) → uyarı;
+  // "unknown" → advisory (güvenli değil, bilinmiyor); "no" → hiçbir şey.
+  const pushPhoto = (
+    displayName: string,
+    status: PhotosensitivityStatus | undefined | null,
+    legacyPhoto?: boolean,
+  ) => {
+    const isYes = status === "yes" || (status == null && legacyPhoto === true);
+    if (isYes) {
       warnings.push({
-        oil_name: it.oil_name,
+        oil_name: displayName,
         kind: "photosensitive",
         label: "Fotosensitif / fototoksik bilgisi var",
         detail: "Güneşe maruz kalınan uygulamalarda dikkat gerekir; uzman değerlendirmesi gerekir.",
       });
-    }
-    const contra = (it.contraindications ?? "").trim();
-    if (contra) {
+    } else if (status === "unknown") {
       warnings.push({
-        oil_name: it.oil_name,
-        kind: "contraindication",
-        label: "Kontrendikasyon bilgisi var",
-        detail: contra,
+        oil_name: displayName,
+        kind: "photosensitive_unknown",
+        label: "Fotosensitivite bilgisi girilmemiş (bilinmiyor)",
+        detail: "Bu yağ için fotosensitivite değerlendirilmemiş; güvenli olduğu anlamına gelmez.",
       });
     }
-    const notes = (it.safety_notes ?? "").trim();
-    if (notes) {
-      warnings.push({
-        oil_name: it.oil_name,
-        kind: "safety_note",
-        label: "Güvenlik notu var",
-        detail: notes,
-      });
+  };
+
+  const pushText = (displayName: string, contra: string, notes: string) => {
+    const c = (contra ?? "").trim();
+    if (c) {
+      warnings.push({ oil_name: displayName, kind: "contraindication", label: "Kontrendikasyon bilgisi var", detail: c });
     }
+    const n = (notes ?? "").trim();
+    if (n) {
+      warnings.push({ oil_name: displayName, kind: "safety_note", label: "Güvenlik notu var", detail: n });
+    }
+  };
+
+  for (const it of items) {
+    pushPhoto(it.oil_name, it.photosensitivity_status, it.is_photosensitive);
+    pushText(it.oil_name, it.contraindications, it.safety_notes);
+  }
+
+  if (carrier && carrier.oil_name.trim()) {
+    const cName = `Taşıyıcı: ${carrier.oil_name.trim()}`;
+    pushPhoto(cName, carrier.photosensitivity_status);
+    pushText(cName, carrier.contraindications, carrier.safety_notes);
   }
 
   const hasWarnings = warnings.length > 0;
@@ -186,19 +225,22 @@ export function makeBlendItem(
     name: string;
     latin_name?: string | null;
     oil_type: string;
+    photosensitivity_status?: PhotosensitivityStatus | string | null;
     is_photosensitive?: boolean | null;
     contraindications?: string | null;
     safety_notes?: string | null;
   },
   drops: number,
 ): BlendItem {
+  const status = derivePhotosensitivity(source);
   return {
     oil_id: source.id,
     oil_name: source.name,
     latin_name: source.latin_name ?? "",
     oil_type: source.oil_type,
     drops: Math.max(0, Math.floor(drops || 0)),
-    is_photosensitive: source.is_photosensitive ?? false,
+    photosensitivity_status: status,
+    is_photosensitive: status === "yes" ? true : source.is_photosensitive ?? false,
     contraindications: source.contraindications ?? "",
     safety_notes: source.safety_notes ?? "",
   };
@@ -262,6 +304,9 @@ export async function saveBlend(
     notes: input.notes ?? "",
     carrier_oil_id: input.carrier_oil_id ?? null,
     carrier_oil_name: input.carrier_oil_name ?? "",
+    carrier_photosensitivity_status: input.carrier_photosensitivity_status ?? "unknown",
+    carrier_contraindications: input.carrier_contraindications ?? "",
+    carrier_safety_notes: input.carrier_safety_notes ?? "",
     bottle_ml: input.bottle_ml,
     dilution_percent: input.dilution_percent,
     drops_per_ml: input.drops_per_ml || DEFAULT_DROPS_PER_ML,
@@ -279,12 +324,28 @@ export async function saveBlend(
   }
 }
 
+export const BLEND_STALE_MESSAGE =
+  "Bu karışım başka bir yerde değiştirildi. Sayfayı yenileyip değişikliklerinizi tekrar uygulayın.";
+
+// ARO-008 — sürüm (expected_updated_at) düzenlemede ZORUNLU. Sunucu eksik sürümü 400
+// AROMA_MISSING_VERSION ile reddeder; istemci de bu sözleşmeyi ihlal etmemek için
+// sürümsüz PATCH göndermeden önce burada durur.
+export const BLEND_MISSING_VERSION_MESSAGE =
+  "Karışım sürümü belirlenemedi. Lütfen sayfayı yenileyip düzenlemeyi tekrar açın.";
+
 export async function updateBlend(
   id: string,
   input: BlendInput,
-): Promise<{ blend: Blend | null; error: string | null; demo?: boolean }> {
+): Promise<{ blend: Blend | null; error: string | null; demo?: boolean; stale?: boolean }> {
   const validationError = validateBlendInput(input);
   if (validationError) return { blend: null, error: validationError };
+
+  // ARO-008 — mecburi sürüm sözleşmesi: null/boş expected_updated_at ile API'ye GİDİLMEZ.
+  const expectedUpdatedAt =
+    typeof input.expected_updated_at === "string" && input.expected_updated_at.trim()
+      ? input.expected_updated_at.trim()
+      : null;
+  if (!expectedUpdatedAt) return { blend: null, error: BLEND_MISSING_VERSION_MESSAGE };
 
   const headers = authHeaders(true);
   if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
@@ -295,16 +356,24 @@ export async function updateBlend(
     notes: input.notes ?? "",
     carrier_oil_id: input.carrier_oil_id ?? null,
     carrier_oil_name: input.carrier_oil_name ?? "",
+    carrier_photosensitivity_status: input.carrier_photosensitivity_status ?? "unknown",
+    carrier_contraindications: input.carrier_contraindications ?? "",
+    carrier_safety_notes: input.carrier_safety_notes ?? "",
     bottle_ml: input.bottle_ml,
     dilution_percent: input.dilution_percent,
     drops_per_ml: input.drops_per_ml || DEFAULT_DROPS_PER_ML,
     total_drops: input.total_drops,
     items: input.items,
+    expected_updated_at: expectedUpdatedAt,
   };
 
   try {
     const res = await fetch(`${BLENDS_API}/${encodeURIComponent(id)}`, { method: "PATCH", headers, body: JSON.stringify(payload) });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean; stale?: boolean };
+    // ARO-008 iyimser kilit çakışması — kayıt başka yerde değişmiş.
+    if (res.status === 409 || json.stale === true || json.error === "AROMA_STALE_BLEND") {
+      return { blend: null, error: BLEND_STALE_MESSAGE, stale: true };
+    }
     if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}` };
     return { blend: json.blend ?? null, error: null, demo: json.demo };
   } catch (e) {
@@ -319,6 +388,9 @@ export function blendToInput(blend: Blend): BlendInput {
     notes: blend.notes,
     carrier_oil_id: blend.carrier_oil_id,
     carrier_oil_name: blend.carrier_oil_name,
+    carrier_photosensitivity_status: blend.carrier_photosensitivity_status ?? "unknown",
+    carrier_contraindications: blend.carrier_contraindications ?? "",
+    carrier_safety_notes: blend.carrier_safety_notes ?? "",
     bottle_ml: blend.bottle_ml,
     dilution_percent: blend.dilution_percent,
     drops_per_ml: blend.drops_per_ml,

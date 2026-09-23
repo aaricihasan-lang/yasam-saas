@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateSectionsBody } from "@/lib/sifa-rehberi/limits";
+import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
@@ -35,6 +36,12 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 
   if (!id) {
     return NextResponse.json({ ok: false, error: "Kayıt kimliği eksik." }, { status: 400 });
+  }
+
+  // Biçim guard'ı: geçersiz (non-UUID) id, parent ownership sorgusunda 22P02 → sanitize 500
+  // üretiyordu. İstemci-kaynaklı bu durum "kayıt yok" ile aynıdır → temiz 404 (IDOR yüzeyi yok).
+  if (!isSifaUuid(id)) {
+    return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
   if (is_demo_account) {

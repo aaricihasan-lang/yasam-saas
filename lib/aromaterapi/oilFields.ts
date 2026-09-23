@@ -15,8 +15,30 @@
 // origin, plant_part, chakra/element_connection, therapeutic_properties[], target_systems[])
 // yalnız DETAY'da (fetchOilDetail full-row) gelir. origin_type teknik provenance için küçük tutulur.
 export const OIL_LIST_SELECT =
-  "id,tenant_id,name,latin_name,english_name,oil_type,category,is_photosensitive,origin_type," +
+  "id,tenant_id,name,latin_name,english_name,oil_type,category,is_photosensitive,photosensitivity_status,origin_type," +
   "aroma_profile,physical_benefits,emotional_benefits,benefits";
+
+/**
+ * ARO-004 — Fotosensitiflik/fototoksisite üç-durumlu sözleşme (PAYLAŞIMLI).
+ * Diğer worker'lar (typeahead/blend/detail) bu tipi ve türeticiyi buradan import eder.
+ * "unknown" = değerlendirilmemiş (VERİ EKSİK) — asla "güvenli" olarak gösterilmez.
+ * Legacy boolean `is_photosensitive` ile SENKRON tutulur: status==="yes" ↔ boolean true.
+ */
+export type PhotosensitivityStatus = "yes" | "no" | "unknown";
+
+export function derivePhotosensitivity(
+  raw: { photosensitivity_status?: unknown; is_photosensitive?: unknown } | null | undefined,
+): PhotosensitivityStatus {
+  // Legacy boolean `is_photosensitive === true` DAİMA 'yes' kabul edilir (otoriter):
+  // migration apply ile kod deploy arasındaki pencerede ESKİ kod yalnız is_photosensitive'e
+  // yazıp photosensitivity_status'u güncellemezse kolon 'unknown' kalabilir; bu durumda bile
+  // okuma 'yes' döner (fototoksik yağ sessizce "bilinmiyor" görünmez). is_photosensitive=false
+  // iken üçlü-durum ('no'/'unknown'/legacy) status'tan okunur.
+  if (raw?.is_photosensitive === true) return "yes";
+  const s = String(raw?.photosensitivity_status ?? "").trim().toLowerCase();
+  if (s === "yes" || s === "no" || s === "unknown") return s;
+  return "unknown";
+}
 
 const OIL_STRING_FIELDS = [
   "name", "latin_name", "english_name", "oil_type", "category",
@@ -44,29 +66,51 @@ export const OIL_COPY_FIELDS = [
   ...OIL_STRING_FIELDS,
   ...OIL_ARRAY_FIELDS,
   "is_photosensitive",
+  "photosensitivity_status",
 ] as const;
 
 /**
  * İstemciden gelen ham gövdeyi güvenli, yazılabilir alan kümesine indirger.
  * Bilinmeyen alanlar (tenant_id, id, is_active, created_at…) tamamen düşer.
+ *
+ * ARO-003 kısmi birleştirme: `opts.partial === true` (PATCH) iken YALNIZ gövdede
+ * BULUNAN anahtarlar dahil edilir → gönderilmeyen `safety_notes`/`contraindications`/
+ * `photosensitivity_status` DOKUNULMAZ (yanlışlıkla "" ile ezilmez). Açık temizleme
+ * yine çalışır: `"safety_notes": ""` alanı temizler. Tam mod (CREATE, varsayılan)
+ * eski davranışı korur: tüm alanlar üretilir + oil_type default'u uygulanır.
  */
-export function pickWritableOilFields(raw: unknown): Record<string, unknown> {
+export function pickWritableOilFields(
+  raw: unknown,
+  opts?: { partial?: boolean },
+): Record<string, unknown> {
   const b = (raw ?? {}) as Record<string, unknown>;
   const out: Record<string, unknown> = {};
+  const partial = opts?.partial === true;
 
   for (const k of OIL_STRING_FIELDS) {
+    if (partial && !(k in b)) continue; // kısmi: yok olan alanı ELLEME
     const v = b[k];
     out[k] = typeof v === "string" ? v.trim() : "";
   }
-  if (!out.oil_type) out.oil_type = "essential";
+  // oil_type default'u yalnız tam modda (create) — kısmi modda omit edilen oil_type'ı
+  // "essential" ile ezmemek için.
+  if (!partial && !out.oil_type) out.oil_type = "essential";
 
   for (const k of OIL_ARRAY_FIELDS) {
+    if (partial && !(k in b)) continue; // kısmi: yok olan alanı ELLEME
     const v = b[k];
     out[k] = Array.isArray(v)
       ? v.map((x) => String(x).trim()).filter(Boolean)
       : [];
   }
 
-  out.is_photosensitive = b.is_photosensitive === true;
+  // Fotosensitiflik (ARO-004): enum + legacy boolean DAİMA senkron.
+  // Kısmi modda yalnız iki anahtardan EN AZ BİRİ gövdede varsa dokunulur.
+  const photoPresent = "photosensitivity_status" in b || "is_photosensitive" in b;
+  if (!partial || photoPresent) {
+    out.photosensitivity_status = derivePhotosensitivity(b);
+    out.is_photosensitive = out.photosensitivity_status === "yes";
+  }
+
   return out;
 }

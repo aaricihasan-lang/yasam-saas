@@ -51,7 +51,7 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
+import { checkBeslenmeAccess, checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -725,6 +725,11 @@ export default function Home() {
   // gerçek owner (users.is_super_admin) server probe'u (/api/beslenme/access) ile doğrulanır.
   // Default hidden → owner doğrulanırsa render (normal admin/expert asla görmez; fail-closed).
   const [beslenmeOwner, setBeslenmeOwner] = useState(false);
+  // Manuel besin KATKI (dar bayrak) kart görünürlüğü. Bayrak client user objesinden
+  // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
+  // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; owner zaten
+  // tam Beslenme kartını görür. Default null → fail-closed.
+  const [foodContributor, setFoodContributor] = useState<"owner" | "expert" | null>(null);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -785,6 +790,20 @@ export default function Home() {
     void checkBeslenmeAccess().then((ok) => {
       if (alive) setBeslenmeOwner(ok === true);
     });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  // Manuel besin KATKI kartı: owner + dar bayraklı UZMAN için de çalışır (admin-only DEĞİL).
+  // Server probe yetki/onay/bayrağı birlikte doğrular (fail-closed). Girişsiz → null.
+  // setState yalnız async callback'te (effect gövdesinde senkron setState yok).
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const auth = user ? await checkBeslenmeFoodAccess() : null;
+      if (alive) setFoodContributor(auth);
+    })();
     return () => {
       alive = false;
     };
@@ -1318,7 +1337,9 @@ export default function Home() {
     const expertModulesEmpty =
       !isAdminUser(user) &&
       !membershipExpired &&
-      !expertHasAnyGrantedModule(user);
+      !expertHasAnyGrantedModule(user) &&
+      // Dar besin-katkı bayrağı tek başına "Besinlerim" kartını gösterir → boş sayma.
+      foodContributor !== "expert";
 
     async function handleAdminNav() {
       if (adminNavLoading) return;
@@ -1691,6 +1712,30 @@ export default function Home() {
                       </div>
                     );
                   })}
+
+                  {/* Besinlerim — DAR besin-katkı bayrağı olan uzmana (server probe). Owner zaten
+                      tam Beslenme kartını görür; burada yalnız 'expert' için gösterilir. */}
+                  {foodContributor === "expert" ? (
+                    <Link href="/beslenme/besinlerim" data-besinlerim-card className="block text-inherit no-underline">
+                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
+                        <span className="text-3xl leading-none" aria-hidden>
+                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
+                        </span>
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">Besinlerim</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                          Kendi özel besinlerinizi ekleyin ve besin değerlerini tamamlayın
+                        </p>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
+                            Manuel Besin
+                          </span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
 
                   {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
                   <Link href="/settings" className="block text-inherit no-underline">

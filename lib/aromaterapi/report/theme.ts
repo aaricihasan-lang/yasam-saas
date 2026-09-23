@@ -55,6 +55,24 @@ export function classifyFrontMatter(count: number): FrontMatterMode {
 /** İstemci-verili seçili ID üst sınırı (mode=all bu sınıra TABİ DEĞİLDİR). */
 export const MAX_SELECTED_IDS = 500;
 
+/**
+ * mode=all / genel rapor için tenant-scoped kayıt üst sınırı (ARO-010).
+ * GÜVENLİK BANDI, kapasite garantisi DEĞİL: bu değerin altındaki bir raporun her zaman
+ * başarıyla üretileceği garanti edilmez; yalnızca aşırı-büyük "tümünü dışa aktar"
+ * isteklerini fail-closed reddetmek için konservatif bir eşiktir. Kesin platform tavanı
+ * (bellek/süre) ÖLÇÜLMEDİ; ölçüldüğünde bu değer güncellenmelidir.
+ */
+export const MAX_EXPORT_ALL_RECORDS = 500;
+
+/**
+ * Word/DOCX route'ları için maxDuration (saniye) — GÜVENLİK BANDI.
+ * NOT: Kesin platform süre tavanı ÖLÇÜLMEDİ; bu bir kapasite garantisi değil, konservatif
+ * bir üst sınırdır. Next.js route segment config `maxDuration` statik-analiz gerektirdiğinden
+ * her route bu değeri LİTERAL olarak (`export const maxDuration = 60;`) tekrar bildirir;
+ * burada tek-kaynak referans/dokümantasyon amaçlı tutulur.
+ */
+export const EXPORT_MAX_DURATION = 60;
+
 /** Export request gövde boyutu üst sınırı (byte). */
 export const MAX_EXPORT_BODY_BYTES = 256 * 1024;
 

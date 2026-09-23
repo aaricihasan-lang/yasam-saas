@@ -362,3 +362,302 @@ async function titleMap(
   }
   return map;
 }
+
+// ==================================================================
+// ARO-010 — Rapor TOPLU okuma (N+1 fan-out azaltma).
+//
+// getKnowledgeRecord ile AYNI veri/sıra/tenant sözleşmesini korur; yalnız tek-kayıt
+// başına ayrı sorgular yerine çoklu-id KÜME sorguları çalıştırıp parent→child
+// gruplamayı bellek içinde yapar. Tek-kayıt fonksiyonları (API detay route'ları
+// tarafından kullanılan) DEĞİŞTİRİLMEZ; bu yalnız EK bir okuma yoludur.
+// Her sorgu `.eq("tenant_id", tenantId)`; child'lar yalnız var olan (tenant'a ait)
+// claim id'lerine bağlanır → çapraz-tenant/çapraz-kayıt sızıntı yok. Herhangi bir
+// hata THROW eder → çağıran kontrollü {error}'a indirger (fail-closed korunur).
+// ==================================================================
+
+/** `.in(...)` küme boyutu — EXPORT_READ_CHUNK ile hizalı; oversized query/URL taşmasını önler. */
+const REPORT_IN_CHUNK = 500;
+/** Aralık sayfası — child `.in` okumalarında sessiz 1000-satır kesmesini önler (fail-closed). */
+const REPORT_READ_PAGE = 1000;
+
+type ClaimCore = Omit<
+  KnowledgeRecordDetail,
+  "preparation" | "routes" | "populations" | "sources" | "passages" | "relations"
+>;
+type OrderCol = { col: string; asc: boolean };
+
+function chunkIds<T>(arr: T[], size = REPORT_IN_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function groupBy<T extends Record<string, unknown>>(rows: T[], key: string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = r[key] as string;
+    const list = map.get(k);
+    if (list) list.push(r);
+    else map.set(k, [r]);
+  }
+  return map;
+}
+
+/**
+ * Parent-id kümesine göre TÜM child satırlarını (tenant-scoped, chunk'lı + sayfalı)
+ * çeker. Sayfa boyutu dolduğu sürece ilerler → sessiz kesme YOK. `order` her sorguya
+ * uygulanır; `id` tiebreak sayfalama tutarlılığını garanti eder (tanımlı asıl sıralama
+ * değişmez, yalnız eşitlik durumları determinize olur).
+ */
+async function fetchChildrenIn(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  cols: string,
+  parentCol: string,
+  parentIds: string[],
+  order: OrderCol[],
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (const ch of chunkIds(parentIds)) {
+    if (ch.length === 0) continue;
+    let from = 0;
+    for (;;) {
+      let q = db.from(table).select(cols).eq("tenant_id", tenantId).in(parentCol, ch);
+      for (const o of order) q = q.order(o.col, { ascending: o.asc });
+      const { data, error } = await q.range(from, from + REPORT_READ_PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      out.push(...rows);
+      if (rows.length < REPORT_READ_PAGE) break;
+      from += REPORT_READ_PAGE;
+    }
+  }
+  return out;
+}
+
+/** Chunk'lı id → tek metin kolonu haritası (titleMap'in çoklu-küme, sayfasız eşi). */
+async function titleMapMany(
+  db: SupabaseClient,
+  tenantId: string,
+  table: string,
+  column: string,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids.filter((x) => typeof x === "string" && UUID_RE.test(x))));
+  const map = new Map<string, string>();
+  for (const ch of chunkIds(unique)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(table).select(`id, ${column}`).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as Record<string, string>[]) map.set(r.id, r[column]);
+  }
+  return map;
+}
+
+/** claimId kümesine bağlı ilişkileri (a/b iki uçtan) toplar; dedup + (relation_type,id) sıralı gruplar. */
+async function relationsByClaim(
+  db: SupabaseClient,
+  tenantId: string,
+  claimIds: string[],
+): Promise<Map<string, KnowledgeRelationLink[]>> {
+  // claimIds DB'den gelen doğrulanmış UUID'lerdir → .or() içine güvenli interpolasyon.
+  const dedup = new Map<string, KnowledgeRelationLink>();
+  for (const ch of chunkIds(claimIds)) {
+    if (ch.length === 0) continue;
+    const list = ch.join(",");
+    let from = 0;
+    for (;;) {
+      const { data, error } = await db
+        .from(RELATIONS_TABLE)
+        .select("id, a_claim_id, b_claim_id, relation_type, explanation_tr")
+        .eq("tenant_id", tenantId)
+        .or(`a_claim_id.in.(${list}),b_claim_id.in.(${list})`)
+        .order("relation_type", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + REPORT_READ_PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as KnowledgeRelationLink[];
+      for (const r of rows) dedup.set(r.id, r);
+      if (rows.length < REPORT_READ_PAGE) break;
+      from += REPORT_READ_PAGE;
+    }
+  }
+  const sorted = Array.from(dedup.values()).sort((a, b) =>
+    a.relation_type < b.relation_type ? -1 : a.relation_type > b.relation_type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+  const map = new Map<string, KnowledgeRelationLink[]>();
+  const present = new Set(claimIds);
+  const push = (cid: string, r: KnowledgeRelationLink) => {
+    const l = map.get(cid);
+    if (l) l.push(r);
+    else map.set(cid, [r]);
+  };
+  for (const r of sorted) {
+    if (present.has(r.a_claim_id)) push(r.a_claim_id, r);
+    if (r.b_claim_id !== r.a_claim_id && present.has(r.b_claim_id)) push(r.b_claim_id, r);
+  }
+  return map;
+}
+
+/** preparation_id kümesi → PreparationListItem haritası (preparationListItem'in toplu eşi). */
+async function preparationListItemsByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  preparationIds: string[],
+): Promise<Map<string, PreparationListItem>> {
+  const unique = Array.from(new Set(preparationIds.filter((x) => typeof x === "string" && UUID_RE.test(x))));
+  const map = new Map<string, PreparationListItem>();
+  if (unique.length === 0) return map;
+
+  const rows: (Omit<PreparationListItem, "taxon_canonical_name">)[] = [];
+  for (const ch of chunkIds(unique)) {
+    const { data, error } = await db
+      .from(PREP_TABLE)
+      .select("id, taxon_id, preparation_type, plant_part, chemotype, status, updated_at")
+      .eq("tenant_id", tenantId)
+      .in("id", ch);
+    if (error) throw error;
+    rows.push(...((data ?? []) as unknown as Omit<PreparationListItem, "taxon_canonical_name">[]));
+  }
+  const names = await titleMapMany(db, tenantId, TAXA_TABLE, "canonical_name", rows.map((r) => r.taxon_id));
+  for (const r of rows) map.set(r.id, { ...r, taxon_canonical_name: names.get(r.taxon_id) ?? null });
+  return map;
+}
+
+/**
+ * TOPLU Bilgi Kaydı detayları — getKnowledgeRecord ile eşdeğer çıktı, `ids` sırasını
+ * korur ve bulunamayan (tenant dışı/silinmiş) id'leri atlar (mapBounded+filter davranışı).
+ */
+export async function getKnowledgeRecordsByIds(
+  db: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+): Promise<KnowledgeRecordDetail[]> {
+  if (ids.length === 0) return [];
+
+  // 1) Çekirdek claim satırları (küme, chunk'lı).
+  const coreById = new Map<string, ClaimCore>();
+  for (const ch of chunkIds(ids)) {
+    if (ch.length === 0) continue;
+    const { data, error } = await db.from(CLAIMS_TABLE).select(CLAIM_DETAIL_COLS).eq("tenant_id", tenantId).in("id", ch);
+    if (error) throw error;
+    for (const row of (data ?? []) as unknown as ClaimCore[]) coreById.set(row.id, row);
+  }
+  const presentIds = Array.from(coreById.keys());
+  if (presentIds.length === 0) return [];
+
+  // 2) Child kümeleri (parent = yalnız var olan claim id'leri) — her biri tek küme sorgusu.
+  const routesByClaim = groupBy(
+    await fetchChildrenIn(db, tenantId, ROUTES_TABLE, "id, claim_id, route_code", "claim_id", presentIds, [
+      { col: "route_code", asc: true },
+      { col: "id", asc: true },
+    ]),
+    "claim_id",
+  );
+  const popsByClaim = groupBy(
+    await fetchChildrenIn(
+      db,
+      tenantId,
+      POPULATIONS_TABLE,
+      "id, claim_id, population_code, age_min, age_max",
+      "claim_id",
+      presentIds,
+      [
+        { col: "population_code", asc: true },
+        { col: "id", asc: true },
+      ],
+    ),
+    "claim_id",
+  );
+  const claimSourceRows = await fetchChildrenIn(
+    db,
+    tenantId,
+    CLAIM_SOURCES_TABLE,
+    "id, claim_id, source_id, source_role, verification_status, locator_text, source_original_excerpt, faithful_translation",
+    "claim_id",
+    presentIds,
+    [
+      { col: "source_role", asc: true },
+      { col: "id", asc: true },
+    ],
+  );
+  const claimPassageRows = await fetchChildrenIn(
+    db,
+    tenantId,
+    CLAIM_PASSAGES_TABLE,
+    "id, claim_id, passage_id, passage_kind, evidence_relation, verification_status",
+    "claim_id",
+    presentIds,
+    [
+      { col: "evidence_relation", asc: true },
+      { col: "id", asc: true },
+    ],
+  );
+
+  // 3) Bağlı etiketler + preparat + ilişkiler (hepsi tek küme sorgusu).
+  const sourceTitles = await titleMapMany(db, tenantId, SOURCES_TABLE, "title", claimSourceRows.map((r) => r.source_id as string));
+  const passageLabels = await titleMapMany(db, tenantId, PASSAGES_TABLE, "locator_label", claimPassageRows.map((r) => r.passage_id as string));
+  const relByClaim = await relationsByClaim(db, tenantId, presentIds);
+  const prepMap = await preparationListItemsByIds(
+    db,
+    tenantId,
+    Array.from(coreById.values()).map((c) => c.preparation_id),
+  );
+
+  // Child satırlarını claim'e göre tipli link'lere indir (grup içi sıra korunur).
+  const sourcesByClaim = new Map<string, KnowledgeSourceLink[]>();
+  for (const r of claimSourceRows) {
+    const link: KnowledgeSourceLink = {
+      id: r.id as string,
+      source_id: r.source_id as string,
+      source_role: r.source_role as string,
+      verification_status: r.verification_status as string,
+      locator_text: (r.locator_text as string | null) ?? null,
+      source_original_excerpt: (r.source_original_excerpt as string | null) ?? null,
+      faithful_translation: (r.faithful_translation as string | null) ?? null,
+      source_title: sourceTitles.get(r.source_id as string) ?? null,
+    };
+    const cid = r.claim_id as string;
+    const l = sourcesByClaim.get(cid);
+    if (l) l.push(link);
+    else sourcesByClaim.set(cid, [link]);
+  }
+  const passagesByClaim = new Map<string, KnowledgePassageLink[]>();
+  for (const r of claimPassageRows) {
+    const link: KnowledgePassageLink = {
+      id: r.id as string,
+      passage_id: r.passage_id as string,
+      passage_kind: r.passage_kind as string,
+      evidence_relation: r.evidence_relation as string,
+      verification_status: r.verification_status as string,
+      passage_locator_label: passageLabels.get(r.passage_id as string) ?? null,
+    };
+    const cid = r.claim_id as string;
+    const l = passagesByClaim.get(cid);
+    if (l) l.push(link);
+    else passagesByClaim.set(cid, [link]);
+  }
+
+  // 4) `ids` sırasında birleştir (bulunamayan id → atla).
+  const out: KnowledgeRecordDetail[] = [];
+  for (const id of ids) {
+    const core = coreById.get(id);
+    if (!core) continue;
+    out.push({
+      ...core,
+      preparation: prepMap.get(core.preparation_id) ?? null,
+      routes: (routesByClaim.get(id) ?? []).map((r) => ({ id: r.id as string, route_code: r.route_code as string })),
+      populations: (popsByClaim.get(id) ?? []).map((r) => ({
+        id: r.id as string,
+        population_code: r.population_code as string,
+        age_min: (r.age_min as number | null) ?? null,
+        age_max: (r.age_max as number | null) ?? null,
+      })),
+      sources: sourcesByClaim.get(id) ?? [],
+      passages: passagesByClaim.get(id) ?? [],
+      relations: relByClaim.get(id) ?? [],
+    });
+  }
+  return out;
+}

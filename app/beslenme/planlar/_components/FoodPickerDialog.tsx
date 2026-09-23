@@ -4,15 +4,16 @@
  * Arama → listFoods; seçimde getFood ile porsiyon/nutrient; GRAM veya PORSİYON
  * miktarı; canlı toplam önizleme (sumNutrients). TR ondalık ("12,5") kabul edilir.
  */
-import { useMemo, useState, type ReactNode } from "react";
-import { Check, Loader2, Search } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Check, Loader2, Plus, Search } from "lucide-react";
+import { QuickAddFoodDialog } from "../../_components/QuickAddFoodDialog";
 import {
   getFood,
+  listFoods,
   type Food,
   type FoodNutrientView,
   type FoodPortionView,
 } from "@/lib/beslenme/beslenmeClient";
-import { useFoodPagination } from "@/lib/beslenme/foodPagination";
 import { sumNutrients } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { Field, GhostButton, PrimaryButton, StatusMessage, TextInput } from "../../_components/primitives";
@@ -47,6 +48,11 @@ export function FoodPickerDialog({
   title?: string;
 }) {
   const [q, setQ] = useState("");
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [results, setResults] = useState<Food[]>([]);
+  const [searching, setSearching] = useState(true);
+  const [listErr, setListErr] = useState("");
+
   const [selected, setSelected] = useState<Food | null>(null);
   const [nutrients, setNutrients] = useState<FoodNutrientView[]>([]);
   const [portions, setPortions] = useState<FoodPortionView[]>([]);
@@ -59,23 +65,26 @@ export function FoodPickerDialog({
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
 
-  // Arama + sayfalama. Yalnız liste modunda (besin seçili değilken) aktif.
-  const {
-    foods: results,
-    total,
-    loading: searching,
-    error: listHasError,
-    errorCode,
-    errorStatus,
-    loadingMore,
-    moreError,
-    moreErrorCode,
-    moreErrorStatus,
-    hasMore,
-    loadedCount,
-    loadMore,
-  } = useFoodPagination({ q, enabled: !selected });
-  const listErr = listHasError ? friendlyPlanError(errorCode, errorStatus) : "";
+  // Arama debounce. (Modal koşullu mount edildiği için "açılışta sıfırla" gerekmez.)
+  useEffect(() => {
+    if (selected) return;
+    const term = q.trim();
+    const t = setTimeout(() => {
+      void (async () => {
+        setSearching(true);
+        const r = await listFoods({ q: term || undefined });
+        setSearching(false);
+        if (r.ok && r.data) {
+          setResults(r.data.foods ?? []);
+          setListErr("");
+        } else {
+          setResults([]);
+          setListErr(friendlyPlanError(r.code, r.status));
+        }
+      })();
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, selected]);
 
   async function pickFood(food: Food) {
     setSelected(food);
@@ -130,6 +139,9 @@ export function FoodPickerDialog({
   }, [effectiveGrams, snapshot]);
 
   const previewEnergy = previewTotals.find((t) => t.nutrient_code === "energy")?.amount ?? 0;
+  // Enerji BİLİNMİYOR (snapshot'ta energy satırı yok) + katkı verecekse: eksik-veri işareti.
+  const previewMissing =
+    effectiveGrams != null && effectiveGrams > 0 && !snapshot.some((n) => n.nutrient_code === "energy") ? 1 : 0;
 
   async function confirm() {
     setErr("");
@@ -165,24 +177,21 @@ export function FoodPickerDialog({
     >
       {!selected ? (
         <div className="flex flex-col gap-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-            <TextInput
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Besin ara…"
-              className="pl-9"
-              autoFocus
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+              <TextInput
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Besin ara…"
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+            <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>Besin Ekle</GhostButton>
           </div>
 
           {listErr ? <StatusMessage type="error">{listErr}</StatusMessage> : null}
-
-          {!searching && !listErr && total > 0 ? (
-            <p className="px-1 text-[11px] font-bold text-slate-400">
-              {loadedCount < total ? `${loadedCount} / ${total} besin` : `${total} besin`}
-            </p>
-          ) : null}
 
           <div className="max-h-[52vh] overflow-y-auto rounded-xl border border-slate-100">
             {searching ? (
@@ -190,65 +199,44 @@ export function FoodPickerDialog({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Aranıyor…
               </div>
             ) : results.length === 0 ? (
-              <div className="py-8 text-center text-[13px] font-bold text-slate-400">
-                {q.trim() ? "Sonuç bulunamadı." : "Besin bulunamadı."}
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <span className="text-[13px] font-bold text-slate-400">
+                  {q.trim() ? "Aradığınız besin bulunamadı." : "Besin aramaya başlayın."}
+                </span>
+                {q.trim() ? (
+                  <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
+                    Yeni besin ekleyin
+                  </PrimaryButton>
+                ) : null}
               </div>
             ) : (
-              <>
-                <ul className="flex flex-col">
-                  {results.map((f) => (
-                    <li key={f.id}>
-                      <button
-                        type="button"
-                        onClick={() => void pickFood(f)}
-                        className="flex w-full items-center justify-between gap-2 border-b border-slate-50 px-3 py-2.5 text-left transition last:border-0 hover:bg-emerald-50/60"
+              <ul className="flex flex-col">
+                {results.map((f) => (
+                  <li key={f.id}>
+                    <button
+                      type="button"
+                      onClick={() => void pickFood(f)}
+                      className="flex w-full items-center justify-between gap-2 border-b border-slate-50 px-3 py-2.5 text-left transition last:border-0 hover:bg-emerald-50/60"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
+                        {f.name_en ? (
+                          <span className="block truncate text-[11px] font-medium text-slate-400">{f.name_en}</span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          f.is_system
+                            ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100"
+                            : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                        }`}
                       >
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
-                          {f.name_en ? (
-                            <span className="block truncate text-[11px] font-medium text-slate-400">{f.name_en}</span>
-                          ) : null}
-                        </span>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            f.is_system
-                              ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100"
-                              : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                          }`}
-                        >
-                          {f.is_system ? "Sistem" : "Özel"}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {loadingMore ? (
-                  <div className="flex items-center justify-center gap-2 py-3 text-[12px] font-bold text-slate-400">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Daha fazla yükleniyor…
-                  </div>
-                ) : moreError ? (
-                  <div className="p-3">
-                    <StatusMessage type="error">{friendlyPlanError(moreErrorCode, moreErrorStatus)}</StatusMessage>
-                    <button
-                      type="button"
-                      onClick={() => loadMore()}
-                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                    >
-                      Tekrar Dene
+                        {f.is_system ? "Sistem" : "Özel"}
+                      </span>
                     </button>
-                  </div>
-                ) : hasMore ? (
-                  <div className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => loadMore()}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-700"
-                    >
-                      Daha fazla yükle
-                    </button>
-                  </div>
-                ) : null}
-              </>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -346,7 +334,7 @@ export function FoodPickerDialog({
                   </span>
                 </div>
                 <div className="mt-1.5">
-                  <EnergyTargetLine energyRaw={previewEnergy} target={null} className="text-lg" />
+                  <EnergyTargetLine energyRaw={previewEnergy} target={null} missingCount={previewMissing} className="text-lg" />
                 </div>
                 <div className="mt-2">
                   <MacroChips totals={previewTotals} />
@@ -365,6 +353,17 @@ export function FoodPickerDialog({
           )}
         </div>
       )}
+      {quickAdd ? (
+        <QuickAddFoodDialog
+          open={quickAdd}
+          initialName={q.trim()}
+          onClose={() => setQuickAdd(false)}
+          onCreated={(food) => {
+            setQuickAdd(false);
+            void pickFood(food);
+          }}
+        />
+      ) : null}
     </Modal>
   );
 }

@@ -141,6 +141,41 @@ export function energyOf(totals: NutrientTotal[]): number {
   return totals.find((t) => t.nutrient_code === "energy")?.amount ?? 0;
 }
 
+/**
+ * Enerji KAPSAMI — "bilinen toplam" ile "bilinmeyen (girilmemiş) kalori" ayrımı.
+ *
+ * KRİTİK ayrım (§3): bir item'ın enerji snapshot SATIRI VARSA enerji BİLİNİYOR
+ * (amount=0 dahi olsa = "gerçekten sıfır"); enerji satırı YOKSA enerji BİLİNMİYOR
+ * ("girilmemiş") — bu item'ı 0 kcal saymak YANLIŞTIR. Bilgi zaten snapshot'ta
+ * mevcuttur (kod bazlı varlık); ŞEMA/migration GEREKMEZ. Geçmiş planlar da
+ * dokunulmadan doğru yorumlanır (yeniden hesap YOK).
+ *
+ *   known        = enerjisi BİLİNEN item'ların ham kcal toplamı (amount=0 dahil)
+ *   missingCount = enerjisi BİLİNMEYEN + katkı-veren (grams>0) item sayısı
+ *
+ * missingCount>0 ise `known` bir ALT SINIRDIR: "≥ known" olarak sunulmalı,
+ * eksiksiz toplam gibi ("known kcal") gösterilMEmeli.
+ */
+export type EnergyCoverage = { known: number; missingCount: number };
+
+export function energyCoverage(
+  items: Array<{ grams: number; nutrients: ItemNutrientSnapshot[] }>,
+): EnergyCoverage {
+  let known = 0;
+  let missingCount = 0;
+  for (const it of items) {
+    const row = it.nutrients.find((n) => n.nutrient_code === "energy");
+    if (row) {
+      // Enerji BİLİNİYOR (amount=0 = gerçek sıfır) → ham katkıyı ekle.
+      known += itemNutrientContribution(it.grams, row.amount);
+    } else if (Number.isFinite(it.grams) && it.grams > 0) {
+      // Enerji satırı YOK + katkı verecek (grams>0) → toplam EKSİK.
+      missingCount += 1;
+    }
+  }
+  return { known, missingCount };
+}
+
 /** Günün geçerli enerji hedefi: gün override ?? plan default (§16). */
 export function effectiveDailyTarget(
   dayOverride: number | null | undefined,

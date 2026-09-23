@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields } from "@/lib/dogaltas/validation";
@@ -211,5 +212,14 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { data, error } = await db.from("stones").insert(payload).select("id").single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  const newId = (data as { id: string }).id;
+  // İP-2C: başarılı taş kaydı oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
+  await recordUsageEvent(db, {
+    tenantId,
+    userId: guard.userId,
+    moduleKey: "stones",
+    eventType: "record_created",
+    idempotencyKey: buildUsageIdempotencyKey("stones", "record_created", newId),
+  });
+  return NextResponse.json({ ok: true, id: newId });
 }

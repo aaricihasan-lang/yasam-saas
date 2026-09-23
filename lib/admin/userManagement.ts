@@ -90,6 +90,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   "belge_ceviri",
   "ders_notu",
   "digital_content",
+  // DAR yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
+  // ekleyip düzenleyebilir. Beslenme modülünün tamamı owner-only kalır. Bayrak burada
+  // olduğu için toggle render edilir + wholesale write'ta korunur (bkz. route.ts overwrite).
+  "beslenme_manual_food",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -111,10 +115,13 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
+  beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
   digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
+  beslenme_manual_food:
+    "Uzman kendi özel besinlerini ekleyebilir ve düzenleyebilir. (Beslenme modülünün tamamını açmaz.)",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -132,6 +139,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   belge_ceviri: false,
   ders_notu: false,
   digital_content: false,
+  beslenme_manual_food: false,
 };
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
@@ -489,6 +497,41 @@ export function adminPermissionsToPayload(
   perms: AdminModulePermissions,
 ): Record<string, boolean> {
   return { ...perms };
+}
+
+/**
+ * Admin "Modül İzinleri" UI'sının YÖNETTİĞİ anahtar kümesi: registry canonical anahtarlar
+ * + bunların Türkçe alias'ları. Bu kümenin DIŞINDaki mevcut izinler kaydederken KORUNUR.
+ */
+const UI_MANAGED_PERMISSION_KEYS: ReadonlySet<string> = new Set<string>([
+  ...ADMIN_MODULE_UI_KEYS,
+  ...Object.keys(ADMIN_MODULE_TR_ALIAS_TO_UI),
+]);
+
+/**
+ * Admin modül-izin kaydı için GÜVENLİ birleştirme (wholesale-overwrite DEĞİL).
+ *
+ * UI yalnız `ADMIN_MODULE_UI_KEYS`'i (+ alias'larını) yönetir. Kaydederken UI'nın
+ * YÖNETMEDİĞİ mevcut izinler — human_design, cosmic_calendar, yasam_hafizasi ve
+ * gelecekteki yetenek bayrakları — KORUNMALIDIR; aksi halde tek bir modül toggle'ı kaydı
+ * bu izinleri sessizce REVOKE eder (kullanıcı yetkisi/veri bütünlüğü kaybı). UI'nın bildiği
+ * alias'lar (danisan_yonetimi vb.) canonical anahtara göç ettiği için DÜŞÜRÜLÜR (mevcut
+ * davranış korunur). Sonuç düz boolean map'tir (kolon temiz kalır).
+ *
+ * @param oldPerms DB'deki mevcut module_permissions (JSONB, güvenilmez tipli)
+ * @param uiPayload adminPermissionsToPayload(...) — TÜM registry anahtarları (boolean)
+ */
+export function mergeAdminModulePermissions(
+  oldPerms: unknown,
+  uiPayload: Record<string, boolean>,
+): Record<string, boolean> {
+  const merged: Record<string, boolean> = { ...uiPayload };
+  if (oldPerms && typeof oldPerms === "object") {
+    for (const [k, v] of Object.entries(oldPerms as Record<string, unknown>)) {
+      if (!UI_MANAGED_PERMISSION_KEYS.has(k)) merged[k] = v === true;
+    }
+  }
+  return merged;
 }
 
 export function formatCreatedAt(iso?: string): string {

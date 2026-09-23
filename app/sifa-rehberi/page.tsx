@@ -34,7 +34,13 @@ import {
   type EditableSection,
 } from "@/components/sifa-rehberi/SectionEditor";
 import { editorSignature } from "@/lib/sifa-rehberi/sectionEditorModel";
-import { MODALITIES, modalityById, normalizeModeKey, sectionHasAnyLayer } from "@/lib/sifa-rehberi/sectionModel";
+import { sectionHasAnyLayer } from "@/lib/sifa-rehberi/sectionModel";
+import {
+  TOPIC_GROUPS,
+  TOPICS,
+  topicById,
+  resolveTopicId,
+} from "@/lib/sifa-rehberi/topicTree";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -69,102 +75,20 @@ const emptyForm: GuideForm = {
 };
 
 /**
- * FAZ 2 — Yeni kayıt ekranındaki HER ZAMAN GÖRÜNÜR 7 ana bölüm. Detay ekranının
- * kanonik section modeliyle (section_type / mode) tutarlı; görünen etiket ≠ kanonik değer.
- * "rahatsizlik" özeldir (ad/kategori/görsel; section YOK). Diğer 6 alan, createSections'ı
- * `matches` ile FİLTRELER; `defaultMode` o alanda "+ Yeni Bölüm"in ön-seçili modalitesidir.
- * matches predikatları TÜM section_type'ları TAM ve ÖRTÜŞMESİZ kapsar (her section tam 1 alan).
+ * PREMIUM UX V2 — Sol navigasyon TEK KANONİK KONU AĞACINDAN gelir (topicTree).
+ * "rahatsizlik" özel düğümdür (ad/kategori/görsel; section YOK). Diğer düğümler
+ * doğrudan ALT KONULARDIR (tibbi, bilinçaltı, iridoloji, hacamat, aromaterapi…).
+ * Bir alt konu seçmek KONU SEÇİMİDİR; tür-değiştirme DEĞİLDİR → "yeni not" ile karışmaz.
+ * Aktif konunun notları createSections'tan resolveTopicId ile FİLTRELENİR (her not tam 1 konu).
  */
-type CreateTabId =
-  | "rahatsizlik"
-  | "belirtiler"
-  | "uygulamalar"
-  | "dogaltas"
-  | "aromaterapi"
-  | "islami"
-  | "destekleyici";
+const RAHATSIZLIK_NODE = "rahatsizlik";
 
-type CreateTab = {
-  id: CreateTabId;
-  label: string;
-  icon: string;
-  desc: string;
-  matches?: (s: EditableSection) => boolean;
-  defaultMode?: string;
-};
-
-const CREATE_TABS: CreateTab[] = [
-  { id: "rahatsizlik", label: "Rahatsızlık", icon: "📋", desc: "Ad, kategori ve görseller." },
-  {
-    id: "belirtiler",
-    label: "Belirtiler / Sebepler",
-    icon: "🔍",
-    desc: "Tıbbi, bilinçaltı, mizaç ve diğer nedenler.",
-    matches: (s) => s.section_type === "reasons",
-    defaultMode: "tibbi",
-  },
-  {
-    id: "uygulamalar",
-    label: "Uygulamalar / Yöntemler",
-    icon: "🙌",
-    desc: "Hacamat, refleksoloji, diyet, bitkisel ve diğer yöntemler.",
-    matches: (s) => s.section_type === "applications" || s.section_type === "herbal",
-    defaultMode: "uygulama",
-  },
-  {
-    id: "dogaltas",
-    label: "Doğaltaş & Mineral",
-    icon: "💎",
-    desc: "Taş ve mineral önerileri.",
-    matches: (s) => s.section_type === "stones_details",
-    defaultMode: "stones_details",
-  },
-  {
-    id: "aromaterapi",
-    label: "Aromaterapi",
-    icon: "🌸",
-    desc: "Aromaterapi notları ve önerileri.",
-    matches: (s) => s.section_type === "supportive" && normalizeModeKey(s.mode) === "aromaterapi",
-    defaultMode: "aromaterapi",
-  },
-  {
-    id: "islami",
-    label: "İslami Öneriler",
-    icon: "🕌",
-    desc: "Dua, sure, niyet ve manevi destek.",
-    matches: (s) => s.section_type === "islamic_suggestions",
-    defaultMode: "islamic_suggestions",
-  },
-  {
-    id: "destekleyici",
-    label: "Destekleyici",
-    icon: "✨",
-    desc: "Meditasyon, nefes, biyoenerji, masaj, rutin ve destekleyici uygulamalar.",
-    matches: (s) => s.section_type === "supportive" && normalizeModeKey(s.mode) !== "aromaterapi",
-    defaultMode: "destekleyici",
-  },
-];
-
-const CREATE_CONTENT_TABS = CREATE_TABS.filter((t) => t.matches);
-
-/** Aktif alanın "+ Yeni Bölüm" fabrikası — o alanın modalitesini ön-seçer. */
-function makeSectionForTab(tab: CreateTab): EditableSection {
+/** Seçili alt konu için "+ Yeni Not" fabrikası — o konunun section_type+mode'unu sabitler. */
+function makeSectionForTopic(topicId: string): EditableSection {
   const base = emptyEditableSection();
-  const m = tab.defaultMode ? modalityById(tab.defaultMode) : null;
-  if (!m) return base;
-  return { ...base, section_type: m.section_type, mode: m.id };
-}
-
-/**
- * Bir ana bölümün izinli içerik-türü (modalite) id'leri — `matches` predikatı
- * kanonik MODALITIES üzerine uygulanır. Böylece seçici YALNIZ o bölümün türlerini
- * gösterir; tek eleman → SectionEditor seçiciyi gizler, tür otomatik.
- */
-function createTabModalityIds(tab: CreateTab): string[] {
-  if (!tab.matches) return [];
-  return MODALITIES.filter((m) =>
-    tab.matches!({ section_type: m.section_type, mode: m.id } as EditableSection),
-  ).map((m) => m.id);
+  const t = topicById(topicId);
+  if (!t) return base;
+  return { ...base, section_type: t.section_type, mode: t.mode };
 }
 
 function trimOrNull(value: string) {
@@ -445,8 +369,10 @@ function SifaRehberiContent() {
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   // FAZ 3: create içeriği artık section-native (edit ile ortak SectionEditor).
   const [createSections, setCreateSections] = useState<EditableSection[]>([]);
-  // FAZ 2: yeni-kayıt aktif bölümü (7 alan). Yalnız arayüz; sayfa değişimi DEĞİL.
-  const [createTab, setCreateTab] = useState<CreateTabId>("rahatsizlik");
+  // PREMIUM UX V2: yeni-kayıt aktif KONUSU (rahatsizlik veya bir alt konu id'si).
+  const [createTopic, setCreateTopic] = useState<string>(RAHATSIZLIK_NODE);
+  // Per-not fotoğraf önizleme URL'leri (imageId → signed/preview). Konu değişse de korunur.
+  const [createImageUrls, setCreateImageUrls] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [formImages, setFormImages] = useState<GuideImage[]>([]);
   // P1 PHASE A: yeni-kayıt önizlemesi — kısa ömürlü signed URL (imageId → signedUrl).
@@ -817,7 +743,8 @@ function SifaRehberiContent() {
     setFormSignedUrls({});
     setForm(() => ({ ...emptyForm }));
     setCreateSections([]);
-    setCreateTab("rahatsizlik");
+    setCreateTopic(RAHATSIZLIK_NODE);
+    setCreateImageUrls({});
     // Yeni/temiz form → sonraki kayıt TAZE idempotency anahtarı alsın (bilinçli
     // yeni kayıt & aynı-isimli farklı kayıt engellenmez).
     createRequestIdRef.current = null;
@@ -910,31 +837,41 @@ function SifaRehberiContent() {
     "Bu kayıttaki değişiklikler kaydedilmedi. Sayfadan ayrılırsanız girdiğiniz içerik kaybolur. Yine de ayrılmak istiyor musunuz?",
   );
 
-  // Aktif alandaki section'lar (create). "rahatsizlik" alanı section tutmaz.
-  const activeCreateTab = CREATE_TABS.find((t) => t.id === createTab) ?? CREATE_TABS[0];
-  const sectionsInCreateTab = activeCreateTab.matches
-    ? createSections.filter(activeCreateTab.matches)
+  // Aktif konu (create). "rahatsizlik" düğümü section tutmaz (null).
+  const activeTopic = createTopic === RAHATSIZLIK_NODE ? null : topicById(createTopic);
+  const sectionsInTopic = activeTopic
+    ? createSections.filter((s) => resolveTopicId(s) === activeTopic.id)
     : [];
 
-  // Alan-kapsamlı SectionEditor değişikliğini global listeye BİRLEŞTİR (alan sırasına göre,
-  // kayıpsız + deterministik). Her section tam 1 alana ait olduğundan çift sayım olmaz.
-  function setSectionsForTab(tab: CreateTab, nextSubset: EditableSection[]) {
+  // Konu-kapsamlı düzenlemeyi global listeye KAYIPSIZ birleştir (ağaç sırasına göre).
+  // Her not tam 1 konuya ait olduğundan (resolveTopicId total) çift sayım/kayıp olmaz.
+  function setSectionsForTopic(topicId: string, nextSubset: EditableSection[]) {
     setCreateSections((all) => {
       const rebuilt: EditableSection[] = [];
-      for (const t of CREATE_CONTENT_TABS) {
-        if (t.id === tab.id) rebuilt.push(...nextSubset);
-        else rebuilt.push(...all.filter((s) => t.matches!(s)));
+      for (const t of TOPICS) {
+        if (t.id === topicId) rebuilt.push(...nextSubset);
+        else rebuilt.push(...all.filter((s) => resolveTopicId(s) === t.id));
       }
       return rebuilt;
     });
   }
 
-  // Alan doluluk göstergesi — GERÇEK form verisinden türetilir (yanlış "tamamlandı" YOK):
-  // yalnız yazdırılabilir katmanı olan (note/source/expert_note/attention…) section'lar sayılır.
-  function createTabFilledCount(tab: CreateTab): number {
-    if (!tab.matches) return 0;
-    return createSections.filter((s) => tab.matches!(s) && sectionHasAnyLayer(s)).length;
+  // Bir konudaki dolu (yazdırılabilir katmanı olan) not sayısı — nav rozetleri için.
+  function topicFilledCount(topicId: string): number {
+    return createSections.filter((s) => resolveTopicId(s) === topicId && sectionHasAnyLayer(s)).length;
   }
+
+  // Per-not fotoğraf (create): guide henüz yok → staging path (sunucu-yetkili signed upload).
+  const uploadCreateNoteImage = useCallback(async (file: File) => {
+    const prep = await uploadSifaPhoto({ file });
+    setCreateImageUrls((prev) => ({ ...prev, [prep.id]: prep.previewUrl }));
+    return { id: prep.id, name: prep.name, file_path: prep.file_path, previewUrl: prep.previewUrl };
+  }, []);
+  const removeCreateNoteImage = useCallback(async (img: { file_path?: string }) => {
+    if (img.file_path) {
+      try { await cleanupSifaPhoto(img.file_path); } catch { /* orphan cleanup best-effort */ }
+    }
+  }, []);
 
   const newViewFieldInput =
     "h-10 w-full rounded-xl border border-emerald-100/90 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
@@ -1024,42 +961,76 @@ function SifaRehberiContent() {
               onChange={handleGuideImageFileChange}
             />
 
-            {/* SOL — her zaman görünür 7 bölüm navigasyonu (mobilde yatay seçici) */}
-            <aside className="shrink-0 overflow-x-auto rounded-2xl border border-emerald-100/80 bg-white/85 p-3 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:h-full lg:min-h-0 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[28px] lg:p-4 lg:shadow-xl">
-              <p className="mb-2 hidden text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 lg:mb-3 lg:block">Bölümler</p>
-              <div className="flex gap-2 lg:flex-col lg:gap-2">
-                {CREATE_TABS.map((tab) => {
-                  const active = createTab === tab.id;
-                  const filled = tab.id === "rahatsizlik"
-                    ? (form.name.trim() ? 1 : 0)
-                    : createTabFilledCount(tab);
+            {/* SOL — TEK KANONİK KONU AĞACI: Rahatsızlık + gruplar → alt konular doğrudan seçilir. */}
+            <aside className="shrink-0 overscroll-contain rounded-2xl border border-emerald-100/80 bg-white/85 p-3 shadow-sm max-lg:max-h-[40vh] max-lg:overflow-y-auto lg:h-full lg:min-h-0 lg:overflow-y-auto lg:rounded-[28px] lg:p-4 lg:shadow-xl [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.55)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-emerald-300/70">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 lg:mb-3">Konular</p>
+              <nav className="space-y-2.5">
+                {TOPIC_GROUPS.map((group) => {
+                  const single = group.kind !== "rahatsizlik" && group.topics.length === 1;
+                  // Rahatsızlık düğümü + tek-konulu gruplar (Doğaltaş/Aromaterapi/İslami): doğrudan seçilir.
+                  if (group.kind === "rahatsizlik" || single) {
+                    const targetId = group.kind === "rahatsizlik" ? RAHATSIZLIK_NODE : group.topics[0].id;
+                    const active = createTopic === targetId;
+                    const filled = group.kind === "rahatsizlik"
+                      ? (form.name.trim() ? 1 : 0)
+                      : topicFilledCount(targetId);
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => setCreateTopic(targetId)}
+                        aria-current={active ? "true" : undefined}
+                        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-black transition lg:min-h-[44px] ${
+                          active
+                            ? "bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-[0_10px_28px_rgba(16,185,129,0.38)] ring-1 ring-emerald-300/50"
+                            : "border border-emerald-100/80 bg-white/70 text-slate-800 hover:bg-emerald-50/80"
+                        }`}
+                      >
+                        <span className="text-base leading-none">{group.icon}</span>
+                        <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                        {filled > 0 ? (
+                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? "bg-white/25 text-white" : "bg-emerald-100 text-emerald-800"}`}>
+                            {group.kind === "rahatsizlik" ? "✓" : filled}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  }
+                  // Çok-konulu gruplar: başlık + alt konular (doğrudan seçilebilir).
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setCreateTab(tab.id)}
-                      aria-current={active ? "true" : undefined}
-                      className={`flex shrink-0 items-center gap-2 rounded-xl px-3 text-left text-[12px] font-bold whitespace-nowrap transition lg:w-full lg:whitespace-normal lg:text-[13px] ${
-                        active
-                          ? "bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-[0_10px_28px_rgba(16,185,129,0.38)] ring-1 ring-emerald-300/50 h-10 lg:min-h-[44px] lg:h-auto lg:py-2"
-                          : "border border-emerald-100/80 bg-white/70 text-slate-700 hover:bg-emerald-50/80 h-10 lg:min-h-[44px] lg:h-auto lg:py-2"
-                      }`}
-                    >
-                      <span className="text-base leading-none">{tab.icon}</span>
-                      <span className="min-w-0 flex-1 truncate lg:whitespace-normal">{tab.label}</span>
-                      {filled > 0 ? (
-                        <span
-                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                            active ? "bg-white/25 text-white" : "bg-emerald-100 text-emerald-800"
-                          }`}
-                        >
-                          {tab.id === "rahatsizlik" ? "✓" : filled}
-                        </span>
-                      ) : null}
-                    </button>
+                    <div key={group.id}>
+                      <p className="flex items-center gap-1.5 px-1 pb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                        <span aria-hidden>{group.icon}</span> {group.label}
+                      </p>
+                      <div className="space-y-1">
+                        {group.topics.map((topic) => {
+                          const active = createTopic === topic.id;
+                          const filled = topicFilledCount(topic.id);
+                          return (
+                            <button
+                              key={topic.id}
+                              type="button"
+                              onClick={() => setCreateTopic(topic.id)}
+                              aria-current={active ? "true" : undefined}
+                              className={`flex w-full items-center gap-2 rounded-lg py-1.5 pl-4 pr-2 text-left text-[12.5px] font-semibold transition lg:min-h-[40px] ${
+                                active
+                                  ? "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-300/50"
+                                  : "border border-transparent text-slate-700 hover:bg-emerald-50/80"
+                              }`}
+                            >
+                              <span className="text-sm leading-none">{topic.icon}</span>
+                              <span className="min-w-0 flex-1 truncate">{topic.label}</span>
+                              {filled > 0 ? (
+                                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? "bg-white/25 text-white" : "bg-emerald-100 text-emerald-800"}`}>{filled}</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
-              </div>
+              </nav>
             </aside>
 
             {/* SAĞ — aktif bölümün içerik editörü */}
@@ -1068,13 +1039,17 @@ function SifaRehberiContent() {
                 <div className="space-y-4 pb-4">
                   <header className="border-b border-emerald-100/80 pb-4">
                     <h3 className="flex items-center gap-2 text-lg font-black tracking-tight text-slate-950">
-                      <span aria-hidden>{activeCreateTab.icon}</span>
-                      {activeCreateTab.label}
+                      <span aria-hidden>{activeTopic ? activeTopic.icon : "📋"}</span>
+                      {activeTopic ? activeTopic.label : "Rahatsızlık"}
                     </h3>
-                    <p className="mt-1 text-[12px] font-medium text-slate-500">{activeCreateTab.desc}</p>
+                    <p className="mt-1 text-[12px] font-medium text-slate-500">
+                      {activeTopic
+                        ? "Bu konuya bağımsız notlar ekleyin. Her not kendi kaynağını, uzman notunu ve fotoğraflarını taşır."
+                        : "Rahatsızlık adı, kategori ve kayıt düzeyi görseller."}
+                    </p>
                   </header>
 
-                  {createTab === "rahatsizlik" ? (
+                  {createTopic === RAHATSIZLIK_NODE ? (
                     <>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                         <section className={newViewMiniCard}>
@@ -1112,11 +1087,16 @@ function SifaRehberiContent() {
                     </>
                   ) : (
                     <SectionEditor
-                      value={sectionsInCreateTab}
-                      onChange={(next) => setSectionsForTab(activeCreateTab, next)}
+                      key={activeTopic?.id ?? "topic"}
+                      value={sectionsInTopic}
+                      onChange={(next) => activeTopic && setSectionsForTopic(activeTopic.id, next)}
                       disabled={saving}
-                      makeNewSection={() => makeSectionForTab(activeCreateTab)}
-                      allowedModalityIds={createTabModalityIds(activeCreateTab)}
+                      makeNewSection={() => makeSectionForTopic(createTopic)}
+                      allowedModalityIds={activeTopic ? [activeTopic.mode] : undefined}
+                      title={activeTopic?.label}
+                      onUploadImage={uploadCreateNoteImage}
+                      onRemoveImage={removeCreateNoteImage}
+                      imageUrls={createImageUrls}
                     />
                   )}
                 </div>

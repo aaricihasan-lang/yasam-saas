@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
-import { adminPermissionsToPayload } from "@/lib/admin/userManagement";
+import { adminPermissionsToPayload, mergeAdminModulePermissions } from "@/lib/admin/userManagement";
 import {
   guardAdminLockoutById,
   requireMainAdmin,
@@ -259,13 +259,14 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
 
     const oldPerms = ((currentRow as { module_permissions?: unknown }).module_permissions ?? {}) as Record<string, unknown>;
-    const newPayload = adminPermissionsToPayload(body.modulePermissions as never) as Record<string, boolean>;
+    const uiPayload = adminPermissionsToPayload(body.modulePermissions as never) as Record<string, boolean>;
 
-    // yasam_hafizasi admin modül-UI anahtarları arasında DEĞİLDİR (ADMIN_MODULE_UI_KEYS) → bu
-    // wholesale write onu düşürürdü (yanlışlıkla REVOKE). MEVCUT değerini KORU: bu route YH iznini
-    // ne verir ne alır (grant yalnız atomik premium-grade sözleşmesinden: yh_grade_expert_premium)
-    // → PARTIAL üretmez.
-    newPayload.yasam_hafizasi = oldPerms.yasam_hafizasi === true;
+    // GÜVENLİ birleştirme (wholesale-overwrite DEĞİL): UI yalnız ADMIN_MODULE_UI_KEYS'i yönetir;
+    // UI'nın yönetmediği mevcut izinler (human_design, cosmic_calendar, yasam_hafizasi ve
+    // gelecekteki yetenek bayrakları) KORUNUR → tek bir modül toggle kaydı bunları sessizce
+    // REVOKE etmez. (yasam_hafizasi grant'ı yalnız atomik yh_grade_expert_premium sözleşmesinden;
+    // bu route onu ne verir ne alır — yalnız korur.)
+    const newPayload = mergeAdminModulePermissions(oldPerms, uiPayload);
 
     const enabledKeys: string[] = [];
     const disabledKeys: string[] = [];

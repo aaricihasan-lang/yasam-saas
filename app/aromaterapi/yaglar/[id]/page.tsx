@@ -72,7 +72,7 @@ const DETAIL_TABS: DetailTab[] = [
 
 const FIELD_META: Record<
   string,
-  { label: string; multiline?: boolean; isOilType?: boolean; isTags?: boolean; isBooleanToggle?: boolean; isImageList?: boolean }
+  { label: string; multiline?: boolean; isOilType?: boolean; isTags?: boolean; isPhotoStatus?: boolean; isImageList?: boolean }
 > = {
   name:              { label: "Yağ Adı" },
   latin_name:        { label: "Latince Adı" },
@@ -87,7 +87,7 @@ const FIELD_META: Record<
   aroma_note:        { label: "Koku Notası" },
   color:             { label: "Renk" },
   consistency:       { label: "Kıvam / Yoğunluk" },
-  is_photosensitive: { label: "Fotosensitif", isBooleanToggle: true },
+  is_photosensitive: { label: "Fotosensitiflik / Fototoksisite", isPhotoStatus: true },
   main_components:            { label: "Ana Kimyasal Bileşenler", multiline: true },
   therapeutic_properties_raw: { label: "Terapötik Özellikler", multiline: true, isTags: true },
   emotional_benefits: { label: "Duygusal Etkiler", multiline: true },
@@ -134,7 +134,9 @@ const FULL_WIDTH_FIELDS = new Set([
 function isOilFieldEmpty(fieldKey: keyof OilFormData, draft: OilFormData): boolean {
   const meta = FIELD_META[fieldKey as string];
   if (!meta) return true;
-  if (meta.isBooleanToggle) return !draft.is_photosensitive;
+  // Fotosensitiflik (ARO-004): 'yes'/'no'/'unknown' hepsi güvenlik şeffaflığı için
+  // DAİMA gösterilir — 'unknown' eksik-veri uyarısı olarak okunmalı, boş sayılmamalı.
+  if (meta.isPhotoStatus) return false;
   const rawValue = draft[fieldKey as keyof OilFormData];
   const value = typeof rawValue === "string" ? rawValue : "";
   if (meta.isImageList) return parseImageUrls(value).length === 0;
@@ -385,7 +387,8 @@ export default function OilDetailPage() {
       extraction_method: t(draft.extraction_method), plant_part: t(draft.plant_part),
       origin: t(draft.origin), shelf_life: t(draft.shelf_life),
       aroma_profile: t(draft.aroma_profile), aroma_note: t(draft.aroma_note),
-      color: t(draft.color), consistency: t(draft.consistency), is_photosensitive: draft.is_photosensitive,
+      color: t(draft.color), consistency: t(draft.consistency),
+      photosensitivity_status: draft.photosensitivity_status, // server is_photosensitive'i senkronlar (ARO-004)
       main_components: t(draft.main_components), therapeutic_properties: parseTagsInput(draft.therapeutic_properties_raw),
       emotional_benefits: t(draft.emotional_benefits), spiritual_benefits: t(draft.spiritual_benefits),
       physical_benefits: t(draft.physical_benefits), skin_benefits: t(draft.skin_benefits), benefits: t(draft.benefits),
@@ -665,17 +668,36 @@ export default function OilDetailPage() {
                   const cardCls     = "rounded-lg border border-slate-100 bg-white p-3.5";
                   const labelCls    = "mb-2 block text-[10px] font-black uppercase tracking-[0.13em] text-amber-600";
 
-                  if (meta.isBooleanToggle) {
-                    const boolVal = draft.is_photosensitive;
+                  if (meta.isPhotoStatus) {
+                    const cur = draft.photosensitivity_status;
+                    const opts = [
+                      { v: "yes",     icon: "☀️", label: "Evet — Fotosensitif / fototoksik" },
+                      { v: "no",      icon: "○",  label: "Hayır — Değil" },
+                      { v: "unknown", icon: "?",  label: "Bilinmiyor" },
+                    ] as const;
                     return (
                       <div key={fieldKey} className={cardCls}>
                         <p className={labelCls}>{meta.label}</p>
-                        <button type="button"
-                          onClick={() => setDraft((prev) => prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev)}
-                          className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${boolVal ? "bg-amber-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"}`}>
-                          <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
-                          {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          {opts.map((o) => {
+                            const active = cur === o.v;
+                            const activeCls =
+                              o.v === "yes" ? "bg-amber-500 text-white shadow-sm"
+                              : o.v === "no" ? "bg-slate-700 text-white shadow-sm"
+                              : "bg-amber-100 text-amber-800 ring-1 ring-amber-300";
+                            return (
+                              <button key={o.v} type="button"
+                                onClick={() => setDraft((prev) => prev ? { ...prev, photosensitivity_status: o.v, is_photosensitive: o.v === "yes" } : prev)}
+                                className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${active ? activeCls : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"}`}>
+                                <span className="text-base leading-none">{o.icon}</span>
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="mt-2 text-[10px] font-medium text-slate-400">
+                          &quot;Bilinmiyor&quot; = henüz değerlendirilmedi (eksik veri); güvenli anlamına gelmez.
+                        </p>
                       </div>
                     );
                   }
@@ -736,17 +758,25 @@ export default function OilDetailPage() {
                   const itemCls  = `border-b border-slate-100/70 px-1 py-3.5${isFullWidth ? " col-span-full" : ""}`;
                   const labelCls = "mb-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-amber-600/90";
 
-                  if (meta.isBooleanToggle) {
-                    return draft.is_photosensitive ? (
+                  if (meta.isPhotoStatus) {
+                    const st = draft.photosensitivity_status;
+                    // 'unknown'/'no' ASLA yeşil "güvenli" rozeti olarak gösterilmez.
+                    const cfg =
+                      st === "yes"
+                        ? { cls: "border-amber-300 bg-amber-50 text-amber-800", icon: "☀️", text: "Fotosensitif / fototoksik — güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir." }
+                        : st === "no"
+                        ? { cls: "border-slate-200 bg-slate-50 text-slate-600", icon: "○", text: "Fotosensitif değil" }
+                        : { cls: "border-amber-200 bg-amber-50/60 text-amber-700", icon: "⚠️", text: "Bilinmiyor (değerlendirilmedi)" };
+                    return (
                       <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd>
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-bold text-amber-800">
-                            ☀️ Fotosensitif — Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
+                          <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-bold ${cfg.cls}`}>
+                            {cfg.icon} {cfg.text}
                           </span>
                         </dd>
                       </div>
-                    ) : null;
+                    );
                   }
 
                   if (meta.isImageList) {

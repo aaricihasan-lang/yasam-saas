@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import {
   AromaterapiFormSection,
@@ -50,6 +51,7 @@ export function KnowledgeRecordForm({
   initial?: KnowledgeRecordDetail | null;
   isDemo: boolean;
 }) {
+  const router = useRouter();
   const [successId, setSuccessId] = useState<string | null>(null);
   const [successWarnings, setSuccessWarnings] = useState<unknown[]>([]);
 
@@ -90,6 +92,7 @@ export function KnowledgeRecordForm({
           : "Değişiklik yaparken bir gerekçe girmeniz gerekir."
       }
       onSubmit={onSubmit}
+      onCancel={() => router.back()}
       submitting={form.submitting}
       isDemo={isDemo}
       dirty={form.dirty}
