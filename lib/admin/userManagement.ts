@@ -90,6 +90,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   "belge_ceviri",
   "ders_notu",
   "digital_content",
+  // DAR yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
+  // ekleyip düzenleyebilir. Beslenme modülünün tamamı owner-only kalır. Bayrak burada
+  // olduğu için toggle render edilir + wholesale write'ta korunur (bkz. route.ts overwrite).
+  "beslenme_manual_food",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -111,10 +115,13 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
+  beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
   digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
+  beslenme_manual_food:
+    "Uzman kendi özel besinlerini ekleyebilir ve düzenleyebilir. (Beslenme modülünün tamamını açmaz.)",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -132,6 +139,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   belge_ceviri: false,
   ders_notu: false,
   digital_content: false,
+  beslenme_manual_food: false,
 };
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {

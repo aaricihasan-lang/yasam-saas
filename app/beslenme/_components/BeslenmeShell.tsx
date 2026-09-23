@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft, Loader2, Lock } from "lucide-react";
-import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
+import { checkBeslenmeAccess, checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
 
 export type GuardState = "loading" | "ok" | "denied";
 
@@ -46,6 +46,48 @@ export function useBeslenmeOwnerGuard(): GuardState {
   }, [router]);
 
   return state;
+}
+
+export type FoodContributorAuthority = "owner" | "expert";
+
+/**
+ * Manuel besin KATKI guard'ı (owner VEYA dar bayraklı uzman). "Besinlerim" sayfası bunu kullanır.
+ * Server-authoritative probe (/api/beslenme/foods/access); yetkisiz → "/"'a yönlendirir.
+ * İçerik erişim doğrulanmadan render EDİLMEZ (UI gizleme tek katman değil; API zaten guard'lı).
+ * authority: owner (küratör) vs expert (yalnız kendi tenant) — sayfa küçük farklar için kullanabilir.
+ */
+export function useBeslenmeFoodContributorGuard(): {
+  state: GuardState;
+  authority: FoodContributorAuthority | null;
+} {
+  const router = useRouter();
+  const [state, setState] = useState<GuardState>("loading");
+  const [authority, setAuthority] = useState<FoodContributorAuthority | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      let auth: FoodContributorAuthority | null = null;
+      try {
+        auth = await checkBeslenmeFoodAccess();
+      } catch {
+        auth = null;
+      }
+      if (!alive) return;
+      if (auth) {
+        setAuthority(auth);
+        setState("ok");
+      } else {
+        setState("denied");
+        router.replace("/");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [router]);
+
+  return { state, authority };
 }
 
 /** emerald pastel zemin — hero ve guard ekranı ortak kullanır. */
