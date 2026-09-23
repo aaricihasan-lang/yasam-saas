@@ -238,26 +238,66 @@ export function MacroChips({ totals, compact = false }: { totals: NutrientTotal[
 }
 
 /**
+ * "Eksik veri" rozeti: enerjisi girilmemiş besinler toplamı eksik yapar.
+ * Sayı (kaç besin) title'da; kısa görsel işaret satırda.
+ */
+export function MissingEnergyBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[0.7em] font-black uppercase tracking-wide text-amber-700 align-middle"
+      title={`${count} besinin kalori bilgisi girilmemiş. Toplam bu değerleri İÇERMEZ; gösterilen "en az" toplamdır.`}
+    >
+      + eksik veri
+    </span>
+  );
+}
+
+/**
  * Enerji-hedef karşılaştırma satırı: "1.930 / 2.000 kcal · −70 kcal" (nötr ton).
  * Hedef yoksa yalnız "1.930 kcal".
+ *
+ * missingCount>0 (enerjisi girilmemiş besin var) ise `energyRaw` yalnız BİLİNEN
+ * kısımdır → "≥" öneki + "eksik veri" rozeti gösterilir; hedef sapması (diff)
+ * güvenilir olmadığından BASTIRILIR. Bilinmeyen ASLA 0 gibi sunulmaz (§3).
  */
 export function EnergyTargetLine({
   energyRaw,
   target,
+  missingCount = 0,
   className = "",
 }: {
   energyRaw: number;
   target: number | null;
+  missingCount?: number;
   className?: string;
 }) {
   const kcal = Math.round(energyRaw);
+  const incomplete = missingCount > 0;
+  const prefix = incomplete ? "≥ " : "";
+
   if (target == null || target <= 0) {
     return (
       <span className={`font-black text-slate-800 ${className}`}>
+        {prefix}
         {formatEnergy(kcal)} <span className="text-[0.75em] font-bold text-slate-400">kcal</span>
+        {incomplete ? <> <MissingEnergyBadge count={missingCount} /></> : null}
       </span>
     );
   }
+
+  if (incomplete) {
+    // Eksik veriyle hedef sapması hesaplanamaz → yalnız bilinen alt-sınır + hedef + rozet.
+    return (
+      <span className={`font-black text-slate-800 ${className}`}>
+        {prefix}
+        {formatEnergy(kcal)}
+        <span className="mx-1 font-bold text-slate-400">/ {formatEnergy(target)} kcal</span>
+        <MissingEnergyBadge count={missingCount} />
+      </span>
+    );
+  }
+
   const diff = kcal - Math.round(target);
   const sign = diff > 0 ? "+" : diff < 0 ? "−" : "±";
   return (

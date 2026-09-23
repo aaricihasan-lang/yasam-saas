@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor } from "@/lib/beslenme/ownerGuard";
 
 export const runtime = "nodejs";
 
 /**
- * Class A referans vocab (owner-only okuma): food groups + traditional frameworks + allergens.
- * UI dropdown'ları için. Tenant-siz global vocab (production'da CANLI).
+ * Class A referans vocab (food groups + traditional frameworks + allergens) — SALT OKUMA.
+ * Tenant-siz GLOBAL vocab (tenant verisi DEĞİL). UI dropdown'ları için. Owner + dar bayraklı
+ * uzman (besin-katkı) okuyabilir; "Besinlerim" sayfası besin-grubu seçicisi bunu kullanır.
  * allergens (FAZ 7): danışan beyan-alerji multi-select'i için — ADVISORY (otomatik eşleme YOK).
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const { db } = guard;
 

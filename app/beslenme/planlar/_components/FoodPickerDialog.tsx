@@ -5,7 +5,8 @@
  * miktarı; canlı toplam önizleme (sumNutrients). TR ondalık ("12,5") kabul edilir.
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, Loader2, Search } from "lucide-react";
+import { Check, Loader2, Plus, Search } from "lucide-react";
+import { QuickAddFoodDialog } from "../../_components/QuickAddFoodDialog";
 import {
   getFood,
   listFoods,
@@ -47,6 +48,7 @@ export function FoodPickerDialog({
   title?: string;
 }) {
   const [q, setQ] = useState("");
+  const [quickAdd, setQuickAdd] = useState(false);
   const [results, setResults] = useState<Food[]>([]);
   const [searching, setSearching] = useState(true);
   const [listErr, setListErr] = useState("");
@@ -137,6 +139,9 @@ export function FoodPickerDialog({
   }, [effectiveGrams, snapshot]);
 
   const previewEnergy = previewTotals.find((t) => t.nutrient_code === "energy")?.amount ?? 0;
+  // Enerji BİLİNMİYOR (snapshot'ta energy satırı yok) + katkı verecekse: eksik-veri işareti.
+  const previewMissing =
+    effectiveGrams != null && effectiveGrams > 0 && !snapshot.some((n) => n.nutrient_code === "energy") ? 1 : 0;
 
   async function confirm() {
     setErr("");
@@ -172,15 +177,18 @@ export function FoodPickerDialog({
     >
       {!selected ? (
         <div className="flex flex-col gap-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-            <TextInput
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Besin ara…"
-              className="pl-9"
-              autoFocus
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+              <TextInput
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Besin ara…"
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+            <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>Besin Ekle</GhostButton>
           </div>
 
           {listErr ? <StatusMessage type="error">{listErr}</StatusMessage> : null}
@@ -191,8 +199,15 @@ export function FoodPickerDialog({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Aranıyor…
               </div>
             ) : results.length === 0 ? (
-              <div className="py-8 text-center text-[13px] font-bold text-slate-400">
-                {q.trim() ? "Sonuç bulunamadı." : "Besin aramaya başlayın."}
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <span className="text-[13px] font-bold text-slate-400">
+                  {q.trim() ? "Aradığınız besin bulunamadı." : "Besin aramaya başlayın."}
+                </span>
+                {q.trim() ? (
+                  <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
+                    Yeni besin ekleyin
+                  </PrimaryButton>
+                ) : null}
               </div>
             ) : (
               <ul className="flex flex-col">
@@ -319,7 +334,7 @@ export function FoodPickerDialog({
                   </span>
                 </div>
                 <div className="mt-1.5">
-                  <EnergyTargetLine energyRaw={previewEnergy} target={null} className="text-lg" />
+                  <EnergyTargetLine energyRaw={previewEnergy} target={null} missingCount={previewMissing} className="text-lg" />
                 </div>
                 <div className="mt-2">
                   <MacroChips totals={previewTotals} />
@@ -338,6 +353,17 @@ export function FoodPickerDialog({
           )}
         </div>
       )}
+      {quickAdd ? (
+        <QuickAddFoodDialog
+          open={quickAdd}
+          initialName={q.trim()}
+          onClose={() => setQuickAdd(false)}
+          onCreated={(food) => {
+            setQuickAdd(false);
+            void pickFood(food);
+          }}
+        />
+      ) : null}
     </Modal>
   );
 }

@@ -4,7 +4,7 @@
  * durum etiketleri, kullanıcı dostu hata mesajları ve gün/öğün toplam hesabı.
  * Ham hesap @/lib/beslenme/planContracts.sumNutrients üzerinden yapılır.
  */
-import { sumNutrients, type NutrientTotal } from "@/lib/beslenme/planContracts";
+import { energyCoverage, sumNutrients, type EnergyCoverage, type NutrientTotal } from "@/lib/beslenme/planContracts";
 
 /** Enerji (kcal ham) → tam sayı, tr-TR binlik ("1.930"). */
 export function formatEnergy(kcalRaw: number | null | undefined): string {
@@ -139,4 +139,20 @@ export function buildTotals(meals: MealLike[] | null | undefined): NutrientTotal
     for (const it of m.items ?? []) items.push(it);
   }
   return sumNutrients(items.map((i) => ({ grams: i.grams, nutrients: i.nutrients })));
+}
+
+/** Bir öğünün enerji kapsamı (bilinen kcal + eksik/girilmemiş item sayısı). */
+export function mealEnergyCoverage(items: ItemLike[] | null | undefined): EnergyCoverage {
+  if (!items || items.length === 0) return { known: 0, missingCount: 0 };
+  return energyCoverage(items.map((i) => ({ grams: i.grams, nutrients: i.nutrients })));
+}
+
+/** Günün (tüm öğünler) enerji kapsamı. */
+export function dayEnergyCoverage(meals: MealLike[] | null | undefined): EnergyCoverage {
+  if (!meals || meals.length === 0) return { known: 0, missingCount: 0 };
+  const items: ItemLike[] = [];
+  for (const m of meals) {
+    for (const it of m.items ?? []) items.push(it);
+  }
+  return energyCoverage(items.map((i) => ({ grams: i.grams, nutrients: i.nutrients })));
 }

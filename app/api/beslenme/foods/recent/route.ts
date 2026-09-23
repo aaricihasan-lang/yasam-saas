@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor } from "@/lib/beslenme/ownerGuard";
 import { isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  *   SYSTEM + current tenant accessible union korunur (foreign tenant leak YOK — tenant-scoped).
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 

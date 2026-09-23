@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
   FOOD_COLUMNS,
@@ -25,9 +25,9 @@ const CREATE_KEYS = [
   "sort_order",
 ] as const;
 
-/** GET: liste + arama + grup filtresi. */
+/** GET: liste + arama + grup filtresi (SYSTEM ∪ kendi tenant). */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -64,9 +64,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   );
 }
 
-/** POST: yeni besin. */
+/** POST: yeni besin (kendi tenant'a CUSTOM). */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

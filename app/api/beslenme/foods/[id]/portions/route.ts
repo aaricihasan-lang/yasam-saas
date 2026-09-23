@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid, cleanStr, cleanNumber, isValidPortionMeasureUnitType, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { resolveFoodForRead, resolveFoodForWrite, loadUnitDict } from "@/lib/beslenme/foodEngine";
 
@@ -12,7 +12,7 @@ const PORTION_JOIN =
 
 /** GET: besnin porsiyonları (gram köprüsü). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
  * body: { items: [{ label_tr, label_en?, quantity?, measure_unit_code, gram_weight, is_default?, sort_order? }] }
  */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeFoodContributor(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
