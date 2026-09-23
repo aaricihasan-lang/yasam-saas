@@ -76,12 +76,18 @@ export function fetchReference() {
 }
 
 // ── Foods ──
-export function listFoods(params?: { q?: string; group?: string; all?: boolean }) {
+// Sayfalama: limit/offset opsiyoneldir (geriye uyumlu). API `total`'ı da döndürür → "daha fazla yükle".
+export function listFoods(params?: { q?: string; group?: string; all?: boolean; limit?: number; offset?: number }) {
   const u = new URLSearchParams();
   if (params?.q) u.set("q", params.q);
   if (params?.group) u.set("group", params.group);
   if (params?.all) u.set("all", "1");
-  return req<{ foods: Food[] }>(`/api/beslenme/foods?${u.toString()}`, { headers: authHeaders() });
+  if (params?.limit != null) u.set("limit", String(params.limit));
+  if (params?.offset != null) u.set("offset", String(params.offset));
+  return req<{ foods: Food[]; total: number; limit: number; offset: number }>(
+    `/api/beslenme/foods?${u.toString()}`,
+    { headers: authHeaders() },
+  );
 }
 export function getFood(id: string) {
   return req<{
