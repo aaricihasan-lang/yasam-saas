@@ -8,6 +8,7 @@ import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
+import { normalizeBirthDateForEngine } from "@/app/numeroloji/utils/numerolojiInput";
 import { initDemoSession, recordDemoClientView, getDemoClient, type DemoClient } from "@/lib/demo/demoSession";
 
 const DEMO_MSG =
@@ -27,12 +28,15 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 // ─── Numeroloji — gerçek motor (Eylül Karaca, 1990-03-21) ────────────────────
+// NUM-005: ISO doğum tarihi motora GİRİŞ SINIRINDA kanonik DD.MM.YYYY'e çevrilir;
+// aksi halde PIN/element/zirve/mücadele sıfırlanıp "yarım analiz" oluşuyordu.
+const DEMO0_BIRTHDATE = normalizeBirthDateForEngine("1990-03-21");
 const DEMO0_NUM = hesaplaNumeroloji({
   firstName: "Eylül",
   lastName: "Karaca",
-  birthDate: "1990-03-21",
+  birthDate: DEMO0_BIRTHDATE,
 });
-const DEMO0_KISISEL_YIL = calcKisiselYil("1990-03-21");
+const DEMO0_KISISEL_YIL = calcKisiselYil(DEMO0_BIRTHDATE);
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 

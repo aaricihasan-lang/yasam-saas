@@ -36,7 +36,7 @@ export function SaveAnalysisButton({
     if (!motorOutput) return;
 
     setBusy(true);
-    const { error, id } = await saveNumerologyAnalysis({
+    const { error } = await saveNumerologyAnalysis({
       name: firstName.trim(),
       surname: lastName.trim(),
       birthDate: birthDateDisplay.trim(),
@@ -51,10 +51,6 @@ export function SaveAnalysisButton({
         type: "error",
       });
       return;
-    }
-
-    if (id) {
-      console.log("[numeroloji] Kayıt id:", id);
     }
 
     showToast({

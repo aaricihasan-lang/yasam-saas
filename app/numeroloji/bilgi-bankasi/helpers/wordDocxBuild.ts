@@ -27,6 +27,7 @@ import {
   WidthType,
 } from "docx";
 import { parseBirthDate } from "@/lib/numeroloji";
+import { parseBirthDateFlexible } from "@/app/numeroloji/utils/numerolojiInput";
 import {
   computeUniversalTiming,
   computePersonalTiming,
@@ -553,7 +554,8 @@ export function buildPersonSections(
   // sınırlanır (yıl hardcode DEĞİL; her yıl otomatik güncellenir). refCalendar timing sekmesi
   // içindir ve bu sınırı ETKİLEMEZ.
   const chronoCutoffYear = currentIstanbulYear();
-  const chronoBirthYear = parseBirthDate((row.birth_date || "").replace(/\//g, "."))?.year ?? null;
+  // NUM-005: row.birth_date DB'den ISO (YYYY-MM-DD) veya TR gelebilir → esnek sınır parser'ı.
+  const chronoBirthYear = parseBirthDateFlexible(row.birth_date)?.year ?? null;
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
   const analiz = new Date(row.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
   const created = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });

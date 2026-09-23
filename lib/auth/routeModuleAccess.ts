@@ -142,14 +142,23 @@ export function evaluateRouteModuleGuard(
   const path = normalizePathname(pathname);
 
   if (isPublicPath(path) || isAdminPath(path)) return "skip";
-  if (!user) return "skip";
+
+  const rule = findRouteModuleRule(path);
+
+  // NUM-003: Oturumsuz kullanıcı, MODÜL-GATE'li premium route'a (ör. /numeroloji)
+  // erişemez → "deny". Modül-gate'siz route'larda eski davranış korunur ("skip";
+  // üst katman girişe yönlendirir). Demo hesap GERÇEK bir kullanıcıdır
+  // (is_demo_account=true → user != null) ve bu daldan ETKİLENMEZ. Giriş yapmış
+  // kullanıcı localStorage'da her zaman önbelleklidir → gerçek kullanıcı için
+  // regresyon/flaş yok. Ücretli modülün istemci-taraflı çekirdeği (hesap + PNG)
+  // artık oturumsuz açılamaz (menü gizleme değil, gerçek erişim reddi).
+  if (!user) return rule ? "deny" : "skip";
 
   if (isAdminUser(user)) return "allow";
 
   // Admin-only route'lar (ör. /yebs) uzmanlara KAPALI — modül izninden bağımsız.
   if (isAdminOnlyRoutePath(path)) return "deny";
 
-  const rule = findRouteModuleRule(path);
   if (!rule) return "allow";
 
   if (rule.keys.some((k) => COMING_SOON_MODULE_KEYS.has(k as ModulePermissionKey))) return "deny";
