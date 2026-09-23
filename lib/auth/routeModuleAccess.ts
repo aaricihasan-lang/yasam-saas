@@ -47,10 +47,14 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   { prefix: "/refleksoloji", keys: ["reflexology", "refleksoloji"] },
   { prefix: "/aromaterapi", keys: ["aromatherapy", "aromaterapi"] },
   { prefix: "/dogaltas", keys: ["stones", "dogaltas"] },
+  // Kupa & Hacamat — kendi modül kapısı. cupping izni (veya TR alias'ı kupa) olmayan uzman
+  // /kupa shell'ini ve tüm alt sayfalarını AÇAMAZ (global ModuleRouteGuard uygular; direct-URL
+  // bypass yok). API tarafı zaten requireModuleAccess(req,"cupping") ile korunur.
+  { prefix: "/kupa", keys: ["cupping", "kupa"] },
   {
     // Enerji & Beden artık yalnız Biyoenerji + Refleksoloji + Kupa ailesini temsil eder.
     // Aromaterapi Doğal Destek & Rehber'e taşındı → aromatherapy/aromaterapi kaldırıldı.
-    // NOT: cupping BİLİNÇLİ olarak eklenMEDİ (ayrı /kupa access konusu; bu iş kapsamı dışı).
+    // NOT: /kupa AYRI bir kural olarak yukarıda ele alınır (cupping/kupa); buraya dahil DEĞİL.
     prefix: "/enerji-beden",
     keys: [
       "energy_body",
@@ -179,4 +183,5 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   belge_ceviri: "/belge-ceviri",
   human_design: "/human-design",
   yasam_hafizasi: "/yasam-hafizasi",
+  cupping: "/kupa",
 };

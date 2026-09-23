@@ -736,6 +736,20 @@ function buildFooter(planLabel: string): Footer {
   return new Footer({
     children: [
       ruleParagraph(0, 40),
+      // HAC-MED-1 — danışana giden çıktıda kısa, nötr kullanım notu (tıbbi tavsiye/disclaimer DEĞİL).
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 20 },
+        children: [
+          new TextRun({
+            text: "Bu içerik, uzman tarafından oluşturulan çalışma ve bilgilendirme kaydının bir parçasıdır.",
+            italics: true,
+            size: 12,
+            font: FONT,
+            color: C_LIGHT,
+          }),
+        ],
+      }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 0, after: 20 },

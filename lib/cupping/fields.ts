@@ -5,6 +5,16 @@
  * tenant_id / id / created_at / provenance / başka kolonlar ASLA kabul edilmez
  * (server tenant_id'yi kendisi yazar). Doğaltaş/refleksoloji desenleriyle aynı.
  */
+import {
+  CUPPING_LATERALITIES,
+  CUPPING_SOURCE_TYPES,
+  CUPPING_TECHNIQUE_TYPES,
+  CUPPING_MOVEMENT_STYLES,
+  CUPPING_CONTRAINDICATION_CLASSES,
+  CUPPING_RELATION_STRENGTHS,
+  CUPPING_SEVERITIES,
+  CUPPING_EVIDENCE_CLASSES,
+} from "@/lib/cupping/vocab";
 
 export const CUPPING_TABLES = {
   points: "cupping_points",
@@ -302,3 +312,112 @@ export const CLIENT_ADVICE_WRITABLE = [
   "general_note",
   "is_active",
 ] as const;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVER-SIDE PAYLOAD SINIRLARI (HAC-UX-2/3/4) — alan-KATEGORİSİ bazlı.
+//
+// pickWritable yalnız alan ADLARINI allowlist'ler; boyut/enum doğrulaması YOKTU.
+// Bu registry, insertEntity/updateEntity chokepoint'inde (bkz. api.ts validateWritable)
+// uygulanır. Amaç: aşırı-büyük string / aşırı array / geçersiz enum'u KONTROLLÜ 400 ile
+// reddetmek (ham DB hatası sızmadan). Tek bir max TÜM alanlara UYGULANMAZ — kategori bazlı.
+//
+// LİMİTLER KONSERVATİF/CÖMERT seçildi (mevcut kullanıcı verisini KIRMAMAK için). İzole
+// worktree'de canlı DB read-only erişimi HAZIR DEĞİLDİ → MAX(length) doğrulanamadı; değerler
+// şema + kullanım amacına göre geniş tutuldu (bkz. AŞAMA 2 raporu / geriye-uyumluluk notu).
+// Boş string ("") ve null "değer yok" sayılır (skip) — mevcut UI davranışı korunur.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Kategori bazlı string üst sınırları (karakter). */
+export const CUPPING_TEXT_LIMITS = {
+  code: 200, // kısa kod / kısa serbest (kind, language, accessed_on, map_key…)
+  label: 400, // ad / etiket / kategori / kısa başlık
+  title: 600, // başlık
+  ident: 400, // tanımlayıcı / sayfa-bölüm / locator (DOI/PMID/ISBN/sayfa)
+  url: 2000, // bağlantı
+  desc: 8000, // orta serbest metin (açıklama / not)
+  long: 40000, // uzun serbest metin (içerik / hazırlık / bakım / bilgilendirme metni)
+} as const;
+
+/** Array alanları için üst sınırlar (öğe sayısı + öğe uzunluğu). */
+export const CUPPING_ARRAY_MAX_ITEMS = 200;
+export const CUPPING_ARRAY_ITEM_MAX = 400;
+
+export type CuppingFieldRule =
+  | { t: "str"; max: number }
+  | { t: "arr" }
+  | { t: "enum"; values: readonly string[] };
+
+const S = (max: number): CuppingFieldRule => ({ t: "str", max });
+const ARR: CuppingFieldRule = { t: "arr" };
+const EN = (values: readonly string[]): CuppingFieldRule => ({ t: "enum", values });
+const L = CUPPING_TEXT_LIMITS;
+
+/**
+ * Tablo → alan → kural. Yalnız listelenen alanlar doğrulanır; numeric/boolean/FK alanları
+ * (sort_order, year, cx…, *_id) KASITLI olarak sınırsızdır (mevcut davranış korunur, yeni
+ * numeric reddi YOK). Enum değerleri vocab.ts + DB CHECK ile birebir.
+ */
+export const CUPPING_FIELD_RULES: Record<string, Record<string, CuppingFieldRule>> = {
+  [CUPPING_TABLES.points]: {
+    name: S(L.label), alt_name: S(L.label), code: S(L.code), anatomical_region: S(L.label),
+    description: S(L.desc), traditional_use: S(L.desc), application_info: S(L.desc),
+    safety_note: S(L.desc), source_note: S(L.desc), professional_note: S(L.desc),
+    related_points: ARR, synonyms: ARR, laterality: EN(CUPPING_LATERALITIES),
+  },
+  [CUPPING_TABLES.placements]: { map_key: S(L.code), color: S(L.code) },
+  [CUPPING_TABLES.topics]: {
+    title: S(L.title), description: S(L.desc), category: S(L.label),
+    notes: S(L.desc), source_note: S(L.desc),
+  },
+  [CUPPING_TABLES.pointTopics]: {
+    note: S(L.desc), source_note: S(L.desc), relation_strength: EN(CUPPING_RELATION_STRENGTHS),
+  },
+  [CUPPING_TABLES.techniques]: {
+    name: S(L.label), kind: S(L.code), technique_type: EN(CUPPING_TECHNIQUE_TYPES),
+    movement_style: EN(CUPPING_MOVEMENT_STYLES), description: S(L.desc),
+    application_info: S(L.desc), safety_note: S(L.desc), source_note: S(L.desc),
+    practitioner_note: S(L.desc),
+  },
+  [CUPPING_TABLES.knowledge]: {
+    title: S(L.title), content: S(L.long), category: S(L.label), tags: ARR,
+    source: S(L.label), source_section: S(L.label), keyword: S(L.label), notes: S(L.desc),
+  },
+  [CUPPING_TABLES.sources]: {
+    source_name: S(L.label), source_type: EN(CUPPING_SOURCE_TYPES),
+    author_or_organization: S(L.label), title: S(L.title), page_or_section: S(L.ident),
+    source_url: S(L.url), accessed_on: S(L.code), note: S(L.desc), identifier: S(L.ident),
+    publication: S(L.label), language: S(L.code),
+  },
+  [CUPPING_TABLES.safety]: {
+    title: S(L.title), content: S(L.long), severity: EN(CUPPING_SEVERITIES),
+    contraindication_class: EN(CUPPING_CONTRAINDICATION_CLASSES), scope_tags: ARR,
+    source_note: S(L.desc),
+  },
+  [CUPPING_TABLES.topicNotes]: { note: S(L.desc), source_label: S(L.label) },
+  // 6 citation junction: locator/note/evidence_class (source_id/*_id FK skip).
+  [CUPPING_TABLES.pointSources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.topicSources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.pointTopicSources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.techniqueSources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.knowledgeSources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.safetySources]: { locator: S(L.ident), note: S(L.desc), evidence_class: EN(CUPPING_EVIDENCE_CLASSES) },
+  [CUPPING_TABLES.protocols]: {
+    title: S(L.title), category: S(L.label), summary: S(L.desc), tags: ARR,
+    preparation_note: S(L.long), aftercare_note: S(L.long), follow_up_note: S(L.long),
+  },
+  [CUPPING_TABLES.protocolPoints]: { protocol_note: S(L.desc) },
+  [CUPPING_TABLES.protocolTechniques]: { protocol_note: S(L.desc) },
+  [CUPPING_TABLES.protocolSafety]: { protocol_note: S(L.desc) },
+  [CUPPING_TABLES.protocolSteps]: { title: S(L.title), body: S(L.long), stage_label: S(L.label) },
+  [CUPPING_TABLES.protocolEntries]: { title: S(L.title), content: S(L.long), source_label: S(L.label), locator: S(L.ident) },
+  [CUPPING_TABLES.protocolSources]: { locator: S(L.ident), note: S(L.desc) },
+  [CUPPING_TABLES.techniqueSafety]: { note: S(L.desc) },
+  [CUPPING_TABLES.adviceTemplates]: {
+    title: S(L.title), before_text: S(L.long), after_text: S(L.long), general_note: S(L.desc),
+  },
+  [CUPPING_TABLES.calendarPlans]: { name: S(L.label), description: S(L.desc) },
+  [CUPPING_TABLES.calendarPlanDays]: { user_label: S(L.label), note: S(L.desc) },
+  [CUPPING_TABLES.clientAdvice]: {
+    title: S(L.title), before_text: S(L.long), after_text: S(L.long), general_note: S(L.desc),
+  },
+};
