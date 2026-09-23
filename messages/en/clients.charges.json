@@ -1,0 +1,80 @@
+{
+  "clients": {
+    "charges": {
+      "header": {
+        "badge": "PRICING",
+        "title": "Pricing",
+        "subtitle": "All fee records for this client are managed here. Session, homework, analysis or a product/service — all in one place."
+      },
+      "totalLabel": "Total Fee",
+      "countLabel": "records",
+      "addButton": "+ Add Fee",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "loadingRecords": "Loading fee records...",
+      "category": {
+        "session": "Session",
+        "homework": "Homework",
+        "analysis": "Analysis",
+        "other": "Other"
+      },
+      "form": {
+        "newTitle": "New Fee Record",
+        "editTitle": "Edit Fee Record",
+        "dateLabel": "Date",
+        "categoryLabel": "Main Type",
+        "amountLabel": "Amount (₺)",
+        "amountPlaceholder": "e.g. 1500",
+        "noteLabel": "Note / Description (Optional)",
+        "notePlaceholder": "Free note...",
+        "detailLabel": {
+          "session": "Session Type / Detail (Optional)",
+          "analysis": "Analysis Type / Detail (Optional)",
+          "homework": "Homework / Application Detail (Optional)",
+          "other": "Product / Service / Item"
+        },
+        "detailPlaceholder": {
+          "session": "e.g. Cupping, Bioenergy, Reflexology...",
+          "analysis": "e.g. Numerology, Human Design, Chakra...",
+          "homework": "e.g. Breathing exercise, practice...",
+          "other": "e.g. Cream, Soap, Stone bracelet, Oil..."
+        },
+        "save": "Save",
+        "saving": "Saving...",
+        "update": "Save Changes",
+        "updating": "Saving...",
+        "cancel": "Cancel"
+      },
+      "item": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "noDetail": "—"
+      },
+      "empty": {
+        "title": "No fee records yet",
+        "hint": "Tap \"Add Fee\" to create the first fee record."
+      },
+      "delete": {
+        "title": "Delete fee record",
+        "message": "Permanently delete this fee record? This action cannot be undone."
+      },
+      "validation": {
+        "category": "Please select a main type.",
+        "amount": "Amount must be a valid number greater than 0.",
+        "detailRequired": "A product / service / item description is required for \"Other\"."
+      },
+      "toast": {
+        "successTitle": "Success",
+        "failTitle": "Operation failed",
+        "added": "Fee record added.",
+        "updated": "Fee record updated.",
+        "deleted": "Fee record deleted.",
+        "addFailed": "Could not add the fee record.",
+        "updateFailed": "Could not update the fee record.",
+        "deleteFailed": "Could not delete the fee record.",
+        "loadFailed": "Could not load fee records.",
+        "noClient": "Client information not found."
+      }
+    }
+  }
+}

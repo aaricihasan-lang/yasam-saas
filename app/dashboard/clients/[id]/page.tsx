@@ -39,6 +39,7 @@ const TabSkeleton = () => (
 );
 const StonesTab = dynamic(() => import("./components/StonesTab"), { loading: TabSkeleton, ssr: false });
 const SessionsTab = dynamic(() => import("./components/SessionsTab"), { loading: TabSkeleton, ssr: false });
+const UcretlendirmeTab = dynamic(() => import("./components/UcretlendirmeTab"), { loading: TabSkeleton, ssr: false });
 const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading: TabSkeleton, ssr: false });
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
@@ -679,6 +680,7 @@ function ClientDetailPageInner() {
             <Tab label={t("tab.randevular")} id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
             <Tab label={t("tab.taslar")}     id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
             <Tab label={t("tab.seanslar")}   id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
+            <Tab label={t("tab.ucretlendirme")} id="ucretlendirme" activeTab={activeTab} setActiveTab={setActiveTab} color="#0d9488" />
             <Tab label={t("tab.odevler")}    id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
             <Tab label={t("tab.analizler")}  id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label={t("tab.yolculuk")}   id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
@@ -906,7 +908,27 @@ function ClientDetailPageInner() {
                   {tabWordBusy ? t("report.generating") : t("tabWord.seanslar")}
                 </button>
               </div>
-              <SessionsTab clientId={client.id} />
+              <SessionsTab
+                clientId={client.id}
+                onGorusmeChange={(date) =>
+                  setClient((prev) =>
+                    prev
+                      ? { ...prev, gorusme: !prev.gorusme || date > prev.gorusme ? date : prev.gorusme }
+                      : prev,
+                  )
+                }
+              />
+          </div>
+          )}
+
+          {openedTabs.has("ucretlendirme") && (
+          <div role="tabpanel" id="tabpanel-ucretlendirme" aria-labelledby="tab-ucretlendirme" hidden={activeTab !== "ucretlendirme"}>
+              <div className="mb-2.5">
+                <button onClick={() => void generateTabWordReport("ucretlendirme")} disabled={tabWordBusy} className={wordBtnCls}>
+                  {tabWordBusy ? t("report.generating") : t("tabWord.ucretlendirme")}
+                </button>
+              </div>
+              <UcretlendirmeTab clientId={client.id} />
           </div>
           )}
 

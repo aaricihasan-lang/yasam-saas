@@ -47,8 +47,11 @@
         "aktifTakip": "Active Follow-up",
         "gucluSurec": "On Track"
       },
+      "filters": {
+        "heading": "Timeline Filters"
+      },
       "menu": {
-        "genel": "General Info",
+        "genel": "All",
         "numeroloji": "Numerology",
         "dogaltas": "Natural Stone",
         "refleksoloji": "Reflexology",

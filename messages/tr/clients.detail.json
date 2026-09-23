@@ -30,6 +30,7 @@
         "randevular": "Randevular",
         "taslar": "Taşlar",
         "seanslar": "Seanslar",
+        "ucretlendirme": "Ücretlendirme",
         "odevler": "Ödevler",
         "analizler": "Analizler",
         "yolculuk": "✦ Danışan Yolculuğu",
@@ -57,6 +58,7 @@
         "randevular": "📄 Randevu Geçmişi Word",
         "taslar": "📄 Taşlar Word",
         "seanslar": "📄 Seans Geçmişi Word",
+        "ucretlendirme": "📄 Ücretlendirme Word",
         "odevler": "📄 Ödev Takip Word",
         "analizler": "📄 Analiz Sonuçları Word"
       },

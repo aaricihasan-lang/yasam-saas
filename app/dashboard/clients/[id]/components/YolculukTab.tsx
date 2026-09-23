@@ -207,7 +207,8 @@ const menuItems: MenuItem[] = [
   { id: "biyoenerji",   icon: "⚡", color: "#ea580c", tabId: null,         typeFilter: "biyoenerji"    },
   { id: "notlar",       icon: "✎", color: "#6d28d9", tabId: "notlar",     typeFilter: "not"           },
   { id: "randevular",   icon: "◷", color: "#16a34a", tabId: "randevular", typeFilter: "randevu"       },
-  { id: "dosyalar",     icon: "▣", color: "#475569", tabId: null,         typeFilter: null            },
+  // "dosyalar" (Dosyalar/Yakında) — işlevsel olmadığı için kullanıcıdan gizlendi (spec §8).
+  // Özellik tamamlandığında bu satır geri eklenebilir.
 ];
 
 // ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
@@ -1779,8 +1780,12 @@ export default function YolculukTab({
             </div>
           </div>
 
-          {/* Modül menüsü — tüm öğeler timeline'ı filtreler */}
-          <nav className="rounded-2xl border border-slate-200 bg-white py-2 shadow-sm">
+          {/* Zaman çizelgesi filtreleri — sekme/navigasyon DEĞİL; timeline'ı filtreler (spec §7). */}
+          <nav className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              {t("filters.heading")}
+            </div>
+            <div className="py-1">
             {menuItems.map((item) => {
               const isActive   = activeMenu === item.id;
               // Filtrelenemez öğeler: typeFilter null VE "genel" değil VE "dosyalar"
@@ -1833,6 +1838,7 @@ export default function YolculukTab({
                 </button>
               );
             })}
+            </div>
           </nav>
         </aside>
 
