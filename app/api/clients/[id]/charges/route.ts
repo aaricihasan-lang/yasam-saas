@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -50,6 +51,16 @@ function nonEmpty(raw: unknown): boolean {
   return typeof raw === "string" && raw.trim().length > 0;
 }
 
+/** charge_date doğrulaması: yalnız geçerli takvim günü olan YYYY-MM-DD kabul edilir. */
+function isValidDateStr(raw: unknown): boolean {
+  if (typeof raw !== "string") return false;
+  const s = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  // Gerçek takvim günü mü? (ör. 2026-02-30 / 2026-13-01 reddedilir.)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 async function clientBelongsToTenant(
   db: SupabaseClient,
   clientId: string,
@@ -89,7 +100,7 @@ export async function GET(
     .eq("client_id", clientId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/charges", action: "GET", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, charges: data ?? [] });
 }
@@ -136,6 +147,10 @@ export async function POST(
   if (category === "other" && !nonEmpty(fields.detail)) {
     return NextResponse.json({ ok: false, error: "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur." }, { status: 400 });
   }
+  // charge_date verildiyse geçerli YYYY-MM-DD olmalı (geçersizse DB'ye bırakılmaz → 400).
+  if (nonEmpty(fields.charge_date) && !isValidDateStr(fields.charge_date)) {
+    return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
+  }
 
   const insertRow = {
     tenant_id: tenantId,
@@ -154,7 +169,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/charges", action: "POST", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, charge: data });
 }
@@ -222,6 +237,9 @@ export async function PATCH(
     update.note = nonEmpty(fields.note) ? String(fields.note).trim() : null;
   }
   if ("charge_date" in fields && nonEmpty(fields.charge_date)) {
+    if (!isValidDateStr(fields.charge_date)) {
+      return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
+    }
     update.charge_date = String(fields.charge_date).trim();
   }
 
@@ -239,7 +257,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/charges", action: "PATCH", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
@@ -291,7 +309,7 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "clients/[id]/charges", action: "DELETE", tenantId, cause: error });
   }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

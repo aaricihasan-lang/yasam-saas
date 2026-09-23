@@ -12,7 +12,7 @@
 --     08.10.2026 — Diğer   — Krem         —   350 TL
 --
 -- İLİŞKİ (client_combinations ile aynı model):
---   - client_id → public.clients(id) ON DELETE CASCADE (best-effort; aşağıya bkz.)
+--   - client_id → public.clients(id) ON DELETE CASCADE (ZORUNLU — kurulamazsa migration FAIL)
 --   - Bir danışan birden çok ücret kaydına sahip olabilir (1-N).
 --
 -- ALANLAR (spec §14/§20):
@@ -38,11 +38,16 @@
 -- CDC/OUTBOX: Bu tabloya Yaşam Hafızası outbox trigger'ı EKLENMEZ (finansal veri,
 --   memory index kapsamı dışı; CDC/worker-v2 altyapısına dokunulmaz).
 --
--- ÖNEMLİ — FK NEDEN AYRI ADIMDA: bkz. 20260625160000_client_combinations.sql.
+-- ÖNEMLİ — FK ZORUNLU (FAIL-LOUD):
+--   cascade-delete route'u child tabloların FK ON DELETE CASCADE ilişkisine güvenir ve
+--   client_charges için MANUEL delete YAPMAZ. FK kurulamazsa migration BAŞARILI
+--   SAYILMAMALIDIR (yoksa danışan silmede ücret kayıtları orphan kalır). Tablo önce
+--   FK'siz oluşturulur; FK ayrı adımda eklenir, ekleme hatası YUTULMAZ (migration durur);
+--   sonda FK'nin varlığı ve ON DELETE CASCADE olduğu doğrulanır. "Uygulama düzeyinde
+--   cascade" fallback'i YOKTUR.
 --
 -- GÜVENLİ / IDEMPOTENT:
 --   - create ... if not exists, drop policy/trigger if exists, FK varlık kontrolü.
---   - Tek transaction YOK → kritik tablo, kozmetik bir adım başarısız olsa bile kalır.
 --   - Yalnız YENİ nesneler; mevcut tablolara DOKUNMAZ.
 -- =============================================================================
 
@@ -78,7 +83,8 @@ create table if not exists public.client_charges (
   constraint client_charges_category_valid  check (category in ('session','homework','analysis','other'))
 );
 
--- ── 2) FK (best-effort — hata migration'ı durdurmaz, gerçek nedeni yazar) ────
+-- ── 2) FK (ZORUNLU — hata YUTULMAZ; kurulamazsa migration DURUR) ─────────────
+-- ON DELETE CASCADE, cascade-delete route'unun TEK dayanağıdır; exception handler YOK.
 do $$
 begin
   if not exists (
@@ -89,8 +95,24 @@ begin
       foreign key (client_id) references public.clients (id) on delete cascade;
     raise notice 'client_charges FK eklendi.';
   end if;
-exception when others then
-  raise notice 'client_charges FK EKLENEMEDI: % — (uygulama düzeyinde cascade ile yönetilir, tablo yine de hazır)', sqlerrm;
+end$$;
+
+-- ── 2b) FK DOĞRULAMASI (fail-loud) — FK yoksa VEYA cascade değilse migration FAIL ─
+do $$
+declare
+  v_delete_rule text;
+begin
+  select rc.delete_rule into v_delete_rule
+  from information_schema.referential_constraints rc
+  where rc.constraint_name = 'client_charges_client_id_fkey'
+    and rc.constraint_schema = 'public';
+
+  if v_delete_rule is null then
+    raise exception 'client_charges_client_id_fkey FK kurulamadi — cascade-delete FK cascade''e guveniyor; migration FAIL.';
+  end if;
+  if v_delete_rule <> 'CASCADE' then
+    raise exception 'client_charges_client_id_fkey ON DELETE % (CASCADE bekleniyordu) — migration FAIL.', v_delete_rule;
+  end if;
 end$$;
 
 -- ── 3) İndeksler ─────────────────────────────────────────────────────────────
