@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   DIGITAL_CONTENT_DEMO_BANNER,
@@ -143,6 +144,7 @@ function authHeaders(): Record<string, string> {
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const isAndroid = useIsAndroid();
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -482,7 +484,12 @@ export default function BelgeCeviriPage() {
 
         {/* kartlar — lg+ 3 sütun, sm 2 sütun, mobil tek sütun */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CARDS.map((card) => {
+          {CARDS.filter(
+            // Android: Word (.docx) çıktısı üreten kartlar HİÇ gösterilmez (ürün kararı) —
+            // sonu Word indirmeye çıkan işlem başlatılamaz. OCR (metni oku, TXT) korunur;
+            // OCR'ın kendi "Word İndir" alt-butonları zaten Android'de gizli.
+            (card) => !(isAndroid && (card.id === "pdf-to-word" || card.id === "pdf-to-turkce-word")),
+          ).map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
             return (
@@ -677,6 +684,7 @@ export default function BelgeCeviriPage() {
                         <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                         TXT İndir
                       </button>
+                      {!isAndroid && (
                       <button
                         type="button"
                         onClick={() => void handleOcrWordDownload(ocrResult.text, "original")}
@@ -690,6 +698,7 @@ export default function BelgeCeviriPage() {
                         )}
                         Word İndir
                       </button>
+                      )}
                     </div>
 
                     {/* Dil durumu ve çeviri */}
@@ -728,6 +737,7 @@ export default function BelgeCeviriPage() {
                             <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                             TXT İndir
                           </button>
+                          {!isAndroid && (
                           <button
                             type="button"
                             onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
@@ -741,6 +751,7 @@ export default function BelgeCeviriPage() {
                             )}
                             Word İndir
                           </button>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -803,7 +814,7 @@ export default function BelgeCeviriPage() {
                       </button>
                     </div>
 
-                    {activeJob.status === "completed" && activeJob.downloadUrl && (
+                    {!isAndroid && activeJob.status === "completed" && activeJob.downloadUrl && (
                       <a
                         href={activeJob.downloadUrl}
                         download
@@ -1070,7 +1081,7 @@ export default function BelgeCeviriPage() {
                           </p>
                         )}
 
-                        {isCompleted && job.downloadUrl && (
+                        {!isAndroid && isCompleted && job.downloadUrl && (
                           <a
                             href={job.downloadUrl}
                             download

@@ -20,6 +20,7 @@ import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import {
@@ -1311,6 +1312,7 @@ function KombinasyonDetayPageContent() {
   const [knownStoneKeys, setKnownStoneKeys] = useState<Set<string> | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
+  const isAndroid = useIsAndroid();
   const router = useRouter();
   const t = useTranslations("stones.combinations.detail");
   const tc = useTranslations("stones.common");
@@ -1563,7 +1565,7 @@ function KombinasyonDetayPageContent() {
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {!isDemo && !loading && rows.length > 0 && (
+            {!isDemo && !isAndroid && !loading && rows.length > 0 && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}

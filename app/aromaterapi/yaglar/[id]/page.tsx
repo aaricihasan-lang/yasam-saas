@@ -29,6 +29,7 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/demo/demoAromaterapi";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
 
 // -------------------------------------------------------
@@ -287,6 +288,7 @@ export default function OilDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
   const [exportingWord, setExportingWord] = useState(false);
+  const isAndroid = useIsAndroid();
 
   // FAZ Word — tek yağ monografisi export (.docx). Çift-tık kilidi.
   async function exportOilWord() {
@@ -549,11 +551,13 @@ export default function OilDetailPage() {
                   </>
                 ) : (
                   <>
+                    {!isAndroid && (
                     <button type="button" onClick={() => void exportOilWord()} disabled={exportingWord}
                       className={`${btnBase} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-60`}
                       title="Bu yağın monografisini Word'e aktar">
                       📄 {exportingWord ? "Hazırlanıyor…" : "Word'e Aktar"}
                     </button>
+                    )}
                     <button type="button" onClick={startEdit}
                       className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
                       ✏️ Düzenle

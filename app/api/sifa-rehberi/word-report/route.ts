@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 import { chunkIds, orderRowsByIds } from "@/lib/sifa-rehberi/idBatch";
@@ -38,6 +39,9 @@ type GuideRaw = WordGuideRaw & { tenant_id: string };
 
 // ── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest): Promise<Response> {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
+
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
   // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
   const guard = await requireModuleAccess(request, "sifa_rehberi");

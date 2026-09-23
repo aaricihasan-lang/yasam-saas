@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnSuccess, kupaBtnGhost, kupaCard } from "@/app/kupa/components/KupaShell";
@@ -117,6 +118,7 @@ export function CalendarWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   const today = useMemo(() => todayYmd(), []);
 
   // Kayıtlı gün kümesi (yalnız ymd) — Aylık + Yıllık görünüme geçirilir (durum türetimi).
@@ -489,29 +491,31 @@ export function CalendarWorkspace() {
               <CalendarViewToggle view={view} onChange={setView} />
               {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
                   kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
-              <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
-                <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
-                <button
-                  type="button"
-                  className={`${kupaBtnGhost} min-h-[44px]`}
-                  onClick={() => handleWordDownload()}
-                  disabled={wordBusy || planLoading}
-                  title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
-                >
-                  <span aria-hidden>⤓</span>
-                  {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
-                </button>
-                <button
-                  type="button"
-                  className={`${kupaBtnGhost} min-h-[44px]`}
-                  onClick={() => handleWordDownload(month)}
-                  disabled={wordBusy || planLoading}
-                  title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
-                >
-                  <span aria-hidden>⤓</span>
-                  {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
-                </button>
-              </div>
+              {!isAndroid && (
+                <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                  <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
+                  <button
+                    type="button"
+                    className={`${kupaBtnGhost} min-h-[44px]`}
+                    onClick={() => handleWordDownload()}
+                    disabled={wordBusy || planLoading}
+                    title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
+                  >
+                    <span aria-hidden>⤓</span>
+                    {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${kupaBtnGhost} min-h-[44px]`}
+                    onClick={() => handleWordDownload(month)}
+                    disabled={wordBusy || planLoading}
+                    title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
+                  >
+                    <span aria-hidden>⤓</span>
+                    {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
+                  </button>
+                </div>
+              )}
             </div>
             {/* Kaydet/durum barı — MOBİL/TABLET: ekran altına SABİT (uzun kart listesinde her zaman
                 erişilir; güvenli-alan payı). MASAÜSTÜ (lg): mevcut sticky davranış korunur. */}

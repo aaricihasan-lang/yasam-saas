@@ -24,6 +24,7 @@ import {
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
@@ -408,6 +409,7 @@ function ExportTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
   const [loadingModule, setLoadingModule] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
+  const isAndroid = useIsAndroid();
 
   useEffect(() => {
     setMobile(isMobile());
@@ -477,6 +479,7 @@ function ExportTab({ user }: { user: YasamUser }) {
               9 modül · 31 tablo · Tüm kayıtlar tek belgede
             </p>
           </div>
+          {!isAndroid && (
           <button
             type="button"
             onClick={() => { void handleExport("all", "Tüm Veriler"); }}
@@ -490,6 +493,7 @@ function ExportTab({ user }: { user: YasamUser }) {
             )}
             {loadingModule === "all" ? "Hazırlanıyor…" : "Tümünü İndir"}
           </button>
+          )}
         </div>
       </div>
 
@@ -506,6 +510,7 @@ function ExportTab({ user }: { user: YasamUser }) {
                 <p className="text-sm font-bold text-slate-800 truncate">{mod.label}</p>
                 <p className="mt-0.5 text-[11px] text-slate-400 truncate">{mod.tableCount} tablo · {mod.desc}</p>
               </div>
+              {!isAndroid && (
               <button
                 type="button"
                 onClick={() => { void handleExport(mod.key, mod.label); }}
@@ -519,6 +524,7 @@ function ExportTab({ user }: { user: YasamUser }) {
                   <Download className="h-3.5 w-3.5" />
                 )}
               </button>
+              )}
             </div>
           ))}
         </div>

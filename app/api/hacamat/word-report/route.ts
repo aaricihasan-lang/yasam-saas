@@ -15,6 +15,7 @@ import {
   WidthType,
 } from "docx";
 import { type ReportChild } from "@/lib/docx/reportHelpers";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   getHacamatMonthData,
   MONTH_NAMES_TR,
@@ -429,6 +430,8 @@ const WORD_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordpro
 // ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
 
 export async function GET(request: Request): Promise<Response> {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
   const { searchParams } = new URL(request.url);
   const year  = parseInt(searchParams.get("year")  ?? String(new Date().getFullYear()), 10);
   const month = parseInt(searchParams.get("month") ?? String(new Date().getMonth()), 10);
@@ -452,6 +455,8 @@ export async function GET(request: Request): Promise<Response> {
 // ─── POST — tam özelleştirilmiş rapor ────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }

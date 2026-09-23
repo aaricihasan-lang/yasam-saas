@@ -6,6 +6,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -71,6 +72,7 @@ export default function AromaTerapiHubPage() {
   useBfcacheRefresh();
 
   const { showToast } = useToast();
+  const isAndroid = useIsAndroid();
   const [exportingGeneral, setExportingGeneral] = useState(false);
   async function exportGeneralWord() {
     if (exportingGeneral) return;
@@ -103,7 +105,7 @@ export default function AromaTerapiHubPage() {
       }
       actions={
         <div className="flex flex-col gap-2">
-          {!isDemo && (
+          {!isDemo && !isAndroid && (
             <button
               type="button"
               onClick={() => void exportGeneralWord()}

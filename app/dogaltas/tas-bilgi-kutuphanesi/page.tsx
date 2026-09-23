@@ -17,6 +17,7 @@ import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -329,6 +330,7 @@ export default function TasBilgiKutuphanesiPage() {
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const isMobile = useIsMobileOrPwa();
+  const isAndroid = useIsAndroid();
   const { isDemo } = useDemoGuard();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
@@ -896,7 +898,7 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
 
             {/* Word raporu butonu */}
-            {!isDemo && (
+            {!isDemo && !isAndroid && (
               <button
                 type="button"
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}

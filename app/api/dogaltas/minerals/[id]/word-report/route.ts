@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
 import { Document, Packer } from "docx";
@@ -67,6 +68,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   const { id: mineralId } = await params;
   // F-019: geçersiz UUID DB'ye gitmeden reddedilir.
   if (!isUuid(mineralId))
