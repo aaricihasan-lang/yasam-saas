@@ -13,6 +13,7 @@ import {
   parseAdminModulePermissions,
   adminPermissionsToPayload,
   premiumAdminModulePermissions,
+  mergeAdminModulePermissions,
 } from "@/lib/admin/userManagement";
 import { decideFoodContributorAuthority, hasManualFoodFlag } from "@/lib/beslenme/foodContributorPolicy";
 
@@ -81,6 +82,49 @@ console.log("── S. guard kararı tutarlılığı ──");
 
   // owner (super-admin) bayrak olmasa da geçer (küratör)
   chk("S3 owner → 'owner' (bayrak gereksiz)", decideFoodContributorAuthority(true, {}) === "owner");
+}
+
+// ── T. GÜVENLİ birleştirme: UI'nın yönetmediği izinler kaydederken KORUNUR ──
+// (REGRESYON: "Manuel Besin Yönetimi" grant'ı human_design/cosmic_calendar'ı REVOKE etmemeli)
+console.log("── T. Unmanaged izin koruması (merge) ──");
+{
+  // Gerçek prod senaryosu: uzmanda human_design + cosmic_calendar + yasam_hafizasi var.
+  // Admin, "Manuel Besin Yönetimi"ni AÇMAK için modülleri kaydeder.
+  const oldPerms = {
+    clients: true, danisan_yonetimi: true, human_design: true,
+    cosmic_calendar: true, yasam_hafizasi: true, numerology: true,
+  };
+  const parsed = parseAdminModulePermissions({ ...oldPerms, [FLAG]: true }); // admin toggle: flag on
+  const uiPayload = adminPermissionsToPayload(parsed);
+  const merged = mergeAdminModulePermissions(oldPerms, uiPayload);
+
+  chk("T1 human_design KORUNUR (revoke YOK)", merged.human_design === true);
+  chk("T1 cosmic_calendar KORUNUR", merged.cosmic_calendar === true);
+  chk("T1 yasam_hafizasi KORUNUR", merged.yasam_hafizasi === true);
+  chk("T2 yeni flag uygulanır (beslenme_manual_food=true)", merged[FLAG] === true);
+  chk("T2 registry modülü uygulanır (clients=true)", merged.clients === true);
+  // UI-managed alias düşürülür (canonical'a göç; mevcut davranış)
+  chk("T3 UI-managed alias (danisan_yonetimi) düşürülür", !("danisan_yonetimi" in merged));
+}
+{
+  // Başka bir modül kaydı, ÖNCEDEN verilmiş beslenme_manual_food'u REVOKE etmemeli
+  const oldPerms = { [FLAG]: true, human_design: true };
+  // Admin numerology açar; parse flag'i true okur (registry'de) → uiPayload flag'i taşır
+  const parsed = parseAdminModulePermissions({ ...oldPerms, numerology: true });
+  const merged = mergeAdminModulePermissions(oldPerms, adminPermissionsToPayload(parsed));
+  chk("T4 önceki flag korunur (başka modül kaydında)", merged[FLAG] === true);
+  chk("T4 human_design yine korunur", merged.human_design === true);
+}
+{
+  // non-boolean unmanaged değer boolean'a coerce
+  const merged = mergeAdminModulePermissions({ some_future_flag: "yes", other_flag: true }, adminPermissionsToPayload(DEFAULT_ADMIN_MODULE_PERMISSIONS));
+  chk("T5 unmanaged string 'yes' → false (coerce)", merged.some_future_flag === false);
+  chk("T5 unmanaged true → korunur", merged.other_flag === true);
+}
+{
+  // gelecekteki bilinmeyen yetenek bayrağı korunur (future-proof)
+  const merged = mergeAdminModulePermissions({ future_capability_x: true }, adminPermissionsToPayload(DEFAULT_ADMIN_MODULE_PERMISSIONS));
+  chk("T6 gelecekteki bilinmeyen bayrak korunur", merged.future_capability_x === true);
 }
 
 console.log(`\n${"=".repeat(52)}\n  MANUEL BESİN İZİN HARNESS: ${pass} PASS / ${fail} FAIL`);

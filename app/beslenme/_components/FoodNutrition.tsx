@@ -73,6 +73,15 @@ export function NutrientsPanel({
       }
       items.push({ nutrient_code: row.code, amount, unit_code: row.unit });
     }
+    // MVP DIŞI mevcut nutrient'ları KORU: bu panel yalnız MVP alanları düzenler ama PUT
+    // set-replace'tir → korunmazsa QuickAdd ile eklenen vitamin/mineral vb. (kalsiyum, demir,
+    // A/C/D/B12, folat…) kaydederken SESSİZCE SİLİNİRDİ. Bilinen 0 dahil aynen taşınır.
+    const mvpCodes = new Set(MVP_NUTRIENTS.map((r) => r.code));
+    for (const n of nutrients) {
+      if (n.nutrient?.code && n.unit?.code && !mvpCodes.has(n.nutrient.code)) {
+        items.push({ nutrient_code: n.nutrient.code, amount: n.amount, unit_code: n.unit.code });
+      }
+    }
     const r = await putFoodNutrients(foodId, items);
     setBusy(false);
     if (r.ok) {

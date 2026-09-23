@@ -499,6 +499,41 @@ export function adminPermissionsToPayload(
   return { ...perms };
 }
 
+/**
+ * Admin "Modül İzinleri" UI'sının YÖNETTİĞİ anahtar kümesi: registry canonical anahtarlar
+ * + bunların Türkçe alias'ları. Bu kümenin DIŞINDaki mevcut izinler kaydederken KORUNUR.
+ */
+const UI_MANAGED_PERMISSION_KEYS: ReadonlySet<string> = new Set<string>([
+  ...ADMIN_MODULE_UI_KEYS,
+  ...Object.keys(ADMIN_MODULE_TR_ALIAS_TO_UI),
+]);
+
+/**
+ * Admin modül-izin kaydı için GÜVENLİ birleştirme (wholesale-overwrite DEĞİL).
+ *
+ * UI yalnız `ADMIN_MODULE_UI_KEYS`'i (+ alias'larını) yönetir. Kaydederken UI'nın
+ * YÖNETMEDİĞİ mevcut izinler — human_design, cosmic_calendar, yasam_hafizasi ve
+ * gelecekteki yetenek bayrakları — KORUNMALIDIR; aksi halde tek bir modül toggle'ı kaydı
+ * bu izinleri sessizce REVOKE eder (kullanıcı yetkisi/veri bütünlüğü kaybı). UI'nın bildiği
+ * alias'lar (danisan_yonetimi vb.) canonical anahtara göç ettiği için DÜŞÜRÜLÜR (mevcut
+ * davranış korunur). Sonuç düz boolean map'tir (kolon temiz kalır).
+ *
+ * @param oldPerms DB'deki mevcut module_permissions (JSONB, güvenilmez tipli)
+ * @param uiPayload adminPermissionsToPayload(...) — TÜM registry anahtarları (boolean)
+ */
+export function mergeAdminModulePermissions(
+  oldPerms: unknown,
+  uiPayload: Record<string, boolean>,
+): Record<string, boolean> {
+  const merged: Record<string, boolean> = { ...uiPayload };
+  if (oldPerms && typeof oldPerms === "object") {
+    for (const [k, v] of Object.entries(oldPerms as Record<string, unknown>)) {
+      if (!UI_MANAGED_PERMISSION_KEYS.has(k)) merged[k] = v === true;
+    }
+  }
+  return merged;
+}
+
 export function formatCreatedAt(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
