@@ -19,6 +19,7 @@ export type ModulePermissionKey =
   | "human_design"
   | "digital_content"
   | "cosmic_calendar"
+  | "cupping"
   | "yasam_hafizasi";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
@@ -38,6 +39,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "human_design",
   "digital_content",
   "cosmic_calendar",
+  "cupping",
   "yasam_hafizasi",
 ];
 
@@ -56,6 +58,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   human_design: "Human Design",
   digital_content: "Dijital İçerik Merkezi",
   cosmic_calendar: "Yaşam Takvimi / Kozmik Ajanda",
+  cupping: "Kupa & Hacamat",
   yasam_hafizasi: "Yaşam Hafızası",
 };
 
@@ -74,6 +77,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   human_design: false,
   digital_content: false,
   cosmic_calendar: false,
+  cupping: false,
   yasam_hafizasi: false,
 };
 
@@ -91,6 +95,9 @@ export const EXTENDED_MODULE_PERMISSION_ALIASES = [
   "kisisel_arsiv",
   "stock",
   "healing",
+  // Kupa & Hacamat TR alias'ları (canonical anahtar: "cupping"; route guard OR-eşler).
+  "kupa",
+  "hacamat_terapi",
 ] as const;
 
 export const LOCKED_PERMISSION_TOAST =
@@ -114,6 +121,11 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "digital_content",
   "cosmic_calendar",
   "human_design",
+  // Kupa & Hacamat: human_design gibi NORMAL bir satılabilir modül → yeni Premium provisioning
+  // payload'ına dahildir (yeni Premium geçişlerinde module_permissions.cupping=true üretilir).
+  // Mevcut Premium hesapların JSON'u DEĞİŞMEZ (backfill YOK); onlar admin toggle ile veya ileride
+  // ayrı bir migration ile alır — bu faz mevcut izinleri TOPLUCA değiştirmez.
+  "cupping",
   // yasam_hafizasi BİLİNÇLİ olarak BURADA YOKTUR: YH izni yalnız ATOMİK premium-grade sözleşmesinden
   // verilir (public.yh_grade_expert_premium → lib/yasam-hafizasi/expertPremiumGrant); membership +
   // perm + flags TEK transaction. Aksi halde düz premium payload'ı perm'i tenant flag'i OLMADAN set

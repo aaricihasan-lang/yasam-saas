@@ -12,6 +12,7 @@ import {
   type CuppingSource,
 } from "../lib/api";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput } from "./KupaShell";
+import { KupaConfirmDialog } from "./ConfirmDialog";
 
 /**
  * KUPA & HACAMAT — PAYLAŞILAN kaynak-atıf (citation) paneli.
@@ -50,6 +51,7 @@ export function CuppingCitationManager({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<CuppingCitation | null>(null);
 
   const sourceName = useCallback(
     (id: string) => sources.find((s) => s.id === id)?.source_name ?? "(kaynak)",
@@ -125,14 +127,32 @@ export function CuppingCitationManager({
     });
   };
 
-  const handleRemove = async (id: string) => {
+  // HAC-UX-6: citation "kaldır" = junction/ilişki satırını siler (kaynak KATALOĞUNU değil).
+  // Hafif onay yeterli; ayrıca server 0-satır sonucu = SAHTE BAŞARI YOK.
+  const performRemove = async () => {
+    const c = removeTarget;
+    if (!c) return;
     setBusy(true);
     setError(null);
     try {
-      await deleteCitation(entity, id);
-      setCitations((cur) => cur.filter((c) => c.id !== id));
-      if (editingId === id) reset();
+      const deleted = await deleteCitation(entity, c.id);
+      if (deleted > 0) {
+        setCitations((cur) => cur.filter((x) => x.id !== c.id));
+        if (editingId === c.id) reset();
+        setRemoveTarget(null);
+      } else {
+        // Server hiçbir satır silmedi (kayıt yok / bu hesaba ait değil / demo no-op).
+        setRemoveTarget(null);
+        setError("Bağlantı kaldırılamadı (bu hesapta değişiklik yapılmadı).");
+        try {
+          const cits = await listCitations(entity, entityId);
+          setCitations(cits);
+        } catch {
+          /* yeniden yükleme hatası sessiz — mevcut liste korunur */
+        }
+      }
     } catch (e) {
+      setRemoveTarget(null);
       setError(e instanceof Error ? e.message : "Kaldırılamadı.");
     } finally {
       setBusy(false);
@@ -179,15 +199,15 @@ export function CuppingCitationManager({
                   onClick={() => handleEdit(c)}
                   className="text-[11px] font-semibold text-amber-700 hover:text-amber-800"
                 >
-                  düzenle
+                  Düzenle
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRemove(c.id)}
+                  onClick={() => setRemoveTarget(c)}
                   disabled={busy}
                   className="text-[11px] font-semibold text-rose-600 hover:text-rose-700"
                 >
-                  kaldır
+                  Kaldır
                 </button>
               </div>
             </div>
@@ -201,6 +221,7 @@ export function CuppingCitationManager({
           value={form.source_id}
           onChange={(e) => setForm((f) => ({ ...f, source_id: e.target.value }))}
           disabled={!!editingId}
+          aria-label="Kaynak seç"
           className={kupaInput}
         >
           <option value="">— kaynak seç —</option>
@@ -213,6 +234,7 @@ export function CuppingCitationManager({
         <select
           value={form.evidence_class}
           onChange={(e) => setForm((f) => ({ ...f, evidence_class: e.target.value }))}
+          aria-label="Kanıt sınıfı"
           className={kupaInput}
         >
           <option value="">— kanıt sınıfı —</option>
@@ -226,12 +248,14 @@ export function CuppingCitationManager({
           value={form.locator}
           onChange={(e) => setForm((f) => ({ ...f, locator: e.target.value }))}
           placeholder="Sayfa / bölüm (locator)"
+          aria-label="Sayfa / bölüm (locator)"
           className={kupaInput}
         />
         <input
           value={form.note}
           onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
           placeholder="Atıf notu (opsiyonel)"
+          aria-label="Atıf notu (opsiyonel)"
           className={kupaInput}
         />
       </div>
@@ -245,6 +269,21 @@ export function CuppingCitationManager({
           </button>
         ) : null}
       </div>
+
+      <KupaConfirmDialog
+        open={removeTarget !== null}
+        title="Kaynağı kaldır"
+        description={
+          `“${removeTarget ? sourceName(removeTarget.source_id) : ""}” kaynağının bu kayıtla ` +
+          `bağlantısı kaldırılacak. Kaynak, kaynak kataloğunuzda kalır (tamamen silinmez).`
+        }
+        confirmLabel="Kaldır"
+        busy={busy}
+        onConfirm={performRemove}
+        onClose={() => {
+          if (!busy) setRemoveTarget(null);
+        }}
+      />
     </div>
   );
 }
