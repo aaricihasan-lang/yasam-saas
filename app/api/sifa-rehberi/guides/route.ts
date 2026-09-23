@@ -8,6 +8,7 @@ import {
   BadCursorError,
 } from "@/lib/sifa-rehberi/searchParams";
 import { foldTr } from "@/lib/sifa-rehberi/normalizeTr";
+import { UUID_RE, isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse, publicErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 
 export const runtime = "nodejs";
@@ -70,8 +71,8 @@ function pickWritableFields(body: Record<string, unknown>): Record<string, unkno
   return out;
 }
 
-// Idempotency anahtarı biçim guard'ı (create RPC p_request_id).
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Idempotency anahtarı biçim guard'ı (create RPC p_request_id) — UUID_RE tek kaynaktan
+// (lib/sifa-rehberi/ids) içe aktarılır; route-içi kopya tanım kaldırıldı.
 
 // ─── GET /api/sifa-rehberi/guides?q=&category=&limit=&cursor= ───────────────────
 //
@@ -281,6 +282,12 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   if (ids.length === 0) {
     return NextResponse.json({ ok: false, error: "Silinecek kayıt seçilmedi." }, { status: 400 });
+  }
+
+  // Biçim guard'ı: geçersiz (non-UUID) id `.in("id", …)` üzerinden Postgres 22P02 → sanitize
+  // 500 üretiyordu. Herhangi biri geçersizse temiz 400 (ham hata SIZMAZ; tenant binding değişmez).
+  if (!ids.every(isSifaUuid)) {
+    return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
   }
 
   const { data, error } = await db
