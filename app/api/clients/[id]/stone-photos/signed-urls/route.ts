@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   STONE_PHOTO_BUCKET,
   STONE_PHOTO_SIGNED_TTL_SECONDS,
+  STONE_PHOTO_THUMB,
   isOwnedClientStonePhotoPath,
 } from "@/lib/clients/stonePhotoStorage";
 
@@ -24,7 +25,12 @@ export const runtime = "nodejs";
  *   - imzalanan path'ler DB metadata'sından + isOwnedClientStonePhotoPath doğrulamasından geçer.
  *   - short-lived TTL (3600 sn); signed URL DB'ye persist EDİLMEZ.
  *
- * Yanıt: { ok: true, byId: { [photoId]: signedUrl } }
+ * PERF (B1): kart/thumbnail için ayrıca sunucu-taraflı yeniden boyutlandırılmış (transform)
+ * kısa ömürlü signed URL üretilir → küçük kartlar 10 MB orijinali indirmez. Tam çözünürlük
+ * (lightbox) `byId`; küçük kapak `thumbById`. İmzalanan path seti AYNIdır (aynı ownership
+ * guard'ı); transform yalnız görüntü boyutunu küçültür, güvenlik/erişim değişmez.
+ *
+ * Yanıt: { ok: true, byId: { [photoId]: signedUrl }, thumbById: { [photoId]: thumbSignedUrl } }
  */
 
 async function clientBelongsToTenant(
@@ -81,10 +87,14 @@ export async function POST(
   }
 
   const byId: Record<string, string> = {};
+  const thumbById: Record<string, string> = {};
   if (uniquePaths.size > 0) {
+    const paths = [...uniquePaths];
+
+    // Tam çözünürlük — batch (tek çağrı). createSignedUrls transform DESTEKLEMEZ.
     const { data: signed, error: signErr } = await db.storage
       .from(STONE_PHOTO_BUCKET)
-      .createSignedUrls([...uniquePaths], STONE_PHOTO_SIGNED_TTL_SECONDS);
+      .createSignedUrls(paths, STONE_PHOTO_SIGNED_TTL_SECONDS);
     if (signErr) {
       return serverErrorResponse({ route: "clients/[id]/stone-photos/signed-urls", action: "sign", tenantId, cause: signErr });
     }
@@ -92,10 +102,34 @@ export async function POST(
     for (const entry of signed ?? []) {
       if (entry?.path && entry.signedUrl) urlByPath[entry.path] = entry.signedUrl;
     }
+
+    // Kart/thumbnail — transform yalnız tekil createSignedUrl'de var → path başına, PARALEL.
+    // Thumb imzalama hatası NON-FATAL: o path için thumb atlanır, client tam URL'e düşer.
+    const thumbUrlByPath: Record<string, string> = {};
+    const thumbResults = await Promise.all(
+      paths.map(async (p) => {
+        const { data: t, error: e } = await db.storage
+          .from(STONE_PHOTO_BUCKET)
+          .createSignedUrl(p, STONE_PHOTO_SIGNED_TTL_SECONDS, {
+            transform: {
+              width: STONE_PHOTO_THUMB.width,
+              height: STONE_PHOTO_THUMB.height,
+              resize: STONE_PHOTO_THUMB.resize,
+              quality: STONE_PHOTO_THUMB.quality,
+            },
+          });
+        return { path: p, url: e ? null : t?.signedUrl ?? null };
+      }),
+    );
+    for (const r of thumbResults) {
+      if (r.url) thumbUrlByPath[r.path] = r.url;
+    }
+
     for (const [photoId, path] of pathByPhotoId) {
       if (urlByPath[path]) byId[photoId] = urlByPath[path];
+      if (thumbUrlByPath[path]) thumbById[photoId] = thumbUrlByPath[path];
     }
   }
 
-  return NextResponse.json({ ok: true, byId });
+  return NextResponse.json({ ok: true, byId, thumbById });
 }
