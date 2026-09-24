@@ -993,7 +993,7 @@ function ClientDetailPageInner() {
           )}
           {openedTabs.has("beslenme") && (
           <div role="tabpanel" id="tabpanel-beslenme" aria-labelledby="tab-beslenme" hidden={activeTab !== "beslenme"}>
-            <BeslenmeTab clientId={client.id} clientName={fullName || t("clientFallback")} canManagePlans={isBeslenmeOwner} />
+            <BeslenmeTab clientId={client.id} clientName={fullName || t("clientFallback")} isOwner={isBeslenmeOwner} />
           </div>
           )}
         </DanisanSectionShell>

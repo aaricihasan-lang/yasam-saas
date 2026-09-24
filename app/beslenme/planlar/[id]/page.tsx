@@ -22,14 +22,12 @@ import {
   revisePlan,
   syncRange,
   type Plan,
+  type PlanAuthority,
+  type PlanBoundClient,
   type PlanDaySummary,
 } from "@/lib/beslenme/planClient";
 import { cleanDate, daysBetween } from "@/lib/beslenme/planContracts";
-import {
-  BeslenmeGate,
-  BeslenmeShell,
-  useBeslenmeOwnerGuard,
-} from "../../_components/BeslenmeShell";
+import { BeslenmeShell } from "../../_components/BeslenmeShell";
 import {
   DangerButton,
   Field,
@@ -51,6 +49,7 @@ import {
 import { PlanTools } from "../_components/PlanTools";
 import PlanClientContext from "./_components/PlanClientContext";
 import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
+import { EditorCapsProvider } from "../_components/editorCaps";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
@@ -58,11 +57,14 @@ import { MonthView } from "../_components/MonthView";
 type View = "day" | "week" | "month";
 
 export default function PlanEditorPage() {
-  const guard = useBeslenmeOwnerGuard();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
 
+  // Owner-guard YOK: güvenlik server-side (requireBeslenmePlanAccess). Erişim, getPlan
+  // sonucundan authoritative belirlenir — 401/403/404 → hassas içerik render EDİLMEZ.
+  const [authority, setAuthority] = useState<PlanAuthority | null>(null);
+  const [boundClient, setBoundClient] = useState<PlanBoundClient | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<PlanDaySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,8 @@ export default function PlanEditorPage() {
     const r = await getPlan(id);
     if (r.ok && r.data?.plan) {
       setPlan(r.data.plan);
+      setAuthority(r.data.authority ?? null);
+      setBoundClient(r.data.boundClient ?? null);
       const ds = r.data.days ?? [];
       setDays(ds);
       setSelectedDayId((prev) => (prev && ds.some((d) => d.id === prev) ? prev : ds[0]?.id ?? null));
@@ -92,7 +96,6 @@ export default function PlanEditorPage() {
   }, [id]);
 
   useEffect(() => {
-    if (guard !== "ok") return;
     let alive = true;
     void (async () => {
       setLoading(true);
@@ -102,10 +105,9 @@ export default function PlanEditorPage() {
     return () => {
       alive = false;
     };
-  }, [guard, reloadPlan]);
+  }, [reloadPlan]);
 
-  if (guard !== "ok") return <BeslenmeGate state={guard} />;
-
+  const isExpert = authority === "expert";
   const archived = plan?.status === "archived";
 
   async function doCopy() {
@@ -146,16 +148,22 @@ export default function PlanEditorPage() {
         days={days}
         selectedDayId={selectedDayId}
         archived={archived}
+        isExpert={isExpert}
         onChanged={() => void reloadPlan()}
       />
-      <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
-        Planı Kopyala
-      </GhostButton>
+      {/* Kopyala/Revizyon yeni family/lifecycle → owner-only; uzmanda GİZLİ (dead-control yok). */}
+      {!isExpert ? (
+        <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
+          Planı Kopyala
+        </GhostButton>
+      ) : null}
       {!archived ? (
         <>
-          <GhostButton icon={<GitBranch className="h-4 w-4" />} loading={actionBusy} onClick={() => void doRevise()}>
-            Yeni Revizyon
-          </GhostButton>
+          {!isExpert ? (
+            <GhostButton icon={<GitBranch className="h-4 w-4" />} loading={actionBusy} onClick={() => void doRevise()}>
+              Yeni Revizyon
+            </GhostButton>
+          ) : null}
           <GhostButton icon={<Settings2 className="h-4 w-4" />} onClick={() => setMetaOpen(true)}>
             Düzenle
           </GhostButton>
@@ -184,8 +192,8 @@ export default function PlanEditorPage() {
           : "Beslenme planı yükleniyor…"
       }
       icon={<UtensilsCrossed className="h-32 w-32" strokeWidth={1} />}
-      backHref="/beslenme/planlar"
-      backLabel="Planlar"
+      backHref={isExpert && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
+      backLabel={isExpert && boundClient ? "Danışana Dön" : "Planlar"}
       actions={headerActions}
     >
       {loading ? (
@@ -193,9 +201,10 @@ export default function PlanEditorPage() {
       ) : err || !plan ? (
         <StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage>
       ) : (
+        <EditorCapsProvider value={{ isExpert }}>
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
-          {/* FAZ 7: danışan bağlam şeridi (owner-only; API owner-authoritative) */}
+          {/* Danışan bağlam şeridi (server-authoritative; owner+bound-plan uzmanı) */}
           <PlanClientContext planId={id} onAvoidedFoodIdsChange={setAvoidedFoodIds} />
           {/* Bilgi şeridi */}
           <div className="flex flex-wrap items-center gap-2">
@@ -269,6 +278,7 @@ export default function PlanEditorPage() {
           )}
         </div>
         </AvoidedFoodIdsProvider>
+        </EditorCapsProvider>
       )}
 
       {plan && metaOpen ? (

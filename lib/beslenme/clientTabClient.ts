@@ -81,6 +81,15 @@ export const deletePreference = (c: string, id: string) =>
 // ── Plans ──
 export const listClientPlans = (c: string) => req<{ families: PlanFamily[] }>(`${base(c)}/plans`, { headers: authHeaders() });
 
+/**
+ * Danışan-scoped yeni plan oluştur (AŞAMA 2). Global owner /api/beslenme/plans POST'u
+ * KULLANILMAZ; bu uç create + otomatik danışan-bağlamayı atomik yapar. tenant/client
+ * body'de GÖNDERİLMEZ (server + path). Dönüş: oluşturulan plan (id + plan_family_id).
+ */
+export type CreatedClientPlan = { id: string; plan_family_id: string };
+export const createClientPlan = (c: string, body: { title: string; start_date: string; end_date: string; daily_energy_target?: number | null; note?: string | null }) =>
+  req<{ plan: CreatedClientPlan }>(`${base(c)}/plans`, { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
+
 // ── Reference (allergen vocab for multi-select) ──
 // DAR, danışan-scoped endpoint (requireModuleAccess "clients"): yalnız allergens döner.
 // Geniş /api/beslenme/reference (foodGroups+frameworks, owner/contributor) KULLANILMAZ.

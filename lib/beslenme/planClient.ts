@@ -62,8 +62,13 @@ export function listPlans(params?: { status?: string }) {
 export function createPlan(body: { title: string; start_date: string; end_date: string; daily_energy_target?: number | null; note?: string | null }) {
   return req<{ plan: Plan }>("/api/beslenme/plans", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
+export type PlanAuthority = "owner" | "expert";
+export type PlanBoundClient = { id: string; display_name: string };
 export function getPlan(id: string) {
-  return req<{ plan: Plan; days: PlanDaySummary[] }>(`/api/beslenme/plans/${id}`, { headers: authHeaders() });
+  return req<{ plan: Plan; days: PlanDaySummary[]; authority?: PlanAuthority; boundClient?: PlanBoundClient | null }>(
+    `/api/beslenme/plans/${id}`,
+    { headers: authHeaders() },
+  );
 }
 export function patchPlan(id: string, body: { title?: string; note?: string | null; daily_energy_target?: number | null; status?: string; expectedUpdatedAt?: string }) {
   return req<{ plan: Plan }>(`/api/beslenme/plans/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });

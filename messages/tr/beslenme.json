@@ -79,7 +79,14 @@
       "plans": {
         "title": "Beslenme Planları",
         "new": "Yeni Beslenme Planı",
-        "empty": "Bu danışana bağlı plan yok."
+        "empty": "Bu danışana bağlı plan yok.",
+        "createTitlePh": "Plan başlığı",
+        "createStartLabel": "Başlangıç",
+        "createEndLabel": "Bitiş",
+        "createSubmit": "Oluştur",
+        "createCancel": "Vazgeç",
+        "createValidation": "Başlık ve tarih aralığı gerekli.",
+        "createFailed": "Plan oluşturulamadı."
       },
       "goalType": {
         "weight_loss": "Kilo Verme",

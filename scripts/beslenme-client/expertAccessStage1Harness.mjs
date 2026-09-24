@@ -95,13 +95,14 @@ for (const [seg, methods, hasMutation] of clientRoutes) {
 // 9) UI: Beslenme sekmesi owner-flag'e bağlı DEĞİL; capability prop olarak geçiyor.
 const page = read("app/dashboard/clients/[id]/page.tsx");
 ok("page.tsx Beslenme tab'ı owner-flag ile GİZLEMİYOR (eski beslenmeOwner koşulu kalktı)", !/beslenmeOwner\b/.test(page));
-ok("page.tsx BeslenmeTab'a canManagePlans=isBeslenmeOwner geçiyor", /canManagePlans=\{isBeslenmeOwner\}/.test(page));
+// AŞAMA 2: prop canManagePlans → isOwner olarak yeniden adlandırıldı (owner plan mekanizması).
+ok("page.tsx BeslenmeTab'a isOwner=isBeslenmeOwner geçiyor", /isOwner=\{isBeslenmeOwner\}/.test(page));
 
 // 10) BeslenmeTab: owner ön-probe kaldırıldı; plan aksiyonları canManagePlans'a bağlı.
 const tab = read("app/dashboard/clients/[id]/components/BeslenmeTab.tsx");
 ok("BeslenmeTab owner ön-probe (checkBeslenmeAccess) KALDIRILDI", !/checkBeslenmeAccess/.test(tab));
 ok("BeslenmeTab canManagePlans prop'u alıyor", /canManagePlans/.test(tab));
-ok("BeslenmeTab plan aksiyonları canManagePlans ile koşullu", /canManagePlans\s*\?/.test(tab));
+ok("BeslenmeTab plan aksiyonları isOwner capability'sine bağlı", /isOwner/.test(tab));
 
 console.log(`\n${fail === 0 ? "✅ PASS" : "❌ FAIL"} — ${pass} geçti, ${fail} kaldı`);
 process.exit(fail === 0 ? 0 : 1);

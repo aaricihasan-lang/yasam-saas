@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, getItemScope } from "@/lib/beslenme/planEngine";
 import { resolveAlternativesForItem } from "@/lib/beslenme/alternativeEngine";
@@ -17,7 +18,7 @@ type RouteCtx = { params: Promise<{ id: string; itemId: string }> };
  *   IDOR: plan + item guard.tenantId'e ait olmalı (yoksa 404). Read-only (demo gate gerekmez).
  */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id, itemId } = await ctx.params;

@@ -59,6 +59,7 @@
     "beslenme:client:behavior:harness": "node scripts/beslenme-client/behaviorHarness.mjs",
     "beslenme:client:avoided:harness": "tsx scripts/beslenme-client/avoidedMatchHarness.ts",
     "beslenme:client:expert-access:harness": "node scripts/beslenme-client/expertAccessStage1Harness.mjs",
+    "beslenme:client:expert-plan:harness": "node scripts/beslenme-client/expertPlanAccessStage2Harness.mjs",
     "beslenme:food-engine:harness": "node scripts/beslenme-food-engine/ddlHarness.mjs",
     "beslenme:food-engine:calc": "tsx scripts/beslenme-food-engine/calcHarness.ts",
     "beslenme:food-engine:fixture": "node scripts/beslenme-food-engine/validateFixture.mjs",

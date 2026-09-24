@@ -30,6 +30,7 @@ import { ActionMenu, EnergyTargetLine, MacroChips, Modal, type MenuItem } from "
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
 import { mealTotals, mealEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { SaveMealTemplateModal, ItemAlternativesModal } from "./Faz6ItemActions";
+import { useEditorCaps } from "./editorCaps";
 
 function mealTypeLabel(t: string | null): string | null {
   if (!t) return null;
@@ -55,6 +56,7 @@ export function MealCard({
   onMove: (mealId: string, dir: -1 | 1) => void;
   onMutated: () => void;
 }) {
+  const { isExpert } = useEditorCaps();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tplSaveOpen, setTplSaveOpen] = useState(false);
@@ -80,7 +82,10 @@ export function MealCard({
     ? []
     : [
         { label: "Ayarlar / Adını Değiştir", icon: <PenLine className="h-4 w-4" />, onClick: () => setSettingsOpen(true) },
-        { label: "Öğünü Şablonla", icon: <LayoutTemplate className="h-4 w-4" />, onClick: () => setTplSaveOpen(true) },
+        // "Öğünü Şablonla" = şablon KÜRASYONU (owner-only, §16) → uzmanda gizli (dead-control yok).
+        ...(isExpert
+          ? []
+          : [{ label: "Öğünü Şablonla", icon: <LayoutTemplate className="h-4 w-4" />, onClick: () => setTplSaveOpen(true) }]),
       ];
 
   return (

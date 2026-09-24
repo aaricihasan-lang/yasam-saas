@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_COLUMNS, PLAN_PATCH_KEYS, PLAN_STATUSES, isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, isPlanEditable, loadPlanDaySummaries } from "@/lib/beslenme/planEngine";
+import { requireClientInTenant, clientDisplayName } from "@/lib/danisan/clientGuard";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
 
 /** GET: plan + lightweight day summaries (meal_count + energy total). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -21,12 +23,22 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   if (!plan) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
   const days = await loadPlanDaySummaries(db, tenantId, id);
-  return NextResponse.json({ ok: true, plan, days }, { headers: { "Cache-Control": "no-store" } });
+
+  // FAZ2: authority + bağlı danışan → editör owner-only kontrolleri gizler + "Danışana Dön".
+  let boundClient: { id: string; display_name: string } | null = null;
+  if (guard.boundClientId) {
+    const c = await requireClientInTenant(db, tenantId, guard.boundClientId);
+    if (c) boundClient = { id: c.id, display_name: clientDisplayName(c) };
+  }
+  return NextResponse.json(
+    { ok: true, plan, days, authority: guard.authority, boundClient },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 /** PATCH: plan meta (title/note/daily_energy_target/status). Archived → 403. Optimistic concurrency. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

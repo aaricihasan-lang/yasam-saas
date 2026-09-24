@@ -79,7 +79,14 @@
       "plans": {
         "title": "Nutrition Plans",
         "new": "New Nutrition Plan",
-        "empty": "No plan bound to this client."
+        "empty": "No plan bound to this client.",
+        "createTitlePh": "Plan title",
+        "createStartLabel": "Start",
+        "createEndLabel": "End",
+        "createSubmit": "Create",
+        "createCancel": "Cancel",
+        "createValidation": "Title and date range are required.",
+        "createFailed": "Could not create the plan."
       },
       "goalType": {
         "weight_loss": "Weight Loss",

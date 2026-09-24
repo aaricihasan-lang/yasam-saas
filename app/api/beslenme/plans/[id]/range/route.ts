@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_RANGE_KEYS, cleanDate, daysBetween, isUuid } from "@/lib/beslenme/planContracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
@@ -12,7 +13,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
  * aralık-dışı → 409 RANGE_HAS_CONTENT, ZERO deletion; §20). Archived → 403.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

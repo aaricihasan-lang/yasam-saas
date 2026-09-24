@@ -12,12 +12,13 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
 import {
   getProfile, saveProfile, listMeasurements, addMeasurement, deleteMeasurement,
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
-  listClientPlans,
+  listClientPlans, createClientPlan,
   type ClientProfile, type ClientContext, type Measurement, type ClientAllergen,
   type FoodPreference, type PlanFamily, type AllergenVocab,
 } from "@/lib/beslenme/clientTabClient";
@@ -28,11 +29,12 @@ type Props = {
   clientName?: string;
   tenantId?: string;
   /**
-   * Plan YÖNETİMİ capability'si (owner/super-admin). true → "Yeni Plan" + plan editör
-   * linkleri; false (uzman) → plan yalnız salt-okunur liste (AŞAMA 2'de açılacak).
-   * Güvenlik sınırı DEĞİL (server owner-authoritative); yalnız UI görünürlüğü.
+   * Owner (super-admin) capability. AŞAMA 2'de HEM owner HEM uzman plan oluşturup açar;
+   * bu bayrak yalnız "Yeni Plan" MEKANİZMASINI seçer: owner → global new-plan akışı;
+   * uzman (false) → danışan-scoped createClientPlan (otomatik bağlanır). Güvenlik sınırı
+   * DEĞİL — server plan-guard authoritative.
    */
-  canManagePlans?: boolean;
+  isOwner?: boolean;
 };
 type Tf = ReturnType<typeof useTranslations>;
 
@@ -48,7 +50,7 @@ function Section({ title, children, action }: { title: string; children: React.R
   );
 }
 
-export default function BeslenmeTab({ clientId, clientName, canManagePlans = false }: Props) {
+export default function BeslenmeTab({ clientId, clientName, isOwner = false }: Props) {
   const t = useTranslations("beslenme.detail");
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
   const [client, setClient] = useState<ClientContext | null>(null);
@@ -120,7 +122,7 @@ export default function BeslenmeTab({ clientId, clientName, canManagePlans = fal
       <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
       <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
       <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
-      <PlansSection t={t} clientId={clientId} clientName={name} families={families} canManagePlans={canManagePlans} />
+      <PlansSection t={t} clientId={clientId} clientName={name} families={families} isOwner={isOwner} />
     </div>
   );
 }
@@ -303,18 +305,50 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
 }
 
 // ── Planlar ──
-// canManagePlans=true (owner): "Yeni Plan" + plan editör linkleri (mevcut davranış).
-// canManagePlans=false (uzman): danışana bağlı planlar SALT-OKUNUR liste — yeni plan /
-// editör YOK, dead-link YOK (plan editörü AŞAMA 2). Güvenlik server-side'dır.
-function PlansSection({ t, clientId, clientName, families, canManagePlans }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[]; canManagePlans: boolean }) {
+// AŞAMA 2: HEM owner HEM clients-uzman plan oluşturup açar. Plan başlık/revizyonları her
+// zaman editöre link (server plan-guard authoritative). "Yeni Plan" mekanizması isOwner'a
+// göre: owner → global new-plan akışı (mevcut); uzman → danışan-scoped createClientPlan
+// (otomatik danışana bağlanır, ayrı danışan seçici YOK, standalone plan YOK).
+function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[]; isOwner: boolean }) {
+  const router = useRouter();
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
-  const newHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
-  const revMeta = (r: { revision_number: number; status: string }) => `V${r.revision_number} · ${statusLabel(r.status)}`;
+  const ownerNewHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
+
+  const [creating, setCreating] = useState(false);
+  const [cf, setCf] = useState({ title: "", start: "", end: "" });
+  const [busy, setBusy] = useState(false);
+  const [cErr, setCErr] = useState<string | null>(null);
+
+  const submitCreate = async () => {
+    setCErr(null);
+    if (!cf.title.trim() || !cf.start || !cf.end) { setCErr(t("plans.createValidation")); return; }
+    setBusy(true);
+    const r = await createClientPlan(clientId, { title: cf.title.trim(), start_date: cf.start, end_date: cf.end });
+    setBusy(false);
+    if (r.ok && r.data?.plan?.id) { router.push(`/beslenme/planlar/${r.data.plan.id}`); return; }
+    setCErr(t("plans.createFailed") + (r.code ? ` (${r.code})` : ""));
+  };
+
+  const action = isOwner ? (
+    <Link href={ownerNewHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>
+  ) : (
+    <button onClick={() => setCreating((v) => !v)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</button>
+  );
+
   return (
-    <Section
-      title={t("plans.title")}
-      action={canManagePlans ? <Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link> : undefined}
-    >
+    <Section title={t("plans.title")} action={action}>
+      {!isOwner && creating && (
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 sm:grid-cols-4">
+          <input value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} placeholder={t("plans.createTitlePh")} className="rounded border border-emerald-200 px-2 py-1 text-sm sm:col-span-4" />
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createStartLabel")}<input type="date" value={cf.start} onChange={(e) => setCf({ ...cf, start: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createEndLabel")}<input type="date" value={cf.end} onChange={(e) => setCf({ ...cf, end: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
+          <div className="flex items-end gap-2 sm:col-span-2">
+            <button disabled={busy} onClick={submitCreate} className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">{t("plans.createSubmit")}</button>
+            <button onClick={() => { setCreating(false); setCErr(null); }} className="rounded border border-slate-200 px-3 py-1.5 text-sm">{t("plans.createCancel")}</button>
+          </div>
+          {cErr && <p className="text-sm text-red-600 sm:col-span-4">{cErr}</p>}
+        </div>
+      )}
       {families.length === 0 ? (
         <p className="text-sm text-slate-400">{t("plans.empty")}</p>
       ) : (
@@ -324,11 +358,7 @@ function PlansSection({ t, clientId, clientName, families, canManagePlans }: { t
               {f.latest && (
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    {canManagePlans ? (
-                      <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
-                    ) : (
-                      <span className="font-semibold text-emerald-800">{f.latest.title}</span>
-                    )}
+                    <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
                     <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {f.latest.start_date} → {f.latest.end_date}</span>
                   </div>
                 </div>
@@ -336,11 +366,7 @@ function PlansSection({ t, clientId, clientName, families, canManagePlans }: { t
               {f.revisions.length > 1 && (
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                   {f.revisions.map((r) => (
-                    canManagePlans ? (
-                      <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">{revMeta(r)}</Link>
-                    ) : (
-                      <span key={r.id} className="rounded bg-slate-100 px-2 py-0.5">{revMeta(r)}</span>
-                    )
+                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">V{r.revision_number} · {statusLabel(r.status)}</Link>
                   ))}
                 </div>
               )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, requireBeslenmeFoodRead, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
   FOOD_COLUMNS,
@@ -25,9 +25,9 @@ const CREATE_KEYS = [
   "sort_order",
 ] as const;
 
-/** GET: liste + arama + grup filtresi (SYSTEM ∪ kendi tenant). */
+/** GET: liste + arama + grup filtresi (SYSTEM ∪ kendi tenant). READ-only kapı → plan editörü uzmanı da okuyabilir. */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeFoodContributor(req);
+  const guard = await requireBeslenmeFoodRead(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
