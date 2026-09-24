@@ -199,7 +199,6 @@ export function ProtocolRegistrationForm({
             id="protocol-notes"
             value={draft.notes}
             onChange={(e) => onDraftChange({ ...draft, notes: e.target.value })}
-            onFocus={openNotesModal}
             onClick={openNotesModal}
             rows={3}
             className={`${inputClass} cursor-text resize-none`}
