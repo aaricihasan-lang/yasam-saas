@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -150,10 +151,11 @@ const inputCls =
 const textareaCls =
   "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
-// Sekmeye özel Word butonu — mobil dahil her boyutta erişilebilir (dokunmatik
-// hedef ≥40px). Analiz modalındaki "Word Al" ayrı bileşende ve etkilenmez.
+// Sekmeye özel Word butonu — ÜRÜN KARARI: mobilde gizli, md+ görünür
+// (hidden md:inline-flex); ayrıca Android'de `!isAndroid` guard'ı ile hiç
+// render edilmez. Analiz modalındaki "Word Al" ayrı bileşende ve etkilenmez.
 const wordBtnCls =
-  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
+  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer hidden md:inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
@@ -222,6 +224,7 @@ function ClientDetailPageInner() {
   } | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [tabWordBusy, setTabWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   // BF-14 P2: Yaşam Hafızası teslim seçimi (report target). selectionGroupId yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelectionGroupId, setYhSelectionGroupId] = useState<string | null>(null);
@@ -687,19 +690,24 @@ function ClientDetailPageInner() {
                 (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
                 plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi
                 ve arama/görüntüleme aynen çalışır. */}
+            {/* Ana "Word Raporu": ÜRÜN KARARI — mobilde gizli, md+ görünür;
+                Android'de `!isAndroid` guard'ı ile hiç render edilmez. */}
+            {!isAndroid && (
             <button
               onClick={generateWordReport}
               disabled={generatingReport}
               aria-label={t("a11y.fullWordReport")}
-              className="inline-flex items-center min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
+              className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60 md:inline-flex md:items-center"
             >
               {generatingReport ? t("report.generating") : t("report.wordReport")}
             </button>
+            )}
           </div>
         </div>
 
-        {/* Date-range report — collapsible (Word özelliği; mobil dahil erişilebilir) */}
-        <div className="mb-2.5 block">
+        {/* Date-range report — collapsible (Word özelliği: mobilde gizli, md+ görünür; Android'de tamamen gizli) */}
+        {!isAndroid && (
+        <div className="mb-2.5 hidden md:block">
           <button
             type="button"
             onClick={() => setDrOpen((v) => !v)}
@@ -728,6 +736,7 @@ function ClientDetailPageInner() {
             </div>
           )}
         </div>
+        )}
 
         {/* Tab content area — açılan sekme DOM'da kalır (tekrar fetch yok),
             aktif olmayan `hidden` ile gizlenir → sekme geçişi anında; ağır
@@ -749,9 +758,11 @@ function ClientDetailPageInner() {
               return (
                 <>
                   <div className="mb-2.5">
+                    {!isAndroid && (
                     <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
                       {tabWordBusy ? t("report.generating") : t("tabWord.genel")}
                     </button>
+                    )}
                   </div>
 
                   {/* Başlık + düzenle/vazgeç butonu */}
@@ -863,9 +874,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("notlar") && (
           <div role="tabpanel" id="tabpanel-notlar" aria-labelledby="tab-notlar" hidden={activeTab !== "notlar"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("notlar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.notlar")}
                 </button>
+                )}
               </div>
               <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
           </div>
@@ -874,9 +887,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("randevular") && (
           <div role="tabpanel" id="tabpanel-randevular" aria-labelledby="tab-randevular" hidden={activeTab !== "randevular"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("randevular")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.randevular")}
                 </button>
+                )}
               </div>
               <AppointmentsTab clientId={client.id} clientName={fullName || t("clientFallback")} tenantId={tenantId} confirm={confirm} showToast={showToast} />
           </div>
@@ -885,9 +900,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("taslar") && (
           <div role="tabpanel" id="tabpanel-taslar" aria-labelledby="tab-taslar" hidden={activeTab !== "taslar"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("taslar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.taslar")}
                 </button>
+                )}
               </div>
               <StonesTab clientId={client.id} />
           </div>
@@ -896,9 +913,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("seanslar") && (
           <div role="tabpanel" id="tabpanel-seanslar" aria-labelledby="tab-seanslar" hidden={activeTab !== "seanslar"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("seanslar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.seanslar")}
                 </button>
+                )}
               </div>
               <SessionsTab
                 clientId={client.id}
@@ -916,9 +935,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("ucretlendirme") && (
           <div role="tabpanel" id="tabpanel-ucretlendirme" aria-labelledby="tab-ucretlendirme" hidden={activeTab !== "ucretlendirme"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("ucretlendirme")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.ucretlendirme")}
                 </button>
+                )}
               </div>
               <UcretlendirmeTab clientId={client.id} />
           </div>
@@ -927,9 +948,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("odevler") && (
           <div role="tabpanel" id="tabpanel-odevler" aria-labelledby="tab-odevler" hidden={activeTab !== "odevler"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("odevler")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.odevler")}
                 </button>
+                )}
               </div>
               <HomeworkTab clientId={client.id} />
           </div>
@@ -938,9 +961,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("analizler") && (
           <div role="tabpanel" id="tabpanel-analizler" aria-labelledby="tab-analizler" hidden={activeTab !== "analizler"}>
               <div className="mb-2.5">
+                {!isAndroid && (
                 <button onClick={() => void generateTabWordReport("analizler")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? t("report.generating") : t("tabWord.analizler")}
                 </button>
+                )}
               </div>
               <AnalizlerTab clientId={client.id} clientName={fullName || t("clientFallback")} />
           </div>

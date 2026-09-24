@@ -5,6 +5,7 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUserAndTenant } from "../helpers/numerolojiKayit";
@@ -29,6 +30,7 @@ export default function NumerolojiListePage() {
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
   const { isDemo } = useDemoGuard();
+  const isAndroid = useIsAndroid();
   const [rows, setRows] = useState<NumerolojiListeSatir[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -266,9 +268,9 @@ export default function NumerolojiListePage() {
                 hasActiveFilter={hasActiveFilter}
                 onSelectAll={selectAllFiltered}
                 onClearSelection={clearSelection}
-                onExportSelected={() => setWordPicker({ mode: "selected" })}
-                onExportAll={() => setWordPicker({ mode: "all" })}
-                onExportFiltered={hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
+                onExportSelected={isAndroid ? undefined : () => setWordPicker({ mode: "selected" })}
+                onExportAll={isAndroid ? undefined : () => setWordPicker({ mode: "all" })}
+                onExportFiltered={!isAndroid && hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
                 isExporting={wordBusy}
                 onDeleteSelected={() => void handleBulkDelete()}
                 isDeleting={deleteLoading}

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import {
   cuppingError,
@@ -43,6 +44,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;

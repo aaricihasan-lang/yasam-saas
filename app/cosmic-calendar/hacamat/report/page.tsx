@@ -5,11 +5,13 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 import { MONTH_NAMES_TR } from "@/lib/cosmic/hacamat";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 // ─── İçerik ───────────────────────────────────────────────────────────────────
 
 function ReportView() {
   const params   = useSearchParams();
+  const isAndroid = useIsAndroid();
   const rawMonth = parseInt(params.get("month") ?? "", 10);
   const rawYear  = parseInt(params.get("year")  ?? "", 10);
   const month    = isNaN(rawMonth) ? new Date().getMonth()    : Math.min(11, Math.max(0, rawMonth));
@@ -61,14 +63,16 @@ function ReportView() {
           </a>
 
           {/* Word indir */}
-          <a
-            href={wordDlUrl}
-            download={wordFile}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] sm:w-auto sm:py-2.5"
-          >
-            <FileText className="h-4 w-4" />
-            Word İndir
-          </a>
+          {!isAndroid && (
+            <a
+              href={wordDlUrl}
+              download={wordFile}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] sm:w-auto sm:py-2.5"
+            >
+              <FileText className="h-4 w-4" />
+              Word İndir
+            </a>
+          )}
         </div>
 
         {/* PDF önizleme — <object> ile, fallback yerleşik */}

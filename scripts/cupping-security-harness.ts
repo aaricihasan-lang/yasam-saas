@@ -29,7 +29,18 @@ import { GET as pointsGET, POST as pointsPOST } from "@/app/api/kupa/points/rout
 import { POST as topicNotesPOST } from "@/app/api/kupa/topic-notes/route";
 import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
-import { CUPPING_TABLES, POINT_WRITABLE, CUPPING_ARRAY_MAX_ITEMS } from "@/lib/cupping/fields";
+import {
+  CUPPING_TABLES,
+  POINT_WRITABLE,
+  SOURCE_WRITABLE,
+  KNOWLEDGE_WRITABLE,
+  CUPPING_ARRAY_MAX_ITEMS,
+} from "@/lib/cupping/fields";
+import {
+  normalizeSortOrder,
+  normalizeNullableNumber,
+  withSafeSortOrder,
+} from "@/lib/cupping/normalize";
 import {
   isLaterality,
   isSeverity,
@@ -242,6 +253,55 @@ async function run() {
   ok("resolveModuleAccess: TR alias {kupa:true} → true", resolveModuleAccess("expert", { kupa: true }, "cupping") === true);
   ok("resolveModuleAccess: admin → true", resolveModuleAccess("admin", {}, "cupping") === true);
 
+  console.log("\n── KUP-NEW-1: sort_order boş-alan regresyonu (GERÇEK davranış) ──");
+  // A) Pure sözleşme: sort_order (NOT NULL DEFAULT 0) boş/geçersiz/null → 0; gerçek sayı korunur.
+  ok("normalizeSortOrder('') → 0 (boş Sıra)", normalizeSortOrder("") === 0);
+  ok("normalizeSortOrder('   ') → 0 (whitespace)", normalizeSortOrder("   ") === 0);
+  ok("normalizeSortOrder(null) → 0", normalizeSortOrder(null) === 0);
+  ok("normalizeSortOrder(undefined) → 0", normalizeSortOrder(undefined) === 0);
+  ok("normalizeSortOrder('0') → 0 (gerçek sıfır korunur)", normalizeSortOrder("0") === 0);
+  ok("normalizeSortOrder('7') → 7 (gerçek sayı korunur)", normalizeSortOrder("7") === 7);
+  ok("normalizeSortOrder(7) → 7 (number geçişi)", normalizeSortOrder(7) === 7);
+  ok("normalizeSortOrder('abc') → 0 (geçersiz)", normalizeSortOrder("abc") === 0);
+  // B) NULLABLE numeric (year) geriye-uyum: boş → null (HAC-UX-5 KORUNUR; year→0 regresyonu YOK).
+  ok("normalizeNullableNumber('') → null (year boş)", normalizeNullableNumber("") === null);
+  ok("normalizeNullableNumber('  ') → null", normalizeNullableNumber("  ") === null);
+  ok("normalizeNullableNumber('1990') → 1990 (gerçek yıl)", normalizeNullableNumber("1990") === 1990);
+  ok("normalizeNullableNumber('abc') → null (geçersiz)", normalizeNullableNumber("abc") === null);
+  ok("normalizeNullableNumber(0) → 0 (gerçek sıfır korunur)", normalizeNullableNumber(0) === 0);
+
+  // C) Server backstop (withSafeSortOrder): sort_order VARSA 0'a zorlanır; YOKSA dokunulmaz.
+  ok("withSafeSortOrder: sort_order YOK → değişmez (DB DEFAULT 0)", !("sort_order" in withSafeSortOrder({ name: "X" })));
+  ok("withSafeSortOrder: sort_order=null → 0", withSafeSortOrder({ sort_order: null }).sort_order === 0);
+  ok("withSafeSortOrder: sort_order=5 → 5 korunur", withSafeSortOrder({ sort_order: 5 }).sort_order === 5);
+  ok("withSafeSortOrder: year NULLABLE bozulmaz (year=null korunur)", withSafeSortOrder({ sort_order: null, year: null }).year === null);
+
+  // D) GERÇEK insert payload (fake-db) — 3 create yüzeyi (Nokta/Kaynak/Bilgi) aynı chokepoint.
+  //    Boş "Sıra" → DB'ye giden payload'da sort_order === 0 (ASLA null). NOT NULL ihlali önlenir.
+  const sortDb = makeFakeDb({});
+  const insPoint = await insertEntity(sortDb, CUPPING_TABLES.points, "t-1", { name: "Nokta", sort_order: null });
+  ok("Nokta create — Sıra boş → insert payload sort_order=0 (null DEĞİL)", insPoint.ok && insPoint.data.sort_order === 0);
+  ok("Nokta create — insert payload sort_order null DEĞİLDİR", insPoint.ok && insPoint.data.sort_order !== null);
+  const insSource = await insertEntity(sortDb, CUPPING_TABLES.sources, "t-1", { source_name: "Kaynak", sort_order: null, year: null });
+  ok("Kaynak create — Sıra boş → insert payload sort_order=0", insSource.ok && insSource.data.sort_order === 0);
+  ok("Kaynak create — NULLABLE year boş → payload year null KALIR (regresyon yok)", insSource.ok && insSource.data.year === null);
+  const insKnow = await insertEntity(sortDb, CUPPING_TABLES.knowledge, "t-1", { title: "Bilgi", sort_order: null });
+  ok("Bilgi Kütüphanesi create — Sıra boş → insert payload sort_order=0", insKnow.ok && insKnow.data.sort_order === 0);
+  const insReal = await insertEntity(sortDb, CUPPING_TABLES.points, "t-1", { name: "Nokta2", sort_order: 7 });
+  ok("Nokta create — Sıra=7 → payload sort_order=7 (gerçek değer korunur)", insReal.ok && insReal.data.sort_order === 7);
+
+  // E) UPDATE: kullanıcı "Sıra" alanını temizlerse (sort_order null) → 0 (DB'ye null gitmez).
+  const updDb = makeFakeDb({ [CUPPING_TABLES.points]: [{ id: "pu", tenant_id: "t-1", name: "U", sort_order: 3 }] });
+  const updClear = await updateEntity(updDb, CUPPING_TABLES.points, "t-1", "pu", { sort_order: null });
+  ok("Sıra temizleme (update) → sort_order=0 (null DEĞİL)", updClear.ok && updClear.data.sort_order === 0);
+
+  // F) sort_order backstop mass-assignment korumasını BOZMAZ (tenant_id/id hâlâ strip).
+  const pickedSort = pickWritable({ sort_order: null, tenant_id: "evil", id: "evil" }, POINT_WRITABLE);
+  ok("sort_order allowlist'te KALIR, tenant_id/id STRIP", "sort_order" in pickedSort && !("tenant_id" in pickedSort) && !("id" in pickedSort));
+  // SOURCE_WRITABLE / KNOWLEDGE_WRITABLE sort_order içerdiğini doğrula (3 yüzey allowlist eşlemesi).
+  ok("SOURCE_WRITABLE sort_order içerir (Kaynak yüzeyi)", (SOURCE_WRITABLE as readonly string[]).includes("sort_order"));
+  ok("KNOWLEDGE_WRITABLE sort_order içerir (Bilgi yüzeyi)", (KNOWLEDGE_WRITABLE as readonly string[]).includes("sort_order"));
+
   console.log("\n── Kaynak kontratı (regression lock) ──");
   const pointsSrc = readFileSync(join(ROOT, "app/api/kupa/points/route.ts"), "utf8");
   const protocolsSrc = readFileSync(join(ROOT, "app/api/kupa/protocols/route.ts"), "utf8");
@@ -255,6 +315,7 @@ async function run() {
   ok("routeModuleAccess: '/kupa' kuralı kayıtlı", /prefix:\s*["']\/kupa["']/.test(routeGuardSrc));
   ok("modulePermissions: 'cupping' anahtarı var", /["']cupping["']/.test(permsSrc));
   ok("api.ts: validateWritable + tenant_id filtresi", /validateWritable/.test(apiSrc) && /\.eq\(\s*["']tenant_id["']/.test(apiSrc));
+  ok("api.ts: KUP-NEW-1 sort_order backstop (withSafeSortOrder)", /withSafeSortOrder/.test(apiSrc));
 
   console.log(`\nSONUÇ: ${pass} passed, ${fail} failed`);
   if (fail > 0) { process.exitCode = 1; console.error("HARNESS FAIL — Kupa güvenlik kontratı ihlal edildi."); }

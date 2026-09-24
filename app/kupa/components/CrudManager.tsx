@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
 import { KupaConfirmDialog } from "./ConfirmDialog";
+import { normalizeNullableNumber, normalizeSortOrder } from "@/lib/cupping/normalize";
 
 /**
  * KUPA & HACAMAT — generic içerik CRUD yöneticisi (liste + form). Nokta/teknik/bilgi/
@@ -51,15 +52,13 @@ function toFormValue(v: unknown, type: FieldType): string | boolean {
   return String(v);
 }
 
-function fromFormValue(raw: string | boolean, type: FieldType): unknown {
+function fromFormValue(raw: string | boolean, type: FieldType, key: string): unknown {
   if (type === "boolean") return raw === true;
   if (type === "number") {
-    // HAC-UX-5: boş sayısal alan `0` DEĞİL null olur (Number("")→0 yanlış verisi engellenir).
-    // Gerçek "0" girişi korunur (Number("0")→0 finite). Geçersiz giriş de 0'a düşürülmez → null.
-    const s = String(raw).trim();
-    if (s === "") return null;
-    const n = Number(s);
-    return Number.isFinite(n) ? n : null;
+    // KUP-NEW-1: sort_order TÜM Kupa tablolarında `NOT NULL DEFAULT 0` → boş "Sıra" alanı
+    // 0 olmalı (açık null NOT NULL ihlali/500 yapar). Diğer numeric alanlar (ör. year)
+    // NULLABLE → HAC-UX-5 davranışı (boş → null) KORUNUR. Tek kaynak: lib/cupping/normalize.
+    return key === "sort_order" ? normalizeSortOrder(raw) : normalizeNullableNumber(raw);
   }
   if (type === "tags") {
     return String(raw)
@@ -132,7 +131,7 @@ export function CrudManager<T extends Rec>({
   const handleSave = async () => {
     setError(null);
     const body: Record<string, unknown> = {};
-    for (const f of fields) body[f.key] = fromFormValue(form[f.key] ?? (f.type === "boolean" ? false : ""), f.type);
+    for (const f of fields) body[f.key] = fromFormValue(form[f.key] ?? (f.type === "boolean" ? false : ""), f.type, f.key);
     const req = fields.find((f) => f.required);
     if (req && !String(body[req.key] ?? "").trim()) {
       setError(`${req.label} gerekli.`);

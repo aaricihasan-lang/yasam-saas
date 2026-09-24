@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -39,6 +40,7 @@ export function HdRaporListesi() {
   // Admin knowledge isolation: profesyonel (canonical) rapor Word indirme yalnız
   // ADMIN/OWNER içindir (endpoint 403). Non-admin için indirme butonu gizlenir.
   const [isAdmin, setIsAdmin] = useState(false);
+  const isAndroid = useIsAndroid();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsAdmin(isAdminUser(readYasamUser()));
@@ -187,7 +189,8 @@ export function HdRaporListesi() {
                   // Profesyonel (canonical): DONMUŞ snapshot'tan Word indir. Düzenle YOK
                   // (immutable/§40); Detay YOK (içerik snapshot'ta, editable metin yok).
                   // Merkezî canonical prose içerdiğinden yalnız ADMIN/OWNER indirebilir.
-                  isAdmin ? (
+                  // Android: Word (.docx) indirme butonu render edilmez (ürün kararı).
+                  isAdmin && !isAndroid ? (
                     <button
                       type="button"
                       disabled={downloadingId === row.id}

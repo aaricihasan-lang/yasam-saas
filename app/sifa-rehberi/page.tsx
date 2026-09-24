@@ -4,6 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import {
   Suspense,
   useCallback,
@@ -363,6 +364,7 @@ function SifaRehberiContent() {
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   const [pageView, setPageView] = useState<PageView>(() => {
     return pageViewFromQueryParam(searchParams.get("view")) ?? "menu";
   });
@@ -1464,9 +1466,9 @@ function SifaRehberiContent() {
               hasActiveFilter={hasActiveFilter}
               onSelectAll={() => setSelectedForExport(new Set(filteredRows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportWord("selected")}
-              onExportAll={() => void exportWord("all")}
-              onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
+              onExportSelected={isAndroid ? undefined : () => void exportWord("selected")}
+              onExportAll={isAndroid ? undefined : () => void exportWord("all")}
+              onExportFiltered={!isAndroid && hasActiveFilter ? () => void exportWord("filtered") : undefined}
               isExporting={wordBusy}
               onDeleteSelected={() => void handleBulkDeleteGuides()}
               isDeleting={deleteLoading}

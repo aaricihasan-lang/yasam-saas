@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 export type BulkExportBarProps = {
   selectedCount: number;
@@ -54,8 +55,11 @@ export function BulkExportBar({
   hideWordOnMobile,
 }: BulkExportBarProps) {
   const t = useTranslations("common");
+  // Android'de Word (.docx) indirme kapalıdır (ürün kararı): export bölümü (Word
+  // butonları + ayraç) render EDİLMEZ. Seçim/temizle/silme kontrolleri korunur.
+  const isAndroid = useIsAndroid();
   const busy = Boolean(isExporting) || Boolean(isDeleting);
-  const hasExport = Boolean(onExportSelected || onExportAll);
+  const hasExport = !isAndroid && Boolean(onExportSelected || onExportAll);
   const selectCountDisplay = selectAllCount ?? totalCount;
   // Word export butonlarını mobilde gizle (opt-in). Boşsa mevcut davranış korunur.
   const wordHideCls = hideWordOnMobile ? " hidden md:inline-block" : "";
