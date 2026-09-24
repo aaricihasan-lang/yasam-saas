@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS public.reflexology_protocols (
   origin_source_id         uuid,
   origin_transfer_batch_id uuid,
   transferred_at           timestamptz,
-  CONSTRAINT reflexology_protocols_origin_type_check CHECK (
+  CONSTRAINT reflexology_protocols_origin_type_chk CHECK (
     origin_type IS NULL
     OR origin_type IN ('admin_transfer', 'expert_created', 'legacy')
   )
