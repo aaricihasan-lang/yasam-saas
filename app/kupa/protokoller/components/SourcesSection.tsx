@@ -13,6 +13,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [formOpen, setFormOpen] = useState(false);
+  const [pickedSourceId, setPickedSourceId] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [locator, setLocator] = useState("");
   const [note, setNote] = useState("");
@@ -22,6 +23,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   const rows = [...doc.sources].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   function reset() {
+    setPickedSourceId("");
     setSourceText("");
     setLocator("");
     setNote("");
@@ -30,28 +32,31 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   }
 
   async function add() {
-    const text = sourceText.trim();
-    if (!text) {
-      showToast({ message: "Kaynak / kimden öğrendiğinizi yazın.", type: "warning" });
-      return;
-    }
     const loc = locator.trim();
     setBusy(true);
     try {
-      // SADE akış: kullanıcı serbest metin yazar. Aynı isimde master EXACT normalized varsa
-      // sessiz reuse (§14: agresif uyarı yok); yoksa ARKA PLANDA minimal source oluştur
-      // (kullanıcıya "katalog kaydı" hissi verilmez). protocol_sources.source_id zorunlu.
-      const norm = normalizeMasterName(text);
-      const existing = doc.masterSources.find((s) => normalizeMasterName(s.source_name) === norm);
-      let sid = existing?.id ?? "";
+      // K10 — İKİ yol: (A) katalogdan mevcut kaynak SEÇ (pickedSourceId) → doğrudan kullan;
+      //   (B) serbest metin YAZ → aynı isimde master varsa sessiz reuse, yoksa arka planda oluştur.
+      //   protocol_sources.source_id zorunlu (yapısal); serbest-metin backward-compat KORUNUR.
+      let sid = pickedSourceId;
       if (!sid) {
-        const created = await createSource({ source_name: text });
-        if (!created || !created.id) {
-          showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+        const text = sourceText.trim();
+        if (!text) {
+          showToast({ message: "Katalogdan bir kaynak seçin veya yeni kaynak yazın.", type: "warning" });
           return;
         }
-        sid = created.id;
-        await doc.reload.masterSources();
+        const norm = normalizeMasterName(text);
+        const existing = doc.masterSources.find((s) => normalizeMasterName(s.source_name) === norm);
+        sid = existing?.id ?? "";
+        if (!sid) {
+          const created = await createSource({ source_name: text });
+          if (!created || !created.id) {
+            showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+            return;
+          }
+          sid = created.id;
+          await doc.reload.masterSources();
+        }
       }
       // Aynı kaynak + aynı sayfa/bölüm UNIQUE ön-kontrolü (yalnız reuse durumunda anlamlı).
       if (rows.some((r) => r.source_id === sid && (r.locator ?? "") === loc)) {
@@ -141,16 +146,40 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
 
       {formOpen ? (
         <div className="mt-3 space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
-          {/* SADE: tek serbest-metin alan. Ayrı katalog / tür / yazar / yayın picker YOK. */}
+          {/* K10 — İKİ yol açıkça: (A) katalogdan seç VEYA (B) yeni kaynak yaz. */}
           <label className="block">
-            <span className="block text-[11px] font-semibold text-slate-500">Kaynak / Kimden öğrendim *</span>
+            <span className="block text-[11px] font-semibold text-slate-500">Katalogdan Kaynak Seç</span>
+            <select
+              className={`mt-1 ${kupaInput}`}
+              value={pickedSourceId}
+              onChange={(e) => {
+                setPickedSourceId(e.target.value);
+                if (e.target.value) setSourceText("");
+              }}
+              aria-label="Katalogdan kaynak seç"
+            >
+              <option value="">— katalogdan seç (opsiyonel) —</option>
+              {doc.masterSources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.source_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">— veya —</p>
+          <label className="block">
+            <span className="block text-[11px] font-semibold text-slate-500">Yeni Kaynak Oluştur / Kimden öğrendim</span>
             <input
               className={`mt-1 ${kupaInput}`}
               list="kupa-source-suggestions"
               placeholder="Örn. Süleyman Gök kitabı, Ahmet Hoca eğitimi, kendi eğitim notlarım…"
               value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-              aria-label="Kaynak / kimden öğrendim"
+              onChange={(e) => {
+                setSourceText(e.target.value);
+                if (e.target.value) setPickedSourceId("");
+              }}
+              disabled={pickedSourceId !== ""}
+              aria-label="Yeni kaynak / kimden öğrendim"
             />
           </label>
           <datalist id="kupa-source-suggestions">

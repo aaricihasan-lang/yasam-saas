@@ -4,6 +4,7 @@ import {
   CUPPING_FIELD_RULES,
   CUPPING_ARRAY_MAX_ITEMS,
   CUPPING_ARRAY_ITEM_MAX,
+  CUPPING_NULLABLE_ENUMS,
 } from "@/lib/cupping/fields";
 import { withSafeSortOrder } from "@/lib/cupping/normalize";
 
@@ -23,6 +24,49 @@ const NOT_FOUND = "Kayıt bu hesaba ait değil veya bulunamadı.";
 
 export function cuppingError(status: number, message: string): NextResponse {
   return NextResponse.json({ ok: false, error: message }, { status });
+}
+
+/**
+ * K1 (KUP-LIVE-1) SERVER BACKSTOP — nullable enum/select alanlarında boş string → null.
+ *
+ * CrudManager client'ı zaten "" → null yapar; ancak doğrudan API çağrısı (başka client / gelecekteki
+ * kod) `{ laterality: "" }` gönderebilir. `""` DB CHECK `(col IS NULL OR IN(...))`'i ihlal edip 500
+ * üretir. Yalnız KESİN NULLABLE enum kolonları (CUPPING_NULLABLE_ENUMS) için `"" / whitespace → null`.
+ * `severity` gibi NOT NULL enum'lar bu sette DEĞİLDİR → dokunulmaz. Diğer string alanlar da dokunulmaz
+ * (global "" → null davranışı YOK). Girdiyi mutate etmez; gerektiğinde shallow kopya döner.
+ */
+export function normalizeNullableEnums(
+  fields: Record<string, unknown>,
+): Record<string, unknown> {
+  let out: Record<string, unknown> | null = null;
+  for (const key of Object.keys(fields)) {
+    if (!CUPPING_NULLABLE_ENUMS.has(key)) continue;
+    const v = fields[key];
+    if (typeof v === "string" && v.trim() === "") {
+      if (!out) out = { ...fields };
+      out[key] = null;
+    }
+  }
+  return out ?? fields;
+}
+
+/**
+ * K9 — Postgres hata kodu → kontrollü HTTP eşlemesi (ham DB mesajı/constraint/tablo ASLA sızmaz).
+ *   23505 (unique_violation)      → 409 "Bu kayıt zaten ekli."
+ *   23503 (foreign_key_violation) → yalnız DELETE bağlamında 409 (RESTRICT: kullanımda) — insert/update'te
+ *                                   FK zaten assertOwnedRef ile ön-doğrulandığından generic 500.
+ *   diğer                         → mevcut güvenli generic 500 (DB_FAIL).
+ */
+function dbErrorResponse(error: unknown, ctx: "insert" | "update" | "delete"): NextResponse {
+  const code = (error as { code?: string } | null)?.code;
+  if (code === "23505") return cuppingError(409, "Bu kayıt zaten ekli.");
+  if (code === "23503" && ctx === "delete") {
+    return cuppingError(
+      409,
+      "Bu kayıt kullanımda olduğu için silinemiyor. Önce bağlı kayıtlardan çıkarın.",
+    );
+  }
+  return cuppingError(500, DB_FAIL);
 }
 
 /** Yalnız allowlist alanlarını al (tenant_id/id/provenance vb. ASLA). */
@@ -140,17 +184,19 @@ export async function insertEntity(
   tenantId: string,
   fields: Record<string, unknown>,
 ): Promise<Ok<Record<string, unknown>> | Fail> {
-  const invalid = validateWritable(table, fields);
+  // K1: nullable enum "" → null (validateWritable'dan ÖNCE; "" zaten skip edilir ama DB'ye null gitmeli).
+  const normalized = normalizeNullableEnums(fields);
+  const invalid = validateWritable(table, normalized);
   if (invalid) return { ok: false, response: invalid };
   // KUP-NEW-1 backstop: sort_order VARSA güvenli 0 sözleşmesine zorla (client dışı çağrılar
   // da DB'ye açık null gönderemesin). Yoksa DOKUNMA → DB DEFAULT 0 çalışır.
-  const safe = withSafeSortOrder(fields);
+  const safe = withSafeSortOrder(normalized);
   const { data, error } = await db
     .from(table)
     .insert({ ...safe, tenant_id: tenantId })
     .select()
     .single();
-  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
+  if (error) return { ok: false, response: dbErrorResponse(error, "insert") };
   return { ok: true, data: data as Record<string, unknown> };
 }
 
@@ -161,10 +207,12 @@ export async function updateEntity(
   id: string,
   fields: Record<string, unknown>,
 ): Promise<Ok<Record<string, unknown>> | Fail> {
-  const invalid = validateWritable(table, fields);
+  // K1: nullable enum "" → null (kullanıcı select'i "—"e çekerse DB'ye null gitmeli, "" değil).
+  const normalized = normalizeNullableEnums(fields);
+  const invalid = validateWritable(table, normalized);
   if (invalid) return { ok: false, response: invalid };
   // KUP-NEW-1 backstop: kullanıcı "Sıra" alanını temizlerse (sort_order null/boş) → 0.
-  const safe = withSafeSortOrder(fields);
+  const safe = withSafeSortOrder(normalized);
   const { data, error } = await db
     .from(table)
     .update({ ...safe, updated_at: new Date().toISOString() })
@@ -172,7 +220,7 @@ export async function updateEntity(
     .eq("tenant_id", tenantId)
     .select()
     .maybeSingle();
-  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
+  if (error) return { ok: false, response: dbErrorResponse(error, "update") };
   if (!data) return { ok: false, response: cuppingError(404, NOT_FOUND) };
   return { ok: true, data: data as Record<string, unknown> };
 }
@@ -189,7 +237,8 @@ export async function deleteEntity(
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
+  // K9: kullanımdaki master (protocol_* RESTRICT) → 23503 → 409 (500 değil). Ham hata sızmaz.
+  if (error) return { ok: false, response: dbErrorResponse(error, "delete") };
   return { ok: true, data: data?.length ?? 0 };
 }
 

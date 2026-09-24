@@ -256,6 +256,13 @@ export const deleteTechnique = (id: string) =>
 export const listTechniqueProtocols = (techniqueId: string) =>
   call<CuppingTechniqueProtocolRef[]>(`${BASE}/techniques/${techniqueId}/protocols`, { method: "GET" }, "protocols");
 
+/** K11 — "Kullanıldığı Protokoller" read-only sade metadata (technique/point/safety ortak şekil). */
+export type CuppingProtocolRef = CuppingTechniqueProtocolRef;
+export const listPointProtocols = (pointId: string) =>
+  call<CuppingProtocolRef[]>(`${BASE}/points/${pointId}/protocols`, { method: "GET" }, "protocols");
+export const listSafetyProtocols = (safetyId: string) =>
+  call<CuppingProtocolRef[]>(`${BASE}/safety/${safetyId}/protocols`, { method: "GET" }, "protocols");
+
 // Knowledge
 export const listKnowledge = () =>
   call<CuppingKnowledge[]>(`${BASE}/knowledge`, { method: "GET" }, "records");
@@ -419,6 +426,37 @@ export const updateProtocol = (id: string, body: Partial<CuppingProtocol>) =>
   call<CuppingProtocol>(`${BASE}/protocols/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "protocol");
 export const deleteProtocol = (id: string) =>
   call<number>(`${BASE}/protocols/${id}`, { method: "DELETE" }, "deleted");
+
+/**
+ * K2 — protokolün profesyonel Word (.docx) belgesini indirir (kaydedilmiş veriden; DB'ye YAZMAZ).
+ * Kimlik başlıklarıyla fetch → blob + sunucu dosya adı (Content-Disposition). DOM işini çağıran yapar.
+ * Android'de sunucu 403 döndürür (mevcut politika); hata güvenli mesajla throw edilir (sahte başarı YOK).
+ */
+export async function downloadProtocolWord(id: string): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${BASE}/protocols/${encodeURIComponent(id)}/word-report`, {
+    method: "GET",
+    headers: userHeaders(),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? "Word belgesi oluşturulamadı.");
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  const ascii = /filename="([^"]+)"/i.exec(cd);
+  let filename = "Kupa-Protokolu.docx";
+  if (utf8) {
+    try {
+      filename = decodeURIComponent(utf8[1]);
+    } catch {
+      /* bozuk header → varsayılan ad */
+    }
+  } else if (ascii) {
+    filename = ascii[1];
+  }
+  return { blob, filename };
+}
 
 // Protocol points
 export const listProtocolPoints = (protocolId: string) =>

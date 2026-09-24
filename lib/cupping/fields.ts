@@ -342,6 +342,27 @@ export const CUPPING_TEXT_LIMITS = {
 export const CUPPING_ARRAY_MAX_ITEMS = 200;
 export const CUPPING_ARRAY_ITEM_MAX = 400;
 
+/**
+ * KUP-LIVE-1 — NULLABLE enum/select kolonları (kolon adı bazlı; server null-normalize kapsamı).
+ *
+ * Bu kolonların DB CHECK'i `(col IS NULL OR col IN (...))` biçimindedir → boş "" değeri ihlal eder
+ * ama NULL kabul edilir. CrudManager opsiyonel select "—" bırakıldığında client boş string üretir;
+ * hem client (fromFormValue) hem server (normalizeNullableEnums) bunu `null`'a çevirir → 500 engellenir.
+ *
+ * `severity` KASITLI HARİÇTİR: `cupping_safety_notes.severity` NOT NULL DEFAULT 'warning'
+ * (CHECK IN(...) — NULL YASAK). Bu yüzden severity ASLA null'a çevrilmez; UI'da boş-seçenek
+ * OLMADAN geçerli bir default ile render edilir (FieldDef.allowEmpty=false + defaultValue).
+ */
+export const CUPPING_NULLABLE_ENUMS: ReadonlySet<string> = new Set([
+  "laterality", // cupping_points
+  "source_type", // cupping_sources
+  "contraindication_class", // cupping_safety_notes
+  "relation_strength", // cupping_point_topics
+  "technique_type", // cupping_techniques
+  "movement_style", // cupping_techniques
+  "evidence_class", // 6 citation junction
+]);
+
 export type CuppingFieldRule =
   | { t: "str"; max: number }
   | { t: "arr" }

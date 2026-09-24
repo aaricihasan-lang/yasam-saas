@@ -105,11 +105,12 @@ function run(): void {
   ok(routes.length >= 14, `kupa route sayısı okundu (${routes.length})`);
   for (const rel of routes) {
     const src = read(rel);
-    // Citation route'ları paylaşılan fabrikaya delege eder (makeCitation*); gate/tenant/demo
-    // sözleşmesi fabrikada (aşağıda J bölümünde ayrıca doğrulanır). Diğer route'lar inline.
+    // Citation + K11 usage route'ları paylaşılan fabrikalara delege eder (makeCitation* /
+    // makeProtocolUsageRoute); gate/tenant sözleşmesi fabrikada (ayrıca aşağıda doğrulanır).
     const isCitationFactory = /makeCitation(Collection|Item)\(/.test(src);
-    if (isCitationFactory) {
-      ok(true, `gate(fabrika): ${rel} citation fabrikasına delege`);
+    const isUsageFactory = /makeProtocolUsageRoute\(/.test(src);
+    if (isCitationFactory || isUsageFactory) {
+      ok(true, `gate(fabrika): ${rel} paylaşılan fabrikaya delege`);
     } else {
       ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(src), `gate: ${rel} requireModuleAccess("cupping")`);
     }
@@ -763,9 +764,10 @@ function run(): void {
   ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pSources),
     "faz3a-n+1: SourcesSection loop/section master GET yapmaz");
 
-  // I) SADE KAYNAK — SourcesSection: serbest metin, katalog picker/bibliyografik metadata YOK.
-  ok(/Kimden öğrendim/.test(pSources) && !/<select/.test(pSources),
-    "faz3a-source: sade 'Kaynak / Kimden öğrendim' serbest metin (ayrı katalog <select> YOK)");
+  // I) KAYNAK — SourcesSection: K10 (owner FINAL) → katalogdan seç <select> + serbest-metin oluştur
+  // BİRLİKTE. Serbest-metin backward-compat KORUNUR; bibliyografik metadata UI'ı hâlâ EKLENMEZ.
+  ok(/Kimden öğrendim/.test(pSources) && /Katalogdan Kaynak Seç/.test(pSources) && /<select/.test(pSources),
+    "K10: SourcesSection katalog <select> + serbest metin BİRLİKTE (backward-compat korunur)");
   ok(!/author_or_organization|publication|identifier|source_type|\blanguage\b/.test(pSources),
     "faz3a-source: bibliyografik metadata (yazar/yayın/identifier/tür/dil) UI'da YOK");
   ok(/createSource\(/.test(pSources) && /source_name: text/.test(pSources) && /normalizeMasterName/.test(pSources),
@@ -804,12 +806,14 @@ function run(): void {
     ok(pLanding.includes(r), `faz3b-support: landing kartı korunur ${r}`);
   }
 
-  // FINAL SIMPLIFICATION — Güvenlik / Kaynaklar / Bilgi & Eğitim + Amaç Rehberi landing
-  // NAVIGASYONUNDAN kaldırıldı. NOT: backend/route/DB silme kontratı DEĞİLDİR; yalnız
-  // landing kartının yokluğunu doğrular (ilgili ekranlar + API + tablo aynen yaşar).
-  for (const r of ["/kupa/guvenlik", "/kupa/kaynaklar", "/kupa/bilgi-kutuphanesi", "/kupa/amac-rehberi"]) {
+  // FINAL SIMPLIFICATION — Kaynaklar / Bilgi & Eğitim + Amaç Rehberi landing NAVIGASYONUNDAN
+  // kaldırıldı (protokol içinden bağlanır). K5 (owner FINAL): /kupa/guvenlik standalone yönetim
+  // GERİ GELDİ → landing destek kartında GÖRÜNÜR (aşağıda pozitif doğrulanır).
+  for (const r of ["/kupa/kaynaklar", "/kupa/bilgi-kutuphanesi", "/kupa/amac-rehberi"]) {
     ok(!pLanding.includes(r), `faz3b-simplify: ${r} landing navigasyonunda GÖRÜNMEZ (backend korunur, yalnız kart kaldırıldı)`);
   }
+  // K5: Güvenlik destek kartı landing'de GÖRÜNÜR (Noktalar/Teknikler ile tutarlı).
+  ok(pLanding.includes("/kupa/guvenlik"), "K5: /kupa/guvenlik landing destek kartında GÖRÜNÜR");
 
   // Legacy 'Amaç / Rahatsızlık Rehberi' kartı TAMAMEN kaldırıldı (subordinate kart YOK).
   ok(!/Mevcut Rehber/.test(pLanding) && !/Amaç \/ Rahatsızlık Rehberi/.test(pLanding),
@@ -910,6 +914,20 @@ function run(): void {
     "faz4-proto: tek IN sorgusu + SADE metadata (N+1 yok, DB ayrıntısı yok)");
   ok(!/PATCH|POST|DELETE/.test(tsProto),
     "faz4-proto: yalnız GET (read-only)");
+
+  // K11 — paylaşılan usage fabrikası (makeProtocolUsageRoute) + nokta/güvenlik ince route'ları.
+  const usageFactory = read("lib/cupping/usageApi.ts");
+  ok(/requireModuleAccess\(req, "cupping"\)/.test(usageFactory), "K11: usage fabrikası cupping gate");
+  ok(/assertOwnedRef\(db, spec\.entityTable, tenantId, id\)/.test(usageFactory),
+    "K11: usage fabrikası master sahipliğini doğrular (cross-tenant title sızıntısı yok)");
+  ok(/\.in\("id", protocolIds\)/.test(usageFactory) && /select\("id, title, category, is_active"\)/.test(usageFactory),
+    "K11: usage fabrikası tek IN + SADE metadata (N+1 yok)");
+  const pUsage = read("app/api/kupa/points/[id]/protocols/route.ts");
+  const sUsage = read("app/api/kupa/safety/[id]/protocols/route.ts");
+  ok(/makeProtocolUsageRoute\(/.test(pUsage) && /point_id/.test(pUsage) && !/PATCH|POST|DELETE/.test(pUsage),
+    "K11: points/[id]/protocols fabrikaya delege (read-only)");
+  ok(/makeProtocolUsageRoute\(/.test(sUsage) && /safety_id/.test(sUsage) && !/PATCH|POST|DELETE/.test(sUsage),
+    "K11: safety/[id]/protocols fabrikaya delege (read-only)");
 
   // — client api.ts: type + wrappers —
   const cApi = read("app/kupa/lib/api.ts");
@@ -1136,15 +1154,17 @@ function run(): void {
   ok(!/detachProtocolTechnique|archive|deleteTechnique\(/.test(rSec.slice(rSec.indexOf("pickerMaster"), rSec.indexOf("const items"))),
     "faz4d-inactive: pasif filtre otomatik detach/arşiv/silme YAPMAZ");
 
-  // ══ FAZ 4 / UX SADELEŞTİRME — standalone /kupa/guvenlik + protokol güvenlik koruması ═
-  // owner FINAL: bağımsız güvenlik CRUD çalışma alanı normal akıştan KALDIRILDI; rota
-  // artık doğrudan URL ile gizli CRUD paneli açmaz → /kupa'ya redirect. Protokol güvenlik
-  // (QuickCreate + backend master + /api/kupa/safety) AYNEN korunur.
+  // ══ K5 — standalone /kupa/guvenlik yönetimi GERİ GELDİ (owner FINAL — AŞAMA 2) ══════════
+  // owner FINAL (yeni): bağımsız güvenlik CRUD çalışma alanı GERİ GETİRİLDİ (redirect kaldırıldı):
+  // liste + arama + create/edit + güvenli delete + "Kullanıldığı Protokoller" (usage). Aynı master
+  // datasource (cupping_safety_notes / /api/kupa/safety) — QuickCreate ile ortak; duplicate sistem YOK.
   const guvPage = read("app/kupa/guvenlik/page.tsx");
-  ok(/redirect\("\/kupa"\)/.test(guvPage),
-    "faz4-ux: /kupa/guvenlik server redirect → /kupa (standalone CRUD kaldırıldı)");
-  ok(!/CrudManager/.test(guvPage) && !/createSafety|updateSafety|deleteSafety/.test(guvPage),
-    "faz4-ux: /kupa/guvenlik artık CRUD/mutasyon iskeleti render ETMEZ");
+  ok(!/redirect\(/.test(guvPage),
+    "K5: /kupa/guvenlik artık redirect DEĞİL (standalone yönetim geri geldi)");
+  ok(/CrudManager/.test(guvPage) && /createSafety|updateSafety|deleteSafety/.test(guvPage) && /listSafety/.test(guvPage),
+    "K5: /kupa/guvenlik standalone CRUD (list/create/edit/delete) render EDER");
+  ok(/CuppingProtocolUsage/.test(guvPage) && exists("app/api/kupa/safety/[id]/protocols/route.ts"),
+    "K5/K11: güvenlik 'Kullanıldığı Protokoller' usage paneli + route mevcut");
   // Protokol güvenlik master altyapısı KORUNUR (backend + QuickCreate).
   ok(exists("app/api/kupa/safety/route.ts") && exists("app/api/kupa/safety/[id]/route.ts") &&
      exists("app/api/kupa/protocol-safety/route.ts") && exists("app/api/kupa/protocol-safety/[id]/route.ts"),

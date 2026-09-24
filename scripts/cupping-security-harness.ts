@@ -23,7 +23,9 @@ import {
   assertOwnedRef,
   pickWritable,
   validateWritable,
+  normalizeNullableEnums,
 } from "@/lib/cupping/api";
+import { trFold, trIncludes } from "@/app/kupa/lib/trFold";
 // Gerçek route handler'ları + auth resolver'ları (runtime davranış doğrulaması; grep DEĞİL).
 import { GET as pointsGET, POST as pointsPOST } from "@/app/api/kupa/points/route";
 import { POST as topicNotesPOST } from "@/app/api/kupa/topic-notes/route";
@@ -129,6 +131,21 @@ function makeFakeDb(seed: Record<string, Row[]>) {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { from } as any;
+}
+
+// K9 — insert/update/delete'te belirli Postgres hata KODUYLA dönen sahte client (error mapping testi).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeErrorDb(code: string): any {
+  const res = { data: null, error: { code } };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const b: any = {
+    select: () => b, insert: () => b, update: () => b, delete: () => b,
+    eq: () => b, order: () => b, in: () => b,
+    single: async () => res,
+    maybeSingle: async () => res,
+    then: (resolve: (v: unknown) => void) => resolve(res),
+  };
+  return { from: () => b };
 }
 
 // Basit user kurucu (yalnız izin mantığının okuduğu alanlar).
@@ -316,6 +333,49 @@ async function run() {
   ok("modulePermissions: 'cupping' anahtarı var", /["']cupping["']/.test(permsSrc));
   ok("api.ts: validateWritable + tenant_id filtresi", /validateWritable/.test(apiSrc) && /\.eq\(\s*["']tenant_id["']/.test(apiSrc));
   ok("api.ts: KUP-NEW-1 sort_order backstop (withSafeSortOrder)", /withSafeSortOrder/.test(apiSrc));
+
+  // ── K1 (KUP-LIVE-1): nullable enum boş-string → null (GERÇEK davranış; grep DEĞİL) ──
+  console.log("\n── K1 KUP-LIVE-1: nullable enum '' → null (server backstop) ──");
+  ok("normalizeNullableEnums: laterality '' → null", normalizeNullableEnums({ laterality: "" }).laterality === null);
+  ok("normalizeNullableEnums: source_type '   ' (whitespace) → null", normalizeNullableEnums({ source_type: "   " }).source_type === null);
+  ok("normalizeNullableEnums: geçerli enum ('midline') KORUNUR", normalizeNullableEnums({ laterality: "midline" }).laterality === "midline");
+  ok("normalizeNullableEnums: 'unspecified' KORUNUR (null'a çevrilmez)", normalizeNullableEnums({ technique_type: "unspecified" }).technique_type === "unspecified");
+  ok("normalizeNullableEnums: severity '' DOKUNULMAZ (NOT NULL enum; whitelist DIŞI)", normalizeNullableEnums({ severity: "" }).severity === "");
+  ok("normalizeNullableEnums: normal string '' DOKUNULMAZ (global '' → null YOK)", normalizeNullableEnums({ name: "" }).name === "");
+  const enumDb = makeFakeDb({});
+  const insLat = await insertEntity(enumDb, CUPPING_TABLES.points, "t-1", { name: "N", laterality: "" });
+  ok("insertEntity: laterality '' → DB'ye null (points)", insLat.ok && insLat.data.laterality === null);
+  const insSrcType = await insertEntity(enumDb, CUPPING_TABLES.sources, "t-1", { source_name: "K", source_type: "" });
+  ok("insertEntity: source_type '' → DB'ye null (sources)", insSrcType.ok && insSrcType.data.source_type === null);
+  const insValid = await insertEntity(enumDb, CUPPING_TABLES.points, "t-1", { name: "N2", laterality: "bilateral" });
+  ok("insertEntity: geçerli laterality DB'ye AYNEN yazılır", insValid.ok && insValid.data.laterality === "bilateral");
+
+  // ── K9: Postgres 23505/23503 → 409 (ham hata sızmaz) ──
+  console.log("\n── K9: DB hata kodu → kontrollü HTTP (23505/23503 → 409) ──");
+  const dupIns = await insertEntity(makeErrorDb("23505"), CUPPING_TABLES.points, "t-1", { name: "dup" });
+  ok("insertEntity: 23505 (unique) → 409", !dupIns.ok && dupIns.response.status === 409);
+  const dupBody = !dupIns.ok ? ((await dupIns.response.json()) as { error?: string }) : {};
+  ok("insertEntity: 23505 mesajı GÜVENLİ (kod/constraint/tablo sızmaz)",
+    typeof dupBody.error === "string" && !/\d{5}|constraint|relation|duplicate key|cupping_/i.test(dupBody.error));
+  const delRestrict = await deleteEntity(makeErrorDb("23503"), CUPPING_TABLES.points, "t-1", "p1");
+  ok("deleteEntity: 23503 (RESTRICT/in-use) → 409", !delRestrict.ok && delRestrict.response.status === 409);
+  const insFk = await insertEntity(makeErrorDb("23503"), CUPPING_TABLES.points, "t-1", { name: "x" });
+  ok("insertEntity: 23503 → generic 500 (in-use mesajı YALNIZ delete'te)", !insFk.ok && insFk.response.status === 500);
+  const insOther = await insertEntity(makeErrorDb("99999"), CUPPING_TABLES.points, "t-1", { name: "y" });
+  ok("insertEntity: bilinmeyen hata → güvenli 500", !insOther.ok && insOther.response.status === 500);
+
+  // ── K3/K4: Türkçe-duyarlı arama (I/İ/ı/i) ──
+  console.log("\n── K3/K4: Türkçe arama katlaması (trFold) ──");
+  ok("trFold: İ ve i eşdeğer ('İstanbul' ~ 'istanbul')", trFold("İstanbul") === trFold("istanbul"));
+  ok("trIncludes: 'istanbul' → 'İstanbul Noktası' bulur", trIncludes("İstanbul Noktası", "istanbul"));
+  ok("trIncludes: 'KIRIK' → 'Kırık' bulur (I/ı katlaması)", trIncludes("Kırık Bölgesi", "KIRIK"));
+  ok("trIncludes: array (synonyms) alanında arar", trIncludes(["Kalp", "Sırt Bölgesi"], "sirt"));
+  ok("trIncludes: eşleşmeyen sorgu false", trIncludes("Baş", "omuz") === false);
+  ok("trIncludes: boş sorgu her şeyi geçirir", trIncludes("herhangi", "  ") === true);
+
+  // ── K1/K9 kaynak kontratı (grep — davranış testlerini DESTEKLER, tek başına DEĞİL) ──
+  ok("api.ts: K1 normalizeNullableEnums bağlı (insert/update)", /normalizeNullableEnums/.test(apiSrc));
+  ok("api.ts: K9 hata kodu eşlemesi (23505/23503)", /23505/.test(apiSrc) && /23503/.test(apiSrc));
 
   console.log(`\nSONUÇ: ${pass} passed, ${fail} failed`);
   if (fail > 0) { process.exitCode = 1; console.error("HARNESS FAIL — Kupa güvenlik kontratı ihlal edildi."); }

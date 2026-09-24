@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { KupaShell, kupaBtnGhost, kupaBtnDanger } from "@/app/kupa/components/KupaShell";
-import { deleteProtocol } from "@/app/kupa/lib/api";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { KupaShell, kupaBtnGhost, kupaBtnDanger, kupaBtnPrimary } from "@/app/kupa/components/KupaShell";
+import { deleteProtocol, downloadProtocolWord } from "@/app/kupa/lib/api";
 import { useProtocolDocument } from "../hooks/useProtocolDocument";
 import { BasicInfoEditor } from "../components/BasicInfoEditor";
 import { RelationSection } from "../components/RelationSection";
@@ -19,7 +20,38 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const doc = useProtocolDocument(id);
+  const isAndroid = useIsAndroid();
   const [editingBasic, setEditingBasic] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
+
+  // K2 — protokolün Word (.docx) belgesini indir. Kaydedilmiş veriden; blob → geçici gizli bağlantı
+  //   (calendarWord indirme deseniyle birebir). Kesin diske-yazma iddiası YOK.
+  async function handleWordDownload() {
+    const pr = doc.protocol;
+    if (!pr || wordBusy) return;
+    setWordBusy(true);
+    try {
+      const { blob, filename } = await downloadProtocolWord(pr.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      try {
+        a.click();
+      } finally {
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+      showToast({ message: "Word indirme başlatıldı.", type: "success" });
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Word oluşturulamadı.", type: "error" });
+    } finally {
+      setWordBusy(false);
+    }
+  }
 
   async function handleDelete() {
     const p = doc.protocol;
@@ -79,6 +111,11 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
       fullBleedBelowLg
       actions={
         <>
+          {!isAndroid ? (
+            <button type="button" className={kupaBtnPrimary} onClick={handleWordDownload} disabled={wordBusy}>
+              {wordBusy ? "Hazırlanıyor…" : "Word İndir"}
+            </button>
+          ) : null}
           <button type="button" className={kupaBtnGhost} onClick={() => setEditingBasic(true)}>
             Temel Bilgiyi Düzenle
           </button>

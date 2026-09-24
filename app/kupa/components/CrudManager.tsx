@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
 import { KupaConfirmDialog } from "./ConfirmDialog";
 import { normalizeNullableNumber, normalizeSortOrder } from "@/lib/cupping/normalize";
+import { trIncludes } from "@/app/kupa/lib/trFold";
 
 /**
  * KUPA & HACAMAT — generic içerik CRUD yöneticisi (liste + form). Nokta/teknik/bilgi/
@@ -21,6 +22,13 @@ export type FieldDef = {
   placeholder?: string;
   options?: { value: string; label: string }[];
   full?: boolean;
+  /** Create formunda başlangıç değeri (ör. NOT NULL select `severity` → "warning"). */
+  defaultValue?: string;
+  /**
+   * select için boş "—" seçeneği sunulsun mu? Varsayılan true (NULLABLE enum → boş = null).
+   * `false` → NOT NULL enum (ör. severity): boş seçenek YOK; `defaultValue` ile geçerli değer garanti.
+   */
+  allowEmpty?: boolean;
 };
 
 type Rec = { id: string } & Record<string, unknown>;
@@ -37,6 +45,15 @@ type CrudManagerProps<T extends Rec> = {
   addLabel: string;
   /** Kayıtlı bir kayıt seçiliyken form altında ek panel (ör. Kaynaklar/citation). */
   renderExtra?: (record: T) => ReactNode;
+  /**
+   * K3/K4 — client-side arama alanları (isim + detay). Verilirse liste üstünde arama kutusu
+   * çıkar; boşsa arama gizlenir. Alanlar string veya string[] olabilir (trFold katlar).
+   */
+  searchKeys?: (keyof T & string)[];
+  /** Arama kutusu placeholder'ı (varsayılan "Ara…"). */
+  searchPlaceholder?: string;
+  /** K3/K4 — enum bazlı liste filtreleri (ör. laterality / source_type). Boş = filtre yok. */
+  filters?: { key: keyof T & string; label: string; options: { value: string; label: string }[] }[];
   /**
    * Silme onayında gösterilecek kısa cascade/ilişki uyarısı (varsa). Yalnızca GERÇEK cascade
    * olan varlıklarda verilir (ör. nokta silince yerleşim/atıf da silinir); olmayan varlıklarda
@@ -66,6 +83,11 @@ function fromFormValue(raw: string | boolean, type: FieldType, key: string): unk
       .map((s) => s.trim())
       .filter(Boolean);
   }
+  if (type === "select") {
+    // KUP-LIVE-1: opsiyonel select "—" (boş) → null. DB CHECK `(col IS NULL OR IN(...))` boş ""'i
+    // reddeder; null KABUL eder. Geçerli enum ("midline"/"unspecified" dahil) OLDUĞU GİBİ korunur.
+    return raw === "" ? null : String(raw);
+  }
   return String(raw);
 }
 
@@ -81,6 +103,9 @@ export function CrudManager<T extends Rec>({
   addLabel,
   renderExtra,
   deleteCascadeHint,
+  searchKeys,
+  searchPlaceholder,
+  filters,
 }: CrudManagerProps<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -90,6 +115,35 @@ export function CrudManager<T extends Rec>({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+
+  const hasControls = (searchKeys?.length ?? 0) > 0 || (filters?.length ?? 0) > 0;
+  const activeFilters = filters?.some((f) => (filterValues[f.key] ?? "") !== "") ?? false;
+  const hasQuery = query.trim() !== "";
+
+  // K3/K4: client-side arama + enum filtre (API zaten tüm tenant satırlarını çekiyor → pagination YOK).
+  const visibleItems = useMemo(() => {
+    if (!hasControls) return items;
+    return items.filter((item) => {
+      if (searchKeys && hasQuery) {
+        const hit = searchKeys.some((k) => trIncludes(item[k], query));
+        if (!hit) return false;
+      }
+      if (filters) {
+        for (const f of filters) {
+          const want = filterValues[f.key] ?? "";
+          if (want !== "" && String(item[f.key] ?? "") !== want) return false;
+        }
+      }
+      return true;
+    });
+  }, [items, searchKeys, filters, query, hasQuery, filterValues, hasControls]);
+
+  const resetControls = () => {
+    setQuery("");
+    setFilterValues({});
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +167,7 @@ export function CrudManager<T extends Rec>({
     setCreating(true);
     setSelectedId(null);
     const blank: Record<string, string | boolean> = {};
-    for (const f of fields) blank[f.key] = f.type === "boolean" ? true : "";
+    for (const f of fields) blank[f.key] = f.type === "boolean" ? true : (f.defaultValue ?? "");
     setForm(blank);
   };
 
@@ -209,6 +263,54 @@ export function CrudManager<T extends Rec>({
               + {addLabel}
             </button>
           </div>
+          {hasControls && !loading && items.length > 0 ? (
+            <div className="mb-3 space-y-2">
+              {searchKeys && searchKeys.length > 0 ? (
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={searchPlaceholder ?? "Ara…"}
+                  aria-label="Kayıtlarda ara"
+                  className={kupaInput}
+                />
+              ) : null}
+              {filters && filters.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {filters.map((f) => (
+                    <select
+                      key={f.key}
+                      value={filterValues[f.key] ?? ""}
+                      onChange={(e) =>
+                        setFilterValues((cur) => ({ ...cur, [f.key]: e.target.value }))
+                      }
+                      aria-label={f.label}
+                      className={`${kupaInput} flex-1`}
+                    >
+                      <option value="">{f.label}: Tümü</option>
+                      {f.options.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ))}
+                </div>
+              ) : null}
+              {hasQuery || activeFilters ? (
+                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                  <span>{visibleItems.length} sonuç</span>
+                  <button
+                    type="button"
+                    onClick={resetControls}
+                    className="font-semibold text-amber-600 hover:text-amber-700"
+                  >
+                    Temizle
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="max-h-[62vh] space-y-1.5 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
@@ -216,8 +318,12 @@ export function CrudManager<T extends Rec>({
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
                 <p className="text-xs text-slate-500">{emptyLabel}</p>
               </div>
+            ) : visibleItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
+                <p className="text-xs text-slate-500">Aramanıza uygun kayıt bulunamadı.</p>
+              </div>
             ) : (
-              items.map((item) => (
+              visibleItems.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -282,7 +388,7 @@ export function CrudManager<T extends Rec>({
                         onChange={(e) => setField(f.key, e.target.value)}
                         className={kupaInput}
                       >
-                        <option value="">—</option>
+                        {f.allowEmpty === false ? null : <option value="">—</option>}
                         {f.options?.map((o) => (
                           <option key={o.value} value={o.value}>
                             {o.label}
