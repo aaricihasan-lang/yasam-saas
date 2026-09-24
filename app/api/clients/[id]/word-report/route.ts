@@ -261,6 +261,113 @@ function buildUcretlendirmeSection(charges: ClientChargeRow[], sectionNumber: nu
   return [h1Colored(`${sectionNumber}. Ücretlendirme`, C.ucret, true), ...buildChargeBody(charges)];
 }
 
+/**
+ * SEKME-ÖZEL kompakt Ücretlendirme başlığı — ayrı kapak/RAPOR ÖZETİ/İçindekiler
+ * sayfaları YOK. Tek blok: marka + başlık + künye (Danışan / Tarih / Toplam Kayıt /
+ * Toplam Ücret). Yalnız tab-mode "ucretlendirme" için; tam rapor yapısına dokunmaz.
+ */
+function buildCompactChargeHeader(
+  fullName: string,
+  today: string,
+  count: number,
+  total: number,
+): ReportChild[] {
+  return [
+    gap(120),
+    centered("YAŞAM SİSTEMİ", 44, C.ucret, true, true),
+    centered("ÜCRETLENDİRME", 30, C_MID, true, true),
+    thickRule(C.ucret),
+    gap(200),
+    twoColTable([
+      ["Danışan", fullName],
+      ["Oluşturulma Tarihi", today],
+      ["Toplam Kayıt", `${count}`],
+      ["Toplam Ücret", formatTRY(total)],
+    ]),
+    spacer(),
+  ];
+}
+
+/**
+ * SEKME-ÖZEL kompakt ücret kayıtları — tek tablo (Tarih / Ana Tür / Detay / Tutar),
+ * varsa Not detay hücresinde alt satır; en altta sağa yaslı "Toplam Ücret". Kapak/özet
+ * yok, zorunlu page-break yok → içerik kadar uzar (2 kayıt tipik olarak tek sayfa).
+ */
+function buildCompactChargeTable(charges: ClientChargeRow[]): ReportChild[] {
+  if (charges.length === 0) return [muted("Henüz ücret kaydı yok.")];
+  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
+
+  const headCell = (text: string, pct: number) =>
+    new TableCell({
+      shading: { fill: C.ucret, type: ShadingType.CLEAR, color: "auto" },
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: [new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 18, font: REPORT_FONT, color: "ffffff" })],
+      })],
+    });
+
+  const textCell = (
+    text: string,
+    pct: number,
+    opts?: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] },
+  ) =>
+    new TableCell({
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: [new Paragraph({
+        alignment: opts?.align,
+        children: [new TextRun({ text, bold: opts?.bold ?? false, size: 20, font: REPORT_FONT, color: C_DARK })],
+      })],
+    });
+
+  const detailCell = (detail: string | null | undefined, note: string | null | undefined, pct: number) => {
+    const kids: Paragraph[] = [
+      new Paragraph({ children: [new TextRun({ text: detail?.trim() || "—", size: 20, font: REPORT_FONT, color: C_DARK })] }),
+    ];
+    if (note?.trim()) {
+      kids.push(new Paragraph({
+        children: [new TextRun({ text: note.trim(), size: 18, font: REPORT_FONT, color: C_MID, italics: true })],
+        spacing: { before: 40 },
+      }));
+    }
+    return new TableCell({
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: kids,
+    });
+  };
+
+  const headerRow = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: [headCell("Tarih", 16), headCell("Ana Tür", 16), headCell("Detay", 46), headCell("Tutar", 22)],
+  });
+  const bodyRows = charges.map((c) =>
+    new TableRow({
+      cantSplit: true,
+      children: [
+        textCell(formatDateTR(c.charge_date), 16),
+        textCell(chargeCatLabel(c.category), 16),
+        detailCell(c.detail, c.note, 46),
+        textCell(formatTRY(c.amount ?? 0), 22, { bold: true, align: AlignmentType.RIGHT }),
+      ],
+    }),
+  );
+
+  return [
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [
+        new TextRun({ text: "Toplam Ücret:  ", size: 22, font: REPORT_FONT, color: C_MID }),
+        new TextRun({ text: formatTRY(total), bold: true, size: 24, font: REPORT_FONT, color: C.ucret }),
+      ],
+      spacing: { before: 200, after: 0 },
+    }),
+  ];
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -1145,10 +1252,19 @@ export async function POST(
 
     const all: ReportChild[] = [];
     const tabLsInserts: LandscapeInsert[] = [];
-    all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
-    all.push(...buildStatsPage(statRows));
-    all.push(...buildTOCPage());
-    all.push(h1Colored(`1. ${cfg.title}`, cfg.color, true));
+
+    if (tab === "ucretlendirme") {
+      // KOMPAKT sekme çıktısı: ayrı kapak / RAPOR ÖZETİ / İçindekiler sayfaları YOK,
+      // h1Colored(pageBreak) YOK. Üstte kompakt künye, ardından doğrudan kayıtlar.
+      const chg = extraRows as ClientChargeRow[];
+      const chgTotal = chg.reduce((s, r) => s + (r.amount ?? 0), 0);
+      all.push(...buildCompactChargeHeader(fullName, today, chg.length, chgTotal));
+    } else {
+      all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
+      all.push(...buildStatsPage(statRows));
+      all.push(...buildTOCPage());
+      all.push(h1Colored(`1. ${cfg.title}`, cfg.color, true));
+    }
 
     if (tab === "genel") {
       all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
@@ -1234,8 +1350,9 @@ export async function POST(
     }
 
     else if (tab === "ucretlendirme") {
+      // Kompakt: künye başlığında zaten count/total var → burada doğrudan kayıt tablosu.
       const charges = extraRows as ClientChargeRow[];
-      all.push(...buildChargeBody(charges));
+      all.push(...buildCompactChargeTable(charges));
     }
 
     else if (tab === "odevler") {

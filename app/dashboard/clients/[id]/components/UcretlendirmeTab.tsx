@@ -350,17 +350,17 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
                   {t("totalLabel")} · {charges.length} {t("countLabel")}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowForm((v) => !v)}
-                className={
-                  showForm
-                    ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                    : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
-                }
-              >
-                {showForm ? t("form.cancel") : t("addButton")}
-              </button>
+              {/* Üst özet kartında yalnız "Yeni Ücret Ekle" bulunur; form açıkken
+                  gizlenir. Tek "Vazgeç" aksiyonu form kartının içindedir (aşağıda). */}
+              {!showForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                >
+                  {t("addButton")}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -369,18 +369,9 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
       {/* ── Yeni kayıt formu ── */}
       {showForm && (
         <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
+          {/* Form başlığında ayrı Vazgeç YOK — tek Vazgeç alttaki aksiyon alanında. */}
           <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
             <h3 className="text-base font-black text-slate-950">{t("form.newTitle")}</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                setForm(emptyForm());
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              {t("form.cancel")}
-            </button>
           </div>
           <div className="p-4">
             {renderForm(form, (key, value) => setForm((p) => ({ ...p, [key]: value })))}

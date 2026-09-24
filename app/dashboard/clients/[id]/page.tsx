@@ -223,7 +223,6 @@ function ClientDetailPageInner() {
   // BF-14 P2: Yaşam Hafızası teslim seçimi (report target). selectionGroupId yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelectionGroupId, setYhSelectionGroupId] = useState<string | null>(null);
-  const [yhSelectionCount, setYhSelectionCount] = useState(0);
   const [drStart, setDrStart] = useState("");
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
@@ -688,13 +687,10 @@ function ClientDetailPageInner() {
             {beslenmeOwner && (
               <Tab label={t("tab.beslenme")}  id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
             )}
-            <button
-              onClick={() => setYhPickerOpen(true)}
-              aria-label={t("a11y.yhSelect")}
-              className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-violet-200 bg-violet-50 px-[18px] py-2.5 text-[13px] font-extrabold text-violet-700 transition-all hover:bg-violet-100 md:inline-flex md:items-center"
-            >
-              {t("yh.selectButton")}{yhSelectionCount > 0 ? ` (${yhSelectionCount})` : ""}
-            </button>
+            {/* "Yaşam Hafızası'ndan Seç" aksiyonu UAT sonrası UI'dan kaldırıldı
+                (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
+                plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi
+                ve arama/görüntüleme aynen çalışır. */}
             <button
               onClick={generateWordReport}
               disabled={generatingReport}
@@ -988,7 +984,6 @@ function ClientDetailPageInner() {
             fixedClient={{ id: client.id, name: fullName || t("clientFallback") }}
             onConfirmed={({ selectionGroupId, total }) => {
               setYhSelectionGroupId(selectionGroupId);
-              setYhSelectionCount(total);
               setYhPickerOpen(false);
               showToast({ title: t("toast.addedTitle"), message: t("toast.yhAdded", { count: total }), type: "success" });
             }}
