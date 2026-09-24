@@ -3,7 +3,16 @@
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
 import { CuppingCitationManager } from "../components/CitationManager";
+import { CuppingProtocolUsage } from "../components/ProtocolUsage";
 import { createPoint, deletePoint, listPoints, updatePoint, type CuppingPoint } from "../lib/api";
+
+const LATERALITY_OPTIONS = [
+  { value: "midline", label: "Orta hat (midline)" },
+  { value: "bilateral", label: "İki taraflı (bilateral)" },
+  { value: "left", label: "Sol" },
+  { value: "right", label: "Sağ" },
+  { value: "unspecified", label: "Belirtilmemiş" },
+];
 
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Ad", type: "text", required: true },
@@ -15,13 +24,7 @@ const FIELDS: FieldDef[] = [
     key: "laterality",
     label: "Taraf (laterality)",
     type: "select",
-    options: [
-      { value: "midline", label: "Orta hat (midline)" },
-      { value: "bilateral", label: "İki taraflı (bilateral)" },
-      { value: "left", label: "Sol" },
-      { value: "right", label: "Sağ" },
-      { value: "unspecified", label: "Belirtilmemiş" },
-    ],
+    options: LATERALITY_OPTIONS,
   },
   { key: "description", label: "Açıklama", type: "textarea" },
   { key: "traditional_use", label: "Geleneksel Kullanım", type: "textarea" },
@@ -51,8 +54,25 @@ export default function NoktalarPage() {
         remove={deletePoint}
         emptyLabel="Henüz nokta yok. Yeni ekleyin."
         addLabel="Nokta"
-        deleteCascadeHint="Bu noktaya bağlı harita yerleşimleri, konu ilişkileri ve kaynak atıfları da birlikte silinir."
-        renderExtra={(rec) => <CuppingCitationManager entity="point" entityId={rec.id} />}
+        searchKeys={[
+          "name",
+          "alt_name",
+          "code",
+          "anatomical_region",
+          "description",
+          "traditional_use",
+          "application_info",
+          "synonyms",
+        ]}
+        searchPlaceholder="Ada veya detaya göre ara…"
+        filters={[{ key: "laterality", label: "Taraf", options: LATERALITY_OPTIONS }]}
+        deleteCascadeHint="Bu noktaya bağlı harita yerleşimleri, konu ilişkileri ve kaynak atıfları da birlikte silinir. Bir protokolde kullanılan nokta silinemez; önce ilgili protokollerden çıkarın."
+        renderExtra={(rec) => (
+          <>
+            <CuppingProtocolUsage entity="point" entityId={rec.id} />
+            <CuppingCitationManager entity="point" entityId={rec.id} />
+          </>
+        )}
       />
     </KupaShell>
   );

@@ -380,6 +380,29 @@ export function usedGroupsLabel(resolved: ResolvedAtlas): string {
 }
 
 // ─── SINGLE rapor ─────────────────────────────────────────────────────────────
+// ─── REF-002: Sağlık/uyumluluk bilgilendirmesi ────────────────────────────────
+const REFLEXOLOGY_DISCLAIMER =
+  "Refleksoloji uygulamaları tamamlayıcı niteliktedir. Bu modül tıbbi tanı veya tedavi amacı taşımaz ve hekim değerlendirmesinin yerine geçmez.";
+
+/** Rapor sonuna eklenen profesyonel "Bilgilendirme" bölümü. */
+function disclaimerSection(): ReportChild[] {
+  return [
+    new Paragraph({
+      spacing: { before: 360, after: 80 },
+      children: [
+        new TextRun({ text: "Bilgilendirme", bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 120 },
+      border: { top: { style: BorderStyle.SINGLE, size: 2, color: V_RULE } },
+      children: [
+        new TextRun({ text: REFLEXOLOGY_DISCLAIMER, italics: true, size: 18, font: REPORT_FONT, color: C_MID }),
+      ],
+    }),
+  ];
+}
+
 export async function buildSingleReport(
   input: ReflexologyProtocolInput,
   /** Raporun ÜRETİM tarihi (export anı, Türkiye takvimi). "Oluşturulma Tarihi". */
@@ -398,6 +421,7 @@ export async function buildSingleReport(
   const out: ReportChild[] = [
     ...buildCover(input.title, "Refleksoloji Protokol Raporu", meta),
     ...(await protocolBody(input, { bulk: false, pageBreak: false })),
+    ...disclaimerSection(), // REF-002
   ];
   return out;
 }
@@ -419,6 +443,7 @@ export async function buildBulkReport(
   for (let i = 0; i < inputs.length; i++) {
     out.push(...(await protocolBody(inputs[i], { bulk: true, pageBreak: true })));
   }
+  out.push(...disclaimerSection()); // REF-002
   return out;
 }
 
@@ -448,8 +473,23 @@ export function reflexologyFooters(): { default: Footer; first: Footer } {
         new TextRun({ text: "  ·  Yaşam Sistemi", size: 16, font: REPORT_FONT, color: C_LIGHT }),
       ],
     });
+  // REF-002: her sayfa altında kısa bilgilendirme (tam metin rapor içinde).
+  const disclaimerLine = (): Paragraph =>
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [
+        new TextRun({
+          text: "Tamamlayıcı uygulama · tıbbi tanı/tedavi yerine geçmez",
+          italics: true,
+          size: 14,
+          font: REPORT_FONT,
+          color: C_LIGHT,
+        }),
+      ],
+    });
   return {
-    default: new Footer({ children: [line()] }),
+    default: new Footer({ children: [disclaimerLine(), line()] }),
     first: new Footer({ children: [new Paragraph({ children: [] })] }),
   };
 }

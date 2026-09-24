@@ -22,6 +22,7 @@ import type { ClinicalNoteFormDraft, NoteAttachment } from "../types";
 import { ImageLightbox } from "./ImageLightbox";
 import { NoteDetayAttachmentCard } from "./NoteDetayAttachmentCard";
 import { PdfPreviewModal } from "./PdfPreviewModal";
+import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 
 type NotDetayLayoutProps = {
   noteId: string;
@@ -200,11 +201,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   };
 
   if (!hydrated) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
-      </main>
-    );
+    return <RefleksolojiDetailLoading />; // REF-021
   }
 
   if (!draft) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 
 type ProtocolNotesModalProps = {
   open: boolean;
@@ -22,23 +23,9 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
     if (open) setDraft(value);
   }, [open, value]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
+  // REF-012: ESC + Tab trap + focus restore + scroll kilidi (ortak hook).
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useModalA11y<HTMLDivElement>({ open, onClose, initialFocusRef: textareaRef });
 
   if (!open || !mounted) return null;
 
@@ -56,6 +43,7 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="flex w-[min(920px,calc(100vw-48px))] max-h-[calc(100vh-80px)] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white p-6 shadow-2xl md:p-8"
         onClick={(event) => event.stopPropagation()}
       >
@@ -92,11 +80,11 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <textarea
+            ref={textareaRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             className="min-h-[420px] max-h-[60vh] w-full resize-y rounded-[22px] border border-violet-200/90 bg-white p-5 text-lg font-medium leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100/80"
             placeholder="Uygulama notlarınızı buraya yazın..."
-            autoFocus
           />
         </div>
       </div>

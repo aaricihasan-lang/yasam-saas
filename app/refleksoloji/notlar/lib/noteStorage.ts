@@ -1,8 +1,12 @@
 import type { ClinicalNoteFormDraft, NoteAttachment, SavedClinicalNote } from "../types";
+import type { NoteSyncResult } from "@/lib/refleksoloji/notesConcurrency";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
-import { scheduleNotesSync } from "./notesSync";
+import { scheduleNotesSync, setNotesSyncSuspended } from "./notesSync";
 
 export const CLINICAL_NOTES_STORAGE_KEY = "yasam-refleksoloji-notlar-v1";
+
+/** REF-003: server sync sonucu uygulanınca UI'nin yeniden okuması için olay adı. */
+export const CLINICAL_NOTES_UPDATED_EVENT = "yasam-refleksoloji-notes-updated";
 
 function normalizeAttachments(raw: unknown): NoteAttachment[] {
   if (!Array.isArray(raw)) return [];
@@ -59,6 +63,8 @@ function migrateItem(item: unknown): SavedClinicalNote | null {
     attachments: normalizeAttachments(o.attachments),
     createdAt: typeof o.createdAt === "string" ? o.createdAt : now,
     updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : now,
+    // REF-003: CAS beklenen sürümü — localStorage round-trip'inde KORUNMALI.
+    ...(typeof o.baseUpdatedAt === "string" ? { baseUpdatedAt: o.baseUpdatedAt } : {}),
   };
 }
 
@@ -140,6 +146,57 @@ export function mergeNotesById(
   );
 }
 
+/**
+ * REF-003: server PUT sonucunu yerel depoya uygular (senkron ASKIYA ALINMIŞ olarak,
+ * geri-yankı PUT'u tetiklemeden). Amaç:
+ *   • created/updated → o notun `baseUpdatedAt`'ini yeni server sürümüne çeker
+ *     (bir sonraki düzenlemede CAS doğru sürümle çalışır).
+ *   • delete-conflict → başka cihazda değişmiş notu server sürümünden GERİ YÜKLER
+ *     (kör silme geri alınır; yerel veri kaybı olmaz).
+ * conflict (update) sonucunda yerel metin KORUNUR (üzerine yazılmaz) — çağıran ayrıca
+ * görünür conflict durumu gösterir. Değişiklik olduysa UI'yi tazelemek için olay yayınlar.
+ */
+export function applyServerNoteSync(results: NoteSyncResult[]): boolean {
+  if (typeof window === "undefined" || results.length === 0) return false;
+
+  const list = loadNotesFromStorage();
+  const byId = new Map(list.map((n) => [n.id, n]));
+  let changed = false;
+
+  for (const r of results) {
+    if (r.outcome === "created" || r.outcome === "updated") {
+      const note = byId.get(r.uid);
+      if (note && note.baseUpdatedAt !== r.updated_at) {
+        byId.set(r.uid, { ...note, baseUpdatedAt: r.updated_at });
+        changed = true;
+      }
+    } else if (r.outcome === "delete-conflict" && r.server != null) {
+      // Başka cihazda değişmiş notu geri yükle (silme reddedildi).
+      const restored = migrateItem(r.server);
+      if (restored) {
+        byId.set(restored.id, {
+          ...restored,
+          ...(typeof r.server_updated_at === "string"
+            ? { baseUpdatedAt: r.server_updated_at }
+            : {}),
+        });
+        changed = true;
+      }
+    }
+  }
+
+  if (!changed) return false;
+
+  const next = [...byId.values()].sort((a, b) =>
+    String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")),
+  );
+  setNotesSyncSuspended(true);
+  const ok = safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(next));
+  setNotesSyncSuspended(false);
+  if (ok) window.dispatchEvent(new Event(CLINICAL_NOTES_UPDATED_EVENT));
+  return ok;
+}
+
 export function draftToSavedNote(
   draft: ClinicalNoteFormDraft,
   options: { id?: string; previous?: SavedClinicalNote; existingIds: Set<string> },
@@ -159,6 +216,11 @@ export function draftToSavedNote(
     attachments: draft.attachments.map((a) => ({ ...a })),
     createdAt: options.previous?.createdAt ?? now,
     updatedAt: now,
+    // REF-003: yerel düzenleme baseUpdatedAt'i DEĞİŞTİRMEZ — önceki (son gözlemlenen
+    // server sürümü) taşınır ki bir sonraki PUT doğru sürümle CAS yapabilsin.
+    ...(options.previous?.baseUpdatedAt
+      ? { baseUpdatedAt: options.previous.baseUpdatedAt }
+      : {}),
   };
 }
 
