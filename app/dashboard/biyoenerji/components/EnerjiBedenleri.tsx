@@ -32,6 +32,8 @@ import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
+import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 
@@ -233,6 +235,9 @@ export default function EnerjiBedenleri() {
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
+  const isAndroid = useIsAndroid();
+  // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
+  const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -630,12 +635,20 @@ export default function EnerjiBedenleri() {
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"
+            >
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800"
+            >
               {infoError}
             </div>
           ) : null}
@@ -828,14 +841,16 @@ export default function EnerjiBedenleri() {
                   >
                     Sil
                   </button>
-                  <button
-                    type="button"
-                    disabled={wordBusy}
-                    onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
-                  >
-                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                  </button>
+                  {!isAndroid && (
+                    <button
+                      type="button"
+                      disabled={wordBusy}
+                      onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                      className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
+                    >
+                      {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                    </button>
+                  )}
                 </div>
               )}
             </>
@@ -853,6 +868,7 @@ export default function EnerjiBedenleri() {
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
         onClose={closeFormModal}
+        isDirty={formIsDirty}
         title={formModalMode === "create" ? "Yeni enerji bedeni" : "Enerji bedenini düzenle"}
         subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
         titleId="energy-body-form-modal-title"

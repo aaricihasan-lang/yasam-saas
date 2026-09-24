@@ -48,6 +48,8 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { LongTextareaField } from "./LargeTextModal";
+import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
 import {
   buildChakraStoneView,
@@ -308,6 +310,9 @@ export default function CakralarDetail({ id }: { id: string }) {
     notes: "",
   });
   const [formModalOpen, setFormModalOpen] = useState(false);
+  const isAndroid = useIsAndroid();
+  // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
+  const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -764,10 +769,10 @@ export default function CakralarDetail({ id }: { id: string }) {
       {(infoSuccess || infoError || showRecordWithWarning) && (
         <div className="mb-4 flex flex-col gap-1.5 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-medium text-emerald-700">{infoSuccess}</div>
+            <div role="status" aria-live="polite" className="flex-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-medium text-emerald-700">{infoSuccess}</div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-md border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[12px] font-medium text-rose-700">{infoError}</div>
+            <div role="alert" aria-live="assertive" className="flex-1 rounded-md border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[12px] font-medium text-rose-700">{infoError}</div>
           ) : null}
           {showRecordWithWarning ? (
             <div className="flex-1 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-[12px] font-medium text-amber-700">{errorMessage}</div>
@@ -836,7 +841,7 @@ export default function CakralarDetail({ id }: { id: string }) {
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Sil
               </button>
-              {record && (
+              {record && !isAndroid && (
                 <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
                   {wordBusy ? "Hazırlanıyor…" : "Word"}
@@ -893,6 +898,7 @@ export default function CakralarDetail({ id }: { id: string }) {
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
+        isDirty={formIsDirty}
         title="Çakra kaydını düzenle"
         subtitle="Kaydettikten sonra detay yenilenir."
         titleId="chakra-edit-modal-title"

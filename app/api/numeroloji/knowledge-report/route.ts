@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
 import { Document, Packer } from "docx";
 import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
@@ -86,6 +87,9 @@ function parseStones(raw: unknown): string[] {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }

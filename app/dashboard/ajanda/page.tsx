@@ -14,6 +14,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 /** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
 function userHeaders(json = false): Record<string, string> {
@@ -139,6 +140,7 @@ export default function AjandaPage() {
   const [selectedApptIds, setSelectedApptIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
   const [singleWordBusy, setSingleWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
@@ -859,7 +861,7 @@ export default function AjandaPage() {
         </div>
 
         {/* Word export çubuğu */}
-        {appointments.length > 0 && (
+        {!isAndroid && appointments.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 shadow-sm">
             <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-blue-800 shadow-sm">
               {selectedApptIds.size > 0 ? `✓ ${selectedApptIds.size} seçili` : "Ajanda Word"}
@@ -1159,14 +1161,16 @@ export default function AjandaPage() {
                 </div>
 
                 {/* Tek randevu Word butonu */}
-                <button
-                  type="button"
-                  disabled={singleWordBusy}
-                  onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
-                  className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
-                >
-                  {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                </button>
+                {!isAndroid && (
+                  <button
+                    type="button"
+                    disabled={singleWordBusy}
+                    onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
+                    className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                  >
+                    {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  </button>
+                )}
 
                 {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
                 <button

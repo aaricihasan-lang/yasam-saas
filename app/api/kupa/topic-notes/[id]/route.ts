@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { CUPPING_TABLES, TOPIC_NOTE_WRITABLE } from "@/lib/cupping/fields";
-import { cuppingError, deleteEntity, parseJsonBody, pickWritable } from "@/lib/cupping/api";
+import { cuppingError, deleteEntity, parseJsonBody, pickWritable, validateWritable } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
 
@@ -50,6 +50,9 @@ export async function PATCH(
   if (Object.prototype.hasOwnProperty.call(fields, "note") && !String(fields.note ?? "").trim()) {
     return cuppingError(400, "Not metni boş olamaz.");
   }
+  // HAC-UX-2/3 — RPC bypass yolunda string uzunluk denetimi (genel api.ts chokepoint devrede değil).
+  const invalid = validateWritable(CUPPING_TABLES.topicNotes, fields);
+  if (invalid) return invalid;
   const pointIds = hasPoints ? parsePointIds(parsed.data.point_ids) : null;
   if (pointIds && pointIds.length > MAX_POINTS) {
     return cuppingError(400, "Çok fazla bölge seçildi.");

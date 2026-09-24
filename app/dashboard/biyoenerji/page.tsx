@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Activity } from "lucide-react";
 import BiyoenerjiFolderCards from "./components/BiyoenerjiFolderCards";
+import { BiyoenerjiDisclaimer } from "./components/BiyoenerjiDisclaimer";
 
 export default function BiyoenerjiFolderPage() {
   return (
@@ -51,6 +52,8 @@ export default function BiyoenerjiFolderPage() {
         </header>
 
         <BiyoenerjiFolderCards />
+
+        <BiyoenerjiDisclaimer className="mt-6" />
       </div>
     </main>
   );

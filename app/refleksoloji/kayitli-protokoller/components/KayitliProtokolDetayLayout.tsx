@@ -30,6 +30,7 @@ import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 import { ReflexologyDisclaimer } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -163,6 +164,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel Yaşam Hafızası teslim eki (protocol target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
@@ -401,7 +403,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 🧠 Yaşam Hafızası{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
             )}
-            {protocol && !isDemo && (
+            {protocol && !isDemo && !isAndroid && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}

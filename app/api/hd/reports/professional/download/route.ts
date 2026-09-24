@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
@@ -28,6 +29,9 @@ const BUCKET = "hd-chart-images";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
+
   const guard = await requireAdminUserRequest(req);
   if (!guard.ok) return guard.response;
 

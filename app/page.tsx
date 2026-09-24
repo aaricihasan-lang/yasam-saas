@@ -467,6 +467,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   human_design: [],
   digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
   cosmic_calendar: [],
+  cupping: ["kupa", "hacamat_terapi"],
   yasam_hafizasi: [],
 };
 

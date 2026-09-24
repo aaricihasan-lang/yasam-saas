@@ -15,6 +15,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { formatDate } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
@@ -275,6 +276,7 @@ function DogaltasPageContent() {
   const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isAndroid = useIsAndroid();
   useBfcacheRefresh();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 
@@ -649,13 +651,15 @@ function DogaltasPageContent() {
                   {t("hero.subtitle")}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
-                className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
-              >
-                {t("hero.reportButton")}
-              </button>
+              {!isAndroid && (
+                <button
+                  type="button"
+                  onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
+                  className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
+                >
+                  {t("hero.reportButton")}
+                </button>
+              )}
             </header>
 
             <form

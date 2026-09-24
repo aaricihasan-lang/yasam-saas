@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { CUPPING_TABLES, PROTOCOL_ENTRY_WRITABLE } from "@/lib/cupping/fields";
-import { cuppingError, listEntity, parseJsonBody, pickWritable } from "@/lib/cupping/api";
+import { cuppingError, listEntity, parseJsonBody, pickWritable, validateWritable } from "@/lib/cupping/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -82,6 +82,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const fields = pickWritable(parsed.data, PROTOCOL_ENTRY_WRITABLE);
   // Erken/ucuz doğrulamalar (RPC de aynı kuralları uygular — savunma derinliği).
   if (!String(fields.content ?? "").trim()) return cuppingError(400, "Bilgi içeriği gerekli.");
+  // HAC-UX-2/3 — RPC bypass yolunda string uzunluk denetimi (genel api.ts chokepoint devrede değil).
+  const invalid = validateWritable(CUPPING_TABLES.protocolEntries, fields);
+  if (invalid) return invalid;
   const pointIds = parsePointIds(parsed.data.point_ids);
   if (pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.");
 

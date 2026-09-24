@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
 import { Document, Packer, Paragraph } from "docx";
 import {
@@ -130,6 +131,8 @@ function buildDocument(minerals: MineralRow[], exportLabel: string): ReportChild
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;
