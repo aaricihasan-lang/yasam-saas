@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronUp, Plus, Save, Trash2 } from "lucide-react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -67,6 +68,7 @@ const btnGhost =
 
 export default function ChakraContentEditor({ id }: { id: string }) {
   const { isDemo } = useDemoGuard();
+  const router = useRouter();
   const [record, setRecord] = useState<ChakraDetailItem | null>(null);
   const [blocks, setBlocks] = useState<ChakraContentBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,8 @@ export default function ChakraContentEditor({ id }: { id: string }) {
   const [newDrafts, setNewDrafts] = useState<NewDraft[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ "genel-bakis": true });
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  // P1 — kaydedilmemiş değişiklik varken iç navigasyon (Detaya dön) çıkış onayı
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const showToast = useCallback((kind: "ok" | "err", text: string) => setToast({ kind, text }), []);
   useEffect(() => {
@@ -232,7 +236,17 @@ export default function ChakraContentEditor({ id }: { id: string }) {
   return (
     <div className="w-full">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link href={chakraDetailHref(record.id) || CHAKRAS_LIST_PATH} className={btnGhost}>
+        <Link
+          href={chakraDetailHref(record.id) || CHAKRAS_LIST_PATH}
+          onClick={(e) => {
+            // Form CLEAN ise Link normal SPA geçişi yapar; DIRTY ise çıkış onayı açılır.
+            if (isDirty) {
+              e.preventDefault();
+              setPendingHref(chakraDetailHref(record.id) || CHAKRAS_LIST_PATH);
+            }
+          }}
+          className={btnGhost}
+        >
           <ArrowLeft className="h-4 w-4" aria-hidden /> Detaya dön
         </Link>
         {isDirty && <span className="text-[12px] font-semibold text-amber-600">Kaydedilmemiş değişiklikler var</span>}
@@ -355,6 +369,50 @@ export default function ChakraContentEditor({ id }: { id: string }) {
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => confirmDelete && void removeBlock(confirmDelete.id)}
       />
+
+      {/* P1 — kaydedilmemiş değişiklik çıkış onayı (iç navigasyon). BIO-004 modal
+          diyaloğuyla aynı kopya/stil; yalnız bu editöre özel, router monkey-patch YOK. */}
+      {pendingHref !== null && (
+        <div
+          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="chakra-nav-discard-title"
+          onClick={() => setPendingHref(null)}
+        >
+          <div
+            className="w-full max-w-[420px] rounded-2xl border border-white/90 bg-white/95 p-6 shadow-[0_20px_50px_-18px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="chakra-nav-discard-title" className="text-[15px] font-black leading-snug text-slate-950">
+              Kaydedilmemiş değişiklikler
+            </h3>
+            <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
+              Kaydedilmemiş değişiklikleriniz var. Çıkarsanız yaptığınız değişiklikler kaybolacak.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingHref(null)}
+                className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Düzenlemeye Devam Et
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const href = pendingHref;
+                  setPendingHref(null);
+                  if (href) router.push(href);
+                }}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
+              >
+                Değişiklikleri Sil ve Çık
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
