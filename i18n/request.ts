@@ -9,6 +9,7 @@ import trClients from "@/messages/tr/clients.json";
 import trClientsList from "@/messages/tr/clients.list.json";
 import trClientsNotes from "@/messages/tr/clients.notes.json";
 import trClientsSessions from "@/messages/tr/clients.sessions.json";
+import trClientsCharges from "@/messages/tr/clients.charges.json";
 import trClientsHomework from "@/messages/tr/clients.homework.json";
 import trClientsMemory from "@/messages/tr/clients.memory.json";
 import trClientsCombinations from "@/messages/tr/clients.combinations.json";
@@ -33,6 +34,7 @@ import enClients from "@/messages/en/clients.json";
 import enClientsList from "@/messages/en/clients.list.json";
 import enClientsNotes from "@/messages/en/clients.notes.json";
 import enClientsSessions from "@/messages/en/clients.sessions.json";
+import enClientsCharges from "@/messages/en/clients.charges.json";
 import enClientsHomework from "@/messages/en/clients.homework.json";
 import enClientsMemory from "@/messages/en/clients.memory.json";
 import enClientsCombinations from "@/messages/en/clients.combinations.json";
@@ -83,6 +85,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsList,
     trClientsNotes,
     trClientsSessions,
+    trClientsCharges,
     trClientsHomework,
     trClientsMemory,
     trClientsCombinations,
@@ -108,6 +111,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     enClientsList,
     enClientsNotes,
     enClientsSessions,
+    enClientsCharges,
     enClientsHomework,
     enClientsMemory,
     enClientsCombinations,

@@ -69,6 +69,7 @@ const C = {
   randevular: "9a3412",   // turuncu
   taslar:     "0e7490",   // turkuaz
   seanslar:   "14532d",   // yeşil
+  ucret:      "065f46",   // zümrüt (ücretlendirme)
   odevler:    "713f12",   // amber
   analizler:  "4a1d96",   // koyu mor
   yolculuk:   "1e1b4b",   // indigo
@@ -127,6 +128,16 @@ type ClientSessionRow = {
   actions_done?: string | null;
   suggestions?: string | null;
   next_plan?: string | null;
+  created_at: string;
+};
+
+type ClientChargeRow = {
+  id: string;
+  charge_date?: string | null;
+  category?: string | null;   // session | homework | analysis | other
+  detail?: string | null;
+  note?: string | null;
+  amount?: number | null;
   created_at: string;
 };
 
@@ -204,6 +215,158 @@ function formatDateTimeTR(value: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// ─── Ücretlendirme (merkezi ücret) yardımcıları ─────────────────────────────────
+const CHARGE_CAT_LABEL: Record<string, string> = {
+  session: "Seans",
+  homework: "Ödev",
+  analysis: "Analiz",
+  other: "Diğer",
+};
+function chargeCatLabel(cat?: string | null): string {
+  return CHARGE_CAT_LABEL[cat ?? ""] ?? "Diğer";
+}
+function formatTRY(amount: number): string {
+  return `${new Intl.NumberFormat("tr-TR").format(amount)} ₺`;
+}
+
+/** Ücret kayıtlarının gövdesi (başlık HARİÇ) — Tarih / Ana Tür / Detay / Tutar + Toplam. */
+function buildChargeBody(charges: ClientChargeRow[]): ReportChild[] {
+  const out: ReportChild[] = [];
+  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
+  out.push(muted(`Toplam ${charges.length} ücret kaydı`));
+  if (charges.length === 0) {
+    out.push(muted("Henüz ücret kaydı yok."));
+    return out;
+  }
+  out.push(twoColTable([["Toplam Kayıt", `${charges.length}`], ["Toplam Ücret", formatTRY(total)]]));
+  out.push(spacer());
+  charges.forEach((c, i) => {
+    out.push(profileLabel(`ÜCRET #${String(i + 1).padStart(3, "0")}`, C.ucret));
+    out.push(h2(`${i + 1}. ${chargeCatLabel(c.category)}${c.detail?.trim() ? " — " + c.detail.trim() : ""} — ${formatDateTR(c.charge_date)}`));
+    out.push(twoColTable([
+      ["Tarih", formatDateTR(c.charge_date)],
+      ["Ana Tür", chargeCatLabel(c.category)],
+      ["Detay", v(c.detail)],
+      ["Tutar", formatTRY(c.amount ?? 0)],
+    ]));
+    if (c.note?.trim()) { out.push(h3("Not")); out.push(bodyText(c.note.trim())); }
+    if (i < charges.length - 1) out.push(divider());
+  });
+  return out;
+}
+
+/** Tam/ tarih-aralığı raporunda numaralı Ücretlendirme bölümü (başlık + gövde). */
+function buildUcretlendirmeSection(charges: ClientChargeRow[], sectionNumber: number): ReportChild[] {
+  return [h1Colored(`${sectionNumber}. Ücretlendirme`, C.ucret, true), ...buildChargeBody(charges)];
+}
+
+/**
+ * SEKME-ÖZEL kompakt Ücretlendirme başlığı — ayrı kapak/RAPOR ÖZETİ/İçindekiler
+ * sayfaları YOK. Tek blok: marka + başlık + künye (Danışan / Tarih / Toplam Kayıt /
+ * Toplam Ücret). Yalnız tab-mode "ucretlendirme" için; tam rapor yapısına dokunmaz.
+ */
+function buildCompactChargeHeader(
+  fullName: string,
+  today: string,
+  count: number,
+  total: number,
+): ReportChild[] {
+  return [
+    gap(120),
+    centered("YAŞAM SİSTEMİ", 44, C.ucret, true, true),
+    centered("ÜCRETLENDİRME", 30, C_MID, true, true),
+    thickRule(C.ucret),
+    gap(200),
+    twoColTable([
+      ["Danışan", fullName],
+      ["Oluşturulma Tarihi", today],
+      ["Toplam Kayıt", `${count}`],
+      ["Toplam Ücret", formatTRY(total)],
+    ]),
+    spacer(),
+  ];
+}
+
+/**
+ * SEKME-ÖZEL kompakt ücret kayıtları — tek tablo (Tarih / Ana Tür / Detay / Tutar),
+ * varsa Not detay hücresinde alt satır; en altta sağa yaslı "Toplam Ücret". Kapak/özet
+ * yok, zorunlu page-break yok → içerik kadar uzar (2 kayıt tipik olarak tek sayfa).
+ */
+function buildCompactChargeTable(charges: ClientChargeRow[]): ReportChild[] {
+  if (charges.length === 0) return [muted("Henüz ücret kaydı yok.")];
+  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
+
+  const headCell = (text: string, pct: number) =>
+    new TableCell({
+      shading: { fill: C.ucret, type: ShadingType.CLEAR, color: "auto" },
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: [new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 18, font: REPORT_FONT, color: "ffffff" })],
+      })],
+    });
+
+  const textCell = (
+    text: string,
+    pct: number,
+    opts?: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] },
+  ) =>
+    new TableCell({
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: [new Paragraph({
+        alignment: opts?.align,
+        children: [new TextRun({ text, bold: opts?.bold ?? false, size: 20, font: REPORT_FONT, color: C_DARK })],
+      })],
+    });
+
+  const detailCell = (detail: string | null | undefined, note: string | null | undefined, pct: number) => {
+    const kids: Paragraph[] = [
+      new Paragraph({ children: [new TextRun({ text: detail?.trim() || "—", size: 20, font: REPORT_FONT, color: C_DARK })] }),
+    ];
+    if (note?.trim()) {
+      kids.push(new Paragraph({
+        children: [new TextRun({ text: note.trim(), size: 18, font: REPORT_FONT, color: C_MID, italics: true })],
+        spacing: { before: 40 },
+      }));
+    }
+    return new TableCell({
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      children: kids,
+    });
+  };
+
+  const headerRow = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: [headCell("Tarih", 16), headCell("Ana Tür", 16), headCell("Detay", 46), headCell("Tutar", 22)],
+  });
+  const bodyRows = charges.map((c) =>
+    new TableRow({
+      cantSplit: true,
+      children: [
+        textCell(formatDateTR(c.charge_date), 16),
+        textCell(chargeCatLabel(c.category), 16),
+        detailCell(c.detail, c.note, 46),
+        textCell(formatTRY(c.amount ?? 0), 22, { bold: true, align: AlignmentType.RIGHT }),
+      ],
+    }),
+  );
+
+  return [
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [
+        new TextRun({ text: "Toplam Ücret:  ", size: 22, font: REPORT_FONT, color: C_MID }),
+        new TextRun({ text: formatTRY(total), bold: true, size: 24, font: REPORT_FONT, color: C.ucret }),
+      ],
+      spacing: { before: 200, after: 0 },
+    }),
+  ];
 }
 
 function slugify(text: string): string {
@@ -1018,7 +1181,7 @@ export async function POST(
     return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // ─── Tab mode early-return ────────────────────────────────────────────────
-  const TAB_VALID = ["genel","notlar","randevular","taslar","seanslar","odevler","analizler"] as const;
+  const TAB_VALID = ["genel","notlar","randevular","taslar","seanslar","ucretlendirme","odevler","analizler"] as const;
   type TN = (typeof TAB_VALID)[number];
 
   if (exportMode === "tab" && tabName && (TAB_VALID as readonly string[]).includes(tabName)) {
@@ -1051,6 +1214,9 @@ export async function POST(
     } else if (tab === "seanslar") {
       const { data } = await db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
+    } else if (tab === "ucretlendirme") {
+      const { data } = await db.from("client_charges").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
+      extraRows = (data || []) as AnyRow[];
     } else if (tab === "odevler") {
       const { data } = await db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
@@ -1067,6 +1233,7 @@ export async function POST(
       randevular: { title: "RANDEVU GEÇMİŞİ",   color: C.randevular, subtitle: "Tüm Randevu Kayıtları" },
       taslar:     { title: "TAŞ ÖNERİLERİ",     color: C.taslar,     subtitle: "Atanmış Doğaltaş Kayıtları" },
       seanslar:   { title: "SEANS GEÇMİŞİ",     color: C.seanslar,   subtitle: "Seans Geçmişi ve Notlar" },
+      ucretlendirme: { title: "ÜCRETLENDİRME",  color: C.ucret,      subtitle: "Ücret Kayıtları ve Toplam" },
       odevler:    { title: "ÖDEV TAKİP",        color: C.odevler,    subtitle: "Verilen Ödevler ve Takip" },
       analizler:  { title: "ANALİZ SONUÇLARI",  color: C.analizler,  subtitle: "Enerji ve Analiz Kayıtları" },
     } as const;
@@ -1078,7 +1245,10 @@ export async function POST(
     if (tab === "seanslar") {
       const sess = extraRows as ClientSessionRow[];
       coverStats.push({ label: "Toplam Süre",  value: `${sess.reduce((s, r) => s + (r.duration_minutes ?? 0), 0)} dk` });
-      coverStats.push({ label: "Toplam Ücret", value: `${sess.reduce((s, r) => s + (r.fee ?? 0), 0)} ₺` });
+    }
+    if (tab === "ucretlendirme") {
+      const chg = extraRows as ClientChargeRow[];
+      coverStats.push({ label: "Toplam Ücret", value: formatTRY(chg.reduce((s, r) => s + (r.amount ?? 0), 0)) });
     }
 
     const statRows: [string, string][] = [["Danışan", fullName]];
@@ -1086,10 +1256,19 @@ export async function POST(
 
     const all: ReportChild[] = [];
     const tabLsInserts: LandscapeInsert[] = [];
-    all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
-    all.push(...buildStatsPage(statRows));
-    all.push(...buildTOCPage());
-    all.push(h1Colored(`1. ${cfg.title}`, cfg.color, true));
+
+    if (tab === "ucretlendirme") {
+      // KOMPAKT sekme çıktısı: ayrı kapak / RAPOR ÖZETİ / İçindekiler sayfaları YOK,
+      // h1Colored(pageBreak) YOK. Üstte kompakt künye, ardından doğrudan kayıtlar.
+      const chg = extraRows as ClientChargeRow[];
+      const chgTotal = chg.reduce((s, r) => s + (r.amount ?? 0), 0);
+      all.push(...buildCompactChargeHeader(fullName, today, chg.length, chgTotal));
+    } else {
+      all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
+      all.push(...buildStatsPage(statRows));
+      all.push(...buildTOCPage());
+      all.push(h1Colored(`1. ${cfg.title}`, cfg.color, true));
+    }
 
     if (tab === "genel") {
       all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
@@ -1154,11 +1333,10 @@ export async function POST(
 
     else if (tab === "seanslar") {
       const sessions = extraRows as ClientSessionRow[];
-      const totalFee     = sessions.reduce((s, r) => s + (r.fee ?? 0), 0);
       const totalMinutes = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
       all.push(muted(`Toplam ${count} seans kaydı`));
       if (sessions.length > 0) {
-        all.push(twoColTable([["Toplam Seans", `${sessions.length} seans`], ["Toplam Süre", `${totalMinutes} dk`], ["Toplam Ücret", `${totalFee} ₺`]]));
+        all.push(twoColTable([["Toplam Seans", `${sessions.length} seans`], ["Toplam Süre", `${totalMinutes} dk`]]));
         all.push(spacer());
       } else {
         all.push(muted("Henüz seans kaydı yok."));
@@ -1166,13 +1344,19 @@ export async function POST(
       sessions.forEach((session, i) => {
         all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
         all.push(h2(`${i + 1}. ${titleCaseTR(session.session_type || `Seans ${i + 1}`)} — ${formatDateTR(session.session_date)}`));
-        all.push(twoColTable([["Tür", v(session.session_type)], ["Süre", session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"], ["Ücret", session.fee != null ? `${session.fee} ₺` : "Belirtilmedi"]]));
+        all.push(twoColTable([["Tür", v(session.session_type)], ["Süre", session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"]]));
         if (session.session_note?.trim())  { all.push(h3("Seans Notu"));          all.push(bodyText(session.session_note.trim())); }
         if (session.actions_done?.trim())  { all.push(h3("Yapılan İşlemler"));    all.push(bodyText(session.actions_done.trim())); }
         if (session.suggestions?.trim())   { all.push(h3("Öneriler"));            all.push(bodyText(session.suggestions.trim())); }
         if (session.next_plan?.trim())     { all.push(h3("Sonraki Seans Planı")); all.push(bodyText(session.next_plan.trim())); }
         if (i < sessions.length - 1) all.push(divider());
       });
+    }
+
+    else if (tab === "ucretlendirme") {
+      // Kompakt: künye başlığında zaten count/total var → burada doğrudan kayıt tablosu.
+      const charges = extraRows as ClientChargeRow[];
+      all.push(...buildCompactChargeTable(charges));
     }
 
     else if (tab === "odevler") {
@@ -1220,7 +1404,8 @@ export async function POST(
 
     const tabSlugMap: Record<TN, string> = {
       genel: "genel-bilgiler", notlar: "notlar", randevular: "randevular",
-      taslar: "taslar", seanslar: "seanslar", odevler: "odevler", analizler: "analizler",
+      taslar: "taslar", seanslar: "seanslar", ucretlendirme: "ucretlendirme",
+      odevler: "odevler", analizler: "analizler",
     };
 
     const tabDoc = new Document({
@@ -1319,7 +1504,7 @@ export async function POST(
       return Response.json({ ok: false, error: "Başlangıç tarihi bitiş tarihinden sonra olamaz." }, { status: 400 });
 
     // Tüm danışan verisini çek — filtreleme JS'de yapılacak
-    const [drCliRes, drNoteRes, drAptRes, drStoneRes, drSessRes, drHwRes, drAnRes] = await Promise.all([
+    const [drCliRes, drNoteRes, drAptRes, drStoneRes, drSessRes, drHwRes, drAnRes, drChargeRes] = await Promise.all([
       db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).single(),
       db.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
       db.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("appointment_date", { ascending: true }),
@@ -1327,6 +1512,7 @@ export async function POST(
       db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
       db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       db.from("client_analyses").select("id, analysis_type, analysis_data, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+      db.from("client_charges").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     ]);
 
     if (drCliRes.error || !drCliRes.data)
@@ -1360,11 +1546,14 @@ export async function POST(
                       .filter((h) => inRange(normDate(h.start_date, h.created_at)));
     const drAn    = ((drAnRes.data    || []) as ClientAnalysisRow[])
                       .filter((a) => inRange(normDate(a.created_at, a.created_at)));
+    const drCharges = ((drChargeRes.data || []) as ClientChargeRow[])
+                      .filter((c) => inRange(normDate(c.charge_date, c.created_at)));
 
     const drCounts = {
       randevular: drApts.length,
       taslar:     drStones.length,
       seanslar:   drSess.length,
+      ucret:      drCharges.length,
       odevler:    drHw.length,
       analizler:  drAn.length,
     };
@@ -1406,6 +1595,7 @@ export async function POST(
       ["Bitiş Tarihi",         drEnd_fmt],
       ["Filtrelenen Randevu",  String(drCounts.randevular)],
       ["Filtrelenen Seans",    String(drCounts.seanslar)],
+      ["Filtrelenen Ücret",    String(drCounts.ucret)],
       ["Filtrelenen Taş Kaydı", String(drCounts.taslar)],
       ["Filtrelenen Ödev",     String(drCounts.odevler)],
       ["Filtrelenen Analiz",   String(drCounts.analizler)],
@@ -1476,9 +1666,8 @@ export async function POST(
     if (drSess.length === 0) {
       all.push(muted("Bu tarih aralığında seans kaydı bulunamadı."));
     } else {
-      const totalFee     = drSess.reduce((s, r) => s + (r.fee ?? 0), 0);
       const totalMinutes = drSess.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
-      all.push(twoColTable([["Toplam Seans", `${drSess.length}`], ["Toplam Süre", `${totalMinutes} dk`], ["Toplam Ücret", `${totalFee} ₺`]]));
+      all.push(twoColTable([["Toplam Seans", `${drSess.length}`], ["Toplam Süre", `${totalMinutes} dk`]]));
       all.push(spacer());
       drSess.forEach((session, i) => {
         all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
@@ -1489,8 +1678,13 @@ export async function POST(
       });
     }
 
-    // ── 6. Ödevler
-    all.push(h1Colored(`6. Ödevler (${drCounts.odevler})`, C.odevler));
+    // ── 6. Ücretlendirme
+    all.push(h1Colored(`6. Ücretlendirme (${drCounts.ucret})`, C.ucret));
+    all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Ücret tarihi (charge_date) kullanılır, yoksa kayıt tarihi`));
+    all.push(...buildChargeBody(drCharges));
+
+    // ── 7. Ödevler
+    all.push(h1Colored(`7. Ödevler (${drCounts.odevler})`, C.odevler));
     all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Başlangıç tarihi (start_date) kullanılır, yoksa kayıt tarihi`));
     if (drHw.length === 0) {
       all.push(muted("Bu tarih aralığında ödev kaydı bulunamadı."));
@@ -1504,8 +1698,8 @@ export async function POST(
       });
     }
 
-    // ── 7. Analizler
-    all.push(h1Colored(`7. Analizler (${drCounts.analizler})`, C.analizler));
+    // ── 8. Analizler
+    all.push(h1Colored(`8. Analizler (${drCounts.analizler})`, C.analizler));
     all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Kayıt tarihi (created_at) kullanılır`));
     const drLsInserts: LandscapeInsert[] = [];
     if (drAn.length === 0) {
@@ -1555,6 +1749,7 @@ export async function POST(
     sessionsRes,
     homeworksRes,
     analysesRes,
+    chargesRes,
   ] = await Promise.all([
     db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).single(),
     db.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
@@ -1563,6 +1758,7 @@ export async function POST(
     db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     db.from("client_analyses").select("id, analysis_type, analysis_data, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+    db.from("client_charges").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
   ]);
 
   if (clientRes.error || !clientRes.data)
@@ -1575,6 +1771,7 @@ export async function POST(
   const sessions     = (sessionsRes.data     || []) as ClientSessionRow[];
   const homeworks    = (homeworksRes.data    || []) as ClientHomeworkRow[];
   const analyses     = (analysesRes.data     || []) as ClientAnalysisRow[];
+  const charges      = (chargesRes.data      || []) as ClientChargeRow[];
 
   const rawName  = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
   const fullName = titleCaseTR(rawName) || "İsimsiz Danışan";
@@ -1744,13 +1941,11 @@ export async function POST(
   all.push(h1Colored("5. Seanslar", C.seanslar, true));
   all.push(muted(`Toplam ${counts.seanslar} seans kaydı`));
 
-  const totalFee     = sessions.reduce((s, r) => s + (r.fee ?? 0), 0);
   const totalMinutes = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
   if (sessions.length > 0) {
     all.push(twoColTable([
       ["Toplam Seans", `${sessions.length} seans`],
       ["Toplam Süre",  `${totalMinutes} dk`],
-      ["Toplam Ücret", `${totalFee} ₺`],
     ]));
     all.push(spacer());
   }
@@ -1764,7 +1959,6 @@ export async function POST(
       all.push(twoColTable([
         ["Tür",   v(session.session_type)],
         ["Süre",  session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"],
-        ["Ücret", session.fee != null ? `${session.fee} ₺` : "Belirtilmedi"],
       ]));
       if (session.session_note?.trim())  { all.push(h3("Seans Notu"));          all.push(bodyText(session.session_note.trim())); }
       if (session.actions_done?.trim())  { all.push(h3("Yapılan İşlemler"));    all.push(bodyText(session.actions_done.trim())); }
@@ -1774,8 +1968,11 @@ export async function POST(
     });
   }
 
-  // ── 6. Ödevler
-  all.push(h1Colored("6. Ödevler", C.odevler, true));
+  // ── 6. Ücretlendirme
+  all.push(...buildUcretlendirmeSection(charges, 6));
+
+  // ── 7. Ödevler
+  all.push(h1Colored("7. Ödevler", C.odevler, true));
   all.push(muted(`Toplam ${counts.odevler} ödev kaydı`));
 
   if (homeworks.length === 0) {
@@ -1797,8 +1994,8 @@ export async function POST(
     });
   }
 
-  // ── 7. Analizler
-  all.push(h1Colored("7. Analizler", C.analizler, true));
+  // ── 8. Analizler
+  all.push(h1Colored("8. Analizler", C.analizler, true));
   all.push(muted(`Toplam ${counts.analizler} analiz kaydı`));
 
   const fullLsInserts: LandscapeInsert[] = [];
@@ -1822,8 +2019,8 @@ export async function POST(
     });
   }
 
-  // ── 8. Danışan Yolculuğu
-  all.push(h1Colored("8. Danışan Yolculuğu", C.yolculuk, true));
+  // ── 9. Danışan Yolculuğu
+  all.push(h1Colored("9. Danışan Yolculuğu", C.yolculuk, true));
 
   // 8.1 Yolculuk İstatistikleri
   all.push(...buildYolculukIstatistikleri(counts, notes, journeyEvents.length));
@@ -1881,7 +2078,7 @@ export async function POST(
         targetRef: null,
         selectionGroup: selectionGroupId,
       });
-      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps, { headingNumber: 9 }));
+      if (snaps.length > 0) all.push(...buildSnapshotSection(snaps, { headingNumber: 10 }));
     } catch {
       /* regresyon güvenli: teslim seçimi eklenemezse mevcut rapor korunur */
     }

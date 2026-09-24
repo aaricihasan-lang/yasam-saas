@@ -359,14 +359,21 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
+    // Kaydedilmiş bir analiz açıksa GÜNCELLE (aynı id, PATCH) → duplicate kayıt oluşmaz (spec §4).
+    // Aksi halde yeni kayıt oluştur (POST).
+    const editing = Boolean(openedAnalysisId);
     const res = await fetch(`/api/clients/${clientId}/analyses`, {
-      method: "POST",
+      method: editing ? "PATCH" : "POST",
       headers: {
         "Content-Type": "application/json",
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ analysis_type: activeAnalysis, analysis_data: analysisData, note }),
+      body: JSON.stringify(
+        editing
+          ? { id: openedAnalysisId, analysis_type: activeAnalysis, analysis_data: analysisData, note }
+          : { analysis_type: activeAnalysis, analysis_data: analysisData, note },
+      ),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
     if (!res.ok || !json.ok) {
@@ -374,15 +381,15 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       setSavingAnalysis(false);
       return;
     }
-    const newId = json.id ?? undefined;
-    // Yeni kaydedilen analiz artık modalde "açık kayıt" olur; Word Al hemen çalışır.
-    if (newId) setOpenedAnalysisId(newId);
+    // Güncellemede aynı id korunur; yeni kayıtta dönen id "açık kayıt" olur (Word Al hemen çalışır).
+    const savedId = json.id ?? (editing ? openedAnalysisId : null) ?? undefined;
+    if (savedId) setOpenedAnalysisId(savedId);
     await loadSavedAnalyses();
     showToast({ title: t("toast.successTitle"), message: t("toast.saved"), type: "success" });
     setSavingAnalysis(false);
     // Fire-and-forget snapshot — only for chakra analyses; failure doesn't affect the saved record
-    if (activeAnalysis === "chakra" && newId && tenantId) {
-      void captureAndUploadSnapshot(newId);
+    if (activeAnalysis === "chakra" && savedId && tenantId) {
+      void captureAndUploadSnapshot(savedId);
     }
   }
 
@@ -674,6 +681,11 @@ function ChakraSection({
     <section className="bg-white border border-blue-200 rounded-[15px] p-2.5 shadow-sm">
       <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
         {title}
+      </div>
+
+      {/* Mobil açıklama — dar ekranda kolon başlıkları gizli; +/- işareti · değer (%) anlamı burada verilir (spec §5). */}
+      <div className="md:hidden mb-1.5 rounded-lg bg-blue-50/70 px-2.5 py-1.5 text-[10px] font-bold leading-4 text-blue-700">
+        {t("colHeader.mark")} · {t("colHeader.male")} · {t("colHeader.female")}
       </div>
 
       {/* Header row — mobilde gizli (dar ekranda input placeholder'ları etiket görevi görür) */}

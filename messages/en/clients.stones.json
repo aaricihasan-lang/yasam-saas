@@ -88,7 +88,7 @@
       },
       "editForm": {
         "title": "Edit Stone Record",
-        "subtitle": "You can update the usage, combination, warning and note fields. Photos are added separately from the record card.",
+        "subtitle": "You can update the usage, combination, warning and note fields and manage photos here.",
         "updating": "Updating...",
         "update": "Update"
       },

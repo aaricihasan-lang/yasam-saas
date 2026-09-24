@@ -1,0 +1,80 @@
+{
+  "clients": {
+    "charges": {
+      "header": {
+        "badge": "ÜCRETLENDİRME",
+        "title": "Ücretlendirme",
+        "subtitle": "Danışana ait tüm ücret kayıtları burada yönetilir. Seans, ödev, analiz veya verilen ürün/hizmet — hepsi tek yerde."
+      },
+      "totalLabel": "Toplam Ücret",
+      "countLabel": "kayıt",
+      "addButton": "+ Yeni Ücret Ekle",
+      "refresh": "Yenile",
+      "loading": "Yükleniyor...",
+      "loadingRecords": "Ücret kayıtları yükleniyor...",
+      "category": {
+        "session": "Seans",
+        "homework": "Ödev",
+        "analysis": "Analiz",
+        "other": "Diğer"
+      },
+      "form": {
+        "newTitle": "Yeni Ücret Kaydı",
+        "editTitle": "Ücret Kaydını Düzenle",
+        "dateLabel": "Tarih",
+        "categoryLabel": "Ana Tür",
+        "amountLabel": "Tutar (₺)",
+        "amountPlaceholder": "Örn: 1500",
+        "noteLabel": "Not / Açıklama (Opsiyonel)",
+        "notePlaceholder": "Serbest not...",
+        "detailLabel": {
+          "session": "Seans Türü / Detayı (Opsiyonel)",
+          "analysis": "Analiz Türü / Detayı (Opsiyonel)",
+          "homework": "Ödev / Uygulama Detayı (Opsiyonel)",
+          "other": "Ürün / Hizmet / İşlem"
+        },
+        "detailPlaceholder": {
+          "session": "Örn: Hacamat, Biyoenerji, Refleksoloji...",
+          "analysis": "Örn: Numeroloji, Human Design, Çakra...",
+          "homework": "Örn: Nefes egzersizi, uygulama...",
+          "other": "Örn: Krem, Sabun, Taş bileklik, Yağ..."
+        },
+        "save": "Kaydet",
+        "saving": "Kaydediliyor...",
+        "update": "Değişiklikleri Kaydet",
+        "updating": "Kaydediliyor...",
+        "cancel": "Vazgeç"
+      },
+      "item": {
+        "edit": "Düzenle",
+        "delete": "Sil",
+        "noDetail": "—"
+      },
+      "empty": {
+        "title": "Henüz ücret kaydı yok",
+        "hint": "İlk ücret kaydını eklemek için \"Yeni Ücret Ekle\" butonuna dokunun."
+      },
+      "delete": {
+        "title": "Ücret kaydını sil",
+        "message": "Bu ücret kaydı kalıcı olarak silinsin mi? Bu işlem geri alınamaz."
+      },
+      "validation": {
+        "category": "Lütfen bir ana tür seçin.",
+        "amount": "Tutar 0'dan büyük geçerli bir sayı olmalıdır.",
+        "detailRequired": "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur."
+      },
+      "toast": {
+        "successTitle": "Başarılı",
+        "failTitle": "İşlem başarısız",
+        "added": "Ücret kaydı eklendi.",
+        "updated": "Ücret kaydı güncellendi.",
+        "deleted": "Ücret kaydı silindi.",
+        "addFailed": "Ücret kaydı eklenemedi.",
+        "updateFailed": "Ücret kaydı güncellenemedi.",
+        "deleteFailed": "Ücret kaydı silinemedi.",
+        "loadFailed": "Ücret kayıtları yüklenemedi.",
+        "noClient": "Danışan bilgisi bulunamadı."
+      }
+    }
+  }
+}

@@ -30,6 +30,7 @@
         "randevular": "Appointments",
         "taslar": "Stones",
         "seanslar": "Sessions",
+        "ucretlendirme": "Pricing",
         "odevler": "Assignments",
         "analizler": "Analyses",
         "yolculuk": "✦ Client Journey",
@@ -57,6 +58,7 @@
         "randevular": "📄 Export Appointment History",
         "taslar": "📄 Export Stones",
         "seanslar": "📄 Export Session History",
+        "ucretlendirme": "📄 Export Pricing",
         "odevler": "📄 Export Assignments",
         "analizler": "📄 Export Analysis Results"
       },

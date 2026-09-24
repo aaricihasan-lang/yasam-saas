@@ -31,7 +31,6 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [detail, setDetail] = useState<ClientSearchResult | null>(null);
-  const [picked, setPicked] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
 
   const runSearch = useCallback(
@@ -69,13 +68,9 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
 
   const toggleModule = (m: ClientSourceModule) =>
     setSelectedModules((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m]));
-  const togglePick = (id: string) =>
-    setPicked((p) => {
-      const n = new Set(p);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+  // Not: "Rapora ekle" seçim akışı (checkbox + picked) henüz gerçek sonuç üretmediğinden
+  // kullanıcıya gösterilmiyor (spec §9). Rapora kayıt ekleme resmi yolu MemoryPicker'dır
+  // ("🧠 Yaşam Hafızası'ndan Seç"). Arama + görüntüleme aynen korunur.
 
   return (
     <div className="w-full">
@@ -162,7 +157,6 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
               <div className="space-y-2">
                 {displayed.map((r) => (
                   <div key={r.id} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3">
-                    <input type="checkbox" checked={picked.has(r.id)} onChange={() => togglePick(r.id)} aria-label={t("pickAria")} className="mt-1 h-4 w-4 accent-violet-600" />
                     <button type="button" onClick={() => setDetail(r)} className="min-w-0 flex-1 text-left">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase text-violet-700">{r.moduleLabel}</span>
@@ -175,11 +169,6 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
                 ))}
               </div>
             )}
-            {picked.size > 0 ? (
-              <div className="mt-3 rounded-xl border border-dashed border-violet-300 bg-violet-50/60 px-3 py-2 text-sm text-violet-700">
-                {t.rich("pickedBanner", { count: picked.size, b: (chunks) => <span className="font-semibold">{chunks}</span> })}
-              </div>
-            ) : null}
           </>
         )
       ) : null}

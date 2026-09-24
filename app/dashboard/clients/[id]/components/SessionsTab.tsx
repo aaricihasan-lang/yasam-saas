@@ -26,13 +26,17 @@ type ClientSession = {
 
 type SessionsTabProps = {
   clientId: string;
+  /**
+   * Başarılı seans kaydı danışanın son görüşme tarihini (clients.gorusme) ilerlettiyse
+   * parent'a bildirir → hero üst özeti full reload olmadan tazelenir (Z-3 / spec §6).
+   */
+  onGorusmeChange?: (date: string) => void;
 };
 
 type SessionFormState = {
   sessionDate: string;
   sessionType: string;
   durationMinutes: string;
-  fee: string;
   sessionNote: string;
   actionsDone: string;
   suggestions: string;
@@ -55,7 +59,6 @@ const emptyForm: SessionFormState = {
   sessionDate: "",
   sessionType: "",
   durationMinutes: "",
-  fee: "",
   sessionNote: "",
   actionsDone: "",
   suggestions: "",
@@ -66,22 +69,11 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatMoney(value: number | null) {
-  if (value === null || value === undefined) return "-";
-
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function isFormEmpty(form: SessionFormState) {
   return (
     !form.sessionDate.trim() &&
     !form.sessionType.trim() &&
     !form.durationMinutes.trim() &&
-    !form.fee.trim() &&
     !form.sessionNote.trim() &&
     !form.actionsDone.trim() &&
     !form.suggestions.trim() &&
@@ -94,7 +86,6 @@ function formToPayload(form: SessionFormState) {
     session_date: form.sessionDate || null,
     session_type: form.sessionType.trim(),
     duration_minutes: form.durationMinutes ? Number(form.durationMinutes) : null,
-    fee: form.fee ? Number(form.fee) : null,
     session_note: form.sessionNote.trim(),
     actions_done: form.actionsDone.trim(),
     suggestions: form.suggestions.trim(),
@@ -110,10 +101,6 @@ function sessionToForm(session: ClientSession): SessionFormState {
       session.duration_minutes === null || session.duration_minutes === undefined
         ? ""
         : String(session.duration_minutes),
-    fee:
-      session.fee === null || session.fee === undefined
-        ? ""
-        : String(session.fee),
     sessionNote: session.session_note || "",
     actionsDone: session.actions_done || "",
     suggestions: session.suggestions || "",
@@ -243,7 +230,7 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
   const t = useTranslations("clients.sessions");
   return (
     <>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className={boxClass("blue")}>
           <SectionLabel icon="📅" title={t("form.dateLabel")} tone="blue" />
           <input
@@ -276,17 +263,6 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
           />
         </div>
 
-        <div className={boxClass("amber")}>
-          <SectionLabel icon="₺" title={t("form.feeLabel")} tone="amber" />
-          <input
-            type="number"
-            min="0"
-            value={data.fee}
-            onChange={(e) => onChange("fee", e.target.value)}
-            placeholder={t("form.feePlaceholder")}
-            className={inputClass("amber")}
-          />
-        </div>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -387,7 +363,7 @@ function DetailBlock({
   );
 }
 
-export default function SessionsTab({ clientId }: SessionsTabProps) {
+export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabProps) {
   const t = useTranslations("clients.sessions");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
@@ -417,10 +393,6 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   const [updating, setUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
-
-  const totalFee = useMemo(() => {
-    return sessions.reduce((sum, item) => sum + Number(item.fee || 0), 0);
-  }, [sessions]);
 
   const totalMinutes = useMemo(() => {
     return sessions.reduce(
@@ -570,7 +542,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
         ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
         : null;
       if (!cli?.gorusme || form.sessionDate > cli.gorusme) {
-        await fetch(`/api/clients/${clientId}`, {
+        const patchRes = await fetch(`/api/clients/${clientId}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -579,6 +551,8 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
           },
           body: JSON.stringify({ gorusme: form.sessionDate }),
         });
+        // Hero üst özeti full reload olmadan tazelensin (spec §6).
+        if (patchRes.ok) onGorusmeChange?.(form.sessionDate);
       }
     }
 
@@ -709,22 +683,13 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
-              <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="rounded-2xl border border-blue-200 bg-white px-3 py-2 text-center shadow-md">
                   <div className="text-base font-black text-blue-700">
                     {sessions.length}
                   </div>
                   <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                     {t("stats.sessions")}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-base font-black text-emerald-700">
-                    {formatMoney(totalFee)}
-                  </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                    {t("stats.total")}
                   </div>
                 </div>
 
@@ -863,9 +828,6 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                             <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
                               <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
                                 ⏱️ {session.duration_minutes || "-"} {t("unitMin")}
-                              </span>
-                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
-                                {formatMoney(session.fee)}
                               </span>
                             </div>
                           </div>
