@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20270125000000_reflexology_protocols_baseline_and_uid_unique.sql
+-- 20260924200817_reflexology_protocols_baseline_and_uid_unique.sql
 --
 -- REFLEKSOLOJİ — reflexology_protocols ŞEMA PARİTESİ + IDEMPOTENCY ALTYAPISI
 -- (REF-005 / REF-006 satış öncesi kapanış)
