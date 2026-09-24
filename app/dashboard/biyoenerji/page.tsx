@@ -15,7 +15,7 @@ export default function BiyoenerjiFolderPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-5 xl:px-8 2xl:px-12">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-1 py-3 sm:px-5 xl:px-8 2xl:px-12">
         <div className="mb-2.5 flex flex-wrap items-center gap-2">
           <Link
             href="/enerji-beden"

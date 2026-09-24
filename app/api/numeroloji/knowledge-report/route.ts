@@ -1,8 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { Document, Packer } from "docx";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -86,17 +85,23 @@ function parseStones(raw: unknown): string[] {
   return raw.map((s) => String(s)).filter(Boolean);
 }
 
-export async function POST(request: Request): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
+export async function POST(req: NextRequest): Promise<Response> {
+  // Android Word politikası (defense-in-depth): Android cihazlarda .docx üretilmez.
+  const androidBlocked = androidWordGuard(req);
   if (androidBlocked) return androidBlocked;
 
-  let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  // NUM-001: kimlik + tenant SUNUCUDA oturumdan çözülür (x-user-id + x-session-token
+  // binding + numerology modül izni). Body'den tenantId/userId ARTIK OKUNMAZ →
+  // başka tenant'ın bilgi bankası Word'ünü indirtmek imkânsız.
+  const guard = await requireModuleAccess(req, "numerology");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId, is_demo_account } = guard;
 
-  const { tenantId, userId, exportMode = "all", knowledgeIds, stoneIds, sections: sectionsRaw } = body as {
-    tenantId?: string;
-    userId?: string;
+  let body: unknown;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+
+  const { exportMode = "all", knowledgeIds, stoneIds, sections: sectionsRaw } = body as {
     exportMode?: ExportMode;
     knowledgeIds?: string[];
     stoneIds?: string[];
@@ -106,32 +111,9 @@ export async function POST(request: Request): Promise<Response> {
   // Bölüm seçimi (verilmezse tüm bölümler — eski istemci uyumu).
   const sections = normalizeWordSections(sectionsRaw);
 
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // Kullanıcının bu tenant'a ait olduğunu doğrula (IDOR koruması) — service_role
-  const { data: userRow } = await db
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!userRow)
-    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "numerology");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
   // Demo hesap: export sunucu seviyesinde engellenir
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  if (is_demo_account)
+    return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let knowledgeQ = db.from("numerology_knowledge_records").select("*").eq("tenant_id", tenantId);
   let stoneQ = db.from("numerology_stone_assignments").select("*").eq("tenant_id", tenantId);
@@ -156,9 +138,9 @@ export async function POST(request: Request): Promise<Response> {
   ]);
 
   if (kRes.error)
-    return Response.json({ ok: false, error: `Açıklama kayıtları okunamadı: ${kRes.error.message}` }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Açıklama kayıtları okunamadı." }, { status: 500 });
   if (sRes.error)
-    return Response.json({ ok: false, error: `Taş atamaları okunamadı: ${sRes.error.message}` }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Taş atamaları okunamadı." }, { status: 500 });
 
   const knowledgeRows = (kRes.data || []) as KnowledgeRow[];
   const stoneRows = (sRes.data || []) as StoneRow[];

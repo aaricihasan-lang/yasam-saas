@@ -26,11 +26,20 @@ export const runtime = "nodejs";
 const DEMO_LIMIT_MESSAGE =
   "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
 
-// Ham IP saklanmaması için pepper'lı hash. Pepper env'den; yoksa sabit fallback.
-const IP_PEPPER = process.env.DEMO_IP_SALT ?? "yasam-demo-numeroloji-ip-v1";
+// NUM-011: Ham IP saklanmaz; pepper'lı sha256 kullanılır. Pepper YALNIZ env'den gelir.
+//   - production: DEMO_IP_SALT ZORUNLU. Yoksa tahmin edilebilir sabit fallback KULLANILMAZ
+//     (hash amacı boşa çıkardı) → demo kotası fail-closed (aşağıda 500 config hatası).
+//   - development/test: env yoksa yalnız GELİŞTİRME amaçlı açık fallback.
+// Server-only; NEXT_PUBLIC DEĞİL → istemci bundle'ına sızmaz.
+function resolveIpPepper(): string | null {
+  const env = process.env.DEMO_IP_SALT?.trim();
+  if (env) return env;
+  if (process.env.NODE_ENV === "production") return null;
+  return "dev-only-yasam-demo-numeroloji-ip-salt";
+}
 
-function hashIp(ip: string): string {
-  return createHash("sha256").update(`${IP_PEPPER}:${ip}`).digest("hex");
+function hashIp(ip: string, pepper: string): string {
+  return createHash("sha256").update(`${pepper}:${ip}`).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -54,8 +63,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ allowed: true, demo: false });
   }
 
+  // NUM-011: pepper prod'da zorunlu; yoksa fail-closed (demo kotası çalışmaz, güvenli taraf).
+  const pepper = resolveIpPepper();
+  if (!pepper) {
+    return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
+  }
+
   const { ip } = extractLocationFromHeaders(request.headers);
-  const ipHash = hashIp(ip);
+  const ipHash = hashIp(ip, pepper);
 
   // Daha önce kullanılmış mı?
   const { data: existing, error: selErr } = await db

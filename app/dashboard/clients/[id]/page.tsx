@@ -40,6 +40,7 @@ const TabSkeleton = () => (
 );
 const StonesTab = dynamic(() => import("./components/StonesTab"), { loading: TabSkeleton, ssr: false });
 const SessionsTab = dynamic(() => import("./components/SessionsTab"), { loading: TabSkeleton, ssr: false });
+const UcretlendirmeTab = dynamic(() => import("./components/UcretlendirmeTab"), { loading: TabSkeleton, ssr: false });
 const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading: TabSkeleton, ssr: false });
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
@@ -150,6 +151,9 @@ const inputCls =
 const textareaCls =
   "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
+// Sekmeye özel Word butonu — ÜRÜN KARARI: mobilde gizli, md+ görünür
+// (hidden md:inline-flex); ayrıca Android'de `!isAndroid` guard'ı ile hiç
+// render edilmez. Analiz modalındaki "Word Al" ayrı bileşende ve etkilenmez.
 const wordBtnCls =
   "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer hidden md:inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
@@ -224,7 +228,6 @@ function ClientDetailPageInner() {
   // BF-14 P2: Yaşam Hafızası teslim seçimi (report target). selectionGroupId yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelectionGroupId, setYhSelectionGroupId] = useState<string | null>(null);
-  const [yhSelectionCount, setYhSelectionCount] = useState(0);
   const [drStart, setDrStart] = useState("");
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
@@ -662,25 +665,20 @@ function ClientDetailPageInner() {
       {/* Tabs section */}
       <DanisanSectionShell desktopClassName="sm:rounded-[20px] sm:border sm:border-white/78 sm:bg-white/92 sm:px-3.5 sm:pb-[18px] sm:pt-3.5 sm:shadow-lg">
 
-        {/* Tab bar — mobilde yatay scroll, masaüstünde wrap */}
+        {/* Tab bar — her boyutta WRAP: mobilde de tüm sekmeler ilk bakışta
+            keşfedilebilir (yatay scroll'a bağımlı gizli sekme yok). */}
         <div className="relative mb-4">
-          {/* Mobil scroll göstergesi — sağ fade + "devamı var" ok ipucu */}
-          <div
-            className="pointer-events-none absolute right-0 top-0 z-10 flex h-full w-16 items-center justify-end bg-gradient-to-l from-white via-white/85 to-transparent pr-1 sm:hidden"
-            aria-hidden
-          >
-            <span className="animate-pulse text-xl font-black leading-none text-violet-500">›</span>
-          </div>
           <div
             role="tablist"
             aria-label={t("a11y.tabs")}
-            className="flex snap-x scroll-smooth items-center gap-1.5 overflow-x-auto py-1 pb-1.5 pr-4 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1 sm:pr-0"
+            className="flex flex-wrap items-center gap-1.5 py-1 pb-1.5 sm:pb-1"
           >
             <Tab label={t("tab.genel")}      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
             <Tab label={t("tab.notlar")}     id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
             <Tab label={t("tab.randevular")} id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
             <Tab label={t("tab.taslar")}     id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
             <Tab label={t("tab.seanslar")}   id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
+            <Tab label={t("tab.ucretlendirme")} id="ucretlendirme" activeTab={activeTab} setActiveTab={setActiveTab} color="#0d9488" />
             <Tab label={t("tab.odevler")}    id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
             <Tab label={t("tab.analizler")}  id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label={t("tab.yolculuk")}   id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
@@ -688,13 +686,12 @@ function ClientDetailPageInner() {
             {beslenmeOwner && (
               <Tab label={t("tab.beslenme")}  id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
             )}
-            <button
-              onClick={() => setYhPickerOpen(true)}
-              aria-label={t("a11y.yhSelect")}
-              className="hidden min-h-[42px] whitespace-nowrap rounded-xl border border-violet-200 bg-violet-50 px-[18px] py-2.5 text-[13px] font-extrabold text-violet-700 transition-all hover:bg-violet-100 md:inline-flex md:items-center"
-            >
-              {t("yh.selectButton")}{yhSelectionCount > 0 ? ` (${yhSelectionCount})` : ""}
-            </button>
+            {/* "Yaşam Hafızası'ndan Seç" aksiyonu UAT sonrası UI'dan kaldırıldı
+                (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
+                plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi
+                ve arama/görüntüleme aynen çalışır. */}
+            {/* Ana "Word Raporu": ÜRÜN KARARI — mobilde gizli, md+ görünür;
+                Android'de `!isAndroid` guard'ı ile hiç render edilmez. */}
             {!isAndroid && (
             <button
               onClick={generateWordReport}
@@ -721,18 +718,18 @@ function ClientDetailPageInner() {
           </button>
           {drOpen && (
             <div className="mt-1.5 flex flex-wrap items-end gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div>
+              <div className="min-w-[130px] flex-1 sm:flex-none">
                 <label className={labelCls}>{t("dateRange.startLabel")}</label>
-                <input type="date" value={drStart} onChange={(e) => setDrStart(e.target.value)} className={`${inputCls} w-[150px]`} />
+                <input type="date" value={drStart} onChange={(e) => setDrStart(e.target.value)} className={`${inputCls} w-full sm:w-[150px]`} />
               </div>
-              <div>
+              <div className="min-w-[130px] flex-1 sm:flex-none">
                 <label className={labelCls}>{t("dateRange.endLabel")}</label>
-                <input type="date" value={drEnd} onChange={(e) => setDrEnd(e.target.value)} className={`${inputCls} w-[150px]`} />
+                <input type="date" value={drEnd} onChange={(e) => setDrEnd(e.target.value)} className={`${inputCls} w-full sm:w-[150px]`} />
               </div>
               <button
                 onClick={generateDateRangeReport}
                 disabled={drBusy || !drStart || !drEnd}
-                className="btn-secondary self-end disabled:opacity-60"
+                className="btn-secondary w-full self-end disabled:opacity-60 sm:w-auto"
               >
                 {drBusy ? t("report.generating") : t("dateRange.generate")}
               </button>
@@ -922,7 +919,29 @@ function ClientDetailPageInner() {
                 </button>
                 )}
               </div>
-              <SessionsTab clientId={client.id} />
+              <SessionsTab
+                clientId={client.id}
+                onGorusmeChange={(date) =>
+                  setClient((prev) =>
+                    prev
+                      ? { ...prev, gorusme: !prev.gorusme || date > prev.gorusme ? date : prev.gorusme }
+                      : prev,
+                  )
+                }
+              />
+          </div>
+          )}
+
+          {openedTabs.has("ucretlendirme") && (
+          <div role="tabpanel" id="tabpanel-ucretlendirme" aria-labelledby="tab-ucretlendirme" hidden={activeTab !== "ucretlendirme"}>
+              <div className="mb-2.5">
+                {!isAndroid && (
+                <button onClick={() => void generateTabWordReport("ucretlendirme")} disabled={tabWordBusy} className={wordBtnCls}>
+                  {tabWordBusy ? t("report.generating") : t("tabWord.ucretlendirme")}
+                </button>
+                )}
+              </div>
+              <UcretlendirmeTab clientId={client.id} />
           </div>
           )}
 
@@ -986,7 +1005,6 @@ function ClientDetailPageInner() {
             fixedClient={{ id: client.id, name: fullName || t("clientFallback") }}
             onConfirmed={({ selectionGroupId, total }) => {
               setYhSelectionGroupId(selectionGroupId);
-              setYhSelectionCount(total);
               setYhPickerOpen(false);
               showToast({ title: t("toast.addedTitle"), message: t("toast.yhAdded", { count: total }), type: "success" });
             }}

@@ -13,6 +13,7 @@ import {
   resolveNumerolojiUserAndTenant,
   type NumerologyRecordRow,
 } from "../../helpers/numerolojiKayit";
+import { authHeaders } from "../../helpers/numApiClient";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
 import { RowErrorBoundary } from "../../components/RowErrorBoundary";
 import { WordPersonSectionPicker } from "../../components/WordPersonSectionPicker";
@@ -50,13 +51,13 @@ export default function NumerolojiKayitDetayPage() {
       alert("Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.");
       return;
     }
-    const { userId, tenantId } = session;
     setWordBusy(true);
     try {
+      // NUM-001: kimlik/tenant body'ye KONMAZ; sunucu oturumdan çözer (authHeaders).
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id, sections, referenceDate }),
+        headers: authHeaders(),
+        body: JSON.stringify({ exportMode: "single", recordId: row.id, sections, referenceDate }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };

@@ -136,6 +136,72 @@ export async function POST(
   return NextResponse.json({ ok: true, id: newId });
 }
 
+// ─── PATCH /api/clients/[id]/analyses  (body: { id, analysis_type?, analysis_data?, note? }) ──
+// Mevcut kaydı GÜNCELLER (duplicate INSERT değil). Kaydedilmiş bir analiz yeniden
+// açılıp kaydedildiğinde aynı id üzerinde çalışır → yeni kayıt oluşmaz (spec §4).
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const guard = await requireModuleAccess(req, "clients");
+  if (!guard.ok) return guard.response;
+
+  const { id: clientId } = await params;
+  if (!clientId) {
+    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+  }
+
+  const { db, tenantId, is_demo_account } = guard;
+
+  // Demo hesap: Supabase'e yazma yapılmaz.
+  if (is_demo_account) {
+    return NextResponse.json({ ok: true, demo: true, id: null });
+  }
+
+  if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
+    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+  }
+
+  let body: CreateBody & { id?: unknown };
+  try {
+    body = (await req.json()) as CreateBody & { id?: unknown };
+  } catch {
+    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+  }
+
+  const rowId = typeof body.id === "string" ? body.id.trim() : "";
+  if (!rowId) {
+    return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+  }
+
+  // Yalnız içerik alanları güncellenir; tenant_id/client_id/id/created_at değiştirilemez.
+  const update: Record<string, unknown> = {};
+  if ("analysis_type" in body) update.analysis_type = body.analysis_type ?? null;
+  if ("analysis_data" in body) update.analysis_data = body.analysis_data ?? null;
+  if ("note" in body) update.note = body.note ?? null;
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  }
+
+  const { data, error } = await db
+    .from("client_analyses")
+    .update(update)
+    .eq("id", rowId)
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return serverErrorResponse({ route: "clients/[id]/analyses", action: "PATCH", tenantId, cause: error });
+  }
+  if (!data) {
+    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+}
+
 // ─── DELETE /api/clients/[id]/analyses  (body: { analysisId }) ──────────────────
 export async function DELETE(
   req: NextRequest,

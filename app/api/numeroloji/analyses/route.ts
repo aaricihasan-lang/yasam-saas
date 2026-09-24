@@ -17,13 +17,43 @@ export const runtime = "nodejs";
  * admin yüzeyleri için /api/admin/numeroloji/tenant-metrics kullanılır.
  */
 
-// Client'tan kabul EDİLMEYECEK alanlar (tenant override + id güvenliği).
-const PROTECTED = new Set(["tenant_id", "id", "created_at"]);
+// NUM-009: Client'tan YALNIZ bu iş alanları kabul edilir (ALLOWLIST). tenant_id/id/
+// created_at/is_demo_seed gibi sistem alanları enjekte edilemez → veri bütünlüğü +
+// tenant güvenliği. tenant_id her zaman SUNUCUDA session'dan set edilir.
+const ALLOWED_FIELDS = new Set(["name", "surname", "birth_date", "analysis_data"]);
 
-function sanitize(body: Record<string, unknown>): Record<string, unknown> {
+function pickAllowed(body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body)) if (!PROTECTED.has(k)) out[k] = v;
+  for (const [k, v] of Object.entries(body)) if (ALLOWED_FIELDS.has(k)) out[k] = v;
   return out;
+}
+
+// NUM-009: analysis_data INPUT-INTEGRITY guard — SERVER-SIDE motor RECOMPUTE DEĞİL
+// (motor LOCKED, sunucuda ikinci motor YOK). Yalnız şekil/sürüm/boyut kontrolü:
+// nesne olmalı, beklenen version=1, motor nesnesi bulunmalı, aşırı payload reddedilir.
+const MAX_ANALYSIS_BYTES = 256 * 1024; // normal analiz ~5–20KB; geniş güvenli tavan
+
+type ShapeCheck = { ok: true } | { ok: false; error: string };
+
+function validateAnalysisData(v: unknown, required: boolean): ShapeCheck {
+  if (v === undefined) {
+    return required ? { ok: false, error: "analysis_data zorunludur." } : { ok: true };
+  }
+  if (v === null || typeof v !== "object" || Array.isArray(v)) {
+    return { ok: false, error: "analysis_data nesnesi geçersiz." };
+  }
+  const o = v as Record<string, unknown>;
+  if (o.version !== 1) return { ok: false, error: "Desteklenmeyen analiz sürümü." };
+  if (o.motor === null || typeof o.motor !== "object" || Array.isArray(o.motor)) {
+    return { ok: false, error: "analysis_data.motor geçersiz." };
+  }
+  let serialized: string;
+  try { serialized = JSON.stringify(v); }
+  catch { return { ok: false, error: "analysis_data serileştirilemedi." }; }
+  if (serialized.length > MAX_ANALYSIS_BYTES) {
+    return { ok: false, error: "analysis_data boyut sınırını aştı." };
+  }
+  return { ok: true };
 }
 
 // ─── GET /api/numeroloji/analyses ──────────────────────────────────────────────
@@ -44,7 +74,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("id", idParam)
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
     return NextResponse.json({ ok: true, row: data });
   }
@@ -55,7 +85,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .from("numerology_records")
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", tenantId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     return NextResponse.json({ ok: true, count: count ?? 0 });
   }
 
@@ -68,7 +98,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(limit);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     return NextResponse.json({ ok: true, rows: data ?? [] });
   }
 
@@ -78,7 +108,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false, nullsFirst: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -94,14 +124,18 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const payload = { ...sanitize(body), tenant_id: tenantId };
+  // NUM-009: oluşturmada analysis_data ZORUNLU + şekil doğrulaması.
+  const shape = validateAnalysisData(body.analysis_data, true);
+  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
+
+  const payload = { ...pickAllowed(body), tenant_id: tenantId };
   const { data, error } = await db
     .from("numerology_records")
     .insert(payload)
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   const newId = (data as { id: string }).id;
   // İP-2C: başarılı analiz oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
   await recordUsageEvent(db, {
@@ -129,14 +163,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
+  // NUM-009: güncellemede analysis_data verildiyse şekil doğrulanır (yoksa serbest).
+  const shape = validateAnalysisData(body.analysis_data, false);
+  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
+
   const { data, error } = await db
     .from("numerology_records")
-    .update(sanitize(body))
+    .update(pickAllowed(body))
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -173,7 +211,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .in("id", ids)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   const deleted = data?.length ?? 0;
   if (deleted === 0) {
     return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });

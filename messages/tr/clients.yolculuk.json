@@ -47,8 +47,11 @@
         "aktifTakip": "Aktif Takip",
         "gucluSurec": "Güçlü Süreç"
       },
+      "filters": {
+        "heading": "Zaman Çizelgesi Filtreleri"
+      },
       "menu": {
-        "genel": "Genel Bilgiler",
+        "genel": "Tümü",
         "numeroloji": "Numeroloji",
         "dogaltas": "Doğaltaş",
         "refleksoloji": "Refleksoloji",

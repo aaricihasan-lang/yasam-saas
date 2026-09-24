@@ -4,12 +4,12 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 export const runtime = "nodejs";
 
 /**
- * GET /api/admin/numeroloji/tenant-metrics — numerology_analyses tenant denetimi.
+ * GET /api/admin/numeroloji/tenant-metrics — numeroloji analiz tenant denetimi.
  *
- * Admin yüzeyleri (tenant-kontrol, kullanım-takibi, sistem-sağlığı/numeroloji)
- * tüm tenant'ların numeroloji analiz dağılımını publishable key ile okuyordu.
- * Bu okuma artık YALNIZCA service_role'lü bu route üzerinden, admin doğrulamasıyla
- * yapılır — anon key ile çapraz-tenant okuma kapatılır.
+ * NUM-008: KANONİK kaynak numerology_records'tur (analizler bu tabloya yazılır).
+ * Legacy numerology_analyses tablosu app tarafından ASLA yazılmaz; admin metrikleri
+ * eskiden onu okuyordu → gerçek analizler eksik/yanlış sayılıyordu. Artık sayım ve
+ * tenant dağılımı numerology_records'tan alınır (home dashboard zaten doğruydu).
  *
  * Güvenlik:
  *   - verifyAdminRequest → x-admin-id + x-session-token + binding, role=admin & active.
@@ -22,13 +22,13 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const { db } = guard;
 
-  // Toplam kayıt sayısı (head count).
+  // Toplam kayıt sayısı (head count). Kanonik tablo: numerology_records.
   const { count, error: countError } = await db
-    .from("numerology_analyses")
+    .from("numerology_records")
     .select("*", { count: "exact", head: true });
 
   if (countError) {
-    return NextResponse.json({ ok: false, error: countError.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   }
 
   // Tüm satırların tenant_id'sini sayfalı çek (tenant bazlı dağılım için).
@@ -38,12 +38,12 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   while (true) {
     const { data, error } = await db
-      .from("numerology_analyses")
+      .from("numerology_records")
       .select("tenant_id")
       .range(from, from + pageSize - 1);
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     }
     if (!data?.length) break;
 

@@ -1511,6 +1511,21 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
                       <FormFields data={editForm} onChange={updateEditField} />
 
+                      {/* Fotoğraf yönetimi — düzenleme ekranından erişilebilir (spec §10).
+                          Mevcut güvenli upload/read/delete mekanizması (PhotoGallery) yeniden
+                          kullanılır; yeni paralel uploader YOK. */}
+                      <div className="mt-4">
+                        <PhotoGallery
+                          stone={stone}
+                          stonePhotos={stonePhotos}
+                          uploadingStoneId={uploadingStoneId}
+                          deletingPhotoId={deletingPhotoId}
+                          onUpload={uploadStonePhotos}
+                          onDeletePhoto={deletePhoto}
+                          onSelectPhoto={(photo) => openLightbox(stonePhotos, photo)}
+                        />
+                      </div>
+
                       <div className="mt-3 flex justify-end gap-2">
                         <button
                           onClick={cancelEdit}

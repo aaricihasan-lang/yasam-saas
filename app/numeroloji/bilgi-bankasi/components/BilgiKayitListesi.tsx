@@ -220,23 +220,24 @@ export function BilgiKayitListesi() {
 
   async function exportKnowledgeWord(mode: "all" | "filtered", sections: WordSections) {
     const { resolveNumerolojiUserAndTenant } = await import("../../helpers/numerolojiKayit");
+    const { authHeaders } = await import("../../helpers/numApiClient");
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
       showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
       return;
     }
-    const { userId, tenantId: tid } = session;
 
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId: tid, userId, exportMode: mode, sections };
+      // NUM-001: kimlik/tenant body'ye KONMAZ; sunucu oturumdan çözer (authHeaders).
+      const body: Record<string, unknown> = { exportMode: mode, sections };
       if (mode === "filtered") {
         body.knowledgeIds = filtrelenmis.filter((r) => r.kayitTuru === "aciklama").map((r) => r.recordId);
         body.stoneIds = filtrelenmis.filter((r) => r.kayitTuru === "dogaltas").map((r) => r.recordId);
       }
       const res = await fetch("/api/numeroloji/knowledge-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify(body),
       });
       if (!res.ok) {

@@ -696,14 +696,29 @@ function TasDestekSectionBlock({
 // NKB-V2-H: content_sections canonical yorum kaynağı; her not için "Ana Kulvar — 19" başlığı +
 // yalnız DOLU bölümler (Genel Açıklama/Yapıcı/Olumsuz/Yıkıcı). Kulvar dışı türlerde legacy
 // description (etiketsiz). "Kaynak:" satırı KALDIRILDI (danışan gizlilik sınırı).
+// NUM-010: Hesap sonucu VAR ama bu sayı için Bilgi Bankası kaydı YOKSA sessiz boşluk
+// yerine profesyonel kısa durum mesajı gösterilir. Numeroloji HESABI DEĞİŞMEZ — sayı,
+// adımlar ve kartlar her hâlükârda görünür; yalnız yorum bölgesi bu notu taşır.
+function BilgiBankasiBosNot() {
+  const typo = useContentTypography();
+  return (
+    <div
+      className={`mt-4 border-t border-violet-100 pt-4 md:mt-4 md:border-t-0 md:pt-0 md:border md:border-violet-200/60 md:bg-violet-50/40 md:ring-1 md:ring-violet-100/50 ${mdPad(typo.infoBoxPadding)}`}
+    >
+      <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
+      <p className={`mt-2 ${typo.body} text-slate-500`}>Bu sonuç için bilgi bankası kaydı bulunamadı.</p>
+    </div>
+  );
+}
+
 function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
   const typo = useContentTypography();
-  if (!notes.length) return null;
+  if (!notes.length) return <BilgiBankasiBosNot />;
 
   const kartlar = notes
     .map((note) => ({ note, sections: resolveNoteSectionsForView(note) }))
     .filter((x) => x.sections.length > 0);
-  if (!kartlar.length) return null;
+  if (!kartlar.length) return <BilgiBankasiBosNot />;
 
   // Mobil: kutusuz — üstte ince ayraç + başlık; her not düz, ince ayraçla ayrılır.
   // md+: mevcut çift-kart tasarımı korunur.
@@ -777,7 +792,9 @@ function NumeroCardBody({
           {r.steps.join("\n")}
         </pre>
       ) : null}
-      {knowledgeNotes?.length ? <BilgiBankasiYorumBlock notes={knowledgeNotes} /> : null}
+      {/* NUM-010: knowledgeNotes tanımlıysa (yüklenmiş) blok her zaman render edilir;
+          boşsa "kayıt bulunamadı" notu görünür. undefined (yükleniyor) iken hiçbir şey gösterilmez. */}
+      {knowledgeNotes !== undefined ? <BilgiBankasiYorumBlock notes={knowledgeNotes} /> : null}
     </div>
   );
 }
@@ -964,7 +981,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       </DetayCard>
       <DetayCard title="Çakra">
         <pre className={preScroll}>{out.cakraOmurgasiMetni || "—"}</pre>
-        {knowledgeNotes?.cakraOmurga.length ? (
+        {knowledgeNotes ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
         ) : null}
         <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} stockIndex={stockIndex} />
@@ -974,7 +991,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {out.elementler.steps?.length ? (
           <pre className={preSteps}>{out.elementler.steps.join("\n")}</pre>
         ) : null}
-        {knowledgeNotes?.element.length ? (
+        {knowledgeNotes ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}
         <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />

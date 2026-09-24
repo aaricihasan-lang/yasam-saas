@@ -5,7 +5,12 @@
  */
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
-function authHeaders(): Record<string, string> {
+/**
+ * Session kimlik başlıkları (x-user-id + x-session-token). İkili (docx) indiren
+ * rapor uçları JSON dönmediği için numApi() yerine ham fetch kullanır ve bu
+ * başlıkları doğrudan gönderir. Kimlik/tenant SUNUCUDA çözülür; body'ye kimlik konmaz.
+ */
+export function authHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
   return {
