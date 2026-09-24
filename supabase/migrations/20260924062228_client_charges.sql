@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20260930000000_client_charges.sql
+-- 20260924062228_client_charges.sql
 --
 -- feat(danisan-yolculugu): merkezi Ücretlendirme tablosu (client_charges)
 --
