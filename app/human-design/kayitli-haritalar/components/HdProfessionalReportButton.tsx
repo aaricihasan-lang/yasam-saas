@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   createProfessionalReport,
@@ -20,6 +21,7 @@ export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
   // Admin knowledge isolation: profesyonel canonical Word yalnız ADMIN/OWNER içindir
   // (endpoint de 403 döner). Non-admin uzman için buton hiç render edilmez.
   const [isAdmin, setIsAdmin] = useState(false);
+  const isAndroid = useIsAndroid();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsAdmin(isAdminUser(readYasamUser()));
@@ -54,7 +56,8 @@ export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
     setMessage("Rapor indirildi. Kayıtlı Raporlar'dan tekrar erişebilirsiniz.");
   }
 
-  if (!isAdmin) return null;
+  // Android: Word (.docx) indirme UI'si hiç render edilmez (ürün kararı).
+  if (!isAdmin || isAndroid) return null;
 
   return (
     <div className="flex flex-col gap-1.5">

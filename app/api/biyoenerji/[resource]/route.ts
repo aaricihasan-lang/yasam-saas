@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   getBioResource,
-  pickWritableBioFields,
   sanitizeBioSearch,
+  validateBioFields,
 } from "@/lib/biyoenerji/resourceConfig";
+import { bioDbError } from "@/lib/biyoenerji/apiError";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export const runtime = "nodejs";
  *   - requireModuleAccess → x-user-id + x-session-token + binding.
  *   - tenant_id SUNUCUDA session'dan alınır; body/query'den GÜVENİLMEZ.
  *   - resource whitelist + kolon whitelist (çapraz-tenant ve kolon enjeksiyonu engellenir).
+ *   - BIO-005/009: yazma alanları sunucuda doğrulanır + normalize edilir (trim/maxLength/tip/required).
+ *   - BIO-013: ham DB error.message istemciye DÖNMEZ (bkz. bioDbError).
  *   - Demo hesap: yazma yapılmaz.
  *
  * GET  ?count=1&search=        → { ok, count }
@@ -56,7 +59,7 @@ export async function GET(
       .eq("tenant_id", tenantId)
       .not("category", "is", null)
       .limit(5000);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return bioDbError(`${resource}.categories`, error, "Kategoriler getirilemedi.");
     const set = new Set<string>();
     for (const r of (data ?? []) as { category?: string | null }[]) {
       const c = (r.category ?? "").trim();
@@ -75,7 +78,7 @@ export async function GET(
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return bioDbError(`${resource}.lastCreated`, error, "Kayıt bilgisi getirilemedi.");
     return NextResponse.json({ ok: true, lastCreatedAt: (data as { created_at?: string } | null)?.created_at ?? null });
   }
 
@@ -85,7 +88,7 @@ export async function GET(
     if (orFilter) q = q.or(orFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
     const { count, error } = await q;
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return bioDbError(`${resource}.count`, error, "Kayıt sayısı getirilemedi.");
     return NextResponse.json({ ok: true, count: count ?? 0 });
   }
 
@@ -105,7 +108,7 @@ export async function GET(
   if (categoryFilter) q = q.eq("category", categoryFilter);
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return bioDbError(`${resource}.list`, error, "Kayıtlar getirilemedi.");
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -130,14 +133,17 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = pickWritableBioFields(cfg, body);
+  // BIO-005/009: sunucu-canonical doğrulama + trim/normalizasyon (tam kayıt).
+  const validated = validateBioFields(cfg, body, { partial: false });
+  if (!validated.ok) return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
+
   const { data, error } = await db
     .from(cfg.table)
-    .insert({ ...fields, tenant_id: tenantId })
+    .insert({ ...validated.fields, tenant_id: tenantId })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return bioDbError(`${resource}.create`, error, "Kayıt eklenemedi.");
   return NextResponse.json({ ok: true, row: data });
 }
 
@@ -183,7 +189,7 @@ export async function DELETE(
       .delete()
       .eq("tenant_id", tenantId)
       .select("id");
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return bioDbError(`${resource}.deleteAll`, error, "Kayıtlar silinemedi.");
     return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
   }
 
@@ -199,7 +205,7 @@ export async function DELETE(
       .eq("tenant_id", tenantId)
       .in("id", ids)
       .select("id");
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return bioDbError(`${resource}.deleteMany`, error, "Kayıtlar silinemedi.");
     return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
   }
 

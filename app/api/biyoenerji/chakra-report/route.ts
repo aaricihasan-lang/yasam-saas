@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
   capSelectedIds,
@@ -93,6 +94,10 @@ function slugify(t: string): string {
 export async function POST(request: NextRequest): Promise<Response> {
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
   // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
+  // Android: Word (.docx) indirme kapalı (ürün kararı) — defense-in-depth.
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
+
   const guard = await requireModuleAccess(request, "energy_body");
   if (!guard.ok) return guard.response;
   const { tenantId } = guard;

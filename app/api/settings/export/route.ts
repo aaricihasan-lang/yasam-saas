@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Document,
@@ -420,6 +421,8 @@ function buildModule(
  * Returns: DOCX binary
  */
 export async function POST(req: NextRequest) {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {

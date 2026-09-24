@@ -16,6 +16,7 @@ import {
 } from "@/lib/beslenme/faz6Client";
 import { TEMPLATE_TYPE_LABELS, type TemplateType } from "@/lib/beslenme/templateContracts";
 import { EXPORT_DESKTOP_ONLY_CLASS } from "@/lib/beslenme/exportVisibility";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { Modal } from "./planUi";
 import { GhostButton, PrimaryButton, StatusMessage, TextInput, InlineSpinner, EmptyState } from "../../_components/primitives";
 import { runInEffect } from "@/lib/runInEffect";
@@ -67,6 +68,7 @@ export function PlanTools({
   const [saveOpen, setSaveOpen] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const isAndroid = useIsAndroid();
 
   const selectedDay = days.find((d) => d.id === selectedDayId) ?? null;
 
@@ -97,11 +99,13 @@ export function PlanTools({
           gizli. Karar CİHAZ YETENEĞİYLE verilir, viewport genişliğiyle DEĞİL — pencere 1280
           altına inse de masaüstünde kaybolmaz. Sarmalayıcı span görünürlüğü taşır (buton
           display'i bozulmaz). Backend endpoint değişmez. */}
-      <span className={EXPORT_DESKTOP_ONLY_CLASS}>
-        <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
-          Word İndir
-        </GhostButton>
-      </span>
+      {!isAndroid && (
+        <span className={EXPORT_DESKTOP_ONLY_CLASS}>
+          <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
+            Word İndir
+          </GhostButton>
+        </span>
+      )}
       {!archived ? (
         <>
           <GhostButton

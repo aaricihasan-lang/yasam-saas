@@ -4,6 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useParams, useRouter } from "next/navigation";
 import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -420,6 +421,7 @@ export default function SifaRehberiDetailPage() {
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel teslim eki (guide target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
@@ -1013,6 +1015,7 @@ export default function SifaRehberiDetailPage() {
               >
                 🧠 Yaşam Hafızası&apos;ndan Seç{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
+              {!isAndroid && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
@@ -1021,6 +1024,7 @@ export default function SifaRehberiDetailPage() {
               >
                 {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
               </button>
+              )}
               <button
                 type="button"
                 onClick={toggleEditOrSave}

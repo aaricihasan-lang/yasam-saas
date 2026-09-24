@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { containsTr } from "@/lib/text/turkishSearch";
 import {
@@ -333,6 +334,7 @@ export default function DanisanListePage() {
   // Toplu seçim ve Word export
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
 
   const tenantId = sessionUser?.tenant_id?.trim() || null;
   const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
@@ -879,9 +881,9 @@ export default function DanisanListePage() {
                 hasActiveFilter={hasActiveFilter}
                 onSelectAll={selectAllFiltered}
                 onClearSelection={clearClientSelection}
-                onExportSelected={() => void exportClientsWord("selected")}
-                onExportAll={() => void exportClientsWord("all")}
-                onExportFiltered={hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
+                onExportSelected={isAndroid ? undefined : () => void exportClientsWord("selected")}
+                onExportAll={isAndroid ? undefined : () => void exportClientsWord("all")}
+                onExportFiltered={!isAndroid && hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
                 isExporting={wordBusy}
                 onDeleteSelected={() => void handleBulkDeleteClients()}
                 isDeleting={deleteLoading}

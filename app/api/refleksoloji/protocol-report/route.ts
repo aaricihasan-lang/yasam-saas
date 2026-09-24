@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
@@ -71,6 +72,8 @@ function slugify(t: string): string {
 const EMPTY_ATLAS: AtlasDocument = { _meta: { version: "1", updated_at: "1970-01-01T00:00:00.000Z" } };
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
   // GÜVENLİK: kimlik yalnız sunucu tarafında (requireModuleAccess). Body'deki
   // tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
   const guard = await requireModuleAccess(request, "reflexology");

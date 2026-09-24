@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   AlignmentType,
   BorderStyle,
@@ -990,6 +991,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
+
   // Kanonik oturum + modül kapısı: x-user-id + x-session-token + token↔user binding.
   // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.
   const guard = await requireModuleAccess(req, "clients");
