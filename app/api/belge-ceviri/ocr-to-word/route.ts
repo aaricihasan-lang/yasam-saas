@@ -1,11 +1,14 @@
 import type { NextRequest } from "next/server";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
   const auth = await requireDigitalContentUser(request, "belge_ceviri");
   if (!auth.ok) return auth.response;
   try {

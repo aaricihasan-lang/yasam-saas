@@ -27,6 +27,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -154,6 +155,7 @@ function MineralListesiPageContent() {
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const isMobile = useIsMobileOrPwa();
+  const isAndroid = useIsAndroid();
   const { isDemo } = useDemoGuard();
 
   const applySearchUrl = useCallback(
@@ -540,7 +542,7 @@ function MineralListesiPageContent() {
                   </option>
                 ))}
               </select>
-              {!isDemo && (
+              {!isDemo && !isAndroid && (
                 <button
                   type="button"
                   onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}

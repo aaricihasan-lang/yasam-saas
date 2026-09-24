@@ -25,6 +25,7 @@ import {
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   DIGITAL_CONTENT_DEMO_BANNER,
@@ -78,6 +79,7 @@ const LANGUAGE_DISPLAY: Record<string, string> = {
 export default function VideoCeviriPage() {
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const isAndroid = useIsAndroid();
 
   // veri
   const [tenantId, setTenantId]       = useState<string | null>(null);
@@ -303,6 +305,8 @@ export default function VideoCeviriPage() {
           <>
             <div className="fixed inset-0 z-10" onClick={() => setDropdownOpenId(null)} />
             <div className="absolute left-0 top-full z-[9999] mt-1.5 min-w-[240px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              {!isAndroid && (
+              <>
               <div className="px-3 pb-1 pt-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Word</p>
               </div>
@@ -319,6 +323,8 @@ export default function VideoCeviriPage() {
                 );
               })}
               <div className="mx-3 my-1.5 border-t border-slate-100" />
+              </>
+              )}
               <div className="px-3 pb-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-600">PDF</p>
               </div>

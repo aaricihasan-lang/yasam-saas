@@ -9,6 +9,7 @@ import {
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   BookOpen,
@@ -54,6 +55,7 @@ export default function DersNotuPage() {
   const [result, setResult] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [downloadingWord, setDownloadingWord] = useState(false);
+  const isAndroid = useIsAndroid();
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
 
   function handleTxtUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -364,6 +366,7 @@ export default function DersNotuPage() {
                     TXT İndir
                   </button>
 
+                  {!isAndroid && (
                   <button
                     type="button"
                     onClick={() => void handleWordDownload()}
@@ -377,6 +380,7 @@ export default function DersNotuPage() {
                     )}
                     Word İndir
                   </button>
+                  )}
                 </div>
               </div>
             ) : (

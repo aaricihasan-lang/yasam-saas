@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
+import { KupaConfirmDialog } from "./ConfirmDialog";
+import { normalizeNullableNumber, normalizeSortOrder } from "@/lib/cupping/normalize";
 
 /**
  * KUPA & HACAMAT — generic içerik CRUD yöneticisi (liste + form). Nokta/teknik/bilgi/
@@ -35,6 +37,12 @@ type CrudManagerProps<T extends Rec> = {
   addLabel: string;
   /** Kayıtlı bir kayıt seçiliyken form altında ek panel (ör. Kaynaklar/citation). */
   renderExtra?: (record: T) => ReactNode;
+  /**
+   * Silme onayında gösterilecek kısa cascade/ilişki uyarısı (varsa). Yalnızca GERÇEK cascade
+   * olan varlıklarda verilir (ör. nokta silince yerleşim/atıf da silinir); olmayan varlıklarda
+   * boş bırakılır (uydurma cascade uyarısı YOK).
+   */
+  deleteCascadeHint?: string;
 };
 
 function toFormValue(v: unknown, type: FieldType): string | boolean {
@@ -44,11 +52,13 @@ function toFormValue(v: unknown, type: FieldType): string | boolean {
   return String(v);
 }
 
-function fromFormValue(raw: string | boolean, type: FieldType): unknown {
+function fromFormValue(raw: string | boolean, type: FieldType, key: string): unknown {
   if (type === "boolean") return raw === true;
   if (type === "number") {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
+    // KUP-NEW-1: sort_order TÜM Kupa tablolarında `NOT NULL DEFAULT 0` → boş "Sıra" alanı
+    // 0 olmalı (açık null NOT NULL ihlali/500 yapar). Diğer numeric alanlar (ör. year)
+    // NULLABLE → HAC-UX-5 davranışı (boş → null) KORUNUR. Tek kaynak: lib/cupping/normalize.
+    return key === "sort_order" ? normalizeSortOrder(raw) : normalizeNullableNumber(raw);
   }
   if (type === "tags") {
     return String(raw)
@@ -70,6 +80,7 @@ export function CrudManager<T extends Rec>({
   emptyLabel,
   addLabel,
   renderExtra,
+  deleteCascadeHint,
 }: CrudManagerProps<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -78,6 +89,7 @@ export function CrudManager<T extends Rec>({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +131,7 @@ export function CrudManager<T extends Rec>({
   const handleSave = async () => {
     setError(null);
     const body: Record<string, unknown> = {};
-    for (const f of fields) body[f.key] = fromFormValue(form[f.key] ?? (f.type === "boolean" ? false : ""), f.type);
+    for (const f of fields) body[f.key] = fromFormValue(form[f.key] ?? (f.type === "boolean" ? false : ""), f.type, f.key);
     const req = fields.find((f) => f.required);
     if (req && !String(body[req.key] ?? "").trim()) {
       setError(`${req.label} gerekli.`);
@@ -143,21 +155,41 @@ export function CrudManager<T extends Rec>({
     }
   };
 
-  const handleDelete = async () => {
+  // HAC-UX-1: yıkıcı silme onay diyaloğu ardında; ayrıca server 0-satır sonucu = SAHTE BAŞARI YOK.
+  const performDelete = async () => {
     if (!selectedId) return;
     const id = selectedId;
     setBusy(true);
+    setError(null);
     try {
-      await remove(id);
-      setItems((cur) => cur.filter((i) => i.id !== id));
-      setSelectedId(null);
-      setForm({});
+      const deleted = await remove(id);
+      if (deleted > 0) {
+        setItems((cur) => cur.filter((i) => i.id !== id));
+        setSelectedId(null);
+        setForm({});
+        setConfirmOpen(false);
+      } else {
+        // Server hiçbir satır silmedi (kayıt yok / bu hesaba ait değil / demo no-op). Optimistic
+        // kaldırma YAPMA; gerçek durumu yansıtmak için listeyi yeniden yükle.
+        setConfirmOpen(false);
+        setError("Kayıt silinemedi (bu hesapta değişiklik yapılmadı).");
+        try {
+          const list = await load();
+          setItems(list);
+        } catch {
+          /* yükleme hatası sessiz — mevcut liste korunur */
+        }
+      }
     } catch (e) {
+      setConfirmOpen(false);
       setError(e instanceof Error ? e.message : "Silinemedi.");
     } finally {
       setBusy(false);
     }
   };
+
+  const selectedRecord = selectedId ? items.find((i) => i.id === selectedId) ?? null : null;
+  const selectedName = selectedRecord ? String(selectedRecord[titleKey] ?? "") : "";
 
   const editing = creating || selectedId != null;
 
@@ -285,7 +317,12 @@ export function CrudManager<T extends Rec>({
                   Vazgeç
                 </button>
                 {!creating && selectedId ? (
-                  <button type="button" onClick={handleDelete} disabled={busy} className={`${kupaBtnDanger} ml-auto`}>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmOpen(true)}
+                    disabled={busy}
+                    className={`${kupaBtnDanger} ml-auto`}
+                  >
                     Sil
                   </button>
                 ) : null}
@@ -297,6 +334,22 @@ export function CrudManager<T extends Rec>({
           )}
         </div>
       </div>
+
+      <KupaConfirmDialog
+        open={confirmOpen}
+        title="Kaydı sil"
+        description={
+          `“${selectedName || "Bu kayıt"}” kaydını silmek istediğinize emin misiniz? ` +
+          `Bu işlem geri alınamaz.` +
+          (deleteCascadeHint ? `\n\n${deleteCascadeHint}` : "")
+        }
+        confirmLabel="Sil"
+        busy={busy}
+        onConfirm={performDelete}
+        onClose={() => {
+          if (!busy) setConfirmOpen(false);
+        }}
+      />
     </>
   );
 }

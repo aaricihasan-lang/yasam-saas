@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  CUPPING_FIELD_RULES,
+  CUPPING_ARRAY_MAX_ITEMS,
+  CUPPING_ARRAY_ITEM_MAX,
+} from "@/lib/cupping/fields";
+import { withSafeSortOrder } from "@/lib/cupping/normalize";
 
 /**
  * KUPA & HACAMAT — server CRUD yardımcıları.
@@ -33,6 +39,49 @@ export function pickWritable(
 
 type Ok<T> = { ok: true; data: T };
 type Fail = { ok: false; response: NextResponse };
+
+/**
+ * HAC-UX-2/3/4 — server-side payload doğrulaması (kategori bazlı; CUPPING_FIELD_RULES).
+ *
+ * Yalnız payload'da BULUNAN alanlar denetlenir (partial PATCH güvenli). `null` ve boş string
+ * "değer yok" sayılır (skip) — mevcut UI davranışı korunur (ör. "—" seçili enum = ""). Kural
+ * TANIMSIZ alanlar (numeric/boolean/FK) sınırsızdır. İhlalde ham DB hatası ÜRETMEDEN 400 döner.
+ * Dönüş: hata varsa NextResponse (400), yoksa null. Bilinmeyen tablo → null (denetim yok).
+ */
+export function validateWritable(
+  table: string,
+  fields: Record<string, unknown>,
+): NextResponse | null {
+  const rules = CUPPING_FIELD_RULES[table];
+  if (!rules) return null;
+  for (const [key, value] of Object.entries(fields)) {
+    if (value == null || value === "") continue; // "değer yok" / temizle → denetleme
+    const rule = rules[key];
+    if (!rule) continue;
+    if (rule.t === "str") {
+      if (typeof value !== "string") return cuppingError(400, `Geçersiz alan biçimi: ${key}.`);
+      if (value.length > rule.max) {
+        return cuppingError(400, `“${key}” çok uzun (en fazla ${rule.max} karakter).`);
+      }
+    } else if (rule.t === "enum") {
+      if (typeof value !== "string" || !rule.values.includes(value)) {
+        return cuppingError(400, `Geçersiz değer: ${key}.`);
+      }
+    } else if (rule.t === "arr") {
+      if (!Array.isArray(value)) return cuppingError(400, `Geçersiz liste biçimi: ${key}.`);
+      if (value.length > CUPPING_ARRAY_MAX_ITEMS) {
+        return cuppingError(400, `“${key}” listesi çok uzun (en fazla ${CUPPING_ARRAY_MAX_ITEMS} öğe).`);
+      }
+      for (const item of value) {
+        if (typeof item !== "string") return cuppingError(400, `Geçersiz liste öğesi: ${key}.`);
+        if (item.length > CUPPING_ARRAY_ITEM_MAX) {
+          return cuppingError(400, `“${key}” liste öğesi çok uzun (en fazla ${CUPPING_ARRAY_ITEM_MAX} karakter).`);
+        }
+      }
+    }
+  }
+  return null;
+}
 
 export async function parseJsonBody(req: Request): Promise<Ok<Record<string, unknown>> | Fail> {
   try {
@@ -91,9 +140,14 @@ export async function insertEntity(
   tenantId: string,
   fields: Record<string, unknown>,
 ): Promise<Ok<Record<string, unknown>> | Fail> {
+  const invalid = validateWritable(table, fields);
+  if (invalid) return { ok: false, response: invalid };
+  // KUP-NEW-1 backstop: sort_order VARSA güvenli 0 sözleşmesine zorla (client dışı çağrılar
+  // da DB'ye açık null gönderemesin). Yoksa DOKUNMA → DB DEFAULT 0 çalışır.
+  const safe = withSafeSortOrder(fields);
   const { data, error } = await db
     .from(table)
-    .insert({ ...fields, tenant_id: tenantId })
+    .insert({ ...safe, tenant_id: tenantId })
     .select()
     .single();
   if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
@@ -107,9 +161,13 @@ export async function updateEntity(
   id: string,
   fields: Record<string, unknown>,
 ): Promise<Ok<Record<string, unknown>> | Fail> {
+  const invalid = validateWritable(table, fields);
+  if (invalid) return { ok: false, response: invalid };
+  // KUP-NEW-1 backstop: kullanıcı "Sıra" alanını temizlerse (sort_order null/boş) → 0.
+  const safe = withSafeSortOrder(fields);
   const { data, error } = await db
     .from(table)
-    .update({ ...fields, updated_at: new Date().toISOString() })
+    .update({ ...safe, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select()

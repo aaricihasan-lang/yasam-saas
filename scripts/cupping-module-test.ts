@@ -125,7 +125,9 @@ function run(): void {
   // ── B) TENANT ZORLAMA — merkezî helper ─────────────────────────────────────────
   const api = read("lib/cupping/api.ts");
   ok(/\.eq\("tenant_id",\s*tenantId\)/.test(api), "api: okuma/güncelleme tenant_id ile bağlı");
-  ok(/\.insert\(\{\s*\.\.\.fields,\s*tenant_id:\s*tenantId\s*\}\)/.test(api), "api: INSERT server tenant_id yazar");
+  // KUP-NEW-1: insert spread'i `...fields` → `...safe` (withSafeSortOrder backstop) oldu; intent
+  // (server tenant_id'yi INSERT'te yazar) korunur — spread değişken adı esnek bırakıldı.
+  ok(/\.insert\(\{\s*\.\.\.\w+,\s*tenant_id:\s*tenantId\s*\}\)/.test(api), "api: INSERT server tenant_id yazar");
   ok(!/error\.message/.test(api), "api: ham DB error.message DÖNMEZ (sabit mesaj)");
   ok(/assertOwnedRef/.test(api), "api: FK sahiplik doğrulaması (cross-tenant enjeksiyon engeli)");
   // fields allowlist tenant_id/id içermez (yalnız iş alanları)

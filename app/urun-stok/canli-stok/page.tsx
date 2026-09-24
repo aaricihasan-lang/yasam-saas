@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
@@ -309,6 +310,7 @@ export default function CanliStokMerkeziPage() {
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
 
   async function exportStockWord(mode: "all" | "critical") {
     const user = await getSyncedYasamUser();
@@ -538,6 +540,7 @@ export default function CanliStokMerkeziPage() {
             kalem
           </p>
           {/* Word export butonları */}
+          {!isAndroid && (
           <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
             <span className="text-xs font-black uppercase tracking-wide text-slate-500">Word Raporu:</span>
             <button
@@ -560,6 +563,7 @@ export default function CanliStokMerkeziPage() {
               (Yalnızca Doğaltaş envanteri · diğer kategoriler yerel depolama tabanlı)
             </span>
           </div>
+          )}
         </section>
 
         {filtered.length === 0 ? (

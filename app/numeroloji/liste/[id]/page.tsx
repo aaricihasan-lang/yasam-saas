@@ -5,6 +5,7 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
@@ -31,6 +32,7 @@ export default function NumerolojiKayitDetayPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const { isDemo } = useDemoGuard();
+  const isAndroid = useIsAndroid();
 
   const [row, setRow] = useState<NumerologyRecordRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,8 +144,8 @@ export default function NumerolojiKayitDetayPage() {
           <Link href="/numeroloji" className={detayNavSecondaryClass}>
             Modül seçimi
           </Link>
-          {/* Word raporu: demo modda kilitli kayıtlarda gösterilmez */}
-          {row && !loading && !gateActive && (
+          {/* Word raporu: demo modda kilitli kayıtlarda ve Android'de gösterilmez */}
+          {row && !loading && !gateActive && !isAndroid && (
             <button
               type="button"
               onClick={() => setWordPicker(true)}

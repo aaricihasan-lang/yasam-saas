@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -74,6 +75,7 @@ function kayitTuruLabel(tur: KayitTuru) {
 export function BilgiKayitListesi() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const isAndroid = useIsAndroid();
   const [kayitTuruFiltre, setKayitTuruFiltre] = useState("");
   const [analizTuruFiltre, setAnalizTuruFiltre] = useState("");
   const [arama, setArama] = useState("");
@@ -373,15 +375,18 @@ export function BilgiKayitListesi() {
                     : "Seçilileri Sil"}
               </button>
               {/* NUM-MOB-1: Word butonları mobilde tamamen gizli (yer kaplamaz), md+ değişmez. */}
-              <button
-                type="button"
-                disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
-                onClick={() => setWordPicker({ mode: "all" })}
-                className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
-              >
-                {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
-              </button>
-              {(kayitTuruFiltre || analizTuruFiltre || arama) && (
+              {/* Android: Word (.docx) indirme butonları hiç render edilmez (ürün kararı). */}
+              {!isAndroid && (
+                <button
+                  type="button"
+                  disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
+                  onClick={() => setWordPicker({ mode: "all" })}
+                  className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
+                >
+                  {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
+                </button>
+              )}
+              {!isAndroid && (kayitTuruFiltre || analizTuruFiltre || arama) && (
                 <button
                   type="button"
                   disabled={wordBusy || filtrelenmis.length === 0}

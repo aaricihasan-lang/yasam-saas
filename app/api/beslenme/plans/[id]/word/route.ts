@@ -3,6 +3,7 @@ import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/besl
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -21,6 +22,8 @@ type RouteCtx = { params: Promise<{ id: string }> };
  *  - Uzak görsel/fetch YOK (SSRF-güvenli): planDocx yalnız snapshot verisinden metin/tablo üretir.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   const guard = await requireBeslenmeOwner(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);

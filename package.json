@@ -18,6 +18,8 @@
     "refleksoloji:saved-detail-render:harness": "tsx scripts/reflexology-saved-detail-render-harness.ts",
     "refleksoloji:word:harness": "tsx scripts/reflexology-word-report-harness.ts",
     "cupping:calendar:word:harness": "tsx scripts/cupping-calendar-word-harness.ts",
+    "test:cupping:security": "tsx scripts/cupping-security-harness.ts",
+    "test:cupping:contract": "tsx scripts/cupping-module-test.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
     "hd:word:harness": "tsx scripts/hd-word-report/harness.ts",
     "hd:word:visual": "tsx scripts/hd-word-report/visualFixtures.ts",

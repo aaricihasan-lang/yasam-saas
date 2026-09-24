@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
@@ -50,6 +51,7 @@ export function HdRaporContent() {
   const { confirm } = useConfirm();
   const router = useRouter();
   const params = useSearchParams();
+  const isAndroid = useIsAndroid();
 
   const urlClientId = params.get("clientId") ?? "";
   const urlReportId = params.get("reportId") ?? "";
@@ -662,14 +664,17 @@ export function HdRaporContent() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleWordExport}
-                disabled={exporting || !editedText.trim()}
-                className="h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {exporting ? "İndiriliyor..." : "Word İndir"}
-              </button>
+              {/* Android: Word (.docx) indirme butonu render edilmez (ürün kararı). */}
+              {!isAndroid && (
+                <button
+                  type="button"
+                  onClick={handleWordExport}
+                  disabled={exporting || !editedText.trim()}
+                  className="h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {exporting ? "İndiriliyor..." : "Word İndir"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleSave}

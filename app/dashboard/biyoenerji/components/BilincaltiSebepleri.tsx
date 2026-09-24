@@ -35,6 +35,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
+import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
 
 async function exportSubconsciousWord(
   tenantId: string,
@@ -151,6 +152,8 @@ export default function BilincaltiSebepleri() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<SubconsciousCauseForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
+  // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
+  const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
@@ -480,12 +483,20 @@ export default function BilincaltiSebepleri() {
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"
+            >
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800"
+            >
               {infoError}
             </div>
           ) : null}
@@ -611,6 +622,7 @@ export default function BilincaltiSebepleri() {
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
+        isDirty={formIsDirty}
         title="Yeni bilinçaltı kaydı"
         subtitle="Kaydettikten sonra kütüphanede görünür."
         titleId="subconscious-form-modal-title"

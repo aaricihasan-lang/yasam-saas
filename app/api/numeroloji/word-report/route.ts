@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   WORD_TAB_LABELS,
@@ -24,6 +25,10 @@ export const runtime = "nodejs";
 type ExportMode = "all" | "selected" | "single";
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // Android Word politikası (defense-in-depth): Android cihazlarda .docx üretilmez.
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
+
   // NUM-001: kimlik + tenant SUNUCUDA oturumdan çözülür (x-user-id + x-session-token
   // binding + numerology modül izni). Body'den tenantId/userId ARTIK OKUNMAZ →
   // başka tenant'ın Word'ünü indirtmek imkânsız (çapraz-tenant export kapandı).

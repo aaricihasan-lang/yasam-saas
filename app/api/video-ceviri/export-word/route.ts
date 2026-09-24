@@ -8,6 +8,7 @@ import {
   TextRun,
 } from "docx";
 import type { ExportMode } from "@/lib/video-ceviri/exportHelpers";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,8 @@ function sectionHeading(text: string, spaceBefore = 0): Paragraph {
 }
 
 export async function GET(request: NextRequest) {
+  const androidBlocked = androidWordGuard(request);
+  if (androidBlocked) return androidBlocked;
   // Kimlik yalnız oturumdan (x-user-id + x-session-token); tenant/user
   // query'den ALINMAZ. jobId + mode query'den okunur.
   const guard = await requireModuleAccess(request, "video_ceviri");

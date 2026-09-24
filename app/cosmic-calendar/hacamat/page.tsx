@@ -12,6 +12,7 @@ import {
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
 import { readYasamUser, isAdminUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -252,6 +253,7 @@ export default function HacamatPage() {
   const [wordMonth,   setWordMonth]   = useState(todayMonth);
   const [isGenerating,    setIsGenerating]    = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const isAndroid = useIsAndroid();
 
   // Word rapor ayarları
   const [wordTitle,      setWordTitle]      = useState("HACAMAT TAKVİMİ");
@@ -933,14 +935,16 @@ export default function HacamatPage() {
                 {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
               </button>
-              <button
-                onClick={() => void handleWordReport()}
-                disabled={isGenerating || isGeneratingPdf}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
-              >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}
-              </button>
+              {!isAndroid && (
+                <button
+                  onClick={() => void handleWordReport()}
+                  disabled={isGenerating || isGeneratingPdf}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
+                >
+                  {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}
+                </button>
+              )}
             </div>
           </section>
         )}

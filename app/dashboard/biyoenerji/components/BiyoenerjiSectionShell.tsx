@@ -10,6 +10,7 @@ import {
 } from "../biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
 import BiyoenerjiSectionNav from "./BiyoenerjiSectionNav";
+import { BiyoenerjiDisclaimer } from "./BiyoenerjiDisclaimer";
 
 type BiyoenerjiSectionShellProps = {
   title: string;
@@ -85,6 +86,7 @@ export default function BiyoenerjiSectionShell({
         <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-5 sm:py-3.5 xl:px-8 2xl:px-12">
           {nav && <div className="mb-4 shrink-0">{nav}</div>}
           <div className="min-h-0 min-w-0 flex-1 pb-2">{children}</div>
+          <BiyoenerjiDisclaimer className="mt-3 shrink-0" />
         </div>
       </main>
     );
@@ -150,6 +152,7 @@ export default function BiyoenerjiSectionShell({
         </header>
 
         <div className="min-h-0 min-w-0 flex-1 pb-2">{children}</div>
+        <BiyoenerjiDisclaimer className="mt-3 shrink-0" />
       </div>
     </main>
   );

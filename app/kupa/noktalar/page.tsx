@@ -51,6 +51,7 @@ export default function NoktalarPage() {
         remove={deletePoint}
         emptyLabel="Henüz nokta yok. Yeni ekleyin."
         addLabel="Nokta"
+        deleteCascadeHint="Bu noktaya bağlı harita yerleşimleri, konu ilişkileri ve kaynak atıfları da birlikte silinir."
         renderExtra={(rec) => <CuppingCitationManager entity="point" entityId={rec.id} />}
       />
     </KupaShell>

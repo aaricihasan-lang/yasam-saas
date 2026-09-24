@@ -22,6 +22,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
@@ -578,6 +579,7 @@ function StoneDetailPage() {
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const isAndroid = useIsAndroid();
   const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
   const isContentProtected = isDemo && !isDemoReference;
@@ -1217,7 +1219,7 @@ function StoneDetailPage() {
               </button>
             )}
 
-            {!isDemo && (
+            {!isDemo && !isAndroid && (
               <button
                 type="button"
                 onClick={() => void downloadWordReport()}
