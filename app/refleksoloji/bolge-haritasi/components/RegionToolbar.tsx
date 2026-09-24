@@ -19,8 +19,9 @@ type RegionToolbarProps = {
   editingAllowed: boolean;
 };
 
+// REF-014: mobilde ~44px dokunma hedefi (min-h-11), sm+ ekranda kompakt (h-7).
 const btnBase =
-  "inline-flex h-7 shrink-0 items-center justify-center rounded-lg border px-2.5 text-[11px] font-bold shadow-sm transition-all duration-200 hover:scale-[1.02]";
+  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border px-3 text-xs font-bold shadow-sm transition-all duration-200 hover:scale-[1.02] sm:min-h-0 sm:h-7 sm:px-2.5 sm:text-[11px]";
 
 const activeRing = "ring-2 ring-purple-300 scale-[1.02]";
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/refleksoloji/uuid";
+import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,7 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.[id].GET", error);
   }
   if (!data) {
     return NextResponse.json(
@@ -84,7 +85,7 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.[id].DELETE", error);
   }
 
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });

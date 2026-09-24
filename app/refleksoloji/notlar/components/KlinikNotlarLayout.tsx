@@ -21,6 +21,8 @@ import { KayitliNotlarTab } from "./KayitliNotlarTab";
 import { NotKaydiTab } from "./NotKaydiTab";
 import { NoteContentModal } from "./NoteContentModal";
 import { NoteSaveToast } from "./NoteSaveToast";
+import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
+import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 
 export function KlinikNotlarLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -252,11 +254,8 @@ export function KlinikNotlarLayout() {
   };
 
   if (!hydrated) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
-      </main>
-    );
+    // REF-021: düz "Yükleniyor…" yerine route skeleton'ıyla tutarlı iskelet.
+    return <RefleksolojiListLoading badge="REFLEKSOLOJİ · KLİNİK NOTLAR" title="Klinik Notlar" />;
   }
 
   return (
@@ -293,9 +292,12 @@ export function KlinikNotlarLayout() {
                 <li className="text-slate-700">Notlar</li>
               </ol>
             </nav>
-            <h1 className="mt-2 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-              Klinik Notlar
-            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
+                Klinik Notlar
+              </h1>
+              {!isDemo ? <SyncStatusBadge /> : null}
+            </div>
           </header>
         </div>
 

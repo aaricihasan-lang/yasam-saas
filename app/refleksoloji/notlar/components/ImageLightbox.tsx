@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 
 type ImageLightboxProps = {
   src: string;
@@ -16,23 +17,14 @@ export function ImageLightbox({ src, alt, onClose }: ImageLightboxProps) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose]);
+  // REF-012: bu modal render edildiğinde daima açıktır → open: true.
+  const panelRef = useModalA11y<HTMLDivElement>({ open: true, onClose });
 
   if (!mounted) return null;
 
   return createPortal(
     <div
+      ref={panelRef}
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal

@@ -10,6 +10,7 @@ import { getOrganProtocolUsage } from "../lib/organProtocolReconcile";
 import { AtlasEditModal } from "./AtlasEditModal";
 import { AtlasViewModal } from "./AtlasViewModal";
 import { OrganAtlasCard } from "./OrganAtlasCard";
+import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 
 export function KayitliAtlasLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -78,11 +79,8 @@ export function KayitliAtlasLayout() {
   };
 
   if (!hydrated) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
-      </main>
-    );
+    // REF-021
+    return <RefleksolojiListLoading badge="REFLEKSOLOJİ · KAYITLI ATLAS" title="Kayıtlı Atlas" />;
   }
 
   return (

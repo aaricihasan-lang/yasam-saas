@@ -119,8 +119,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await query.order("title");
-  if (error)
-    return Response.json({ ok: false, error: `Protokoller okunamadı: ${error.message}` }, { status: 500 });
+  if (error) {
+    // REF-016: ham DB mesajı istemciye sızmaz; teknik ayrıntı yalnız server logunda.
+    console.error(`[refleksoloji] protocol-report.protocols: ${error.code ?? ""} ${error.message}`);
+    return Response.json({ ok: false, error: "Protokoller okunamadı." }, { status: 500 });
+  }
 
   const protocols = (data || []) as ProtocolRow[];
   if (!protocols.length)
@@ -132,8 +135,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     .select("document")
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (atlasErr)
-    return Response.json({ ok: false, error: `Atlas okunamadı: ${atlasErr.message}` }, { status: 500 });
+  if (atlasErr) {
+    console.error(`[refleksoloji] protocol-report.atlas: ${atlasErr.code ?? ""} ${atlasErr.message}`);
+    return Response.json({ ok: false, error: "Atlas okunamadı." }, { status: 500 });
+  }
   // CANONICAL SINIR (server read): DB belgesi legacy `{taban,yan}` olabilir →
   // 3-görünüme normalize et. Word grouping yalnız explicit region.view'a bakar.
   const atlasDoc = normalizeAtlasDocument(atlasRow?.document ?? EMPTY_ATLAS);

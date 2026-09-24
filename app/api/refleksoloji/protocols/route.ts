@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
+import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("title");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.GET", error);
   }
 
   return NextResponse.json({ ok: true, protocols: data ?? [] });
@@ -65,44 +66,73 @@ export async function POST(req: NextRequest): Promise<Response> {
       ? body.source_uid.trim()
       : null;
 
-  // İdempotensi: (tenant_id, source_uid) zaten varsa yeni satır AÇMA — çift-tıklama
-  // / retry duplicate protokol üretmesin. DB unique constraint YOK (mevcut 58 kayıt
-  // conflict riskine karşı eklenmedi); bu ön-kontrol + UI pending guard birlikte korur.
-  if (sourceUid) {
-    const { data: existing, error: existErr } = await db
+  // REF-006: YENİ kayıtta source_uid ZORUNLU. İstemci her zaman üretir (crypto id);
+  // eksikse reddet → prod'da yeni NULL source_uid satırı OLUŞMASIN (partial-unique
+  // index `WHERE source_uid IS NOT NULL` dışına kaçamaz). Legacy NULL satır AŞAMA 3'e
+  // bırakılır (bu route onu değiştirmez/silmez).
+  if (!sourceUid) {
+    return NextResponse.json(
+      { ok: false, error: "source_uid zorunludur." },
+      { status: 400 },
+    );
+  }
+
+  // İDEMPOTENSİ — GERÇEKÇİ GARANTİ MODELİ (REF-005):
+  //   ⚠️ Bu SELECT-sonra-INSERT ön-kontrolü DB UNIQUE constraint YOKKEN (mevcut prod)
+  //   yalnız BEST-EFFORT'tur: iki paralel istek TOCTOU yarışıyla duplicate üretebilir.
+  //   "check-then-write güvenli" DEĞİLDİR. UI pending-guard (REF-023) çift-tıklamayı
+  //   azaltır ama paralel isteği garanti etmez.
+  //
+  //   Migration (20270125…) partial UNIQUE(tenant_id, source_uid) uygulandıktan SONRA
+  //   gerçek atomiklik DB'den gelir: aşağıdaki INSERT yarışı kaybeden istekte 23505
+  //   (unique_violation) döndürür; bunu yakalayıp UPDATE'e düşürerek tek canonical satır
+  //   garanti edilir. Böylece bu kod HEM pre-migration (best-effort) HEM post-migration
+  //   (DB-atomik) rejimlerinde doğru davranır; migration sonrası kod değişikliği GEREKMEZ.
+  const existingUpdate = async () => {
+    const { data: updated, error: updErr } = await db
       .from("reflexology_protocols")
-      .select("*")
+      .update(fields)
       .eq("tenant_id", tenantId)
       .eq("source_uid", sourceUid)
-      .maybeSingle();
+      .select()
+      .single();
+    if (updErr) return { error: updErr, protocol: null };
+    return { error: null, protocol: updated };
+  };
 
-    if (existErr) {
-      return NextResponse.json({ ok: false, error: existErr.message }, { status: 500 });
-    }
-    if (existing) {
-      // Aynı mantıksal protokol → mevcut satırı içerikle güncelle (idempotent), yeni açma.
-      const { data: updated, error: updErr } = await db
-        .from("reflexology_protocols")
-        .update(fields)
-        .eq("tenant_id", tenantId)
-        .eq("source_uid", sourceUid)
-        .select()
-        .single();
-      if (updErr) {
-        return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
-      }
-      return NextResponse.json({ ok: true, protocol: updated, deduped: true });
-    }
+  const { data: existing, error: existErr } = await db
+    .from("reflexology_protocols")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("source_uid", sourceUid)
+    .maybeSingle();
+
+  if (existErr) {
+    return jsonServerError("protocols.POST.exist", existErr);
+  }
+  if (existing) {
+    // Aynı mantıksal protokol → mevcut satırı içerikle güncelle (idempotent), yeni açma.
+    const r = await existingUpdate();
+    if (r.error) return jsonServerError("protocols.POST.update", r.error);
+    return NextResponse.json({ ok: true, protocol: r.protocol, deduped: true });
   }
 
   const { data, error } = await db
     .from("reflexology_protocols")
-    .insert({ ...fields, tenant_id: tenantId, ...(sourceUid ? { source_uid: sourceUid } : {}) })
+    .insert({ ...fields, tenant_id: tenantId, source_uid: sourceUid })
     .select()
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // Post-migration: paralel istek yarışı kaybetti (unique_violation) → mevcut
+    // satırı güncelleyerek idempotent kapan (DB-atomik). Pre-migration'da bu kod
+    // tetiklenmez (constraint yok) → mevcut best-effort davranış korunur.
+    if ((error as { code?: string }).code === "23505") {
+      const r = await existingUpdate();
+      if (r.error) return jsonServerError("protocols.POST.update.race", r.error);
+      return NextResponse.json({ ok: true, protocol: r.protocol, deduped: true });
+    }
+    return jsonServerError("protocols.POST.insert", error);
   }
 
   // İP-2C: YENİ protokol oluşturma → usage event (dedup/update yolu olay üretmez; server-resolved; throw etmez).

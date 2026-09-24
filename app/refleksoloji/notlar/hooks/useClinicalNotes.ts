@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ClinicalNoteFormDraft, SavedClinicalNote } from "../types";
 import {
+  CLINICAL_NOTES_UPDATED_EVENT,
   draftToSavedNote,
   loadNotesFromStorage,
   mergeNotesById,
@@ -12,6 +13,7 @@ import {
   hydrateNotesFromServer,
   scheduleNotesSync,
   setNotesSyncSuspended,
+  queueNoteDeletion,
 } from "../lib/notesSync";
 
 export type SaveNoteResult =
@@ -69,6 +71,15 @@ export function useClinicalNotes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // REF-003: server senkron sonucu yerel depoyu değiştirdiğinde (baseUpdatedAt
+  // tazeleme / delete-conflict geri yükleme) listeyi yeniden oku.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onUpdated = () => refresh();
+    window.addEventListener(CLINICAL_NOTES_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(CLINICAL_NOTES_UPDATED_EVENT, onUpdated);
+  }, [refresh]);
+
   const persist = useCallback(
     (next: SavedClinicalNote[]): boolean => {
       const ok = saveNotesToStorage(next);
@@ -102,8 +113,14 @@ export function useClinicalNotes() {
   const deleteNote = useCallback(
     (id: string): boolean => {
       const list = loadNotesFromStorage();
+      const target = list.find((n) => n.id === id);
       const next = list.filter((n) => n.id !== id);
       if (next.length === list.length) return false;
+      // REF-004: silmeyi AÇIKÇA işaretle (persist → scheduleNotesSync bunu gönderir).
+      // Sunucu artık "listede yok = sil" yapmadığından, son not dahil silme yalnız
+      // bu açık deleted_uids ile gerçekleşir; boş liste kaza sonucu toplu silmez.
+      // REF-003: bilinen server sürümünü (baseUpdatedAt) taşı → stale delete engellenir.
+      queueNoteDeletion(id, target?.baseUpdatedAt ?? null);
       persist(next);
       return true;
     },

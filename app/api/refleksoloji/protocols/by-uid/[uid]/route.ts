@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
+import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
 export const runtime = "nodejs";
 
@@ -62,7 +63,7 @@ export async function PUT(
     .select();
 
   if (updErr) {
-    return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
+    return jsonServerError("protocols.by-uid.PUT.update", updErr);
   }
 
   // Hiç satır güncellenmediyse (bu cihazda oluşturulmuş ama server'a hiç gitmemiş
@@ -75,7 +76,7 @@ export async function PUT(
       .single();
 
     if (insErr) {
-      return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
+      return jsonServerError("protocols.by-uid.PUT.insert", insErr);
     }
     return NextResponse.json({ ok: true, protocol: inserted, created: true });
   }
@@ -110,7 +111,7 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.by-uid.DELETE", error);
   }
 
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
