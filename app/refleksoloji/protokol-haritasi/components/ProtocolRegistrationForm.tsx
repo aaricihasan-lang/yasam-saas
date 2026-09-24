@@ -13,6 +13,10 @@ type ProtocolRegistrationFormProps = {
   onSave: () => void;
   onClear: () => void;
   validationMessage: string | null;
+  /** Kaydetme sürüyor mu — buton devre dışı + geri bildirim (REF-023 double-submit). */
+  saving?: boolean;
+  /** Mevcut protokolü düzenliyor muyuz — buton etiketi "Güncelle" olur (REF-005). */
+  editing?: boolean;
 };
 
 const inputClass =
@@ -25,6 +29,8 @@ export function ProtocolRegistrationForm({
   onSave,
   onClear,
   validationMessage,
+  saving = false,
+  editing = false,
 }: ProtocolRegistrationFormProps) {
   const [organInput, setOrganInput] = useState("");
   const [organSuggestions, setOrganSuggestions] = useState<string[]>([]);
@@ -211,14 +217,17 @@ export function ProtocolRegistrationForm({
           <button
             type="button"
             onClick={onSave}
-            className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
+            disabled={saving}
+            aria-busy={saving}
+            className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-emerald-500"
           >
-            Kaydet
+            {saving ? "Kaydediliyor…" : editing ? "Güncelle" : "Kaydet"}
           </button>
           <button
             type="button"
             onClick={onClear}
-            className="rounded-xl border border-violet-200/90 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-900 hover:bg-violet-100/90"
+            disabled={saving}
+            className="rounded-xl border border-violet-200/90 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-900 hover:bg-violet-100/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Temizle
           </button>

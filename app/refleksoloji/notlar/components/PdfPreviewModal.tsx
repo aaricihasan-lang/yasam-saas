@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 
 type PdfPreviewModalProps = {
   src: string;
@@ -16,18 +17,8 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose]);
+  // REF-012: bu modal render edildiğinde daima açıktır → open: true.
+  const panelRef = useModalA11y<HTMLDivElement>({ open: true, onClose });
 
   if (!mounted) return null;
 
@@ -40,6 +31,7 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="flex h-[min(92vh,900px)] w-[min(1100px,96vw)] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >

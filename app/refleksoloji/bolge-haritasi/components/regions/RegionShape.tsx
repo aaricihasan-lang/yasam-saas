@@ -84,6 +84,20 @@ export function RegionShape({
     onSelect(region.id);
   };
 
+  // REF-011: klavye ile bölge seçimi (Enter/Space) — tıklama ile parite. Tek tuşla
+  // kalıcı silme YOK (kaza engeli); seçim sonrası mevcut düzenleme kontrolleri açılır.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!interactive) return;
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      e.stopPropagation();
+      onSelect(region.id);
+    }
+  };
+
+  const focusRingClass =
+    "outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-600";
+
   if (region.shape === "thick_line") {
     if (
       region.x1 == null ||
@@ -147,6 +161,10 @@ export function RegionShape({
             vectorEffect="non-scaling-stroke"
             className={interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}
             onPointerDown={handleBodyPointerDown}
+            role="button"
+            aria-label={label}
+            tabIndex={interactive ? 0 : -1}
+            onKeyDown={handleKeyDown}
           />
         </svg>
 
@@ -224,7 +242,8 @@ export function RegionShape({
           role="button"
           tabIndex={interactive ? 0 : -1}
           onPointerDown={handleBodyPointerDown}
-          className={`absolute inset-0 touch-none select-none ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}`}
+          onKeyDown={handleKeyDown}
+          className={`absolute inset-0 touch-none select-none ${focusRingClass} ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}`}
           aria-label={label}
           title={label}
         >
@@ -284,7 +303,8 @@ export function RegionShape({
         role="button"
         tabIndex={interactive ? 0 : -1}
         onPointerDown={handleBodyPointerDown}
-        className={`absolute inset-0 flex items-center justify-center border-2 transition-shadow ${
+        onKeyDown={handleKeyDown}
+        className={`absolute inset-0 flex items-center justify-center border-2 transition-shadow ${focusRingClass} ${
           interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""
         }`}
         style={{

@@ -15,6 +15,7 @@ import {
 } from "../lib/protocolActions";
 import { useProtocolList } from "../hooks/useProtocolList";
 import { ProtocolListCard } from "./ProtocolListCard";
+import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 
 // P1-3: ilk yüklemede tüm listeyi basma — son N kaydı göster, "Daha fazla yükle" ile aç.
 const PAGE_SIZE = 10;
@@ -107,10 +108,9 @@ export function KayitliProtokollerLayout() {
   };
 
   if (loading) {
+    // REF-021: route skeleton'ıyla tutarlı iskelet.
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
-      </main>
+      <RefleksolojiListLoading badge="REFLEKSOLOJİ · KAYITLI PROTOKOLLER" title="Kayıtlı Protokoller" />
     );
   }
 

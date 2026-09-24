@@ -1,7 +1,12 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { safeLocalStorageSetItem } from "@/lib/safeStorage";
-import { scheduleAtlasSync } from "@/lib/refleksolojiAtlasSync";
+import {
+  scheduleAtlasSync,
+  setAtlasSyncSuspended,
+  registerAtlasConflictResolver,
+  type AtlasServerState,
+} from "@/lib/refleksolojiAtlasSync";
 import {
   markOrganDeleted,
   markOrganUpserted,
@@ -390,3 +395,38 @@ export function atlasHasRegionId(atlas: AtlasDocument, regionId: string): boolea
   }
   return false;
 }
+
+/**
+ * REF-001 — Atlas PUT 409 (concurrency conflict) çözücüsü.
+ *
+ * Sunucudaki güncel belge + yereldeki belge TOMBSTONE-FARKINDA birleştirilir (iki
+ * sekmenin/cihazın eklemeleri kaybolmaz). Sonuç yerele yazılır (senkron döngüsü
+ * tetiklenmez) ve retry PUT'u için döndürülür. Bu fonksiyon refleksolojiAtlasSync'e
+ * kaydedilir (döngüsel import olmadan).
+ */
+function resolveAtlasConflict(server: AtlasServerState): {
+  document: unknown;
+  organ_list: string[];
+} {
+  const serverRaw =
+    server.document && typeof server.document === "object"
+      ? (server.document as AtlasDocument)
+      : createEmptyAtlas();
+  const serverDoc = normalizeAtlasDocument(serverRaw);
+  const local = loadAtlas();
+  const merged = mergeAtlasDocuments(serverDoc, local);
+  const mergedList = unionOrganLists(server.organ_list, loadOrganList());
+
+  // Yerele yaz AMA scheduleAtlasSync'i tetikleme (retry PUT'u flush yapacak).
+  setAtlasSyncSuspended(true);
+  try {
+    safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(merged));
+    safeLocalStorageSetItem(ORGAN_LIST_STORAGE_KEY, JSON.stringify(mergedList));
+  } finally {
+    setAtlasSyncSuspended(false);
+  }
+  return { document: merged, organ_list: mergedList };
+}
+
+// İstemci tarafında modül yüklenince çözücüyü kaydet (SSR'de no-op — çağrılmaz).
+registerAtlasConflictResolver(resolveAtlasConflict);

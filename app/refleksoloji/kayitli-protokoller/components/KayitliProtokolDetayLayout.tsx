@@ -28,6 +28,8 @@ import {
 import type { ReflexologyProtocolRecord } from "../types";
 import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
+import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
+import { ReflexologyDisclaimer } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -331,11 +333,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     : [];
 
   if (loading) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-lg font-semibold text-violet-900">Yükleniyor…</p>
-      </main>
-    );
+    return <RefleksolojiDetailLoading />; // REF-021
   }
 
   if (loadErrorMessage) {
@@ -454,6 +452,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             ) : null}
           </div>
         </header>
+
+        {/* REF-002: protokol içeriğinden ayrı, profesyonel bilgilendirme bandı. */}
+        <ReflexologyDisclaimer variant="band" className="mt-3" />
 
         <div
           className={

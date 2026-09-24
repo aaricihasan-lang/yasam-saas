@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
 import type { FootView } from "@/app/refleksoloji/bolge-haritasi/types";
 import { AtlasReadonlyFootMap } from "./AtlasReadonlyFootMap";
+import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 
 type AtlasViewModalProps = {
   open: boolean;
@@ -25,23 +26,8 @@ export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps
     setFootView("taban");
   }, [open, organName]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
+  // REF-012: ESC + Tab trap + focus restore + scroll kilidi (ortak hook).
+  const panelRef = useModalA11y<HTMLDivElement>({ open, onClose });
 
   const regions = useMemo(() => {
     if (!open) return [];
@@ -63,6 +49,7 @@ export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="flex h-[min(900px,calc(100vh-64px))] w-[min(1100px,calc(100vw-32px))] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white p-6 shadow-2xl md:p-8"
         onClick={(event) => event.stopPropagation()}
       >

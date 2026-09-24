@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { ReflexologyDisclaimer } from "./ReflexologyDisclaimer";
 
 type HubModule = {
   href: string;
@@ -220,6 +221,9 @@ function ReflexologyMainMenu() {
               </div>
             </div>
           </section>
+
+          {/* REF-002: satış öncesi sağlık/uyumluluk bilgilendirmesi (ince, akışı engellemez). */}
+          <ReflexologyDisclaimer variant="compact" className="mt-3 px-1 text-center" />
         </div>
       </div>
     </main>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
+import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
 export const runtime = "nodejs";
 
@@ -18,7 +20,9 @@ export const runtime = "nodejs";
  *   - Eşleşme Türkçe-duyarsız; organs string'i pipe/virgül ile ayrıştırılır.
  */
 
-const NORM = (s: string) => s.trim().toLocaleLowerCase("tr");
+// Kanonik organ kimliği (NFC/NFD + Türkçe İ/ı + boşluk duyarsız) — atlas eşleşmesiyle
+// birebir aynı kural (REF-008). "karaciğer" NFD/NFC varyantları eşit sayılır.
+const NORM = (s: string) => organKey(s);
 
 type ProtocolRow = {
   id: string;
@@ -53,7 +57,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.organ.GET", error);
   }
 
   const matches = ((data ?? []) as ProtocolRow[]).filter((r) => usesOrgan(r.organs, name));
@@ -96,7 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return jsonServerError("protocols.organ.POST.read", error);
   }
 
   const rows = ((data ?? []) as ProtocolRow[]).filter((r) => usesOrgan(r.organs, oldName));
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       .eq("tenant_id", tenantId)
       .eq("id", row.id);
     if (updErr) {
-      return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
+      return jsonServerError("protocols.organ.POST.update", updErr);
     }
     updated += 1;
   }
