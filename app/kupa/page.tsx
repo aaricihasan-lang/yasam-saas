@@ -8,14 +8,14 @@ import { KupaShell, kupaCard, kupaBtnPrimary } from "./components/KupaShell";
  *
  * HİYERARŞİ (FAZ 4 sadeleştirme): eşit-ağırlıklı kart DEĞİL. İki katman:
  *   1) PRIMARY HERO  → Hacamat Protokolleri (TEK günlük çalışma alanı; dominant)
- *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (2 kart:
- *        Hacamat Noktaları + Kupa Teknikleri)
+ *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (3 kart:
+ *        Hacamat Noktaları + Kupa Teknikleri + Güvenlik & Kontrendikasyonlar)
  *
  * owner FINAL: eski bağımsız konu/rahatsızlık rehber akışı kullanıcıdan KALDIRILDI —
  * aynı konu iki ayrı yerde tutulmasın. Legacy verisi (cupping_topics vb.) DB'de DORMANT
  * korunur; ilgili eski rota protokol çalışma alanına yönlendirir (route seviyesinde
- * redirect). Güvenlik/Kaynaklar/Bilgi standalone altyapısı KORUNUR ama landing'de GÖRÜNMEZ;
- * uzman bunları protokolün içinden oluşturup bağlar. Yalnız landing hiyerarşisi.
+ * redirect). K5 (owner FINAL): Güvenlik standalone yönetimi landing'de GÖRÜNÜR (destek kartı);
+ * Kaynaklar/Bilgi standalone altyapısı KORUNUR ama landing'de görünmez (protokol içinden bağlanır).
  *
  * Copy kullanıcı dilinde (DB/mimari jargonu YOK). İçerik/route DEĞİŞMEZ; yalnız
  * landing navigation hiyerarşisi. Yeni fetch/API/sayaç YOK — statik navigasyon.
@@ -36,6 +36,12 @@ const SUPPORT: Area[] = [
     desc: "Kuru, yaş ve farklı uygulama tekniklerini yönetin.",
     icon: "🌀",
     href: "/kupa/teknikler",
+  },
+  {
+    title: "Güvenlik & Kontrendikasyonlar",
+    desc: "Kendi güvenlik / dikkat maddelerinizi oluşturun, düzenleyin ve protokollere bağlayın.",
+    icon: "🛡️",
+    href: "/kupa/guvenlik",
   },
 ];
 

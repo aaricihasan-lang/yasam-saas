@@ -9,22 +9,24 @@ import { createSource, deleteSource, listSources, updateSource, type CuppingSour
  * katalogdaki kayıtlara bağlanır. FAZ 1.5 bibliyografik alanlar burada girilir.
  */
 
+const SOURCE_TYPE_OPTIONS = [
+  { value: "historical_primary", label: "Tarihsel Birincil" },
+  { value: "historical_secondary", label: "Tarihsel İkincil" },
+  { value: "book_monograph", label: "Kitap / Monografi" },
+  { value: "academic_article", label: "Akademik Makale" },
+  { value: "systematic_review", label: "Sistematik Derleme / Meta-analiz" },
+  { value: "clinical_study", label: "Klinik Çalışma" },
+  { value: "official_guidance", label: "Resmî Rehber / Otorite" },
+  { value: "expert_educational", label: "Uzman / Eğitim" },
+];
+
 const FIELDS: FieldDef[] = [
   { key: "source_name", label: "Kaynak Adı", type: "text", required: true },
   {
     key: "source_type",
     label: "Bibliyografik Tür",
     type: "select",
-    options: [
-      { value: "historical_primary", label: "Tarihsel Birincil" },
-      { value: "historical_secondary", label: "Tarihsel İkincil" },
-      { value: "book_monograph", label: "Kitap / Monografi" },
-      { value: "academic_article", label: "Akademik Makale" },
-      { value: "systematic_review", label: "Sistematik Derleme / Meta-analiz" },
-      { value: "clinical_study", label: "Klinik Çalışma" },
-      { value: "official_guidance", label: "Resmî Rehber / Otorite" },
-      { value: "expert_educational", label: "Uzman / Eğitim" },
-    ],
+    options: SOURCE_TYPE_OPTIONS,
   },
   { key: "author_or_organization", label: "Yazar / Kurum", type: "text" },
   { key: "title", label: "Başlık", type: "text" },
@@ -56,6 +58,17 @@ export default function KaynaklarPage() {
         remove={deleteSource}
         emptyLabel="Henüz kaynak yok. Yeni ekleyin."
         addLabel="Kaynak"
+        searchKeys={[
+          "source_name",
+          "title",
+          "author_or_organization",
+          "publication",
+          "identifier",
+          "note",
+          "year",
+        ]}
+        searchPlaceholder="Ada, yazara veya detaya göre ara…"
+        filters={[{ key: "source_type", label: "Tür", options: SOURCE_TYPE_OPTIONS }]}
       />
     </KupaShell>
   );
