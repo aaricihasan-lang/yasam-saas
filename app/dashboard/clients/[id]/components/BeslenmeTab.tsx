@@ -1,8 +1,12 @@
 "use client";
 /**
- * Danışan detay — Beslenme sekmesi (FAZ 7). Owner/super-admin-only içerik.
+ * Danışan detay — Beslenme sekmesi. Danışan Yolculuğu (clients) erişimi olan uzman +
+ * owner içindir; gerçek güvenlik SERVER-SIDE client guard'dır (API'ler clients-scoped,
+ * tenant+client fail-closed). Bu bileşen ayrı bir owner probe ile önden ENGELLEMEZ;
+ * doğrudan client-scoped API'lerden yükler, server 401/403 dönerse güvenli denied gösterir.
  * Self-fetch (clientId prop). Profil + Ölçümler + Beyan Alerjiler + Tercihler + Planlar.
  * PII tekrarı YOK; clients.kan/mizac read-only integrative badge. CRM paneli DEĞİL.
+ * Plan OLUŞTURMA/EDİTÖR yalnız owner (canManagePlans) — uzmanda plan listesi salt-okunur.
  * i18n: beslenme.detail namespace (EN/TR). DB kodları (goal_type/activity/kan/mizac/
  * stance/status) canonical'dır; YALNIZ display çevrilir.
  */
@@ -10,7 +14,6 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
-import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import {
   getProfile, saveProfile, listMeasurements, addMeasurement, deleteMeasurement,
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
@@ -20,7 +23,17 @@ import {
 } from "@/lib/beslenme/clientTabClient";
 import { GOAL_TYPES, ACTIVITY_LEVELS, computeBmi } from "@/lib/beslenme/clientContracts";
 
-type Props = { clientId: string; clientName?: string; tenantId?: string };
+type Props = {
+  clientId: string;
+  clientName?: string;
+  tenantId?: string;
+  /**
+   * Plan YÖNETİMİ capability'si (owner/super-admin). true → "Yeni Plan" + plan editör
+   * linkleri; false (uzman) → plan yalnız salt-okunur liste (AŞAMA 2'de açılacak).
+   * Güvenlik sınırı DEĞİL (server owner-authoritative); yalnız UI görünürlüğü.
+   */
+  canManagePlans?: boolean;
+};
 type Tf = ReturnType<typeof useTranslations>;
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
@@ -35,7 +48,7 @@ function Section({ title, children, action }: { title: string; children: React.R
   );
 }
 
-export default function BeslenmeTab({ clientId, clientName }: Props) {
+export default function BeslenmeTab({ clientId, clientName, canManagePlans = false }: Props) {
   const t = useTranslations("beslenme.detail");
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
   const [client, setClient] = useState<ClientContext | null>(null);
@@ -52,30 +65,28 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
     setTimeout(() => setBanner(null), 3500);
   }, []);
 
-  const reloadAll = useCallback(async () => {
-    const [p, m, a, v, pr, pl] = await Promise.all([
-      getProfile(clientId), listMeasurements(clientId), getAllergens(clientId),
-      getAllergenVocab(), listPreferences(clientId), listClientPlans(clientId),
-    ]);
-    if (p.ok && p.data) { setProfile(p.data.profile); setClient(p.data.client); }
-    if (m.ok && m.data) setMeasurements(m.data.measurements);
-    if (a.ok && a.data) setAllergensState(a.data.allergens);
-    if (v.ok && v.data) setVocab(v.data.allergens);
-    if (pr.ok && pr.data) setPrefs(pr.data.preferences);
-    if (pl.ok && pl.data) setFamilies(pl.data.families);
-  }, [clientId]);
-
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const ok = await checkBeslenmeAccess().catch(() => false);
+      // Owner ön-probe YOK: doğrudan client-scoped API'lerden yükle. Güvenlik
+      // server-authoritative — profil ucu 401/403 dönerse (clients yetkisi yok ya da
+      // başka tenant danışanı) güvenli "denied" göster; aksi halde veriyi bas.
+      const [p, m, a, v, pr, pl] = await Promise.all([
+        getProfile(clientId), listMeasurements(clientId), getAllergens(clientId),
+        getAllergenVocab(), listPreferences(clientId), listClientPlans(clientId),
+      ]);
       if (!alive) return;
-      if (!ok) { setAccess("denied"); return; }
+      if (p.status === 401 || p.status === 403) { setAccess("denied"); return; }
       setAccess("ok");
-      await reloadAll();
+      if (p.ok && p.data) { setProfile(p.data.profile); setClient(p.data.client); }
+      if (m.ok && m.data) setMeasurements(m.data.measurements);
+      if (a.ok && a.data) setAllergensState(a.data.allergens);
+      if (v.ok && v.data) setVocab(v.data.allergens);
+      if (pr.ok && pr.data) setPrefs(pr.data.preferences);
+      if (pl.ok && pl.data) setFamilies(pl.data.families);
     })();
     return () => { alive = false; };
-  }, [reloadAll]);
+  }, [clientId]);
 
   if (access === "loading") return <p className="p-4 text-sm text-slate-400">{t("loading")}</p>;
   if (access === "denied") return <p className="p-4 text-sm text-slate-500">{t("denied")}</p>;
@@ -109,7 +120,7 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
       <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
       <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
       <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
-      <PlansSection t={t} clientId={clientId} clientName={name} families={families} />
+      <PlansSection t={t} clientId={clientId} clientName={name} families={families} canManagePlans={canManagePlans} />
     </div>
   );
 }
@@ -292,11 +303,18 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
 }
 
 // ── Planlar ──
-function PlansSection({ t, clientId, clientName, families }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[] }) {
+// canManagePlans=true (owner): "Yeni Plan" + plan editör linkleri (mevcut davranış).
+// canManagePlans=false (uzman): danışana bağlı planlar SALT-OKUNUR liste — yeni plan /
+// editör YOK, dead-link YOK (plan editörü AŞAMA 2). Güvenlik server-side'dır.
+function PlansSection({ t, clientId, clientName, families, canManagePlans }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[]; canManagePlans: boolean }) {
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
   const newHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
+  const revMeta = (r: { revision_number: number; status: string }) => `V${r.revision_number} · ${statusLabel(r.status)}`;
   return (
-    <Section title={t("plans.title")} action={<Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>}>
+    <Section
+      title={t("plans.title")}
+      action={canManagePlans ? <Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link> : undefined}
+    >
       {families.length === 0 ? (
         <p className="text-sm text-slate-400">{t("plans.empty")}</p>
       ) : (
@@ -306,7 +324,11 @@ function PlansSection({ t, clientId, clientName, families }: { t: Tf; clientId: 
               {f.latest && (
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
+                    {canManagePlans ? (
+                      <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
+                    ) : (
+                      <span className="font-semibold text-emerald-800">{f.latest.title}</span>
+                    )}
                     <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {f.latest.start_date} → {f.latest.end_date}</span>
                   </div>
                 </div>
@@ -314,7 +336,11 @@ function PlansSection({ t, clientId, clientName, families }: { t: Tf; clientId: 
               {f.revisions.length > 1 && (
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                   {f.revisions.map((r) => (
-                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">V{r.revision_number} · {statusLabel(r.status)}</Link>
+                    canManagePlans ? (
+                      <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">{revMeta(r)}</Link>
+                    ) : (
+                      <span key={r.id} className="rounded bg-slate-100 px-2 py-0.5">{revMeta(r)}</span>
+                    )
                   ))}
                 </div>
               )}

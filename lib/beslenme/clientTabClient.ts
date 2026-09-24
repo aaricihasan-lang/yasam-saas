@@ -82,8 +82,10 @@ export const deletePreference = (c: string, id: string) =>
 export const listClientPlans = (c: string) => req<{ families: PlanFamily[] }>(`${base(c)}/plans`, { headers: authHeaders() });
 
 // ── Reference (allergen vocab for multi-select) ──
+// DAR, danışan-scoped endpoint (requireModuleAccess "clients"): yalnız allergens döner.
+// Geniş /api/beslenme/reference (foodGroups+frameworks, owner/contributor) KULLANILMAZ.
 export type AllergenVocab = { id: string; code: string; name_tr: string | null; name_en: string | null; is_major: boolean };
-export const getAllergenVocab = () => req<{ allergens: AllergenVocab[] }>(`/api/beslenme/reference`, { headers: authHeaders() });
+export const getAllergenVocab = () => req<{ allergens: AllergenVocab[] }>(`/api/beslenme/client-reference`, { headers: authHeaders() });
 
 // ── Assign / binding ──
 export type PlanClientSummary = {
