@@ -37,7 +37,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -77,12 +77,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (existing?.id) {
     const { error } = await db.from(TABLE).update(payload).eq("id", existing.id).eq("tenant_id", tenantId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     return NextResponse.json({ ok: true, id: existing.id });
   }
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -138,6 +138,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("id", ids)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

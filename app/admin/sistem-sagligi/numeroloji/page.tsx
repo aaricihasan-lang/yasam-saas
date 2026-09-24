@@ -96,7 +96,7 @@ export default function SistemSagligiNumerolojiPage() {
       loadingLabel="Numeroloji metrikleri yükleniyor…"
       error={loadError}
       onRetry={() => void loadData()}
-      tableBadge="numerology_analyses tablosu · sayısal özet"
+      tableBadge="numerology_records tablosu · sayısal özet"
     >
       <section
         aria-label="Numeroloji özeti"

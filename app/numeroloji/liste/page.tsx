@@ -14,7 +14,7 @@ import { RowErrorBoundary } from "../components/RowErrorBoundary";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { WordPersonSectionPicker } from "../components/WordPersonSectionPicker";
 import type { WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
-import { numApi, numApiError } from "../helpers/numApiClient";
+import { numApi, numApiError, authHeaders } from "../helpers/numApiClient";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
@@ -161,7 +161,6 @@ export default function NumerolojiListePage() {
       showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
       return;
     }
-    const { userId, tenantId } = session;
     setWordBusy(true);
     try {
       let ids: string[] | undefined;
@@ -172,10 +171,11 @@ export default function NumerolojiListePage() {
         ids = filteredRows.map((r) => r.id);
         if (!ids.length) return;
       }
+      // NUM-001: kimlik/tenant body'ye KONMAZ; sunucu oturumdan çözer (authHeaders).
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, userId, exportMode: mode === "all" ? "all" : "selected", ids, sections }),
+        headers: authHeaders(),
+        body: JSON.stringify({ exportMode: mode === "all" ? "all" : "selected", ids, sections }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };

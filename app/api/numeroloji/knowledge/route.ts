@@ -48,7 +48,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -211,6 +211,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("id", ids)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

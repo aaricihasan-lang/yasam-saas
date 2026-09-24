@@ -1,7 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import {
   WORD_TAB_LABELS,
   WORD_TAB_ORDER,
@@ -25,17 +24,23 @@ export const runtime = "nodejs";
 
 type ExportMode = "all" | "selected" | "single";
 
-export async function POST(request: Request): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
+export async function POST(req: NextRequest): Promise<Response> {
+  // Android Word politikası (defense-in-depth): Android cihazlarda .docx üretilmez.
+  const androidBlocked = androidWordGuard(req);
   if (androidBlocked) return androidBlocked;
 
-  let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  // NUM-001: kimlik + tenant SUNUCUDA oturumdan çözülür (x-user-id + x-session-token
+  // binding + numerology modül izni). Body'den tenantId/userId ARTIK OKUNMAZ →
+  // başka tenant'ın Word'ünü indirtmek imkânsız (çapraz-tenant export kapandı).
+  const guard = await requireModuleAccess(req, "numerology");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId, is_demo_account } = guard;
 
-  const { tenantId, userId, exportMode = "all", ids, recordId, sections: sectionsRaw, referenceDate: referenceDateRaw } = body as {
-    tenantId?: string;
-    userId?: string;
+  let body: unknown;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+
+  const { exportMode = "all", ids, recordId, sections: sectionsRaw, referenceDate: referenceDateRaw } = body as {
     exportMode?: ExportMode;
     ids?: string[];
     recordId?: string;
@@ -51,39 +56,22 @@ export async function POST(request: Request): Promise<Response> {
   let refCalendar: CalendarDate | null = null;
   if (sections.zamanlama) {
     const m = typeof referenceDateRaw === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(referenceDateRaw) : null;
-    if (!m) return Response.json({ ok: false, error: "Zamanlama & Gelişim için geçerli bir referans tarihi (YYYY-AA-GG) gereklidir." }, { status: 400 });
+    if (!m) return NextResponse.json({ ok: false, error: "Zamanlama & Gelişim için geçerli bir referans tarihi (YYYY-AA-GG) gereklidir." }, { status: 400 });
     const year = Number(m[1]); const month = Number(m[2]); const day = Number(m[3]);
     if (!isValidCalendarDate(day, month, year))
-      return Response.json({ ok: false, error: "Geçersiz zamanlama referans tarihi." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Geçersiz zamanlama referans tarihi." }, { status: 400 });
     refCalendar = { year, month, day };
   }
 
-  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
-    return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
-
-  // IDOR koruması — kullanıcı bu tenant'a ait mi (service_role)
-  const { data: userRow } = await db.from("users").select("id").eq("id", userId).eq("tenant_id", tenantId).maybeSingle();
-  if (!userRow) return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const __moduleGate = await assertUserModuleAccess(db, userId, "numerology");
-  if (!__moduleGate.ok) return __moduleGate.response;
-
-  if (await isDemoAccountId(userId, db))
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  if (is_demo_account)
+    return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let query = db.from("numerology_records").select("*").eq("tenant_id", tenantId);
   if (exportMode === "single" && recordId) query = query.eq("id", recordId);
   else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) query = query.in("id", ids);
 
   const { data, error } = await query.order("name");
-  if (error) return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "Kayıtlar okunamadı." }, { status: 500 });
 
   const rows = (data || []) as WordRecordRow[];
   if (!rows.length) return Response.json({ ok: false, error: "Bu seçim için kayıt bulunamadı." }, { status: 404 });
