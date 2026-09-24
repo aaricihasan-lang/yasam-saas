@@ -5,6 +5,7 @@ import {
   CUPPING_ARRAY_MAX_ITEMS,
   CUPPING_ARRAY_ITEM_MAX,
 } from "@/lib/cupping/fields";
+import { withSafeSortOrder } from "@/lib/cupping/normalize";
 
 /**
  * KUPA & HACAMAT — server CRUD yardımcıları.
@@ -141,9 +142,12 @@ export async function insertEntity(
 ): Promise<Ok<Record<string, unknown>> | Fail> {
   const invalid = validateWritable(table, fields);
   if (invalid) return { ok: false, response: invalid };
+  // KUP-NEW-1 backstop: sort_order VARSA güvenli 0 sözleşmesine zorla (client dışı çağrılar
+  // da DB'ye açık null gönderemesin). Yoksa DOKUNMA → DB DEFAULT 0 çalışır.
+  const safe = withSafeSortOrder(fields);
   const { data, error } = await db
     .from(table)
-    .insert({ ...fields, tenant_id: tenantId })
+    .insert({ ...safe, tenant_id: tenantId })
     .select()
     .single();
   if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
@@ -159,9 +163,11 @@ export async function updateEntity(
 ): Promise<Ok<Record<string, unknown>> | Fail> {
   const invalid = validateWritable(table, fields);
   if (invalid) return { ok: false, response: invalid };
+  // KUP-NEW-1 backstop: kullanıcı "Sıra" alanını temizlerse (sort_order null/boş) → 0.
+  const safe = withSafeSortOrder(fields);
   const { data, error } = await db
     .from(table)
-    .update({ ...fields, updated_at: new Date().toISOString() })
+    .update({ ...safe, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select()
