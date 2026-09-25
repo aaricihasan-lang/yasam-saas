@@ -34,6 +34,7 @@
     "numeroloji:canonical:harness": "tsx scripts/numeroloji-canonical/harness.ts",
     "numeroloji:presale:harness": "tsx scripts/numeroloji-presale/date-boundary.harness.ts",
     "numeroloji:check": "tsx scripts/numeroloji-canonical/harness.ts && tsx scripts/numeroloji-presale/date-boundary.harness.ts && tsx scripts/numeroloji-presale/module-guard.harness.ts",
+    "numeroloji:delete-confirm": "tsx scripts/numeroloji-presale/delete-confirm.harness.ts",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
