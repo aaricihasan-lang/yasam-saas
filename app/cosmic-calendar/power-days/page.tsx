@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { getMonthPhaseEvents, getUpcomingPhaseEvents } from "@/lib/cosmic/moon";
+
+// #418 hydration fix: "bugün" (daysFromNow, vurgu) SSR↔client farkını önlemek için ilk render
+// sabit referans anıyla (Date.UTC → tz-bağımsız); gerçek bugün paint öncesi layout-effect ile.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -70,10 +75,11 @@ function scoreDay(
   return { date, daysFromNow: 0, score, moonLabel, moonEmoji, moonPts, numValue: num, numPts, reasons };
 }
 
-function getMonthPowerDays(year: number, month: number): PowerDay[] {
+// `today` DIŞARIDAN verilir (hydration-safe): render sırasında new Date() çağırmaz → SSR↔client
+// daysFromNow tutarlı.
+function getMonthPowerDays(year: number, month: number, today: Date): PowerDay[] {
   const daysInMonth   = new Date(year, month + 1, 0).getDate();
   const result: PowerDay[] = [];
-  const today         = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   // AE tabanlı faz olayları — gerçek TR takvim günleri (noon-scan değil)
@@ -116,13 +122,16 @@ function getUpcomingPowerDays(from: Date, days: number): PowerDay[] {
 // ─── Bileşen ──────────────────────────────────────────────────────────────────
 
 export default function PowerDaysPage() {
-  const now = useMemo(() => new Date(), []);
+  const [now, setNow] = useState<Date>(HYDRATION_SAFE_NOW);
   const [filter,   setFilter]   = useState<PowerFilter>("all");
   const [showAll,  setShowAll]  = useState(false);
   const INITIAL_SHOW = 20;
 
+  // Mount'ta gerçek "şimdi"ye geç (paint öncesi) → hydration birebir, sonra gerçek gün.
+  useIsomorphicLayoutEffect(() => { setNow(new Date()); }, []);
+
   const thisMonthDays = useMemo(
-    () => getMonthPowerDays(now.getFullYear(), now.getMonth()),
+    () => getMonthPowerDays(now.getFullYear(), now.getMonth(), now),
     [now],
   );
   const top3 = useMemo(() => thisMonthDays.slice(0, 3), [thisMonthDays]);

@@ -118,6 +118,13 @@ const ZODIAC_SYMBOL_LOCAL: Record<string, string> = {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function GET() {
+  // §16: Bu uç kimliksiz, hesaplama-yoğun bir DEV doğruluk diagnostiğidir (AE vs legacy vs
+  // aeRaw, days*48 döngü). Production'da anonim erişilebilir olması kaynak-suistimali yüzeyidir
+  // → production'da tamamen kapalı (404). Yerel/preview'da doğrulama için açık kalır.
+  if (process.env.NODE_ENV === "production") {
+    return Response.json({ ok: false, error: "Not found." }, { status: 404 });
+  }
+
   const now  = new Date();
   const days = 14;
 

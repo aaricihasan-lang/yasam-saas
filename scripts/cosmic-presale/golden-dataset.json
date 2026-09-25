@@ -1,0 +1,30 @@
+{
+  "_note": "§19 IMMUTABLE GOLDEN DATASET. Değerler BAĞIMSIZ Swiss Ephemeris (scripts/cosmic-presale/swe_golden.py) ile üretildi — üretim motorundan (astronomy-engine) türetilmedi. CI'da bu değerler değişirse test FAIL eder. Üretim AE ↔ SWE burç/retro uyumu ayrıca §21/§22'de doğrulandı. Elle güncellemeyin; yalnız kasıtlı motor değişiminde swe_golden.py ile yeniden üretin.",
+  "location": { "name": "İstanbul", "lat": 41.0082, "lon": 28.9784 },
+  "instants": [
+    {
+      "label": "2026-07-15 12:00 TR",
+      "utc": "2026-07-15T09:00:00Z",
+      "sunSign": "Yengeç",
+      "moonSign": "Aslan",
+      "sunMoonElongationDeg": 13.52,
+      "retroActive": ["Merkür"]
+    },
+    {
+      "label": "2030-11-10 09:00 TR",
+      "utc": "2030-11-10T06:00:00Z",
+      "sunSign": "Akrep",
+      "moonSign": "Boğa",
+      "sunMoonElongationDeg": 181.14,
+      "retroActive": ["Satürn"]
+    },
+    {
+      "label": "2045-03-05 20:00 TR",
+      "utc": "2045-03-05T17:00:00Z",
+      "sunSign": "Balık",
+      "moonSign": "Terazi",
+      "sunMoonElongationDeg": 211.97,
+      "retroActive": []
+    }
+  ]
+}

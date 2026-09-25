@@ -14,6 +14,7 @@ import {
   getUpcomingPhaseEvents,
   type MonthPhaseEvent,
 } from "@/lib/cosmic/moon";
+import { canNavigateMonth, SUPPORT_RANGE_LABEL } from "@/lib/cosmic/dateRange";
 
 // #418 hydration fix: ilk render'da sabit mutlak referans anı (Date.UTC → tz-bağımsız) → server↔client
 // birebir; gerçek "bugün" paint öncesi layout-effect ile yazılır. Kardeş sayfalarla (page.tsx,
@@ -200,11 +201,17 @@ export default function MoonPhasesPage() {
 
   // Saat bilgisi artık upcoming45'teki timeTR'den geliyor — ayrı events lookup gerekmez
 
+  // Navigasyon TEK KAYNAK destek aralığını (dateRange) aşamaz — moon.ts legacy fallback'in
+  // kapsam dışında yaklaşık (yanlış) faz/burç üretmesi bu şekilde engellenir.
+  const canGoPrevMonth = canNavigateMonth(viewYear, viewMonth, -1);
+  const canGoNextMonth = canNavigateMonth(viewYear, viewMonth, 1);
   function prevMonth() {
+    if (!canGoPrevMonth) return;
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
     else setViewMonth(m => m - 1);
   }
   function nextMonth() {
+    if (!canGoNextMonth) return;
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
     else setViewMonth(m => m + 1);
   }
@@ -429,8 +436,10 @@ export default function MoonPhasesPage() {
           <div className="mb-2 flex items-center gap-2">
             <button
               onClick={prevMonth}
+              disabled={!canGoPrevMonth}
               aria-label="Önceki ay"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
+              title={!canGoPrevMonth ? `Desteklenen aralığın başı (${SUPPORT_RANGE_LABEL})` : undefined}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -439,8 +448,10 @@ export default function MoonPhasesPage() {
             </h2>
             <button
               onClick={nextMonth}
+              disabled={!canGoNextMonth}
               aria-label="Sonraki ay"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600"
+              title={!canGoNextMonth ? `Desteklenen aralığın sonu (${SUPPORT_RANGE_LABEL})` : undefined}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

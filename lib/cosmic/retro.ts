@@ -15,6 +15,7 @@
  */
 
 import * as AE from "astronomy-engine";
+import { SUPPORT_END_YEAR } from "./dateRange";
 
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
@@ -63,8 +64,11 @@ const RETRO_BISECT_ITERS = 28;          // ~saniye-altı hassasiyet (adım/2^28)
 const RETRO_TR_OFFSET = 3 * 3_600_000;  // Türkiye UTC+3 sabit (2016'dan beri DST yok)
 
 // Sabit, deterministik pencere (SSR↔client tutarlılığı için new Date() KULLANILMAZ).
+// Üst sınır TEK KAYNAK'tan (dateRange) gelir: desteklenen aralık 2050-12-31'i KAPSAR.
+// toMs = Date.UTC(RETRO_TO_YEAR, 0, 1) EXCLUSIVE olduğundan +1 ile tüm 2050 dahil edilir
+// (aksi hâlde retro verisi 2049-12-31'de biter, ilan edilen 31.12.2050 ile ayrışırdı).
 const RETRO_FROM_YEAR = 2024;
-const RETRO_TO_YEAR   = 2050;
+const RETRO_TO_YEAR   = SUPPORT_END_YEAR + 1;
 
 function aeEclLon(body: AE.Body, ms: number): number {
   return AE.Ecliptic(AE.GeoVector(body, new Date(ms), true)).elon;

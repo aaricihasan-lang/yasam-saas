@@ -1,55 +1,85 @@
-import { createClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
-import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { NextResponse } from "next/server";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
-// Server-side: service role key (RLS bypass, sadece API route içinde kullanılır)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+// KAJ-P1-03: hacamat_rules artık TENANT-scoped ve RLS ile doğuştan-kilitli
+// (anon/authenticated doğrudan PostgREST erişimi YOK — bkz. 20270125000000 migration).
+// Tüm erişim burada service-role (guard.db) ile, tenant SESSION'dan (guard.tenantId) türetilir;
+// body'deki tenant/id bilgisine ASLA güvenilmez. Modül kapısı: cosmic_calendar (her aktif
+// uzman için açık; anon/pending/rejected engellenir → verifyUserRequest binding'i).
 
-export async function GET() {
-  const { data, error } = await supabase
+const CATEGORIES = ["before", "after", "general"] as const;
+type Category = (typeof CATEGORIES)[number];
+const MAX_RULE_TEXT = 2000;          // tek kural metni üst sınırı
+const MAX_RULES_PER_TENANT = 300;    // tenant başına kural adedi tavanı (kaynak-suistimali koruması)
+
+function json(body: unknown, status = 200): NextResponse {
+  return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+function isCategory(v: unknown): v is Category {
+  return typeof v === "string" && (CATEGORIES as readonly string[]).includes(v);
+}
+
+/** GET: yalnız çağıranın tenant'ına ait kurallar (auth zorunlu). */
+export async function GET(req: NextRequest) {
+  const guard = await requireModuleAccess(req, "cosmic_calendar");
+  if (!guard.ok) return guard.response;
+  const { db, tenantId } = guard;
+
+  const { data, error } = await db
     .from("hacamat_rules")
-    .select("*")
+    .select("id, category, rule_text, sort_order")
+    .eq("tenant_id", tenantId)
     .order("category")
     .order("sort_order");
 
-  if (error)
-    return Response.json({ ok: false, error: error.message }, { status: 500 });
-
-  return Response.json({ ok: true, data });
+  if (error) return json({ ok: false, code: "LIST_FAILED", error: "Kurallar yüklenemedi." }, 500);
+  return json({ ok: true, data: data ?? [] });
 }
 
-export async function POST(request: NextRequest) {
-  // Global hacamat_rules tablosu tüm tenant'lara servis edilir → yalnızca admin yazabilir.
-  // Anonim (header yok) → 401, expert/demo (role!=admin) → 403.
-  const guard = await verifyAdminRequest(request);
+/** POST: kendi tenant'ına yeni kural. */
+export async function POST(req: NextRequest) {
+  const guard = await requireModuleAccess(req, "cosmic_calendar");
   if (!guard.ok) return guard.response;
+  if (guard.is_demo_account)
+    return json({ ok: false, code: "DEMO_READONLY", error: "Demo hesap kural ekleyemez." }, 403);
+  const { db, tenantId } = guard;
 
   let body: unknown;
-  try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }
+  try { body = await req.json(); }
+  catch { return json({ ok: false, error: "Geçersiz istek." }, 400); }
 
-  const { category, rule_text, sort_order = 0 } = body as {
-    category:   string;
-    rule_text:  string;
-    sort_order?: number;
-  };
+  const b = (body ?? {}) as { category?: unknown; rule_text?: unknown; sort_order?: unknown };
 
-  if (!category || !rule_text?.trim())
-    return Response.json({ ok: false, error: "category ve rule_text zorunludur." }, { status: 400 });
+  if (!isCategory(b.category))
+    return json({ ok: false, error: "category yalnız 'before', 'after' veya 'general' olabilir." }, 400);
 
-  const { data, error } = await supabase
+  if (typeof b.rule_text !== "string" || b.rule_text.trim() === "")
+    return json({ ok: false, error: "rule_text zorunludur." }, 400);
+  const rule_text = b.rule_text.trim();
+  if (rule_text.length > MAX_RULE_TEXT)
+    return json({ ok: false, error: `Kural metni en fazla ${MAX_RULE_TEXT} karakter olabilir.` }, 400);
+
+  const sort_order = Number.isInteger(b.sort_order) ? (b.sort_order as number) : 0;
+
+  // Tenant başına kural tavanı (abuse guard).
+  const { count, error: countErr } = await db
     .from("hacamat_rules")
-    .insert({ category, rule_text: rule_text.trim(), sort_order })
-    .select()
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId);
+  if (countErr) return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
+  if ((count ?? 0) >= MAX_RULES_PER_TENANT)
+    return json({ ok: false, error: `En fazla ${MAX_RULES_PER_TENANT} kural eklenebilir.` }, 409);
+
+  const { data, error } = await db
+    .from("hacamat_rules")
+    .insert({ tenant_id: tenantId, category: b.category, rule_text, sort_order })
+    .select("id, category, rule_text, sort_order")
     .single();
 
-  if (error)
-    return Response.json({ ok: false, error: error.message }, { status: 500 });
-
-  return Response.json({ ok: true, data }, { status: 201 });
+  if (error) return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
+  return json({ ok: true, data }, 201);
 }
