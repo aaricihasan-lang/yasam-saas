@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { DAY_PATCH_KEYS, isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, isPlanEditable, getDayScope, loadDayDetail } from "@/lib/beslenme/planEngine";
@@ -9,7 +10,7 @@ type RouteCtx = { params: Promise<{ id: string; dayId: string }> };
 
 /** GET: gün detay (meals + items + frozen nutrient snapshot). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id, dayId } = await ctx.params;
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
 
 /** PATCH: günlük hedef override / not. Archived → 403. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -197,12 +197,14 @@ function ClientDetailPageInner() {
   const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel", activeTab]));
   const [loading, setLoading] = useState(true);
   const [deletingClient, setDeletingClient] = useState(false);
-  // Beslenme sekmesi yalnız sistem sahibine (super-admin) görünür. Client-side gizleme
-  // güvenlik sınırı DEĞİL (API'ler owner-authoritative); yalnız UX. §22
-  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
+  // Beslenme sekmesi Danışan Yolculuğu (clients) erişimi olan uzmana da GÖRÜNÜR; gerçek
+  // güvenlik server-side client guard'dır (API'ler clients-scoped, tenant+client fail-closed).
+  // Bu owner probe'u YALNIZ plan YÖNETİMİ capability'si için tutulur: owner=super-admin →
+  // "Yeni Plan" + plan editörü; uzman → plan yalnız salt-okunur liste (editör AŞAMA 2). §22
+  const [isBeslenmeOwner, setIsBeslenmeOwner] = useState(false);
   useEffect(() => {
     let alive = true;
-    void checkBeslenmeAccess().then((ok) => { if (alive) setBeslenmeOwner(ok === true); }).catch(() => {});
+    void checkBeslenmeAccess().then((ok) => { if (alive) setIsBeslenmeOwner(ok === true); }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -683,9 +685,7 @@ function ClientDetailPageInner() {
             <Tab label={t("tab.analizler")}  id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
             <Tab label={t("tab.yolculuk")}   id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
             <Tab label={t("tab.hafiza")}     id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
-            {beslenmeOwner && (
-              <Tab label={t("tab.beslenme")}  id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
-            )}
+            <Tab label={t("tab.beslenme")}  id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
             {/* "Yaşam Hafızası'ndan Seç" aksiyonu UAT sonrası UI'dan kaldırıldı
                 (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
                 plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi
@@ -991,9 +991,9 @@ function ClientDetailPageInner() {
             <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
           </div>
           )}
-          {beslenmeOwner && openedTabs.has("beslenme") && (
+          {openedTabs.has("beslenme") && (
           <div role="tabpanel" id="tabpanel-beslenme" aria-labelledby="tab-beslenme" hidden={activeTab !== "beslenme"}>
-            <BeslenmeTab clientId={client.id} clientName={fullName || t("clientFallback")} />
+            <BeslenmeTab clientId={client.id} clientName={fullName || t("clientFallback")} isOwner={isBeslenmeOwner} />
           </div>
           )}
         </DanisanSectionShell>

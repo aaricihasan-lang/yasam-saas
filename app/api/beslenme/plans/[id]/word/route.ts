@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
@@ -12,7 +13,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
  * POST: plan → profesyonel Word (DOCX) çıktısı.
  *
  * Güvenlik/politika:
- *  - Kimlik yalnız sunucudan (requireBeslenmeOwner: header-token + owner gate). Body güven kaynağı DEĞİL.
+ *  - Kimlik yalnız sunucudan (requireBeslenmePlanAccess: owner ya da bound-plan uzmanı). Body güven kaynağı DEĞİL.
  *  - Plan tenant-scoped okunur (IDOR: yabancı plan → NOT_FOUND, sızıntı yok).
  *  - Arşiv (archived) planlar da export EDİLEBİLİR — bu bir okuma işlemidir.
  *  - Demo hesap: export REDDEDİLİR (canonical app politikası: mevcut Word export route'ları —
@@ -24,7 +25,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const androidBlocked = androidWordGuard(req);
   if (androidBlocked) return androidBlocked;
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

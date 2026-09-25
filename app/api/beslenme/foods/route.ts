@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, requireBeslenmeFoodRead, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
   FOOD_COLUMNS,
@@ -25,9 +25,9 @@ const CREATE_KEYS = [
   "sort_order",
 ] as const;
 
-/** GET: liste + arama + grup filtresi (SYSTEM ∪ kendi tenant). */
+/** GET: liste + arama + grup filtresi (SYSTEM ∪ kendi tenant). READ-only kapı → plan editörü uzmanı da okuyabilir. */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeFoodContributor(req);
+  const guard = await requireBeslenmeFoodRead(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -39,6 +39,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "50", 10) || 50));
   const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
   const normalizedQuery = q ? normalizeSearchText(q).normalizedText || null : null;
+
+  // GARbage-query semantiği (UAT P3): kullanıcı q GÖNDERDİ ama normalizasyon boş çıktı
+  // (ör. yalnız noktalama "---") → tüm katalogu döndürme; 0 sonuç. q hiç verilmemişse
+  // (q boş) normalizedQuery zaten null kalır ve aşağıdaki RPC browse davranışını korur.
+  if (q && normalizedQuery === null) {
+    return NextResponse.json(
+      { ok: true, foods: [], total: 0, limit, offset },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   // Ranked + paginated search RPC (ts_rank_cd relevance; SYSTEM ∪ caller CUSTOM union).
   const { data, error } = await db.rpc("nutrition_food_search", {

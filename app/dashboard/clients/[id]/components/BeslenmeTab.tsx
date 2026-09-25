@@ -1,26 +1,41 @@
 "use client";
 /**
- * Danışan detay — Beslenme sekmesi (FAZ 7). Owner/super-admin-only içerik.
+ * Danışan detay — Beslenme sekmesi. Danışan Yolculuğu (clients) erişimi olan uzman +
+ * owner içindir; gerçek güvenlik SERVER-SIDE client guard'dır (API'ler clients-scoped,
+ * tenant+client fail-closed). Bu bileşen ayrı bir owner probe ile önden ENGELLEMEZ;
+ * doğrudan client-scoped API'lerden yükler, server 401/403 dönerse güvenli denied gösterir.
  * Self-fetch (clientId prop). Profil + Ölçümler + Beyan Alerjiler + Tercihler + Planlar.
  * PII tekrarı YOK; clients.kan/mizac read-only integrative badge. CRM paneli DEĞİL.
+ * Plan OLUŞTURMA/EDİTÖR yalnız owner (canManagePlans) — uzmanda plan listesi salt-okunur.
  * i18n: beslenme.detail namespace (EN/TR). DB kodları (goal_type/activity/kan/mizac/
  * stance/status) canonical'dır; YALNIZ display çevrilir.
  */
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
-import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import {
   getProfile, saveProfile, listMeasurements, addMeasurement, deleteMeasurement,
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
-  listClientPlans,
+  listClientPlans, createClientPlan,
   type ClientProfile, type ClientContext, type Measurement, type ClientAllergen,
-  type FoodPreference, type PlanFamily, type AllergenVocab,
+  type FoodPreference, type PlanFamily, type AllergenVocab, type AllergenSetItem,
 } from "@/lib/beslenme/clientTabClient";
 import { GOAL_TYPES, ACTIVITY_LEVELS, computeBmi } from "@/lib/beslenme/clientContracts";
 
-type Props = { clientId: string; clientName?: string; tenantId?: string };
+type Props = {
+  clientId: string;
+  clientName?: string;
+  tenantId?: string;
+  /**
+   * Owner (super-admin) capability. AŞAMA 2'de HEM owner HEM uzman plan oluşturup açar;
+   * bu bayrak yalnız "Yeni Plan" MEKANİZMASINI seçer: owner → global new-plan akışı;
+   * uzman (false) → danışan-scoped createClientPlan (otomatik bağlanır). Güvenlik sınırı
+   * DEĞİL — server plan-guard authoritative.
+   */
+  isOwner?: boolean;
+};
 type Tf = ReturnType<typeof useTranslations>;
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
@@ -35,7 +50,7 @@ function Section({ title, children, action }: { title: string; children: React.R
   );
 }
 
-export default function BeslenmeTab({ clientId, clientName }: Props) {
+export default function BeslenmeTab({ clientId, clientName, isOwner = false }: Props) {
   const t = useTranslations("beslenme.detail");
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
   const [client, setClient] = useState<ClientContext | null>(null);
@@ -52,30 +67,28 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
     setTimeout(() => setBanner(null), 3500);
   }, []);
 
-  const reloadAll = useCallback(async () => {
-    const [p, m, a, v, pr, pl] = await Promise.all([
-      getProfile(clientId), listMeasurements(clientId), getAllergens(clientId),
-      getAllergenVocab(), listPreferences(clientId), listClientPlans(clientId),
-    ]);
-    if (p.ok && p.data) { setProfile(p.data.profile); setClient(p.data.client); }
-    if (m.ok && m.data) setMeasurements(m.data.measurements);
-    if (a.ok && a.data) setAllergensState(a.data.allergens);
-    if (v.ok && v.data) setVocab(v.data.allergens);
-    if (pr.ok && pr.data) setPrefs(pr.data.preferences);
-    if (pl.ok && pl.data) setFamilies(pl.data.families);
-  }, [clientId]);
-
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const ok = await checkBeslenmeAccess().catch(() => false);
+      // Owner ön-probe YOK: doğrudan client-scoped API'lerden yükle. Güvenlik
+      // server-authoritative — profil ucu 401/403 dönerse (clients yetkisi yok ya da
+      // başka tenant danışanı) güvenli "denied" göster; aksi halde veriyi bas.
+      const [p, m, a, v, pr, pl] = await Promise.all([
+        getProfile(clientId), listMeasurements(clientId), getAllergens(clientId),
+        getAllergenVocab(), listPreferences(clientId), listClientPlans(clientId),
+      ]);
       if (!alive) return;
-      if (!ok) { setAccess("denied"); return; }
+      if (p.status === 401 || p.status === 403) { setAccess("denied"); return; }
       setAccess("ok");
-      await reloadAll();
+      if (p.ok && p.data) { setProfile(p.data.profile); setClient(p.data.client); }
+      if (m.ok && m.data) setMeasurements(m.data.measurements);
+      if (a.ok && a.data) setAllergensState(a.data.allergens);
+      if (v.ok && v.data) setVocab(v.data.allergens);
+      if (pr.ok && pr.data) setPrefs(pr.data.preferences);
+      if (pl.ok && pl.data) setFamilies(pl.data.families);
     })();
     return () => { alive = false; };
-  }, [reloadAll]);
+  }, [clientId]);
 
   if (access === "loading") return <p className="p-4 text-sm text-slate-400">{t("loading")}</p>;
   if (access === "denied") return <p className="p-4 text-sm text-slate-500">{t("denied")}</p>;
@@ -109,7 +122,7 @@ export default function BeslenmeTab({ clientId, clientName }: Props) {
       <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
       <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
       <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
-      <PlansSection t={t} clientId={clientId} clientName={name} families={families} />
+      <PlansSection t={t} clientId={clientId} clientName={name} families={families} isOwner={isOwner} />
     </div>
   );
 }
@@ -228,24 +241,76 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
 function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; onSaved: () => void; onErr: (text: string) => void }) {
   const locale = useLocale();
   const [sel, setSel] = useState<Set<string>>(new Set());
-  useEffect(() => { runInEffect(() => setSel(new Set(current.map((a) => a.allergen_id)))); }, [current]);
+  // Serbest beyan ("Diğer") — standart vocab dışındaki danışan-beyanı alerjenler.
+  const [customs, setCustoms] = useState<string[]>([]);
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    runInEffect(() => {
+      setSel(new Set(current.filter((a) => a.allergen_id).map((a) => a.allergen_id as string)));
+      setCustoms(current.filter((a) => a.custom_label).map((a) => a.custom_label as string));
+    });
+  }, [current]);
   const toggle = (id: string) => { const n = new Set(sel); if (n.has(id)) n.delete(id); else n.add(id); setSel(n); };
+  const addCustom = () => {
+    const label = draft.trim();
+    if (!label) return;
+    if (label.length > 120) { onErr(t("allergens.customTooLong")); return; }
+    // case-insensitive dedup (DB partial unique ile hizalı).
+    if (customs.some((c) => c.toLowerCase() === label.toLowerCase())) { setDraft(""); setOtherOpen(false); return; }
+    setCustoms([...customs, label]);
+    setDraft("");
+    setOtherOpen(false);
+  };
+  const removeCustom = (label: string) => setCustoms(customs.filter((c) => c !== label));
   const save = async () => {
-    const r = await setAllergens(clientId, [...sel].map((id) => ({ allergen_id: id })));
+    const items: AllergenSetItem[] = [
+      ...[...sel].map((id) => ({ allergen_id: id })),
+      ...customs.map((custom_label) => ({ custom_label })),
+    ];
+    const r = await setAllergens(clientId, items);
     if (r.ok) onSaved(); else onErr(t("banner.allergensSaveFailed") + (r.code ? ` (${r.code})` : ""));
   };
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
     <Section title={t("allergens.title")} action={<button onClick={save} className="text-sm text-emerald-700 hover:underline">{t("allergens.save")}</button>}>
       <p className="mb-2 text-[11px] text-amber-700">{t("allergens.advisory")}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {vocab.length === 0 && <span className="text-sm text-slate-400">{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
           <button key={a.id} onClick={() => toggle(a.id)} className={`rounded-full px-3 py-1 text-sm ring-1 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
             {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
+        {/* Serbest beyan chip'leri (kaldırılabilir). */}
+        {customs.map((c) => (
+          <span key={c} className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-sm text-white ring-1 ring-emerald-600">
+            {c}
+            <button onClick={() => removeCustom(c)} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white">×</button>
+          </span>
+        ))}
+        {/* "Diğer" → inline serbest metin girişi (DB'ye allergen olarak YAZILMAZ, yalnız UI aksiyonu). */}
+        {vocab.length > 0 && !otherOpen && (
+          <button onClick={() => setOtherOpen(true)} className="rounded-full px-3 py-1 text-sm ring-1 ring-dashed ring-emerald-300 text-emerald-700 hover:bg-emerald-50">
+            + {t("allergens.other")}
+          </button>
+        )}
       </div>
+      {otherOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } if (e.key === "Escape") { setDraft(""); setOtherOpen(false); } }}
+            maxLength={120}
+            placeholder={t("allergens.customPlaceholder")}
+            className="w-56 rounded-lg border border-emerald-200 px-3 py-1 text-sm focus:border-emerald-400 focus:outline-none"
+          />
+          <button onClick={addCustom} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700">{t("allergens.add")}</button>
+          <button onClick={() => { setDraft(""); setOtherOpen(false); }} className="text-sm text-slate-500 hover:underline">{t("allergens.cancel")}</button>
+        </div>
+      )}
     </Section>
   );
 }
@@ -292,11 +357,50 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
 }
 
 // ── Planlar ──
-function PlansSection({ t, clientId, clientName, families }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[] }) {
+// AŞAMA 2: HEM owner HEM clients-uzman plan oluşturup açar. Plan başlık/revizyonları her
+// zaman editöre link (server plan-guard authoritative). "Yeni Plan" mekanizması isOwner'a
+// göre: owner → global new-plan akışı (mevcut); uzman → danışan-scoped createClientPlan
+// (otomatik danışana bağlanır, ayrı danışan seçici YOK, standalone plan YOK).
+function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[]; isOwner: boolean }) {
+  const router = useRouter();
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
-  const newHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
+  const ownerNewHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
+
+  const [creating, setCreating] = useState(false);
+  const [cf, setCf] = useState({ title: "", start: "", end: "" });
+  const [busy, setBusy] = useState(false);
+  const [cErr, setCErr] = useState<string | null>(null);
+
+  const submitCreate = async () => {
+    setCErr(null);
+    if (!cf.title.trim() || !cf.start || !cf.end) { setCErr(t("plans.createValidation")); return; }
+    setBusy(true);
+    const r = await createClientPlan(clientId, { title: cf.title.trim(), start_date: cf.start, end_date: cf.end });
+    setBusy(false);
+    if (r.ok && r.data?.plan?.id) { router.push(`/beslenme/planlar/${r.data.plan.id}`); return; }
+    setCErr(t("plans.createFailed") + (r.code ? ` (${r.code})` : ""));
+  };
+
+  const action = isOwner ? (
+    <Link href={ownerNewHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>
+  ) : (
+    <button onClick={() => setCreating((v) => !v)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</button>
+  );
+
   return (
-    <Section title={t("plans.title")} action={<Link href={newHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>}>
+    <Section title={t("plans.title")} action={action}>
+      {!isOwner && creating && (
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 sm:grid-cols-4">
+          <input value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} placeholder={t("plans.createTitlePh")} className="rounded border border-emerald-200 px-2 py-1 text-sm sm:col-span-4" />
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createStartLabel")}<input type="date" value={cf.start} onChange={(e) => setCf({ ...cf, start: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createEndLabel")}<input type="date" value={cf.end} onChange={(e) => setCf({ ...cf, end: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
+          <div className="flex items-end gap-2 sm:col-span-2">
+            <button disabled={busy} onClick={submitCreate} className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">{t("plans.createSubmit")}</button>
+            <button onClick={() => { setCreating(false); setCErr(null); }} className="rounded border border-slate-200 px-3 py-1.5 text-sm">{t("plans.createCancel")}</button>
+          </div>
+          {cErr && <p className="text-sm text-red-600 sm:col-span-4">{cErr}</p>}
+        </div>
+      )}
       {families.length === 0 ? (
         <p className="text-sm text-slate-400">{t("plans.empty")}</p>
       ) : (

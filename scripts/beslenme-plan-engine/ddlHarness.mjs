@@ -131,11 +131,17 @@ check("plans route ağacı mevcut (>=12 route.ts)", routeFiles.length >= 12, `bu
 for (const p of routeFiles) {
   const s = read(p);
   const rel = p.replace(ROOT, "");
-  check(`${rel} owner gate`, /requireBeslenmeOwner/.test(s));
+  // AŞAMA 2: her plan route AUTHORITATIVE bir kapı taşır — owner-only lifecycle
+  // (requireBeslenmeOwner: global create/list/copy/revise/delete + assign POST) VEYA
+  // bound-plan editör kapısı (requireBeslenmePlanAccess: owner ya da danışanına bağlı uzman).
+  // Guard'sız route hâlâ FAIL eder.
+  check(`${rel} auth gate (owner|bound-plan)`, /requireBeslenmeOwner|requireBeslenmePlanAccess/.test(s));
   check(`${rel} body tenant_id trust YOK`, !/body\.tenant_id|tenant_id:\s*body/.test(s));
   // JSON gövde parse eden route'lar mass-assignment koruması taşımalı (hasOnlyKeys).
   //   (clear/revise gibi gövdesiz action route'ları req.json() çağırmaz → muaf.)
-  if (/req\.json\(\)/.test(s)) check(`${rel} mass-assignment (hasOnlyKeys)`, /hasOnlyKeys/.test(s));
+  // AŞAMA 2: create validation ortak createPlanForTenant helper'ına çıkarıldı (hasOnlyKeys
+  // + PLAN_CREATE_KEYS allowlist orada uygulanır) → route delegasyonu da kabul edilir.
+  if (/req\.json\(\)/.test(s)) check(`${rel} mass-assignment (hasOnlyKeys|createPlanForTenant)`, /hasOnlyKeys|createPlanForTenant/.test(s));
   // mutation route'ları demo-deny içermeli (yalnız-GET route hariç).
   const hasMutation = /export async function (POST|PATCH|PUT|DELETE)/.test(s);
   if (hasMutation) check(`${rel} demo deny (mutation)`, /denyDemoMutation/.test(s));

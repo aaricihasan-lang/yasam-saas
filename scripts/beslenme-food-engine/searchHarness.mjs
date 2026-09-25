@@ -27,6 +27,8 @@ await db.exec(`
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
     search_tsv tsvector );`);
 await db.exec(read("20270101000500_nutrition_food_search.sql"));
+// ADDITIVE prefix düzeltmesi (UAT P3) — CREATE OR REPLACE ile aynı RPC'yi token-prefix'e geçirir.
+await db.exec(read("20270122000000_nutrition_food_search_prefix.sql"));
 
 const SYS = "00000000-0000-4000-8000-000000000001";
 const TEN = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -47,6 +49,17 @@ await add(SYS, "Tavuk", "Chicken breast", ["tavuk", "chicken"], null);
 await add(TEN, "Özel Elmalı Tarif", "Custom apple mix", ["elma tarifi"], G1);
 await add(FOREIGN, "Elma (yabancı)", "Foreign apple", ["elma"], G1);
 await add(SYS, "Pasif Elma", "Inactive apple", ["elma pasif"], G1, false);
+// UAT P3 prefix vakaları.
+await add(SYS, "Yumurta", "Egg, whole, raw", ["yumurta", "egg"], G1);
+await add(SYS, "Yumurta (Haşlanmış)", "Boiled egg", ["haslanmis yumurta"], G1, true, 2);
+await add(SYS, "Arpa Unu", "Barley flour", ["arpa unu"], G1);
+// TR normalizasyon: production index unaccent'lidir; harness'ta search_tsv'yi ASCII-folded kurarak
+// (Göğüs → gogus) prefix simetrisini RPC seviyesinde doğrula (query da normalizeSearchText ile ASCII gelir).
+await db.query(
+  `INSERT INTO nutrition_foods (tenant_id,name_tr,name_en,aliases,food_group_id,search_tsv)
+   VALUES ($1::uuid,'Göğüs Eti','Chicken breast tr','{}'::text[],$2::uuid,
+     to_tsvector('simple','gogus eti gogus'))`,
+  [SYS, G1]);
 
 const search = async (q, opts = {}) => (await db.query(
   `SELECT * FROM nutrition_food_search($1,$2,$3,$4,$5,$6,$7)`,
@@ -93,6 +106,38 @@ ok("group filter excludes ungrouped Tavuk", !r.map((x) => x.name_tr).includes("T
 // 8) ranking deterministic (exact-ish 'Elma' ranks; stable order)
 r = await search("elma");
 ok("ranked results deterministic + stable", r.length === 3);
+
+// 9) TOKEN PREFIX (UAT P3 kök neden): eski websearch_to_tsquery('simple',…) ile "yumur" 0 sonuçtu.
+ok("prefix 'yumur' → Yumurta bulur", (await search("yumur")).some((x) => x.name_tr === "Yumurta"));
+ok("prefix 'yumurt' → Yumurta bulur", (await search("yumurt")).some((x) => x.name_tr === "Yumurta"));
+ok("tam 'yumurta' → Yumurta (regresyon yok)", (await search("yumurta")).some((x) => x.name_tr === "Yumurta"));
+ok("prefix 'yumur' haşlanmış varyantı da bulur", (await search("yumur")).some((x) => x.name_tr === "Yumurta (Haşlanmış)"));
+
+// 10) Çok-token prefix AND semantiği: "arpa u" → "Arpa Unu".
+ok("multi-token 'arpa u' → Arpa Unu (arpa:* & u:*)", (await search("arpa u")).some((x) => x.name_tr === "Arpa Unu"));
+ok("multi-token 'arpa unu' → Arpa Unu", (await search("arpa unu")).some((x) => x.name_tr === "Arpa Unu"));
+
+// 11) TR normalizasyon + prefix (folded tsv ile ayna): "gog" → Göğüs Eti.
+ok("TR normalize prefix 'gog' → Göğüs Eti", (await search("gog")).some((x) => x.name_tr === "Göğüs Eti"));
+
+// 12) alias üzerinde prefix.
+ok("alias prefix 'ban' → Muz (alias/banana)", (await search("ban")).some((x) => x.name_tr === "Muz"));
+
+// 13) İçerikli ama geçerli token üretmeyen sorgu → 0 sonuç (browse'a DÜŞMEZ).
+ok("garbage '---' → 0 sonuç (browse'a düşmez)", (await search("---")).length === 0);
+
+// 14) browse (null) hâlâ union döner + pagination korunur (prefix regresyonu yok).
+r = await search(null, { limit: 100 });
+ok("browse (null) hâlâ SYSTEM∪custom union döner", r.length > 0 && !r.map((x) => x.name_tr).includes("Elma (yabancı)"));
+
+// 15) prefix aramada tenant izolasyonu korunur (foreign custom görünmez).
+ok("prefix aramada foreign tenant sızmaz", !(await search("elma")).map((x) => x.name_tr).includes("Elma (yabancı)"));
+
+// 16) HTTP route garbage-query semantiği (P3, statik): q dolu ama normalize boş → 0 sonuç
+//     (RPC browse'a DÜŞMEZ). RPC yalnız pre-normalized alır; kısa-devre route katmanındadır.
+const foodsRouteSrc = readFileSync(join(ROOT, "app", "api", "beslenme", "foods", "route.ts"), "utf8");
+ok("route: q dolu + normalize boş → boş sonuç kısa-devre (browse'a düşmez)",
+   /if \(q && normalizedQuery === null\)/.test(foodsRouteSrc) && /foods: \[\], total: 0/.test(foodsRouteSrc));
 
 console.log(`\n=== SEARCH HARNESS: ${pass} PASS / ${fail} FAIL ===`);
 process.exit(fail === 0 ? 0 : 1);

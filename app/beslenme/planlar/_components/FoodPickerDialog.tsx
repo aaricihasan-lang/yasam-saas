@@ -4,11 +4,12 @@
  * Arama → listFoods; seçimde getFood ile porsiyon/nutrient; GRAM veya PORSİYON
  * miktarı; canlı toplam önizleme (sumNutrients). TR ondalık ("12,5") kabul edilir.
  */
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, Loader2, Plus, Search } from "lucide-react";
 import { QuickAddFoodDialog } from "../../_components/QuickAddFoodDialog";
 import {
   getFood,
+  checkBeslenmeFoodAccess,
   type Food,
   type FoodNutrientView,
   type FoodPortionView,
@@ -49,6 +50,15 @@ export function FoodPickerDialog({
 }) {
   const [q, setQ] = useState("");
   const [quickAdd, setQuickAdd] = useState(false);
+  // Manuel besin KATKISI ayrı yetkidir (owner ya da beslenme_manual_food). clients-yetkili
+  // uzman besin ARAR/SEÇER ama katkı yetkisi yoksa "Besin Ekle" GİZLİ (§14; dead-control yok).
+  const [canQuickAdd, setCanQuickAdd] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    void checkBeslenmeFoodAccess().then((a) => { if (alive) setCanQuickAdd(a != null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [open]);
   const [selected, setSelected] = useState<Food | null>(null);
   const [nutrients, setNutrients] = useState<FoodNutrientView[]>([]);
   const [portions, setPortions] = useState<FoodPortionView[]>([]);
@@ -183,7 +193,9 @@ export function FoodPickerDialog({
                 autoFocus
               />
             </div>
-            <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>Besin Ekle</GhostButton>
+            {canQuickAdd ? (
+              <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>Besin Ekle</GhostButton>
+            ) : null}
           </div>
 
           {listErr ? <StatusMessage type="error">{listErr}</StatusMessage> : null}
@@ -204,7 +216,7 @@ export function FoodPickerDialog({
                 <span className="text-[13px] font-bold text-slate-400">
                   {q.trim() ? "Aradığınız besin bulunamadı." : "Besin aramaya başlayın."}
                 </span>
-                {q.trim() ? (
+                {q.trim() && canQuickAdd ? (
                   <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
                     Yeni besin ekleyin
                   </PrimaryButton>

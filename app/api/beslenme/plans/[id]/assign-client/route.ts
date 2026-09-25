@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { requireClientInTenant, clientDisplayName } from "@/lib/danisan/clientGuard";
@@ -7,6 +8,11 @@ import { mapAssignError } from "@/lib/beslenme/clientContracts";
 
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
+
+/** Plan context alerjen özeti: standart (code dolu) veya custom (custom_label dolu). */
+type AllergenContext = {
+  code: string | null; name_tr: string | null; name_en: string | null; custom_label: string | null;
+};
 
 /**
  * GET: bu planın family'sinin mevcut danışan bağı (varsa) + kompakt bağlam özeti.
@@ -17,7 +23,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * enjekte edilemez. Yalnız non-PII alanlar döner (telefon/adres YOK — §15/§22).
  */
 export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -52,7 +58,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       .select("goal_type, goal_note")
       .eq("tenant_id", tenantId).eq("client_id", clientId).maybeSingle(),
     db.from("nutrition_client_allergens")
-      .select("nutrition_allergens(code, name_tr, name_en)")
+      .select("custom_label, nutrition_allergens(code, name_tr, name_en)")
       .eq("tenant_id", tenantId).eq("client_id", clientId),
     db.from("nutrition_client_food_preferences")
       .select("food_id, food_label")
@@ -61,6 +67,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const profile = (profileRes.data ?? null) as { goal_type: string | null; goal_note: string | null } | null;
   const allergenRows = (allergenRes.data ?? []) as unknown as Array<{
+    custom_label: string | null;
     nutrition_allergens: { code: string; name_tr: string | null; name_en: string | null } | null;
   }>;
   const avoidedRows = (avoidedRes.data ?? []) as Array<{ food_id: string | null; food_label: string }>;
@@ -69,9 +76,16 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     goal_type: profile?.goal_type ?? null,
     goal_note: profile?.goal_note ?? null,
     allergens: allergenRows
-      .map((r) => r.nutrition_allergens)
-      .filter((a): a is { code: string; name_tr: string | null; name_en: string | null } => a != null)
-      .map((a) => ({ code: a.code, name_tr: a.name_tr, name_en: a.name_en })),
+      .map((r): AllergenContext | null => {
+        // Custom (Diğer) beyan → serbet metin; code YOK. Standart → vocab join.
+        if (r.custom_label) {
+          return { code: null, name_tr: r.custom_label, name_en: r.custom_label, custom_label: r.custom_label };
+        }
+        const a = r.nutrition_allergens;
+        if (!a) return null;
+        return { code: a.code, name_tr: a.name_tr, name_en: a.name_en, custom_label: null };
+      })
+      .filter((a): a is AllergenContext => a != null),
     avoided: avoidedRows.map((r) => ({ food_id: r.food_id, food_label: r.food_label })),
     kan: client.kan ?? null,
     mizac: client.mizac ?? null,

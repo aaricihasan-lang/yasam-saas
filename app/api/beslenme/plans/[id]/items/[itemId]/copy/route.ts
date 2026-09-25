@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { getItemScope, mapRpcError } from "@/lib/beslenme/planEngine";
@@ -9,7 +10,7 @@ type RouteCtx = { params: Promise<{ id: string; itemId: string }> };
 
 /** POST: item'ı hedef öğüne VERBATIM kopyala (çoğalt / taşı-kopya). Archived → 403 (RPC). */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -81,6 +81,7 @@ for (const f of [
   "20270102000300_nutrition_client_food_preferences.sql",
   "20270102000400_nutrition_plan_clients.sql",
   "20270102000500_nutrition_client_rpcs.sql",
+  "20270122000100_nutrition_client_allergens_custom_label.sql",
 ]) {
   try { await db.exec(mig(f)); ok(`migration applies: ${f}`, true); }
   catch (e) { ok(`migration applies: ${f}`, false, e.message); }
@@ -120,6 +121,29 @@ await q(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, allergen_
 ok("allergen insert (valid, vocab reuse)", true);
 ok("allergen duplicate UNIQUE reddi", !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, allergen_id) VALUES ($1,$2,$3)`, [TA, clientA, alg1])));
 ok("allergen unknown allergen_id FK reddi", !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, allergen_id) VALUES ($1,$2,gen_random_uuid())`, [TA, clientA])));
+
+console.log("\n[Allergens — custom label 'Diğer' (additive)]");
+ok("custom allergen insert (allergen_id NULL + custom_label)",
+  (await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, custom_label) VALUES ($1,$2,'Lateks')`, [TA, clientA])) === null);
+ok("custom duplicate case-insensitive/trim (partial unique) reddi",
+  !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, custom_label) VALUES ($1,$2,'  lateks ')`, [TA, clientA])));
+ok("both allergen_id + custom_label → CHECK reddi",
+  !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, allergen_id, custom_label) VALUES ($1,$2,$3,'X')`, [TA, clientA, alg2])));
+ok("neither allergen_id nor custom_label → CHECK reddi",
+  !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id) VALUES ($1,$2)`, [TA, clientA])));
+ok("empty/whitespace custom_label → CHECK reddi",
+  !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, custom_label) VALUES ($1,$2,'   ')`, [TA, clientA])));
+ok("overlong custom_label (>120) → CHECK reddi",
+  !!(await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, custom_label) VALUES ($1,$2,$3)`, [TA, clientA, "x".repeat(121)])));
+ok("standart allergen (alg2) hâlâ eklenebilir (backward compat)",
+  (await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, allergen_id) VALUES ($1,$2,$3)`, [TA, clientA, alg2])) === null);
+{
+  const clientCustom = (await one(`INSERT INTO clients (tenant_id, ad) VALUES ($1,'CustomTest') RETURNING id`, [TA])).id;
+  ok("farklı danışanda aynı custom_label serbest (partial unique tenant+client-scoped)",
+    (await tryErr(`INSERT INTO nutrition_client_allergens (tenant_id, client_id, custom_label) VALUES ($1,$2,'Lateks')`, [TA, clientCustom])) === null);
+}
+ok("clientA'da standart + custom karışık = 3 satır (gluten + Lateks + milk)",
+  Number(await val(`SELECT count(*) FROM nutrition_client_allergens WHERE tenant_id=$1 AND client_id=$2`, [TA, clientA])) === 3);
 
 console.log("\n[Preferences]");
 await q(`INSERT INTO nutrition_client_food_preferences (tenant_id, client_id, stance, food_label) VALUES ($1,$2,'avoided','Kırmızı et')`, [TA, clientA]);

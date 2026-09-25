@@ -2,10 +2,12 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess, verifyUserRequest } from "@/lib/auth/userGuard";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { requireMainAdmin } from "@/lib/admin/adminGuards";
 import {
   BESLENME_MANUAL_FOOD_FLAG,
   decideFoodContributorAuthority,
+  hasManualFoodFlag,
   type BeslenmeContributorAuthority,
 } from "@/lib/beslenme/foodContributorPolicy";
 
@@ -145,6 +147,59 @@ export async function requireBeslenmeFoodContributor(
     email: guard.email,
     is_demo_account: guard.is_demo_account,
     authority,
+    db: guard.db,
+  };
+}
+
+// ============================================================
+// Besin OKUMA kapısı (read-only) — plan editörü besin seçimi (AŞAMA 2)
+// ============================================================
+
+/**
+ * READ ≠ AUTHORING. Plan editörü SYSTEM ∪ kendi tenant CUSTOM besinlerini okuyup
+ * seçebilmeli; bunun için besin-katkı (yazma) bayrağı GEREKMEZ.
+ *
+ * Geçer (salt-okuma):
+ *   - owner/admin (resolveModuleAccess role='admin' → true),
+ *   - clients (Danışan Yolculuğu) yetkili uzman (resolveModuleAccess "clients"),
+ *   - beslenme_manual_food bayraklı uzman (mevcut contributor).
+ * tenantId YALNIZ doğrulanmış users.tenant_id; food scope {SYSTEM ∪ caller} (foodEngine).
+ * Mutation buraya BAĞLI DEĞİL — POST/PATCH/DELETE hâlâ requireBeslenmeFoodContributor +
+ * resolveFoodForWrite (SYSTEM_READONLY) + denyDemoMutation.
+ */
+export type BeslenmeFoodReadOk = {
+  ok: true;
+  userId: string;
+  tenantId: string;
+  email: string;
+  is_demo_account: boolean;
+  db: SupabaseClient;
+};
+export type BeslenmeFoodReadResult = BeslenmeFoodReadOk | { ok: false; response: NextResponse };
+
+export async function requireBeslenmeFoodRead(req: NextRequest): Promise<BeslenmeFoodReadResult> {
+  const guard = await verifyUserRequest(req, { includeProfile: true });
+  if (!guard.ok) return { ok: false, response: guard.response };
+
+  const perms = guard.profile?.module_permissions;
+  const allowed =
+    resolveModuleAccess(guard.profile?.role, perms, "clients") || hasManualFoodFlag(perms);
+  if (!allowed) {
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { ok: false, code: "FOOD_READ_DENIED", error: "Besin kataloğu erişiminiz yok." },
+        403,
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    userId: guard.userId,
+    tenantId: guard.tenantId,
+    email: guard.email,
+    is_demo_account: guard.is_demo_account,
     db: guard.db,
   };
 }
