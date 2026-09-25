@@ -143,7 +143,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             </div>
 
             <div className="px-6 py-6">
-              <p id="confirm-message" className="text-[15px] font-semibold leading-relaxed text-slate-700">
+              <p id="confirm-message" className="whitespace-pre-line text-[15px] font-semibold leading-relaxed text-slate-700">
                 {options.message}
               </p>
 

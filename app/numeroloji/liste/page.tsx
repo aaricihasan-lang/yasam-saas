@@ -15,6 +15,7 @@ import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { WordPersonSectionPicker } from "../components/WordPersonSectionPicker";
 import type { WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
 import { numApi, numApiError, authHeaders } from "../helpers/numApiClient";
+import { buildNumerolojiDeleteConfirm } from "../utils/deleteConfirmMessage";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
@@ -106,6 +107,7 @@ export default function NumerolojiListePage() {
       showToast({ title: "Demo Modu", message: "Demo hesapta silme işlemi gerçekleştirilemez.", type: "error" });
       return;
     }
+    if (deleteLoading) return; // çift-tık koruması (modal + buton disable üstüne ek kalkan)
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
@@ -115,11 +117,12 @@ export default function NumerolojiListePage() {
       return;
     }
 
-    const confirmed = await deleteConfirm({
-      title: "Seçili analizleri sil",
-      message: `${ids.length} numeroloji analizini silmek istediğinizden emin misiniz?`,
-      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
-    });
+    // Silme onayında yalnız adet değil, silinecek kayıt adları da gösterilir.
+    const nameById = new Map(rows.map((r) => [r.id, `${r.name} ${r.surname}`]));
+    const names = ids.map((id) => nameById.get(id) ?? "").filter((n) => n.trim().length > 0);
+    const { title, message, secondMessage } = buildNumerolojiDeleteConfirm(ids.length, names);
+
+    const confirmed = await deleteConfirm({ title, message, secondMessage });
     if (!confirmed) return;
 
     setDeleteLoading(true);
