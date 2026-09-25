@@ -133,5 +133,11 @@ ok("browse (null) hâlâ SYSTEM∪custom union döner", r.length > 0 && !r.map((
 // 15) prefix aramada tenant izolasyonu korunur (foreign custom görünmez).
 ok("prefix aramada foreign tenant sızmaz", !(await search("elma")).map((x) => x.name_tr).includes("Elma (yabancı)"));
 
+// 16) HTTP route garbage-query semantiği (P3, statik): q dolu ama normalize boş → 0 sonuç
+//     (RPC browse'a DÜŞMEZ). RPC yalnız pre-normalized alır; kısa-devre route katmanındadır.
+const foodsRouteSrc = readFileSync(join(ROOT, "app", "api", "beslenme", "foods", "route.ts"), "utf8");
+ok("route: q dolu + normalize boş → boş sonuç kısa-devre (browse'a düşmez)",
+   /if \(q && normalizedQuery === null\)/.test(foodsRouteSrc) && /foods: \[\], total: 0/.test(foodsRouteSrc));
+
 console.log(`\n=== SEARCH HARNESS: ${pass} PASS / ${fail} FAIL ===`);
 process.exit(fail === 0 ? 0 : 1);

@@ -40,6 +40,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
   const normalizedQuery = q ? normalizeSearchText(q).normalizedText || null : null;
 
+  // GARbage-query semantiği (UAT P3): kullanıcı q GÖNDERDİ ama normalizasyon boş çıktı
+  // (ör. yalnız noktalama "---") → tüm katalogu döndürme; 0 sonuç. q hiç verilmemişse
+  // (q boş) normalizedQuery zaten null kalır ve aşağıdaki RPC browse davranışını korur.
+  if (q && normalizedQuery === null) {
+    return NextResponse.json(
+      { ok: true, foods: [], total: 0, limit, offset },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   // Ranked + paginated search RPC (ts_rank_cd relevance; SYSTEM ∪ caller CUSTOM union).
   const { data, error } = await db.rpc("nutrition_food_search", {
     p_tenant_id: tenantId,
