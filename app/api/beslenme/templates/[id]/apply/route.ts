@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { hasOnlyKeys, isUuid, inEnum } from "@/lib/beslenme/contracts";
 import { mapRpcError, getPlan, getDayScope } from "@/lib/beslenme/planEngine";
 import { getTemplate } from "@/lib/beslenme/templateEngine";
@@ -15,7 +15,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
  * Body: { mode, target_plan_id, target_day_id }. Snapshot verbatim (server-authoritative).
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

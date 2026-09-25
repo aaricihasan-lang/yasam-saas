@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_COLUMNS, PLAN_PATCH_KEYS, PLAN_STATUSES, isUuid } from "@/lib/beslenme/planContracts";
@@ -94,9 +94,13 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   return NextResponse.json({ ok: true, plan: data });
 }
 
-/** DELETE: planı kalıcı sil (cascade: gün/öğün/item/nutrient). Owner-only. */
+/**
+ * DELETE: bu plan REVİZYONUNU kalıcı sil (cascade: gün/öğün/item/nutrient). Admin↔uzman parity:
+ * requireBeslenmePlanAccess (admin | bound-plan uzmanı). Tek revizyon silinir (.eq id); family
+ * binding'i diğer revizyonlar dururken korunur — davranış admin ile aynıdır (yeni cascade YOK).
+ */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -1,7 +1,7 @@
 "use client";
 /**
  * Beslenme Merkezi — owner-only hub. Genel sayaçlar (fetchCounts) + modül kartları.
- * Erişim doğrulanmadan içerik render EDİLMEZ (useBeslenmeOwnerGuard).
+ * Erişim doğrulanmadan içerik render EDİLMEZ (useBeslenmeModuleGuard).
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -22,7 +22,7 @@ import ClientPicker from "@/components/danisan/ClientPicker";
 import {
   BeslenmeGate,
   BeslenmeShell,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "./_components/BeslenmeShell";
 import { friendlyError } from "./_components/constants";
 
@@ -76,7 +76,7 @@ const MODULES = [
 ];
 
 export default function BeslenmeHubPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   const router = useRouter();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);

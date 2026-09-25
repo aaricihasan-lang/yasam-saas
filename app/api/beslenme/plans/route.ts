@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { PLAN_COLUMNS, PLAN_STATUSES } from "@/lib/beslenme/planContracts";
 import { createPlanForTenant } from "@/lib/beslenme/planEngine";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** GET: plan listesi (opsiyonel status filtresi). Tenant-scoped. */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 /** POST: yeni plan + dense day rows (atomik RPC). */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -99,11 +101,20 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
 /**
  * POST: plan FAMILY'sini danışana bağla (immutable recipient — §4/§11).
- * Reassign farklı danışana YASAK (RPC 45021 → 409). Unassign YOK.
+ * Reassign farklı danışana YASAK (RPC 45021 → 409; admin↔uzman aynı). Unassign YOK.
+ *
+ * Erişim (§12): Beslenme modül izni (requireModuleAccess "beslenme") + danışan-yönetimi
+ * (clients) erişimi. İlk (unbound→bound) bağlamayı admin de uzman da yapabilir; client_id
+ * server-side aynı tenant doğrulanır (requireClientInTenant). Bağlı family'yi farklı danışana
+ * taşıma RPC 45021 ile admin+uzman için aynı şekilde reddedilir.
  */
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireModuleAccess(req, "beslenme");
   if (!guard.ok) return guard.response;
+  // Danışan bağlama = client-yönetimi işlemi → clients erişimi de zorunlu (module boundary).
+  if (!resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) {
+    return beslenmeJson({ ok: false, code: "CLIENTS_REQUIRED" }, 403);
+  }
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
   const { db, tenantId, userId } = guard;

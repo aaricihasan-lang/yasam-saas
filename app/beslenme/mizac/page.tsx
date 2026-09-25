@@ -7,7 +7,7 @@ import { Compass } from "lucide-react";
 import { MIZAC_PROFILES } from "@/lib/beslenme/contracts";
 import {
   BeslenmeGate,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import { ProfileTopicPage, type CanonicalProfile } from "../_components/ProfileTopicPage";
 
@@ -18,7 +18,7 @@ const PROFILES: CanonicalProfile[] = MIZAC_PROFILES.map((p) => ({
 }));
 
 export default function MizacPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   return (

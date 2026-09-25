@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { cleanStr, hasOnlyKeys, isUuid, inEnum } from "@/lib/beslenme/contracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
 import {
@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 
 /** GET: şablon listesi (opsiyonel type filtresi). Tenant-scoped, owner-only. */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
  * SNAPSHOT server-authoritative (RPC kaynak plan ağacını DB'den okur; client gönderemez — §39).
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

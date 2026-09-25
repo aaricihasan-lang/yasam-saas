@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule } from "@/lib/beslenme/ownerGuard";
 
 export const runtime = "nodejs";
 
 /**
- * Owner-only erişim probe'u. Dashboard kartı + /beslenme sayfa guard'ı bunu çağırır.
- * Super-admin/owner → 200 {owner:true}. Normal admin/expert/anon → 401/403 (fail-closed).
+ * Beslenme MODÜL erişim probe'u (server-authoritative). Dashboard kartı + /beslenme sayfa
+ * guard'ı bunu çağırır. Admin + module_permissions.beslenme=true uzman → 200 {access:true}.
+ * İzinsiz uzman/anon → 401/403 (fail-closed). UI gizleme tek katman DEĞİL; asıl kapı server.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   return NextResponse.json(
-    { ok: true, owner: true },
+    { ok: true, access: true },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

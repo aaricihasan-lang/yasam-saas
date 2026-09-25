@@ -49,10 +49,10 @@ async function req<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; 
   }
 }
 
-/** Owner erişim probe'u — 200 ise owner. */
+/** Beslenme MODÜL erişim probe'u (server-authoritative) — 200 ise erişim var (admin veya beslenme izinli uzman). */
 export async function checkBeslenmeAccess(): Promise<boolean> {
-  const r = await req<{ owner?: boolean }>("/api/beslenme/access", { headers: authHeaders() });
-  return r.ok && r.data?.owner === true;
+  const r = await req<{ access?: boolean }>("/api/beslenme/access", { headers: authHeaders() });
+  return r.ok && r.data?.access === true;
 }
 
 /**

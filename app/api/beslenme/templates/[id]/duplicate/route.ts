@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { cleanStr, hasOnlyKeys, isUuid } from "@/lib/beslenme/contracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
 import { TEMPLATE_DUPLICATE_KEYS } from "@/lib/beslenme/templateContracts";
@@ -9,7 +9,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 
 /** POST: şablonu yeni şablona verbatim deep-copy. Body: { title? }. */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

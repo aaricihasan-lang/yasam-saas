@@ -468,6 +468,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
   cosmic_calendar: [],
   cupping: ["kupa", "hacamat_terapi"],
+  beslenme: [],
   yasam_hafizasi: [],
 };
 
@@ -781,9 +782,10 @@ export default function Home() {
     loginBackdropPressed.current = false;
   };
 
-  // Beslenme owner-only kart: yalnız admin için server owner-probe (super-admin). Fail-closed.
+  // Beslenme kart görünürlüğü: server-authoritative modül probe (admin VEYA module_permissions
+  // .beslenme=true uzman → true). Admin↔uzman parity; fail-closed (default false, probe ile açılır).
   useEffect(() => {
-    if (!user || !isAdminUser(user)) {
+    if (!user) {
       setBeslenmeOwner(false);
       return;
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { cleanStr, hasOnlyKeys, isUuid } from "@/lib/beslenme/contracts";
 import { TEMPLATE_COLUMNS, TEMPLATE_PATCH_KEYS } from "@/lib/beslenme/templateContracts";
 import { loadTemplateDetail, getTemplate } from "@/lib/beslenme/templateEngine";
@@ -9,7 +9,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 
 /** GET: şablon detayı (meal→item→nutrient ağacı). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
 
 /** PATCH: rename / not / arşivle (is_active). Snapshot/tree DEĞİŞMEZ. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -69,7 +69,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
 /** DELETE: şablonu sil (cascade → meal/item/nutrient). */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
