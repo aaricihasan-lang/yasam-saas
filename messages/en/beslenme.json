@@ -62,7 +62,13 @@
         "title": "Declared Allergens",
         "save": "Save",
         "advisory": "This information is based on the client's declaration. No automatic allergen matching against foods is performed.",
-        "loadingVocab": "Loading allergen list…"
+        "loadingVocab": "Loading allergen list…",
+        "other": "Other",
+        "customPlaceholder": "Allergen name",
+        "add": "Add",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "customTooLong": "Allergen name can be at most 120 characters."
       },
       "preferences": {
         "title": "Preferred / Avoided Foods",

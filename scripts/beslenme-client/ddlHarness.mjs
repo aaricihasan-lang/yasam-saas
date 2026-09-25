@@ -67,6 +67,20 @@ check("allergen_id → nutrition_allergens(id)", /allergen_id\s+uuid\s+NOT NULL\
 check("UNIQUE(tenant, client, allergen)", /UNIQUE \(tenant_id, client_id, allergen_id\)/.test(alg));
 check("food↔allergen otomatik mapping kolonu YOK", !/food_id|food_allergen/i.test(strip(alg)));
 
+// [E2] custom "Diğer" serbest beyan — additive migration sözleşmesi.
+const algCustom = read(resolve(MIG, "20270122000100_nutrition_client_allergens_custom_label.sql"));
+check("custom migration dosyası mevcut", algCustom.length > 0, "20270122000100_nutrition_client_allergens_custom_label.sql");
+check("allergen_id DROP NOT NULL (nullable)", /ALTER COLUMN allergen_id DROP NOT NULL/.test(algCustom));
+check("custom_label text kolonu eklenir", /ADD COLUMN IF NOT EXISTS custom_label text/.test(algCustom));
+check("tek-kaynak CHECK (standart XOR custom)",
+  /CHECK\s*\([\s\S]*allergen_id IS NOT NULL AND custom_label IS NULL[\s\S]*allergen_id IS NULL AND custom_label IS NOT NULL/.test(algCustom));
+check("custom trim + boş-değil + <=120 CHECK", /btrim\(custom_label\) <> ''[\s\S]*char_length\(custom_label\) <= 120/.test(algCustom));
+check("custom case-insensitive partial UNIQUE index",
+  /CREATE UNIQUE INDEX[\s\S]*lower\(btrim\(custom_label\)\)\s*\)\s*WHERE custom_label IS NOT NULL/.test(algCustom));
+check("additive: RLS/trigger/privilege DEĞİŞMİYOR (ENABLE RLS/GRANT/REVOKE yeni yok)",
+  !/ENABLE ROW LEVEL SECURITY|GRANT ALL PRIVILEGES|REVOKE ALL PRIVILEGES/.test(algCustom));
+check("custom migration BEGIN/COMMIT dengeli", (algCustom.match(/BEGIN;/g) || []).length === 1 && (algCustom.match(/COMMIT;/g) || []).length === 1);
+
 console.log("[F] preferences — soft food_id + free-text label");
 const pref = read(resolve(MIG, CLASS_C[3][1]));
 check("stance CHECK preferred/avoided", /stance IN \('preferred','avoided'\)/.test(pref));

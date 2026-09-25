@@ -20,7 +20,7 @@ import {
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
   listClientPlans, createClientPlan,
   type ClientProfile, type ClientContext, type Measurement, type ClientAllergen,
-  type FoodPreference, type PlanFamily, type AllergenVocab,
+  type FoodPreference, type PlanFamily, type AllergenVocab, type AllergenSetItem,
 } from "@/lib/beslenme/clientTabClient";
 import { GOAL_TYPES, ACTIVITY_LEVELS, computeBmi } from "@/lib/beslenme/clientContracts";
 
@@ -241,24 +241,76 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
 function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; onSaved: () => void; onErr: (text: string) => void }) {
   const locale = useLocale();
   const [sel, setSel] = useState<Set<string>>(new Set());
-  useEffect(() => { runInEffect(() => setSel(new Set(current.map((a) => a.allergen_id)))); }, [current]);
+  // Serbest beyan ("Diğer") — standart vocab dışındaki danışan-beyanı alerjenler.
+  const [customs, setCustoms] = useState<string[]>([]);
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    runInEffect(() => {
+      setSel(new Set(current.filter((a) => a.allergen_id).map((a) => a.allergen_id as string)));
+      setCustoms(current.filter((a) => a.custom_label).map((a) => a.custom_label as string));
+    });
+  }, [current]);
   const toggle = (id: string) => { const n = new Set(sel); if (n.has(id)) n.delete(id); else n.add(id); setSel(n); };
+  const addCustom = () => {
+    const label = draft.trim();
+    if (!label) return;
+    if (label.length > 120) { onErr(t("allergens.customTooLong")); return; }
+    // case-insensitive dedup (DB partial unique ile hizalı).
+    if (customs.some((c) => c.toLowerCase() === label.toLowerCase())) { setDraft(""); setOtherOpen(false); return; }
+    setCustoms([...customs, label]);
+    setDraft("");
+    setOtherOpen(false);
+  };
+  const removeCustom = (label: string) => setCustoms(customs.filter((c) => c !== label));
   const save = async () => {
-    const r = await setAllergens(clientId, [...sel].map((id) => ({ allergen_id: id })));
+    const items: AllergenSetItem[] = [
+      ...[...sel].map((id) => ({ allergen_id: id })),
+      ...customs.map((custom_label) => ({ custom_label })),
+    ];
+    const r = await setAllergens(clientId, items);
     if (r.ok) onSaved(); else onErr(t("banner.allergensSaveFailed") + (r.code ? ` (${r.code})` : ""));
   };
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
     <Section title={t("allergens.title")} action={<button onClick={save} className="text-sm text-emerald-700 hover:underline">{t("allergens.save")}</button>}>
       <p className="mb-2 text-[11px] text-amber-700">{t("allergens.advisory")}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {vocab.length === 0 && <span className="text-sm text-slate-400">{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
           <button key={a.id} onClick={() => toggle(a.id)} className={`rounded-full px-3 py-1 text-sm ring-1 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
             {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
+        {/* Serbest beyan chip'leri (kaldırılabilir). */}
+        {customs.map((c) => (
+          <span key={c} className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-sm text-white ring-1 ring-emerald-600">
+            {c}
+            <button onClick={() => removeCustom(c)} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white">×</button>
+          </span>
+        ))}
+        {/* "Diğer" → inline serbest metin girişi (DB'ye allergen olarak YAZILMAZ, yalnız UI aksiyonu). */}
+        {vocab.length > 0 && !otherOpen && (
+          <button onClick={() => setOtherOpen(true)} className="rounded-full px-3 py-1 text-sm ring-1 ring-dashed ring-emerald-300 text-emerald-700 hover:bg-emerald-50">
+            + {t("allergens.other")}
+          </button>
+        )}
       </div>
+      {otherOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } if (e.key === "Escape") { setDraft(""); setOtherOpen(false); } }}
+            maxLength={120}
+            placeholder={t("allergens.customPlaceholder")}
+            className="w-56 rounded-lg border border-emerald-200 px-3 py-1 text-sm focus:border-emerald-400 focus:outline-none"
+          />
+          <button onClick={addCustom} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700">{t("allergens.add")}</button>
+          <button onClick={() => { setDraft(""); setOtherOpen(false); }} className="text-sm text-slate-500 hover:underline">{t("allergens.cancel")}</button>
+        </div>
+      )}
     </Section>
   );
 }

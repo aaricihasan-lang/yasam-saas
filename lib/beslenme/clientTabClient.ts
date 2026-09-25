@@ -40,9 +40,13 @@ export type Measurement = {
   waist_cm: number | null; hip_cm: number | null; note: string | null;
 };
 export type ClientAllergen = {
-  id: string; allergen_id: string; note: string | null;
+  id: string; allergen_id: string | null; custom_label: string | null; note: string | null;
   nutrition_allergens: { code: string; name_tr: string | null; name_en: string | null; is_major: boolean } | null;
 };
+/** setAllergens item: standart (allergen_id) VEYA custom (custom_label) — biri. */
+export type AllergenSetItem =
+  | { allergen_id: string; note?: string | null }
+  | { custom_label: string; note?: string | null };
 export type FoodPreference = {
   id: string; stance: "preferred" | "avoided"; food_id: string | null; food_label: string; note: string | null;
 };
@@ -68,7 +72,7 @@ export const deleteMeasurement = (c: string, id: string) =>
 
 // ── Allergens ──
 export const getAllergens = (c: string) => req<{ allergens: ClientAllergen[] }>(`${base(c)}/allergens`, { headers: authHeaders() });
-export const setAllergens = (c: string, allergens: Array<{ allergen_id: string; note?: string | null }>) =>
+export const setAllergens = (c: string, allergens: AllergenSetItem[]) =>
   req<{ count: number }>(`${base(c)}/allergens`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ allergens }) });
 
 // ── Preferences ──
@@ -100,7 +104,7 @@ export const getAllergenVocab = () => req<{ allergens: AllergenVocab[] }>(`/api/
 export type PlanClientSummary = {
   goal_type: string | null;
   goal_note: string | null;
-  allergens: Array<{ code: string; name_tr: string | null; name_en: string | null }>;
+  allergens: Array<{ code: string | null; name_tr: string | null; name_en: string | null; custom_label: string | null }>;
   avoided: Array<{ food_id: string | null; food_label: string }>;
   kan: string | null;
   mizac: string | null;

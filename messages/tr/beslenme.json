@@ -62,7 +62,13 @@
         "title": "Beyan Edilen Alerjiler",
         "save": "Kaydet",
         "advisory": "Bu bilgiler danışanın beyanına dayanır. Besinlerle otomatik alerjen eşlemesi yapılmaz.",
-        "loadingVocab": "Alerjen listesi yükleniyor…"
+        "loadingVocab": "Alerjen listesi yükleniyor…",
+        "other": "Diğer",
+        "customPlaceholder": "Alerjen adı",
+        "add": "Ekle",
+        "cancel": "Vazgeç",
+        "remove": "Kaldır",
+        "customTooLong": "Alerjen adı en fazla 120 karakter olabilir."
       },
       "preferences": {
         "title": "Tercih Edilen / Kaçınılan Besinler",
