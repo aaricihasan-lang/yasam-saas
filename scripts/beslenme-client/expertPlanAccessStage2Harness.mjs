@@ -47,6 +47,7 @@ const PLAN_ACCESS_ROUTES = [
   `${P}/meals/[mealId]/route.ts`, `${P}/meals/reorder/route.ts`, `${P}/meals/[mealId]/copy/route.ts`,
   `${P}/meals/[mealId]/items/route.ts`, `${P}/items/[itemId]/route.ts`, `${P}/items/[itemId]/copy/route.ts`,
   `${P}/items/[itemId]/alternatives/route.ts`, `${P}/analytics/route.ts`, `${P}/word/route.ts`,
+  `${P}/week-copy/route.ts`,
 ];
 for (const r of PLAN_ACCESS_ROUTES) {
   ok(`bound-plan guard: ${r.replace(P + "/", "")}`, /requireBeslenmePlanAccess\(req,/.test(read(r)));
@@ -92,6 +93,24 @@ ok("MealCard 'Öğünü Şablonla' uzmanda gizli (useEditorCaps)", /useEditorCap
 
 // 17) FAZ 1 client route'ları hâlâ clients-scoped.
 ok("FAZ1 client profile route hâlâ requireBeslenmeClient", /requireBeslenmeClient\(/.test(read("app/api/beslenme/clients/[clientId]/profile/route.ts")));
+
+// 18) Haftayı Kopyala (week-copy) — bound expert'e açık; dead-control fix (P3).
+const weekCopy = read(`${P}/week-copy/route.ts`);
+ok("week-copy requireBeslenmePlanAccess kullanıyor", /requireBeslenmePlanAccess\(req,/.test(weekCopy));
+ok("week-copy artık requireBeslenmeOwner KULLANMIYOR", !/requireBeslenmeOwner\(/.test(weekCopy));
+ok("week-copy demo mutation reddi korunuyor (denyDemoMutation)", /denyDemoMutation\(/.test(weekCopy));
+ok("week-copy nutrition_plan_week_copy RPC korunuyor", /nutrition_plan_week_copy/.test(weekCopy));
+ok("week-copy body validation aynı (source_start/target_start/span_days allowlist)",
+   /hasOnlyKeys\(body,\s*\[\s*["']source_start["'],\s*["']target_start["'],\s*["']span_days["']\s*\]\)/.test(weekCopy));
+ok("week-copy BAD_DATE/BAD_SPAN + mapRpcError error mapping korunuyor",
+   /BAD_DATE/.test(weekCopy) && /BAD_SPAN/.test(weekCopy) && /mapRpcError\(/.test(weekCopy));
+ok("week-copy tenant yalnız guard.tenantId; p_plan_id path id (body kimliği YOK)",
+   /p_plan_id:\s*id/.test(weekCopy) && /p_tenant_id:\s*tenantId/.test(weekCopy) && !/body\.(tenant_id|client_id|user_id)/.test(weekCopy));
+
+// 19) Owner-only plan lifecycle kararları DEĞİŞMEDİ (copy/revise/plan DELETE).
+ok("plan copy owner-only kaldı", /requireBeslenmeOwner\(/.test(read(`${P}/copy/route.ts`)));
+ok("plan revise owner-only kaldı", /requireBeslenmeOwner\(/.test(read(`${P}/revise/route.ts`)));
+ok("plan DELETE owner-only kaldı", /export async function DELETE[\s\S]{0,160}requireBeslenmeOwner\(/.test(read(`${P}/route.ts`)));
 
 console.log(`\n${fail === 0 ? "✅ PASS" : "❌ FAIL"} — ${pass} geçti, ${fail} kaldı`);
 process.exit(fail === 0 ? 0 : 1);
