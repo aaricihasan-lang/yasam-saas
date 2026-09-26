@@ -11,6 +11,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { handleCompute } from "./handleCompute";
 import { deriveChartColumns } from "./deriveChartColumns";
+import { hdSafeDbError } from "./safeError";
+import {
+  tenantScopedSelect,
+  tenantScopedUpdate,
+  tenantScopedDelete,
+  tenantInsertPayload,
+} from "./tenantScope";
 import type { HdChartResult } from "../engine";
 
 const TABLE = "human_design_charts";
@@ -46,8 +53,7 @@ export async function saveComputedChart(
   const result: HdChartResult = computed.body.data;
   const derived = deriveChartColumns(result);
 
-  const payload = {
-    tenant_id: tenantId,
+  const payload = tenantInsertPayload(tenantId, {
     user_id: userId,
     client_id: body.client_id ?? null,
     client_name: body.client_name ?? null,
@@ -61,11 +67,11 @@ export async function saveComputedChart(
     computed_result: result,
     notes: body.notes ?? null,
     ...derived,
-  };
+  });
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
   if (error || !data) {
-    return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: error?.message ?? "Kayıt oluşturulamadı." };
+    return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: error ? hdSafeDbError("saveComputedChart", error) : "Kayıt oluşturulamadı." };
   }
   return { ok: true, id: (data as { id: string }).id };
 }
@@ -93,10 +99,10 @@ export async function listComputedCharts(
   tenantId: string,
   opts: { clientId?: string } = {},
 ): Promise<{ rows: ChartListRow[]; error: string | null }> {
-  let q = db.from(TABLE).select(LIST_COLS).eq("tenant_id", tenantId).eq("source", SOURCE);
+  let q = tenantScopedSelect(db, TABLE, tenantId, LIST_COLS).eq("source", SOURCE);
   if (opts.clientId) q = q.eq("client_id", opts.clientId);
   const { data, error } = await q.order("created_at", { ascending: false });
-  if (error) return { rows: [], error: error.message };
+  if (error) return { rows: [], error: hdSafeDbError("listComputedCharts", error) };
   return { rows: (data ?? []) as unknown as ChartListRow[], error: null };
 }
 
@@ -105,14 +111,11 @@ export async function getComputedChart(
   tenantId: string,
   id: string,
 ): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .eq("source", SOURCE)
     .eq("id", id)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getComputedChart", error) };
   return { row: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
@@ -130,13 +133,10 @@ export async function getChartKnowledgeSource(
   row: { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null;
   error: string | null;
 }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("id, source, type_code, authority_code, gates, channels")
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "id, source, type_code, authority_code, gates, channels")
     .eq("id", id)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getChartKnowledgeSource", error) };
   return { row: (data as { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null) ?? null, error: null };
 }
 
@@ -174,27 +174,29 @@ export async function getChartWithClientForReport(
   tenantId: string,
   id: string,
 ): Promise<{ row: ChartForReport | null; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select(
-      "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
-    )
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(
+    db,
+    TABLE,
+    tenantId,
+    "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
+  )
     .eq("id", id)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getChartWithClientForReport", error) };
   if (!data) return { row: null, error: null };
 
   const chart = data as Omit<ChartForReport, "client">;
   let client: ChartForReport["client"] = null;
   if (chart.client_id) {
-    const { data: cli, error: cErr } = await db
-      .from("human_design_clients")
-      .select("id, name, birth_date, birth_time, birth_place, chart_image_url")
+    const { data: cli, error: cErr } = await tenantScopedSelect(
+      db,
+      "human_design_clients",
+      tenantId,
+      "id, name, birth_date, birth_time, birth_place, chart_image_url",
+    )
       .eq("id", chart.client_id)
-      .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (cErr) return { row: null, error: cErr.message };
+    if (cErr) return { row: null, error: hdSafeDbError("getChartWithClientForReport.client", cErr) };
     client = (cli as ChartForReport["client"]) ?? null;
   }
   return { row: { ...chart, client }, error: null };
@@ -206,14 +208,11 @@ export async function deleteComputedChart(
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
   // false-success koruması: yalnız kendi tenant'ının computed satırı silinir.
-  const { data, error } = await db
-    .from(TABLE)
-    .delete()
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedDelete(db, TABLE, tenantId)
     .eq("source", SOURCE)
     .eq("id", id)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("deleteComputedChart", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Silinecek kayıt bulunamadı veya erişim izniniz yok." };
   }
@@ -269,11 +268,8 @@ async function clientInTenant(
   clientId: string,
   tenantId: string,
 ): Promise<boolean> {
-  const { data, error } = await db
-    .from("human_design_clients")
-    .select("id")
+  const { data, error } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id")
     .eq("id", clientId)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
   return !error && !!data;
 }
@@ -288,19 +284,18 @@ export async function listManualChartsWithClients(
   tenantId: string,
 ): Promise<{ rows: ManualChartWithClient[]; error: string | null }> {
   const [chartsRes, clientsRes] = await Promise.all([
-    db
-      .from(TABLE)
-      .select("*")
-      .eq("tenant_id", tenantId)
+    tenantScopedSelect(db, TABLE, tenantId, "*")
       .or(MANUAL_FILTER)
       .order("created_at", { ascending: false }),
-    db
-      .from("human_design_clients")
-      .select("id, name, birth_date, birth_time, birth_place, external_chart_url")
-      .eq("tenant_id", tenantId),
+    tenantScopedSelect(
+      db,
+      "human_design_clients",
+      tenantId,
+      "id, name, birth_date, birth_time, birth_place, external_chart_url",
+    ),
   ]);
-  if (chartsRes.error) return { rows: [], error: chartsRes.error.message };
-  if (clientsRes.error) return { rows: [], error: clientsRes.error.message };
+  if (chartsRes.error) return { rows: [], error: hdSafeDbError("listManualChartsWithClients.charts", chartsRes.error) };
+  if (clientsRes.error) return { rows: [], error: hdSafeDbError("listManualChartsWithClients.clients", clientsRes.error) };
 
   const map = new Map(
     (clientsRes.data ?? []).map((c) => [(c as { id: string }).id, c as Record<string, unknown>]),
@@ -319,13 +314,10 @@ export async function getManualChartByClient(
   tenantId: string,
   clientId: string,
 ): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .eq("client_id", clientId)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getManualChartByClient", error) };
   return { row: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
@@ -341,30 +333,23 @@ export async function saveManualChart(
     return { ok: false, error: "Danışan bu hesaba ait değil." };
   }
 
-  const { data: existing } = await db
-    .from(TABLE)
-    .select("id")
-    .eq("tenant_id", tenantId)
+  const { data: existing } = await tenantScopedSelect(db, TABLE, tenantId, "id")
     .eq("client_id", clientId)
     .maybeSingle();
 
   const payload = {
-    tenant_id: tenantId,
     client_id: clientId,
     ...pickManual(values),
     updated_at: new Date().toISOString(),
   };
 
   if (existing && (existing as { id?: string }).id) {
-    const { error } = await db
-      .from(TABLE)
-      .update(payload)
-      .eq("id", (existing as { id: string }).id)
-      .eq("tenant_id", tenantId);
-    return { ok: !error, error: error?.message ?? null };
+    const { error } = await tenantScopedUpdate(db, TABLE, tenantId, payload)
+      .eq("id", (existing as { id: string }).id);
+    return { ok: !error, error: error ? hdSafeDbError("saveManualChart.update", error) : null };
   }
-  const { error } = await db.from(TABLE).insert(payload);
-  return { ok: !error, error: error?.message ?? null };
+  const { error } = await db.from(TABLE).insert(tenantInsertPayload(tenantId, payload));
+  return { ok: !error, error: error ? hdSafeDbError("saveManualChart.insert", error) : null };
 }
 
 /** Manuel harita güncelle (id ile) — additif PATCH desteği. */
@@ -375,14 +360,11 @@ export async function updateManualChartById(
   values: Record<string, unknown>,
 ): Promise<{ ok: boolean; error: string | null }> {
   const fields = { ...pickManual(values), updated_at: new Date().toISOString() };
-  const { data, error } = await db
-    .from(TABLE)
-    .update(fields)
+  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .or(MANUAL_FILTER)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("updateManualChartById", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
   }
@@ -395,12 +377,9 @@ export async function deleteManualChart(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await db
-    .from(TABLE)
-    .delete()
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-  return { ok: !error, error: error?.message ?? null };
+  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+    .eq("id", id);
+  return { ok: !error, error: error ? hdSafeDbError("deleteManualChart", error) : null };
 }
 
 /** Bir danışanın manuel haritalarını sil (tenant-scoped, yalnız manuel satırlar). */
@@ -409,11 +388,8 @@ export async function deleteManualChartsByClient(
   tenantId: string,
   clientId: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await db
-    .from(TABLE)
-    .delete()
+  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
     .eq("client_id", clientId)
-    .eq("tenant_id", tenantId)
     .or(MANUAL_FILTER);
-  return { ok: !error, error: error?.message ?? null };
+  return { ok: !error, error: error ? hdSafeDbError("deleteManualChartsByClient", error) : null };
 }

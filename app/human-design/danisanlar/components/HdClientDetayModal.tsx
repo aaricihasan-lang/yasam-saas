@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import Link from "next/link";
 import { updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "./HdChartImageUpload";
+import { useHdModalA11y } from "../../components/useHdModalA11y";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -43,6 +44,9 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
   const { showToast } = useToast();
   const [form, setForm] = useState<FormState>(() => rowToForm(row));
   const [saving, setSaving] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Form modali: focus-trap + focus-restore uygulanır; ESC ile sessiz veri kaybı YOK.
+  useHdModalA11y(dialogRef, onClose, { closeOnEsc: false });
 
   useEffect(() => {
     setForm(rowToForm(row));
@@ -89,21 +93,30 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
       />
 
       {/* Modal kartı — flex sütun, maksimum yükseklik ekrana göre */}
-      <div className="relative z-10 flex w-full max-w-5xl flex-col rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl" style={{ maxHeight: "90vh" }}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hd-client-detay-title"
+        tabIndex={-1}
+        className="relative z-10 flex w-full max-w-5xl flex-col rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
+        style={{ maxHeight: "90vh" }}
+      >
         {/* Header — sabit */}
         <div className="flex-shrink-0 flex items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
               Danışan Düzenle
             </p>
-            <h2 className="mt-0.5 text-lg font-black text-slate-900">{row.name}</h2>
+            <h2 id="hd-client-detay-title" className="mt-0.5 text-lg font-black text-slate-900">{row.name}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Kapat"
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
           >
-            ✕
+            <span aria-hidden>✕</span>
           </button>
         </div>
 

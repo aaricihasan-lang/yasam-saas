@@ -28,6 +28,7 @@
     "hd:word:visual": "tsx scripts/hd-word-report/visualFixtures.ts",
     "hd:member:harness": "tsx scripts/hd-member-access-harness.ts",
     "hd:isolation:harness": "node scripts/hd-admin-knowledge-isolation-check.mjs",
+    "hd:tenant-scope:harness": "tsx scripts/hd-presale-hardening/tenant-scope.harness.ts",
     "aromaterapi:check": "node scripts/aromaterapi-presale-faz1-harness.mjs",
     "aromaterapi:check:full": "node scripts/aromaterapi-presale-faz1-harness.mjs && node scripts/aromaterapi-docx-contract-harness.mjs && node scripts/aromaterapi-phase1-hardening-harness.mjs && node scripts/aromaterapi-phase2-oils-harness.mjs && node scripts/aromaterapi-phase3-harness.mjs && tsx scripts/aromaterapi-blend-calc.test.ts && tsx scripts/aromaterapi-docx-harness.ts",
     "aromaterapi:check:faz2": "node scripts/aromaterapi-presale-faz2-harness.mjs && tsx --tsconfig scripts/tsconfig.aromaterapi-tests.json scripts/aromaterapi-report-batch.test.ts && tsx --tsconfig scripts/tsconfig.aromaterapi-tests.json scripts/aromaterapi-ratelimit.test.ts && tsx --tsconfig scripts/tsconfig.aromaterapi-tests.json scripts/aromaterapi-photo-migration.test.ts && node scripts/aromaterapi-presale-faz1-harness.mjs",

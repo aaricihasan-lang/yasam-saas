@@ -81,25 +81,71 @@ async function main(): Promise<void> {
 
   // ── A. Rights resolver ────────────────────────────────────────────────────
   console.log("A. Rights resolver (default-deny / override-wins)");
+  // NOT (HD-P2-E): expertMaySeeFullText artık İKİ koşul birden ister —
+  //   expert_delivery=true VE rights_status BLOKLAYICI DEĞİL (permission_pending/restricted/unknown değil).
+  // Bu nedenle "görülebilir" senaryolarına dağıtılabilir bir rights_status (public_domain/licensed) eklenir.
   ok("boş kaynak → tüm haklar false (fail-closed)", resolveEffectiveRights(null).expertDelivery === false);
   ok("expert_delivery=false → görülemez", expertMaySeeFullText({ expert_delivery_allowed: false }) === false);
-  ok("expert_delivery=true → görülebilir", expertMaySeeFullText({ expert_delivery_allowed: true }) === true);
+  ok(
+    "expert_delivery=true + rights_status=public_domain → görülebilir",
+    expertMaySeeFullText({ expert_delivery_allowed: true, rights_status: "public_domain" }) === true,
+  );
   ok("eksik alan → false (default-deny)", expertMaySeeFullText({}) === false);
   ok(
-    "pasaj override=true kaynağı EZER (kaynak false)",
-    expertMaySeeFullText({ expert_delivery_allowed: false }, { expert_delivery_allowed_override: true }) === true,
+    "pasaj override=true kaynağı EZER (kaynak false, rights_status=licensed)",
+    expertMaySeeFullText(
+      { expert_delivery_allowed: false, rights_status: "licensed" },
+      { expert_delivery_allowed_override: true },
+    ) === true,
   );
   ok(
     "pasaj override=false kaynağı EZER (kaynak true)",
-    expertMaySeeFullText({ expert_delivery_allowed: true }, { expert_delivery_allowed_override: false }) === false,
+    expertMaySeeFullText({ expert_delivery_allowed: true, rights_status: "licensed" }, { expert_delivery_allowed_override: false }) === false,
   );
   ok(
-    "override=null → kaynaktan miras (true)",
-    expertMaySeeFullText({ expert_delivery_allowed: true }, { expert_delivery_allowed_override: null }) === true,
+    "override=null → kaynaktan miras (true, rights_status=permission_granted)",
+    expertMaySeeFullText({ expert_delivery_allowed: true, rights_status: "permission_granted" }, { expert_delivery_allowed_override: null }) === true,
   );
   ok(
     "public_display bağımsız eksen (expert_delivery'yi etkilemez)",
     resolveEffectiveRights({ public_display_allowed: true }).expertDelivery === false,
+  );
+
+  // ── A2. HD-P2-E: rights_status fail-closed defense-in-depth ────────────────
+  console.log("\nA2. rights_status TAM METİN bloklama (defense-in-depth)");
+  ok(
+    "rights_status YOK → 'unknown' → expert_delivery=true olsa bile BLOKLU",
+    expertMaySeeFullText({ expert_delivery_allowed: true }) === false,
+  );
+  for (const blocked of ["restricted", "permission_pending", "unknown"]) {
+    ok(
+      `rights_status='${blocked}' + expert_delivery=true → BLOKLU`,
+      expertMaySeeFullText({ expert_delivery_allowed: true, rights_status: blocked }) === false,
+    );
+  }
+  for (const allowed of ["public_domain", "licensed", "permission_granted"]) {
+    ok(
+      `rights_status='${allowed}' + expert_delivery=true → görülebilir`,
+      expertMaySeeFullText({ expert_delivery_allowed: true, rights_status: allowed }) === true,
+    );
+    ok(
+      `rights_status='${allowed}' ama expert_delivery=false → yine görülemez`,
+      expertMaySeeFullText({ expert_delivery_allowed: false, rights_status: allowed }) === false,
+    );
+  }
+  ok(
+    "pasaj rights_status_override BLOKLAYICI kaynağı EZER (kaynak public_domain)",
+    expertMaySeeFullText(
+      { expert_delivery_allowed: true, rights_status: "public_domain" },
+      { rights_status_override: "restricted" },
+    ) === false,
+  );
+  ok(
+    "pasaj rights_status_override DAĞITILABİLİR kaynağı EZER (kaynak restricted)",
+    expertMaySeeFullText(
+      { expert_delivery_allowed: true, rights_status: "restricted" },
+      { rights_status_override: "public_domain" },
+    ) === true,
   );
 
   // ── B. Read service davranışı (mock db) ───────────────────────────────────
@@ -168,7 +214,7 @@ async function main(): Promise<void> {
         { id: "p3", source_id: "s3", locator_kind: "page", locator_label: "s.", locator_value: "5", passage_kind: "excerpt", source_specific_note: null },
       ],
       hd_sources: [
-        { id: "s3", source_type: "book", title: "Açık Kaynak", authors: [], organization: null, expert_delivery_allowed: true },
+        { id: "s3", source_type: "book", title: "Açık Kaynak", authors: [], organization: null, expert_delivery_allowed: true, rights_status: "public_domain" },
       ],
       hd_original_texts: [
         { id: "ot3", passage_id: "p3", language_tag: "en", original_text: "ORIG", content_hash: "h", status: "verified", revision: 1 },
@@ -181,6 +227,39 @@ async function main(): Promise<void> {
     ok("B3 açık: full_text_restricted=false", r.ok && r.data.evidence[0]?.full_text_restricted === false);
     ok("B3 açık: original_text görünür", r.ok && r.data.evidence[0]?.original_text === "ORIG");
     ok("B3 açık: sadık çeviri görünür", r.ok && r.data.evidence[0]?.faithful_translation === "CEVIRI");
+  }
+
+  // B3b (HD-P2-E): PUBLISHED + expert_delivery=true AMA rights_status=restricted →
+  // read service TAM METNİ DAĞITMAZ (defense-in-depth uçtan uca).
+  {
+    const db = makeDb({
+      hd_canonical_entities: [
+        { id: "e3b", entity_kind: "otorite", canonical_key: "otorite_kisit", name_tr: "Kısıt", name_original: null },
+      ],
+      hd_canonical_content: [
+        { id: "c3b", entity_id: "e3b", entity_kind: "otorite", canonical_key: "otorite_kisit", status: "published", general_description: "g", report_text: "r" },
+      ],
+      hd_content_evidence: [
+        { id: "ev3b", content_id: "c3b", passage_id: "p3b", relation_type: "supports", is_primary: false, is_single_source: false, editorial_note: null, sort_order: 0 },
+      ],
+      hd_source_passages: [
+        { id: "p3b", source_id: "s3b", locator_kind: "page", locator_label: "s.", locator_value: "7", passage_kind: "excerpt", source_specific_note: null },
+      ],
+      hd_sources: [
+        { id: "s3b", source_type: "book", title: "Kısıtlı Rights Kaynak", authors: [], organization: null, expert_delivery_allowed: true, rights_status: "restricted" },
+      ],
+      hd_original_texts: [
+        { id: "ot3b", passage_id: "p3b", language_tag: "en", original_text: "SECRET-RIGHTS", content_hash: "h", status: "verified", revision: 1 },
+      ],
+      hd_faithful_translations: [
+        { id: "tr3b", original_text_id: "ot3b", translation_text: "GIZLI-CEVIRI", target_language_tag: "tr", status: "verified", revision: 1 },
+      ],
+    });
+    const r = await getPublishedEntityDetail(db, "otorite_kisit");
+    ok("B3b rights_status=restricted: full_text_restricted=true", r.ok && r.data.evidence[0]?.full_text_restricted === true);
+    ok("B3b rights_status=restricted: original_text=null (metin SIZMAZ)", r.ok && r.data.evidence[0]?.original_text === null);
+    ok("B3b rights_status=restricted: çeviri de SIZMAZ", r.ok && r.data.evidence[0]?.faithful_translation === null);
+    ok("B3b bibliyografik başlık yine görünür", r.ok && r.data.evidence[0]?.source.title === "Kısıtlı Rights Kaynak");
   }
 
   // B4: kaynak true ama pasaj override=false → override REDDEDER.

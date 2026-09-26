@@ -7,6 +7,13 @@
 // HD engine/compute/BodyGraph matematiğine + rapor içerik üretimine DOKUNMAZ — saf CRUD.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { hdSafeDbError } from "./safeError";
+import {
+  tenantScopedSelect,
+  tenantScopedUpdate,
+  tenantScopedDelete,
+  tenantInsertPayload,
+} from "./tenantScope";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
 import {
   HD_REPORT_SCHEMA_VERSION,
@@ -22,21 +29,15 @@ export type ReportWithClient = HumanDesignReport & {
 };
 
 async function clientInTenant(db: SupabaseClient, clientId: string, tenantId: string): Promise<boolean> {
-  const { data, error } = await db
-    .from("human_design_clients")
-    .select("id")
+  const { data, error } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id")
     .eq("id", clientId)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
   return !error && !!data;
 }
 
 async function chartInTenant(db: SupabaseClient, chartId: string, tenantId: string): Promise<boolean> {
-  const { data, error } = await db
-    .from("human_design_charts")
-    .select("id")
+  const { data, error } = await tenantScopedSelect(db, "human_design_charts", tenantId, "id")
     .eq("id", chartId)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
   return !error && !!data;
 }
@@ -46,11 +47,11 @@ export async function listReportsWithClients(
   tenantId: string,
 ): Promise<{ rows: ReportWithClient[]; error: string | null }> {
   const [repRes, cliRes] = await Promise.all([
-    db.from(TABLE).select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-    db.from("human_design_clients").select("id, name").eq("tenant_id", tenantId),
+    tenantScopedSelect(db, TABLE, tenantId, "*").order("created_at", { ascending: false }),
+    tenantScopedSelect(db, "human_design_clients", tenantId, "id, name"),
   ]);
-  if (repRes.error) return { rows: [], error: repRes.error.message };
-  if (cliRes.error) return { rows: [], error: cliRes.error.message };
+  if (repRes.error) return { rows: [], error: hdSafeDbError("listReportsWithClients.reports", repRes.error) };
+  if (cliRes.error) return { rows: [], error: hdSafeDbError("listReportsWithClients.clients", cliRes.error) };
 
   const map = new Map(
     (cliRes.data ?? []).map((c) => [(c as { id: string }).id, c as Pick<HumanDesignClient, "id" | "name">]),
@@ -67,23 +68,17 @@ export async function getReportById(
   tenantId: string,
   id: string,
 ): Promise<{ row: ReportWithClient | null; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getReportById", error) };
   if (!data) return { row: null, error: "Rapor bulunamadı." };
 
   const report = data as HumanDesignReport;
   if (!report.client_id) return { row: { ...report, client: null }, error: null };
 
-  const { data: cli } = await db
-    .from("human_design_clients")
-    .select("id, name")
+  const { data: cli } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id, name")
     .eq("id", report.client_id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
   return {
     row: { ...report, client: (cli as Pick<HumanDesignClient, "id" | "name"> | null) ?? null },
@@ -109,8 +104,7 @@ export async function saveReport(
 
   const { data, error } = await db
     .from(TABLE)
-    .insert({
-      tenant_id: tenantId,
+    .insert(tenantInsertPayload(tenantId, {
       user_id: userId,
       client_id: clientId,
       chart_id: chartId,
@@ -119,10 +113,10 @@ export async function saveReport(
       generated_content: String(input.generatedContent ?? ""),
       edited_content: String(input.editedContent ?? ""),
       updated_at: new Date().toISOString(),
-    })
+    }))
     .select("id")
     .single();
-  if (error || !data) return { id: null, error: error?.message ?? "Kayıt oluşturulamadı." };
+  if (error || !data) return { id: null, error: error ? hdSafeDbError("saveReport", error) : "Kayıt oluşturulamadı." };
   return { id: (data as { id: string }).id, error: null };
 }
 
@@ -131,12 +125,9 @@ export async function getClientReportCount(
   tenantId: string,
   clientId: string,
 ): Promise<{ count: number; error: string | null }> {
-  const { count, error } = await db
-    .from(TABLE)
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId)
+  const { count, error } = await tenantScopedSelect(db, TABLE, tenantId, "id", { count: "exact", head: true })
     .eq("client_id", clientId);
-  return { count: count ?? 0, error: error?.message ?? null };
+  return { count: count ?? 0, error: error ? hdSafeDbError("getClientReportCount", error) : null };
 }
 
 export async function updateReport(
@@ -148,29 +139,23 @@ export async function updateReport(
   // IMMUTABILITY (FAZ 2): canonical (profesyonel) rapor snapshot'ı DEĞİŞMEZ.
   // Legacy PATCH davranışı korunur; canonical satır güncellemesi AÇIKÇA reddedilir
   // (snapshot/canonical_provenance/generated içerik PATCH ile değiştirilemez).
-  const { data: kindRow, error: kindErr } = await db
-    .from(TABLE)
-    .select("report_kind")
+  const { data: kindRow, error: kindErr } = await tenantScopedSelect(db, TABLE, tenantId, "report_kind")
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (kindErr) return { ok: false, error: kindErr.message };
+  if (kindErr) return { ok: false, error: hdSafeDbError("updateReport.kind", kindErr) };
   if (!kindRow) return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
   if ((kindRow as { report_kind?: string }).report_kind === "canonical") {
     return { ok: false, error: "Profesyonel (canonical) rapor değiştirilemez; içeriği sabittir." };
   }
 
-  const { data, error } = await db
-    .from(TABLE)
-    .update({
+  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, {
       title: String(input.title ?? ""),
       edited_content: String(input.editedContent ?? ""),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("updateReport", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
   }
@@ -182,8 +167,8 @@ export async function deleteReport(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await db.from(TABLE).delete().eq("id", id).eq("tenant_id", tenantId);
-  return { ok: !error, error: error?.message ?? null };
+  const { error } = await tenantScopedDelete(db, TABLE, tenantId).eq("id", id);
+  return { ok: !error, error: error ? hdSafeDbError("deleteReport", error) : null };
 }
 
 // =============================================================================
@@ -218,8 +203,7 @@ export async function saveCanonicalReport(
 
   const { data, error } = await db
     .from(TABLE)
-    .insert({
-      tenant_id: tenantId,
+    .insert(tenantInsertPayload(tenantId, {
       user_id: userId,
       client_id: input.clientId,
       chart_id: input.chartId,
@@ -233,10 +217,10 @@ export async function saveCanonicalReport(
       report_version: HD_REPORT_VERSION,
       schema_version: HD_REPORT_SCHEMA_VERSION,
       updated_at: new Date().toISOString(),
-    })
+    }))
     .select("id")
     .single();
-  if (error || !data) return { id: null, error: error?.message ?? "Rapor kaydedilemedi." };
+  if (error || !data) return { id: null, error: error ? hdSafeDbError("saveCanonicalReport", error) : "Rapor kaydedilemedi." };
   return { id: (data as { id: string }).id, error: null };
 }
 
@@ -254,13 +238,10 @@ export async function getCanonicalReportForDownload(
   status: number;
   error: string | null;
 }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("title, client_id, report_kind, snapshot")
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "title, client_id, report_kind, snapshot")
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (error) return { data: null, status: 500, error: error.message };
+  if (error) return { data: null, status: 500, error: hdSafeDbError("getCanonicalReportForDownload", error) };
   if (!data) return { data: null, status: 404, error: "Rapor bulunamadı." };
 
   const row = data as { title: string; client_id: string | null; report_kind: string; snapshot: unknown };

@@ -9,6 +9,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HumanDesignKnowledgeSource } from "@/lib/human-design/types";
+import { hdSafeDbError } from "./safeError";
+import {
+  tenantScopedSelect,
+  tenantScopedUpdate,
+  tenantScopedDelete,
+  tenantInsertPayload,
+} from "./tenantScope";
 
 const TABLE = "human_design_knowledge_sources";
 const RECORDS = "human_design_knowledge_records";
@@ -69,11 +76,8 @@ async function recordInTenant(
   recordId: string,
   tenantId: string,
 ): Promise<boolean> {
-  const { data, error } = await db
-    .from(RECORDS)
-    .select("id")
+  const { data, error } = await tenantScopedSelect(db, RECORDS, tenantId, "id")
     .eq("id", recordId)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
   return !error && !!data;
 }
@@ -83,14 +87,11 @@ export async function listSourcesForRecord(
   tenantId: string,
   recordId: string,
 ): Promise<{ rows: HumanDesignKnowledgeSource[]; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .eq("record_id", recordId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
-  if (error) return { rows: [], error: error.message };
+  if (error) return { rows: [], error: hdSafeDbError("listSourcesForRecord", error) };
   return { rows: (data ?? []) as HumanDesignKnowledgeSource[], error: null };
 }
 
@@ -108,20 +109,22 @@ export async function insertSource(
   const picked = pick(input);
   // Nihai telif durumu (verilmezse DB default'u 'unknown' → private-only → bayraklar false).
   const effectiveRights = (picked.rights_status as string | undefined) ?? "unknown";
-  const payload = enforceLockedDistribution(
-    {
-      ...picked,
-      // source_name zorunlu; boşsa güvenli varsayılan (UI de zorunlu tutar).
-      source_name: String((input.source_name ?? "") || "Yeni Kaynak"),
-      tenant_id: tenantId,
-      user_id: userId,
-      record_id: recordId,
-      updated_at: new Date().toISOString(),
-    },
-    effectiveRights,
+  const payload = tenantInsertPayload(
+    tenantId,
+    enforceLockedDistribution(
+      {
+        ...picked,
+        // source_name zorunlu; boşsa güvenli varsayılan (UI de zorunlu tutar).
+        source_name: String((input.source_name ?? "") || "Yeni Kaynak"),
+        user_id: userId,
+        record_id: recordId,
+        updated_at: new Date().toISOString(),
+      },
+      effectiveRights,
+    ),
   );
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
-  if (error || !data) return { id: null, error: error?.message ?? "Kaynak oluşturulamadı." };
+  if (error || !data) return { id: null, error: error ? hdSafeDbError("insertSource", error) : "Kaynak oluşturulamadı." };
   return { id: (data as { id: string }).id, error: null };
 }
 
@@ -134,13 +137,10 @@ export async function updateSource(
   // Kısmi payload'da nihai durumu değerlendirmek için mevcut rights_status okunur.
   // (Örn. yalnız rights_status=permission_pending gelirse, DB'deki eski true dağıtım
   //  bayrakları AYNI update içinde false'a çekilir — kalıcı true kalmaz.)
-  const { data: existing, error: readErr } = await db
-    .from(TABLE)
-    .select("rights_status")
+  const { data: existing, error: readErr } = await tenantScopedSelect(db, TABLE, tenantId, "rights_status")
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (readErr) return { ok: false, error: readErr.message };
+  if (readErr) return { ok: false, error: hdSafeDbError("updateSource.read", readErr) };
   if (!existing) {
     return { ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." };
   }
@@ -153,13 +153,10 @@ export async function updateSource(
     { ...picked, updated_at: new Date().toISOString() },
     effectiveRights,
   );
-  const { data, error } = await db
-    .from(TABLE)
-    .update(fields)
+  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("updateSource", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." };
   }
@@ -171,10 +168,7 @@ export async function deleteSource(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await db
-    .from(TABLE)
-    .delete()
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-  return { ok: !error, error: error?.message ?? null };
+  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+    .eq("id", id);
+  return { ok: !error, error: error ? hdSafeDbError("deleteSource", error) : null };
 }

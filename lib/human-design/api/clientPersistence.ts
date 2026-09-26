@@ -11,6 +11,13 @@ import type {
   HumanDesignClient,
   HumanDesignClientInsert,
 } from "@/lib/human-design/types";
+import { hdSafeDbError } from "./safeError";
+import {
+  tenantScopedSelect,
+  tenantScopedUpdate,
+  tenantScopedDelete,
+  tenantInsertPayload,
+} from "./tenantScope";
 
 const TABLE = "human_design_clients";
 
@@ -37,12 +44,9 @@ export async function listHdClients(
   db: SupabaseClient,
   tenantId: string,
 ): Promise<{ rows: HumanDesignClient[]; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .order("created_at", { ascending: false });
-  if (error) return { rows: [], error: error.message };
+  if (error) return { rows: [], error: hdSafeDbError("listHdClients", error) };
   return { rows: (data ?? []) as HumanDesignClient[], error: null };
 }
 
@@ -51,13 +55,10 @@ export async function getHdClient(
   tenantId: string,
   id: string,
 ): Promise<{ row: HumanDesignClient | null; error: string | null }> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
+  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
+  if (error) return { row: null, error: hdSafeDbError("getHdClient", error) };
   return { row: (data as HumanDesignClient | null) ?? null, error: null };
 }
 
@@ -70,17 +71,16 @@ export async function insertHdClient(
   const name = String(input.name ?? "").trim();
   if (!name) return { id: null, error: "İsim alanı zorunludur." };
 
-  const payload = {
+  const payload = tenantInsertPayload(tenantId, {
     ...pick(input),
     name,
-    tenant_id: tenantId,
     user_id: userId,
     updated_at: new Date().toISOString(),
-  };
+  });
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
   if (error || !data) {
-    return { id: null, error: error?.message ?? "Kayıt oluşturulamadı." };
+    return { id: null, error: error ? hdSafeDbError("insertHdClient", error) : "Kayıt oluşturulamadı." };
   }
   return { id: (data as { id: string }).id, error: null };
 }
@@ -93,13 +93,10 @@ export async function updateHdClient(
 ): Promise<{ ok: boolean; error: string | null }> {
   const fields = { ...pick(input), updated_at: new Date().toISOString() };
 
-  const { data, error } = await db
-    .from(TABLE)
-    .update(fields)
+  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("updateHdClient", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
   }
@@ -113,29 +110,20 @@ export async function deleteHdClient(
 ): Promise<{ ok: boolean; error: string | null }> {
   // false-success koruması + tenant-scoped cascade (mevcut hdClients davranışıyla birebir).
   // 1) Bağlı raporlar
-  const { error: repErr } = await db
-    .from("human_design_reports")
-    .delete()
-    .eq("client_id", id)
-    .eq("tenant_id", tenantId);
-  if (repErr) return { ok: false, error: `Raporlar silinemedi: ${repErr.message}` };
+  const { error: repErr } = await tenantScopedDelete(db, "human_design_reports", tenantId)
+    .eq("client_id", id);
+  if (repErr) return { ok: false, error: hdSafeDbError("deleteHdClient.reports", repErr) };
 
   // 2) Bağlı haritalar
-  const { error: chErr } = await db
-    .from("human_design_charts")
-    .delete()
-    .eq("client_id", id)
-    .eq("tenant_id", tenantId);
-  if (chErr) return { ok: false, error: `Harita silinemedi: ${chErr.message}` };
+  const { error: chErr } = await tenantScopedDelete(db, "human_design_charts", tenantId)
+    .eq("client_id", id);
+  if (chErr) return { ok: false, error: hdSafeDbError("deleteHdClient.charts", chErr) };
 
   // 3) Danışanın kendisi
-  const { data, error } = await db
-    .from(TABLE)
-    .delete()
+  const { data, error } = await tenantScopedDelete(db, TABLE, tenantId)
     .eq("id", id)
-    .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: hdSafeDbError("deleteHdClient", error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "Danışan bulunamadı veya bu tenant'a ait değil." };
   }

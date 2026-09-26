@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import type { HdReportWithClient } from "../helpers/hdKayitliRaporlar";
+import { useHdModalA11y } from "../../components/useHdModalA11y";
 
 type Props = {
   row: HdReportWithClient;
@@ -23,6 +25,8 @@ function formatDate(val: string | null | undefined): string {
 export function HdRaporDetayModal({ row, onClose }: Props) {
   const content = row.edited_content ?? row.generated_content ?? "";
   const clientName = row.client?.name ?? "—";
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useHdModalA11y(dialogRef, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
@@ -33,14 +37,21 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
       />
 
-      <div className="relative z-10 w-full max-w-2xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hd-rapor-detay-title"
+        tabIndex={-1}
+        className="relative z-10 w-full max-w-2xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
+      >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-fuchsia-50 to-violet-50/60 px-6 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-fuchsia-500">
               Rapor Detayı
             </p>
-            <h2 className="mt-0.5 text-lg font-black text-slate-900">{row.title}</h2>
+            <h2 id="hd-rapor-detay-title" className="mt-0.5 text-lg font-black text-slate-900">{row.title}</h2>
             <p className="text-xs text-slate-500">
               {clientName} · {formatDate(row.created_at)}
             </p>
@@ -48,9 +59,10 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Kapat"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
-            ✕
+            <span aria-hidden>✕</span>
           </button>
         </div>
 
