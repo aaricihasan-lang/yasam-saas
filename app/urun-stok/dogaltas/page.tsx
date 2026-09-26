@@ -6,6 +6,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   type InvItem,
+  type SaleLine,
   type SaleRecord,
   STONE_TYPES,
   addOrUpdateInventoryItem,
@@ -41,9 +42,10 @@ import {
 import {
   deleteDogaltasInventoryItems,
   loadDogaltasInventoryForTenant,
-  syncDogaltasInventoryToDb,
   upsertDogaltasInventoryItem,
 } from "@/lib/urun-stok/dogaltasInventoryDb";
+import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
+import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -51,6 +53,42 @@ import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 type TabId = "stock" | "pricing" | "history";
+
+const dbNum = (v: unknown): number => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** Canonical DB kategori satışları → SaleRecord (snapshot; iptal için saleId). */
+function dbToDogaltasRecords(dbSales: DbCategorySale[]): SaleRecord[] {
+  return dbSales.map((s) => {
+    const lines: SaleLine[] = s.items.map((it) => {
+      const qty = dbNum(it.quantity);
+      const lineSale = dbNum(it.line_sale_total);
+      return {
+        stone: it.product_name_snapshot,
+        type: it.product_subtitle_snapshot,
+        currency: "₺",
+        unit: qty > 0 ? lineSale / qty : 0,
+        qty,
+        line_total: lineSale,
+      };
+    });
+    const total_cost = s.items.reduce((a, it) => a + dbNum(it.line_cost_total), 0);
+    const sale_price = lines.reduce((a, l) => a + l.line_total, 0);
+    const cancelled = s.status === "cancelled";
+    return {
+      name: (cancelled ? "(İptal edildi) " : "") + (s.note || lines[0]?.stone || "Satış"),
+      lines,
+      total_cost,
+      sale_price,
+      profit_pct: dbNum(s.items[0]?.markup_pct),
+      photos: [],
+      timestamp: s.soldAtDisplay,
+      saleId: s.saleId,
+    };
+  });
+}
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.12),transparent_30%),linear-gradient(160deg,#fffbeb_0%,#f5f3ff_42%,#f0fdfa_100%)] text-slate-950";
@@ -231,8 +269,12 @@ export default function DogaltasUrunStokPage() {
     setInventory(dirty ? normalized : items);
   }, []);
 
-  const reloadSales = useCallback(() => {
-    setSales(loadSales());
+  // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
+  const reloadSales = useCallback(async () => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) { setSales(loadSales()); return; }
+    const { sales: dbSales } = await loadDbCategorySales("dogaltas");
+    setSales(dbToDogaltasRecords(dbSales));
   }, []);
 
   useEffect(() => {
@@ -240,7 +282,7 @@ export default function DogaltasUrunStokPage() {
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
     void reloadInventory();
-    reloadSales();
+    void reloadSales();
     setHydrated(true);
   }, [reloadInventory, reloadSales]);
 
@@ -558,7 +600,9 @@ export default function DogaltasUrunStokPage() {
     setPricingMsg(null);
   }
 
-  function commitSale() {
+  // USM-001/003/004/005: satış CANONICAL server RPC ile atomik. Fire-and-forget
+  // localStorage senkronu KALDIRILDI; server başarısı olmadan UI başarı göstermez.
+  async function commitSale() {
     if (committingRef.current) return;
     if (!basket.length) {
       setPricingMsg("Kaydedilecek satış yok.");
@@ -568,20 +612,42 @@ export default function DogaltasUrunStokPage() {
     setIsCommitting(true);
     try {
       const records = toSaleRecords(basket);
-      const updated = deductInventoryForSales(inventory, records);
-      saveInventory(updated);
-      setInventory(updated);
-      appendSales(records);
-      reloadSales();
+      if (isDemo) {
+        // Demo: server no-op — yalnız localStorage önizleme (showcase).
+        const updated = deductInventoryForSales(inventory, records);
+        saveInventory(updated);
+        setInventory(updated);
+        appendSales(records);
+        void reloadSales();
+        setBasket([]);
+        resetProductForm();
+        setPricingMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        return;
+      }
+
+      // Doğaltaş DB'de client_id taşımaz → satır name+type ile çözülür.
+      const lines = records.flatMap((r) =>
+        (r.lines || []).map((l) => ({
+          name: l.stone,
+          type: l.type,
+          quantity: l.qty,
+          markupPct: r.profit_pct,
+        })),
+      );
+      const res = await createCategorySale({ category: "dogaltas", idempotencyKey: newIdempotencyKey(), lines });
+      if (!res.ok) {
+        setPricingMsg(res.error ?? "Satış kaydedilemedi.");
+        await reloadInventory(); // gerçek stok yenilensin
+        return;
+      }
       setBasket([]);
       resetProductForm();
-      setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
-      // Z-2: Demo modda Supabase'e yazma; gerçek hesaplarda sync yap
-      if (!isDemo && activeTenantId) {
-        void syncDogaltasInventoryToDb(activeTenantId, updated).then(({ error }) => {
-          if (error) console.warn("[dogaltas] Supabase sync hatası (satış):", error);
-        });
-      }
+      await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
+      await reloadSales(); // geçmiş DB'den (yeni satış görünür)
+      setPricingMsg("Satış kaydedildi, stok düşüldü.");
+    } catch {
+      setPricingMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      await reloadInventory();
     } finally {
       committingRef.current = false;
       setIsCommitting(false);
@@ -596,54 +662,65 @@ export default function DogaltasUrunStokPage() {
     return { totalSale, totalCost, profit: totalSale - totalCost, count: sales.length };
   }, [sales]);
 
+  // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) ile.
   async function deleteSelectedSales() {
     if (!historySelected.size) {
-      setStockMsg("Silmek için en az bir satır seçin.");
+      setStockMsg("İptal için en az bir satır seçin.");
       return;
     }
     const ok = await deleteConfirm({
-      title: "Satış kaydı silinecek",
-      message: `Seçili ${historySelected.size} satış kaydı silinecek. Satılan miktarlar stoğa geri eklenecektir.`,
+      title: "Satış iptal edilecek",
+      message: `Seçili ${historySelected.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
     });
     if (!ok) return;
-    const toDelete = sales.filter((_, i) => historySelected.has(i));
-    let inv = [...inventory];
-    const missing: string[] = [];
-    let restoredCount = 0;
-    for (const rec of toDelete) {
-      for (const line of (rec.lines || [])) {
-        const qty = line.qty || 0;
-        if (qty <= 0) continue;
-        const lineKey = `${(line.stone || "").trim().toLowerCase()}|${(line.type || "").trim().toLowerCase()}`;
-        const idx = inv.findIndex((it) => itemKeyFrom(it) === lineKey);
-        if (idx < 0) { missing.push(line.stone || "?"); continue; }
-        const it = { ...inv[idx], photos: [...(inv[idx].photos || [])] };
-        it.adet = (it.adet || 0) + qty;
-        if (isDizi(it.type) && (it.adet_price || 0) > 0) {
-          it.dizi_price = Math.round(it.adet_price * it.adet * 100) / 100;
+    const toCancel = sales.filter((_, i) => historySelected.has(i));
+
+    if (isDemo) {
+      const inv = [...inventory];
+      const missing: string[] = [];
+      let restoredCount = 0;
+      for (const rec of toCancel) {
+        for (const line of (rec.lines || [])) {
+          const qty = line.qty || 0;
+          if (qty <= 0) continue;
+          const lineKey = `${(line.stone || "").trim().toLowerCase()}|${(line.type || "").trim().toLowerCase()}`;
+          const idx = inv.findIndex((it) => itemKeyFrom(it) === lineKey);
+          if (idx < 0) { missing.push(line.stone || "?"); continue; }
+          const it = { ...inv[idx], photos: [...(inv[idx].photos || [])] };
+          it.adet = (it.adet || 0) + qty;
+          if (isDizi(it.type) && (it.adet_price || 0) > 0) {
+            it.dizi_price = Math.round(it.adet_price * it.adet * 100) / 100;
+          }
+          inv[idx] = applyItemCostTotals(it);
+          restoredCount++;
         }
-        // Z-4: total_cost_try / unit_cost_try'yı güncel adet ile yeniden hesapla
-        inv[idx] = applyItemCostTotals(it);
-        restoredCount++;
       }
+      saveInventory(inv);
+      setInventory(inv);
+      const next = sales.filter((_, i) => !historySelected.has(i));
+      saveSales(next);
+      setSales(next);
+      setHistorySelected(new Set());
+      setStockMsg(missing.length > 0
+        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
+        : `${toCancel.length} satış iptal edildi, ${restoredCount} stok kalemi güncellendi (demo).`);
+      return;
     }
-    saveInventory(inv);
-    setInventory(inv);
-    const next = sales.filter((_, i) => !historySelected.has(i));
-    saveSales(next);
-    setSales(next);
+
+    let failed = 0;
+    for (const rec of toCancel) {
+      if (!rec.saleId) { failed++; continue; }
+      const res = await cancelSale(rec.saleId);
+      if (!res.ok) failed++;
+    }
     setHistorySelected(new Set());
-    // Z-2: Demo modda Supabase'e yazma; gerçek hesaplarda sync yap
-    if (!isDemo && activeTenantId) {
-      void syncDogaltasInventoryToDb(activeTenantId, inv).then(({ error }) => {
-        if (error) console.warn("[dogaltas] Supabase sync hatası (stok iadesi):", error);
-      });
-    }
-    if (missing.length > 0) {
-      setStockMsg(`${toDelete.length} satış silindi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı, iade yapılamadı.`);
-    } else {
-      setStockMsg(`${toDelete.length} satış silindi, ${restoredCount} stok kalemi güncellendi.`);
-    }
+    await reloadSales();
+    await reloadInventory();
+    setStockMsg(
+      failed > 0
+        ? `${toCancel.length - failed} satış iptal edildi, ${failed} işlem başarısız.`
+        : "Satış iptal edildi, stok stoğa geri eklendi.",
+    );
   }
 
   if (!hydrated) {
@@ -857,8 +934,9 @@ export default function DogaltasUrunStokPage() {
                     onChange={async (e) => {
                       const files = e.target.files;
                       if (!files?.length) return;
-                      const urls = await filesToDataUrls(files);
-                      setPendingPhotos(urls);
+                      const { urls, error } = await filesToDataUrls(files);
+                      if (error) setStockMsg(error);
+                      else setPendingPhotos(urls);
                       e.target.value = "";
                     }}
                   />
@@ -1040,7 +1118,9 @@ export default function DogaltasUrunStokPage() {
                   onChange={async (e) => {
                     const f = e.target.files;
                     if (!f?.length) return;
-                    setProductPhotos(await filesToDataUrls(f));
+                    const { urls, error } = await filesToDataUrls(f);
+                    if (error) setPricingMsg(error);
+                    else setProductPhotos(urls);
                     e.target.value = "";
                   }}
                 />
@@ -1278,7 +1358,7 @@ export default function DogaltasUrunStokPage() {
                 <button
                   type="button"
                   className={btnPrimary}
-                  onClick={commitSale}
+                  onClick={() => void commitSale()}
                   disabled={!basket.length || isCommitting}
                 >
                   {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
