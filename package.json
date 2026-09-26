@@ -61,6 +61,7 @@
     "beslenme:knowledge:harness": "node scripts/beslenme-knowledge/ddlHarness.mjs",
     "beslenme:client:ddl:harness": "node scripts/beslenme-client/ddlHarness.mjs",
     "beslenme:client:behavior:harness": "node scripts/beslenme-client/behaviorHarness.mjs",
+    "beslenme:client:plan-delete:harness": "node scripts/beslenme-client/planDeleteRevisionHarness.mjs",
     "beslenme:client:avoided:harness": "tsx scripts/beslenme-client/avoidedMatchHarness.ts",
     "beslenme:client:expert-access:harness": "node scripts/beslenme-client/expertAccessStage1Harness.mjs",
     "beslenme:client:expert-plan:harness": "node scripts/beslenme-client/expertPlanAccessStage2Harness.mjs",

@@ -32,13 +32,20 @@ ok("client-scoped POST createPlanForTenant + assign RPC + compensating delete", 
 ok("client-scoped POST demo reddi (denyDemoMutation)", /denyDemoMutation\(/.test(cPlans));
 ok("client-scoped POST body'den tenant/client/user KABUL ETMİYOR", !/body\.(tenant_id|client_id|user_id)/.test(cPlans));
 
-// 4/5) Plan access helper zinciri + expert unbound fail-closed.
+// 4/5) Plan access helper — CAPABILITY modeli (module|client); clients-only unbound fail-closed.
 const guard = read("lib/beslenme/clientPlanGuard.ts");
-ok("plan-guard requireModuleAccess(\"clients\")", /requireModuleAccess\(\s*req\s*,\s*["']clients["']\s*\)/.test(guard));
+ok("plan-guard capability-based (verifyUserRequest + resolveModuleAccess beslenme/clients)",
+   /verifyUserRequest\(/.test(guard) &&
+   /resolveModuleAccess\([^)]*["']beslenme["']\)/.test(guard) &&
+   /resolveModuleAccess\([^)]*["']clients["']\)/.test(guard));
 ok("plan-guard nutrition_plan_clients binding çözüyor", /nutrition_plan_clients/.test(guard));
-ok("plan-guard requireClientInTenant ile tekrar doğruluyor", /requireClientInTenant\(/.test(guard));
-ok("plan-guard requireMainAdmin ile owner ayırımı", /requireMainAdmin\(/.test(guard));
-ok("plan-guard EXPERT unbound plan → fail-closed", /if \(!boundClientId\)/.test(guard) && /PLAN_NOT_FOUND/.test(guard));
+ok("plan-guard requireClientInTenant ile (client authority) tekrar doğruluyor", /requireClientInTenant\(/.test(guard));
+ok("plan-guard requireMainAdmin ROLE-GATE KALDIRILDI (parity; admin resolveModuleAccess ile geçer)",
+   !/requireMainAdmin\(/.test(guard));
+ok("plan-guard authority 'module' (beslenme; unbound dahil) | 'client' (yalnız bound)",
+   /authority:\s*"module"/.test(guard) && /authority:\s*"client"/.test(guard));
+ok("plan-guard CLIENTS-ONLY unbound plan → fail-closed", /if \(!boundClientId\)/.test(guard) && /PLAN_NOT_FOUND/.test(guard));
+ok("plan-guard beslenme+clients ikisi de yoksa → 403 FORBIDDEN", /!hasBeslenme && !hasClients/.test(guard) && /FORBIDDEN/.test(guard));
 
 // 6) Editör plan route'ları yeni bound-plan guard'ı kullanıyor (örneklem + tam liste).
 const PLAN_ACCESS_ROUTES = [
@@ -88,8 +95,17 @@ ok("foods/[id]/sources requireBeslenmeModule", /requireBeslenmeModule\(/.test(re
 // 15) QuickAdd manual-food capability'ye bağlı.
 ok("FoodPicker quick-add checkBeslenmeFoodAccess ile gated", /checkBeslenmeFoodAccess/.test(read("app/beslenme/planlar/_components/FoodPickerDialog.tsx")));
 
-// 16) Templates → requireBeslenmeModule; editörde şablon aksiyonları uzmana AÇIK (parity, role-fork YOK).
-ok("templates route requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/templates/route.ts")));
+// 16) Templates → CAPABILITY-aware (LIST beslenme|clients; CREATE/APPLY plan-access). Clients-only
+//     uzman plan editöründe şablon işlemleri PASS (dead-control fix). Yönetim requireBeslenmeModule.
+{
+  const tplIdx = read("app/api/beslenme/templates/route.ts");
+  ok("templates GET capability-aware (resolveBeslenmeCapabilities)", /resolveBeslenmeCapabilities\(/.test(tplIdx));
+  ok("templates POST create source plan-access ile (requireBeslenmePlanAccess + scope)",
+     /requireBeslenmePlanAccess\(req,/.test(tplIdx) && /getMealScope\(/.test(tplIdx) && /getDayScope\(/.test(tplIdx));
+  const tplApply = read("app/api/beslenme/templates/[id]/apply/route.ts");
+  ok("templates apply target_plan_id plan-access ile", /requireBeslenmePlanAccess\(req,\s*body\.target_plan_id/.test(tplApply));
+  ok("templates [id] YÖNETİM (rename) hâlâ requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/templates/[id]/route.ts")));
+}
 ok("PlanTools şablon butonları role-fork ETMİYOR (isExpert yok)", !/isExpert/.test(read("app/beslenme/planlar/_components/PlanTools.tsx")));
 {
   const mc = read("app/beslenme/planlar/_components/MealCard.tsx");
@@ -115,8 +131,8 @@ ok("week-copy tenant yalnız guard.tenantId; p_plan_id path id (body kimliği YO
 // 19) Plan lifecycle (copy/revise/DELETE) → admin↔uzman parity (requireBeslenmePlanAccess).
 const copySrc = read(`${P}/copy/route.ts`);
 ok("plan copy requireBeslenmePlanAccess (admin↔uzman)", /requireBeslenmePlanAccess\(req,/.test(copySrc));
-ok("plan copy EXPERT bound → kopyayı aynı danışana bağlar (dead-end önle)",
-   /authority === "expert"/.test(copySrc) && /nutrition_plan_assign_client/.test(copySrc));
+ok("plan copy CLIENT authority bound → kopyayı aynı danışana bağlar (dead-end önle); module → unbound",
+   /authority === "client"/.test(copySrc) && /nutrition_plan_assign_client/.test(copySrc) && !/authority === "expert"/.test(copySrc));
 ok("plan copy artık requireBeslenmeOwner DEĞİL", !/requireBeslenmeOwner\(/.test(copySrc));
 ok("plan revise requireBeslenmePlanAccess (aynı family binding korunur)",
    /requireBeslenmePlanAccess\(req,/.test(read(`${P}/revise/route.ts`)) && !/requireBeslenmeOwner\(/.test(read(`${P}/revise/route.ts`)));

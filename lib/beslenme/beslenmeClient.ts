@@ -56,6 +56,17 @@ export async function checkBeslenmeAccess(): Promise<boolean> {
 }
 
 /**
+ * Beslenme YETENEK probe'u (server-authoritative). Aynı /access ucundan modül erişimi +
+ * `clients` (Danışan Yolculuğu) yeteneğini döner. /beslenme hub "Danışan Planları" kartını
+ * yalnız clients yeteneği olanlara gösterir (dead-control önle). Yetkisiz → {access:false}.
+ */
+export async function fetchBeslenmeCapabilities(): Promise<{ access: boolean; clients: boolean }> {
+  const r = await req<{ access?: boolean; clients?: boolean }>("/api/beslenme/access", { headers: authHeaders() });
+  const access = r.ok && r.data?.access === true;
+  return { access, clients: access && r.data?.clients === true };
+}
+
+/**
  * Manuel besin KATKI erişim probe'u (server-authoritative). Döner:
  *   'owner'  → super-admin küratör, 'expert' → dar bayraklı uzman, null → yetkisiz.
  * "Besinlerim" sayfası + nav girişi bununla gate edilir (UI gizleme tek katman değil).

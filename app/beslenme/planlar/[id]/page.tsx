@@ -22,7 +22,6 @@ import {
   revisePlan,
   syncRange,
   type Plan,
-  type PlanAuthority,
   type PlanBoundClient,
   type PlanDaySummary,
 } from "@/lib/beslenme/planClient";
@@ -62,7 +61,6 @@ export default function PlanEditorPage() {
 
   // Owner-guard YOK: güvenlik server-side (requireBeslenmePlanAccess). Erişim, getPlan
   // sonucundan authoritative belirlenir — 401/403/404 → hassas içerik render EDİLMEZ.
-  const [authority, setAuthority] = useState<PlanAuthority | null>(null);
   const [boundClient, setBoundClient] = useState<PlanBoundClient | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<PlanDaySummary[]>([]);
@@ -83,7 +81,6 @@ export default function PlanEditorPage() {
     const r = await getPlan(id);
     if (r.ok && r.data?.plan) {
       setPlan(r.data.plan);
-      setAuthority(r.data.authority ?? null);
       setBoundClient(r.data.boundClient ?? null);
       const ds = r.data.days ?? [];
       setDays(ds);
@@ -106,7 +103,10 @@ export default function PlanEditorPage() {
     };
   }, [reloadPlan]);
 
-  const isExpert = authority === "expert";
+  // Bağlı danışan varsa editör bu planın bir danışana ait olduğunu bilir → "Danışana Dön"
+  // navigasyonu. Authority (module/client) UI'da AYRIM YARATMAZ (admin↔uzman feature paritesi);
+  // yalnız binding varlığı nav bağlamını belirler.
+  const cameFromClient = !!boundClient;
   const archived = plan?.status === "archived";
 
   async function doCopy() {
@@ -188,8 +188,8 @@ export default function PlanEditorPage() {
           : "Beslenme planı yükleniyor…"
       }
       icon={<UtensilsCrossed className="h-32 w-32" strokeWidth={1} />}
-      backHref={isExpert && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
-      backLabel={isExpert && boundClient ? "Danışana Dön" : "Planlar"}
+      backHref={cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
+      backLabel={cameFromClient && boundClient ? "Danışana Dön" : "Planlar"}
       actions={headerActions}
     >
       {loading ? (

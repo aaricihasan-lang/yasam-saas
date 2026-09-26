@@ -60,7 +60,8 @@ ok("requireBeslenmeModule mevcut (requireModuleAccess beslenme; OWNER_ONLY narro
    !/export async function requireBeslenmeModule[\s\S]{0,300}OWNER_ONLY/.test(og));
 ok("requireBeslenmeOwner kaldırıldı (owner-only faz yok)", !/export async function requireBeslenmeOwner/.test(og));
 const access = read("app/api/beslenme/access/route.ts");
-ok("/api/beslenme/access requireBeslenmeModule", /requireBeslenmeModule\(/.test(access));
+ok("/api/beslenme/access beslenme-gate (requireModuleAccess beslenme) + clients yeteneği",
+   /requireModuleAccess\(req,\s*["']beslenme["']\)/.test(access) && /clients:\s*clients === true/.test(access));
 
 // 6) Global plan API'leri artık modül / plan-access (admin↔uzman parity).
 ok("plans/route.ts requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/plans/route.ts")));

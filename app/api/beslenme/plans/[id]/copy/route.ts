@@ -11,11 +11,12 @@ type RouteCtx = { params: Promise<{ id: string }> };
 /**
  * POST: planı kopyala → YENİ AİLE, revision=1, draft (deep snapshots). Archived kopyalanabilir.
  *
- * Erişim: requireBeslenmePlanAccess (admin | bound-plan uzmanı). Kaynak plan yabancı tenant →
- * 404 (guard). Kopya YENİ (unbound) family üretir. Uzman (authority="expert") kaynak plana bir
- * danışan üzerinden erişebildiğinden, kopyanın unbound kalması onu erişilemez kılardı (dead-end).
- * Bu yüzden EXPERT + bağlı kaynak → kopya AYNI danışana otomatik bağlanır (cross-client YOK).
- * Bind başarısızsa compensating delete (yetim plan bırakma). Admin davranışı değişmez (unbound).
+ * Erişim: requireBeslenmePlanAccess (module | bound-plan client). Kaynak plan yabancı tenant →
+ * 404 (guard). Kopya YENİ (unbound) family üretir.
+ *   - authority="module" (admin + Beslenme izinli uzman): mevcut global semantik → kopya UNBOUND.
+ *   - authority="client" (yalnız clients izinli uzman): kaynak plana danışan üzerinden erişildiğinden
+ *     kopyanın unbound kalması onu erişilemez kılardı (dead-end) → kopya AYNI danışana otomatik
+ *     bağlanır (cross-client YOK; body'den client_id ALINMAZ). Bind başarısızsa compensating delete.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
@@ -44,8 +45,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
 
   const copied = data as { id?: string; plan_family_id?: string } | null;
-  // EXPERT + bağlı kaynak → kopyayı AYNI danışana bağla (erişim dead-end'i önle).
-  if (authority === "expert" && boundClientId && copied?.id && copied?.plan_family_id) {
+  // CLIENT-ONLY + bağlı kaynak → kopyayı AYNI danışana bağla (erişim dead-end'i önle).
+  // MODULE authority (admin + Beslenme uzmanı) → kopya unbound kalır (global semantik).
+  if (authority === "client" && boundClientId && copied?.id && copied?.plan_family_id) {
     const { error: aErr } = await db.rpc("nutrition_plan_assign_client", {
       p_tenant_id: tenantId, p_plan_id: copied.id, p_client_id: boundClientId, p_assigned_by: userId,
     });

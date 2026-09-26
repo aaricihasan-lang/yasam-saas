@@ -61,6 +61,59 @@ export async function requireBeslenmeModule(req: NextRequest): Promise<BeslenmeM
   };
 }
 
+/**
+ * Beslenme YETENEK (capability) çözümleyici — CAPABILITY tabanlı yüzeyler için ortak kapı.
+ *
+ * verifyUserRequest(includeProfile) (header-token binding + pending/rejected gate) üzerine,
+ * SAF resolveModuleAccess ile hem `beslenme` hem `clients` yeteneğini çözer. En az biri yoksa
+ * → 403. Admin role short-circuit ile hasBeslenme=true olur → admin↔uzman paritesi. tenantId
+ * DAİMA server session'dan; body/query'den tenant seçimi YOK. Kullanım: /access probe,
+ * capability-aware template LIST (Beslenme VEYA Danışan Yolculuğu izinli görebilir).
+ */
+export type BeslenmeCapabilitiesOk = {
+  ok: true;
+  userId: string;
+  tenantId: string;
+  email: string;
+  is_demo_account: boolean;
+  db: SupabaseClient;
+  hasBeslenme: boolean;
+  hasClients: boolean;
+};
+export type BeslenmeCapabilitiesResult =
+  | BeslenmeCapabilitiesOk
+  | { ok: false; response: NextResponse };
+
+export async function resolveBeslenmeCapabilities(
+  req: NextRequest,
+): Promise<BeslenmeCapabilitiesResult> {
+  const guard = await verifyUserRequest(req, { includeProfile: true });
+  if (!guard.ok) return { ok: false, response: guard.response };
+  const role = guard.profile?.role;
+  const perms = guard.profile?.module_permissions;
+  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
+  const hasClients = resolveModuleAccess(role, perms, "clients");
+  if (!hasBeslenme && !hasClients) {
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { ok: false, code: "FORBIDDEN", error: "Bu modül hesabınız için aktif değil." },
+        403,
+      ),
+    };
+  }
+  return {
+    ok: true,
+    userId: guard.userId,
+    tenantId: guard.tenantId,
+    email: guard.email,
+    is_demo_account: guard.is_demo_account,
+    db: guard.db,
+    hasBeslenme,
+    hasClients,
+  };
+}
+
 /** Demo hesap mutation reddi (owner/contributor gate'ten SONRA, yazma route'larında). */
 export function denyDemoMutation(guard: { is_demo_account: boolean }): NextResponse | null {
   if (guard.is_demo_account) {

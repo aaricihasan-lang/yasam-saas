@@ -62,7 +62,8 @@ export function listPlans(params?: { status?: string }) {
 export function createPlan(body: { title: string; start_date: string; end_date: string; daily_energy_target?: number | null; note?: string | null }) {
   return req<{ plan: Plan }>("/api/beslenme/plans", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export type PlanAuthority = "owner" | "expert";
+/** Plan erişim yetkisi (capability-based): "module" = Beslenme izinli (admin dahil); "client" = yalnız clients izinli, bound plan. */
+export type PlanAuthority = "module" | "client";
 export type PlanBoundClient = { id: string; display_name: string };
 export function getPlan(id: string) {
   return req<{ plan: Plan; days: PlanDaySummary[]; authority?: PlanAuthority; boundClient?: PlanBoundClient | null }>(
