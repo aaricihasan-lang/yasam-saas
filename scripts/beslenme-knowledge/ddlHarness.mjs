@@ -216,12 +216,12 @@ check("API otomatik import provider yalnız usda_fdc (CC0)",
 
 console.log("\n[Z] dashboard Beslenme kartı fail-closed + server-authoritative module probe");
 // Kart görünürlüğü admin↔uzman parity: server probe (/api/beslenme/access) admin VEYA
-// module_permissions.beslenme=true uzman → true. Default false (fail-closed). State değişkeni
-// legacy adıyla `beslenmeOwner` kalsa da karar server modül probe'udur (rol değil).
+// module_permissions.beslenme=true uzman → true. Default false (fail-closed). State adı
+// `beslenmeAccess` (owner semantiği KALDIRILDI); karar server modül probe'udur (rol değil).
 const page = read(resolve(ROOT, "app/page.tsx"));
-check("Beslenme kart state default false (fail-closed)", /useState\(false\)/.test(page) && /const \[beslenmeOwner, setBeslenmeOwner\]/.test(page));
+check("Beslenme kart state default false (fail-closed)", /const \[beslenmeAccess, setBeslenmeAccess\] = useState\(false\)/.test(page));
 check("server-authoritative module probe checkBeslenmeAccess", /checkBeslenmeAccess\(\)/.test(page));
-check("kart yalnız probe (beslenmeOwner) true ise render", /\{beslenmeOwner \?/.test(page));
+check("kart yalnız probe (beslenmeAccess) true ise render + owner state adı YOK", /\{beslenmeAccess \?/.test(page) && !/beslenmeOwner/.test(page));
 
 console.log(`\n${"=".repeat(56)}`);
 console.log(`  TOPLAM: ${pass} PASS · ${fail} FAIL`);

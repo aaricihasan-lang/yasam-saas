@@ -150,10 +150,20 @@ ok("/api/beslenme/access beslenme-gate + {access:true} + clients yeteneği",
    /access:\s*true/.test(accessRoute) &&
    /clients:\s*clients === true/.test(accessRoute));
 
-// 9) Ana panel kartı: admin-kısıtı KALDIRILDI (beslenme modül uzmanı da görür).
+// 9) Ana panel Beslenme kartı: stale owner-only UX KALDIRILDI (admin↔uzman paritesi).
 const home = read("app/page.tsx");
 ok("home kart probe admin-kısıtı KALDIRILDI (isAdminUser gate yok)",
    !/if \(!user \|\| !isAdminUser\(user\)\) \{\s*setBeslenmeOwner\(false\)/.test(home));
+ok("home Beslenme kartı: 'Sahip' rozeti YOK", !/>\s*Sahip\s*</.test(home));
+ok("home Beslenme kartı: 'Geliştirme (yalnız sahip)' YOK", !/yalnız sahip/.test(home));
+ok("home Beslenme kartı: data-admin-only + owner-card attribute YOK",
+   !/data-beslenme-owner-card/.test(home) && /data-beslenme-card/.test(home));
+ok("home Beslenme kartı: stale owner-only/super-admin/requireMainAdmin prose KALDIRILDI",
+   !/Beslenme[\s\S]{0,120}(OWNER-ONLY|super-admin|requireMainAdmin)/.test(home));
+ok("home Beslenme kartı: server-authoritative access probe korunuyor (checkBeslenmeAccess)",
+   /checkBeslenmeAccess\(\)/.test(home));
+ok("home Beslenme kartı: render gate access sonucuna bağlı (beslenmeAccess; owner state adı YOK)",
+   /\{beslenmeAccess \?/.test(home) && !/beslenmeOwner/.test(home));
 
 // 10) GÜVENLİK SINIRLARI KORUNDU (parity ≠ veri sızıntısı).
 const foodEngine = read("lib/beslenme/foodEngine.ts");
