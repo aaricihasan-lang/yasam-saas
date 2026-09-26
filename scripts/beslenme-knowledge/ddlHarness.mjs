@@ -93,42 +93,69 @@ for (const w of ["nutrition_claim", "nutrition_passage", "nutrition_verification
 check("YH entegrasyonu YOK (cdc/outbox/activation)", !/yh_cdc_enqueue|yasam_hafizasi_outbox|yh_source_activation|yh_outbox/.test(ALL_MIG_S));
 check("client-private kolon YOK (client_id/danisan/weight/diagnosis)", !/\bclient_id\b|\bdanisan|\bpatient_id\b|\bdiagnosis\b|\bweight_kg\b/.test(ALL_MIG_S));
 
-console.log("\n[module] owner-only module wiring");
-const moduleAccess = read(resolve(ROOT, "lib/auth/moduleAccess.ts"));
+console.log("\n[module] Beslenme NORMAL grantable module (owner-only faz KALDIRILDI — parity)");
+// KANONİK MODEL: Beslenme owner-only DEĞİL, normal grantable modüldür. admin role short-circuit
+// PASS; module_permissions.beslenme=true uzman PASS; beslenme=false uzman ana modül DENY. Karar
+// SAF resolveModuleAccess (moduleAccessCore) ile verilir; type union da orada tanımlıdır.
+const moduleCore = read(resolve(ROOT, "lib/auth/moduleAccessCore.ts"));
 const routeRegistry = read(resolve(ROOT, "lib/auth/moduleRouteRegistry.ts"));
-check("ModuleGateKey içerir 'beslenme'", /\|\s*"beslenme"/.test(moduleAccess));
-check("resolveModuleAccess beslenme non-admin → false (expert negative)", /moduleKey === "beslenme"\)\s*return false/.test(moduleAccess));
+check("ModuleGateKey içerir 'beslenme' (canonical: moduleAccessCore)", /\|\s*"beslenme"/.test(moduleCore));
+check("beslenme owner-only special-case KALDIRILDI (non-admin→false YOK)",
+  !/moduleKey === "beslenme"\s*\)\s*return false/.test(moduleCore), "eski beslenme→false special-case bulundu");
+check("resolveModuleAccess admin role short-circuit PASS", /=== "admin"\)\s*return true/.test(moduleCore));
+check("beslenme grantable → hasFlag(module_permissions) ile çözülür (normal modül)",
+  /return hasFlag\(flags, moduleKey\)/.test(moduleCore));
 check("MODULE_ROUTE_PREFIXES app/api/beslenme → beslenme", /prefix:\s*"app\/api\/beslenme",\s*key:\s*"beslenme"/.test(routeRegistry));
 
-console.log("\n[owner guard] super-admin gate");
+console.log("\n[module guard] canonical Beslenme guard mimarisi (capability-based; owner-only faz yok)");
 const ownerGuard = read(resolve(ROOT, "lib/beslenme/ownerGuard.ts"));
-check("ownerGuard requireMainAdmin import (super-admin)", /requireMainAdmin/.test(ownerGuard) && /from "@\/lib\/admin\/adminGuards"/.test(ownerGuard));
-check("ownerGuard requireModuleAccess(beslenme)", /requireModuleAccess\(req,\s*"beslenme"\)/.test(ownerGuard));
-check("ownerGuard OWNER_ONLY 403 kodu", /OWNER_ONLY/.test(ownerGuard));
+const planGuard = read(resolve(ROOT, "lib/beslenme/clientPlanGuard.ts"));
+const clientGuard = read(resolve(ROOT, "lib/beslenme/clientRouteGuard.ts"));
+check("requireBeslenmeModule canonical global module gate (requireModuleAccess beslenme)",
+  /export async function requireBeslenmeModule/.test(ownerGuard) && /requireModuleAccess\(req,\s*"beslenme"\)/.test(ownerGuard));
+check("requireBeslenmeOwner KALDIRILDI (owner-only faz yok)", !/export async function requireBeslenmeOwner/.test(ownerGuard));
+check("OWNER_ONLY kodu ownerGuard'da KALDIRILDI", !/OWNER_ONLY/.test(ownerGuard));
+check("resolveBeslenmeCapabilities export (beslenme|clients yeteneği — capability-aware yüzeyler)",
+  /export async function resolveBeslenmeCapabilities/.test(ownerGuard));
+check("requireBeslenmePlanAccess capability-based (module|client)",
+  /verifyUserRequest\(/.test(planGuard)
+  && /resolveModuleAccess\([^)]*"beslenme"\)/.test(planGuard)
+  && /resolveModuleAccess\([^)]*"clients"\)/.test(planGuard)
+  && /"module"/.test(planGuard) && /"client"/.test(planGuard));
+check("requireBeslenmePlanAccess requireMainAdmin ROLE-GATE KULLANMIYOR (parity)", !/requireMainAdmin\(/.test(planGuard));
+check("client-scoped route guard requireBeslenmeClient (clients modülü + tenant ownership)",
+  /export async function requireBeslenmeClient/.test(clientGuard)
+  && /requireModuleAccess\(req,\s*"clients"\)/.test(clientGuard)
+  && /requireClientInTenant\(/.test(clientGuard));
 check("denyDemoMutation mevcut (demo guard)", /export function denyDemoMutation/.test(ownerGuard));
 
-console.log("\n[K/L/O/P/Q/R] route güvenlik sözleşmesi (her route)");
+console.log("\n[K/L/O/P/Q/R] route güvenlik sözleşmesi (her route — canonical capability gates)");
 check("access route mevcut", !!routeSrc["/app/api/beslenme/access/route.ts"]);
+// KANONİK KAPILAR (owner-only faz KALDIRILDI). Her Beslenme route'u aşağıdakilerden EN AZ birini
+// kullanmalı: modül (requireBeslenmeModule) · plan-access (requireBeslenmePlanAccess, module|client) ·
+// client-scoped (requireBeslenmeClient) · besin katkı/okuma (requireBeslenmeFoodContributor/…FoodRead) ·
+// capability probe (resolveBeslenmeCapabilities) · doğrudan modül kapısı (requireModuleAccess — access
+// "beslenme", client-reference "clients"). Kimliksiz/gate'siz Beslenme route'u YASAK.
+const CANONICAL_GATE = /requireBeslenmeModule|requireBeslenmePlanAccess|requireBeslenmeClient|requireBeslenmeFoodContributor|requireBeslenmeFoodRead|resolveBeslenmeCapabilities|requireModuleAccess/;
 const mutationRe = /export async function (POST|PATCH|DELETE)/;
 let routeGateOk = true, demoOk = true, uuidOk = true, tenantTrustOk = true, massOk = true;
 for (const [path, s] of Object.entries(routeSrc)) {
-  // owner gate: requireBeslenmeOwner VEYA requireBeslenmeClient (FAZ 7 paylaşılan owner+client
-  // kapısı; lib/beslenme/clientRouteGuard.ts requireBeslenmeOwner'ı SARAR + client ownership doğrular).
-  if (!/requireBeslenmeOwner|requireBeslenmeClient/.test(s)) { routeGateOk = false; bad(`owner gate eksik: ${path}`); }
+  if (!CANONICAL_GATE.test(s)) { routeGateOk = false; bad(`canonical gate eksik: ${path}`); }
   if (mutationRe.test(s) && !/denyDemoMutation/.test(s)) { demoOk = false; bad(`demo guard eksik (mutation): ${path}`); }
-  // mass-assignment guard yalnız GÖVDE OKUYAN (req.json()) route'lar için gereklidir.
-  if (/req\.json\(\)/.test(s) && !/hasOnlyKeys/.test(s)) { massOk = false; bad(`mass-assignment guard (hasOnlyKeys) eksik: ${path}`); }
+  // mass-assignment guard yalnız GÖVDE OKUYAN (req.json()) route'lar için gereklidir. Plan create
+  // yolları allowlist'i ortak createPlanForTenant helper'ında (PLAN_CREATE_KEYS hasOnlyKeys) uygular.
+  if (/req\.json\(\)/.test(s) && !/hasOnlyKeys/.test(s) && !/createPlanForTenant\(/.test(s)) { massOk = false; bad(`mass-assignment guard (hasOnlyKeys) eksik: ${path}`); }
   // dinamik segment id doğrulaması: isUuid VEYA requireBeslenmeClient (paylaşılan kapı clientId'yi
   // isUuid ile doğrular + DB ownership kontrolü yapar — literal isUuid'den güçlüdür).
   if (/\[/.test(path) && !/isUuid/.test(s) && !/requireBeslenmeClient/.test(s)) { uuidOk = false; bad(`UUID validation eksik: ${path}`); }
   // tenant client body'den alınmamalı: insert tenant_id: tenantId (guard) olmalı, body.tenant_id OLMAMALI
   if (/body\.tenant_id|tenant_id:\s*body/.test(s)) { tenantTrustOk = false; bad(`body tenant trust: ${path}`); }
 }
-check("her route requireBeslenmeOwner (owner gate)", routeGateOk);
+check("her route canonical capability gate kullanır", routeGateOk);
 check("her mutation denyDemoMutation", demoOk);
 check("[id] route'larında isUuid", uuidOk);
-check("body tenant_id trust YOK", tenantTrustOk);
-check("her mutation hasOnlyKeys (mass-assignment)", massOk);
+check("body tenant_id trust YOK (spoofing korunuyor)", tenantTrustOk);
+check("her mutation hasOnlyKeys / createPlanForTenant allowlist (mass-assignment)", massOk);
 
 console.log("\n[count] Genel Bakış sayaçları active-only (arşivli sayılmaz)");
 // Arşiv canonical = is_active=false; sayaçlar liste route'larıyla aynı contract'ı
@@ -187,11 +214,14 @@ check("TÜRKOMP veri fixture'ı YOK (lisanssız veri bundle edilmez)",
 check("API otomatik import provider yalnız usda_fdc (CC0)",
   /IMPORT_PROVIDERS\s*=\s*\[\s*"usda_fdc"\s*\]/.test(contracts));
 
-console.log("\n[Z] dashboard owner-only hidden-by-default");
+console.log("\n[Z] dashboard Beslenme kartı fail-closed + server-authoritative module probe");
+// Kart görünürlüğü admin↔uzman parity: server probe (/api/beslenme/access) admin VEYA
+// module_permissions.beslenme=true uzman → true. Default false (fail-closed). State değişkeni
+// legacy adıyla `beslenmeOwner` kalsa da karar server modül probe'udur (rol değil).
 const page = read(resolve(ROOT, "app/page.tsx"));
-check("beslenmeOwner default false", /useState\(false\)/.test(page) && /const \[beslenmeOwner, setBeslenmeOwner\]/.test(page));
-check("owner probe checkBeslenmeAccess", /checkBeslenmeAccess\(\)/.test(page));
-check("kart yalnız beslenmeOwner ise render", /\{beslenmeOwner \?/.test(page));
+check("Beslenme kart state default false (fail-closed)", /useState\(false\)/.test(page) && /const \[beslenmeOwner, setBeslenmeOwner\]/.test(page));
+check("server-authoritative module probe checkBeslenmeAccess", /checkBeslenmeAccess\(\)/.test(page));
+check("kart yalnız probe (beslenmeOwner) true ise render", /\{beslenmeOwner \?/.test(page));
 
 console.log(`\n${"=".repeat(56)}`);
 console.log(`  TOPLAM: ${pass} PASS · ${fail} FAIL`);
