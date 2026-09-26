@@ -1,5 +1,7 @@
 /** Diğer ürünler stok + satış — canonical birim: adet | ml | gram */
 
+import { filesToValidatedDataUrls } from "@/lib/urun-stok/photoValidation";
+
 export const INVENTORY_STORAGE_KEY = "other_inventory_v1";
 export const SALES_STORAGE_KEY = "other_sales_history_v1";
 
@@ -71,6 +73,8 @@ export type OtherSaleRecord = {
   profit_pct: number;
   photos: string[];
   timestamp: string;
+  /** Canonical DB satış kimliği (DB'den yüklenen kayıtlarda dolu; iptal için). */
+  saleId?: string;
 };
 
 export function turkishUpper(s: string): string {
@@ -299,20 +303,12 @@ export function appendOtherSales(records: OtherSaleRecord[]): void {
   saveOtherSales([...loadOtherSales(), ...records]);
 }
 
-export async function filesToDataUrls(files: FileList | File[]): Promise<string[]> {
-  const list = Array.from(files);
-  const out: string[] = [];
-  for (const file of list) {
-    if (!file.type.startsWith("image/")) continue;
-    const url = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    out.push(url);
-  }
-  return out;
+export async function filesToDataUrls(
+  files: FileList | File[],
+  opts?: { existingCount?: number },
+): Promise<{ urls: string[]; error: string | null }> {
+  // USM-010: MIME allowlist + magic byte + boyut/adet limitleri (merkezî doğrulama).
+  return filesToValidatedDataUrls(files, opts);
 }
 
 export type AddOtherInput = {
