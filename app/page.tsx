@@ -724,9 +724,10 @@ export default function Home() {
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
   // Beslenme (normal grantable modül) kart görünürlüğü — server-authoritative /api/beslenme/access
-  // probe'u: admin VEYA module_permissions.beslenme=true uzman → access=true. Default hidden
-  // → probe doğrularsa render (izinsiz uzman/anon görmez; fail-closed). Rol-tabanlı gate YOK.
-  const [beslenmeAccess, setBeslenmeAccess] = useState(false);
+  // probe'u: admin VEYA module_permissions.beslenme=true uzman → access=true. TRI-STATE:
+  // null = probe henüz çözülmedi (fail-closed gizli; "Besinlerim" flicker'ını önler), true/false =
+  // çözülmüş sonuç. Beslenme kartı yalnız true'da; Besinlerim kartı yalnız false'ta gösterilir.
+  const [beslenmeAccess, setBeslenmeAccess] = useState<boolean | null>(null);
   // Manuel besin KATKI (dar bayrak) kart görünürlüğü. Bayrak client user objesinden
   // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
   // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; tam Beslenme
@@ -1716,9 +1717,11 @@ export default function Home() {
                     );
                   })}
 
-                  {/* Besinlerim — DAR besin-katkı bayrağı olan uzmana (server probe). Owner zaten
-                      tam Beslenme kartını görür; burada yalnız 'expert' için gösterilir. */}
-                  {foodContributor === "expert" ? (
+                  {/* Besinlerim — YALNIZ dar besin-katkı yeteneği olup TAM Beslenme erişimi OLMAYAN
+                      uzmana (manual-only / clients+manual). Tam Beslenme (beslenmeAccess=true) veya
+                      admin/owner zaten "Beslenme" kartını görür → duplicate Besinlerim gösterilmez.
+                      beslenmeAccess null iken (probe sürüyor) fail-closed gizli — flicker yok. */}
+                  {foodContributor === "expert" && beslenmeAccess === false ? (
                     <Link href="/beslenme/besinlerim" data-besinlerim-card className="block text-inherit no-underline">
                       <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
                         <span className="text-3xl leading-none" aria-hidden>

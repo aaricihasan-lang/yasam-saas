@@ -176,13 +176,16 @@ export async function requireBeslenmeFoodContributor(
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
 
-  // Owner (küratör) her zaman geçer; değilse Beslenme/Danışan modül izinli VEYA dar bayraklı uzman.
-  // Yazma kapsamı DAİMA yalnız caller tenant CUSTOM food (resolveFoodForWrite → SYSTEM_READONLY).
+  // CUSTOM/manuel besin YAZMA yetkisi: owner (küratör) VEYA TAM Beslenme modülü VEYA dar
+  // beslenme_manual_food bayrağı. `clients` (Danışan Yolculuğu) izni TEK BAŞINA katkı/write
+  // yetkisi VERMEZ — clients danışan-bound akış + besin OKUMA'dır (bkz. requireBeslenmeFoodRead);
+  // custom food OLUŞTUR/DÜZENLE/ARŞİVLE yalnız tam modül veya dar bayrakla açılır. Admin role
+  // short-circuit resolveModuleAccess("beslenme")=true ile korunur. Yazma kapsamı DAİMA yalnız
+  // caller tenant CUSTOM food (resolveFoodForWrite → SYSTEM_READONLY).
   const owner = await requireMainAdmin(guard.db, guard.userId);
   const perms = guard.profile?.module_permissions;
   const role = guard.profile?.role;
-  const moduleWrite =
-    resolveModuleAccess(role, perms, "beslenme") || resolveModuleAccess(role, perms, "clients");
+  const moduleWrite = resolveModuleAccess(role, perms, "beslenme");
   const authority =
     decideFoodContributorAuthority(owner.ok, perms) ?? (moduleWrite ? "expert" : null);
 

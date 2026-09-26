@@ -219,7 +219,7 @@ console.log("\n[Z] dashboard Beslenme kartı fail-closed + server-authoritative 
 // module_permissions.beslenme=true uzman → true. Default false (fail-closed). State adı
 // `beslenmeAccess` (owner semantiği KALDIRILDI); karar server modül probe'udur (rol değil).
 const page = read(resolve(ROOT, "app/page.tsx"));
-check("Beslenme kart state default false (fail-closed)", /const \[beslenmeAccess, setBeslenmeAccess\] = useState\(false\)/.test(page));
+check("Beslenme kart state tri-state default null (fail-closed; Besinlerim flicker önle)", /const \[beslenmeAccess, setBeslenmeAccess\] = useState<boolean \| null>\(null\)/.test(page));
 check("server-authoritative module probe checkBeslenmeAccess", /checkBeslenmeAccess\(\)/.test(page));
 check("kart yalnız probe (beslenmeAccess) true ise render + owner state adı YOK", /\{beslenmeAccess \?/.test(page) && !/beslenmeOwner/.test(page));
 

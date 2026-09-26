@@ -56,9 +56,25 @@ ok("ownerGuard: requireBeslenmeModule export", /export async function requireBes
 ok("ownerGuard: requireBeslenmeOwner KALDIRILDI", !/export async function requireBeslenmeOwner/.test(og));
 ok("ownerGuard: requireBeslenmeModule OWNER_ONLY narrowing YOK",
    !/export async function requireBeslenmeModule[\s\S]{0,300}OWNER_ONLY/.test(og));
-ok("ownerGuard: food READ beslenme modülüne açık", /requireBeslenmeFoodRead[\s\S]{0,400}resolveModuleAccess\([^)]*["']beslenme["']\)/.test(og));
-ok("ownerGuard: food WRITE beslenme/clients modülüne açık",
-   /moduleWrite\s*=[\s\S]{0,160}resolveModuleAccess\([^)]*["']beslenme["']\)[\s\S]{0,80}resolveModuleAccess\([^)]*["']clients["']\)/.test(og));
+// FOOD READ (requireBeslenmeFoodRead): clients | beslenme | manual → hepsi okuyabilir (KORUNDU).
+{
+  const readBlock = (og.match(/export async function requireBeslenmeFoodRead[\s\S]*?^}/m) || [""])[0];
+  ok("food READ clients okumaya devam ediyor", /resolveModuleAccess\([^)]*["']clients["']\)/.test(readBlock));
+  ok("food READ beslenme okumaya devam ediyor", /resolveModuleAccess\([^)]*["']beslenme["']\)/.test(readBlock));
+  ok("food READ manual bayrak okumaya devam ediyor", /hasManualFoodFlag\(/.test(readBlock));
+}
+// FOOD WRITE (requireBeslenmeFoodContributor): beslenme (tam modül; admin short-circuit) VEYA
+// manual bayrak; `clients` TEK BAŞINA write yetkisi VERMEZ (hotfix — client→besinlerim sızıntısı).
+{
+  const contribBlock = (og.match(/export async function requireBeslenmeFoodContributor[\s\S]*?\n}/m) || [""])[0];
+  ok("food WRITE moduleWrite yalnız beslenme (admin short-circuit) kullanır",
+     /moduleWrite\s*=\s*resolveModuleAccess\([^)]*["']beslenme["']\)\s*;/.test(contribBlock));
+  ok("food WRITE contributor kararında clients YOK (sızıntı kapalı)",
+     !/moduleWrite[\s\S]{0,120}resolveModuleAccess\([^)]*["']clients["']\)/.test(contribBlock)
+     && !/resolveModuleAccess\([^)]*["']clients["']\)/.test(contribBlock));
+  ok("food WRITE dar bayrak + owner kararı korunuyor (decideFoodContributorAuthority)",
+     /decideFoodContributorAuthority\(owner\.ok,\s*perms\)/.test(contribBlock));
+}
 
 // 4) Hiçbir Beslenme yüzeyinde requireBeslenmeOwner ÇAĞRISI kalmadı.
 //    (grep tüm app/lib; comment/prose değil gerçek çağrı — "(" ile.)
@@ -165,6 +181,17 @@ ok("home Beslenme kartı: server-authoritative access probe korunuyor (checkBesl
 ok("home Beslenme kartı: render gate access sonucuna bağlı (beslenmeAccess; owner state adı YOK)",
    /\{beslenmeAccess \?/.test(home) && !/beslenmeOwner/.test(home));
 
+// 9b) "Besinlerim" DAR kartı: yalnız food-contributor VE tam Beslenme erişimi YOK iken (duplicate
+//     önle + clients→besinlerim sızıntısı kapalı). beslenmeAccess TRI-STATE (null probe → flicker yok).
+ok("home: beslenmeAccess tri-state (boolean|null; flicker fail-closed)",
+   /useState<boolean \| null>\(null\)/.test(home));
+ok("home: Besinlerim kartı foodContributor==='expert' VE beslenmeAccess===false ile gate",
+   /foodContributor === "expert" && beslenmeAccess === false \?/.test(home));
+ok("home: Besinlerim kartı tam Beslenme erişiminde (beslenmeAccess=true) gösterilmez",
+   !/foodContributor === "expert" \?\s*\(/.test(home));
+ok("home: Besinlerim kartı server probe (checkBeslenmeFoodAccess) ile beslenir",
+   /checkBeslenmeFoodAccess\(\)/.test(home) && /data-besinlerim-card/.test(home));
+
 // 10) GÜVENLİK SINIRLARI KORUNDU (parity ≠ veri sızıntısı).
 const foodEngine = read("lib/beslenme/foodEngine.ts");
 ok("SYSTEM write koruması korunuyor (SYSTEM_READONLY)", /SYSTEM_READONLY/.test(foodEngine));
@@ -197,7 +224,9 @@ const MATRIX = [
   ["Plan editör gün/öğün/item + Word + analytics",        "own",   "bound", "her iki", "PASS",   "plan-access"],
   ["Şablon LIST + CREATE + APPLY (plan-scope)",           "own",   "bound", "her iki", "PASS",   "capability + plan-access"],
   ["Şablon YÖNETİMİ (rename/duplicate/delete)",           "PASS",  "DENY",  "PASS",    "PASS",   "requireBeslenmeModule"],
-  ["Besin CRUD (tenant CUSTOM; SYSTEM read-only)",        "PASS",  "PASS",  "PASS",    "PASS",   "requireBeslenmeFoodContributor"],
+  ["Besin OKUMA (plan editörü; SYSTEM ∪ tenant)",         "PASS",  "PASS",  "PASS",    "PASS",   "requireBeslenmeFoodRead (clients|beslenme|manual)"],
+  ["CUSTOM besin YAZMA (oluştur/düzenle/arşivle)",        "PASS",  "DENY",  "PASS",    "PASS",   "requireBeslenmeFoodContributor (beslenme|manual; clients DEĞİL)"],
+  ["\"Besinlerim\" dashboard kartı (UI görünürlük)",       "GİZLİ", "GİZLİ", "GİZLİ",   "GİZLİ",  "yalnız manual-only/clients+manual'da GÖRÜNÜR"],
   ["Danışan verisi (profil/ölçüm/alerji)",                "DENY",  "PASS",  "PASS",    "PASS",   "requireBeslenmeClient"],
   ["Danışan Planları hub kartı (UI görünürlük)",          "GİZLİ", "n/a",   "GÖRÜNÜR", "GÖRÜNÜR","access.clients"],
   ["Foreign tenant plan/şablon/besin",                    "404",   "404",   "404",     "404",    "tenant-scoped fail-closed"],
