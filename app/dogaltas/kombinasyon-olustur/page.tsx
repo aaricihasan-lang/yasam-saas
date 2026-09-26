@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
@@ -11,10 +11,11 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { fetchStonesListCount, type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import {
-  fetchAllStonesExtended,
-  type StoneListItemExtended,
-} from "@/lib/dogaltas/stonesListFetch";
+  fetchStonesByConditions,
+  type ConditionSuggestions,
+} from "@/lib/dogaltas/conditionSearchApi";
 import {
   useSignedStoneImageUrls,
   imageFilePath,
@@ -31,15 +32,12 @@ import {
 import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
   makeStockMatcher,
-  buildMineralStoneCounts,
 } from "@/lib/dogaltas/mineralCombination";
 import {
   SEARCH_TYPES,
   SEARCH_TYPE_META,
   evaluateOne,
   evaluateStoneConditions,
-  collectSuggestions,
-  buildTypeCounts,
   buildConditionsSummary,
   describeCondition,
   type SearchType,
@@ -113,9 +111,29 @@ export default function KombinasyonOlusturPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stones, setStones] = useState<StoneListItemExtended[]>([]);
+  // F-01/§5: tüm korpus artık TARAYICIYA inmez. serverRows = son condition-search
+  // eşleşmeleri; knownStones = tüm oturumda görülen taşlar (sepet analizi/uyarı/manuel
+  // eşleştirme bunun üzerinden çözülür → korpusa bağımlılık yok).
+  const [serverRows, setServerRows] = useState<StoneListItemExtended[]>([]);
+  const [knownStones, setKnownStones] = useState<Map<string, StoneListItemExtended>>(() => new Map());
+  const [suggestions, setSuggestions] = useState<ConditionSuggestions>({});
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [resultsCapped, setResultsCapped] = useState(false);
   const [inStockNames, setInStockNames] = useState<string[]>([]);
   const [mineralOptions, setMineralOptions] = useState<string[]>([]);
+  const [totalStonesCount, setTotalStonesCount] = useState<number | null>(null);
+  // Race guard — hızlı ardışık sorguda eski response yeniyi ezmesin.
+  const searchSeq = useRef(0);
+
+  // Görülen taşları biriktir (sepet analizi için kalıcı havuz).
+  const mergeKnown = useCallback((rows: StoneListItemExtended[]) => {
+    if (rows.length === 0) return;
+    setKnownStones((prev) => {
+      const next = new Map(prev);
+      for (const r of rows) if (r?.id) next.set(r.id, r);
+      return next;
+    });
+  }, []);
 
   const [conditions, setConditions] = useState<SearchCondition[]>([emptyCondition()]);
   const [searched, setSearched] = useState(false);
@@ -200,14 +218,18 @@ export default function KombinasyonOlusturPage() {
         return;
       }
 
-      const [stonesRes, inv] = await Promise.all([
-        fetchAllStonesExtended(tid),
+      // Korpus ARTIK ÇEKİLMEZ. Envanter (stok) + öneriler (server-side, korpus
+      // tarayıcıya inmeden) + toplam taş sayısı (bounded count) + mineral adları.
+      const [inv, sugg, countRes] = await Promise.all([
         loadDogaltasInventoryForTenant(tid),
+        fetchStonesByConditions({ conditions: [], wantSuggestions: true }),
+        fetchStonesListCount(tid),
       ]);
       if (cancelled) return;
 
-      if (stonesRes.error) setError(stonesRes.error);
-      setStones(stonesRes.rows);
+      if (!sugg.ok && sugg.error && sugg.error !== "aborted") setError(sugg.error);
+      if (sugg.suggestions) setSuggestions(sugg.suggestions);
+      if (!countRes.error) setTotalStonesCount(countRes.count);
       setInStockNames(
         inv.items.filter((it) => (it.adet ?? 0) > 0).map((it) => it.name),
       );
@@ -248,12 +270,51 @@ export default function KombinasyonOlusturPage() {
 
   const stockMatcher = useMemo(() => makeStockMatcher(inStockNames), [inStockNames]);
 
-  // Sepete arama sonucundan bağımsız taş ekle (DT-MUX-KOMBO-1):
-  //   • Kütüphanedeki bir taşla TAM eşleşiyorsa (Türkçe-duyarsız) o taşı gerçek
-  //     id'siyle kullan → mevcut analiz/uyarı akışı aynen çalışır (Kural 1).
-  //   • Eşleşme yoksa serbest ad olarak, mevcut güvenli newId() ile eklenir (Kural 2).
-  //   • İsim bazlı tekrar koruması (aynı taş iki kez eklenmez).
-  function addManualStone() {
+  // Aktif koşulların kararlı anahtarı (effect deps + gereksiz sorgu önleme).
+  const conditionsKey = useMemo(
+    () => activeConditions.map((c) => `${c.type}:${c.value.trim()}:${c.minPercent ?? ""}`).join("|"),
+    [activeConditions],
+  );
+
+  // ── SERVER-SIDE condition search (F-01/§5) — debounce + race guard ────────────
+  // Tüm setState timeout callback'i içinde (senkron effect-body setState yok).
+  useEffect(() => {
+    const seq = ++searchSeq.current;
+    const ctrl = new AbortController();
+    const empty = activeConditions.length === 0;
+    const timer = window.setTimeout(async () => {
+      if (empty) {
+        if (seq !== searchSeq.current) return;
+        setServerRows([]);
+        setResultsCapped(false);
+        setSearched(false);
+        setSearchLoading(false);
+        return;
+      }
+      setSearchLoading(true);
+      const res = await fetchStonesByConditions({
+        conditions: activeConditions.map((c) => ({ type: c.type, value: c.value, minPercent: c.minPercent })),
+        signal: ctrl.signal,
+      });
+      // Stale response koruması: yalnız EN SON istek state'i günceller.
+      if (seq !== searchSeq.current) return;
+      if (res.error === "aborted") return;
+      setSearchLoading(false);
+      setSearched(true);
+      if (!res.ok) { setServerRows([]); setResultsCapped(false); return; }
+      setServerRows(res.rows);
+      setResultsCapped(res.capped);
+      mergeKnown(res.rows);
+    }, empty ? 0 : 300);
+    return () => { ctrl.abort(); window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditionsKey]);
+
+  // Sepete arama dışı taş ekle (DT-MUX-KOMBO-1):
+  //   • Bilinen (görülmüş) veya server-side isim aramasıyla bulunan gerçek taş →
+  //     id'siyle eklenir → analiz/uyarı akışı çalışır (Kural 1).
+  //   • Eşleşme yoksa serbest ad + newId() (Kural 2). İsim-bazlı tekrar koruması.
+  async function addManualStone() {
     const name = manualName.trim();
     if (!name) return;
     const norm = normalizeTr(name);
@@ -261,49 +322,62 @@ export default function KombinasyonOlusturPage() {
       setManualName("");
       return;
     }
-    const match = stones.find((s) => normalizeTr(s.stone_name || "") === norm);
-    if (match) {
-      addToCart({
-        id: match.id,
-        name: match.stone_name || "İsimsiz taş",
-        inStock: stockMatcher(match.stone_name),
+    let match: StoneListItemExtended | undefined;
+    for (const s of knownStones.values()) {
+      if (normalizeTr(s.stone_name || "") === norm) { match = s; break; }
+    }
+    if (!match) {
+      // Server-side isim araması (korpus indirmeden; extended satır döner).
+      const res = await fetchStonesByConditions({
+        conditions: [{ type: "stone_name", value: name, minPercent: null }],
       });
+      match = res.rows.find((r) => normalizeTr(r.stone_name || "") === norm);
+      if (match) mergeKnown([match]);
+    }
+    if (match) {
+      addToCart({ id: match.id, name: match.stone_name || "İsimsiz taş", inStock: stockMatcher(match.stone_name) });
     } else {
       addToCart({ id: newId(), name, inStock: stockMatcher(name) });
     }
     setManualName("");
   }
 
-  // Elle eklenen (kütüphanede bulunmayan) taş sayısı — analize dahil edilemez (Kural 3).
+  // Elle eklenen (bilinen taşlar arasında olmayan) taş sayısı — analize dahil değil.
   const manualOnlyCount = useMemo(
-    () => cart.filter((c) => !stones.some((s) => s.id === c.id)).length,
-    [cart, stones],
+    () => cart.filter((c) => !knownStones.has(c.id)).length,
+    [cart, knownStones],
   );
 
-  // Mineral → kaç taşta bulunduğu (bir kez hesaplanır; dropdown rozeti için).
-  const mineralCounts = useMemo(
-    () => buildMineralStoneCounts(stones, mineralOptions),
-    [stones, mineralOptions],
-  );
-
-  // Her arama türü için öneri listesi + sayım (mineral mevcut sistemden gelir).
+  // Her arama türü için öneri + sayım — server-side (korpus tarayıcıya inmez).
+  // Mineral: Mineral Bankası adları ∪ önerilerden; sayımlar server önerilerinden.
   const optionsByType = useMemo(() => {
-    const make = (type: SearchType) => {
-      const options = collectSuggestions(stones, type);
-      return { options, counts: buildTypeCounts(stones, type, options) };
+    const fromSugg = (type: SearchType) => {
+      const arr = suggestions[type] ?? [];
+      const counts = new Map<string, number>();
+      for (const s of arr) counts.set(s.name, s.count);
+      return { options: arr.map((s) => s.name), counts };
     };
+    const mineralSugg = suggestions.mineral ?? [];
+    const mineralCountByNorm = new Map<string, number>();
+    for (const s of mineralSugg) mineralCountByNorm.set(normalizeTr(s.name), s.count);
+    const mineralUnion = Array.from(new Set([...mineralOptions, ...mineralSugg.map((s) => s.name)]))
+      .sort((a, b) => a.localeCompare(b, "tr-TR", { sensitivity: "base" }));
+    const mineralCounts = new Map<string, number>();
+    for (const name of mineralUnion) mineralCounts.set(name, mineralCountByNorm.get(normalizeTr(name)) ?? 0);
     return {
-      mineral: { options: mineralOptions, counts: mineralCounts },
-      chakra: make("chakra"),
-      astrology: make("astrology"),
-      organ: make("organ"),
-      stone_name: make("stone_name"),
+      mineral: { options: mineralUnion, counts: mineralCounts },
+      chakra: fromSugg("chakra"),
+      astrology: fromSugg("astrology"),
+      organ: fromSugg("organ"),
+      stone_name: fromSugg("stone_name"),
     } as Record<SearchType, { options: string[]; counts: Map<string, number> }>;
-  }, [stones, mineralOptions, mineralCounts]);
+  }, [suggestions, mineralOptions]);
 
   const results = useMemo(() => {
     if (activeConditions.length === 0) return [];
-    const list = stones
+    // serverRows zaten AND-eşleşenlerdir; perCondition GÖRÜNTÜSÜ için client re-eval
+    // (aynı paylaşılan motor → sonuç birebir). inStock ve TR-sıralama client'ta.
+    const list = serverRows
       .map((stone) => {
         const evaluation = evaluateStoneConditions(stone, conditions);
         return { stone, evaluation, inStock: stockMatcher(stone.stone_name) };
@@ -317,7 +391,7 @@ export default function KombinasyonOlusturPage() {
       });
     });
     return list;
-  }, [stones, conditions, activeConditions.length, stockMatcher]);
+  }, [serverRows, conditions, activeConditions.length, stockMatcher]);
 
   // F-016: sonuç kartlarının kapak file_path'leri için TOPLU signed URL (private-read, N+1'siz).
   const resultCoverPaths = useMemo(
@@ -333,8 +407,10 @@ export default function KombinasyonOlusturPage() {
 
   // ─── Sepet analizi (client-side; DB yok) ──────────────────────────────────
   const cartAnalysis = useMemo(() => {
+    // Sepet taşlarının tam kaydı görülmüş taş havuzundan (knownStones) çözülür —
+    // korpusa bağımlılık yok; sepete eklenen taş sonraki sayfada da resolve edilir.
     const fullStones = cart
-      .map((c) => stones.find((s) => s.id === c.id))
+      .map((c) => knownStones.get(c.id))
       .filter((s): s is StoneListItemExtended => Boolean(s));
 
     // Tüm koşulların (mineral/çakra/astroloji/organ/isim) sepet taşlarınca karşılanması.
@@ -356,7 +432,7 @@ export default function KombinasyonOlusturPage() {
     const hasAnyWarning = warnings.some((w) => w.has);
 
     return { metMinerals, missingMinerals, warnings, hasAnyWarning };
-  }, [cart, stones, activeConditions]);
+  }, [cart, knownStones, activeConditions]);
 
   // ─── Kombinasyonu kaydet (güvenli API) ────────────────────────────────────
   function buildMineralSummary(): string {
@@ -414,6 +490,12 @@ export default function KombinasyonOlusturPage() {
           description: saveDescription.trim() || null,
           note: saveNote.trim() || null,
           stones: cart.map((c) => c.name),
+          // F-02: bilinen gerçek taş id'leri junction'a doğrudan bağlanır; bilinmeyen
+          // (elle serbest ad) → id null, snapshot_name korunur (RPC isimden çözmeyi dener).
+          stoneRefs: cart.map((c) => ({
+            stone_id: knownStones.has(c.id) ? c.id : null,
+            snapshot_name: c.name,
+          })),
           notesText: buildMineralSummary() || null,
           notesText2: buildWarningStockSummary(),
         }),
@@ -552,7 +634,7 @@ export default function KombinasyonOlusturPage() {
       actions={
         <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
           <div className={uiStatCard}>
-            <div className="text-lg font-black text-slate-950">{stones.length}</div>
+            <div className="text-lg font-black text-slate-950">{totalStonesCount ?? "—"}</div>
             <div className="text-xs font-bold text-slate-500">{t("statStones")}</div>
           </div>
           <div className={uiStatCard}>
@@ -681,7 +763,13 @@ export default function KombinasyonOlusturPage() {
 
             {!error && (
           <section>
-            {!showResults ? (
+            {/* §4: loading / result / empty net ayrışır; stale sonuç "Eşleşme Var"
+                etiketi taşımaz — yeni sorgu sırasında sonuçlar yerine yükleniyor gösterilir. */}
+            {searchLoading ? (
+              <div className="rounded-[18px] border-[3px] border-dashed border-emerald-300/50 bg-white/70 p-6 text-center">
+                <div className="text-base font-black text-slate-700">{tc("loading")}</div>
+              </div>
+            ) : !showResults ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-emerald-300/50 bg-white/70 p-6 text-center">
                 <div className="text-base font-black text-slate-800">
                   {t("resultsEmptyTitle")}
@@ -810,6 +898,11 @@ export default function KombinasyonOlusturPage() {
                   );
                 })}
               </div>
+            )}
+            {showResults && !searchLoading && resultsCapped && (
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                {t("resultsCappedNote")}
+              </p>
             )}
           </section>
             )}

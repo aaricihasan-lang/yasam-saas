@@ -25,8 +25,6 @@ import {
 } from "@/lib/auth/sessionTenant";
 import {
   excludeStonesForTenant,
-  fetchAllStonesExtended,
-  fetchStoneExclusions,
   fetchStonesListPage,
   stoneListImageCount,
   stonesListCacheKey,
@@ -44,13 +42,8 @@ import {
   fetchStonesListDeduped,
   readStonesList,
 } from "@/lib/dogaltas/stonesListCache";
-import {
-  containsTr,
-  stoneHasWarning,
-  stoneMatchesMineral,
-  stoneMatchesZodiac,
-} from "@/lib/dogaltas/stoneSearchUtils";
 import { deleteStone as apiDeleteStone, deleteStones } from "@/lib/dogaltas/dogaltasApi";
+import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_CLASS,
@@ -92,15 +85,6 @@ const EMPTY_DETAIL_FILTERS: DetailFilters = {
   mineral: "",
   chakra: "",
 };
-
-/** Dizi/obje/null değerleri aranabilir string'e çevirir (recursive). */
-function safeTextExtract(value: unknown): string {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map((v) => safeTextExtract(v)).join(" ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
 
 function clearDogaltasListSearchStorage() {
   if (typeof window === "undefined") return;
@@ -455,6 +439,10 @@ function DogaltasListesiPageContent() {
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
 
+  // Detay condition-search race guard — hızlı filtre/metin değişiminde eski response
+  // yeniyi ezmesin.
+  const detailSeq = useRef(0);
+
   // PERF-2: unmount sonrası setState'i engelle (revalidate geç dönebilir).
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -707,8 +695,11 @@ function DogaltasListesiPageContent() {
     detailFilters.zodiac || detailFilters.warningOnly || detailFilters.mineral || detailFilters.chakra,
   );
 
-  // Metin araması VEYA detay filtre aktifse → tüm taşlar client-side yüklenir
-  const needsFullLoad = isDetailFilterActive || Boolean(debouncedSearch);
+  // F-01 / DT-S1: METİN araması artık SERVER-SIDE + paginated (fetchList q+searchMode
+  // gönderir; route ilike + range döner). Tüm-korpus client yüklemesi YALNIZCA detay
+  // filtreler (assignments/JSON değerlendirmesi gerektiren) için kalır. Böylece en sık
+  // kullanılan metin araması ölçeklenir ve sessiz truncation olmaz (totalCount + load-more).
+  const needsFullLoad = isDetailFilterActive;
 
   // Server-side paginated fetch: yalnızca hiç filtre/arama yokken çalışır
   useEffect(() => {
@@ -717,29 +708,46 @@ function DogaltasListesiPageContent() {
     void fetchList({ reset: true });
   }, [queryTenantId, debouncedSearch, searchMode, needsFullLoad]);
 
-  // needsFullLoad aktifken tüm taşları genişletilmiş alanlarla çek (bir kez yükle)
+  // Detay/koşul filtreleri → SERVER-SIDE condition-search (F-01/DT-S1/§5).
+  // Tüm korpus ARTIK ÇEKİLMEZ; koşullar (mineral/çakra/astro) + warningOnly + metin
+  // sunucuda değerlendirilir (paylaşılan AND motoru), yalnız eşleşen alt küme + exclusion
+  // uygulanmış olarak döner. Filtre/metin değişince yeniden sorgulanır (debounce + race guard).
+  const detailConditions = useMemo(() => {
+    const c: { type: "mineral" | "chakra" | "astrology"; value: string; minPercent: null }[] = [];
+    const m = detailFilters.mineral?.trim() ?? "";
+    const ch = detailFilters.chakra?.trim() ?? "";
+    const z = detailFilters.zodiac?.trim() ?? "";
+    if (m.length >= SEARCH_MIN_LENGTH) c.push({ type: "mineral", value: m, minPercent: null });
+    if (ch.length >= SEARCH_MIN_LENGTH) c.push({ type: "chakra", value: ch, minPercent: null });
+    if (z) c.push({ type: "astrology", value: z, minPercent: null });
+    return c;
+  }, [detailFilters.mineral, detailFilters.chakra, detailFilters.zodiac]);
+
   useEffect(() => {
     if (!queryTenantId) return;
-    if (!needsFullLoad) {
-      setDetailData(null);
-      return;
-    }
-    // detailData zaten yüklüyse tekrar çekme
-    if (detailData) return;
-    void (async () => {
+    const seq = ++detailSeq.current;
+    const ctrl = new AbortController();
+    // Tüm setState timeout callback'i içinde (senkron effect-body setState yok).
+    const timer = window.setTimeout(async () => {
+      if (!needsFullLoad) {
+        if (seq === detailSeq.current) setDetailData(null);
+        return;
+      }
       setDetailLoading(true);
-      // PERF-4: extended veri exclusion uygulanmadan geldiği için, gizlenen taşların
-      // bir an görünmesini önlemek adına exclusions'ı PARALEL çekip birlikte set et
-      // (React aynı tick'te batch'ler → aradaki flash yok). Cache fresh ise 0 GET.
-      const [{ rows }, exclusions] = await Promise.all([
-        fetchAllStonesExtended(queryTenantId),
-        fetchStoneExclusions(queryTenantId),
-      ]);
-      setExcludedStoneIds(exclusions);
-      setDetailData(rows);
+      const res = await fetchStonesByConditions({
+        conditions: detailConditions,
+        warningOnly: detailFilters.warningOnly,
+        q: debouncedSearch.trim() || "",
+        searchMode,
+        signal: ctrl.signal,
+      });
+      if (seq !== detailSeq.current) return; // stale response — ez me
+      if (res.error === "aborted") return;
       setDetailLoading(false);
-    })();
-  }, [queryTenantId, needsFullLoad, detailData]);
+      setDetailData(res.ok ? (res.rows as StoneListItemExtended[]) : []);
+    }, needsFullLoad ? 250 : 0);
+    return () => { ctrl.abort(); window.clearTimeout(timer); };
+  }, [queryTenantId, needsFullLoad, detailConditions, detailFilters.warningOnly, debouncedSearch, searchMode]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -807,68 +815,15 @@ function DogaltasListesiPageContent() {
     window.history.replaceState({}, "", newUrl);
   }, [filterQueryString]);
 
-  // Client-side tam içerik araması ve detay filtreleme
+  // Görüntülenen taşlar. Metin araması → server list (mode=list); detay/koşul filtreleri
+  // → server condition-search (detailData). Her ikisi de SUNUCUDA filtrelenir + exclusion
+  // uygulanır → burada client-side yeniden filtreleme YOK (server ile sapma önlenir).
+  // Yalnız oturum-içi soft-delete için optimistic exclusion gizleme korunur.
   const filteredStones: StoneListItem[] = useMemo(() => {
-    const candidateList: StoneListItem[] =
-      needsFullLoad && detailData
-        ? (detailData.filter((stone) => {
-            // ── Metin araması — moda göre ayrılmış ────────────────────────────
-            if (debouncedSearch) {
-              if (searchMode === "name") {
-                if (!containsTr(stone.stone_name, debouncedSearch)) return false;
-              } else {
-                const haystack = [
-                  stone.stone_name,
-                  stone.short_description,
-                  stone.general_info,
-                  stone.source_note,
-                  stone.physical_effects,
-                  stone.spiritual_effects,
-                  stone.other_effects,
-                  stone.feng_shui,
-                  stone.meditation,
-                  stone.care,
-                  stone.application,
-                  stone.warning_text,
-                  safeTextExtract(stone.warning_tags),
-                  safeTextExtract(stone.chakras),
-                  safeTextExtract(stone.assignments),
-                ].join(" ");
-                if (!containsTr(haystack, debouncedSearch)) return false;
-              }
-            }
-            // ── Detay filtreler ────────────────────────────────────────────────
-            if (detailFilters.zodiac) {
-              if (!stoneMatchesZodiac(stone.assignments, detailFilters.zodiac)) return false;
-            }
-            if (detailFilters.warningOnly) {
-              if (!stoneHasWarning(stone.warning_text, stone.warning_tags)) return false;
-            }
-            if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
-              if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral)) return false;
-            }
-            if (detailFilters.chakra && detailFilters.chakra.trim().length >= SEARCH_MIN_LENGTH) {
-              const chakraMatch = (stone.chakras || []).some((c) =>
-                containsTr(c, detailFilters.chakra.trim()),
-              );
-              if (!chakraMatch) return false;
-            }
-            return true;
-          }) as StoneListItem[])
-        : stones;
-
-    // Kullanıcının kaldırdığı taşları filtrele
-    if (excludedStoneIds.size === 0) return candidateList;
-    return candidateList.filter((s) => !excludedStoneIds.has(s.id));
-  }, [
-    stones,
-    detailData,
-    needsFullLoad,
-    debouncedSearch,
-    searchMode,
-    detailFilters,
-    excludedStoneIds,
-  ]);
+    const base: StoneListItem[] = (needsFullLoad ? detailData ?? [] : stones) as StoneListItem[];
+    if (excludedStoneIds.size === 0) return base;
+    return base.filter((s) => !excludedStoneIds.has(s.id));
+  }, [stones, detailData, needsFullLoad, excludedStoneIds]);
 
   // F-016: görünen taşların kapak file_path'leri için TOPLU signed URL (private-read).
   // Liste lazy-load ile büyüdükçe yalnız eksik path'ler istenir → N+1 yok.
@@ -1000,7 +955,19 @@ function DogaltasListesiPageContent() {
         selectedStoneIds = [...selectedIds];
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.selectStoneFirst") }); return; }
       } else if (mode === "filtered") {
-        selectedStoneIds = filteredStones.map((s) => s.id);
+        if (isDetailFilterActive) {
+          // Detay filtre: eşleşen tam küme zaten client'ta (detailData üzerinden).
+          selectedStoneIds = filteredStones.map((s) => s.id);
+        } else {
+          // Server-side arama/liste: yalnız YÜKLÜ sayfayı değil, eşleşen TÜM kayıtları
+          // (server-cap'li) dışa aktar → sessiz eksik export önlenir.
+          const all = await fetchStonesListPage(tenantId, {
+            offset: 0, limit: 500,
+            search: debouncedSearch.trim() || undefined, searchMode,
+          });
+          if (all.error) throw new Error("report-failed");
+          selectedStoneIds = all.rows.map((s) => s.id);
+        }
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.noFilteredResult") }); return; }
       }
 
@@ -1042,7 +1009,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo, t, tc]);
+  }, [queryTenantId, selectedIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc]);
 
   return (
     <DogaltasSectionShell
