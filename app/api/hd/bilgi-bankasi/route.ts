@@ -7,6 +7,7 @@ import {
   listPublishedGroup,
 } from "@/lib/human-design/knowledge/canonicalReadService";
 import { getChartKnowledgeSource } from "@/lib/human-design/api/chartPersistence";
+import { hdSafeDbError } from "@/lib/human-design/api/safeError";
 import {
   assemblePersonalKnowledge,
   buildPersonalKnowledgeStructure,
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     const r = await listPublishedGroup(guard.db, kindRaw);
     if (!r.ok) {
-      return NextResponse.json({ ok: false, error: r.error.message }, { status: 500, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdSafeDbError("bilgi-bankasi.groups", r.error) }, { status: 500, headers: NO_STORE });
     }
     return NextResponse.json({ ok: true, kind: kindRaw, items: r.data }, { status: 200, headers: NO_STORE });
   }
@@ -66,8 +67,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     const r = await getPublishedEntityDetail(guard.db, key);
     if (!r.ok) {
-      const status = r.error.code === "not_found" ? 404 : 500;
-      return NextResponse.json({ ok: false, error: r.error.message }, { status, headers: NO_STORE });
+      const notFound = r.error.code === "not_found";
+      const status = notFound ? 404 : 500;
+      const error = notFound ? "Kayıt bulunamadı." : hdSafeDbError("bilgi-bankasi.entity", r.error);
+      return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE });
     }
     return NextResponse.json({ ok: true, ...r.data }, { status: 200, headers: NO_STORE });
   }
@@ -97,7 +100,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     });
     const contentRes = await getPublishedContentByKeys(guard.db, structure.allKeys);
     if (!contentRes.ok) {
-      return NextResponse.json({ ok: false, error: contentRes.error.message }, { status: 500, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdSafeDbError("bilgi-bankasi.chart-knowledge", contentRes.error) }, { status: 500, headers: NO_STORE });
     }
     const source = chart.source === "computed" ? "computed" : "manual";
     const dto = assemblePersonalKnowledge(
