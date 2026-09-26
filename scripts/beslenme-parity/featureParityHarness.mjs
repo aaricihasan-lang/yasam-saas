@@ -31,6 +31,25 @@ ok("modulePermissions: DEFAULT beslenme:false (opt-in; premium auto-grant YOK)",
    /DEFAULT_MODULE_PERMISSIONS[\s\S]*?beslenme:\s*false/.test(mp));
 ok("modulePermissions: beslenme PREMIUM otomatik açılmıyor", !/PREMIUM_EXPERT_MODULE_KEYS[\s\S]*?"beslenme"/.test(mp));
 
+// 2b) Admin Paneli izin REGISTRY: tam Beslenme toggle'ı yönetilebilir (beslenme_manual_food
+//     dar bayrağının YERİNE geçmez). Save/load zinciri beslenme boolean'ını taşır + yönetilmeyen
+//     izinleri korur (wholesale-overwrite değil). Bu, Preview Admin Paneli bloker fix'inin regresyonu.
+const um = read("lib/admin/userManagement.ts");
+ok("admin registry: ADMIN_MODULE_UI_KEYS içinde canonical 'beslenme'",
+   /ADMIN_MODULE_UI_KEYS\s*=\s*\[[\s\S]*?["']beslenme["'][\s\S]*?\]\s*as const/.test(um) && /^\s*"beslenme",\s*$/m.test(um));
+ok("admin registry: ADMIN_MODULE_UI_LABELS.beslenme === 'Beslenme'", /\bbeslenme:\s*"Beslenme"/.test(um));
+ok("admin registry: DEFAULT_ADMIN_MODULE_PERMISSIONS.beslenme === false",
+   /DEFAULT_ADMIN_MODULE_PERMISSIONS[\s\S]*?\bbeslenme:\s*false/.test(um));
+ok("admin registry: beslenme_manual_food dar bayrağı AYRI korunuyor",
+   /["']beslenme_manual_food["']/.test(um) && /beslenme_manual_food:\s*"Manuel Besin Yönetimi"/.test(um) && /beslenme_manual_food:\s*false/.test(um));
+ok("admin registry: beslenme açıklaması tam-modül (owner-only prose KALDIRILDI)",
+   /beslenme:\s*"Beslenme modülünün tamamına eri[şs]im verir\./.test(um) && !/Beslenme modülünün tamamı owner-only kalır/.test(um));
+ok("admin save: adminPermissionsToPayload registry'yi (beslenme dahil) spread eder",
+   /export function adminPermissionsToPayload[\s\S]{0,160}\{\s*\.\.\.perms\s*\}/.test(um));
+ok("admin save: mergeAdminModulePermissions yönetilmeyen izinleri KORUR (preservation)",
+   /UI_MANAGED_PERMISSION_KEYS\s*:?[^=]*=\s*new Set[\s\S]*?\.\.\.ADMIN_MODULE_UI_KEYS/.test(um) &&
+   /if \(!UI_MANAGED_PERMISSION_KEYS\.has\(k\)\)\s*merged\[k\]/.test(um));
+
 // 3) Guard kütüphanesi: requireBeslenmeModule var, requireBeslenmeOwner YOK.
 const og = read("lib/beslenme/ownerGuard.ts");
 ok("ownerGuard: requireBeslenmeModule export", /export async function requireBeslenmeModule/.test(og));
