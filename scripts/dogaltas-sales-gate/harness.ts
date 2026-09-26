@@ -250,11 +250,16 @@ for (const rel of REPORT_CALLSITES) {
     "utf8",
   );
   const firstEarlyReturn = src.indexOf("if (loading) {");
-  const memoHook = src.indexOf("const imageFilePaths = useMemo(");
+  // NOT: imageFilePaths artık useMemo DEĞİL — bilinçli olarak düz ifade
+  // (useSignedStoneImageUrls stabil string "key" ile senkron; dizi kimliği önemsiz,
+  // memo gerekmez). R310 için kritik olan: signed-hook GİRDİSİ (imageFilePaths)
+  // ilk erken return'dan ÖNCE türetilir VE hook ondan sonra ama yine erken
+  // return'dan ÖNCE çağrılır. Bu gate güncel davranışı doğrular (memo formuna bağlı değil).
+  const inputDecl = src.indexOf("const imageFilePaths =");
   const signedHook = src.indexOf("const signedImageUrls = useSignedStoneImageUrls(");
   ok("R310: detay ilk erken return bulundu", firstEarlyReturn > 0);
-  ok("R310: imageFilePaths useMemo erken return ÜSTÜNDE",
-    memoHook > 0 && memoHook < firstEarlyReturn);
+  ok("R310: imageFilePaths girdisi erken return ÜSTÜNDE ve hook'tan ÖNCE",
+    inputDecl > 0 && inputDecl < firstEarlyReturn && inputDecl < signedHook);
   ok("R310: useSignedStoneImageUrls erken return ÜSTÜNDE",
     signedHook > 0 && signedHook < firstEarlyReturn);
   ok("R310: signed-image hook'ları erken return SONRASINDA tekrar etmiyor",

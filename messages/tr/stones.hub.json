@@ -45,7 +45,7 @@
       },
       "analytics": {
         "title": "Hesaplanmış Analizler",
-        "subtitle": "Supabase stones, minerals ve combinations verilerine göre",
+        "subtitle": "Taş, mineral ve kombinasyon kayıtlarınıza göre",
         "failedCounters": "Bazı sayaçlar okunamadı ({items}). Lütfen sayfayı yenileyin.",
         "failedLabel": {
           "stones": "taş kaydı",
@@ -53,12 +53,12 @@
           "minerals": "mineral"
         },
         "trendTitle": "Aylık Kayıt Trendi",
-        "trendSubtitle": "Son 6 ay · stones.created_at",
+        "trendSubtitle": "Son 6 aylık kayıt dağılımı",
         "loading": "Yükleniyor...",
         "barTitle": "{label}: {count} kayıt",
         "totalStones": "Toplam Taş Kaydı",
         "mineralBank": "Mineral Bankası",
-        "activeCombinations": "Aktif Kombinasyonlar"
+        "activeCombinations": "Toplam Kombinasyon"
       },
       "report": {
         "title": "Profesyonel Word Raporu Oluştur",

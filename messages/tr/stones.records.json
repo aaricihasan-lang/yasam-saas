@@ -17,7 +17,7 @@
       },
       "basic": {
         "title": "Temel Bilgi",
-        "desc": "Masaüstündeki temel kayıt alanının sade web uyarlaması.",
+        "desc": "Taşın temel bilgilerini ve fotoğraflarını ekleyin.",
         "badge": "Ana Kayıt"
       },
       "fields": {
@@ -39,7 +39,7 @@
       },
       "general": {
         "title": "Genel Bilgi",
-        "desc": "Bilgi paneli / tablo / özet mantığının sade web karşılığı.",
+        "desc": "Taşın genel tanımı, oluşumu ve kaynak bilgilerini girin.",
         "general_info": "Genel Bilgi / Tanım",
         "source_note": "Oluşum / Kaynak Notu"
       },

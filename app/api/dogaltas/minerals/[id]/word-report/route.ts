@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer } from "docx";
 import {
   arraySection,
@@ -91,12 +93,12 @@ export async function POST(
     .maybeSingle();
 
   if (error)
-    return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/minerals/[id]/word-report", action: "POST", tenantId, cause: error });
 
   if (!data)
     return Response.json({ ok: false, error: "Mineral kaydı bulunamadı." }, { status: 404 });
 
-  const mineral = data as MineralRow;
+  const mineral = sanitizeXmlDeep(data as MineralRow); // RPT-XML
   const mineralName = mineral.name || "İsimsiz Mineral";
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);

@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
-import { STONE_PHOTO_BUCKET } from "@/lib/dogaltas/stonePhoto";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
+import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from "docx";
 import {
@@ -19,7 +20,6 @@ import {
   divider,
   embedImageParagraph,
   extractFirstImageRef,
-  fetchImageBuffer,
   fetchStorageImageBuffer,
   fieldInline,
   h1Colored,
@@ -330,12 +330,19 @@ function buildAnalyticsSection(counts: Record<string, number>, n: number): Repor
 }
 
 /**
- * Taş görsel buffer'larını çözer — F-016: önce file_path (service_role download),
- * sonra url (legacy public). 15'li batch (Promise.allSettled) → ölçeklenebilir, N+1 yok.
+ * Taş görsel buffer'larını çözer.
+ *
+ * GÜVENLİK (SSRF kapanışı): YALNIZCA canonical private dogaltas-photos file_path
+ * modeli kullanılır ve her path, oturum tenant'ına ait olduğu `isOwnedStonePhotoPath`
+ * ile doğrulanır (traversal / mutlak-URL / yabancı-tenant reddi). Legacy remote
+ * `images[].url` ARTIK FETCH EDİLMEZ → sunucu-taraflı dış istek (SSRF) yolu kapalı.
+ * Geçersiz/eksik görsel raporu patlatmaz; kontrollü olarak null (görselsiz) döner.
+ * 15'li batch (Promise.allSettled) → ölçeklenebilir, N+1 yok.
  */
 async function resolveStoneImageBuffers(
   db: SupabaseClient,
   stones: StoneRow[],
+  tenantId: string,
 ): Promise<(Buffer | null)[]> {
   const refs = stones.map((s) => extractFirstImageRef(s.images));
   const BATCH = 15;
@@ -345,11 +352,10 @@ async function resolveStoneImageBuffers(
     const settled = await Promise.allSettled(
       slice.map(async (r) => {
         if (!r) return null;
-        if (r.file_path) {
-          const b = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, r.file_path);
-          if (b) return b;
+        // Yalnız tenant'a ait canonical storage path'i indirilir; url yolu yok.
+        if (isOwnedStonePhotoPath(r.file_path, tenantId)) {
+          return await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, r.file_path);
         }
-        if (r.url) return await fetchImageBuffer(r.url);
         return null;
       }),
     );
@@ -414,10 +420,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       : null,
   ]);
 
-  const stonesRows    = (stonesRes?.data       ?? []) as StoneRow[];
-  const mineralRows   = (mineralsRes?.data     ?? []) as MineralRow[];
-  const comboRows     = (combinationsRes?.data ?? []) as CombinationRow[];
-  const knowledgeRows = (knowledgeRes?.data    ?? []) as KnowledgeRow[];
+  // RPT-XML: rapor motoruna girmeden önce tüm DB string'leri XML 1.0 güvenli
+  // hale getirilir (illegal kontrol karakteri temizliği; TR/Unicode/emoji korunur).
+  const stonesRows    = sanitizeXmlDeep((stonesRes?.data       ?? []) as StoneRow[]);
+  const mineralRows   = sanitizeXmlDeep((mineralsRes?.data     ?? []) as MineralRow[]);
+  const comboRows     = sanitizeXmlDeep((combinationsRes?.data ?? []) as CombinationRow[]);
+  const knowledgeRows = sanitizeXmlDeep((knowledgeRes?.data    ?? []) as KnowledgeRow[]);
 
   const counts: Record<string, number> = {};
   if (sections.stones)       counts.stones       = stonesRows.length;
@@ -425,21 +433,26 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (sections.combinations) counts.combinations = comboRows.length;
   if (sections.knowledge)    counts.knowledge    = knowledgeRows.length;
 
-  // Fetch stone images (non-blocking — failures → null). F-016: önce file_path
-  // (service_role download, private-ready), sonra url (legacy). 15'li batch → N+1 yok.
+  // Fetch stone images (non-blocking — failures → null). SSRF kapanışı: yalnız
+  // tenant'a ait canonical dogaltas-photos file_path (service_role download);
+  // legacy remote url artık fetch edilmez. 15'li batch → N+1 yok.
   let stoneImageBuffers: (Buffer | null)[] = stonesRows.map(() => null);
   if (sections.stones && stonesRows.length > 0 && includeImages !== false) {
-    stoneImageBuffers = await resolveStoneImageBuffers(db, stonesRows);
+    stoneImageBuffers = await resolveStoneImageBuffers(db, stonesRows, tenantId);
   }
 
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
-  // Premium cover stats
-  const coverStats: { label: string; value: string }[] = [];
-  if (counts.stones != null)       coverStats.push({ label: "Toplam Taş Sayısı",        value: String(counts.stones) });
-  if (counts.minerals != null)     coverStats.push({ label: "Toplam Mineral Sayısı",    value: String(counts.minerals) });
-  if (counts.combinations != null) coverStats.push({ label: "Toplam Kombinasyon Sayısı", value: String(counts.combinations) });
-  if (counts.knowledge != null)    coverStats.push({ label: "Toplam Makale Sayısı",     value: String(counts.knowledge) });
+  // Premium cover stats — RPT (boş sayaç): yalnız SEÇİLİ bölümler için sayaç
+  // eklenir (counts.X yalnız o bölüm seçiliyse set edilir → 0 dahil gerçek sayı
+  // gösterilir, seçilmeyen bölüm hiç eklenmez). Ek savunma: boş/whitespace değerli
+  // sayaç render edilmez → "Label: " gibi boş etiket asla oluşmaz.
+  const coverStatsRaw: { label: string; value: string }[] = [];
+  if (counts.stones != null)       coverStatsRaw.push({ label: "Toplam Taş Sayısı",        value: String(counts.stones) });
+  if (counts.minerals != null)     coverStatsRaw.push({ label: "Toplam Mineral Sayısı",    value: String(counts.minerals) });
+  if (counts.combinations != null) coverStatsRaw.push({ label: "Toplam Kombinasyon Sayısı", value: String(counts.combinations) });
+  if (counts.knowledge != null)    coverStatsRaw.push({ label: "Toplam Makale Sayısı",     value: String(counts.knowledge) });
+  const coverStats = coverStatsRaw.filter((s) => s.value.trim().length > 0);
 
   const allChildren: ReportChild[] = [
     // 1. Premium cover

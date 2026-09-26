@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ export const runtime = "nodejs";
  * Query:
  *   - issue yoksa → tenant'ın TÜM kombinasyonları.
  *   - issue varsa → yalnızca o başlığın varyantları.
+ *   - count=1 → satır İNMEDEN yalnız tenant'a ait TAM sayım döner
+ *     ({ ok, count }). Dashboard "Toplam Kombinasyon" bunu kullanır → tüm
+ *     satırları tarayıcıya indirip length saymaz; DB satır cap'inden etkilenmez.
  *
  * Sıralama: issue ASC, variant_index ASC (sayfa gruplaması bununla uyumlu).
  */
@@ -35,6 +39,26 @@ export async function GET(req: NextRequest): Promise<Response> {
   const rawIssue = req.nextUrl.searchParams.get("issue");
   const issue = rawIssue?.trim() ? rawIssue.trim().slice(0, MAX_ISSUE) : null;
 
+  // Sayım modu: head:true → gövde inmeden PostgREST exact count.
+  const countOnly = req.nextUrl.searchParams.get("count") != null;
+  if (countOnly) {
+    let cq = db
+      .from("combinations")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    if (issue) cq = cq.eq("issue", issue);
+    const { count, error } = await cq;
+    if (error) {
+      return serverErrorResponse({
+        route: "dogaltas/combinations",
+        action: "GET:count",
+        tenantId,
+        cause: error,
+      });
+    }
+    return NextResponse.json({ ok: true, count: count ?? 0 });
+  }
+
   let query = db
     .from("combinations")
     .select(COMBINATION_COLUMNS)
@@ -49,7 +73,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("variant_index", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({
+      route: "dogaltas/combinations",
+      action: "GET",
+      tenantId,
+      cause: error,
+    });
   }
 
   return NextResponse.json({ ok: true, rows: data ?? [] });

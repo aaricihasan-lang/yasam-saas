@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("is_active", true)
     .order("title", { ascending: true });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "GET", tenantId, cause: error });
   return NextResponse.json({ ok: true, articles: data ?? [] });
 }
 
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   };
 
   const { error } = await db.from("stone_knowledge_articles").insert(payload);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "POST", tenantId, cause: error });
   return NextResponse.json({ ok: true });
 }
 
@@ -120,7 +121,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   q = singleId ? q.eq("id", singleId) : q.in("id", bulkIds);
 
   const { data, error } = await q.select("id, title, content, category, sub_category");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "PATCH", tenantId, cause: error });
 
   if (singleId && (!data || data.length === 0)) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
@@ -154,6 +155,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .in("id", ids)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "DELETE", tenantId, cause: error });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }

@@ -18,7 +18,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { fetchCombinationsCount } from "@/lib/dogaltas/combinationsApi";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
@@ -328,8 +328,8 @@ function DogaltasPageContent() {
         fetchStonesRaw(),
         // Mineral Bankası sayacı — server API (tenant-only).
         fetchMineralsListCount(tenantId),
-        // Aktif Kombinasyonlar — güvenli server API (oturum tenant'ı).
-        fetchCombinationsViaApi(),
+        // Toplam Kombinasyon — güvenli server API exact count (satır inmez, oturum tenant'ı).
+        fetchCombinationsCount(),
       ]);
 
     setLoading(false);
@@ -350,7 +350,7 @@ function DogaltasPageContent() {
       setCombinationsCount(null);
       failed.push(t("analytics.failedLabel.combinations"));
     } else {
-      setCombinationsCount(combinationsRes.rows.length);
+      setCombinationsCount(combinationsRes.count);
     }
 
     // Mineral Bankası — server API (tenant-only). Hata olursa null (→ "—"), 0 yazma yok.

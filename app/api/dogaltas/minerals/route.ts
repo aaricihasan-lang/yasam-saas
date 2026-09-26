@@ -9,6 +9,7 @@ import {
   mineralRowMatchesSearch,
   mapMineralListRow,
 } from "@/lib/dogaltas/mineralsListFetch";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       const { data, error } = await db
         .from("minerals").select(MINERALS_LIST_SEARCH_SELECT)
         .in("tenant_id", ids).order("created_at", { ascending: false, nullsFirst: false });
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:all", tenantId, cause: error });
       return NextResponse.json({ ok: true, rows: data ?? [] });
     }
 
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       const { data, error } = await db
         .from("minerals").select(MINERALS_LIST_SEARCH_SELECT)
         .eq("tenant_id", tenantId).order("created_at", { ascending: false, nullsFirst: false });
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:search", tenantId, cause: error });
 
       const matched = (data ?? []).filter((row) => {
         const r = row as Record<string, unknown>;
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       if (category === MINERALS_UNCATEGORIZED_FILTER) query = query.or("kategori.is.null,kategori.eq.");
       else if (category) query = query.eq("kategori", category);
       const { count, error } = await query;
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:count", tenantId, cause: error });
       return NextResponse.json({ ok: true, count: count ?? 0 });
     }
 
@@ -107,10 +108,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (category === MINERALS_UNCATEGORIZED_FILTER) query = query.or("kategori.is.null,kategori.eq.");
     else if (category) query = query.eq("kategori", category);
     const { data, error } = await query;
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:list", tenantId, cause: error });
     return NextResponse.json({ ok: true, rows: (data ?? []).map((r) => mapMineralListRow(r as Record<string, unknown>)) });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sunucu hatası" }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/minerals", action: "GET", tenantId, cause: e });
   }
 }
 
@@ -143,6 +144,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   payload.tenant_id = tenantId; // SUNUCUDAN
 
   const { data, error } = await db.from("minerals").insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "POST", tenantId, cause: error });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
