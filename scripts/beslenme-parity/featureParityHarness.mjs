@@ -166,31 +166,55 @@ ok("/api/beslenme/access beslenme-gate + {access:true} + clients yeteneği",
    /access:\s*true/.test(accessRoute) &&
    /clients:\s*clients === true/.test(accessRoute));
 
-// 9) Ana panel Beslenme kartı: stale owner-only UX KALDIRILDI (admin↔uzman paritesi).
+// 9) Ana dashboard: bağımsız Beslenme + Besinlerim kartları KALDIRILDI → "Doğal Destek & Rehber"
+//    hub'ına taşındı. Stale owner-only UX de kalmadı.
 const home = read("app/page.tsx");
-ok("home kart probe admin-kısıtı KALDIRILDI (isAdminUser gate yok)",
-   !/if \(!user \|\| !isAdminUser\(user\)\) \{\s*setBeslenmeOwner\(false\)/.test(home));
-ok("home Beslenme kartı: 'Sahip' rozeti YOK", !/>\s*Sahip\s*</.test(home));
-ok("home Beslenme kartı: 'Geliştirme (yalnız sahip)' YOK", !/yalnız sahip/.test(home));
-ok("home Beslenme kartı: data-admin-only + owner-card attribute YOK",
-   !/data-beslenme-owner-card/.test(home) && /data-beslenme-card/.test(home));
-ok("home Beslenme kartı: stale owner-only/super-admin/requireMainAdmin prose KALDIRILDI",
-   !/Beslenme[\s\S]{0,120}(OWNER-ONLY|super-admin|requireMainAdmin)/.test(home));
-ok("home Beslenme kartı: server-authoritative access probe korunuyor (checkBeslenmeAccess)",
-   /checkBeslenmeAccess\(\)/.test(home));
-ok("home Beslenme kartı: render gate access sonucuna bağlı (beslenmeAccess; owner state adı YOK)",
-   /\{beslenmeAccess \?/.test(home) && !/beslenmeOwner/.test(home));
+ok("home: bağımsız data-beslenme-card KALDIRILDI (hub'a taşındı)", !/data-beslenme-card/.test(home));
+ok("home: bağımsız data-besinlerim-card KALDIRILDI (hub'a taşındı)", !/data-besinlerim-card/.test(home));
+ok("home: stale owner-only 'Sahip' / 'yalnız sahip' YOK", !/>\s*Sahip\s*</.test(home) && !/yalnız sahip/.test(home));
+ok("home: data-beslenme-owner-card + Beslenme stale owner prose YOK",
+   !/data-beslenme-owner-card/.test(home) && !/Beslenme[\s\S]{0,120}(OWNER-ONLY|super-admin|requireMainAdmin)/.test(home));
+// Doğal Destek hub kartı görünürlüğü (anyPermissionKeys): aromatherapy|sifa|beslenme|manual → clients YOK.
+{
+  const dogalKeys = (home.match(/href:\s*"\/dogal-destek",[\s\S]*?anyPermissionKeys:\s*\[([^\]]*)\]/) || [,""])[1];
+  ok("home: Doğal Destek anyPermissionKeys beslenme + beslenme_manual_food içerir",
+     /"beslenme"/.test(dogalKeys) && /"beslenme_manual_food"/.test(dogalKeys));
+  ok("home: Doğal Destek anyPermissionKeys aromatherapy/sifa korunur",
+     /"aromatherapy"/.test(dogalKeys) && /"sifa_rehberi"/.test(dogalKeys));
+  ok("home: Doğal Destek anyPermissionKeys clients İÇERMEZ (hub'ı tek başına açmaz)",
+     !/"clients"/.test(dogalKeys));
+}
 
-// 9b) "Besinlerim" DAR kartı: yalnız food-contributor VE tam Beslenme erişimi YOK iken (duplicate
-//     önle + clients→besinlerim sızıntısı kapalı). beslenmeAccess TRI-STATE (null probe → flicker yok).
-ok("home: beslenmeAccess tri-state (boolean|null; flicker fail-closed)",
-   /useState<boolean \| null>\(null\)/.test(home));
-ok("home: Besinlerim kartı foodContributor==='expert' VE beslenmeAccess===false ile gate",
-   /foodContributor === "expert" && beslenmeAccess === false \?/.test(home));
-ok("home: Besinlerim kartı tam Beslenme erişiminde (beslenmeAccess=true) gösterilmez",
-   !/foodContributor === "expert" \?\s*\(/.test(home));
-ok("home: Besinlerim kartı server probe (checkBeslenmeFoodAccess) ile beslenir",
-   /checkBeslenmeFoodAccess\(\)/.test(home) && /data-besinlerim-card/.test(home));
+// 9b) /dogal-destek route guard (routeModuleAccess): OR keys aromatherapy|sifa|beslenme|manual; clients YOK.
+{
+  const rma = read("lib/auth/routeModuleAccess.ts");
+  const dogalRule = (rma.match(/prefix:\s*"\/dogal-destek",\s*keys:\s*\[([^\]]*)\]/) || [,""])[1];
+  ok("route: /dogal-destek keys beslenme + beslenme_manual_food içerir",
+     /"beslenme"/.test(dogalRule) && /"beslenme_manual_food"/.test(dogalRule));
+  ok("route: /dogal-destek keys aromatherapy/sifa korunur",
+     /"aromatherapy"/.test(dogalRule) && /"sifa_rehberi"/.test(dogalRule));
+  ok("route: /dogal-destek keys clients İÇERMEZ", !/"clients"/.test(dogalRule));
+}
+
+// 9c) Doğal Destek hub alt kartları (DogalDestekCards): Beslenme (server access) + Besinlerim
+//     (food-contributor VE tam Beslenme YOK) + fail-closed tri-state (flicker yok).
+{
+  const cards = read("app/dogal-destek/DogalDestekCards.tsx");
+  ok("hub: Aromaterapi + Şifa Rehberi flag-kartları korunuyor (hasAnyModulePermissionFlag)",
+     /hasAnyModulePermissionFlag\(/.test(cards) && /\/aromaterapi/.test(cards) && /\/sifa-rehberi/.test(cards));
+  ok("hub: Beslenme alt kartı /beslenme + server access probe (checkBeslenmeAccess)",
+     /href:\s*"\/beslenme"/.test(cards) && /checkBeslenmeAccess\(\)/.test(cards));
+  ok("hub: Besinlerim alt kartı /beslenme/besinlerim + food probe (checkBeslenmeFoodAccess)",
+     /href:\s*"\/beslenme\/besinlerim"/.test(cards) && /checkBeslenmeFoodAccess\(\)/.test(cards));
+  ok("hub: Beslenme kartı yalnız beslenmeAccess===true iken",
+     /if \(beslenmeAccess === true\) visible\.push\(BESLENME_FOLDER\)/.test(cards));
+  ok("hub: Besinlerim kartı foodContributor==='expert' VE beslenmeAccess===false ile (duplicate önle)",
+     /foodContributor === "expert" && beslenmeAccess === false/.test(cards));
+  ok("hub: probe TRI-STATE fail-closed (null default; flicker yok)",
+     /useState<boolean \| null>\(null\)/.test(cards));
+  ok("hub: responsive grid (kart sayısına göre) — 3 lg:grid-cols-3, 4 2x2",
+     /function gridClass\(/.test(cards) && /lg:grid-cols-3/.test(cards) && /sm:grid-cols-2/.test(cards));
+}
 
 // 10) GÜVENLİK SINIRLARI KORUNDU (parity ≠ veri sızıntısı).
 const foodEngine = read("lib/beslenme/foodEngine.ts");
@@ -226,7 +250,10 @@ const MATRIX = [
   ["Şablon YÖNETİMİ (rename/duplicate/delete)",           "PASS",  "DENY",  "PASS",    "PASS",   "requireBeslenmeModule"],
   ["Besin OKUMA (plan editörü; SYSTEM ∪ tenant)",         "PASS",  "PASS",  "PASS",    "PASS",   "requireBeslenmeFoodRead (clients|beslenme|manual)"],
   ["CUSTOM besin YAZMA (oluştur/düzenle/arşivle)",        "PASS",  "DENY",  "PASS",    "PASS",   "requireBeslenmeFoodContributor (beslenme|manual; clients DEĞİL)"],
-  ["\"Besinlerim\" dashboard kartı (UI görünürlük)",       "GİZLİ", "GİZLİ", "GİZLİ",   "GİZLİ",  "yalnız manual-only/clients+manual'da GÖRÜNÜR"],
+  ["Ana dashboard bağımsız Beslenme/Besinlerim kartı",    "YOK",   "YOK",   "YOK",     "YOK",    "hub'a taşındı (Doğal Destek & Rehber)"],
+  ["Doğal Destek hub → Beslenme alt kartı",               "GÖRÜNÜR","GİZLİ", "GÖRÜNÜR", "GÖRÜNÜR","checkBeslenmeAccess (access=true)"],
+  ["Doğal Destek hub → Besinlerim alt kartı",             "GİZLİ", "GİZLİ", "GİZLİ",   "GİZLİ",  "food='expert' && access=false (manual-only/clients+manual'da GÖRÜNÜR)"],
+  ["Doğal Destek hub kartı (dashboard görünürlük)",       "GÖRÜNÜR","GİZLİ*","GÖRÜNÜR", "GÖRÜNÜR","anyPermissionKeys beslenme|manual|aroma|sifa (*clients tek başına AÇMAZ)"],
   ["Danışan verisi (profil/ölçüm/alerji)",                "DENY",  "PASS",  "PASS",    "PASS",   "requireBeslenmeClient"],
   ["Danışan Planları hub kartı (UI görünürlük)",          "GİZLİ", "n/a",   "GÖRÜNÜR", "GÖRÜNÜR","access.clients"],
   ["Foreign tenant plan/şablon/besin",                    "404",   "404",   "404",     "404",    "tenant-scoped fail-closed"],

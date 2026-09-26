@@ -214,14 +214,18 @@ check("TÜRKOMP veri fixture'ı YOK (lisanssız veri bundle edilmez)",
 check("API otomatik import provider yalnız usda_fdc (CC0)",
   /IMPORT_PROVIDERS\s*=\s*\[\s*"usda_fdc"\s*\]/.test(contracts));
 
-console.log("\n[Z] dashboard Beslenme kartı fail-closed + server-authoritative module probe");
-// Kart görünürlüğü admin↔uzman parity: server probe (/api/beslenme/access) admin VEYA
-// module_permissions.beslenme=true uzman → true. Default false (fail-closed). State adı
-// `beslenmeAccess` (owner semantiği KALDIRILDI); karar server modül probe'udur (rol değil).
+console.log("\n[Z] Beslenme dashboard girişi 'Doğal Destek & Rehber' hub'ına taşındı (server-authoritative)");
+// Beslenme + Besinlerim artık ana dashboard'da bağımsız kart DEĞİL; DogalDestekCards içinde
+// server probe (checkBeslenmeAccess/checkBeslenmeFoodAccess) + fail-closed tri-state ile gösterilir.
 const page = read(resolve(ROOT, "app/page.tsx"));
-check("Beslenme kart state tri-state default null (fail-closed; Besinlerim flicker önle)", /const \[beslenmeAccess, setBeslenmeAccess\] = useState<boolean \| null>\(null\)/.test(page));
-check("server-authoritative module probe checkBeslenmeAccess", /checkBeslenmeAccess\(\)/.test(page));
-check("kart yalnız probe (beslenmeAccess) true ise render + owner state adı YOK", /\{beslenmeAccess \?/.test(page) && !/beslenmeOwner/.test(page));
+const dogalCards = read(resolve(ROOT, "app/dogal-destek/DogalDestekCards.tsx"));
+check("ana dashboard bağımsız Beslenme/Besinlerim kartı YOK (hub'a taşındı)",
+  !/data-beslenme-card/.test(page) && !/data-besinlerim-card/.test(page));
+check("owner state adı (beslenmeOwner) YOK", !/beslenmeOwner/.test(page));
+check("hub: Beslenme alt kartı server-authoritative access probe (checkBeslenmeAccess) + fail-closed null",
+  /checkBeslenmeAccess\(\)/.test(dogalCards) && /useState<boolean \| null>\(null\)/.test(dogalCards));
+check("hub: Beslenme /beslenme + Besinlerim /beslenme/besinlerim alt kartları",
+  /href:\s*"\/beslenme"/.test(dogalCards) && /href:\s*"\/beslenme\/besinlerim"/.test(dogalCards));
 
 console.log(`\n${"=".repeat(56)}`);
 console.log(`  TOPLAM: ${pass} PASS · ${fail} FAIL`);
