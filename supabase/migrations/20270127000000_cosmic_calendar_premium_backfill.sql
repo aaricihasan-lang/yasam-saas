@@ -17,7 +17,13 @@
 -- DAVRANIŞ:
 --   - mevcut module_permissions JSON'u KORUNUR; SADECE cosmic_calendar = true eklenir/güncellenir
 --     (jsonb_set ... create_missing=true → diğer anahtarlara dokunmaz)
---   - IDEMPOTENT: zaten cosmic_calendar='true' olan satırlar WHERE ile hariç → yeniden çalıştırma 0 satır
+--   - IDEMPOTENT: anahtarı OLAN satırlar WHERE ile hariç → yeniden çalıştırma 0 satır
+--
+-- YALNIZ LEGACY DRIFT (anahtar EKSİK): koşul, cosmic_calendar anahtarı JSON'da HİÇ YOKKEN
+--   hedefler. Explicit `{"cosmic_calendar": false}` (gelecekte bilinçli KAPATMA olabilir) ve
+--   `true` DEĞİŞMEZ. Bu yüzden `IS DISTINCT FROM 'true'` (false'u da ezerdi) yerine JSONB
+--   key-existence kullanılır: NOT (coalesce(module_permissions,'{}') ? 'cosmic_calendar').
+--   NULL module_permissions → anahtar yok kabul (coalesce '{}').
 --
 -- ERİŞİM KONTRATIYLA HİZALI: hasExpertMembershipAccess = active===true &&
 --   normalize(approval_status)==='approved' && packageType==='premium'. package precedence
@@ -29,8 +35,8 @@
 --     AND active IS TRUE
 --     AND lower(btrim(coalesce(approval_status,''))) = 'approved'
 --     AND lower(btrim(coalesce(nullif(btrim(package_type),''), plan, ''))) = 'premium'
---     AND (module_permissions->>'cosmic_calendar') IS DISTINCT FROM 'true';
---   -- Bu worktree'de canlı prod READ-ONLY sayım: 1 (5 zaten true, 1 anahtar eksik).
+--     AND NOT (coalesce(module_permissions, '{}'::jsonb) ? 'cosmic_calendar');
+--   -- Bu worktree'de canlı prod READ-ONLY sayım: 1 (5 zaten true, 0 explicit false, 1 anahtar EKSİK).
 --
 -- APPLY NOTU: owner onayı + PROD YEDEK olmadan uygulanmaz. Bu tur APPLY EDİLMEZ.
 -- ============================================================
@@ -49,7 +55,7 @@ BEGIN
     AND active IS TRUE
     AND lower(btrim(coalesce(approval_status, ''))) = 'approved'
     AND lower(btrim(coalesce(nullif(btrim(package_type), ''), plan, ''))) = 'premium'
-    AND (module_permissions->>'cosmic_calendar') IS DISTINCT FROM 'true';
+    AND NOT (coalesce(module_permissions, '{}'::jsonb) ? 'cosmic_calendar');
   RAISE NOTICE 'cosmic_calendar backfill — hedef (öncesi) satır sayısı: %', v_target;
 
   -- Yalnız cosmic_calendar anahtarını true yap; diğer izinler değişmez.
@@ -61,7 +67,7 @@ BEGIN
     AND u.active IS TRUE
     AND lower(btrim(coalesce(u.approval_status, ''))) = 'approved'
     AND lower(btrim(coalesce(nullif(btrim(u.package_type), ''), u.plan, ''))) = 'premium'
-    AND (u.module_permissions->>'cosmic_calendar') IS DISTINCT FROM 'true';
+    AND NOT (coalesce(u.module_permissions, '{}'::jsonb) ? 'cosmic_calendar');
   GET DIAGNOSTICS v_updated = ROW_COUNT;
   RAISE NOTICE 'cosmic_calendar backfill — güncellenen satır: %', v_updated;
 END $$;

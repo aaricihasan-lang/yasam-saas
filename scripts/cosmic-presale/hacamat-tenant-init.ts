@@ -125,7 +125,11 @@ has(bf, /lower\(btrim\(coalesce\(u?\.?role, ''\)\)\)\s*=\s*'expert'/i, "hedef: r
 has(bf, /active IS TRUE/i, "hedef: active (inactive DOKUNULMAZ)");
 has(bf, /approval_status, ''\)\)\)\s*=\s*'approved'/i, "hedef: approved (pending/rejected DOKUNULMAZ)");
 has(bf, /package_type\), ''\), (u\.)?plan, ''\)\)\)\s*=\s*'premium'/i, "hedef: premium (non-premium DOKUNULMAZ)");
-has(bf, /\(u?\.?module_permissions->>'cosmic_calendar'\) IS DISTINCT FROM 'true'/i, "idempotent: zaten true olan satırlar hariç");
+has(bf, /NOT \(coalesce\(u?\.?module_permissions, '\{\}'::jsonb\) \? 'cosmic_calendar'\)/i, "yalnız anahtar EKSİK hedeflenir (idempotent + explicit false DOKUNULMAZ)");
+// Anti-pattern kontrolü YÜRÜTÜLEN SQL üzerinde (yorumlar çıkarılır — rationale yorumu eski
+// over-broad ifadeyi alıntıladığı için false-positive üretmesin).
+const bfSql = bf.split("\n").filter((l) => !l.trimStart().startsWith("--")).join("\n");
+not(bfSql, /IS DISTINCT FROM 'true'/i, "over-broad 'IS DISTINCT FROM true' KULLANILMIYOR (explicit false ezilmez)");
 has(bf, /GET DIAGNOSTICS v_updated = ROW_COUNT/i, "güncellenen satır sayısı loglanır");
 not(bf, /DROP|DELETE|TRUNCATE/i, "yıkıcı ifade YOK (yalnız hedefli UPDATE)");
 
