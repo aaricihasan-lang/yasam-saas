@@ -51,7 +51,7 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { checkBeslenmeAccess, checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
+import { checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -69,7 +69,6 @@ import {
   MessageCircle,
   Package,
   Phone,
-  Salad,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -395,11 +394,12 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/dogal-destek",
-    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi izni yeterli. permissionKey
-    // yalnız tip placeholder'ı (stat/tarih yok); gerçek karar anyPermissionKeys üzerinden.
-    // Görünen başlık/açıklama i18n'den `home.modules.sifa_rehberi.*` ile gelir.
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA dar
+    // manuel-besin bayrağı yeterli. Beslenme + Besinlerim girişleri artık bu hub altında; ana
+    // dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. `clients` TEK BAŞINA bu hub'ı AÇMAZ.
+    // permissionKey yalnız tip placeholder'ı; gerçek karar anyPermissionKeys üzerinden.
     permissionKey: "sifa_rehberi",
-    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing"],
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "beslenme_manual_food"],
     emoji: "🌿",
     Icon: Leaf,
     theme: {
@@ -723,11 +723,11 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
-  // Beslenme (normal grantable modül) kart görünürlüğü — server-authoritative /api/beslenme/access
-  // probe'u: admin VEYA module_permissions.beslenme=true uzman → access=true. Default hidden
-  // → probe doğrularsa render (izinsiz uzman/anon görmez; fail-closed). Rol-tabanlı gate YOK.
-  const [beslenmeAccess, setBeslenmeAccess] = useState(false);
-  // Manuel besin KATKI (dar bayrak) kart görünürlüğü. Bayrak client user objesinden
+  // NOT: Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards).
+  // Ana dashboard'da bağımsız Beslenme kartı YOK → beslenmeAccess state/probe'u burada tutulmaz;
+  // hub bileşeni checkBeslenmeAccess/checkBeslenmeFoodAccess'i kendi içinde reuse eder.
+  // Manuel besin KATKI (dar bayrak) probe'u yalnız expertModulesEmpty hesabı için tutulur
+  // (manual-only uzman "boş modül" sayılmaz). Bayrak client user objesinden
   // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
   // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; tam Beslenme
   // erişimi olan zaten Beslenme kartını görür. Default null → fail-closed.
@@ -782,23 +782,8 @@ export default function Home() {
     loginBackdropPressed.current = false;
   };
 
-  // Beslenme kart görünürlüğü: server-authoritative modül probe (admin VEYA module_permissions
-  // .beslenme=true uzman → true). Admin↔uzman parity; fail-closed (default false, probe ile açılır).
-  useEffect(() => {
-    if (!user) {
-      setBeslenmeAccess(false);
-      return;
-    }
-    let alive = true;
-    void checkBeslenmeAccess().then((ok) => {
-      if (alive) setBeslenmeAccess(ok === true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [user]);
-
-  // Manuel besin KATKI kartı: owner + dar bayraklı UZMAN için de çalışır (admin-only DEĞİL).
+  // Manuel besin KATKI probe'u (expertModulesEmpty için): owner + dar bayraklı UZMAN için de
+  // çalışır (admin-only DEĞİL).
   // Server probe yetki/onay/bayrağı birlikte doğrular (fail-closed). Girişsiz → null.
   // setState yalnız async callback'te (effect gövdesinde senkron setState yok).
   useEffect(() => {
@@ -1716,29 +1701,10 @@ export default function Home() {
                     );
                   })}
 
-                  {/* Besinlerim — DAR besin-katkı bayrağı olan uzmana (server probe). Owner zaten
-                      tam Beslenme kartını görür; burada yalnız 'expert' için gösterilir. */}
-                  {foodContributor === "expert" ? (
-                    <Link href="/beslenme/besinlerim" data-besinlerim-card className="block text-inherit no-underline">
-                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                        <span className="text-3xl leading-none" aria-hidden>
-                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
-                        </span>
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">Besinlerim</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          Kendi özel besinlerinizi ekleyin ve besin değerlerini tamamlayın
-                        </p>
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                            Manuel Besin
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ) : null}
+                  {/* Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı
+                      (app/dogal-destek/DogalDestekCards.tsx) → ana dashboard'da bağımsız
+                      Beslenme/Besinlerim kartı YOK. Server food-probe'ları (checkBeslenmeAccess/
+                      checkBeslenmeFoodAccess) o hub bileşeninde reuse edilir. */}
 
                   {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
                   <Link href="/settings" className="block text-inherit no-underline">
@@ -1796,31 +1762,8 @@ export default function Home() {
                     </Link>
                   ) : null}
 
-                  {/* Beslenme — normal grantable modül kartı (admin↔uzman özellik paritesi).
-                      Görünürlük server-authoritative /api/beslenme/access probe'undan gelir:
-                      admin VEYA module_permissions.beslenme=true uzman → access=true (fail-closed). */}
-                  {beslenmeAccess ? (
-                    <Link href="/beslenme" data-beslenme-card className="block text-inherit no-underline">
-                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                        <span className="text-3xl leading-none" aria-hidden>
-                          <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
-                        </span>
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">Beslenme</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri
-                        </p>
-                        <p className="mt-1.5 text-xs text-slate-500">İçerik hazır</p>
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                            Beslenme
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ) : null}
+                  {/* Beslenme kartı "Doğal Destek & Rehber" hub'ına taşındı (yukarıdaki nota bkz.);
+                      ana dashboard'da bağımsız Beslenme kartı render EDİLMEZ. */}
                 </div>
               )}
 

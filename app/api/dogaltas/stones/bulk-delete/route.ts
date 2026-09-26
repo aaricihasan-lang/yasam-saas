@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .in("id", ids).eq("tenant_id", tenantId) // tenant guard — cross-tenant delete engellenir
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/bulk-delete", action: "POST", tenantId, cause: error });
   const deletedIds = (data ?? []).map((r: { id: string }) => r.id);
 
   // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz, dürüst raporlanır).

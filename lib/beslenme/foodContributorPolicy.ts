@@ -4,13 +4,16 @@
  * Bu modül YALNIZ karar mantığını içerir; kimlik/oturum doğrulaması ve tenant çözümü
  * server guard'ındadır (lib/beslenme/ownerGuard.requireBeslenmeFoodContributor).
  *
- * KURAL (Hasan Hoca kararı): Beslenme modülü (planlar/danışan/konu) OWNER-ONLY kalır.
- * Manuel besin katkısı, tüm modülü açmadan, DAR bir yetenek bayrağıyla verilir:
- *   - owner (super-admin küratör) → her zaman katkı yetkisi ('owner').
- *   - uzman → yalnız module_permissions.beslenme_manual_food === true ise ('expert').
- * Bu bir MODÜL KAPISI DEĞİLDİR (moduleAccess.beslenme=false değişmez). Yeni kayıt
- * DAİMA yazan kullanıcının server-side doğrulanmış tenant'ına CUSTOM olarak gider;
- * SYSTEM katalog herkes için salt okunurdur. tenant body/query'den ASLA seçilmez.
+ * KANONİK KURAL: Beslenme NORMAL grantable modüldür (owner-only DEĞİL). Manuel/CUSTOM besin
+ * YAZMA yetkisi (server tarafı requireBeslenmeFoodContributor'da birleştirilir):
+ *   - owner (super-admin küratör) → her zaman ('owner').
+ *   - TAM Beslenme modülü (module_permissions.beslenme=true; admin role short-circuit dahil) → write.
+ *   - dar bayrak (module_permissions.beslenme_manual_food=true) → tam modül olmadan write ('expert').
+ * `clients` (Danışan Yolculuğu) izni TEK BAŞINA CUSTOM food WRITE yetkisi VERMEZ — clients
+ * danışan-bound akış + besin OKUMA'dır (requireBeslenmeFoodRead). Bu SAF politika yalnız
+ * owner + dar bayrak kararını verir; tam-modül write kararı server guard'da resolveModuleAccess
+ * ile eklenir. Yeni kayıt DAİMA yazan kullanıcının server-side doğrulanmış tenant'ına CUSTOM
+ * gider; SYSTEM katalog herkes için salt okunurdur. tenant body/query'den ASLA seçilmez.
  */
 
 /** DAR yetenek bayrağı (module_permissions JSONB içinde saklanır; yeni tablo/kolon YOK). */

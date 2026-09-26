@@ -346,17 +346,19 @@ function MineralListesiPageContent() {
 
     setBulkDeleteBusy(true);
     try {
-      const { ok, error } = await bulkDeleteMinerals(ids);
+      const { ok, error, deleted, demo } = await bulkDeleteMinerals(ids);
 
       if (!ok) {
         showToast({ type: "error", message: t("deleteFailed", { error: error ?? tRoot("unknownError") }) });
         return;
       }
 
+      // Gerçek silinen satır sayısı sunucudan gelir (demo'da simüle → ids.length).
+      const affected = demo ? ids.length : deleted ?? ids.length;
       setMinerals((prev) => prev.filter((m) => !ids.includes(m.id)));
-      setTotalCount((prev) => Math.max(0, prev - ids.length));
+      setTotalCount((prev) => Math.max(0, prev - affected));
       clearMineralSelection();
-      showToast({ type: "success", message: t("deleteSuccess", { n: ids.length }) });
+      showToast({ type: "success", message: t("deleteSuccess", { n: affected }) });
     } finally {
       setBulkDeleteBusy(false);
     }

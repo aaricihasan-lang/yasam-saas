@@ -34,6 +34,50 @@ export type FetchCombinationsResult = {
  *
  * @param issue Verilirse yalnızca o başlığın varyantları döner; yoksa tümü.
  */
+export type FetchCombinationsCountResult = {
+  ok: boolean;
+  count: number;
+  error?: string;
+};
+
+/**
+ * Kombinasyon TAM sayımını güvenli server API'sinden okur (count=1 → satır inmez).
+ * Dashboard "Toplam Kombinasyon" için: tüm satırları indirip length saymak yerine
+ * DB exact count kullanılır (tenant sunucuda oturumdan; çapraz-tenant imkânsız).
+ */
+export async function fetchCombinationsCount(): Promise<FetchCombinationsCountResult> {
+  const userId = readYasamUser()?.id;
+  const sessionToken = readSessionToken();
+
+  if (!userId || !sessionToken) {
+    return { ok: false, count: 0, error: STONES_WORKSPACE_UNAVAILABLE };
+  }
+
+  try {
+    const res = await fetch(`/api/dogaltas/combinations?count=1`, {
+      headers: {
+        "x-user-id": userId,
+        "x-session-token": sessionToken,
+      },
+      cache: "no-store",
+    });
+
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      count?: number;
+      error?: string;
+    };
+
+    if (!res.ok || !json.ok) {
+      return { ok: false, count: 0, error: json.error ?? `HTTP ${res.status}` };
+    }
+
+    return { ok: true, count: json.count ?? 0 };
+  } catch (err) {
+    return { ok: false, count: 0, error: err instanceof Error ? err.message : "Ağ hatası" };
+  }
+}
+
 export async function fetchCombinationsViaApi(
   issue?: string,
 ): Promise<FetchCombinationsResult> {

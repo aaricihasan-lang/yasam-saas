@@ -10,7 +10,7 @@
       "bank": {
         "eyebrow": "DOĞALTAŞ · MİNERAL BANKASI",
         "title": "Mineral Kayıt Ekranı",
-        "subtitle": "Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır.",
+        "subtitle": "Yeni mineral kaydı oluşturmak için aşağıdaki butona basın.",
         "listLink": "Mineral Listesi",
         "closeForm": "Formu Kapat",
         "introDescription": "Yeni mineral kaydı oluşturmak için aşağıdaki butona basın. Mevcut mineralleri Mineral Listesi'nden görüntüleyebilirsiniz.",
@@ -81,7 +81,7 @@
       "list": {
         "eyebrow": "DOĞALTAŞ · MİNERAL LİSTESİ",
         "title": "Mineral Listesi",
-        "subtitle": "public.minerals tablosundan mineral kayıtları.",
+        "subtitle": "Mineral kayıtlarınızı görüntüleyin ve yönetin.",
         "totalLabel": "Toplam kayıt",
         "loadedTotal": "Yüklü / toplam",
         "visibleResult": "Görünen sonuç",
@@ -103,7 +103,7 @@
         "exportSelectedLabel": "Seçilenleri Word'e Aktar",
         "loadingList": "Mineraller yükleniyor...",
         "emptyDbTitle": "Henüz mineral kaydı yok",
-        "emptyDbText": "Supabase minerals tablosunda henüz kayıt bulunmuyor.",
+        "emptyDbText": "Henüz mineral kaydınız bulunmuyor.",
         "emptyFilteredTitle": "Sonuç bulunamadı",
         "emptyFilteredText": "Arama veya kategori filtresini değiştirin.",
         "viewedBadge": "Bakıldı",

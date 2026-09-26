@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     .in("id", ids).eq("tenant_id", tenantId) // tenant guard
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/bulk-delete", action: "POST", tenantId, cause: error });
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

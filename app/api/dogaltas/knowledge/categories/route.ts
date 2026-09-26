@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge/categories", action: "GET", cause: error });
   return NextResponse.json({ ok: true, categories: data ?? [] });
 }
 
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("id")
     .eq("slug", slug)
     .maybeSingle();
-  if (dupErr) return NextResponse.json({ ok: false, error: dupErr.message }, { status: 500 });
+  if (dupErr) return serverErrorResponse({ route: "dogaltas/knowledge/categories", action: "POST:dup-check", cause: dupErr });
   if (existing) return NextResponse.json({ ok: false, error: "Bu isimde kategori zaten var." }, { status: 409 });
 
   // sort_order SUNUCUDA: mevcut en yüksek + 1.
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (error.code === "23505" || String(error.message).toLowerCase().includes("unique")) {
       return NextResponse.json({ ok: false, error: "Bu isimde kategori zaten var." }, { status: 409 });
     }
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/knowledge/categories", action: "POST", cause: error });
   }
   return NextResponse.json({ ok: true, category: data });
 }

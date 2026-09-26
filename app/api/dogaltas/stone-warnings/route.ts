@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .in("tenant_id", ids);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/stone-warnings", action: "POST", tenantId, cause: error });
   }
 
   const rows = (data ?? []) as Array<{

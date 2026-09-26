@@ -1,7 +1,9 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import {
   bodyText,
@@ -198,9 +200,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await q.order("category").order("title");
-  if (error) return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge-report", action: "POST", tenantId, cause: error });
 
-  const articles = (data ?? []) as ArticleRow[];
+  const articles = sanitizeXmlDeep((data ?? []) as ArticleRow[]); // RPT-XML
   if (!articles.length) return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });
 
   const doc = new Document({

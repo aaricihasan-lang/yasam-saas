@@ -3,7 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
-import { validateStoneStructuredFields } from "@/lib/dogaltas/validation";
+import { validateStoneStructuredFields, validateStoneImagesField } from "@/lib/dogaltas/validation";
 import {
   STONES_LIST_SELECT,
   STONES_LIST_EXTENDED_SELECT,
@@ -12,6 +12,7 @@ import {
   STONES_LIST_ORDER_OPTIONS,
   buildStonesListSearchOrFilter,
 } from "@/lib/dogaltas/stonesListFetch";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       const tQ = performance.now();
       const { data, error } = await db.from("stones").select("*").eq("tenant_id", tenantId);
       mark("stones", performance.now() - tQ);
-      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:raw", tenantId, cause: error }));
       const tR = performance.now();
       const res = NextResponse.json({ ok: true, rows: data ?? [] });
       mark("response", performance.now() - tR);
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         .in("tenant_id", ids)
         .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS);
       mark("stones", performance.now() - tQ);
-      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:extended", tenantId, cause: error }));
       const tR = performance.now();
       const res = NextResponse.json({ ok: true, rows: sortTr((data ?? []) as Record<string, unknown>[]) });
       mark("response", performance.now() - tR);
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       const tC = performance.now();
       const { count, error } = await query;
       mark("count", performance.now() - tC);
-      if (error) return send(NextResponse.json({ ok: false, error: error.message }, { status: 500 }));
+      if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:count", tenantId, cause: error }));
       const tR = performance.now();
       const res = NextResponse.json({ ok: true, count: count ?? 0 });
       mark("response", performance.now() - tR);
@@ -161,7 +162,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const tSC = performance.now();
     const listRes = await query;
     mark("stones_count", performance.now() - tSC);
-    if (listRes.error) return send(NextResponse.json({ ok: false, error: listRes.error.message }, { status: 500 }));
+    if (listRes.error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:list", tenantId, cause: listRes.error }));
     const tR = performance.now();
     const res = NextResponse.json({
       ok: true,
@@ -171,7 +172,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     mark("response", performance.now() - tR);
     return send(res);
   } catch (e) {
-    return send(NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sunucu hatası" }, { status: 500 }));
+    return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET", tenantId, cause: e }));
   }
 }
 
@@ -199,6 +200,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const structured = validateStoneStructuredFields(payload);
   if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
 
+  // SSRF kapanışı: images[] yalnız tenant'a ait canonical file_path; url reddedilir.
+  if ("images" in payload) {
+    const imagesCheck = validateStoneImagesField(payload.images, tenantId);
+    if (!imagesCheck.ok) return NextResponse.json({ ok: false, error: imagesCheck.error }, { status: 422 });
+  }
+
   // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
   if ("assignments" in payload) {
     const check = validateMineralAssignments(payload.assignments);
@@ -211,7 +218,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!("images" in payload)) payload.images = [];
 
   const { data, error } = await db.from("stones").insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones", action: "POST", tenantId, cause: error });
   const newId = (data as { id: string }).id;
   // İP-2C: başarılı taş kaydı oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
   await recordUsageEvent(db, {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ export async function GET(
     .from("minerals").select("*")
     .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "GET", tenantId, cause: error });
   if (!data) return NextResponse.json({ ok: false, error: "Mineral bulunamadı." }, { status: 404 });
   return NextResponse.json({ ok: true, row: data });
 }
@@ -72,7 +73,7 @@ export async function PATCH(
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Mineral bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -96,7 +97,7 @@ export async function DELETE(
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "DELETE", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Mineral bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }

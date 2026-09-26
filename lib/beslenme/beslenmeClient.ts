@@ -67,9 +67,11 @@ export async function fetchBeslenmeCapabilities(): Promise<{ access: boolean; cl
 }
 
 /**
- * Manuel besin KATKI erişim probe'u (server-authoritative). Döner:
- *   'owner'  → super-admin küratör, 'expert' → dar bayraklı uzman, null → yetkisiz.
- * "Besinlerim" sayfası + nav girişi bununla gate edilir (UI gizleme tek katman değil).
+ * Manuel/CUSTOM besin KATKI (WRITE) erişim probe'u (server-authoritative). Döner:
+ *   'owner'  → super-admin küratör; 'expert' → TAM Beslenme modülü VEYA dar bayraklı uzman;
+ *   null → yetkisiz. `clients`-only uzman (beslenme=false, manual=false) → null (yalnız besin OKUMA).
+ * "Besinlerim" sayfası + nav girişi bununla gate edilir; dashboard'da ayrıca beslenmeAccess=false
+ * koşulu aranır (tam Beslenme'de duplicate kart gösterilmez). UI gizleme tek katman değil.
  */
 export async function checkBeslenmeFoodAccess(): Promise<"owner" | "expert" | null> {
   const r = await req<{ authority?: "owner" | "expert" }>("/api/beslenme/foods/access", { headers: authHeaders() });

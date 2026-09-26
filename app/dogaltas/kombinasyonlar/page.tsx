@@ -13,10 +13,15 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 
-/** Güvenli delete API'sine issue listesi gönderir (publishable delete yerine). */
+/**
+ * Güvenli delete API'sine BENZERSİZ KAYIT KİMLİĞİ (id) listesi gönderir
+ * (publishable delete yerine). F-06: silme artık başlık/issue değil, gerçek
+ * satır id'si üzerinden yapılır → aynı başlıktaki bir varyant tek başına silinebilir.
+ * Sunucunun döndürdüğü gerçek `deleted` satır sayısı geri iletilir.
+ */
 async function deleteCombinationsViaApi(
-  issues: string[],
-): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
+  ids: string[],
+): Promise<{ ok: boolean; error?: string; demo?: boolean; deleted?: number }> {
   const userId = readYasamUser()?.id;
   const sessionToken = readSessionToken();
   try {
@@ -27,15 +32,16 @@ async function deleteCombinationsViaApi(
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ issues }),
+      body: JSON.stringify({ ids }),
     });
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       error?: string;
       demo?: boolean;
+      deleted?: number;
     };
     if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}` };
-    return { ok: true, demo: json.demo };
+    return { ok: true, demo: json.demo, deleted: json.deleted };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Ağ hatası" };
   }
@@ -376,6 +382,26 @@ export default function KombinasyonlarPage() {
     return set.size;
   }, [rows]);
 
+  // F-06: seçilen başlık(lar)ın TÜM varyant satırlarını gerçek id'ye çözmek için
+  // tam `rows` seti üzerinden (filtreden bağımsız) issue → satırlar haritası.
+  const rowsByIssue = useMemo(() => {
+    const map = new Map<string, CombinationRecord[]>();
+    for (const row of rows) {
+      const key = row.issue?.trim() || "İsimsiz";
+      const list = map.get(key);
+      if (list) list.push(row);
+      else map.set(key, [row]);
+    }
+    return map;
+  }, [rows]);
+
+  // Seçili başlıkların altındaki gerçek varyant satır id'leri (silinecek kayıtlar).
+  const resolveIdsForIssues = useCallback(
+    (issueKeys: string[]): string[] =>
+      issueKeys.flatMap((k) => (rowsByIssue.get(k) ?? []).map((r) => r.id)),
+    [rowsByIssue],
+  );
+
   // Sayfalama yalnızca RENDER'ı sınırlar; arama/filtre tam set (`rows`) üzerinde
   // yapıldıktan SONRA uygulanır → K-1'deki "filtre sonrası boş kalma" tuzağına düşmez.
   const visibleGroups = useMemo(
@@ -424,11 +450,17 @@ export default function KombinasyonlarPage() {
     if (selectedIds.size === 0) return;
 
     const issueKeys = Array.from(selectedIds);
-    const deleteCount = issueKeys.length;
+    const groupCount = issueKeys.length;
+    // F-06: gerçek etkilenecek satır (varyant) sayısı — grup sayısı değil.
+    const ids = resolveIdsForIssues(issueKeys);
+    const recordCount = ids.length;
+    if (recordCount === 0) return;
 
     const firstConfirmed = await confirm({
       title: isMobile ? t("deleteTitleMobile") : t("deleteTitle"),
-      message: t("deleteMessage", { n: deleteCount }),
+      // Silinecek gerçek kayıt (varyant) sayısını göster; bir başlıkta birden çok
+      // varyant varsa recordCount > groupCount olur ve kullanıcı gerçeği görür.
+      message: t("deleteMessage", { n: recordCount, groups: groupCount }),
       tone: "danger",
       confirmText: isMobile ? t("confirmYesMobile") : t("confirmYes"),
       cancelText: isMobile ? t("cancelNo") : tc("giveUp"),
@@ -449,7 +481,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const result = await deleteCombinationsViaApi(issueKeys);
+    const result = await deleteCombinationsViaApi(ids);
 
     setDeleteLoading(false);
 
@@ -458,10 +490,12 @@ export default function KombinasyonlarPage() {
       return;
     }
 
-    showToast({ type: "success", message: t("deletedToast", { n: deleteCount }) });
+    // Gerçek silinen satır sayısı sunucudan gelir (demo'da simüle → recordCount).
+    const deletedShown = result.demo ? recordCount : result.deleted ?? recordCount;
+    showToast({ type: "success", message: t("deletedToast", { n: deletedShown }) });
     setSelectedIds(new Set());
     await loadCombinations();
-  }, [confirm, isMobile, selectedIds, showToast, t, tc]);
+  }, [confirm, isMobile, selectedIds, resolveIdsForIssues, showToast, t, tc]);
 
   const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = await getSyncedTenantId();
@@ -521,9 +555,13 @@ export default function KombinasyonlarPage() {
   }, [selectedIds, groups, showToast, t, tc]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
+    // F-06: bu başlığın tüm varyant satır id'leri — "gruptaki tüm kayıtları sil".
+    const ids = resolveIdsForIssues([issueKey]);
+    if (ids.length === 0) return;
+
     const firstConfirmed = await confirm({
       title: t("deleteGroupTitle"),
-      message: t("deleteGroupMessage", { issue: issueKey }),
+      message: t("deleteGroupMessage", { issue: issueKey, n: ids.length }),
       tone: "danger",
       confirmText: t("confirmYesMobile"),
       cancelText: t("cancelNo"),
@@ -542,7 +580,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const result = await deleteCombinationsViaApi([issueKey]);
+    const result = await deleteCombinationsViaApi(ids);
 
     setDeleteLoading(false);
 
@@ -558,7 +596,7 @@ export default function KombinasyonlarPage() {
       return next;
     });
     void loadCombinations();
-  }, [confirm, showToast, t, tc]);
+  }, [confirm, resolveIdsForIssues, showToast, t, tc]);
 
   return (
     <DogaltasSectionShell

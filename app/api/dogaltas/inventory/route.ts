@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false, nullsFirst: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "GET", tenantId, cause: error });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const now = new Date().toISOString();
   const payload = { ...sanitize(body), name, tenant_id: tenantId, created_at: now, updated_at: now };
   const { data, error } = await db.from("dogaltas_inventory").insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "POST", tenantId, cause: error });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -100,7 +101,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "DELETE", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
