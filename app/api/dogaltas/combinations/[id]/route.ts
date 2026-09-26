@@ -22,11 +22,11 @@ export const runtime = "nodejs";
  * hesaplandığı için stones_text güncellenince özet kendiliğinden doğru kalır.
  */
 
-// Yalnız kullanıcıya ait, güvenli düzenlenebilir alanlar.
-const COMBINATION_WRITABLE = ["issue", "description", "stones_text", "notes_text_3"] as const;
-
 const MAX_NAME = 200;
 const MAX_TEXT = 4000;
+// F-03: kullanıcıya sızmayan, profesyonel conflict mesajı.
+const CONFLICT_MSG =
+  "Bu kayıt başka bir oturumda güncellendi. Son verileri yenileyip değişikliklerinizi kontrol edin.";
 
 function clamp(v: unknown, max: number): string | null {
   if (v == null) return null;
@@ -54,51 +54,83 @@ export async function PATCH(
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const fields: Record<string, unknown> = {};
+  // F-03 optimistic concurrency: client GET'te aldığı updated_at'i geri gönderir.
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt.trim()
+      ? body.expectedUpdatedAt.trim()
+      : null;
 
+  // issue (sağlanmışsa) zorunlu-dolu.
+  let issueVal: string | null = null;
   if ("issue" in body) {
-    const issue = clamp(body.issue, MAX_NAME);
-    if (!issue) {
+    issueVal = clamp(body.issue, MAX_NAME);
+    if (!issueVal) {
       return NextResponse.json({ ok: false, error: "Kombinasyon adı zorunludur." }, { status: 400 });
     }
-    fields.issue = issue;
   }
 
+  // ── Taş listesi düzenleniyorsa: F-02 canonical RPC (junction replace + stones_text
+  //    aynası + concurrency guard, tek transaction). ──────────────────────────────
   if ("stones_text" in body) {
-    // Taş listesi CSV; en az bir geçerli taş adı olmalı (oluşturma kuralıyla aynı).
-    const raw = String(body.stones_text ?? "");
-    const names = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const names = String(body.stones_text ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     if (names.length === 0) {
       return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
     }
-    fields.stones_text = names.join(", ").slice(0, MAX_TEXT);
+    const p_stones = names.map((n) => ({ stone_id: null, snapshot_name: n.slice(0, MAX_NAME) }));
+    const { data, error } = await db.rpc("update_combination_with_stones", {
+      p_combination_id: id,
+      p_tenant_id: tenantId,
+      p_issue: issueVal, // null → mevcut korunur
+      p_description: "description" in body ? String(body.description ?? "").slice(0, MAX_TEXT) : null,
+      p_notes_text_3: "notes_text_3" in body ? String(body.notes_text_3 ?? "").slice(0, MAX_TEXT) : null,
+      p_stones,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const msg = String((error as { message?: unknown }).message ?? "");
+      if (msg.includes("combination_conflict")) {
+        return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
+      }
+      if (msg.includes("combination_not_found_for_tenant")) {
+        return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+      }
+      return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error });
+    }
+    const r = (data ?? {}) as { updated_at?: string };
+    return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
   }
 
+  // ── Yalnız skaler alan(lar): junction'a dokunmadan concurrency-guarded update. ──
+  const fields: Record<string, unknown> = {};
+  if (issueVal) fields.issue = issueVal;
   if ("description" in body) fields.description = clamp(body.description, MAX_TEXT);
   if ("notes_text_3" in body) fields.notes_text_3 = clamp(body.notes_text_3, MAX_TEXT);
-
-  // COMBINATION_WRITABLE dışı hiçbir alan yazılamaz (tenant_id/id/source_id/... korunur).
-  for (const k of Object.keys(fields)) {
-    if (!(COMBINATION_WRITABLE as readonly string[]).includes(k)) delete fields[k];
-  }
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
-  const { data, error } = await db
+  let query = db
     .from("combinations")
     .update(fields)
     .eq("id", id)
-    .eq("tenant_id", tenantId) // tenant guard — çapraz-tenant güncelleme engellenir
-    .select("id,issue");
+    .eq("tenant_id", tenantId); // tenant guard — çapraz-tenant güncelleme engellenir
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+  const { data, error } = await query.select("id,issue,updated_at");
 
   if (error) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
+    // 0 satır: concurrency guard verildiyse conflict mi yoksa yok mu ayır.
+    if (expectedUpdatedAt) {
+      const { data: exists } = await db
+        .from("combinations").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (exists) return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
+    }
     return NextResponse.json(
       { ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." },
       { status: 404 },
     );
   }
-  return NextResponse.json({ ok: true, id, issue: (data[0] as { issue: string }).issue });
+  const row = data[0] as { issue: string; updated_at?: string };
+  return NextResponse.json({ ok: true, id, issue: row.issue, updated_at: row.updated_at });
 }

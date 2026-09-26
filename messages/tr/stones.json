@@ -27,16 +27,16 @@
         "subtitle": "Yeni mineral kaydı ekle."
       },
       "mineral-listesi": {
-        "title": "Mineral Listesi",
-        "subtitle": "Mineralleri görüntüle ve yönet."
+        "title": "Mineraller",
+        "subtitle": "Minerallerini görüntüle ve yönet."
       },
       "dogaltas-listesi": {
-        "title": "Doğaltaş Listesi",
-        "subtitle": "Kayıtlı taşlar."
+        "title": "Doğaltaşlar",
+        "subtitle": "Taşlarını görüntüle, ara ve yönet."
       },
       "kombinasyonlar": {
         "title": "Kombinasyonlar",
-        "subtitle": "Taş kombinasyonları."
+        "subtitle": "Kombinasyonlarını görüntüle ve oluştur."
       },
       "kombinasyon-olustur": {
         "title": "Kombinasyon Oluştur",

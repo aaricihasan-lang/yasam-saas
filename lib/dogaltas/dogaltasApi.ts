@@ -21,7 +21,7 @@ function authHeaders(json = false): Record<string, string> | null {
   return h;
 }
 
-type ApiResult<T> = { ok: boolean; data?: T; error?: string; demo?: boolean };
+type ApiResult<T> = { ok: boolean; data?: T; error?: string; demo?: boolean; code?: string; status?: number };
 
 export async function dogaltasApiGet<T = Record<string, unknown>>(
   path: string,
@@ -50,9 +50,11 @@ export async function dogaltasApiSend<T = Record<string, unknown>>(
       method, headers,
       body: body != null ? JSON.stringify(body) : undefined,
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; demo?: boolean } & T;
-    if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}`, demo: json.demo };
-    return { ok: true, data: json, demo: json.demo };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; demo?: boolean; code?: string } & T;
+    if (!res.ok || !json.ok) {
+      return { ok: false, error: json.error ?? `HTTP ${res.status}`, demo: json.demo, code: json.code, status: res.status };
+    }
+    return { ok: true, data: json, demo: json.demo, status: res.status };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası" };
   }
@@ -70,11 +72,13 @@ export async function createStone(
 export async function updateStone(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ ok: boolean; row?: Record<string, unknown>; error?: string; demo?: boolean }> {
+  expectedUpdatedAt?: string | null,
+): Promise<{ ok: boolean; row?: Record<string, unknown>; error?: string; demo?: boolean; conflict?: boolean }> {
+  const body = expectedUpdatedAt ? { ...fields, expectedUpdatedAt } : fields;
   const r = await dogaltasApiSend<{ row?: Record<string, unknown> }>(
-    `/api/dogaltas/stones/${encodeURIComponent(id)}`, "PATCH", fields);
+    `/api/dogaltas/stones/${encodeURIComponent(id)}`, "PATCH", body);
   if (r.ok) invalidateStonesList(); // PERF-2: düzenleme → liste cache'i geçersiz
-  return { ok: r.ok, row: r.data?.row, error: r.error, demo: r.demo };
+  return { ok: r.ok, row: r.data?.row, error: r.error, demo: r.demo, conflict: r.code === "conflict" };
 }
 
 export async function deleteStone(
@@ -137,10 +141,12 @@ export async function getMineral(
 export async function updateMineral(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
-  const r = await dogaltasApiSend(
-    `/api/dogaltas/minerals/${encodeURIComponent(id)}`, "PATCH", fields);
-  return { ok: r.ok, error: r.error, demo: r.demo };
+  expectedUpdatedAt?: string | null,
+): Promise<{ ok: boolean; updated_at?: string; error?: string; demo?: boolean; conflict?: boolean }> {
+  const body = expectedUpdatedAt ? { ...fields, expectedUpdatedAt } : fields;
+  const r = await dogaltasApiSend<{ updated_at?: string }>(
+    `/api/dogaltas/minerals/${encodeURIComponent(id)}`, "PATCH", body);
+  return { ok: r.ok, updated_at: r.data?.updated_at, error: r.error, demo: r.demo, conflict: r.code === "conflict" };
 }
 
 // ─── Modül-bazlı çift kayıt kontrolü (DT-P1-1) ───────────────────────────────
@@ -158,8 +164,10 @@ export async function checkDuplicate(
 export async function updateCombination(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ ok: boolean; issue?: string; error?: string; demo?: boolean }> {
-  const r = await dogaltasApiSend<{ issue?: string }>(
-    `/api/dogaltas/combinations/${encodeURIComponent(id)}`, "PATCH", fields);
-  return { ok: r.ok, issue: r.data?.issue, error: r.error, demo: r.demo };
+  expectedUpdatedAt?: string | null,
+): Promise<{ ok: boolean; issue?: string; updated_at?: string; error?: string; demo?: boolean; conflict?: boolean }> {
+  const body = expectedUpdatedAt ? { ...fields, expectedUpdatedAt } : fields;
+  const r = await dogaltasApiSend<{ issue?: string; updated_at?: string }>(
+    `/api/dogaltas/combinations/${encodeURIComponent(id)}`, "PATCH", body);
+  return { ok: r.ok, issue: r.data?.issue, updated_at: r.data?.updated_at, error: r.error, demo: r.demo, conflict: r.code === "conflict" };
 }

@@ -92,13 +92,32 @@ export async function PATCH(
 
   fields.updated_at = new Date().toISOString();
 
-  const { data, error } = await db
+  // F-03 optimistic concurrency: client GET'te aldığı updated_at'i geri gönderirse
+  // WHERE'e eklenir → araya başka oturum yazdıysa 0 satır → 409 (son-yazan sessizce ezmez).
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt.trim()
+      ? body.expectedUpdatedAt.trim()
+      : null;
+
+  let query = db
     .from("stones").update(fields)
-    .eq("id", id).eq("tenant_id", tenantId) // tenant guard — cross-tenant update engellenir
-    .select("*");
+    .eq("id", id).eq("tenant_id", tenantId); // tenant guard — cross-tenant update engellenir
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+  const { data, error } = await query.select("*");
 
   if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
+    if (expectedUpdatedAt) {
+      const { data: exists } = await db
+        .from("stones").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (exists) {
+        return NextResponse.json(
+          { ok: false, code: "conflict",
+            error: "Bu kayıt başka bir oturumda güncellendi. Son verileri yenileyip değişikliklerinizi kontrol edin." },
+          { status: 409 },
+        );
+      }
+    }
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
   return NextResponse.json({ ok: true, id, row: data[0] });

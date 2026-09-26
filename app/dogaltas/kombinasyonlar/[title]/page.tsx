@@ -978,13 +978,21 @@ function VariantCard({
     }
     setEditSaving(true);
     setEditError("");
+    // F-03: yüklenen kaydın updated_at'i geri gönderilir → başka oturum araya
+    // yazdıysa 409 conflict (son-yazan sessizce ezmez); profesyonel mesaj gösterilir.
+    const expected = (row as { updated_at?: string }).updated_at ?? null;
     const res = await updateCombination(row.id, {
       issue,
       description: editDesc.trim() || null,
       stones_text: stones.join(", "),
       notes_text_3: editNote.trim() || null,
-    });
+    }, expected);
     setEditSaving(false);
+    if (res.conflict) {
+      setEditError(res.error || t("updateError"));
+      onSaved?.(res.issue ?? issue); // üst listeyi/kaydı tazele (güncel updated_at)
+      return;
+    }
     if (!res.ok) {
       setEditError(res.error || t("updateError"));
       return;

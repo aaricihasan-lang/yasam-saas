@@ -68,16 +68,35 @@ export async function PATCH(
     fields.name = nm;
   }
 
-  const { data, error } = await db
+  // F-03 optimistic concurrency: updated_at trigger'ı UPDATE'te now() yapar; client'ın
+  // GET'te aldığı updated_at WHERE'e eklenir → araya başka oturum yazdıysa 0 satır → 409.
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt.trim()
+      ? body.expectedUpdatedAt.trim()
+      : null;
+
+  let query = db
     .from("minerals").update(fields)
-    .eq("id", id).eq("tenant_id", tenantId)
-    .select("id");
+    .eq("id", id).eq("tenant_id", tenantId);
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+  const { data, error } = await query.select("id, updated_at");
 
   if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
+    if (expectedUpdatedAt) {
+      const { data: exists } = await db
+        .from("minerals").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (exists) {
+        return NextResponse.json(
+          { ok: false, code: "conflict",
+            error: "Bu kayıt başka bir oturumda güncellendi. Son verileri yenileyip değişikliklerinizi kontrol edin." },
+          { status: 409 },
+        );
+      }
+    }
     return NextResponse.json({ ok: false, error: "Mineral bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, id });
+  return NextResponse.json({ ok: true, id, updated_at: (data[0] as { updated_at?: string }).updated_at });
 }
 
 export async function DELETE(

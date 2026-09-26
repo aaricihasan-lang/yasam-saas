@@ -5,7 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -23,8 +23,9 @@ import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
+import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
-import { DOGALTAS_MODULES } from "@/lib/dogaltas/dogaltasModules";
+import { DOGALTAS_PRIMARY_MODULES } from "@/lib/dogaltas/dogaltasModules";
 import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
@@ -288,9 +289,12 @@ function DogaltasPageContent() {
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [stonesForSearch, setStonesForSearch] = useState<StoneSearchRecord[] | null>(
-    null,
-  );
+  // F-01/§7: hızlı arama artık SERVER-SIDE (condition-search, content). Tüm korpus
+  // TARAYICIYA inmez; yalnız eşleşen alt küme (extended) döner ve alan-eşleşmesi
+  // (matchedField) client'ta bu bounded küme üzerinde hesaplanır.
+  const [searchResults, setSearchResults] = useState<StoneSearchResult[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const searchSeq = useRef(0);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [stonesCount, setStonesCount] = useState<number | null>(null);
   const [mineralsCount, setMineralsCount] = useState<number | null>(null);
@@ -404,90 +408,60 @@ function DogaltasPageContent() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const ensureStonesForSearch = useCallback(async () => {
-    if (stonesForSearch !== null) return stonesForSearch;
-
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      // Locale-independent kod; catch sınırında localize edilir.
-      throw new Error(STONES_WORKSPACE_UNAVAILABLE);
-    }
-
-    // Server API (mode=extended) — assignments dahil tüm arama alanlarını döndürür.
-    const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
-      "/api/dogaltas/stones?mode=extended");
-    if (!r.ok) {
-      throw new Error(r.error ?? t("search.dataError"));
-    }
-
-    const mapped = (r.data?.rows ?? []).map((row) =>
-      mapStoneSearchRecord(row as Record<string, unknown>),
-    );
-    setStonesForSearch(mapped);
-    return mapped;
-  }, [stonesForSearch, t]);
+  // SERVER-SIDE hızlı arama — condition-search (content). Korpus TARAYICIYA inmez;
+  // yalnız eşleşen alt küme (extended) döner. Alan-eşleşmesi (matchedField) bu bounded
+  // küme üzerinde hesaplanır. Race guard: eski response yeniyi ezmez.
+  const performSearch = useCallback(
+    async (trimmed: string) => {
+      if (!trimmed) {
+        setSearchResults([]);
+        setHasSearched(false);
+        setSearchError(null);
+        setSearchLoading(false);
+        return;
+      }
+      const seq = ++searchSeq.current;
+      setSearchLoading(true);
+      setSearchError(null);
+      const res = await fetchStonesByConditions({ q: trimmed, searchMode: "content" });
+      if (seq !== searchSeq.current) return; // stale — ez me
+      setSearchLoading(false);
+      if (!res.ok) {
+        setSearchResults([]);
+        setHasSearched(true);
+        setSearchError(
+          res.error === STONES_WORKSPACE_UNAVAILABLE
+            ? tc("workspaceUnavailable")
+            : t("search.recordsError", { message: res.error ?? t("search.dataError") }),
+        );
+        return;
+      }
+      const records = res.rows.map((row) =>
+        mapStoneSearchRecord(row as unknown as Record<string, unknown>),
+      );
+      setSearchResults(searchStones(records, trimmed, t));
+      setHasSearched(true);
+    },
+    [t, tc],
+  );
 
   const runSearch = useCallback(
     async (rawQuery: string) => {
       const trimmed = rawQuery.trim();
       const params = new URLSearchParams();
       if (trimmed) params.set("q", trimmed);
-      router.replace(trimmed ? `/dogaltas?${params.toString()}` : "/dogaltas", {
-        scroll: false,
-      });
+      router.replace(trimmed ? `/dogaltas?${params.toString()}` : "/dogaltas", { scroll: false });
       setActiveQuery(trimmed);
-
-      if (!trimmed) {
-        setSearchError(null);
-        setSearchLoading(false);
-        return;
-      }
-
-      setSearchLoading(true);
-      setSearchError(null);
-
-      try {
-        await ensureStonesForSearch();
-      } catch (err) {
-        if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
-          setSearchError(tc("workspaceUnavailable"));
-        } else {
-          const message = err instanceof Error ? err.message : t("search.dataError");
-          setSearchError(t("search.recordsError", { message }));
-        }
-      } finally {
-        setSearchLoading(false);
-      }
+      await performSearch(trimmed);
     },
-    [ensureStonesForSearch, router, t, tc],
+    [performSearch, router],
   );
 
   useEffect(() => {
-    if (!activeQuery.trim()) return;
-    runInEffect(() => {
-      void (async () => {
-        setSearchLoading(true);
-        setSearchError(null);
-        try {
-          await ensureStonesForSearch();
-        } catch (err) {
-          if (err instanceof Error && err.message === STONES_WORKSPACE_UNAVAILABLE) {
-            setSearchError(tc("workspaceUnavailable"));
-          } else {
-            const message = err instanceof Error ? err.message : t("search.dataError");
-            setSearchError(t("search.recordsError", { message }));
-          }
-        } finally {
-          setSearchLoading(false);
-        }
-      })();
-    });
-  }, [activeQuery, ensureStonesForSearch, t, tc]);
-
-  const searchResults = useMemo(() => {
-    if (!activeQuery.trim() || !stonesForSearch) return [];
-    return searchStones(stonesForSearch, activeQuery, t);
-  }, [activeQuery, stonesForSearch, t]);
+    const q = activeQuery.trim();
+    if (!q) return;
+    runInEffect(() => { void performSearch(q); });
+  }, [activeQuery, performSearch]);
 
   const handleSearchSubmit = useCallback(
     (event?: FormEvent) => {
@@ -588,7 +562,7 @@ function DogaltasPageContent() {
           </div>
 
           <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-            {DOGALTAS_MODULES.map((item, index) => {
+            {DOGALTAS_PRIMARY_MODULES.map((item, index) => {
               const isFeatured = index === 0;
               const accent = DOGALTAS_ACCENT[item.accent];
 
@@ -699,7 +673,7 @@ function DogaltasPageContent() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-black text-slate-900">
                     {t("results.title")}
-                    {!searchLoading && stonesForSearch
+                    {!searchLoading && hasSearched
                       ? t("results.count", { count: searchResults.length })
                       : ""}
                   </h2>

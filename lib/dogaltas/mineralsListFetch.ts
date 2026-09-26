@@ -49,14 +49,35 @@ type MineralSearchRow = MineralListItem & {
   cakralar: unknown;
 };
 
+/**
+ * Türkçe İ/ı ilike varyantları — Postgres ilike ASCII case-insensitive'dir ama
+ * İ/ı/i/I ayrı kod noktalarıdır. "istanbul" ⇄ "İstanbul" eşleşsin diye pattern
+ * varyantları üretilir (stonesListFetch.buildStonesListSearchOrFilter ile aynı yaklaşım).
+ */
+function buildMineralIlikePatterns(safeTerm: string): string[] {
+  const patterns = new Set<string>([`%${safeTerm}%`]);
+  if (/[iıİI]/.test(safeTerm)) {
+    patterns.add(`%${safeTerm.replace(/[iıI]/g, "İ")}%`);
+    patterns.add(`%${safeTerm.replace(/[iİI]/g, "ı")}%`);
+    patterns.add(`%${safeTerm.replace(/[ıİI]/g, "i")}%`);
+  }
+  return [...patterns];
+}
+
+/**
+ * Mineral aramasında F-05 çekirdek alanları (name / aciklama / kategori / source_id)
+ * üzerinde Supabase .or() ilike filtresi. Dizi/JSON alanları KAPSAM DIŞI (yapısal
+ * listeler; substring hızlı-yol dışında). Bounded + trgm-index destekli (server-side).
+ */
 export function buildMineralsListSearchOrFilter(term: string): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
-
-  const pattern = `%${safeTerm}%`;
-  return MINERALS_LIST_SEARCH_TEXT_COLUMNS.map(
-    (col) => `${col}.ilike.${pattern}`,
-  ).join(",");
+  const patterns = buildMineralIlikePatterns(safeTerm);
+  const parts: string[] = [];
+  for (const col of MINERALS_LIST_SEARCH_TEXT_COLUMNS) {
+    for (const pattern of patterns) parts.push(`${col}.ilike.${pattern}`);
+  }
+  return parts.join(",");
 }
 
 export function ensureMineralStringArray(value: unknown): string[] {
