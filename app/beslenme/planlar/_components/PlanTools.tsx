@@ -55,16 +55,12 @@ export function PlanTools({
   days,
   selectedDayId,
   archived,
-  isExpert = false,
   onChanged,
 }: {
   planId: string;
   days: DaySummary[];
   selectedDayId: string | null;
   archived: boolean;
-  /** Şablon KÜRASYONU owner-only (§16) → uzmanda şablon butonları GİZLİ (dead-control yok).
-   *  Analiz + Word uzmana açık. Güvenlik server-side (templates route'ları owner-only). */
-  isExpert?: boolean;
   onChanged: () => void;
 }) {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -110,7 +106,7 @@ export function PlanTools({
           </GhostButton>
         </span>
       )}
-      {!archived && !isExpert ? (
+      {!archived ? (
         <>
           <GhostButton
             icon={<Save className="h-4 w-4" />}

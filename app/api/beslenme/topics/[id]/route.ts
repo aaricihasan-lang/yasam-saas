@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import {
   TOPIC_COLUMNS,
   SECTION_COLUMNS,
@@ -18,7 +18,7 @@ const UPDATE_KEYS = ["title", "summary", "sort_order", "is_active"] as const;
 
 /** GET: topic detayı + sections + ilişkili besinler + kaynaklar. topic_type/framework değişmez. */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
 
 /** PATCH: yalnız title/summary/sort_order/is_active (topic_type + framework_id IMMUTABLE). */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
 /** DELETE: arşiv (varsayılan) / ?hard=1 gerçek silme (sections+links CASCADE; food RESTRICT etkilenmez). */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

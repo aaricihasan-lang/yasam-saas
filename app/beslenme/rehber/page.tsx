@@ -11,7 +11,7 @@ import { createTopic, listTopics } from "@/lib/beslenme/beslenmeClient";
 import {
   BeslenmeGate,
   BeslenmeShell,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import { friendlyError } from "../_components/constants";
 import { TopicDetailEditor } from "../_components/TopicDetailEditor";
@@ -28,7 +28,7 @@ import {
 } from "../_components/primitives";
 
 export default function RehberPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
 
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);

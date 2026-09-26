@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { SECTION_COLUMNS, SECTION_KEYS, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ type RouteCtx = { params: Promise<{ id: string; sectionId: string }> };
 const UPDATE_KEYS = ["section_key", "heading", "content", "sort_order"] as const;
 
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

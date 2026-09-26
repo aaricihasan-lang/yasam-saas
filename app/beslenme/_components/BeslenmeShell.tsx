@@ -1,11 +1,11 @@
 "use client";
 /**
- * Beslenme modülü — ortak sayfa kabuğu + owner-only koruma kancası.
+ * Beslenme modülü — ortak sayfa kabuğu + modül erişim koruma kancası.
  *
- * `useBeslenmeOwnerGuard()`: her beslenme sayfasında mount'ta checkBeslenmeAccess()
- * çağırır; "loading" | "ok" | "denied" döner. denied ise "/"'a yönlendirir.
- * İçerik erişim doğrulanmadan ASLA render edilmez (defense-in-depth; API zaten
- * server-side owner-gated).
+ * `useBeslenmeModuleGuard()`: her beslenme sayfasında mount'ta checkBeslenmeAccess()
+ * (server-authoritative modül probe) çağırır; "loading" | "ok" | "denied" döner. denied ise
+ * "/"'a yönlendirir. İçerik erişim doğrulanmadan ASLA render edilmez (defense-in-depth; API
+ * zaten server-side module-gated — admin + module_permissions.beslenme uzman).
  *
  * `BeslenmeGate`: guard durumuna göre yükleniyor/erişim-yok ekranını çizer.
  * `BeslenmeShell`: emerald pastel zemin + cam hero + container (alt sayfalarda ortak).
@@ -19,7 +19,7 @@ import { checkBeslenmeAccess, checkBeslenmeFoodAccess } from "@/lib/beslenme/bes
 
 export type GuardState = "loading" | "ok" | "denied";
 
-export function useBeslenmeOwnerGuard(): GuardState {
+export function useBeslenmeModuleGuard(): GuardState {
   const router = useRouter();
   const [state, setState] = useState<GuardState>("loading");
 

@@ -6,7 +6,9 @@
  * doğrudan client-scoped API'lerden yükler, server 401/403 dönerse güvenli denied gösterir.
  * Self-fetch (clientId prop). Profil + Ölçümler + Beyan Alerjiler + Tercihler + Planlar.
  * PII tekrarı YOK; clients.kan/mizac read-only integrative badge. CRM paneli DEĞİL.
- * Plan OLUŞTURMA/EDİTÖR yalnız owner (canManagePlans) — uzmanda plan listesi salt-okunur.
+ * Plan OLUŞTURMA hem admin hem clients-uzman içindir; isOwner (= Beslenme modül erişimi)
+ * yalnız "Yeni Plan" MEKANİZMASINI seçer (modül erişimi → global akış; yoksa danışan-scoped
+ * inline create). Editör erişimi her zaman server plan-guard (requireBeslenmePlanAccess).
  * i18n: beslenme.detail namespace (EN/TR). DB kodları (goal_type/activity/kan/mizac/
  * stance/status) canonical'dır; YALNIZ display çevrilir.
  */

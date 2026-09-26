@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import {
   isUuid,
   cleanStr,
@@ -17,7 +17,7 @@ const PUT_KEYS = ["framework_id", "thermal_quality", "moisture_quality", "notes"
 
 /** GET: besnin İÇSEL geleneksel niteliği (nutrient facts'ten AYRI). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
  * NOT: profil↔food ilişkisi ("Safra: uygun") BURADA DUPLICATE EDİLMEZ — o topic_foods'ta.
  */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

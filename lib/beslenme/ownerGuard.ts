@@ -26,7 +26,7 @@ import {
  * Uzmanlara açılış fazında (ileride): 2. adım kaldırılır + moduleAccess `hasFlag`'e döner.
  * Schema/RLS DEĞİŞMEZ (owner-only yalnız feature-visibility katmanıdır).
  */
-export type BeslenmeOwnerOk = {
+export type BeslenmeModuleOk = {
   ok: true;
   userId: string;
   tenantId: string;
@@ -34,27 +34,23 @@ export type BeslenmeOwnerOk = {
   is_demo_account: boolean;
   db: SupabaseClient;
 };
-export type BeslenmeOwnerResult = BeslenmeOwnerOk | { ok: false; response: NextResponse };
+export type BeslenmeModuleResult = BeslenmeModuleOk | { ok: false; response: NextResponse };
 
 function jsonNoStore(body: unknown, status: number): NextResponse {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export async function requireBeslenmeOwner(req: NextRequest): Promise<BeslenmeOwnerResult> {
+/**
+ * Beslenme MODÜL kapısı (admin↔uzman özellik paritesi).
+ *
+ * requireModuleAccess(req, "beslenme") → admin geçer; module_permissions.beslenme===true
+ * uzman geçer; izinsiz uzman/anon/pending mevcut sistem kurallarıyla reddedilir. tenantId
+ * YALNIZ doğrulanmış session'dan; body/query/path'ten tenant seçilmez. Veri erişimi her
+ * route'ta ayrıca .eq("tenant_id", tenantId) ile tenant-scoped kalır (owner-only faz kaldırıldı).
+ */
+export async function requireBeslenmeModule(req: NextRequest): Promise<BeslenmeModuleResult> {
   const guard = await requireModuleAccess(req, "beslenme");
   if (!guard.ok) return { ok: false, response: guard.response };
-
-  const owner = await requireMainAdmin(guard.db, guard.userId);
-  if (!owner.ok) {
-    return {
-      ok: false,
-      response: jsonNoStore(
-        { ok: false, code: "OWNER_ONLY", error: owner.error },
-        owner.status,
-      ),
-    };
-  }
-
   return {
     ok: true,
     userId: guard.userId,
@@ -62,6 +58,59 @@ export async function requireBeslenmeOwner(req: NextRequest): Promise<BeslenmeOw
     email: guard.email,
     is_demo_account: guard.is_demo_account,
     db: guard.db,
+  };
+}
+
+/**
+ * Beslenme YETENEK (capability) çözümleyici — CAPABILITY tabanlı yüzeyler için ortak kapı.
+ *
+ * verifyUserRequest(includeProfile) (header-token binding + pending/rejected gate) üzerine,
+ * SAF resolveModuleAccess ile hem `beslenme` hem `clients` yeteneğini çözer. En az biri yoksa
+ * → 403. Admin role short-circuit ile hasBeslenme=true olur → admin↔uzman paritesi. tenantId
+ * DAİMA server session'dan; body/query'den tenant seçimi YOK. Kullanım: /access probe,
+ * capability-aware template LIST (Beslenme VEYA Danışan Yolculuğu izinli görebilir).
+ */
+export type BeslenmeCapabilitiesOk = {
+  ok: true;
+  userId: string;
+  tenantId: string;
+  email: string;
+  is_demo_account: boolean;
+  db: SupabaseClient;
+  hasBeslenme: boolean;
+  hasClients: boolean;
+};
+export type BeslenmeCapabilitiesResult =
+  | BeslenmeCapabilitiesOk
+  | { ok: false; response: NextResponse };
+
+export async function resolveBeslenmeCapabilities(
+  req: NextRequest,
+): Promise<BeslenmeCapabilitiesResult> {
+  const guard = await verifyUserRequest(req, { includeProfile: true });
+  if (!guard.ok) return { ok: false, response: guard.response };
+  const role = guard.profile?.role;
+  const perms = guard.profile?.module_permissions;
+  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
+  const hasClients = resolveModuleAccess(role, perms, "clients");
+  if (!hasBeslenme && !hasClients) {
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { ok: false, code: "FORBIDDEN", error: "Bu modül hesabınız için aktif değil." },
+        403,
+      ),
+    };
+  }
+  return {
+    ok: true,
+    userId: guard.userId,
+    tenantId: guard.tenantId,
+    email: guard.email,
+    is_demo_account: guard.is_demo_account,
+    db: guard.db,
+    hasBeslenme,
+    hasClients,
   };
 }
 
@@ -83,9 +132,10 @@ export function denyDemoMutation(guard: { is_demo_account: boolean }): NextRespo
 /**
  * DAR yetenek bayrağı: uzmanın KENDİ tenant'ına manuel besin ekleme/tamamlama izni.
  *
- * BU BİR MODÜL KAPISI DEĞİLDİR. Beslenme modülü (planlar/danışan/konu yönetimi)
- * owner-only kalır (moduleAccess.beslenme=false + requireBeslenmeOwner). Bu bayrak
- * YALNIZ besin-katkı uçlarını (kendi CUSTOM besni oluştur/oku/güncelle/arşivle +
+ * LEGACY DAR BAYRAK (backward-compat). Beslenme artık NORMAL modüldür
+ * (module_permissions.beslenme=true → requireBeslenmeModule). Bu bayrak, beslenme/clients
+ * modül izni OLMAYAN eski uzmanlar için besin-katkı uçlarını (kendi CUSTOM besni
+ * oluştur/oku/güncelle/arşivle +
  * nutrient/porsiyon tamamla) açar. SYSTEM katalog (1258 kayıt) HERKES için salt
  * okunurdur (resolveFoodForWrite → SYSTEM_READONLY 403). tenant_id DAİMA server-side
  * doğrulanmış oturumdan gelir (users.tenant_id); body/query'den tenant seçimi YOK.
@@ -126,9 +176,15 @@ export async function requireBeslenmeFoodContributor(
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
 
-  // Owner (küratör) her zaman geçer; değilse dar bayraklı uzman.
+  // Owner (küratör) her zaman geçer; değilse Beslenme/Danışan modül izinli VEYA dar bayraklı uzman.
+  // Yazma kapsamı DAİMA yalnız caller tenant CUSTOM food (resolveFoodForWrite → SYSTEM_READONLY).
   const owner = await requireMainAdmin(guard.db, guard.userId);
-  const authority = decideFoodContributorAuthority(owner.ok, guard.profile?.module_permissions);
+  const perms = guard.profile?.module_permissions;
+  const role = guard.profile?.role;
+  const moduleWrite =
+    resolveModuleAccess(role, perms, "beslenme") || resolveModuleAccess(role, perms, "clients");
+  const authority =
+    decideFoodContributorAuthority(owner.ok, perms) ?? (moduleWrite ? "expert" : null);
 
   if (!authority) {
     return {
@@ -183,7 +239,9 @@ export async function requireBeslenmeFoodRead(req: NextRequest): Promise<Beslenm
 
   const perms = guard.profile?.module_permissions;
   const allowed =
-    resolveModuleAccess(guard.profile?.role, perms, "clients") || hasManualFoodFlag(perms);
+    resolveModuleAccess(guard.profile?.role, perms, "clients") ||
+    resolveModuleAccess(guard.profile?.role, perms, "beslenme") ||
+    hasManualFoodFlag(perms);
   if (!allowed) {
     return {
       ok: false,

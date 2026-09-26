@@ -22,7 +22,6 @@ import {
   revisePlan,
   syncRange,
   type Plan,
-  type PlanAuthority,
   type PlanBoundClient,
   type PlanDaySummary,
 } from "@/lib/beslenme/planClient";
@@ -49,7 +48,6 @@ import {
 import { PlanTools } from "../_components/PlanTools";
 import PlanClientContext from "./_components/PlanClientContext";
 import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
-import { EditorCapsProvider } from "../_components/editorCaps";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
@@ -63,7 +61,6 @@ export default function PlanEditorPage() {
 
   // Owner-guard YOK: güvenlik server-side (requireBeslenmePlanAccess). Erişim, getPlan
   // sonucundan authoritative belirlenir — 401/403/404 → hassas içerik render EDİLMEZ.
-  const [authority, setAuthority] = useState<PlanAuthority | null>(null);
   const [boundClient, setBoundClient] = useState<PlanBoundClient | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<PlanDaySummary[]>([]);
@@ -84,7 +81,6 @@ export default function PlanEditorPage() {
     const r = await getPlan(id);
     if (r.ok && r.data?.plan) {
       setPlan(r.data.plan);
-      setAuthority(r.data.authority ?? null);
       setBoundClient(r.data.boundClient ?? null);
       const ds = r.data.days ?? [];
       setDays(ds);
@@ -107,7 +103,10 @@ export default function PlanEditorPage() {
     };
   }, [reloadPlan]);
 
-  const isExpert = authority === "expert";
+  // Bağlı danışan varsa editör bu planın bir danışana ait olduğunu bilir → "Danışana Dön"
+  // navigasyonu. Authority (module/client) UI'da AYRIM YARATMAZ (admin↔uzman feature paritesi);
+  // yalnız binding varlığı nav bağlamını belirler.
+  const cameFromClient = !!boundClient;
   const archived = plan?.status === "archived";
 
   async function doCopy() {
@@ -148,22 +147,19 @@ export default function PlanEditorPage() {
         days={days}
         selectedDayId={selectedDayId}
         archived={archived}
-        isExpert={isExpert}
         onChanged={() => void reloadPlan()}
       />
-      {/* Kopyala/Revizyon yeni family/lifecycle → owner-only; uzmanda GİZLİ (dead-control yok). */}
-      {!isExpert ? (
-        <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
-          Planı Kopyala
-        </GhostButton>
-      ) : null}
+      {/* Admin↔uzman parity: Kopyala/Revizyon her yetkili kullanıcıda açık. Kopya expert'te
+          aynı danışana otomatik bağlanır; revizyon aynı family'de kalır. Güvenlik server-side
+          (requireBeslenmePlanAccess: tenant + bound-plan). */}
+      <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
+        Planı Kopyala
+      </GhostButton>
       {!archived ? (
         <>
-          {!isExpert ? (
-            <GhostButton icon={<GitBranch className="h-4 w-4" />} loading={actionBusy} onClick={() => void doRevise()}>
-              Yeni Revizyon
-            </GhostButton>
-          ) : null}
+          <GhostButton icon={<GitBranch className="h-4 w-4" />} loading={actionBusy} onClick={() => void doRevise()}>
+            Yeni Revizyon
+          </GhostButton>
           <GhostButton icon={<Settings2 className="h-4 w-4" />} onClick={() => setMetaOpen(true)}>
             Düzenle
           </GhostButton>
@@ -192,8 +188,8 @@ export default function PlanEditorPage() {
           : "Beslenme planı yükleniyor…"
       }
       icon={<UtensilsCrossed className="h-32 w-32" strokeWidth={1} />}
-      backHref={isExpert && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
-      backLabel={isExpert && boundClient ? "Danışana Dön" : "Planlar"}
+      backHref={cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
+      backLabel={cameFromClient && boundClient ? "Danışana Dön" : "Planlar"}
       actions={headerActions}
     >
       {loading ? (
@@ -201,7 +197,6 @@ export default function PlanEditorPage() {
       ) : err || !plan ? (
         <StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage>
       ) : (
-        <EditorCapsProvider value={{ isExpert }}>
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
           {/* Danışan bağlam şeridi (server-authoritative; owner+bound-plan uzmanı) */}
@@ -278,7 +273,6 @@ export default function PlanEditorPage() {
           )}
         </div>
         </AvoidedFoodIdsProvider>
-        </EditorCapsProvider>
       )}
 
       {plan && metaOpen ? (

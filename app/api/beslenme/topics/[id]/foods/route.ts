@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { TOPIC_FOOD_COLUMNS, RELATION_TYPES, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ const CREATE_KEYS = ["food_id", "relation_type", "rationale", "sort_order"] as c
 
 /** POST /topics/[id]/foods — Topic↔Food ilişkisi ekle. Cross-tenant: iki composite FK zorlar. */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
