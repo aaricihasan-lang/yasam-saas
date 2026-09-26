@@ -139,9 +139,11 @@ export async function GET(req: NextRequest): Promise<Response> {
       return send(res);
     }
 
-    // list (varsayılan) — pagination + arama + exclusion
-    const offset = Number.parseInt(sp.get("offset") ?? "0", 10) || 0;
-    const limit = Number.parseInt(sp.get("limit") ?? String(STONES_LIST_PAGE_SIZE), 10) || STONES_LIST_PAGE_SIZE;
+    // list (varsayılan) — pagination + arama + exclusion. limit SUNUCUDA clamp'lenir
+    // (client keyfine 10000 yapamaz; export "filtered" için üst sınır 500).
+    const offset = Math.max(0, Number.parseInt(sp.get("offset") ?? "0", 10) || 0);
+    const rawLimit = Number.parseInt(sp.get("limit") ?? String(STONES_LIST_PAGE_SIZE), 10) || STONES_LIST_PAGE_SIZE;
+    const limit = Math.min(Math.max(1, rawLimit), 500);
     // PERF-5: withCount istendiğinde toplam sayı AYRI bir count sorgusuyla değil,
     // ranged liste sorgusunun kendisiyle TEK PostgREST çağrısında alınır
     // ({ count: "exact" } → Content-Range). Toplam sayı range/order'dan bağımsızdır ve

@@ -21,7 +21,8 @@ type SaveBody = {
   name?: unknown;
   description?: unknown;
   note?: unknown;
-  stones?: unknown; // string[] (taş adları)
+  stones?: unknown; // string[] (taş adları) — legacy/uyumlu
+  stoneRefs?: unknown; // [{ stone_id?, snapshot_name }] — id biliniyorsa daha kesin
   notesText?: unknown; // mineral koşulları + karşılanan + eksik özeti (client)
   notesText2?: unknown; // uyarı + stok özeti (client)
 };
@@ -69,25 +70,44 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, demo: true, issue: name });
   }
 
-  const stonesCsv = stoneNames.join(", ").slice(0, MAX_TEXT);
+  // F-02: canonical ilişkisel yazım — atomik RPC (parent combinations + N
+  // combination_stones tek transaction). RPC snapshot_name'i DAİMA saklar ve
+  // stone_id'yi tenant içinde isimden çözer (tek eşleşmede); stones_text CSV'yi
+  // geriye-uyum aynası olarak yazar. İsteğe bağlı stoneRefs ({stone_id, snapshot_name})
+  // verilirse id doğrudan kullanılır. (Deploy sırası: migration önce uygulanır.)
+  const stoneRefs = Array.isArray(body.stoneRefs)
+    ? (body.stoneRefs as unknown[])
+        .map((r) => {
+          const o = (r ?? {}) as Record<string, unknown>;
+          const snapshot = String(o.snapshot_name ?? o.name ?? "").trim();
+          if (!snapshot) return null;
+          const sid = o.stone_id != null ? String(o.stone_id).trim() : "";
+          return { stone_id: sid || null, snapshot_name: snapshot.slice(0, MAX_NAME) };
+        })
+        .filter((r): r is { stone_id: string | null; snapshot_name: string } => r != null)
+    : stoneNames.map((n) => ({ stone_id: null, snapshot_name: n.slice(0, MAX_NAME) }));
 
-  const { error } = await db.from("combinations").insert({
-    tenant_id: tenantId, // SUNUCUDAN — client'tan gelmez
-    source_id: `cart-${crypto.randomUUID()}`,
-    issue: name,
-    description: str(body.description, MAX_TEXT),
-    variant_index: 1,
-    source: "Kombinasyon Sepeti",
-    stones_text: stonesCsv,
-    notes_text: str(body.notesText, MAX_TEXT),
-    notes_text_2: str(body.notesText2, MAX_TEXT),
-    notes_text_3: str(body.note, MAX_TEXT),
-    // created_at: DB default (now())
+  if (stoneRefs.length === 0) {
+    return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
+  }
+
+  const { data, error } = await db.rpc("create_combination_with_stones", {
+    p_tenant_id: tenantId, // SUNUCUDAN — client'tan gelmez
+    p_issue: name,
+    p_description: str(body.description, MAX_TEXT),
+    p_source: "Kombinasyon Sepeti",
+    p_source_id: null, // RPC 'cart-<uuid>' üretir
+    p_variant_index: 1,
+    p_notes_text: str(body.notesText, MAX_TEXT),
+    p_notes_text_2: str(body.notesText2, MAX_TEXT),
+    p_notes_text_3: str(body.note, MAX_TEXT),
+    p_stones: stoneRefs,
   });
 
   if (error) {
     return serverErrorResponse({ route: "dogaltas/combinations/save", action: "POST", tenantId, cause: error });
   }
 
-  return NextResponse.json({ ok: true, issue: name });
+  const result = (data ?? {}) as { id?: string };
+  return NextResponse.json({ ok: true, issue: name, id: result.id });
 }
