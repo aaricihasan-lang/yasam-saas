@@ -10,14 +10,19 @@
 //      hiç başlamadan hata verir (aksi hâlde `.eq("tenant_id","")` sessizce 0 satır
 //      döndürüp gizli hatalara yol açabilir; ya da bir refactor filtreyi büsbütün
 //      düşürürse tüm tenant'lara sızma riski doğar).
-//   2) tenantScoped* primitive'leri — `.eq("tenant_id", tenantId)` filtresini HER
-//      ZAMAN uygular. Yeni/değişen HD persistence sorguları bu primitive'lerden
-//      geçmelidir; böylece bir geliştiricinin filtreyi UNUTMASI mümkün olmaz.
+//   2) withTenant — ZATEN KURULMUŞ bir sorgu builder'ına `.eq("tenant_id", tenantId)`
+//      filtresini uygular (assert + filtre). Yeni/değişen HD persistence sorguları bu
+//      helper'dan geçmelidir; böylece bir geliştiricinin filtreyi UNUTMASI zorlaşır.
+//
+// TİP-MALİYETİ NOTU (build timeout fix): `.select(columns)` ÇAĞRI NOKTASINDA (literal
+// tablo + literal kolon string'i) kalır → supabase-js'in PostgREST select-parser tipi
+// yalnız orada, HIZLI/önbelleklenmiş yolla çözülür. withTenant SADECE builder tipi (B)
+// üzerinden generic'tir (kimlik benzeri) → ağır conditional/generic select-parser
+// YENİDEN İNSTANTİYE EDİLMEZ. (Eski `tenantScopedSelect<C extends string>` sarmalayıcısı
+// select-parser'ı her çağrıda yeniden büyütüyor ve type-check patlamasına yol açıyordu.)
 //
 // SINIR: Bu FORCE RLS DEĞİLDİR (service_role mimarisi nedeniyle DB policy backstop
-// sağlamaz). Reusable primitive + invariant + negatif testler tercih edilmiştir.
-
-import type { SupabaseClient } from "@supabase/supabase-js";
+// sağlamaz). Minimal reusable helper + invariant + negatif testler tercih edilmiştir.
 
 /**
  * Fail-closed tenant invariant. Geçerli (boş olmayan) bir tenant_id yoksa fırlatır.
@@ -36,36 +41,19 @@ export function assertTenantId(
 }
 
 /**
- * SELECT — tenant_id filtresi HER ZAMAN uygulanır. Sonrasında .eq/.or/.in/.order/... zincirlenebilir.
- * `columns` literal generic (C) tutulur → supabase-js kolon-parse tipi KORUNUR (aksi hâlde
- * `string` parametresi `data`'yı GenericStringError'a düşürür ve mevcut cast'ler kırılırdı).
+ * Zaten kurulmuş bir Supabase sorgu builder'ına (`db.from(T).select()/delete()/update()`)
+ * tenant filtresini uygular: önce assertTenantId (fail-closed), sonra `.eq("tenant_id", tenantId)`.
+ *
+ * `.select(...)` çağrı noktasında kalır → builder'ın gerçek tipi (B) buraya inferred gelir
+ * ve DEĞİŞMEDEN döner; sonrasında `.eq/.or/.in/.order/.maybeSingle/.single/.select("id")`
+ * normal biçimde zincirlenir. Tip-maliyeti düşüktür (yalnız B kimlik-generic'i + tek
+ * dar cast; ağır select-parser generic'i yeniden büyütülmez).
+ *
+ * @example withTenant(db.from(TABLE).select("*"), tenantId, "listHdClients").order("created_at")
  */
-export function tenantScopedSelect<C extends string = "*">(
-  db: SupabaseClient,
-  table: string,
-  tenantId: string,
-  columns: C = "*" as C,
-  options?: { count?: "exact" | "planned" | "estimated"; head?: boolean },
-) {
-  assertTenantId(tenantId, `select:${table}`);
-  return db.from(table).select(columns, options).eq("tenant_id", tenantId);
-}
-
-/** DELETE — tenant_id filtresi HER ZAMAN uygulanır. */
-export function tenantScopedDelete(db: SupabaseClient, table: string, tenantId: string) {
-  assertTenantId(tenantId, `delete:${table}`);
-  return db.from(table).delete().eq("tenant_id", tenantId);
-}
-
-/** UPDATE — tenant_id filtresi HER ZAMAN uygulanır. */
-export function tenantScopedUpdate(
-  db: SupabaseClient,
-  table: string,
-  tenantId: string,
-  values: Record<string, unknown>,
-) {
-  assertTenantId(tenantId, `update:${table}`);
-  return db.from(table).update(values).eq("tenant_id", tenantId);
+export function withTenant<B>(builder: B, tenantId: string, context: string): B {
+  assertTenantId(tenantId, context);
+  return (builder as B & { eq(column: string, value: string): B }).eq("tenant_id", tenantId);
 }
 
 /**

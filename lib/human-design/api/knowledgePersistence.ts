@@ -11,12 +11,7 @@ import type {
   HumanDesignKnowledgeRecord,
   HumanDesignKnowledgeRecordInsert,
 } from "@/lib/human-design/types";
-import {
-  tenantScopedSelect,
-  tenantScopedUpdate,
-  tenantScopedDelete,
-  tenantInsertPayload,
-} from "./tenantScope";
+import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
 
 const TABLE = "human_design_knowledge_records";
@@ -60,7 +55,7 @@ export async function listKnowledge(
   db: SupabaseClient,
   tenantId: string,
 ): Promise<{ rows: HumanDesignKnowledgeRecord[]; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listKnowledge")
     .order("sort_order", { ascending: true })
     .order("updated_at", { ascending: false });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledge", error) };
@@ -72,7 +67,7 @@ export async function getKnowledgeById(
   tenantId: string,
   id: string,
 ): Promise<{ row: HumanDesignKnowledgeRecord | null; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "getKnowledgeById")
     .eq("id", id)
     .maybeSingle();
   if (error) return { row: null, error: hdSafeDbError("getKnowledgeById", error) };
@@ -86,7 +81,7 @@ export async function listKnowledgeByCodes(
   codes: string[],
 ): Promise<{ rows: HumanDesignKnowledgeRecord[]; error: string | null }> {
   if (codes.length === 0) return { rows: [], error: null };
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listKnowledgeByCodes")
     .eq("is_active", true)
     .in("code", codes)
     .order("sort_order", { ascending: true })
@@ -128,7 +123,7 @@ export async function updateKnowledge(
   let activeEffective: boolean;
   let contentEffective: unknown;
   if (picked.is_active === undefined || picked.content === undefined) {
-    const { data: existing } = await tenantScopedSelect(db, TABLE, tenantId, "is_active, content")
+    const { data: existing } = await withTenant(db.from(TABLE).select("is_active, content"), tenantId, "updateKnowledge.existing")
       .eq("id", id)
       .maybeSingle();
     const ex = (existing ?? null) as { is_active?: boolean; content?: string } | null;
@@ -144,7 +139,7 @@ export async function updateKnowledge(
   }
 
   const fields = { ...picked, updated_at: new Date().toISOString() };
-  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
+  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateKnowledge")
     .eq("id", id)
     .select("id");
   if (error) return { ok: false, error: hdSafeDbError("updateKnowledge", error) };
@@ -159,7 +154,7 @@ export async function deleteKnowledge(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledge")
     .eq("id", id);
   return { ok: !error, error: error ? hdSafeDbError("deleteKnowledge", error) : null };
 }
@@ -170,7 +165,7 @@ export async function deleteKnowledgeBulk(
   ids: string[],
 ): Promise<{ ok: boolean; error: string | null }> {
   if (ids.length === 0) return { ok: true, error: null };
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledgeBulk")
     .in("id", ids);
   return { ok: !error, error: error ? hdSafeDbError("deleteKnowledgeBulk", error) : null };
 }

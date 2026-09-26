@@ -8,12 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hdSafeDbError } from "./safeError";
-import {
-  tenantScopedSelect,
-  tenantScopedUpdate,
-  tenantScopedDelete,
-  tenantInsertPayload,
-} from "./tenantScope";
+import { withTenant, tenantInsertPayload } from "./tenantScope";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
 import {
   HD_REPORT_SCHEMA_VERSION,
@@ -29,14 +24,14 @@ export type ReportWithClient = HumanDesignReport & {
 };
 
 async function clientInTenant(db: SupabaseClient, clientId: string, tenantId: string): Promise<boolean> {
-  const { data, error } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id")
+  const { data, error } = await withTenant(db.from("human_design_clients").select("id"), tenantId, "clientInTenant")
     .eq("id", clientId)
     .maybeSingle();
   return !error && !!data;
 }
 
 async function chartInTenant(db: SupabaseClient, chartId: string, tenantId: string): Promise<boolean> {
-  const { data, error } = await tenantScopedSelect(db, "human_design_charts", tenantId, "id")
+  const { data, error } = await withTenant(db.from("human_design_charts").select("id"), tenantId, "chartInTenant")
     .eq("id", chartId)
     .maybeSingle();
   return !error && !!data;
@@ -47,8 +42,8 @@ export async function listReportsWithClients(
   tenantId: string,
 ): Promise<{ rows: ReportWithClient[]; error: string | null }> {
   const [repRes, cliRes] = await Promise.all([
-    tenantScopedSelect(db, TABLE, tenantId, "*").order("created_at", { ascending: false }),
-    tenantScopedSelect(db, "human_design_clients", tenantId, "id, name"),
+    withTenant(db.from(TABLE).select("*"), tenantId, "listReportsWithClients.reports").order("created_at", { ascending: false }),
+    withTenant(db.from("human_design_clients").select("id, name"), tenantId, "listReportsWithClients.clients"),
   ]);
   if (repRes.error) return { rows: [], error: hdSafeDbError("listReportsWithClients.reports", repRes.error) };
   if (cliRes.error) return { rows: [], error: hdSafeDbError("listReportsWithClients.clients", cliRes.error) };
@@ -68,7 +63,7 @@ export async function getReportById(
   tenantId: string,
   id: string,
 ): Promise<{ row: ReportWithClient | null; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "getReportById")
     .eq("id", id)
     .maybeSingle();
   if (error) return { row: null, error: hdSafeDbError("getReportById", error) };
@@ -77,7 +72,7 @@ export async function getReportById(
   const report = data as HumanDesignReport;
   if (!report.client_id) return { row: { ...report, client: null }, error: null };
 
-  const { data: cli } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id, name")
+  const { data: cli } = await withTenant(db.from("human_design_clients").select("id, name"), tenantId, "getReportById.client")
     .eq("id", report.client_id)
     .maybeSingle();
   return {
@@ -125,7 +120,7 @@ export async function getClientReportCount(
   tenantId: string,
   clientId: string,
 ): Promise<{ count: number; error: string | null }> {
-  const { count, error } = await tenantScopedSelect(db, TABLE, tenantId, "id", { count: "exact", head: true })
+  const { count, error } = await withTenant(db.from(TABLE).select("id", { count: "exact", head: true }), tenantId, "getClientReportCount")
     .eq("client_id", clientId);
   return { count: count ?? 0, error: error ? hdSafeDbError("getClientReportCount", error) : null };
 }
@@ -139,7 +134,7 @@ export async function updateReport(
   // IMMUTABILITY (FAZ 2): canonical (profesyonel) rapor snapshot'ı DEĞİŞMEZ.
   // Legacy PATCH davranışı korunur; canonical satır güncellemesi AÇIKÇA reddedilir
   // (snapshot/canonical_provenance/generated içerik PATCH ile değiştirilemez).
-  const { data: kindRow, error: kindErr } = await tenantScopedSelect(db, TABLE, tenantId, "report_kind")
+  const { data: kindRow, error: kindErr } = await withTenant(db.from(TABLE).select("report_kind"), tenantId, "updateReport.kind")
     .eq("id", id)
     .maybeSingle();
   if (kindErr) return { ok: false, error: hdSafeDbError("updateReport.kind", kindErr) };
@@ -148,11 +143,11 @@ export async function updateReport(
     return { ok: false, error: "Profesyonel (canonical) rapor değiştirilemez; içeriği sabittir." };
   }
 
-  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, {
+  const { data, error } = await withTenant(db.from(TABLE).update({
       title: String(input.title ?? ""),
       edited_content: String(input.editedContent ?? ""),
       updated_at: new Date().toISOString(),
-    })
+    }), tenantId, "updateReport")
     .eq("id", id)
     .select("id");
   if (error) return { ok: false, error: hdSafeDbError("updateReport", error) };
@@ -167,7 +162,7 @@ export async function deleteReport(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId).eq("id", id);
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteReport").eq("id", id);
   return { ok: !error, error: error ? hdSafeDbError("deleteReport", error) : null };
 }
 
@@ -238,7 +233,7 @@ export async function getCanonicalReportForDownload(
   status: number;
   error: string | null;
 }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "title, client_id, report_kind, snapshot")
+  const { data, error } = await withTenant(db.from(TABLE).select("title, client_id, report_kind, snapshot"), tenantId, "getCanonicalReportForDownload")
     .eq("id", id)
     .maybeSingle();
   if (error) return { data: null, status: 500, error: hdSafeDbError("getCanonicalReportForDownload", error) };

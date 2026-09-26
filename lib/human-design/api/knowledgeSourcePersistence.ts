@@ -10,12 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HumanDesignKnowledgeSource } from "@/lib/human-design/types";
 import { hdSafeDbError } from "./safeError";
-import {
-  tenantScopedSelect,
-  tenantScopedUpdate,
-  tenantScopedDelete,
-  tenantInsertPayload,
-} from "./tenantScope";
+import { withTenant, tenantInsertPayload } from "./tenantScope";
 
 const TABLE = "human_design_knowledge_sources";
 const RECORDS = "human_design_knowledge_records";
@@ -76,7 +71,7 @@ async function recordInTenant(
   recordId: string,
   tenantId: string,
 ): Promise<boolean> {
-  const { data, error } = await tenantScopedSelect(db, RECORDS, tenantId, "id")
+  const { data, error } = await withTenant(db.from(RECORDS).select("id"), tenantId, "recordInTenant")
     .eq("id", recordId)
     .maybeSingle();
   return !error && !!data;
@@ -87,7 +82,7 @@ export async function listSourcesForRecord(
   tenantId: string,
   recordId: string,
 ): Promise<{ rows: HumanDesignKnowledgeSource[]; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listSourcesForRecord")
     .eq("record_id", recordId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
@@ -137,7 +132,7 @@ export async function updateSource(
   // Kısmi payload'da nihai durumu değerlendirmek için mevcut rights_status okunur.
   // (Örn. yalnız rights_status=permission_pending gelirse, DB'deki eski true dağıtım
   //  bayrakları AYNI update içinde false'a çekilir — kalıcı true kalmaz.)
-  const { data: existing, error: readErr } = await tenantScopedSelect(db, TABLE, tenantId, "rights_status")
+  const { data: existing, error: readErr } = await withTenant(db.from(TABLE).select("rights_status"), tenantId, "updateSource.read")
     .eq("id", id)
     .maybeSingle();
   if (readErr) return { ok: false, error: hdSafeDbError("updateSource.read", readErr) };
@@ -153,7 +148,7 @@ export async function updateSource(
     { ...picked, updated_at: new Date().toISOString() },
     effectiveRights,
   );
-  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
+  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateSource")
     .eq("id", id)
     .select("id");
   if (error) return { ok: false, error: hdSafeDbError("updateSource", error) };
@@ -168,7 +163,7 @@ export async function deleteSource(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteSource")
     .eq("id", id);
   return { ok: !error, error: error ? hdSafeDbError("deleteSource", error) : null };
 }

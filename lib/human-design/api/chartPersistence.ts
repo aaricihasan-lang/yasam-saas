@@ -12,12 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { handleCompute } from "./handleCompute";
 import { deriveChartColumns } from "./deriveChartColumns";
 import { hdSafeDbError } from "./safeError";
-import {
-  tenantScopedSelect,
-  tenantScopedUpdate,
-  tenantScopedDelete,
-  tenantInsertPayload,
-} from "./tenantScope";
+import { withTenant, tenantInsertPayload } from "./tenantScope";
 import type { HdChartResult } from "../engine";
 
 const TABLE = "human_design_charts";
@@ -99,7 +94,7 @@ export async function listComputedCharts(
   tenantId: string,
   opts: { clientId?: string } = {},
 ): Promise<{ rows: ChartListRow[]; error: string | null }> {
-  let q = tenantScopedSelect(db, TABLE, tenantId, LIST_COLS).eq("source", SOURCE);
+  let q = withTenant(db.from(TABLE).select(LIST_COLS), tenantId, "listComputedCharts").eq("source", SOURCE);
   if (opts.clientId) q = q.eq("client_id", opts.clientId);
   const { data, error } = await q.order("created_at", { ascending: false });
   if (error) return { rows: [], error: hdSafeDbError("listComputedCharts", error) };
@@ -111,7 +106,7 @@ export async function getComputedChart(
   tenantId: string,
   id: string,
 ): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "getComputedChart")
     .eq("source", SOURCE)
     .eq("id", id)
     .maybeSingle();
@@ -133,7 +128,7 @@ export async function getChartKnowledgeSource(
   row: { id: string; source: string | null; type_code: string | null; authority_code: string | null; gates: number[] | null; channels: string[] | null } | null;
   error: string | null;
 }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "id, source, type_code, authority_code, gates, channels")
+  const { data, error } = await withTenant(db.from(TABLE).select("id, source, type_code, authority_code, gates, channels"), tenantId, "getChartKnowledgeSource")
     .eq("id", id)
     .maybeSingle();
   if (error) return { row: null, error: hdSafeDbError("getChartKnowledgeSource", error) };
@@ -174,11 +169,12 @@ export async function getChartWithClientForReport(
   tenantId: string,
   id: string,
 ): Promise<{ row: ChartForReport | null; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(
-    db,
-    TABLE,
+  const { data, error } = await withTenant(
+    db.from(TABLE).select(
+      "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
+    ),
     tenantId,
-    "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
+    "getChartWithClientForReport",
   )
     .eq("id", id)
     .maybeSingle();
@@ -188,11 +184,12 @@ export async function getChartWithClientForReport(
   const chart = data as Omit<ChartForReport, "client">;
   let client: ChartForReport["client"] = null;
   if (chart.client_id) {
-    const { data: cli, error: cErr } = await tenantScopedSelect(
-      db,
-      "human_design_clients",
+    const { data: cli, error: cErr } = await withTenant(
+      db.from("human_design_clients").select(
+        "id, name, birth_date, birth_time, birth_place, chart_image_url",
+      ),
       tenantId,
-      "id, name, birth_date, birth_time, birth_place, chart_image_url",
+      "getChartWithClientForReport.client",
     )
       .eq("id", chart.client_id)
       .maybeSingle();
@@ -208,7 +205,7 @@ export async function deleteComputedChart(
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
   // false-success koruması: yalnız kendi tenant'ının computed satırı silinir.
-  const { data, error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteComputedChart")
     .eq("source", SOURCE)
     .eq("id", id)
     .select("id");
@@ -268,7 +265,7 @@ async function clientInTenant(
   clientId: string,
   tenantId: string,
 ): Promise<boolean> {
-  const { data, error } = await tenantScopedSelect(db, "human_design_clients", tenantId, "id")
+  const { data, error } = await withTenant(db.from("human_design_clients").select("id"), tenantId, "clientInTenant")
     .eq("id", clientId)
     .maybeSingle();
   return !error && !!data;
@@ -284,14 +281,15 @@ export async function listManualChartsWithClients(
   tenantId: string,
 ): Promise<{ rows: ManualChartWithClient[]; error: string | null }> {
   const [chartsRes, clientsRes] = await Promise.all([
-    tenantScopedSelect(db, TABLE, tenantId, "*")
+    withTenant(db.from(TABLE).select("*"), tenantId, "listManualChartsWithClients.charts")
       .or(MANUAL_FILTER)
       .order("created_at", { ascending: false }),
-    tenantScopedSelect(
-      db,
-      "human_design_clients",
+    withTenant(
+      db.from("human_design_clients").select(
+        "id, name, birth_date, birth_time, birth_place, external_chart_url",
+      ),
       tenantId,
-      "id, name, birth_date, birth_time, birth_place, external_chart_url",
+      "listManualChartsWithClients.clients",
     ),
   ]);
   if (chartsRes.error) return { rows: [], error: hdSafeDbError("listManualChartsWithClients.charts", chartsRes.error) };
@@ -314,7 +312,7 @@ export async function getManualChartByClient(
   tenantId: string,
   clientId: string,
 ): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
-  const { data, error } = await tenantScopedSelect(db, TABLE, tenantId, "*")
+  const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "getManualChartByClient")
     .eq("client_id", clientId)
     .maybeSingle();
   if (error) return { row: null, error: hdSafeDbError("getManualChartByClient", error) };
@@ -333,7 +331,7 @@ export async function saveManualChart(
     return { ok: false, error: "Danışan bu hesaba ait değil." };
   }
 
-  const { data: existing } = await tenantScopedSelect(db, TABLE, tenantId, "id")
+  const { data: existing } = await withTenant(db.from(TABLE).select("id"), tenantId, "saveManualChart.existing")
     .eq("client_id", clientId)
     .maybeSingle();
 
@@ -344,7 +342,7 @@ export async function saveManualChart(
   };
 
   if (existing && (existing as { id?: string }).id) {
-    const { error } = await tenantScopedUpdate(db, TABLE, tenantId, payload)
+    const { error } = await withTenant(db.from(TABLE).update(payload), tenantId, "saveManualChart.update")
       .eq("id", (existing as { id: string }).id);
     return { ok: !error, error: error ? hdSafeDbError("saveManualChart.update", error) : null };
   }
@@ -360,7 +358,7 @@ export async function updateManualChartById(
   values: Record<string, unknown>,
 ): Promise<{ ok: boolean; error: string | null }> {
   const fields = { ...pickManual(values), updated_at: new Date().toISOString() };
-  const { data, error } = await tenantScopedUpdate(db, TABLE, tenantId, fields)
+  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateManualChartById")
     .eq("id", id)
     .or(MANUAL_FILTER)
     .select("id");
@@ -377,7 +375,7 @@ export async function deleteManualChart(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteManualChart")
     .eq("id", id);
   return { ok: !error, error: error ? hdSafeDbError("deleteManualChart", error) : null };
 }
@@ -388,7 +386,7 @@ export async function deleteManualChartsByClient(
   tenantId: string,
   clientId: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await tenantScopedDelete(db, TABLE, tenantId)
+  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteManualChartsByClient")
     .eq("client_id", clientId)
     .or(MANUAL_FILTER);
   return { ok: !error, error: error ? hdSafeDbError("deleteManualChartsByClient", error) : null };
