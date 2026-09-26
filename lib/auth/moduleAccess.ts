@@ -5,7 +5,8 @@
  * artık otomatik tüm modülleri AÇMAZ (runtime bypass kaldırıldı; mevcut Premium
  * erişimler migration 20260919 ile module_permissions'a backfill edildi). İstisnalar:
  *   - admin (role='admin') → tüm modüller (yönetim; modül-gate dışı)
- *   - cosmic_calendar → herkese açık (always-on)
+ *   - cosmic_calendar → NORMAL modül (KAJ-P1-04): module_permissions.cosmic_calendar === true
+ *     ise geçer (önceki "always-on" kısayolu owner "Gerçek kapı" kararıyla kaldırıldı)
  *   - human_design → normal modül: module_permissions.human_design === true ise geçer
  *     (Premium payload'ına dahil + mevcut Premium'lar migration ile backfill)
  *   - digital_content → hub: alt modüllerden (personal_archive/video_ceviri/

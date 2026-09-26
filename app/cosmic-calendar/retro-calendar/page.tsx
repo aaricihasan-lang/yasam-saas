@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
   type RetroPeriod,
   type PlanetName,
 } from "@/lib/cosmic/retro";
+import { canNavigateMonth, SUPPORT_RANGE_LABEL } from "@/lib/cosmic/dateRange";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -102,17 +103,33 @@ function getPlanetStats(planet: PlanetName) {
   return { count: periods.length, avgDuration, avgFrequency };
 }
 
+// #418 hydration fix: SSR prerender build-zamanı, client hydrate runtime saatini kullanınca
+// "bugün" bağımlı render (aktif retro, ay vurgusu) server↔client farklı olup React #418 (metin
+// uyuşmazlığı) fırlatabiliyordu. Çözüm: ilk render'da HER İKİ tarafta AYNI sabit referans anı
+// (Date.UTC → tz-bağımsız); gerçek "bugün" paint öncesi layout-effect ile yazılır. Kardeş
+// sayfalarla (page.tsx, moon-phases) aynı desen; motor/algoritma DEĞİŞMEZ.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
+
 // ─── Sayfa ────────────────────────────────────────────────────────────────────
 
 export default function RetroCalendarPage() {
-  const today      = useMemo(() => new Date(), []);
+  const [today, setToday] = useState<Date>(HYDRATION_SAFE_NOW);
   const todayYear  = today.getFullYear();
   const todayMonth = today.getMonth();
   const todayDay   = today.getDate();
 
   const [planetFilter, setPlanetFilter] = useState<PlanetFilter>("Tümü");
-  const [viewYear,  setViewYear]  = useState(todayYear);
-  const [viewMonth, setViewMonth] = useState(todayMonth);
+  const [viewYear,  setViewYear]  = useState(HYDRATION_SAFE_NOW.getFullYear());
+  const [viewMonth, setViewMonth] = useState(HYDRATION_SAFE_NOW.getMonth());
+
+  // Mount'ta (paint öncesi) gerçek "bugün"e geç; görünüm o güne çekilir.
+  useIsomorphicLayoutEffect(() => {
+    const n = new Date();
+    setToday(n);
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+  }, []);
   const [searchInput,  setSearchInput]  = useState("");
   const [searchResult, setSearchResult] = useState<RetroPeriod[] | "none" | "invalid" | null>(null);
 
@@ -151,11 +168,16 @@ export default function RetroCalendarPage() {
   const activeCountAll = useMemo(() => getActiveRetros(today).length, [today]);
   const nextRetroAny   = useMemo(() => getUpcomingRetros(today, 365)[0] ?? null, [today]);
 
+  // Navigasyon TEK KAYNAK destek aralığını (dateRange) aşamaz — sessiz kapsam-dışı veri engellenir.
+  const canGoPrevMonth = canNavigateMonth(viewYear, viewMonth, -1);
+  const canGoNextMonth = canNavigateMonth(viewYear, viewMonth, 1);
   function prevMonth() {
+    if (!canGoPrevMonth) return;
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
     else setViewMonth(m => m - 1);
   }
   function nextMonth() {
+    if (!canGoNextMonth) return;
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
     else setViewMonth(m => m + 1);
   }
@@ -365,8 +387,10 @@ export default function RetroCalendarPage() {
               <div className="mb-2 flex items-center gap-2">
                 <button
                   onClick={prevMonth}
+                  disabled={!canGoPrevMonth}
                   aria-label="Önceki ay"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
+                  title={!canGoPrevMonth ? `Desteklenen aralığın başı (${SUPPORT_RANGE_LABEL})` : undefined}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -375,8 +399,10 @@ export default function RetroCalendarPage() {
                 </h2>
                 <button
                   onClick={nextMonth}
+                  disabled={!canGoNextMonth}
                   aria-label="Sonraki ay"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
+                  title={!canGoNextMonth ? `Desteklenen aralığın sonu (${SUPPORT_RANGE_LABEL})` : undefined}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>

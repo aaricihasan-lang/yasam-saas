@@ -7,6 +7,10 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
 import {
+  SUPPORT_START, SUPPORT_END_YEAR, SUPPORT_RANGE_LABEL,
+  clampToSupported, canNavigateMonth,
+} from "@/lib/cosmic/dateRange";
+import {
   getMoonPhase, getMoonSign,
   getMonthPhaseEvents, getUpcomingPhaseEvents,
   type UpcomingPhaseEvent,
@@ -614,11 +618,13 @@ const QUICK_ACCESS: ReadonlyArray<{ emoji: string; label: string; href: string; 
   { emoji: "🌙", label: "Hicri Takvim",     href: "#takvim",                          kind: "anchor" },
 ];
 
+// FACTUAL: astronomik faz tanımları (yorum/kehanet İÇERMEZ — ürün iddiasıyla tutarlı).
+// Önceki "en güçlü an / kararlı eylem zamanı" gibi öznel astrolojik ifadeler kaldırıldı.
 const PHASE_TOOLTIP: Record<string, string> = {
-  "🌑": "Yeni Ay — Niyetler ve yeni başlangıçlar için en güçlü an",
-  "🌓": "İlk Dördün — Zorlukları aşma ve kararlı eylem zamanı",
-  "🌕": "Dolunay — Tamamlanma, berraklık ve serbest bırakma doruk noktası",
-  "🌗": "Son Dördün — Arınma, bırakma ve yeni dönem hazırlığı",
+  "🌑": "Yeni Ay — Ay ile Güneş aynı ekliptik boylamda (birleşim, 0°)",
+  "🌓": "İlk Dördün — Ay, Güneş'in 90° doğusunda",
+  "🌕": "Dolunay — Ay ile Güneş karşı konumda (180°)",
+  "🌗": "Son Dördün — Ay, Güneş'in 270° doğusunda (90° batısında)",
 };
 
 // ─── Arama sabitleri ──────────────────────────────────────────────────────────
@@ -863,13 +869,9 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   };
 }
 
-// Doğrulanmış veri destek aralığı (20.06.2026 – 31.12.2050)
-// FAZ 1A/1B/1C sonrası gezegen konumları, retro ve burç geçişleri astronomy-engine ile
-// hesaplandığından destek ufku AE pencerelerinin bittiği 2050'ye taşındı.
-const SUPPORT_END_YEAR = 2050;
-// Alt sınır: doğrulanmış veri aralığının başlangıcı (20.06.2026). Bu tarihten önce retro/tutulma/
-// burç geçişi motorları veri döndürmeyebilir → kullanıcıya "aralık dışı" uyarısı gösterilir.
-const SUPPORT_START = new Date(2026, 5, 20);
+// Doğrulanmış veri destek aralığı: TEK KAYNAK → lib/cosmic/dateRange.ts (SUPPORT_START /
+// SUPPORT_END_YEAR / SUPPORT_RANGE_LABEL). UI, motor pencereleri (retro/sign-change/eclipse),
+// API ve testler AYNI sınırı kullanır. Navigasyon bu sınırı sert olarak aşamaz (clampToSupported).
 
 // #418 hydration fix: statik prerender build-zamanını, client hydrate runtime saatini kullandığından
 // "şu an" metinleri (gezegen saati, geri sayımlar, güncel burç) sunucu↔client farklı olup React #418
@@ -969,6 +971,15 @@ export default function CosmicCalendarPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Canlı "Şu An" — realNow dakikada bir tazelenir (gezegen saati "kalan dakika", VOC kalan
+  // süre, güncel gökyüzü kartları donmaz). Dakikalık granülerlik yeterli (gezegen saati ~saatlik,
+  // geri sayım dakika bazlı) → saniyelik AĞIR yeniden hesap YOK. Cleanup zorunlu (unmount'ta
+  // clearInterval → remount'ta çift interval oluşmaz). selectedDate'e DOKUNMAZ (o midnight'ın işi).
+  useEffect(() => {
+    const id = setInterval(() => setRealNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // ── Takvim hesapları ──────────────────────────────────────────────────────
   const cells           = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
   const moonMarkers     = useMemo(() => getMonthMoonMarkers(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -997,11 +1008,12 @@ export default function CosmicCalendarPage() {
   const todayMiladi = useMemo(() => formatMiladiDate(realNow),           [realNow]); // "Şu An Gökyüzünde" rozeti — gerçek bugün
   const activeRetros = useMemo(() => getActiveRetros(selectedDate),      [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
+  // Kapsam kontrolü TEK KAYNAK'tan (dateRange). Navigasyon kelepçesi sayesinde normal UI ile
+  // aralık dışına çıkılamaz; bu bayraklar yine de savunma amaçlı gösterge/gate olarak kalır.
   const isAfterSupportEnd = useMemo(
     () => selectedDate.getFullYear() > SUPPORT_END_YEAR,
     [selectedDate],
   );
-  // Y-1: alt sınır — 20.06.2026 öncesi tarihlerde retro/tutulma/burç-geçişi motorları boş dönebilir.
   const isBeforeSupportStart = useMemo(
     () => selectedDate < SUPPORT_START,
     [selectedDate],
@@ -1572,30 +1584,41 @@ export default function CosmicCalendarPage() {
   const cellHeight = showHicriDays ? "h-10" : "h-8";
 
   // ── Navigasyon ────────────────────────────────────────────────────────────
+  // Navigasyon TEK KAYNAK sınırı (dateRange) aşamaz. canNavigateMonth false ise ay atlanmaz;
+  // butonlar da aynı yordamla devre dışı bırakılır (aşağıda disabled). Böylece kullanıcı asla
+  // desteklenmeyen bir tarihe (sessiz yanlış astronomik veri) gidemez.
+  const canGoPrevMonth = canNavigateMonth(viewYear, viewMonth, -1);
+  const canGoNextMonth = canNavigateMonth(viewYear, viewMonth, 1);
   function prevMonth() {
+    if (!canGoPrevMonth) return;
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
     else setViewMonth(m => m - 1);
   }
   function nextMonth() {
+    if (!canGoNextMonth) return;
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
     else setViewMonth(m => m + 1);
   }
-  function selectDay(day: number) { setSelectedDate(new Date(viewYear, viewMonth, day)); }
+  function selectDay(day: number) { setSelectedDate(clampToSupported(new Date(viewYear, viewMonth, day))); }
   function navigateToDate(date: Date) {
-    setViewYear(date.getFullYear()); setViewMonth(date.getMonth());
-    setSelectedDate(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+    const c = clampToSupported(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+    setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
+    setSelectedDate(c);
     setSearchQuery(""); setSearchResult(null);
   }
 
   // ── Tarih atlama ──────────────────────────────────────────────────────────
+  // Girilen tarih desteklenen aralığa kelepçelenir → 4 haneli herhangi bir yıl (1600/9999)
+  // artık sessiz yanlış veri üretemez; en yakın geçerli güne çekilir.
   function handleDateJump() {
     const t = dateInput.trim();
     const m1 = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
     if (m1) {
       const d = parseInt(m1[1]!), mo = parseInt(m1[2]!) - 1, y = parseInt(m1[3]!);
       if (mo >= 0 && mo <= 11 && d >= 1 && d <= 31) {
-        setViewYear(y); setViewMonth(mo);
-        setSelectedDate(new Date(y, mo, Math.min(d, new Date(y, mo + 1, 0).getDate())));
+        const c = clampToSupported(new Date(y, mo, Math.min(d, new Date(y, mo + 1, 0).getDate())));
+        setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
+        setSelectedDate(c);
         setDateInput("");
       }
       return;
@@ -1605,8 +1628,9 @@ export default function CosmicCalendarPage() {
       const d = parseInt(m2[1]!), y = parseInt(m2[3]!);
       const mIdx = MONTH_NAME_MAP[m2[2]!.toLowerCase() ?? ""];
       if (mIdx !== undefined && d >= 1 && d <= 31) {
-        setViewYear(y); setViewMonth(mIdx);
-        setSelectedDate(new Date(y, mIdx, Math.min(d, new Date(y, mIdx + 1, 0).getDate())));
+        const c = clampToSupported(new Date(y, mIdx, Math.min(d, new Date(y, mIdx + 1, 0).getDate())));
+        setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
+        setSelectedDate(c);
         setDateInput("");
       }
     }
@@ -1784,14 +1808,14 @@ export default function CosmicCalendarPage() {
             {/* Kompakt Takvim */}
             <div id="takvim" className="scroll-mt-4 rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
               <div className="mb-1.5 flex items-center gap-2">
-                <button onClick={prevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Önceki ay">
+                <button onClick={prevMonth} disabled={!canGoPrevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600" aria-label="Önceki ay" title={!canGoPrevMonth ? `Desteklenen aralığın başı (${SUPPORT_RANGE_LABEL})` : undefined}>
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <div className="flex flex-1 items-center justify-between">
                   <h2 className="text-sm font-black text-slate-800">{MONTH_NAMES_TR[viewMonth]} {viewYear}</h2>
                   <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">🌙 {hijriMonthYear}</span>
                 </div>
-                <button onClick={nextMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Sonraki ay">
+                <button onClick={nextMonth} disabled={!canGoNextMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/80 disabled:hover:text-slate-600" aria-label="Sonraki ay" title={!canGoNextMonth ? `Desteklenen aralığın sonu (${SUPPORT_RANGE_LABEL})` : undefined}>
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -2005,7 +2029,7 @@ export default function CosmicCalendarPage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
+              <p className="mt-1 text-[10px] text-slate-400">{"🕋 Hicri tarihler Ümmü'l-Kurâ takvim sistemine göredir · Türkiye'de kullanılan resmî (hilal gözlemi esaslı) takvimlerle bazı tarihlerde bir günlük fark olabilir"}</p>
 
               <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
                 <p className="text-[10px] text-slate-400">🪐 Retro Durumu</p>
@@ -2033,7 +2057,7 @@ export default function CosmicCalendarPage() {
               <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
                 <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
                 <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
-                  Bu tarih doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050).{" "}
+                  Bu tarih doğrulanmış veri aralığında değildir (destek: {SUPPORT_RANGE_LABEL}).{" "}
                   {isBeforeSupportStart
                     ? "Bu tarihten önceki retro, tutulma ve burç geçişi verileri eksik veya hesaplanamaz olabilir."
                     : "Gezegen konumları ve diğer veriler yaklaşık olabilir."}

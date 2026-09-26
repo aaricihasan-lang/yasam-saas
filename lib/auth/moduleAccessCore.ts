@@ -72,8 +72,13 @@ function hasFlag(flags: Record<string, boolean>, key: string): boolean {
 
 /**
  * SAF karar: bu kullanıcı (role + module_permissions) bu modüle erişebilir mi?
- * Premium bypass YOKTUR. admin/cosmic_calendar → true; human_design artık normal modül
- * (module_permissions.human_design === true ise geçer).
+ * Premium bypass YOKTUR. admin → tüm modüller; human_design/cosmic_calendar artık NORMAL
+ * modül (module_permissions.<key> === true ise geçer).
+ *
+ * KAJ-P1-04: cosmic_calendar önceki "herkese açık (always-on)" kısayolu KALDIRILDI (owner
+ * kararı "Gerçek kapı"). Artık kişiye-özel module_permissions.cosmic_calendar esastır;
+ * admin geçer, izinsiz uzman reddedilir (API 403 / route guard deny). Premium provisioning
+ * payload'ı cosmic_calendar=true ürettiği için izinli premium uzmanlar erişimini korur.
  */
 export function resolveModuleAccess(
   role: unknown,
@@ -81,10 +86,11 @@ export function resolveModuleAccess(
   moduleKey: string,
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
-  if (moduleKey === "cosmic_calendar") return true;
-  // Beslenme artık NORMAL modül: module_permissions.beslenme === true olan uzman geçer
-  // (admin üstte short-circuit ile zaten geçer). Admin↔uzman özellik paritesi; veri erişimi
-  // her zaman server-side tenant-scoped kalır. Eski owner-only faz kaldırıldı.
+  // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
+  //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
+  //   • beslenme owner-only `return false` YOK (main: beslenme artık NORMAL modül) → module_permissions.beslenme.
+  // İkisi de aşağıdaki hasFlag(flags, moduleKey) akışına düşer; admin üstte short-circuit ile
+  // zaten geçer; veri erişimi her zaman server-side tenant-scoped kalır.
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {

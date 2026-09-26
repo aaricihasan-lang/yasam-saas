@@ -167,7 +167,12 @@ function buildPeriod(o: Occ): VoidMoonPeriod {
   };
 }
 
-// ─── Memoizasyon (deterministik → güvenli) ──────────────────────────────────────
+// ─── Memoizasyon (deterministik → güvenli, SINIRLI) ─────────────────────────────
+// Anahtar `startMs|endMs`; realNow (gece yarısı) veya kullanıcı tarih seçimi her
+// değiştiğinde YENİ anahtar üretilir → sınırsız Map süreç ömrü boyunca büyürdü
+// (özellikle server singleton'da istekler arası birikir). BOUNDED: MAX aşılınca en
+// eski giriş atılır (FIFO — Map ekleme sırasını korur). Doğruluk mantığı DEĞİŞMEZ.
+const _CACHE_MAX = 512;
 const _cache = new Map<string, VoidMoonPeriod[]>();
 
 // ─── Public API ─────────────────────────────────────────────────────────────────
@@ -181,6 +186,11 @@ export function getVoidMoonPeriods(start: Date, end: Date): VoidMoonPeriod[] {
   const cached = _cache.get(key);
   if (cached) return cached;
   const periods = enumerateOccupancies(startMs, endMs).map(buildPeriod);
+  // Sınır aşıldıysa en eski girişi (ilk anahtar) çıkar — bounded bellek.
+  if (_cache.size >= _CACHE_MAX) {
+    const oldest = _cache.keys().next().value;
+    if (oldest !== undefined) _cache.delete(oldest);
+  }
   _cache.set(key, periods);
   return periods;
 }

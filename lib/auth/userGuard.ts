@@ -173,8 +173,8 @@ export async function verifyUserRequest(
  * `guard.userId/tenantId/db/email` kullanımını değiştirmeden korur.
  *
  * includeProfile zorlanır (role + module_permissions tek users lookup'ında gelir →
- * ek sorgu YOK). Modül reddi → 403 (no-store). admin/cosmic_calendar geçer;
- * human_design normal modül (module_permissions.human_design=true ile geçer);
+ * ek sorgu YOK). Modül reddi → 403 (no-store). admin geçer; cosmic_calendar & human_design
+ * NORMAL modül (module_permissions.<key>=true ile geçer; KAJ-P1-04 cosmic always-on kaldırıldı);
  * digital_content hub alt-modülden açılır.
  */
 export async function requireModuleAccess(
