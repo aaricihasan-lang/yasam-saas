@@ -93,13 +93,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
   // Beslenme — normal satılabilir/grantable modül (admin↔uzman özellik paritesi). Admin buradan
-  // module_permissions.beslenme=true/false yönetir → uzman TAM Beslenme modülüne erişir. Canonical
-  // anahtar; toggle render edilir + save/load zincirinde (parse/payload/merge) taşınır.
+  // module_permissions.beslenme=true/false yönetir → uzman TAM Beslenme modülüne erişir (CUSTOM besin
+  // yönetimi dahil). Canonical anahtar; toggle render + save/load zincirinde taşınır. Ayrı "Manuel
+  // Besin Yönetimi" (beslenme_manual_food) yeteneği KALDIRILDI — artık okunmayan inert legacy key.
   "beslenme",
-  // DAR/legacy yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
-  // ekleyip düzenleyebilir. Tam Beslenme modülünün yerine GEÇMEZ; beslenme=true'dan bağımsız,
-  // ayrı yetenek olarak korunur. Bayrak burada olduğu için toggle render edilir + write'ta korunur.
-  "beslenme_manual_food",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -123,14 +120,11 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   digital_content: "Dijital İçerik Merkezi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
-  beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
   digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
-  beslenme: "Beslenme modülünün tamamına erişim verir.",
-  beslenme_manual_food:
-    "Yalnız dar manuel besin katkı yeteneği: uzman kendi özel besinlerini ekleyip düzenleyebilir. Tam Beslenme modülünü (beslenme) açmaz.",
+  beslenme: "Beslenme modülünün tamamına (planlar, danışan-bound akış, Besinler / CUSTOM besin yönetimi dahil) erişim verir.",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -150,7 +144,6 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   digital_content: false,
   cupping: false,
   beslenme: false,
-  beslenme_manual_food: false,
 };
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {

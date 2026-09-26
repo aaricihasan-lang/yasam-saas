@@ -66,18 +66,9 @@ export async function fetchBeslenmeCapabilities(): Promise<{ access: boolean; cl
   return { access, clients: access && r.data?.clients === true };
 }
 
-/**
- * Manuel/CUSTOM besin KATKI (WRITE) erişim probe'u (server-authoritative). Döner:
- *   'owner'  → super-admin küratör; 'expert' → TAM Beslenme modülü VEYA dar bayraklı uzman;
- *   null → yetkisiz. `clients`-only uzman (beslenme=false, manual=false) → null (yalnız besin OKUMA).
- * "Besinlerim" sayfası + nav girişi bununla gate edilir; dashboard'da ayrıca beslenmeAccess=false
- * koşulu aranır (tam Beslenme'de duplicate kart gösterilmez). UI gizleme tek katman değil.
- */
-export async function checkBeslenmeFoodAccess(): Promise<"owner" | "expert" | null> {
-  const r = await req<{ authority?: "owner" | "expert" }>("/api/beslenme/foods/access", { headers: authHeaders() });
-  if (r.ok && (r.data?.authority === "owner" || r.data?.authority === "expert")) return r.data.authority;
-  return null;
-}
+// NOT: checkBeslenmeFoodAccess (ayrı manuel-besin KATKI probe'u) KALDIRILDI. CUSTOM besin
+// yönetimi artık tam Beslenme modülünün parçası (/beslenme/besinler); erişim checkBeslenmeAccess
+// ile belirlenir. Eski /api/beslenme/foods/access ucu ve beslenme_manual_food yeteneği yok.
 
 export function fetchCounts() {
   return req<{ counts: { foods: number; guides: number; mizac: number; bloodType: number; sources: number } }>(

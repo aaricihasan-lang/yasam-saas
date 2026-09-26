@@ -79,21 +79,27 @@ ok("assign-client POST artık requireBeslenmeOwner DEĞİL", !/requireBeslenmeOw
 ok("/beslenme/planlar (global liste) useBeslenmeModuleGuard", /useBeslenmeModuleGuard\(\)/.test(read("app/beslenme/planlar/page.tsx")));
 ok("/beslenme (hub) useBeslenmeModuleGuard", /useBeslenmeModuleGuard\(\)/.test(read("app/beslenme/page.tsx")));
 
-// 11/12/13) Food read split + mutation contributor + SYSTEM write koruması.
+// 11/12/13) Food READ (clients|beslenme) / WRITE (requireBeslenmeModule; contributor kapısı kaldırıldı) + SYSTEM koruması.
 const foods = read("app/api/beslenme/foods/route.ts");
 ok("foods GET read-split (requireBeslenmeFoodRead)", /export async function GET[\s\S]{0,120}requireBeslenmeFoodRead\(/.test(foods));
-ok("foods POST hâlâ contributor", /export async function POST[\s\S]{0,120}requireBeslenmeFoodContributor\(/.test(foods));
+ok("foods POST → requireBeslenmeModule (tam Beslenme WRITE)", /export async function POST[\s\S]{0,120}requireBeslenmeModule\(/.test(foods));
 const foodsId = read("app/api/beslenme/foods/[id]/route.ts");
 ok("foods/[id] GET read-split", /export async function GET[\s\S]{0,120}requireBeslenmeFoodRead\(/.test(foodsId));
-ok("foods/[id] PATCH+DELETE hâlâ contributor", (foodsId.match(/requireBeslenmeFoodContributor\(/g) || []).length >= 2);
+ok("foods/[id] PATCH+DELETE → requireBeslenmeModule (contributor kapısı yok)",
+   (foodsId.match(/requireBeslenmeModule\(/g) || []).length >= 2 && !/requireBeslenmeFoodContributor/.test(foodsId));
 ok("SYSTEM besin yazma koruması (resolveFoodForWrite SYSTEM_READONLY)", /SYSTEM_READONLY/.test(read("lib/beslenme/foodEngine.ts")));
 
 // 14) traditional/sources → requireBeslenmeModule (admin↔uzman parity; tenant-scoped).
 ok("foods/[id]/traditional requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/foods/[id]/traditional/route.ts")));
 ok("foods/[id]/sources requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/foods/[id]/sources/route.ts")));
 
-// 15) QuickAdd manual-food capability'ye bağlı.
-ok("FoodPicker quick-add checkBeslenmeFoodAccess ile gated", /checkBeslenmeFoodAccess/.test(read("app/beslenme/planlar/_components/FoodPickerDialog.tsx")));
+// 15) QuickAdd (CUSTOM besin oluştur) yalnız tam Beslenme erişiminde açılır (checkBeslenmeAccess);
+//     ayrı manuel-besin probe'u (checkBeslenmeFoodAccess) KALDIRILDI.
+{
+  const picker = read("app/beslenme/planlar/_components/FoodPickerDialog.tsx");
+  ok("FoodPicker quick-add checkBeslenmeAccess ile gated (foodAccess probe kaldırıldı)",
+     /checkBeslenmeAccess\(\)/.test(picker) && !/checkBeslenmeFoodAccess/.test(picker));
+}
 
 // 16) Templates → CAPABILITY-aware (LIST beslenme|clients; CREATE/APPLY plan-access). Clients-only
 //     uzman plan editöründe şablon işlemleri PASS (dead-control fix). Yönetim requireBeslenmeModule.

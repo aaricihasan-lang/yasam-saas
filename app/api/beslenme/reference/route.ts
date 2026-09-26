@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeFoodContributor } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule } from "@/lib/beslenme/ownerGuard";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * allergens (FAZ 7): danışan beyan-alerji multi-select'i için — ADVISORY (otomatik eşleme YOK).
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeFoodContributor(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db } = guard;
 

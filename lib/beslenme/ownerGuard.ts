@@ -3,13 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess, verifyUserRequest } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
-import { requireMainAdmin } from "@/lib/admin/adminGuards";
-import {
-  BESLENME_MANUAL_FOOD_FLAG,
-  decideFoodContributorAuthority,
-  hasManualFoodFlag,
-  type BeslenmeContributorAuthority,
-} from "@/lib/beslenme/foodContributorPolicy";
 
 /**
  * Beslenme OWNER-ONLY server kapısı.
@@ -126,105 +119,22 @@ export function denyDemoMutation(guard: { is_demo_account: boolean }): NextRespo
 }
 
 // ============================================================
-// Manuel Besin KATKI kapısı (owner + dar-yetkili uzman) — FAZ: manuel-besin
+// Besin OKUMA kapısı (read-only) — plan editörü besin seçimi
 // ============================================================
-
-/**
- * DAR yetenek bayrağı: uzmanın KENDİ tenant'ına manuel besin ekleme/tamamlama izni.
- *
- * LEGACY DAR BAYRAK (backward-compat). Beslenme artık NORMAL modüldür
- * (module_permissions.beslenme=true → requireBeslenmeModule). Bu bayrak, beslenme/clients
- * modül izni OLMAYAN eski uzmanlar için besin-katkı uçlarını (kendi CUSTOM besni
- * oluştur/oku/güncelle/arşivle +
- * nutrient/porsiyon tamamla) açar. SYSTEM katalog (1258 kayıt) HERKES için salt
- * okunurdur (resolveFoodForWrite → SYSTEM_READONLY 403). tenant_id DAİMA server-side
- * doğrulanmış oturumdan gelir (users.tenant_id); body/query'den tenant seçimi YOK.
- *
- * Bayrak module_permissions JSONB içinde saklanır (mevcut flag-bag mimarisi; yeni
- * tablo/kolon YOK). Hiçbir uzmanda varsayılan olarak bulunmaz → pratikte gated-off;
- * owner (super-admin) her zaman geçer (küratör). Bayrağı verecek admin UI ayrı bir
- * aktivasyon adımıdır (bkz. final rapor). SAF karar mantığı foodContributorPolicy'de.
- */
-export { BESLENME_MANUAL_FOOD_FLAG };
-export type { BeslenmeContributorAuthority };
-
-export type BeslenmeContributorOk = {
-  ok: true;
-  userId: string;
-  tenantId: string;
-  email: string;
-  is_demo_account: boolean;
-  /** owner = super-admin küratör; expert = dar bayraklı uzman (yalnız kendi tenant). */
-  authority: BeslenmeContributorAuthority;
-  db: SupabaseClient;
-};
-export type BeslenmeContributorResult =
-  | BeslenmeContributorOk
-  | { ok: false; response: NextResponse };
-
-/**
- * Besin-katkı server kapısı. Geçer:
- *   - owner (super-admin) → authority='owner' (mevcut requireBeslenmeOwner ile parite).
- *   - dar bayraklı uzman (module_permissions.beslenme_manual_food===true) → authority='expert'.
- * Aksi halde 403. Kimlik/oturum bağlama + pending/rejected gate verifyUserRequest'ten gelir.
- * tenantId ASLA body/query'den; yalnız doğrulanmış users.tenant_id. Karar SAF
- * decideFoodContributorAuthority (foodContributorPolicy) ile verilir.
- */
-export async function requireBeslenmeFoodContributor(
-  req: NextRequest,
-): Promise<BeslenmeContributorResult> {
-  const guard = await verifyUserRequest(req, { includeProfile: true });
-  if (!guard.ok) return { ok: false, response: guard.response };
-
-  // CUSTOM/manuel besin YAZMA yetkisi: owner (küratör) VEYA TAM Beslenme modülü VEYA dar
-  // beslenme_manual_food bayrağı. `clients` (Danışan Yolculuğu) izni TEK BAŞINA katkı/write
-  // yetkisi VERMEZ — clients danışan-bound akış + besin OKUMA'dır (bkz. requireBeslenmeFoodRead);
-  // custom food OLUŞTUR/DÜZENLE/ARŞİVLE yalnız tam modül veya dar bayrakla açılır. Admin role
-  // short-circuit resolveModuleAccess("beslenme")=true ile korunur. Yazma kapsamı DAİMA yalnız
-  // caller tenant CUSTOM food (resolveFoodForWrite → SYSTEM_READONLY).
-  const owner = await requireMainAdmin(guard.db, guard.userId);
-  const perms = guard.profile?.module_permissions;
-  const role = guard.profile?.role;
-  const moduleWrite = resolveModuleAccess(role, perms, "beslenme");
-  const authority =
-    decideFoodContributorAuthority(owner.ok, perms) ?? (moduleWrite ? "expert" : null);
-
-  if (!authority) {
-    return {
-      ok: false,
-      response: jsonNoStore(
-        { ok: false, code: "FOOD_CONTRIB_DENIED", error: "Besin ekleme yetkiniz yok." },
-        403,
-      ),
-    };
-  }
-
-  return {
-    ok: true,
-    userId: guard.userId,
-    tenantId: guard.tenantId,
-    email: guard.email,
-    is_demo_account: guard.is_demo_account,
-    authority,
-    db: guard.db,
-  };
-}
-
-// ============================================================
-// Besin OKUMA kapısı (read-only) — plan editörü besin seçimi (AŞAMA 2)
-// ============================================================
+//
+// NOT: Ayrı "Manuel Besin KATKI" (beslenme_manual_food) yeteneği üründen KALDIRILDI. CUSTOM besin
+// OLUŞTUR/DÜZENLE/ARŞİVLE artık TAM Beslenme modülünün içindedir (/beslenme/besinler) ve food
+// MUTATION route'ları requireBeslenmeModule (admin role short-circuit + beslenme=true) ile korunur.
+// Eski module_permissions.beslenme_manual_food anahtarı artık HİÇBİR YERDE OKUNMAZ → inert legacy.
 
 /**
  * READ ≠ AUTHORING. Plan editörü SYSTEM ∪ kendi tenant CUSTOM besinlerini okuyup
  * seçebilmeli; bunun için besin-katkı (yazma) bayrağı GEREKMEZ.
  *
- * Geçer (salt-okuma):
- *   - owner/admin (resolveModuleAccess role='admin' → true),
- *   - clients (Danışan Yolculuğu) yetkili uzman (resolveModuleAccess "clients"),
- *   - beslenme_manual_food bayraklı uzman (mevcut contributor).
- * tenantId YALNIZ doğrulanmış users.tenant_id; food scope {SYSTEM ∪ caller} (foodEngine).
- * Mutation buraya BAĞLI DEĞİL — POST/PATCH/DELETE hâlâ requireBeslenmeFoodContributor +
- * resolveFoodForWrite (SYSTEM_READONLY) + denyDemoMutation.
+ * Geçer (salt-okuma): admin (role short-circuit) VEYA clients (Danışan Yolculuğu) VEYA tam
+ * Beslenme modülü. Manuel-besin bayrağı KALDIRILDI. tenantId YALNIZ doğrulanmış users.tenant_id;
+ * food scope {SYSTEM ∪ caller} (foodEngine). Mutation buraya BAĞLI DEĞİL — POST/PATCH/DELETE
+ * requireBeslenmeModule (tam Beslenme) + resolveFoodForWrite (SYSTEM_READONLY) + denyDemoMutation.
  */
 export type BeslenmeFoodReadOk = {
   ok: true;
@@ -243,8 +153,7 @@ export async function requireBeslenmeFoodRead(req: NextRequest): Promise<Beslenm
   const perms = guard.profile?.module_permissions;
   const allowed =
     resolveModuleAccess(guard.profile?.role, perms, "clients") ||
-    resolveModuleAccess(guard.profile?.role, perms, "beslenme") ||
-    hasManualFoodFlag(perms);
+    resolveModuleAccess(guard.profile?.role, perms, "beslenme");
   if (!allowed) {
     return {
       ok: false,
