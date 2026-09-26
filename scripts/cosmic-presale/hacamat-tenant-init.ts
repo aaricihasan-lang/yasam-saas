@@ -108,5 +108,26 @@ const page = read("app/cosmic-calendar/hacamat/page.tsx");
 not(page, /Varsayılanlara dön|Varsayılanları geri yükle|Kuralları geri yükle|restoreDefaults/i, "§9: 'varsayılana dön' özelliği YOK");
 has(page, /confirmingDeleteId/, "UI: silme onayı (yanlış dokunma koruması)");
 
+// ── 5) FLASH-GUARD: ModuleRouteGuard ilk paint'te korumalı içerik göstermez ─────
+console.log("\n=== ModuleRouteGuard flash-guard (izinsiz uzmana içerik sızıntısı yok) ===");
+const guard = read("components/auth/ModuleRouteGuard.tsx");
+has(guard, /const\s+hasRule\s*=\s*findRouteModuleRule\(path\)\s*!==\s*null/, "render'da hasRule = findRouteModuleRule(path)");
+has(guard, /if\s*\(\s*hasRule\s*&&\s*\(\s*decidedPath\s*!==\s*path\s*\|\|\s*!resolved\s*\)\s*\)\s*\{[\s\S]{0,80}<ModuleAccessPending/, "gate: hasRule && (decidedPath!==path || !resolved) → Pending (children YOK)");
+has(guard, /useState<string \| null>\(null\)/, "decidedPath state (karar hangi path için verildi)");
+// children yalnız Pending gate'inden SONRA render edilir (flash guard'dan önce children YOK)
+ok(guard.indexOf("hasRule && (decidedPath") < guard.lastIndexOf("return <>{children}</>"), "children render Pending gate'inden SONRA");
+
+// ── 6) Cosmic PREMIUM backfill migration sözleşmesi ──────────────────────────
+console.log("\n=== cosmic_calendar premium backfill migration ===");
+const bf = read("supabase/migrations/20270127000000_cosmic_calendar_premium_backfill.sql");
+has(bf, /jsonb_set\(coalesce\(u\.module_permissions, '\{\}'::jsonb\),\s*'\{cosmic_calendar\}',\s*'true'::jsonb,\s*true\)/i, "yalnız cosmic_calendar=true (diğer izinler KORUNUR)");
+has(bf, /lower\(btrim\(coalesce\(u?\.?role, ''\)\)\)\s*=\s*'expert'/i, "hedef: role=expert (admin DOKUNULMAZ)");
+has(bf, /active IS TRUE/i, "hedef: active (inactive DOKUNULMAZ)");
+has(bf, /approval_status, ''\)\)\)\s*=\s*'approved'/i, "hedef: approved (pending/rejected DOKUNULMAZ)");
+has(bf, /package_type\), ''\), (u\.)?plan, ''\)\)\)\s*=\s*'premium'/i, "hedef: premium (non-premium DOKUNULMAZ)");
+has(bf, /\(u?\.?module_permissions->>'cosmic_calendar'\) IS DISTINCT FROM 'true'/i, "idempotent: zaten true olan satırlar hariç");
+has(bf, /GET DIAGNOSTICS v_updated = ROW_COUNT/i, "güncellenen satır sayısı loglanır");
+not(bf, /DROP|DELETE|TRUNCATE/i, "yıkıcı ifade YOK (yalnız hedefli UPDATE)");
+
 console.log(`\n=== SONUÇ: ${failures === 0 ? "✅ HACAMAT B-MODELİ + COSMIC GATE SÖZLEŞMESİ KİLİTLİ" : `❌ ${failures} EKSİK`} ===`);
 process.exit(failures === 0 ? 0 : 1);
