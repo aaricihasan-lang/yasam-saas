@@ -6,14 +6,15 @@
  *         taşın SERBEST açıklama metninden DEĞİL.
  *   F-01/DT-S1  server-side arama: minerals SQL .or(ilike); stone metin araması
  *         needsFullLoad'dan çıkarıldı (mode=list); limit clamp; condition endpoint.
- *   F-02  combination_stones ilişkisel model + RPC'ler + updated_at + backfill.
+ *   F-02  combination_stones ilişkisel model + RPC'ler + updated_at (bulk backfill
+ *         KALDIRILDI; legacy stones_text-canonical, yeni kayıt junction).
  *   F-03  optimistic concurrency: stone/mineral/combination PATCH version guard + 409.
  *   IA    menü sadeleştirme (4 ana + oluşturma route'ları korunur).
  *   trgm  arama index migration.
  *
  * Çalıştır: npx tsx scripts/dogaltas-presale-f2/harness.ts
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -160,17 +161,49 @@ function read(rel: string): string {
   ok("PATCH: 409 conflict + code", patch.includes('code: "conflict"') && patch.includes("status: 409"));
 }
 
-// ─── F-02 / legacy backfill FAIL-SAFE ────────────────────────────────────────────
+// ─── LEGACY GÜVENLİĞİ — bulk backfill KALDIRILDI (prod preflight: stones_text
+//     güvenilir CSV DEĞİL; cümle/açıklama parçaları var). Legacy stones_text-canonical
+//     kalır; yeni kayıtlar junction. ──────────────────────────────────────────────
 {
-  const bf = read("supabase/migrations/20270124000200_dogaltas_combination_stones_backfill.sql");
-  ok("backfill: stones_text DROP/rewrite YOK", !/DROP\s+COLUMN[\s\S]*stones_text/i.test(bf) && !/UPDATE\s+public\.combinations\s+SET\s+stones_text/i.test(bf));
-  ok("backfill: audit tablosu (unmatched/ambiguous izi)", bf.includes("combination_stones_backfill_audit"));
-  ok("backfill: idempotent (NOT EXISTS)", bf.includes("NOT EXISTS"));
-  ok("backfill: tek-eşleşmede id, aksi NULL (ambiguous tahmin yok)", /CASE WHEN count\(\*\) = 1 THEN max\(s\.id\)/.test(bf));
-  // preflight SALT-OKUMA (mutation yok)
+  // Backfill migration prod zincirinden ÇIKARILDI.
+  ok("backfill migration KALDIRILDI (prod'a gitmez)",
+    !existsSync(resolve(ROOT, "supabase/migrations/20270124000200_dogaltas_combination_stones_backfill.sql")));
+  // Preflight SQL analiz için KORUNUR (salt-okuma).
   const pf = read("scripts/dogaltas-presale-f2/legacy-backfill-preflight.sql");
-  ok("preflight: yalnız SELECT (INSERT/UPDATE/DELETE yok)",
+  ok("preflight: KORUNDU (gelecekte analiz) + yalnız SELECT",
     !/\b(INSERT|UPDATE|DELETE|DROP|ALTER)\b/i.test(pf.replace(/--.*$/gm, "")));
+
+  const patch = read("app/api/dogaltas/combinations/[id]/route.ts");
+  // A/B/C: LEGACY edit junction pollution ENGELİ — yalnız junction'ı OLAN (yapısal)
+  // kayıt RPC ile junction-replace edilir; legacy (junction yok) stones_text plain update.
+  ok("legacy: PATCH junction discriminator (hasJunction)", patch.includes("hasJunction"));
+  ok("legacy: RPC yalnız hasJunction iken (yapısal)", /stones_text" in body && hasJunction/.test(patch));
+  ok("legacy: junction sorgusu combination_stones count (tenant-scoped)",
+    /from\("combination_stones"\)[\s\S]*count: "exact"[\s\S]*head: true/.test(patch) && patch.includes('.eq("combination_id", id)'));
+  ok("legacy: junction yoksa stones_text plain field update (RPC değil)",
+    /fields\.stones_text = names\.join/.test(patch));
+  // Hiçbir READER combination_stones sorgulamaz → legacy stones_text ile render eder.
+  for (const rel of [
+    "app/dogaltas/kombinasyonlar/page.tsx",
+    "app/dogaltas/kombinasyonlar/[title]/page.tsx",
+    "app/api/dogaltas/combinations/word-report/route.ts",
+    "app/api/dogaltas/word-report/route.ts",
+  ]) {
+    ok(`legacy read: ${rel} stones_text okur, combination_stones tablosu SORGULAMAZ`,
+      read(rel).includes("stones_text") && !read(rel).includes('from("combination_stones")'));
+  }
+  // D/F: yeni structured write — save route create RPC + stones_text mirror + stoneRefs.
+  const save = read("app/api/dogaltas/combinations/save/route.ts");
+  ok("yeni write: create_combination_with_stones RPC", save.includes('rpc("create_combination_with_stones"'));
+  ok("yeni write: stoneRefs (stone_id + snapshot_name) desteklenir", save.includes("stoneRefs"));
+  // E: cross-tenant stone_id reddi (RPC).
+  const rel = read("supabase/migrations/20270124000000_dogaltas_combination_stones_relational.sql");
+  ok("E: RPC cross-tenant stone_id reddi (stone_not_found_for_tenant)", rel.includes("stone_not_found_for_tenant"));
+  // F: relational RPC stones_text mirror'ı yazar (compatibility korunur).
+  ok("F: RPC stones_text compatibility mirror yazar", /stones_text[\s\S]*string_agg/.test(rel));
+  // relational migration legacy combinations verisini REWRITE ETMEZ.
+  ok("relational: legacy combinations rewrite YOK",
+    !/UPDATE\s+public\.combinations\s+SET\s+stones_text/i.test(rel) && !/DELETE FROM public\.combinations/i.test(rel));
 }
 
 // ─── trgm arama index migration ──────────────────────────────────────────────────

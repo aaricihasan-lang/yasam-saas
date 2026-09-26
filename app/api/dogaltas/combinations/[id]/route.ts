@@ -69,9 +69,22 @@ export async function PATCH(
     }
   }
 
-  // ── Taş listesi düzenleniyorsa: F-02 canonical RPC (junction replace + stones_text
-  //    aynası + concurrency guard, tek transaction). ──────────────────────────────
+  // LEGACY KORUMASI: yalnız YAPISAL kombinasyonlar (mevcut junction satırı olan =
+  // yeni relational modelle oluşturulmuş) taş düzenlemede RPC ile junction-replace
+  // edilir. Legacy kayıtlar (bulk backfill YAPILMADI → junction YOK; tarihsel
+  // stones_text güvenilir CSV DEĞİL, cümle/açıklama parçaları içerebilir) düzenlemede
+  // stones_text CANONICAL kalır ve parse edilip junction'a "taş" olarak YAZILMAZ.
+  let hasJunction = false;
   if ("stones_text" in body) {
+    const { count } = await db
+      .from("combination_stones").select("id", { count: "exact", head: true })
+      .eq("combination_id", id).eq("tenant_id", tenantId);
+    hasJunction = (count ?? 0) > 0;
+  }
+
+  // ── YAPISAL taş listesi düzenleniyorsa: F-02 canonical RPC (junction replace +
+  //    stones_text aynası + concurrency guard, tek transaction). ─────────────────
+  if ("stones_text" in body && hasJunction) {
     const names = String(body.stones_text ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     if (names.length === 0) {
       return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
@@ -100,11 +113,22 @@ export async function PATCH(
     return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
   }
 
-  // ── Yalnız skaler alan(lar): junction'a dokunmadan concurrency-guarded update. ──
+  // ── Skaler alan(lar) + LEGACY stones_text: junction'a DOKUNMADAN concurrency-guarded
+  //    update. Legacy stones_text yalnız compatibility-mirror alanı olarak güncellenir;
+  //    hiçbir junction satırı oluşturulmaz (cümle/açıklama parçaları "taş" olmaz). ──
   const fields: Record<string, unknown> = {};
   if (issueVal) fields.issue = issueVal;
   if ("description" in body) fields.description = clamp(body.description, MAX_TEXT);
   if ("notes_text_3" in body) fields.notes_text_3 = clamp(body.notes_text_3, MAX_TEXT);
+  if ("stones_text" in body) {
+    // Legacy (junction'sız) kayıt: stones_text alanını olduğu gibi (tokenize edilmiş,
+    // boşları atılmış) güncelle; ≥1 token kuralı korunur. Junction OLUŞTURULMAZ.
+    const names = String(body.stones_text ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) {
+      return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
+    }
+    fields.stones_text = names.join(", ").slice(0, MAX_TEXT);
+  }
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
