@@ -30,6 +30,8 @@ has(mig, /REVOKE ALL PRIVILEGES ON TABLE public\.hacamat_rules FROM anon, authen
 has(mig, /GRANT ALL PRIVILEGES ON TABLE public\.hacamat_rules TO service_role/i, "service_role GRANT");
 has(mig, /is_super_admin|admin@yasamsistemi\.com/i, "sistem sahibi tenant'ı çözümü (backfill hedefi)");
 has(mig, /RAISE EXCEPTION/i, "sahiplik çözülemezse fail-closed (tahmin yok)");
+// Supabase Security Advisor: identity_guard fonksiyonu sabit search_path taşımalı (mutable search_path WARN kapalı).
+has(mig, /CREATE OR REPLACE FUNCTION public\.hacamat_rules_identity_guard\(\)[\s\S]*?SET search_path = public, pg_temp[\s\S]*?AS \$\$/i, "identity_guard: SET search_path = public, pg_temp (mutable search_path WARN kapalı)");
 // Anti-pattern kontrolü YÜRÜTÜLEN SQL üzerinde (yorum satırları çıkarılır — açıklama amaçlı
 // eski açığı alıntılayan `-- ... grant ... to anon` yorumu false-positive üretmesin).
 const migSql = mig.split("\n").filter(l => !l.trimStart().startsWith("--")).join("\n");

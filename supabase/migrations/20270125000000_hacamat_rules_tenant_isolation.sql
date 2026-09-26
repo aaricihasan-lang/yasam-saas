@@ -88,7 +88,10 @@ ALTER TABLE public.hacamat_rules
 
 -- 4) Kimlik guard: id + tenant_id + created_at değişmez (cross-tenant taşıma engellenir).
 CREATE OR REPLACE FUNCTION public.hacamat_rules_identity_guard()
-  RETURNS trigger LANGUAGE plpgsql AS $$
+  RETURNS trigger LANGUAGE plpgsql
+  -- Supabase Security Advisor: "Function Search Path Mutable" WARN'ını kapatır. Sabit
+  -- search_path (fonksiyon mantığı DEĞİŞMEZ) → schema-hijack yüzeyi kaldırılır.
+  SET search_path = public, pg_temp AS $$
 BEGIN
   IF NEW.id IS DISTINCT FROM OLD.id
      OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
