@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
-import { validateStoneStructuredFields, isUuid } from "@/lib/dogaltas/validation";
+import { validateStoneStructuredFields, validateStoneImagesField, isUuid } from "@/lib/dogaltas/validation";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -45,7 +46,7 @@ export async function GET(
     .from("stones").select("*")
     .eq("id", id).in("tenant_id", ids).maybeSingle();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "GET", tenantId, cause: error });
   if (!data) return NextResponse.json({ ok: false, error: "Taş bulunamadı." }, { status: 404 });
   return NextResponse.json({ ok: true, row: data });
 }
@@ -76,6 +77,12 @@ export async function PATCH(
   const structured = validateStoneStructuredFields(fields);
   if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
 
+  // SSRF kapanışı: images[] yalnız tenant'a ait canonical file_path; url reddedilir.
+  if ("images" in fields) {
+    const imagesCheck = validateStoneImagesField(fields.images, tenantId);
+    if (!imagesCheck.ok) return NextResponse.json({ ok: false, error: imagesCheck.error }, { status: 422 });
+  }
+
   // Mineral oranı (assignments.Mineraller 2. sütun) 0..100 olmalı; boş serbest (DT-P0-4).
   if ("assignments" in fields) {
     const check = validateMineralAssignments(fields.assignments);
@@ -90,7 +97,7 @@ export async function PATCH(
     .eq("id", id).eq("tenant_id", tenantId) // tenant guard — cross-tenant update engellenir
     .select("*");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -120,7 +127,7 @@ export async function DELETE(
     .eq("id", id).eq("tenant_id", tenantId) // tenant guard — cross-tenant delete engellenir
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "DELETE", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }

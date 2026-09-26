@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/combinations/save", action: "POST", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, issue: name });

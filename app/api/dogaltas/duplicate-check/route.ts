@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { normalizeDuplicateName } from "@/lib/dogaltas/duplicateName";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (cfg.activeOnly) query = query.eq("is_active", true);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/duplicate-check", action: "GET", tenantId, cause: error });
 
   // Dinamik select string tipini statik çözemediğinden güvenli cast.
   const rows = (data ?? []) as unknown as Record<string, unknown>[];

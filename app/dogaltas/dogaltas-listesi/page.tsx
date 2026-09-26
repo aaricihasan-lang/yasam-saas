@@ -449,9 +449,7 @@ function DogaltasListesiPageContent() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [lastViewedStoneId, setLastViewedStoneId] = useState<string | null>(null);
-  const [stoneToDelete, setStoneToDelete] = useState<StoneListItem | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [excludedStoneIds, setExcludedStoneIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -565,13 +563,23 @@ function DogaltasListesiPageContent() {
     return synced;
   }, []);
 
-  async function deleteStone() {
-    if (!stoneToDelete) return;
+  // Tekil taş silme — DESTRUCTIVE UX: özel inline modal yerine ortak güvenli
+  // dialog primitive'i (useDeleteConfirm → ConfirmProvider: role="alertdialog",
+  // aria-modal, Escape, focus-trap, mobil 2-adım). Onay mesajı gerçek kayıt adını
+  // gösterir; "Vazgeç"/"Sil" görsel olarak ayrışır (tone: "danger").
+  const handleDeleteStone = useCallback(async (stone: StoneListItem) => {
     if (isDemo) {
-      setStoneToDelete(null);
       showToast({ type: "info", message: t("toast.demoAction") });
       return;
     }
+
+    const name = stone.stone_name || tf("common.unnamedStone");
+    const confirmed = await deleteConfirm({
+      title: t("confirm.singleTitle"),
+      message: t("confirm.singleMessage", { name }),
+      secondMessage: t("confirm.singleSecond", { name }),
+    });
+    if (!confirmed) return;
 
     setDeleteLoading(true);
     setErrorMessage("");
@@ -583,10 +591,10 @@ function DogaltasListesiPageContent() {
       return;
     }
 
-    const stoneId = stoneToDelete.id;
+    const stoneId = stone.id;
     // Silme kararı oturum sahipliğine göre: kendi tenant'ı → gerçek DELETE,
     // başka tenant (paylaşılan kütüphane) → kullanıcı bazında gizle.
-    const isLibrary = stoneToDelete.tenant_id !== tenantId;
+    const isLibrary = stone.tenant_id !== tenantId;
 
     if (isLibrary) {
       // Kütüphane taşı → kullanıcı bazında gizle (soft-delete)
@@ -608,7 +616,7 @@ function DogaltasListesiPageContent() {
         return;
       }
 
-      setStones((current) => current.filter((stone) => stone.id !== stoneId));
+      setStones((current) => current.filter((s) => s.id !== stoneId));
       setDetailData((prev) => (prev ? prev.filter((s) => s.id !== stoneId) : null));
     }
 
@@ -621,8 +629,7 @@ function DogaltasListesiPageContent() {
       next.delete(stoneId);
       return next;
     });
-    setStoneToDelete(null);
-  }
+  }, [deleteConfirm, isDemo, queryTenantId, showToast, t, tc, tf]);
 
   const selectedCount = selectedIds.size;
 
@@ -778,10 +785,6 @@ function DogaltasListesiPageContent() {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
-
-  useEffect(() => {
-    if (stoneToDelete) setMobileDeleteStep(1);
-  }, [stoneToDelete]);
 
   const isSearchActive = Boolean(debouncedSearch);
   const activeSearch = debouncedSearch;
@@ -1358,7 +1361,7 @@ function DogaltasListesiPageContent() {
                   isDemo={isDemo}
                   onToggleSelect={toggleStoneSelection}
                   onNavigate={handleStoneNavigate}
-                  onDelete={setStoneToDelete}
+                  onDelete={handleDeleteStone}
                 />
               ))}
             </div>
@@ -1521,111 +1524,6 @@ function DogaltasListesiPageContent() {
                 {t("panel.apply")}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {stoneToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[430px] rounded-[28px] bg-white p-6 text-center shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white">
-            {isMobile && mobileDeleteStep === 2 ? (
-              <>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-[28px] ring-1 ring-rose-200">
-                  🚨
-                </div>
-                <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  {t("deleteDialog.finalTitle")}
-                </h2>
-                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  {t.rich("deleteDialog.finalDesc", { b: (chunks) => <b>{chunks}</b> })}
-                </p>
-                <div className="mt-6 flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStoneToDelete(null)}
-                    disabled={deleteLoading}
-                    className="btn-soft !min-h-[44px]"
-                  >
-                    {t("deleteDialog.cancel")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={deleteStone}
-                    disabled={deleteLoading}
-                    className="btn-danger !min-h-[44px]"
-                  >
-                    {deleteLoading ? t("deleteDialog.deleting") : t("deleteDialog.confirmPermanent")}
-                  </button>
-                </div>
-              </>
-            ) : isMobile ? (
-              <>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
-                  ⚠️
-                </div>
-                <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  {t("deleteDialog.title")}
-                </h2>
-                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  {t.rich("deleteDialog.mobileQuestion", {
-                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
-                    b: (chunks) => <b>{chunks}</b>,
-                  })}
-                </p>
-                <div className="mt-6 flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStoneToDelete(null)}
-                    className="btn-soft !min-h-[44px]"
-                  >
-                    {t("deleteDialog.no")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMobileDeleteStep(2)}
-                    className="btn-danger !min-h-[44px]"
-                  >
-                    {t("deleteDialog.yes")}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
-                  ⚠️
-                </div>
-                <h2 className="mt-4 text-[22px] font-black text-slate-950">
-                  {t("deleteDialog.title")}
-                </h2>
-                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-                  {t.rich("deleteDialog.desktopQuestion", {
-                    name: stoneToDelete.stone_name || tf("common.unnamedStone"),
-                    b: (chunks) => <b>{chunks}</b>,
-                  })}
-                </p>
-                <p className="mt-2 text-[12px] font-bold text-rose-600">
-                  {t("deleteDialog.irreversible")}
-                </p>
-                <div className="mt-6 flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStoneToDelete(null)}
-                    disabled={deleteLoading}
-                    className="btn-soft !min-h-[44px]"
-                  >
-                    {t("deleteDialog.cancel")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={deleteStone}
-                    disabled={deleteLoading}
-                    className="btn-danger !min-h-[44px]"
-                  >
-                    {deleteLoading ? t("deleteDialog.deleting") : t("deleteDialog.confirm")}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

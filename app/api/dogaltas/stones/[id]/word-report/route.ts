@@ -1,9 +1,11 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { asStringArray, safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
-import { STONE_PHOTO_BUCKET } from "@/lib/dogaltas/stonePhoto";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
+import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
 import { Document, Packer } from "docx";
 import {
   arraySection,
@@ -15,7 +17,6 @@ import {
   divider,
   embedImageParagraph,
   extractFirstImageRef,
-  fetchImageBuffer,
   fetchStorageImageBuffer,
   fieldInline,
   h1Colored,
@@ -134,25 +135,35 @@ export async function POST(
     .maybeSingle();
 
   if (error)
-    return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/stones/[id]/word-report", action: "POST", tenantId, cause: error });
 
   if (!data)
     return Response.json({ ok: false, error: "Taş kaydı bulunamadı." }, { status: 404 });
 
-  const stone = data as StoneRow;
+  // RPT-XML: rapor motoruna girmeden önce string alanlar XML 1.0 güvenli hale
+  // getirilir (illegal kontrol karakteri temizliği; TR/Unicode/emoji korunur).
+  const stone = sanitizeXmlDeep(data as StoneRow);
   const stoneName = stone.stone_name || "İsimsiz Taş";
   const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const dateSlug = new Date().toISOString().slice(0, 10);
   const nameSlug = slugify(stoneName);
 
-  // Resim — F-016: önce file_path (service_role download, private-ready), sonra url (legacy).
+  // Resim — SSRF kapanışı: yalnız taşın SAHİBİ tenant'a ait canonical
+  // dogaltas-photos file_path (service_role download). Satır zaten izinli
+  // tenant'lara (oturum tenant'ı veya Admin Kütüphanesi) kısıtlı okundu →
+  // stone.tenant_id güvenilir; yabancı/traversal path reddedilir. Legacy remote
+  // url ARTIK fetch edilmez. Geçersiz görsel raporu patlatmaz (görselsiz devam).
   const imgRef = extractFirstImageRef(stone.images);
+  const candidatePath = imgRef?.file_path;
   let imageBuf: Buffer | null = null;
-  if (imgRef?.file_path) imageBuf = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, imgRef.file_path);
-  if (!imageBuf && imgRef?.url) imageBuf = await fetchImageBuffer(imgRef.url).catch(() => null);
+  if (isOwnedStonePhotoPath(candidatePath, stone.tenant_id)) {
+    imageBuf = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, candidatePath).catch(() => null);
+  }
 
   const filledSections = countFilledSections(stone);
-  const imageCount = Array.isArray(stone.images) ? stone.images.filter((img) => img.url?.trim()).length : 0;
+  const imageCount = Array.isArray(stone.images)
+    ? stone.images.filter((img) => (img.file_path || img.url)?.trim()).length
+    : 0;
   const chakraCount = asStringArray(stone.chakras).length; // F-011 guard
   const isLibrary = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
 
@@ -164,13 +175,15 @@ export async function POST(
     title2:   stoneName.toUpperCase(),
     subtitle: "Doğaltaş Detay Raporu",
     date:     `Oluşturulma Tarihi: ${today}`,
+    // RPT (boş sayaç): sayaçlar her zaman gerçek sayı (0 dahil) taşır; ek savunma
+    // olarak boş/whitespace değerli sayaç render edilmez → boş etiket oluşmaz.
     stats: [
       { label: "Taş Adı",       value: stoneName },
       { label: "Dolu Bölüm",    value: String(filledSections) },
       { label: "Görsel Sayısı", value: String(imageCount) },
       { label: "Çakra Sayısı",  value: String(chakraCount) },
       ...(isLibrary ? [{ label: "Kaynak", value: "Kütüphane" }] : []),
-    ],
+    ].filter((s) => s.value.trim().length > 0),
   }));
 
   // ── Sistem özeti

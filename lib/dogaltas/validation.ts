@@ -17,7 +17,61 @@ export function isUuid(v: unknown): v is string {
   return typeof v === "string" && UUID_RE.test(v.trim());
 }
 
+import { isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
+
 export type FieldValidation = { ok: true } | { ok: false; error: string };
+
+/**
+ * images[]: SSRF kapanışı — Doğaltaş yalnız canonical private dogaltas-photos
+ * file_path modelini kabul eder. Kurallar:
+ *   - Kabul: yok / null / nesne dizisi.
+ *   - Her öğe düz nesne olmalı (null/dizi/primitive red).
+ *   - `url` (legacy remote bağlantı) DOLU gelirse REDDEDİLİR → rapor motoru dış
+ *     URL fetch etmez (server-side SSRF yolu kapalı).
+ *   - `file_path` verilmişse tenant'a ait canonical path olmalı
+ *     (isOwnedStonePhotoPath: traversal / mutlak-URL / yabancı-tenant reddi).
+ *   - `id` / `name` yalnız string olabilir (varsa).
+ * Sessiz coercion YOK; ilk hata döner.
+ */
+export function validateStoneImagesField(
+  value: unknown,
+  tenantId: string,
+): FieldValidation {
+  if (value === undefined || value === null) return { ok: true };
+  if (!Array.isArray(value)) {
+    return { ok: false, error: "Görseller alanı liste (dizi) olmalıdır." };
+  }
+  for (const item of value) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      return { ok: false, error: "Her görsel bir nesne olmalıdır." };
+    }
+    const rec = item as Record<string, unknown>;
+
+    // Remote URL modeli kapalı: dış bağlantı (URL) ile görsel eklenemez.
+    if (rec.url !== undefined && rec.url !== null && String(rec.url).trim().length > 0) {
+      return {
+        ok: false,
+        error:
+          "Görseller yalnız taş fotoğrafı yükleyerek eklenebilir; dış bağlantı (URL) kabul edilmez.",
+      };
+    }
+
+    // file_path verilmişse tenant'a ait canonical dogaltas-photos yolu olmalı.
+    if (rec.file_path !== undefined && rec.file_path !== null) {
+      if (!isOwnedStonePhotoPath(rec.file_path, tenantId)) {
+        return { ok: false, error: "Geçersiz görsel yolu." };
+      }
+    }
+
+    if (rec.id !== undefined && typeof rec.id !== "string") {
+      return { ok: false, error: "Görsel kimliği metin olmalıdır." };
+    }
+    if (rec.name !== undefined && typeof rec.name !== "string") {
+      return { ok: false, error: "Görsel adı metin olmalıdır." };
+    }
+  }
+  return { ok: true };
+}
 
 /**
  * string[] beklenen alan (chakras, warning_tags). Kabul: yok / null / string[].
