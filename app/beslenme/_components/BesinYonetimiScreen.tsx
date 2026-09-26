@@ -5,7 +5,7 @@
  *   mode="contributor" → /beslenme/besinlerim (dar bayraklı uzman: yalnız kendi CUSTOM besinleri;
  *                        SYSTEM salt-okunur; owner-only sekmeler/aksiyonlar GİZLİ)
  *
- * ERİŞİM bu bileşene GELMEDEN route wrapper'ında doğrulanır (useBeslenmeOwnerGuard /
+ * ERİŞİM bu bileşene GELMEDEN route wrapper'ında doğrulanır (useBeslenmeModuleGuard /
  * useBeslenmeFoodContributorGuard). Bu bileşen guard ÇAĞIRMAZ; yalnız sunum + veri.
  * Sunucu tarafı zaten guard'lı (defense-in-depth): contributor modunda çağrılan uçların
  * tümü owner VEYA dar bayraklı uzman kabul eder; SYSTEM yazma resolveFoodForWrite ile kapalı.

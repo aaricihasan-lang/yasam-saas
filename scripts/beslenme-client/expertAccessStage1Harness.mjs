@@ -53,20 +53,19 @@ const ctc = read("lib/beslenme/clientTabClient.ts");
 ok("getAllergenVocab → /api/beslenme/client-reference", /getAllergenVocab[\s\S]{0,120}\/api\/beslenme\/client-reference/.test(ctc));
 ok("getAllergenVocab artık geniş /api/beslenme/reference kullanmıyor", !/getAllergenVocab[\s\S]{0,120}\/api\/beslenme\/reference`/.test(ctc));
 
-// 5) Global owner-only kapı DEĞİŞMEDİ.
+// 5) Global Beslenme kapısı artık MODÜL (admin↔uzman parity); owner-only faz KALDIRILDI.
 const og = read("lib/beslenme/ownerGuard.ts");
-ok("requireBeslenmeOwner hâlâ owner-only (requireMainAdmin)", /export async function requireBeslenmeOwner[\s\S]{0,400}requireMainAdmin\(/.test(og));
+ok("requireBeslenmeModule mevcut (requireModuleAccess beslenme; OWNER_ONLY narrowing YOK)",
+   /export async function requireBeslenmeModule[\s\S]{0,300}requireModuleAccess\(req,\s*["']beslenme["']\)/.test(og) &&
+   !/export async function requireBeslenmeModule[\s\S]{0,300}OWNER_ONLY/.test(og));
+ok("requireBeslenmeOwner kaldırıldı (owner-only faz yok)", !/export async function requireBeslenmeOwner/.test(og));
 const access = read("app/api/beslenme/access/route.ts");
-ok("/api/beslenme/access hâlâ requireBeslenmeOwner", /requireBeslenmeOwner\(/.test(access));
+ok("/api/beslenme/access beslenme-gate (requireModuleAccess beslenme) + clients yeteneği",
+   /requireModuleAccess\(req,\s*["']beslenme["']\)/.test(access) && /clients:\s*clients === true/.test(access));
 
-// 6) Plan API route'ları hâlâ owner-only (AŞAMA 2 — bu fazda DOKUNULMADI).
-for (const p of [
-  "app/api/beslenme/plans/route.ts",
-  "app/api/beslenme/plans/[id]/route.ts",
-]) {
-  const src = read(p);
-  ok(`plan route owner-only korunuyor: ${p}`, /requireBeslenmeOwner\(/.test(src) && !/requireModuleAccess\(\s*req\s*,\s*["']clients["']\s*\)/.test(src));
-}
+// 6) Global plan API'leri artık modül / plan-access (admin↔uzman parity).
+ok("plans/route.ts requireBeslenmeModule", /requireBeslenmeModule\(/.test(read("app/api/beslenme/plans/route.ts")));
+ok("plans/[id]/route.ts requireBeslenmePlanAccess (owner|bound-expert)", /requireBeslenmePlanAccess\(req,/.test(read("app/api/beslenme/plans/[id]/route.ts")));
 // client-scoped plan LİSTESİ read'i uzmanlara açık (requireBeslenmeClient üstünden).
 const clientPlans = read("app/api/beslenme/clients/[clientId]/plans/route.ts");
 ok("clients/[clientId]/plans requireBeslenmeClient (client-scoped read)", /requireBeslenmeClient\(/.test(clientPlans));
@@ -85,7 +84,7 @@ const clientRoutes = [
   ["preferences/[preferenceId]", ["DELETE"], true],
   ["plans", ["GET"], false],
 ];
-for (const [seg, methods, hasMutation] of clientRoutes) {
+for (const [seg, , hasMutation] of clientRoutes) {
   const src = read(`app/api/beslenme/clients/[clientId]/${seg}/route.ts`);
   ok(`clients/${seg} requireBeslenmeClient kullanıyor`, /requireBeslenmeClient\(/.test(src));
   ok(`clients/${seg} body'den tenant/client kimliği KABUL ETMİYOR`, !/body\.(tenant_id|client_id|user_id)/.test(src));
@@ -101,8 +100,8 @@ ok("page.tsx BeslenmeTab'a isOwner=isBeslenmeOwner geçiyor", /isOwner=\{isBesle
 // 10) BeslenmeTab: owner ön-probe kaldırıldı; plan aksiyonları canManagePlans'a bağlı.
 const tab = read("app/dashboard/clients/[id]/components/BeslenmeTab.tsx");
 ok("BeslenmeTab owner ön-probe (checkBeslenmeAccess) KALDIRILDI", !/checkBeslenmeAccess/.test(tab));
-ok("BeslenmeTab canManagePlans prop'u alıyor", /canManagePlans/.test(tab));
-ok("BeslenmeTab plan aksiyonları isOwner capability'sine bağlı", /isOwner/.test(tab));
+ok("BeslenmeTab isOwner prop'u alıyor (Yeni Plan mekanizma seçimi)", /isOwner/.test(tab));
+ok("BeslenmeTab uzman plan create yolu (createClientPlan) mevcut", /createClientPlan\(/.test(tab));
 
 console.log(`\n${fail === 0 ? "✅ PASS" : "❌ FAIL"} — ${pass} geçti, ${fail} kaldı`);
 process.exit(fail === 0 ? 0 : 1);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { SOURCE_COLUMNS, SOURCE_TYPES, cleanStr, cleanUrl, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ const UPDATE_KEYS = [
 ] as const;
 
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
 /** DELETE: gerçek silme; referanslı (topic/food link) ise 409 (RESTRICT). */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -82,9 +82,9 @@ export function resolveModuleAccess(
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
   if (moduleKey === "cosmic_calendar") return true;
-  // Beslenme: OWNER-ONLY (super-admin) faz. Admin (üstte short-circuit) API'de ayrıca
-  // requireMainAdmin ile owner'a daraltılır; uzman/anon buradan reddedilir (defense-in-depth).
-  if (moduleKey === "beslenme") return false;
+  // Beslenme artık NORMAL modül: module_permissions.beslenme === true olan uzman geçer
+  // (admin üstte short-circuit ile zaten geçer). Admin↔uzman özellik paritesi; veri erişimi
+  // her zaman server-side tenant-scoped kalır. Eski owner-only faz kaldırıldı.
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_COLUMNS, PLAN_PATCH_KEYS, PLAN_STATUSES, isUuid } from "@/lib/beslenme/planContracts";
-import { getPlan, isPlanEditable, loadPlanDaySummaries } from "@/lib/beslenme/planEngine";
+import { getPlan, isPlanEditable, loadPlanDaySummaries, mapRpcError } from "@/lib/beslenme/planEngine";
 import { requireClientInTenant, clientDisplayName } from "@/lib/danisan/clientGuard";
 
 export const runtime = "nodejs";
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
 
   const days = await loadPlanDaySummaries(db, tenantId, id);
 
-  // FAZ2: authority + bağlı danışan → editör owner-only kontrolleri gizler + "Danışana Dön".
+  // authority (module/client) + bağlı danışan → editör bağlam navigasyonu ("Danışana Dön").
+  // NOT: authority UI'da feature AYRIMI YARATMAZ (admin↔uzman paritesi); yalnız binding bağlamı.
   let boundClient: { id: string; display_name: string } | null = null;
   if (guard.boundClientId) {
     const c = await requireClientInTenant(db, tenantId, guard.boundClientId);
@@ -94,9 +95,15 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   return NextResponse.json({ ok: true, plan: data });
 }
 
-/** DELETE: planı kalıcı sil (cascade: gün/öğün/item/nutrient). Owner-only. */
+/**
+ * DELETE: bu plan REVİZYONUNU kalıcı sil (cascade: gün/öğün/item/nutrient). Admin↔uzman parity:
+ * requireBeslenmePlanAccess (module | bound-plan client). Atomik nutrition_plan_delete_revision
+ * RPC: tek revizyon silinir; family'de BAŞKA revizyon varsa binding KORUNUR, SON revizyon
+ * silinirse family-binding de temizlenir (yetim binding önle). GERÇEK client kaydına dokunulmaz.
+ * RPC FOR UPDATE ile eşzamanlı son-revizyon silmelerine karşı yarışsızdır (bkz. migration).
+ */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -104,10 +111,13 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
 
-  const plan = await getPlan(db, tenantId, id);
-  if (!plan) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-
-  const { error } = await db.from("nutrition_plans").delete().eq("tenant_id", tenantId).eq("id", id);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
-  return NextResponse.json({ ok: true });
+  const { data, error } = await db.rpc("nutrition_plan_delete_revision", {
+    p_tenant_id: tenantId,
+    p_plan_id: id,
+  });
+  if (error) {
+    const m = mapRpcError(error.code);
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  return NextResponse.json({ ok: true, result: data });
 }
