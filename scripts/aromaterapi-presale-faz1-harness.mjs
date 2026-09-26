@@ -49,7 +49,8 @@ console.log("Aromaterapi — Satış Öncesi FAZ 1 harness'i\n");
 console.log("[ARO-001] Modül-kapılı guard (requireModuleAccess) — tüm route'lar");
 // ============================================================
 const ROUTES = collectRoutes("app/api/aromaterapi");
-check("A00 route.ts sayısı = 37", ROUTES.length === 37, `bulunan: ${ROUTES.length}`);
+// P1-D: +3 route (articles/route, articles/[id]/route, glossary/[id]/route) → 37→40.
+check("A00 route.ts sayısı = 40", ROUTES.length === 40, `bulunan: ${ROUTES.length}`);
 let guarded = 0, leaks = [];
 for (const r of ROUTES) {
   const src = read(r);
