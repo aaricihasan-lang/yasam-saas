@@ -28,15 +28,15 @@
       },
       "mineral-listesi": {
         "title": "Minerals",
-        "subtitle": "View and manage minerals."
+        "subtitle": "View and manage your minerals."
       },
       "dogaltas-listesi": {
-        "title": "Stone Records",
-        "subtitle": "Saved stones."
+        "title": "Stones",
+        "subtitle": "View, search and manage your stones."
       },
       "kombinasyonlar": {
-        "title": "Stone Combinations",
-        "subtitle": "Stone combinations."
+        "title": "Combinations",
+        "subtitle": "View and create your combinations."
       },
       "kombinasyon-olustur": {
         "title": "Create Combination",

@@ -431,8 +431,16 @@ function MineralDetailPageContent() {
     for (const key of MINERAL_EDIT_LIST_FIELD_KEYS) {
       payload[key] = linesToArray(editForm[key]);
     }
-    const res = await updateMineral(mineral.id, payload);
+    // F-03: yüklenen kaydın updated_at'i geri gönderilir → araya başka oturum
+    // yazdıysa 409 conflict; kullanıcıya profesyonel mesaj + güncel veri yenilenir.
+    const expected = (mineral as { updated_at?: string })?.updated_at ?? null;
+    const res = await updateMineral(mineral.id, payload, expected);
     setEditSaving(false);
+    if (res.conflict) {
+      setEditError(res.error || t("updateFailed"));
+      await loadMineral(); // en güncel kaydı getir (form açık kalır)
+      return;
+    }
     if (!res.ok) {
       setEditError(res.error || t("updateFailed"));
       return;

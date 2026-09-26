@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export const runtime = "nodejs";
  */
 
 const COMBINATION_COLUMNS =
-  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at,origin_type";
+  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at,updated_at,origin_type";
 
 const MAX_ISSUE = 500;
 
@@ -81,5 +82,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     });
   }
 
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  // F-02 READ: yapısal kayıtlar (junction'ı olan) için stones_text canonical junction'dan
+  // resolve edilir (güncel taş adı; silinen için snapshot_name). Legacy kayıtlar
+  // stones_text fallback ile korunur. SALT-OKUMA + BATCH (tek sorgu) + tenant-scoped.
+  const rows = await hydrateCombinationStoneNames(db, tenantId, (data ?? []) as { id: string; stones_text?: string | null }[]);
+  return NextResponse.json({ ok: true, rows });
 }

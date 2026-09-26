@@ -6,7 +6,7 @@ import {
   MINERALS_LIST_SEARCH_SELECT,
   MINERALS_LIST_PAGE_SIZE,
   MINERALS_UNCATEGORIZED_FILTER,
-  mineralRowMatchesSearch,
+  buildMineralsListSearchOrFilter,
   mapMineralListRow,
 } from "@/lib/dogaltas/mineralsListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
@@ -37,13 +37,6 @@ function slugify(s: string): string {
     .replace(/ü/g, "u").replace(/ö/g, "o").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function matchCat(kategori: unknown, category: string): boolean {
-  if (!category) return true;
-  const k = typeof kategori === "string" ? kategori.trim() : "";
-  if (category === MINERALS_UNCATEGORIZED_FILTER) return !k;
-  return k === category;
-}
-
 // ─── GET: list | count | all ─────────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "stones");
@@ -69,44 +62,46 @@ export async function GET(req: NextRequest): Promise<Response> {
       return NextResponse.json({ ok: true, rows: data ?? [] });
     }
 
-    // Aramalı: dizi alanları dahil tam tarama → client-side filtre (mevcut mantık).
-    if (q) {
-      const { data, error } = await db
-        .from("minerals").select(MINERALS_LIST_SEARCH_SELECT)
-        .eq("tenant_id", tenantId).order("created_at", { ascending: false, nullsFirst: false });
-      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:search", tenantId, cause: error });
-
-      const matched = (data ?? []).filter((row) => {
-        const r = row as Record<string, unknown>;
-        if (!matchCat(r.kategori, category)) return false;
-        return mineralRowMatchesSearch(r as Parameters<typeof mineralRowMatchesSearch>[0], q);
-      });
-
-      if (mode === "count") return NextResponse.json({ ok: true, count: matched.length });
-      const offset = Number.parseInt(sp.get("offset") ?? "0", 10) || 0;
-      const limit = Number.parseInt(sp.get("limit") ?? String(MINERALS_LIST_PAGE_SIZE), 10) || MINERALS_LIST_PAGE_SIZE;
-      const rows = matched.slice(offset, offset + limit).map((r) => mapMineralListRow(r as Record<string, unknown>));
-      return NextResponse.json({ ok: true, rows });
+    // Arama artık SERVER-SIDE SQL ilike (.or) — F-05 çekirdek alanları
+    // (name/aciklama/kategori/source_id), trgm-index destekli, bounded, tenant-scoped.
+    // Eski JS full-scan KALDIRILDI (route'a/browser'a tüm korpus inmez; sessiz
+    // truncation riski yok). Dizi/JSON detay alanları hızlı-yol arama kapsamı dışıdır.
+    const orFilter = q ? buildMineralsListSearchOrFilter(q) : null;
+    // q verildi ama sanitize sonrası boşsa (yalnız ,()%' vb.) → yanlış geniş eşleşme
+    // yerine boş sonuç.
+    if (q && !orFilter) {
+      if (mode === "count") return NextResponse.json({ ok: true, count: 0 });
+      return NextResponse.json({ ok: true, rows: [] });
     }
 
-    // Aramasız:
+    const applyCategory = <T>(query: T): T => {
+      const q2 = query as unknown as {
+        or: (f: string) => T; eq: (c: string, v: string) => T;
+      };
+      if (category === MINERALS_UNCATEGORIZED_FILTER) return q2.or("kategori.is.null,kategori.eq.");
+      if (category) return q2.eq("kategori", category);
+      return query;
+    };
+
     if (mode === "count") {
       let query = db.from("minerals").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
-      if (category === MINERALS_UNCATEGORIZED_FILTER) query = query.or("kategori.is.null,kategori.eq.");
-      else if (category) query = query.eq("kategori", category);
+      query = applyCategory(query);
+      if (orFilter) query = query.or(orFilter);
       const { count, error } = await query;
       if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:count", tenantId, cause: error });
       return NextResponse.json({ ok: true, count: count ?? 0 });
     }
 
-    const offset = Number.parseInt(sp.get("offset") ?? "0", 10) || 0;
-    const limit = Number.parseInt(sp.get("limit") ?? String(MINERALS_LIST_PAGE_SIZE), 10) || MINERALS_LIST_PAGE_SIZE;
+    // Pagination — limit sunucuda clamp'lenir (client keyfine 10000 yapamaz).
+    const offset = Math.max(0, Number.parseInt(sp.get("offset") ?? "0", 10) || 0);
+    const rawLimit = Number.parseInt(sp.get("limit") ?? String(MINERALS_LIST_PAGE_SIZE), 10) || MINERALS_LIST_PAGE_SIZE;
+    const limit = Math.min(Math.max(1, rawLimit), 100);
     let query = db.from("minerals").select(MINERALS_LIST_SELECT)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
-    if (category === MINERALS_UNCATEGORIZED_FILTER) query = query.or("kategori.is.null,kategori.eq.");
-    else if (category) query = query.eq("kategori", category);
+    query = applyCategory(query);
+    if (orFilter) query = query.or(orFilter);
     const { data, error } = await query;
     if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:list", tenantId, cause: error });
     return NextResponse.json({ ok: true, rows: (data ?? []).map((r) => mapMineralListRow(r as Record<string, unknown>)) });

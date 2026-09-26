@@ -17,6 +17,12 @@ export type DogaltasModule = {
   href: string;
   /** Hub kartı / kabuk vurgusu — amber/emerald V3 kimliği içinde. */
   accent: DogaltasAccent;
+  /**
+   * IA sadeleştirme (FAZ 2): true ise sol menü/hub'da ANA çalışma alanı olarak
+   * görünür. false → route KORUNUR (breadcrumb/deep-link/back çalışır) ama menüde
+   * tekrarlanmaz; ilgili liste ekranındaki "+ Yeni …" CTA'sından açılır.
+   */
+  primaryNav: boolean;
 };
 
 export const DOGALTAS_HOME = {
@@ -25,53 +31,33 @@ export const DOGALTAS_HOME = {
 } as const;
 
 export const DOGALTAS_MODULES: DogaltasModule[] = [
+  // ── ANA ÇALIŞMA ALANLARI (menüde görünür) ──────────────────────────────────
   {
-    slug: "dogaltas-kayit",
-    title: "Doğaltaş Kayıt",
-    subtitle: "Yeni taş kaydı oluştur.",
+    slug: "dogaltas-listesi",
+    title: "Doğaltaşlar",
+    subtitle: "Taşlarını görüntüle, ara ve yönet.",
     icon: "💎",
-    href: "/dogaltas/dogaltas-kayit",
+    href: "/dogaltas/dogaltas-listesi",
     accent: "emerald",
-  },
-  {
-    slug: "mineral-bankasi",
-    title: "Mineral Bankası",
-    subtitle: "Yeni mineral kaydı ekle.",
-    icon: "🧪",
-    href: "/dogaltas/mineral-bankasi",
-    accent: "amber",
+    primaryNav: true,
   },
   {
     slug: "mineral-listesi",
-    title: "Mineral Listesi",
-    subtitle: "Mineralleri görüntüle ve yönet.",
-    icon: "📋",
+    title: "Mineraller",
+    subtitle: "Minerallerini görüntüle ve yönet.",
+    icon: "🧪",
     href: "/dogaltas/mineral-listesi",
     accent: "teal",
-  },
-  {
-    slug: "dogaltas-listesi",
-    title: "Doğaltaş Listesi",
-    subtitle: "Kayıtlı taşlar.",
-    icon: "🗂️",
-    href: "/dogaltas/dogaltas-listesi",
-    accent: "emerald",
+    primaryNav: true,
   },
   {
     slug: "kombinasyonlar",
     title: "Kombinasyonlar",
-    subtitle: "Taş kombinasyonları.",
+    subtitle: "Kombinasyonlarını görüntüle ve oluştur.",
     icon: "🧩",
     href: "/dogaltas/kombinasyonlar",
     accent: "orange",
-  },
-  {
-    slug: "kombinasyon-olustur",
-    title: "Kombinasyon Oluştur",
-    subtitle: "Minerale göre taş bul.",
-    icon: "⚗️",
-    href: "/dogaltas/kombinasyon-olustur",
-    accent: "lime",
+    primaryNav: true,
   },
   {
     slug: "tas-bilgi-kutuphanesi",
@@ -80,8 +66,41 @@ export const DOGALTAS_MODULES: DogaltasModule[] = [
     icon: "📚",
     href: "/dogaltas/tas-bilgi-kutuphanesi",
     accent: "amber",
+    primaryNav: true,
+  },
+  // ── OLUŞTURMA ROTALARI (menüde tekrarlanmaz; liste CTA'sından; route KORUNUR) ─
+  {
+    slug: "dogaltas-kayit",
+    title: "Doğaltaş Kayıt",
+    subtitle: "Yeni taş kaydı oluştur.",
+    icon: "💎",
+    href: "/dogaltas/dogaltas-kayit",
+    accent: "emerald",
+    primaryNav: false,
+  },
+  {
+    slug: "mineral-bankasi",
+    title: "Mineral Bankası",
+    subtitle: "Yeni mineral kaydı ekle.",
+    icon: "🧪",
+    href: "/dogaltas/mineral-bankasi",
+    accent: "amber",
+    primaryNav: false,
+  },
+  {
+    slug: "kombinasyon-olustur",
+    title: "Kombinasyon Oluştur",
+    subtitle: "Minerale göre taş bul.",
+    icon: "⚗️",
+    href: "/dogaltas/kombinasyon-olustur",
+    accent: "lime",
+    primaryNav: false,
   },
 ];
+
+/** Sol menü/hub — yalnız ANA çalışma alanları (IA sadeleştirme). */
+export const DOGALTAS_PRIMARY_MODULES: DogaltasModule[] =
+  DOGALTAS_MODULES.filter((m) => m.primaryNav);
 
 /** Verilen pathname'e en iyi eşleşen modülü döndürür (breadcrumb için). */
 export function findDogaltasModuleByPath(

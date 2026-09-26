@@ -615,13 +615,22 @@ export default function KombinasyonlarPage() {
       icon="🧩"
       maxWidthClass="max-w-[1720px]"
       actions={
-        <button
-          type="button"
-          onClick={handleRefresh}
-          className="btn-soft"
-        >
-          {t("refresh")}
-        </button>
+        <>
+          {/* IA: "Yeni Kombinasyon" ana çalışma alanı menüsünden değil, liste
+              CTA'sından açılır (kombinasyon-olustur route'u korunur). */}
+          {!isDemo && (
+            <Link href="/dogaltas/kombinasyon-olustur" className="btn-primary">
+              {t("newCombination")}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="btn-soft"
+          >
+            {t("refresh")}
+          </button>
+        </>
       }
     >
       <BfcacheRefreshHandler />
