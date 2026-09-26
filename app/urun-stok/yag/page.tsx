@@ -47,13 +47,48 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   deleteOilInventoryItems,
   loadOilInventoryForTenant,
-  syncOilInventoryToDb,
   upsertOilInventoryItem,
 } from "@/lib/urun-stok/oilInventoryDb";
+import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
+import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 type TabId = "stock" | "pricing" | "history";
+
+const dbNum = (v: unknown): number => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** Canonical DB kategori satışları → OilSaleRecord (snapshot alanlarından; iptal için saleId). */
+function dbToOilRecords(dbSales: DbCategorySale[]): OilSaleRecord[] {
+  return dbSales.map((s) => {
+    const lines: OilSaleLine[] = s.items.map((it) => ({
+      productId: it.inventory_id,
+      productName: it.product_name_snapshot,
+      oilType: it.product_subtitle_snapshot,
+      saleQty: dbNum(it.quantity),
+      saleUnit: (it.unit || "ml") as OilInputUnit,
+      saleBaseQty: dbNum(it.quantity),
+      lineCost: dbNum(it.line_cost_total),
+      lineSale: dbNum(it.line_sale_total),
+    }));
+    const total_cost = lines.reduce((a, l) => a + l.lineCost, 0);
+    const sale_price = lines.reduce((a, l) => a + l.lineSale, 0);
+    const cancelled = s.status === "cancelled";
+    return {
+      name: (cancelled ? "(İptal edildi) " : "") + (s.note || lines[0]?.productName || "Satış"),
+      lines,
+      total_cost,
+      sale_price,
+      profit_pct: dbNum(s.items[0]?.markup_pct),
+      photos: [],
+      timestamp: s.soldAtDisplay,
+      saleId: s.saleId,
+    };
+  });
+}
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(167,243,208,0.22),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(52,211,153,0.12),transparent_30%),linear-gradient(160deg,#ecfdf5_0%,#f0fdf4_40%,#f5f3ff_100%)] text-slate-950";
@@ -194,14 +229,21 @@ export default function YagUrunStokPage() {
     const { items } = await loadOilInventoryForTenant(tenantId);
     setInventory(items);
   }, []);
-  const reloadSales = useCallback(() => setSales(loadOilSales()), []);
+  // USM: kategori "Satış Geçmişi" artık canonical DB'den (merkezî ile aynı veri).
+  // Demo localStorage kalır; real hesap DB.
+  const reloadSales = useCallback(async () => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) { setSales(loadOilSales()); return; }
+    const { sales: dbSales } = await loadDbCategorySales("oil");
+    setSales(dbToOilRecords(dbSales));
+  }, []);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
     void reloadInv();
-    reloadSales();
+    void reloadSales();
     setHydrated(true);
   }, [reloadInv, reloadSales]);
 
@@ -448,7 +490,9 @@ export default function YagUrunStokPage() {
     setMsg("Sepete eklendi.");
   }
 
-  function commitSale() {
+  // USM-001/003/004/005: satış artık CANONICAL server RPC üzerinden atomik. Fire-and-forget
+  // localStorage senkronu KALDIRILDI; server başarısı olmadan UI başarı göstermez.
+  async function commitSale() {
     if (committingRef.current) return;
     if (!basket.length) {
       setMsg("Sepet boş.");
@@ -457,62 +501,93 @@ export default function YagUrunStokPage() {
     committingRef.current = true;
     setIsCommitting(true);
     try {
-      const deductLines = basket.flatMap((r) =>
-        r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-      );
-      const updated = deductOilInventory(inventory, deductLines);
-      saveOilInventory(updated);
-      setInventory(updated);
-      appendOilSales(basket);
-      reloadSales();
-      setBasket([]);
-      setMsg("Satış kaydedildi, stok düşüldü.");
-      // K-2: Demo modda Supabase'e yazma; gerçek hesaplarda stok düşümünü senkronla
-      if (!isDemo && activeTenantId) {
-        void syncOilInventoryToDb(activeTenantId, updated).then(({ error }) => {
-          if (error) console.warn("[oil] Supabase sync hatası (satış):", error);
-        });
+      if (isDemo) {
+        // Demo: server no-op — yalnız localStorage önizleme (showcase).
+        const deductLines = basket.flatMap((r) =>
+          r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
+        );
+        const updated = deductOilInventory(inventory, deductLines);
+        saveOilInventory(updated);
+        setInventory(updated);
+        appendOilSales(basket);
+        void reloadSales();
+        setBasket([]);
+        setMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        return;
       }
+
+      const lines = basket.flatMap((r) =>
+        r.lines.map((l) => ({ clientId: l.productId, quantity: l.saleBaseQty, markupPct: r.profit_pct })),
+      );
+      const res = await createCategorySale({ category: "oil", idempotencyKey: newIdempotencyKey(), lines });
+      if (!res.ok) {
+        setMsg(res.error ?? "Satış kaydedilemedi.");
+        await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
+        return;
+      }
+      setBasket([]);
+      await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
+      await reloadSales(); // geçmiş DB'den (yeni satış görünür)
+      setMsg("Satış kaydedildi, stok düşüldü.");
+    } catch {
+      setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      await reloadInv();
     } finally {
       committingRef.current = false;
       setIsCommitting(false);
     }
   }
 
+  // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) üzerinden;
+  // atomik + tenant-scoped + çift-iptal güvenli. Stok DB'den yeniden yüklenir.
   async function deleteSelectedSales() {
-    if (!histSel.size) { setMsg("Silmek için seçin."); return; }
+    if (!histSel.size) { setMsg("İptal için seçin."); return; }
     const ok = await deleteConfirm({
-      title: "Satış kaydı silinecek",
-      message: `Seçili ${histSel.size} satış kaydı silinecek. Satılan miktarlar stoğa geri eklenecektir.`,
+      title: "Satış iptal edilecek",
+      message: `Seçili ${histSel.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
     });
     if (!ok) return;
-    const toDelete = sales.filter((_, i) => histSel.has(i));
-    const inv = [...inventory];
-    const missing: string[] = [];
-    for (const rec of toDelete) {
-      for (const line of rec.lines) {
-        const baseQty = line.saleBaseQty || 0;
-        if (baseQty <= 0) continue;
-        const idx = inv.findIndex((it) => it.id === line.productId);
-        if (idx < 0) { missing.push(line.productName); continue; }
-        inv[idx] = { ...inv[idx], stockBase: (inv[idx].stockBase || 0) + baseQty };
+    const toCancel = sales.filter((_, i) => histSel.has(i));
+
+    if (isDemo) {
+      // Demo: eski localStorage arşiv davranışı (kalıcı DB yok).
+      const inv = [...inventory];
+      const missing: string[] = [];
+      for (const rec of toCancel) {
+        for (const line of rec.lines) {
+          const baseQty = line.saleBaseQty || 0;
+          if (baseQty <= 0) continue;
+          const idx = inv.findIndex((it) => it.id === line.productId);
+          if (idx < 0) { missing.push(line.productName); continue; }
+          inv[idx] = { ...inv[idx], stockBase: (inv[idx].stockBase || 0) + baseQty };
+        }
       }
+      saveOilInventory(inv);
+      setInventory(inv);
+      const next = sales.filter((_, i) => !histSel.has(i));
+      saveOilSales(next);
+      setSales(next);
+      setHistSel(new Set());
+      setMsg(missing.length > 0
+        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
+        : "Satış iptal edildi (demo).");
+      return;
     }
-    saveOilInventory(inv);
-    setInventory(inv);
-    const next = sales.filter((_, i) => !histSel.has(i));
-    saveOilSales(next);
-    setSales(next);
+
+    let failed = 0;
+    for (const rec of toCancel) {
+      if (!rec.saleId) { failed++; continue; }
+      const res = await cancelSale(rec.saleId);
+      if (!res.ok) failed++;
+    }
     setHistSel(new Set());
-    // K-2: Demo modda Supabase'e yazma; gerçek hesaplarda stok iadesini senkronla
-    if (!isDemo && activeTenantId) {
-      void syncOilInventoryToDb(activeTenantId, inv).then(({ error }) => {
-        if (error) console.warn("[oil] Supabase sync hatası (stok iadesi):", error);
-      });
-    }
-    setMsg(missing.length > 0
-      ? `Silindi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı, iade yapılamadı.`
-      : "Satış silindi, stok güncellendi.");
+    await reloadSales();
+    await reloadInv();
+    setMsg(
+      failed > 0
+        ? `${toCancel.length - failed} satış iptal edildi, ${failed} işlem başarısız.`
+        : "Satış iptal edildi, stok stoğa geri eklendi.",
+    );
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());
@@ -698,7 +773,11 @@ export default function YagUrunStokPage() {
                     className="hidden"
                     onChange={async (e) => {
                       const f = e.target.files;
-                      if (f?.length) setPhotos(await filesToDataUrls(f));
+                      if (f?.length) {
+                        const { urls, error } = await filesToDataUrls(f);
+                        if (error) setMsg(error);
+                        else setPhotos(urls);
+                      }
                       e.target.value = "";
                     }}
                   />
@@ -884,7 +963,12 @@ export default function YagUrunStokPage() {
                   className="hidden"
                   onChange={async (e) => {
                     const f = e.target.files;
-                    if (f?.length) setSalePhotos(await filesToDataUrls(f));
+                    if (f?.length) {
+                      const { urls, error } = await filesToDataUrls(f);
+                      if (error) setMsg(error);
+                      else setSalePhotos(urls);
+                    }
+                    e.target.value = "";
                   }}
                 />
               </label>
@@ -914,7 +998,7 @@ export default function YagUrunStokPage() {
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
-                <button type="button" className={btnPrimary} onClick={commitSale} disabled={isCommitting}>
+                <button type="button" className={btnPrimary} onClick={() => void commitSale()} disabled={isCommitting}>
                   {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
                 </button>
               </div>

@@ -172,7 +172,7 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
   const rows: LiveStockRow[] = [];
   for (const it of items) {
     const qty = it.adet || 0;
-    if (qty <= 0) continue;
+    // USM-006: 0 / negatif stok da dahil edilir → tükenmiş ürün kritik listede görünür.
     const { unit, warning } = unitCostAndCurrency(it, usdRate);
     const costPerUnit = unit > 0 ? unit : it.adet_price || 0;
     rows.push({
@@ -194,7 +194,7 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
       salePerUnit: null,
       salePerUnitLabel: "—",
       marginPct: null,
-      stockValue: warning ? 0 : costPerUnit * qty,
+      stockValue: warning ? 0 : costPerUnit * Math.max(qty, 0),
       isCritical: isCriticalStock(qty, "adet"),
       photos: it.photos ?? [],
     });
@@ -205,7 +205,7 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
 // ——— Tekil item → LiveStockRow eşleyiciler (sync ve async yolu paylaşır) ———
 
 function oilItemToRow(it: OilItem): LiveStockRow | null {
-  if (it.stockBase <= 0) return null;
+  // USM-006: 0 / negatif stok dahil → tükenmiş ürün kritik listede görünür.
   const u = it.baseUnit;
   const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
@@ -222,14 +222,14 @@ function oilItemToRow(it: OilItem): LiveStockRow | null {
     salePerUnit: sale,
     salePerUnitLabel: sale != null ? fmtOilUnitCost(sale, u) : "—",
     marginPct: marginOf(it.costPerBase, sale),
-    stockValue: it.costPerBase * it.stockBase,
+    stockValue: it.costPerBase * Math.max(it.stockBase, 0),
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
   };
 }
 
 function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
-  if (it.stockBase <= 0) return null;
+  // USM-006: 0 / negatif stok dahil.
   const u = it.baseUnit;
   const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
@@ -246,14 +246,14 @@ function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
     salePerUnit: sale,
     salePerUnitLabel: sale != null ? fmtSoapUnitCost(sale, u) : "—",
     marginPct: marginOf(it.costPerBase, sale),
-    stockValue: it.costPerBase * it.stockBase,
+    stockValue: it.costPerBase * Math.max(it.stockBase, 0),
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
   };
 }
 
 function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
-  if (it.stockQty <= 0) return null;
+  // USM-006: 0 / negatif stok dahil.
   const sale = it.salePerUnit > 0 ? it.salePerUnit : null;
   return {
     id: `accessory:${it.id}`,
@@ -269,14 +269,14 @@ function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
     salePerUnit: sale,
     salePerUnitLabel: sale != null ? `${fmtMoney(sale)} / adet` : "—",
     marginPct: marginOf(it.costPerUnit, sale),
-    stockValue: it.costPerUnit * it.stockQty,
+    stockValue: it.costPerUnit * Math.max(it.stockQty, 0),
     isCritical: isCriticalStock(it.stockQty, "adet"),
     photos: it.photos ?? [],
   };
 }
 
 function otherItemToRow(it: OtherItem): LiveStockRow | null {
-  if (it.stockBase <= 0) return null;
+  // USM-006: 0 / negatif stok dahil.
   const u = it.baseUnit;
   const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
@@ -293,7 +293,7 @@ function otherItemToRow(it: OtherItem): LiveStockRow | null {
     salePerUnit: sale,
     salePerUnitLabel: sale != null ? fmtOtherUnitCost(sale, u) : "—",
     marginPct: marginOf(it.costPerBase, sale),
-    stockValue: it.costPerBase * it.stockBase,
+    stockValue: it.costPerBase * Math.max(it.stockBase, 0),
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
   };

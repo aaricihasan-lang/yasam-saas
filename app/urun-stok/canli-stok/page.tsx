@@ -4,7 +4,7 @@ import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
 import type { DogaltasInventoryLoadDebug } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
@@ -28,7 +28,7 @@ import {
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
@@ -313,16 +313,21 @@ export default function CanliStokMerkeziPage() {
   const isAndroid = useIsAndroid();
 
   async function exportStockWord(mode: "all" | "critical") {
-    const user = await getSyncedYasamUser();
-    const tid = user?.tenant_id?.trim() || tenantId;
-    const uid = user?.id;
-    if (!tid || !uid) return;
+    // USM-002: kimlik/tenant BODY'den GÖNDERİLMEZ; token-bound header ile doğrulanır,
+    // tenant sunucuda oturumdan belirlenir.
+    const uid = readYasamUser()?.id;
+    const token = readSessionToken();
+    if (!uid || !token) { alert("Oturum bulunamadı. Lütfen tekrar giriş yapın."); return; }
     setWordBusy(true);
     try {
       const res = await fetch("/api/urun-stok/stock-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: mode }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": uid,
+          "x-session-token": token,
+        },
+        body: JSON.stringify({ exportMode: mode }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -333,7 +338,7 @@ export default function CanliStokMerkeziPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dogaltas-stok-${mode === "critical" ? "kritik" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.download = `urun-stok-${mode === "critical" ? "kritik" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch { /* sessiz */ } finally {
