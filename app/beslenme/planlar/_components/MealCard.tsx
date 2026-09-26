@@ -76,6 +76,7 @@ export function MealCard({
     }
   }
 
+  // Admin↔uzman parity: "Öğünü Şablonla" tenant-scoped şablon üretir; her yetkili kullanıcıda açık.
   const menuItems: MenuItem[] = readOnly
     ? []
     : [

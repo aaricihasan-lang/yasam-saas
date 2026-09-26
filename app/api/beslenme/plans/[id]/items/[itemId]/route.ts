@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { ITEM_PATCH_KEYS, ITEM_INPUT_KEYS, PLAN_ITEM_COLUMNS, isUuid } from "@/lib/beslenme/planContracts";
 import {
@@ -22,7 +23,7 @@ async function loadItemNutrients(db: import("@supabase/supabase-js").SupabaseCli
  * (target_meal_id → aynı plan, meal_id UPDATE). Archived → 403.
  */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -96,7 +97,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
 /** PUT: besini değiştir → YENİ snapshot + nutrient set (server food'u yeniden çözer; §34). Archived → 403. */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
@@ -139,7 +140,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
 
 /** DELETE: item sil (cascade nutrient). Archived → 403. */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

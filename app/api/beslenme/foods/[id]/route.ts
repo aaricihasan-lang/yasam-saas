@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeFoodContributor, requireBeslenmeFoodRead, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import {
   FOOD_COLUMNS,
   FOOD_SOURCE_COLUMNS,
@@ -33,7 +33,7 @@ const UPDATE_KEYS = [
 
 /** GET: besin detayı + besin değerleri + porsiyonlar + geleneksel + kaynaklar (SYSTEM veya kendi). */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeFoodContributor(req);
+  const guard = await requireBeslenmeFoodRead(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const { id } = await ctx.params;

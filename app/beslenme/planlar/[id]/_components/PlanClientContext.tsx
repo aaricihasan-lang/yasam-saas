@@ -75,7 +75,8 @@ export default function PlanClientContext({
   const allergensText = useMemo(() => {
     if (!ctx || ctx.allergens.length === 0) return t("none");
     return ctx.allergens
-      .map((a) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code))
+      .map((a) => a.custom_label || (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code) || "")
+      .filter(Boolean)
       .join(", ");
   }, [ctx, t, locale]);
 

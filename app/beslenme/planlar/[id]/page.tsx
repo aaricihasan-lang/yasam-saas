@@ -22,14 +22,11 @@ import {
   revisePlan,
   syncRange,
   type Plan,
+  type PlanBoundClient,
   type PlanDaySummary,
 } from "@/lib/beslenme/planClient";
 import { cleanDate, daysBetween } from "@/lib/beslenme/planContracts";
-import {
-  BeslenmeGate,
-  BeslenmeShell,
-  useBeslenmeOwnerGuard,
-} from "../../_components/BeslenmeShell";
+import { BeslenmeShell } from "../../_components/BeslenmeShell";
 import {
   DangerButton,
   Field,
@@ -58,11 +55,13 @@ import { MonthView } from "../_components/MonthView";
 type View = "day" | "week" | "month";
 
 export default function PlanEditorPage() {
-  const guard = useBeslenmeOwnerGuard();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
 
+  // Owner-guard YOK: güvenlik server-side (requireBeslenmePlanAccess). Erişim, getPlan
+  // sonucundan authoritative belirlenir — 401/403/404 → hassas içerik render EDİLMEZ.
+  const [boundClient, setBoundClient] = useState<PlanBoundClient | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<PlanDaySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +81,7 @@ export default function PlanEditorPage() {
     const r = await getPlan(id);
     if (r.ok && r.data?.plan) {
       setPlan(r.data.plan);
+      setBoundClient(r.data.boundClient ?? null);
       const ds = r.data.days ?? [];
       setDays(ds);
       setSelectedDayId((prev) => (prev && ds.some((d) => d.id === prev) ? prev : ds[0]?.id ?? null));
@@ -92,7 +92,6 @@ export default function PlanEditorPage() {
   }, [id]);
 
   useEffect(() => {
-    if (guard !== "ok") return;
     let alive = true;
     void (async () => {
       setLoading(true);
@@ -102,10 +101,12 @@ export default function PlanEditorPage() {
     return () => {
       alive = false;
     };
-  }, [guard, reloadPlan]);
+  }, [reloadPlan]);
 
-  if (guard !== "ok") return <BeslenmeGate state={guard} />;
-
+  // Bağlı danışan varsa editör bu planın bir danışana ait olduğunu bilir → "Danışana Dön"
+  // navigasyonu. Authority (module/client) UI'da AYRIM YARATMAZ (admin↔uzman feature paritesi);
+  // yalnız binding varlığı nav bağlamını belirler.
+  const cameFromClient = !!boundClient;
   const archived = plan?.status === "archived";
 
   async function doCopy() {
@@ -148,6 +149,9 @@ export default function PlanEditorPage() {
         archived={archived}
         onChanged={() => void reloadPlan()}
       />
+      {/* Admin↔uzman parity: Kopyala/Revizyon her yetkili kullanıcıda açık. Kopya expert'te
+          aynı danışana otomatik bağlanır; revizyon aynı family'de kalır. Güvenlik server-side
+          (requireBeslenmePlanAccess: tenant + bound-plan). */}
       <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
         Planı Kopyala
       </GhostButton>
@@ -184,8 +188,8 @@ export default function PlanEditorPage() {
           : "Beslenme planı yükleniyor…"
       }
       icon={<UtensilsCrossed className="h-32 w-32" strokeWidth={1} />}
-      backHref="/beslenme/planlar"
-      backLabel="Planlar"
+      backHref={cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
+      backLabel={cameFromClient && boundClient ? "Danışana Dön" : "Planlar"}
       actions={headerActions}
     >
       {loading ? (
@@ -195,7 +199,7 @@ export default function PlanEditorPage() {
       ) : (
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
-          {/* FAZ 7: danışan bağlam şeridi (owner-only; API owner-authoritative) */}
+          {/* Danışan bağlam şeridi (server-authoritative; owner+bound-plan uzmanı) */}
           <PlanClientContext planId={id} onAvoidedFoodIdsChange={setAvoidedFoodIds} />
           {/* Bilgi şeridi */}
           <div className="flex flex-wrap items-center gap-2">

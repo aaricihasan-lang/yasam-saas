@@ -86,9 +86,11 @@ export function resolveModuleAccess(
   moduleKey: string,
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
-  // Beslenme: OWNER-ONLY (super-admin) faz. Admin (üstte short-circuit) API'de ayrıca
-  // requireMainAdmin ile owner'a daraltılır; uzman/anon buradan reddedilir (defense-in-depth).
-  if (moduleKey === "beslenme") return false;
+  // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
+  //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
+  //   • beslenme owner-only `return false` YOK (main: beslenme artık NORMAL modül) → module_permissions.beslenme.
+  // İkisi de aşağıdaki hasFlag(flags, moduleKey) akışına düşer; admin üstte short-circuit ile
+  // zaten geçer; veri erişimi her zaman server-side tenant-scoped kalır.
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {

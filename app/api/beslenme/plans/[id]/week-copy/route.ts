@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { cleanDate, isUuid } from "@/lib/beslenme/planContracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
@@ -11,9 +12,15 @@ type RouteCtx = { params: Promise<{ id: string }> };
  * POST: span_days günü kaynak başlangıçtan hedef başlangıca date-offset DEEP COPY (§21).
  * Kaynak+hedef günler plan aralığında olmalı (409 RANGE_OUT_OF_BOUNDS); hedef günler BOŞ olmalı
  * (409 TARGET_NOT_EMPTY); atomik (yarım hafta YOK). Archived → 403.
+ *
+ * ERİŞİM (uzman erişimi AŞAMA 2): requireBeslenmePlanAccess → owner global/unbound planda
+ * çalışmaya devam eder; clients-yetkili uzman YALNIZ kendi tenant'ında + kendi danışanına bağlı
+ * (plan_family → nutrition_plan_clients → requireClientInTenant) planda çalışır. Unbound/yabancı
+ * plan uzmana KAPALI (404 fail-closed). tenant_id yalnız guard.tenantId; p_plan_id path id.
+ * Böylece gün/öğün/item kopyalayabilen uzman için "Haftayı Kopyala" dead-control ortadan kalkar.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

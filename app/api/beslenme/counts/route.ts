@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule } from "@/lib/beslenme/ownerGuard";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * arşivlenen (is_active=false) kayıt listede görünmediği gibi sayaçta da görünmez.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { ITEM_INPUT_KEYS, isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, isPlanEditable, getMealScope, buildItemSnapshot, mapRpcError } from "@/lib/beslenme/planEngine";
@@ -13,7 +14,7 @@ type RouteCtx = { params: Promise<{ id: string; mealId: string }> };
  * item + nutrient snapshot yazılır. Archived → 403. Ekstra alan (spoof) → 400 UNKNOWN_FIELD.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

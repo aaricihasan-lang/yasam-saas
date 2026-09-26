@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import { SOURCE_COLUMNS, SOURCE_TYPES, cleanStr, cleanUrl, inEnum, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
@@ -36,7 +36,7 @@ function buildSourcePayload(body: Record<string, unknown>): Record<string, unkno
 
 /** GET: kaynak listesi + arama (global katalog / detail tab için). */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const q = cleanStr(new URL(req.url).searchParams.get("q"), 120);
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 /** POST: yeni kaynak (opsiyonel — ana kaydı bloke etmez, ayrı çağrı). */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

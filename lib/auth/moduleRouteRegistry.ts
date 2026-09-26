@@ -25,7 +25,7 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/appointments", key: "appointments" },
   { prefix: "app/api/ajanda", key: "appointments" },
   { prefix: "app/api/kupa", key: "cupping" },
-  // Beslenme (owner-only faz): requireModuleAccess("beslenme") + requireMainAdmin (ownerGuard).
+  // Beslenme (normal modül): requireBeslenmeModule = requireModuleAccess("beslenme").
   { prefix: "app/api/beslenme", key: "beslenme" },
   // Yaşam Takvimi / Kozmik Ajanda (KAJ-P1-04): cosmic_calendar artık NORMAL kapılı modül.
   // Hacamat kuralları CRUD + PDF/Word rapor uçlarının tümü requireModuleAccess("cosmic_calendar")

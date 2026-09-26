@@ -5,8 +5,12 @@ import { foodOwnershipClass } from "./systemTenant";
 import {
   type ItemNutrientSnapshot,
   PLAN_DAY_COLUMNS,
+  PLAN_CREATE_KEYS,
+  cleanDate,
+  daysBetween,
   itemNutrientContribution,
 } from "./planContracts";
+import { cleanStr, cleanNumber, hasOnlyKeys } from "./contracts";
 import { fetchAllPaged, chunkIds } from "./pagedFetch";
 
 /**
@@ -97,6 +101,56 @@ export function mapRpcError(pgCode: string | undefined): { code: string; status:
     case "45015": return { code: "BAD_INPUT", status: 400 };
     default: return { code: "RPC_FAILED", status: 500 };
   }
+}
+
+// ── Ortak plan CREATE (owner global POST + danışan-scoped POST aynı canonical yolu kullanır) ──
+export type PlanCreatedRow = { id: string; plan_family_id: string } & Record<string, unknown>;
+export type PlanCreateResult =
+  | { ok: true; plan: PlanCreatedRow }
+  | { ok: false; code: string; status: number };
+
+/**
+ * Plan create body doğrulama + atomik `nutrition_plan_create_with_days` RPC (dense days).
+ * tenant_id YALNIZ çağırandan (server session) gelir — body'den ASLA. Owner global POST ile
+ * danışan-scoped POST bu TEK helper'ı REUSE eder (copy-paste yok). Dönüş = oluşturulan plan
+ * (id + plan_family_id) ya da eşlenmiş hata (kod + HTTP status).
+ */
+export async function createPlanForTenant(
+  db: SupabaseClient,
+  tenantId: string,
+  body: unknown,
+): Promise<PlanCreateResult> {
+  if (!body || typeof body !== "object" || !hasOnlyKeys(body as Record<string, unknown>, PLAN_CREATE_KEYS)) {
+    return { ok: false, code: "UNKNOWN_FIELD", status: 400 };
+  }
+  const b = body as Record<string, unknown>;
+  const title = cleanStr(b.title, 200);
+  if (!title) return { ok: false, code: "TITLE_REQUIRED", status: 400 };
+  const start = cleanDate(b.start_date);
+  const end = cleanDate(b.end_date);
+  if (!start || !end) return { ok: false, code: "BAD_DATE", status: 400 };
+  if (daysBetween(start, end) < 0) return { ok: false, code: "BAD_RANGE", status: 400 };
+  if (daysBetween(start, end) > 366) return { ok: false, code: "RANGE_TOO_LONG", status: 400 };
+  let target: number | null = null;
+  if (b.daily_energy_target != null) {
+    target = cleanNumber(b.daily_energy_target, { min: 0.0001, max: 100000 });
+    if (target == null) return { ok: false, code: "BAD_TARGET", status: 400 };
+  }
+  const note = cleanStr(b.note, 4000);
+
+  const { data, error } = await db.rpc("nutrition_plan_create_with_days", {
+    p_tenant_id: tenantId,
+    p_title: title,
+    p_start_date: start,
+    p_end_date: end,
+    p_daily_energy_target: target,
+    p_note: note,
+  });
+  if (error) {
+    const m = mapRpcError(error.code);
+    return { ok: false, code: m.code, status: m.status };
+  }
+  return { ok: true, plan: data as PlanCreatedRow };
 }
 
 // ── Lightweight plan overview (week/month) — per-day meal_count + energy total (dynamic aggregate) ──

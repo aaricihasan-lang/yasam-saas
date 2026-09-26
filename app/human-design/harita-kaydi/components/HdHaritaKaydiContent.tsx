@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import {
+  HdUnsavedChangesDialog,
+  type UnsavedAction,
+} from "../../rapor-olustur/components/HdUnsavedChangesDialog";
+import { useUnsavedGuard } from "../../rapor-olustur/hooks/useUnsavedGuard";
 import {
   HUMAN_DESIGN_TYPES,
   HUMAN_DESIGN_AUTHORITIES,
@@ -49,6 +54,31 @@ const emptyForm = {
   notes: "",
 };
 
+type HdChartForm = typeof emptyForm;
+
+// Kaydedilmemiş-değişiklik onay istemi (rapor ekranıyla aynı promise-tabanlı model).
+type UnsavedPrompt = {
+  title: string;
+  message: string;
+  actions: UnsavedAction[];
+  resolve: (key: string) => void;
+};
+
+// Dirty karşılaştırması için sıra-bağımsız kararlı seri hâli (toggle sırası false-dirty üretmez).
+function serializeForm(f: HdChartForm): string {
+  return JSON.stringify({
+    type_code: f.type_code,
+    authority_code: f.authority_code,
+    profile_code: f.profile_code,
+    definition_code: f.definition_code,
+    active_centers: [...f.active_centers].sort(),
+    open_centers: [...f.open_centers].sort(),
+    gates: [...f.gates].sort((a, b) => a - b),
+    channels: [...f.channels].sort(),
+    notes: f.notes,
+  });
+}
+
 export function HdHaritaKaydiContent() {
   const { showToast } = useToast();
   const params = useSearchParams();
@@ -57,10 +87,28 @@ export function HdHaritaKaydiContent() {
   const [clients, setClients] = useState<HdClientRow[]>([]);
   const [clientId, setClientId] = useState(urlClientId);
   const [form, setForm] = useState(emptyForm);
+  // Son yüklenen/kaydedilen hâlin referansı — dirty hesabı buna dayanır (HD-P2-C).
+  const [baseline, setBaseline] = useState<HdChartForm>(emptyForm);
   const [loadingChart, setLoadingChart] = useState(false);
   const [saving, setSaving] = useState(false);
   const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [prompt, setPrompt] = useState<UnsavedPrompt | null>(null);
+
+  // Gerçek dirty: yüklenmiş baseline'dan sapma (sıra-bağımsız karşılaştırma).
+  const dirty = useMemo(() => serializeForm(form) !== serializeForm(baseline), [form, baseline]);
+
+  // Çıkış koruması — YALNIZ dirty iken beforeunload bağlı (sekme kapatma / yenileme).
+  useUnsavedGuard(dirty);
+
+  // Promise-tabanlı çoklu-seçenek onay (rapor ekranıyla aynı erişilebilir dialog).
+  const askUnsaved = useCallback(
+    (cfg: Omit<UnsavedPrompt, "resolve">): Promise<string> =>
+      new Promise((resolve) => {
+        setPrompt({ ...cfg, resolve });
+      }),
+    [],
+  );
 
   // Danışan listesini yükle
   useEffect(() => {
@@ -84,15 +132,15 @@ export function HdHaritaKaydiContent() {
     return () => clearTimeout(timer);
   }, [form]);
 
-  // Seçili danışanın mevcut haritasını yükle
+  // Seçili danışanın mevcut haritasını yükle (form + baseline birlikte kurulur → dirty=false).
   const loadChart = useCallback(async (id: string) => {
-    if (!id) { setForm(emptyForm); return; }
+    if (!id) { setForm(emptyForm); setBaseline(emptyForm); return; }
     setLoadingChart(true);
     const { row, error } = await loadClientChart(id);
     setLoadingChart(false);
     if (error) { showToast({ message: `Harita yüklenemedi: ${error}`, type: "error" }); return; }
-    if (!row) { setForm(emptyForm); return; }
-    setForm({
+    if (!row) { setForm(emptyForm); setBaseline(emptyForm); return; }
+    const loaded: HdChartForm = {
       type_code: row.type_code ?? "",
       authority_code: row.authority_code ?? "",
       profile_code: row.profile_code ?? "",
@@ -102,10 +150,49 @@ export function HdHaritaKaydiContent() {
       gates: row.gates ?? [],
       channels: row.channels ?? [],
       notes: row.notes ?? "",
-    });
+    };
+    setForm(loaded);
+    setBaseline(loaded);
   }, [showToast]);
 
   useEffect(() => { loadChart(clientId); }, [clientId, loadChart]);
+
+  // Danışan değişimi — dirty ise onay iste; kullanıcı vazgeçerse form/danışan KORUNUR.
+  async function handleClientChange(newId: string) {
+    if (newId === clientId || loadingChart || saving) return;
+    if (dirty) {
+      const choice = await askUnsaved({
+        title: "Kaydedilmemiş harita değişiklikleri",
+        message:
+          "Başka bir danışana geçerseniz mevcut haritadaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        actions: [
+          { key: "cancel", label: "Vazgeç", tone: "safe" },
+          { key: "discard", label: "Değişiklikleri At ve Danışanı Değiştir", tone: "danger" },
+        ],
+      });
+      // Vazgeç → select kontrollü olduğundan eski danışanda kalır; form korunur.
+      if (choice !== "discard") return;
+    }
+    setClientId(newId); // loadChart useEffect'i formu + baseline'ı yeniler (dirty=false).
+  }
+
+  // "Yenile" — dirty ise onay iste; değilse doğrudan yeniden yükle.
+  async function handleReload() {
+    if (!clientId || loadingChart) return;
+    if (dirty) {
+      const choice = await askUnsaved({
+        title: "Kaydedilmemiş harita değişiklikleri",
+        message:
+          "Yeniden yüklerseniz kaydedilmemiş değişiklikleriniz kaybolacak ve son kayıtlı hâl gelecektir.",
+        actions: [
+          { key: "cancel", label: "Vazgeç", tone: "safe" },
+          { key: "discard", label: "Değişiklikleri At ve Yenile", tone: "danger" },
+        ],
+      });
+      if (choice !== "discard") return;
+    }
+    await loadChart(clientId);
+  }
 
   // Merkez toggle — iki listeden biri seçilebilir, diğerinden çıkarır
   function toggleCenter(code: string, as: "active" | "open") {
@@ -174,6 +261,8 @@ export function HdHaritaKaydiContent() {
     if (error) {
       showToast({ message: `Hata: ${error}`, type: "error" });
     } else {
+      // Başarılı kayıt → baseline mevcut forma sabitlenir; dirty temizlenir.
+      setBaseline(form);
       showToast({ message: "Harita kaydedildi.", type: "success" });
     }
   }
@@ -184,10 +273,11 @@ export function HdHaritaKaydiContent() {
     <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md">
       {/* Danışan Seçimi */}
       <div className="border-b border-indigo-100/80 bg-white/75 p-4">
-        <label className={labelCls}>Danışan Seç *</label>
+        <label htmlFor="hd-client-select" className={labelCls}>Danışan Seç *</label>
         <select
+          id="hd-client-select"
           value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
+          onChange={(e) => handleClientChange(e.target.value)}
           className={`h-10 ${fieldBase}`}
         >
           <option value="">— Danışan seçin —</option>
@@ -217,8 +307,9 @@ export function HdHaritaKaydiContent() {
             <p className={sectionCls}>Temel Değerler</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Tip</label>
+                <label htmlFor="hd-type-select" className={labelCls}>Tip</label>
                 <select
+                  id="hd-type-select"
                   value={form.type_code}
                   onChange={(e) => setForm((p) => ({ ...p, type_code: e.target.value }))}
                   className={`h-9 ${fieldBase}`}
@@ -230,8 +321,9 @@ export function HdHaritaKaydiContent() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Otorite</label>
+                <label htmlFor="hd-authority-select" className={labelCls}>Otorite</label>
                 <select
+                  id="hd-authority-select"
                   value={form.authority_code}
                   onChange={(e) => setForm((p) => ({ ...p, authority_code: e.target.value }))}
                   className={`h-9 ${fieldBase}`}
@@ -243,8 +335,9 @@ export function HdHaritaKaydiContent() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Profil</label>
+                <label htmlFor="hd-profile-select" className={labelCls}>Profil</label>
                 <select
+                  id="hd-profile-select"
                   value={form.profile_code}
                   onChange={(e) => setForm((p) => ({ ...p, profile_code: e.target.value }))}
                   className={`h-9 ${fieldBase}`}
@@ -256,8 +349,9 @@ export function HdHaritaKaydiContent() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Tanım</label>
+                <label htmlFor="hd-definition-select" className={labelCls}>Tanım</label>
                 <select
+                  id="hd-definition-select"
                   value={form.definition_code}
                   onChange={(e) => setForm((p) => ({ ...p, definition_code: e.target.value }))}
                   className={`h-9 ${fieldBase}`}
@@ -305,10 +399,12 @@ export function HdHaritaKaydiContent() {
                           <button
                             type="button"
                             onClick={() => toggleCenter(center.code, "active")}
+                            aria-pressed={isActive}
+                            aria-label={`${center.label} · Tanımlı`}
                             className={`h-7 w-20 rounded-lg border text-xs font-bold transition-all ${
                               isActive
                                 ? "border-transparent bg-indigo-600 text-white shadow-sm"
-                                : "border-indigo-200 bg-white text-slate-500 hover:border-indigo-400 hover:text-indigo-700"
+                                : "border-indigo-200 bg-white text-slate-600 hover:border-indigo-400 hover:text-indigo-700"
                             }`}
                           >
                             {isActive ? "✓ Tanımlı" : "Tanımlı"}
@@ -318,10 +414,12 @@ export function HdHaritaKaydiContent() {
                           <button
                             type="button"
                             onClick={() => toggleCenter(center.code, "open")}
+                            aria-pressed={isOpen}
+                            aria-label={`${center.label} · Açık`}
                             className={`h-7 w-16 rounded-lg border text-xs font-bold transition-all ${
                               isOpen
                                 ? "border-transparent bg-slate-500 text-white shadow-sm"
-                                : "border-slate-200 bg-white text-slate-400 hover:border-slate-400 hover:text-slate-600"
+                                : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-700"
                             }`}
                           >
                             {isOpen ? "✓ Açık" : "Açık"}
@@ -379,7 +477,7 @@ export function HdHaritaKaydiContent() {
           <section>
             <p className={sectionCls}>Kapılar</p>
             <div className="rounded-xl border border-indigo-200/80 bg-white/70 p-3">
-              <div className="grid grid-cols-8 gap-1.5">
+              <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
                 {HUMAN_DESIGN_GATES.map((gate) => {
                   const sel = form.gates.includes(gate.code);
                   return (
@@ -387,8 +485,10 @@ export function HdHaritaKaydiContent() {
                       key={gate.code}
                       type="button"
                       title={gate.label}
+                      aria-label={gate.label}
+                      aria-pressed={sel}
                       onClick={() => toggleGate(gate.code)}
-                      className={`flex h-8 w-full items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                      className={`flex h-9 w-full items-center justify-center rounded-lg text-xs font-bold transition-all sm:h-8 ${
                         sel
                           ? "bg-indigo-600 text-white shadow-sm"
                           : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-800"
@@ -427,6 +527,7 @@ export function HdHaritaKaydiContent() {
               value={form.notes}
               onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
               placeholder="Harita ile ilgili uzman notları..."
+              aria-label="Harita notları"
               rows={4}
               className={`${fieldBase} resize-y leading-relaxed`}
             />
@@ -436,7 +537,7 @@ export function HdHaritaKaydiContent() {
           <div className="flex items-center justify-end gap-3 border-t border-indigo-100/80 pt-4">
             <button
               type="button"
-              onClick={() => loadChart(clientId)}
+              onClick={handleReload}
               disabled={!clientId || loadingChart}
               className="h-9 rounded-xl border border-indigo-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/80 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -453,6 +554,20 @@ export function HdHaritaKaydiContent() {
           </div>
         </div>
       </div>
+
+      {/* Kaydedilmemiş-değişiklik onay dialog'u (erişilebilir; rapor ekranıyla aynı) */}
+      {prompt && (
+        <HdUnsavedChangesDialog
+          title={prompt.title}
+          message={prompt.message}
+          actions={prompt.actions}
+          onAction={(key) => {
+            const r = prompt.resolve;
+            setPrompt(null);
+            r(key);
+          }}
+        />
+      )}
     </div>
   );
 }

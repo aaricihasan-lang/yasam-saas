@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { MEAL_CREATE_KEYS, MEAL_TYPES, PLAN_MEAL_COLUMNS, isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, isPlanEditable, getDayScope } from "@/lib/beslenme/planEngine";
@@ -9,7 +10,7 @@ type RouteCtx = { params: Promise<{ id: string; dayId: string }> };
 
 /** POST: güne öğün ekle (özel öğün: meal_type=null + label). Archived → 403. */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
