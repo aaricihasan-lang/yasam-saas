@@ -1,16 +1,18 @@
 "use client";
 /**
- * Beslenme → Besinler (OWNER). Tam küratör besin yönetimi (Kaynaklar + Geleneksel + Detaylı Ekle).
- * Ekran gövdesi ortak BesinYonetimiScreen'de; bu sayfa yalnız owner-guard + mount.
+ * Beslenme → Besinler. Tam besin yönetimi (Kaynaklar + Geleneksel + Detaylı Ekle) — admin ve
+ * Beslenme modül izinli uzman AYNI ekranı görür (module guard). Yazma DAİMA tenant-scoped
+ * CUSTOM (SYSTEM salt-okunur). "mode=owner" burada rol değil TAM-EKRAN sunumudur (besinlerim
+ * legacy dar bayrak ekranıdır). Ekran gövdesi ortak BesinYonetimiScreen'de.
  */
 import {
   BeslenmeGate,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import { BesinYonetimiScreen } from "../_components/BesinYonetimiScreen";
 
 export default function BesinlerPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
   return <BesinYonetimiScreen mode="owner" />;
 }

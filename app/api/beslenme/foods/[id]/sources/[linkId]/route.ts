@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ type RouteCtx = { params: Promise<{ id: string; linkId: string }> };
 
 /** DELETE: food↔source bağını kaldır (kaynak entity'si etkilenmez). */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

@@ -9,7 +9,7 @@ import { HeartPulse } from "lucide-react";
 import { BLOOD_TYPE_PROFILES } from "@/lib/beslenme/contracts";
 import {
   BeslenmeGate,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import { ProfileTopicPage, type CanonicalProfile } from "../_components/ProfileTopicPage";
 
@@ -20,7 +20,7 @@ const PROFILES: CanonicalProfile[] = BLOOD_TYPE_PROFILES.map((b) => ({
 }));
 
 export default function KanGrubuPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   return (

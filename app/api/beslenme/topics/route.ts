@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
   TOPIC_COLUMNS,
@@ -16,7 +16,7 @@ const CREATE_KEYS = ["topic_type", "framework_id", "title", "summary", "sort_ord
 
 /** GET: topic listesi (type / framework filtresi + arama). */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const url = new URL(req.url);
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 /** POST: yeni topic. framework invariant (traditional_profile ⇔ framework_id). */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;

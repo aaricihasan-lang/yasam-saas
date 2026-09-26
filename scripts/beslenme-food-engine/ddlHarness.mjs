@@ -99,14 +99,17 @@ check("foodEngine resolveFoodForWrite SYSTEM → SYSTEM_READONLY 403",
   /isSystemNutritionTenant\(food\.tenant_id\)[\s\S]*?SYSTEM_READONLY[\s\S]*?403/.test(foodEngine));
 check("foodEngine caller-owned değilse yazma yok", /resolveFoodForWrite/.test(foodEngine));
 
-console.log("\n[H] yeni route güvenlik sözleşmesi (owner+demo+system-guard+mass-assign)");
+console.log("\n[H] route güvenlik sözleşmesi (yetkili-gate+demo+system-guard+mass-assign)");
+// Admin↔uzman parity: nutrients/portions besin-katkı (contributor), traditional besin-yönetimi
+// (module). Hiçbiri artık owner-only DEĞİL; yazma DAİMA tenant CUSTOM (resolveFoodForWrite).
 const engineRoutes = [
   "foods/[id]/nutrients/route.ts",
   "foods/[id]/portions/route.ts",
   "foods/[id]/traditional/route.ts",
 ].map((r) => [r, read(resolve(API, r))]);
 for (const [r, s] of engineRoutes) {
-  check(`${r} owner gate`, /requireBeslenmeOwner/.test(s));
+  const gate = r.includes("traditional") ? /requireBeslenmeModule\(/ : /requireBeslenmeFoodContributor\(/;
+  check(`${r} yetkili gate (module/contributor, owner-only DEĞİL)`, gate.test(s) && !/requireBeslenmeOwner\(/.test(s));
   check(`${r} demo deny`, /denyDemoMutation/.test(s));
   check(`${r} SYSTEM write guard (resolveFoodForWrite)`, /resolveFoodForWrite/.test(s));
   check(`${r} mass-assignment (hasOnlyKeys)`, /hasOnlyKeys/.test(s));

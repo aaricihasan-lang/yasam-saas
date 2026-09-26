@@ -20,6 +20,7 @@ export type ModulePermissionKey =
   | "digital_content"
   | "cosmic_calendar"
   | "cupping"
+  | "beslenme"
   | "yasam_hafizasi";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
@@ -40,6 +41,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "digital_content",
   "cosmic_calendar",
   "cupping",
+  "beslenme",
   "yasam_hafizasi",
 ];
 
@@ -59,6 +61,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   digital_content: "Dijital İçerik Merkezi",
   cosmic_calendar: "Yaşam Takvimi / Kozmik Ajanda",
   cupping: "Kupa & Hacamat",
+  beslenme: "Beslenme",
   yasam_hafizasi: "Yaşam Hafızası",
 };
 
@@ -78,6 +81,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   digital_content: false,
   cosmic_calendar: false,
   cupping: false,
+  beslenme: false,
   yasam_hafizasi: false,
 };
 

@@ -17,7 +17,7 @@ import { TEMPLATE_TYPE_LABELS, type TemplateType } from "@/lib/beslenme/template
 import {
   BeslenmeGate,
   BeslenmeShell,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import {
   Card,
@@ -37,7 +37,7 @@ const TABS: Array<{ value: TemplateType; label: string }> = [
 ];
 
 export default function SablonlarPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   const [tab, setTab] = useState<TemplateType>("meal");
   const [rows, setRows] = useState<TemplateListRow[]>([]);
   const [loading, setLoading] = useState(true);

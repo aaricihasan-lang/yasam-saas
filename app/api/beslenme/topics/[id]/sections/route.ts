@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeOwner, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { SECTION_COLUMNS, SECTION_KEYS, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ const CREATE_KEYS = ["section_key", "heading", "content", "sort_order"] as const
 
 /** POST /topics/[id]/sections — yeni section. Cross-tenant: (tenant_id, topic_id) FK zorlar. */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
-  const guard = await requireBeslenmeOwner(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
