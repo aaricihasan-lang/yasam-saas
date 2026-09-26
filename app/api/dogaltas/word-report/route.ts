@@ -3,6 +3,7 @@ import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
+import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
 import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from "docx";
@@ -82,6 +83,7 @@ type MineralRow = {
 };
 
 type CombinationRow = {
+  id: string;
   issue: string;
   description: string | null;
   source: string | null;
@@ -409,7 +411,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       : null,
     sections.combinations
       ? db.from("combinations")
-          .select("issue, description, source, stones_text, notes_text, notes_text_2, notes_text_3")
+          .select("id, issue, description, source, stones_text, notes_text, notes_text_2, notes_text_3")
           .eq("tenant_id", tenantId).order("issue")
       : null,
     sections.knowledge
@@ -424,7 +426,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   // hale getirilir (illegal kontrol karakteri temizliği; TR/Unicode/emoji korunur).
   const stonesRows    = sanitizeXmlDeep((stonesRes?.data       ?? []) as StoneRow[]);
   const mineralRows   = sanitizeXmlDeep((mineralsRes?.data     ?? []) as MineralRow[]);
-  const comboRows     = sanitizeXmlDeep((combinationsRes?.data ?? []) as CombinationRow[]);
+  // F-02 READ: yapısal kombinasyonlar junction'dan resolve (güncel ad; silinende
+  // snapshot); legacy stones_text fallback. Salt-okuma + batch. Sonra XML sanitize.
+  const comboHydrated = await hydrateCombinationStoneNames(db, tenantId, (combinationsRes?.data ?? []) as CombinationRow[]);
+  const comboRows     = sanitizeXmlDeep(comboHydrated as CombinationRow[]);
   const knowledgeRows = sanitizeXmlDeep((knowledgeRes?.data    ?? []) as KnowledgeRow[]);
 
   const counts: Record<string, number> = {};

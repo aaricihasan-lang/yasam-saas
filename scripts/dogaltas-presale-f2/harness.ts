@@ -31,6 +31,11 @@ import {
   DOGALTAS_PRIMARY_MODULES,
   findDogaltasModuleByPath,
 } from "../../lib/dogaltas/dogaltasModules";
+import {
+  pickStoneName,
+  buildResolvedStonesText,
+  toResolvedStone,
+} from "../../lib/dogaltas/combinationStonesRead";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "../..");
@@ -339,6 +344,41 @@ function read(rel: string): string {
     /const \[cart, setCart\]/.test(komb) && /const \[serverRows, setServerRows\]/.test(komb));
   ok("H: kombinasyon bulunan taşları MERGE eder (mergeKnown) — sepet id'leri korunur",
     komb.includes("mergeKnown(res.rows)"));
+}
+
+// ─── F-02 READ COMPLETION — junction canonical read + rename/delete/legacy ────────
+{
+  // Rename: stone_id bağlı + güncel ad → CURRENT NAME (mirror string eski olsa da).
+  const renamed = toResolvedStone({ stone_id: "S1", snapshot_name: "Florit", stones: { stone_name: "Yeşil Florit" } });
+  ok("READ rename: güncel taş adı (Yeşil Florit)", renamed.name === "Yeşil Florit" && !renamed.deleted);
+  ok("READ rename: pickStoneName current adı seçer", pickStoneName(renamed) === "Yeşil Florit");
+  // Delete: stone_id NULL (ON DELETE SET NULL) → snapshot_name fallback + deleted.
+  const deleted = toResolvedStone({ stone_id: null, snapshot_name: "Florit", stones: null });
+  ok("READ delete: snapshot_name fallback (Florit)", pickStoneName(deleted) === "Florit" && deleted.deleted);
+  // stone_id var ama embed adı yok → deleted + snapshot.
+  const unresolved = toResolvedStone({ stone_id: "S2", snapshot_name: "Ametist", stones: [{ stone_name: null }] });
+  ok("READ unresolved: deleted=true + snapshot", unresolved.deleted && pickStoneName(unresolved) === "Ametist");
+  // Canonical CSV = current names + snapshot fallback, sıra korunur.
+  ok("READ resolved CSV (current + snapshot)",
+    buildResolvedStonesText([renamed, deleted]) === "Yeşil Florit, Florit");
+
+  // Wiring: GET + word-report'lar junction'dan hydrate eder.
+  const combRoute = read("app/api/dogaltas/combinations/route.ts");
+  ok("READ: combinations GET hydrateCombinationStoneNames kullanır", combRoute.includes("hydrateCombinationStoneNames"));
+  ok("READ: combinations GET satır INSERT/UPDATE combination_stones YAPMAZ",
+    !/from\("combination_stones"\)[\s\S]*\.(insert|update|delete)\(/.test(combRoute));
+  for (const rel of ["app/api/dogaltas/word-report/route.ts", "app/api/dogaltas/combinations/word-report/route.ts"]) {
+    ok(`READ: ${rel} hydrate eder (Word structured relation)`, read(rel).includes("hydrateCombinationStoneNames"));
+  }
+
+  // Helper: SALT-OKUMA + BATCH + tenant-scoped + legacy fallback.
+  const helper = read("lib/dogaltas/combinationStonesRead.ts");
+  ok("READ helper: mutation YOK (insert/update/delete)", !/\.(insert|update|delete)\(/.test(helper));
+  ok("READ helper: BATCH tek sorgu (.in combination_id)", helper.includes('.in("combination_id"'));
+  ok("READ helper: tenant-scoped", helper.includes('.eq("tenant_id", tenantId)'));
+  ok("READ helper: tablo yok/hata → legacy fallback (rows döner)", /if \(error\) return rows/.test(helper));
+  ok("READ helper: junction yok → legacy (stones_text değişmez)", /if \(!resolved \|\| resolved\.length === 0\) return row/.test(helper));
+  // (DB stones_text UPDATE etmez → yukarıdaki "mutation YOK" gate'i zaten kapsar.)
 }
 
 // ─── Sonuç ──────────────────────────────────────────────────────────────────────
