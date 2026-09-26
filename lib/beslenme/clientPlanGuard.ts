@@ -1,30 +1,34 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireClientInTenant } from "@/lib/danisan/clientGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 
 /**
- * Plan editörü ortak erişim kapısı (uzman erişimi AŞAMA 2).
+ * Plan editörü ortak erişim kapısı — CAPABILITY (yetenek) tabanlı, ROLE tabanlı DEĞİL.
  *
- * OWNER GLOBAL AKIŞI ile EXPERT CLIENT-SCOPED AKIŞINI AYIRIR — requireBeslenmeOwner
- * GLOBAL olarak gevşetilmez. İki authority:
- *   - "owner"  : super-admin. Mevcut owner davranışı; unbound/global plan da erişilebilir.
- *   - "expert" : clients yetkili uzman. Plan MUTLAKA kendi tenant'ında + kendi danışanına
- *                (nutrition_plan_clients binding) bağlı olmalı; aksi halde fail-closed.
+ * Kanonik ürün kuralı: Beslenme normal bir modüldür → admin = yetkili uzman. Erişim
+ * ROLE ile değil YETENEK ile çözülür (admin resolveModuleAccess short-circuit ile zaten
+ * hasBeslenme=true olur; ek requireMainAdmin GEREKMEZ). İki authority:
+ *   - "module" : Beslenme modül izinli kullanıcı (admin dahil). KENDİ tenant'ındaki
+ *                bound VEYA unbound tüm planları kullanabilir (global Beslenme semantiği).
+ *   - "client" : Beslenme izni OLMAYAN ama Danışan Yolculuğu (clients) izinli uzman.
+ *                Plan MUTLAKA kendi tenant'ında + kendi danışanına (nutrition_plan_clients
+ *                binding) bağlı olmalı; UNBOUND plan → fail-closed (404).
  *
- * Expert erişim zinciri (hepsi server-authoritative):
- *   requireModuleAccess("clients") → tenant plan (.eq tenant_id .eq id) → plan_family_id
- *   → nutrition_plan_clients binding → boundClientId → requireClientInTenant(tenant, client).
- * UNBOUND plan (expert) → FAIL. Başka tenant planı → FAIL (plan zaten tenant-scoped çözülür).
+ * Erişim zinciri (hepsi server-authoritative):
+ *   verifyUserRequest(includeProfile) → tenant plan (.eq tenant_id .eq id) → plan_family_id
+ *   → nutrition_plan_clients binding → (client authority'de) requireClientInTenant.
+ * Beslenme+clients izni olmayan → 403. Başka tenant planı → 404 (plan tenant-scoped çözülür).
  *
- * Kimlik: tenantId yalnız session'dan; planId path'ten. Body/query'den tenant/client/user
- * kimliği ASLA kabul edilmez. Sızıntı önlemek için tüm expert-red durumları PLAN_NOT_FOUND(404).
+ * Kimlik: tenantId yalnız session/profile'dan; planId path'ten. Body/query'den tenant/client/user
+ * kimliği ASLA kabul edilmez. Sızıntı önlemek için tüm red durumları PLAN_NOT_FOUND(404),
+ * yalnız "hiç modül izni yok" → FORBIDDEN(403).
  */
-export type BeslenmePlanAuthority = "owner" | "expert";
+export type BeslenmePlanAuthority = "module" | "client";
 export type BeslenmePlanRow = { id: string; plan_family_id: string; status: string };
 
 export type BeslenmePlanAccessOk = {
@@ -36,7 +40,7 @@ export type BeslenmePlanAccessOk = {
   is_demo_account: boolean;
   authority: BeslenmePlanAuthority;
   plan: BeslenmePlanRow;
-  /** Bağlı danışan. Expert'te ZORUNLU non-null; owner'da binding varsa dolu, yoksa null. */
+  /** Bağlı danışan. client authority'de ZORUNLU non-null; module authority'de binding varsa dolu, yoksa null. */
   boundClientId: string | null;
 };
 export type BeslenmePlanAccessResult = BeslenmePlanAccessOk | { ok: false; response: NextResponse };
@@ -45,9 +49,18 @@ export async function requireBeslenmePlanAccess(
   req: NextRequest,
   planId: string,
 ): Promise<BeslenmePlanAccessResult> {
-  const guard = await requireModuleAccess(req, "clients");
+  const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
   const { db, tenantId } = guard;
+
+  // Yetenekler SAF resolveModuleAccess ile (admin role short-circuit → hasBeslenme=true).
+  const role = guard.profile?.role;
+  const perms = guard.profile?.module_permissions;
+  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
+  const hasClients = resolveModuleAccess(role, perms, "clients");
+  if (!hasBeslenme && !hasClients) {
+    return { ok: false, response: beslenmeJson({ ok: false, code: "FORBIDDEN" }, 403) };
+  }
 
   if (!isUuid(planId)) return { ok: false, response: beslenmeJson({ ok: false, code: "PLAN_NOT_FOUND" }, 404) };
 
@@ -61,7 +74,7 @@ export async function requireBeslenmePlanAccess(
   if (!planData) return { ok: false, response: beslenmeJson({ ok: false, code: "PLAN_NOT_FOUND" }, 404) };
   const plan = planData as BeslenmePlanRow;
 
-  // Family binding'i (varsa) çöz — owner context'i + expert authz için.
+  // Family binding'i (varsa) çöz — module context + client authz için.
   const { data: bindData } = await db
     .from("nutrition_plan_clients")
     .select("client_id")
@@ -79,16 +92,15 @@ export async function requireBeslenmePlanAccess(
     plan,
   } as const;
 
-  // OWNER (super-admin) → mevcut global davranış; unbound plan da erişilebilir.
-  const owner = await requireMainAdmin(db, guard.userId);
-  if (owner.ok) {
-    return { ok: true, ...base, authority: "owner", boundClientId };
+  // MODULE (Beslenme izinli; admin dahil) → kendi tenant'ındaki bound/unbound tüm planlar.
+  if (hasBeslenme) {
+    return { ok: true, ...base, authority: "module", boundClientId };
   }
 
-  // EXPERT → plan MUTLAKA kendi danışanına bağlı olmalı (unbound = fail-closed).
+  // CLIENT-ONLY (yalnız clients izni) → plan MUTLAKA kendi danışanına bağlı olmalı (unbound = fail-closed).
   if (!boundClientId) return { ok: false, response: beslenmeJson({ ok: false, code: "PLAN_NOT_FOUND" }, 404) };
   const client = await requireClientInTenant(db, tenantId, boundClientId);
   if (!client) return { ok: false, response: beslenmeJson({ ok: false, code: "PLAN_NOT_FOUND" }, 404) };
 
-  return { ok: true, ...base, authority: "expert", boundClientId };
+  return { ok: true, ...base, authority: "client", boundClientId };
 }

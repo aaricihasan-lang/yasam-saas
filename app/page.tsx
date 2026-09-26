@@ -468,6 +468,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
   cosmic_calendar: [],
   cupping: ["kupa", "hacamat_terapi"],
+  beslenme: [],
   yasam_hafizasi: [],
 };
 
@@ -722,14 +723,14 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
-  // Beslenme OWNER-ONLY (super-admin) kart görünürlüğü. isAdminUser TEK BAŞINA yetmez;
-  // gerçek owner (users.is_super_admin) server probe'u (/api/beslenme/access) ile doğrulanır.
-  // Default hidden → owner doğrulanırsa render (normal admin/expert asla görmez; fail-closed).
-  const [beslenmeOwner, setBeslenmeOwner] = useState(false);
+  // Beslenme (normal grantable modül) kart görünürlüğü — server-authoritative /api/beslenme/access
+  // probe'u: admin VEYA module_permissions.beslenme=true uzman → access=true. Default hidden
+  // → probe doğrularsa render (izinsiz uzman/anon görmez; fail-closed). Rol-tabanlı gate YOK.
+  const [beslenmeAccess, setBeslenmeAccess] = useState(false);
   // Manuel besin KATKI (dar bayrak) kart görünürlüğü. Bayrak client user objesinden
   // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
-  // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; owner zaten
-  // tam Beslenme kartını görür. Default null → fail-closed.
+  // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; tam Beslenme
+  // erişimi olan zaten Beslenme kartını görür. Default null → fail-closed.
   const [foodContributor, setFoodContributor] = useState<"owner" | "expert" | null>(null);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
@@ -781,15 +782,16 @@ export default function Home() {
     loginBackdropPressed.current = false;
   };
 
-  // Beslenme owner-only kart: yalnız admin için server owner-probe (super-admin). Fail-closed.
+  // Beslenme kart görünürlüğü: server-authoritative modül probe (admin VEYA module_permissions
+  // .beslenme=true uzman → true). Admin↔uzman parity; fail-closed (default false, probe ile açılır).
   useEffect(() => {
-    if (!user || !isAdminUser(user)) {
-      setBeslenmeOwner(false);
+    if (!user) {
+      setBeslenmeAccess(false);
       return;
     }
     let alive = true;
     void checkBeslenmeAccess().then((ok) => {
-      if (alive) setBeslenmeOwner(ok === true);
+      if (alive) setBeslenmeAccess(ok === true);
     });
     return () => {
       alive = false;
@@ -1794,15 +1796,12 @@ export default function Home() {
                     </Link>
                   ) : null}
 
-                  {/* Beslenme — OWNER-ONLY (super-admin) kart. isAdminUser + server owner
-                      probe (beslenmeOwner) birlikte gerekli; normal admin/expert görmez.
-                      Asıl güvenlik server-side requireMainAdmin'dedir (defense-in-depth). */}
-                  {beslenmeOwner ? (
-                    <Link href="/beslenme" data-beslenme-owner-card data-admin-only="true" className="block text-inherit no-underline">
+                  {/* Beslenme — normal grantable modül kartı (admin↔uzman özellik paritesi).
+                      Görünürlük server-authoritative /api/beslenme/access probe'undan gelir:
+                      admin VEYA module_permissions.beslenme=true uzman → access=true (fail-closed). */}
+                  {beslenmeAccess ? (
+                    <Link href="/beslenme" data-beslenme-card className="block text-inherit no-underline">
                       <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-lime-100/90 via-emerald-50/95 to-white border-lime-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-lime-200/90 bg-lime-50 px-2 py-0.5 text-[10px] font-bold text-lime-700">
-                          Sahip
-                        </span>
                         <span className="text-3xl leading-none" aria-hidden>
                           <Salad className="h-8 w-8 text-emerald-600" strokeWidth={1.75} />
                         </span>
@@ -1810,7 +1809,7 @@ export default function Home() {
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
                           Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri
                         </p>
-                        <p className="mt-1.5 text-xs text-slate-500">Geliştirme (yalnız sahip)</p>
+                        <p className="mt-1.5 text-xs text-slate-500">İçerik hazır</p>
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
                             Beslenme

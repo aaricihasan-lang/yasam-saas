@@ -131,11 +131,11 @@ check("plans route ağacı mevcut (>=12 route.ts)", routeFiles.length >= 12, `bu
 for (const p of routeFiles) {
   const s = read(p);
   const rel = p.replace(ROOT, "");
-  // AŞAMA 2: her plan route AUTHORITATIVE bir kapı taşır — owner-only lifecycle
-  // (requireBeslenmeOwner: global create/list/copy/revise/delete + assign POST) VEYA
-  // bound-plan editör kapısı (requireBeslenmePlanAccess: owner ya da danışanına bağlı uzman).
-  // Guard'sız route hâlâ FAIL eder.
-  check(`${rel} auth gate (owner|bound-plan)`, /requireBeslenmeOwner|requireBeslenmePlanAccess/.test(s));
+  // PARİTE: her plan route AUTHORITATIVE bir kapı taşır — global modül kapısı
+  // (requireBeslenmeModule: admin↔uzman list/create + assign POST'ta ek clients gate) VEYA
+  // bound-plan editör/lifecycle kapısı (requireBeslenmePlanAccess: owner ya da danışanına
+  // bağlı uzman). Guard'sız route hâlâ FAIL eder. (owner-only faz kaldırıldı.)
+  check(`${rel} auth gate (module|bound-plan)`, /requireBeslenmeModule|requireBeslenmePlanAccess/.test(s));
   check(`${rel} body tenant_id trust YOK`, !/body\.tenant_id|tenant_id:\s*body/.test(s));
   // JSON gövde parse eden route'lar mass-assignment koruması taşımalı (hasOnlyKeys).
   //   (clear/revise gibi gövdesiz action route'ları req.json() çağırmaz → muaf.)

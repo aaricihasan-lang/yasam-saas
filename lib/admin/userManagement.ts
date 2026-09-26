@@ -92,9 +92,13 @@ export const ADMIN_MODULE_UI_KEYS = [
   "digital_content",
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
-  // DAR yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
-  // ekleyip düzenleyebilir. Beslenme modülünün tamamı owner-only kalır. Bayrak burada
-  // olduğu için toggle render edilir + wholesale write'ta korunur (bkz. route.ts overwrite).
+  // Beslenme — normal satılabilir/grantable modül (admin↔uzman özellik paritesi). Admin buradan
+  // module_permissions.beslenme=true/false yönetir → uzman TAM Beslenme modülüne erişir. Canonical
+  // anahtar; toggle render edilir + save/load zincirinde (parse/payload/merge) taşınır.
+  "beslenme",
+  // DAR/legacy yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
+  // ekleyip düzenleyebilir. Tam Beslenme modülünün yerine GEÇMEZ; beslenme=true'dan bağımsız,
+  // ayrı yetenek olarak korunur. Bayrak burada olduğu için toggle render edilir + write'ta korunur.
   "beslenme_manual_food",
 ] as const;
 
@@ -118,13 +122,15 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
   cupping: "Kupa & Hacamat",
+  beslenme: "Beslenme",
   beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
   digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
+  beslenme: "Beslenme modülünün tamamına erişim verir.",
   beslenme_manual_food:
-    "Uzman kendi özel besinlerini ekleyebilir ve düzenleyebilir. (Beslenme modülünün tamamını açmaz.)",
+    "Yalnız dar manuel besin katkı yeteneği: uzman kendi özel besinlerini ekleyip düzenleyebilir. Tam Beslenme modülünü (beslenme) açmaz.",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -143,6 +149,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   ders_notu: false,
   digital_content: false,
   cupping: false,
+  beslenme: false,
   beslenme_manual_food: false,
 };
 

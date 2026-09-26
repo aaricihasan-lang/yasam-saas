@@ -7,13 +7,15 @@
 // Silme 9B DELETE ile. Manuel modal (HdHaritaDetayModal) ve BodyGraph görsel
 // katmanı DEĞİŞMEZ; burada yalnız kullanılır.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import {
   getComputedChart,
   deleteComputedChart,
   type ComputedChartDetail,
 } from "@/lib/human-design/api/chartsClient";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 
@@ -42,6 +44,9 @@ function Badge({ label, value }: { label: string; value: string }) {
 }
 
 export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
+  const { confirm } = useConfirm();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useHdModalA11y(dialogRef, onClose);
   const [row, setRow] = useState<ComputedChartDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -66,6 +71,15 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
 
   async function handleDelete() {
     if (deleting) return;
+    // HD-P2-D: silmeden önce ortak (erişilebilir) onay dialog'u — veri kaybını önler.
+    const confirmed = await confirm({
+      title: "Haritayı sil",
+      message: `${row?.client_name || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setDeleting(true);
     setDeleteError("");
     const { ok, error } = await deleteComputedChart(id);
@@ -85,12 +99,19 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
       />
 
-      <div className="relative z-10 w-full max-w-3xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hd-computed-detay-title"
+        tabIndex={-1}
+        className="relative z-10 w-full max-w-3xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
+      >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-widest text-indigo-500">Hesaplanmış Harita</p>
-            <h2 className="mt-0.5 truncate text-lg font-black text-slate-900">{row?.client_name || "Kişisel Kayıt"}</h2>
+            <h2 id="hd-computed-detay-title" className="mt-0.5 truncate text-lg font-black text-slate-900">{row?.client_name || "Kişisel Kayıt"}</h2>
             <p className="text-xs text-slate-500">
               {formatDate(row?.birth_date)}
               {row?.birth_time ? ` · ${row.birth_time}` : ""}
@@ -101,9 +122,10 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Kapat"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
-            ✕
+            <span aria-hidden>✕</span>
           </button>
         </div>
 

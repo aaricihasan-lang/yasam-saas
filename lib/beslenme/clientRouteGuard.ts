@@ -20,9 +20,9 @@ import { isUuid } from "@/lib/beslenme/planContracts";
  * ASLA kimlik kaynağı olarak kabul edilmez. requireClientInTenant cross-tenant'ı
  * fail-closed (404) kapatır (başka tenant'ın danışanı görünmez).
  *
- * KAPSAM: Bu kapı YALNIZ danışan-scoped beslenme verisidir. Plan OLUŞTURMA/EDİTÖR ve
- * global Beslenme yönetimi (bilgi bankası/katalog/şablon/kaynak) bu kapıya DAHİL DEĞİLDİR;
- * onlar hâlâ requireBeslenmeOwner (super-admin) altındadır (AŞAMA 2).
+ * KAPSAM: Bu kapı YALNIZ danışan-scoped beslenme verisidir (clients modülü). Plan editör
+ * requireBeslenmePlanAccess; global Beslenme yönetimi (katalog/şablon/kaynak/konu) artık
+ * requireBeslenmeModule (module_permissions.beslenme) — admin↔uzman özellik paritesi.
  */
 export type BeslenmeClientOk = {
   ok: true;

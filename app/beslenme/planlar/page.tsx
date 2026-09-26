@@ -19,7 +19,7 @@ import {
 import {
   BeslenmeGate,
   BeslenmeShell,
-  useBeslenmeOwnerGuard,
+  useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
 import {
   DangerButton,
@@ -46,7 +46,7 @@ const FILTERS: Array<{ value: string; label: string }> = [
 ];
 
 export default function PlanlarPage() {
-  const guard = useBeslenmeOwnerGuard();
+  const guard = useBeslenmeModuleGuard();
   const router = useRouter();
 
   const [plans, setPlans] = useState<Plan[]>([]);

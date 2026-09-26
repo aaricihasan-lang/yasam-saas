@@ -1,5 +1,8 @@
 -- =============================================================================
--- 20270123000000_lock_stone_knowledge_categories_anon.sql
+-- 20270123000100_lock_stone_knowledge_categories_anon.sql
+-- (Sürüm çakışması düzeltmesi: eski 20270123000000 prefix'i main'de
+--  aromatherapy_source_writers + nutrition_plan_delete_revision ile çakışıyordu;
+--  benzersiz 20270123000100'e taşındı — SQL davranışı DEĞİŞMEDİ.)
 --
 -- TAŞ BİLGİ KÜTÜPHANESİ KATEGORİLERİ — anon / publishable ERİŞİM KİLİDİ
 -- (Doğaltaş satış-öncesi Faz 1 — güvenlik; B-GATE-2 / B1 kapanışı)

@@ -15,6 +15,7 @@ import { DemoGate } from "@/components/demo/DemoGate";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DEMO_AROMA_KNOWLEDGE_SHEETS } from "@/lib/demo/demoAromaterapiKnowledge";
 import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
+import { ArticlesPanel } from "@/app/aromaterapi/bilgi-bankasi/_components/ArticlesPanel";
 
 // -------------------------------------------------------
 // Tasarım token'ları
@@ -316,6 +317,10 @@ export default function BilgiBankasiPage() {
           </div>
         </header>
 
+        {/* Uzmanın kendi Bilgi Bankası notları (knowledge_articles) — additive authoring. */}
+        <ArticlesPanel isDemo={isDemo} />
+
+        {/* ─── Admin referans içerikleri (reference_sheets) ─────────── */}
         {errorMsg ? (
           <div className="rounded-2xl bg-rose-50 px-4 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
             {errorMsg}
@@ -329,13 +334,11 @@ export default function BilgiBankasiPage() {
         ) : sheets.length === 0 ? (
           <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[20px] border border-amber-100/70 bg-white/85 p-8 text-center shadow-sm sm:p-10">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/60 text-3xl shadow-sm">📚</div>
-            <h2 className="mt-4 text-xl font-black text-slate-900">Henüz bilgi bankası içeriği yok</h2>
+            <h2 className="mt-4 text-xl font-black text-slate-900">Hazır referans içeriği yok</h2>
             <p className="mt-2 max-w-md text-sm font-medium leading-relaxed text-slate-500">
-              Bu bölüm uzman referans içerikleri ve notları içindir. İçerikler hazırlandıkça burada görünecektir.
+              Bu alan hazır referans tabloları içindir. Kendi notlarınızı yukarıdaki
+              “Kendi Bilgi Notlarım” bölümünden şimdi ekleyebilirsiniz.
             </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
-              🔜 İçerik ekleme yakında
-            </span>
           </div>
         ) : (
           <>
