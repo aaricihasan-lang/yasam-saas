@@ -19,6 +19,7 @@ const STEPS = [
   ["tsx",  "sun-sign-cusp.ts",              "§18C Güneş burcu cusp"],
   ["tsx",  "golden-verify.ts",              "§19 Golden dataset (SWE bağımsız)"],
   ["node", "security-static.mjs",           "§18G/H/§28 Güvenlik sözleşmesi"],
+  ["tsx",  "hacamat-tenant-init.ts",        "§KAJ-P1-04/B Hacamat B-modeli + cosmic gerçek kapı"],
   ["tsx",  "full-sweep.ts",                 "§22/§18B Tam sweep + sunrise oracle"],
   ["tsx",  "retro-station-verify.ts",       "§21 Retro station SWE↔AE"],
 ];

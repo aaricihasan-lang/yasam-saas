@@ -311,6 +311,9 @@ export default function HacamatPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText,  setEditText]  = useState("");
 
+  // Kural silme onayı (yanlış dokunmaya karşı iki adımlı inline onay)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
   const addFormId = useId();
 
   const buAyData   = useMemo(() => getHacamatMonthData(todayYear, todayMonth), [todayYear, todayMonth]);
@@ -375,7 +378,9 @@ export default function HacamatPage() {
     finally { setIsAddingRule(false); }
   }
 
-  async function deleteRule(id: string) {
+  // İki adımlı silme: trash → inline "Sil?" onayı → confirmDelete gerçek silmeyi yapar.
+  async function confirmDelete(id: string) {
+    setConfirmingDeleteId(null);
     if (!userId) return;
     setRules(prev => prev.filter(r => r.id !== id)); // optimistic
     await fetch(`/api/hacamat/rules/${id}`, {
@@ -385,6 +390,7 @@ export default function HacamatPage() {
   }
 
   function startEdit(rule: HijamRule) {
+    setConfirmingDeleteId(null);
     setEditingId(rule.id);
     setEditText(rule.rule_text);
   }
@@ -649,8 +655,8 @@ export default function HacamatPage() {
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-teal-700">📜 Hacamat Kuralları</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
                 {canManageRules
-                  ? "Bu kurallar size özeldir (yalnız sizin hesabınızda görünür). Ekleyebilir, düzenleyebilir, silebilirsiniz. Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez."
-                  : "Kurallar Word raporuna birebir aktarılır. Kendi kurallarınızı oluşturmak için giriş yapın."}
+                  ? "Bu kurallar size özel çalışma listenizdir (yalnız sizin hesabınızda görünür). Kuralları düzenleyebilir, silebilir veya yeni kural ekleyebilirsiniz. Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez."
+                  : "Kurallar Word raporuna birebir aktarılır. Kendi çalışma listenizi oluşturmak için giriş yapın."}
               </p>
             </div>
 
@@ -718,22 +724,42 @@ export default function HacamatPage() {
                                 <>
                                   <p className="flex-1 text-[10px] leading-snug text-slate-700">{rule.rule_text}</p>
                                   {canManageRules && (
-                                    <>
-                                      <button
-                                        onClick={() => startEdit(rule)}
-                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
-                                        title="Düzenle"
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => void deleteRule(rule.id)}
-                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                                        title="Sil"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </>
+                                    confirmingDeleteId === rule.id ? (
+                                      <div className="flex shrink-0 items-center gap-1">
+                                        <span className="mr-0.5 text-[9px] font-black text-red-500">Sil?</span>
+                                        <button
+                                          onClick={() => void confirmDelete(rule.id)}
+                                          className="shrink-0 rounded p-1 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                          title="Evet, sil"
+                                        >
+                                          <Check className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmingDeleteId(null)}
+                                          className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                          title="Vazgeç"
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() => startEdit(rule)}
+                                          className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
+                                          title="Düzenle"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmingDeleteId(rule.id)}
+                                          className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                          title="Sil"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    )
                                   )}
                                 </>
                               )}

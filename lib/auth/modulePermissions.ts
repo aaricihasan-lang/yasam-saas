@@ -238,7 +238,8 @@ export function hasModulePermission(
 ): boolean {
   if (!user) return false;
   if (isAdminRole(user)) return true;
-  if (key === "cosmic_calendar") return true;
+  // KAJ-P1-04: cosmic_calendar "always-on" kısayolu KALDIRILDI (owner "Gerçek kapı" kararı) →
+  // artık normal modül gibi module_permissions.cosmic_calendar ile kapılanır (resolveModuleAccess ile hizalı).
   // P3: Premium bypass KALDIRILDI (bkz. hasAnyModulePermissionFlag notu).
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   // Hub kartı: alt modüllerden herhangi birine izin varsa erişilebilir

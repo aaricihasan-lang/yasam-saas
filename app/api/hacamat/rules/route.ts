@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { DEFAULT_HACAMAT_RULES } from "@/lib/cosmic/hacamatDefaultRules";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,19 @@ export async function GET(req: NextRequest) {
   const guard = await requireModuleAccess(req, "cosmic_calendar");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
+
+  // B MODELİ: uzman bu bölümü İLK açtığında 12 varsayılan kuralın KENDİ tenant'ına ait fiziksel
+  // kopyası oluşturulur. RPC idempotent + yarış-güvenli + TEK-SEFERLİK: sayfa 5 kez açılsa da /
+  // eşzamanlı istek gelse de duplicate seed YOK; kullanıcı tümünü sildiyse yeniden seed YOK
+  // (initialized işareti kalıcı — bkz. ensure_hacamat_rules_seeded). Demo hesap read-only →
+  // seed edilmez. Seed hatası listeyi ENGELLEMEZ (degrade: mevcut/boş liste ile devam).
+  if (!guard.is_demo_account) {
+    const { error: seedErr } = await db.rpc("ensure_hacamat_rules_seeded", {
+      p_tenant_id: tenantId,
+      p_rules: [...DEFAULT_HACAMAT_RULES],
+    });
+    if (seedErr) console.error("hacamat rules seed hatası:", seedErr.message);
+  }
 
   const { data, error } = await db
     .from("hacamat_rules")

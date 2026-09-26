@@ -206,9 +206,13 @@ function run(): void {
   // COMMIT 2 — merkezi modül registry + requireModuleAccess + server-gate + Premium
   // ══════════════════════════════════════════════════════════════════════════
 
-  // ── 9) resolveModuleAccess (Premium bypass YOK; admin/cosmic/coming-soon/hub) ──
+  // ── 9) resolveModuleAccess (Premium bypass YOK; admin/coming-soon/hub) ──
   ok(resolveModuleAccess("admin", {}, "stones") === true, "module: admin → tüm modüller");
-  ok(resolveModuleAccess("expert", {}, "cosmic_calendar") === true, "module: cosmic_calendar always-on");
+  // KAJ-P1-04: cosmic_calendar artık NORMAL kapılı modül (always-on kaldırıldı).
+  ok(resolveModuleAccess("admin", {}, "cosmic_calendar") === true, "module: cosmic_calendar admin → true");
+  ok(resolveModuleAccess("expert", { cosmic_calendar: true }, "cosmic_calendar") === true, "module: cosmic_calendar izinli expert → true");
+  ok(resolveModuleAccess("expert", {}, "cosmic_calendar") === false, "module: cosmic_calendar izinsiz expert → false (gerçek kapı)");
+  ok(resolveModuleAccess("expert", { stones: true }, "cosmic_calendar") === false, "module: cosmic_calendar başka izinle AÇILMAZ");
   // Human Design artık NORMAL modül: kişiye özel module_permissions.human_design esastır.
   ok(resolveModuleAccess("expert", { human_design: true }, "human_design") === true, "module: human_design izinli expert → true");
   ok(resolveModuleAccess("expert", { human_design: false }, "human_design") === false, "module: human_design izinsiz expert → false");

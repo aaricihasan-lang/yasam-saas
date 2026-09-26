@@ -76,6 +76,11 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   { prefix: "/belge-ceviri", keys: ["belge_ceviri"] },
   { prefix: "/human-design", keys: ["human_design"] },
   { prefix: "/yasam-hafizasi", keys: ["yasam_hafizasi"] },
+  // Yaşam Takvimi / Kozmik Ajanda — KAJ-P1-04: cosmic_calendar artık NORMAL kapılı modül
+  // (always-on kaldırıldı). İzni olmayan uzman /cosmic-calendar shell'ini ve tüm alt sayfalarını
+  // (moon-phases, retro-calendar, power-days, hacamat, transits/*) direct-URL ile AÇAMAZ.
+  // API tarafı ayrıca requireModuleAccess(req,"cosmic_calendar") ile server-side korunur.
+  { prefix: "/cosmic-calendar", keys: ["cosmic_calendar"] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PUBLIC_EXACT_PATHS = new Set(["/"]);
@@ -193,4 +198,5 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   human_design: "/human-design",
   yasam_hafizasi: "/yasam-hafizasi",
   cupping: "/kupa",
+  cosmic_calendar: "/cosmic-calendar",
 };

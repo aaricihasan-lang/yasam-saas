@@ -27,6 +27,10 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/kupa", key: "cupping" },
   // Beslenme (owner-only faz): requireModuleAccess("beslenme") + requireMainAdmin (ownerGuard).
   { prefix: "app/api/beslenme", key: "beslenme" },
+  // Yaşam Takvimi / Kozmik Ajanda (KAJ-P1-04): cosmic_calendar artık NORMAL kapılı modül.
+  // Hacamat kuralları CRUD + PDF/Word rapor uçlarının tümü requireModuleAccess("cosmic_calendar")
+  // taşır → gate kapsamına dahil (önceki "always-on bitişik" EXCLUDE'dan çıkarıldı).
+  { prefix: "app/api/hacamat", key: "cosmic_calendar" },
 ];
 
 /**
@@ -61,8 +65,7 @@ export const EXCLUDED_API_PREFIXES: { prefix: string; reason: string }[] = [
   { prefix: "app/api/location", reason: "paylaşımlı coğrafi yardımcı (geo)" },
   { prefix: "app/api/inngest", reason: "sistem webhook (kuyruk)" },
   { prefix: "app/api/yasam-hafizasi", reason: "merkezî Yaşam Hafızası motoru (BF-11 CDC; kendi auth'u)" },
-  { prefix: "app/api/cosmic", reason: "yalnız cosmic/audit dev-diagnostic; cosmic_calendar always-on (kullanıcı verisi yok)" },
-  { prefix: "app/api/hacamat", reason: "stateless PDF/Word renderer (auth/DB yok, PII yok) + admin-managed global hacamat_rules; cosmic_calendar always-on modülüne bitişik" },
+  { prefix: "app/api/cosmic", reason: "yalnız cosmic/audit dev-diagnostic (prod'da 404, kimliksiz, hesaplama-yoğun); kullanıcı verisi yok — modül-gate dışı" },
 ];
 
 /**
