@@ -104,7 +104,10 @@
       "confirm": {
         "bulkTitle": "Seçili kayıtları kaldır",
         "bulkMessage": "{count} taş kaydını listenden kaldırmak istediğinden emin misin?",
-        "bulkSecond": "Kendi eklediğin kayıtlar kalıcı silinir. Kütüphane taşları yalnızca senin görünümünden kaldırılır."
+        "bulkSecond": "Kendi eklediğin kayıtlar kalıcı silinir. Kütüphane taşları yalnızca senin görünümünden kaldırılır.",
+        "singleTitle": "Taşı Sil",
+        "singleMessage": "“{name}” kaydını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+        "singleSecond": "Bu işlem geri alınamaz. “{name}” kalıcı olarak silinsin mi?"
       },
       "deleteDialog": {
         "title": "Taşı Sil",

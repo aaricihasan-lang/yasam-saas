@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -92,7 +93,7 @@ export async function PATCH(
     .eq("tenant_id", tenantId) // tenant guard — çapraz-tenant güncelleme engellenir
     .select("id,issue");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH", tenantId, cause: error });
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." },

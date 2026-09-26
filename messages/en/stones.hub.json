@@ -58,7 +58,7 @@
         "barTitle": "{label}: {count, plural, one {# record} other {# records}}",
         "totalStones": "Total Stone Records",
         "mineralBank": "Mineral Library",
-        "activeCombinations": "Active Combinations"
+        "activeCombinations": "Total Combinations"
       },
       "report": {
         "title": "Create Professional Word Report",

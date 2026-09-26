@@ -1,7 +1,9 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer, Paragraph } from "docx";
 import {
   arraySection,
@@ -163,9 +165,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await q.order("name");
-  if (error) return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/mineral-report", action: "POST", tenantId, cause: error });
 
-  const minerals = (data ?? []) as MineralRow[];
+  const minerals = sanitizeXmlDeep((data ?? []) as MineralRow[]); // RPT-XML
   if (!minerals.length) return Response.json({ ok: false, error: "Bu seçim için mineral bulunamadı." }, { status: 404 });
 
   const doc = new Document({

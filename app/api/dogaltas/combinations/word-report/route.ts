@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
+import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer } from "docx";
 import {
   bodyText,
@@ -79,9 +81,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { data, error } = await query.order("issue").order("variant_index");
   if (error)
-    return Response.json({ ok: false, error: `Kombinasyonlar okunamadı: ${error.message}` }, { status: 500 });
+    return serverErrorResponse({ route: "dogaltas/combinations/word-report", action: "POST", tenantId, cause: error });
 
-  const rows = (data || []) as CombinationRow[];
+  const rows = sanitizeXmlDeep((data || []) as CombinationRow[]); // RPT-XML
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için kombinasyon bulunamadı." }, { status: 404 });
 

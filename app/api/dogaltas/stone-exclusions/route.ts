@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { data, error } = await db
     .from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "GET", tenantId, cause: error });
   return NextResponse.json({ ok: true, stoneIds: (data ?? []).map((r) => String((r as { stone_id: unknown }).stone_id)) });
 }
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .from("stone_exclusions")
     .upsert(rows, { onConflict: "tenant_id,stone_id", ignoreDuplicates: true });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "POST", tenantId, cause: error });
   return NextResponse.json({ ok: true, hidden: ids.length });
 }
 
@@ -76,6 +77,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId).in("stone_id", ids)
     .select("stone_id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "DELETE", tenantId, cause: error });
   return NextResponse.json({ ok: true, removed: data?.length ?? 0 });
 }
