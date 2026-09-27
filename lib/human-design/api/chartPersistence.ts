@@ -148,6 +148,10 @@ export type ChartForReport = {
   authority_code: string | null;
   gates: number[] | null;
   channels: string[] | null;
+  /** Özet tablo etiketleri için (manuel haritada dolu olabilir; computed'da null). */
+  profile_code?: string | null;
+  definition_code?: string | null;
+  active_centers?: string[] | null;
   client_id: string | null;
   client_name: string | null;
   birth_date: string | null;
@@ -171,7 +175,7 @@ export async function getChartWithClientForReport(
 ): Promise<{ row: ChartForReport | null; error: string | null }> {
   const { data, error } = await withTenant(
     db.from(TABLE).select(
-      "id, source, type_code, authority_code, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
+      "id, source, type_code, authority_code, profile_code, definition_code, active_centers, gates, channels, client_id, client_name, birth_date, birth_time, birth_place",
     ),
     tenantId,
     "getChartWithClientForReport",
@@ -325,7 +329,7 @@ export async function saveManualChart(
   tenantId: string,
   clientId: string,
   values: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null }> {
+): Promise<{ ok: boolean; error: string | null; id?: string | null }> {
   if (!clientId) return { ok: false, error: "client_id gerekli." };
   if (!(await clientInTenant(db, clientId, tenantId))) {
     return { ok: false, error: "Danışan bu hesaba ait değil." };
@@ -342,12 +346,18 @@ export async function saveManualChart(
   };
 
   if (existing && (existing as { id?: string }).id) {
+    const existingId = (existing as { id: string }).id;
     const { error } = await withTenant(db.from(TABLE).update(payload), tenantId, "saveManualChart.update")
-      .eq("id", (existing as { id: string }).id);
-    return { ok: !error, error: error ? hdSafeDbError("saveManualChart.update", error) : null };
+      .eq("id", existingId);
+    return { ok: !error, error: error ? hdSafeDbError("saveManualChart.update", error) : null, id: error ? null : existingId };
   }
-  const { error } = await db.from(TABLE).insert(tenantInsertPayload(tenantId, payload));
-  return { ok: !error, error: error ? hdSafeDbError("saveManualChart.insert", error) : null };
+  // id döner → UI kayıt sonrası "Profesyonel Word oluştur" CTA'sını bu haritaya bağlar.
+  const { data: inserted, error } = await db.from(TABLE).insert(tenantInsertPayload(tenantId, payload)).select("id").maybeSingle();
+  return {
+    ok: !error,
+    error: error ? hdSafeDbError("saveManualChart.insert", error) : null,
+    id: error ? null : ((inserted as { id?: string } | null)?.id ?? null),
+  };
 }
 
 /** Manuel harita güncelle (id ile) — additif PATCH desteği. */

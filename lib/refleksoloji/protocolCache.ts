@@ -28,3 +28,8 @@ export function findProtocolInCache(id: string): ReflexologyProtocolRecord | und
   if (!target) return undefined;
   return cachedProtocols.find((p) => String(p?.id ?? "").trim() === target);
 }
+
+/** Çıkış/kullanıcı değişimi: önceki kullanıcının protokolleri detay seed'i olmasın. */
+export function clearProtocolCache(): void {
+  cachedProtocols = [];
+}

@@ -490,13 +490,13 @@ async function main() {
     const wordSrc = read("lib/human-design/reporting/wordReport.ts");
     const snapSrc = read("lib/human-design/reporting/reportSnapshot.ts");
 
-    // Admin knowledge isolation: profesyonel canonical Word merkezî canonical prose'u
-    // snapshot'a dondurur → yalnız ADMIN/OWNER üretebilir/indirebilir (module gate DEĞİL).
-    ok("SEC create requireAdminUserRequest (admin-only)", /requireAdminUserRequest\(\s*req\s*\)/.test(create) && !/requireModuleAccess\(/.test(create));
+    // FAZ1 final hardening (yeni sözleşme): profesyonel canonical Word TÜM HD uzmanlarına
+    // açık (requireModuleAccess "human_design"); canonical metin yalnız donmuş snapshot→DOCX.
+    ok("SEC create requireModuleAccess human_design (uzman+admin)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(create) && !/requireAdminUserRequest\(/.test(create));
     ok("SEC create demo bloklu", /is_demo_account/.test(create) && /403/.test(create));
     ok("SEC create rate limit", /checkRateLimit/.test(create));
     ok("SEC create tenantId guard'dan (body'den değil)", /guard\.tenantId/.test(create) && !/raw\.tenantId|body\.tenantId|\.tenant_id\s*=/.test(create));
-    ok("SEC download requireAdminUserRequest (admin-only)", /requireAdminUserRequest\(\s*req\s*\)/.test(download) && !/requireModuleAccess\(/.test(download));
+    ok("SEC download requireModuleAccess human_design (uzman+admin)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(download) && !/requireAdminUserRequest\(/.test(download));
     ok("SEC download no-store", /no-store/.test(download));
     ok("SEC download owned-image guard", /isOwnedChartImagePath/.test(download));
     ok("SEC download keyfi URL fetch YOK", !/fetch\(\s*[^)]*snapshot/.test(download) && !/fetchImageBuffer\(/.test(download));

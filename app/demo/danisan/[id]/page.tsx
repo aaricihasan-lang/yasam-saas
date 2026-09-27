@@ -10,6 +10,7 @@ import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { normalizeBirthDateForEngine } from "@/app/numeroloji/utils/numerolojiInput";
 import { initDemoSession, recordDemoClientView, getDemoClient, type DemoClient } from "@/lib/demo/demoSession";
+import { relativeDayInfo } from "@/lib/danisan/clientDisplay";
 
 const DEMO_MSG =
   "Bu bilgiler demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir.";
@@ -46,14 +47,18 @@ function fmtDate(iso: string | null) {
   return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
 }
 
+// DY-A: canlı listeyle aynı takvim günü kuralı (İstanbul); gelecek tarih "X gün sonra".
 function goreleSure(date: string | null): string {
-  if (!date) return "";
-  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (diff < 1)   return "bugün";
-  if (diff < 7)   return `${diff} gün önce`;
-  if (diff < 30)  return `${Math.floor(diff / 7)} hafta önce`;
-  if (diff < 365) return `${Math.floor(diff / 30)} ay önce`;
-  return `${Math.floor(diff / 365)} yıl önce`;
+  const info = relativeDayInfo(date);
+  if (!info) return "";
+  switch (info.kind) {
+    case "today":  return "bugün";
+    case "future": return `${info.days} gün sonra`;
+    case "days":   return `${info.n} gün önce`;
+    case "weeks":  return `${info.n} hafta önce`;
+    case "months": return `${info.n} ay önce`;
+    default:       return `${info.n} yıl önce`;
+  }
 }
 
 // ─── Etiket rengi yardımcısı (+ yeşil / - kırmızı) ──────────────────────────

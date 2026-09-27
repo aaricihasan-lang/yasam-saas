@@ -1,23 +1,47 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
-import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 import {
   scheduleAtlasSync,
   setAtlasSyncSuspended,
   registerAtlasConflictResolver,
+  registerAtlasLocalReader,
+  hydrateAtlasFromServer,
+  markAtlasHydrated,
+  setAtlasBaseHash,
   type AtlasServerState,
 } from "@/lib/refleksolojiAtlasSync";
 import {
   markOrganDeleted,
   markOrganUpserted,
   mergeAtlasWithTombstones,
+  mergeOrganListsWithTombstones,
   type AtlasDocLike,
   type OrganTimeMap,
 } from "@/lib/refleksoloji/atlasMerge";
 import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
+import {
+  atlasContentHash,
+  atlasEquivalent,
+  classifyLegacyAtlas,
+  importLegacyAtlas,
+  type LegacyAtlasPayload,
+} from "@/lib/refleksoloji/atlasSyncCore";
+import {
+  LEGACY_QUARANTINE_KEYS,
+  LEGACY_REFLEX_KEYS,
+  readRawJson,
+  removeRaw,
+  writeRawJson,
+} from "@/lib/refleksoloji/scopedStorage";
+import { currentReflexScopeId, readReflex, writeReflex } from "@/lib/refleksoloji/reflexStore";
 
-export const ATLAS_STORAGE_KEY = "yasam-refleksoloji-atlas-v1";
-export const ORGAN_LIST_STORAGE_KEY = "yasam-refleksoloji-organs-v1";
+/**
+ * FA-04: atlas + organ listesi artık kullanıcı/tenant kapsamlı
+ * (`refleks:v2:{tenant}:{user}:atlas|organs`). Aşağıdaki eski (v1, cihaz geneli)
+ * anahtarlar yalnız eski veri taşıma/karantina için OKUNUR.
+ */
+export const ATLAS_STORAGE_KEY = LEGACY_REFLEX_KEYS.atlas;
+export const ORGAN_LIST_STORAGE_KEY = LEGACY_REFLEX_KEYS.organs;
 
 export type AtlasMeta = {
   updated_at: string;
@@ -208,9 +232,7 @@ export function unionOrganLists(a: string[], b: string[]): string[] {
 export function loadOrganList(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(ORGAN_LIST_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = readReflex<unknown>("organs");
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((o): o is string => typeof o === "string" && o.trim().length > 0);
   } catch {
@@ -220,18 +242,18 @@ export function loadOrganList(): string[] {
 
 export function saveOrganList(organs: string[]): boolean {
   if (typeof window === "undefined") return false;
-  const ok = safeLocalStorageSetItem(ORGAN_LIST_STORAGE_KEY, JSON.stringify(organs));
-  // P1-1: organ listesi değişince tam atlas belgesini sunucuya senkronla.
-  if (ok) scheduleAtlasSync(loadAtlas(), organs);
+  const ok = writeReflex("organs", organs);
+  // P1-1: organ listesi değişince (kullanıcı eylemi) senkron planla. Hidrasyon
+  // yazımları suspend ile bastırılır; hidrasyon bitmeden PUT gitmez (FA-13).
+  if (ok) scheduleAtlasSync();
   return ok;
 }
 
 export function loadAtlas(): AtlasDocument {
   if (typeof window === "undefined") return createEmptyAtlas();
   try {
-    const raw = window.localStorage.getItem(ATLAS_STORAGE_KEY);
-    if (!raw) return createEmptyAtlas();
-    const parsed = JSON.parse(raw) as AtlasDocument;
+    const parsed = readReflex<AtlasDocument>("atlas");
+    if (!parsed || typeof parsed !== "object") return createEmptyAtlas();
     if (!parsed._meta) {
       parsed._meta = { version: "1", updated_at: new Date().toISOString() };
     }
@@ -256,9 +278,9 @@ export function saveAtlas(atlas: AtlasDocument): boolean {
       organUpdatedAt: prevMeta.organUpdatedAt ?? {},
     },
   };
-  const ok = safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(next));
-  // P1-1: atlas değişince tam belgeyi + organ listesini sunucuya senkronla.
-  if (ok) scheduleAtlasSync(next, loadOrganList());
+  const ok = writeReflex("atlas", next);
+  // P1-1: atlas değişince (kullanıcı eylemi) senkron planla — içerik flush anında okunur.
+  if (ok) scheduleAtlasSync();
   return ok;
 }
 
@@ -420,13 +442,135 @@ function resolveAtlasConflict(server: AtlasServerState): {
   // Yerele yaz AMA scheduleAtlasSync'i tetikleme (retry PUT'u flush yapacak).
   setAtlasSyncSuspended(true);
   try {
-    safeLocalStorageSetItem(ATLAS_STORAGE_KEY, JSON.stringify(merged));
-    safeLocalStorageSetItem(ORGAN_LIST_STORAGE_KEY, JSON.stringify(mergedList));
+    writeReflex("atlas", merged);
+    writeReflex("organs", mergedList);
   } finally {
     setAtlasSyncSuspended(false);
   }
   return { document: merged, organ_list: mergedList };
 }
 
-// İstemci tarafında modül yüklenince çözücüyü kaydet (SSR'de no-op — çağrılmaz).
+// İstemci tarafında modül yüklenince çözücüyü + yerel okuyucuyu kaydet (SSR'de no-op).
 registerAtlasConflictResolver(resolveAtlasConflict);
+registerAtlasLocalReader(() => ({ document: loadAtlas(), organ_list: loadOrganList() }));
+
+// ─── Hidrasyon (TEK merkez) + eski (v1) veri karantinası ─────────────────────
+
+function toLegacyPayload(doc: unknown, list: unknown): LegacyAtlasPayload {
+  return {
+    document: normalizeAtlasDocument(
+      (doc && typeof doc === "object" ? doc : {}) as AtlasDocument,
+    ) as unknown as AtlasDocLike,
+    organ_list: Array.isArray(list)
+      ? list.filter((o): o is string => typeof o === "string" && o.trim().length > 0)
+      : [],
+  };
+}
+
+function readLegacyAtlasPayload(): LegacyAtlasPayload | null {
+  const doc = readRawJson<unknown>(LEGACY_REFLEX_KEYS.atlas);
+  const list = readRawJson<unknown>(LEGACY_REFLEX_KEYS.organs);
+  if (doc == null && list == null) return null;
+  return toLegacyPayload(doc, list);
+}
+
+/** Karantina anahtarı `{document, organ_list}` biçimindedir. */
+export function loadQuarantinedAtlas(): LegacyAtlasPayload | null {
+  const q = readRawJson<{ document?: unknown; organ_list?: unknown }>(LEGACY_QUARANTINE_KEYS.atlas);
+  if (!q || typeof q !== "object") return null;
+  return toLegacyPayload(q.document, q.organ_list);
+}
+
+/** Karantinadaki (sahibi belirsiz) atlas organ sayısı. */
+export function quarantinedAtlasOrganCount(): number {
+  const q = loadQuarantinedAtlas();
+  if (!q) return 0;
+  return new Set(
+    [...listOrganNamesFromAtlas(q.document as unknown as AtlasDocument), ...q.organ_list].map((n) =>
+      organKey(n),
+    ),
+  ).size;
+}
+
+/**
+ * Eski cihaz-geneli atlas: sunucuyla BİREBİR örtüşüyorsa (veri sunucuda) güvenle
+ * bırakılır; değilse karantinaya taşınır (kullanıcı kararı). ASLA otomatik
+ * silme / otomatik hesaba yükleme yok. Önce hedef yazılır, sonra kaynak kaldırılır.
+ */
+function processLegacyAtlas(serverDoc: AtlasDocument, serverList: string[]): void {
+  const legacy = readLegacyAtlasPayload();
+  if (!legacy) return;
+  const cls = classifyLegacyAtlas(legacy, { document: serverDoc, organ_list: serverList });
+  if (cls === "quarantine") {
+    const existing = loadQuarantinedAtlas();
+    const payload = existing ? importLegacyAtlas(existing, legacy) : legacy;
+    const ok = writeRawJson(LEGACY_QUARANTINE_KEYS.atlas, {
+      document: payload.document,
+      organ_list: payload.organ_list,
+    });
+    if (!ok) return; // kota → kaynağa dokunma (veri kaybı yok)
+  }
+  removeRaw(LEGACY_REFLEX_KEYS.atlas);
+  removeRaw(LEGACY_REFLEX_KEYS.organs);
+}
+
+/**
+ * Sunucu hidrasyonu + tombstone-farkında birleştirme (Bölge Haritası, Kayıtlı Atlas,
+ * protokol önizleme — HEPSİ bunu kullanır). Otomatik PUT YOK (FA-13): yerel-özel
+ * değişiklik varsa yalnız kullanıcı eylemiyle gönderilir. Dönüş null → demo /
+ * oturumsuz / sunucu erişilemez (yerel korunur).
+ */
+export async function hydrateAndMergeAtlas(): Promise<{ quarantineCount: number } | null> {
+  const scopeAtStart = currentReflexScopeId();
+  const server = await hydrateAtlasFromServer();
+  if (!server || currentReflexScopeId() !== scopeAtStart) return null;
+
+  // CANONICAL SINIR: sunucu belgesi legacy olabilir → 3-görünüme normalize.
+  const serverDoc = normalizeAtlasDocument((server.document ?? {}) as AtlasDocument);
+  processLegacyAtlas(serverDoc, server.organ_list);
+
+  const mergedDoc = mergeAtlasDocuments(serverDoc, loadAtlas());
+  const mergedOrgans = mergeOrganListsWithTombstones(
+    server.organ_list,
+    loadOrganList(),
+    mergedDoc._meta,
+  );
+  setAtlasSyncSuspended(true);
+  try {
+    writeReflex("atlas", mergedDoc);
+    writeReflex("organs", mergedOrgans);
+  } finally {
+    setAtlasSyncSuspended(false);
+  }
+  // Yerel = sunucu (eşdeğer) ise tabanı yerel hash'e hizala → sahte "eşitlenmemiş" yok.
+  if (
+    atlasEquivalent(
+      { document: mergedDoc, organ_list: mergedOrgans },
+      { document: serverDoc, organ_list: server.organ_list },
+    )
+  ) {
+    setAtlasBaseHash(atlasContentHash(loadAtlas(), loadOrganList()));
+  }
+  markAtlasHydrated();
+  return { quarantineCount: quarantinedAtlasOrganCount() };
+}
+
+/** "Bana ait, içe aktar": karantinadaki atlas bu hesabın atlasına EKLENİR ve senkronlanır. */
+export function importQuarantinedAtlasToAccount(): { ok: boolean; changedOrgans: number } {
+  const q = loadQuarantinedAtlas();
+  if (!q) return { ok: true, changedOrgans: 0 };
+  const r = importLegacyAtlas(
+    { document: loadAtlas() as unknown as AtlasDocLike, organ_list: loadOrganList() },
+    q,
+  );
+  const okAtlas = saveAtlas(r.document as unknown as AtlasDocument);
+  const okList = okAtlas && saveOrganList(r.organ_list);
+  if (!okAtlas || !okList) return { ok: false, changedOrgans: 0 };
+  removeRaw(LEGACY_QUARANTINE_KEYS.atlas);
+  return { ok: true, changedOrgans: r.changedOrgans };
+}
+
+/** "Sil": karantinadaki sahibi belirsiz atlası bu cihazdan kaldırır (açık kullanıcı kararı). */
+export function discardQuarantinedAtlas(): void {
+  removeRaw(LEGACY_QUARANTINE_KEYS.atlas);
+}

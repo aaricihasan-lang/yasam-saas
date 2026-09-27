@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -27,6 +27,14 @@ import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
+import {
+  countAppointments,
+  deriveAppointmentStatus,
+  isAppointmentInFuture,
+} from "@/lib/danisan/appointmentRules";
+import type { DeletePreview } from "@/lib/danisan/deletePreview";
 
 // ─── Lazy sekmeler ───────────────────────────────────────────────────────────
 // Ağır sekmeler (özellikle html2canvas/jsPDF içeren Analizler ve 4 fetch yapan
@@ -47,6 +55,8 @@ const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading:
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
+// KVKK onam (INFRA bileşeni): başlıkta rozet + Genel sekmesinde kayıt paneli.
+const ClientConsentPanel = dynamic(() => import("@/components/kvkk/ClientConsentPanel"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -100,8 +110,18 @@ function formatDateTimeTR(value: string) {
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
 type T = ReturnType<typeof useTranslations>;
 
-function isPastDate(value: string) {
-  return new Date(value).getTime() < new Date().getTime();
+/** Notlar/genel bilgi yükleme durumu — "ready" olmadan düzenleme/kayıt KAPALI (veri kaybı koruması). */
+type NotesState = "loading" | "ready" | "error";
+
+type DeletePreviewResponse = DeletePreview & { ok?: boolean };
+
+/** İndirme yedek adı için danışan adı slug'ı (sunucu Content-Disposition öncelikli). */
+function nameSlugTR(rawName: string): string {
+  return rawName.toLowerCase()
+    .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
+    .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
+    .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 // Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
@@ -137,11 +157,12 @@ function getLeftBorderClass(status: string | null | undefined, appointmentDate: 
 }
 
 // Canonical randevu statü kodu → görünen etiket + renkler (kod DEĞİŞMEZ).
+// FA-44: geçmiş + "bekliyor" → türetilmiş "Sonuç girilmedi" (amber); DB statüsü DEĞİŞMEZ.
 function getAppointmentStatusInfo(item: Appointment, t: T) {
-  const status = item.status || "bekliyor";
-  if (status === "tamamlandi") return { label: t("appt.status.tamamlandi"), bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
-  if (status === "iptal")      return { label: t("appt.status.iptal"),      bg: "#fee2e2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" };
-  if (isPastDate(item.appointment_date)) return { label: t("appt.status.gecmis"), bg: "#f1f5f9", color: "#64748b", border: "#e2e8f0", dot: "#94a3b8" };
+  const derived = deriveAppointmentStatus(item.status, item.appointment_date);
+  if (derived === "tamamlandi") return { label: t("appt.status.tamamlandi"), bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
+  if (derived === "iptal")      return { label: t("appt.status.iptal"),      bg: "#fee2e2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" };
+  if (derived === "sonuc_girilmedi") return { label: t("appt.status.sonucGirilmedi"), bg: "#fffbeb", color: "#b45309", border: "#fde68a", dot: "#f59e0b" };
   return { label: t("appt.status.yaklasan"), bg: "#dcfce7", color: "#15803d", border: "#bbf7d0", dot: "#22c55e" };
 }
 
@@ -209,7 +230,11 @@ function ClientDetailPageInner() {
   }, []);
 
   const [noteId, setNoteId] = useState<string | null>(null);
-  const [notesLoading, setNotesLoading] = useState(false);
+  // DY-A: notes yükleme durumu + sürüm (CAS) + geç gelen yanıtları elemek için sıra sayacı.
+  const [notesState, setNotesState] = useState<NotesState>("loading");
+  const [notesVersion, setNotesVersion] = useState<string | null>(null);
+  const notesReqSeq = useRef(0);
+  const notesLoading = notesState === "loading";
   const [saglikNotu, setSaglikNotu] = useState("");
   const [adres, setAdres] = useState("");
   const [oneriler, setOneriler] = useState("");
@@ -234,11 +259,58 @@ function ClientDetailPageInner() {
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
+  const [consentRev, setConsentRev] = useState(0);
   const [editDogum, setEditDogum] = useState("");
   const [noteText, setNoteText] = useState("");
   const [savingClientNotes, setSavingClientNotes] = useState(false);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
+
+  // DY-A: Notlar/genel bilgiler — yalnız "ready" iken düzenlenebilir. Hata sessiz DEĞİL:
+  // "error" durumunda Notlar sekmesi ve Genel "Düzenle" kapanır, "Yeniden dene" sunulur.
+  // Sıra sayacı: geç gelen (eski) GET yanıtı yeni durumu ezmez.
+  const applyNoteRow = useCallback((note: ClientNote | null | undefined, version: string | null | undefined) => {
+    setNoteId(note?.id || null);
+    setSaglikNotu(note?.saglik_notu || "");
+    setAdres(note?.adres || "");
+    setOneriler(note?.oneriler || "");
+    setNoteText(note?.notlar || "");
+    setNotesVersion(typeof version === "string" ? version : null);
+  }, []);
+
+  const loadNotes = useCallback(async () => {
+    const seq = ++notesReqSeq.current;
+    setNotesState("loading");
+    const token = readSessionToken();
+    try {
+      const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
+        headers: {
+          "x-user-id": readYasamUser()?.id ?? "",
+          ...(token ? { "x-session-token": token } : {}),
+        },
+      });
+      if (seq !== notesReqSeq.current) return;
+      if (!notesRes.ok) {
+        console.error("Genel bilgiler okuma hatası:", notesRes.status);
+        setNotesState("error");
+        return;
+      }
+      const notesJson = (await notesRes.json().catch(() => null)) as
+        | { ok?: boolean; note?: ClientNote | null; notlar_version?: string }
+        | null;
+      if (seq !== notesReqSeq.current) return;
+      if (!notesJson || notesJson.ok === false) {
+        setNotesState("error");
+        return;
+      }
+      applyNoteRow(notesJson.note ?? null, notesJson.notlar_version);
+      setNotesState("ready");
+    } catch (err) {
+      if (seq !== notesReqSeq.current) return;
+      console.error("Notlar okuma hatası:", err);
+      setNotesState("error");
+    }
+  }, [clientId, applyNoteRow]);
 
   // Aktif sekmeyi "açılmış" kümesine ekle (Tab butonları veya Yolculuk içi
   // onNavigate hangi yoldan gelirse gelsin). Açılan sekme mount kalır.
@@ -290,41 +362,22 @@ function ClientDetailPageInner() {
       setEditMizac(data.mizac || "");
       setLoading(false); // temel bilgi geldi → hemen render
 
-      // ── Notlar arka planda (kritik yolu bloklamaz) ──
-      setNotesLoading(true);
-      fetch(`/api/clients/${clientId}/notes`, {
-        headers: {
-          "x-user-id": uid,
-          ...(detailToken ? { "x-session-token": detailToken } : {}),
-        },
-      })
-        .then(async (notesRes) => {
-          if (cancelled) return;
-          if (!notesRes.ok) {
-            console.error("Genel bilgiler okuma hatası:", notesRes.status);
-            return;
-          }
-          const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: ClientNote | null };
-          if (cancelled) return;
-          const note = notesJson.note;
-          if (note) {
-            setNoteId(note.id || null);
-            setSaglikNotu(note.saglik_notu || "");
-            setAdres(note.adres || "");
-            setOneriler(note.oneriler || "");
-            setNoteText(note.notlar || "");
-          }
-        })
-        .catch((err) => { if (!cancelled) console.error("Notlar okuma hatası:", err); })
-        .finally(() => { if (!cancelled) setNotesLoading(false); });
+      // ── Notlar arka planda (kritik yolu bloklamaz; durum makinesi loadNotes'ta) ──
+      void loadNotes();
     }
 
     if (clientId) fetchClient();
-    return () => { cancelled = true; };
-  }, [clientId, tenantId]);
+    const seqRef = notesReqSeq; // sayaç nesnesi (DOM ref değil) — cleanup'ta artırılır
+    return () => {
+      cancelled = true;
+      seqRef.current++; // unmount/yeniden yükleme → uçuştaki notes yanıtı yok sayılır
+    };
+  }, [clientId, tenantId, loadNotes]);
 
   async function saveAllGeneralInfo() {
     if (!tenantId || !client) return;
+    // DY-A: notlar yüklenmeden (veya hata) genel bilgi kaydı YOK — boş alanlarla ezme riski.
+    if (notesState !== "ready") return;
     setSavingAll(true);
 
     const saveToken = readSessionToken();
@@ -357,9 +410,10 @@ function ClientDetailPageInner() {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
+      // Yalnız 3 genel alan gönderilir; sunucu notlar'a DOKUNMAZ (alan-bazlı PATCH).
       body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler }),
     });
-    const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
+    const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null; notlar_version?: string };
 
     if (!notesRes.ok || !notesJson.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
@@ -368,6 +422,7 @@ function ClientDetailPageInner() {
     }
 
     if (notesJson.note?.id) setNoteId(notesJson.note.id);
+    if (typeof notesJson.notlar_version === "string") setNotesVersion(notesJson.notlar_version);
     invalidateDanisanListCache(); // ad/telefon vb. değişti → liste bayat
     showToast({ title: t("toast.successTitle"), message: t("toast.changesSaved"), type: "success" });
     setSavingAll(false);
@@ -398,6 +453,8 @@ function ClientDetailPageInner() {
 
   async function saveClientNotes(notlarRaw: string): Promise<boolean> {
     if (!tenantId) return false;
+    // DY-A: sunucu değeri okunmadan (loading/error) yazım YOK → mevcut notlar boş listeyle ezilemez.
+    if (notesState !== "ready") return false;
     setSavingClientNotes(true);
 
     const userId = readYasamUser()?.id;
@@ -409,9 +466,25 @@ function ClientDetailPageInner() {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, notlar: notlarRaw }),
+      // Yalnız notlar + base_version (CAS); genel alanlar gönderilmez.
+      body: JSON.stringify({ notlar: notlarRaw, base_version: notesVersion }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string;
+    };
+
+    if (res.status === 409 && json.code === "NOTES_CONFLICT") {
+      // Başka sekme/cihaz notları değiştirdi → güncel sunucu değerini göster (yerel yazım yok).
+      showToast({ title: t("toast.warningTitle"), message: t("toast.notesConflict"), type: "warning" });
+      if (json.note !== undefined) {
+        setNoteText(json.note?.notlar || "");
+        setNotesVersion(typeof json.notlar_version === "string" ? json.notlar_version : null);
+      } else {
+        void loadNotes();
+      }
+      setSavingClientNotes(false);
+      return false;
+    }
 
     if (!res.ok || !json.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError") + ": " + (json.error ?? ""), type: "error" });
@@ -420,8 +493,9 @@ function ClientDetailPageInner() {
     }
 
     if (json.note?.id) setNoteId(json.note.id);
+    if (typeof json.notlar_version === "string") setNotesVersion(json.notlar_version);
     // Kaynak gerçekliği güncelle; başarı bildirimini NotesTab gösterir.
-    setNoteText(notlarRaw);
+    setNoteText(json.note ? (json.note.notlar || "") : notlarRaw);
     setSavingClientNotes(false);
     return true;
   }
@@ -442,19 +516,9 @@ function ClientDetailPageInner() {
         body: JSON.stringify({ ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
-      const nameSlug = rawName.toLowerCase()
-        .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
-        .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
-        .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
-        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      link.download = `danisan-raporu-${nameSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // Dosya adı sunucudan (Content-Disposition, yerel tarih); yoksa yerel-gün yedeği.
+      const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
+      await downloadFileResponse(res, `danisan-raporu-${nameSlug}-${reportFileDate()}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
@@ -479,19 +543,8 @@ function ClientDetailPageInner() {
         body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
-      const nameSlug = rawName.toLowerCase()
-        .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
-        .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
-        .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
-        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      link.download = `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
+      await downloadFileResponse(res, `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.dateRangeReportStarted"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
@@ -514,41 +567,84 @@ function ClientDetailPageInner() {
         body: JSON.stringify({ exportMode: "tab", tabName: tab }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
-      const nameSlug = rawName.toLowerCase()
-        .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
-        .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
-        .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
-        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      link.download = `danisan-${tab}-${nameSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
+      await downloadFileResponse(res, `danisan-${tab}-${nameSlug}-${reportFileDate()}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally { setTabWordBusy(false); }
   }
 
+  // DY-A: silmeden önce birlikte silinecek kayıtların sayımı. Hata → null (silme ENGELLENMEZ;
+  // onayda sabit tam liste gösterilir).
+  async function fetchDeletePreview(): Promise<DeletePreviewResponse | null> {
+    try {
+      const token = readSessionToken();
+      const res = await fetch(`/api/clients/${clientId}/delete-preview`, {
+        headers: {
+          "x-user-id": readYasamUser()?.id ?? "",
+          ...(token ? { "x-session-token": token } : {}),
+        },
+      });
+      if (!res.ok) return null;
+      const json = (await res.json().catch(() => null)) as DeletePreviewResponse | null;
+      if (!json || json.ok === false || !Array.isArray(json.counts)) return null;
+      return json;
+    } catch {
+      return null;
+    }
+  }
+
+  function buildDeletePreviewMessage(clientName: string, preview: DeletePreviewResponse | null): string {
+    const parts: string[] = [t("delete.message", { name: clientName || t("delete.thisClient") })];
+    if (!preview) {
+      parts.push(t("delete.previewFailed"));
+    } else {
+      const lines: string[] = [];
+      for (const c of preview.counts) {
+        if (typeof c.count !== "number" || c.count <= 0) continue;
+        const label = t.has(`deletePreview.table.${c.key}`) ? t(`deletePreview.table.${c.key}`) : c.key;
+        lines.push(`• ${label}: ${c.count}`);
+      }
+      if (preview.notes.noteCount > 0) lines.push(`• ${t("delete.notesLine", { count: preview.notes.noteCount })}`);
+      const general = [
+        preview.notes.saglikNotu ? t("delete.fieldSaglik") : null,
+        preview.notes.adres ? t("delete.fieldAdres") : null,
+        preview.notes.oneriler ? t("delete.fieldOneriler") : null,
+      ].filter((x): x is string => !!x);
+      if (general.length > 0) lines.push(`• ${t("delete.generalLine", { fields: general.join(", ") })}`);
+      parts.push(lines.length > 0 ? `${t("delete.previewHeader")}\n${lines.join("\n")}` : t("delete.previewEmpty"));
+      if (preview.partial) parts.push(t("delete.previewPartial"));
+    }
+    parts.push(t("delete.unlinked"));
+    return parts.join("\n\n");
+  }
+
+  const deleteBusyRef = useRef(false);
+
   async function handleDeleteClient() {
-    if (!tenantId || deletingClient) return;
-    const clientName = client ? `${client.ad ?? ""} ${client.soyad ?? ""}`.trim() : "";
+    // Senkron kilit: önizleme + onay + silme boyunca ikinci tık yok sayılır.
+    if (!tenantId || deleteBusyRef.current) return;
+    deleteBusyRef.current = true;
+    try {
+      const clientName = client ? `${client.ad ?? ""} ${client.soyad ?? ""}`.trim() : "";
+      const preview = await fetchDeletePreview();
 
-    const ok = await deleteConfirm({
-      title: t("delete.title"),
-      message: t("delete.message", { name: clientName || t("delete.thisClient") }),
-      secondMessage: t("delete.secondMessage"),
-    });
-    if (!ok) return;
+      // Geri alınamaz + danışan adını YAZARAK onay (ad yoksa "SİL").
+      const ok = await deleteConfirm({
+        title: t("delete.title"),
+        message: buildDeletePreviewMessage(clientName, preview),
+        confirmText: t("delete.confirm"),
+        requireText: clientName || "SİL",
+        requireTextLabel: clientName
+          ? t("delete.requireLabel", { name: clientName })
+          : t("delete.requireLabelFallback"),
+      });
+      if (!ok) return;
 
-    setDeletingClient(true);
+      setDeletingClient(true);
 
-    // Alt kayıtları (notlar, seanslar, ödevler, randevular, analizler, taş fotoğrafları)
-    // güvenli cascade API üzerinden sil — service_role, tenant+client kapsamlı.
-    {
+      // Alt kayıtlar DB FK cascade ile atomik silinir — service_role, tenant+client kapsamlı.
       const userId = readYasamUser()?.id;
       const sessionToken = readSessionToken();
       const cascadeRes = await fetch(`/api/clients/${clientId}/cascade-delete`, {
@@ -562,7 +658,6 @@ function ClientDetailPageInner() {
       if (!cascadeRes.ok) {
         console.error("Danışan silme hatası");
         showToast({ title: t("toast.failTitle"), message: t("toast.deleteClientFailed"), type: "error" });
-        setDeletingClient(false);
         return;
       }
       // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir (warnings).
@@ -570,13 +665,18 @@ function ClientDetailPageInner() {
       if (Array.isArray(cascadeJson.warnings) && cascadeJson.warnings.length > 0) {
         showToast({ title: t("toast.clientDeletedTitle"), message: t("toast.cleanupWarning"), type: "warning" });
       }
-    }
 
-    setDeletingClient(false);
-    // Cold refetch/skeleton yerine: silinen danışanı liste cache'inden in-place çıkar
-    // (toplu silmeyle aynı davranış) → listeye dönünce güncel liste anında görünür.
-    removeClientFromDanisanListCache(tenantId, clientId);
-    router.push("/danisan-yolculugu/liste");
+      // Cold refetch/skeleton yerine: silinen danışanı liste cache'inden in-place çıkar
+      // (toplu silmeyle aynı davranış) → listeye dönünce güncel liste anında görünür.
+      removeClientFromDanisanListCache(tenantId, clientId);
+      router.push("/danisan-yolculugu/liste");
+    } catch (err) {
+      console.error("Danışan silme hatası:", err);
+      showToast({ title: t("toast.failTitle"), message: t("toast.deleteClientFailed"), type: "error" });
+    } finally {
+      deleteBusyRef.current = false;
+      setDeletingClient(false);
+    }
   }
 
   // ── Loading / not-found states ──────────────────────────────────────────────
@@ -644,9 +744,13 @@ function ClientDetailPageInner() {
         </div>
 
         <div className="relative z-10 flex-1 min-w-0">
-          <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1.5 text-[11px] font-black text-indigo-700">
-            {t("hero.badge")}
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1.5 text-[11px] font-black text-indigo-700">
+              {t("hero.badge")}
+            </span>
+            {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
+            <ClientConsentPanel key={`consent-badge-${consentRev}`} clientId={client.id} variant="badge" />
+          </div>
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
             {fullName || t("unnamed")}
           </h1>
@@ -777,8 +881,8 @@ function ClientDetailPageInner() {
                       {!isEditingGeneral ? (
                         <button
                           onClick={enterGeneralEdit}
-                          disabled={notesLoading}
-                          title={notesLoading ? t("general.notesLoadingTitle") : undefined}
+                          disabled={notesState !== "ready"}
+                          title={notesState === "loading" ? t("general.notesLoadingTitle") : notesState === "error" ? t("notesState.error") : undefined}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
                         >
                           {t("general.editButton")}
@@ -840,6 +944,9 @@ function ClientDetailPageInner() {
                     {notesLoading && (
                       <p className="text-[11px] font-bold text-slate-400">{t("general.notesLoading")}</p>
                     )}
+                    {notesState === "error" && (
+                      <NotesErrorPanel message={t("notesState.error")} retryLabel={t("notesState.retry")} onRetry={() => void loadNotes()} />
+                    )}
                     <div>
                       <label className={labelCls}>{t("form.saglikNotu")}</label>
                       <textarea readOnly={!isEditingGeneral} value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={areaCls} placeholder={t("form.saglikNotuPlaceholder")} />
@@ -865,6 +972,13 @@ function ClientDetailPageInner() {
                   </div>
 
                   <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
+
+                  <ClientConsentPanel
+                    clientId={client.id}
+                    source="dy_detay"
+                    className="mt-4"
+                    onChange={() => setConsentRev((n) => n + 1)}
+                  />
                 </>
               );
             })()}
@@ -880,7 +994,14 @@ function ClientDetailPageInner() {
                 </button>
                 )}
               </div>
-              <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
+              {/* DY-A: sunucu notları okunmadan (loading/error) sekme düzenlenemez → boş listeyle ezme yok. */}
+              {notesState === "ready" ? (
+                <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
+              ) : notesState === "loading" ? (
+                <p className="text-[13px] font-bold text-slate-400" aria-busy="true">{t("notesState.loading")}</p>
+              ) : (
+                <NotesErrorPanel message={t("notesState.error")} retryLabel={t("notesState.retry")} onRetry={() => void loadNotes()} />
+              )}
           </div>
           )}
 
@@ -893,7 +1014,14 @@ function ClientDetailPageInner() {
                 </button>
                 )}
               </div>
-              <AppointmentsTab clientId={client.id} clientName={fullName || t("clientFallback")} tenantId={tenantId} confirm={confirm} showToast={showToast} />
+              <AppointmentsTab
+                clientId={client.id}
+                clientName={fullName || t("clientFallback")}
+                tenantId={tenantId}
+                confirm={confirm}
+                showToast={showToast}
+                onGorusmeChange={(date) => setClient((prev) => (prev ? { ...prev, gorusme: date } : prev))}
+              />
           </div>
           )}
 
@@ -1036,13 +1164,15 @@ export default function ClientDetailPage() {
 
 // ─── AppointmentsTab ──────────────────────────────────────────────────────────
 function AppointmentsTab({
-  clientId, clientName, tenantId, confirm, showToast,
+  clientId, clientName, tenantId, confirm, showToast, onGorusmeChange,
 }: {
   clientId: string;
   clientName: string;
   tenantId: string | null;
   confirm: ReturnType<typeof useConfirm>["confirm"];
   showToast: ReturnType<typeof useToast>["showToast"];
+  /** Sunucu son görüşme tarihini ilerlettiyse hero özetini tazeler. */
+  onGorusmeChange?: (date: string) => void;
 }) {
   const t = useTranslations("clients.detail");
   const deleteConfirm = useDeleteConfirm();
@@ -1131,6 +1261,12 @@ function AppointmentsTab({
 
   // "Tamamlandı" → önce global confirm, sonra durum PATCH. (Danışanın son görüşme tarihi de güncellenir.)
   async function requestCompleteAppointment(id: string) {
+    // DY-A: gelecekteki randevu tamamlanamaz (sunucu da 409 döner) → önce uyar.
+    const apt = appointments.find((a) => a.id === id);
+    if (apt && isAppointmentInFuture(apt.appointment_date)) {
+      showToast({ title: t("toast.warningTitle"), message: t("appt.futureComplete"), type: "warning" });
+      return;
+    }
     const ok = await confirm({
       title: t("appt.completeConfirm.title"),
       message: t("appt.completeConfirm.message"),
@@ -1263,37 +1399,19 @@ function AppointmentsTab({
       },
       body: JSON.stringify({ status }),
     });
-    if (!statusRes.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.statusUpdateFailed"), type: "error" }); return; }
+    const statusJson = (await statusRes.json().catch(() => ({}))) as { code?: string; gorusme?: string };
+    if (!statusRes.ok) {
+      const message = statusJson.code === "APPOINTMENT_IN_FUTURE" ? t("appt.futureComplete") : t("appt.statusUpdateFailed");
+      showToast({ title: t("toast.failTitle"), message, type: "error" });
+      return;
+    }
     setSelectedAppointment((old) => old && old.id === id ? { ...old, status } : old);
 
-    // Z-3: Randevu tamamlandığında clients.gorusme güncelle
-    if (status === "tamamlandi" && tenantId) {
-      const apt = appointments.find((a) => a.id === id);
-      if (apt) {
-        const aptDate = apt.appointment_date.split("T")[0];
-        const gorusmeToken = readSessionToken();
-        const cliRes = await fetch(`/api/clients/${clientId}`, {
-          headers: {
-            "x-user-id": readYasamUser()?.id ?? "",
-            ...(gorusmeToken ? { "x-session-token": gorusmeToken } : {}),
-          },
-        });
-        const cli = cliRes.ok
-          ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
-          : null;
-        if (!cli?.gorusme || aptDate > cli.gorusme) {
-          await fetch(`/api/clients/${clientId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              "x-user-id": readYasamUser()?.id ?? "",
-              ...(gorusmeToken ? { "x-session-token": gorusmeToken } : {}),
-            },
-            body: JSON.stringify({ gorusme: aptDate }),
-          });
-          invalidateDanisanListCache(); // gorusme güncellendi → liste durum rozeti bayat
-        }
-      }
+    // Z-3 / DY-A: clients.gorusme ilerletmesi artık SUNUCUDA (İstanbul günü, yalnız geçmiş
+    // randevu, asla geri almaz). Yanıtta yeni değer varsa hero + liste önbelleği tazelenir.
+    if (typeof statusJson.gorusme === "string" && statusJson.gorusme) {
+      onGorusmeChange?.(statusJson.gorusme);
+      invalidateDanisanListCache();
     }
 
     await loadAppointments();
@@ -1318,8 +1436,10 @@ function AppointmentsTab({
     await loadAppointments();
   }
 
-  const upcomingCount = appointments.filter((a) => !isPastDate(a.appointment_date)).length;
-  const pastCount = appointments.length - upcomingCount;
+  // FA-44: "Yaklaşan" = bekliyor && gelecekte; "Sonuç girilmedi" = bekliyor && geçmişte (türetilmiş).
+  const apptCounts = countAppointments(appointments);
+  const upcomingCount = apptCounts.upcoming;
+  const pastCount = apptCounts.past;
 
   return (
     <div>
@@ -1334,6 +1454,9 @@ function AppointmentsTab({
           <div className="flex flex-wrap gap-1.5">
             <MiniStat label={t("appt.stat.total")}    value={appointments.length} color="#db2777" bg="#fdf2f8" />
             <MiniStat label={t("appt.stat.upcoming")} value={upcomingCount}        color="#16a34a" bg="#f0fdf4" />
+            {apptCounts.noResult > 0 && (
+              <MiniStat label={t("appt.stat.noResult")} value={apptCounts.noResult} color="#b45309" bg="#fffbeb" />
+            )}
             <MiniStat label={t("appt.stat.past")}     value={pastCount}            color="#64748b" bg="#f8fafc" />
           </div>
           <button
@@ -1543,6 +1666,21 @@ function AppointmentsTab({
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+function NotesErrorPanel({ message, retryLabel, onRetry }: { message: string; retryLabel: string; onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5">
+      <p className="text-[12px] font-bold text-rose-700">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[12px] font-black text-rose-700 transition-colors hover:bg-rose-100"
+      >
+        {retryLabel}
+      </button>
+    </div>
+  );
+}
+
 function Info({ label, value, color }: { label: string; value?: string; color: string }) {
   return (
     <div className="rounded-[13px] border bg-white/82 p-2 shadow-sm" style={{ borderColor: `${color}35` }}>

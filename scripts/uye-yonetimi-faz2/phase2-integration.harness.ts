@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     for (const [name, auth] of neg) {
       for (const r of [
         await list("", auth),
-        await call(usersRoute.POST as never, "POST", "/api/admin/users", auth, { fullName: "x", email: "x@y.co", password: "abcd1234", role: "expert", modules: ["clients"] }),
+        await call(usersRoute.POST as never, "POST", "/api/admin/users", auth, { fullName: "x", email: "x@y.co", password: "abcd123456", role: "expert", modules: ["clients"] }),
         await call(userRoute.GET as never, "GET", `/api/admin/users/${E0}`, auth, undefined, { id: E0 }),
       ]) {
         negTotal++;
@@ -222,14 +222,14 @@ async function main(): Promise<void> {
     console.log("\n[G] Yeni Uzman / Yeni Yönetici");
     const create = (body: Record<string, unknown>, auth: Auth = asOwner) => call(usersRoute.POST as never, "POST", "/api/admin/users", auth, body);
     const tenantsBefore = (await su.query(`select count(*)::int n from public.tenants`)).rows[0].n;
-    ok((await create({ fullName: "ZZ Yeni Modülsüz", email: "zz.p2.nomod@example.test", password: "abcd1234", role: "expert", modules: [] })).status === 400, "modülsüz uzman → 400");
-    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd1234", role: "expert", modules: ["clients"], active: false })).status === 400, "`active` alanı → 400");
+    ok((await create({ fullName: "ZZ Yeni Modülsüz", email: "zz.p2.nomod@example.test", password: "abcd123456", role: "expert", modules: [] })).status === 400, "modülsüz uzman → 400");
+    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd123456", role: "expert", modules: ["clients"], active: false })).status === 400, "`active` alanı → 400");
     ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "kisa1", role: "expert", modules: ["clients"] })).status === 400, "zayıf şifre → 400");
-    ok((await create({ fullName: "ZZ Yeni", email: "gecersiz", password: "abcd1234", role: "expert", modules: ["clients"] })).status === 400, "geçersiz e-posta → 400");
-    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd1234", role: "owner", modules: ["clients"] })).status === 400, "bilinmeyen rol → 400");
-    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd1234", role: "expert", modules: ["is_admin"] })).status === 400, "bilinmeyen modül → 400");
+    ok((await create({ fullName: "ZZ Yeni", email: "gecersiz", password: "abcd123456", role: "expert", modules: ["clients"] })).status === 400, "geçersiz e-posta → 400");
+    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd123456", role: "owner", modules: ["clients"] })).status === 400, "bilinmeyen rol → 400");
+    ok((await create({ fullName: "ZZ Yeni", email: "zz.p2.new1@example.test", password: "abcd123456", role: "expert", modules: ["is_admin"] })).status === 400, "bilinmeyen modül → 400");
     ok((await su.query(`select count(*)::int n from public.tenants`)).rows[0].n === tenantsBefore, "reddedilen istekler tenant/kullanıcı OLUŞTURMADI");
-    const cr = await create({ fullName: "ZZ Yeni Uzman", email: "zz.p2.new1@example.test", password: "abcd1234", role: "expert", modules: ["numerology", "human_design", "cupping"] });
+    const cr = await create({ fullName: "ZZ Yeni Uzman", email: "zz.p2.new1@example.test", password: "abcd123456", role: "expert", modules: ["numerology", "human_design", "cupping"] });
     const newId = String(cr.json.userId ?? "");
     const nu = newId ? await row(newId) : null;
     ok(cr.status === 201 && cr.json.moduleCount === 3, "uzman oluşturma → 201 (3 modül)");
@@ -239,16 +239,16 @@ async function main(): Promise<void> {
     const nAud = (await su.query(`select action from public.admin_audit_log where target_user_id=$1 order by created_at, id`, [newId])).rows.map((r) => r.action);
     ok(nAud.includes("user_created") && nAud.includes("user_approved"), "audit: user_created + user_approved");
     ok(mapDbUser(nu).membershipDisplay.packageLabel === "Premium", "gösterge: Premium");
-    ok((await create({ fullName: "ZZ Tekrar", email: "ZZ.P2.NEW1@example.test", password: "abcd1234", role: "expert", modules: ["clients"] })).status === 409, "yinelenen e-posta (büyük harf) → 409");
-    ok((await create({ fullName: "ZZ Admin", email: "zz.p2.adm@example.test", password: "abcd1234", role: "admin" }, asAdmin2)).status === 403, "normal admin yönetici oluşturamaz → 403");
-    const ca = await create({ fullName: "ZZ Yeni Yönetici", email: "zz.p2.adm@example.test", password: "abcd1234", role: "admin" });
+    ok((await create({ fullName: "ZZ Tekrar", email: "ZZ.P2.NEW1@example.test", password: "abcd123456", role: "expert", modules: ["clients"] })).status === 409, "yinelenen e-posta (büyük harf) → 409");
+    ok((await create({ fullName: "ZZ Admin", email: "zz.p2.adm@example.test", password: "abcd123456", role: "admin" }, asAdmin2)).status === 403, "normal admin yönetici oluşturamaz → 403");
+    const ca = await create({ fullName: "ZZ Yeni Yönetici", email: "zz.p2.adm@example.test", password: "abcd123456", role: "admin" });
     const na = await row(String(ca.json.userId ?? ""));
     ok(ca.status === 201 && na.role === "admin" && na.active === true && na.approved_at !== null && na.trial_ends_at === null, "ana yönetici yönetici oluşturur: approved_at dolu, trial yok");
     // Atomiklik: onay adımı patlarsa kullanıcı/tenant da geri alınır.
     await su.query(`create function public._boom2() returns trigger language plpgsql as $$ begin if new.action = 'user_approved' then raise exception 'boom'; end if; return new; end $$;
                     create trigger _boom2_t before insert on public.admin_audit_log for each row execute function public._boom2();`);
     const tBefore = (await su.query(`select count(*)::int n from public.tenants`)).rows[0].n;
-    const boom = await create({ fullName: "ZZ Atomik", email: "zz.p2.atomic@example.test", password: "abcd1234", role: "expert", modules: ["clients"] });
+    const boom = await create({ fullName: "ZZ Atomik", email: "zz.p2.atomic@example.test", password: "abcd123456", role: "expert", modules: ["clients"] });
     ok(boom.status === 500 && (await su.query(`select count(*)::int n from public.users where email='zz.p2.atomic@example.test'`)).rows[0].n === 0, "onay adımı hatası → kullanıcı OLUŞMADI (atomik)");
     ok((await su.query(`select count(*)::int n from public.tenants`)).rows[0].n === tBefore, "onay adımı hatası → tenant OLUŞMADI (yarım kayıt yok)");
     await su.query(`drop trigger _boom2_t on public.admin_audit_log; drop function public._boom2();`);
@@ -268,17 +268,17 @@ async function main(): Promise<void> {
     ok(weak.status === 400 && weak.json.code === "weak_password", "rakamsız şifre → 400 weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "12345678" })).json.code === "weak_password", "harfsiz şifre → weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "ab1" })).json.code === "weak_password", "kısa şifre → weak_password");
-    ok((await reg({ fullName: "ZZ Kayıt", email: "gecersiz@", password: "abcd1234" })).json.code === "invalid_email", "geçersiz e-posta → invalid_email");
-    ok((await reg({ fullName: "Z", email: "zz.p2.reg1@example.test", password: "abcd1234" })).json.code === "invalid_name", "tek harf isim → invalid_name");
-    ok((await reg({ fullName: "ZZ", email: "zz.p2.reg1@example.test", password: "abcd1234", role: "admin" })).json.code === "invalid_request", "bilinmeyen alan (role) → invalid_request");
+    ok((await reg({ fullName: "ZZ Kayıt", email: "gecersiz@", password: "abcd123456" })).json.code === "invalid_email", "geçersiz e-posta → invalid_email");
+    ok((await reg({ fullName: "Z", email: "zz.p2.reg1@example.test", password: "abcd123456" })).json.code === "invalid_name", "tek harf isim → invalid_name");
+    ok((await reg({ fullName: "ZZ", email: "zz.p2.reg1@example.test", password: "abcd123456", role: "admin" })).json.code === "invalid_request", "bilinmeyen alan (role) → invalid_request");
     const usersBeforeHp = (await su.query(`select count(*)::int n from public.users`)).rows[0].n;
-    const hp = await reg({ fullName: "ZZ Bot", email: "zz.p2.bot@example.test", password: "abcd1234", website: "http://spam.example" });
+    const hp = await reg({ fullName: "ZZ Bot", email: "zz.p2.bot@example.test", password: "abcd123456", website: "http://spam.example" });
     ok(hp.status === 200 && (await su.query(`select count(*)::int n from public.users`)).rows[0].n === usersBeforeHp, "honeypot dolu → 200 ama kayıt OLUŞTURULMAZ");
-    const good = await reg({ fullName: "  ZZ   Kayıt Uzman ", email: " ZZ.P2.Reg1@Example.test ", password: " abcd1234 ", website: "" });
+    const good = await reg({ fullName: "  ZZ   Kayıt Uzman ", email: " ZZ.P2.Reg1@Example.test ", password: " abcd123456 ", website: "" });
     const regRow = (await su.query(`select * from public.users where email='zz.p2.reg1@example.test'`)).rows[0];
     ok(good.status === 200 && !!regRow && regRow.approval_status === "pending" && regRow.active === false && regRow.role === "expert", "geçerli kayıt → pending + pasif uzman");
     ok(!!regRow && regRow.full_name === "ZZ Kayıt Uzman", "ad normalize (fazla boşluk temiz)");
-    const dup = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@EXAMPLE.test", password: "abcd1234" });
+    const dup = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@EXAMPLE.test", password: "abcd123456" });
     ok(dup.status === 409 && dup.json.code === "already_exists", "yinelenen e-posta → 409");
     // IP rate limit: 10 / 15 dk
     const ip = "198.51.100.77";
@@ -288,7 +288,7 @@ async function main(): Promise<void> {
     ok((await reg({ fullName: "ZZ RL", email: "zz.p2.rl-other@example.test", password: "short" }, { ip: "198.51.100.78" })).status === 400, "farklı IP etkilenmez");
     // E-posta rate limit: 3 / saat (farklı IP'lerden)
     const statuses: number[] = [];
-    for (let i = 0; i < 4; i++) statuses.push((await reg({ fullName: "ZZ EM", email: "zz.p2.emrl@example.test", password: "abcd1234" }, { ip: `192.0.2.${10 + i}` })).status);
+    for (let i = 0; i < 4; i++) statuses.push((await reg({ fullName: "ZZ EM", email: "zz.p2.emrl@example.test", password: "abcd123456" }, { ip: `192.0.2.${10 + i}` })).status);
     ok(statuses[0] === 200 && statuses[1] === 409 && statuses[2] === 409 && statuses[3] === 429, `aynı e-posta 4. deneme (farklı IP'ler) → 429 (${statuses.join(",")})`);
     const buckets = JSON.stringify((await su.query(`select bucket from public.auth_rate_limit_events`)).rows);
     ok(!/198\.51\.100|zz\.p2\.|example\.test/.test(buckets), "rate-limit tablosunda ham IP/e-posta YOK (HMAC kova)");

@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -14,6 +15,9 @@ import {
   useState,
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -825,6 +829,13 @@ function DogaltasListesiPageContent() {
     return base.filter((s) => !excludedStoneIds.has(s.id));
   }, [stones, detailData, needsFullLoad, excludedStoneIds]);
 
+  // Arama/filtre değişince seçim görünür taşlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = filteredStones.map((s) => s.id);
+    runInEffect(() => setSelectedIds((prev) => pruneSelection(prev, visibleIds)));
+  }, [filteredStones]);
+
   // F-016: görünen taşların kapak file_path'leri için TOPLU signed URL (private-read).
   // Liste lazy-load ile büyüdükçe yalnız eksik path'ler istenir → N+1 yok.
   const coverFilePaths = useMemo(
@@ -854,19 +865,14 @@ function DogaltasListesiPageContent() {
   }, [fetchList, hasMore, listLoading, loadingMore, stones.length]);
 
   const deleteSelectedStones = useCallback(async () => {
-    if (selectedIds.size === 0) return;
+    if (deleteLoading) return;
+    // Yalnız görünür ∩ seçili: aramayla/filtreyle gizlenmiş seçili taş habersiz silinmez.
+    const targets = filteredStones.filter((s) => selectedIds.has(s.id));
+    if (targets.length === 0) return;
     if (isDemo) {
       showToast({ type: "info", message: t("toast.demoAction") });
       return;
     }
-
-    const confirmed = await deleteConfirm({
-      title: t("confirm.bulkTitle"),
-      message: t("confirm.bulkMessage", { count: selectedIds.size }),
-      secondMessage: t("confirm.bulkSecond"),
-    });
-
-    if (!confirmed) return;
 
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
@@ -875,20 +881,27 @@ function DogaltasListesiPageContent() {
     }
 
     // Kendi taşı vs kütüphane taşı ayrımı
-    const allStones = [...(detailData ?? []), ...stones];
-    const stoneById = new Map(allStones.map((s) => [s.id, s]));
-
     const ownIds: string[] = [];
     const libraryIds: string[] = [];
-    for (const id of selectedIds) {
-      const stone = stoneById.get(id);
+    for (const stone of targets) {
       // Oturum sahipliği: kendi tenant'ı → gerçek DELETE, başka tenant → gizle.
-      if (stone && stone.tenant_id !== tenantId) {
-        libraryIds.push(id);
+      if (stone.tenant_id !== tenantId) {
+        libraryIds.push(stone.id);
       } else {
-        ownIds.push(id);
+        ownIds.push(stone.id);
       }
     }
+
+    const confirmed = await deleteConfirm({
+      title: t("confirm.bulkTitle"),
+      message: t("confirm.bulkMessage", { count: targets.length }),
+      secondMessage: t("confirm.bulkSecond"),
+      names: targets.map((s) => s.stone_name || tf("common.unnamedStone")),
+      // Yalnız kütüphane taşı gizleniyorsa işlem geri alınabilir.
+      irreversible: ownIds.length > 0,
+    });
+
+    if (!confirmed) return;
 
     setDeleteLoading(true);
     setErrorMessage("");
@@ -896,40 +909,54 @@ function DogaltasListesiPageContent() {
     let deletedCount = 0;
     let ownError: string | null = null;
     let libError: string | null = null;
+    const removedIds = new Set<string>();
 
-    // Kendi taşları → gerçek DELETE (server API, tenant guard'lı tekil DELETE'ler)
-    if (ownIds.length > 0) {
-      const { deletedIds, error } = await deleteStones(ownIds);
-      if (error) ownError = error;
-      deletedCount += deletedIds.length;
-      if (deletedIds.length > 0) {
-        const deletedIdSet = new Set(deletedIds);
-        setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
+    try {
+      // Kendi taşları → gerçek DELETE (server API, tenant guard'lı tekil DELETE'ler)
+      if (ownIds.length > 0) {
+        const { deletedIds, error } = await deleteStones(ownIds);
+        if (error) ownError = error;
+        deletedCount += deletedIds.length;
+        if (deletedIds.length > 0) {
+          const deletedIdSet = new Set(deletedIds);
+          deletedIds.forEach((id) => removedIds.add(id));
+          setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
+        }
       }
-    }
 
-    // Kütüphane taşları → exclusion (soft-delete)
-    if (libraryIds.length > 0) {
-      const { error } = await excludeStonesForTenant(tenantId, libraryIds);
-      if (error) {
-        libError = error;
-      } else {
-        setExcludedStoneIds((prev) => new Set([...prev, ...libraryIds]));
-        deletedCount += libraryIds.length;
+      // Kütüphane taşları → exclusion (soft-delete)
+      if (libraryIds.length > 0) {
+        const { error } = await excludeStonesForTenant(tenantId, libraryIds);
+        if (error) {
+          libError = error;
+        } else {
+          setExcludedStoneIds((prev) => new Set([...prev, ...libraryIds]));
+          libraryIds.forEach((id) => removedIds.add(id));
+          deletedCount += libraryIds.length;
+        }
       }
+    } catch (err) {
+      ownError = ownError ?? (err instanceof Error ? err.message : t("error.tryAgain"));
+    } finally {
+      setDeleteLoading(false);
     }
-
-    setDeleteLoading(false);
 
     if (ownError || libError) {
+      // Kısmi başarı: kaldırılanlar seçimden düşer, başarısızlar seçili kalır.
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        removedIds.forEach((id) => next.delete(id));
+        return next;
+      });
       setErrorMessage(t("error.someRemoveFailed", { error: ownError ?? libError ?? "" }));
+      if (removedIds.size > 0 && ownIds.length > 0) await fetchList({ reset: true });
       return;
     }
 
     showToast({ type: "success", message: t("toast.removedCount", { count: deletedCount }) });
     setSelectedIds(new Set());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo, t, tc]);
+  }, [deleteConfirm, deleteLoading, fetchList, filteredStones, queryTenantId, selectedIds, showToast, isDemo, t, tc, tf]);
 
   const loadedImages = useMemo(
     () =>
@@ -952,7 +979,7 @@ function DogaltasListesiPageContent() {
     try {
       let selectedStoneIds: string[] | undefined;
       if (mode === "selected") {
-        selectedStoneIds = [...selectedIds];
+        selectedStoneIds = visibleSelection(selectedIds, filteredStones.map((s) => s.id));
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.selectStoneFirst") }); return; }
       } else if (mode === "filtered") {
         if (isDetailFilterActive) {
@@ -993,14 +1020,8 @@ function DogaltasListesiPageContent() {
         console.error("[dogaltas-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
         throw new Error("report-failed");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
-      a.download = `dogaltas-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `dogaltas-${modeSlug}-${reportFileDate()}.docx`);
       // FAZ-4A: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
       showToast({ type: "success", message: t("toast.wordStarted") });
     } catch (err) {

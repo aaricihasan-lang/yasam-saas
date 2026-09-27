@@ -118,8 +118,21 @@
       "delete": {
         "title": "Danışanı sil",
         "thisClient": "Bu danışan",
-        "message": "\"{name}\" adlı danışan silinsin mi? Danışan ve bağlı tüm kayıtlar (seanslar, ödevler, randevular, taşlar, analizler) kalıcı olarak silinebilir.",
-        "secondMessage": "Bu işlem geri alınamaz. Danışana ait tüm veriler kalıcı olarak silinecektir. Emin misiniz?"
+        "message": "\"{name}\" adlı danışan ve danışana bağlı kayıtlar kalıcı olarak silinecek.",
+        "secondMessage": "Bu işlem geri alınamaz. Danışana ait tüm veriler kalıcı olarak silinecektir. Emin misiniz?",
+        "previewHeader": "Birlikte silinecek kayıtlar:",
+        "previewEmpty": "Danışana bağlı başka kayıt bulunmadı.",
+        "previewPartial": "Bazı kayıt türleri sayılamadı; onlar da danışanla birlikte silinir.",
+        "previewFailed": "Kayıt sayıları alınamadı. Danışanla birlikte şunlar silinir: notlar ve genel bilgiler, randevular, seanslar, ödevler, ücretler, taşlar ve taş fotoğrafları, analizler, kombinasyonlar, beslenme ve kupa kayıtları, Yaşam Hafızası rapor seçimleri.",
+        "unlinked": "Numeroloji, Human Design, Refleksoloji ve Biyoenerji kayıtları danışana bağlı değildir; bunlar ayrıca silinmelidir.",
+        "notesLine": "Notlar: {count}",
+        "generalLine": "Genel bilgiler: {fields}",
+        "fieldSaglik": "sağlık notu",
+        "fieldAdres": "adres",
+        "fieldOneriler": "öneriler",
+        "requireLabel": "Onaylamak için danışanın adını yazın: “{name}”",
+        "requireLabelFallback": "Onaylamak için “SİL” yazın:",
+        "confirm": "Kalıcı Olarak Sil"
       },
       "toast": {
         "successTitle": "Başarılı",
@@ -139,7 +152,8 @@
         "clientDeletedTitle": "Danışan silindi",
         "cleanupWarning": "Bazı ek dosyaların temizliği tamamlanamadı.",
         "addedTitle": "Eklendi",
-        "yhAdded": "{count} kayıt raporun Yaşam Hafızası bölümüne eklenecek."
+        "yhAdded": "{count} kayıt raporun Yaşam Hafızası bölümüne eklenecek.",
+        "notesConflict": "Notlar başka yerde değişti, yenileniyor."
       },
       "error": {
         "reportFailed": "Rapor oluşturulamadı"
@@ -184,13 +198,15 @@
         "stat": {
           "total": "Toplam",
           "upcoming": "Yaklaşan",
-          "past": "Geçmiş"
+          "past": "Geçmiş",
+          "noResult": "Sonuç girilmedi"
         },
         "status": {
           "tamamlandi": "Tamamlandı",
           "iptal": "İptal",
           "gecmis": "Geçmiş",
-          "yaklasan": "Yaklaşan"
+          "yaklasan": "Yaklaşan",
+          "sonucGirilmedi": "Sonuç girilmedi"
         },
         "cancelConfirm": {
           "title": "Randevu iptal edilsin mi?",
@@ -244,7 +260,38 @@
           "complete": "Tamamlandı",
           "cancel": "İptal Et",
           "delete": "Sil"
+        },
+        "futureComplete": "Henüz gerçekleşmemiş bir randevu tamamlandı olarak işaretlenemez."
+      },
+      "deletePreview": {
+        "table": {
+          "appointments": "Randevular",
+          "sessions": "Seanslar",
+          "homeworks": "Ödevler",
+          "charges": "Ücret kayıtları",
+          "stones": "Taşlar",
+          "stonePhotos": "Taş fotoğrafları",
+          "analyses": "Analizler",
+          "combinations": "Kombinasyonlar",
+          "chakraRecords": "Çakra kayıtları",
+          "planetRecords": "Gezegen kayıtları",
+          "cuppingAdvice": "Kupa önerileri",
+          "nutritionProfile": "Beslenme profili",
+          "nutritionAllergens": "Alerjenler",
+          "nutritionPreferences": "Besin tercihleri",
+          "nutritionMeasurements": "Ölçümler",
+          "nutritionPlans": "Beslenme planı bağlantıları",
+          "memorySnapshots": "Yaşam Hafızası rapor seçimleri",
+          "memoryIndex": "Yaşam Hafızası dizin kayıtları",
+          "legacyGifts": "Eski hediye kayıtları",
+          "legacyPhotos": "Eski fotoğraf kayıtları",
+          "legacyTasks": "Eski görev kayıtları"
         }
+      },
+      "notesState": {
+        "loading": "Notlar yükleniyor…",
+        "error": "Notlar ve genel bilgiler yüklenemedi. Veri kaybını önlemek için düzenleme kapalı.",
+        "retry": "Yeniden dene"
       }
     }
   }

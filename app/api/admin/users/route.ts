@@ -107,8 +107,9 @@ export async function POST(req: NextRequest) {
     return bad("Ad soyad 2–120 karakter olmalıdır.");
   }
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return bad("Geçerli bir e-posta adresi girin.");
+  // Ortak minimum (FAZ1 FINAL HARDENING MIN_PASSWORD_LENGTH = 10) + harf/rakam — passwordPolicyError.
   if (passwordPolicyError(password, email)) {
-    return bad("Şifre en az 8 karakter olmalı; en az bir harf ve bir rakam içermelidir.");
+    return bad("Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.");
   }
   if (body.role !== "admin" && body.role !== "expert") return bad("Geçersiz rol. Kabul edilenler: admin, expert");
   const role = body.role;

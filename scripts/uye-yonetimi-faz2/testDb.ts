@@ -156,7 +156,7 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
     "20260910000000_provisioning_integrity.sql",
     "20261221000000_yh_grade_expert_premium_rpc.sql",
     "20270107000000_admin_membership_atomic_rpcs.sql",
-    "20270129000000_admin_member_phase1_hardening.sql",
+    "20270129235900_admin_member_phase1_hardening.sql",
     "20270130000000_admin_member_phase2.sql",
   ]) {
     await su.query(readMig(f));

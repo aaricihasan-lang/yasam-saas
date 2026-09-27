@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,6 +43,15 @@ import {
   turkishUpper,
 } from "@/lib/urun-stok/oilStockLogic";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import {
+  findSaveTarget,
+  newPhotosOnly,
+  planStockSave,
+  stockFormSignature,
+  type StockRetryState,
+} from "../stockSaveAttempt";
+import { pruneSelection } from "@/lib/ui/selection";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
@@ -102,7 +112,7 @@ const inputClass =
   "h-10 w-full rounded-xl border-2 border-emerald-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-200/50";
 
 const btnPrimary =
-  "inline-flex h-10 items-center justify-center rounded-xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-100 to-green-100 px-6 text-sm font-black text-emerald-900 shadow-md transition hover:scale-[1.02]";
+  "inline-flex h-10 items-center justify-center rounded-xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-100 to-green-100 px-6 text-sm font-black text-emerald-900 shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100";
 
 const btnSecondary =
   "inline-flex h-9 items-center justify-center rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-slate-800 transition hover:bg-emerald-100";
@@ -207,6 +217,8 @@ function SalesDetailModal({ record, onClose }: { record: OilSaleRecord; onClose:
 export default function YagUrunStokPage() {
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
+  const saveLock = useSubmitLock();
+  const retryRef = useRef<StockRetryState | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<OilItem[]>([]);
@@ -277,6 +289,13 @@ export default function YagUrunStokPage() {
     [inventory, search, sortMode],
   );
 
+  // Arama/sıralama değişince seçim görünür kayıtlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = displayed.map((i) => i.id);
+    runInEffect(() => setSelectedIds((prev) => pruneSelection(prev, visibleIds)));
+  }, [displayed]);
+
   const stockValue = useMemo(() => inventoryStockValue(inventory), [inventory]);
 
   const stockUnitPreview = useMemo(() => {
@@ -298,6 +317,7 @@ export default function YagUrunStokPage() {
   }, [measureType, inputUnit]);
 
   function resetForm() {
+    retryRef.current = null;
     setEditId(null);
     setName("");
     setStockQty("");
@@ -310,6 +330,7 @@ export default function YagUrunStokPage() {
   }
 
   function loadToForm(it: OilItem) {
+    retryRef.current = null;
     setEditId(it.id);
     setName(it.name);
     setOilType(it.oilType);
@@ -327,55 +348,77 @@ export default function YagUrunStokPage() {
     setAddDelta(false);
   }
 
-  async function handleSaveStock() {
+  function handleSaveStock() {
+    // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
+    return saveLock
+      .run(() => saveStockNow())
+      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+  }
+
+  async function saveStockNow() {
     setMsg(null);
     const beforeIds = new Set(inventory.map((i) => i.id));
     const editingId = editId;
-    const result = addOrUpdateOilItem(inventory, {
-      id: editingId ?? undefined,
-      name: turkishUpper(name),
-      oilType,
-      measureType,
-      stockQty: toFloat(stockQty, 0),
-      inputUnit,
-      costTotal: toFloat(costTotal, 0),
-      salePriceTotal: toFloat(salePriceTotal, 0),
-      profitPct: toFloat(profitPct, 0),
-      bottleVolume,
-      bottleVolumeCustom: bottleCustom,
-      packageType,
-      photos,
-      note,
-      deltaMode: addDelta,
-    });
-    if (!result.ok) {
-      setMsg(result.error);
-      return;
-    }
-    // localStorage: anında geri bildirim + çevrimdışı yedek (DB önbelleği)
-    const saved = saveOilInventory(result.items);
-    setInventory(result.items);
-    if (!saved) {
-      setMsg(
-        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
-      );
-      return;
+    const signature = stockFormSignature([
+      editingId, turkishUpper(name), oilType, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), bottleVolume, bottleCustom, packageType, note,
+      photos.length, addDelta,
+    ]);
+    // Aynı form tekrar gönderildiyse (önceki bulut yazımı başarısız) yerel birleştirme
+    // TEKRARLANMAZ; yeni kayıt denemesi aynı id (= client_id) ile sürer → çift kayıt yok.
+    const plan = planStockSave(retryRef.current, signature, editingId, beforeIds);
+    let items = inventory;
+    let target: OilItem | undefined;
+    if (plan.kind === "retry-cloud") {
+      target = inventory.find((it) => it.id === plan.targetId);
+    } else {
+      const existing = plan.id ? inventory.find((it) => it.id === plan.id) : undefined;
+      const result = addOrUpdateOilItem(inventory, {
+        id: plan.id,
+        name: turkishUpper(name),
+        oilType,
+        measureType,
+        stockQty: toFloat(stockQty, 0),
+        inputUnit,
+        costTotal: toFloat(costTotal, 0),
+        salePriceTotal: toFloat(salePriceTotal, 0),
+        profitPct: toFloat(profitPct, 0),
+        bottleVolume,
+        bottleVolumeCustom: bottleCustom,
+        packageType,
+        photos: plan.forceAbsolute ? newPhotosOnly(photos, existing?.photos) : photos,
+        note,
+        deltaMode: plan.forceAbsolute ? false : addDelta,
+      });
+      if (!result.ok) {
+        setMsg(result.error);
+        return;
+      }
+      items = result.items;
+      target = findSaveTarget(items, beforeIds, plan.id);
+      // localStorage: anında geri bildirim + çevrimdışı yedek (DB önbelleği)
+      const saved = saveOilInventory(items);
+      setInventory(items);
+      if (!saved) {
+        setMsg(
+          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+        );
+        return;
+      }
     }
 
     // K-2: Demo değilse kaydı kalıcı olarak Supabase'e yaz. Böylece sayfa
     // yenilenince kaybolmaz ve cihazlar arası senkron olur.
     if (!isDemo && activeTenantId) {
-      const target = editingId
-        ? result.items.find((it) => it.id === editingId)
-        : result.items.find((it) => !beforeIds.has(it.id));
       if (target) {
         const res = await upsertOilInventoryItem(activeTenantId, target);
         if (!res.ok) {
+          retryRef.current = { signature, targetId: target.id, isNew: !editingId };
           setMsg(
             `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
+        retryRef.current = null;
         // DB'den taze çek: kanonik durum; önbelleğin DB'yi ezme riski kalmaz.
         await reloadInv();
         resetForm();
@@ -393,20 +436,23 @@ export default function YagUrunStokPage() {
   }
 
   async function deleteSelected() {
-    if (!selectedIds.size) {
+    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
+    const removed = displayed.filter((i) => selectedIds.has(i.id));
+    if (!removed.length) {
       setMsg("Silmek için seçim yapın.");
       return;
     }
+    const removedIds = new Set(removed.map((i) => i.id));
     const ok = await deleteConfirm({
       title: "Stok kaydı silinecek",
-      message: `Seçili ${selectedIds.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      names: removed.map((i) => i.name || "(adsız ürün)"),
     });
     if (!ok) return;
-    const removed = inventory.filter((i) => selectedIds.has(i.id));
-    const next = inventory.filter((i) => !selectedIds.has(i.id));
+    const next = inventory.filter((i) => !removedIds.has(i.id));
     saveOilInventory(next);
     setInventory(next);
-    const count = selectedIds.size;
+    const count = removed.length;
     setSelectedIds(new Set());
     // K-2: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
     if (!isDemo && activeTenantId && removed.length > 0) {
@@ -545,6 +591,7 @@ export default function YagUrunStokPage() {
     const ok = await deleteConfirm({
       title: "Satış iptal edilecek",
       message: `Seçili ${histSel.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
+      names: sales.filter((_, i) => histSel.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
     });
     if (!ok) return;
     const toCancel = sales.filter((_, i) => histSel.has(i));
@@ -591,6 +638,11 @@ export default function YagUrunStokPage() {
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());
+  // Seçim sıra-indekslidir: satış listesi yeniden yüklenince (yeni satış/iptal) indeksler
+  // başka satışa kayabilir → seçim temizlenir (yanlış satışın iptali engellenir).
+  useEffect(() => {
+    runInEffect(() => setHistSel((prev) => (prev.size ? new Set() : prev)));
+  }, [sales]);
   const histSummary = useMemo(() => {
     const totalSale = sales.reduce((s, r) => s + r.sale_price, 0);
     const totalCost = sales.reduce((s, r) => s + r.total_cost, 0);
@@ -782,7 +834,7 @@ export default function YagUrunStokPage() {
                     }}
                   />
                 </label>
-                <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()}>
+                <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   {editId ? "Güncelle" : "Ekle"}
                 </button>
                 {editId ? (

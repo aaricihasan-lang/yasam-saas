@@ -54,7 +54,7 @@ type ChartPayload = {
 export async function saveClientChart(
   clientId: string,
   values: ChartPayload,
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; id?: string | null }> {
   let res: Response;
   try {
     res = await fetch("/api/hd/charts?scope=manual", {
@@ -66,6 +66,6 @@ export async function saveClientChart(
     return { error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true) return { error: null };
+  if (res.ok && j.ok === true) return { error: null, id: typeof j.id === "string" ? j.id : null };
   return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }

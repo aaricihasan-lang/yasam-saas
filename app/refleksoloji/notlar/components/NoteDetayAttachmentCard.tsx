@@ -59,13 +59,14 @@ export function NoteDetayAttachmentCard({
         </button>
       ) : null}
 
-      {kind === "word" ? (
+      {kind === "unsupported" ? (
         <p className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm font-medium text-amber-950">
-          Word dosyası tarayıcıda önizlenemeyebilir, indirme ile açabilirsiniz.
+          Bu dosya türü artık desteklenmiyor (yalnız görsel ve PDF). Eki kaldırmadan not
+          sunucuyla eşitlenemez; gerekirse önce indirin.
         </p>
       ) : null}
 
-      {kind === "other" && !hasData ? (
+      {kind !== "unsupported" && !hasData ? (
         <p className="mt-4 text-sm font-medium text-slate-500">
           Bu ek için önizleme verisi yok. Yalnızca dosya adı kayıtlı.
         </p>

@@ -227,7 +227,9 @@ function run(): void {
   ok(resolveModuleAccess("expert", {}, "stones") === false, "module: izin yok → red");
   // Premium bypass KALDIRILDI: package_type premium olsa da module_permissions esastır.
   ok(resolveModuleAccess("expert", {}, "aromatherapy") === false, "module: Premium bypass YOK (izin yoksa red)");
-  ok(resolveModuleAccess("expert", { video_ceviri: true }, "digital_content") === true, "module: digital_content hub (alt modülden)");
+  ok(resolveModuleAccess("expert", { belge_ceviri: true }, "digital_content") === true, "module: digital_content hub (alt modülden)");
+  // FAZ1 FINAL HARDENING: video_ceviri/ders_notu admin-only → uzmanda hub'ı TEK BAŞINA açmaz.
+  ok(resolveModuleAccess("expert", { video_ceviri: true, ders_notu: true }, "digital_content") === false, "module: AI-only bayraklar uzmanda hub açmaz");
   ok(resolveModuleAccess("expert", {}, "digital_content") === false, "module: hub alt modül yoksa red");
 
   // ── 10) ENVANTER / GATE KAPSAMI — her modül route'u ya gate'li ya explicit-exclude ──

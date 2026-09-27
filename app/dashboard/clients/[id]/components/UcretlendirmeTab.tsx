@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { todayInZone } from "@/lib/time/reportTime";
 
 type ChargeCategory = "session" | "homework" | "analysis" | "other";
 const CATEGORIES: ChargeCategory[] = ["session", "homework", "analysis", "other"];
@@ -49,8 +50,9 @@ type UcretlendirmeTabProps = {
   clientId: string;
 };
 
+// Form varsayılanı: İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInZone();
 }
 
 function emptyForm(): ChargeForm {

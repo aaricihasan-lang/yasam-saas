@@ -35,6 +35,58 @@ const HIGH_RISK_THRESHOLD_MS = 6 * 60 * 60 * 1000; // 6 saat
  */
 const LAST_SEEN_THROTTLE_MS = 90 * 1000; // 90 sn (FRESH_THRESHOLD_MS / 10)
 
+// ─── Oturum süresi politikası (FAZ1 FINAL HARDENING — AUTH) ─────────────────
+//
+// ROLLOUT KAPISI: `SESSION_EXPIRY_ENFORCE` ("1" / "true") → R2 (süre ZORLAMASI açık).
+// Varsayılan KAPALI = R1: yalnız gerçek (await edilen) last_seen_at touch'ı + yeni oturumlara
+// expires_at yazımı + sunucu logout. R1'de HİÇBİR oturum süre nedeniyle sonlandırılmaz.
+// Süreler (yalnız enforce açıkken uygulanır): admin mutlak 24 saat / idle 2 saat,
+// uzman mutlak 30 gün / idle 7 gün. Mutlak süre expires_at'e oturum oluşturulurken yazılır.
+
+export const SESSION_ABSOLUTE_MS = {
+  admin: 24 * 60 * 60 * 1000,
+  expert: 30 * 24 * 60 * 60 * 1000,
+} as const;
+
+export const SESSION_IDLE_MS = {
+  admin: 2 * 60 * 60 * 1000,
+  expert: 7 * 24 * 60 * 60 * 1000,
+} as const;
+
+export type SessionExpiryPolicy = {
+  enforce: boolean;
+  touchAfterSeconds: number;
+  expertIdleSeconds: number;
+  adminIdleSeconds: number;
+  adminAbsoluteSeconds: number;
+};
+
+/** Env'den rollout kapısını okur (saf; test edilebilir). Varsayılan: enforce KAPALI (R1). */
+export function isSessionExpiryEnforced(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const raw = String(env.SESSION_EXPIRY_ENFORCE ?? "").trim().toLowerCase();
+  return raw === "1" || raw === "true";
+}
+
+export function resolveSessionExpiryPolicy(
+  env: Record<string, string | undefined> = process.env,
+): SessionExpiryPolicy {
+  return {
+    enforce: isSessionExpiryEnforced(env),
+    touchAfterSeconds: LAST_SEEN_THROTTLE_MS / 1000,
+    expertIdleSeconds: SESSION_IDLE_MS.expert / 1000,
+    adminIdleSeconds: SESSION_IDLE_MS.admin / 1000,
+    adminAbsoluteSeconds: SESSION_ABSOLUTE_MS.admin / 1000,
+  };
+}
+
+/** Yeni oturumun mutlak bitişi (rol bazlı). */
+export function computeSessionExpiresAt(role: unknown, nowMs: number = Date.now()): string {
+  const isAdmin = String(role ?? "").trim().toLowerCase() === "admin";
+  return new Date(nowMs + (isAdmin ? SESSION_ABSOLUTE_MS.admin : SESSION_ABSOLUTE_MS.expert)).toISOString();
+}
+
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type SecurityRiskLevel = "low" | "suspicious" | "high_risk";
@@ -185,12 +237,14 @@ export async function createUserSession(
   // ── Kullanıcı lisans + platform ayarları ─────────────────────────────────
   const { data: lr } = await db
     .from("users")
-    .select("security_exempt, allowed_active_sessions, allowed_locations, security_mode, license_type, allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions")
+    .select("role, security_exempt, allowed_active_sessions, allowed_locations, security_mode, license_type, allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions")
     .eq("id", userId)
     .maybeSingle();
 
   const securityExempt  = lr?.security_exempt === true;
-  const allowedLocs     = Math.max(1, Number(lr?.allowed_locations ?? 1));
+  // Owner kararı (FAZ1 final): telefon + bilgisayar NORMAL kullanımdır → etkin konum limiti
+  // en az 2 (migration 20270129000200 NULL/1 → 2 yapar; burada da taban 2). 3/999 korunur.
+  const allowedLocs     = effectiveAllowedLocations(lr?.allowed_locations);
   const rawMode         = String(lr?.security_mode ?? "normal");
   const secMode         = (["strict", "normal", "flexible"].includes(rawMode) ? rawMode : "normal") as
     "strict" | "normal" | "flexible";
@@ -208,6 +262,10 @@ export async function createUserSession(
   // ── Güvenlik muafiyeti ────────────────────────────────────────────────────
   if (securityExempt) {
     await insertSession(db, userId, location, sessionToken, platform, now, clientChannel);
+    await finalizeNewSession(db, sessionToken, {
+      expires_at:     computeSessionExpiresAt(lr?.role),
+      client_channel: clientChannel,
+    });
     return { ok: true, suspiciousLogin: false, highRisk: false };
   }
 
@@ -232,14 +290,9 @@ export async function createUserSession(
 
   const freshSessions = sessions.filter((s) => isFreshWith(s, freshThresholdMs));
 
-  // ── Bilinmeyen konumlu fresh oturumları kapat ─────────────────────────────
-  const unknownLocSessions = freshSessions.filter((s) => classifySession(s, location) === "unknown");
-  if (unknownLocSessions.length > 0) {
-    await db
-      .from("user_sessions")
-      .update({ is_active: false, ended_at: now, end_reason: "stale" })
-      .in("id", unknownLocSessions.map((s) => s.id));
-  }
+  // ── Bilinmeyen konumlu fresh oturumlar ────────────────────────────────────
+  // FAZ1 FINAL HARDENING: konum başlığı olmayan (ör. mobil ağ/WebView) TAZE oturumlar artık
+  // KAPATILMAZ — telefon + bilgisayar eş zamanlı normal kullanım. Konum sayımına girmezler.
 
   const knownFreshSessions = freshSessions.filter((s) => classifySession(s, location) !== "unknown");
 
@@ -267,7 +320,7 @@ export async function createUserSession(
   const locationLimitExceeded = distinctLocs > allowedLocs;
 
   // ── Konum riski ───────────────────────────────────────────────────────────
-  let riskLevel: SecurityRiskLevel = "low";
+  let riskLevel = "low" as SecurityRiskLevel;
   const sessionsToCloseForRisk: string[] = [];
 
   if (locationLimitExceeded) {
@@ -277,10 +330,11 @@ export async function createUserSession(
       sessionsToCloseForRisk.push(...activeHighRisk.map((s) => s.id));
     }
 
-    if (diffCitySessions.length > 0) {
-      if (riskLevel !== "high_risk") {
-        riskLevel = secMode === "strict" ? "high_risk" : "suspicious";
-      }
+    // FAZ1 FINAL HARDENING (owner kararı): aynı ülke içinde farklı şehir (ör. telefon mobil
+    // ağda başka şehir IP'si) NORMAL sayılır; yalnız strict modda risk + kapatma uygulanır.
+    // Risk esas olarak farklı ülke (yukarıda) ve olağandışı girişlerdir.
+    if (diffCitySessions.length > 0 && secMode === "strict") {
+      if (riskLevel !== "high_risk") riskLevel = "high_risk";
       sessionsToCloseForRisk.push(...diffCitySessions.map((s) => s.id));
     }
 
@@ -403,6 +457,14 @@ export async function createUserSession(
     return { ok: false, reason, deviceType: platform };
   }
 
+  // FAZ1 FINAL HARDENING: create_session_within_limits RPC'si expires_at/client_channel yazmaz →
+  // aynı token satırına best-effort tamamlayıcı UPDATE (AWAIT edilir). Kolon henüz yoksa
+  // (migration 20270129000200 uygulanmadan deploy) kolon varsayılanı/NULL kalır; giriş ETKİLENMEZ.
+  await finalizeNewSession(db, sessionToken, {
+    expires_at:     computeSessionExpiresAt(lr?.role),
+    client_channel: clientChannel,
+  });
+
   return {
     ok: true,
     suspiciousLogin: riskLevel === "suspicious",
@@ -410,38 +472,79 @@ export async function createUserSession(
   };
 }
 
-// ─── Token doğrulama ─────────────────────────────────────────────────────────
-
-export async function validateSessionToken(
-  db: SupabaseClient,
-  sessionToken: string,
-): Promise<boolean> {
-  const { data } = await db
-    .from("user_sessions")
-    .select("id")
-    .eq("session_token", sessionToken)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (data) {
-    void db
-      .from("user_sessions")
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq("session_token", sessionToken);
-  }
-
-  return !!data;
+/** Etkin konum limiti: taban 2 (owner kararı), üst sınır yok (3/999 korunur). */
+export function effectiveAllowedLocations(raw: unknown): number {
+  const n = Number(raw ?? 2);
+  if (!Number.isFinite(n)) return 2;
+  return Math.max(2, Math.trunc(n));
 }
 
+async function finalizeNewSession(
+  db: SupabaseClient,
+  sessionToken: string,
+  fields: { expires_at: string; client_channel: ClientChannel },
+): Promise<void> {
+  let attempt: Record<string, unknown> = { ...fields };
+  for (let i = 0; i < 3 && Object.keys(attempt).length > 0; i++) {
+    try {
+      const { error } = await db
+        .from("user_sessions")
+        .update(attempt)
+        .eq("session_token", sessionToken);
+      if (!error) return;
+      const dropKey = Object.keys(attempt).find((k) => error.message?.includes(k));
+      if (!dropKey) return;
+      const rest = { ...attempt };
+      delete rest[dropKey];
+      attempt = rest;
+    } catch {
+      return; // best-effort: oturum zaten oluştu
+    }
+  }
+}
+
+// ─── Token doğrulama ─────────────────────────────────────────────────────────
+
 /**
- * Aktif bir oturum token'ının sahibi olan user_id'yi döndürür.
- * Token yoksa / pasifse null döner. Aktivite üzerine last_seen_at tazelenir.
+ * FAZ1 FINAL HARDENING (PERF-05 kapanışı): token doğrulama + last_seen_at touch TEK noktada.
  *
- * verifyUserRequest gibi guard'ların token.user_id === x-user-id bağını
- * kurabilmesi için kullanılır (yalnızca aktif/geçerli olduğunu değil,
- * KİMİN token'ı olduğunu da bilmek gerekir).
+ * Birincil yol: `touch_active_session` RPC (migration 20270129000200) — tek round-trip, koşullu
+ * (throttled, ~90 sn) touch ve YALNIZ enforce açıkken mutlak/idle süre zorlaması. Yazma
+ * AWAIT edilir (eski `void db.update(...)` tembel PostgREST builder'ını HİÇ çalıştırmıyordu).
+ *
+ * Geçiş/yedek yol (yalnız enforce KAPALIYKEN): RPC yoksa/hata verirse eski select + AWAIT'li
+ * throttled update. Enforce AÇIKKEN RPC hatası → null (fail-closed; süresi dolmuş oturum
+ * yedek yoldan geçemez).
  */
-export async function getActiveSessionUserId(
+export async function touchActiveSession(
+  db: SupabaseClient,
+  sessionToken: string,
+  policy: SessionExpiryPolicy = resolveSessionExpiryPolicy(),
+): Promise<string | null> {
+  const token = (sessionToken ?? "").trim();
+  if (!token) return null;
+
+  try {
+    const { data, error } = await db.rpc("touch_active_session", {
+      p_token: token,
+      p_touch_after_seconds: policy.touchAfterSeconds,
+      p_idle_seconds: policy.expertIdleSeconds,
+      p_enforce: policy.enforce,
+      p_admin_idle_seconds: policy.adminIdleSeconds,
+      p_admin_absolute_seconds: policy.adminAbsoluteSeconds,
+    });
+    if (!error) {
+      return typeof data === "string" && data.length > 0 ? data : null;
+    }
+  } catch {
+    /* aşağıdaki karar */
+  }
+
+  if (policy.enforce) return null; // fail-closed
+  return legacyTouchActiveSession(db, token);
+}
+
+async function legacyTouchActiveSession(
   db: SupabaseClient,
   sessionToken: string,
 ): Promise<string | null> {
@@ -452,28 +555,72 @@ export async function getActiveSessionUserId(
     .eq("is_active", true)
     .maybeSingle();
 
-  if (data && shouldRefreshLastSeen(data.last_seen_at)) {
-    // Throttle: yalnız kayıt LAST_SEEN_THROTTLE_MS'den eskiyse yaz. Bu read-then-update
-    // atomik DEĞİLDİR — eşzamanlı bir istek dalgasında aynı eski değeri okuyup birden
-    // fazla UPDATE oluşabilir; bu kabul edilebilir (tek-yazma garantisi atomik koşullu
-    // update/RPC gerektirir, PERF-1 kapsamı dışı). Token doğrulaması (is_active) bundan
-    // etkilenmez; freshness eşiğine geniş marj korunur.
-    void db
-      .from("user_sessions")
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq("session_token", sessionToken);
-  }
+  if (!data || data.user_id == null) return null;
 
-  return data?.user_id != null ? String(data.user_id) : null;
+  if (shouldRefreshLastSeen(data.last_seen_at)) {
+    // AWAIT: PostgREST builder tembeldir; await edilmeyen update İSTEK GÖNDERMEZ.
+    // Touch hatası doğrulamayı düşürmez (best-effort), ama istek gerçekten gider.
+    try {
+      await db
+        .from("user_sessions")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("session_token", sessionToken)
+        .eq("is_active", true);
+    } catch {
+      /* best-effort */
+    }
+  }
+  return String(data.user_id);
+}
+
+export async function validateSessionToken(
+  db: SupabaseClient,
+  sessionToken: string,
+): Promise<boolean> {
+  return (await touchActiveSession(db, sessionToken)) !== null;
+}
+
+/**
+ * Aktif bir oturum token'ının sahibi olan user_id'yi döndürür.
+ * Token yoksa / pasifse (veya enforce açıkken süresi dolmuşsa) null döner. Aktivite üzerine
+ * last_seen_at tazelenir (throttled, AWAIT'li).
+ *
+ * verifyUserRequest gibi guard'ların token.user_id === x-user-id bağını
+ * kurabilmesi için kullanılır (yalnızca aktif/geçerli olduğunu değil,
+ * KİMİN token'ı olduğunu da bilmek gerekir).
+ */
+export async function getActiveSessionUserId(
+  db: SupabaseClient,
+  sessionToken: string,
+): Promise<string | null> {
+  return touchActiveSession(db, sessionToken);
+}
+
+/**
+ * Kullanıcı çıkışı (FAZ1 FINAL HARDENING): YALNIZ verilen token'ı pasifler
+ * (is_active=false, end_reason='user_logout'). İdempotent: zaten pasif/bilinmeyen token → 0.
+ * Diğer cihazların oturumlarına DOKUNMAZ.
+ */
+export async function endUserSession(
+  db: SupabaseClient,
+  sessionToken: string,
+): Promise<number> {
+  const token = (sessionToken ?? "").trim();
+  if (!token) return 0;
+  const { data, error } = await db
+    .from("user_sessions")
+    .update({ is_active: false, ended_at: new Date().toISOString(), end_reason: "user_logout" })
+    .eq("session_token", token)
+    .eq("is_active", true)
+    .select("id");
+  if (error) throw new Error("Oturum kapatılamadı.");
+  return Array.isArray(data) ? data.length : 0;
 }
 
 // ─── Header'dan konum bilgisi ─────────────────────────────────────────────────
 
 export function extractLocationFromHeaders(headers: Headers): LocationInfo {
-  const ip =
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headers.get("x-real-ip") ??
-    "unknown";
+  const ip = extractClientIp(headers);
 
   const country = headers.get("x-vercel-ip-country") ?? null;
 
@@ -485,4 +632,19 @@ export function extractLocationFromHeaders(headers: Headers): LocationInfo {
   const channel = resolveClientChannel(userAgent, headers.get(CLIENT_CHANNEL_HEADER));
 
   return { ip, country, city, userAgent, channel };
+}
+
+/**
+ * İstemci IP'si (FAZ1 FINAL HARDENING): Vercel'in ayarladığı başlıklar önceliklidir —
+ * `x-real-ip` → `x-vercel-forwarded-for` (ilk değer) → `x-forwarded-for` (ilk değer).
+ * Başlık yoksa "unknown". YALNIZ throttle/konum analitiği içindir; kimlik kanıtı DEĞİLDİR.
+ */
+export function extractClientIp(headers: Headers): string {
+  const first = (v: string | null) => (v ?? "").split(",")[0]?.trim() ?? "";
+  return (
+    first(headers.get("x-real-ip")) ||
+    first(headers.get("x-vercel-forwarded-for")) ||
+    first(headers.get("x-forwarded-for")) ||
+    "unknown"
+  );
 }

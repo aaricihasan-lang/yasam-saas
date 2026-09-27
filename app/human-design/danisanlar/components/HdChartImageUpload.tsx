@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { runInEffect } from "@/lib/runInEffect";
 
@@ -48,6 +49,7 @@ export function HdChartImageUpload({ clientId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
   const [status, setStatus] = useState<ImageStatus>("loading");
   const [displayUrl, setDisplayUrl] = useState<string | null>(null);
 
@@ -131,12 +133,18 @@ export function HdChartImageUpload({ clientId }: Props) {
   }
 
   async function handleDelete() {
-    if (status !== "ready") return;
+    if (status !== "ready" || uploading || deleting) return;
 
     if (!hasSession()) {
       showToast({ message: "Oturum bulunamadı, tekrar giriş yapın.", type: "error" });
       return;
     }
+
+    const ok = await deleteConfirm({
+      title: "Harita görselini sil",
+      message: "Bu danışanın Human Design harita görseli kalıcı olarak silinecek.",
+    });
+    if (!ok) return;
 
     setDeleting(true);
     try {
@@ -191,7 +199,7 @@ export function HdChartImageUpload({ clientId }: Props) {
             </button>
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               disabled={busy}
               className="h-7 rounded-lg border border-red-200 bg-white px-3 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >

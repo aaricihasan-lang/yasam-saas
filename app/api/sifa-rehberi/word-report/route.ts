@@ -6,7 +6,9 @@ import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 import { chunkIds, orderRowsByIds } from "@/lib/sifa-rehberi/idBatch";
-import { buildFooter, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+import { buildFooter, buildWellnessNoteSection, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 // EK FAZ 3 Premium Word: SAF belge kurucusu (render mantığı buraya taşındı; harness test eder).
 import {
   buildSifaReportChildren,
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", ids, id, clientId, selectionGroupId, q, category } = body as {
+  const { exportMode = "all", ids, id, clientId, selectionGroupId, q, category, includeExpertNotes } = body as {
     exportMode?: SifaExportMode;
     ids?: string[];
     id?: string;
@@ -80,7 +82,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     // BF-14 P2: danışana özel teslim eki (opsiyonel; yalnız single mode).
     clientId?: string;
     selectionGroupId?: string;
+    // FA-26: "Uzman Notu" iç nottur → varsayılan HARİÇ; yalnız açık opt-in ile (body veya ?includeExpertNotes=1).
+    includeExpertNotes?: unknown;
   };
+  const truthy = (x: unknown) => x === true || x === 1 || x === "1" || x === "true";
+  const withExpertNotes = truthy(includeExpertNotes) || truthy(request.nextUrl?.searchParams?.get("includeExpertNotes"));
 
   if (exportMode === "single" && !id)
     return Response.json({ ok: false, error: "Tek kayıt için id zorunludur." }, { status: 400 });
@@ -177,8 +183,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!guides.length)
     return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü.
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
 
   // ── Güvenli görsel embedding (P1 PHASE A: service_role file_path download) ────
   // Görseller `file_path` (source-of-truth) üzerinden service_role storage `download` ile
@@ -233,6 +240,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     today,
     guideImages,
     sectionImages,
+    includeExpertNotes: withExpertNotes,
   });
 
   // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
@@ -261,10 +269,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan — belgenin EN SONUNDA (teslim ekinden sonra).
+  children.push(...buildWellnessNoteSection("sifa", expertDisplayName(guard.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Şifa Rehberi Raporu · Yaşam Sistemi") },
+      footers: { default: buildFooter("Şifa Rehberi Raporu · Yaşam Sistemi", { note: "sifa" }) },
       children,
     }],
   });

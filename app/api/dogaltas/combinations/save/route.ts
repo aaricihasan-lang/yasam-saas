@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { extractCombinationId, mapCombinationSaveRpcError } from "./errorMapping";
 
 export const runtime = "nodejs";
 
@@ -105,9 +106,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   if (error) {
+    // Bilinen RPC iş kuralı ihlalleri → 4xx + sade mesaj (ham DB metni sızmaz).
+    const known = mapCombinationSaveRpcError(error);
+    if (known) {
+      return NextResponse.json({ ok: false, code: known.code, error: known.error }, { status: known.status });
+    }
     return serverErrorResponse({ route: "dogaltas/combinations/save", action: "POST", tenantId, cause: error });
   }
 
-  const result = (data ?? {}) as { id?: string };
-  return NextResponse.json({ ok: true, issue: name, id: result.id });
+  // Sahte başarı yok: RPC geçerli bir combination id döndürmediyse 500.
+  const combinationId = extractCombinationId(data);
+  if (!combinationId) {
+    return serverErrorResponse({
+      route: "dogaltas/combinations/save",
+      action: "POST:result",
+      tenantId,
+      cause: new Error("create_combination_with_stones: id yok"),
+    });
+  }
+  return NextResponse.json({ ok: true, issue: name, id: combinationId });
 }

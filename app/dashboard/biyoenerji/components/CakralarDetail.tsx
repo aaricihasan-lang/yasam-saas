@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import Link from "next/link";
 import { ArrowUpRight, FileText, Flower2, Gem, Link2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -61,6 +62,8 @@ import {
   setCachedDogaltasStones,
 } from "@/lib/biyoenerji/dogaltasStoneCache";
 import { bioListFindRow } from "@/lib/biyoenerji/listCache";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 type ChakraForm = {
   name: string;
@@ -282,22 +285,17 @@ export default function CakralarDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safe = (record.name || "cakra").toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      a.download = `biyoenerji-cakra-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `biyoenerji-cakra-${safe}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
   }, [record]);
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [form, setForm] = useState<ChakraForm>({
     name: "",
     organs: "",
@@ -501,38 +499,47 @@ export default function CakralarDetail({ id }: { id: string }) {
   }, []);
 
   async function handleGuncelle() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          const tenantId = await getSyncedTenantId();
+          if (!tenantId || !record) return;
 
-    const nameTrim = form.name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Çakra adı zorunludur.");
-      return;
-    }
+          const nameTrim = form.name.trim();
+          if (!nameTrim) {
+            showSoft("err", "Çakra adı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    const { error } = await bioApiUpdate("chakras", record.id, {
-      name: nameTrim,
-      organs: trimOrEmpty(form.organs),
-      glands: trimOrEmpty(form.glands),
-      color: trimOrEmpty(form.color),
-      stones: trimOrEmpty(form.stones),
-      causes: trimOrEmpty(form.causes),
-      physical: trimOrEmpty(form.physical),
-      mental: trimOrEmpty(form.mental),
-      notes: trimOrEmpty(form.notes),
-    });
+          setSaving(true);
+          const { error } = await bioApiUpdate("chakras", record.id, {
+            name: nameTrim,
+            organs: trimOrEmpty(form.organs),
+            glands: trimOrEmpty(form.glands),
+            color: trimOrEmpty(form.color),
+            stones: trimOrEmpty(form.stones),
+            causes: trimOrEmpty(form.causes),
+            physical: trimOrEmpty(form.physical),
+            mental: trimOrEmpty(form.mental),
+            notes: trimOrEmpty(form.notes),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Güncellenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadRecord();
-    showSoft("ok", "Kayıt güncellendi.");
+          setFormModalOpen(false);
+          await loadRecord();
+          showSoft("ok", "Kayıt güncellendi.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   // FAZ 2 — silme onayını açmadan önce child block sayısını çek (cascade uyarısı).

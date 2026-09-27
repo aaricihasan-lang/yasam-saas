@@ -36,7 +36,7 @@ import {
   validateLicensePayload,
 } from "../../lib/admin/licenseLimits";
 import { isUuid, rpcErrorStatus, validateProfileEdit } from "../../lib/admin/memberRequestValidation";
-import { MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
+import { ADMIN_ONLY_MODULE_KEYS, MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
 import { MODULE_ROUTE_PREFIXES } from "../../lib/auth/moduleRouteRegistry";
 import { hasExpertMembershipAccess, buildPremiumMembershipPayload } from "../../lib/auth/membership";
 import { ADMIN_AUDIT_ACTIONS } from "../../lib/admin/adminAudit";
@@ -92,10 +92,13 @@ ok(validateLicensePayload({ ...baseLic, allowedMobileSessions: 100 }).ok, "doğr
 // ─── MEM-005/008: modül kataloğu = whitelist (tek kaynak) ─────────────────────
 console.log("\n[MEM-005/008] Modül kataloğu / whitelist");
 const gateKeys = Object.keys(MODULE_ALIASES);
-const missing = gateKeys.filter((k) => !(ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k));
-ok(missing.length === 0, `her server modül kapısı anahtarı admin UI'da yönetilebilir (eksik: ${missing.join(",") || "yok"})`);
+// FAZ1 FINAL HARDENING (main): AI yüzeyleri (video_ceviri, belge_ceviri_ai, ders_notu) YALNIZ admin'e
+// açıktır (ADMIN_ONLY_MODULE_KEYS) → uzmana verilemez, bu yüzden admin UI'da toggle'ı yoktur.
+const manageable = (k: string) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k) || ADMIN_ONLY_MODULE_KEYS.has(k);
+const missing = gateKeys.filter((k) => !manageable(k));
+ok(missing.length === 0, `her server modül kapısı anahtarı admin UI'da yönetilebilir veya admin-only (eksik: ${missing.join(",") || "yok"})`);
 const registryKeys = new Set(MODULE_ROUTE_PREFIXES.map((r) => r.key));
-ok([...registryKeys].every((k) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k)), "moduleRouteRegistry'deki tüm route anahtarları admin whitelist'inde");
+ok([...registryKeys].every(manageable) && ![...ADMIN_ONLY_MODULE_KEYS].some((k) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k)), "moduleRouteRegistry anahtarları whitelist'te veya admin-only; admin-only anahtar uzmana verilemez");
 ok((ADMIN_MODULE_UI_KEYS as readonly string[]).includes("human_design"), "Human Design (human_design) yönetilebilir");
 ok((ADMIN_MODULE_UI_KEYS as readonly string[]).includes("cosmic_calendar"), "Kozmik Takvim (cosmic_calendar) yönetilebilir");
 ok(MODULE_ROUTE_PREFIXES.some((r) => r.prefix === "app/api/hacamat" && r.key === "cosmic_calendar"), "hacamat kural/rapor uçları cosmic_calendar kapısında (doğrulandı)");
@@ -147,10 +150,11 @@ ok(buildManagedMembershipDisplay({ role: "expert", approvalStatus: "approved", a
 ok(buildManagedMembershipDisplay({ role: "expert", approvalStatus: "approved", active: false }).statusLabel === "Pasif", "pasif → 'Pasif' (Üyelik: Aktif çelişkisi yok)");
 ok(buildManagedMembershipDisplay({ role: "expert", approvalStatus: "pending", active: false }).packageLabel === "Onay bekliyor", "pending → Onay bekliyor");
 const mTrial = mapDbUser({ id: "x", role: "expert", approval_status: "approved", active: true, package_type: "trial", plan: "trial" });
-ok(mTrial.membershipDisplay.packageLabel === "Premium" && !/Deneme|Pro\b/.test(JSON.stringify(mTrial.membershipDisplay)), "legacy trial satırı: gösterimde Deneme/Pro YOK");
+ok(mTrial.membershipDisplay.packageLabel === "Paket eksik (eski kayıt)" && !/Deneme|Pro\b|Premium/.test(JSON.stringify(mTrial.membershipDisplay)), "legacy trial satırı: 'Premium' diye gösterilmez (sunucu kararıyla aynı), Deneme/Pro YOK");
 const u = (o: Partial<YasamUser>) => ({ id: "x", role: "expert", ...o }) as YasamUser;
-ok(hasExpertMembershipAccess(u({ active: true, approval_status: "approved", package_type: "trial" })) === true, "erişim: onaylı+aktif (legacy trial) → VAR (server ile aynı)");
-ok(hasExpertMembershipAccess(u({ active: true, approval_status: "approved", package_type: "pro" })) === true, "erişim: onaylı+aktif (legacy pro) → VAR");
+// main (FAZ1 FINAL HARDENING) tek kaynak: active + approved + premium; onay RPC'leri premium yazar.
+ok(hasExpertMembershipAccess(u({ active: true, approval_status: "approved", package_type: "trial" })) === false && hasExpertMembershipAccess(u({ active: true, approval_status: "approved", package_type: "premium" })) === true, "erişim: onaylı+aktif+premium → VAR; legacy trial satırı → YOK (server ile aynı)");
+ok(hasExpertMembershipAccess(u({ active: true, approval_status: "approved", package_type: "pro" })) === false && hasExpertMembershipAccess(u({ role: "admin", active: true, package_type: "trial" })) === true, "erişim: legacy pro → YOK; admin her zaman VAR");
 ok(hasExpertMembershipAccess(u({ active: false, approval_status: "approved", package_type: "premium" })) === false, "erişim: pasif → YOK");
 ok(hasExpertMembershipAccess(u({ active: true, approval_status: "pending", package_type: "premium" })) === false, "erişim: pending → YOK");
 ok(hasExpertMembershipAccess(u({ active: true, approval_status: "rejected" })) === false, "erişim: rejected → YOK");
@@ -166,7 +170,7 @@ console.log("\n[MEM-010] Audit action sözleşmesi");
 for (const a of ["user_profile_updated", "license_settings_changed", "security_exempt_changed"]) {
   ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `TS audit action: ${a}`);
 }
-const mig = read("supabase/migrations/20270129000000_admin_member_phase1_hardening.sql");
+const mig = read("supabase/migrations/20270129235900_admin_member_phase1_hardening.sql");
 for (const a of ADMIN_AUDIT_ACTIONS) ok(mig.includes(`'${a}'`), `migration CHECK süperseti içerir: ${a}`);
 
 // ─── UI kaynak sözleşmesi (MEM-003/004/007/013) ──────────────────────────────

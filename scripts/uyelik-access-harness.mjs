@@ -48,13 +48,13 @@ check("2) premium+approved+active=false -> kapali",
 check("3) premium+pending+active -> kapali",
   hasExpertMembershipAccess({ ...base, approval_status: "pending" }), false);
 
-// ÜYE YÖNETİMİ FAZ 1 (owner kararı): Deneme/Pro yok — onaylı + aktif uzman Premium'dur;
-// legacy package_type erişim kararına GİRMEZ (server verifyUserRequest ile aynı karar).
-check("4) legacy pro+approved+active -> acik (FAZ 1: paket erişimi belirlemez)",
-  hasExpertMembershipAccess({ ...base, package_type: "pro" }), true);
+// Tek üyelik modeli (Premium-only): onay RPC'leri premium yazar; sunucu kapısı (FAZ1 FINAL HARDENING,
+// membershipAccessCore) active + approved + premium ister → legacy Deneme/Pro satırı modül AÇAMAZ.
+check("4) legacy pro+approved+active -> kapali (premium şartı; server ile aynı)",
+  hasExpertMembershipAccess({ ...base, package_type: "pro" }), false);
 
-check("5) legacy trial+approved+active -> acik (FAZ 1: paket erişimi belirlemez)",
-  hasExpertMembershipAccess({ ...base, package_type: "trial" }), true);
+check("5) legacy trial+approved+active -> kapali (premium şartı; server ile aynı)",
+  hasExpertMembershipAccess({ ...base, package_type: "trial" }), false);
 
 check("6) premium + gecmis trial_ends_at -> acik",
   hasExpertMembershipAccess({ ...base, trial_ends_at: PAST }), true);
@@ -83,8 +83,8 @@ check("9) null kullanici -> kapali",
 check("9b) approval bos (approved degil) -> kapali",
   hasExpertMembershipAccess({ ...base, approval_status: "" }), false);
 
-check("9c) package_type bos + approved+active -> acik (FAZ 1: paket erişimi belirlemez)",
-  hasExpertMembershipAccess({ ...base, package_type: "" }), true);
+check("9c) package_type bos + approved+active -> kapali (paket tanımsız; premium şartı)",
+  hasExpertMembershipAccess({ ...base, package_type: "" }), false);
 
 // ── 10) routeModuleAccess üyelik gate'iyle uyumlu mu ──
 // Premium erişimli kullanıcı bir modül rotasına girebilmeli.

@@ -1,5 +1,6 @@
 import type { SavedClinicalNote } from "../types";
-import { loadNotesFromStorage, saveNotesToStorage } from "./noteStorage";
+import { loadNotesFromStorage } from "./noteStorage";
+import { deleteNoteWithSync, type DeleteNoteOutcome } from "./notesSync";
 
 export function getNoteById(id: string): SavedClinicalNote | null {
   try {
@@ -9,14 +10,10 @@ export function getNoteById(id: string): SavedClinicalNote | null {
   }
 }
 
-export function deleteNoteById(id: string): boolean {
-  try {
-    const list = loadNotesFromStorage();
-    const next = list.filter((n) => n.id !== id);
-    if (next.length === list.length) return false;
-    saveNotesToStorage(next);
-    return true;
-  } catch {
-    return false;
-  }
+/**
+ * FA-25: eskiden yalnız yerel listeden siliyordu (sunucuya silme GİTMİYOR → not
+ * geri geliyordu). Artık sunucu-önce + kalıcı outbox; sonuç döner.
+ */
+export function deleteNoteById(id: string): Promise<DeleteNoteOutcome> {
+  return deleteNoteWithSync(id);
 }

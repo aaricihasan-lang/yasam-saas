@@ -104,6 +104,9 @@ function makeDeps(opts: {
       c.audits.push(e);
       if (opts.auditThrows) throw new Error("audit fail");
     },
+    // FAZ1 final hardening: write kontrollü backfill kapısı (bu harness'te izin açık;
+    // kapı davranışı scripts/final-hardening/hday.harness.ts'te test edilir).
+    readSourceBackfillActivation: async () => ({ ok: true, isActive: true, backfillAllowed: true }),
   };
   if (!opts.omitScopeDep) {
     (deps as { validateScopedTenant?: unknown }).validateScopedTenant = async () => {

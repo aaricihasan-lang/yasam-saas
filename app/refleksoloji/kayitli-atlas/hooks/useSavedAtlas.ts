@@ -2,20 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  listOrganNamesFromAtlas,
+  discardQuarantinedAtlas,
+  hydrateAndMergeAtlas,
+  importQuarantinedAtlasToAccount,
   loadAtlas,
   loadOrganList,
-  mergeAtlasDocuments,
-  saveAtlas,
-  saveOrganList,
-  type AtlasDocument,
+  quarantinedAtlasOrganCount,
+  type AtlasMeta,
 } from "@/lib/atlasStorage";
-import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
-import {
-  hydrateAtlasFromServer,
-  scheduleAtlasSync,
-  setAtlasSyncSuspended,
-} from "@/lib/refleksolojiAtlasSync";
+import type { OrganTimeMap } from "@/lib/refleksoloji/atlasMerge";
+import { isReflexSyncEligible } from "@/lib/refleksoloji/reflexStore";
 import {
   deleteOrganFromStorage,
   deleteOrphanOrganFromStorage,
@@ -32,7 +28,10 @@ export function useSavedAtlas() {
   const [summaries, setSummaries] = useState<OrganSummary[]>([]);
   const [orphanOrgans, setOrphanOrgans] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  // FA-24: kartlarda organ BAZLI son güncelleme (global _meta.updated_at değil).
+  const [organUpdatedAt, setOrganUpdatedAt] = useState<OrganTimeMap>({});
   const [hydrated, setHydrated] = useState(false);
+  const [quarantineCount, setQuarantineCount] = useState(0);
 
   const refresh = useCallback(() => {
     try {
@@ -42,10 +41,12 @@ export function useSavedAtlas() {
       // karşılığı olmayan stale/bölgesiz organlar (ör. eski test kaydı).
       setOrphanOrgans(listOrphanOrganList(atlas, loadOrganList()));
       setUpdatedAt(atlas._meta?.updated_at ?? null);
+      setOrganUpdatedAt({ ...((atlas._meta as AtlasMeta | undefined)?.organUpdatedAt ?? {}) });
     } catch {
       setSummaries([]);
       setOrphanOrgans([]);
       setUpdatedAt(null);
+      setOrganUpdatedAt({});
     }
   }, []);
 
@@ -53,45 +54,21 @@ export function useSavedAtlas() {
     refresh();
     setHydrated(true);
 
-    // P1-1: sunucudan atlas hydrate → salt-okuma görünüm de cihazlar arası güncel.
+    // P1-1: sunucudan atlas hydrate (TEK merkez, tombstone-farkında) → salt-okuma
+    // görünüm de cihazlar arası güncel. FA-13: açılışta otomatik PUT YOK.
     let cancelled = false;
-    void hydrateAtlasFromServer().then((server) => {
-      if (cancelled || !server) return;
-      const serverDoc = server.document;
-      // Sunucuda veri var mı: belge organları VEYA organ listesi.
-      const hasServerData =
-        (!!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0) ||
-        server.organ_list.length > 0;
-      if (hasServerData) {
-        // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
-        const localDoc = loadAtlas();
-        const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
-        // Zombie fix: tombstone-farkında + kanonik organ listesi birleştirme
-        // (silinen/temizlenen organ bayat kopyadan dirilmez).
-        const mergedOrgans = mergeOrganListsWithTombstones(
-          server.organ_list,
-          loadOrganList(),
-          mergedDoc._meta,
-        );
-        setAtlasSyncSuspended(true);
-        saveAtlas(mergedDoc);
-        saveOrganList(mergedOrgans);
-        setAtlasSyncSuspended(false);
-        if (listOrganNamesFromAtlas(mergedDoc).length > listOrganNamesFromAtlas(serverDoc as AtlasDocument).length) {
-          scheduleAtlasSync(mergedDoc, mergedOrgans);
-        }
+    void hydrateAndMergeAtlas().then((r) => {
+      if (cancelled) return;
+      if (r) {
+        setQuarantineCount(r.quarantineCount);
         refresh();
-      } else {
-        const localDoc = loadAtlas();
-        if (listOrganNamesFromAtlas(localDoc).length > 0 || loadOrganList().length > 0) {
-          scheduleAtlasSync(localDoc, loadOrganList());
-        }
+      } else if (isReflexSyncEligible()) {
+        setQuarantineCount(quarantinedAtlasOrganCount());
       }
     });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   const deleteOrgan = useCallback(
@@ -153,10 +130,29 @@ export function useSavedAtlas() {
     [refresh, showToast],
   );
 
+  // DL-007: sahibi belirsiz eski cihaz atlası — yalnız açık kullanıcı kararıyla.
+  const importQuarantine = useCallback(() => {
+    const r = importQuarantinedAtlasToAccount();
+    if (r.ok) {
+      setQuarantineCount(0);
+      refresh();
+    }
+    return r;
+  }, [refresh]);
+
+  const discardQuarantine = useCallback(() => {
+    discardQuarantinedAtlas();
+    setQuarantineCount(0);
+  }, []);
+
   return {
     summaries,
     orphanOrgans,
     updatedAt,
+    organUpdatedAt,
+    quarantineCount,
+    importQuarantine,
+    discardQuarantine,
     hydrated,
     refresh,
     deleteOrgan,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import type { YhSourceModule } from "@/lib/yasam-hafizasi/config";
 import {
@@ -8,7 +8,8 @@ import {
   type YhSearchResponse,
   type YhSearchResult,
 } from "@/lib/yasam-hafizasi/ui/searchResult";
-import { fetchYhSearch } from "@/lib/yasam-hafizasi/ui/searchApiClient";
+import { fetchYhHealth, fetchYhSearch } from "@/lib/yasam-hafizasi/ui/searchApiClient";
+import { deriveYhWorkspaceState, type YhWorkspaceHealthState } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import { YH_MAX_QUERY_LENGTH } from "@/lib/yasam-hafizasi/search/queryPipeline";
 import { FilterBar } from "./FilterBar";
 import { SearchResultCard } from "./SearchResultCard";
@@ -62,6 +63,25 @@ function ProfessionalMemoryPanel() {
   const [selectedModules, setSelectedModules] = useState<YhSourceModule[]>([]);
   const [selected, setSelected] = useState<YhSearchResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Mount'ta health: indeks boş / kapsam dışı / kapalı durumlarını DÜRÜSTÇE göster.
+  const [healthState, setHealthState] = useState<YhWorkspaceHealthState>("unknown");
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void fetchYhHealth(ctrl.signal).then((payload) => {
+      if (!ctrl.signal.aborted) setHealthState(deriveYhWorkspaceState(payload));
+    });
+    return () => ctrl.abort();
+  }, []);
+
+  const idleVariant =
+    healthState === "index-empty"
+      ? "index-empty"
+      : healthState === "out-of-scope"
+        ? "out-of-scope"
+        : healthState === "disabled"
+          ? "disabled"
+          : "cold-start";
 
   const runSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
@@ -121,7 +141,7 @@ function ProfessionalMemoryPanel() {
         </button>
       </form>
 
-      {status === "idle" ? <WorkspaceEmpty variant="cold-start" /> : null}
+      {status === "idle" ? <WorkspaceEmpty variant={idleVariant} /> : null}
       {status === "loading" ? <ResultsSkeleton /> : null}
       {status === "disabled" ? <WorkspaceEmpty variant="disabled" /> : null}
       {status === "error" ? (
@@ -141,7 +161,9 @@ function ProfessionalMemoryPanel() {
 
       {status === "done" && response ? (
         response.results.length === 0 ? (
-          <WorkspaceEmpty variant="no-results" />
+          <WorkspaceEmpty
+            variant={healthState === "index-empty" ? "index-empty" : healthState === "out-of-scope" ? "out-of-scope" : "no-results"}
+          />
         ) : (
           <>
             <FilterBar

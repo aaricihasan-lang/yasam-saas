@@ -9,6 +9,7 @@ import {
   normalizeRole,
 } from "@/lib/auth/yasamUser";
 import { limitFromDb } from "@/lib/admin/licenseLimits";
+import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
 
 export type ManagedUserRole = "admin" | "expert";
 
@@ -69,8 +70,8 @@ export type LicensePreset = { label: string; settings: LicenseSettings };
  * (UI, mevcut notu korur).
  */
 export const LICENSE_PRESETS: LicensePreset[] = [
-  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 1, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: -1, allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
-  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 1, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1,  allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 2, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: -1, allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1,  allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
   { label: "Aile",        settings: { licenseType: "family",       allowedActiveSessions: 6,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 3, allowedTabletSessions: 1,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
   { label: "Ortak",       settings: { licenseType: "partner",      allowedActiveSessions: 8,  allowedLocations: 2, allowedDesktopSessions: 3, allowedMobileSessions: 3, allowedTabletSessions: 2,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
   { label: "Ekip",        settings: { licenseType: "team",         allowedActiveSessions: 12, allowedLocations: 4, allowedDesktopSessions: 6, allowedMobileSessions: 4, allowedTabletSessions: 2,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
@@ -89,9 +90,11 @@ export const ADMIN_MODULE_UI_KEYS = [
   "energy_body",
   "aromatherapy",
   "personal_archive",
-  "video_ceviri",
+  // FAZ1 FINAL HARDENING: "video_ceviri" ve "ders_notu" toggle'ları KALDIRILDI — bu AI yüzeyleri
+  // yalnız admin'e açıktır (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); uzmana verilemez. UI artık bu
+  // anahtarları YÖNETMEDİĞİ için mergeAdminModulePermissions mevcut DB değerlerini aynen KORUR
+  // (veri değişmez; sunucu bu bayrakları admin olmayan için zaten yok sayar).
   "belge_ceviri",
-  "ders_notu",
   "digital_content",
   // FAZ 1 / MEM-005: satılabilir modüller — gerçek server kapısı anahtarları (moduleAccessCore
   // ModuleGateKey + moduleRouteRegistry: app/api/hd → human_design; kozmik takvim + app/api/hacamat
@@ -122,9 +125,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   energy_body: "Biyoenerji",
   aromatherapy: "Aromaterapi",
   personal_archive: "Kişisel Arşiv",
-  video_ceviri: "Video → Türkçe Dönüşüm",
   belge_ceviri: "Belge Çeviri Merkezi",
-  ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
   human_design: "Human Design",
   cosmic_calendar: "Kozmik Takvim / Yaşam Takvimi",
@@ -134,7 +135,8 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
   digital_content:
-    "Hub kartı: yalnız alt modüllerden (Kişisel Arşiv, Video, Belge, Ders Notu) biri açıksa erişim verir.",
+    "Hub kartı: yalnız alt modüllerden (Kişisel Arşiv, Belge Çeviri) biri açıksa erişim verir. AI araçları yalnız yöneticiye açıktır.",
+  belge_ceviri: "PDF → Word dönüşümü ve geçmiş. OCR / PDF → Türkçe Word gibi AI araçları yalnız yöneticiye açıktır.",
   human_design: "Human Design harita, analiz ve rapor modülü.",
   cosmic_calendar:
     "Kozmik Ajanda / Yaşam Takvimi ve takvime bağlı hacamat zamanlama kuralları & raporları.",
@@ -153,9 +155,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   energy_body: false,
   aromatherapy: false,
   personal_archive: false,
-  video_ceviri: false,
   belge_ceviri: false,
-  ders_notu: false,
   digital_content: false,
   human_design: false,
   cosmic_calendar: false,
@@ -182,9 +182,7 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   energy_body: "module",
   aromatherapy: "module",
   personal_archive: "module",
-  video_ceviri: "module",
   belge_ceviri: "module",
-  ders_notu: "module",
   digital_content: "hub",
   human_design: "module",
   cosmic_calendar: "module",
@@ -702,28 +700,35 @@ export function parseLicenseSettings(row: Record<string, unknown>): LicenseSetti
  * FAZ 1 / MEM-013 — yeni ürün modeli göstergesi (tek paket):
  *   PAKET: onaylı uzman = Premium (paket seçimi YOK; Deneme/Pro gösterilmez)
  *   HESAP DURUMU: Aktif / Pasif (users.active — pasif üyede "Aktif" çelişkisi yok)
- * Legacy package_type / trial alanları gösterimde ve erişim kararında KULLANILMAZ.
+ * Sunucu üyelik kapısı (membershipAccessCore) onaylı uzmanda paket=premium ister; onay RPC'leri
+ * premium yazar. Premium OLMAYAN eski onaylı kayıt (legacyPackage) "Premium" diye GÖSTERİLMEZ —
+ * gösterge sunucunun gerçek kararıyla aynı ("Paket eksik"; Deneme/Pro dili yok).
  */
 export function buildManagedMembershipDisplay(input: {
   role: ManagedUserRole;
   approvalStatus: ApprovalStatusUi;
   active: boolean;
+  legacyPackage?: boolean;
 }): MembershipDisplay {
+  const legacy = input.role === "expert" && input.approvalStatus === "approved" && input.legacyPackage === true;
   const packageLabel =
     input.role === "admin"
       ? "Yönetici"
-      : input.approvalStatus === "approved"
-        ? "Premium"
-        : input.approvalStatus === "pending"
-          ? "Onay bekliyor"
-          : "—";
+      : legacy
+        ? "Paket eksik (eski kayıt)"
+        : input.approvalStatus === "approved"
+          ? "Premium"
+          : input.approvalStatus === "pending"
+            ? "Onay bekliyor"
+            : "—";
   return {
     packageLabel,
     statusLabel: input.active ? "Aktif" : "Pasif",
     trialEndLabel: "—",
     remainingDaysLabel: "—",
-    durationNote:
-      input.role === "expert" && input.approvalStatus === "approved"
+    durationNote: legacy
+      ? "Modül erişimi kapalı — yeniden onay gerekir"
+      : input.role === "expert" && input.approvalStatus === "approved"
         ? "Süresiz / yönetici pasife alana kadar"
         : "—",
   };
@@ -748,7 +753,12 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
     approvalStatus,
     modulePermissions: parseAdminModulePermissions(row.module_permissions),
     membership,
-    membershipDisplay: buildManagedMembershipDisplay({ role, approvalStatus, active }),
+    membershipDisplay: buildManagedMembershipDisplay({
+      role,
+      approvalStatus,
+      active,
+      legacyPackage: role === "expert" && resolveMembershipPackageType(row) !== "premium",
+    }),
     payment: parsePaymentFromRow(row),
     licenseSettings: parseLicenseSettings(row),
     adminLevel:

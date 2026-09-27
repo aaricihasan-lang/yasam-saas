@@ -1,4 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
+
+// Sunucu-yalnız koruması (service_role). Neden `import "server-only"` değil:
+// lib/server/serverOnlyGuard.ts başlığı. Statik kapı: scripts/final-hardening/infra.harness.ts.
+assertServerOnly("lib/supabase-server");
 
 /**
  * Service-role Supabase client — yalnızca server-side (API route) kullanımı içindir.

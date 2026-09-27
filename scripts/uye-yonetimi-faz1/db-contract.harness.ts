@@ -58,10 +58,10 @@ async function main(): Promise<void> {
     await su.query(readMig("20260903000000_admin_audit_log.sql"));
     await su.query(readMig("20261221000000_yh_grade_expert_premium_rpc.sql"));
     await su.query(readMig("20270107000000_admin_membership_atomic_rpcs.sql"));
-    await su.query(readMig("20270129000000_admin_member_phase1_hardening.sql"));
+    await su.query(readMig("20270129235900_admin_member_phase1_hardening.sql"));
     // İdempotency: migration iki kez uygulanabilir olmalı.
     let reapplyErr: string | null = null;
-    try { await su.query(readMig("20270129000000_admin_member_phase1_hardening.sql")); } catch (e) { reapplyErr = (e as Error).message; }
+    try { await su.query(readMig("20270129235900_admin_member_phase1_hardening.sql")); } catch (e) { reapplyErr = (e as Error).message; }
     ok(reapplyErr === null, "migration idempotent (ikinci uygulama hatasız)");
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.yasam_hafizasi_flags to service_role;`);
     await su.query(`insert into public.users(id, full_name, email, role, active, approval_status, is_super_admin, tenant_id)

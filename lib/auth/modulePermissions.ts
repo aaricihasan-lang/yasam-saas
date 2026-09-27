@@ -1,4 +1,5 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
+import { isAdminOnlyModuleKey } from "@/lib/auth/moduleAccessCore";
 
 function isAdminRole(user: YasamUser | null | undefined): boolean {
   return String(user?.role ?? "").trim().toLowerCase() === "admin";
@@ -119,9 +120,9 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "energy_body",
   "aromatherapy",
   "personal_archive",
-  "video_ceviri",
+  // FAZ1 FINAL HARDENING: video_ceviri + ders_notu AI yüzeyleri YALNIZ admin'e açık
+  // (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS) → Premium provisioning payload'ından ÇIKARILDI.
   "belge_ceviri",
-  "ders_notu",
   "digital_content",
   "cosmic_calendar",
   "human_design",
@@ -233,7 +234,8 @@ export function hasAnyModulePermissionFlag(
   // module_permissions'a dayanır (mevcut Premium izinleri migration 20260919 ile
   // backfill edildi). Server tarafı ayrıca lib/auth/moduleAccess ile zorlanır.
   const flags = getModulePermissionFlags(user);
-  return keys.some((key) => flags[key] === true);
+  // AI admin-only anahtarlar (video_ceviri/ders_notu/belge_ceviri_ai) bayraktan bağımsız KAPALI.
+  return keys.some((key) => !isAdminOnlyModuleKey(key) && flags[key] === true);
 }
 
 export function hasModulePermission(
@@ -245,15 +247,12 @@ export function hasModulePermission(
   // KAJ-P1-04: cosmic_calendar "always-on" kısayolu KALDIRILDI (owner "Gerçek kapı" kararı) →
   // artık normal modül gibi module_permissions.cosmic_calendar ile kapılanır (resolveModuleAccess ile hizalı).
   // P3: Premium bypass KALDIRILDI (bkz. hasAnyModulePermissionFlag notu).
+  // FAZ1 FINAL HARDENING: AI admin-only anahtarlar sunucu (resolveModuleAccess) ile AYNI set.
+  if (isAdminOnlyModuleKey(key)) return false;
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
-  // Hub kartı: alt modüllerden herhangi birine izin varsa erişilebilir
+  // Hub kartı: uzmana AÇIK alt modüllerden (kişisel arşiv / belge çeviri) biri varsa erişilebilir
   if (key === "digital_content") {
-    return Boolean(
-      perms.personal_archive ||
-      perms.video_ceviri ||
-      perms.belge_ceviri ||
-      perms.ders_notu,
-    );
+    return Boolean(perms.personal_archive || perms.belge_ceviri);
   }
   return Boolean(perms[key]);
 }

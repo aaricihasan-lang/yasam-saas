@@ -13,6 +13,8 @@ import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
 import { odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
 import { notesToPlainText } from "@/lib/clientNotes";
+import { deriveAppointmentStatus } from "@/lib/danisan/appointmentRules";
+import { daysSince, totalChargesAmount } from "@/lib/danisan/clientDisplay";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -85,9 +87,12 @@ function isoToTR(isoDate: string | null | undefined): string {
 }
 
 // Randevu canonical statü kodu → görünen etiket (kod DEĞİŞMEZ; yalnız DISPLAY).
-function statusLabel(status: string | null | undefined, t: T): string {
-  if (status === "tamamlandi") return t("randevuStatus.tamamlandi");
-  if (status === "iptal") return t("randevuStatus.iptal");
+// FA-44: geçmiş + bekliyor → türetilmiş "Sonuç girilmedi" (DB statüsü değişmez).
+function statusLabel(status: string | null | undefined, appointmentDate: unknown, t: T): string {
+  const derived = deriveAppointmentStatus(status, appointmentDate);
+  if (derived === "tamamlandi") return t("randevuStatus.tamamlandi");
+  if (derived === "iptal") return t("randevuStatus.iptal");
+  if (derived === "sonuc_girilmedi") return t("randevuStatus.sonucGirilmedi");
   return t("randevuStatus.bekliyor");
 }
 
@@ -919,7 +924,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         {d?.status && (
           <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
             <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">{t("modal.status")}</span>
-            <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status, t)}</span>
+            <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status, d.appointment_date, t)}</span>
           </div>
         )}
         {d?.notes && <ModalRow label={t("modal.note")} value={d.notes} />}
@@ -1317,7 +1322,7 @@ export default function YolculukTab({
         // Promise.all'da 6'sı da PARALEL. Her opsiyonel çağrı kendi try/catch'iyle sessizce
         // fallback döndürür (asla throw etmez) → kısmi-hata davranışı AYNEN korunur; güvenli
         // service_role API'leri ve downstream .data şekli değişmez.
-        const [sessionsRes, appointmentsRes, stonesRes, homeworksData, analysesData, noteData] =
+        const [sessionsRes, appointmentsRes, stonesRes, homeworksData, analysesData, noteData, chargesRes] =
           await Promise.all([
             apiList(`/api/clients/${clientId}/sessions`, "sessions"),
             apiList(`/api/clients/${clientId}/appointments`, "appointments"),
@@ -1366,6 +1371,8 @@ export default function YolculukTab({
               }
               return null;
             })(),
+            // DY-A: toplam ücret merkezi client_charges'tan (hata → boş liste; apiList throw etmez).
+            apiList(`/api/clients/${clientId}/charges`, "charges").catch(() => ({ data: [] as unknown[] })),
           ]);
 
         const normalized: TimelineEntry[] = [];
@@ -1391,7 +1398,7 @@ export default function YolculukTab({
             id: `randevu-${a.id}`,
             type: "randevu",
             title: a.title || t("entryFallback.randevu"),
-            description: a.notes || statusLabel(a.status, t),
+            description: a.notes || statusLabel(a.status, a.appointment_date, t),
             date: isoToTR(a.appointment_date),
             dateRaw: a.appointment_date || "",
             rawData: a,
@@ -1549,14 +1556,16 @@ export default function YolculukTab({
           newProcess.ilkSeans = isoToTR(seansWithDate[0].session_date);
           const last = seansWithDate[seansWithDate.length - 1];
           newProcess.sonSeans = isoToTR(last.session_date);
-          const diffDays = Math.floor((Date.now() - new Date(last.session_date).getTime()) / 86400000);
+          // Takvim günü farkı (İstanbul); gelecek tarihli seans negatif → 0'a kırpılır.
+          const diffDays = Math.max(0, daysSince(last.session_date) ?? 0);
           newProcess.gunFarki = diffDays;
           newProcess.durum = diffDays <= 14 ? "aktif" : diffDays <= 30 ? "takip" : "pasif";
         }
 
         // WEB-16: iptal hariç, gerçekten yaklaşan (aynı gün ileri saat dâhil) randevular.
         const upcoming = appointmentList
-          .filter((a) => a.status !== "iptal" && isUpcomingAppt(a.appointment_date))
+          // DY-A: tamamlanan ve iptal edilen randevular "yaklaşan" sayılmaz.
+          .filter((a) => a.status !== "iptal" && a.status !== "tamamlandi" && isUpcomingAppt(a.appointment_date))
           .sort((a, b) => apptMs(a.appointment_date) - apptMs(b.appointment_date));
         if (upcoming.length > 0) {
           newProcess.yaklasanRandevu = isoToTR(upcoming[0].appointment_date);
@@ -1572,13 +1581,12 @@ export default function YolculukTab({
           newProcess.avgDurationMin = Math.round(totalMin / sessionsWithDuration.length);
         }
 
-        // Toplam ücret: en az bir seansta fee dolu ise topla, tümü null ise null
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const anyFee = sessionList.some((s: any) => s.fee != null);
-        if (anyFee) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          newProcess.totalFee = sessionList.reduce((sum: number, s: any) => sum + (s.fee ?? 0), 0);
-        }
+        // Toplam ücret (DY-A): client_charges toplamı + charges'a aktarılmamış eski seans
+        // ücretleri (backfill edilen seans source_session_id ile ÇİFT SAYILMAZ). Kayıt yoksa null.
+        newProcess.totalFee = totalChargesAmount(
+          sessionList as Array<{ id?: string | null; fee?: number | string | null }>,
+          (chargesRes.data ?? []) as Array<{ amount?: number | string | null; source_session_id?: string | null }>,
+        );
 
         // Ortalama sıklık: ilk ve son tarihli seans arasındaki gün / (toplam - 1) aralık
         // En az 2 tarihli seans gerekir

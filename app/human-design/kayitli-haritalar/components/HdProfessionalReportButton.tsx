@@ -5,11 +5,14 @@
  *   create snapshot → success report_id → DOCX indir.
  * Download başarısız olsa da rapor kaydı korunur (Kayıtlı Raporlar'dan tekrar indirilebilir).
  * Double-submit engellenir (disabled loading state). Ayrı preview sayfası YOK (§47).
+ *
+ * FAZ1 final hardening: profesyonel Word TÜM HD uzmanlarına açıktır (sunucu
+ * requireModuleAccess). Canonical metin uzmana yalnız bu donmuş DOCX ile ulaşır.
+ * Android kuralı korunur: Word (.docx) indirme UI'si Android'de render edilmez.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   createProfessionalReport,
   downloadProfessionalReport,
@@ -17,15 +20,8 @@ import {
 
 type Phase = "idle" | "creating" | "downloading" | "done" | "error";
 
-export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
-  // Admin knowledge isolation: profesyonel canonical Word yalnız ADMIN/OWNER içindir
-  // (endpoint de 403 döner). Non-admin uzman için buton hiç render edilmez.
-  const [isAdmin, setIsAdmin] = useState(false);
+export function HdProfessionalReportButton({ chartId, label }: { chartId: string; label?: string }) {
   const isAndroid = useIsAndroid();
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsAdmin(isAdminUser(readYasamUser()));
-  }, []);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string>("");
@@ -53,11 +49,15 @@ export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
       return;
     }
     setPhase("done");
-    setMessage("Rapor indirildi. Kayıtlı Raporlar'dan tekrar erişebilirsiniz.");
+    setMessage(
+      created.omittedCount > 0
+        ? "Rapor indirildi. İçeriği henüz yayımlanmamış bazı bölümler rapora alınmadı. Kayıtlı Raporlar'dan tekrar erişebilirsiniz."
+        : "Rapor indirildi. Kayıtlı Raporlar'dan tekrar erişebilirsiniz.",
+    );
   }
 
   // Android: Word (.docx) indirme UI'si hiç render edilmez (ürün kararı).
-  if (!isAdmin || isAndroid) return null;
+  if (isAndroid) return null;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -72,7 +72,7 @@ export function HdProfessionalReportButton({ chartId }: { chartId: string }) {
           ? "Rapor hazırlanıyor…"
           : phase === "downloading"
             ? "İndiriliyor…"
-            : "Profesyonel Word Raporu"}
+            : label ?? "Profesyonel Word Raporu"}
       </button>
       {message ? (
         <p

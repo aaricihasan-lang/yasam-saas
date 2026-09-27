@@ -26,10 +26,16 @@ ok("custom max 120 → CUSTOM_TOO_LONG", /rawLabel\.length > 120/.test(route) &&
 ok("custom case-insensitive dedup (toLowerCase)", /toLowerCase\(\)/.test(route) && /seenCustom/.test(route));
 ok("vocab doğrulama YALNIZ standart id'ler (seenStd)", /seenStd\.size > 0/.test(route) && /nutrition_allergens/.test(route));
 ok("MAX_ALLERGENS toplam sınırı (standart+custom)", /MAX_ALLERGENS = 30/.test(route) && /parsed\.length > MAX_ALLERGENS/.test(route));
-ok("insert rows allergen_id + custom_label yazıyor", /allergen_id: p\.allergen_id, custom_label: p\.custom_label/.test(route));
-ok("duplicate 23505 → CUSTOM_DUPLICATE 409", /"23505"/.test(route) && /CUSTOM_DUPLICATE/.test(route));
+// FAZ1 final hardening (DY-B): tam-set replace artık ATOMİK RPC (migration 0600); hata eşlemesi
+// ayrı saf modülde. Kontrat route + eşleyici + migration üzerinden doğrulanır.
+const routeErr = read("app/api/beslenme/clients/[clientId]/allergens/replaceAllergensError.ts");
+const rpcSql = read("supabase/migrations/20270129000600_nutrition_replace_client_allergens.sql");
+ok("RPC insert allergen_id + custom_label yazıyor", /INSERT INTO public\.nutrition_client_allergens \(tenant_id, client_id, allergen_id, custom_label, note\)/.test(rpcSql));
+ok("duplicate 23505 → CUSTOM_DUPLICATE 409", /"23505"/.test(routeErr) && /CUSTOM_DUPLICATE/.test(routeErr) && /mapReplaceAllergensError/.test(route));
 ok("body'den tenant/client/user KABUL ETMİYOR", !/body\.(tenant_id|client_id|user_id)/.test(route));
-ok("tam-set replacement (delete → insert) korunuyor", /\.delete\(\)[\s\S]*\.insert\(/.test(route));
+ok("tam-set replacement ATOMİK RPC (delete → insert tek transaction)",
+  /rpc\("nutrition_replace_client_allergens"/.test(route) && !/\.delete\(\)/.test(route) &&
+  /DELETE FROM public\.nutrition_client_allergens[\s\S]*INSERT INTO public\.nutrition_client_allergens/.test(rpcSql));
 
 // 2) Client tipleri.
 const types = read("lib/beslenme/clientTabClient.ts");

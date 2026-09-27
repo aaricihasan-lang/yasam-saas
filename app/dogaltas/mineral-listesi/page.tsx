@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import {
@@ -26,6 +27,9 @@ import {
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -331,13 +335,23 @@ function MineralListesiPageContent() {
     setSelectedMineralIds(new Set());
   }, []);
 
+  // Arama/kategori ile liste değişince seçim görünür minerallerle kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = minerals.map((m) => m.id);
+    runInEffect(() => setSelectedMineralIds((prev) => pruneSelection(prev, visibleIds)));
+  }, [minerals]);
+
   async function handleBulkDelete() {
-    const ids = [...selectedMineralIds];
+    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili mineral habersiz silinmez.
+    const targets = minerals.filter((m) => selectedMineralIds.has(m.id));
+    const ids = targets.map((m) => m.id);
     if (!ids.length || bulkDeleteBusy) return;
 
     const ok = await deleteConfirm({
       title: t("deleteConfirmTitle"),
       message: t("deleteConfirmMessage", { n: ids.length }),
+      names: targets.map((m) => m.name),
     });
     if (!ok) return;
 
@@ -365,7 +379,7 @@ function MineralListesiPageContent() {
   }
 
   async function exportSelectedMineralsWord() {
-    const ids = [...selectedMineralIds];
+    const ids = visibleSelection(selectedMineralIds, minerals.map((m) => m.id));
     if (!ids.length) return;
     const tid = await getSyncedTenantId();
     if (!tid) return;
@@ -385,13 +399,7 @@ function MineralListesiPageContent() {
         body: JSON.stringify({ exportMode: "selected", mineralIds: ids }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `mineral-secili-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `mineral-secili-${reportFileDate()}.docx`);
       // FAZ-3B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek
       // konumunu/tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
       showToast({
@@ -450,7 +458,7 @@ function MineralListesiPageContent() {
       if (!mineralIds.length) { setWordReportError(tWord("errNoViewed")); return; }
     } else if (wordExportMode === "selected") {
       if (selectedMineralIds.size > 0) {
-        mineralIds = [...selectedMineralIds];
+        mineralIds = visibleSelection(selectedMineralIds, minerals.map((m) => m.id));
       } else {
         setWordReportError(tWord("errNoSelected"));
         return;
@@ -479,13 +487,7 @@ function MineralListesiPageContent() {
         console.error("[mineral-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
         throw new Error("report-failed");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `mineral-bankasi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `mineral-bankasi-raporu-${reportFileDate()}.docx`);
       // FAZ-3B: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
       setWordReportSuccess(t("wordDownloadStarted"));
     } catch (err) {

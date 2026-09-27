@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     await su.query(readMig("20260903000000_admin_audit_log.sql"));
     await su.query(readMig("20261221000000_yh_grade_expert_premium_rpc.sql"));
     await su.query(readMig("20270107000000_admin_membership_atomic_rpcs.sql"));
-    await su.query(readMig("20270129000000_admin_member_phase1_hardening.sql"));
+    await su.query(readMig("20270129235900_admin_member_phase1_hardening.sql"));
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.user_payment_history, public.yasam_hafizasi_flags to service_role;
                     grant execute on function public.verify_admin_login(text, text) to service_role;`);
 
@@ -480,8 +480,11 @@ async function main(): Promise<void> {
     const hTok = await newSession(H1);
     const hRow = await row(H1);
     const clientSide = hasExpertMembershipAccess(parseLoginUserRecord(hRow as Record<string, unknown>)!);
-    ok(clientSide === true && (await userGuardStatus(H1, hTok)) === 200, "legacy trial paketli onaylı uzman: UI ve server AYNI karar (erişim VAR)");
-    ok(mapDbUser(hRow).membershipDisplay.packageLabel === "Premium", "legacy trial kolonuna rağmen gösterge 'Premium' (Deneme yok)");
+    // main (FAZ1 FINAL HARDENING): sunucu modül kapısı active + approved + premium ister (tek kaynak).
+    const { requireModuleAccess } = await import("../../lib/auth/userGuard");
+    const hMod = await requireModuleAccess(new NextRequest("http://localhost/api/x", { headers: { "x-user-id": H1, "x-session-token": hTok } }), "numerology");
+    ok(clientSide === false && !hMod.ok && hMod.response.status === 403 && (await userGuardStatus(H1, hTok)) === 200, "legacy trial paketli onaylı uzman: UI ve server modül kapısı AYNI karar (modül YOK, oturum geçerli)");
+    ok(mapDbUser(hRow).membershipDisplay.packageLabel === "Paket eksik (eski kayıt)", "legacy trial kolonu 'Premium' diye gösterilmez (gerçek durum; Deneme yok)");
     const pendRow = await row(await makeUser({ label: "PENDING_DISPLAY", pkg: "trial", plan: "trial" }));
     ok(mapDbUser(pendRow).membershipDisplay.packageLabel === "Onay bekliyor" && hasExpertMembershipAccess(parseLoginUserRecord(pendRow as Record<string, unknown>)!) === false, "pending: 'Onay bekliyor' + erişim yok");
     const inactiveRow = await row(await makeUser({ label: "INACTIVE_DISPLAY", approval: "approved", active: false, pkg: "premium", plan: "premium" }));

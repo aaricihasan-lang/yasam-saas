@@ -83,7 +83,8 @@
       "randevuStatus": {
         "tamamlandi": "Completed",
         "iptal": "Cancelled",
-        "bekliyor": "Pending"
+        "bekliyor": "Pending",
+        "sonucGirilmedi": "No outcome entered"
       },
       "homeworkStatus": {
         "bekliyor": "Pending",

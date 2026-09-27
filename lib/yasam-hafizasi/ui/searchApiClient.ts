@@ -5,6 +5,28 @@
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import type { YhSourceModule } from "@/lib/yasam-hafizasi/config";
 import type { YhSearchResponse } from "./searchResult";
+import type { YhHealthPayload } from "./healthStatus";
+
+/**
+ * /api/yasam-hafizasi/health — yalnız aggregate durum (tenantRows/flags/syntheticTenant).
+ * Hata/izin yok/ağ → null (UI "—" / bilinmiyor gösterir; asla "hazır" iddia etmez).
+ */
+export async function fetchYhHealth(signal?: AbortSignal): Promise<YhHealthPayload | null> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  if (!u?.id) return null;
+  try {
+    const res = await fetch("/api/yasam-hafizasi/health", {
+      headers: { "x-user-id": u.id, ...(t ? { "x-session-token": t } : {}) },
+      signal,
+    });
+    if (!res.ok) return null;
+    const data: unknown = await res.json().catch(() => null);
+    return data && typeof data === "object" ? (data as YhHealthPayload) : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface YhSearchParams {
   q: string;

@@ -12,6 +12,8 @@
 
 export const runtime = "nodejs";
 
+import type { NextRequest } from "next/server";
+import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import {
   getMoonPhase,
   getMoonPhaseLegacy,
@@ -117,13 +119,15 @@ const ZODIAC_SYMBOL_LOCAL: Record<string, string> = {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-export async function GET() {
-  // §16: Bu uç kimliksiz, hesaplama-yoğun bir DEV doğruluk diagnostiğidir (AE vs legacy vs
-  // aeRaw, days*48 döngü). Production'da anonim erişilebilir olması kaynak-suistimali yüzeyidir
-  // → production'da tamamen kapalı (404). Yerel/preview'da doğrulama için açık kalır.
+export async function GET(request: NextRequest) {
+  // §16: Bu uç hesaplama-yoğun bir DEV doğruluk diagnostiğidir (AE vs legacy vs aeRaw,
+  // days*48 döngü). Production'da tamamen kapalı (404).
   if (process.env.NODE_ENV === "production") {
     return Response.json({ ok: false, error: "Not found." }, { status: 404 });
   }
+  // FAZ1 FINAL HARDENING (AUTH): yerel/preview'da da YALNIZ yönetici (kimliksiz erişim yok).
+  const guard = await requireAdminUserRequest(request);
+  if (!guard.ok) return guard.response;
 
   const now  = new Date();
   const days = 14;

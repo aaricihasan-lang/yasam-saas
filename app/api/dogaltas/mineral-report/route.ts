@@ -9,6 +9,7 @@ import {
   arraySection,
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildSectionDivider,
   buildStatsPage,
@@ -25,6 +26,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -53,7 +56,7 @@ type MineralRow = {
 // ─── Document builder ─────────────────────────────────────────────────────────
 
 function buildDocument(minerals: MineralRow[], exportLabel: string): ReportChild[] {
-  const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const date = reportGeneratedLabel();
   const uniqueSources = new Set(minerals.map((m) => m.source_id).filter(Boolean)).size;
   const withTaslar = minerals.filter((m) => safeLen(m.iceren_taslar) > 0).length;
   const color = SECTION_COLORS.minerals;
@@ -112,7 +115,7 @@ function buildDocument(minerals: MineralRow[], exportLabel: string): ReportChild
     // Short metadata
     if (m.kategori?.trim())  out.push(fieldInline("Kategori", m.kategori.trim()));
     if (m.source_id?.trim()) out.push(fieldInline("Kaynak", m.source_id.trim()));
-    if (m.created_at)        out.push(fieldInline("Tarih", new Date(m.created_at).toLocaleDateString("tr-TR")));
+    if (m.created_at)        out.push(fieldInline("Tarih", formatInstantDate(m.created_at)));
 
     // Content sections (H3)
     if (m.aciklama?.trim()) { out.push(h3("Açıklama")); out.push(bodyText(m.aciklama.trim())); }
@@ -173,13 +176,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Yaşam Sistemi Mineral Bankası") },
-      children: buildDocument(minerals, exportLabel),
+      footers: { default: buildFooter("Yaşam Sistemi Mineral Bankası", { note: "dogaltas" }) },
+      children: [...buildDocument(minerals, exportLabel), ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile))],
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const dateSlug = reportFileDate();
 
   return new Response(new Uint8Array(buffer), {
     headers: {

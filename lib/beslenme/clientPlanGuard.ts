@@ -42,6 +42,8 @@ export type BeslenmePlanAccessOk = {
   plan: BeslenmePlanRow;
   /** Bağlı danışan. client authority'de ZORUNLU non-null; module authority'de binding varsa dolu, yoksa null. */
   boundClientId: string | null;
+  /** Güvenli profil whitelist'i (verifyUserRequest includeProfile) — Word "Hazırlayan" adı için. */
+  profile?: Record<string, unknown>;
 };
 export type BeslenmePlanAccessResult = BeslenmePlanAccessOk | { ok: false; response: NextResponse };
 
@@ -90,6 +92,7 @@ export async function requireBeslenmePlanAccess(
     email: guard.email,
     is_demo_account: guard.is_demo_account,
     plan,
+    profile: guard.profile,
   } as const;
 
   // MODULE (Beslenme izinli; admin dahil) → kendi tenant'ındaki bound/unbound tüm planlar.

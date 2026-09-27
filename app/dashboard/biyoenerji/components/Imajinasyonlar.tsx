@@ -1,5 +1,8 @@
 ﻿"use client";
 
+import { runInEffect } from "@/lib/runInEffect";
+import { pruneSelection } from "@/lib/ui/selection";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 
 import Link from "next/link";
@@ -36,6 +39,8 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 async function exportImaginationsWord(
   tenantId: string,
@@ -60,13 +65,7 @@ async function exportImaginationsWord(
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `biyoenerji-imajinasyon-${exportMode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFileResponse(res, `biyoenerji-imajinasyon-${exportMode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`);
     onSuccess?.();
   } catch { onError?.(); } finally {
     setWordBusy(false);
@@ -155,6 +154,7 @@ export default function Imajinasyonlar() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [form, setForm] = useState<BioImaginationForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
@@ -326,44 +326,63 @@ export default function Imajinasyonlar() {
   const isSearchActive = Boolean(debouncedSearch);
 
   async function handleKaydet() {
-    const tenantId = queryTenantId ?? (await getSyncedTenantId());
-    if (!tenantId) {
-      showSoft("err", MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          const tenantId = queryTenantId ?? (await getSyncedTenantId());
+          if (!tenantId) {
+            showSoft("err", MISSING_SESSION_TENANT_MESSAGE);
+            return;
+          }
 
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "İmajinasyon başlığı zorunludur.");
-      return;
-    }
+          const titleTrim = form.title.trim();
+          if (!titleTrim) {
+            showSoft("err", "İmajinasyon başlığı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    const { error } = await bioApiCreate("imaginations", {
-      source_id: slugifySourceId(titleTrim),
-      title: titleTrim,
-      category: trimOrNull(form.category) || "Genel",
-      text: trimOrEmpty(form.text),
-      notes: trimOrEmpty(form.notes),
-      source: trimOrNull(form.source),
-    });
+          setSaving(true);
+          const { error } = await bioApiCreate("imaginations", {
+            source_id: slugifySourceId(titleTrim),
+            title: titleTrim,
+            category: trimOrNull(form.category) || "Genel",
+            text: trimOrEmpty(form.text),
+            notes: trimOrEmpty(form.notes),
+            source: trimOrNull(form.source),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    setForm({ ...emptyForm });
-    await fetchList({ reset: true });
-    void refreshCategories();
-    showSoft("ok", "İmajinasyon kaydı oluşturuldu.");
+          setFormModalOpen(false);
+          setForm({ ...emptyForm });
+          await fetchList({ reset: true });
+          void refreshCategories();
+          showSoft("ok", "İmajinasyon kaydı oluşturuldu.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
+  // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
+  // kesişime budanır (değişiklik yoksa aynı Set döner → render döngüsü yok). Silme ve
+  // "seçili" Word yalnız görünür ∩ seçili kayıtlar üzerinden yapılır.
+  useEffect(() => {
+    const visibleIds = rows.map((r) => r.id);
+    runInEffect(() => setSelectedForExport((prev) => pruneSelection(prev, visibleIds)));
+  }, [rows]);
+  const selectedVisibleRows = rows.filter((r) => selectedForExport.has(r.id));
+  const selectedVisibleIds = new Set(selectedVisibleRows.map((r) => r.id));
+
   async function handleBulkDeleteSelected() {
-    const ids = [...selectedForExport];
+    const ids = selectedVisibleRows.map((r) => r.id);
     if (ids.length === 0) return;
     setIsBulkDeleting(true);
     const { error } = await bioApiDeleteMany("imaginations", ids);
@@ -528,7 +547,7 @@ export default function Imajinasyonlar() {
               selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportSelected={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
               onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
@@ -710,7 +729,8 @@ export default function Imajinasyonlar() {
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
         mode={danger.mode}
-        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}
         resourceLabel="İmajinasyonlar"
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}

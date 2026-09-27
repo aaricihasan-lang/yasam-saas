@@ -42,7 +42,9 @@ export function isLogoutAllConfirmValid(value: unknown): boolean {
 }
 
 /** Şifre politikası — repo standardıyla (settings/change-password) uyumlu: min 6. */
-export const MIN_PASSWORD_LENGTH = 6;
+// FAZ1 FINAL HARDENING: YENİ parolalar için minimum 10 (register, şifre değiştirme, admin
+// sıfırlama). Mevcut parolalar ETKİLENMEZ (login uzunluk kontrolü yapmaz).
+export const MIN_PASSWORD_LENGTH = 10;
 
 export type PasswordValidation =
   | { ok: true; value: string }

@@ -569,7 +569,7 @@ function NewOilForm({
                           />
                           {meta.isImageList ? (
                             <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                              Her satıra bir URL girin. Galeri yükleme ilerleyen aşamada eklenecek.
+                              Her satıra bir görsel URL’si girin (galeriye dosya yükleme bu ekranda desteklenmez).
                             </p>
                           ) : null}
                         </>

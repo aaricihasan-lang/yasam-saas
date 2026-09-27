@@ -17,6 +17,11 @@
  *     snippet/evidence/tenant/PII/DB-mesaj/cursor-değeri ASLA.
  *   - `ok:true` + `completed:false` tip-seviyesinde İMKÂNSIZ (ayrı union üyeleri).
  *   - Write kapısı FAIL-CLOSED: demo kesin doğrulanamazsa write reddedilir.
+ *   - FAZ1 final hardening — KONTROLLÜ BACKFILL KAPISI: write modunda kaynağın
+ *     `yh_source_activation` satırı `is_active && backfill_allowed` olmalı (dry-run serbest).
+ *     Kontrol düzlemi okunamazsa / dep yoksa → 503 fail-closed; izin yoksa → 403
+ *     `backfill-not-allowed`. Backfill penceresi runbook ile açılıp kapatılır
+ *     (yh_source_activation_set(key, true, true) → write → yh_source_activation_set(key, true, false)).
  *   - Dry-run demo sorgusu çalıştırmaz ve hiçbir DB tablosuna yazmaz.
  *   - Audit (`writeAuditEvent`) best-effort; S2.11'de yalnız güvenli server log
  *     (DB write YOK); hatası ana işlemi düşürmez.
@@ -108,7 +113,10 @@ export type AdminIndexErrorCode =
   | "tenant-synthetic" // sentetik (ADMIN_LIBRARY) tenant
   | "tenant-mixed-demo" // tenant demo + non-demo karışık
   | "tenant-scope-validation-unavailable" // tenant/users okuma hatası (fail-closed)
-  | "tenant-filter-mismatch"; // scoped sayfada yabancı tenant satırı → 409
+  | "tenant-filter-mismatch" // scoped sayfada yabancı tenant satırı → 409
+  // FAZ1 final hardening — kontrollü backfill kapısı (yalnız write).
+  | "backfill-not-allowed" // yh_source_activation: is_active && backfill_allowed değil → 403
+  | "source-activation-unavailable"; // kontrol düzlemi okunamadı / dep yok → 503 (fail-closed)
 
 /** deps.validateScopedTenant'ın döndürebileceği tenant kapısı hata kodları. */
 export type ScopedTenantGateCode =
@@ -182,6 +190,19 @@ export type AdminIndexResponse =
   | AdminIndexPartialWrite
   | AdminIndexErrorResponse;
 
+/**
+ * Kontrollü backfill kapısı için kaynak aktivasyon durumu (yalnız iki boolean; PII yok).
+ * `ok:false` → kontrol düzlemi okunamadı (fail-closed 503).
+ */
+export type SourceBackfillActivation =
+  | { readonly ok: true; readonly isActive: boolean; readonly backfillAllowed: boolean }
+  | { readonly ok: false };
+
+/** SAF: write'a izin var mı? (is_active VE backfill_allowed birlikte true olmalı). */
+export function isBackfillWriteAllowed(a: SourceBackfillActivation | null | undefined): boolean {
+  return !!a && a.ok === true && a.isActive === true && a.backfillAllowed === true;
+}
+
 /** Best-effort audit için güvenli metadata (ham içerik / cursor değeri YOK). */
 export interface SafeAdminIndexAuditEvent {
   readonly adminId: string;
@@ -225,6 +246,12 @@ export interface AdminIndexHandlerDeps {
     | { ok: false; code: ScopedTenantGateCode }
   >;
   readonly writeAuditEvent?: (event: SafeAdminIndexAuditEvent) => Promise<void>;
+  /**
+   * FAZ1 final hardening — kontrollü backfill kapısı: kaynağın `yh_source_activation`
+   * durumunu okur (IO; route enjekte eder). WRITE modunda ZORUNLU; yoksa/okunamazsa 503
+   * `source-activation-unavailable` (fail-closed). dry-run bu dep'i ÇAĞIRMAZ.
+   */
+  readonly readSourceBackfillActivation?: (sourceKey: string) => Promise<SourceBackfillActivation>;
 }
 
 // ─── Validation (saf) ─────────────────────────────────────────────────────────
@@ -498,6 +525,27 @@ export async function handleAdminIndexRequest(
   if (broad && mode === "write") {
     await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "broad-write-disabled" });
     return { status: 403, body: { ok: false, error: { code: "broad-write-disabled" } } };
+  }
+
+  // FAZ1 final hardening — kontrollü backfill kapısı (yalnız write; dry-run serbest).
+  // is_active && backfill_allowed olmadan hiçbir write indexSourcePage'e ulaşmaz.
+  if (mode === "write") {
+    let activation: SourceBackfillActivation;
+    try {
+      activation = deps.readSourceBackfillActivation
+        ? await deps.readSourceBackfillActivation(sourceKey)
+        : { ok: false };
+    } catch {
+      activation = { ok: false };
+    }
+    if (!activation.ok) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "source-activation-unavailable" });
+      return { status: 503, body: { ok: false, error: { code: "source-activation-unavailable" } } };
+    }
+    if (!isBackfillWriteAllowed(activation)) {
+      await bestEffortAudit(deps, { adminId: deps.adminId, sourceKey, mode, limit, cursorPresent, outcome: "fatal", errorCode: "backfill-not-allowed" });
+      return { status: 403, body: { ok: false, error: { code: "backfill-not-allowed" } } };
+    }
   }
 
   // BF-4B tenant-scoped kapısı: kanıt üret (IO). scoped modda ZORUNLU.

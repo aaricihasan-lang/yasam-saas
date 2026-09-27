@@ -19,7 +19,7 @@ const MENU_MODULES: HubModule[] = [
     title: "Bölge Haritası",
     icon: "🗺️",
     lines: [
-      "Organ seç → bölge ekle → JSON'a kaydet.",
+      "Organ seç → bölge çiz → atlasa kaydet.",
       "Kayıtlı atlası görüntüle ve düzenle.",
     ],
     gradient: "from-violet-400/35 via-indigo-300/30 to-sky-200/40",

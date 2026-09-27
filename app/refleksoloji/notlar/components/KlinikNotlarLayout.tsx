@@ -15,20 +15,32 @@ import {
   savedToDraft,
   todayDateInputValue,
 } from "../lib/noteStorage";
-import { MAX_ATTACHMENT_BYTES, readFileAsDataUrl } from "../lib/readAttachmentFile";
-import type { ClinicalNoteFormDraft, ClinicalNotesTab, NoteAttachment, SavedClinicalNote } from "../types";
+import { ATTACHMENT_ACCEPT, readNoteAttachments } from "../lib/readAttachmentFile";
+import type { ClinicalNoteFormDraft, ClinicalNotesTab, SavedClinicalNote } from "../types";
 import { KayitliNotlarTab } from "./KayitliNotlarTab";
 import { NotKaydiTab } from "./NotKaydiTab";
 import { NoteContentModal } from "./NoteContentModal";
 import { NoteSaveToast } from "./NoteSaveToast";
 import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
 import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
+import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuarantineBanner";
+import type { DeleteNoteOutcome } from "../lib/notesSync";
 
 export function KlinikNotlarLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const { showToast } = useToast();
-  const { notes, hydrated, saveNote, deleteNote } = useClinicalNotes();
+  const {
+    notes,
+    hydrated,
+    serverState,
+    saveNote,
+    deleteNote,
+    quarantineCount,
+    importQuarantine,
+    discardQuarantine,
+  } = useClinicalNotes();
+  const [deleting, setDeleting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ClinicalNotesTab>("kayit");
   const [draft, setDraft] = useState<ClinicalNoteFormDraft>(EMPTY_NOTE_DRAFT);
@@ -122,8 +134,31 @@ export function KlinikNotlarLayout() {
     setEditingId(result.saved.id);
   };
 
+  // FA-25: silme sunucu-önce; sonuç kullanıcıya açıkça bildirilir.
+  const reportDeleteOutcome = (outcome: DeleteNoteOutcome) => {
+    if (outcome.ok && outcome.state === "queued") {
+      showToast({ type: "warning", title: "Silme bekliyor", message: outcome.message ?? "" });
+    } else if (outcome.ok) {
+      showToast({ type: "success", message: "Not silindi.", duration: 2500 });
+    } else {
+      showToast({ type: "error", title: "Not silinemedi", message: outcome.message });
+    }
+  };
+
+  const runDelete = async (id: string) => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const outcome = await deleteNote(id);
+      reportDeleteOutcome(outcome);
+      if ((outcome.ok || outcome.state === "missing") && editingId === id) resetForm();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleDeleteCurrent = async () => {
-    if (!editingId) return;
+    if (!editingId || deleting) return;
 
     const ok = await confirm({
       message: "Bu not silinsin mi? Bu işlem geri alınamaz.",
@@ -133,46 +168,21 @@ export function KlinikNotlarLayout() {
     });
     if (!ok) return;
 
-    deleteNote(editingId);
-    resetForm();
+    await runDelete(editingId);
   };
 
   const handleDeleteFromList = (id: string) => {
-    deleteNote(id);
-    if (editingId === id) resetForm();
+    void runDelete(id);
   };
 
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files?.length) return;
 
-    const added: NoteAttachment[] = [];
-
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_ATTACHMENT_BYTES) {
-        showToast({
-          type: "warning",
-          message: `${file.name} çok büyük (en fazla 4 MB).`,
-        });
-        continue;
-      }
-
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        added.push({
-          id: newAttachmentId(),
-          displayName: file.name,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          size: file.size,
-          dataUrl,
-        });
-      } catch {
-        showToast({
-          type: "error",
-          message: `${file.name} okunamadı.`,
-        });
-      }
+    // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
+    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId);
+    for (const message of errors) {
+      showToast({ type: "warning", message });
     }
 
     if (added.length > 0) {
@@ -301,6 +311,26 @@ export function KlinikNotlarLayout() {
           </header>
         </div>
 
+        {!isDemo && quarantineCount > 0 ? (
+          <LegacyQuarantineBanner
+            className="mt-4"
+            count={quarantineCount}
+            noun="not"
+            onImport={() => {
+              const r = importQuarantine();
+              showToast(
+                r.ok
+                  ? { type: "success", message: `${r.imported} not hesabınıza aktarıldı.` }
+                  : { type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE },
+              );
+            }}
+            onDiscard={() => {
+              discardQuarantine();
+              showToast({ type: "success", message: "Sahibi belirsiz notlar bu cihazdan kaldırıldı." });
+            }}
+          />
+        ) : null}
+
         <div
           className="mt-4 inline-flex rounded-2xl border border-violet-200/80 bg-white/80 p-1 shadow-sm ring-1 ring-violet-100/60"
           role="tablist"
@@ -341,6 +371,7 @@ export function KlinikNotlarLayout() {
                 ref={fileInputRef}
                 type="file"
                 multiple
+                accept={ATTACHMENT_ACCEPT}
                 className="hidden"
                 onChange={(e) => void handleFilesSelected(e)}
               />
@@ -372,6 +403,7 @@ export function KlinikNotlarLayout() {
           ) : (
             <KayitliNotlarTab
               notes={notes}
+              loading={serverState === "pending" && notes.length === 0}
               onEdit={loadNoteIntoForm}
               onDelete={handleDeleteFromList}
             />

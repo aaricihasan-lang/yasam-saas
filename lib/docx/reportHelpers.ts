@@ -22,6 +22,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { wellnessNote, type WellnessNoteKind } from "./reportDisclaimer";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -653,19 +654,53 @@ export function buildTOCPage(): ReportChild[] {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-export function buildFooter(reportName: string): Footer {
-  return new Footer({
-    children: [new Paragraph({
+export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind }): Footer {
+  const children: Paragraph[] = [];
+  if (opts?.note) {
+    children.push(new Paragraph({
       alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
       children: [
-        new TextRun({ text: "Sayfa ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
-        new TextRun({ children: [PageNumber.CURRENT], size: 18, font: REPORT_FONT, color: C_LIGHT }),
-        new TextRun({ text: " / ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
-        new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: REPORT_FONT, color: C_LIGHT }),
-        new TextRun({ text: `  ·  ${reportName}`, size: 18, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: wellnessNote(opts.note).short, italics: true, size: 14, font: REPORT_FONT, color: C_LIGHT }),
       ],
-    })],
-  });
+    }));
+  }
+  children.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [
+      new TextRun({ text: "Sayfa ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
+      new TextRun({ children: [PageNumber.CURRENT], size: 18, font: REPORT_FONT, color: C_LIGHT }),
+      new TextRun({ text: " / ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
+      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: REPORT_FONT, color: C_LIGHT }),
+      new TextRun({ text: `  ·  ${reportName}`, size: 18, font: REPORT_FONT, color: C_LIGHT }),
+    ],
+  }));
+  return new Footer({ children });
+}
+
+/**
+ * Rapor sonuna eklenen sade "Bilgilendirme" bölümü (FA-16). Küçük punto, italik,
+ * gri; uyarı kutusu/kırmızı renk YOK. `expertName` verilirse "Hazırlayan: …" satırı eklenir.
+ */
+export function buildWellnessNoteSection(kind: WellnessNoteKind, expertName?: string | null): Paragraph[] {
+  const out: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 360, after: 60 },
+      children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+    }),
+    new Paragraph({
+      spacing: { after: 80 },
+      children: [new TextRun({ text: wellnessNote(kind).full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
+    }),
+  ];
+  const name = expertName?.trim();
+  if (name) {
+    out.push(new Paragraph({
+      spacing: { after: 60 },
+      children: [new TextRun({ text: `Hazırlayan: ${name}`, size: 16, font: REPORT_FONT, color: C_MID })],
+    }));
+  }
+  return out;
 }
 
 // ─── Image support ────────────────────────────────────────────────────────────

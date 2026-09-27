@@ -54,7 +54,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "library_transfer_failed",
   "library_transfer_retried",
   // ÜYE YÖNETİMİ FAZ 1 — profil / lisans / güvenlik istisnası audit kapsamı.
-  // ⚠️ 20270129000000_admin_member_phase1_hardening.sql CHECK süperseti ile BİREBİR aynı.
+  // ⚠️ 20270129235900_admin_member_phase1_hardening.sql CHECK süperseti ile BİREBİR aynı.
   "user_profile_updated",
   "license_settings_changed",
   "security_exempt_changed",

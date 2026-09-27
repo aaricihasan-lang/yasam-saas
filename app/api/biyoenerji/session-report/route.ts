@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Document, Packer } from "docx";
+import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
@@ -9,56 +9,14 @@ import {
   MAX_EXPORT_RECORDS,
   EXPORT_TRUNCATED_NOTE,
 } from "@/lib/biyoenerji/reportSecurity";
-import {
-  bodyText,
-  buildFooter,
-  buildPremiumCover,
-  buildStatsPage,
-  buildTOCPage,
-  divider,
-  h1Colored,
-  h2,
-  h3,
-  muted,
-  profileLabel,
-  ReportChild,
-  spacer,
-  twoColTable,
-} from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+// Saf belge kurucusu (FA-02 tarih/saat Europe/Istanbul + FA-16 bilgilendirme notu) — harness test eder.
+import { buildBioSessionReportDoc, type BioSessionExportMode, type BioSessionRow } from "./buildSessionReport";
 
 export const runtime = "nodejs";
 
-const C_SEANS = "ea580c"; // biyoenerji turuncu
-
-type ExportMode = "all" | "selected" | "single";
-
-type SessionRow = {
-  id: string;
-  tenant_id: string;
-  title: string | null;
-  content: string | null;
-  category: string | null;
-  source: string | null;
-  note: string | null;
-  created_at: string;
-};
-
-function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleString("tr-TR", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch { return d; }
-}
-
-function slugify(t: string): string {
-  return t.toLowerCase()
-    .replace(/ı/g,"i").replace(/İ/g,"i").replace(/ğ/g,"g").replace(/Ğ/g,"g")
-    .replace(/ü/g,"u").replace(/Ü/g,"u").replace(/ş/g,"s").replace(/Ş/g,"s")
-    .replace(/ö/g,"o").replace(/Ö/g,"o").replace(/ç/g,"c").replace(/Ç/g,"c")
-    .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-}
+type ExportMode = BioSessionExportMode;
+type SessionRow = BioSessionRow;
 
 export async function POST(request: NextRequest): Promise<Response> {
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
@@ -114,87 +72,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!sessions.length)
     return Response.json({ ok: false, error: "Bu seçim için seans bulunamadı." }, { status: 404 });
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
-  const isSingle = exportMode === "single" || (exportMode === "selected" && sessions.length === 1);
-
-  const exportLabel =
-    isSingle ? `Tek Seans — ${sessions[0]!.title || ""}` :
-    exportMode === "selected" ? `Seçili Seanslar (${sessions.length})` :
-    `Tüm Seanslar (${sessions.length})`;
-
-  const categories = new Set(sessions.map((s) => s.category?.trim()).filter(Boolean));
-
-  const all: ReportChild[] = [];
-
-  all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "BİYOENERJİ SEANSLARI",
-    subtitle: isSingle && sessions[0]
-      ? `${sessions[0].title || "Seans"} · Seans Raporu`
-      : "Biyoenerji Seans Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Seans Sayısı",  value: String(sessions.length) },
-      { label: "Kategori",      value: String(categories.size) },
-      { label: "Kapsam",        value: exportLabel },
-    ],
-  }));
-
-  all.push(...buildStatsPage([
-    ["Seans Sayısı",  String(sessions.length)],
-    ["Kategori",      String(categories.size)],
-    ["Kapsam",        exportLabel],
-  ]));
-
-  all.push(...buildTOCPage());
-
-  if (sessions.length >= MAX_EXPORT_RECORDS) {
-    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
-  }
-
-  all.push(h1Colored("1. Seans Listesi", C_SEANS, true));
-  all.push(muted(`${sessions.length} seans kaydı`));
-  all.push(spacer());
-
-  sessions.forEach((session, i) => {
-    const title = session.title?.trim() || "Başlıksız Seans";
-
-    if (i > 0) all.push(divider());
-
-    all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C_SEANS));
-    all.push(h2(title));
-
-    all.push(twoColTable([
-      ["Tarih",     formatDateTR(session.created_at)],
-      ["Kategori",  session.category?.trim() || "Belirtilmemiş"],
-      ...(session.source?.trim() ? [["Kaynak", session.source.trim()] as [string, string]] : []),
-    ]));
-
-    if (session.content?.trim()) {
-      all.push(h3("İçerik / Uygulama Notları"));
-      all.push(bodyText(session.content.trim()));
-    }
-
-    if (session.note?.trim()) {
-      all.push(h3("Not"));
-      all.push(bodyText(session.note.trim()));
-    }
-  });
-
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      footers: { default: buildFooter("Biyoenerji Seans Raporu · Yaşam Sistemi") },
-      children: all,
-    }],
+  const { doc, filename } = buildBioSessionReportDoc({
+    sessions,
+    exportMode,
+    truncatedNote: sessions.length >= MAX_EXPORT_RECORDS ? EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS) : null,
+    expertName: expertDisplayName(guard.profile),
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug =
-    isSingle && sessions[0]?.title ? slugify(sessions[0].title) :
-    exportMode === "selected" ? "secili" : "tumu";
-  const filename = `biyoenerji-seans-${modeSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {

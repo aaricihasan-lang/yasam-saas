@@ -2,14 +2,16 @@
  * MEM-012 — Public kayıt (/api/register) SAF doğrulama. Client + server + harness paylaşır.
  *
  * Politika (makul, satış öncesi): ad 2–120 karakter (kontrol karakteri yok); e-posta trim+lower,
- * ≤254, basit biçim; parola 8–128 karakter, en az bir harf + bir rakam, e-posta ile aynı değil.
+ * ≤254, basit biçim; parola 10–128 karakter (FAZ1 FINAL HARDENING NEW_PASSWORD_MIN_LENGTH = 10 ile
+ * birebir), en az bir harf + bir rakam, e-posta ile aynı değil.
  * Honeypot alanı (`website`) dolu gelirse bot kabul edilir (route sessizce kayıt oluşturmaz).
  */
 
 export const REGISTER_NAME_MIN = 2;
 export const REGISTER_NAME_MAX = 120;
 export const REGISTER_EMAIL_MAX = 254;
-export const REGISTER_PASSWORD_MIN = 8;
+/** lib/auth/loginThrottle NEW_PASSWORD_MIN_LENGTH ile AYNI (o modül server-only crypto import eder; harness eşitliği doğrular). */
+export const REGISTER_PASSWORD_MIN = 10;
 export const REGISTER_PASSWORD_MAX = 128;
 export const REGISTER_HONEYPOT_FIELD = "website";
 

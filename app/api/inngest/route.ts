@@ -5,6 +5,7 @@ import { yhOutboxWorkerFunction } from "@/lib/inngest/functions/yhOutboxWorker";
 import { yhClientOutboxWorkerFunction } from "@/lib/inngest/functions/yhClientOutboxWorker";
 import { yhReconcileFunction } from "@/lib/inngest/functions/yhReconcile";
 import { expertStorageSnapshotFunction } from "@/lib/inngest/functions/expertStorageSnapshot";
+import { videoTempCleanupFunction } from "@/lib/inngest/functions/videoTempCleanup";
 
 export const runtime = "nodejs";
 
@@ -17,5 +18,7 @@ export const { GET, POST, PUT } = serve({
     yhReconcileFunction,
     // FAZ 1 İP-5 — günlük depolama snapshot (PRODUCTION VARSAYILAN KAPALI, env-gated).
     expertStorageSnapshotFunction,
+    // FAZ1 FINAL HARDENING — günlük video-temp temizliği (VARSAYILAN KAPALI, env-gated).
+    videoTempCleanupFunction,
   ],
 });

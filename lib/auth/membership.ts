@@ -1,5 +1,9 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
-import { isAdminUser, normalizeApprovalStatus } from "@/lib/auth/yasamUser";
+import {
+  hasMembershipAccessForRow,
+  normalizeMembershipToken,
+  parseMembershipPackageType,
+} from "@/lib/auth/membershipAccessCore";
 
 export type PackageType = "trial" | "pro" | "premium";
 
@@ -36,26 +40,13 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | unde
   return undefined;
 }
 
+// SAF çekirdeğe delege (sunucu üyelik kapısı ile TEK KAYNAK — membershipAccessCore).
 function normalizeToken(value?: string): string {
-  if (!value) return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/\s+/g, "_");
+  return normalizeMembershipToken(value);
 }
 
 function parsePackageType(raw?: string): PackageType | undefined {
-  const token = normalizeToken(raw);
-  if (token === "trial" || token === "deneme") return "trial";
-  if (token === "pro") return "pro";
-  if (token === "premium") return "premium";
-  return undefined;
+  return parseMembershipPackageType(raw);
 }
 
 function parseMembershipStatus(raw?: string): MembershipStatus | undefined {
@@ -195,18 +186,15 @@ export function filterMembershipPayloadForRow(
 }
 
 /**
- * Uzman erişimi — tek üyelik modeli (FAZ 1 owner kararı): her ONAYLI uzman Premium'dur.
- * Temel erişim = active + approved; modül erişimi ayrıca kişiye özel module_permissions.
- *
- * package_type / plan / trial / membership tarihleri erişim kararına GİRMEZ (legacy
- * teknik kolonlar). Böylece istemci kapısı server kapısıyla (verifyUserRequest:
- * active + onaylı; requireModuleAccess: module_permissions) BİREBİR hizalıdır —
- * "UI kapalı / API açık" çift doğruluk kaynağı kalmaz. Erişimin kapatılması yalnız
- * admin'in `active=false` kararı (veya onay durumu) ile olur. Admin her zaman erişir.
+ * Uzman erişimi — tek üyelik modeli (Premium-only): her ONAYLI uzman Premium'dur (onay RPC'leri
+ * package_type/plan = premium yazar; Deneme/Pro seçeneği yok). Kural membershipAccessCore'da TEK
+ * KAYNAK: admin → her zaman; uzman → active + approved + premium (paket yalnız KISITLAR, açmaz).
+ * İstemci ve sunucu (requireModuleAccess / assertUserModuleAccess) aynı fonksiyonu kullanır.
+ * Tarih alanları erişime GİRMEZ; erişimin kapatılması admin'in active=false / onay kararıdır.
  */
 export function hasExpertMembershipAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
-  if (isAdminUser(user)) return true;
-  if (user.active !== true) return false;
-  return normalizeApprovalStatus(user.approval_status) === "approved";
+  // FAZ1 FINAL HARDENING: kural SAF çekirdekte (membershipAccessCore) — sunucu
+  // requireModuleAccess aynı fonksiyonu kullanır (istemci/sunucu sapması yok).
+  return hasMembershipAccessForRow(user as unknown as Record<string, unknown>);
 }

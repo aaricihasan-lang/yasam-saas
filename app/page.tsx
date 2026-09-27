@@ -30,6 +30,8 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
+import { fetchYhHealth } from "@/lib/yasam-hafizasi/ui/searchApiClient";
+import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import {
   WHATSAPP_CONTACT_ENABLED,
   buildWhatsAppUrl,
@@ -712,6 +714,8 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
+  // Yaşam Hafızası kartı: /api/yasam-hafizasi/health'ten DÜRÜST durum (undefined = yükleniyor).
+  const [yhHealth, setYhHealth] = useState<YhHealthPayload | null | undefined>(undefined);
   const [recentActivity, setRecentActivity] = useState<RecentItem[] | null>(null);
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
@@ -1019,6 +1023,18 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [user?.id, user?.tenant_id]);
 
+  // Yaşam Hafızası kartı durumu (yalnız aggregate health; ham içerik yok). Hata → "—".
+  useEffect(() => {
+    // Oturum yokken kart zaten görünmez; senkron setState yapılmaz (kart yalnız oturumla render edilir).
+    if (!user?.id) return;
+    const ctrl = new AbortController();
+    void fetchYhHealth(ctrl.signal).then((payload) => {
+      if (!ctrl.signal.aborted) setYhHealth(payload);
+    });
+    // Kullanıcı/tenant değişince önceki hesabın durumu gösterilmez.
+    return () => { ctrl.abort(); setYhHealth(undefined); };
+  }, [user?.id, user?.tenant_id]);
+
   useEffect(() => {
     if (!user) { setRecentActivity(null); return; }
     const tenantId = user.tenant_id;
@@ -1147,30 +1163,46 @@ export default function Home() {
     setLoading(true);
     setMessage(t("auth.loggingIn"));
 
+    // FAZ1 FINAL HARDENING — TEK LOGIN YOLU: kimlik doğrulama + kısıtlama (throttle) + gating +
+    // oturum token'ı tek istekte SUNUCUDA (POST /api/auth/session). Tarayıcı login_user RPC'si
+    // ÇAĞRILMAZ. Oturum kurulamazsa giriş BAŞARISIZDIR (fail-closed; token'sız giriş yok).
     const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
 
-    if (attempt.rpcError) {
-      setMessage(t("auth.systemError"));
+    if (!attempt.ok) {
+      if (attempt.code === "INVALID_CREDENTIALS") {
+        setMessage(t("auth.emailPasswordWrong"));
+      } else if (attempt.code === "SESSION_LIMIT") {
+        setMessage(attempt.message ?? t("auth.sessionLimit"));
+      } else if (attempt.code === "NO_ROLE") {
+        setMessage(t("auth.noValidRole"));
+      } else if (
+        attempt.code === "LOCKED" ||
+        attempt.code === "INACTIVE" ||
+        attempt.code === "PENDING"
+      ) {
+        setMessage(attempt.message ?? t("auth.systemError"));
+      } else {
+        setMessage(t("auth.systemError"));
+      }
       setLoading(false);
       return;
     }
 
-    if (attempt.rows.length === 0) {
-      setMessage(t("auth.emailPasswordWrong"));
-      setLoading(false);
-      return;
-    }
-
-    let loggedUser = parseLoginUserRecord(attempt.rows[0]);
+    let loggedUser = parseLoginUserRecord(attempt.row);
 
     if (!loggedUser) {
+      clearYasamUser();
       setMessage(t("auth.noValidRole"));
       setLoading(false);
       return;
     }
 
+    // Token artık VAR → güncel profil (module_permissions/paket) güvenli API'den yüklenir.
+    saveSessionToken(attempt.sessionToken);
     const freshUser = await syncYasamUserFromDb(loggedUser, { force: true });
     if (!freshUser) {
+      // Profil doğrulanamadı → oturumu sunucuda da kapat (clearYasamUser DELETE gönderir).
+      clearYasamUser();
       setMessage(t("auth.userVerifyFailed"));
       setLoading(false);
       return;
@@ -1179,66 +1211,22 @@ export default function Home() {
 
     const loginCheck = canLoginYasamUser(loggedUser);
     if (!loginCheck.allowed) {
+      clearYasamUser();
       setMessage(loginCheck.message);
       setLoading(false);
       return;
     }
 
-    // Oturum kaydı oluştur (güvenlik kontrolü + P3 cihaz/oturum limiti)
-    let isSuspiciousLogin = false;
-    try {
-      const sessionRes = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // P0-1: token yalnız SERVER-SIDE credential doğrulamasıyla üretilir.
-        // Çıplak userId artık kabul edilmez; e-posta+şifre server'da yeniden doğrulanır.
-        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
-      });
-      // P3 reject-new: limit aşımında server 403 döner ve token vermez → giriş DURDURULUR.
-      if (sessionRes.status === 403) {
-        const errJson = (await sessionRes.json().catch(() => ({}))) as { error?: string };
-        setMessage(errJson.error ?? t("auth.sessionLimit"));
-        setLoading(false);
-        return;
-      }
-      if (sessionRes.ok) {
-        const sessionJson = (await sessionRes.json()) as {
-          sessionToken?: string;
-          suspiciousLogin?: boolean;
-          highRisk?: boolean;
-        };
-        if (typeof sessionJson.sessionToken === "string") {
-          saveSessionToken(sessionJson.sessionToken);
-        }
-        isSuspiciousLogin = !!(sessionJson.suspiciousLogin || sessionJson.highRisk);
-      }
-    } catch {
-      // Ağ/500 hatası giriş akışını durdurmamalı (limit reddi 403 ayrı ele alınır)
-    }
+    const isSuspiciousLogin = attempt.suspiciousLogin;
 
     setUser(loggedUser);
+    setProfileSynced(true);
+    setProfileError(false);
     setLoginModalOpen(false);
     setEmail("");
     setPassword("");
     setMessage("");
     setLoading(false);
-
-    // Modül izinleri login_user RPC'de gelmez; token artık kaydedildiği için
-    // /api/auth/profile sync'ini şimdi çalıştır. Bitene kadar modül grid'i
-    // skeleton kalır (profileSynced=false) — eksik 2 kart asla render edilmez.
-    // Admin modül gating'e tabi değil; ayrıca /admin'e yönlendirilir.
-    if (!isAdminUser(loggedUser)) {
-      setProfileSynced(false);
-      setProfileError(false);
-      void syncYasamUserFromDb(loggedUser, { force: true }).then((fresh) => {
-        if (fresh) {
-          setUser(fresh);
-          setProfileSynced(true);
-        } else {
-          setProfileError(true);
-        }
-      });
-    }
 
     if (isSuspiciousLogin) {
       showToast({
@@ -1643,7 +1631,9 @@ export default function Home() {
                                 : moduleStats[item.permissionKey] === 0
                                   ? t("moduleCard.noRecords")
                                   : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
-                            : t("common.contentReady")}
+                            : item.permissionKey === "yasam_hafizasi"
+                              ? deriveYhCardStatus(yhHealth).text
+                              : t("common.contentReady")}
                         </p>
                         {lastDateByKey[item.permissionKey] ? (
                           <p className="mt-0.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
@@ -2833,6 +2823,24 @@ export default function Home() {
                 className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
                 {t("footer.terms")}
+              </Link>
+              <Link
+                href="/kvkk-aydinlatma"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
+              >
+                {t("footer.kvkk")}
+              </Link>
+              <Link
+                href="/veri-isleme-sozlesmesi"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
+              >
+                {t("footer.dpa")}
+              </Link>
+              <Link
+                href="/alt-isleyiciler"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
+              >
+                {t("footer.subprocessors")}
               </Link>
               <Link
                 href="/iletisim"

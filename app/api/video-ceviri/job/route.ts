@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { pickClientJobPatchFields } from "@/lib/video-ceviri/videoTempPath";
 
 export const runtime = "nodejs";
 
@@ -12,15 +13,17 @@ export const runtime = "nodejs";
  * doğrulanır, tenant_id + user_id oturumdan alınır (body'den GÜVENİLMEZ).
  *
  * Kapsam: yalnız video_transcription_jobs tablosu. Storage (video-temp bucket)
- * yükleme işlemi bu route'un dışındadır (ayrı bucket politikası).
+ * yüklemesi get-upload-url (imzalı yükleme URL'i) üzerinden yapılır; anon storage
+ * politikası YOKTUR (migration 20270129001000).
  */
 
 const TABLE = "video_transcription_jobs";
 const LIST_SELECT =
   "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, transcript_tr, summary_text, headings_text, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at";
 
-// Client'ın PATCH ile yazabileceği status yalnız 'failed' — 'completed' vb. sunucu işidir.
-const CLIENT_ALLOWED_STATUS = new Set(["failed"]);
+// Client'ın PATCH ile yazabileceği alanlar: status yalnız 'failed' + error_message.
+// FAZ1 FINAL HARDENING: video_temp_path ARTIK istemciden kabul EDİLMEZ — yalnız
+// /api/video-ceviri/get-upload-url sunucuda türetip yazar (pickClientJobPatchFields).
 
 // ─── GET — kullanıcının video işleri (tenant + user) ──────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
@@ -79,7 +82,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   return NextResponse.json({ ok: true, jobId: String(data.id) });
 }
 
-// ─── PATCH — iş güncelle (video_temp_path / status=failed / error_message) ─────
+// ─── PATCH — iş güncelle (status=failed / error_message; video_temp_path YOK) ───
 export async function PATCH(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "video_ceviri");
   if (!guard.ok) return guard.response;
@@ -93,10 +96,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const jobId = String(body.jobId ?? "").trim();
   if (!jobId) return NextResponse.json({ ok: false, error: "jobId gerekli." }, { status: 400 });
 
-  const fields: Record<string, unknown> = {};
-  if (typeof body.videoTempPath === "string") fields.video_temp_path = body.videoTempPath;
-  if (typeof body.status === "string" && CLIENT_ALLOWED_STATUS.has(body.status)) fields.status = body.status;
-  if (typeof body.errorMessage === "string") fields.error_message = body.errorMessage;
+  const fields = pickClientJobPatchFields(body);
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }

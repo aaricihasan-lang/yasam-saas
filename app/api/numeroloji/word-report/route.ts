@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import {
   WORD_TAB_LABELS,
   WORD_TAB_ORDER,
@@ -120,7 +121,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim());
+  // FA-16: belge sonunda sade bilgilendirme notu + Hazırlayan (packNumerolojiDocx ekler).
+  const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim(), {
+    expertName: expertDisplayName(guard.profile),
+  });
 
   const filename = isSingle
     ? wordFileName(`${rows[0]!.name} ${rows[0]!.surname}`, selectedTabs)

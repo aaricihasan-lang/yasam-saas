@@ -354,6 +354,9 @@
       "nav": "Footer navigasyon",
       "privacy": "Gizlilik Politikası",
       "terms": "Kullanım Şartları",
+      "kvkk": "KVKK Aydınlatma",
+      "dpa": "Veri İşleme Sözleşmesi",
+      "subprocessors": "Alt İşleyiciler",
       "contact": "İletişim"
     },
     "gallery": {
@@ -468,7 +471,7 @@
       "emailPlaceholder": "uzman@ornek.com",
       "passwordLabel": "Şifre",
       "passwordRepeatLabel": "Şifre Tekrar",
-      "passwordHint": "En az 8 karakter; en az bir harf ve bir rakam.",
+      "passwordHint": "En az 10 karakter; en az bir harf ve bir rakam.",
       "submit": "Kayıt Ol",
       "submitting": "Kaydediliyor…",
       "haveAccount": "Zaten hesabınız var mı?",
@@ -486,7 +489,7 @@
         "hash": "Şifre işlenemedi.",
         "invalidName": "Ad soyad 2–120 karakter olmalıdır.",
         "invalidEmail": "Geçerli bir e-posta adresi girin.",
-        "weakPassword": "Şifre en az 8 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
+        "weakPassword": "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
         "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
     }

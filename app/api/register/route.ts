@@ -5,6 +5,7 @@ import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { validateRegisterBody } from "@/lib/auth/registerValidation";
+import { NEW_PASSWORD_MIN_LENGTH } from "@/lib/auth/loginThrottle";
 import { clientIpFromHeaders, hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
@@ -60,10 +61,15 @@ export async function POST(req: NextRequest) {
       missing_fields: "Tüm alanları doldurunuz.",
       invalid_name: "Ad soyad 2–120 karakter olmalıdır.",
       invalid_email: "Geçerli bir e-posta adresi girin.",
-      weak_password: "Şifre en az 8 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
+      weak_password: "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
       invalid_request: "Geçersiz istek.",
     };
     return err(messages[v.code] ?? "Geçersiz istek.", v.code, 400);
+  }
+  // FAZ1 FINAL HARDENING: yeni parolalar en az NEW_PASSWORD_MIN_LENGTH (10) — validateRegisterBody ile
+  // aynı eşik (harness eşitliği doğrular); sunucu tarafında ayrıca açıkça zorlanır.
+  if (v.value.password.length < NEW_PASSWORD_MIN_LENGTH) {
+    return err("Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.", "weak_password", 400);
   }
 
   // E-posta kovası (geçerli biçimli istekler; honeypot'lu istekler de sayılır).

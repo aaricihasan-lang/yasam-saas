@@ -13,7 +13,9 @@ import {
 import { YH_SOURCE_MODULES } from "../../lib/yasam-hafizasi/config";
 import { YH_CLIENT_INDEX_SOURCES } from "../../lib/yasam-hafizasi/client/clientSources";
 import { MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
-import { passwordPolicyError, validateRegisterBody } from "../../lib/auth/registerValidation";
+import { passwordPolicyError, REGISTER_PASSWORD_MIN, validateRegisterBody } from "../../lib/auth/registerValidation";
+import { NEW_PASSWORD_MIN_LENGTH } from "../../lib/auth/loginThrottle";
+import { MIN_PASSWORD_LENGTH } from "../../lib/admin/accountSessionControls";
 import {
   DEFAULT_MEMBER_LIST_QUERY,
   MEMBER_LIST_RETURN_KEY,
@@ -91,18 +93,19 @@ ok(!/Yaşam Hafızası için/.test(approveModal), "onay modalında ayrı 'Yaşam
 
 // ─── MEM-012 Register ─────────────────────────────────────────────────────────
 console.log("\n[MEM-012] Kayıt doğrulama");
-const base = { fullName: "Ad Soyad", email: "a@b.co", password: "abcd1234" };
+const base = { fullName: "Ad Soyad", email: "a@b.co", password: "abcd123456" };
 ok(validateRegisterBody(base).ok, "geçerli kayıt");
-ok(passwordPolicyError("abcdefgh") === "weak_password" && passwordPolicyError("12345678") === "weak_password" && passwordPolicyError("ab1") === "weak_password", "parola: harf+rakam+8");
-ok(passwordPolicyError("şifre123") === null, "Türkçe harf + rakam kabul");
+ok(passwordPolicyError("abcdefghij") === "weak_password" && passwordPolicyError("1234567890") === "weak_password" && passwordPolicyError("abcd1234") === "weak_password", "parola: harf+rakam+10 (8 karakter artık yetmez)");
+ok(passwordPolicyError("şifrem12345") === null, "Türkçe harf + rakam kabul");
+ok(REGISTER_PASSWORD_MIN === NEW_PASSWORD_MIN_LENGTH && REGISTER_PASSWORD_MIN === MIN_PASSWORD_LENGTH, "parola minimumu main (NEW_PASSWORD_MIN_LENGTH / MIN_PASSWORD_LENGTH) ile birebir");
 ok(passwordPolicyError("a".repeat(125) + "1234") === "weak_password", "129 karakter parola reddedilir");
 ok(passwordPolicyError("a@b.co1", "a@b.co1") === "weak_password", "e-posta ile aynı parola reddedilir");
 const hp = validateRegisterBody({ ...base, website: "x" });
 ok(hp.ok && hp.bot === true, "honeypot dolu → bot=true");
 ok(!validateRegisterBody({ ...base, website: 5 }).ok, "honeypot tipi yanlış → reddedilir");
 ok(!validateRegisterBody({ ...base, role: "admin" }).ok, "bilinmeyen alan reddedilir");
-const n = validateRegisterBody({ fullName: "  Ad   Soyad ", email: " A@B.CO ", password: " abcd1234 " });
-ok(n.ok && n.value.fullName === "Ad Soyad" && n.value.email === "a@b.co" && n.value.password === "abcd1234", "normalize: ad boşluk, e-posta küçük harf, parola kırpılır (giriş ile tutarlı)");
+const n = validateRegisterBody({ fullName: "  Ad   Soyad ", email: " A@B.CO ", password: " abcd123456 " });
+ok(n.ok && n.value.fullName === "Ad Soyad" && n.value.email === "a@b.co" && n.value.password === "abcd123456", "normalize: ad boşluk, e-posta küçük harf, parola kırpılır (giriş ile tutarlı)");
 const regRoute = read("app/api/register/route.ts");
 ok(regRoute.indexOf("reg-ip") < regRoute.indexOf("readLimitedJsonBody(req)"), "IP rate limit doğrulamadan ÖNCE (her deneme sayılır)");
 ok(regRoute.indexOf("reg-email") > 0 && regRoute.indexOf("reg-email") < regRoute.indexOf("rpc(\"hash_password\""), "rate limit bcrypt hash'ten ÖNCE");

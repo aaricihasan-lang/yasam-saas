@@ -30,6 +30,8 @@ import {
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
 import { LongTextField } from "@/app/dogaltas/components/LongTextField";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const MINERAL_EDIT_TEXTAREA_CLASS =
   "w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100";
@@ -572,17 +574,11 @@ function MineralDetailPageContent() {
         body: JSON.stringify({}),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safeN = mineral.name.toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      a.download = `mineral-${safeN}-${new Date().toISOString().slice(0,10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `mineral-${safeN}-${reportFileDate()}.docx`);
     } catch { /* sessiz hata */ } finally {
       setWordBusy(false);
     }

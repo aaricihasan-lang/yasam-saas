@@ -562,7 +562,7 @@ function AdminUsersContent() {
       return;
     }
     if (passwordPolicyError(password, email)) {
-      showToast({ title: "Zayıf şifre", message: "Şifre en az 8 karakter olmalı; en az bir harf ve bir rakam içermelidir.", type: "error" });
+      showToast({ title: "Zayıf şifre", message: "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.", type: "error" });
       return;
     }
     if (form.role === "expert" && !formHasModule) {
@@ -728,10 +728,10 @@ function AdminUsersContent() {
                   <label className="block" htmlFor="create-password">
                     <span className={labelClass}>Geçici Şifre</span>
                     <input id="create-password" type="password" className={inputClass} autoComplete="new-password" value={form.password}
-                      aria-describedby="create-password-hint"
+                      placeholder="En az 10 karakter" aria-describedby="create-password-hint"
                       onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
                     <span id="create-password-hint" className="mt-1 block text-xs font-medium text-slate-500">
-                      En az 8 karakter; en az bir harf ve bir rakam.
+                      En az 10 karakter; en az bir harf ve bir rakam.
                     </span>
                   </label>
                   <label className="block" htmlFor="create-role">

@@ -23,6 +23,11 @@ import { loadClientChart, saveClientChart } from "../helpers/hdCharts";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
 import { loadKnowledgeForCodes, type KnowledgeGroup } from "../../rapor-olustur/helpers/hdRapor";
+import {
+  checkManualChartConsistency,
+  MANUAL_CHART_CONFIRM_MESSAGE,
+} from "@/lib/human-design/manualChartConsistency";
+import { HdProfessionalReportButton } from "../../kayitli-haritalar/components/HdProfessionalReportButton";
 
 function buildCodes(f: typeof emptyForm): string[] {
   const codes: string[] = [];
@@ -94,6 +99,11 @@ export function HdHaritaKaydiContent() {
   const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [prompt, setPrompt] = useState<UnsavedPrompt | null>(null);
+  // Başarılı kayıttan sonra "Profesyonel Word oluştur" CTA'sı için kaydedilen harita id'si.
+  const [savedChartId, setSavedChartId] = useState<string | null>(null);
+
+  // Manuel harita tutarlılık uyarıları (SAF; yalnız uyarı — kaydı ASLA engellemez).
+  const consistencyWarnings = useMemo(() => checkManualChartConsistency(form), [form]);
 
   // Gerçek dirty: yüklenmiş baseline'dan sapma (sıra-bağımsız karşılaştırma).
   const dirty = useMemo(() => serializeForm(form) !== serializeForm(baseline), [form, baseline]);
@@ -134,6 +144,7 @@ export function HdHaritaKaydiContent() {
 
   // Seçili danışanın mevcut haritasını yükle (form + baseline birlikte kurulur → dirty=false).
   const loadChart = useCallback(async (id: string) => {
+    setSavedChartId(null);
     if (!id) { setForm(emptyForm); setBaseline(emptyForm); return; }
     setLoadingChart(true);
     const { row, error } = await loadClientChart(id);
@@ -245,8 +256,21 @@ export function HdHaritaKaydiContent() {
       showToast({ message: "Danışan seçin.", type: "warning" });
       return;
     }
+    if (saving) return;
+    // Tutarsızlık varsa ENGELLEMEYEN onay: kullanıcı "Yine de Kaydet" ile devam edebilir.
+    if (consistencyWarnings.length > 0) {
+      const choice = await askUnsaved({
+        title: "Tutarsızlık uyarıları",
+        message: MANUAL_CHART_CONFIRM_MESSAGE,
+        actions: [
+          { key: "cancel", label: "Vazgeç ve Kontrol Et", tone: "safe" },
+          { key: "save", label: "Yine de Kaydet", tone: "primary" },
+        ],
+      });
+      if (choice !== "save") return;
+    }
     setSaving(true);
-    const { error } = await saveClientChart(clientId, {
+    const { error, id: savedId } = await saveClientChart(clientId, {
       type_code: form.type_code || null,
       authority_code: form.authority_code || null,
       profile_code: form.profile_code || null,
@@ -263,6 +287,7 @@ export function HdHaritaKaydiContent() {
     } else {
       // Başarılı kayıt → baseline mevcut forma sabitlenir; dirty temizlenir.
       setBaseline(form);
+      setSavedChartId(savedId ?? null);
       showToast({ message: "Harita kaydedildi.", type: "success" });
     }
   }
@@ -532,6 +557,35 @@ export function HdHaritaKaydiContent() {
               className={`${fieldBase} resize-y leading-relaxed`}
             />
           </section>
+
+          {/* Tutarsızlık uyarıları (amber; engellemez) */}
+          {consistencyWarnings.length > 0 && (
+            <section
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 ring-1 ring-amber-100"
+            >
+              <p className="text-xs font-black uppercase tracking-widest text-amber-800">Tutarsızlık uyarıları</p>
+              <p className="mt-1 text-xs text-amber-800/90">
+                Girdiğiniz alanlar birbiriyle uyumsuz olabilir. Kaydetme engellenmez; lütfen dış kaynaktaki değerlerle karşılaştırın.
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs font-medium text-amber-900">
+                {consistencyWarnings.map((w) => (
+                  <li key={`${w.code}:${w.message}`}>{w.message}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Kayıt sonrası: profesyonel Word CTA'sı (Android'de buton render edilmez) */}
+          {savedChartId && !dirty && (
+            <section className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-semibold text-emerald-800">
+                Harita kaydedildi. Bu haritadan profesyonel Word raporu oluşturabilirsiniz.
+              </p>
+              <HdProfessionalReportButton chartId={savedChartId} label="Profesyonel Word oluştur" />
+            </section>
+          )}
 
           {/* Aksiyon */}
           <div className="flex items-center justify-end gap-3 border-t border-indigo-100/80 pt-4">

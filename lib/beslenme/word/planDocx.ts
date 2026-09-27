@@ -67,6 +67,7 @@ export async function buildPlanDocxBuffer(
   db: SupabaseClient,
   tenantId: string,
   planId: string,
+  opts?: { expertName?: string | null },
 ): Promise<PlanDocxResult> {
   const { data: planData } = await db
     .from("nutrition_plans")
@@ -173,6 +174,7 @@ export async function buildPlanDocxBuffer(
   const tree: PlanDocxTree = {
     plan: { ...plan },
     recipientName,
+    expertName: opts?.expertName ?? null,
     days: dayRows.map<PlanDocxDay>((d) => ({
       id: d.id,
       plan_date: d.plan_date,

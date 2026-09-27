@@ -45,6 +45,16 @@ function makeFakeDb(cfg: {
         const row = cfg.loginRows.get(`${String(args.p_email)}\n${String(args.p_password)}`);
         return { data: row ? [row] : [], error: null };
       }
+      // FAZ1 FINAL HARDENING: token doğrulama artık touch_active_session RPC'si (tek round-trip).
+      if (name === "touch_active_session") {
+        const sess = cfg.sessions.get(String(args.p_token));
+        return { data: sess && sess.is_active === true ? String(sess.user_id) : null, error: null };
+      }
+      // FAZ1 FINAL HARDENING: tek login yolu auth_login_guarded (jsonb {status,user}).
+      if (name === "auth_login_guarded") {
+        const row = cfg.loginRows.get(`${String(args.p_email)}\n${String(args.p_password)}`);
+        return { data: row ? { status: "ok", user: row } : { status: "invalid" }, error: null };
+      }
       return { data: null, error: null };
     },
     from(table: string) {
@@ -140,7 +150,8 @@ async function run() {
   const sessionSrc = readFileSync(join(ROOT, "app/api/auth/session/route.ts"), "utf8");
   const adminSrc = readFileSync(join(ROOT, "app/api/auth/admin-session/route.ts"), "utf8");
 
-  ok("session route: verifyLoginCredentials çağırıyor", /verifyLoginCredentials\s*\(/.test(sessionSrc));
+  // FAZ1 FINAL HARDENING: tek login yolu kısıtlamalı doğrulama (verifyLoginCredentialsGuarded).
+  ok("session route: verifyLoginCredentials(Guarded) çağırıyor", /verifyLoginCredentials(Guarded)?\s*\(/.test(sessionSrc));
   ok("session route: email+password okuyor", /body\?\.email/.test(sessionSrc) && /body\?\.password/.test(sessionSrc));
   ok("session route: body.userId ile token ÜRETMİYOR (kaldırıldı)", !/body\.userId/.test(sessionSrc) && !/body\?\.userId/.test(sessionSrc));
 

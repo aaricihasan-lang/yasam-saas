@@ -13,6 +13,7 @@ import { Archive, BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from 
 import type { Source } from "@/lib/beslenme/beslenmeClient";
 import { createSource, listSources, updateSource } from "@/lib/beslenme/beslenmeClient";
 import { SOURCE_TYPE_LABELS, SOURCE_TYPE_OPTIONS, friendlyError } from "./constants";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   Card,
   EmptyState,
@@ -40,6 +41,31 @@ type Mode = "idle" | "pick" | "create";
 export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props) {
   const [mode, setMode] = useState<Mode>("idle");
   const [err, setErr] = useState("");
+  // Kaynak bağlantısı kaldırma: onay + tekil kilit + görünür hata (sessiz başarısızlık yok).
+  const deleteConfirm = useDeleteConfirm();
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [unlinkErr, setUnlinkErr] = useState("");
+
+  async function handleUnlink(l: LinkedSource) {
+    if (unlinkingId) return;
+    const ok = await deleteConfirm({
+      title: "Kaynak bağlantısını kaldır",
+      message: "Bu kaynak bu kayıttan kaldırılacak (kaynak kataloğda kalır).",
+      names: [l.source?.title ?? "Kaynak"],
+      confirmText: "Kaldır",
+    });
+    if (!ok) return;
+    setUnlinkingId(l.id);
+    setUnlinkErr("");
+    try {
+      const done = await onUnlink(l.id);
+      if (!done) setUnlinkErr("Kaynak bağlantısı kaldırılamadı. Lütfen tekrar deneyin.");
+    } catch {
+      setUnlinkErr("Kaynak bağlantısı kaldırılamadı. Lütfen tekrar deneyin.");
+    } finally {
+      setUnlinkingId(null);
+    }
+  }
 
   // Picker durumu
   const [q, setQ] = useState("");
@@ -149,6 +175,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   return (
     <div className="flex flex-col gap-3">
       {disabled ? <StatusMessage type="info">{disabledReason}</StatusMessage> : null}
+      {unlinkErr ? <StatusMessage type="error">{unlinkErr}</StatusMessage> : null}
 
       {/* Bağlı kaynaklar */}
       {links.length === 0 ? (
@@ -197,8 +224,9 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
               {!disabled ? (
                 <button
                   type="button"
-                  onClick={() => void onUnlink(l.id)}
-                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  onClick={() => void handleUnlink(l)}
+                  disabled={unlinkingId !== null}
+                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                   title="Bağlantıyı kaldır"
                   aria-label="Kaynak bağlantısını kaldır"
                 >

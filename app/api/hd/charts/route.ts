@@ -12,6 +12,7 @@ import {
   deleteManualChart,
   deleteManualChartsByClient,
 } from "@/lib/human-design/api/chartPersistence";
+import { validateManualChartCodes } from "@/lib/human-design/manualChartConsistency";
 
 export const runtime = "nodejs";
 
@@ -87,11 +88,17 @@ export async function POST(req: NextRequest): Promise<Response> {
         { status: 400, headers: NO_STORE },
       );
     }
-    const { ok, error } = await saveManualChart(guard.db, guard.tenantId, clientId, parsed.body);
+    // Allow-list: bilinmeyen kod → 400. Alanlar arası TUTARSIZLIK burada ENGEL DEĞİLDİR
+    // (manuel giriş korunur; uyarılar yalnız UI'da gösterilir).
+    const codes = validateManualChartCodes(parsed.body);
+    if (!codes.ok) {
+      return NextResponse.json({ ok: false, code: "INVALID_CHART_CODE", error: codes.error }, { status: 400, headers: NO_STORE });
+    }
+    const { ok, error, id } = await saveManualChart(guard.db, guard.tenantId, clientId, parsed.body);
     if (!ok) {
       return NextResponse.json({ ok: false, error: error ?? "Kaydedilemedi." }, { status: 400, headers: NO_STORE });
     }
-    return NextResponse.json({ ok: true }, { status: 200, headers: NO_STORE });
+    return NextResponse.json({ ok: true, id: id ?? null }, { status: 200, headers: NO_STORE });
   }
 
   let raw: unknown;
@@ -200,6 +207,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { ok: false, error: "Güncellenecek haritanın id'si gerekli." },
       { status: 400, headers: NO_STORE },
     );
+  }
+  const codes = validateManualChartCodes(parsed.body);
+  if (!codes.ok) {
+    return NextResponse.json({ ok: false, code: "INVALID_CHART_CODE", error: codes.error }, { status: 400, headers: NO_STORE });
   }
   const { ok, error } = await updateManualChartById(guard.db, guard.tenantId, id, parsed.body);
   if (!ok) {

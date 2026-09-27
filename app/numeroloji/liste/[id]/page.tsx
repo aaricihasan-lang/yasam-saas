@@ -21,6 +21,7 @@ import { WORD_TAB_ORDER, wordFileName, type WordPersonSections } from "../../bil
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 import { DemoGate } from "@/components/demo/DemoGate";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
 
 const detayNavSecondaryClass =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
@@ -64,14 +65,8 @@ export default function NumerolojiKayitDetayPage() {
         alert(err.error || "Word raporu oluşturulamadı.");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const selectedTabs = WORD_TAB_ORDER.filter((k) => sections[k]);
-      a.download = wordFileName(`${row.name} ${row.surname}`, selectedTabs);
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, wordFileName(`${row.name} ${row.surname}`, selectedTabs));
       setWordPicker(false);
       const emptyRaw = res.headers.get("X-Empty-Tabs");
       const empty = emptyRaw ? decodeURIComponent(emptyRaw).split("|").filter(Boolean) : [];

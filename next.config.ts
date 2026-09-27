@@ -1,10 +1,28 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+// Relative import (alias YOK): next.config.ts transpile'ında `@/` çözülmez.
+import { buildSecurityHeaders } from "./lib/security/securityHeaders";
 
 // next-intl (URL-prefix'siz, TR source). İstek yapılandırması: ./i18n/request.ts
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // "X-Powered-By: Next.js" başlığı gönderilmez (sürüm/altyapı ifşası azaltılır).
+  poweredByHeader: false,
+
+  // FAZ1 FINAL HARDENING (INFRA): tüm yanıtlara güvenlik başlıkları + minimal ZORUNLU CSP
+  // + tam izin listeli Report-Only CSP. Ayrıntı/gerekçe: lib/security/securityHeaders.ts.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: buildSecurityHeaders({
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          isDev: process.env.NODE_ENV === "development",
+        }),
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: "/dashboard/cosmic-calendar",                  destination: "/cosmic-calendar",                  permanent: true },

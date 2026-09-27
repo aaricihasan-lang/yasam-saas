@@ -3,6 +3,7 @@ import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { isUuid } from "@/lib/beslenme/planContracts";
+import { mapReplaceAllergensError } from "./replaceAllergensError";
 
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ clientId: string }> };
@@ -94,23 +95,20 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if ((vocab?.length ?? 0) !== ids.length) return beslenmeJson({ ok: false, code: "UNKNOWN_ALLERGEN" }, 400);
   }
 
-  // tam-set replacement (advisory veri; küçük set).
-  const del = await g.guard.db.from("nutrition_client_allergens")
-    .delete().eq("tenant_id", g.guard.tenantId).eq("client_id", clientId);
-  if (del.error) return beslenmeJson({ ok: false, code: "ALLERGEN_CLEAR_FAILED" }, 500);
-
-  if (parsed.length > 0) {
-    const rows = parsed.map((p) => ({
-      tenant_id: g.guard.tenantId, client_id: clientId,
-      allergen_id: p.allergen_id, custom_label: p.custom_label, note: p.note,
-    }));
-    const ins = await g.guard.db.from("nutrition_client_allergens").insert(rows);
-    if (ins.error) {
-      // 23505 = partial-unique (custom) veya standart UNIQUE dup; 23514 = CHECK ihlali.
-      if (ins.error.code === "23505") return beslenmeJson({ ok: false, code: "CUSTOM_DUPLICATE" }, 409);
-      if (ins.error.code === "23514") return beslenmeJson({ ok: false, code: "BAD_ALLERGEN_ITEM" }, 400);
-      return beslenmeJson({ ok: false, code: "ALLERGEN_SAVE_FAILED" }, 500);
-    }
+  // ATOMİK tam-set replacement: silme + ekleme TEK transaction'da (RPC). Eski delete→insert
+  // akışında insert hatası danışanın beyan alerjenlerini sessizce boşaltıyordu.
+  const { data: rpcData, error: rpcErr } = await g.guard.db.rpc("nutrition_replace_client_allergens", {
+    p_tenant_id: g.guard.tenantId,
+    p_client_id: clientId,
+    p_items: parsed,
+  });
+  if (rpcErr) {
+    const mapped = mapReplaceAllergensError(rpcErr);
+    return beslenmeJson({ ok: false, code: mapped.code }, mapped.status);
   }
-  return NextResponse.json({ ok: true, count: parsed.length });
+  const inserted = typeof (rpcData as { inserted?: unknown } | null)?.inserted === "number"
+    ? (rpcData as { inserted: number }).inserted
+    : parsed.length;
+  return NextResponse.json({ ok: true, count: inserted });
 }
+

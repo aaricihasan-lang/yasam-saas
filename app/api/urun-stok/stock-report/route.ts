@@ -32,6 +32,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -209,8 +211,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   const perCategoryCount = new Map<string, number>();
   for (const r of rows) perCategoryCount.set(r.category, (perCategoryCount.get(r.category) ?? 0) + 1);
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü (sunucu UTC'de çalışır).
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
+  const expertName = expertDisplayName(guard.profile);
   const exportLabel = exportMode === "critical" ? "Kritik Stok" : "Tüm Ürün Stoku";
 
   const all: ReportChild[] = [];
@@ -236,6 +240,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     ["Tükenmiş Ürün", String(depletedCount)],
     ["Tahmini Stok Değeri", fmtMoney(totalValue)],
     ["Kapsam", exportLabel],
+    ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
   ]));
 
   all.push(...buildTOCPage());

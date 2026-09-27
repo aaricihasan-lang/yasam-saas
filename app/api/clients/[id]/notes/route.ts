@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  applyNotesPatch,
+  buildNotesFields,
+  notesVersion,
+  NOTES_CONFLICT_MESSAGE,
+} from "@/lib/danisan/notesPatch";
 
 export const runtime = "nodejs";
 
@@ -17,14 +23,15 @@ export const runtime = "nodejs";
  *   - client_id'nin bu tenant'a ait olduğu doğrulanır.
  *   - Tüm client_notes sorguları tenant_id + client_id birlikte kullanır.
  *   - Demo hesap: Supabase'e yazma yapılmaz (mevcut demo davranışı korunur).
+ *
+ * Veri bütünlüğü (DY-A):
+ *   - PATCH yalnız gövdede BULUNAN alanları yazar (eski `?? null` ezmesi kaldırıldı).
+ *   - `notlar` için base_version CAS: uyuşmazlık → 409 NOTES_CONFLICT (+ güncel satır).
+ *     base_version göndermeyen eski istemci geçiş süresince CAS'sız kabul edilir.
+ *   - GET/PATCH `notlar_version` (sha256(notlar ?? "")) döndürür.
+ *   - (tenant_id, client_id) UNIQUE (migration 20270129000400); ekleme yarışı → 23505
+ *     → mevcut satır üzerinden güncelleme (lib/danisan/notesPatch.applyNotesPatch).
  */
-
-type NotesBody = {
-  saglik_notu?: string | null;
-  adres?: string | null;
-  oneriler?: string | null;
-  notlar?: string | null;
-};
 
 /** client_id gerçekten guard'dan gelen tenant'a mı ait? */
 async function clientBelongsToTenant(
@@ -74,7 +81,12 @@ export async function GET(
     return serverErrorResponse({ route: "clients/[id]/notes", action: "GET", tenantId, cause: error });
   }
 
-  return NextResponse.json({ ok: true, note: data ?? null });
+  const row = (data ?? null) as { notlar?: string | null } | null;
+  return NextResponse.json({
+    ok: true,
+    note: data ?? null,
+    notlar_version: notesVersion(row?.notlar ?? null),
+  });
 }
 
 // ─── PATCH /api/clients/[id]/notes ──────────────────────────────────────────────
@@ -105,51 +117,43 @@ export async function PATCH(
     );
   }
 
-  let body: NotesBody;
+  let body: unknown;
   try {
-    body = (await req.json()) as NotesBody;
+    body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  // Yazılacak alanlar. notlar yalnızca istekte VARSA güncellenir
-  // (genel bilgi kaydı notlar'ı korur, not sekmesi günceller — mevcut davranış).
-  const fields: Record<string, string | null> = {
-    saglik_notu: body.saglik_notu ?? null,
-    adres: body.adres ?? null,
-    oneriler: body.oneriler ?? null,
-  };
-  if (body.notlar !== undefined) {
-    fields.notlar = body.notlar ?? null;
+  // Genel bilgi kaydı { saglik_notu, adres, oneriler } → notlar'a dokunmaz;
+  // Notlar sekmesi { notlar, base_version } → diğer 3 alana dokunmaz.
+  const built = buildNotesFields(body);
+  if (!built.ok) {
+    return NextResponse.json({ ok: false, error: built.error }, { status: 400 });
   }
 
-  // Bu danışan için mevcut not var mı? (tenant + client) → varsa güncelle, yoksa ekle.
-  // client'tan id gelmez; karar sunucuda verilir (cross-tenant overwrite engellenir).
-  const { data: existing } = await db
-    .from("client_notes")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+  // Karar sunucuda: client'tan id gelmez (cross-tenant overwrite engellenir).
+  const result = await applyNotesPatch(db, tenantId, clientId, built.fields, built.baseVersion);
 
-  const result = existing?.id
-    ? await db
-        .from("client_notes")
-        .update(fields)
-        .eq("id", existing.id)
-        .eq("tenant_id", tenantId)
-        .eq("client_id", clientId)
-        .select()
-        .single()
-    : await db
-        .from("client_notes")
-        .insert({ tenant_id: tenantId, client_id: clientId, ...fields })
-        .select()
-        .single();
-
-  if (result.error) {
-    return serverErrorResponse({ route: "clients/[id]/notes", action: "PATCH", tenantId, cause: result.error });
+  if (result.kind === "error") {
+    return serverErrorResponse({ route: "clients/[id]/notes", action: "PATCH", tenantId, cause: result.cause });
+  }
+  if (result.kind === "conflict") {
+    // İstemci bu yanıttaki güncel satırla ekranını yeniler (ayrı GET gerekmez).
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "NOTES_CONFLICT",
+        error: NOTES_CONFLICT_MESSAGE,
+        note: result.note,
+        notlar_version: notesVersion(result.note?.notlar ?? null),
+      },
+      { status: 409 },
+    );
   }
 
-  return NextResponse.json({ ok: true, note: result.data });
+  return NextResponse.json({
+    ok: true,
+    note: result.note,
+    notlar_version: notesVersion(result.note?.notlar ?? null),
+  });
 }
