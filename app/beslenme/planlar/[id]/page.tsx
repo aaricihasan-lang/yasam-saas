@@ -1,8 +1,9 @@
 "use client";
 /**
  * Beslenme Planı editörü (orkestratör). getPlan ile plan + gün özetleri yüklenir.
- * Gün / Hafta / Ay görünümleri arasında geçiş; seçili gün burada tutulur. Arşiv
- * planı salt-okunur. Meta düzenleme optimistic-concurrency (expectedUpdatedAt).
+ * Gün / Hafta / Ay görünümleri arasında geçiş; seçili gün burada tutulur. Arşiv YOK:
+ * kaldırma = "Sil" (açık onay). Geçmişten kalan kilitli (legacy archived) plan salt-okunur.
+ * Meta düzenleme optimistic-concurrency (expectedUpdatedAt).
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -13,10 +14,13 @@ import {
   GitBranch,
   Lock,
   Settings2,
+  Trash2,
   UtensilsCrossed,
 } from "lucide-react";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   copyPlan,
+  deletePlan,
   getPlan,
   patchPlan,
   revisePlan,
@@ -69,8 +73,8 @@ export default function PlanEditorPage() {
   const [view, setView] = useState<View>("day");
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
-  const [confirmArchive, setConfirmArchive] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
   const [actionErr, setActionErr] = useState("");
   // FAZ 7 §17: bağlı danışanın kaçınılan besin id'leri (PlanClientContext'ten beslenir;
   // item satırlarına context ile taşınır). setState setter stabil → effect döngüsü yok.
@@ -129,14 +133,22 @@ export default function PlanEditorPage() {
     else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
-  async function doArchive() {
-    if (!plan) return;
+  /** "Sil": bu plan revizyonu kalıcı silinir (açık onay; ilişkili kayıtlar söylenir). */
+  async function doDelete() {
+    if (!plan || actionBusy) return;
+    const ok = await deleteConfirm({
+      title: "Planı sil",
+      message:
+        `"${plan.title}" planı (${days.length} gün) kalıcı olarak silinecek. ` +
+        "Plana ait tüm öğünler ve besin kalemleri de silinir. Varsa diğer revizyonlar etkilenmez. Bu işlem geri alınamaz.",
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setActionBusy(true);
     setActionErr("");
-    const r = await patchPlan(plan.id, { status: "archived", expectedUpdatedAt: plan.updated_at });
+    const r = await deletePlan(plan.id);
     setActionBusy(false);
-    setConfirmArchive(false);
-    if (r.ok) await reloadPlan();
+    if (r.ok) router.push(cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar");
     else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
@@ -144,6 +156,7 @@ export default function PlanEditorPage() {
     <div className="flex flex-wrap items-center gap-2">
       <PlanTools
         planId={plan.id}
+        planStatus={plan.status}
         days={days}
         selectedDayId={selectedDayId}
         archived={archived}
@@ -163,19 +176,11 @@ export default function PlanEditorPage() {
           <GhostButton icon={<Settings2 className="h-4 w-4" />} onClick={() => setMetaOpen(true)}>
             Düzenle
           </GhostButton>
-          {confirmArchive ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="text-[12px] font-bold text-rose-600">Emin misiniz?</span>
-              <DangerButton loading={actionBusy} onClick={() => void doArchive()}>
-                Evet, Arşivle
-              </DangerButton>
-              <GhostButton onClick={() => setConfirmArchive(false)}>Vazgeç</GhostButton>
-            </span>
-          ) : (
-            <DangerButton onClick={() => setConfirmArchive(true)}>Arşivle</DangerButton>
-          )}
         </>
       ) : null}
+      <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={actionBusy} onClick={() => void doDelete()}>
+        Sil
+      </DangerButton>
     </div>
   ) : null;
 
@@ -222,7 +227,7 @@ export default function PlanEditorPage() {
           {archived ? (
             <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <span>Bu plan arşivlenmiş — salt-okunur. Düzenlemek için kopyalayın.</span>
+              <span>Bu plan düzenlemeye kapalı (eski kilitli kayıt). Düzenlemek için planı kopyalayın.</span>
             </div>
           ) : null}
 

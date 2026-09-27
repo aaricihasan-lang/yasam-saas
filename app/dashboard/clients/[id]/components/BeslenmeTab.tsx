@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   getProfile, saveProfile, listMeasurements, addMeasurement, deleteMeasurement,
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
@@ -201,7 +202,19 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
     if (r.ok) { setW(""); setH(""); setWaist(""); setHip(""); setNote(""); onMsg("ok", t("banner.measurementAdded")); onChange(); }
     else onMsg("err", t("banner.measurementAddFailed") + (r.code ? ` (${r.code})` : ""));
   };
-  const del = async (id: string) => { const r = await deleteMeasurement(clientId, id); if (r.ok) { onMsg("ok", t("banner.measurementDeleted")); onChange(); } };
+  const deleteConfirm = useDeleteConfirm();
+  // Tek kayıt silme: açık onay + Vazgeç (onaysız DELETE yok).
+  const del = async (m: Measurement) => {
+    const ok = await deleteConfirm({
+      title: t("measurements.deleteConfirmTitle"),
+      message: t("measurements.deleteConfirmMessage", { date: new Date(m.measured_at).toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR") }),
+      confirmText: t("deleteConfirmYes"),
+      cancelText: t("deleteConfirmCancel"),
+    });
+    if (!ok) return;
+    const r = await deleteMeasurement(clientId, m.id);
+    if (r.ok) { onMsg("ok", t("banner.measurementDeleted")); onChange(); }
+  };
   return (
     <Section title={t("measurements.title")}>
       <div className="overflow-x-auto">
@@ -220,7 +233,7 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
                   <td className="pr-3">{m.hip_cm ?? "—"}</td>
                   <td className="pr-3">{bmi ?? "—"}</td>
                   <td className="pr-3 text-slate-500">{m.note ?? ""}</td>
-                  <td><button onClick={() => del(m.id)} className="text-xs text-red-500 hover:underline">{t("measurements.delete")}</button></td>
+                  <td><button onClick={() => void del(m)} className="text-xs text-red-500 hover:underline">{t("measurements.delete")}</button></td>
                 </tr>
               );
             })}
@@ -326,7 +339,19 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
     const r = await addPreference(clientId, { stance, food_label: label.trim(), note: note || null });
     if (r.ok) { setLabel(""); setNote(""); onMsg("ok", t("banner.prefAdded")); onChange(); } else onMsg("err", t("banner.prefAddFailed") + (r.code ? ` (${r.code})` : ""));
   };
-  const del = async (id: string) => { const r = await deletePreference(clientId, id); if (r.ok) { onChange(); } };
+  const deleteConfirm = useDeleteConfirm();
+  // Tek kayıt silme: açık onay + Vazgeç (onaysız DELETE yok).
+  const del = async (p: FoodPreference) => {
+    const ok = await deleteConfirm({
+      title: t("preferences.deleteConfirmTitle"),
+      message: t("preferences.deleteConfirmMessage", { food: p.food_label }),
+      confirmText: t("deleteConfirmYes"),
+      cancelText: t("deleteConfirmCancel"),
+    });
+    if (!ok) return;
+    const r = await deletePreference(clientId, p.id);
+    if (r.ok) { onChange(); }
+  };
   const group = (s: "preferred" | "avoided") => rows.filter((r) => r.stance === s);
   return (
     <Section title={t("preferences.title")}>
@@ -339,7 +364,7 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
               {group(s).map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded bg-emerald-50/50 px-2 py-1 text-sm">
                   <span>{p.food_label}{p.note ? <span className="text-slate-400"> · {p.note}</span> : null}</span>
-                  <button onClick={() => del(p.id)} className="text-xs text-red-500 hover:underline">{t("preferences.delete")}</button>
+                  <button onClick={() => void del(p)} className="text-xs text-red-500 hover:underline">{t("preferences.delete")}</button>
                 </li>
               ))}
             </ul>

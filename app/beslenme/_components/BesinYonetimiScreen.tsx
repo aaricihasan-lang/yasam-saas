@@ -5,8 +5,13 @@
  * modu KALDIRILDI — CUSTOM besin yönetimi tam Beslenme modülünün parçasıdır.
  *
  * ERİŞİM bu bileşene GELMEDEN route wrapper'ında doğrulanır (useBeslenmeModuleGuard). Bu bileşen
- * guard ÇAĞIRMAZ; yalnız sunum + veri. Sunucu tarafı zaten guard'lı (defense-in-depth): food
- * mutation uçları requireBeslenmeModule + resolveFoodForWrite (SYSTEM salt-okunur) ile kapalı.
+ * guard ÇAĞIRMAZ; yalnız sunum + veri. Sunucu tarafı zaten guard'lı (defense-in-depth).
+ *
+ * DÜZENLENEBİLİRLİK (2026-09-27): sistem kataloğundan gelen besinler de düzenlenebilir. İlk kayıt
+ * sunucuda uzmanın kişisel kopyasını oluşturur (global kayıt ve diğer uzmanlar etkilenmez); ekran
+ * sessizce kopyaya geçer. Kullanıcıya "sistem/ortak" gibi teknik sahiplik etiketi GÖSTERİLMEZ.
+ * "Sil" = çalışma alanından kaldır (arşiv YOK). "Sistem Değerine Dön" ≠ Sil: kişisel değerleri
+ * kaldırıp sistem değerlerini geri getirir; 3 aşama + sunucu doğrulamalı 4 haneli kod.
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -16,6 +21,7 @@ import {
   Leaf,
   Package,
   Plus,
+  RotateCcw,
   Save,
   Scale,
   Search,
@@ -26,15 +32,22 @@ import type {
   Food, FoodGroupRef, FrameworkRef, FoodNutrientView, FoodPortionView, FoodTraditional,
 } from "@/lib/beslenme/beslenmeClient";
 import {
+  confirmFoodReset,
   createFood,
   deleteFood,
   fetchReference,
   getFood,
+  getPersonalizedFoodCount,
   linkFoodSource,
+  requestFoodResetChallenge,
   unlinkFoodSource,
   updateFood,
+  type FoodResetScope,
 } from "@/lib/beslenme/beslenmeClient";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { DestructiveChallengeDialog, challengeErrorMessage, type ChallengeRequest, type ChallengeConfirm } from "./DestructiveChallengeDialog";
 import { useFoodPagination } from "@/lib/beslenme/foodPagination";
+import { runInEffect } from "@/lib/runInEffect";
 import { BeslenmeShell } from "./BeslenmeShell";
 import { PREP_STATE_LABELS, PREP_STATE_OPTIONS, friendlyError } from "./constants";
 import { QuickAddFoodDialog } from "./QuickAddFoodDialog";
@@ -57,13 +70,27 @@ import {
 
 const NEW = "__new__";
 
+type DetailTab = "info" | "nutrients" | "portions" | "traditional" | "sources";
+
 export function BesinYonetimiScreen() {
   const [groups, setGroups] = useState<FoodGroupRef[]>([]);
   const [frameworks, setFrameworks] = useState<FrameworkRef[]>([]);
   const [q, setQ] = useState("");
   const [group, setGroup] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>("info");
   const [quickAdd, setQuickAdd] = useState(false);
+  const [personalizedCount, setPersonalizedCount] = useState(0);
+  const [resetAllOpen, setResetAllOpen] = useState(false);
+  const [screenMsg, setScreenMsg] = useState("");
+
+  const refreshPersonalizedCount = useCallback(async () => {
+    const r = await getPersonalizedFoodCount();
+    if (r.ok && r.data) setPersonalizedCount(r.data.count ?? 0);
+  }, []);
+  useEffect(() => {
+    runInEffect(() => void refreshPersonalizedCount());
+  }, [refreshPersonalizedCount]);
 
   // Sayfalama: q/group değişiminde debounce + reset; "daha fazla yükle" ile tüm katalog gezilir
   // (ilk-100 sınırı yok). Tenant izolasyonu SERVER-SIDE korunur: listFoods → /api/beslenme/foods
@@ -99,6 +126,24 @@ export function BesinYonetimiScreen() {
 
   const detailOpen = selectedId !== null;
 
+  const selectFood = useCallback((id: string | null) => {
+    setDetailTab("info");
+    setScreenMsg("");
+    setSelectedId(id);
+  }, []);
+
+  const requestAllReset = useCallback<ChallengeRequest>(async () => {
+    const r = await requestFoodResetChallenge("all");
+    if (r.ok && r.data) return { ok: true, value: r.data };
+    return { ok: false, message: resetRequestError(r.code, r.status) };
+  }, []);
+  const confirmAllReset = useCallback<ChallengeConfirm>(async (challengeId, code) => {
+    const r = await confirmFoodReset("all", undefined, challengeId, code);
+    if (r.ok) return { ok: true };
+    const e = challengeErrorMessage(r.code);
+    return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyError(r.code, r.status), refresh: e.refresh };
+  }, []);
+
   return (
     <BeslenmeShell
       title="Besinler"
@@ -106,16 +151,32 @@ export function BesinYonetimiScreen() {
       backHref="/beslenme"
       backLabel="Beslenme Merkezi"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {personalizedCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setResetAllOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] font-black text-amber-800 shadow-sm transition hover:bg-amber-100"
+              title={`Sistem besinlerinde yaptığınız kişisel değişiklikler (${personalizedCount} besin)`}
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              Tüm Kişisel Değerleri Sıfırla
+            </button>
+          ) : null}
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
             Besin Ekle
           </GhostButton>
-          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setSelectedId(NEW)}>
+          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => selectFood(NEW)}>
             Detaylı Ekle
           </PrimaryButton>
         </div>
       }
     >
+      {screenMsg ? (
+        <div className="mb-3">
+          <StatusMessage type="success">{screenMsg}</StatusMessage>
+        </div>
+      ) : null}
       <MasterDetail
         detailOpen={detailOpen}
         list={
@@ -134,7 +195,7 @@ export function BesinYonetimiScreen() {
             selectedId={selectedId}
             onQ={setQ}
             onGroup={setGroup}
-            onSelect={setSelectedId}
+            onSelect={selectFood}
             onRetry={reload}
             onLoadMore={loadMore}
           />
@@ -154,14 +215,31 @@ export function BesinYonetimiScreen() {
               foodId={selectedId === NEW ? null : selectedId}
               groups={groups}
               frameworks={frameworks}
-              onBack={() => setSelectedId(null)}
+              initialTab={detailTab}
+              onTabChange={setDetailTab}
+              onBack={() => selectFood(null)}
               onSaved={(food) => {
                 reload();
                 setSelectedId(food.id);
+                void refreshPersonalizedCount();
               }}
-              onDeleted={() => {
+              onPersonalized={(effectiveId) => {
+                // Sistem besininde ilk kayıt → kişisel kopya: ekran kopyaya geçer (aynı sekme).
+                reload();
+                setSelectedId(effectiveId);
+                void refreshPersonalizedCount();
+              }}
+              onDeleted={(text) => {
                 reload();
                 setSelectedId(null);
+                setScreenMsg(text);
+                void refreshPersonalizedCount();
+              }}
+              onReset={(text) => {
+                reload();
+                setSelectedId(null);
+                setScreenMsg(text);
+                void refreshPersonalizedCount();
               }}
             />
           )
@@ -175,7 +253,34 @@ export function BesinYonetimiScreen() {
           onCreated={(food) => {
             setQuickAdd(false);
             reload();
-            setSelectedId(food.id);
+            selectFood(food.id);
+          }}
+        />
+      ) : null}
+      {resetAllOpen ? (
+        <DestructiveChallengeDialog
+          open
+          tone="reset"
+          title="Tüm Kişisel Değerleri Sıfırla"
+          itemNoun="besin"
+          scopeIntro={
+            <>
+              Sistem kütüphanesindeki besinlerde yaptığınız <b>tüm kişisel değişiklikler</b> kaldırılacak ve bu
+              besinler sistem başlangıç değerlerine döndürülecek. Kendi oluşturduğunuz besinler bu işlemden
+              <b> etkilenmez</b>. Mevcut planlarınızdaki kayıtlar değişmez.
+            </>
+          }
+          warning="Uzman olarak girdiğiniz mevcut değerler kalıcı olarak kaldırılacaktır."
+          confirmLabel="Sistem Değerlerine Döndür"
+          requestChallenge={requestAllReset}
+          confirm={confirmAllReset}
+          onClose={() => setResetAllOpen(false)}
+          onDone={() => {
+            setResetAllOpen(false);
+            reload();
+            setSelectedId(null);
+            setScreenMsg("Kişisel değerler kaldırıldı; besinler sistem değerlerine döndürüldü.");
+            void refreshPersonalizedCount();
           }}
         />
       ) : null}
@@ -288,17 +393,7 @@ function FoodList({
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="flex items-center gap-1.5">
-                        <span className="min-w-0 truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
-                        {f.is_system === false ? (
-                          <span
-                            className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100"
-                            title="Sizin eklediğiniz özel besin (yalnız sizin çalışma alanınızda görünür)."
-                          >
-                            Özel
-                          </span>
-                        ) : null}
-                      </span>
+                      <span className="block min-w-0 truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
                       <span className="block truncate text-[11px] font-medium text-slate-400">
                         {groupName(f.food_group_id) ?? "Grupsuz"}
                         {f.prep_state ? ` · ${PREP_STATE_LABELS[f.prep_state] ?? f.prep_state}` : ""}
@@ -356,16 +451,24 @@ function FoodDetail({
   foodId,
   groups,
   frameworks,
+  initialTab,
+  onTabChange,
   onBack,
   onSaved,
+  onPersonalized,
   onDeleted,
+  onReset,
 }: {
   foodId: string | null;
   groups: FoodGroupRef[];
   frameworks: FrameworkRef[];
+  initialTab: DetailTab;
+  onTabChange: (t: DetailTab) => void;
   onBack: () => void;
   onSaved: (food: Food) => void;
-  onDeleted: () => void;
+  onPersonalized: (effectiveFoodId: string) => void;
+  onDeleted: (message: string) => void;
+  onReset: (message: string) => void;
 }) {
   // Tam Beslenme ekranı: Kaynaklar + Geleneksel sekmeleri her zaman mevcut (ayrı contributor
   // modu yok). İlgili API uçları requireBeslenmeModule ile korunur.
@@ -373,8 +476,17 @@ function FoodDetail({
   const isNew = foodId === null;
   const [loading, setLoading] = useState(!isNew);
   const [loadErr, setLoadErr] = useState("");
-  const [tab, setTab] = useState<"info" | "nutrients" | "portions" | "traditional" | "sources">("info");
+  const [tab, setTabState] = useState<DetailTab>(isNew ? "info" : initialTab);
+  const setTab = (t: DetailTab) => {
+    setTabState(t);
+    onTabChange(t);
+  };
+  // Sahiplik yalnız davranış için (Sil metni / sıfırlama); kullanıcıya etiket olarak gösterilmez.
   const [isSystem, setIsSystem] = useState(false);
+  const [isPersonalized, setIsPersonalized] = useState(false);
+  const [effectiveId, setEffectiveId] = useState<string | null>(foodId);
+  const [resetOpen, setResetOpen] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
   const [nutrients, setNutrients] = useState<FoodNutrientView[]>([]);
   const [portions, setPortions] = useState<FoodPortionView[]>([]);
   const [traditional, setTraditional] = useState<FoodTraditional | null>(null);
@@ -391,24 +503,35 @@ function FoodDetail({
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const reloadSources = useCallback(async () => {
-    if (isNew || !foodId) return;
-    const r = await getFood(foodId);
+    if (isNew || !effectiveId) return;
+    const r = await getFood(effectiveId);
     if (r.ok && r.data) setSources((r.data.sources ?? []) as LinkedSource[]);
-  }, [foodId, isNew]);
+  }, [effectiveId, isNew]);
 
   const reloadDetail = useCallback(async () => {
-    if (isNew || !foodId) return;
-    const r = await getFood(foodId);
+    if (isNew || !effectiveId) return;
+    const r = await getFood(effectiveId);
     if (r.ok && r.data) {
       setNutrients(r.data.nutrients ?? []);
       setPortions(r.data.portions ?? []);
       setTraditional(r.data.traditional ?? null);
     }
-  }, [foodId, isNew]);
+  }, [effectiveId, isNew]);
+
+  /** Alt panel kaydı sonrası: sistem besini kişisel kopyaya geçtiyse ekranı kopyaya taşı. */
+  const afterChildSave = useCallback(
+    (newId?: string) => {
+      if (newId && newId !== effectiveId) {
+        onPersonalized(newId);
+        return;
+      }
+      void reloadDetail();
+    },
+    [effectiveId, onPersonalized, reloadDetail],
+  );
 
   useEffect(() => {
     if (isNew) return;
@@ -432,6 +555,8 @@ function FoodDetail({
       setDescription(f.description ?? "");
       setNotes(f.notes ?? "");
       setIsSystem(f.is_system === true);
+      setIsPersonalized(f.is_personalized === true || !!f.origin_food_id);
+      setEffectiveId(f.id);
       setSources((r.data.sources ?? []) as LinkedSource[]);
       setNutrients(r.data.nutrients ?? []);
       setPortions(r.data.portions ?? []);
@@ -475,7 +600,7 @@ function FoodDetail({
       description: description.trim() || null,
       notes: notes.trim() || null,
     };
-    const r = isNew ? await createFood(body) : await updateFood(foodId as string, body);
+    const r = isNew ? await createFood(body) : await updateFood(effectiveId as string, body);
     setSaving(false);
     if (r.ok && r.data?.food) {
       setMsg({ type: "success", text: "Kaydedildi." });
@@ -486,13 +611,49 @@ function FoodDetail({
   }
 
   async function del() {
-    if (isNew || !foodId) return;
+    if (isNew || !effectiveId || deleting) return;
+    const name = nameTr.trim() || "Bu besin";
+    const message = isSystem
+      ? `"${name}" çalışma alanınızdan kaldırılacak ve listelerinizde görünmeyecek. Planlarınızdaki mevcut kayıtlar değişmez.`
+      : isPersonalized
+        ? `"${name}" çalışma alanınızdan kaldırılacak; bu besin için girdiğiniz kişisel değerler de silinecek. Planlarınızdaki mevcut kayıtlar değişmez. Bu işlem geri alınamaz.`
+        : `"${name}" kalıcı olarak silinecek (besin değerleri, porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları dahil). Planlarınızdaki mevcut kayıtlar değişmez. Bu işlem geri alınamaz.`;
+    const ok = await deleteConfirm({ title: "Besini sil", message, confirmText: "Sil" });
+    if (!ok) return;
     setDeleting(true);
-    const r = await deleteFood(foodId);
+    setMsg(null);
+    const r = await deleteFood(effectiveId);
     setDeleting(false);
-    if (r.ok) onDeleted();
-    else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    if (r.ok) {
+      onDeleted(`"${name}" silindi.`);
+      return;
+    }
+    if (r.code === "IN_USE" && r.data?.topics?.length) {
+      setMsg({
+        type: "error",
+        text: `Bu besin şu rehberlerde kullanılıyor: ${r.data.topics.join(", ")}. Silmek için önce besini bu rehberlerden kaldırın.`,
+      });
+      return;
+    }
+    setMsg({ type: "error", text: friendlyError(r.code, r.status) });
   }
+
+  const requestOneReset = useCallback<ChallengeRequest>(async () => {
+    if (!effectiveId) return { ok: false, message: "Besin bulunamadı." };
+    const r = await requestFoodResetChallenge("one" as FoodResetScope, effectiveId);
+    if (r.ok && r.data) return { ok: true, value: r.data };
+    return { ok: false, message: resetRequestError(r.code, r.status, r.data?.blocked) };
+  }, [effectiveId]);
+  const confirmOneReset = useCallback<ChallengeConfirm>(
+    async (challengeId, code) => {
+      if (!effectiveId) return { ok: false, message: "Besin bulunamadı." };
+      const r = await confirmFoodReset("one", effectiveId, challengeId, code);
+      if (r.ok) return { ok: true };
+      const e = challengeErrorMessage(r.code);
+      return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyError(r.code, r.status), refresh: e.refresh };
+    },
+    [effectiveId],
+  );
 
   if (loading) {
     return (
@@ -518,14 +679,16 @@ function FoodDetail({
           <h2 className="min-w-0 truncate text-lg font-black text-slate-900">
             {isNew ? "Yeni Besin" : nameTr || "Besin"}
           </h2>
-          {!isNew ? (
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-black ${
-                isSystem ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-              }`}
+          {!isNew && isPersonalized ? (
+            <button
+              type="button"
+              onClick={() => setResetOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-100"
+              title="Bu besinde girdiğiniz kişisel değerleri kaldırıp sistem değerlerine döner"
             >
-              {isSystem ? "Ortak (Sistem)" : "Özel"}
-            </span>
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              Sistem Değerine Dön
+            </button>
           ) : null}
         </div>
 
@@ -652,60 +815,80 @@ function FoodDetail({
               <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Özel notlar…" />
             </Field>
 
-            {isSystem ? (
-              <StatusMessage type="info">
-                Ortak (sistem) besni — salt-okunur (USDA FoodData Central kaynaklı). Kendi özel besninizi oluşturup değerlerini düzenleyebilirsiniz.
-              </StatusMessage>
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
-                  {isNew ? "Oluştur" : "Kaydet"}
-                </PrimaryButton>
-                {!isNew ? (
-                  confirmDel ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-bold text-rose-600">Arşivlensin mi?</span>
-                      <DangerButton loading={deleting} onClick={() => void del()}>
-                        Evet, Arşivle
-                      </DangerButton>
-                      <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
-                    </div>
-                  ) : (
-                    <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
-                      Arşivle
-                    </DangerButton>
-                  )
-                ) : null}
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
+                {isNew ? "Oluştur" : "Kaydet"}
+              </PrimaryButton>
+              {!isNew ? (
+                <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void del()}>
+                  Sil
+                </DangerButton>
+              ) : null}
+            </div>
           </div>
-        ) : tab === "nutrients" && foodId ? (
-          <NutrientsPanel foodId={foodId} isSystem={isSystem} nutrients={nutrients} onChanged={() => void reloadDetail()} />
-        ) : tab === "portions" && foodId ? (
-          <PortionsPanel foodId={foodId} isSystem={isSystem} portions={portions} nutrients={nutrients} onChanged={() => void reloadDetail()} />
-        ) : tab === "traditional" && foodId && allowFullTabs ? (
-          <TraditionalPanel foodId={foodId} isSystem={isSystem} traditional={traditional} frameworks={frameworks} onChanged={() => void reloadDetail()} />
+        ) : tab === "nutrients" && effectiveId ? (
+          <NutrientsPanel key={`n-${effectiveId}`} foodId={effectiveId} nutrients={nutrients} onChanged={afterChildSave} />
+        ) : tab === "portions" && effectiveId ? (
+          <PortionsPanel key={`p-${effectiveId}`} foodId={effectiveId} portions={portions} nutrients={nutrients} onChanged={afterChildSave} />
+        ) : tab === "traditional" && effectiveId && allowFullTabs ? (
+          <TraditionalPanel key={`t-${effectiveId}`} foodId={effectiveId} traditional={traditional} frameworks={frameworks} onChanged={afterChildSave} />
         ) : allowFullTabs ? (
           <SourcesPanel
             links={sources}
             disabledReason={isNew ? "Kaynak eklemek için önce besini kaydedin." : undefined}
-            onLink={async (sourceId, locator) => {
-              if (isNew || !foodId) return false;
-              const r = await linkFoodSource(foodId, { source_id: sourceId, locator });
-              if (r.ok) await reloadSources();
+            onLink={async (body) => {
+              if (isNew || !effectiveId) return false;
+              const r = await linkFoodSource(effectiveId, body);
+              if (r.ok) {
+                if (r.data?.food_id && r.data.food_id !== effectiveId) onPersonalized(r.data.food_id);
+                else await reloadSources();
+              }
               return r.ok;
             }}
             onUnlink={async (linkId) => {
-              if (isNew || !foodId) return false;
-              const r = await unlinkFoodSource(foodId, linkId);
+              if (isNew || !effectiveId) return false;
+              const r = await unlinkFoodSource(effectiveId, linkId);
               if (r.ok) await reloadSources();
               return r.ok;
             }}
           />
         ) : null}
       </Card>
+      {resetOpen && effectiveId ? (
+        <DestructiveChallengeDialog
+          open
+          tone="reset"
+          title="Sistem Değerine Dön"
+          itemNoun="besin"
+          scopeIntro={
+            <>
+              Yalnızca <b>{nameTr.trim() || "bu besin"}</b> için yaptığınız değişiklikler (ad, besin değerleri,
+              porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları) kaldırılacak ve besin sistem başlangıç
+              değerlerine döndürülecek. Mevcut planlarınızdaki kayıtlar değişmez.
+            </>
+          }
+          warning="Uzman olarak girdiğiniz mevcut değerler kaldırılacaktır."
+          confirmLabel="Sistem Değerine Döndür"
+          requestChallenge={requestOneReset}
+          confirm={confirmOneReset}
+          onClose={() => setResetOpen(false)}
+          onDone={() => {
+            setResetOpen(false);
+            onReset(`"${nameTr.trim() || "Besin"}" sistem değerlerine döndürüldü.`);
+          }}
+        />
+      ) : null}
     </div>
   );
+}
+
+/** Reset challenge isteği hataları → kullanıcı mesajı (rehberde kullanılanlar dahil). */
+function resetRequestError(code?: string, status?: number, blocked?: Array<{ name: string; topics: string[] }>): string {
+  if (code === "NOTHING_TO_RESET" && blocked && blocked.length > 0) {
+    const list = blocked.map((b) => `${b.name} (${b.topics.join(", ")})`).join("; ");
+    return `Sistem değerine döndürülebilecek besin yok. Şu besinler rehberlerde kullanıldığı için önce rehberden kaldırılmalı: ${list}.`;
+  }
+  return friendlyError(code, status);
 }
 
 function MobileBack({ onBack }: { onBack: () => void }) {

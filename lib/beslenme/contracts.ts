@@ -65,7 +65,7 @@ export const BLOOD_TYPE_PROFILES = ["0", "A", "B", "AB"] as const;
 
 // Explicit SELECT kolonları (select * YOK).
 export const FOOD_COLUMNS =
-  "id, tenant_id, name_tr, name_en, aliases, food_group_id, prep_state, description, notes, is_active, sort_order, created_at, updated_at";
+  "id, tenant_id, name_tr, name_en, aliases, food_group_id, prep_state, description, notes, is_active, sort_order, origin_food_id, created_at, updated_at";
 export const TOPIC_COLUMNS =
   "id, tenant_id, topic_type, framework_id, title, summary, is_active, sort_order, created_at, updated_at";
 export const SECTION_COLUMNS =

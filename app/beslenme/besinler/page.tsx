@@ -1,7 +1,7 @@
 "use client";
 /**
  * Beslenme → Besinler. TAM besin yönetimi (Kaynaklar + Geleneksel + Detaylı Ekle + CUSTOM besin
- * ekle/düzenle/arşivle) — admin ve Beslenme modül izinli uzman AYNI ekranı görür (module guard).
+ * ekle/düzenle/sil) — admin ve Beslenme modül izinli uzman AYNI ekranı görür (module guard).
  * Yazma DAİMA tenant-scoped CUSTOM (SYSTEM salt-okunur). Ayrı "Besinlerim"/manuel-besin ekranı
  * KALDIRILDI; bu tek canonical tam-Beslenme besin ekranıdır.
  */

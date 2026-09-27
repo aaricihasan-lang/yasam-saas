@@ -14,7 +14,8 @@ import {
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
 
-const UPDATE_KEYS = ["title", "summary", "sort_order", "is_active"] as const;
+// is_active YOK: Beslenme'de kullanıcıya yönelik arşiv kaldırıldı (yeni arşiv durumu üretilmez).
+const UPDATE_KEYS = ["title", "summary", "sort_order"] as const;
 
 /** GET: topic detayı + sections + ilişkili besinler + kaynaklar. topic_type/framework değişmez. */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   );
 }
 
-/** PATCH: yalnız title/summary/sort_order/is_active (topic_type + framework_id IMMUTABLE). */
+/** PATCH: yalnız title/summary/sort_order (topic_type + framework_id IMMUTABLE). Legacy pasif rehber düzenlenemez. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -73,7 +74,6 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   }
   if ("summary" in body) patch.summary = cleanStr(body.summary, 8000);
   if ("sort_order" in body && Number.isInteger(body.sort_order)) patch.sort_order = body.sort_order;
-  if ("is_active" in body && typeof body.is_active === "boolean") patch.is_active = body.is_active;
   if (Object.keys(patch).length === 0) return beslenmeJson({ ok: false, code: "NO_FIELDS" }, 400);
 
   const { data, error } = await db
@@ -81,6 +81,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .update(patch)
     .eq("tenant_id", tenantId)
     .eq("id", id)
+    .eq("is_active", true)
     .select(TOPIC_COLUMNS)
     .maybeSingle();
   if (error) {
@@ -91,7 +92,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   return NextResponse.json({ ok: true, topic: data });
 }
 
-/** DELETE: arşiv (varsayılan) / ?hard=1 gerçek silme (sections+links CASCADE; food RESTRICT etkilenmez). */
+/**
+ * DELETE ("Sil"): GERÇEK silme — bölümler + besin bağları + kaynak bağları CASCADE ile gider;
+ * besinlerin ve kaynak kataloğunun kendisi etkilenmez. Arşiv YOK (?hard parametresi yok sayılır;
+ * geriye uyumluluk). Legacy pasif rehber de silinebilir (temizlik).
+ */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -100,20 +105,6 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
-  const hard = new URL(req.url).searchParams.get("hard") === "1";
-
-  if (!hard) {
-    const { data, error } = await db
-      .from("nutrition_topics")
-      .update({ is_active: false })
-      .eq("tenant_id", tenantId)
-      .eq("id", id)
-      .select("id")
-      .maybeSingle();
-    if (error) return beslenmeJson({ ok: false, code: "ARCHIVE_FAILED" }, 500);
-    if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-    return NextResponse.json({ ok: true, archived: true });
-  }
 
   const { error, count } = await db
     .from("nutrition_topics")

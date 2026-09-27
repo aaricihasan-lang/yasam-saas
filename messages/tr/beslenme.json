@@ -56,7 +56,9 @@
         "phWaist": "Bel",
         "phHip": "Kalça",
         "phNote": "Not",
-        "add": "Ekle"
+        "add": "Ekle",
+        "deleteConfirmTitle": "Ölçümü sil",
+        "deleteConfirmMessage": "{date} tarihli ölçüm kalıcı olarak silinecek. Bu işlem geri alınamaz."
       },
       "allergens": {
         "title": "Beyan Edilen Alerjiler",
@@ -80,7 +82,9 @@
         "optAvoided": "Kaçınılan",
         "phFood": "Besin adı*",
         "phNote": "Not",
-        "add": "Ekle"
+        "add": "Ekle",
+        "deleteConfirmTitle": "Besin tercihini sil",
+        "deleteConfirmMessage": "\"{food}\" listeden kalıcı olarak silinecek. Bu işlem geri alınamaz."
       },
       "plans": {
         "title": "Beslenme Planları",
@@ -125,7 +129,9 @@
         "A": "A",
         "B": "B",
         "AB": "AB"
-      }
+      },
+      "deleteConfirmYes": "Sil",
+      "deleteConfirmCancel": "Vazgeç"
     },
     "plan": {
       "context": {

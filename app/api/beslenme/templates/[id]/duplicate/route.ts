@@ -3,6 +3,7 @@ import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/bes
 import { cleanStr, hasOnlyKeys, isUuid } from "@/lib/beslenme/contracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
 import { TEMPLATE_DUPLICATE_KEYS } from "@/lib/beslenme/templateContracts";
+import { getTemplate } from "@/lib/beslenme/templateEngine";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   }
   if (!hasOnlyKeys(body, TEMPLATE_DUPLICATE_KEYS)) return beslenmeJson({ ok: false, code: "UNKNOWN_FIELD" }, 400);
   const title = cleanStr(body.title, 200);
+
+  // Legacy pasif şablon kimliğiyle çoğaltılamaz (UI gizlemesine güvenilmez).
+  const source = await getTemplate(db, tenantId, id, { activeOnly: true });
+  if (!source) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
   const { data, error } = await db.rpc("nutrition_template_duplicate", {
     p_tenant_id: tenantId,

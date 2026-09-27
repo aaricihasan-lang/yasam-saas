@@ -1,38 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
-import { SOURCE_COLUMNS, SOURCE_TYPES, cleanStr, cleanUrl, inEnum, hasOnlyKeys } from "@/lib/beslenme/contracts";
+import { SOURCE_COLUMNS, cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
+import { SOURCE_CREATE_KEYS as CREATE_KEYS, buildSourcePayload } from "@/lib/beslenme/sourceLink";
 
 export const runtime = "nodejs";
-const CREATE_KEYS = [
-  "title", "authors", "organization", "source_type", "publication_year",
-  "edition", "page_range", "chapter", "url", "reference_code", "note",
-] as const;
-
-function buildSourcePayload(body: Record<string, unknown>): Record<string, unknown> | { error: string } {
-  const title = cleanStr(body.title, 400);
-  if (!title) return { error: "TITLE_REQUIRED" };
-  if (body.source_type != null && !inEnum(body.source_type, SOURCE_TYPES)) return { error: "BAD_SOURCE_TYPE" };
-  let year: number | null = null;
-  if (body.publication_year != null) {
-    if (!Number.isInteger(body.publication_year) || (body.publication_year as number) < 1000 || (body.publication_year as number) > 2200)
-      return { error: "BAD_YEAR" };
-    year = body.publication_year as number;
-  }
-  return {
-    title,
-    authors: cleanStr(body.authors, 500),
-    organization: cleanStr(body.organization, 300),
-    source_type: inEnum(body.source_type, SOURCE_TYPES) ? body.source_type : null,
-    publication_year: year,
-    edition: cleanStr(body.edition, 100),
-    page_range: cleanStr(body.page_range, 100),
-    chapter: cleanStr(body.chapter, 200),
-    url: cleanUrl(body.url),
-    reference_code: cleanStr(body.reference_code, 200),
-    note: cleanStr(body.note, 4000),
-  };
-}
 
 /** GET: kaynak listesi + arama (global katalog / detail tab için). */
 export async function GET(req: NextRequest): Promise<NextResponse> {

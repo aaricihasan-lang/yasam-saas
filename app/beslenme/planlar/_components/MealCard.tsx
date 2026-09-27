@@ -20,6 +20,7 @@ import {
   type PlanMeal,
 } from "@/lib/beslenme/planClient";
 import { useTranslations } from "next-intl";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { MEAL_TYPE_LABELS, type MealType } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { formatPortionLabel } from "@/lib/beslenme/portionDisplay";
@@ -214,6 +215,8 @@ function ItemRow({
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [altOpen, setAltOpen] = useState(false);
   const [err, setErr] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
   const tp = useTranslations("beslenme.plan");
   const avoidedFoodIds = useAvoidedFoodIds();
   const isAvoided = isAvoidedFood(item.food_id, avoidedFoodIds);
@@ -241,10 +244,22 @@ function ItemRow({
     else setErr(friendlyPlanError(r.code, r.status));
   }
   async function onDelete() {
+    if (deleting) return;
+    const ok = await deleteConfirm({
+      title: "Besini öğünden sil",
+      message: `"${item.food_name_snapshot}" bu öğünden kalıcı olarak silinecek.`,
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setErr("");
-    const r = await deleteItem(planId, item.id);
-    if (r.ok) onMutated();
-    else setErr(friendlyPlanError(r.code, r.status));
+    setDeleting(true);
+    try {
+      const r = await deleteItem(planId, item.id);
+      if (r.ok) onMutated();
+      else setErr(friendlyPlanError(r.code, r.status));
+    } finally {
+      setDeleting(false);
+    }
   }
   async function onReplace(payload: FoodPickPayload) {
     setErr("");

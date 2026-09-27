@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid } from "@/lib/beslenme/contracts";
+import { resolveEffectiveFood } from "@/lib/beslenme/foodEngine";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string; linkId: string }> };
@@ -15,11 +16,15 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { id: foodId, linkId } = await ctx.params;
   if (!isUuid(foodId) || !isUuid(linkId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
 
+  // Effective besin (sistem id'si gelse bile uzmanın kişisel kopyasına ait bağ).
+  const eff = await resolveEffectiveFood(db, tenantId, foodId);
+  if (!eff || eff.tenant_id !== tenantId) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+
   const { error, count } = await db
     .from("nutrition_food_sources")
     .delete({ count: "exact" })
     .eq("tenant_id", tenantId)
-    .eq("food_id", foodId)
+    .eq("food_id", eff.id)
     .eq("id", linkId);
   if (error) return beslenmeJson({ ok: false, code: "UNLINK_FAILED" }, 500);
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);

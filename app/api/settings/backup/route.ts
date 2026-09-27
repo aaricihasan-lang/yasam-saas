@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { NUTRITION_BACKUP_TABLES, nutritionBackupOrderColumn, type NutritionBackupTable } from "@/lib/beslenme/backupTables";
+import { fetchAllPaged } from "@/lib/beslenme/pagedFetch";
 
 export const runtime = "nodejs";
 
@@ -72,6 +74,14 @@ const BACKUP_TABLES = [
 type BackupTable = (typeof BACKUP_TABLES)[number];
 
 /**
+ * Beslenme Merkezi (v2.2): uzmanın besinleri (kişisel kopyalar dahil), rehberleri, kaynakları,
+ * planları (tüm snapshot değerleriyle), şablonları ve danışan beslenme verisi. SAYFALI okunur
+ * (2000-satır kırpma YOK — plan kalemi besin değerleri binlerce satır olabilir). FK sırası
+ * lib/beslenme/backupTables.ts'de; geri yükleme aynı sırayı kullanır.
+ */
+const NUTRITION_PAGE = 1000;
+
+/**
  * GET /api/settings/backup
  * Kullanıcının tüm modül verilerini JSON olarak indirir.
  * Header: x-user-id
@@ -87,7 +97,7 @@ export async function GET(req: NextRequest) {
   }
   const { tenantId, db } = guard;
 
-  const result: Partial<Record<BackupTable, unknown[]>> & {
+  const result: Partial<Record<BackupTable | NutritionBackupTable, unknown[]>> & {
     aromatherapy_reference_rows?: unknown[];
   } = {};
 
@@ -102,6 +112,28 @@ export async function GET(req: NextRequest) {
       result[table] = data ?? [];
     }),
   );
+
+  // Faz 1b — Beslenme Merkezi (sayfalı, eksiksiz; sıra FK bağımlılık sırası).
+  const nutritionErrors: string[] = [];
+  for (const table of NUTRITION_BACKUP_TABLES) {
+    try {
+      const orderCol = nutritionBackupOrderColumn(table);
+      result[table] = await fetchAllPaged<unknown>(
+        (from, to) =>
+          db
+            .from(table)
+            .select("*")
+            .eq("tenant_id", tenantId)
+            .order(orderCol, { ascending: true })
+            .range(from, to),
+        NUTRITION_PAGE,
+      );
+    } catch {
+      // Tablo henüz bu ortamda yoksa (migration uygulanmamış) yedek yine üretilir; hata raporlanır.
+      result[table] = [];
+      nutritionErrors.push(table);
+    }
+  }
 
   // Faz 2 — aromatherapy_reference_rows: tenant_id yok, sheet_id üzerinden JOIN
   const sheets = (result["aromatherapy_reference_sheets"] ?? []) as Record<
@@ -123,10 +155,11 @@ export async function GET(req: NextRequest) {
   }
 
   const payload = {
-    version: "2.1",
+    version: "2.2",
     exported_at: new Date().toISOString(),
     tenant_id: tenantId,
-    table_count: BACKUP_TABLES.length + 1, // +1 for aromatherapy_reference_rows
+    table_count: BACKUP_TABLES.length + NUTRITION_BACKUP_TABLES.length + 1, // +1 for aromatherapy_reference_rows
+    ...(nutritionErrors.length ? { unavailable_tables: nutritionErrors } : {}),
     tables: result,
   };
 

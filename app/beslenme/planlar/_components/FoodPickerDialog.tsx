@@ -238,15 +238,6 @@ export function FoodPickerDialog({
                             <span className="block truncate text-[11px] font-medium text-slate-400">{f.name_en}</span>
                           ) : null}
                         </span>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            f.is_system
-                              ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100"
-                              : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                          }`}
-                        >
-                          {f.is_system ? "Sistem" : "Özel"}
-                        </span>
                       </button>
                     </li>
                   ))}

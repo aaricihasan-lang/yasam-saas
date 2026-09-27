@@ -17,13 +17,17 @@ export async function getTemplate(
   db: SupabaseClient,
   tenantId: string,
   templateId: string,
+  opts: { activeOnly?: boolean } = {},
 ): Promise<TemplateRow | null> {
-  const { data, error } = await db
+  let q = db
     .from("nutrition_templates")
     .select(TEMPLATE_COLUMNS)
     .eq("tenant_id", tenantId)
-    .eq("id", templateId)
-    .maybeSingle();
+    .eq("id", templateId);
+  // Legacy pasif (is_active=false) şablon: kullanıcı akışında görünmez; kimliğiyle
+  // uygulama/çoğaltma/düzenleme API'den de reddedilir (yalnız silinebilir).
+  if (opts.activeOnly) q = q.eq("is_active", true);
+  const { data, error } = await q.maybeSingle();
   if (error || !data) return null;
   return data as unknown as TemplateRow;
 }

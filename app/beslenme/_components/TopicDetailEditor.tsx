@@ -48,6 +48,7 @@ import {
   friendlyError,
 } from "./constants";
 import { SourcesPanel, type LinkedSource } from "./SourcesPanel";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   Card,
   DangerButton,
@@ -85,7 +86,7 @@ export function TopicDetailEditor({
   onChanged,
 }: {
   topicId: string;
-  /** Konu arşivlendiğinde parent listeyi tazeler + seçimi temizler. */
+  /** Konu silindiğinde parent listeyi tazeler + seçimi temizler. */
   onDeleted: () => void;
   /** Başlık vb. değiştiğinde parent liste etiketini tazelemek için. */
   onChanged?: (topic: Topic) => void;
@@ -141,7 +142,12 @@ export function TopicDetailEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <TopicHeader topic={data.topic} onSaved={(t) => { setData({ ...data, topic: t }); onChanged?.(t); }} onDeleted={onDeleted} />
+      <TopicHeader
+        topic={data.topic}
+        related={{ sections: data.sections.length, foods: data.foods.length, sources: data.sources.length }}
+        onSaved={(t) => { setData({ ...data, topic: t }); onChanged?.(t); }}
+        onDeleted={onDeleted}
+      />
 
       {/* Sekme çubuğu */}
       <div className="inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
@@ -167,8 +173,8 @@ export function TopicDetailEditor({
         <Card className="p-4">
           <SourcesPanel
             links={data.sources}
-            onLink={async (sourceId, locator) => {
-              const r = await linkTopicSource(topicId, { source_id: sourceId, locator });
+            onLink={async (body) => {
+              const r = await linkTopicSource(topicId, body);
               if (r.ok) await load();
               return r.ok;
             }}
@@ -212,10 +218,12 @@ function TabButton({
 /* ── Başlık + özet ── */
 function TopicHeader({
   topic,
+  related,
   onSaved,
   onDeleted,
 }: {
   topic: Topic;
+  related: { sections: number; foods: number; sources: number };
   onSaved: (t: Topic) => void;
   onDeleted: () => void;
 }) {
@@ -224,14 +232,13 @@ function TopicHeader({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const [confirmDel, setConfirmDel] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
 
   useEffect(() => {
     runInEffect(() => {
       setTitle(topic.title);
       setSummary(topic.summary ?? "");
       setMsg(null);
-      setConfirmDel(false);
     });
   }, [topic.id, topic.title, topic.summary]);
 
@@ -254,7 +261,21 @@ function TopicHeader({
     }
   }
 
+  /** "Sil": kalıcı silme (arşiv YOK). İlişkili kayıtlar kullanıcıya açıkça söylenir. */
   async function doDelete() {
+    if (deleting) return;
+    const parts: string[] = [];
+    if (related.sections) parts.push(`${related.sections} bölüm`);
+    if (related.foods) parts.push(`${related.foods} besin ilişkisi`);
+    if (related.sources) parts.push(`${related.sources} kaynak bağlantısı`);
+    const ok = await deleteConfirm({
+      title: "Kaydı sil",
+      message:
+        `"${topic.title}" kalıcı olarak silinecek${parts.length ? ` (${parts.join(", ")} dahil)` : ""}. ` +
+        "Besinlerin ve kaynak kataloğunuzun kendisi silinmez. Bu işlem geri alınamaz.",
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setDeleting(true);
     const r = await deleteTopic(topic.id);
     setDeleting(false);
@@ -285,19 +306,9 @@ function TopicHeader({
           <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
             Kaydet
           </PrimaryButton>
-          {confirmDel ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-rose-600">Arşivlensin mi?</span>
-              <DangerButton loading={deleting} onClick={() => void doDelete()}>
-                Evet, Arşivle
-              </DangerButton>
-              <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
-            </div>
-          ) : (
-            <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
-              Arşivle
-            </DangerButton>
-          )}
+          <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void doDelete()}>
+            Sil
+          </DangerButton>
         </div>
       </div>
     </Card>
@@ -403,6 +414,7 @@ function SectionRow({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState("");
+  const deleteConfirm = useDeleteConfirm();
 
   useEffect(() => {
     runInEffect(() => {
@@ -431,11 +443,23 @@ function SectionRow({
   }
 
   async function del() {
+    if (deleting) return;
+    const name = section.heading?.trim() || SECTION_KEY_LABELS[section.section_key ?? ""] || "Bölüm";
+    const ok = await deleteConfirm({
+      title: "Bölümü sil",
+      message: `"${name}" bölümü ve içeriği kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setDeleting(true);
-    const r = await deleteSection(topicId, section.id);
-    setDeleting(false);
-    if (r.ok) await onChanged();
-    else setErr(friendlyError(r.code, r.status));
+    setErr("");
+    try {
+      const r = await deleteSection(topicId, section.id);
+      if (r.ok) await onChanged();
+      else setErr(friendlyError(r.code, r.status));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -674,6 +698,8 @@ function RelatedFoodRow({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [rowErr, setRowErr] = useState("");
+  const deleteConfirm = useDeleteConfirm();
 
   const dirty = relType !== rel.relation_type || rationale.trim() !== (rel.rationale ?? "");
 
@@ -688,14 +714,31 @@ function RelatedFoodRow({
   }
 
   async function remove() {
+    if (removing) return;
+    const ok = await deleteConfirm({
+      title: "Besini bu kayıttan kaldır",
+      message: `"${rel.food?.name_tr ?? "Besin"}" bu kayıttan kaldırılacak (ilişki ve gerekçe silinir; besin kaydı silinmez).`,
+      confirmText: "Kaldır",
+    });
+    if (!ok) return;
     setRemoving(true);
-    const r = await removeTopicFood(topicId, rel.id);
-    setRemoving(false);
-    if (r.ok) await onChanged();
+    setRowErr("");
+    try {
+      const r = await removeTopicFood(topicId, rel.id);
+      if (r.ok) await onChanged();
+      else setRowErr(friendlyError(r.code, r.status));
+    } finally {
+      setRemoving(false);
+    }
   }
 
   return (
     <li className="rounded-xl border border-slate-100 bg-white/80 p-3">
+      {rowErr ? (
+        <div className="mb-2">
+          <StatusMessage type="error">{rowErr}</StatusMessage>
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-black text-slate-800">{rel.food?.name_tr ?? "Besin"}</p>

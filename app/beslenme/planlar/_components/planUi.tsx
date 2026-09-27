@@ -12,7 +12,21 @@ import { NUTRIENT_LABELS, type NutrientTotal } from "@/lib/beslenme/planContract
 import { formatEnergy } from "./planFormat";
 import { ACTION_MENU_WIDTH, computeActionMenuPlacement, type ActionMenuPlacement } from "./actionMenuPlacement";
 
-/* ── Modal ── mobil: alttan tam-genişlik sayfa; masaüstü: ortalanmış kart. */
+/**
+ * ── Modal ── mobil: alttan tam-genişlik sayfa (fullScreenOnMobile → tam ekran); masaüstü:
+ * ortalanmış kart.
+ *
+ * PORTAL (Analiz kök neden düzeltmesi): modal document.body'e portal edilir. Önceden
+ * bulunduğu yerde render ediliyordu; BeslenmeShell hero header'ı `backdrop-blur` (backdrop-filter)
+ * + `overflow-hidden` taşıdığı için header içindeki modalın `position:fixed` kutusu viewport
+ * yerine HEADER'a göre konumlanıyor, header tarafından kırpılıyor ve iç içe scroll oluşuyordu
+ * (Plan → Analiz / Gün Şablonu Kaydet / Şablon Uygula). Portal ile her çağıran yerden bağımsız
+ * olarak viewport'u kaplar.
+ *
+ * TEK SCROLL: kart kendi içinde kaymaz; uzun içerikte overlay (sayfa gibi) doğal kayar, başlık
+ * `sticky` kalır. `min-h-full` sarmalayıcı, içerik viewport'tan uzunsa kartın üstünün kırpılmasını
+ * önler. Açıkken arka plan sayfa kaydırması kilitlenir (Android WebView çift-scroll önlemi).
+ */
 export function Modal({
   open,
   onClose,
@@ -20,6 +34,7 @@ export function Modal({
   subtitle,
   children,
   maxWidthClass = "max-w-lg",
+  fullScreenOnMobile = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +42,7 @@ export function Modal({
   subtitle?: ReactNode;
   children: ReactNode;
   maxWidthClass?: string;
+  fullScreenOnMobile?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -37,11 +53,29 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    // Kök layout <html>'e overflow-x-hidden verdiği için kaydırma kabı <html>'dir; ikisi de kilitlenir.
+    const html = document.documentElement;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = html.style.overflow;
+    document.body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBody;
+      html.style.overflow = prevHtml;
+    };
+  }, [open]);
 
-  return (
+  if (!open || typeof document === "undefined") return null;
+
+  const cardShape = fullScreenOnMobile
+    ? "min-h-[100dvh] rounded-none sm:min-h-0 sm:rounded-3xl"
+    : "rounded-t-3xl sm:rounded-3xl";
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-slate-900/40 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
@@ -49,27 +83,37 @@ export function Modal({
       }}
     >
       <div
-        className={`w-full ${maxWidthClass} max-h-[92vh] overflow-y-auto rounded-t-3xl border border-emerald-100 bg-white shadow-2xl sm:rounded-3xl`}
+        className={`flex min-h-full justify-center ${fullScreenOnMobile ? "items-stretch" : "items-end"} p-0 sm:items-center sm:p-6`}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-black tracking-tight text-slate-900">{title}</h2>
-            {subtitle ? (
-              <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{subtitle}</p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-slate-50"
-            aria-label="Kapat"
+        <div className={`relative w-full ${maxWidthClass} border border-emerald-100 bg-white shadow-2xl ${cardShape}`}>
+          <div
+            className={`sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur ${
+              fullScreenOnMobile ? "rounded-none sm:rounded-t-3xl" : "rounded-t-3xl"
+            }`}
           >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-black tracking-tight text-slate-900">{title}</h2>
+              {subtitle ? (
+                <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{subtitle}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-slate-50"
+              aria-label="Kapat"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <div className="px-5 py-4">{children}</div>
         </div>
-        <div className="px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

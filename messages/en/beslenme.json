@@ -56,7 +56,9 @@
         "phWaist": "Waist",
         "phHip": "Hip",
         "phNote": "Note",
-        "add": "Add"
+        "add": "Add",
+        "deleteConfirmTitle": "Delete measurement",
+        "deleteConfirmMessage": "The measurement dated {date} will be permanently deleted. This cannot be undone."
       },
       "allergens": {
         "title": "Declared Allergens",
@@ -80,7 +82,9 @@
         "optAvoided": "Avoided",
         "phFood": "Food name*",
         "phNote": "Note",
-        "add": "Add"
+        "add": "Add",
+        "deleteConfirmTitle": "Delete food preference",
+        "deleteConfirmMessage": "\"{food}\" will be permanently removed from the list. This cannot be undone."
       },
       "plans": {
         "title": "Nutrition Plans",
@@ -125,7 +129,9 @@
         "A": "A",
         "B": "B",
         "AB": "AB"
-      }
+      },
+      "deleteConfirmYes": "Delete",
+      "deleteConfirmCancel": "Cancel"
     },
     "plan": {
       "context": {

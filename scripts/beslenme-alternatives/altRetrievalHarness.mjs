@@ -80,6 +80,12 @@ function makeDb(tables, { errorPlan = {}, log = null } = {}) {
       select() { return self; },
       eq(col, val) { filters.push((r) => r[col] === val); return self; },
       neq(col, val) { filters.push((r) => r[col] !== val); return self; },
+      // .not(col, "is", null) — effective aday havuzu (kişisel kopya/gizleme) sorguları için.
+      not(col, op, val) {
+        if (op === "is" && val === null) filters.push((r) => r[col] != null);
+        else filters.push((r) => r[col] !== val);
+        return self;
+      },
       in(col, arr) {
         const set = new Set(arr);
         if (col === "food_id") filters._inFoodIds = arr.slice();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { NUTRITION_BACKUP_TABLES, orderTablesForRestore } from "@/lib/beslenme/backupTables";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export const runtime = "nodejs";
  *  - id çakışmaları (ignoreDuplicates) sessizce atlanır.
  *  - Hiçbir tablo silinmez.
  */
-const ALLOWED_TABLES = new Set<string>([
+const RESTORE_ORDER: string[] = [
   // Danışan Yolculuğu
   "clients",
   "client_notes",
@@ -58,8 +59,15 @@ const ALLOWED_TABLES = new Set<string>([
   "aromatherapy_reference_rows", // Faz 2'de işlenir — tenant_id yok, orphan kontrolü var
   // Şifa Rehberi
   "healing_guides",
+  // Beslenme Merkezi (v2.2) — FK bağımlılık sırasıyla (clients YUKARIDA → nutrition_client_* sonra)
+  ...NUTRITION_BACKUP_TABLES,
   // support_messages intentionally excluded
-]);
+];
+const ALLOWED_TABLES = new Set<string>(RESTORE_ORDER);
+
+/** Beslenme tabloları toplu (chunk) upsert edilir — satır sayısı binleri bulabilir. */
+const NUTRITION_TABLES = new Set<string>(NUTRITION_BACKUP_TABLES);
+const NUTRITION_CHUNK = 500;
 
 const ROWS_TABLE = "aromatherapy_reference_rows";
 
@@ -80,7 +88,7 @@ type BackupPayload = {
 /**
  * POST /api/settings/restore
  * JSON yedeğini güvenli modda içe aktar.
- * Desteklenen versiyonlar: 1.0, 2.0, 2.1
+ * Desteklenen versiyonlar: 1.0, 2.0, 2.1, 2.2 (2.2 = + Beslenme Merkezi)
  */
 export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req);
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yedek dosyası geçersiz." }, { status: 400 });
   }
 
-  const ACCEPTED_VERSIONS = new Set(["1.0", "2.0", "2.1"]);
+  const ACCEPTED_VERSIONS = new Set(["1.0", "2.0", "2.1", "2.2"]);
   if (!ACCEPTED_VERSIONS.has(backup.version)) {
     return NextResponse.json(
       { error: `Desteklenmeyen yedek versiyonu: ${String(backup.version)}` },
@@ -135,7 +143,11 @@ export async function POST(req: NextRequest) {
   const summary: Record<string, TableSummary> = {};
 
   // ── Faz 1: Tüm tablolar (aromatherapy_reference_rows hariç) ──────────────────
-  const mainTables = tableNames.filter((t) => t !== ROWS_TABLE);
+  // FK bağımlılık sırası (yedek JSON'undaki anahtar sırasına GÜVENİLMEZ): ebeveyn → çocuk.
+  const mainTables = orderTablesForRestore(
+    tableNames.filter((t) => t !== ROWS_TABLE),
+    RESTORE_ORDER,
+  );
 
   for (const table of mainTables) {
     const rows = backup.tables[table];
@@ -150,6 +162,35 @@ export async function POST(req: NextRequest) {
 
     let inserted = 0;
     let skipped = 0;
+
+    if (NUTRITION_TABLES.has(table)) {
+      // Toplu upsert (ignoreDuplicates); chunk hata verirse yalnız o chunk satır satır denenir.
+      const clean: Record<string, unknown>[] = [];
+      for (const rawRow of rows) {
+        if (!rawRow || typeof rawRow !== "object" || Array.isArray(rawRow)) { skipped++; continue; }
+        const row = { ...(rawRow as Record<string, unknown>) };
+        row.tenant_id = tenantId;
+        if ("user_id" in row) row.user_id = userId;
+        clean.push(row);
+      }
+      for (let i = 0; i < clean.length; i += NUTRITION_CHUNK) {
+        const chunk = clean.slice(i, i + NUTRITION_CHUNK);
+        const { data: bulk, error: bulkErr } = await db.from(table).upsert(chunk, { ignoreDuplicates: true }).select();
+        if (!bulkErr) {
+          const n = bulk?.length ?? 0;
+          inserted += n;
+          skipped += chunk.length - n;
+          continue;
+        }
+        for (const row of chunk) {
+          const { data: one, error: oneErr } = await db.from(table).upsert(row, { ignoreDuplicates: true }).select();
+          if (oneErr || !one || one.length === 0) skipped++;
+          else inserted++;
+        }
+      }
+      summary[table] = { inserted, skipped, error: null };
+      continue;
+    }
 
     for (const rawRow of rows) {
       if (!rawRow || typeof rawRow !== "object" || Array.isArray(rawRow)) {

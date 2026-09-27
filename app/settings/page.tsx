@@ -645,7 +645,8 @@ function RestoreTab({ user }: { user: YasamUser }) {
         const parsed = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
         if (typeof parsed !== "object" || parsed === null) throw new Error("Geçersiz yapı");
         const ver = parsed.version as string;
-        if (ver !== "1.0" && ver !== "2.0") throw new Error("Desteklenmeyen versiyon: " + ver);
+        // Sunucu /api/settings/restore ile aynı liste (2.1 = mevcut yedek; 2.2 = + Beslenme Merkezi).
+        if (!["1.0", "2.0", "2.1", "2.2"].includes(ver)) throw new Error("Desteklenmeyen versiyon: " + ver);
         if (!parsed.tables || typeof parsed.tables !== "object") throw new Error("'tables' alanı eksik");
         const tableCount = Object.keys(parsed.tables as object).length;
         setParsedBackup(parsed);

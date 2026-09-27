@@ -6,7 +6,9 @@ import {
   resolveFoodForWrite,
   loadNutrientDict,
   loadUnitDict,
+  mapFoodRpcError,
 } from "@/lib/beslenme/foodEngine";
+import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -31,15 +33,17 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
     .from("nutrition_food_nutrients")
     .select(NUTRIENT_JOIN)
     .eq("tenant_id", food.tenant_id as string)
-    .eq("food_id", id);
+    .eq("food_id", food.id as string);
   if (error) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
   return NextResponse.json({ ok: true, nutrients: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /**
- * PUT: /100 g nutrient setini TÜMÜYLE değiştir (yalnız CUSTOM food).
+ * PUT: /100 g nutrient setini TÜMÜYLE değiştir (ATOMİK RPC; tek transaction).
  * body: { items: [{ nutrient_code, amount, unit_code, source_id? }] }
  * amount /100 g bazındadır (basis_grams=100 invariant). Yok = satır yok (0 yazma yok).
+ * source_id anahtarı GÖNDERİLMEZSE mevcut kaynak bağı KORUNUR (null → açıkça temizler).
+ * Sistem besininde ilk yazma uzmanın kişisel kopyasını oluşturur (global satır değişmez).
  */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
@@ -49,9 +53,6 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
-
-  const write = await resolveFoodForWrite(db, tenantId, id);
-  if (!write.ok) return beslenmeJson({ ok: false, code: write.code }, write.status);
 
   let body: Record<string, unknown>;
   try {
@@ -84,26 +85,26 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
     const amount = cleanNumber(it.amount, { min: 0, max: 1_000_000 });
     if (amount == null) return beslenmeJson({ ok: false, code: "BAD_AMOUNT" }, 400);
     if (it.source_id != null && !isUuid(it.source_id)) return beslenmeJson({ ok: false, code: "BAD_SOURCE" }, 400);
-    rows.push({
-      tenant_id: tenantId,
-      food_id: id,
-      nutrient_id: nutrient.id,
-      amount,
-      unit_id: unit.id,
-      basis_grams: 100,
-      source_id: isUuid(it.source_id) ? it.source_id : null,
-    });
+    const row: Record<string, unknown> = { nutrient_id: nutrient.id, amount, unit_id: unit.id };
+    if ("source_id" in it) row.source_id = isUuid(it.source_id) ? it.source_id : null;
+    rows.push(row);
   }
 
-  // set-replace: mevcut satırları sil, yenilerini ekle (owner-only küçük set).
-  const del = await db.from("nutrition_food_nutrients").delete().eq("tenant_id", tenantId).eq("food_id", id);
-  if (del.error) return beslenmeJson({ ok: false, code: "WRITE_FAILED" }, 500);
-  if (rows.length > 0) {
-    const ins = await db.from("nutrition_food_nutrients").insert(rows);
-    if (ins.error) {
-      if (ins.error.code === "23503") return beslenmeJson({ ok: false, code: "SOURCE_NOT_FOUND" }, 400);
-      return beslenmeJson({ ok: false, code: "WRITE_FAILED" }, 500);
-    }
+  // Sahiplik + (gerekirse) kişisel kopya — gövde doğrulandıktan SONRA.
+  const write = await resolveFoodForWrite(db, tenantId, id);
+  if (!write.ok) return beslenmeJson({ ok: false, code: write.code }, write.status);
+
+  // ATOMİK set-replace (delete+insert tek transaction; hata → eski değerler korunur).
+  const { data, error } = await db.rpc("nutrition_food_nutrients_replace", {
+    p_tenant_id: tenantId,
+    p_system_tenant_id: SYSTEM_NUTRITION_TENANT_ID,
+    p_food_id: write.food.id,
+    p_rows: rows,
+  });
+  if (error) {
+    if (error.code === "23503") return beslenmeJson({ ok: false, code: "SOURCE_NOT_FOUND" }, 400);
+    const m = mapFoodRpcError(error.code);
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
-  return NextResponse.json({ ok: true, count: rows.length });
+  return NextResponse.json({ ok: true, count: Number(data ?? rows.length), food_id: write.food.id, personalized: write.forked });
 }

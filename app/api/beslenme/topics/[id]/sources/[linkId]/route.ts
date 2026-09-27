@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { isUuid } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -14,6 +15,8 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { db, tenantId } = guard;
   const { id: topicId, linkId } = await ctx.params;
   if (!isUuid(topicId) || !isUuid(linkId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  // Rehber bu tenant'a ait + aktif olmalı (legacy pasif rehberin alt kayıtları API'den de değişmez).
+  if (!(await isActiveTopicInTenant(db, tenantId, topicId))) return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
 
   const { error, count } = await db
     .from("nutrition_topic_sources")

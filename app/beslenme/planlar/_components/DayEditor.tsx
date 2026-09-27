@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CopyPlus, Eraser, PenLine, Plus } from "lucide-react";
 import {
   clearDay,
+  requestClearDayChallenge,
   copyDay,
   createMeal,
   getDay,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { DangerButton, Field, GhostButton, InlineSpinner, PrimaryButton, StatusMessage, TextArea, TextInput } from "../../_components/primitives";
+import { DestructiveChallengeDialog, challengeErrorMessage, type ChallengeConfirm, type ChallengeRequest } from "../../_components/DestructiveChallengeDialog";
 import { EnergyTargetLine, Modal } from "./planUi";
 import { buildTotals, dayEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { MealCard } from "./MealCard";
@@ -130,15 +132,34 @@ export function DayEditor({
     }
   }
 
-  async function doClear() {
-    if (!selectedDayId) return;
-    setBusy(true);
-    const r = await clearDay(plan.id, selectedDayId);
-    setBusy(false);
-    setConfirmClear(false);
-    if (r.ok) await onMutated();
-    else setErr(friendlyPlanError(r.code, r.status));
-  }
+  // "Günü Temizle" = TOPLU SİLME → 3 aşama: kapsam (sunucu sayar) + ikinci uyarı + 4 haneli kod.
+  const requestClear = useCallback<ChallengeRequest>(async () => {
+    if (!selectedDayId) return { ok: false, message: "Gün seçili değil." };
+    const r = await requestClearDayChallenge(plan.id, selectedDayId);
+    if (r.ok && r.data) {
+      return {
+        ok: true,
+        value: {
+          challenge_id: r.data.challenge_id,
+          code: r.data.code,
+          expires_at: r.data.expires_at,
+          count: r.data.meals,
+          names: [`${r.data.meals} öğün`, `${r.data.items} besin kalemi`],
+        },
+      };
+    }
+    return { ok: false, message: friendlyPlanError(r.code, r.status) };
+  }, [plan.id, selectedDayId]);
+  const confirmClearDay = useCallback<ChallengeConfirm>(
+    async (challengeId, code) => {
+      if (!selectedDayId) return { ok: false, message: "Gün seçili değil." };
+      const r = await clearDay(plan.id, selectedDayId, challengeId, code);
+      if (r.ok) return { ok: true };
+      const e = challengeErrorMessage(r.code);
+      return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyPlanError(r.code, r.status), refresh: e.refresh };
+    },
+    [plan.id, selectedDayId],
+  );
 
   if (days.length === 0) {
     return (
@@ -222,20 +243,32 @@ export function DayEditor({
           <GhostButton icon={<CopyPlus className="h-4 w-4" />} onClick={() => setCopyOpen(true)}>
             Günü Kopyala
           </GhostButton>
-          {confirmClear ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="text-[12px] font-bold text-rose-600">Tüm öğünler silinsin mi?</span>
-              <DangerButton loading={busy} onClick={() => void doClear()}>
-                Evet, Temizle
-              </DangerButton>
-              <GhostButton onClick={() => setConfirmClear(false)}>Vazgeç</GhostButton>
-            </span>
-          ) : (
-            <DangerButton icon={<Eraser className="h-4 w-4" />} onClick={() => setConfirmClear(true)}>
-              Günü Temizle
-            </DangerButton>
-          )}
+          <DangerButton icon={<Eraser className="h-4 w-4" />} disabled={meals.length === 0} onClick={() => setConfirmClear(true)}>
+            Günü Temizle
+          </DangerButton>
         </div>
+      ) : null}
+      {confirmClear && selectedDayId ? (
+        <DestructiveChallengeDialog
+          open
+          title="Günü Temizle"
+          itemNoun="öğün"
+          scopeIntro={
+            <>
+              Seçili güne (<b>{formatDateShort(days[index]?.plan_date)}</b>) ait <b>tüm öğünler ve besin kalemleri</b>{" "}
+              kalıcı olarak silinecek. Gün planda boş olarak kalır; diğer günler etkilenmez.
+            </>
+          }
+          warning="Seçilen öğünler ve içlerindeki tüm besin kalemleri kalıcı olarak silinecektir."
+          confirmLabel="Günü Temizle"
+          requestChallenge={requestClear}
+          confirm={confirmClearDay}
+          onClose={() => setConfirmClear(false)}
+          onDone={() => {
+            setConfirmClear(false);
+            void onMutated();
+          }}
+        />
       ) : null}
 
       {err ? <StatusMessage type="error">{err}</StatusMessage> : null}

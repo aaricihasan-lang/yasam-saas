@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { SOURCE_COLUMNS, SOURCE_TYPES, cleanStr, cleanUrl, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
+// is_active YOK: Beslenme'de kullanıcıya yönelik arşiv kaldırıldı (kaldırma = DELETE).
 const UPDATE_KEYS = [
   "title", "authors", "organization", "source_type", "publication_year",
-  "edition", "page_range", "chapter", "url", "reference_code", "note", "is_active",
+  "edition", "page_range", "chapter", "url", "reference_code", "note",
 ] as const;
 
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
@@ -51,7 +53,6 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   if ("url" in body) patch.url = cleanUrl(body.url);
   if ("reference_code" in body) patch.reference_code = cleanStr(body.reference_code, 200);
   if ("note" in body) patch.note = cleanStr(body.note, 4000);
-  if ("is_active" in body && typeof body.is_active === "boolean") patch.is_active = body.is_active;
   if (Object.keys(patch).length === 0) return beslenmeJson({ ok: false, code: "NO_FIELDS" }, 400);
 
   const { data, error } = await db
@@ -66,7 +67,10 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   return NextResponse.json({ ok: true, source: data });
 }
 
-/** DELETE: gerçek silme; referanslı (topic/food link) ise 409 (RESTRICT). */
+/**
+ * DELETE ("Sil"): gerçek silme. Kaynak bir rehbere/besine/besin değerine bağlıysa RESTRICT →
+ * 409 IN_USE + kullanım sayıları (kullanıcı önce bağları kaldırır; sessiz veri kaybı yok).
+ */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -82,10 +86,28 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
     .eq("tenant_id", tenantId)
     .eq("id", id);
   if (error) {
-    if (error.code === "23503")
-      return beslenmeJson({ ok: false, code: "IN_USE", error: "Kaynak bir kayda bağlı; önce bağı kaldırın." }, 409);
+    if (error.code === "23503") {
+      const usage = await sourceUsage(db, tenantId, id);
+      return beslenmeJson({ ok: false, code: "IN_USE", usage }, 409);
+    }
     return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
   }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
   return NextResponse.json({ ok: true, deleted: true });
+}
+
+/** Kaynağın bağlı olduğu kayıt sayıları (tenant-scoped; 409 mesajı için). */
+async function sourceUsage(db: SupabaseClient, tenantId: string, sourceId: string) {
+  const count = async (table: string) => {
+    const { count: c } = await db.from(table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("source_id", sourceId);
+    return c ?? 0;
+  };
+  const [topics, foods, nutrients, portions, traditional] = await Promise.all([
+    count("nutrition_topic_sources"),
+    count("nutrition_food_sources"),
+    count("nutrition_food_nutrients"),
+    count("nutrition_food_portions"),
+    count("nutrition_food_traditional"),
+  ]);
+  return { topics, foods, foodValues: nutrients + portions + traditional };
 }

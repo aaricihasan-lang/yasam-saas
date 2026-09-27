@@ -25,7 +25,8 @@ export const TEMPLATE_ITEM_NUTRIENT_COLUMNS =
 // Mutation allowlist'leri (tenant/id ASLA body'den; snapshot server-authoritative).
 /** Şablon oluşturma: kaynak plan öğünü/günü ID + başlık; snapshot server üretir. */
 export const TEMPLATE_CREATE_KEYS = ["from", "source_id", "title", "note"] as const;
-export const TEMPLATE_PATCH_KEYS = ["title", "note", "is_active"] as const;
+// is_active YOK: Beslenme'de kullanıcıya yönelik arşiv kaldırıldı (kaldırma = DELETE).
+export const TEMPLATE_PATCH_KEYS = ["title", "note"] as const;
 export const TEMPLATE_DUPLICATE_KEYS = ["title"] as const;
 export const TEMPLATE_APPLY_KEYS = ["mode", "target_plan_id", "target_day_id"] as const;
 

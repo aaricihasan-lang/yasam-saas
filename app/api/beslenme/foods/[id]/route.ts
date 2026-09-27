@@ -12,13 +12,20 @@ import {
   hasOnlyKeys,
   PREP_STATES,
 } from "@/lib/beslenme/contracts";
-import { resolveFoodForRead, resolveFoodForWrite } from "@/lib/beslenme/foodEngine";
-import { isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
+import {
+  resolveFoodForRead,
+  resolveFoodForWrite,
+  resolveEffectiveFood,
+  mapFoodRpcError,
+  listFoodTopicUsage,
+} from "@/lib/beslenme/foodEngine";
+import { SYSTEM_NUTRITION_TENANT_ID, isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
+// is_active YOK: Beslenme'de kullanıcıya yönelik arşiv kaldırıldı (yeni arşiv durumu üretilmez).
 const UPDATE_KEYS = [
   "name_tr",
   "name_en",
@@ -28,10 +35,12 @@ const UPDATE_KEYS = [
   "description",
   "notes",
   "sort_order",
-  "is_active",
 ] as const;
 
-/** GET: besin detayı + besin değerleri + porsiyonlar + geleneksel + kaynaklar (SYSTEM veya kendi). */
+/**
+ * GET: EFFECTIVE besin detayı + besin değerleri + porsiyonlar + geleneksel + kaynaklar.
+ * Sistem besininin uzmana ait kişisel kopyası varsa KOPYA döner (food.id = kopya id).
+ */
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeFoodRead(req);
   if (!guard.ok) return guard.response;
@@ -39,54 +48,56 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
 
-  // SYSTEM veya kendi besnini okuyabilir (üçüncü tenant → null → 404).
   const food = (await resolveFoodForRead(db, tenantId, id, FOOD_COLUMNS)) as
-    | (Record<string, unknown> & { tenant_id: string })
+    | (Record<string, unknown> & { id: string; tenant_id: string; origin_food_id: string | null })
     | null;
   if (!food) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
   const foodTenant = food.tenant_id;
+  const foodId = food.id;
   const isSystem = isSystemNutritionTenant(foodTenant);
 
-  // Çocuk kayıtlar food'un sahibine (SYSTEM veya caller) göre çekilir.
+  // Çocuk kayıtlar effective satırın sahibine (SYSTEM veya caller) göre çekilir.
   const [nutrientsRes, portionsRes, traditionalRes, sourcesRes, extRes] = await Promise.all([
     db
       .from("nutrition_food_nutrients")
       .select(
-        "id, nutrient_id, amount, unit_id, basis_grams, nutrient:nutrition_nutrients(code, name_tr, name_en, category, sort_order), unit:nutrition_units(code, symbol)",
+        "id, nutrient_id, amount, unit_id, basis_grams, source_id, nutrient:nutrition_nutrients(code, name_tr, name_en, category, sort_order), unit:nutrition_units(code, symbol)",
       )
       .eq("tenant_id", foodTenant)
-      .eq("food_id", id),
+      .eq("food_id", foodId),
     db
       .from("nutrition_food_portions")
       .select(
         "id, label_tr, label_en, quantity, measure_unit_id, gram_weight, is_default, sort_order, unit:nutrition_units(code, symbol, name_tr)",
       )
       .eq("tenant_id", foodTenant)
-      .eq("food_id", id)
+      .eq("food_id", foodId)
       .order("sort_order", { ascending: true }),
     db
       .from("nutrition_food_traditional")
       .select(FOOD_TRADITIONAL_COLUMNS)
       .eq("tenant_id", foodTenant)
-      .eq("food_id", id)
+      .eq("food_id", foodId)
       .maybeSingle(),
     db
       .from("nutrition_food_sources")
       .select(`${FOOD_SOURCE_COLUMNS}, source:nutrition_sources(${SOURCE_COLUMNS})`)
       .eq("tenant_id", foodTenant)
-      .eq("food_id", id)
+      .eq("food_id", foodId)
       .order("sort_order", { ascending: true }),
+    // Dış referans: kişisel kopyada sistem aslının referansı "türetildiği kaynak" olarak
+    // gösterilir (salt bilgi; kopyaya kopyalanmaz → plan snapshot'ı yanlış provenance taşımaz).
     db
       .from("nutrition_food_external_refs")
       .select("id, provider, external_id, external_dataset, external_version, source_url, retrieved_at")
-      .eq("tenant_id", foodTenant)
-      .eq("food_id", id),
+      .eq("tenant_id", food.origin_food_id ? SYSTEM_NUTRITION_TENANT_ID : foodTenant)
+      .eq("food_id", food.origin_food_id ?? foodId),
   ]);
 
   return NextResponse.json(
     {
       ok: true,
-      food: { ...food, is_system: isSystem },
+      food: { ...food, is_system: isSystem, is_personalized: !!food.origin_food_id },
       nutrients: nutrientsRes.data ?? [],
       portions: portionsRes.data ?? [],
       traditional: traditionalRes.data ?? null,
@@ -97,7 +108,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   );
 }
 
-/** PATCH: güncelle (allowlist; kimlik kolonları hariç). */
+/** PATCH: güncelle (allowlist). Sistem besininde ilk yazma uzmanın kişisel kopyasını oluşturur. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -106,10 +117,6 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
-
-  // SYSTEM food normal düzenleme API'siyle değiştirilemez (403); bulunamazsa 404.
-  const wguard = await resolveFoodForWrite(db, tenantId, id);
-  if (!wguard.ok) return beslenmeJson({ ok: false, code: wguard.code }, wguard.status);
 
   let body: Record<string, unknown>;
   try {
@@ -142,15 +149,19 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   if ("description" in body) patch.description = cleanStr(body.description, 8000);
   if ("notes" in body) patch.notes = cleanStr(body.notes, 8000);
   if ("sort_order" in body && Number.isInteger(body.sort_order)) patch.sort_order = body.sort_order;
-  if ("is_active" in body && typeof body.is_active === "boolean") patch.is_active = body.is_active;
 
   if (Object.keys(patch).length === 0) return beslenmeJson({ ok: false, code: "NO_FIELDS" }, 400);
+
+  // Sahiplik + (gerekirse) kişisel kopya — gövde doğrulandıktan SONRA (geçersiz istek kopya üretmez).
+  const wguard = await resolveFoodForWrite(db, tenantId, id);
+  if (!wguard.ok) return beslenmeJson({ ok: false, code: wguard.code }, wguard.status);
+  const targetId = wguard.food.id;
 
   const { data, error } = await db
     .from("nutrition_foods")
     .update(patch)
     .eq("tenant_id", tenantId)
-    .eq("id", id)
+    .eq("id", targetId)
     .select(FOOD_COLUMNS)
     .maybeSingle();
   if (error) {
@@ -159,10 +170,16 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
   }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-  return NextResponse.json({ ok: true, food: data });
+  return NextResponse.json({ ok: true, food: data, food_id: targetId, personalized: wguard.forked });
 }
 
-/** DELETE: varsayılan arşiv (is_active=false); ?hard=1 → gerçek silme (RESTRICT referans → 409). */
+/**
+ * DELETE ("Sil" — çalışma alanından kaldır; arşiv YOK):
+ *   • uzmanın özgün besini             → gerçek DELETE (değer/porsiyon/geleneksel/kaynak bağı cascade)
+ *   • sistem besininin kişisel kopyası → kopya silinir + sistem aslı bu uzmanda gizlenir
+ *   • sistem besini                    → yalnız bu uzmanın çalışma alanından kaldırılır (global satır korunur)
+ * Rehberde kullanılan besin → 409 IN_USE + rehber başlıkları. Plan kalemleri snapshot ile korunur.
+ */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -171,35 +188,32 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  if (isSystemNutritionTenant(tenantId)) return beslenmeJson({ ok: false, code: "SYSTEM_READONLY" }, 403);
 
-  // SYSTEM food silinemez/arşivlenemez normal API'den (403); bulunamazsa 404.
-  const wguard = await resolveFoodForWrite(db, tenantId, id);
-  if (!wguard.ok) return beslenmeJson({ ok: false, code: wguard.code }, wguard.status);
-  const hard = new URL(req.url).searchParams.get("hard") === "1";
+  const eff = await resolveEffectiveFood(db, tenantId, id);
+  if (!eff) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
-  if (!hard) {
-    const { data, error } = await db
-      .from("nutrition_foods")
-      .update({ is_active: false })
-      .eq("tenant_id", tenantId)
-      .eq("id", id)
-      .select("id")
-      .maybeSingle();
-    if (error) return beslenmeJson({ ok: false, code: "ARCHIVE_FAILED" }, 500);
-    if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-    return NextResponse.json({ ok: true, archived: true });
+  const inUse = async () => {
+    const usage = await listFoodTopicUsage(db, tenantId, [eff.id]);
+    return [...new Set(usage.map((u) => u.title))];
+  };
+
+  // Rehber kullanımı (kopya/özgün satır için) — kullanıcıya NEREDE kullanıldığını söyle.
+  if (!isSystemNutritionTenant(eff.tenant_id)) {
+    const topics = await inUse();
+    if (topics.length > 0) return beslenmeJson({ ok: false, code: "IN_USE", topics }, 409);
   }
 
-  const { error, count } = await db
-    .from("nutrition_foods")
-    .delete({ count: "exact" })
-    .eq("tenant_id", tenantId)
-    .eq("id", id);
+  const { data, error } = await db.rpc("nutrition_food_remove", {
+    p_tenant_id: tenantId,
+    p_system_tenant_id: SYSTEM_NUTRITION_TENANT_ID,
+    p_food_id: eff.id,
+  });
   if (error) {
-    if (error.code === "23503")
-      return beslenmeJson({ ok: false, code: "IN_USE", error: "Bu besin bir kayda bağlı; önce ilişkiyi kaldırın." }, 409);
-    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+    const m = mapFoodRpcError(error.code);
+    if (m.code === "IN_USE") return beslenmeJson({ ok: false, code: "IN_USE", topics: await inUse() }, 409);
+    return beslenmeJson({ ok: false, code: m.code === "WRITE_FAILED" ? "DELETE_FAILED" : m.code }, m.status);
   }
-  if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-  return NextResponse.json({ ok: true, deleted: true });
+  const action = (data as { action?: string } | null)?.action ?? "deleted";
+  return NextResponse.json({ ok: true, deleted: true, action });
 }

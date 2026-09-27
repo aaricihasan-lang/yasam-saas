@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   return NextResponse.json({ ok: true, ...detail }, { headers: { "Cache-Control": "no-store" } });
 }
 
-/** PATCH: rename / not / arşivle (is_active). Snapshot/tree DEĞİŞMEZ. */
+/** PATCH: rename / not. Snapshot/tree DEĞİŞMEZ. Arşiv YOK; legacy pasif şablon düzenlenemez. */
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -47,13 +47,9 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     patch.title = t;
   }
   if (body.note !== undefined) patch.note = cleanStr(body.note, 4000);
-  if (body.is_active !== undefined) {
-    if (typeof body.is_active !== "boolean") return beslenmeJson({ ok: false, code: "BAD_ACTIVE" }, 400);
-    patch.is_active = body.is_active;
-  }
   if (Object.keys(patch).length === 0) return beslenmeJson({ ok: false, code: "NOTHING_TO_UPDATE" }, 400);
 
-  const existing = await getTemplate(db, tenantId, id);
+  const existing = await getTemplate(db, tenantId, id, { activeOnly: true });
   if (!existing) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
   const { data, error } = await db

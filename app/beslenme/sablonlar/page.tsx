@@ -1,7 +1,7 @@
 "use client";
 /**
  * Beslenme Şablon Kütüphanesi (FAZ 6). Öğün/Gün şablonlarını listeler; yeniden adlandır,
- * çoğalt, arşivle/sil, içerik incele. Şablonu plana UYGULAMA plan editöründen yapılır
+ * çoğalt, sil (onaylı; arşiv yok). Şablonu plana UYGULAMA plan editöründen yapılır
  * (hedef gün gerektiği için). Owner-only.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -30,6 +30,7 @@ import {
   TextInput,
 } from "../_components/primitives";
 import { runInEffect } from "@/lib/runInEffect";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 const TABS: Array<{ value: TemplateType; label: string }> = [
   { value: "meal", label: "Öğün Şablonları" },
@@ -46,7 +47,8 @@ export default function SablonlarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Silme onayı ortak dialog'dan (Vazgeç dahil). Önceki aynı-noktada iki adımlı butonda iptal yoktu.
+  const deleteConfirm = useDeleteConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,14 +87,23 @@ export default function SablonlarPage() {
     else setActionErr("Çoğaltma başarısız.");
   };
 
-  const doDelete = async (id: string) => {
-    setBusyId(id);
+  const doDelete = async (tpl: TemplateListRow) => {
+    if (busyId) return;
+    const ok = await deleteConfirm({
+      title: "Şablonu sil",
+      message: `"${tpl.title}" şablonu kalıcı olarak silinecek. Şablondan daha önce oluşturulan planlar etkilenmez. Bu işlem geri alınamaz.`,
+      confirmText: "Sil",
+    });
+    if (!ok) return;
+    setBusyId(tpl.id);
     setActionErr("");
-    const r = await deleteTemplate(id);
-    setBusyId(null);
-    setConfirmDeleteId(null);
-    if (r.ok) void load();
-    else setActionErr("Silme başarısız.");
+    try {
+      const r = await deleteTemplate(tpl.id);
+      if (r.ok) void load();
+      else setActionErr("Silme başarısız.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -190,18 +201,13 @@ export default function SablonlarPage() {
                   >
                     Çoğalt
                   </GhostButton>
-                  {confirmDeleteId === tpl.id ? (
-                    <DangerButton loading={busyId === tpl.id} onClick={() => void doDelete(tpl.id)}>
-                      Silmeyi Onayla
-                    </DangerButton>
-                  ) : (
-                    <DangerButton
-                      icon={<Trash2 className="h-4 w-4" />}
-                      onClick={() => setConfirmDeleteId(tpl.id)}
-                    >
-                      Sil
-                    </DangerButton>
-                  )}
+                  <DangerButton
+                    icon={<Trash2 className="h-4 w-4" />}
+                    loading={busyId === tpl.id}
+                    onClick={() => void doDelete(tpl)}
+                  >
+                    Sil
+                  </DangerButton>
                 </div>
               ) : null}
             </Card>

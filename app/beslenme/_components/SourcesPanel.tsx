@@ -6,12 +6,15 @@
  * kaydetmek asla kaynak gerektirmez.
  *
  * link/unlink işlemleri parent'tan gelir (besin vs konu API'si farklı).
- * listSources/createSource generic olduğu için panel içinde çağrılır.
+ * "Oluştur ve Bağla" TEK istek (new_source): bağ başarısızsa sunucu yeni kaynağı geri siler →
+ * boşta (orphan) kaynak kalmaz. Katalogdaki kaynak "Sil" ile kalıcı silinir (arşiv YOK); bir
+ * kayda bağlıysa sunucu reddeder ve kullanıcıya nerede kullanıldığı söylenir.
  */
 import { useState } from "react";
-import { Archive, BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from "lucide-react";
-import type { Source } from "@/lib/beslenme/beslenmeClient";
-import { createSource, listSources, updateSource } from "@/lib/beslenme/beslenmeClient";
+import { BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from "lucide-react";
+import type { Source, SourceLinkBody } from "@/lib/beslenme/beslenmeClient";
+import { deleteSource, listSources } from "@/lib/beslenme/beslenmeClient";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { SOURCE_TYPE_LABELS, SOURCE_TYPE_OPTIONS, friendlyError } from "./constants";
 import {
   Card,
@@ -31,7 +34,7 @@ type Props = {
   links: LinkedSource[];
   /** Kaydedilmemiş yeni kayıt: kaynak eklenemez (önce kaydet). */
   disabledReason?: string;
-  onLink: (sourceId: string, locator: string | null) => Promise<boolean>;
+  onLink: (body: SourceLinkBody) => Promise<boolean>;
   onUnlink: (linkId: string) => Promise<boolean>;
 };
 
@@ -40,14 +43,15 @@ type Mode = "idle" | "pick" | "create";
 export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props) {
   const [mode, setMode] = useState<Mode>("idle");
   const [err, setErr] = useState("");
+  const deleteConfirm = useDeleteConfirm();
 
   // Picker durumu
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Source[] | null>(null);
   const [searching, setSearching] = useState(false);
-  // Katalog kaynağı arşivleme (is_active=false) — iki adımlı onay.
-  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
-  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [unlinkErr, setUnlinkErr] = useState("");
 
   // Ortak
   const [locator, setLocator] = useState("");
@@ -66,7 +70,6 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     setErr("");
     setQ("");
     setResults(null);
-    setConfirmArchiveId(null);
     setLocator("");
     setNTitle("");
     setNType("book");
@@ -92,29 +95,59 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   async function linkExisting(sourceId: string) {
     setBusy(true);
     setErr("");
-    const ok = await onLink(sourceId, locator.trim() || null);
+    const ok = await onLink({ source_id: sourceId, locator: locator.trim() || null });
     setBusy(false);
     if (ok) resetAll();
     else setErr("Kaynak bağlanamadı. Lütfen tekrar deneyin.");
   }
 
-  /**
-   * Katalog kaynağını arşivle (canonical: hard-delete DEĞİL, is_active=false).
-   * Owner-only PATCH; server tenant-scoped + demo-deny uygular. Aktif linkli olsa
-   * bile arşivlenebilir — link satırları FK bütünlüğü için DB'de kalır, ama
-   * arşivli kaynak aktif katalog aramasında (is_active=true) artık görünmez.
-   */
-  async function archiveSource(sourceId: string) {
-    setArchivingId(sourceId);
-    setErr("");
-    const r = await updateSource(sourceId, { is_active: false });
-    setArchivingId(null);
-    if (r.ok && r.data?.source) {
-      setConfirmArchiveId(null);
-      setResults((prev) => (prev ? prev.filter((s) => s.id !== sourceId) : prev));
-    } else {
-      setErr(friendlyError(r.code, r.status));
+  async function handleUnlink(l: LinkedSource) {
+    if (unlinkingId) return;
+    const ok = await deleteConfirm({
+      title: "Kaynak bağlantısını kaldır",
+      message: `"${l.source?.title ?? "Kaynak"}" bu kayıttan kaldırılacak. Kaynak, kaynak kataloğunuzda kalır.`,
+      confirmText: "Kaldır",
+    });
+    if (!ok) return;
+    setUnlinkingId(l.id);
+    setUnlinkErr("");
+    try {
+      const done = await onUnlink(l.id);
+      if (!done) setUnlinkErr("Kaynak bağlantısı kaldırılamadı. Lütfen tekrar deneyin.");
+    } finally {
+      setUnlinkingId(null);
     }
+  }
+
+  /** Katalog kaynağını KALICI sil (onaylı). Bağlı kayıt varsa sunucu 409 + kullanım sayıları. */
+  async function removeSource(s: Source) {
+    if (deletingId) return;
+    const ok = await deleteConfirm({
+      title: "Kaynağı sil",
+      message: `"${s.title}" kaynak kataloğunuzdan kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      confirmText: "Sil",
+    });
+    if (!ok) return;
+    setDeletingId(s.id);
+    setErr("");
+    const r = await deleteSource(s.id);
+    setDeletingId(null);
+    if (r.ok) {
+      setResults((prev) => (prev ? prev.filter((x) => x.id !== s.id) : prev));
+      return;
+    }
+    if (r.code === "IN_USE") {
+      const u = r.data?.usage;
+      const parts: string[] = [];
+      if (u?.topics) parts.push(`${u.topics} rehber`);
+      if (u?.foods) parts.push(`${u.foods} besin`);
+      if (u?.foodValues) parts.push(`${u.foodValues} besin değeri/porsiyon kaydı`);
+      setErr(
+        `Bu kaynak silinemedi çünkü ${parts.length ? parts.join(", ") : "başka kayıtlar"} tarafından kullanılıyor. Önce ilgili kayıtlardaki kaynak bağlantısını kaldırın.`,
+      );
+      return;
+    }
+    setErr(friendlyError(r.code, r.status));
   }
 
   async function createAndLink() {
@@ -125,23 +158,20 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     setBusy(true);
     setErr("");
     const yearNum = nYear.trim() ? Number(nYear.trim()) : null;
-    const created = await createSource({
-      title: nTitle.trim(),
-      source_type: nType,
-      authors: nAuthors.trim() || null,
-      organization: nOrg.trim() || null,
-      publication_year: yearNum && Number.isFinite(yearNum) ? yearNum : null,
-      url: nUrl.trim() || null,
+    const ok = await onLink({
+      new_source: {
+        title: nTitle.trim(),
+        source_type: nType,
+        authors: nAuthors.trim() || null,
+        organization: nOrg.trim() || null,
+        publication_year: yearNum && Number.isFinite(yearNum) ? yearNum : null,
+        url: nUrl.trim() || null,
+      },
+      locator: locator.trim() || null,
     });
-    if (!created.ok || !created.data?.source?.id) {
-      setBusy(false);
-      setErr(friendlyError(created.code, created.status));
-      return;
-    }
-    const ok = await onLink(created.data.source.id, locator.trim() || null);
     setBusy(false);
     if (ok) resetAll();
-    else setErr("Kaynak oluşturuldu ancak bağlanamadı. Kaynaklardan tekrar deneyin.");
+    else setErr("Kaynak eklenemedi. Bilgileri kontrol edip tekrar deneyin.");
   }
 
   const disabled = Boolean(disabledReason);
@@ -149,6 +179,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   return (
     <div className="flex flex-col gap-3">
       {disabled ? <StatusMessage type="info">{disabledReason}</StatusMessage> : null}
+      {unlinkErr ? <StatusMessage type="error">{unlinkErr}</StatusMessage> : null}
 
       {/* Bağlı kaynaklar */}
       {links.length === 0 ? (
@@ -197,8 +228,9 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
               {!disabled ? (
                 <button
                   type="button"
-                  onClick={() => void onUnlink(l.id)}
-                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  onClick={() => void handleUnlink(l)}
+                  disabled={unlinkingId !== null}
+                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                   title="Bağlantıyı kaldır"
                   aria-label="Kaynak bağlantısını kaldır"
                 >
@@ -302,7 +334,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                       <div className="flex items-center gap-1 px-1.5 py-1">
                         <button
                           type="button"
-                          disabled={busy || archivingId === s.id}
+                          disabled={busy || deletingId === s.id}
                           onClick={() => void linkExisting(s.id)}
                           className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-emerald-50 disabled:opacity-60"
                           title="Bu kaynağı bağla"
@@ -318,40 +350,15 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                         </button>
                         <button
                           type="button"
-                          disabled={busy || archivingId === s.id}
-                          onClick={() => setConfirmArchiveId((cur) => (cur === s.id ? null : s.id))}
-                          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 disabled:opacity-60"
-                          title="Kaynağı arşivle"
-                          aria-label="Kaynağı arşivle"
+                          disabled={busy || deletingId === s.id}
+                          onClick={() => void removeSource(s)}
+                          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
+                          title="Kaynağı kataloğdan sil"
+                          aria-label="Kaynağı kataloğdan sil"
                         >
-                          <Archive className="h-4 w-4" aria-hidden />
+                          <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
-                      {confirmArchiveId === s.id ? (
-                        <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
-                          <span className="text-[11px] font-bold text-amber-700">
-                            Kaynak arşivlensin mi? Aktif katalogda görünmez.
-                          </span>
-                          <span className="flex shrink-0 gap-1.5">
-                            <button
-                              type="button"
-                              disabled={archivingId === s.id}
-                              onClick={() => void archiveSource(s.id)}
-                              className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-black text-white transition hover:bg-amber-700 disabled:opacity-60"
-                            >
-                              {archivingId === s.id ? "Arşivleniyor…" : "Evet, Arşivle"}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={archivingId === s.id}
-                              onClick={() => setConfirmArchiveId(null)}
-                              className="rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100"
-                            >
-                              Vazgeç
-                            </button>
-                          </span>
-                        </div>
-                      ) : null}
                     </li>
                   ))}
                 </ul>

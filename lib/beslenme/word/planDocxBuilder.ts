@@ -37,6 +37,7 @@ import {
 import {
   sumNutrients,
   itemNutrientContribution,
+  energyCoverage,
   effectiveDailyTarget,
   daysBetween,
   type ItemNutrientSnapshot,
@@ -151,7 +152,12 @@ export function planDocxFilename(plan: PlanDocxPlan): string {
 
 // ── Gün toplamı (tüm öğün item'ları; HAM accumulator) ──────────────────────────
 
-type DayTotals = { energy: number; protein: number; carbohydrate: number; total_fat: number; fiber: number };
+/**
+ * energy = BİLİNEN enerji toplamı; energyMissing = enerji verisi girilmemiş kalem sayısı.
+ * EKSİK VERİ ≠ 0 kcal (web ile aynı contract: energyCoverage). Eksik kalem varsa toplam
+ * "≥ X kcal" + eksik uyarısıyla gösterilir; 0 gibi gerçek ölçüm olarak sunulmaz.
+ */
+type DayTotals = { energy: number; energyMissing: number; protein: number; carbohydrate: number; total_fat: number; fiber: number };
 
 function itemsOfDay(day: PlanDocxDay): Array<{ grams: number; nutrients: ItemNutrientSnapshot[] }> {
   const out: Array<{ grams: number; nutrients: ItemNutrientSnapshot[] }> = [];
@@ -164,9 +170,12 @@ function codeAmount(totals: { nutrient_code: string; amount: number }[], code: s
 }
 
 function dayTotals(day: PlanDocxDay): DayTotals {
-  const t = sumNutrients(itemsOfDay(day));
+  const items = itemsOfDay(day);
+  const t = sumNutrients(items);
+  const cov = energyCoverage(items);
   return {
-    energy: codeAmount(t, "energy"),
+    energy: cov.known,
+    energyMissing: cov.missingCount,
     protein: codeAmount(t, "protein"),
     carbohydrate: codeAmount(t, "carbohydrate"),
     total_fat: codeAmount(t, "total_fat"),
@@ -174,10 +183,23 @@ function dayTotals(day: PlanDocxDay): DayTotals {
   };
 }
 
-/** Item enerji katkısı (snapshot energy amount üzerinden). Yoksa 0. */
-function itemEnergy(it: PlanDocxItem): number {
-  const e = it.nutrients.find((n) => n.nutrient_code === "energy")?.amount ?? 0;
-  return itemNutrientContribution(it.grams, e);
+/** Item enerji katkısı (snapshot energy amount üzerinden). Enerji satırı YOKSA null (bilinmiyor ≠ 0). */
+function itemEnergy(it: PlanDocxItem): number | null {
+  const row = it.nutrients.find((n) => n.nutrient_code === "energy");
+  if (!row) return null;
+  return itemNutrientContribution(it.grams, row.amount);
+}
+
+/** Enerji hücresi: bilinmiyorsa "Kalori girilmemiş" (web MealCard ile aynı ifade). */
+function fmtItemEnergy(it: PlanDocxItem): string {
+  const e = itemEnergy(it);
+  return e == null ? "Kalori girilmemiş" : fmtKcal(e);
+}
+
+/** Toplam enerji: eksik kalem varsa "≥ X kcal (N kalemde enerji verisi eksik)". */
+function fmtEnergyWithCoverage(known: number, missing: number): string {
+  if (missing <= 0) return fmtKcal(known);
+  return `≥ ${fmtKcal(known)} (${missing} kalemde enerji verisi eksik)`;
 }
 
 // ── Boyut kontrolü ─────────────────────────────────────────────────────────────
@@ -269,7 +291,7 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
         const miktar =
           formatPortionLabel({ quantity: it.quantity, portionLabel: it.portion_label_snapshot }) ??
           "—";
-        return [it.food_name_snapshot || "—", miktar, fmtGram(it.grams), fmtKcal(itemEnergy(it))];
+        return [it.food_name_snapshot || "—", miktar, fmtGram(it.grams), fmtItemEnergy(it)];
       });
       body.push(...repeatingHeaderTable(HEADERS, WIDTHS, rows));
     }
@@ -282,7 +304,7 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
     const t = dayTotals(day);
     body.push(spacer());
     body.push(twoColTable([
-      ["Gün Toplamı — Enerji", fmtKcal(t.energy)],
+      ["Gün Toplamı — Enerji", fmtEnergyWithCoverage(t.energy, t.energyMissing)],
       ["Protein", fmtGram(t.protein)],
       ["Karbonhidrat", fmtGram(t.carbohydrate)],
       ["Yağ", fmtGram(t.total_fat)],
@@ -299,10 +321,10 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
     (s, d) => {
       const t = dayTotals(d);
       s.energy += t.energy; s.protein += t.protein; s.carbohydrate += t.carbohydrate;
-      s.total_fat += t.total_fat; s.fiber += t.fiber;
+      s.total_fat += t.total_fat; s.fiber += t.fiber; s.energyMissing += t.energyMissing;
       return s;
     },
-    { energy: 0, protein: 0, carbohydrate: 0, total_fat: 0, fiber: 0 },
+    { energy: 0, protein: 0, carbohydrate: 0, total_fat: 0, fiber: 0, energyMissing: 0 },
   );
   const denom = contentDayCount || 1;
   const avgEnergy = acc.energy / denom;
@@ -316,12 +338,15 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
     ["Plan Süresi (gün kaydı)", String(planDayCount)],
     ["İçerikli Gün Sayısı", String(contentDayCount)],
     ["Günlük Enerji Hedefi", target != null ? fmtKcal(target) : "—"],
-    ["Ortalama Günlük Enerji", contentDayCount ? fmtKcal(avgEnergy) : "—"],
+    ["Ortalama Günlük Enerji", contentDayCount ? (acc.energyMissing > 0 ? `≥ ${fmtKcal(avgEnergy)}` : fmtKcal(avgEnergy)) : "—"],
     ["Hedefe Göre Fark", delta != null && contentDayCount ? `${delta >= 0 ? "+" : "−"}${fmtKcal(Math.abs(delta))}` : "—"],
     ["Ortalama Protein", contentDayCount ? fmtGram(avgProtein) : "—"],
     ["Ortalama Karbonhidrat", contentDayCount ? fmtGram(avgCarb) : "—"],
     ["Ortalama Yağ", contentDayCount ? fmtGram(avgFat) : "—"],
     ["Ortalama Lif", contentDayCount ? fmtGram(avgFiber) : "—"],
+    ...(acc.energyMissing > 0
+      ? ([["Enerji Verisi Eksik Kalem", `${acc.energyMissing} kalem (toplamlara dahil edilmedi)`]] as [string, string][])
+      : []),
   ];
 
   const summary: ReportChild[] = [
