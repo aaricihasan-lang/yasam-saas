@@ -45,6 +45,7 @@ import DemoIntroModal from "@/components/demo/DemoIntroModal";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
+  DemoAccessRail,
 } from "@/components/demo/DemoAccessCard";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
@@ -747,6 +748,15 @@ export default function Home() {
   const closeLoginModal = () => {
     setLoginModalOpen(false);
     setAuthModalView("login");
+  };
+
+  // Test hesabı CTA'sı: mevcut login modalını bilgiler ön-dolu açar (otomatik giriş yok).
+  const openDemoLogin = () => {
+    setMessage("");
+    setEmail(DEMO_ACCOUNT_EMAIL);
+    setPassword(DEMO_ACCOUNT_PASSWORD);
+    setAuthModalView("login");
+    setLoginModalOpen(true);
   };
 
   const handleLoginBackdropMouseDown = (
@@ -1836,21 +1846,24 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12">
-          {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order) */}
-          <div className="relative flex w-full items-center justify-center max-sm:contents">
-            {/* Dekoratif sol kartlar */}
-            <div className="pointer-events-none absolute left-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
+        <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12 xl:max-w-[1200px]">
+          {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order).
+              ≥lg: 3 sütun — sol bilgi kartları · orta hero · sağ test hesabı erişimi */}
+          <div className="relative flex w-full items-center justify-center max-sm:contents lg:grid lg:grid-cols-[204px_minmax(0,1fr)_220px] lg:gap-4 xl:grid-cols-[236px_minmax(0,1fr)_236px] xl:gap-7">
+            {/* Sol bilgi kartları */}
+            <div className="pointer-events-none hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
                 { label: t("hero.cardModules"), icon: "🧩", sub: t("hero.cardSinglePanel") },
                 { label: t("hero.cardSinglePanel"), icon: "🖥️", sub: t("hero.cardSinglePanelSub") },
+                { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
+                { label: t("hero.cardMobile"), icon: "📱", sub: t("hero.cardMobileSub") },
               ].map((c) => (
                 <div
                   key={c.label}
-                  className="flex items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-sm backdrop-blur-sm"
+                  className="flex w-full items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3 py-2.5 text-left shadow-sm backdrop-blur-sm xl:px-3.5"
                 >
-                  <span className="text-lg">{c.icon}</span>
-                  <div>
+                  <span className="w-6 shrink-0 text-center text-lg">{c.icon}</span>
+                  <div className="min-w-0">
                     <p className="text-xs font-black text-slate-800">{c.label}</p>
                     <p className="text-[10px] text-slate-500">{c.sub}</p>
                   </div>
@@ -1859,7 +1872,7 @@ export default function Home() {
             </div>
 
             {/* Center text */}
-            <div className="flex max-w-2xl flex-col items-center max-sm:contents">
+            <div className="flex max-w-2xl flex-col items-center max-sm:contents lg:min-w-0 lg:justify-self-center">
               <h1 className="max-sm:order-1 text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
                 {t("hero.titlePart1")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
@@ -1885,36 +1898,15 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Dekoratif sağ kartlar */}
-            <div className="pointer-events-none absolute right-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
-              {[
-                { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
-              ].map((c) => (
-                <div
-                  key={c.label}
-                  className="flex items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-sm backdrop-blur-sm"
-                >
-                  <span className="text-lg">{c.icon}</span>
-                  <div>
-                    <p className="text-xs font-black text-slate-800">{c.label}</p>
-                    <p className="text-[10px] text-slate-500">{c.sub}</p>
-                  </div>
-                </div>
-              ))}
+            {/* Sağ sütun: yalnız test hesabı erişimi */}
+            <div className="hidden lg:block">
+              <DemoAccessRail onTryDemo={openDemoLogin} />
             </div>
           </div>
 
-          {/* Test / demo hesabı tanıtımı — ilk bakışta görünür */}
-          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5">
-            <DemoAccessCard
-              onTryDemo={() => {
-                setMessage("");
-                setEmail(DEMO_ACCOUNT_EMAIL);
-                setPassword(DEMO_ACCOUNT_PASSWORD);
-                setAuthModalView("login");
-                setLoginModalOpen(true);
-              }}
-            />
+          {/* Test / demo hesabı tanıtımı — <lg geniş kart; ≥lg sağ sütundaki kompakt varyant */}
+          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
+            <DemoAccessCard onTryDemo={openDemoLogin} />
           </div>
         </section>
 

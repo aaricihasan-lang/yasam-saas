@@ -56,8 +56,7 @@ function CredentialRow({
   );
 }
 
-export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void }) {
-  const t = useTranslations("home.demoAccess");
+function useCopyFeedback() {
   const [copied, setCopied] = useState<CopyField | null>(null);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -76,6 +75,13 @@ export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void })
     if (resetTimer.current) clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => setCopied(null), 1800);
   };
+
+  return { copied, copy };
+}
+
+export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void }) {
+  const t = useTranslations("home.demoAccess");
+  const { copied, copy } = useCopyFeedback();
 
   return (
     <section
@@ -138,6 +144,102 @@ export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void })
             <p className="mt-2 text-[11px] font-semibold text-slate-500">{t("note")}</p>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function RailCredential({
+  icon: Icon,
+  label,
+  value,
+  copied,
+  copyLabel,
+  copiedLabel,
+  onCopy,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  copied: boolean;
+  copyLabel: string;
+  copiedLabel: string;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 xl:gap-2.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100/80 text-violet-600 xl:h-8 xl:w-8">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9.5px] font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+        <p className="truncate font-mono text-[14px] font-bold tracking-tight text-slate-900 select-all">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        title={copied ? copiedLabel : copyLabel}
+        aria-label={`${copied ? copiedLabel : copyLabel}: ${label}`}
+        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 ${
+          copied
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+        }`}
+      >
+        {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+      </button>
+    </div>
+  );
+}
+
+const RAIL_BLOCK =
+  "rounded-2xl border border-violet-200/70 bg-gradient-to-br from-white/95 via-white/90 to-violet-50/80 px-3 py-2.5 text-left shadow-[0_4px_16px_rgba(109,40,217,0.10)] backdrop-blur-sm";
+
+/** Hero sağ sütunu için kompakt dikey varyant (geniş ekran). */
+export function DemoAccessRail({ onTryDemo }: { onTryDemo: () => void }) {
+  const t = useTranslations("home.demoAccess");
+  const { copied, copy } = useCopyFeedback();
+
+  return (
+    <section aria-label={t("title")} className="flex w-full flex-col gap-2.5">
+      <div className={RAIL_BLOCK}>
+        <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-[0.14em] text-emerald-700">
+          <span className="relative flex h-1.5 w-1.5" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          {t("badge")}
+        </span>
+        <RailCredential
+          icon={Mail}
+          label={t("emailLabel")}
+          value={DEMO_ACCOUNT_EMAIL}
+          copied={copied === "email"}
+          copyLabel={t("copy")}
+          copiedLabel={t("copied")}
+          onCopy={() => copy("email", DEMO_ACCOUNT_EMAIL)}
+        />
+      </div>
+
+      <div className={RAIL_BLOCK}>
+        <RailCredential
+          icon={KeyRound}
+          label={t("passwordLabel")}
+          value={DEMO_ACCOUNT_PASSWORD}
+          copied={copied === "password"}
+          copyLabel={t("copy")}
+          copiedLabel={t("copied")}
+          onCopy={() => copy("password", DEMO_ACCOUNT_PASSWORD)}
+        />
+        <button
+          type="button"
+          onClick={onTryDemo}
+          className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-3 py-2 text-[12.5px] font-bold leading-tight text-white shadow-[0_6px_18px_rgba(109,40,217,0.32)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+        >
+          {t("cta")}
+          <span aria-hidden>→</span>
+        </button>
+        <p className="mt-1.5 text-center text-[10px] leading-4 text-slate-500">{t("note")}</p>
       </div>
     </section>
   );
