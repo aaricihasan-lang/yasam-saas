@@ -36,6 +36,15 @@ import {
   buildResolvedStonesText,
   toResolvedStone,
 } from "../../lib/dogaltas/combinationStonesRead";
+import {
+  LONG_TEXT_BACKDROP_GUARD_MS,
+  LONG_TEXT_EDITOR_CLOSED,
+  canCloseFromBackdrop,
+  closeLongTextEditor,
+  needsDiscardConfirm,
+  openLongTextEditor,
+  shouldAutoOpenLongText,
+} from "../../lib/dogaltas/longTextEditor";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "../..");
@@ -379,6 +388,90 @@ function read(rel: string): string {
   ok("READ helper: tablo yok/hata → legacy fallback (rows döner)", /if \(error\) return rows/.test(helper));
   ok("READ helper: junction yok → legacy (stones_text değişmez)", /if \(!resolved \|\| resolved\.length === 0\) return row/.test(helper));
   // (DB stones_text UPDATE etmez → yukarıdaki "mutation YOK" gate'i zaten kapsar.)
+}
+
+// ─── UX-LT: uzun metin alanı → geniş editör OTOMATİK açılır (satış öncesi kapanış) ──
+{
+  // Canlı senkron editör simülasyonu: form state + editör state saf fonksiyonlarla.
+  let form = { spiritual_effects: "Deneme metni", physical_effects: "", stone_name: "" };
+  let ed = LONG_TEXT_EDITOR_CLOSED;
+  const T0 = 1_000_000;
+
+  // 1. Ruhsal Etkiler tıklama → açılır.
+  ed = openLongTextEditor(ed, "pointer", T0);
+  ok("UX-LT-1 Ruhsal Etkiler tık → geniş editör açılır", ed.open);
+  // 9. Aynı tıklamanın ikinci olayı (çift tık) → idempotent, ikinci modal yok.
+  const again = openLongTextEditor(ed, "pointer", T0 + 5);
+  ok("UX-LT-9 çift olay → aynı state (ikinci modal yok)", again === ed && again.openedAt === T0);
+  // 5. Mevcut metin editörde aynı (editör form değerini doğrudan gösterir, taslak yok).
+  ok("UX-LT-5 mevcut metin editörde aynı ('Deneme metni')", form.spiritual_effects === "Deneme metni");
+  // 6. Editörde değişiklik → form state anında güncellenir; kapatınca korunur.
+  const onChange = (v: string) => { form = { ...form, spiritual_effects: v }; };
+  onChange("Deneme metni 2");
+  ed = closeLongTextEditor(ed, "done", T0 + 2000);
+  ok("UX-LT-6 kapatma sonrası form state 'Deneme metni 2'", !ed.open && form.spiritual_effects === "Deneme metni 2");
+  // 7. ESC / × / arka plan → veri kaybı yok (metin form state'inde).
+  for (const reason of ["escape", "close-button", "backdrop"] as const) {
+    let s = openLongTextEditor(LONG_TEXT_EDITOR_CLOSED, "pointer", T0);
+    onChange(`metin-${reason}`);
+    s = closeLongTextEditor(s, reason, T0 + 2000);
+    ok(`UX-LT-7 ${reason} kapatma → metin korunur`, !s.open && form.spiritual_effects === `metin-${reason}`);
+  }
+  // Çift tıklamanın ikinci tıkı arka plana düşerse editör anında KAPANMAZ (guard).
+  const guarded = closeLongTextEditor(openLongTextEditor(LONG_TEXT_EDITOR_CLOSED, "pointer", T0), "backdrop", T0 + 50);
+  ok("UX-LT-9b açılıştan hemen sonra arka plan tıkı editörü kapatmaz", guarded.open);
+  ok("UX-LT backdrop guard sınırı (≥ guard ms kapatır)", canCloseFromBackdrop(T0, T0 + LONG_TEXT_BACKDROP_GUARD_MS));
+  // 4. ⤢ ok butonu → açılır.
+  ok("UX-LT-4 ⤢ ok → açılır", openLongTextEditor(LONG_TEXT_EDITOR_CLOSED, "arrow", T0).open);
+  // 8. Mobil dokunma: tap → click olayı → "pointer" kaynağı ile aynı yol.
+  ok("UX-LT-8 dokunma (tap→click=pointer) → açılır", shouldAutoOpenLongText("pointer"));
+  // Klavye (Tab) odağı AÇMAZ (focus-loop yok); devre dışı alan açmaz.
+  ok("UX-LT klavye odağı editör açmaz", !openLongTextEditor(LONG_TEXT_EDITOR_CLOSED, "keyboard", T0).open);
+  ok("UX-LT disabled alan açmaz", !openLongTextEditor(LONG_TEXT_EDITOR_CLOSED, "pointer", T0, true).open);
+  // Taslaklı (DB-kaydet) editör: değişiklik varsa kapatma onayı; yoksa doğrudan kapanır.
+  ok("UX-LT taslak değişmedi → onay gerekmez", !needsDiscardConfirm('"a"', '"a"'));
+  ok("UX-LT taslak değişti → onay gerekir", needsDiscardConfirm('"a"', '"a b"'));
+
+  // Kaynak kapıları: bileşen sözleşmesi.
+  const comp = read("app/dogaltas/components/LongTextField.tsx");
+  ok("UX-LT bileşen: textarea onClick → open('pointer')", /onClick=\{\(\) => open\("pointer"\)\}/.test(comp));
+  ok("UX-LT bileşen: ⤢ butonu → open('arrow')", /onClick=\{\(\) => open\("arrow"\)\}/.test(comp));
+  ok("UX-LT bileşen: onFocus ile AÇMAZ (focus-loop yok)", !/onFocus=/.test(comp));
+  ok("UX-LT bileşen: editör taslaksız, onChange doğrudan forma", /onChange=\{\(event\) => onChange\(event\.target\.value\)\}/.test(comp));
+  ok("UX-LT bileşen: portal (transform'lu kart dışına)", comp.includes("createPortal("));
+  ok("UX-LT bileşen: Esc yayılımı durdurulur (alttaki modal kapanmaz)", comp.includes("event.stopPropagation()") && comp.includes("closeOnEsc: false"));
+  ok("UX-LT bileşen: ilk focus editör textarea (initialFocusRef)", comp.includes("initialFocusRef: textareaRef"));
+
+  // 2. Her uzun metin code-path'i ortak bileşeni kullanır; ham <textarea> kalmaz.
+  const LT_PAGES: Array<[string, number]> = [
+    ["app/dogaltas/dogaltas-kayit/page.tsx", 5],
+    ["app/dogaltas/mineral-listesi/[id]/page.tsx", 2],
+    ["app/dogaltas/kombinasyonlar/[title]/page.tsx", 1],
+    ["app/dogaltas/kombinasyon-olustur/page.tsx", 1],
+    ["app/dogaltas/tas-bilgi-kutuphanesi/page.tsx", 3],
+  ];
+  for (const [rel, min] of LT_PAGES) {
+    const src = read(rel);
+    const uses = (src.match(/<LongTextField\b/g) ?? []).length;
+    ok(`UX-LT-2 ${rel}: LongTextField ×${min}+ (bulundu ${uses})`, uses >= min);
+    ok(`UX-LT-2 ${rel}: ham <textarea> yok`, !/<textarea\b/.test(src));
+  }
+  const kayit = read("app/dogaltas/dogaltas-kayit/page.tsx");
+  ok("UX-LT-1 kayıt: effects bölümü (Ruhsal Etkiler dahil) LongTextField", /effectSections\.map[\s\S]{0,2500}<LongTextField/.test(kayit));
+  ok("UX-LT kayıt: eski yalnız-⤢ ExpandableTextarea kaldırıldı", !kayit.includes("ExpandableTextarea"));
+  // 3. Kısa tek satır alan (stone_name) <input> kalır, geniş editör açmaz.
+  ok("UX-LT-3 stone_name tek satır <input> (LongTextField değil)",
+    /<input\s+type="text"\s+value=\{formData\.stone_name\}/.test(kayit) && !/<LongTextField[^>]*stone_name/.test(kayit));
+
+  // Taslaklı taş detay editörü: sessiz atma yok + imleç textarea'da.
+  const detail = read("app/dogaltas/dogaltas-listesi/[id]/page.tsx");
+  ok("UX-LT detay: Esc/arka plan/Vazgeç → requestCloseEditor (onaylı)",
+    (detail.match(/requestCloseEditor/g) ?? []).length >= 4 && detail.includes("needsDiscardConfirm("));
+  ok("UX-LT detay: arka plan artık setActiveEditor(null) ile sessizce atmaz",
+    !/currentTarget && !saving\) \{\s*setActiveEditor\(null\)/.test(detail));
+  ok("UX-LT detay: editör textarea initialFocusRef ile odaklanır", detail.includes("editorTextareaRef") && detail.includes("initialFocusRef"));
+  const bank = read("app/dogaltas/mineral-bankasi/page.tsx");
+  ok("UX-LT mineral bankası: geniş editör Esc/focus (useOverlay)", bank.includes("useOverlay<HTMLDivElement>") && bank.includes("initialFocusRef: editorTextareaRef"));
 }
 
 // ─── Sonuç ──────────────────────────────────────────────────────────────────────

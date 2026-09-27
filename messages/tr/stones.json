@@ -14,6 +14,21 @@
       "unnamedStone": "İsimsiz taş",
       "workspaceUnavailable": "Çalışma alanı bilgileriniz yüklenemedi. Lütfen yeniden giriş yapın."
     },
+    "longText": {
+      "expand": "Geniş ekranda düzenle",
+      "badge": "GENİŞ EDİTÖR",
+      "subtitle": "Uzun metinleri rahatça yazın. Değişiklikler forma anında işlenir.",
+      "close": "Editörü kapat",
+      "done": "Tamam",
+      "charCount": "{n} karakter",
+      "autoSync": "Yazdıkça forma kaydedilir",
+      "discard": {
+        "title": "Kaydedilmemiş değişiklikler var",
+        "message": "Şimdi kapatırsanız bu editördeki değişiklikler kaydedilmez.",
+        "keepEditing": "Düzenlemeye dön",
+        "discard": "Değişiklikleri at"
+      }
+    },
     "modules": {
       "home": {
         "title": "Doğaltaş"

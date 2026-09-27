@@ -14,6 +14,21 @@
       "unnamedStone": "Untitled Stone",
       "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again."
     },
+    "longText": {
+      "expand": "Edit in wide editor",
+      "badge": "WIDE EDITOR",
+      "subtitle": "Write long text comfortably. Your changes are applied to the form instantly.",
+      "close": "Close editor",
+      "done": "Done",
+      "charCount": "{n} characters",
+      "autoSync": "Saved to the form as you type",
+      "discard": {
+        "title": "You have unsaved changes",
+        "message": "If you close now, the changes in this editor will not be saved.",
+        "keepEditing": "Keep editing",
+        "discard": "Discard changes"
+      }
+    },
     "modules": {
       "home": {
         "title": "Natural Stone"

@@ -23,6 +23,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
+import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -1033,12 +1034,14 @@ export default function TasBilgiKutuphanesiPage() {
               </div>
               <div className="lg:col-span-2">
                 <label className="mb-1 block text-xs font-black text-slate-700">{t("form.contentLabel")}</label>
-                <textarea
+                <LongTextField
                   value={form.content}
-                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  onChange={(value) => setForm((f) => ({ ...f, content: value }))}
+                  title={t("form.contentLabel")}
                   placeholder={t("form.contentPlaceholder")}
                   rows={6}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  textareaClassName="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  testId="knowledge_create_content"
                 />
               </div>
             </div>
@@ -1454,12 +1457,14 @@ export default function TasBilgiKutuphanesiPage() {
                   <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
                     <div className="rounded-2xl border border-white bg-white px-8 py-6 shadow-sm sm:px-10 lg:px-14">
                       <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">{t("edit.contentLabel")}</label>
-                      <textarea
+                      <LongTextField
                         value={editForm.content}
-                        onChange={(e) => setEditForm((f) => ({ ...f, content: e.target.value }))}
+                        onChange={(value) => setEditForm((f) => ({ ...f, content: value }))}
+                        title={t("edit.contentLabel")}
                         placeholder={t("form.contentPlaceholder")}
                         rows={20}
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                        textareaClassName="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                        testId="knowledge_edit_content"
                       />
                       <div className="mt-4 flex justify-end gap-2">
                         <button
@@ -1696,13 +1701,15 @@ export default function TasBilgiKutuphanesiPage() {
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-black text-slate-700">{t("edit.contentLabel")}</label>
-                      <textarea
+                      <LongTextField
                         value={bulkUpdateForm.content}
-                        onChange={(e) => setBulkUpdateForm((f) => ({ ...f, content: e.target.value }))}
+                        onChange={(value) => setBulkUpdateForm((f) => ({ ...f, content: value }))}
+                        title={t("edit.contentLabel")}
                         disabled={!bulkUpdateTextEdit}
                         placeholder={t("bulkUpdate.noChangePlaceholder")}
                         rows={10}
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                        textareaClassName="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                        testId="knowledge_bulk_content"
                       />
                     </div>
                   </>
