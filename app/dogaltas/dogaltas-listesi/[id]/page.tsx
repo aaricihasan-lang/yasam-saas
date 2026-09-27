@@ -846,9 +846,18 @@ function StoneDetailPage() {
       payload.assignments = check.value;
     }
 
-    const { ok, row: data, error } = await updateStone(stone.id, payload);
+    // F-03: yüklenen kaydın updated_at'i gönderilir → başka oturum araya yazdıysa 409;
+    // son-yazan sessizce ezmez. Taslak editörde KORUNUR, kayıt arka planda tazelenir.
+    const { ok, row: data, error, conflict } = await updateStone(stone.id, payload, stone.updated_at);
 
     setSaving(false);
+
+    if (conflict) {
+      setErrorMessage(error ?? t("editor.updateFailedFallback"));
+      const fresh = await getStone(stone.id);
+      if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
+      return;
+    }
 
     if (!ok || !data) {
       setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
