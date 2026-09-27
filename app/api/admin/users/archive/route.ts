@@ -28,7 +28,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("full_name", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Arşiv okunamadı." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const users = (data ?? []) as unknown as Record<string, unknown>[];
@@ -82,5 +82,5 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
   }
 
-  return NextResponse.json({ ok: true, users, deactivations });
+  return NextResponse.json({ ok: true, users, deactivations }, { headers: { "Cache-Control": "private, no-store" } });
 }

@@ -106,5 +106,5 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       high30d:       highRes.count ?? 0,
       suspicious30d: medRes.count  ?? 0,
     },
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }

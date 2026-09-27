@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
+import { isYhSourceModuleInScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import {
   parseSnapshotCreate,
@@ -85,6 +86,9 @@ async function gate(
     clientId,
     actorUserId: userId,
     allowShared: flags.yh_shared === true,
+    // ÜYE YÖNETİMİ FAZ 2: yeni snapshot yalnız AKTİF modül kapsamından (GÜNCEL module_permissions).
+    isSourceModuleInScope: (m: string) =>
+      isYhSourceModuleInScope(resolveYhModuleScope(profile?.role, profile?.module_permissions), m),
   };
   return { ok: true, gate: { ctx, clientId } };
 }

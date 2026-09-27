@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     .limit(MAX_ROWS);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem geçmişi okunamadı." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const rows = (data ?? []) as Record<string, unknown>[];
@@ -120,5 +120,5 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     };
   }
 
-  return NextResponse.json({ ok: true, rows: result, firstApproval });
+  return NextResponse.json({ ok: true, rows: result, firstApproval }, { headers: { "Cache-Control": "private, no-store" } });
 }

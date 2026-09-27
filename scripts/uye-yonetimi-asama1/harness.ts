@@ -128,14 +128,16 @@ ok(/eq\("role",\s*"expert"\)/.test(archiveRoute) && /eq\("approval_status",\s*"a
 
 const detail = read("app/admin/users/[id]/page.tsx");
 ok(/loadAudit/.test(detail) && /deriveBaseExpertAccess/.test(detail), "detay: audit çekimi + gerçek erişim türetimi");
-ok(/onaylayan bilgisi mevcut değil/.test(detail), "detay: onaylayan yoksa dürüst fallback");
+// FAZ 2 profil özeti: onaylayan eşleşmezse yanlış isim yerine "kayıt bulunamadı".
+ok(/Onaylayan: \{approverName \?\? "kayıt bulunamadı"\}/.test(detail), "detay: onaylayan yoksa dürüst fallback");
 // Issue-2: onaylayan adı, korunan tarihle AYNI kayıttan türer (en-yeni user_approved find KALDIRILDI)
 ok(/approverForPreservedDate\(\s*auditFirstApproval/.test(detail), "detay: onaylayan approverForPreservedDate ile (tarih=kayıt eşleşmesi)");
 ok(!/auditRows\.find\(\(r\) => r\.action === "user_approved"\)/.test(detail), "detay: 'en yeni user_approved' seçimi KALDIRILDI (yeniden-onay uyuşmazlığı yok)");
 ok(/Pasife Al ve Arşivle/.test(detail) && !/savePackageMembership/.test(detail) && !/SİLMEYİ ONAYLIYORUM/.test(detail), "detay: 'Sil' düzeltildi + ayrı Premium butonu kaldırıldı");
 const list = read("app/admin/users/page.tsx");
 // Arşiv sekmesi: view-seçim OLAYINDA veri yükler (effect içinde senkron setState değil).
-ok(/\/api\/admin\/users\/archive/.test(list) && /ArchiveUserRow/.test(list) && /handleSelectView\("archive"\)/.test(list) && /loadArchive\(currentUserId\)/.test(list), "liste: Arşiv sekmesi (olay-güdümlü yükleme)");
+// FAZ 2: arşiv sekmesi URL durumu (view=archive) ile yüklenir; setState yalnız fetch geri çağrısında.
+ok(/\/api\/admin\/users\/archive/.test(list) && /ArchiveUserRow/.test(list) && /query\.view !== "archive"/.test(list) && /setArchiveResult\(\{ key, state \}\)/.test(list), "liste: Arşiv sekmesi (URL-güdümlü yükleme)");
 ok(/action:\s*"toggle_active",\s*currentActive:\s*false/.test(list), "liste: arşivden yeniden aktifleştirme (toggle_active)");
 
 console.log(`\n──────────\nPASS ${passed} · FAIL ${failed}`);

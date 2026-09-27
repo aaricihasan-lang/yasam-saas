@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
+import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { buildRetrievalDescriptor } from "@/lib/yasam-hafizasi/search/queryPipeline";
 import { createSupabaseRetrievalExecutor } from "@/lib/yasam-hafizasi/search/supabaseRetrievalAdapter";
 import {
@@ -83,7 +84,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (execResult.kind === "noop") return empty(q, { emptyReason: "no-results" });
 
   // Candidate → güvenli DTO; faset TÜM sonuçtan; sunum modül filtresi + limit.
-  const all = execResult.candidates.map(toSearchResult);
+  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = uzmanın GÜNCEL module_permissions'ı (tek kaynak).
+  // Kapalı modülün kayıtları silinmez; yalnız sonuç/facet'ten çıkar.
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+  const all = filterByYhScope(scope, execResult.candidates.map(toSearchResult));
   const facets = computeFacets(all);
   const displayed = filterByModules(all, modules).slice(0, limit);
   const emptyReason =

@@ -47,6 +47,11 @@ export interface SnapshotContext {
   actorUserId: string;
   /** professional shared (tenant NULL) satırlarına izin (flags.yh_shared). */
   allowShared: boolean;
+  /**
+   * ÜYE YÖNETİMİ FAZ 2: aktif modül kapsamı (lib/yasam-hafizasi/moduleScope). Verilirse kapsam
+   * dışı source_module YENİ snapshot'a alınmaz (skipped). Mevcut snapshot'lar SİLİNMEZ/okunur.
+   */
+  isSourceModuleInScope?: (sourceModule: string) => boolean;
 }
 
 export interface SnapshotTarget {
@@ -200,6 +205,10 @@ export async function createSnapshotSelections(
   for (const ref of parsed.items) {
     const cand = await readCandidate(ctx, ref);
     if (!cand) {
+      skipped += 1;
+      continue;
+    }
+    if (ctx.isSourceModuleInScope && !ctx.isSourceModuleInScope(cand.sourceModule)) {
       skipped += 1;
       continue;
     }

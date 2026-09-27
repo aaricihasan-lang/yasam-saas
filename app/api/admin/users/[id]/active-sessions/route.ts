@@ -114,5 +114,5 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     sessionsTotal = countRes.count ?? 0;
   }
 
-  return NextResponse.json({ sessions: displaySessions, sessionsTotal, summary });
+  return NextResponse.json({ sessions: displaySessions, sessionsTotal, summary }, { headers: { "Cache-Control": "private, no-store" } });
 }

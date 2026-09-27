@@ -190,8 +190,9 @@ function run(): void {
   // ── 7) FİLTRE SADELEŞTİRME (statik) ────────────────────────────────────────
   const usersList = readFileSync("app/admin/users/page.tsx", "utf8");
   ok(!/Askıda/.test(usersList), "filtre: 'Askıda' kaldırıldı");
-  ok(/matchesUserFilters/.test(usersList) && /DEFAULT_USER_FILTERS/.test(usersList), "filtre: gruplu bağımsız boyutlar");
-  ok(/STATUS_FILTER_OPTIONS/.test(usersList) && /APPROVAL_FILTER_OPTIONS/.test(usersList) && /ROLE_FILTER_OPTIONS/.test(usersList), "filtre: Durum/Kayıt/Rol grupları");
+  // ÜYE YÖNETİMİ FAZ 2: filtreler sunucu tarafında (URL durumu → /api/admin/users); bağımsız boyutlar korunur.
+  ok(/parseMemberListQuery/.test(usersList) && /DEFAULT_MEMBER_LIST_QUERY/.test(usersList), "filtre: gruplu bağımsız boyutlar (sunucu tarafı)");
+  ok(/APPROVAL_OPTIONS/.test(usersList) && /ACTIVE_OPTIONS/.test(usersList) && /ROLE_OPTIONS/.test(usersList) && /label="Onay Durumu"/.test(usersList), "filtre: Onay Durumu / Hesap Durumu / Rol grupları");
   ok(/Filtreleri Temizle/.test(usersList), "filtre: tek Temizle davranışı");
 
   // ── 8) ADMIN/TEST UYARI SERTLEŞTİRME (statik lock — D) ─────────────────────

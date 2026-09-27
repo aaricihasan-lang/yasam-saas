@@ -68,7 +68,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   // GİZLİLİK KARARI (2026-08-24): Admin/owner uzman private-content görüntüleme
   // özelliği kaldırıldı → `viewerIsSuperAdmin` capability alanı artık DÖNMEZ
   // (UI'da workspace kartı da kaldırıldı). Yalnız hesap yönetimi metadata'sı döner.
-  return NextResponse.json({ user: data, paymentHistory: history ?? [] });
+  return NextResponse.json({ user: data, paymentHistory: history ?? [] }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 async function audit(

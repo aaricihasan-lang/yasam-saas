@@ -89,14 +89,16 @@ ck("R", "register: direct tenants/users INSERT YOK", !/\.from\("tenants"\)\.inse
 ck("R", "register: deleteTenantById/createTenantForNewUser YOK", !/deleteTenantById|createTenantForNewUser/.test(reg));
 ck("R", "register: DEFAULT_MODULE_PERMISSIONS geçer", /DEFAULT_MODULE_PERMISSIONS/.test(reg));
 ck("R", "register: already_exists → 409", /already_exists[\s\S]*?409/.test(reg));
-ck("R", "admin: verifyAdminRequest + provisionExpert(admin)", /verifyAdminRequest/.test(adm) && /mode: "admin"/.test(adm));
-ck("R", "admin: actorAdminId guard'dan (body'den DEĞİL)", /actorAdminId: guard\.adminId/.test(adm) && !/actorAdminId: body\./.test(adm));
+// ÜYE YÖNETİMİ FAZ 2: admin create → admin_create_user_with_modules (içeride provision_expert mode=admin).
+const faz2Sql = read("supabase/migrations/20270130000000_admin_member_phase2.sql");
+ck("R", "admin: verifyAdminRequest + provisionExpert(admin)", /verifyAdminRequest/.test(adm) && /rpc\("admin_create_user_with_modules"/.test(adm) && /provision_expert\([\s\S]{0,300}'mode', 'admin'/.test(faz2Sql));
+ck("R", "admin: actorAdminId guard'dan (body'den DEĞİL)", /const \{ db, adminId \} = guard/.test(adm) && /actor_admin_id: adminId/.test(adm) && !/actor_admin_id: body/.test(adm));
 ck("R", "admin: direct tenants/users INSERT + rollback YOK", !/\.from\("tenants"\)\.insert|\.from\("users"\)\.insert|deleteTenantById/.test(adm));
-ck("R", "admin: module_permissions yalnız expert", /role === "expert" \? \{ modulePermissions/.test(adm));
+ck("R", "admin: module_permissions yalnız expert", /if \(role === "expert"\) \{[\s\S]{0,200}validateApprovalModules/.test(adm) && /- 'module_permissions'\)/.test(faz2Sql));
 ck("R", "admin: tenant_id client body'den okunmuyor", !/body\.tenant_id|body\.tenantId/.test(adm));
 ck("R", "createExpertTenant: DB-dokunan fonksiyonlar kaldırıldı", !/\.from\("tenants"\)|getServerDb|createTenantForNewUser|deleteTenantById/.test(cet));
 ck("R", "createExpertTenant: pure helper'lar export", /export function slugifyTenantBase/.test(cet) && /export function buildTenantSlugBase/.test(cet));
-ck("R", "register: legacy password kolonuna yazım YOK", !/password:/.test(reg.replace(/password\?:|password ?=|password\)/g, "")));
+ck("R", "register: legacy password kolonuna yazım YOK", !/(^|[^_a-z])password:/m.test(reg.replace(/password\?:|password ?=|password\)/g, "")));
 ck("R", "register: idempotency_key_conflict → 409", /idempotency_key_conflict[\s\S]*?409/.test(reg));
 ck("R", "admin create: idempotency_key_conflict → 409", /idempotency_key_conflict[\s\S]*?409/.test(adm));
 

@@ -216,7 +216,14 @@ async function run(): Promise<void> {
     const reg = read("app/api/register/route.ts");
     add("register-default-perms-no-yh", /modulePermissions:\s*DEFAULT_MODULE_PERMISSIONS/.test(reg), "");
     const adminCreate = read("app/api/admin/users/route.ts");
-    add("admin-create-default-perms-no-yh", /modulePermissions:\s*DEFAULT_MODULE_PERMISSIONS/.test(adminCreate), "");
+    // ÜYE YÖNETİMİ FAZ 2: admin create tek yol → admin_create_user_with_modules (provision ile
+    // module_permissions='{}' + onay RPC'si). YH izni yalnız yh_grade eligibility'sinden; route
+    // yasam_hafizasi YAZMAZ (seçilebilir modül whitelist'inde de yok).
+    const faz2Sql = read("supabase/migrations/20270130000000_admin_member_phase2.sql").replace(/--[^\n]*/g, "");
+    add("admin-create-default-perms-no-yh",
+      /rpc\("admin_create_user_with_modules"/.test(adminCreate) && !/yasam_hafizasi/.test(stripComments(adminCreate))
+      && /'module_permissions', '\{\}'::jsonb/.test(faz2Sql)
+      && /public\.admin_approve_expert_with_modules\(/.test(faz2Sql), "");
 
     // DEFAULT fail-closed false + generic premium payload YH içermez (kaynak seviyesi).
     const mp = read("lib/auth/modulePermissions.ts");

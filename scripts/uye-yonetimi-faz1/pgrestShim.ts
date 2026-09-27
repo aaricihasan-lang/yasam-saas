@@ -109,13 +109,13 @@ export type ShimStats = { requests: number; errors: number };
 
 export async function startPgrestShim(pool: Pool): Promise<{ url: string; close: () => Promise<void>; stats: ShimStats }> {
   const stats: ShimStats = { requests: 0, errors: 0 };
-  const fnArgCache = new Map<string, Map<string, string>>();
+  const fnArgCache = new Map<string, { args: Map<string, string>; setof: boolean }>();
 
-  async function fnArgs(client: pg.PoolClient, fn: string): Promise<Map<string, string>> {
+  async function fnArgs(client: pg.PoolClient, fn: string): Promise<{ args: Map<string, string>; setof: boolean }> {
     const cached = fnArgCache.get(fn);
     if (cached) return cached;
     const r = await client.query(
-      `select p.proargnames as names, (select array_agg(format_type(t, null) order by i)
+      `select p.proargnames as names, p.proretset as setof, (select array_agg(format_type(t, null) order by i)
                 from unnest(p.proargtypes) with ordinality as a(t, i)) as types
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and p.proname = $1`,
@@ -126,8 +126,9 @@ export async function startPgrestShim(pool: Pool): Promise<{ url: string; close:
     const types: string[] = r.rows[0].types ?? [];
     const m = new Map<string, string>();
     names.forEach((n, i) => m.set(n, types[i]));
-    fnArgCache.set(fn, m);
-    return m;
+    const entry = { args: m, setof: r.rows[0].setof === true };
+    fnArgCache.set(fn, entry);
+    return entry;
   }
 
   const server = http.createServer(async (req, res) => {
@@ -149,7 +150,7 @@ export async function startPgrestShim(pool: Pool): Promise<{ url: string; close:
         if (!IDENT_RE.test(fn)) return send(404, { code: "PGRST202", message: "fn" });
         const raw = await readBody(req);
         const args = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-        const sig = await fnArgs(client, fn);
+        const { args: sig, setof } = await fnArgs(client, fn);
         const values: unknown[] = [];
         const parts: string[] = [];
         for (const [k, v] of Object.entries(args)) {
@@ -157,6 +158,11 @@ export async function startPgrestShim(pool: Pool): Promise<{ url: string; close:
           if (!t) return send(404, { code: "PGRST202", message: `arg yok: ${k}`, details: null, hint: null });
           values.push(t === "jsonb" || t === "json" ? JSON.stringify(v) : v);
           parts.push(`${qi(k)} => $${values.length}::${t}`);
+        }
+        // SETOF/TABLE dönen fonksiyon → PostgREST gibi TÜM satırlar dizi olarak döner.
+        if (setof) {
+          const r = await client.query(`select * from public.${qi(fn)}(${parts.join(", ")})`, values);
+          return send(200, r.rows);
         }
         const r = await client.query(`select public.${qi(fn)}(${parts.join(", ")}) as result`, values);
         return send(200, r.rows[0]?.result ?? null);

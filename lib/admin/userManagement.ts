@@ -294,8 +294,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatusUi, string> = {
   paid: "Ödendi",
   pending: "Bekliyor",
   overdue: "Gecikti",
-  exempt: "Muaf",
-  unknown: "Tanımsız",
+  exempt: "Ödemeden Muaf",
+  unknown: "Belirtilmemiş",
 };
 
 export const PAYMENT_STATUS_SELECT_OPTIONS: {
@@ -305,7 +305,7 @@ export const PAYMENT_STATUS_SELECT_OPTIONS: {
   { value: "paid", label: "Ödendi" },
   { value: "pending", label: "Bekliyor" },
   { value: "overdue", label: "Gecikti" },
-  { value: "exempt", label: "Muaf" },
+  { value: "exempt", label: "Ödemeden Muaf" },
 ];
 
 export type PaymentSnapshot = {

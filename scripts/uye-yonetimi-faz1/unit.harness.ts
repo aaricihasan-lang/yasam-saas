@@ -171,7 +171,9 @@ for (const a of ADMIN_AUDIT_ACTIONS) ok(mig.includes(`'${a}'`), `migration CHECK
 // ─── UI kaynak sözleşmesi (MEM-003/004/007/013) ──────────────────────────────
 console.log("\n[UI] Detay sayfası sözleşmesi");
 const page = read("app/admin/users/[id]/page.tsx");
-ok(/user\.role === "expert" && user\.approvalStatus === "pending" \? \(/.test(page), "Onayla/Reddet yalnız PENDING uzmanda render edilir");
+// FAZ 2 hiyerarşisi: onay grubu yalnız ONAYLI OLMAYAN uzmanda; "Başvuruyu Reddet" yalnız PENDING'de.
+ok(/user\.role === "expert" && user\.approvalStatus !== "approved" \? \(/.test(page)
+  && /user\.approvalStatus === "pending" \? \([\s\S]{0,700}Başvuruyu Reddet/.test(page), "Onayla/Reddet yalnız onay bekleyende (Reddet yalnız PENDING)");
 ok(/onClick=\{\(\) => setRejectOpen\(true\)\}/.test(page) && /confirmReject/.test(page), "Reddet → onay modalı (tek tık ret YOK)");
 ok(/Yeniden Onayla/.test(page), "reddedilmiş uzman için kontrollü 'Yeniden Onayla'");
 ok(/openApproveModal/.test(page) && /ModuleCheckboxGrid/.test(page) && /disabled=\{actionUserId === user\.id \|\| !approveHasModule\}/.test(page), "Onay modalı modül seçimi zorunlu (modülsüz submit disabled)");
@@ -181,7 +183,8 @@ ok(/changes: \{ \[key\]: nextValue \}/.test(page) && !/modulePermissions: adminP
 ok(!/active: editForm\.active/.test(page) && !/active: user\.active,\s*modulePermissions/.test(page), "profil formu active göndermez");
 ok(!/\?\s*"VAR"\s*:\s*"YOK"/.test(page), "sabit 'Erişim VAR/YOK' kaldırıldı (gerçek modül sayısı)");
 ok(!/Üyelik Durumu/.test(page) && /Hesap Durumu/.test(page), "'Üyelik Durumu' → 'Hesap Durumu' (Aktif/Pasif)");
-ok(!/border-emerald-200 bg-emerald-50 text-emerald-950`\}\s*>\s*\{user\.active \?/.test(page) && /border-slate-300 bg-slate-100 text-slate-800/.test(page), "Pasif Yap yeşil DEĞİL (nötr/gri)");
+ok(/Tehlikeli İşlemler[\s\S]{0,1600}border-slate-300 bg-white text-slate-800[\s\S]{0,200}Pasif Yap/.test(page)
+  && !/emerald[^"\n]*"?\}?\s*>\s*<UserX[^>]*>\s*Pasif Yap/.test(page), "Pasif Yap yeşil DEĞİL (nötr; Tehlikeli İşlemler alanında)");
 ok(/isLimitExceeded\(s\.totalFresh, lim\.allowedActiveSessions\)/.test(page), "'Limit Aşıldı' sınırsız-farkında hesap");
 ok(/licenseLockoutAck/.test(page) && /confirmLockout/.test(page), "kilitleyici lisans ayarı açık onay ister");
 ok(/diffLicenseSettings\(user\.licenseSettings, licenseDraft\)/.test(page), "lisans kaydı önce/sonra farkını gösterir");
