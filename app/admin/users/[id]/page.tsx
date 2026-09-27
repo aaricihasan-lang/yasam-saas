@@ -29,24 +29,26 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
+  ADMIN_MODULE_KIND,
   ADMIN_MODULE_UI_DESCRIPTIONS,
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
-  adminPermissionsToPayload,
   DEFAULT_LICENSE_SETTINGS,
+  enabledAccessModules,
   formatCreatedAt,
   formatDateTimeTr,
-  isUserPremiumPackage,
   LICENSE_PRESETS,
   LICENSE_TYPE_OPTIONS,
   mapDbUser,
   mapPaymentHistoryRow,
+  parseAdminModulePermissions,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_SELECT_OPTIONS,
   paymentSnapshotToEditDraft,
   rowHasPaymentColumns,
   SECURITY_MODE_OPTIONS,
   type AdminModulePermissions,
+  type AdminModuleUiKey,
   type ApprovalStatusUi,
   type LicenseSettings,
   type ManagedUser,
@@ -55,6 +57,15 @@ import {
   type PaymentHistoryEntry,
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
+import {
+  analyzeLockout,
+  diffLicenseSettings,
+  formatLimitLabel,
+  isLimitExceeded,
+  LICENSE_SESSION_LIMIT_MAX,
+  licenseSettingsEqual,
+  type SessionLimitField,
+} from "@/lib/admin/licenseLimits";
 import {
   clearYasamUser,
   isAdminUser,
@@ -256,12 +267,11 @@ function PaymentHistorySection({
   );
 }
 
+/** MEM-002: profil formu `active` TAŞIMAZ — aktif/pasif yalnız durum işlemiyle değişir. */
 type EditForm = {
   fullName: string;
   email: string;
   role: ManagedUserRole;
-  active: boolean;
-  modulePermissions: AdminModulePermissions;
 };
 
 /** /api/admin/users/[id]/audit satırı (yeniden en yeni; metadata-only). */
@@ -331,38 +341,100 @@ function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
   );
 }
 
-/** Tek üyelik modeli: erişim durumu yalnız active + approval_status'tan türer. */
+/**
+ * FAZ 1 / MEM-013 — gerçek erişim durumu: onay durumu + hesap durumu + GERÇEKTEN açık
+ * modül sayısı. Sabit "Erişim VAR" / "Premium · Aktif" ifadesi yok (0 modülde yanıltmaz).
+ */
 function membershipAccessState(user: ManagedUser): { label: string; cls: string } {
   if (user.approvalStatus === "rejected") {
-    return { label: "Reddedildi", cls: "border-rose-300 bg-rose-50 text-rose-700" };
-  }
-  if (!user.active) {
-    return { label: "Erişim kapalı", cls: "border-slate-300 bg-slate-100 text-slate-700" };
+    return { label: "Reddedildi · erişim yok", cls: "border-rose-300 bg-rose-50 text-rose-700" };
   }
   if (user.approvalStatus === "pending") {
-    return { label: "Onay bekliyor", cls: "border-amber-300 bg-amber-50 text-amber-800" };
+    return { label: "Onay bekliyor · erişim yok", cls: "border-amber-300 bg-amber-50 text-amber-800" };
   }
-  return { label: "Premium · Aktif · Onaylı", cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
+  if (!user.active) {
+    return { label: "Hesap pasif · erişim kapalı", cls: "border-slate-300 bg-slate-100 text-slate-700" };
+  }
+  const n = enabledAccessModules(user.modulePermissions).length;
+  if (n === 0) {
+    return { label: "Aktif · açık modül yok", cls: "border-amber-300 bg-amber-50 text-amber-800" };
+  }
+  return { label: `Aktif · ${n} modül açık`, cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
+}
+
+/** Uzman modül erişimi (kind=module + hub/capability) — approve modalı ve kalıcı panel ortak. */
+function ModuleCheckboxGrid({
+  selected,
+  onToggle,
+  disabled = false,
+}: {
+  selected: ReadonlySet<AdminModuleUiKey>;
+  onToggle: (key: AdminModuleUiKey) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {ADMIN_MODULE_UI_KEYS.map((key) => {
+        const checked = selected.has(key);
+        const kind = ADMIN_MODULE_KIND[key];
+        return (
+          <label
+            key={key}
+            className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 px-3 py-2.5 transition ${
+              checked ? "border-emerald-300 bg-emerald-50/80" : "border-slate-200 bg-white"
+            } ${disabled ? "cursor-not-allowed opacity-60" : "hover:border-emerald-200"}`}
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-600"
+              checked={checked}
+              disabled={disabled}
+              onChange={() => onToggle(key)}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-slate-900">
+                {ADMIN_MODULE_UI_LABELS[key]}
+                {kind !== "module" ? (
+                  <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">
+                    {kind === "hub" ? "kart" : "ek yetenek"}
+                  </span>
+                ) : null}
+              </span>
+              {ADMIN_MODULE_UI_DESCRIPTIONS[key] ? (
+                <span className="mt-0.5 block text-[11px] font-medium leading-snug text-slate-500">
+                  {ADMIN_MODULE_UI_DESCRIPTIONS[key]}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
 }
 
 function ModulePermissionSwitches({
   value,
-  onChange,
+  onToggle,
+  pendingKeys,
   disabled = false,
 }: {
   value: AdminModulePermissions;
-  onChange: (next: AdminModulePermissions) => void;
+  onToggle: (key: AdminModuleUiKey, next: boolean) => void;
+  pendingKeys: ReadonlySet<AdminModuleUiKey>;
   disabled?: boolean;
 }) {
   return (
     <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
       <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
       <p className="mt-1 text-xs font-medium text-slate-600">
-        Modül erişimi yalnızca burada seçili izinlere göre verilir (Premium statüsü modülleri otomatik açmaz). Erişim server tarafında zorlanır.
+        Her anahtar ayrı ayrı kaydedilir; yalnız değiştirdiğiniz modül güncellenir. Erişim server
+        tarafında zorlanır.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {ADMIN_MODULE_UI_KEYS.map((key) => {
           const desc = ADMIN_MODULE_UI_DESCRIPTIONS[key];
+          const busy = pendingKeys.has(key);
           return (
             <label
               key={key}
@@ -384,11 +456,12 @@ function ModulePermissionSwitches({
                 type="button"
                 role="switch"
                 aria-checked={value[key]}
-                disabled={disabled}
-                onClick={() => onChange({ ...value, [key]: !value[key] })}
+                aria-label={ADMIN_MODULE_UI_LABELS[key]}
+                disabled={disabled || busy}
+                onClick={() => onToggle(key, !value[key])}
                 className={`relative h-10 w-[4.5rem] shrink-0 rounded-full transition disabled:cursor-not-allowed ${
                   value[key] ? "bg-emerald-500" : "bg-slate-300"
-                }`}
+                } ${busy ? "opacity-60" : ""}`}
               >
                 <span
                   className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow-md transition ${
@@ -399,6 +472,61 @@ function ModulePermissionSwitches({
             </label>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * MEM-001: oturum/cihaz limiti girişi — "Sınırsız" (-1) ayrı onay kutusu; sayı alanı 0..MAX.
+ * -1 ASLA 0/1'e dönüştürülmez; boş/geçersiz giriş son geçerli değeri korur.
+ */
+function LimitInput({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const unlimited = value === -1;
+  return (
+    <div>
+      <label className={labelClass} htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        max={LICENSE_SESSION_LIMIT_MAX}
+        step={1}
+        disabled={unlimited}
+        value={unlimited ? "" : value}
+        placeholder={unlimited ? "Sınırsız" : undefined}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          if (e.target.value === "" || !Number.isInteger(n)) return;
+          onChange(Math.min(LICENSE_SESSION_LIMIT_MAX, Math.max(0, n)));
+        }}
+        className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+      />
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold text-slate-700">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-indigo-600"
+            checked={unlimited}
+            onChange={(e) => onChange(e.target.checked ? -1 : 1)}
+          />
+          Sınırsız
+        </label>
+        {value === 0 ? (
+          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800 ring-1 ring-rose-300">
+            Giriş kapalı
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -473,7 +601,13 @@ export default function AdminUserDetailPage() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [savingModules, setSavingModules] = useState(false);
+  // MEM-007: anahtar bazlı kayıt — aynı anda yalnız ilgili anahtar kilitlenir.
+  const [modulePendingKeys, setModulePendingKeys] = useState<Set<AdminModuleUiKey>>(() => new Set());
+  // MEM-003/004: onay (modül seçimli) ve ret (onaylı) modalları.
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [approveSelection, setApproveSelection] = useState<Set<AdminModuleUiKey>>(() => new Set());
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [licenseLockoutAck, setLicenseLockoutAck] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -795,8 +929,6 @@ export default function AdminUserDetailPage() {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      active: user.active,
-      modulePermissions: { ...user.modulePermissions },
     });
     setEditOpen(true);
     setPasswordOpen(false);
@@ -815,15 +947,15 @@ export default function AdminUserDetailPage() {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
       headers: adminHeaders(currentAdminId, true),
+      // MEM-002: `active` GÖNDERİLMEZ (sunucu da reddeder) — bayat form hesabı pasife/aktife çeviremez.
       body: JSON.stringify({
         action: "edit",
         fullName,
         email,
         role: editForm.role,
-        active: editForm.active,
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string };
     setSavingEdit(false);
 
     if (!res.ok || !json.ok) {
@@ -832,7 +964,11 @@ export default function AdminUserDetailPage() {
     }
 
     setEditOpen(false);
-    showToast({ title: "Başarılı", message: "Kullanıcı güncellendi.", type: "success" });
+    showToast({
+      title: "Başarılı",
+      message: json.changed === false ? "Değişiklik yok; kayıt güncel." : "Kullanıcı bilgileri güncellendi.",
+      type: "success",
+    });
     await loadUser(currentAdminId);
   }
 
@@ -901,38 +1037,81 @@ export default function AdminUserDetailPage() {
     });
   }
 
-  async function postStatus(action: string, extra?: Record<string, unknown>): Promise<boolean> {
-    if (!user) return false;
+  async function postStatus(
+    action: string,
+    extra?: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | null> {
+    if (!user) return null;
     setActionUserId(user.id);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
       method: "POST",
       headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ action, ...extra }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
+      ok?: boolean;
+      error?: string;
+    };
     setActionUserId(null);
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
-      return false;
+      if (res.status === 409) await loadUser(currentAdminId);
+      return null;
     }
     await loadUser(currentAdminId);
-    return true;
+    return json;
   }
 
-  async function approveUser() {
-    if (await postStatus("approve")) {
-      showToast({
-        title: "Başarılı",
-        message: "Uzman onaylandı ve Premium yapıldı. Mevcut modül izinleri korundu.",
-        type: "success",
-      });
-    }
+  /** MEM-004: onay modalı — mevcut (varsa) modüllerle ön-seçili; en az bir modül zorunlu. */
+  function openApproveModal() {
+    if (!user || user.role !== "expert" || user.approvalStatus === "approved") return;
+    setApproveSelection(new Set(ADMIN_MODULE_UI_KEYS.filter((k) => user.modulePermissions[k] === true)));
+    setApproveOpen(true);
   }
 
-  async function rejectUser() {
-    if (await postStatus("reject")) {
-      showToast({ title: "Başarılı", message: "Kullanıcı reddedildi.", type: "success" });
-    }
+  function toggleApproveSelection(key: AdminModuleUiKey) {
+    setApproveSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const approveHasModule = [...approveSelection].some((k) => ADMIN_MODULE_KIND[k] === "module");
+
+  async function confirmApprove() {
+    if (!user || !approveHasModule) return;
+    const modules = ADMIN_MODULE_UI_KEYS.filter((k) => approveSelection.has(k));
+    const res = await postStatus("approve", { modules, expectedApproval: user.approvalStatus });
+    if (!res) return;
+    setApproveOpen(false);
+    const opened = (Array.isArray(res.modules) ? (res.modules as string[]) : modules)
+      .filter((k): k is AdminModuleUiKey => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k))
+      .filter((k) => ADMIN_MODULE_KIND[k] === "module");
+    showToast({
+      title: "Uzman onaylandı",
+      message: `Premium hesap etkinleştirildi. ${opened.length} modül erişime açıldı: ${opened
+        .map((k) => ADMIN_MODULE_UI_LABELS[k])
+        .join(", ")}.`,
+      type: "success",
+    });
+  }
+
+  /** MEM-003: ret yalnız pending'de ve onay modalıyla. */
+  async function confirmReject() {
+    const res = await postStatus("reject");
+    if (!res) return;
+    setRejectOpen(false);
+    const n = Number(res.revokedSessionCount ?? 0);
+    showToast({
+      title: "Başvuru reddedildi",
+      message:
+        n > 0
+          ? `Hesap reddedildi ve pasife alındı; ${n} açık oturum kapatıldı.`
+          : "Hesap reddedildi ve pasife alındı.",
+      type: "success",
+    });
   }
 
   /** Aktif/Pasif düğmesi: pasife alma güvenli onay ister (tüm cihaz çıkışı), aktifleştirme doğrudan. */
@@ -957,7 +1136,7 @@ export default function AdminUserDetailPage() {
   async function doToggleActive(): Promise<boolean> {
     if (!user) return false;
     const wasActive = user.active;
-    const done = await postStatus("toggle_active", { currentActive: wasActive });
+    const done = (await postStatus("toggle_active", { currentActive: wasActive })) !== null;
     if (done) {
       showToast({
         title: "Başarılı",
@@ -1058,33 +1237,69 @@ export default function AdminUserDetailPage() {
     await loadUser(currentAdminId);
   }
 
-  async function saveModulePermissions(next: AdminModulePermissions) {
-    // P3: Premium dahil her uzman için modül izinleri kişiye özel düzenlenebilir.
-    if (!user || user.role !== "expert") return;
+  /**
+   * MEM-007: YALNIZ değişen anahtar gönderilir (`changes`); sunucu kilit altında birleştirir →
+   * paralel iki farklı toggle birbirini EZMEZ. Yanıttaki gerçek final izinlerle state güncellenir.
+   */
+  async function saveModuleChange(key: AdminModuleUiKey, nextValue: boolean) {
+    if (!user || user.role !== "expert" || !canPersistModulePermissions) return;
+    if (modulePendingKeys.has(key)) return;
 
-    setUser((prev) => (prev ? { ...prev, modulePermissions: next } : prev));
-    if (!canPersistModulePermissions) return;
-
-    setSavingModules(true);
+    setModulePendingKeys((prev) => new Set(prev).add(key));
+    setUser((prev) =>
+      prev ? { ...prev, modulePermissions: { ...prev.modulePermissions, [key]: nextValue } } : prev,
+    );
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
       headers: adminHeaders(currentAdminId, true),
-      body: JSON.stringify({ action: "modules", modulePermissions: adminPermissionsToPayload(next) }),
+      body: JSON.stringify({ action: "modules", changes: { [key]: nextValue } }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    setSavingModules(false);
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      modulePermissions?: unknown;
+    };
+    setModulePendingKeys((prev) => {
+      const n = new Set(prev);
+      n.delete(key);
+      return n;
+    });
 
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Modül izinleri güncellenemedi.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Modül izni güncellenemedi.", type: "error" });
       await loadUser(currentAdminId);
       return;
     }
 
-    showToast({ title: "Başarılı", message: "Modül izinleri güncellendi.", type: "success" });
+    // Sunucunun kilit altında ürettiği GERÇEK final durum; yalnız bu anahtarı uygula ki
+    // hâlâ uçuşta olan diğer toggle'ların iyimser değeri ezilmesin.
+    const serverPerms = parseAdminModulePermissions(json.modulePermissions);
+    setUser((prev) =>
+      prev ? { ...prev, modulePermissions: { ...prev.modulePermissions, [key]: serverPerms[key] } } : prev,
+    );
+    showToast({
+      title: "Başarılı",
+      message: `${ADMIN_MODULE_UI_LABELS[key]} ${nextValue ? "açıldı" : "kapatıldı"}.`,
+      type: "success",
+    });
   }
 
   async function saveLicenseSettings(confirmExcessRevocation = false) {
     if (!user) return;
+    // MEM-001: değişiklik yoksa istek GÖNDERİLMEZ (sunucu da no-op'u yazmaz).
+    if (licenseSettingsEqual(user.licenseSettings, licenseDraft)) {
+      showToast({ title: "Değişiklik yok", message: "Lisans ayarları zaten güncel.", type: "info" });
+      return;
+    }
+    const lockout = analyzeLockout(licenseDraft);
+    if (lockout.fullLockout && !licenseLockoutAck) {
+      showToast({
+        title: "Onay gerekli",
+        message: "Bu ayarlar hesabı tüm cihazlardan kilitler. Kaydetmek için uyarıyı onaylayın.",
+        type: "error",
+      });
+      return;
+    }
     setSavingLicense(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
@@ -1102,6 +1317,7 @@ export default function AdminUserDetailPage() {
         securityExempt:         licenseDraft.securityExempt,
         licenseNote:            licenseDraft.licenseNote,
         confirmExcessRevocation,
+        confirmLockout:         lockout.fullLockout && licenseLockoutAck,
       }),
     });
     const json = (await res.json().catch(() => ({}))) as {
@@ -1129,6 +1345,7 @@ export default function AdminUserDetailPage() {
       return;
     }
     const revoked = json.revokedSessionCount ?? 0;
+    setLicenseLockoutAck(false);
     showToast({
       title: "Başarılı",
       message:
@@ -1345,9 +1562,11 @@ export default function AdminUserDetailPage() {
                 <RoleBadge role={user.role} />
                 <ApprovalBadge status={user.approvalStatus} />
                 <StatusBadge active={user.active} />
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 ring-1 ring-amber-200">
-                  Paket: {user.membershipDisplay.packageLabel}
-                </span>
+                {user.role === "expert" ? (
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 ring-1 ring-amber-200">
+                    Paket: {user.membershipDisplay.packageLabel}
+                  </span>
+                ) : null}
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${
                     user.payment.status === "paid"
@@ -1380,9 +1599,9 @@ export default function AdminUserDetailPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-black uppercase text-slate-500">Üyelik Durumu</dt>
+                  <dt className="text-xs font-black uppercase text-slate-500">Hesap Durumu</dt>
                   <dd className="mt-1 font-bold text-slate-900">
-                    {user.membershipDisplay.statusLabel}
+                    {user.active ? "Aktif" : "Pasif"}
                   </dd>
                 </div>
               </dl>
@@ -1400,12 +1619,14 @@ export default function AdminUserDetailPage() {
                   const deactivation = auditRows.find(
                     (r) => r.action === "user_deactivated" || r.action === "user_archived",
                   );
-                  const hasAccess = deriveBaseExpertAccess({
+                  const baseAccess = deriveBaseExpertAccess({
                     role: user.role,
                     active: user.active,
                     approvalStatus: user.approvalStatus,
-                    packageType: user.membership.packageType,
                   });
+                  const accessModules = enabledAccessModules(user.modulePermissions);
+                  // MEM-013: "erişim VAR" yalnız temel erişim + en az bir GERÇEK açık modül varsa.
+                  const hasAccess = user.role === "admin" || (baseAccess && accessModules.length > 0);
                   const openModuleLabels = ADMIN_MODULE_UI_KEYS.filter(
                     (k) => user.modulePermissions[k],
                   ).map((k) => ADMIN_MODULE_UI_LABELS[k]);
@@ -1430,17 +1651,15 @@ export default function AdminUserDetailPage() {
                         </div>
                         <div>
                           <dt className="text-xs font-black uppercase text-slate-500">
-                            Premium durumu
+                            Paket
                           </dt>
                           <dd className="mt-1 font-bold text-slate-900">
-                            {user.membership.packageType === "premium"
-                              ? "Premium"
-                              : user.membershipDisplay.packageLabel}
+                            {user.membershipDisplay.packageLabel}
                           </dd>
                         </div>
                         <div>
                           <dt className="text-xs font-black uppercase text-slate-500">
-                            Uzman modüllerine erişim
+                            Modül erişimi
                           </dt>
                           <dd className="mt-1">
                             <span
@@ -1450,7 +1669,15 @@ export default function AdminUserDetailPage() {
                                   : "bg-rose-100 text-rose-900 ring-rose-200"
                               }`}
                             >
-                              {hasAccess ? "VAR" : "YOK"}
+                              {user.role === "admin"
+                                ? "Yönetici · tüm modüller"
+                                : !baseAccess
+                                  ? user.approvalStatus !== "approved"
+                                    ? "Yok · onaylı değil"
+                                    : "Yok · hesap pasif"
+                                  : accessModules.length === 0
+                                    ? "Yok · açık modül yok"
+                                    : `${accessModules.length} modül açık`}
                             </span>
                           </dd>
                         </div>
@@ -1487,9 +1714,9 @@ export default function AdminUserDetailPage() {
                       ) : null}
 
                       <p className="mt-3 text-[11px] font-medium text-slate-500">
-                        Not: Hesap aktifliği (Aktif/Pasif), onay durumu, paket/üyelik ve modül
-                        erişimi birbirinden farklı kavramlardır. “Aktif” tek başına tüm modüllere
-                        erişim anlamına gelmez.
+                        Onay durumu (Beklemede / Onaylandı / Reddedildi), hesap durumu (Aktif /
+                        Pasif) ve modül erişimi ayrı kavramlardır. Onaylı her uzman Premium’dur;
+                        uzman yalnız açık modüllere erişir.
                       </p>
                     </>
                   );
@@ -1697,13 +1924,15 @@ export default function AdminUserDetailPage() {
             <section className={`${panelClass} border-indigo-200/80`}>
               <h2 className="text-xl font-black text-slate-950">İşlemler</h2>
               <div className="mt-4 flex flex-wrap gap-2">
-                {user.role === "expert" ? (
+                {/* MEM-003: Onayla / Reddet YALNIZ onay bekleyen uzmanda. Reddedilmiş uzman için
+                    kontrollü "Yeniden Onayla" (modül seçimli). Onaylı üyede hiçbiri görünmez. */}
+                {user.role === "expert" && user.approvalStatus === "pending" ? (
                   <>
                     <button
                       type="button"
                       disabled={actionUserId === user.id}
-                      onClick={approveUser}
-                      className={`${actionBtn} border-emerald-200 bg-emerald-50 text-emerald-950`}
+                      onClick={openApproveModal}
+                      className={`${actionBtn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
                     >
                       <UserCheck className="h-4 w-4" />
                       Onayla
@@ -1711,36 +1940,53 @@ export default function AdminUserDetailPage() {
                     <button
                       type="button"
                       disabled={actionUserId === user.id}
-                      onClick={rejectUser}
-                      className={`${actionBtn} border-rose-200 bg-rose-50 text-rose-950`}
+                      onClick={() => setRejectOpen(true)}
+                      className={`${actionBtn} border-rose-300 bg-white text-rose-800 hover:bg-rose-50`}
                     >
                       <UserX className="h-4 w-4" />
                       Reddet
                     </button>
                   </>
                 ) : null}
-                <button
-                  type="button"
-                  disabled={actionUserId === user.id || !canManageAccountActions()}
-                  title={
-                    isSelf()
-                      ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
-                      : isManagedOwnerAdmin(user)
-                        ? "Ana yönetici pasifleştirilemez."
-                        : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
-                          ? "Admin hesabı durumunu yalnızca ana yönetici değiştirebilir."
-                          : undefined
-                  }
-                  onClick={requestToggleActive}
-                  className={`${actionBtn} border-emerald-200 bg-emerald-50 text-emerald-950`}
-                >
-                  {user.active ? (
-                    <UserX className="h-4 w-4" />
-                  ) : (
+                {user.role === "expert" && user.approvalStatus === "rejected" ? (
+                  <button
+                    type="button"
+                    disabled={actionUserId === user.id}
+                    onClick={openApproveModal}
+                    className={`${actionBtn} border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50`}
+                  >
                     <UserCheck className="h-4 w-4" />
-                  )}
-                  {user.active ? "Pasif Yap" : "Aktif Yap"}
-                </button>
+                    Yeniden Onayla
+                  </button>
+                ) : null}
+                {user.role === "expert" && user.approvalStatus !== "approved" && !user.active ? null : (
+                  <button
+                    type="button"
+                    disabled={actionUserId === user.id || !canManageAccountActions()}
+                    title={
+                      isSelf()
+                        ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
+                        : isManagedOwnerAdmin(user)
+                          ? "Ana yönetici pasifleştirilemez."
+                          : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                            ? "Admin hesabı durumunu yalnızca ana yönetici değiştirebilir."
+                            : undefined
+                    }
+                    onClick={requestToggleActive}
+                    className={
+                      user.active
+                        ? `${actionBtn} border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200`
+                        : `${actionBtn} border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100`
+                    }
+                  >
+                    {user.active ? (
+                      <UserX className="h-4 w-4" />
+                    ) : (
+                      <UserCheck className="h-4 w-4" />
+                    )}
+                    {user.active ? "Pasif Yap" : "Aktif Yap"}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={!canManageAccountActions()}
@@ -1958,8 +2204,8 @@ export default function AdminUserDetailPage() {
                       Paket / Üyelik Yönetimi
                     </h2>
                     <p className="mt-1 text-xs font-medium text-amber-900/85">
-                      Tek Paket: Premium · Erişim, yönetici kullanıcıyı pasife alana
-                      kadar aktiftir.
+                      Tek paket: onaylı her uzman Premium’dur (paket seçimi yoktur). Erişim,
+                      yönetici hesabı pasife alana kadar sürer.
                     </p>
                   </div>
                 </div>
@@ -1967,7 +2213,13 @@ export default function AdminUserDetailPage() {
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
                     <p className="text-[11px] font-black uppercase text-slate-500">Paket</p>
-                    <p className="mt-1 font-black">Premium</p>
+                    <p className="mt-1 font-black">
+                      {user.approvalStatus === "approved"
+                        ? "Premium"
+                        : user.approvalStatus === "pending"
+                          ? "Onaylanınca Premium"
+                          : "—"}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3">
                     <p className="text-[11px] font-black uppercase text-slate-500">
@@ -1988,10 +2240,9 @@ export default function AdminUserDetailPage() {
 
                 <div className="mt-5 rounded-xl border border-amber-200/80 bg-amber-50/70 px-4 py-3">
                   <p className="text-xs font-bold text-amber-900/85">
-                    Premium statüsü, uzman <b>onaylandığında</b> tek işlemle otomatik verilir
-                    (yukarıdaki “Onayla”). Premium, tüm modülleri otomatik açmaz — modül erişimi
-                    aşağıdaki <b>Modül İzinleri</b>nden yönetilir. Erişimi kapatmak için
-                    “Pasif Yap” işlemini kullanın.
+                    Premium, uzman <b>onaylanırken</b> açılacak modüller seçilerek tek işlemle
+                    verilir (“Onayla”). Sonradan modüller aşağıdaki <b>Modül İzinleri</b>nden tek
+                    tek açılıp kapatılabilir. Erişimi kapatmak için “Pasif Yap” kullanın.
                   </p>
                 </div>
               </section>
@@ -2001,16 +2252,17 @@ export default function AdminUserDetailPage() {
               <h2 className="text-xl font-black text-slate-950">Modül İzinleri</h2>
               {user.role === "expert" ? (
                 <div className="mt-4">
-                  {isUserPremiumPackage(user) ? (
-                    <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
-                      Premium ile modül erişimi iki ayrı kavramdır: modüller otomatik açılmaz.
-                      Erişim yalnızca aşağıda seçili izinlere göre server tarafında zorlanır.
+                  {user.approvalStatus !== "approved" ? (
+                    <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-900">
+                      Uzman onaylı olmadığı için açık modüller şu an erişim vermez. Modüller onay
+                      sırasında seçilir.
                     </p>
                   ) : null}
                   <ModulePermissionSwitches
                     value={user.modulePermissions}
-                    onChange={saveModulePermissions}
-                    disabled={!canPersistModulePermissions || savingModules}
+                    onToggle={(key, next) => void saveModuleChange(key, next)}
+                    pendingKeys={modulePendingKeys}
+                    disabled={!canPersistModulePermissions}
                   />
                 </div>
               ) : (
@@ -2321,7 +2573,8 @@ export default function AdminUserDetailPage() {
                 {activeSessionsSummary ? (() => {
                   const s   = activeSessionsSummary;
                   const lim = (s.limits ?? {}) as Record<string, number>;
-                  const limitOver = Number(s.totalFresh ?? 0) > (lim.allowedActiveSessions ?? 2);
+                  // MEM-001: sınırsız (-1) limitte ASLA "Limit Aşıldı" yok.
+                  const limitOver = isLimitExceeded(s.totalFresh, lim.allowedActiveSessions);
                   const locOver   = Number(s.distinctLocations ?? 0) > (lim.allowedLocations ?? 1);
                   return (
                     <>
@@ -2348,22 +2601,22 @@ export default function AdminUserDetailPage() {
                         const lim = (s.limits ?? {}) as Record<string, number>;
                         const bp  = (s.byPlatform ?? {}) as Record<string, number>;
                         const statItems = [
-                          { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: lim.allowedActiveSessions ?? 2 },
+                          { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: lim.allowedActiveSessions ?? -1 },
                           { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: lim.allowedLocations ?? 1 },
-                          { label: "Bilgisayar",   current: bp.desktop ?? 0, limit: lim.allowedDesktopSessions ?? 1 },
-                          { label: "Mobil",        current: bp.mobile  ?? 0, limit: lim.allowedMobileSessions  ?? 1 },
-                          { label: "Tablet",       current: bp.tablet  ?? 0, limit: lim.allowedTabletSessions  ?? 0 },
-                          { label: "Tanınmayan",   current: bp.unknown ?? 0, limit: lim.allowedUnknownSessions ?? 0 },
+                          { label: "Bilgisayar",   current: bp.desktop ?? 0, limit: lim.allowedDesktopSessions ?? -1 },
+                          { label: "Mobil",        current: bp.mobile  ?? 0, limit: lim.allowedMobileSessions  ?? -1 },
+                          { label: "Tablet",       current: bp.tablet  ?? 0, limit: lim.allowedTabletSessions  ?? -1 },
+                          { label: "Tanınmayan",   current: bp.unknown ?? 0, limit: lim.allowedUnknownSessions ?? -1 },
                         ];
                         return (
                           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                             {statItems.map((item) => {
-                              const over = item.limit > 0 && item.current > item.limit;
+                              const over = isLimitExceeded(item.current, item.limit);
                               return (
                                 <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
                                   <p className="text-xs font-bold text-slate-500">{item.label}</p>
                                   <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
-                                    {item.current}<span className="text-base font-medium text-slate-400">/{item.limit}</span>
+                                    {item.current}<span className="text-base font-medium text-slate-400">/{formatLimitLabel(item.limit)}</span>
                                   </p>
                                 </div>
                               );
@@ -2566,7 +2819,7 @@ export default function AdminUserDetailPage() {
                         <li><span className="font-bold">Telefon/Mobil:</span> Telefon uygulaması veya mobil tarayıcı</li>
                         <li><span className="font-bold">Tablet:</span> Tablet cihazlar</li>
                         <li><span className="font-bold">Tanınmayan:</span> Platformu tespit edilemeyen cihazlar</li>
-                        <li className="text-xs text-indigo-700/70">0 = o platform için özel limit yok, toplam limitiyle yönetilir</li>
+                        <li className="text-xs text-indigo-700/70">Sınırsız = o cihaz türü için ayrı limit yok (toplam limit geçerli) · 0 = o cihaz türünden giriş KAPALI</li>
                       </ul>
                       <p className="mt-2 font-black text-indigo-950">Güvenlik Modu</p>
                       <ul className="mt-1 space-y-0.5 text-indigo-900/80">
@@ -2589,7 +2842,9 @@ export default function AdminUserDetailPage() {
                     <button
                       key={preset.label}
                       type="button"
-                      onClick={() => setLicenseDraft({ ...preset.settings })}
+                      onClick={() =>
+                        setLicenseDraft((d) => ({ ...preset.settings, licenseNote: d.licenseNote }))
+                      }
                       className="rounded-xl border-2 border-indigo-200 bg-white px-3 py-1.5 text-sm font-black text-indigo-900 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
                     >
                       {preset.label}
@@ -2640,172 +2895,72 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
 
-              {/* Platform Limitleri */}
+              {/* Platform Limitleri — MEM-001: -1 Sınırsız · 0 Kapalı · N en fazla N (KAYIPSIZ) */}
               <div className="mt-4">
                 <p className="mb-2 text-xs font-black uppercase tracking-wide text-indigo-800">Cihaz Bazlı Oturum Limitleri</p>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <div>
-                    <label className={labelClass} htmlFor="allowed-total">Toplam Oturum</label>
-                    <input id="allowed-total" type="number" min={1} max={50}
-                      value={licenseDraft.allowedActiveSessions}
-                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedActiveSessions: Number(e.target.value) }))}
-                      className={inputClass}
+                  {(
+                    [
+                      ["allowedActiveSessions", "Toplam Oturum", "allowed-total"],
+                      ["allowedDesktopSessions", "Bilgisayar/Web", "allowed-desktop"],
+                      ["allowedMobileSessions", "Telefon/Mobil", "allowed-mobile"],
+                      ["allowedTabletSessions", "Tablet", "allowed-tablet"],
+                      ["allowedUnknownSessions", "Tanınmayan", "allowed-unknown"],
+                    ] as [SessionLimitField, string, string][]
+                  ).map(([field, label, inputId]) => (
+                    <LimitInput
+                      key={field}
+                      id={inputId}
+                      label={label}
+                      value={licenseDraft[field]}
+                      onChange={(v) => setLicenseDraft((d) => ({ ...d, [field]: v }))}
                     />
-                  </div>
-                  <div>
-                    <label className={labelClass} htmlFor="allowed-desktop">Bilgisayar/Web</label>
-                    <input id="allowed-desktop" type="number" min={0} max={20}
-                      value={licenseDraft.allowedDesktopSessions}
-                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedDesktopSessions: Number(e.target.value) }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass} htmlFor="allowed-mobile">Telefon/Mobil</label>
-                    <input id="allowed-mobile" type="number" min={0} max={20}
-                      value={licenseDraft.allowedMobileSessions}
-                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedMobileSessions: Number(e.target.value) }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass} htmlFor="allowed-tablet">Tablet</label>
-                    <input id="allowed-tablet" type="number" min={0} max={10}
-                      value={licenseDraft.allowedTabletSessions}
-                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedTabletSessions: Number(e.target.value) }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass} htmlFor="allowed-unknown">Tanınmayan</label>
-                    <input id="allowed-unknown" type="number" min={0} max={5}
-                      value={licenseDraft.allowedUnknownSessions}
-                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedUnknownSessions: Number(e.target.value) }))}
-                      className={inputClass}
-                    />
-                  </div>
+                  ))}
                 </div>
                 <p className="mt-1 text-xs font-medium text-indigo-700/70">
-                  0 = bu cihaz türü için ayrı platform limiti uygulanmaz; toplam oturum limiti içinde değerlendirilir
+                  Sınırsız = bu cihaz türü için ayrı limit yok (toplam limit geçerli) · 0 = bu cihaz
+                  türünden giriş KAPALI · N = aynı anda en fazla N oturum
                 </p>
               </div>
 
-              {/* ── Limit Özeti ─────────────────────────────────────────── */}
+              {/* ── Limit Özeti (gerçek sunucu semantiği) ─────────────────── */}
               {(() => {
                 const d = licenseDraft;
-                const platformTotal =
-                  d.allowedDesktopSessions +
-                  d.allowedMobileSessions +
-                  d.allowedTabletSessions +
-                  d.allowedUnknownSessions;
-                const hasZero =
-                  d.allowedDesktopSessions === 0 ||
-                  d.allowedMobileSessions  === 0 ||
-                  d.allowedTabletSessions  === 0 ||
-                  d.allowedUnknownSessions === 0;
-                const effectiveMax =
-                  platformTotal === 0
-                    ? d.allowedActiveSessions
-                    : Math.min(d.allowedActiveSessions, platformTotal);
-
-                const status: "over" | "match" | "under" | "zero" =
-                  platformTotal === 0
-                    ? "zero"
-                    : platformTotal > d.allowedActiveSessions
-                      ? "over"
-                      : platformTotal === d.allowedActiveSessions
-                        ? "match"
-                        : "under";
-
-                const statusConfig = {
-                  over: {
-                    border:  "border-amber-300",
-                    bg:      "bg-amber-50/80",
-                    icon:    "⚠",
-                    iconCls: "text-amber-600",
-                    title:   "Dikkat: Platform toplamı Toplam Limit'ten yüksek",
-                    titleCls:"text-amber-900",
-                    msg:     `Platform limitleri toplamı (${platformTotal}) Toplam Oturum Limiti'nden (${d.allowedActiveSessions}) yüksek. Bu kullanıcı aynı anda en fazla ${d.allowedActiveSessions} cihaz kullanabilir. Yeni bir cihaz türü açılırsa en eski cihaz kapanabilir.`,
-                    msgCls:  "text-amber-800",
-                  },
-                  match: {
-                    border:  "border-emerald-300",
-                    bg:      "bg-emerald-50/80",
-                    icon:    "✓",
-                    iconCls: "text-emerald-600",
-                    title:   "Yapılandırma uyumlu",
-                    titleCls:"text-emerald-900",
-                    msg:     `Toplam limit (${d.allowedActiveSessions}) ve platform limitleri toplamı (${platformTotal}) eşit. Her platform için belirlenen kota tam olarak uygulanır.`,
-                    msgCls:  "text-emerald-800",
-                  },
-                  under: {
-                    border:  "border-sky-300",
-                    bg:      "bg-sky-50/80",
-                    icon:    "ℹ",
-                    iconCls: "text-sky-600",
-                    title:   "Bilgi: Pratik maksimum platform limitleriyle belirleniyor",
-                    titleCls:"text-sky-900",
-                    msg:     `Toplam limit (${d.allowedActiveSessions}) daha yüksek olsa da platform limitleri toplamı (${platformTotal}) nedeniyle kullanıcı pratikte en fazla ${platformTotal} cihaz açık tutabilir.`,
-                    msgCls:  "text-sky-800",
-                  },
-                  zero: {
-                    border:  "border-slate-300",
-                    bg:      "bg-slate-50/80",
-                    icon:    "ℹ",
-                    iconCls: "text-slate-500",
-                    title:   "Tüm platform limitleri 0",
-                    titleCls:"text-slate-800",
-                    msg:     `Tüm platform limitleri 0 olduğunda yalnızca Toplam Oturum Limiti (${d.allowedActiveSessions}) geçerlidir. Her cihaz türünden oturum açılabilir.`,
-                    msgCls:  "text-slate-600",
-                  },
-                }[status];
-
+                const lockout = analyzeLockout(d);
+                const closedLabels = lockout.closedDevices.map((f) =>
+                  f === "allowedDesktopSessions"
+                    ? "Bilgisayar/Web"
+                    : f === "allowedMobileSessions"
+                      ? "Telefon/Mobil"
+                      : f === "allowedTabletSessions"
+                        ? "Tablet"
+                        : "Tanınmayan",
+                );
+                const tone = lockout.fullLockout
+                  ? "border-rose-400 bg-rose-50/90 text-rose-900"
+                  : closedLabels.length > 0 || lockout.totalClosed
+                    ? "border-amber-300 bg-amber-50/80 text-amber-900"
+                    : "border-emerald-300 bg-emerald-50/80 text-emerald-900";
                 return (
-                  <div className={`mt-4 rounded-2xl border-2 p-4 ${statusConfig.border} ${statusConfig.bg}`}>
-                    {/* Başlık satırı */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={`text-sm font-black ${statusConfig.titleCls}`}>
-                        <span className={`mr-1.5 ${statusConfig.iconCls}`}>{statusConfig.icon}</span>
-                        {statusConfig.title}
-                      </p>
-                      {/* Toplamı X yap butonu — platformTotal > 0 ve toplam ≠ platform toplamı */}
-                      {platformTotal > 0 && platformTotal !== d.allowedActiveSessions ? (
-                        <button
-                          type="button"
-                          onClick={() => setLicenseDraft((prev) => ({ ...prev, allowedActiveSessions: platformTotal }))}
-                          className="inline-flex items-center gap-1 rounded-xl border-2 border-indigo-300 bg-white px-3 py-1 text-xs font-black text-indigo-800 shadow-sm transition hover:border-indigo-500 hover:bg-indigo-50"
-                        >
-                          Toplamı {platformTotal} yap
-                        </button>
-                      ) : null}
-                    </div>
-
-                    {/* Açıklama */}
-                    <p className={`mt-1.5 text-xs font-medium leading-relaxed ${statusConfig.msgCls}`}>
-                      {statusConfig.msg}
+                  <div className={`mt-4 rounded-2xl border-2 p-4 ${tone}`}>
+                    <p className="text-sm font-black">
+                      {lockout.fullLockout
+                        ? "⚠ Bu ayarlarla kullanıcı HİÇBİR cihazdan giriş yapamaz (hesap fiilen kilitlenir)."
+                        : d.securityExempt
+                          ? "Güvenlik istisnası açık — oturum limitleri uygulanmaz."
+                          : closedLabels.length > 0
+                            ? `Girişi kapalı cihaz türleri: ${closedLabels.join(", ")}`
+                            : "Tüm cihaz türlerinden giriş açık."}
                     </p>
-
-                    {/* Özet sayaçlar */}
                     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-white/60 pt-3 text-xs font-bold text-slate-700">
-                      <span>Toplam Oturum Limiti: <span className="font-black text-slate-900">{d.allowedActiveSessions}</span></span>
-                      <span>Platform Toplamı: <span className="font-black text-slate-900">{platformTotal}</span></span>
-                      <span>
-                        Etkin Maksimum:{" "}
-                        <span className="font-black text-slate-900">
-                          {platformTotal === 0 ? `${d.allowedActiveSessions} (platform limitsiz)` : `${effectiveMax}`}
-                          {hasZero && platformTotal > 0 ? " *" : ""}
-                        </span>
-                      </span>
-                      {hasZero && platformTotal > 0 ? (
-                        <span className="w-full text-[10px] font-medium text-slate-500">
-                          * 0 değeri olan platform türleri sınırsız sayılır; gerçek maksimum koşullara göre değişebilir.
-                        </span>
-                      ) : null}
+                      <span>Toplam: <span className="font-black text-slate-900">{formatLimitLabel(d.allowedActiveSessions)}</span></span>
+                      <span>Bilgisayar: <span className="font-black text-slate-900">{formatLimitLabel(d.allowedDesktopSessions)}</span></span>
+                      <span>Mobil: <span className="font-black text-slate-900">{formatLimitLabel(d.allowedMobileSessions)}</span></span>
+                      <span>Tablet: <span className="font-black text-slate-900">{formatLimitLabel(d.allowedTabletSessions)}</span></span>
+                      <span>Tanınmayan: <span className="font-black text-slate-900">{formatLimitLabel(d.allowedUnknownSessions)}</span></span>
                     </div>
-
-                    {/* Sabit kural hatırlatıcı */}
                     <p className="mt-2 text-[10px] font-medium text-slate-500">
-                      Toplam Oturum her zaman üst sınırdır. Platform limitleri bu toplamın cihaz türlerine dağılımıdır.
+                      Toplam Oturum her zaman üst sınırdır; cihaz limitleri bu toplamın cihaz türlerine dağılımıdır.
                     </p>
                   </div>
                 );
@@ -2844,18 +2999,76 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
 
-              <div className="mt-5">
-                <button
-                  type="button"
-                  onClick={() => void saveLicenseSettings()}
-                  disabled={savingLicense}
-                  className={saveBtnClass}
-                >
-                  {savingLicense ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Kaydediliyor…</>
-                  ) : "Lisans Ayarlarını Kaydet"}
-                </button>
-              </div>
+              {/* ── Kaydet: önce/sonra farkı + kilitlenme onayı (MEM-001) ───────── */}
+              {(() => {
+                const diff = diffLicenseSettings(user.licenseSettings, licenseDraft);
+                const lockout = analyzeLockout(licenseDraft);
+                const noChange = diff.length === 0;
+                return (
+                  <div className="mt-5 space-y-3">
+                    {noChange ? (
+                      <p className="text-xs font-bold text-slate-500">
+                        Değişiklik yok — kaydedilecek bir fark bulunmuyor.
+                      </p>
+                    ) : (
+                      <div className="rounded-2xl border-2 border-indigo-200 bg-white/80 p-4">
+                        <p className="text-xs font-black uppercase tracking-wide text-indigo-800">
+                          Kaydedilecek değişiklikler
+                        </p>
+                        <ul className="mt-2 space-y-1 text-sm">
+                          {diff.map((row) => (
+                            <li key={row.field} className="flex flex-wrap gap-x-2 font-medium text-slate-700">
+                              <span className="font-black text-slate-900">{row.label}:</span>
+                              <span className="line-through decoration-rose-400">{row.before}</span>
+                              <span aria-hidden>→</span>
+                              <span className="font-black text-indigo-900">{row.after}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {!noChange && lockout.fullLockout ? (
+                      <label className="flex items-start gap-3 rounded-2xl border-2 border-rose-400 bg-rose-50 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-5 w-5 accent-rose-600"
+                          checked={licenseLockoutAck}
+                          onChange={(e) => setLicenseLockoutAck(e.target.checked)}
+                        />
+                        <span className="text-sm font-black text-rose-900">
+                          Bu kullanıcının hiçbir cihazdan giriş yapamayacağını (hesabın fiilen kilitleneceğini)
+                          anlıyorum ve onaylıyorum.
+                        </span>
+                      </label>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void saveLicenseSettings()}
+                        disabled={savingLicense || noChange || (lockout.fullLockout && !licenseLockoutAck)}
+                        className={saveBtnClass}
+                      >
+                        {savingLicense ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Kaydediliyor…</>
+                        ) : "Lisans Ayarlarını Kaydet"}
+                      </button>
+                      {!noChange ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLicenseDraft({ ...user.licenseSettings });
+                            setLicenseLockoutAck(false);
+                          }}
+                          disabled={savingLicense}
+                          className={`${actionBtn} h-14 border-slate-200 bg-white text-slate-800`}
+                        >
+                          Değişiklikleri geri al
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })()}
             </section>
 
             <section className={`${panelClass} border-slate-200/80 bg-slate-50/50`}>
@@ -3016,6 +3229,163 @@ export default function AdminUserDetailPage() {
                   </>
                 ) : (
                   "Pasife Al ve Arşivle"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── MEM-004: Onay + modül seçimi (tek atomik işlem) ─────────────────── */}
+      {approveOpen && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="approve-title"
+        >
+          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-emerald-50/95 via-white to-violet-50/80 p-5 shadow-[0_24px_64px_rgba(15,23,42,0.22)] sm:p-8">
+            <button
+              type="button"
+              onClick={() => setApproveOpen(false)}
+              disabled={actionUserId === user.id}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="approve-title" className="pr-8 text-xl font-black text-emerald-950 sm:text-2xl">
+              {user.approvalStatus === "rejected" ? "Uzmanı yeniden onayla" : "Uzmanı onayla"}
+            </h2>
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 px-4 py-3">
+              <p className="break-words text-base font-black text-slate-900">{user.fullName}</p>
+              <p className="break-all text-sm font-medium text-slate-600">{user.email}</p>
+            </div>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
+              Onayla dendiğinde hesap <span className="font-black">onaylanır, aktif edilir ve Premium</span> olur;
+              uzman <span className="font-black">yalnız seçtiğiniz modüllere</span> erişir. Modüller daha sonra tek
+              tek açılıp kapatılabilir.
+            </p>
+            <p className="mt-4 text-sm font-black text-slate-900">
+              Açılacak Modüller{" "}
+              <span className="font-bold text-slate-500">
+                ({[...approveSelection].filter((k) => ADMIN_MODULE_KIND[k] === "module").length} seçili)
+              </span>
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setApproveSelection(
+                    new Set(ADMIN_MODULE_UI_KEYS.filter((k) => ADMIN_MODULE_KIND[k] === "module")),
+                  )
+                }
+                className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-xs font-black text-emerald-800 hover:bg-emerald-50"
+              >
+                Tüm modülleri seç
+              </button>
+              <button
+                type="button"
+                onClick={() => setApproveSelection(new Set())}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-50"
+              >
+                Seçimi temizle
+              </button>
+            </div>
+            <div className="mt-3">
+              <ModuleCheckboxGrid
+                selected={approveSelection}
+                onToggle={toggleApproveSelection}
+                disabled={actionUserId === user.id}
+              />
+            </div>
+            {!approveHasModule ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+                Onay için en az bir modül seçmelisiniz.
+              </p>
+            ) : null}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setApproveOpen(false)}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmApprove()}
+                disabled={actionUserId === user.id || !approveHasModule}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionUserId === user.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Onaylanıyor…
+                  </>
+                ) : (
+                  "Uzmanı Onayla"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── MEM-003: Ret onayı (yalnız onay bekleyen başvuru) ───────────────── */}
+      {rejectOpen && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={() => setRejectOpen(false)}
+              disabled={actionUserId === user.id}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="reject-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
+              Başvuruyu reddet
+            </h2>
+            <div className="mt-3 rounded-xl border border-rose-200 bg-white/80 px-4 py-3">
+              <p className="break-words text-base font-black text-slate-900">{user.fullName}</p>
+              <p className="break-all text-sm font-medium text-slate-600">{user.email}</p>
+            </div>
+            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+              Bu işlem başvuruyu <span className="font-black">reddedilmiş</span> olarak işaretler, hesabı{" "}
+              <span className="font-black">pasif</span> yapar ve varsa <span className="font-black">tüm açık
+              oturumlarını kapatır</span>. Kullanıcı sisteme giriş yapamaz. Gerekirse daha sonra “Yeniden
+              Onayla” ile modül seçerek onaylanabilir.
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setRejectOpen(false)}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmReject()}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionUserId === user.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    İşleniyor…
+                  </>
+                ) : (
+                  "Başvuruyu reddet"
                 )}
               </button>
             </div>

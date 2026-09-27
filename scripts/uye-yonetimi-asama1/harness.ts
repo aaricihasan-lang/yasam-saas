@@ -48,9 +48,10 @@ ok(isArchivedExpert({ role: "expert", approval_status: "pending", active: false 
 ok(isArchivedExpert({ role: "expert", approval_status: "rejected", active: false }) === false, "arşiv: rejected → HARİÇ");
 ok(isArchivedExpert({ role: "admin", approval_status: "approved", active: false }) === false, "arşiv: admin → HARİÇ");
 ok(deriveBaseExpertAccess({ role: "admin", active: false, approvalStatus: "pending" }) === true, "erişim: admin her zaman");
-ok(deriveBaseExpertAccess({ role: "expert", active: true, approvalStatus: "approved", packageType: "premium" }) === true, "erişim: expert active+approved+premium → VAR");
-ok(deriveBaseExpertAccess({ role: "expert", active: true, approvalStatus: "approved", packageType: "trial" }) === false, "erişim: expert+DENEME → YOK (yanıltıcı 'Aktif'e rağmen)");
-ok(deriveBaseExpertAccess({ role: "expert", active: false, approvalStatus: "approved", packageType: "premium" }) === false, "erişim: pasif premium → YOK");
+// FAZ 1 (owner kararı B): her onaylı uzman Premium → legacy package_type erişim kararına GİRMEZ.
+ok(deriveBaseExpertAccess({ role: "expert", active: true, approvalStatus: "approved" }) === true, "erişim: expert active+approved → temel erişim VAR (paket seçimi yok)");
+ok(deriveBaseExpertAccess({ role: "expert", active: true, approvalStatus: "pending" }) === false, "erişim: onay bekleyen → YOK");
+ok(deriveBaseExpertAccess({ role: "expert", active: false, approvalStatus: "approved" }) === false, "erişim: pasif onaylı → YOK");
 const auditSample = [
   { action: "user_activated", created_at: "2026-03-01T00:00:00Z" },
   { action: "user_deactivated", created_at: "2026-02-01T00:00:00Z" },
@@ -92,23 +93,25 @@ ok(/admin_set_user_active\(uuid,uuid,boolean,boolean\)/.test(mig), "migration: g
 // ─── (3) ROUTE & UI KAYNAK SÖZLEŞMESİ ────────────────────────────────────────
 console.log("\n[3] Route & UI sözleşmesi");
 const statusSrc = stripLineComments(read("app/api/admin/users/[id]/status/route.ts"));
-ok(/rpc\("admin_approve_expert_premium"/.test(statusSrc), "status.approve → admin_approve_expert_premium RPC");
+// FAZ 1 (MEM-004): onay modül seçimiyle atomik RPC'den geçer (admin_approve_expert_with_modules).
+ok(/rpc\("admin_approve_expert_with_modules"/.test(statusSrc), "status.approve → admin_approve_expert_with_modules RPC (FAZ 1)");
 ok(/rpc\("admin_reject_user"/.test(statusSrc), "status.reject → admin_reject_user RPC");
 ok(/rpc\("admin_set_user_active"/.test(statusSrc), "status.toggle → admin_set_user_active RPC");
 ok(!/buildPremiumModulePermissionsPayload/.test(statusSrc), "status: TÜM modülleri açan payload KULLANILMAZ");
 ok(!/writeAdminAudit/.test(statusSrc), "status: app-katmanı ayrı audit YOK (audit RPC içinde, atomik)");
-ok(/revokeAllActiveSessions/.test(statusSrc) && /admin_set_user_active[\s\S]*revokeAllActiveSessions/.test(statusSrc), "status: pasifleştirme sonrası oturum iptali (RPC'den SONRA)");
+// FAZ 1 (MEM-006): oturum iptali artık RPC İÇİNDE (aynı tx) — route ayrıca revoke çağırmaz.
+ok(!/revokeAllActiveSessions/.test(statusSrc), "status: oturum iptali RPC içinde (aynı tx; route-sonrası telafi YOK)");
 // Issue-1: toggle güvenilir sunucu durumuna göre; bayat istemci verisi 409'a maplenir
 ok(/typeof body\.currentActive !== "boolean"/.test(statusSrc), "status.toggle: currentActive boolean ZORUNLU (bayat/eksik veri reddedilir)");
 ok(/p_expected_active:\s*expectedActive/.test(statusSrc), "status.toggle: beklenen mevcut durum RPC'ye geçer (optimistic-concurrency)");
-ok(/code === "UY001"[\s\S]*status:\s*409/.test(statusSrc), "status.toggle: durum-uyuşmazlığı (UY001) → 409 (yanlış yönde değişiklik yok)");
+ok(/code === "UY001"[\s\S]{0,160}409/.test(statusSrc), "status.toggle: durum-uyuşmazlığı (UY001) → 409 (yanlış yönde değişiklik yok)");
 
 const pkgSrc = stripLineComments(read("app/api/admin/users/[id]/package/route.ts"));
-// Issue-3: premium ATAMA da audited atomik RPC'den geçer (audit'siz yh_grade boşluğu kapandı)
-ok(/rpc\("admin_approve_expert_premium"/.test(pkgSrc) && /packagePlan === "premium"/.test(pkgSrc), "package.premium → admin_approve_expert_premium (ZORUNLU audit + atomik)");
+// FAZ 1 (MEM-009): paket uç noktası KALDIRILDI → yetkili çağrı 410, hiçbir üyelik alanı yazılmaz.
+ok(/status:\s*410/.test(pkgSrc) && !/\.rpc\(|\.update\(/.test(pkgSrc), "package: 410 Gone — üyelik yazımı YOK (FAZ 1)");
 ok(!/gradeExpertPremiumWithYasamHafizasi/.test(pkgSrc), "package: audit'siz doğrudan yh_grade çağrısı KALDIRILDI");
 ok(!/buildPremiumModulePermissionsPayload/.test(pkgSrc), "package: TÜM modülleri açan payload KALDIRILDI");
-ok(!/p_module_permissions/.test(pkgSrc), "package.premium: modül izinleri RPC içinde KORUNUR (snapshot geçilmez)");
+ok(/verifyAdminRequest/.test(pkgSrc), "package: admin guard korunur (401/403 regresyon matrisi)");
 
 const delSrc = stripLineComments(read("app/api/admin/users/[id]/delete/route.ts"));
 ok(/rpc\("admin_archive_user"/.test(delSrc), "delete → admin_archive_user RPC (atomik: active=false + user_archived)");

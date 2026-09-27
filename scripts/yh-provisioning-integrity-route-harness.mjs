@@ -102,14 +102,15 @@ ck("R", "admin create: idempotency_key_conflict → 409", /idempotency_key_confl
 
 // ── EMAIL WRITE PATH ENVANTERİ (Fix-4): provisioning-dışı users.email UPDATE yolu ──
 const edit = read("app/api/admin/users/[id]/route.ts");
-ck("E", "edit route: email server-side normalize lower(btrim eşdeğeri)", /String\(body\.email \?\? ""\)\.trim\(\)\.toLowerCase\(\)/.test(edit));
-ck("E", "edit route: blank email reddi (400)", /!fullName \|\| !email[\s\S]*?400/.test(edit));
+const profileVal = read("lib/admin/memberRequestValidation.ts");
+ck("E", "edit route: email server-side normalize lower(btrim eşdeğeri)", /validateProfileEdit/.test(edit) && /body\.email\.trim\(\)\.toLowerCase\(\)/.test(profileVal));
+ck("E", "edit route: blank email reddi (400)", /if \(!fullName \|\| !email\) return \{ ok: false/.test(profileVal) && /if \(!v\.ok\) return bad\(v\.error\)/.test(edit));
 // Fix-4 kapsamı: YALNIZ email-write dalı (updatePayload). license/modules dalları email
 // yazmaz → kapsam-dışı (scope disiplini; pre-existing, dokunulmadı).
-const emailBlock = (edit.match(/const updatePayload[\s\S]*?return NextResponse\.json\(\{ ok: true \}\);/) || [""])[0];
+const emailBlock = (edit.match(/const updatePayload[\s\S]*?return NextResponse\.json\(\{ ok: true, changed: true \}/) || [""])[0];
 ck("E", "edit route (email dalı): ham DB hatası SIZDIRILMAZ (error.message yok)", !/\{ error: error\.message \}/.test(emailBlock));
 ck("E", "edit route (email dalı): normalized-unique çakışması → 409 (code 23505)", /error\.code === "23505"[\s\S]*?409/.test(emailBlock));
-ck("E", "edit route (email dalı): diğer DB hatası generic 500", /"Kullanıcı güncellenemedi\."[\s\S]*?500/.test(emailBlock));
+ck("E", "edit route (email dalı): diğer DB hatası generic 500", /"Kullanıcı güncellenemedi\.", 500/.test(emailBlock));
 // login normalize aynı kanonik sözleşme (create/edit ile uyumlu) → provisioning-dışı okuma tutarlılığı
 const login = read("lib/auth/loginUser.ts");
 ck("E", "login normalize lower+trim (index sözleşmesiyle uyumlu)", /email\.trim\(\)\.toLowerCase\(\)/.test(login));

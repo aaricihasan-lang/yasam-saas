@@ -167,13 +167,15 @@ function run(): void {
 
   const licenseRoute = readFileSync("app/api/admin/users/[id]/route.ts", "utf8");
   ok(/computeExcessSessionsToRevoke/.test(licenseRoute), "license-route: fazlalık hesabı bağlı");
-  ok(/requiresConfirmation/.test(licenseRoute) && /status:\s*409/.test(licenseRoute), "license-route: onaysız 409 preview");
+  ok(/requiresConfirmation/.test(licenseRoute) && /Onaylayın\.`?,\s*409/.test(licenseRoute), "license-route: onaysız 409 preview");
   ok(/confirmExcessRevocation/.test(licenseRoute), "license-route: onay sözleşmesi");
   ok(/admin_session_limit/.test(licenseRoute), "license-route: revoke end_reason");
   ok(/total_session_limit_changed/.test(licenseRoute), "license-route: mevcut audit action");
   ok(/id === adminId[\s\S]{0,240}403/.test(licenseRoute), "license-route: self-target 403");
-  ok(/>=\s*-1/.test(licenseRoute), "license-route: -1/0/N validasyonu");
-  ok(/Lisans güncellenemedi/.test(licenseRoute) && /error:\s*"[^"]*güncellenemedi/i.test(licenseRoute), "license-route: ham DB hatası yerine sabit mesaj");
+  // ÜYE YÖNETİMİ FAZ 1: -1/0/N doğrulaması lib/admin/licenseLimits.validateLicensePayload'a taşındı.
+  const licenseLib = readFileSync("lib/admin/licenseLimits.ts", "utf8");
+  ok(/validateLicensePayload/.test(licenseRoute) && /v < -1 \|\| v > LICENSE_SESSION_LIMIT_MAX/.test(licenseLib), "license-route: -1/0/N validasyonu");
+  ok(/bad\("Lisans güncellenemedi\.", 500\)/.test(licenseRoute) && !/error\.message/.test(licenseRoute), "license-route: ham DB hatası yerine sabit mesaj");
 
   const mig = readFileSync("supabase/migrations/20260918000000_p3_session_limits.sql", "utf8");
   const migCode = mig.split(/\r?\n/).filter((l) => !/^\s*--/.test(l)).join("\n");

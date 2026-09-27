@@ -61,7 +61,9 @@ function run(): void {
   ok(evaluateRouteModuleGuard(HD, mk({ role: "admin" })) === "allow", "C: admin → allow");
   ok(evaluateRouteModuleGuard(HD, mk({ module_permissions: { human_design: true } })) === "allow", "C: Premium+active+approved + HD:true → allow");
   ok(evaluateRouteModuleGuard(HD, mk({ module_permissions: { human_design: false } })) === "deny", "C: Premium+active+approved + HD:false → deny");
-  ok(evaluateRouteModuleGuard(HD, mk({ package_type: "pro", module_permissions: { human_design: true } })) === "deny_membership", "C: Pro + HD:true → deny_membership");
+  // ÜYE YÖNETİMİ FAZ 1: legacy package_type erişimi belirlemez (onaylı+aktif = Premium).
+  ok(evaluateRouteModuleGuard(HD, mk({ package_type: "pro", module_permissions: { human_design: true } })) === "allow", "C: legacy Pro kolonu + HD:true → allow (FAZ 1)");
+  ok(evaluateRouteModuleGuard(HD, mk({ approval_status: "pending", module_permissions: { human_design: true } })) === "deny_membership", "C: onay bekleyen + HD:true → deny_membership");
   ok(evaluateRouteModuleGuard(HD, mk({ active: false, module_permissions: { human_design: true } })) === "deny_membership", "C: inactive Premium → deny_membership");
   ok(evaluateRouteModuleGuard(HD, mk({ approval_status: "pending", module_permissions: { human_design: true } })) === "deny_membership", "C: unapproved Premium → deny_membership");
 

@@ -1,21 +1,14 @@
 import {
-  buildMembershipDisplay,
   parseMembershipFromRow,
   type MembershipDisplay,
   type MembershipSnapshot,
-  type PackagePlanUi,
 } from "@/lib/auth/membership";
 import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
 import {
   normalizeApprovalStatus,
   normalizeRole,
 } from "@/lib/auth/yasamUser";
-
-export const PACKAGE_PLAN_OPTIONS: { value: PackagePlanUi; label: string }[] = [
-  { value: "trial", label: "Deneme" },
-  { value: "pro", label: "Pro" },
-  { value: "premium", label: "Premium" },
-];
+import { limitFromDb } from "@/lib/admin/licenseLimits";
 
 export type ManagedUserRole = "admin" | "expert";
 
@@ -50,14 +43,18 @@ export const SECURITY_MODE_OPTIONS: { value: SecurityMode; label: string }[] = [
   { value: "flexible", label: "Esnek"  },
 ];
 
+/**
+ * DB default ile AYNI (P3 migration 20260918: tüm limit kolonları default -1 = sınırsız).
+ * Yalnız yükleme öncesi yer tutucu; kayıt her zaman DB'den okunan değerle başlar.
+ */
 export const DEFAULT_LICENSE_SETTINGS: LicenseSettings = {
   licenseType:            "single",
-  allowedActiveSessions:  2,
+  allowedActiveSessions:  -1,
   allowedLocations:       1,
-  allowedDesktopSessions: 1,
-  allowedMobileSessions:  1,
-  allowedTabletSessions:  0,
-  allowedUnknownSessions: 0,
+  allowedDesktopSessions: -1,
+  allowedMobileSessions:  -1,
+  allowedTabletSessions:  -1,
+  allowedUnknownSessions: -1,
   securityMode:           "normal",
   securityExempt:         false,
   licenseNote:            "",
@@ -65,12 +62,18 @@ export const DEFAULT_LICENSE_SETTINGS: LicenseSettings = {
 
 export type LicensePreset = { label: string; settings: LicenseSettings };
 
+/**
+ * Hazır presetler. MEM-001: eski "0" değerleri "ayrı limit yok" niyetiyle yazılmıştı; P3
+ * semantiğinde 0 = GİRİŞ KAPALI olduğundan tablet/tanınmayan cihazları sessizce yasaklıyordu.
+ * Niyet korunarak -1 (toplam limit içinde serbest) yapıldı. Preset admin notunu SİLMEZ
+ * (UI, mevcut notu korur).
+ */
 export const LICENSE_PRESETS: LicensePreset[] = [
-  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 1, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: 0, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
-  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 1, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
-  { label: "Aile",        settings: { licenseType: "family",       allowedActiveSessions: 6,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 3, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
-  { label: "Ortak",       settings: { licenseType: "partner",      allowedActiveSessions: 8,  allowedLocations: 2, allowedDesktopSessions: 3, allowedMobileSessions: 3, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
-  { label: "Ekip",        settings: { licenseType: "team",         allowedActiveSessions: 12, allowedLocations: 4, allowedDesktopSessions: 6, allowedMobileSessions: 4, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 1, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: -1, allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 1, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1,  allowedUnknownSessions: -1, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Aile",        settings: { licenseType: "family",       allowedActiveSessions: 6,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 3, allowedTabletSessions: 1,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+  { label: "Ortak",       settings: { licenseType: "partner",      allowedActiveSessions: 8,  allowedLocations: 2, allowedDesktopSessions: 3, allowedMobileSessions: 3, allowedTabletSessions: 2,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+  { label: "Ekip",        settings: { licenseType: "team",         allowedActiveSessions: 12, allowedLocations: 4, allowedDesktopSessions: 6, allowedMobileSessions: 4, allowedTabletSessions: 2,  allowedUnknownSessions: -1, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
 ];
 
 export type ApprovalStatusUi = "pending" | "approved" | "rejected";
@@ -90,6 +93,11 @@ export const ADMIN_MODULE_UI_KEYS = [
   "belge_ceviri",
   "ders_notu",
   "digital_content",
+  // FAZ 1 / MEM-005: satılabilir modüller — gerçek server kapısı anahtarları (moduleAccessCore
+  // ModuleGateKey + moduleRouteRegistry: app/api/hd → human_design; kozmik takvim + app/api/hacamat
+  // → cosmic_calendar). Önceden listede YOKTU → yeni üyeye verilemiyor, mevcut üyeden alınamıyordu.
+  "human_design",
+  "cosmic_calendar",
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
   // Beslenme — normal satılabilir/grantable modül (admin↔uzman özellik paritesi). Admin buradan
@@ -121,13 +129,20 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
+  human_design: "Human Design",
+  cosmic_calendar: "Kozmik Takvim / Yaşam Takvimi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
   beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
-  digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
+  digital_content:
+    "Hub kartı: yalnız alt modüllerden (Kişisel Arşiv, Video, Belge, Ders Notu) biri açıksa erişim verir.",
+  human_design: "Human Design harita, analiz ve rapor modülü.",
+  cosmic_calendar:
+    "Kozmik Ajanda / Yaşam Takvimi ve takvime bağlı hacamat zamanlama kuralları & raporları.",
+  cupping: "Kupa & Hacamat uygulama modülü (protokoller, takvim ve raporlar).",
   beslenme: "Beslenme modülünün tamamına erişim verir.",
   beslenme_manual_food:
     "Yalnız dar manuel besin katkı yeteneği: uzman kendi özel besinlerini ekleyip düzenleyebilir. Tam Beslenme modülünü (beslenme) açmaz.",
@@ -148,10 +163,49 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   belge_ceviri: false,
   ders_notu: false,
   digital_content: false,
+  human_design: false,
+  cosmic_calendar: false,
   cupping: false,
   beslenme: false,
   beslenme_manual_food: false,
 };
+
+/**
+ * Anahtar türü: "module" = gerçek erişim açan satılabilir modül · "hub" = yalnız alt
+ * modüllerle etkili kart bayrağı (digital_content) · "capability" = dar yetenek bayrağı
+ * (tam modül değildir). Onayda "en az bir modül" kuralı ve açık modül sayısı yalnız
+ * "module" türünü sayar.
+ */
+export type AdminModuleKind = "module" | "hub" | "capability";
+
+export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
+  clients: "module",
+  appointments: "module",
+  numerology: "module",
+  stones: "module",
+  stok: "module",
+  sifa_rehberi: "module",
+  reflexology: "module",
+  energy_body: "module",
+  aromatherapy: "module",
+  personal_archive: "module",
+  video_ceviri: "module",
+  belge_ceviri: "module",
+  ders_notu: "module",
+  digital_content: "hub",
+  human_design: "module",
+  cosmic_calendar: "module",
+  cupping: "module",
+  beslenme: "module",
+  beslenme_manual_food: "capability",
+};
+
+const ADMIN_MODULE_UI_KEY_SET: ReadonlySet<string> = new Set<string>(ADMIN_MODULE_UI_KEYS);
+
+/** Kanonik server-side whitelist kontrolü (UI listesi ile AYNI kaynak). */
+export function isAdminModuleUiKey(key: unknown): key is AdminModuleUiKey {
+  return typeof key === "string" && ADMIN_MODULE_UI_KEY_SET.has(key);
+}
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
   danisan_yonetimi: "clients",
@@ -167,6 +221,72 @@ const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
   kupa: "cupping",
   hacamat_terapi: "cupping",
 };
+
+/** Kanonik UI anahtarı → DB'de saklanabilen eski TR alias anahtarları. */
+export function adminModuleAliasKeys(key: AdminModuleUiKey): string[] {
+  return Object.entries(ADMIN_MODULE_TR_ALIAS_TO_UI)
+    .filter(([, ui]) => ui === key)
+    .map(([alias]) => alias);
+}
+
+/** Tüm eski TR alias anahtarları (onayda seçim dışı kalan modül alias ile açık kalmasın). */
+export const ADMIN_MODULE_ALIAS_KEYS: readonly string[] = Object.keys(ADMIN_MODULE_TR_ALIAS_TO_UI);
+
+export type ModuleChangesValidation =
+  | { ok: true; changes: Partial<Record<AdminModuleUiKey, boolean>> }
+  | { ok: false; error: string };
+
+/**
+ * MEM-007/008: modül değişiklik isteği — YALNIZ bilinen kanonik anahtar + YALNIZ boolean.
+ * Bilinmeyen anahtar (ör. is_admin, yasam_hafizasi, TR alias) veya non-boolean → hata (400).
+ */
+export function validateModuleChanges(raw: unknown): ModuleChangesValidation {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "Modül değişikliği (changes) nesnesi gerekli." };
+  }
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length === 0) return { ok: false, error: "En az bir modül değişikliği gerekli." };
+  if (entries.length > ADMIN_MODULE_UI_KEYS.length) {
+    return { ok: false, error: "Çok fazla modül değişikliği." };
+  }
+  const changes: Partial<Record<AdminModuleUiKey, boolean>> = {};
+  for (const [k, v] of entries) {
+    if (!isAdminModuleUiKey(k)) return { ok: false, error: "Bilinmeyen modül anahtarı." };
+    if (typeof v !== "boolean") return { ok: false, error: "Modül izni true/false olmalıdır." };
+    changes[k] = v;
+  }
+  return { ok: true, changes };
+}
+
+export type ApprovalModulesValidation =
+  | { ok: true; selected: AdminModuleUiKey[]; fullMap: Record<AdminModuleUiKey, boolean> }
+  | { ok: false; error: string };
+
+/**
+ * MEM-004: onay sırasında seçilen modüller (kanonik anahtar dizisi). En az bir GERÇEK modül
+ * ("module" türü) zorunlu. fullMap = TÜM grantable anahtarlar (seçilen=true, diğer=false) →
+ * onay sonrası tam olarak seçilen modüller açık olur.
+ */
+export function validateApprovalModules(raw: unknown): ApprovalModulesValidation {
+  if (!Array.isArray(raw)) return { ok: false, error: "Açılacak modüller listesi gerekli." };
+  if (raw.length > ADMIN_MODULE_UI_KEYS.length) return { ok: false, error: "Geçersiz modül listesi." };
+  const selected = new Set<AdminModuleUiKey>();
+  for (const k of raw) {
+    if (!isAdminModuleUiKey(k)) return { ok: false, error: "Bilinmeyen modül anahtarı." };
+    selected.add(k);
+  }
+  if (![...selected].some((k) => ADMIN_MODULE_KIND[k] === "module")) {
+    return { ok: false, error: "Onay için en az bir modül seçilmelidir." };
+  }
+  const fullMap = { ...DEFAULT_ADMIN_MODULE_PERMISSIONS };
+  for (const k of selected) fullMap[k] = true;
+  return { ok: true, selected: ADMIN_MODULE_UI_KEYS.filter((k) => selected.has(k)), fullMap };
+}
+
+/** Gerçek erişim açan (kind=module) açık modüller — sabit "Erişim VAR" yerine gerçek sayı. */
+export function enabledAccessModules(perms: AdminModulePermissions): AdminModuleUiKey[] {
+  return ADMIN_MODULE_UI_KEYS.filter((k) => ADMIN_MODULE_KIND[k] === "module" && perms[k] === true);
+}
 
 export type PaymentStatusUi = "paid" | "pending" | "overdue" | "exempt" | "unknown";
 
@@ -489,19 +609,6 @@ export function parseAdminModulePermissions(raw: unknown): AdminModulePermission
   return perms;
 }
 
-export function isUserPremiumPackage(user: ManagedUser): boolean {
-  return user.membership.packageType === "premium";
-}
-
-export function isExpertModuleEnabled(
-  user: ManagedUser,
-  key: AdminModuleUiKey,
-): boolean {
-  if (user.role !== "expert") return false;
-  if (isUserPremiumPackage(user)) return true;
-  return Boolean(user.modulePermissions[key]);
-}
-
 export function premiumAdminModulePermissions(): AdminModulePermissions {
   return parseAdminModulePermissions(buildPremiumModulePermissionsPayload());
 }
@@ -564,7 +671,12 @@ function mapApprovalStatus(value: unknown): ApprovalStatusUi {
   return "pending";
 }
 
-function parseLicenseSettings(row: Record<string, unknown>): LicenseSettings {
+function parseLocations(raw: unknown): number {
+  const n = Math.trunc(Number(raw));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
+export function parseLicenseSettings(row: Record<string, unknown>): LicenseSettings {
   const VALID_LICENSE_TYPES: LicenseType[] = ["single", "professional", "family", "partner", "team", "custom"];
   const VALID_SECURITY_MODES: SecurityMode[] = ["strict", "normal", "flexible"];
 
@@ -580,15 +692,48 @@ function parseLicenseSettings(row: Record<string, unknown>): LicenseSettings {
 
   return {
     licenseType,
-    allowedActiveSessions:  Math.max(1, Number(row.allowed_active_sessions ?? 2)),
-    allowedLocations:       Math.max(1, Number(row.allowed_locations ?? 1)),
-    allowedDesktopSessions: Math.max(0, Number(row.allowed_desktop_sessions ?? 1)),
-    allowedMobileSessions:  Math.max(0, Number(row.allowed_mobile_sessions ?? 1)),
-    allowedTabletSessions:  Math.max(0, Number(row.allowed_tablet_sessions ?? 0)),
-    allowedUnknownSessions: Math.max(0, Number(row.allowed_unknown_sessions ?? 0)),
+    // MEM-001: KAYIPSIZ round-trip — -1 (sınırsız) / 0 (kapalı) / N aynen korunur
+    // (eski Math.max(1|0, …) -1'i 1/0'a çevirip "Kaydet"te üyeyi cihazlardan kilitliyordu).
+    allowedActiveSessions:  limitFromDb(row.allowed_active_sessions),
+    allowedLocations:       parseLocations(row.allowed_locations),
+    allowedDesktopSessions: limitFromDb(row.allowed_desktop_sessions),
+    allowedMobileSessions:  limitFromDb(row.allowed_mobile_sessions),
+    allowedTabletSessions:  limitFromDb(row.allowed_tablet_sessions),
+    allowedUnknownSessions: limitFromDb(row.allowed_unknown_sessions),
     securityMode,
     securityExempt: row.security_exempt === true,
     licenseNote:    row.license_note != null ? String(row.license_note) : "",
+  };
+}
+
+/**
+ * FAZ 1 / MEM-013 — yeni ürün modeli göstergesi (tek paket):
+ *   PAKET: onaylı uzman = Premium (paket seçimi YOK; Deneme/Pro gösterilmez)
+ *   HESAP DURUMU: Aktif / Pasif (users.active — pasif üyede "Aktif" çelişkisi yok)
+ * Legacy package_type / trial alanları gösterimde ve erişim kararında KULLANILMAZ.
+ */
+export function buildManagedMembershipDisplay(input: {
+  role: ManagedUserRole;
+  approvalStatus: ApprovalStatusUi;
+  active: boolean;
+}): MembershipDisplay {
+  const packageLabel =
+    input.role === "admin"
+      ? "Yönetici"
+      : input.approvalStatus === "approved"
+        ? "Premium"
+        : input.approvalStatus === "pending"
+          ? "Onay bekliyor"
+          : "—";
+  return {
+    packageLabel,
+    statusLabel: input.active ? "Aktif" : "Pasif",
+    trialEndLabel: "—",
+    remainingDaysLabel: "—",
+    durationNote:
+      input.role === "expert" && input.approvalStatus === "approved"
+        ? "Süresiz / yönetici pasife alana kadar"
+        : "—",
   };
 }
 
@@ -599,17 +744,19 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
   const fullName = String(row.full_name ?? row.name ?? "").trim();
   const email = String(row.email ?? "").trim();
   const membership = parseMembershipFromRow(row);
+  const active = row.active === true;
+  const approvalStatus = mapApprovalStatus(row.approval_status);
 
   return {
     id: id || email,
     fullName: fullName || email || "İsimsiz kullanıcı",
     email,
     role,
-    active: row.active === true,
-    approvalStatus: mapApprovalStatus(row.approval_status),
+    active,
+    approvalStatus,
     modulePermissions: parseAdminModulePermissions(row.module_permissions),
     membership,
-    membershipDisplay: buildMembershipDisplay(membership),
+    membershipDisplay: buildManagedMembershipDisplay({ role, approvalStatus, active }),
     payment: parsePaymentFromRow(row),
     licenseSettings: parseLicenseSettings(row),
     adminLevel:

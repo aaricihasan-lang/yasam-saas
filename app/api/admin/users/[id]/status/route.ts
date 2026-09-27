@@ -1,38 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { guardAdminLockoutById, requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
-import {
-  revokeAllActiveSessions,
-  SessionRevokeError,
-  SESSION_END_REASON,
-  jsonNoStore,
-} from "@/lib/admin/accountSessionControls";
+import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import {
-  buildMembershipUpdatePayload,
+  buildPremiumMembershipPayload,
   filterMembershipPayloadForRow,
 } from "@/lib/auth/membership";
-import { rowHasMembershipColumns } from "@/lib/admin/userManagement";
+import {
+  ADMIN_MODULE_ALIAS_KEYS,
+  rowHasMembershipColumns,
+  validateApprovalModules,
+} from "@/lib/admin/userManagement";
+import { isUuid, rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+function bad(error: string, status = 400) {
+  return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
+}
+
 /**
  * POST /api/admin/users/[id]/status
  *
- * Body: { action: "approve" | "reject" | "toggle_active", currentActive?: boolean }
+ * Body:
+ *   { action: "approve", modules: string[], expectedApproval: "pending" | "rejected" }
+ *                                                      — FAZ 1 / MEM-004: modül seçimi ZORUNLU;
+ *                                                        gördüğü durum ≠ gerçek → 409 (bayat ekran)
+ *   { action: "reject" }                               — MEM-003: yalnız PENDING hedef
+ *   { action: "toggle_active", currentActive: boolean }
  *
- * AŞAMA 1 (atomiklik): tüm durum değişiklikleri + ZORUNLU audit TEK PostgreSQL
- * transaction'ında, hedef satır `FOR UPDATE` kilidi altında gerçekleşir (dar-yetkili
- * SECURITY DEFINER RPC'ler — migration 20270105000000):
- *   - approve  → admin_approve_expert_premium (premium+YH+approved_at koru+user_approved),
- *                mevcut module_permissions KORUNUR (RPC'ye NULL geçilir; topluca açma yok).
- *   - reject   → admin_reject_user (rejected+inactive+user_rejected).
- *   - toggle   → admin_set_user_active (active+user_activated/user_deactivated).
- * Audit yazılamazsa hesap değişikliği de COMMIT EDİLMEZ (uygulama-seviyesi telafi YOK).
- * Owner/son-admin/self/admin-hedef korumaları burada (route) KALIR; oturum iptali
- * pasifleştirmede RPC'den SONRA yapılır (active=false zaten erişimi bloke eder).
+ * Tüm durum değişiklikleri + ZORUNLU audit + oturum iptali TEK PostgreSQL transaction'ında,
+ * hedef satır `FOR UPDATE` kilidi altında (migration 20270128000000):
+ *   - approve → admin_approve_expert_with_modules: pending/rejected → approved + active +
+ *               Premium + YALNIZ seçilen modüller (+ YH kuralı) + eski oturum iptali. Zaten
+ *               onaylı → 409 (membership_started_at / audit tekrar yazılmaz).
+ *   - reject  → admin_reject_user: yalnız pending; rejected + inactive + TÜM oturumlar iptal.
+ *   - toggle  → admin_set_user_active: durum değişince oturumlar iptal (eski token canlanmaz);
+ *               onaysız uzman aktifleştirilemez (409).
+ * Owner/son-admin/self/admin-hedef korumaları burada (route) KALIR.
  */
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
@@ -40,99 +48,109 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const { adminId, db } = guard;
 
   const { id } = await ctx.params;
-  if (!id) {
-    return NextResponse.json({ error: "Kullanıcı ID gerekli." }, { status: 400 });
-  }
+  if (!isUuid(id)) return bad("Geçersiz kullanıcı ID.");
 
   // Adminin kendi hesabı üzerinde durum işlemi engellenir.
-  if (id === adminId) {
-    return NextResponse.json(
-      { error: "Kendi hesabınız üzerinde durum değişikliği yapamazsınız." },
-      { status: 400 },
-    );
-  }
+  if (id === adminId) return bad("Kendi hesabınız üzerinde durum değişikliği yapamazsınız.");
 
   // Hedef bir admin ise yalnız ana yönetici durum değiştirebilir.
   const adminTarget = await requireMainAdminForAdminTarget(db, adminId, id);
-  if (!adminTarget.ok) {
-    return NextResponse.json({ error: adminTarget.error }, { status: adminTarget.status });
-  }
+  if (!adminTarget.ok) return bad(adminTarget.error, adminTarget.status);
 
-  const body = (await req.json()) as { action?: string; currentActive?: boolean };
+  const parsed = await readLimitedJsonBody(req);
+  if (!parsed.ok) return bad(parsed.error, parsed.status);
+  const body = parsed.value;
 
-  // ── ONAYLA → OTOMATİK PREMIUM (atomik; izinler korunur) ────────────────────
+  // ── ONAYLA + MODÜL SEÇİMİ → PREMIUM (atomik) ─────────────────────────────
   if (body.action === "approve") {
-    // Paket kolonlarının varlığı + premium membership payload (izinler RPC içinde NULL ile korunur).
+    const mods = validateApprovalModules(body.modules);
+    if (!mods.ok) return bad(mods.error);
+    // Bayat ekran koruması: yöneticinin gördüğü onay durumu ZORUNLU (RPC kilit altında karşılaştırır).
+    const expectedApproval = body.expectedApproval;
+    if (expectedApproval !== "pending" && expectedApproval !== "rejected") {
+      return bad("Geçerli beklenen onay durumu (expectedApproval: pending | rejected) gerekli.");
+    }
+
     const { data: currentRow, error: fetchErr } = await db
       .from("users")
       .select(USERS_SAFE_SELECT)
       .eq("id", id)
       .maybeSingle();
-    if (fetchErr || !currentRow) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
-    }
+    if (fetchErr) return bad("Kullanıcı okunamadı.", 500);
+    if (!currentRow) return bad("Kullanıcı bulunamadı.", 404);
     const row = currentRow as unknown as Record<string, unknown>;
-    if (!rowHasMembershipColumns(row)) {
-      return NextResponse.json(
-        { error: "Veritabanında paket kolonları bulunamadı." },
-        { status: 422 },
-      );
-    }
-    const membershipPayload = filterMembershipPayloadForRow(
-      buildMembershipUpdatePayload("premium"),
-      row,
-    );
+    if (!rowHasMembershipColumns(row)) return bad("Veritabanında paket kolonları bulunamadı.", 422);
+    const membershipPayload = filterMembershipPayloadForRow(buildPremiumMembershipPayload(), row);
 
-    const { error } = await db.rpc("admin_approve_expert_premium", {
+    const { data, error } = await db.rpc("admin_approve_expert_with_modules", {
       p_user_id: id,
       p_membership: membershipPayload,
       p_actor_admin_id: adminId,
+      p_modules: mods.fullMap,
+      p_remove_keys: [...ADMIN_MODULE_ALIAS_KEYS],
+      p_expected_approval: expectedApproval,
     });
     if (error) {
-      return NextResponse.json(
-        { error: "Onay / Premium işlemi tamamlanamadı (tekrar deneyin)." },
-        { status: 500 },
+      const status = rpcErrorStatus(error);
+      if ((error as { code?: string }).code === "UY001") {
+        return bad("Uzmanın onay durumu bu sırada değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
+      }
+      return bad(
+        status === 409
+          ? "Bu hesap onay bekleyen bir uzman değil (zaten onaylı olabilir). Sayfayı yenileyin."
+          : status === 400
+            ? "Onay için geçerli modül seçimi gerekli."
+            : "Onay işlemi tamamlanamadı (tekrar deneyin).",
+        status,
       );
     }
+    const result = (data ?? {}) as { modules?: string[]; module_count?: number };
     return jsonNoStore({
       ok: true,
       approval_status: "approved",
       active: true,
       package_type: "premium",
+      modules: result.modules ?? mods.selected,
+      moduleCount: result.module_count ?? mods.selected.length,
     });
   }
 
-  // ── REDDET (atomik) ────────────────────────────────────────────────────────
+  // ── REDDET (yalnız pending; atomik + oturum iptali) ───────────────────────
   if (body.action === "reject") {
     const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
-    if (!lock.ok) {
-      return NextResponse.json({ error: lock.error }, { status: lock.status });
-    }
-    const { error } = await db.rpc("admin_reject_user", {
+    if (!lock.ok) return bad(lock.error, lock.status);
+    const { data, error } = await db.rpc("admin_reject_user", {
       p_user_id: id,
       p_actor_admin_id: adminId,
     });
     if (error) {
-      return NextResponse.json({ error: "Ret işlemi tamamlanamadı." }, { status: 500 });
+      const status = rpcErrorStatus(error);
+      return bad(
+        status === 409
+          ? "Yalnız onay bekleyen başvurular reddedilebilir. Onaylı üye için “Pasif Yap” veya “Pasife Al ve Arşivle” kullanın."
+          : status === 400
+            ? "Kullanıcı bulunamadı."
+            : "Ret işlemi tamamlanamadı.",
+        status,
+      );
     }
-    return jsonNoStore({ ok: true, approval_status: "rejected", active: false });
+    const result = (data ?? {}) as { revoked_session_count?: number };
+    return jsonNoStore({
+      ok: true,
+      approval_status: "rejected",
+      active: false,
+      revokedSessionCount: result.revoked_session_count ?? 0,
+    });
   }
 
   // ── PASİFE AL / AKTİFLEŞTİR (atomik + oturum iptali) ───────────────────────
   if (body.action !== "toggle_active") {
-    return NextResponse.json(
-      { error: "Geçersiz action. approve | reject | toggle_active bekleniyor." },
-      { status: 400 },
-    );
+    return bad("Geçersiz action. approve | reject | toggle_active bekleniyor.");
   }
 
-  // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency). Bayat/eksik veriyle
-  // yanlış yönde toggle yapmamak için boolean şartı aranır (UI her iki çağrıda da gönderir).
+  // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency).
   if (typeof body.currentActive !== "boolean") {
-    return NextResponse.json(
-      { error: "Geçerli mevcut durum (currentActive) gerekli." },
-      { status: 400 },
-    );
+    return bad("Geçerli mevcut durum (currentActive) gerekli.");
   }
   const expectedActive = body.currentActive;
   const willBeActive = !expectedActive;
@@ -140,52 +158,29 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   // Kilitlenme koruması: pasifleştirme owner'ı veya son aktif admini düşüremez.
   if (!willBeActive) {
     const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
-    if (!lock.ok) {
-      return NextResponse.json({ error: lock.error }, { status: lock.status });
-    }
+    if (!lock.ok) return bad(lock.error, lock.status);
   }
 
-  // Atomik: active + user_activated/user_deactivated audit (tek tx, FOR UPDATE).
-  // p_expected_active: RPC KİLİT altında gerçek durumu bununla karşılaştırır; istemci verisi
-  // bayatsa (araya giren eşzamanlı işlem) ERRCODE=UY001 ile reddeder → yanlış yönde değişiklik yok.
-  const { error } = await db.rpc("admin_set_user_active", {
+  const { data, error } = await db.rpc("admin_set_user_active", {
     p_user_id: id,
     p_actor_admin_id: adminId,
     p_active: willBeActive,
     p_expected_active: expectedActive,
   });
   if (error) {
-    if ((error as { code?: string }).code === "UY001") {
-      return NextResponse.json(
-        { error: "Kullanıcının güncel durumu değişmiş; listeyi yenileyip tekrar deneyin." },
-        { status: 409 },
-      );
+    const code = (error as { code?: string }).code;
+    if (code === "UY001") {
+      return bad("Kullanıcının güncel durumu değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
     }
-    return NextResponse.json({ error: "Durum değişikliği tamamlanamadı." }, { status: 500 });
-  }
-
-  if (!willBeActive) {
-    // Pasife alma sonrası oturum iptali (RPC'den SONRA): active=false ZATEN her korumalı
-    // isteği bloke eder; ek olarak oturumları geçersizleştiririz (defans-in-depth).
-    try {
-      const revokedSessionCount = await revokeAllActiveSessions(
-        db,
-        id,
-        SESSION_END_REASON.deactivated,
-      );
-      return jsonNoStore({ ok: true, active: false, revokedSessionCount });
-    } catch (e) {
-      if (e instanceof SessionRevokeError) {
-        // Pasifleştirme + audit COMMIT edildi ve active=false erişimi engeller; yalnız oturum
-        // temizliği başarısız. Yönetici gerekirse "tüm cihazlardan çıkış" ile tekrar deneyebilir.
-        return jsonNoStore(
-          { ok: true, active: false, warning: "Oturumlar kapatılamadı; erişim yine de engellendi." },
-          200,
-        );
-      }
-      throw e;
+    if (code === "UY002") {
+      return bad("Onaylanmamış uzman aktifleştirilemez; önce modül seçerek onaylayın.", 409);
     }
+    return bad("Durum değişikliği tamamlanamadı.", rpcErrorStatus(error) === 400 ? 400 : 500);
   }
-
-  return jsonNoStore({ ok: true, active: true });
+  const result = (data ?? {}) as { revoked_session_count?: number };
+  return jsonNoStore({
+    ok: true,
+    active: willBeActive,
+    revokedSessionCount: result.revoked_session_count ?? 0,
+  });
 }

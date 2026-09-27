@@ -5,23 +5,6 @@ export type PackageType = "trial" | "pro" | "premium";
 
 export type MembershipStatus = "trial" | "active" | "expired" | "suspended";
 
-export type PackagePlanUi = PackageType;
-
-const PACKAGE_LABELS: Record<PackageType, string> = {
-  trial: "Deneme",
-  pro: "Pro",
-  premium: "Premium",
-};
-
-const STATUS_LABELS: Record<MembershipStatus, string> = {
-  trial: "Deneme",
-  active: "Aktif",
-  expired: "Süresi Dolmuş",
-  suspended: "Askıda",
-};
-
-const TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
-
 export type MembershipSnapshot = {
   packageType?: PackageType;
   membershipStatus?: MembershipStatus;
@@ -163,90 +146,17 @@ export function formatMembershipDate(iso?: string): string {
   });
 }
 
-export function computeRemainingDaysLabel(endIso?: string): string {
-  if (!endIso) return "-";
-  const end = new Date(endIso);
-  if (Number.isNaN(end.getTime())) return "-";
-  const days = Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 1000));
-  if (days < 0) return "0";
-  return String(days);
-}
+// FAZ 1: Deneme/Pro gösterimi (buildMembershipDisplay, kalan-gün hesabı) KALDIRILDI —
+// yönetim göstergesi lib/admin/userManagement::buildManagedMembershipDisplay'den türer
+// (onaylı uzman = Premium; hesap durumu = Aktif/Pasif).
 
-export function buildMembershipDisplay(snapshot: MembershipSnapshot): MembershipDisplay {
-  const packageLabel = snapshot.packageType
-    ? PACKAGE_LABELS[snapshot.packageType]
-    : "Tanımsız";
-
-  const statusLabel =
-    snapshot.effectiveStatus === "unknown"
-      ? "Tanımsız"
-      : STATUS_LABELS[snapshot.effectiveStatus];
-
-  if (snapshot.isUnlimited) {
-    return {
-      packageLabel,
-      statusLabel,
-      trialEndLabel: "—",
-      remainingDaysLabel: "Süresiz / Admin pasife alana kadar aktif",
-      durationNote: "Süresiz / Admin pasife alana kadar aktif",
-    };
-  }
-
-  if (snapshot.packageType === "trial") {
-    return {
-      packageLabel,
-      statusLabel,
-      trialEndLabel: formatMembershipDate(snapshot.trialEndsAt),
-      remainingDaysLabel: snapshot.isTrialExpired
-        ? "0"
-        : computeRemainingDaysLabel(snapshot.trialEndsAt),
-      durationNote: snapshot.isTrialExpired
-        ? "Deneme süresi sona erdi"
-        : "3 günlük deneme süresi",
-    };
-  }
-
-  return {
-    packageLabel,
-    statusLabel,
-    trialEndLabel: "—",
-    remainingDaysLabel: "-",
-    durationNote: "—",
-  };
-}
-
-export function buildMembershipUpdatePayload(
-  plan: PackagePlanUi,
-): Record<string, unknown> {
+/**
+ * Onay sırasında yazılan legacy üyelik kolonları — YALNIZ Premium (FAZ 1: Deneme/Pro ürün
+ * seçeneği KALDIRILDI; admin paket seçmez). Kolonlar teknik uyumluluk için doldurulur:
+ * yh_grade_expert_premium sözleşmesi package_type VE plan = 'premium' ister.
+ */
+export function buildPremiumMembershipPayload(): Record<string, unknown> {
   const now = new Date().toISOString();
-  const trialEnd = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
-
-  if (plan === "trial") {
-    return {
-      package_type: "trial",
-      membership_status: "trial",
-      trial_started_at: now,
-      trial_ends_at: trialEnd,
-      membership_started_at: null,
-      membership_ends_at: null,
-      plan: "trial",
-      subscription_status: "trial",
-    };
-  }
-
-  if (plan === "pro") {
-    return {
-      package_type: "pro",
-      membership_status: "active",
-      membership_started_at: now,
-      membership_ends_at: null,
-      trial_started_at: null,
-      trial_ends_at: null,
-      plan: "pro",
-      subscription_status: "active",
-    };
-  }
-
   return {
     package_type: "premium",
     membership_status: "active",
@@ -285,25 +195,18 @@ export function filterMembershipPayloadForRow(
 }
 
 /**
- * Uzman erişimi — tek üyelik modeli: active + approved + premium.
+ * Uzman erişimi — tek üyelik modeli (FAZ 1 owner kararı): her ONAYLI uzman Premium'dur.
+ * Temel erişim = active + approved; modül erişimi ayrıca kişiye özel module_permissions.
  *
- * Premium için hiçbir tarih/süre alanı erişim kararına GİRMEZ
- * (trial_ends_at, membership_ends_at, subscription tarihleri,
- *  expired/suspended üyelik statüsü vb. yok sayılır).
- * Erişimin kapatılması yalnız admin'in manuel `active=false` kararıyla olur.
- * Admin her zaman erişebilir.
+ * package_type / plan / trial / membership tarihleri erişim kararına GİRMEZ (legacy
+ * teknik kolonlar). Böylece istemci kapısı server kapısıyla (verifyUserRequest:
+ * active + onaylı; requireModuleAccess: module_permissions) BİREBİR hizalıdır —
+ * "UI kapalı / API açık" çift doğruluk kaynağı kalmaz. Erişimin kapatılması yalnız
+ * admin'in `active=false` kararı (veya onay durumu) ile olur. Admin her zaman erişir.
  */
 export function hasExpertMembershipAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
   if (isAdminUser(user)) return true;
   if (user.active !== true) return false;
-  if (normalizeApprovalStatus(user.approval_status) !== "approved") return false;
-  return parseMembershipFromUser(user).packageType === "premium";
-}
-
-export function inferPackagePlanFromSnapshot(
-  snapshot: MembershipSnapshot,
-): PackagePlanUi | "" {
-  if (snapshot.packageType) return snapshot.packageType;
-  return "";
+  return normalizeApprovalStatus(user.approval_status) === "approved";
 }

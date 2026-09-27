@@ -108,7 +108,11 @@
     "dogaltas:presale-f2:harness": "tsx scripts/dogaltas-presale-f2/harness.ts",
     "refleksoloji:harness": "tsx scripts/refleksoloji-sales-closure/harness.ts",
     "store:whatsapp:harness": "tsx scripts/store-whatsapp-harness.ts",
-    "store:category-media:harness": "tsx scripts/store-category-media-harness.ts"
+    "store:category-media:harness": "tsx scripts/store-category-media-harness.ts",
+    "uye-yonetimi:faz1:unit": "tsx scripts/uye-yonetimi-faz1/unit.harness.ts",
+    "uye-yonetimi:faz1:db": "tsx scripts/uye-yonetimi-faz1/db-contract.harness.ts",
+    "uye-yonetimi:faz1:routes": "tsx scripts/uye-yonetimi-faz1/route-integration.harness.ts",
+    "uye-yonetimi:faz1:check": "tsx scripts/uye-yonetimi-faz1/unit.harness.ts && tsx scripts/uye-yonetimi-faz1/db-contract.harness.ts && tsx scripts/uye-yonetimi-faz1/route-integration.harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
