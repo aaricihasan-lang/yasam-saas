@@ -96,8 +96,14 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     // raw: dashboard trend/stok ham satır — yalnız kendi tenant (library DAHİL DEĞİL)
     if (mode === "raw") {
+      // Tek tüketici pano aylık trendi: yalnız created_at + (varsa) `since` penceresi.
+      // Eskiden tüm kolonlar (uzun metinler dahil) iniyordu: yüzlerce KB + 1000-satır tavanı.
+      const sinceRaw = sp.get("since");
+      const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw)) ? new Date(sinceRaw).toISOString() : null;
       const tQ = performance.now();
-      const { data, error } = await db.from("stones").select("*").eq("tenant_id", tenantId);
+      let rawQuery = db.from("stones").select("created_at").eq("tenant_id", tenantId);
+      if (since) rawQuery = rawQuery.gte("created_at", since);
+      const { data, error } = await rawQuery.order("created_at", { ascending: false });
       mark("stones", performance.now() - tQ);
       if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:raw", tenantId, cause: error }));
       const tR = performance.now();
