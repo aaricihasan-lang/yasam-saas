@@ -97,6 +97,24 @@ export function parseMemberListQuery(sp: Search): MemberListQueryResult {
 }
 
 /** Filtre → query string (varsayılanlar yazılmaz → temiz URL). */
+/** Detaydan listeye dönüşte korunacak liste sorgusu (sekme-yerel; sessionStorage). */
+export const MEMBER_LIST_RETURN_KEY = "yasam_admin_member_list_qs";
+export const MEMBER_LIST_PATH = "/admin/users";
+
+/**
+ * Saklanan ham sorguyu GÜVENLİ dönüş adresine çevirir: yalnız parseMemberListQuery'den geçen
+ * değerler yeniden serileştirilir (bilinmeyen/bozuk değer → düz liste). Açık yönlendirme yok —
+ * adres her zaman sabit MEMBER_LIST_PATH.
+ */
+export function memberListReturnHref(rawSearch: string | null | undefined): string {
+  const raw = String(rawSearch ?? "").replace(/^\?/, "");
+  if (!raw || raw.length > 1000) return MEMBER_LIST_PATH;
+  const parsed = parseMemberListQuery(new URLSearchParams(raw));
+  if (!parsed.ok) return MEMBER_LIST_PATH;
+  const qs = memberListQueryToSearch(parsed.value);
+  return qs ? `${MEMBER_LIST_PATH}?${qs}` : MEMBER_LIST_PATH;
+}
+
 export function memberListQueryToSearch(q: MemberListQuery): string {
   const p = new URLSearchParams();
   if (q.view !== "members") p.set("view", q.view);

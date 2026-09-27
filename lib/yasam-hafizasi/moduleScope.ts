@@ -5,7 +5,8 @@
  * modül listesini TUTMAZ; aktif kapsam her istekte uzmanın GÜNCEL izinlerinden türetilir
  * (alias-aware, lib/auth/moduleAccessCore.resolveModuleAccess). Böylece:
  *   - admin yeni modül açınca → Hafıza ek ayar olmadan o modülün kayıtlarını kapsar,
- *   - modül kapatılınca → aktif kapsamdan (arama/facet/yeni snapshot) OTOMATİK çıkar,
+ *   - modül kapatılınca → aktif kapsamdan (arama/facet/yeni snapshot + mevcut snapshot okuma
+ *     ve Word teslim eki) OTOMATİK çıkar,
  *   - geçmiş Hafıza kayıtları SİLİNMEZ (index + mevcut snapshot'lar korunur; yeniden açılınca
  *     aynı kayıtlar kendiliğinden tekrar görünür — gap/backfill gerekmez).
  *

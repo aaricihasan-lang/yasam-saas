@@ -32,6 +32,7 @@ import {
 } from "@/lib/admin/userManagement";
 import {
   DEFAULT_MEMBER_LIST_QUERY,
+  MEMBER_LIST_RETURN_KEY,
   MEMBER_PAGE_SIZES,
   memberListQueryToSearch,
   parseMemberCounts,
@@ -168,7 +169,7 @@ function UsersTopNav({ onLogout }: { onLogout: () => void }) {
           href="/admin"
           className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline lg:justify-self-center`}
         >
-          Admin Yönetim Merkezi
+          Yönetim Merkezi
         </Link>
         <button
           type="button"
@@ -399,11 +400,18 @@ function AdminUsersContent() {
 
   // Arama kutusu ↔ URL: geri/ileri ile q değişince kutu, render sırasında senkronlanır
   // (React "state'i render'da ayarla" deseni; effect içinde setState yok).
+  // Yarış koruması: kutunun KENDİ gönderdiği (debounce) q değerleri `ownQs`'te tutulur; bu
+  // gezinmeler geç tamamlansa bile kullanıcının o arada yazdığı metni EZMEZ. Yalnız dış
+  // değişiklik (Geri/İleri, Filtreleri Temizle) kutuyu günceller ve listeyi sıfırlar.
   const [searchText, setSearchText] = useState(query.q);
   const [syncedQ, setSyncedQ] = useState(query.q);
+  const [ownQs, setOwnQs] = useState<string[]>([]);
   if (syncedQ !== query.q) {
     setSyncedQ(query.q);
-    setSearchText(query.q);
+    if (!ownQs.includes(query.q)) {
+      setSearchText(query.q);
+      setOwnQs([]);
+    }
   }
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<CreateForm>(emptyCreateForm);
@@ -411,25 +419,50 @@ function AdminUsersContent() {
   const [formOpen, setFormOpen] = useState(false);
   const [reactivatingId, setReactivatingId] = useState<string>("");
 
+  // Geçmiş davranışı: filtre / sayfa / sayfa boyutu / sekme / temizle → router.push (tarayıcı
+  // Geri/İleri her adımı geri getirir). Arama yazımı: bir yazma oturumunun İLK değişikliği push,
+  // aynı oturumdaki sonraki tuşlar replace → tek arama = tek geçmiş adımı (tuş başına kayıt yok).
+  const searchHistoryMode = useRef<"push" | "replace">("push");
   const setQuery = useCallback(
-    (patch: Partial<MemberListQuery>) => {
+    (patch: Partial<MemberListQuery>, mode: "push" | "replace" = "push") => {
       const next: MemberListQuery = { ...query, ...patch };
       const qs = memberListQueryToSearch(next);
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      if (qs === memberListQueryToSearch(query)) return;
+      const href = qs ? `${pathname}?${qs}` : pathname;
+      if (mode === "replace") router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
     },
     [query, router, pathname],
   );
+  const navigate = useCallback(
+    (patch: Partial<MemberListQuery>) => {
+      searchHistoryMode.current = "push";
+      setQuery(patch, "push");
+    },
+    [setQuery],
+  );
 
   // Yazarken 350 ms debounce → URL (q) güncellenir; sayfa 1'e döner.
-  const lastPushedQ = useRef(query.q);
   useEffect(() => {
     if (searchText.trim() === query.q) return;
     const t = setTimeout(() => {
-      lastPushedQ.current = searchText.trim();
-      setQuery({ q: searchText.trim(), page: 1 });
+      const mode = searchHistoryMode.current;
+      const nextQ = searchText.trim();
+      searchHistoryMode.current = "replace";
+      setOwnQs((prev) => [...prev.slice(-4), nextQ]);
+      setQuery({ q: nextQ, page: 1 }, mode);
     }, 350);
     return () => clearTimeout(t);
   }, [searchText, query.q, setQuery]);
+
+  // Detaydan "Üye Listesine Dön" aynı filtre/sayfaya döner (sekme-yerel; yalnız doğrulanmış sorgu).
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(MEMBER_LIST_RETURN_KEY, queryKey);
+    } catch {
+      /* depolama kapalı → dönüş düz listeye */
+    }
+  }, [queryKey]);
 
   // Liste (sunucu tarafı sayfalama) — URL durumu değişince; yarışlar AbortController ile iptal.
   useEffect(() => {
@@ -610,7 +643,7 @@ function AdminUsersContent() {
               <Users className="h-6 w-6 text-white/90" aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase tracking-widest text-white/60">Admin · Üye Yönetimi</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-white/60">Yönetim · Üye Yönetimi</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Üye Yönetimi</h1>
               <p className="mt-1 text-sm font-medium text-white/70">
                 Uzman ve yönetici hesapları. Onay, modül erişimi ve güvenlik ayarları üye detayında yönetilir.
@@ -623,22 +656,22 @@ function AdminUsersContent() {
         <section aria-label="Üye sayıları" className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
           <CountCard label="Toplam Uzman" value={counts?.experts_total ?? null} tone="violet"
             active={!isArchive && query.role === "expert" && query.approval === "all" && query.active === "all"}
-            onClick={() => setQuery({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", page: 1 })} />
           <CountCard label="Onay Bekleyen" value={counts?.pending ?? null} tone="amber"
             active={!isArchive && query.approval === "pending"}
-            onClick={() => setQuery({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", page: 1 })} />
           <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
             active={!isArchive && query.approval === "approved" && query.active === "active"}
-            onClick={() => setQuery({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", page: 1 })} />
           <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
             active={isArchive}
-            onClick={() => setQuery({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
+            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
           <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
             active={!isArchive && query.approval === "rejected"}
-            onClick={() => setQuery({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", page: 1 })} />
           <CountCard label="Yönetici" value={counts?.admins ?? null} tone="sky"
             active={!isArchive && query.role === "admin"}
-            onClick={() => setQuery({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", page: 1 })} />
         </section>
         <p className="mb-5 text-[11px] font-semibold text-slate-500">
           Her uzman yalnızca bir gruptadır: Onay Bekleyen + Onaylı · Aktif + Arşiv + Reddedilen = Toplam Uzman.
@@ -647,7 +680,7 @@ function AdminUsersContent() {
 
         <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Görünüm">
           <button type="button" role="tab" aria-selected={!isArchive}
-            onClick={() => setQuery({ ...DEFAULT_MEMBER_LIST_QUERY })}
+            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY })}
             className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
               !isArchive ? "border-violet-400 bg-violet-100 text-violet-950" : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
             }`}>
@@ -655,7 +688,7 @@ function AdminUsersContent() {
             Üyeler
           </button>
           <button type="button" role="tab" aria-selected={isArchive}
-            onClick={() => setQuery({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })}
+            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })}
             className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
               isArchive ? "border-amber-400 bg-amber-100 text-amber-950" : "border-slate-200 bg-white text-slate-700 hover:bg-amber-50/80"
             }`}>
@@ -758,24 +791,25 @@ function AdminUsersContent() {
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden />
                 <input id="member-search" type="search" value={searchText} maxLength={120}
                   onChange={(e) => setSearchText(e.target.value)}
+                  onBlur={() => { searchHistoryMode.current = "push"; }}
                   placeholder="Ad, e-posta veya rol (ör. uzman, yönetici) ara…"
                   className="h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white py-3 pl-12 pr-4 text-base font-semibold outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
               </label>
               <div className="mt-3 space-y-2.5">
                 <FilterPillRow label="Onay Durumu" options={APPROVAL_OPTIONS} value={query.approval}
-                  onSelect={(approval) => setQuery({ approval, page: 1 })} />
+                  onSelect={(approval) => navigate({ approval, page: 1 })} />
                 <FilterPillRow label="Hesap Durumu" options={ACTIVE_OPTIONS} value={query.active}
-                  onSelect={(active) => setQuery({ active, page: 1 })} />
+                  onSelect={(active) => navigate({ active, page: 1 })} />
                 <FilterPillRow label="Rol" options={ROLE_OPTIONS} value={query.role}
-                  onSelect={(role) => setQuery({ role, page: 1 })} />
+                  onSelect={(role) => navigate({ role, page: 1 })} />
                 <FilterPillRow label="Ödeme" options={PAYMENT_OPTIONS} value={query.payment}
-                  onSelect={(payment) => setQuery({ payment, page: 1 })} />
+                  onSelect={(payment) => navigate({ payment, page: 1 })} />
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <span className="text-xs font-bold text-slate-500">
                     {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Filtre yok"} · Arşivdeki uzmanlar “Arşiv” sekmesindedir.
                   </span>
                   <button type="button"
-                    onClick={() => { setSearchText(""); lastPushedQ.current = ""; setQuery({ ...DEFAULT_MEMBER_LIST_QUERY, pageSize: query.pageSize }); }}
+                    onClick={() => { setSearchText(""); navigate({ ...DEFAULT_MEMBER_LIST_QUERY, pageSize: query.pageSize }); }}
                     disabled={activeFilterCount === 0 && query.q === ""}
                     className="rounded-full border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
                     Filtreleri Temizle
@@ -797,7 +831,7 @@ function AdminUsersContent() {
               <label className="flex items-center gap-2 text-xs font-bold text-slate-600" htmlFor="page-size">
                 Sayfa başına
                 <select id="page-size" value={query.pageSize}
-                  onChange={(e) => setQuery({ pageSize: Number(e.target.value) as MemberListQuery["pageSize"], page: 1 })}
+                  onChange={(e) => navigate({ pageSize: Number(e.target.value) as MemberListQuery["pageSize"], page: 1 })}
                   className="h-9 rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
                   {MEMBER_PAGE_SIZES.map((n) => (
                     <option key={n} value={n}>{n}</option>
@@ -829,7 +863,7 @@ function AdminUsersContent() {
 
             {list.kind === "ready" && list.total > query.pageSize ? (
               <nav className="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Sayfalama">
-                <button type="button" disabled={query.page <= 1} onClick={() => setQuery({ page: query.page - 1 })}
+                <button type="button" disabled={query.page <= 1} onClick={() => navigate({ page: query.page - 1 })}
                   className="inline-flex h-10 items-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Önceki
@@ -837,7 +871,7 @@ function AdminUsersContent() {
                 <span className="text-sm font-bold text-slate-600" aria-current="page">
                   Sayfa {query.page} / {totalPages}
                 </span>
-                <button type="button" disabled={query.page >= totalPages} onClick={() => setQuery({ page: query.page + 1 })}
+                <button type="button" disabled={query.page >= totalPages} onClick={() => navigate({ page: query.page + 1 })}
                   className="inline-flex h-10 items-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
                   Sonraki
                   <ChevronRight className="h-4 w-4" aria-hidden />

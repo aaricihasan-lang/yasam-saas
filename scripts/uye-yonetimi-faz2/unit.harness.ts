@@ -16,8 +16,10 @@ import { MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
 import { passwordPolicyError, validateRegisterBody } from "../../lib/auth/registerValidation";
 import {
   DEFAULT_MEMBER_LIST_QUERY,
+  MEMBER_LIST_RETURN_KEY,
   foldTr,
   memberListQueryToSearch,
+  memberListReturnHref,
   parseMemberCounts,
   parseMemberListQuery,
   roleMatchFromQuery,
@@ -183,6 +185,37 @@ ok(/aria-describedby=\{descId\}/.test(read("components/admin/members/ModuleCheck
 ok(/aria-pressed=\{value === o\.key\}/.test(listPage) && /aria-label="Sayfalama"/.test(listPage), "filtre düğmeleri aria-pressed; sayfalama etiketli");
 ok(!/Üye Profil İzleme/.test(detailPage) && !/Paket \/ Üyelik Yönetimi/.test(detailPage), "mükerrer modül/paket bölümleri kaldırıldı");
 ok(/"Oturum \/ Cihaz"|>Oturum \/ Cihaz</.test(detailPage) && />Ödeme Durumu</.test(detailPage) && />Modül Erişimi</.test(detailPage), "profil özeti: oturum/cihaz, ödeme, modül erişimi ayrı alan");
+
+// ─── Owner kararı (cold verification sonrası): YH snapshot okuma + Word teslim eki ─────
+console.log("\n[YH-SNAP] Kapalı modül snapshot'ları okuma/Word'de gösterilmez, silinmez");
+const snapStoreSrc = read("lib/yasam-hafizasi/client/snapshotStore.ts");
+ok(/selectionGroup: string;\s*scope: YhModuleScope;\s*\},\s*\): Promise<SnapshotReportItem\[\]>/.test(snapStoreSrc), "readSnapshotsForDelivery: scope ZORUNLU parametre (kapsamsız çağrı derlenmez)");
+ok(/\.filter\(\(r\) => isYhSourceModuleInScope\(args\.scope, r\.source_module\)\)/.test(snapStoreSrc), "Word teslim okuması source_module'ü aktif kapsamla süzer");
+ok(/items: visibleRows\(ctx, res\.rows\)\.map\(toSnapshotDto\)/.test(snapStoreSrc) && /const rows = after\.ok \? visibleRows\(ctx, after\.rows\) : \[\]/.test(snapStoreSrc), "snapshot GET + POST yanıtı yalnız aktif kapsamı döner");
+ok(!/\.delete\(\)[\s\S]{0,200}source_module/.test(snapStoreSrc), "kapsam dışı snapshot için SİLME yolu yok (yalnız gizleme)");
+for (const f of ["app/api/clients/[id]/word-report/route.ts", "app/api/sifa-rehberi/word-report/route.ts", "app/api/refleksoloji/protocol-report/route.ts"]) {
+  const src = read(f);
+  ok(/resolveYhModuleScope\(guard\.profile\?\.role, guard\.profile\?\.module_permissions\)/.test(src) && /readSnapshotsForDelivery\(db, \{[\s\S]{0,260}scope/.test(src), `${f.split("/").slice(2, -1).join("/")}: Word eki GÜNCEL module_permissions kapsamıyla`);
+}
+
+// ─── P3: liste geçmişi + "Üye Listesine Dön" + focus trap + terminoloji ─────────
+console.log("\n[P3] Geri/İleri geçmişi, liste dönüşü, focus trap, terminoloji");
+ok(/router\.push\(href, \{ scroll: false \}\)/.test(listPage) && !/router\.replace\(qs \?/.test(listPage), "filtre/sayfa değişimi router.push (Geri/İleri adım adım)");
+ok(!/onClick=\{\(\) => setQuery\(|onSelect=\{\([a-z]+\) => setQuery\(|onChange=\{\(e\) => setQuery\(/.test(listPage), "tüm ayrık liste eylemleri navigate() (push) kullanır");
+ok(/searchHistoryMode\.current = "replace"/.test(listPage) && /onBlur=\{\(\) => \{ searchHistoryMode\.current = "push"; \}\}/.test(listPage), "arama yazımı: oturum başına tek geçmiş adımı (ilk push, sonrası replace)");
+ok(/if \(!ownQs\.includes\(query\.q\)\) \{\s*setSearchText\(query\.q\);/.test(listPage) && /setOwnQs\(\(prev\) => \[\.\.\.prev\.slice\(-4\), nextQ\]\)/.test(listPage), "arama yarışı: geç tamamlanan kendi gezinmesi yazılan metni ezmez");
+ok(/sessionStorage\.setItem\(MEMBER_LIST_RETURN_KEY, queryKey\)/.test(listPage), "liste mevcut sorguyu dönüş için saklar (sekme-yerel)");
+ok(!/href="\/admin\/users"/.test(detailPage) && (detailPage.match(/href=\{listHref\}/g) ?? []).length === 2 && /router\.push\(listHref\)/.test(detailPage), "detay: tüm liste dönüşleri korunmuş sorguyla");
+ok(MEMBER_LIST_RETURN_KEY.length > 0 && memberListReturnHref("approval=approved&page=2&pageSize=10") === "/admin/users?approval=approved&page=2&pageSize=10", "dönüş adresi: filtre + sayfa korunur");
+ok(memberListReturnHref("") === "/admin/users" && memberListReturnHref(null) === "/admin/users", "saklı sorgu yoksa düz liste");
+ok(memberListReturnHref("approval=HACK") === "/admin/users" && memberListReturnHref("page=0") === "/admin/users", "geçersiz saklı değer → düz liste (doğrulanmadan kullanılmaz)");
+ok(memberListReturnHref("//evil.example/x?q=1").startsWith("/admin/users") && memberListReturnHref("q=%2F%2Fevil").startsWith("/admin/users?"), "açık yönlendirme yok (adres daima /admin/users)");
+ok(memberListReturnHref("?q=ar%C4%B1c%C4%B1&foo=bar") === "/admin/users?q=ar%C4%B1c%C4%B1", "bilinmeyen parametre atılır, Türkçe arama korunur");
+const dlg = read("components/admin/members/useDialogA11y.ts");
+ok(/e\.key !== "Tab"/.test(dlg) && /last\.focus\(\)/.test(dlg) && /first\.focus\(\)/.test(dlg) && /e\.shiftKey/.test(dlg), "modal focus trap: Tab / Shift+Tab diyalog içinde döner");
+const denied = read("components/auth/ModuleAccessDenied.tsx");
+ok(!/Deneme süreniz|Üyelik Süresi Doldu/.test(denied) && /Üyeliğiniz Aktif Değil/.test(denied), "erişim ekranı: Deneme/süre dili yok (Premium-only)");
+ok(!/Admin · Üye Yönetimi|Admin Yönetim Merkezi/.test(listPage) && !/içerikleri admin tarafından/.test(detailPage), "üye yönetimi ekranlarında \"Admin\" etiketi yok (Yönetim / yönetici)");
 
 console.log(`\n──────────\nFAZ 2 UNIT: PASS ${passed} · FAIL ${failed}`);
 if (failed > 0) process.exit(1);

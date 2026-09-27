@@ -50,6 +50,7 @@ import {
   twoColTable,
 } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
+import { resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 import { fetchProfileImageBuffer } from "@/lib/clients/profileImageFetch";
 
@@ -1162,6 +1163,8 @@ export async function POST(
   const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
+  // Yaşam Hafızası teslim eki: aktif modül kapsamı GÜNCEL module_permissions'tan (Üye Yönetimi).
+  const yhScope = resolveYhModuleScope(guard.profile?.role, guard.profile?.module_permissions);
 
   const { id: clientId } = await params;
 
@@ -2077,6 +2080,7 @@ export async function POST(
         targetKind: "report",
         targetRef: null,
         selectionGroup: selectionGroupId,
+        scope: yhScope,
       });
       if (snaps.length > 0) all.push(...buildSnapshotSection(snaps, { headingNumber: 10 }));
     } catch {

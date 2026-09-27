@@ -82,6 +82,7 @@ import {
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
+import { MEMBER_LIST_RETURN_KEY, memberListReturnHref } from "@/lib/admin/memberListQuery";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -466,6 +467,15 @@ const readStoredUserRaw = () => {
   }
 };
 const serverUserRaw = () => null;
+/** Listeden gelinen filtre/sayfa (sekme-yerel); yoksa düz liste. */
+const readListReturnRaw = () => {
+  try {
+    return sessionStorage.getItem(MEMBER_LIST_RETURN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+const serverListReturnRaw = () => "";
 
 /** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-1) */
 function adminHeaders(adminId: string, json = false): Record<string, string> {
@@ -486,6 +496,9 @@ export default function AdminUserDetailPage() {
   // Oturum: localStorage (yalnız istemci) → useSyncExternalStore (SSR'da null; effect içi setState yok).
   const storedUserRaw = useSyncExternalStore(noopSubscribe, readStoredUserRaw, serverUserRaw);
   const sessionChecked = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  // "Üye Listesine Dön": listedeki filtre + sayfa korunur (doğrulanmış sorgu; açık yönlendirme yok).
+  const listReturnRaw = useSyncExternalStore(noopSubscribe, readListReturnRaw, serverListReturnRaw);
+  const listHref = memberListReturnHref(listReturnRaw);
   const currentAdminUser = useMemo<YasamUser | null>(
     () => (storedUserRaw ? readYasamUser() : null),
     [storedUserRaw],
@@ -833,7 +846,7 @@ export default function AdminUserDetailPage() {
       message: "Uzman pasife alınıp arşivlendi. Arşiv sekmesinden yeniden aktifleştirilebilir.",
       type: "success",
     });
-    router.push("/admin/users");
+    router.push(listHref);
   }
 
   function openEdit() {
@@ -1416,7 +1429,7 @@ export default function AdminUserDetailPage() {
         >
           <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-4">
             <Link
-              href="/admin/users"
+              href={listHref}
               className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline`}
             >
               <Users className="h-5 w-5 shrink-0" aria-hidden />
@@ -1464,7 +1477,7 @@ export default function AdminUserDetailPage() {
                 </button>
               ) : null}
               <Link
-                href="/admin/users"
+                href={listHref}
                 className="inline-flex h-11 items-center rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-black text-slate-800 no-underline"
               >
                 Üye listesine dön
@@ -1493,7 +1506,7 @@ export default function AdminUserDetailPage() {
             >
               <p className="text-sm font-bold leading-relaxed text-amber-950 md:text-base">
                 Bu ekranda yalnızca üye hesabı ve erişim yetkileri yönetilir.
-                Danışan, analiz, taş veya diğer uzman içerikleri admin tarafından
+                Danışan, analiz, taş veya diğer uzman içerikleri yönetici tarafından
                 görüntülenemez veya düzenlenemez.
               </p>
             </div>

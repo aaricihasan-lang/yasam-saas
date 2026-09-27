@@ -29,6 +29,7 @@ import type {
   SnapshotSelectionRef,
   SnapshotTargetKind,
 } from "./snapshotSelection";
+import { isYhSourceModuleInScope, type YhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 
 const SNAP_TABLE = "yasam_hafizasi_report_snapshots";
 const PRO_INDEX = "yasam_hafizasi_index";
@@ -48,10 +49,18 @@ export interface SnapshotContext {
   /** professional shared (tenant NULL) satırlarına izin (flags.yh_shared). */
   allowShared: boolean;
   /**
-   * ÜYE YÖNETİMİ FAZ 2: aktif modül kapsamı (lib/yasam-hafizasi/moduleScope). Verilirse kapsam
-   * dışı source_module YENİ snapshot'a alınmaz (skipped). Mevcut snapshot'lar SİLİNMEZ/okunur.
+   * ÜYE YÖNETİMİ FAZ 2 (owner kararı): aktif modül kapsamı (lib/yasam-hafizasi/moduleScope,
+   * GÜNCEL users.module_permissions). Kapsam dışı source_module YENİ snapshot'a alınmaz ve
+   * mevcut snapshot OKUMALARINDA (GET + POST yanıtı) GÖSTERİLMEZ. Satırlar SİLİNMEZ; modül
+   * yeniden açılınca aynı snapshot'lar kendiliğinden tekrar görünür.
    */
   isSourceModuleInScope?: (sourceModule: string) => boolean;
+}
+
+/** Okuma sunumu: kapsam dışı modülün snapshot'ları gizlenir (satır DB'de kalır). */
+function visibleRows(ctx: SnapshotContext, rows: SnapshotRow[]): SnapshotRow[] {
+  const inScope = ctx.isSourceModuleInScope;
+  return inScope ? rows.filter((r) => inScope(r.source_module)) : rows;
 }
 
 export interface SnapshotTarget {
@@ -244,7 +253,8 @@ export async function createSnapshotSelections(
   }
 
   const after = await readGroupRows(ctx, target, selectionGroup);
-  const rows = after.ok ? after.rows : [];
+  // Dedupe TÜM satırlarla yapıldı (gizli satır yeniden eklenmez); yanıt yalnız aktif kapsamı gösterir.
+  const rows = after.ok ? visibleRows(ctx, after.rows) : [];
   return {
     ok: true,
     selectionGroupId: selectionGroup,
@@ -265,7 +275,7 @@ export async function readSnapshotSelectionGroup(
 ): Promise<{ ok: true; items: SnapshotDto[] } | { ok: false; notActive: boolean }> {
   const res = await readGroupRows(ctx, target, selectionGroup);
   if (!res.ok) return { ok: false, notActive: res.unavailable };
-  return { ok: true, items: res.rows.map(toSnapshotDto) };
+  return { ok: true, items: visibleRows(ctx, res.rows).map(toSnapshotDto) };
 }
 
 /** DELETE: seçim grubundan tek snapshot'ı kontrollü kaldırır (içerik değişmez). */
@@ -289,6 +299,10 @@ export async function deleteSnapshotSelection(
 /**
  * Word teslim rotaları için: seçilmiş snapshotları PII-siz rapor öğesi olarak okur.
  * Şema yoksa / hata / boş → [] (çağıran rota mevcut çıktısını KORUR — regresyonsuz).
+ *
+ * ÜYE YÖNETİMİ FAZ 2 (owner kararı): `scope` ZORUNLU — isteği yapan kullanıcının GÜNCEL
+ * module_permissions'ından türetilen aktif Hafıza kapsamı. Kapalı modülün snapshot'ları Word
+ * çıktısına GİRMEZ (satırlar silinmez; modül yeniden açılınca tekrar dahil olur).
  */
 export async function readSnapshotsForDelivery(
   db: SupabaseClient,
@@ -298,6 +312,7 @@ export async function readSnapshotsForDelivery(
     targetKind: SnapshotTargetKind;
     targetRef: string | null;
     selectionGroup: string;
+    scope: YhModuleScope;
   },
 ): Promise<SnapshotReportItem[]> {
   try {
@@ -311,7 +326,9 @@ export async function readSnapshotsForDelivery(
     q = args.targetRef === null ? q.is("target_ref", null) : q.eq("target_ref", args.targetRef);
     const { data, error } = await q;
     if (error || !Array.isArray(data)) return [];
-    const rows = (data as SnapshotRow[]).slice().sort(compareSnapshotRows);
+    const rows = (data as SnapshotRow[])
+      .filter((r) => isYhSourceModuleInScope(args.scope, r.source_module))
+      .sort(compareSnapshotRows);
     return rows.map(toSnapshotReportItem);
   } catch {
     return [];

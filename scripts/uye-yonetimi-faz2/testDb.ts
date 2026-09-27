@@ -103,6 +103,24 @@ language sql stable as $$
    order by i.title limit p_limit
 $$;
 
+-- Danışan + teslim snapshot'ları (gerçek DDL: 20260923000000_yasam_hafizasi_client_memory_core,
+-- yasam_hafizasi_report_snapshots birebir kolon/CHECK + UPDATE-engel trigger'ı).
+create table public.clients (id uuid primary key default gen_random_uuid(), tenant_id uuid not null, full_name text);
+create table public.yasam_hafizasi_report_snapshots (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid not null, client_id uuid not null,
+  target_kind text not null, target_ref uuid, selection_group uuid not null, source_module text not null,
+  source_table text not null, source_id uuid not null, section_ref text, unit_type text not null default 'record',
+  title text, selected_text text, evidence jsonb not null default '[]'::jsonb, provenance jsonb not null default '{}'::jsonb,
+  source_updated_at timestamptz, content_hash text not null, ordering integer not null default 0, expert_note text,
+  selected_by uuid not null, source_available_at_snapshot boolean not null default true,
+  created_at timestamptz not null default now(),
+  constraint yhrs_target_kind_chk check (target_kind in ('report', 'protocol', 'guide'))
+);
+create function public.yh_report_snapshot_prevent_update() returns trigger language plpgsql as $$
+begin raise exception 'yasam_hafizasi_report_snapshots immutable: UPDATE engellendi' using errcode = 'check_violation'; end; $$;
+create trigger trg_yhrs_no_update before update on public.yasam_hafizasi_report_snapshots
+  for each row execute function public.yh_report_snapshot_prevent_update();
+
 -- Doğaltaş görünürlük savunması (retrieval stone-exclusion portu) için minimal tablo.
 create table public.stone_exclusions (tenant_id uuid not null, stone_id uuid not null, primary key (tenant_id, stone_id));
 
@@ -144,7 +162,9 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
     await su.query(readMig(f));
   }
   await su.query(`grant select, insert, update on public.users, public.tenants, public.user_sessions, public.user_payment_history,
-                    public.yasam_hafizasi_flags, public.yasam_hafizasi_index, public.stone_exclusions to service_role;
+                    public.yasam_hafizasi_flags, public.yasam_hafizasi_index, public.stone_exclusions,
+                    public.clients to service_role;
+                  grant select, insert, delete on public.yasam_hafizasi_report_snapshots to service_role;
                   grant execute on function public.verify_admin_login(text,text), public.hash_password(text),
                     public.yh_search_candidates(text,uuid,boolean,float4[],integer) to service_role;`);
   const pool = new pg.Pool({ host: "127.0.0.1", port, user: "postgres", password: "testpw", database: "postgres", max: 24 });

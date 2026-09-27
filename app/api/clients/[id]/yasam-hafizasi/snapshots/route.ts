@@ -86,7 +86,8 @@ async function gate(
     clientId,
     actorUserId: userId,
     allowShared: flags.yh_shared === true,
-    // ÜYE YÖNETİMİ FAZ 2: yeni snapshot yalnız AKTİF modül kapsamından (GÜNCEL module_permissions).
+    // ÜYE YÖNETİMİ FAZ 2: yeni snapshot yalnız AKTİF modül kapsamından; mevcut snapshot okumaları
+    // (GET + POST yanıtı) da aynı kapsamla süzülür (GÜNCEL module_permissions; satır silinmez).
     isSourceModuleInScope: (m: string) =>
       isYhSourceModuleInScope(resolveYhModuleScope(profile?.role, profile?.module_permissions), m),
   };

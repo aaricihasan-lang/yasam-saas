@@ -375,6 +375,56 @@ async function main(): Promise<void> {
     ok((await yhSearch()).modules.has("dogaltas"), "eski TR alias (dogaltas=true) kapsamı açar (alias-aware)");
     const yhAud = (await su.query(`select count(*)::int n from public.admin_audit_log where target_user_id=$1 and action in ('module_enabled','module_disabled')`, [yhId])).rows[0].n;
     ok(yhAud === 4, "YH kapsam değişiklikleri yalnız Üye Yönetimi modül audit'leriyle izlenir (4 kayıt)");
+
+    // ── K. YH SNAPSHOT OKUMA + WORD TESLİM EKİ — kapalı modül GÖSTERİLMEZ, SİLİNMEZ ──
+    console.log("\n[K] Snapshot okuma + Word teslim eki = aktif modül kapsamı (owner kararı)");
+    const snapRoute = await import("../../app/api/clients/[id]/yasam-hafizasi/snapshots/route");
+    const { readSnapshotsForDelivery } = await import("../../lib/yasam-hafizasi/client/snapshotStore");
+    const { resolveYhModuleScope } = await import("../../lib/yasam-hafizasi/moduleScope");
+    const { createClient } = await import("@supabase/supabase-js");
+    const sdbJ = createClient(shim!.url, "zz-test-service-role-not-a-secret");
+    const clientId = randomUUID();
+    await su.query(`insert into public.clients(id, tenant_id, full_name) values ($1,$2,'ZZ Danışan')`, [clientId, yhTenant]);
+    const group = randomUUID();
+    const snapIns = async (tenant: string, client: string, m: string, ord: number) =>
+      su.query(
+        `insert into public.yasam_hafizasi_report_snapshots(tenant_id, client_id, target_kind, selection_group, source_module,
+           source_table, source_id, title, selected_text, content_hash, ordering, selected_by)
+         values ($1,$2,'report',$3,$4,'zz_src',gen_random_uuid(),$5,'ZZ metin','zz-hash',$6,$7)`,
+        [tenant, client, group, m, `ZZ ${m} snapshot`, ord, yhId]);
+    await snapIns(yhTenant, clientId, "numeroloji", 1);
+    await snapIns(yhTenant, clientId, "refleksoloji", 2);
+    await snapIns(yhTenant, clientId, "kupa_hacamat", 3);
+    // Tenant izolasyonu: başka tenant'ın AYNI grup kimliğiyle satırı asla dönmez.
+    await snapIns(randomUUID(), randomUUID(), "numeroloji", 4);
+    const snapGet = async () => {
+      const req = new NextRequest(`http://localhost/api/clients/${clientId}/yasam-hafizasi/snapshots?selectionGroupId=${group}&targetKind=report`, {
+        method: "GET", headers: { "x-user-id": yhId, "x-session-token": yhTok },
+      });
+      const res = await snapRoute.GET(req, { params: Promise.resolve({ id: clientId }) });
+      const j = (await res.json()) as { items?: { module: string }[] };
+      return { status: res.status, modules: (j.items ?? []).map((i) => i.module).sort().join(",") };
+    };
+    const scopeNow = async () => {
+      const u = await row(yhId);
+      return resolveYhModuleScope(u.role, u.module_permissions);
+    };
+    const deliver = async (scope: ReturnType<typeof resolveYhModuleScope>) =>
+      (await readSnapshotsForDelivery(sdbJ, { tenantId: yhTenant, clientId, targetKind: "report", targetRef: null, selectionGroup: group, scope }))
+        .map((i) => i.moduleLabel).length;
+    const g1 = await snapGet();
+    ok(g1.status === 200 && g1.modules === "kupa_hacamat,numeroloji,refleksoloji", `tüm modüller açık → GET 3 snapshot (${g1.modules}); başka tenant satırı YOK`);
+    ok((await deliver(await scopeNow())) === 3, "tüm modüller açık → Word teslim eki 3 snapshot");
+    const snapCount = async () => (await su.query(`select count(*)::int n from public.yasam_hafizasi_report_snapshots where tenant_id=$1`, [yhTenant])).rows[0].n;
+    await call(userRoute.PATCH as never, "PATCH", `/api/admin/users/${yhId}`, asOwner, { action: "modules", changes: { reflexology: false } }, { id: yhId });
+    const g2 = await snapGet();
+    ok(g2.status === 200 && g2.modules === "kupa_hacamat,numeroloji", `Refleksoloji kapatıldı → GET snapshot okumasında GÖSTERİLMEZ (${g2.modules})`);
+    ok((await deliver(await scopeNow())) === 2, "Refleksoloji kapatıldı → Word teslim ekine GİRMEZ (2 snapshot)");
+    ok((await snapCount()) === 3, "kapatılan modülün snapshot satırı fiziksel olarak DURUYOR (3 satır, silme yok)");
+    ok((await deliver(resolveYhModuleScope("admin", {}))) === 3, "admin kapsamı tüm snapshot'ları görür (yalnız uzman kapsamı süzülür)");
+    await call(userRoute.PATCH as never, "PATCH", `/api/admin/users/${yhId}`, asOwner, { action: "modules", changes: { reflexology: true } }, { id: yhId });
+    const g3 = await snapGet();
+    ok(g3.modules === "kupa_hacamat,numeroloji,refleksoloji" && (await deliver(await scopeNow())) === 3, "modül yeniden açıldı → aynı snapshot'lar GET + Word'de tekrar görünür");
   } finally {
     if (shim) await shim.close();
     await db.stop();
