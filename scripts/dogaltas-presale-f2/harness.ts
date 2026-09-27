@@ -390,6 +390,33 @@ function read(rel: string): string {
   // (DB stones_text UPDATE etmez → yukarıdaki "mutation YOK" gate'i zaten kapsar.)
 }
 
+// ─── RPC-FIX: combination RPC'lerinde uuid için max() YOK (prod 42883) ─────────
+{
+  const rel = "supabase/migrations/20270128000000_dogaltas_combination_rpc_uuid_agg_fix.sql";
+  ok("RPC-FIX migration dosyası var", existsSync(resolve(ROOT, rel)));
+  const sql = existsSync(resolve(ROOT, rel)) ? read(rel) : "";
+  const body = sql.replace(/^--.*$/gm, "");
+  ok("RPC-FIX: max(s.id) (uuid) YOK", !/max\(\s*s\.id\s*\)/i.test(body));
+  ok("RPC-FIX: tek-eşleşme (array_agg(s.id))[1] ×2", (body.match(/\(array_agg\(s\.id\)\)\[1\]/g) ?? []).length === 2);
+  ok("RPC-FIX: iki fonksiyon CREATE OR REPLACE",
+    body.includes("CREATE OR REPLACE FUNCTION public.create_combination_with_stones(") &&
+    body.includes("CREATE OR REPLACE FUNCTION public.update_combination_with_stones("));
+  ok("RPC-FIX: SECURITY DEFINER + search_path='' korunur",
+    (body.match(/SECURITY DEFINER/g) ?? []).length === 2 && (body.match(/SET search_path = ''/g) ?? []).length === 2);
+  ok("RPC-FIX: anon/authenticated EXECUTE revoke + yalnız service_role grant",
+    (body.match(/REVOKE ALL ON FUNCTION[^;]+FROM PUBLIC, anon, authenticated;/g) ?? []).length === 2 &&
+    (body.match(/GRANT EXECUTE ON FUNCTION[^;]+TO service_role;/g) ?? []).length === 2);
+  // Fonksiyon gövdeleri ($$…$$) dışındaki üst-seviye ifadeler yalnız
+  // CREATE OR REPLACE FUNCTION / REVOKE / GRANT olabilir (tablo/veri/RLS YOK).
+  const topLevel = body.replace(/\$\$[\s\S]*?\$\$/g, "$$BODY$$")
+    .split(";").map((s) => s.trim()).filter(Boolean);
+  ok("RPC-FIX: üst-seviye yalnız CREATE OR REPLACE FUNCTION / REVOKE / GRANT (tablo/veri/RLS YOK)",
+    topLevel.length === 6 && topLevel.every((s) => /^(CREATE OR REPLACE FUNCTION|REVOKE ALL ON FUNCTION|GRANT EXECUTE ON FUNCTION)/.test(s)));
+  // En son tanımlanan RPC gövdesi (migrasyon sırasına göre) max(uuid) içermemeli.
+  const orig = read("supabase/migrations/20270124000000_dogaltas_combination_stones_relational.sql");
+  ok("RPC-FIX: hotfix orijinalden SONRA sıralanır", "20270128000000" > "20270124000000" && orig.includes("max(s.id)"));
+}
+
 // ─── UX-LT: uzun metin alanı → geniş editör OTOMATİK açılır (satış öncesi kapanış) ──
 {
   // Canlı senkron editör simülasyonu: form state + editör state saf fonksiyonlarla.
@@ -470,6 +497,23 @@ function read(rel: string): string {
   ok("UX-LT detay: arka plan artık setActiveEditor(null) ile sessizce atmaz",
     !/currentTarget && !saving\) \{\s*setActiveEditor\(null\)/.test(detail));
   ok("UX-LT detay: editör textarea initialFocusRef ile odaklanır", detail.includes("editorTextareaRef") && detail.includes("initialFocusRef"));
+  ok("F-03 detay editörü: updateStone expectedUpdatedAt (stone.updated_at) gönderir",
+    /updateStone\(stone\.id, payload, stone\.updated_at\)/.test(detail));
+  ok("F-03 detay editörü: 409 conflict → taslak korunur + kayıt tazelenir (editör kapanmaz)",
+    /if \(conflict\) \{[\s\S]{0,300}getStone\(stone\.id\)[\s\S]{0,200}return;/.test(detail));
+  ok("UX-PHOTO detay: fotoğraf alanı dikey yığın (görsel + ad yan yana ezilmez)",
+    detail.includes("relative flex-col overflow-hidden ${uiImageArea}"));
+  ok("UX-PHOTO detay: uzun taş adı satır kırar (görselli + görselsiz)",
+    (detail.match(/break-words[^"]*text-(xl|sm) font-black text-slate-9[05]0/g) ?? []).length >= 2);
+  const stonesRoute = read("app/api/dogaltas/stones/route.ts");
+  const rawBlock = stonesRoute.slice(stonesRoute.indexOf('if (mode === "raw")'), stonesRoute.indexOf('if (mode === "extended")'));
+  ok("PERF pano: raw modu yalnız created_at seçer (select * YOK)",
+    rawBlock.includes('select("created_at")') && !rawBlock.includes('select("*")'));
+  ok("PERF pano: raw modu since penceresi + tenant guard",
+    /mode === "raw"[\s\S]{0,700}\.gte\("created_at", since\)/.test(stonesRoute) &&
+    /mode === "raw"[\s\S]{0,700}\.eq\("tenant_id", tenantId\)/.test(stonesRoute));
+  ok("PERF pano: istemci 6 aylık since gönderir",
+    read("app/dogaltas/page.tsx").includes("mode=raw&since="));
   const bank = read("app/dogaltas/mineral-bankasi/page.tsx");
   ok("UX-LT mineral bankası: geniş editör Esc/focus (useOverlay)", bank.includes("useOverlay<HTMLDivElement>") && bank.includes("initialFocusRef: editorTextareaRef"));
 }

@@ -846,9 +846,18 @@ function StoneDetailPage() {
       payload.assignments = check.value;
     }
 
-    const { ok, row: data, error } = await updateStone(stone.id, payload);
+    // F-03: yüklenen kaydın updated_at'i gönderilir → başka oturum araya yazdıysa 409;
+    // son-yazan sessizce ezmez. Taslak editörde KORUNUR, kayıt arka planda tazelenir.
+    const { ok, row: data, error, conflict } = await updateStone(stone.id, payload, stone.updated_at);
 
     setSaving(false);
+
+    if (conflict) {
+      setErrorMessage(error ?? t("editor.updateFailedFallback"));
+      const fresh = await getStone(stone.id);
+      if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
+      return;
+    }
 
     if (!ok || !data) {
       setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
@@ -1323,7 +1332,7 @@ function StoneDetailPage() {
             <div className={`${uiProfileCard} text-center`}>
               {imagesWithUrl.length > 0 ? (
                 <>
-                  <div className={`relative overflow-hidden ${uiImageArea}`}>
+                  <div className={`relative flex-col overflow-hidden ${uiImageArea}`}>
                     <button
                       type="button"
                       onClick={() =>
@@ -1356,7 +1365,7 @@ function StoneDetailPage() {
                         {t("delete")}
                       </button>
                     )}
-                    <h2 className="border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
+                    <h2 className="w-full break-words border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
                       {renderHighlightedText(safeStone.stone_name, highlightQuery)}
                     </h2>
                   </div>
@@ -1401,9 +1410,9 @@ function StoneDetailPage() {
                 </>
               ) : (
                 <div className={uiImageArea}>
-                  <div className="px-3 py-2 text-center">
+                  <div className="min-w-0 px-3 py-2 text-center">
                     <div className="text-[34px]">💎</div>
-                    <h2 className="mt-1 text-sm font-black text-slate-900">
+                    <h2 className="mt-1 break-words text-sm font-black text-slate-900">
                       {safeStone.stone_name}
                     </h2>
                     <p className="mt-1 text-[10px] leading-4 text-slate-400">
