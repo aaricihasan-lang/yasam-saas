@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     await su.query(readMig("20260903000000_admin_audit_log.sql"));
     await su.query(readMig("20261221000000_yh_grade_expert_premium_rpc.sql"));
     await su.query(readMig("20270107000000_admin_membership_atomic_rpcs.sql"));
-    await su.query(readMig("20270128000000_admin_member_phase1_hardening.sql"));
+    await su.query(readMig("20270129000000_admin_member_phase1_hardening.sql"));
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.user_payment_history, public.yasam_hafizasi_flags to service_role;
                     grant execute on function public.verify_admin_login(text, text) to service_role;`);
 

@@ -33,7 +33,7 @@ function bad(error: string, status = 400) {
  *   { action: "toggle_active", currentActive: boolean }
  *
  * Tüm durum değişiklikleri + ZORUNLU audit + oturum iptali TEK PostgreSQL transaction'ında,
- * hedef satır `FOR UPDATE` kilidi altında (migration 20270128000000):
+ * hedef satır `FOR UPDATE` kilidi altında (migration 20270129000000):
  *   - approve → admin_approve_expert_with_modules: pending/rejected → approved + active +
  *               Premium + YALNIZ seçilen modüller (+ YH kuralı) + eski oturum iptali. Zaten
  *               onaylı → 409 (membership_started_at / audit tekrar yazılmaz).

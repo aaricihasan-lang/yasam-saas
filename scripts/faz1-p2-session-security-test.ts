@@ -279,7 +279,7 @@ async function run(): Promise<void> {
 
   // status route (toggle_active)
   // ÜYE YÖNETİMİ FAZ 1: audit + oturum iptali admin_set_user_active RPC İÇİNDE (aynı tx).
-  const faz1Mig = readFileSync("supabase/migrations/20270128000000_admin_member_phase1_hardening.sql", "utf8");
+  const faz1Mig = readFileSync("supabase/migrations/20270129000000_admin_member_phase1_hardening.sql", "utf8");
   ok(/rpc\("admin_set_user_active"/.test(statusRoute) && /user_deactivated/.test(faz1Mig), "status-route: pasife alma audit'i (RPC içinde)");
   ok(/user_activated/.test(faz1Mig), "status-route: aktifleştirme audit'i (RPC içinde)");
   ok(/admin_set_user_active[\s\S]*admin_revoke_user_sessions_tx\([\s\S]*admin_deactivated/.test(faz1Mig), "status-route: pasife alınca revoke (RPC içinde, aynı tx)");

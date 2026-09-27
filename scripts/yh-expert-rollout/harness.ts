@@ -198,7 +198,7 @@ async function run(): Promise<void> {
     // Paket uç noktası KALDIRILDI (410; üyelik yazımı yok). FAIL-CLOSED korunur (RPC hatası → 4xx/500).
     const statusCode = stripComments(read("app/api/admin/users/[id]/status/route.ts"));
     const pkgCode = stripComments(read("app/api/admin/users/[id]/package/route.ts"));
-    const faz1Sql = read("supabase/migrations/20270128000000_admin_member_phase1_hardening.sql").replace(/--[^\n]*/g, "");
+    const faz1Sql = read("supabase/migrations/20270129000000_admin_member_phase1_hardening.sql").replace(/--[^\n]*/g, "");
     add("approve-uses-atomic-grade",
       /rpc\("admin_approve_expert_with_modules"/.test(statusCode) &&
       /admin_approve_expert_with_modules[\s\S]*public\.yh_grade_expert_premium\(p_user_id, p_membership, v_perms\)/.test(faz1Sql), "");
@@ -437,7 +437,7 @@ async function run(): Promise<void> {
     // CODE DEPENDENCY yalnız EXPAND RPC'ye bağlı (activation data'ya DEĞİL): helper + package RPC adını
     // kullanır; activation migration'ına kod referansı YOK.
     const helperSrc2 = read("lib/yasam-hafizasi/expertPremiumGrant.ts");
-    const faz1Sql2 = read("supabase/migrations/20270128000000_admin_member_phase1_hardening.sql");
+    const faz1Sql2 = read("supabase/migrations/20270129000000_admin_member_phase1_hardening.sql");
     const statusSrc2 = read("app/api/admin/users/[id]/status/route.ts");
     add("code-depends-on-expand-rpc-only",
       /yh_grade_expert_premium/.test(helperSrc2) && /yh_grade_expert_premium/.test(faz1Sql2) &&

@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
 
   // Atomik arşivle: active=false + TÜM aktif oturumların iptali + user_archived audit TEK
-  // PostgreSQL transaction'ında (FOR UPDATE kilidi) — migration 20270128000000 (MEM-006).
+  // PostgreSQL transaction'ında (FOR UPDATE kilidi) — migration 20270129000000 (MEM-006).
   // Audit yazılamazsa hesap değişimi de COMMIT edilmez. Eski token, hesap sonradan yeniden
   // aktifleştirilse bile CANLANMAZ (iptal edilen oturum hiçbir yolda tekrar aktif olmaz).
   const { data, error } = await db.rpc("admin_archive_user", {

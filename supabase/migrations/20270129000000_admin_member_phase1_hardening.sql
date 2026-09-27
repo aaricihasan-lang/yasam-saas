@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20270128000000_admin_member_phase1_hardening.sql   [EXPAND — CODE DEPENDENCY]
+-- 20270129000000_admin_member_phase1_hardening.sql   [EXPAND — CODE DEPENDENCY]
 --
 -- ÜYE YÖNETİMİ FAZ 1 — SATIŞ BLOCKER'LARI + KRİTİK İŞ AKIŞI HARDENING.
 --

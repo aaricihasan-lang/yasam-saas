@@ -165,7 +165,7 @@ console.log("\n[MEM-010] Audit action sözleşmesi");
 for (const a of ["user_profile_updated", "license_settings_changed", "security_exempt_changed"]) {
   ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `TS audit action: ${a}`);
 }
-const mig = read("supabase/migrations/20270128000000_admin_member_phase1_hardening.sql");
+const mig = read("supabase/migrations/20270129000000_admin_member_phase1_hardening.sql");
 for (const a of ADMIN_AUDIT_ACTIONS) ok(mig.includes(`'${a}'`), `migration CHECK süperseti içerir: ${a}`);
 
 // ─── UI kaynak sözleşmesi (MEM-003/004/007/013) ──────────────────────────────
