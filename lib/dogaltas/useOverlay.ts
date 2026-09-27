@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 export type UseOverlayOptions = {
   /** Overlay açık mı? */
@@ -13,6 +13,11 @@ export type UseOverlayOptions = {
   lockScroll?: boolean;
   /** Focus tuzağı + ilk-focus + kapanışta focus geri-yükleme (varsayılan: true). */
   trapFocus?: boolean;
+  /**
+   * İlk focus alacak eleman (ör. editör textarea'sı). Verilmezse ilk odaklanabilir
+   * eleman kullanılır. Metin alanıysa imleç metnin sonuna konur.
+   */
+  initialFocusRef?: RefObject<HTMLElement | null>;
 };
 
 const FOCUSABLE_SELECTOR =
@@ -32,8 +37,13 @@ export function useOverlay<T extends HTMLElement = HTMLDivElement>({
   closeOnEsc = true,
   lockScroll = true,
   trapFocus = true,
+  initialFocusRef,
 }: UseOverlayOptions) {
   const containerRef = useRef<T>(null);
+  const initialFocusRefRef = useRef(initialFocusRef);
+  useEffect(() => {
+    initialFocusRefRef.current = initialFocusRef;
+  }, [initialFocusRef]);
 
   // onClose'u ref'te tut — effect bağımlılıklarını sade tutar.
   const onCloseRef = useRef(onClose);
@@ -75,8 +85,21 @@ export function useOverlay<T extends HTMLElement = HTMLDivElement>({
       );
 
     // İlk focus
-    const focusables = getFocusable();
-    (focusables[0] ?? node).focus?.();
+    const preferred = initialFocusRefRef.current?.current ?? null;
+    if (preferred && node.contains(preferred)) {
+      preferred.focus();
+      if (preferred instanceof HTMLTextAreaElement || preferred instanceof HTMLInputElement) {
+        const end = preferred.value.length;
+        try {
+          preferred.setSelectionRange(end, end);
+        } catch {
+          // setSelectionRange desteklemeyen input tipleri (ör. number) — yok say.
+        }
+      }
+    } else {
+      const focusables = getFocusable();
+      (focusables[0] ?? node).focus?.();
+    }
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;

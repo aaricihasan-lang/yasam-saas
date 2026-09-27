@@ -33,6 +33,7 @@ import {
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import { needsDiscardConfirm } from "@/lib/dogaltas/longTextEditor";
 import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
 
 
@@ -409,6 +410,13 @@ function valuesToAssignments(values: Record<string, string>) {
   return result;
 }
 
+/** Editörün düzenlenebilir kısmının karşılaştırılabilir anlık görüntüsü (taslak koruması). */
+function editorSnapshot(editor: ActiveEditor): string {
+  if (editor.mode === "text") return JSON.stringify(editor.value);
+  if (editor.mode === "checkbox") return JSON.stringify([...editor.selected].sort());
+  return JSON.stringify(editor.values);
+}
+
 function TextBlock({
   title,
   badge,
@@ -518,6 +526,7 @@ function TextBlock({
 
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
+  const tl = useTranslations("stones.longText");
   // Chakra/warning checkbox editör: seçili value KANONİK Türkçe kalır (chakras[]/warning_tags[]
   // yazımı canonical'da); yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
@@ -584,12 +593,44 @@ function StoneDetailPage() {
   const { isDemo } = useDemoGuard();
   const isContentProtected = isDemo && !isDemoReference;
 
+  // Taslak koruması: editör açılışındaki değer anlık görüntüsü; değişiklik varken
+  // Esc / arka plan / Vazgeç sessizce atmaz, önce modal-içi onay ister.
+  const editorSnapshotRef = useRef("");
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorInputRef = useRef<HTMLInputElement>(null);
+
+  function closeEditorNow() {
+    setDiscardPrompt(false);
+    setActiveEditor(null);
+  }
+
+  function requestCloseEditor() {
+    if (saving || !activeEditor) return;
+    if (needsDiscardConfirm(editorSnapshotRef.current, editorSnapshot(activeEditor))) {
+      setDiscardPrompt(true);
+      return;
+    }
+    closeEditorNow();
+  }
+
   // Düzenleme modalı: scroll-lock + Esc + focus tuzağı (P0-3/P0-4).
   const editorOverlay = useOverlay<HTMLDivElement>({
     open: Boolean(activeEditor),
     onClose: () => {
-      if (!saving) setActiveEditor(null);
+      // Onay açıkken Esc = "düzenlemeye dön".
+      if (discardPrompt) {
+        setDiscardPrompt(false);
+        return;
+      }
+      requestCloseEditor();
     },
+    initialFocusRef:
+      activeEditor?.mode === "text"
+        ? activeEditor.multiline
+          ? editorTextareaRef
+          : editorInputRef
+        : undefined,
   });
 
   useEffect(() => {
@@ -699,7 +740,7 @@ function StoneDetailPage() {
 
     setErrorMessage("");
     setSuccessMessage("");
-    setActiveEditor({
+    openEditor({
       mode: "text",
       field,
       title,
@@ -707,6 +748,12 @@ function StoneDetailPage() {
       value: String(stone[field] || ""),
       multiline,
     });
+  }
+
+  function openEditor(next: ActiveEditor) {
+    editorSnapshotRef.current = editorSnapshot(next);
+    setDiscardPrompt(false);
+    setActiveEditor(next);
   }
 
   function openCheckboxEditor(
@@ -719,7 +766,7 @@ function StoneDetailPage() {
 
     setErrorMessage("");
     setSuccessMessage("");
-    setActiveEditor({
+    openEditor({
       mode: "checkbox",
       field,
       title,
@@ -734,7 +781,7 @@ function StoneDetailPage() {
 
     setErrorMessage("");
     setSuccessMessage("");
-    setActiveEditor({
+    openEditor({
       mode: "assignments",
       title: t("sections.assignments"),
       badge: t("badges.assignment"),
@@ -809,7 +856,7 @@ function StoneDetailPage() {
     }
 
     commitStoneRecord(data as Record<string, unknown>);
-    setActiveEditor(null);
+    closeEditorNow();
   }
 
   async function downloadWordReport() {
@@ -1785,9 +1832,7 @@ function StoneDetailPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) {
-              setActiveEditor(null);
-            }
+            if (event.target === event.currentTarget) requestCloseEditor();
           }}
         >
           <div
@@ -1820,7 +1865,7 @@ function StoneDetailPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveEditor(null)}
+                  onClick={requestCloseEditor}
                   disabled={saving}
                   className="btn-soft"
                 >
@@ -1844,6 +1889,32 @@ function StoneDetailPage() {
                 role="alert"
               >
                 {errorMessage}
+              </div>
+            ) : null}
+
+            {discardPrompt ? (
+              <div
+                className="mb-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                role="alert"
+                data-discard-prompt=""
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-black text-amber-800">{tl("discard.title")}</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-amber-700">{tl("discard.message")}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscardPrompt(false)}
+                    className="btn-primary"
+                    autoFocus
+                  >
+                    {tl("discard.keepEditing")}
+                  </button>
+                  <button type="button" onClick={closeEditorNow} className="btn-soft">
+                    {tl("discard.discard")}
+                  </button>
+                </div>
               </div>
             ) : null}
 
@@ -1909,23 +1980,23 @@ function StoneDetailPage() {
             {activeEditor.mode === "text" &&
               (activeEditor.multiline ? (
                 <textarea
+                  ref={editorTextareaRef}
                   value={activeEditor.value}
                   onChange={(event) =>
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
                   className="h-[430px] max-h-[62vh] w-full resize-none rounded-[24px] border border-emerald-100 bg-white p-5 text-[15px] leading-8 text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
                   placeholder={t("editor.textPlaceholder", { title: activeEditor.title })}
-                  autoFocus
                 />
               ) : (
                 <input
+                  ref={editorInputRef}
                   value={activeEditor.value}
                   onChange={(event) =>
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
                   className="h-16 w-full rounded-2xl border border-emerald-100 bg-white px-5 text-[24px] font-black text-slate-950 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
                   placeholder={t("editor.textPlaceholder", { title: activeEditor.title })}
-                  autoFocus
                 />
               ))}
           </div>

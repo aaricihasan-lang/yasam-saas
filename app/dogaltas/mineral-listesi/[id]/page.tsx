@@ -29,7 +29,10 @@ import {
   SEARCH_MATCH_BADGE_CLASS,
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
+import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 
+const MINERAL_EDIT_TEXTAREA_CLASS =
+  "w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100";
 
 type MineralRecord = {
   id: string;
@@ -760,12 +763,14 @@ function MineralDetailPageContent() {
               <label className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">
                 {t("sections.aciklama.title")}
               </label>
-              <textarea
+              <LongTextField
                 value={editForm.aciklama}
-                onChange={(e) => updateEditField("aciklama", e.target.value)}
+                onChange={(value) => updateEditField("aciklama", value)}
+                title={t("sections.aciklama.title")}
                 rows={4}
                 placeholder={tRoot("bank.sections.aciklama.placeholder")}
-                className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                textareaClassName={MINERAL_EDIT_TEXTAREA_CLASS}
+                testId="mineral_aciklama"
               />
             </div>
             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
@@ -775,12 +780,15 @@ function MineralDetailPageContent() {
                     <span>{t(`sections.${key}.title`)}</span>
                     <span className="font-medium normal-case tracking-normal text-slate-400">{tEdit("lineHint")}</span>
                   </label>
-                  <textarea
+                  <LongTextField
                     value={editForm[key]}
-                    onChange={(e) => updateEditField(key, e.target.value)}
+                    onChange={(value) => updateEditField(key, value)}
+                    title={t(`sections.${key}.title`)}
+                    hint={tEdit("lineHint")}
                     rows={3}
                     placeholder={tEdit("fieldPlaceholder", { label: t(`sections.${key}.title`) })}
-                    className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    textareaClassName={MINERAL_EDIT_TEXTAREA_CLASS}
+                    testId={`mineral_${key}`}
                   />
                 </div>
               ))}
