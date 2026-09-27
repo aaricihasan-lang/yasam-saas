@@ -544,7 +544,9 @@ async function run(): Promise<void> {
     const clientPanel = read("app/yasam-hafizasi/components/ClientMemoryPanel.tsx");
     add("ui-client-panel-uses-client-cold-start", /variant="client-cold-start"/.test(clientPanel), "");
     const proWorkspace = read("app/yasam-hafizasi/components/YasamHafizasiWorkspace.tsx");
-    add("ui-professional-workspace-uses-cold-start", /variant="cold-start"/.test(proWorkspace) && !/client-cold-start/.test(proWorkspace), "");
+    // FAZ1 final hardening: boşta görünümü health durumuna göre hesaplanır (idleVariant: index-empty /
+    // out-of-scope / "cold-start"); mesleki soğuk başlangıç kopyası hâlâ varsayılan, client varyantı YOK.
+    add("ui-professional-workspace-uses-cold-start", (/variant="cold-start"/.test(proWorkspace) || /:\s*"cold-start"/.test(proWorkspace)) && !/client-cold-start/.test(proWorkspace), "");
 
     // Client state-machine migration: client_id döner + DEFINER + service_role + professional untouched.
     const mig = read("supabase/migrations/20261218000300_yh_client_outbox_state_machine.sql");
