@@ -17,9 +17,12 @@ import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
  *   - Beslenme (tam modül): server-authoritative checkBeslenmeAccess() (admin VEYA beslenme=true).
  *
  * FLICKER FIX: gerçek kartlar İKİ authorization kaynağı da kesinleşmeden (userResolved &&
- * beslenmeResolved) render EDİLMEZ → önce iskelet, sonra kartlar TEK SEFERDE (2→3 sıçraması yok).
- * Ayrı "Besinlerim"/manuel-besin alt kartı ÜRÜNDEN KALDIRILDI (CUSTOM besin yönetimi tam Beslenme
- * modülünün içindedir: /beslenme → Besinler). `clients` bu hub'ı/alt kartı açmaz.
+ * beslenmeResolved) render EDİLMEZ → kartlar TEK SEFERDE görünür (2→3 sıçraması yok). Çözülene
+ * kadar iskelet/spinner ya da loading metni GÖSTERİLMEZ; kart alanı SESSİZCE boş kalır, yalnız
+ * container min-height'ı korunarak dikey sıçrama önlenir. Kartlar hazır olunca çok kısa ve sade
+ * bir opacity geçişiyle görünür (dikkat çeken animasyon yok). Ayrı "Besinlerim"/manuel-besin alt
+ * kartı ÜRÜNDEN KALDIRILDI (CUSTOM besin yönetimi tam Beslenme modülünün içindedir: /beslenme →
+ * Besinler). `clients` bu hub'ı/alt kartı açmaz.
  */
 type SupportFolder = {
   title: string;
@@ -87,6 +90,8 @@ export default function DogalDestekCards() {
   const [userResolved, setUserResolved] = useState(false);
   const [beslenmeAccess, setBeslenmeAccess] = useState(false);
   const [beslenmeResolved, setBeslenmeResolved] = useState(false);
+  // Kartlar mount olduktan bir kare sonra opacity 0→1 (çok kısa, sade fade — dikkat çekmez).
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,29 +132,17 @@ export default function DogalDestekCards() {
 
   const accessResolved = userResolved && beslenmeResolved;
 
-  // Çözülene kadar iskelet — gerçek kart yok (2→3 flicker'ı önle; layout yüksekliği korunur).
+  useEffect(() => {
+    if (!accessResolved) return;
+    // Kartlar DOM'a girdikten sonra bir sonraki kare: opacity 0→1 geçişini tetikle.
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
+  }, [accessResolved]);
+
+  // Çözülene kadar SESSİZ boşluk — iskelet/spinner ya da loading metni YOK, gerçek kart YOK
+  // (2→3 flicker'ı önle). Yalnız min-height korunur → yetki gelince layout dikey sıçramaz.
   if (!accessResolved) {
-    return (
-      <div className={`mx-auto grid w-full items-stretch gap-6 ${gridClass(3)}`} aria-busy="true">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="flex min-h-[16rem] animate-pulse flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-100/70"
-            aria-hidden
-          >
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 pt-6">
-              <div className="h-20 w-20 rounded-2xl bg-white/70" />
-              <div className="h-4 w-24 rounded-full bg-white/70" />
-              <div className="h-5 w-32 rounded bg-white/70" />
-              <div className="h-3 w-40 rounded bg-white/60" />
-            </div>
-            <div className="p-5 pt-4">
-              <div className="h-10 w-full rounded-xl bg-white/70" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
+    return <div className="min-h-[16rem] w-full" aria-busy="true" aria-hidden />;
   }
 
   // Tüm access sonuçları kesin → görünür kartları TEK SEFERDE oluştur.
@@ -159,7 +152,11 @@ export default function DogalDestekCards() {
   if (beslenmeAccess) visible.push(BESLENME_FOLDER);
 
   return (
-    <div className={`mx-auto grid w-full items-stretch gap-6 ${gridClass(visible.length)}`}>
+    <div
+      className={`mx-auto grid min-h-[16rem] w-full items-stretch gap-6 transition-opacity duration-300 ease-out ${
+        revealed ? "opacity-100" : "opacity-0"
+      } ${gridClass(visible.length)}`}
+    >
       {visible.map((folder) => (
         <Link
           key={folder.title}

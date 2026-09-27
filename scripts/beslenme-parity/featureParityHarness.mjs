@@ -198,7 +198,7 @@ ok("home: data-beslenme-owner-card + Beslenme stale owner prose YOK",
 
 // 9c) Doğal Destek hub alt kartları (DogalDestekCards): Aromaterapi/Şifa (flag) + Beslenme (server
 //     access). Ayrı "Besinlerim" alt kartı KALDIRILDI. Flicker fix: userResolved && beslenmeResolved
-//     çözülmeden gerçek kart yok (2→3 sıçraması yok) + iskelet.
+//     çözülmeden gerçek kart yok (2→3 sıçraması yok); iskelet/spinner YOK → sessiz min-h boşluk.
 {
   const cards = read("app/dogal-destek/DogalDestekCards.tsx");
   ok("hub: Aromaterapi + Şifa Rehberi flag-kartları korunuyor (hasAnyModulePermissionFlag)",
@@ -209,9 +209,14 @@ ok("home: data-beslenme-owner-card + Beslenme stale owner prose YOK",
      !/besinlerim/.test(cards) && !/checkBeslenmeFoodAccess/.test(cards) && !/foodContributor/.test(cards));
   ok("hub: Beslenme kartı yalnız beslenmeAccess iken push edilir",
      /if \(beslenmeAccess\) visible\.push\(BESLENME_FOLDER\)/.test(cards));
-  ok("hub: FLICKER FIX — accessResolved (userResolved && beslenmeResolved) çözülmeden kart yok + iskelet",
+  ok("hub: FLICKER FIX — accessResolved (userResolved && beslenmeResolved) çözülmeden gerçek kart yok",
      /const accessResolved = userResolved && beslenmeResolved/.test(cards) &&
-     /if \(!accessResolved\)/.test(cards) && /animate-pulse/.test(cards));
+     /if \(!accessResolved\)/.test(cards));
+  ok("hub: SKELETON KALDIRILDI — iskelet/spinner/'yükleniyor' YOK; çözülene kadar sessiz min-h boşluk",
+     !/animate-pulse/.test(cards) && !/yükleniyor/i.test(cards) &&
+     /if \(!accessResolved\)[\s\S]*?min-h-\[16rem\][\s\S]*?aria-busy="true"/.test(cards));
+  ok("hub: kartlar hazır olunca TEK SEFERDE + sade opacity fade (dikkat çekmeyen geçiş)",
+     /transition-opacity/.test(cards) && /revealed \? "opacity-100" : "opacity-0"/.test(cards));
   ok("hub: probe hata/finally ile resolve (sonsuz loading yok, fail-closed)",
      /setUserResolved\(true\)/.test(cards) && /setBeslenmeResolved\(true\)/.test(cards) && /\.finally\(/.test(cards));
   ok("hub: responsive grid (kart sayısına göre) — 3 lg:grid-cols-3",
