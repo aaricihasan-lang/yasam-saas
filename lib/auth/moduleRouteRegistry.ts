@@ -75,7 +75,15 @@ export const EXCLUDED_API_PREFIXES: { prefix: string; reason: string }[] = [
 export const EXPLICIT_EXCLUDED_ROUTES: { path: string; reason: string }[] = [
   {
     path: "app/api/numeroloji/demo-analiz/route.ts",
-    reason: "demo IP-kota yardımcısı; gerçek kullanıcı PII'si yok, session token yok, demo-olmayan çağrı kısa-devre",
+    reason: "demo IP-kota yardımcısı; verifyUserRequest (x-user-id + x-session-token) ile kimlik — demo bayrağı guard'dan; modül kapısı yok (demo-olmayan çağrı kısa-devre), gerçek kullanıcı PII'si yok",
+  },
+  {
+    path: "app/api/belge-ceviri/history/route.ts",
+    reason: "FAZ1 final (owner kararı: kendi verisini dışa aktarabilir): verifyUserRequest + user/tenant sahiplik filtresi; üyeliği biten uzman KENDİ çıktısını indirebilsin diye modül/üyelik kapısı BİLİNÇLİ yok",
+  },
+  {
+    path: "app/api/belge-ceviri/job-status/[id]/route.ts",
+    reason: "FAZ1 final (owner kararı: kendi verisini dışa aktarabilir): verifyUserRequest + user/tenant sahiplik (başka tenant → 404); modül/üyelik kapısı BİLİNÇLİ yok",
   },
   {
     path: "app/api/ajanda/word-report/route.ts",

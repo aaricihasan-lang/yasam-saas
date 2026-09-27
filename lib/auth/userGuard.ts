@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
 import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
 import { resolveModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
+import {
+  hasMembershipAccessForRow,
+  MEMBERSHIP_INACTIVE_CODE,
+  MEMBERSHIP_INACTIVE_MESSAGE,
+  MODULE_DENIED_CODE,
+  MODULE_DENIED_MESSAGE,
+} from "@/lib/auth/membershipAccessCore";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type UserGuardOk = {
@@ -186,11 +193,25 @@ export async function requireModuleAccess(
   if (!guard.ok) return guard;
 
   const profile = guard.profile ?? {};
+
+  // FAZ1 FINAL HARDENING — sunucu ÜYELİK kapısı (istemcideki premium şartının AYNISI;
+  // membershipAccessCore tek kaynak). admin muaf. verifyUserRequest'e EKLENMEZ →
+  // profil/şifre/destek/ayarlar/yedek/export uçları üyeliği biten uzmana açık kalır.
+  if (!hasMembershipAccessForRow(profile)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { code: MEMBERSHIP_INACTIVE_CODE, error: MEMBERSHIP_INACTIVE_MESSAGE },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      ),
+    };
+  }
+
   if (!resolveModuleAccess(profile.role, profile.module_permissions, moduleKey)) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Bu modül hesabınız için aktif değil. Yöneticinizle iletişime geçin." },
+        { code: MODULE_DENIED_CODE, error: MODULE_DENIED_MESSAGE },
         { status: 403, headers: { "Cache-Control": "no-store" } },
       ),
     };

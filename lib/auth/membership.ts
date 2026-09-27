@@ -1,5 +1,9 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
-import { isAdminUser, normalizeApprovalStatus } from "@/lib/auth/yasamUser";
+import {
+  hasMembershipAccessForRow,
+  normalizeMembershipToken,
+  parseMembershipPackageType,
+} from "@/lib/auth/membershipAccessCore";
 
 export type PackageType = "trial" | "pro" | "premium";
 
@@ -53,26 +57,13 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | unde
   return undefined;
 }
 
+// SAF çekirdeğe delege (sunucu üyelik kapısı ile TEK KAYNAK — membershipAccessCore).
 function normalizeToken(value?: string): string {
-  if (!value) return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/\s+/g, "_");
+  return normalizeMembershipToken(value);
 }
 
 function parsePackageType(raw?: string): PackageType | undefined {
-  const token = normalizeToken(raw);
-  if (token === "trial" || token === "deneme") return "trial";
-  if (token === "pro") return "pro";
-  if (token === "premium") return "premium";
-  return undefined;
+  return parseMembershipPackageType(raw);
 }
 
 function parseMembershipStatus(raw?: string): MembershipStatus | undefined {
@@ -295,10 +286,9 @@ export function filterMembershipPayloadForRow(
  */
 export function hasExpertMembershipAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
-  if (isAdminUser(user)) return true;
-  if (user.active !== true) return false;
-  if (normalizeApprovalStatus(user.approval_status) !== "approved") return false;
-  return parseMembershipFromUser(user).packageType === "premium";
+  // FAZ1 FINAL HARDENING: kural SAF çekirdekte (membershipAccessCore) — sunucu
+  // requireModuleAccess aynı fonksiyonu kullanır (istemci/sunucu sapması yok).
+  return hasMembershipAccessForRow(user as unknown as Record<string, unknown>);
 }
 
 export function inferPackagePlanFromSnapshot(

@@ -813,6 +813,7 @@ export default function AdminUsersPage() {
                   type="password"
                   className={inputClass}
                   value={form.password}
+                  placeholder="En az 10 karakter"
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 />
               </label>

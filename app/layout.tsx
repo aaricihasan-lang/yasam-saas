@@ -7,9 +7,8 @@ import DashboardNotifications from "@/shared/DashboardNotifications";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import PrivacyAnalytics from "@/components/analytics/PrivacyAnalytics";
 import AppLogoLink from "@/components/layout/AppLogoLink";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -49,9 +48,10 @@ export default async function RootLayout({
             metinler aynen render olur (regresyon-güvenli). */}
         <NextIntlClientProvider>
           <AppLogoLink />
+          {/* GA yalnız herkese açık sayfa + oturumsuz ziyaretçi (bileşen içinde kapılı);
+              Vercel Analytics/Speed Insights URL'leri maskelenir (UUID/query yok). */}
           <GoogleAnalytics />
-          <Analytics />
-          <SpeedInsights />
+          <PrivacyAnalytics />
           <ToastProvider>
             <ConfirmProvider>
               <DashboardNotifications />

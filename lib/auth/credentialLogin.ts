@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
+import {
+  parseGuardedLoginResponse,
+  type GuardedLoginOutcome,
+  type GuardedLoginRow,
+} from "@/lib/auth/loginThrottle";
 
 /**
  * P0-1 KAPANIŞI — Session/token/cookie üretimi yalnızca SUNUCU TARAFINDA
@@ -25,7 +30,10 @@ export type VerifiedCredentialUser = {
 /** login_user RPC'nin döndürebileceği tek satır (bkz. migration 20260624230000). */
 type LoginUserRow = {
   id?: unknown;
+  email?: unknown;
+  name?: unknown;
   role?: unknown;
+  status?: unknown;
   active?: unknown;
   approval_status?: unknown;
   tenant_id?: unknown;
@@ -42,7 +50,8 @@ function normalizeRpcRows(data: unknown): LoginUserRow[] {
 
 /**
  * SUNUCU-TARAFI credential doğrulaması — `login_user` RPC (bcrypt/pgcrypto,
- * SECURITY DEFINER; anon/authenticated/service_role EXECUTE grant'lı).
+ * SECURITY DEFINER). FAZ1 final: migration 20270129000100 sonrası yalnız service_role EXECUTE;
+ * login route artık verifyLoginCredentialsGuarded kullanır (bu fonksiyon geriye uyumluluk için).
  *
  * e-posta + şifre geçerliyse doğrulanmış kullanıcıyı döndürür; aksi halde null.
  * Login formuyla birebir parite: e-posta lower(btrim), şifre btrim (RPC de btrim).
@@ -75,6 +84,70 @@ export async function verifyLoginCredentials(
     role: String(row.role ?? ""),
     tenantId: row.tenant_id != null ? String(row.tenant_id) : null,
   };
+}
+
+/**
+ * FAZ1 FINAL HARDENING — TEK LOGIN YOLU: kısıtlamalı (throttle) sunucu doğrulaması.
+ *
+ * `auth_login_guarded` RPC (migration 20270129000000; service_role-only, HASH-ONLY):
+ *   ok → login_user ile AYNI gating satırı · invalid · locked (retry_after sn) .
+ * Normalizasyon mevcut login ile BİREBİR: e-posta lower(trim), şifre JS `.trim()`
+ * (RPC şifreyi olduğu gibi crypt'e verir — eski login_user ile aynı).
+ *
+ * Geçiş güvenliği: RPC henüz yoksa (migration apply edilmeden deploy) login_user'a düşer
+ * (throttle'sız ama hash-only doğrulama aynı). Diğer RPC hataları → "error" (fail-closed).
+ */
+export async function verifyLoginCredentialsGuarded(
+  db: SupabaseClient,
+  email: string,
+  password: string,
+  ipHash: string,
+): Promise<GuardedLoginOutcome> {
+  const normEmail = (email ?? "").trim().toLowerCase();
+  const normPassword = (password ?? "").trim();
+  if (!normEmail || !normPassword) return { status: "invalid" };
+
+  const { data, error } = await db.rpc("auth_login_guarded", {
+    p_email: normEmail,
+    p_password: normPassword,
+    p_ip_hash: ipHash,
+  });
+
+  if (error) {
+    if (!isMissingRpcError(error, "auth_login_guarded")) return { status: "error" };
+    // Geçiş: throttle RPC'si yok → eski login_user (service_role) ile doğrula.
+    const legacy = await db.rpc("login_user", { p_email: normEmail, p_password: normPassword });
+    if (legacy.error) return { status: "error" };
+    const row = normalizeRpcRows(legacy.data)[0];
+    if (!row || row.id == null || String(row.id).length === 0) return { status: "invalid" };
+    return { status: "ok", row: toGuardedRow(row) };
+  }
+  return parseGuardedLoginResponse(data);
+}
+
+function toGuardedRow(row: LoginUserRow): GuardedLoginRow {
+  return {
+    id: String(row.id),
+    email: row.email != null ? String(row.email) : null,
+    name: row.name != null ? String(row.name) : null,
+    role: row.role != null ? String(row.role) : null,
+    status: row.status != null ? String(row.status) : null,
+    tenant_id: row.tenant_id != null ? String(row.tenant_id) : null,
+    active: row.active === true ? true : row.active === false ? false : null,
+    approval_status: row.approval_status != null ? String(row.approval_status) : null,
+  };
+}
+
+/** PostgREST "fonksiyon bulunamadı" (PGRST202) / Postgres 42883 → RPC henüz deploy edilmemiş. */
+export function isMissingRpcError(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+  fnName: string,
+): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "");
+  if (code === "PGRST202" || code === "42883") return true;
+  const msg = String(error.message ?? "");
+  return msg.includes(fnName) && /could not find|does not exist|not found/i.test(msg);
 }
 
 /**

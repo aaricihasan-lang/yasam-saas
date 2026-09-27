@@ -12,6 +12,7 @@ import {
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
 
 export type UserRole = "admin" | "expert";
 
@@ -256,11 +257,9 @@ export function clearYasamUser(): void {
       const parsed = JSON.parse(stored) as { is_demo_account?: boolean };
       if (parsed.is_demo_account === true) {
         [
-          // Refleksoloji
-          "yasam-refleksoloji-atlas-v1",
-          "yasam-refleksoloji-organs-v1",
-          "yasam-refleksoloji-protokoller-v1",
-          "yasam-refleksoloji-notlar-v1",
+          // Refleksoloji: demo verisi artık kullanıcı kapsamlı v2 anahtarlarında ve
+          // handleReflexologyLogout ile temizlenir. Eski (v1) cihaz-geneli anahtarlar
+          // başka bir uzmanın eşitlenmemiş verisini içerebilir → burada SİLİNMEZ (DL-007).
           // Numeroloji bilgi bankası
           "yasam-numeroloji-stone-assignments",
           "yasam-numeroloji-training-explanations",
@@ -275,6 +274,25 @@ export function clearYasamUser(): void {
       }
     }
   } catch { /* JSON parse başarısız olursa sessiz */ }
+
+  // Refleksoloji: modül durumu (zamanlayıcı/bekleyen PUT/önbellek) sıfırlanır; çıkan
+  // kullanıcının kapsamlı v2 önbelleği YALNIZ bekleyen iş yoksa temizlenir (FA-04).
+  try {
+    const storedUser = localStorage.getItem(STORAGE_KEY);
+    handleReflexologyLogout(storedUser ? (JSON.parse(storedUser) as Record<string, unknown>) : null);
+  } catch { /* sessiz */ }
+
+  // FAZ1 FINAL HARDENING — SUNUCU LOGOUT: token SİLİNMEDEN önce okunur ve sunucuda pasiflenir
+  // (DELETE /api/auth/session; keepalive → sayfa kapanırken de gider). Fire-and-forget;
+  // çıkış asla bloklanmaz. Sonrasında aynı token her korumalı uçta 401 alır.
+  const logoutToken = readSessionToken();
+  if (logoutToken) {
+    void fetch("/api/auth/session", {
+      method: "DELETE",
+      headers: { "x-session-token": logoutToken },
+      keepalive: true,
+    }).catch(() => {});
+  }
 
   localStorage.removeItem(STORAGE_KEY);
   clearSessionToken();

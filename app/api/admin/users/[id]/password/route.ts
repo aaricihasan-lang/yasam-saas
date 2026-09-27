@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const exists = await ensureTargetExists(db, id);
   if (!exists.ok) return jsonNoStore({ ok: false, error: exists.error }, exists.status);
 
-  // Parola politikası (repo standardı: min 6). Yeni parola değişkeni yalnız hash'e
+  // Parola politikası (FAZ1 final: yeni parolalar min 10 — MIN_PASSWORD_LENGTH). Yeni parola değişkeni yalnız hash'e
   // gider; hiçbir yere loglanmaz.
   const pw = validateNewPassword(body.value.newPassword);
   if (!pw.ok) return jsonNoStore({ ok: false, error: pw.error }, pw.status);
