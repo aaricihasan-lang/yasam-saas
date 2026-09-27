@@ -13,6 +13,7 @@ import { parseMineralPercent } from "@/lib/dogaltas/mineralPercent";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 import {
   DOGALTAS_INPUT_CLASS,
   DOGALTAS_LABEL_CLASS,
@@ -153,46 +154,6 @@ const uiPanel =
 const uiBtn =
   "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-black transition";
 
-/**
- * Doğrudan yazılabilen textarea + isteğe bağlı "geniş ekran" butonu.
- * Eskiden alanlar focus'ta beklenmedik bir modal açıyordu (sezgisiz); artık
- * kullanıcı yerinde yazar, geniş düzen yalnızca ⤢ butonuna basınca açılır.
- */
-function ExpandableTextarea({
-  value,
-  onChange,
-  onExpand,
-  placeholder,
-  className = "",
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onExpand: () => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  const t = useTranslations("stones.records");
-  return (
-    <div className={`relative ${className}`}>
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className={`${uiTextarea} pr-12`}
-      />
-      <button
-        type="button"
-        onClick={onExpand}
-        title={t("expand.editWide")}
-        aria-label={t("expand.editWide")}
-        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/60 bg-white/95 text-base font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900"
-      >
-        ⤢
-      </button>
-    </div>
-  );
-}
-
 function safeFileName(fileName: string) {
   return fileName
     .replaceAll("ı", "i")
@@ -289,9 +250,6 @@ export default function DogaltasKayitPage() {
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
   const [selectedWarnings, setSelectedWarnings] = useState<string[]>([]);
-  const [largeEditorTitle, setLargeEditorTitle] = useState<string | null>(null);
-  const [largeEditorKey, setLargeEditorKey] = useState<keyof FormData | null>(null);
-  const [largeEditorValue, setLargeEditorValue] = useState("");
   const [assignmentTitle, setAssignmentTitle] = useState<string | null>(null);
   const [assignmentRows, setAssignmentRows] = useState<AssignmentRows>(emptyAssignmentRows);
   const [assignmentInputs, setAssignmentInputs] = useState<AssignmentInputs>(emptyAssignmentInputs);
@@ -356,25 +314,6 @@ export default function DogaltasKayitPage() {
 
   function updateField(field: keyof FormData, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function openLargeEditor(title: string, field: keyof FormData) {
-    setLargeEditorTitle(title);
-    setLargeEditorKey(field);
-    setLargeEditorValue(formData[field] || "");
-  }
-
-  function closeLargeEditor() {
-    setLargeEditorTitle(null);
-    setLargeEditorKey(null);
-    setLargeEditorValue("");
-  }
-
-  function saveLargeEditor() {
-    if (largeEditorKey) {
-      updateField(largeEditorKey, largeEditorValue);
-    }
-    closeLargeEditor();
   }
 
   function closeAssignment() {
@@ -795,11 +734,13 @@ export default function DogaltasKayitPage() {
                     <span className="font-semibold text-slate-400">{t("fields.optional")}</span>
                   </label>
 
-                  <ExpandableTextarea
+                  <LongTextField
                     value={formData.short_description}
                     onChange={(value) => updateField("short_description", value)}
-                    onExpand={() => openLargeEditor(t("fields.shortDescription"), "short_description")}
+                    title={t("fields.shortDescription")}
                     placeholder={t("fields.shortDescriptionPlaceholder")}
+                    textareaClassName={uiTextarea}
+                    testId="short_description"
                   />
                 </div>
               </div>
@@ -912,11 +853,13 @@ export default function DogaltasKayitPage() {
                     {title}
                   </label>
 
-                  <ExpandableTextarea
+                  <LongTextField
                     value={formData[item.key]}
                     onChange={(value) => updateField(item.key, value)}
-                    onExpand={() => openLargeEditor(title, item.key)}
+                    title={title}
                     placeholder={t("placeholderWrite", { field: title })}
+                    textareaClassName={uiTextarea}
+                    testId={item.key}
                   />
                 </div>
                 );
@@ -954,12 +897,14 @@ export default function DogaltasKayitPage() {
                   </div>
                 </div>
 
-                <ExpandableTextarea
+                <LongTextField
                   value={formData[section.key as keyof FormData]}
                   onChange={(value) => updateField(section.key as keyof FormData, value)}
-                  onExpand={() => openLargeEditor(t(`effects.${section.key}.title`), section.key as keyof FormData)}
+                  title={t(`effects.${section.key}.title`)}
                   placeholder={t("placeholderWrite", { field: t(`effects.${section.key}.title`) })}
                   className="mt-auto"
+                  textareaClassName={uiTextarea}
+                  testId={section.key}
                 />
               </div>
             ))}
@@ -992,11 +937,13 @@ export default function DogaltasKayitPage() {
                     <div key={item.key} className={`${uiPanel} p-4`}>
                       <p className="mb-2 text-[13px] font-bold text-slate-800">{t(`usage.${item.key}`)}</p>
 
-                      <ExpandableTextarea
+                      <LongTextField
                         value={formData[item.key as keyof FormData]}
                         onChange={(value) => updateField(item.key as keyof FormData, value)}
-                        onExpand={() => openLargeEditor(t(`usage.${item.key}`), item.key as keyof FormData)}
+                        title={t(`usage.${item.key}`)}
                         placeholder={t("placeholderNote", { field: t(`usage.${item.key}`) })}
+                        textareaClassName={uiTextarea}
+                        testId={item.key}
                       />
                     </div>
                   ))}
@@ -1021,11 +968,13 @@ export default function DogaltasKayitPage() {
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
                     <div>
                       <label className={uiLabel}>{t("warnings.textLabel")}</label>
-                      <ExpandableTextarea
+                      <LongTextField
                         value={formData.warning_text}
                         onChange={(value) => updateField("warning_text", value)}
-                        onExpand={() => openLargeEditor(t("warnings.largeEditorTitle"), "warning_text")}
+                        title={t("warnings.largeEditorTitle")}
                         placeholder={t("warnings.textPlaceholder")}
+                        textareaClassName={uiTextarea}
+                        testId="warning_text"
                       />
                     </div>
 
@@ -1161,44 +1110,6 @@ export default function DogaltasKayitPage() {
         }}
         onCancel={() => setDupModal(null)}
       />
-
-      {largeEditorTitle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-6 backdrop-blur-sm">
-          <div className="flex h-[82vh] w-full max-w-[1040px] flex-col rounded-[30px] bg-white p-6 shadow-[0_35px_90px_rgba(15,23,42,0.22)]">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
-                  {t("largeEditor.badge")}
-                </div>
-                <h2 className="text-[26px] font-black text-slate-950">{largeEditorTitle}</h2>
-                <p className="mt-1 text-[13px] text-slate-500">{t("largeEditor.subtitle")}</p>
-              </div>
-
-              <button type="button" onClick={closeLargeEditor} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[20px] font-black text-slate-600 transition hover:bg-slate-200">
-                ×
-              </button>
-            </div>
-
-            <textarea
-              value={largeEditorValue}
-              onChange={(event) => setLargeEditorValue(event.target.value)}
-              placeholder={t("largeEditor.placeholder")}
-              className="min-h-0 flex-1 resize-none rounded-[24px] border-2 border-emerald-200 bg-white/90 p-5 text-[15px] font-medium leading-7 text-slate-700 shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
-              autoFocus
-            />
-
-            <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={closeLargeEditor} className="btn-soft">
-                {t("common.cancel")}
-              </button>
-
-              <button type="button" onClick={saveLargeEditor} className="btn-primary">
-                {t("common.save")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-6 backdrop-blur-sm">

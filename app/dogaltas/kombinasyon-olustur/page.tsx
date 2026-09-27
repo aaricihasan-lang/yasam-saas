@@ -25,6 +25,7 @@ import {
 import { dogaltasApiGet, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 import {
   DOGALTAS_INPUT_CLASS,
   DOGALTAS_TEXTAREA_CLASS,
@@ -1171,12 +1172,14 @@ export default function KombinasyonOlusturPage() {
                   className={DOGALTAS_INPUT_CLASS}
                 />
               </div>
-              <textarea
+              <LongTextField
                 value={saveNote}
-                onChange={(e) => setSaveNote(e.target.value)}
+                onChange={setSaveNote}
+                title={t("notePlaceholder")}
                 placeholder={t("notePlaceholder")}
                 rows={2}
-                className={`${DOGALTAS_TEXTAREA_CLASS} !resize-y`}
+                textareaClassName={`${DOGALTAS_TEXTAREA_CLASS} !resize-y`}
+                testId="combination_save_note"
               />
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 {cart.length === 0 ? (

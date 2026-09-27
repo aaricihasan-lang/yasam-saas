@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -10,6 +10,7 @@ import { createMineral, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { useOverlay } from "@/lib/dogaltas/useOverlay";
 
 type MineralForm = {
   name: string;
@@ -112,6 +113,15 @@ export default function MineralBankasiPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
   const [dupChecking, setDupChecking] = useState(false);
+
+  // Geniş bölüm editörü canlı senkron (form state'e doğrudan yazar) → Esc ile kapatmak
+  // metni kaybetmez; focus tuzağı + imleç metin sonunda + kapanışta focus geri-yükleme.
+  const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const { containerRef: editorContainerRef } = useOverlay<HTMLDivElement>({
+    open: expandedEditor,
+    onClose: () => setExpandedEditor(false),
+    initialFocusRef: editorTextareaRef,
+  });
 
   function updateField<K extends keyof MineralForm>(key: K, value: MineralForm[K]) {
     setForm((current) => ({
@@ -375,7 +385,14 @@ export default function MineralBankasiPage() {
 
       {expandedEditor ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 px-5 py-5 backdrop-blur-sm">
-          <div className={`${uiCard} w-full max-w-[980px] bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}>
+          <div
+            ref={editorContainerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={sectionLabel(activeSection)}
+            tabIndex={-1}
+            className={`${uiCard} w-full max-w-[980px] bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}
+          >
             <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[24px] font-black text-slate-950">{sectionLabel(activeSection)}</h2>
@@ -401,11 +418,11 @@ export default function MineralBankasiPage() {
               </div>
             </header>
             <textarea
+              ref={editorTextareaRef}
               value={form[activeSection]}
               onChange={(event) => updateField(activeSection, event.target.value)}
               placeholder={sectionPlaceholder(activeSection)}
               className={`${uiInput} h-[430px] max-h-[62vh] resize-none text-[15px] leading-8`}
-              autoFocus
             />
           </div>
         </div>
