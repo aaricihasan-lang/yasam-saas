@@ -501,6 +501,19 @@ function read(rel: string): string {
     /updateStone\(stone\.id, payload, stone\.updated_at\)/.test(detail));
   ok("F-03 detay editörü: 409 conflict → taslak korunur + kayıt tazelenir (editör kapanmaz)",
     /if \(conflict\) \{[\s\S]{0,300}getStone\(stone\.id\)[\s\S]{0,200}return;/.test(detail));
+  ok("UX-PHOTO detay: fotoğraf alanı dikey yığın (görsel + ad yan yana ezilmez)",
+    detail.includes("relative flex-col overflow-hidden ${uiImageArea}"));
+  ok("UX-PHOTO detay: uzun taş adı satır kırar (görselli + görselsiz)",
+    (detail.match(/break-words[^"]*text-(xl|sm) font-black text-slate-9[05]0/g) ?? []).length >= 2);
+  const stonesRoute = read("app/api/dogaltas/stones/route.ts");
+  const rawBlock = stonesRoute.slice(stonesRoute.indexOf('if (mode === "raw")'), stonesRoute.indexOf('if (mode === "extended")'));
+  ok("PERF pano: raw modu yalnız created_at seçer (select * YOK)",
+    rawBlock.includes('select("created_at")') && !rawBlock.includes('select("*")'));
+  ok("PERF pano: raw modu since penceresi + tenant guard",
+    /mode === "raw"[\s\S]{0,700}\.gte\("created_at", since\)/.test(stonesRoute) &&
+    /mode === "raw"[\s\S]{0,700}\.eq\("tenant_id", tenantId\)/.test(stonesRoute));
+  ok("PERF pano: istemci 6 aylık since gönderir",
+    read("app/dogaltas/page.tsx").includes("mode=raw&since="));
   const bank = read("app/dogaltas/mineral-bankasi/page.tsx");
   ok("UX-LT mineral bankası: geniş editör Esc/focus (useOverlay)", bank.includes("useOverlay<HTMLDivElement>") && bank.includes("initialFocusRef: editorTextareaRef"));
 }
