@@ -21,15 +21,19 @@ import {
   twoColTable,
 } from "@/lib/docx/reportHelpers";
 import type { SnapshotReportItem } from "./snapshotDto";
+import { formatDateLoose } from "@/lib/time/reportTime";
 
 const C_YH = "6d28d9"; // Yaşam Hafızası moru
 const SECTION_HEADING = "Yaşam Hafızası Seçimleri";
 
+/**
+ * FA-02: an (timestamptz) → Europe/Istanbul günü; saf takvim günü ("YYYY-MM-DD") kaydırılmaz.
+ * Anlaşılamayan değer → "—" (eski davranış korunur).
+ */
 function formatDateTR(value: string | null): string {
   if (!value) return "—";
-  const t = Date.parse(value);
-  if (Number.isNaN(t)) return "—";
-  return new Date(t).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  if (Number.isNaN(Date.parse(value))) return "—";
+  return formatDateLoose(value, { style: "long", fallback: "—" }) || "—";
 }
 
 /**

@@ -48,6 +48,7 @@ import {
   friendlyError,
 } from "./constants";
 import { SourcesPanel, type LinkedSource } from "./SourcesPanel";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   Card,
   DangerButton,
@@ -403,6 +404,7 @@ function SectionRow({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState("");
+  const deleteConfirm = useDeleteConfirm();
 
   useEffect(() => {
     runInEffect(() => {
@@ -431,11 +433,22 @@ function SectionRow({
   }
 
   async function del() {
+    if (deleting) return;
+    const ok = await deleteConfirm({
+      title: "Bölümü sil",
+      message: "Bu bölüm ve içeriği kalıcı olarak silinecek.",
+      names: [section.heading?.trim() || SECTION_KEY_LABELS[section.section_key ?? ""] || "Bölüm"],
+    });
+    if (!ok) return;
     setDeleting(true);
-    const r = await deleteSection(topicId, section.id);
-    setDeleting(false);
-    if (r.ok) await onChanged();
-    else setErr(friendlyError(r.code, r.status));
+    setErr("");
+    try {
+      const r = await deleteSection(topicId, section.id);
+      if (r.ok) await onChanged();
+      else setErr(friendlyError(r.code, r.status));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -674,6 +687,8 @@ function RelatedFoodRow({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [rowErr, setRowErr] = useState("");
+  const deleteConfirm = useDeleteConfirm();
 
   const dirty = relType !== rel.relation_type || rationale.trim() !== (rel.rationale ?? "");
 
@@ -688,14 +703,32 @@ function RelatedFoodRow({
   }
 
   async function remove() {
+    if (removing) return;
+    const ok = await deleteConfirm({
+      title: "Besini konudan kaldır",
+      message: "Bu besin bu konudan kaldırılacak (besin kaydı silinmez; ilişki ve gerekçe silinir).",
+      names: [rel.food?.name_tr ?? "Besin"],
+      confirmText: "Kaldır",
+    });
+    if (!ok) return;
     setRemoving(true);
-    const r = await removeTopicFood(topicId, rel.id);
-    setRemoving(false);
-    if (r.ok) await onChanged();
+    setRowErr("");
+    try {
+      const r = await removeTopicFood(topicId, rel.id);
+      if (r.ok) await onChanged();
+      else setRowErr(friendlyError(r.code, r.status));
+    } finally {
+      setRemoving(false);
+    }
   }
 
   return (
     <li className="rounded-xl border border-slate-100 bg-white/80 p-3">
+      {rowErr ? (
+        <div className="mb-2">
+          <StatusMessage type="error">{rowErr}</StatusMessage>
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-black text-slate-800">{rel.food?.name_tr ?? "Besin"}</p>

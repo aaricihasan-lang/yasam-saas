@@ -6,7 +6,7 @@
 import { Document, Packer } from "docx";
 import {
   buildPremiumCover, buildStatsPage, buildTOCPage, buildCompactFrontMatter,
-  buildFooter, buildHeader, stepsNumberingConfig, type ReportChild,
+  buildFooter, buildHeader, buildWellnessNoteSection, stepsNumberingConfig, type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import { AROMA_MODULE_TITLE, AROMA_SYSTEM_TITLE, humanDate, type FrontMatterMode } from "./theme";
 
@@ -30,6 +30,11 @@ export interface AromaDocOptions {
    */
   frontMatter?: FrontMatterMode;
   date: Date;
+  /**
+   * FA-16: sade "Bilgilendirme" notu (footer kısa not + rapor sonu tam not + "Hazırlayan").
+   * Varsayılan AÇIK (aromaterapi karışım/katalog danışana gidebilir); false → eski çıktı.
+   */
+  wellnessNote?: boolean;
 }
 
 /** Tek section'lı, header+footer'lı DOCX Buffer üretir. */
@@ -57,6 +62,7 @@ export async function buildAromaDoc(opts: AromaDocOptions): Promise<Buffer> {
     }),
     ...frontMatter,
     ...opts.body,
+    ...(opts.wellnessNote === false ? [] : buildWellnessNoteSection("aromaterapi", opts.expertName)),
   ];
 
   const doc = new Document({
@@ -68,7 +74,7 @@ export async function buildAromaDoc(opts: AromaDocOptions): Promise<Buffer> {
     numbering: { config: [stepsNumberingConfig()] },
     sections: [{
       headers: { default: buildHeader(`${AROMA_MODULE_TITLE} · ${opts.reportName}`) },
-      footers: { default: buildFooter(opts.reportName) },
+      footers: { default: buildFooter(opts.reportName, opts.wellnessNote === false ? undefined : { note: "aromaterapi" }) },
       children,
     }],
   });

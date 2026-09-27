@@ -38,6 +38,13 @@ import {
   type Blend,
 } from "@/lib/aromaterapi/blendData";
 import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
+import {
+  DEFAULT_BLEND_BOTTLE_ML,
+  DEFAULT_BLEND_DILUTION,
+  emptyBlendSnapshot,
+  isBlendFormDirty,
+  type BlendFormSnapshot,
+} from "./blendFormState";
 
 const pageBg =
   "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
@@ -85,8 +92,8 @@ export default function KarisimOlusturucuPage() {
   const [carrierPhoto, setCarrierPhoto] = useState<PhotosensitivityStatus>("unknown");
   const [carrierContra, setCarrierContra] = useState("");
   const [carrierNotes, setCarrierNotes] = useState("");
-  const [bottleMl, setBottleMl] = useState<number>(30);
-  const [dilution, setDilution] = useState<number>(2);
+  const [bottleMl, setBottleMl] = useState<number>(DEFAULT_BLEND_BOTTLE_ML);
+  const [dilution, setDilution] = useState<number>(DEFAULT_BLEND_DILUTION);
   // ARO-021 — kayıttan yüklenen drops_per_ml korunur (20 hardcode etmeyiz).
   const [dropsPerMl, setDropsPerMl] = useState<number>(DEFAULT_DROPS_PER_ML);
   // ARO-019 — kullanıcı damlaları elle düzenlediyse ekle/çıkar otomatik dağıtmaz.
@@ -115,11 +122,16 @@ export default function KarisimOlusturucuPage() {
   const [printDate, setPrintDate] = useState("");
   const expertName = useMemo(() => getYasamUserDisplayName(readYasamUser()), []);
 
-  // FAZ 3 — kaydedilmemiş karışım koruması (beforeunload). Boş/pristine builder'da
-  // guard YOK (false-positive yok); ad/not/taşıyıcı/yağ girildiyse aktifleşir. Kayıt
-  // başarılı → resetForm() içerikleri temizler → isBlendDirty false olur.
-  const isBlendDirty =
-    name.trim() !== "" || notes.trim() !== "" || carrierName.trim() !== "" || items.length > 0;
+  // FAZ 3 — kaydedilmemiş karışım koruması (beforeunload). BASELINE kıyaslı: form en son
+  // yüklenen / kaydedilen / sıfırlanan hâlden farklıysa kirlidir (kayıtlı karışımı yükleyip
+  // hiçbir şey değiştirmeden çıkmak artık uyarı üretmez; kayıt sonrası taşıyıcı alanları da
+  // sıfırlandığı için sahte "kaydedilmemiş" kalmaz).
+  const [baseline, setBaseline] = useState<BlendFormSnapshot>(() => emptyBlendSnapshot(DEFAULT_DROPS_PER_ML));
+  const currentSnapshot: BlendFormSnapshot = {
+    name, notes, carrierName, carrierId, carrierPhoto, carrierContra, carrierNotes,
+    bottleMl, dilution, dropsPerMl, items,
+  };
+  const isBlendDirty = isBlendFormDirty(currentSnapshot, baseline);
   useAromaterapiDirtyGuard(isBlendDirty);
 
   // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi.
@@ -305,10 +317,21 @@ export default function KarisimOlusturucuPage() {
   }
 
   function resetForm() {
-    setName("");
-    setNotes("");
+    const empty = emptyBlendSnapshot(DEFAULT_DROPS_PER_ML);
+    setName(empty.name);
+    setNotes(empty.notes);
+    // Taşıyıcı alanları da sıfırlanır (önceden kalıyordu → kayıt sonrası sahte "kirli" durum).
+    setCarrierName(empty.carrierName);
+    setCarrierId(empty.carrierId);
+    setCarrierPhoto("unknown");
+    setCarrierContra(empty.carrierContra);
+    setCarrierNotes(empty.carrierNotes);
+    setBottleMl(empty.bottleMl);
+    setDilution(empty.dilution);
+    setDropsPerMl(empty.dropsPerMl);
     setItems([]);
     setManualDrops(false);
+    setBaseline(empty);
   }
 
   // ARO-009 — kaydedilmemiş değişiklik varsa, mevcut düzenlemeyi atmadan önce onay iste.
@@ -337,6 +360,20 @@ export default function KarisimOlusturucuPage() {
     setDropsPerMl(blend.drops_per_ml || DEFAULT_DROPS_PER_ML); // ARO-021
     setItems(blend.items);
     setManualDrops(true); // kaydedilmiş damla dağılımı korunur
+    // Baseline = yüklenen kayıt → değişiklik yapılmadıkça "kaydedilmemiş" sayılmaz.
+    setBaseline({
+      name: blend.name,
+      notes: blend.notes,
+      carrierName: blend.carrier_oil_name,
+      carrierId: blend.carrier_oil_id,
+      carrierPhoto: blend.carrier_photosensitivity_status ?? "unknown",
+      carrierContra: blend.carrier_contraindications ?? "",
+      carrierNotes: blend.carrier_safety_notes ?? "",
+      bottleMl: blend.bottle_ml,
+      dilution: blend.dilution_percent,
+      dropsPerMl: blend.drops_per_ml || DEFAULT_DROPS_PER_ML,
+      items: blend.items,
+    });
     setEditingId(blend.id);
     // ARO-008 — sürüm token'ı düzenlemede ZORUNLU; updated_at yoksa created_at'e düş.
     setEditingUpdatedAt(blend.updated_at ?? blend.created_at ?? null);

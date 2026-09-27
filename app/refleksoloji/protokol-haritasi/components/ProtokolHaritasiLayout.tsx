@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
-import { EMPTY_PROTOCOL_DRAFT, savedToDraft } from "../lib/protocolStorage";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
+import { createProtocolId, EMPTY_PROTOCOL_DRAFT, savedToDraft } from "../lib/protocolStorage";
 import { resolveProtocolViews } from "../lib/resolveDisplayRegions";
 import { useProtocolRegistry } from "../hooks/useProtocolRegistry";
 import { useHydratedAtlasVersion } from "@/app/refleksoloji/hooks/useHydratedAtlasVersion";
@@ -65,7 +66,13 @@ export function ProtokolHaritasiLayout() {
   const [draft, setDraft] = useState<ProtocolFormDraft>(EMPTY_PROTOCOL_DRAFT);
   const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  // FA-42: kilit istek BİTENE kadar (eski 800 ms zamanlayıcı kaldırıldı).
+  const { run: runSave, pending: saving } = useSubmitLock();
+  // Yeni kayıt: form oturumu başına SABİT kimlik → hata sonrası yeniden denemede
+  // aynı source_uid (idempotent POST, duplicate yok). Başarı/temizlemede sıfırlanır.
+  const newIdRef = useRef<string | null>(null);
+  // Düzenlemede dayanılan SUNUCU sürümü (raw_json.updatedAt) → by-uid PUT CAS.
+  const [editBaseVersion, setEditBaseVersion] = useState<string | null>(null);
 
   // REF-005: düzenleme. `?id=` (source_uid) ile mevcut protokolü forma hydrate et ve
   // editId'yi taşı → kaydetme YENİ satır AÇMAZ, mevcut satırı GÜNCELLER. Hydrate
@@ -81,17 +88,19 @@ export function ProtokolHaritasiLayout() {
     if (!hydrated || !editParam || editResolvedRef.current) return;
     editResolvedRef.current = true;
 
-    // 1) Yerel kayıt (aynı cihaz) — p.id === source_uid.
+    // 1) Yerel kopya: sunucuya ulaşmamış (pendingSync) düzenleme varsa O kullanılır
+    //    (kullanıcının kaydedilmemiş değişikliği kaybolmaz). Demo/oturumsuz → yerel.
     const local = protocols.find((p) => p.id === editParam);
-    if (local) {
+    const uid = readYasamUser()?.id;
+    const token = readSessionToken();
+    if (local && (local.pendingSync || isDemo || !uid || !token)) {
       setDraft(savedToDraft(local));
       setEditId(local.id);
+      setEditBaseVersion(local.baseVersion ?? null);
       setEditState("ready");
       return;
     }
     // 2) Demo veya oturumsuz → sunucu yok; düzenlenemez.
-    const uid = readYasamUser()?.id;
-    const token = readSessionToken();
     if (isDemo || !uid || !token) {
       setEditState("notfound");
       return;
@@ -113,15 +122,33 @@ export function ProtokolHaritasiLayout() {
           rows.find((r) => r.source_uid === editParam) ??
           rows.find((r) => r.id === editParam);
         if (!match) {
+          if (local) {
+            // Sunucuda yok ama yerel kopya var → yerelden düzenle (kayıt sunucuda oluşturur).
+            setDraft(savedToDraft(local));
+            setEditId(local.id);
+            setEditBaseVersion(null);
+            setEditState("ready");
+            return;
+          }
           setEditState("notfound");
           return;
         }
+        // Sunucudaki GÜNCEL hâl (başka cihaz / organ adı değişikliği dahil) + sürümü.
         setDraft(rowToDraft(match));
         // by-uid güncellemesi için editId = source_uid olmalı (yoksa server id).
         setEditId(match.source_uid ?? match.id);
+        setEditBaseVersion(protocolRowVersion(match.raw_json));
         setEditState("ready");
       } catch {
-        if (!cancelled) setEditState("notfound");
+        if (cancelled) return;
+        if (local) {
+          setDraft(savedToDraft(local));
+          setEditId(local.id);
+          setEditBaseVersion(local.baseVersion ?? null);
+          setEditState("ready");
+          return;
+        }
+        setEditState("notfound");
       }
     })();
     return () => {
@@ -152,77 +179,80 @@ export function ProtokolHaritasiLayout() {
     setDraft(EMPTY_PROTOCOL_DRAFT);
     setValidationMessage(null);
     setEditId(null);
+    setEditBaseVersion(null);
     setEditState("none");
+    newIdRef.current = null;
   }, []);
 
-  // Çift-tıklama / hızlı tekrar gönderim koruması (duplicate protokol engeli).
-  // Sunucu (tenant_id, source_uid) idempotensi ile birlikte savunma-derinliği.
-  const savingRef = useRef(false);
+  // Çift-tıklama / hızlı tekrar gönderim koruması: senkron kilit İSTEK BİTENE KADAR
+  // (useSubmitLock). Sunucu (tenant_id, source_uid) idempotensi savunma-derinliğidir.
+  const handleSave = () =>
+    void runSave(async () => {
+      if (editState === "loading") {
+        setValidationMessage("Protokol yükleniyor, lütfen bekleyin.");
+        return;
+      }
+      // REF-005: DÜZENLEME NİYETİYLE (?id) gelinip hedef BULUNAMADIYSA sessizce YENİ
+      // kayıt OLUŞTURMA. Yanlışlıkla duplicate/veri sapması üretmemek için kaydı engelle
+      // ve kullanıcıyı açıkça bilgilendir; yeni kayıt yalnız açık niyetle (aşağıdaki
+      // "Yeni protokol oluştur" düğmesi id'yi temizler) yapılır.
+      if (editParam && editState === "notfound") {
+        setValidationMessage(
+          "Düzenlenecek protokol bulunamadı. Otomatik yeni kayıt OLUŞTURULMAZ. " +
+            "Yeni bir protokol oluşturmak istiyorsanız «Yeni protokol oluştur»u kullanın.",
+        );
+        return;
+      }
+      if (!draft.title.trim()) {
+        setValidationMessage("Hedef / sorun adı zorunludur.");
+        return;
+      }
+      if (draft.organs.length === 0) {
+        setValidationMessage("En az bir organ ekleyin.");
+        return;
+      }
 
-  const handleSave = () => {
-    if (savingRef.current) return;
-    if (editState === "loading") {
-      setValidationMessage("Protokol yükleniyor, lütfen bekleyin.");
-      return;
-    }
-    // REF-005: DÜZENLEME NİYETİYLE (?id) gelinip hedef BULUNAMADIYSA sessizce YENİ
-    // kayıt OLUŞTURMA. Yanlışlıkla duplicate/veri sapması üretmemek için kaydı engelle
-    // ve kullanıcıyı açıkça bilgilendir; yeni kayıt yalnız açık niyetle (aşağıdaki
-    // "Yeni protokol oluştur" düğmesi id'yi temizler) yapılır.
-    if (editParam && editState === "notfound") {
-      setValidationMessage(
-        "Düzenlenecek protokol bulunamadı. Otomatik yeni kayıt OLUŞTURULMAZ. " +
-          "Yeni bir protokol oluşturmak istiyorsanız «Yeni protokol oluştur»u kullanın.",
-      );
-      return;
-    }
-    if (!draft.title.trim()) {
-      setValidationMessage("Hedef / sorun adı zorunludur.");
-      return;
-    }
-    if (draft.organs.length === 0) {
-      setValidationMessage("En az bir organ ekleyin.");
-      return;
-    }
+      // REF-005: editId varsa mevcut protokolü GÜNCELLE; yoksa yeni oluştur.
+      if (!editId && !newIdRef.current) newIdRef.current = createProtocolId(draft.title, new Set());
+      const result = await saveProtocol(draft, editId, {
+        newId: editId ? null : newIdRef.current,
+        baseVersion: editBaseVersion,
+      });
+      if (!result.ok) {
+        // FA-42: gerçek hata görünür; form KORUNUR (erken başarı / yönlendirme yok).
+        setValidationMessage(result.error);
+        if (result.kind !== "validation") {
+          showToast({
+            type: result.kind === "conflict" ? "warning" : "error",
+            title: result.kind === "conflict" ? "Eşzamanlı değişiklik" : "Kaydedilemedi",
+            message: result.error,
+          });
+        }
+        return;
+      }
+      setValidationMessage(null);
 
-    savingRef.current = true;
-    setSaving(true);
-    // Kısa bir süre sonra tekrar kaydetmeye izin ver (aynı formu bilinçli tekrar kaydetme).
-    // Yeni kayıtta her çağrı yeni id ürettiğinden bu pencere duplicate'ı engeller (REF-023).
-    setTimeout(() => {
-      savingRef.current = false;
-      setSaving(false);
-    }, 800);
+      if (editId) {
+        showToast({
+          type: "success",
+          title: "Protokol güncellendi",
+          message: `«${result.saved.title}» güncellendi.`,
+        });
+        // Düzenleme tamamlandı → Kayıtlı Protokoller'e dön (güncel hâli orada görünür).
+        router.push("/refleksoloji/kayitli-protokoller");
+        return;
+      }
 
-    // REF-005: editId varsa mevcut protokolü GÜNCELLE; yoksa yeni oluştur.
-    const result = saveProtocol(draft, editId);
-    if (!result.saved) {
-      setValidationMessage("Kayıt yapılamadı. Alanları kontrol edin.");
-      return;
-    }
-    if (!result.storageOk) {
-      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
-      return;
-    }
-
-    if (editId) {
       showToast({
         type: "success",
-        title: "Protokol güncellendi",
-        message: `«${result.saved.title}» güncellendi.`,
+        title: "Protokol kaydedildi",
+        message: `«${result.saved.title}» başarıyla kaydedildi.`,
       });
-      // Düzenleme tamamlandı → Kayıtlı Protokoller'e dön (güncel hâli orada görünür).
-      router.push("/refleksoloji/kayitli-protokoller");
-      return;
-    }
-
-    showToast({
-      type: "success",
-      title: "Protokol kaydedildi",
-      message: `«${result.saved.title}» başarıyla kaydedildi.`,
+      resetForm();
+    }).catch((err: unknown) => {
+      // SubmitTimeoutError vb. → görünür hata (kilit finally ile açıldı).
+      setValidationMessage(err instanceof Error ? err.message : "Kayıt tamamlanamadı. Lütfen tekrar deneyin.");
     });
-    resetForm();
-  };
 
   const handleClear = () => {
     resetForm();

@@ -7,6 +7,8 @@ import {
   Packer,
   BorderStyle,
 } from "docx";
+import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 
 function toSafeFilename(name: string): string {
   return name
@@ -122,13 +124,10 @@ export async function exportHdReportDocx(params: {
 }): Promise<void> {
   const { reportTitle, clientName, reportText } = params;
 
+  // FA-02: tarih + dosya adı Europe/Istanbul günü (UTC dilimi 00:00–03:00 arası "dün" üretmez).
   const now = new Date();
-  const today = now.toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-  const dateStr = now.toISOString().slice(0, 10); // "2026-06-23"
+  const today = reportGeneratedLabel(undefined, now);
+  const dateStr = reportFileDate(undefined, now); // "2026-06-23"
 
   const headerParagraphs: Paragraph[] = [
     new Paragraph({
@@ -170,7 +169,18 @@ export async function exportHdReportDocx(params: {
   const doc = new Document({
     sections: [
       {
-        children: [...headerParagraphs, ...bodyParagraphs],
+        children: [
+          ...headerParagraphs,
+          ...bodyParagraphs,
+          // FA-16: sade bilgilendirme notu (küçük, gri; uyarı kutusu değil).
+          new Paragraph({
+            spacing: { before: 360, after: 60 },
+            children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, color: "475569" })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: wellnessNote("human_design").full, italics: true, size: 16, color: "94a3b8" })],
+          }),
+        ],
       },
     ],
   });

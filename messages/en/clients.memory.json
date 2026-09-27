@@ -11,7 +11,7 @@
       "resultsCount": "<b>{count}</b> results",
       "recordFallbackTitle": "Record",
       "pickAria": "Select record",
-      "pickedBanner": "{count} records selected · Adding to report/protocol <b>coming soon (Package 2)</b>",
+      "pickedBanner": "<b>{count}</b> records selected",
       "detailDialogAria": "Record detail",
       "close": "Close",
       "detailDateLabel": "Date: {date}",

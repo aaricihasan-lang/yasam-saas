@@ -10,6 +10,7 @@ import {
   arraySection,
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
   buildTOCPage,
@@ -21,6 +22,8 @@ import {
   ReportChild,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -100,8 +103,8 @@ export async function POST(
 
   const mineral = sanitizeXmlDeep(data as MineralRow); // RPT-XML
   const mineralName = mineral.name || "İsimsiz Mineral";
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
   const nameSlug = slugify(mineralName);
   const filledArrays = countFilledArrays(mineral);
 
@@ -110,7 +113,7 @@ export async function POST(
   // ── Premium kapak
   all.push(...buildPremiumCover({
     title1:   "YAŞAM SİSTEMİ",
-    title2:   mineralName.toUpperCase(),
+    title2:   mineralName.toLocaleUpperCase("tr-TR"),
     subtitle: "Mineral Detay Raporu",
     date:     `Oluşturulma Tarihi: ${today}`,
     stats: [
@@ -129,7 +132,7 @@ export async function POST(
     ["Kaynak",         mineral.source_id || "Belirtilmemiş"],
     ["Dolu Bölüm",    `${filledArrays} / 9`],
     ["İçeren Taş",    String(mineral.iceren_taslar?.length ?? 0)],
-    ["Kayıt Tarihi",  mineral.created_at ? new Date(mineral.created_at).toLocaleDateString("tr-TR") : "-"],
+    ["Kayıt Tarihi",  formatInstantDate(mineral.created_at, { fallback: "-" })],
   ]));
 
   // ── İçindekiler
@@ -143,7 +146,7 @@ export async function POST(
     ["Mineral Adı", mineralName],
     ["Kategori",    mineral.kategori || "Belirtilmemiş"],
     ["Kaynak",      mineral.source_id || "Belirtilmemiş"],
-    ["Kayıt Tarihi", mineral.created_at ? new Date(mineral.created_at).toLocaleDateString("tr-TR") : "-"],
+    ["Kayıt Tarihi", formatInstantDate(mineral.created_at, { fallback: "-" })],
   ]));
 
   if (mineral.aciklama?.trim()) {
@@ -168,10 +171,13 @@ export async function POST(
     all.push(muted("Bu mineral kaydında henüz içerik girilmemiş."));
   }
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  all.push(...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter(`Mineral Raporu · ${mineralName}`) },
+      footers: { default: buildFooter(`Mineral Raporu · ${mineralName}`, { note: "dogaltas" }) },
       children: all,
     }],
   });

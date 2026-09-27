@@ -21,8 +21,9 @@ import { KaynakForm } from "@/app/aromaterapi/kaynaklar/_components/KaynakForm";
 
 /**
  * Kaynaklar — gerçek tenant-scoped kaynak listesi (arama + filtre + sayfalama) +
- * uzman authoring (oluştur/düzenle/arşivle). Kaynak "silme" = arşivleme (status→archived);
- * atıflı kaynak hard delete edilmez (provenans korunur). RPC + audit yolu.
+ * uzman authoring (oluştur/düzenle/arşivle). Kullanılan kaynak arşivlenir (status→archived;
+ * provenans korunur); kullanılmayan kaynağın kalıcı silinmesi kaynak DETAY ekranındadır
+ * (DELETE + referans kontrolü, audit/tombstone). RPC + audit yolu.
  */
 
 const SOURCE_FILTER_KEYS = ["source_type", "status", "year"] as const;

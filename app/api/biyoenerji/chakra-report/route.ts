@@ -12,6 +12,7 @@ import {
 import {
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
   buildTOCPage,
@@ -25,6 +26,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import {
   deriveChakraBibliography,
   SOURCE_EVIDENCE_BLOCK_TYPE,
@@ -75,12 +78,9 @@ type ChakraRow = {
   created_at: string;
 };
 
+/** created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC'de çalışır). */
 function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-  } catch { return d; }
+  return formatInstantDate(d, { style: "long", fallback: d });
 }
 
 function slugify(t: string): string {
@@ -167,8 +167,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Tablo yoksa/hata: blocksByChakra boş → tüm çakralar legacy fallback (mevcut davranış).
   }
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
   const isSingle = exportMode === "single" || (exportMode === "selected" && chakras.length === 1);
 
   const exportLabel =
@@ -257,10 +257,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   });
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  all.push(...buildWellnessNoteSection("biyoenerji", expertDisplayName(guard.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Çakra Kütüphanesi Raporu · Yaşam Sistemi") },
+      footers: { default: buildFooter("Çakra Kütüphanesi Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },
       children: all,
     }],
   });

@@ -4,21 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   atlasHasRegionId,
   buildDisplayRegions,
+  hydrateAndMergeAtlas,
   listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
-  mergeAtlasDocuments,
   mergeDraftIntoAtlas,
   saveAtlas,
   saveOrganList,
 } from "@/lib/atlasStorage";
-import type { AtlasDocument } from "@/lib/atlasStorage";
-import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
-import {
-  hydrateAtlasFromServer,
-  scheduleAtlasSync,
-  setAtlasSyncSuspended,
-} from "@/lib/refleksolojiAtlasSync";
 import type { FootSide, FootView, Region } from "../types";
 import { dedupeByOrganKey, isDuplicateOrgan } from "../utils/organUtils";
 
@@ -38,6 +31,8 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   const [draftRegions, setDraftRegions] = useState<Region[]>([]);
   const [deletedRegionIds, setDeletedRegionIds] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  // DL-007: sahibi belirsiz eski cihaz atlası (karar Kayıtlı Atlas'ta verilir).
+  const [quarantineCount, setQuarantineCount] = useState(0);
 
   const [selectedFoot, setSelectedFoot] = useState<FootSide>("left");
   const [selectedView, setSelectedView] = useState<FootView>("taban");
@@ -56,53 +51,22 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
 
     setHydrated(true);
 
-    // P1-1: sunucudan atlas hydrate (cihazlar arası senkron). Çizim yokken güvenli;
-    // sunucu boşsa yereldeki atlas taşınır, erişilemezse yerel korunur.
+    // P1-1: sunucudan atlas hydrate + tombstone-farkında birleştirme (TEK merkez).
+    // FA-13: açılışta/"migrate" OTOMATİK PUT YOK; organ listesi de açılışta yazılmaz
+    // (eskiden koşulsuz saveOrganList her açılışta PUT tetikliyordu). Yalnız kullanıcı
+    // eylemi (organ ekle / kaydet) gönderir; hidrasyon bitmeden PUT gitmez.
     let cancelled = false;
-    void hydrateAtlasFromServer().then((server) => {
-      if (cancelled || !server) return;
-      const serverDoc = server.document;
-      // Sunucuda veri var mı: belge organları VEYA organ listesi (bölgesiz organ
-      // yalnız organ_list'te yaşar — bu durumu da hydrate et).
-      const hasServerData =
-        (!!serverDoc && listOrganNamesFromAtlas(serverDoc as AtlasDocument).length > 0) ||
-        server.organ_list.length > 0;
-      if (hasServerData) {
-        // Birleştir (sunucu ∪ yerel; yerel-özel organ korunur) → veri kaybı yok.
-        const localDoc = loadAtlas();
-        const mergedDoc = mergeAtlasDocuments(serverDoc as AtlasDocument, localDoc);
-        // Zombie fix: tombstone-farkında + kanonik organ listesi birleştirme.
-        const mergedOrgans = mergeOrganListsWithTombstones(
-          server.organ_list,
-          loadOrganList(),
-          mergedDoc._meta,
-        );
-        setAtlasSyncSuspended(true);
-        saveAtlas(mergedDoc);
-        saveOrganList(mergedOrgans);
-        setAtlasSyncSuspended(false);
-        const merged = loadAtlas();
-        setAtlas(merged);
-        setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), mergedOrgans));
-        // Yerelde sunucuda olmayan organ varsa birleşik belgeyi sunucuya yaz.
-        if (listOrganNamesFromAtlas(mergedDoc).length > listOrganNamesFromAtlas(serverDoc as AtlasDocument).length) {
-          scheduleAtlasSync(mergedDoc, mergedOrgans);
-        }
-      } else if (listOrganNamesFromAtlas(doc).length > 0 || sessionOrgans.length > 0) {
-        // Sunucu boş ama yerelde veri var → ilk açılışta sunucuya taşı (migrate).
-        scheduleAtlasSync(doc, sessionOrgans);
-      }
+    void hydrateAndMergeAtlas().then((r) => {
+      if (cancelled || !r) return;
+      setQuarantineCount(r.quarantineCount);
+      const merged = loadAtlas();
+      setAtlas(merged);
+      setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), loadOrganList()));
     });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrgan]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveOrganList(organs);
-  }, [organs, hydrated]);
 
   const displayRegions = useMemo(
     () =>
@@ -136,7 +100,10 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       const trimmed = name.trim();
       if (!trimmed || isDuplicateOrgan(trimmed, organs)) return false;
 
-      setOrgans((prev) => [...prev, trimmed].sort((a, b) => a.localeCompare(b, "tr")));
+      const nextOrgans = [...organs, trimmed].sort((a, b) => a.localeCompare(b, "tr"));
+      setOrgans(nextOrgans);
+      // Kullanıcı eylemi → organ listesini kalıcılaştır (+ senkron planla).
+      saveOrganList(nextOrgans);
       setSelectedOrgans([trimmed]);
       setActiveOrgan(trimmed);
       setSelectedRegionId(null);
@@ -182,9 +149,11 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setSelectedOrgans((prev) => prev.filter((o) => survivingOrgans.has(o)));
     setActiveOrgan((cur) => (cur && survivingOrgans.has(cur) ? cur : null));
     setSelectedRegionId(null);
-    setOrgans((prev) => mergeOrganLists(listOrganNamesFromAtlas(next), prev));
+    const nextOrgans = mergeOrganLists(listOrganNamesFromAtlas(next), organs);
+    setOrgans(nextOrgans);
+    saveOrganList(nextOrgans);
     return true;
-  }, [atlas, draftRegions, deletedRegionIds]);
+  }, [atlas, draftRegions, deletedRegionIds, organs]);
 
   const handleDeleteSelectedDrawing = useCallback(() => {
     if (!selectedRegionId) {
@@ -200,6 +169,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
 
   return {
     hydrated,
+    quarantineCount,
     organs,
     selectedOrgans,
     activeOrgan,

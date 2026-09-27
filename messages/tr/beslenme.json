@@ -19,7 +19,16 @@
         "weightRequired": "Kilo gerekli.",
         "foodNameRequired": "Besin adı gerekli.",
         "prefAdded": "Eklendi.",
-        "prefAddFailed": "Eklenemedi"
+        "prefAddFailed": "Eklenemedi",
+        "measurementDeleteFailed": "Ölçüm silinemedi",
+        "prefDeleted": "Silindi.",
+        "prefDeleteFailed": "Silinemedi"
+      },
+      "confirm": {
+        "measurementTitle": "Ölçümü sil",
+        "measurementMessage": "Bu ölçüm kaydı kalıcı olarak silinecek.",
+        "prefTitle": "Besin tercihini sil",
+        "prefMessage": "Bu besin tercihi kalıcı olarak silinecek."
       },
       "profile": {
         "title": "Beslenme Profili",
@@ -68,7 +77,8 @@
         "add": "Ekle",
         "cancel": "Vazgeç",
         "remove": "Kaldır",
-        "customTooLong": "Alerjen adı en fazla 120 karakter olabilir."
+        "customTooLong": "Alerjen adı en fazla 120 karakter olabilir.",
+        "saving": "Kaydediliyor…"
       },
       "preferences": {
         "title": "Tercih Edilen / Kaçınılan Besinler",

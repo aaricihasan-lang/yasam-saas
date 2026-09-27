@@ -85,7 +85,8 @@
         "daysAgo": "{n} gün önce",
         "weeksAgo": "{n} hafta önce",
         "monthsAgo": "{n} ay önce",
-        "yearsAgo": "{n} yıl önce"
+        "yearsAgo": "{n} yıl önce",
+        "daysLater": "{n} gün sonra"
       },
       "toast": {
         "sessionWarningTitle": "Oturum uyarısı",
@@ -98,7 +99,7 @@
         "loadAllError": "Kayıtlar yüklenemedi.",
         "sessionMissing": "Oturum bilgisi bulunamadı.",
         "deleteConfirmTitle": "Seçili danışanları sil",
-        "deleteConfirmMsg": "{count} danışanı ve tüm ilişkili verilerini silmek istediğinizden emin misiniz?",
+        "deleteConfirmMsg": "{count} danışan ve bağlı tüm kayıtları (randevu, seans, ödev, not, ücret, analiz…) kalıcı olarak silinecek:",
         "deleteConfirmSecond": "Bu işlem GERİ ALINAMAZ. Danışana ait görüşmeler, ödevler ve analizler de silinecek.",
         "deleteNone": "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.",
         "deletePartialTitle": "Danışanlar silindi",
@@ -110,7 +111,11 @@
         "exportNoFiltered": "Filtrelenmiş sonuç yok.",
         "exportSuccess": "Danışan raporu indirildi.",
         "exportError": "Rapor oluşturulamadı",
-        "unknownError": "Bilinmeyen hata"
+        "unknownError": "Bilinmeyen hata",
+        "deleteUnlinked": "Numeroloji, Human Design, Refleksoloji ve Biyoenerji kayıtları danışana bağlı değildir; bunlar ayrıca silinmelidir.",
+        "deleteRequireLabel": "Onaylamak için “SİL” yazın:",
+        "deleteFailedTitle": "Bazı danışanlar silinemedi",
+        "deleteFailedNames": "Silinemeyenler (seçili bırakıldı): {names}"
       }
     }
   }

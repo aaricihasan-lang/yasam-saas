@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 
 export const runtime = "nodejs";
 
@@ -119,9 +120,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
+  const insertFields = pickAllowed(body);
+  // DY-A: bitiş < başlangıç (veya bozuk tarih) → 400.
+  const dateErr = validateHomeworkDates(insertFields);
+  if (dateErr) {
+    return NextResponse.json({ ok: false, error: dateErr }, { status: 400 });
+  }
+
   const { data, error } = await db
     .from("client_homeworks")
-    .insert({ tenant_id: tenantId, client_id: clientId, ...pickAllowed(body) })
+    .insert({ tenant_id: tenantId, client_id: clientId, ...insertFields })
     .select("id")
     .single();
 
@@ -170,6 +178,30 @@ export async function PATCH(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+  }
+
+  // DY-A: tarih alanlarından biri değişiyorsa KAYITLI satırla birleştirip doğrula
+  // (yalnız end_date gönderen düzenleme de start_date'e göre kontrol edilir).
+  if ("start_date" in patch || "end_date" in patch) {
+    const { data: existing, error: readErr } = await db
+      .from("client_homeworks")
+      .select("start_date,end_date")
+      .eq("id", homeworkId)
+      .eq("tenant_id", tenantId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+    if (readErr) {
+      return serverErrorResponse({ route: "clients/[id]/homeworks", action: "PATCH-read", tenantId, cause: readErr });
+    }
+    if (!existing) {
+      return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
+    }
+    const dateErr = validateHomeworkDates(
+      mergeHomeworkDates(existing as { start_date?: string | null; end_date?: string | null }, patch),
+    );
+    if (dateErr) {
+      return NextResponse.json({ ok: false, error: dateErr }, { status: 400 });
+    }
   }
 
   const { error } = await db

@@ -8,11 +8,13 @@ import { NoteListCard } from "./NoteListCard";
 
 type KayitliNotlarTabProps = {
   notes: SavedClinicalNote[];
+  /** Sunucu hidrasyonu sürerken ve yerelde not yokken "boş" yerine yükleniyor göster. */
+  loading?: boolean;
   onEdit: (note: SavedClinicalNote) => void;
   onDelete: (id: string) => void;
 };
 
-export function KayitliNotlarTab({ notes, onEdit, onDelete }: KayitliNotlarTabProps) {
+export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: KayitliNotlarTabProps) {
   const { confirm } = useConfirm();
   const [search, setSearch] = useState("");
 
@@ -32,6 +34,14 @@ export function KayitliNotlarTab({ notes, onEdit, onDelete }: KayitliNotlarTabPr
     if (!ok) return;
     onDelete(id);
   };
+
+  if (notes.length === 0 && loading) {
+    return (
+      <section className="rounded-[28px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-16 text-center shadow-sm">
+        <p className="text-base font-semibold text-violet-900">Notlar yükleniyor…</p>
+      </section>
+    );
+  }
 
   if (notes.length === 0) {
     return (

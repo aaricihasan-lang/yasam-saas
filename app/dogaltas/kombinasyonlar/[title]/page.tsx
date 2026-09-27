@@ -31,6 +31,8 @@ import {
   SEARCH_MATCH_BADGE_COMPACT_CLASS as SEARCH_MATCH_BADGE_CLASS,
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 
 type CombinationRecord = {
@@ -1348,17 +1350,11 @@ function KombinasyonDetayPageContent() {
         body: JSON.stringify({ exportMode: "single", combinationTitle: decodedIssue }),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safe = decodedIssue.toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      a.download = `kombinasyon-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `kombinasyon-${safe}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }

@@ -15,7 +15,8 @@ export const runtime = "nodejs";
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
 
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at"]);
+// create_request_id: yalnız POST /api/clients sunucusu yazar (idempotency, DY-A).
+const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "create_request_id"]);
 
 function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};

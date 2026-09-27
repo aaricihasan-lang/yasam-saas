@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { isMobileViewport, resolveViewerControls } from "../helpers/mobileUxLogic";
 import { formatFirstNameTurkish, formatLastNameTurkish } from "../helpers/nameInputFormat";
 import {
@@ -257,11 +257,16 @@ export default function NumerolojiAnalizPage() {
 
     // İlk oluşturma → server'dan IP bazlı hak iste
     try {
-      const userId = readYasamUser()?.id ?? "";
+      // FAZ1 FINAL HARDENING (AUTH): kimlik header'dan (x-user-id + x-session-token);
+      // body.userId sunucuda artık okunmaz.
       const res = await fetch("/api/numeroloji/demo-analiz", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": readYasamUser()?.id ?? "",
+          "x-session-token": readSessionToken() ?? "",
+        },
+        body: JSON.stringify({}),
       });
       const json = (await res.json().catch(() => ({}))) as {
         allowed?: boolean;

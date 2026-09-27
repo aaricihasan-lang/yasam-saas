@@ -12,9 +12,27 @@ import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
 import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { computeBurc } from "@/lib/danisan/burc";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { SubmitTimeoutError } from "@/lib/ui/submitLock";
+import { todayInZone } from "@/lib/time/reportTime";
+import ClientConsentPanel from "@/components/kvkk/ClientConsentPanel";
 
+// "Bugün": İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayForInput() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInZone();
+}
+
+/** Form denemesi başına idempotency anahtarı (retry'da aynı, başarıda yenilenir). */
+function newRequestId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch {
+    /* aşağıdaki yedek */
+  }
+  // RFC4122 v4 biçimli yedek (sunucu yalnız uuid biçimini kabul eder).
+  const h = () => Math.floor(Math.random() * 16).toString(16);
+  const s = (n: number) => Array.from({ length: n }, h).join("");
+  return `${s(8)}-${s(4)}-4${s(3)}-${"89ab"[Math.floor(Math.random() * 4)]}${s(3)}-${s(12)}`;
 }
 
 function formatDateTR(date: string | null) {
@@ -300,6 +318,11 @@ export default function DanisanKayitPage() {
 
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const forceSaveRef = useRef(false);
+  // DY-A çift kayıt koruması: senkron kilit (duplicate kontrolü DAHİL tüm akış) + request_id.
+  const { run: runSubmit, pending: submitting } = useSubmitLock();
+  const requestIdRef = useRef<string | null>(null);
+  // Kayıt başarılıysa KVKK onam adımı gösterilir (form kilitli kalır; tekrar kayıt yok).
+  const [createdClientId, setCreatedClientId] = useState<string | null>(null);
 
   const [ad, setAd] = useState("");
   const [soyad, setSoyad] = useState("");
@@ -328,7 +351,23 @@ export default function DanisanKayitPage() {
     });
   }
 
+  // DY-A: kilit İLK ifade — duplicate-name kontrolü dahil tüm akış tek uçuşta; çift tık
+  // ikinci çağrıyı hiç başlatmaz. Zaman aşımı/ağ hatası → kilit açılır, form korunur.
   async function saveClient() {
+    try {
+      await runSubmit((signal) => saveClientLocked(signal));
+    } catch (err) {
+      setSaving(false);
+      showToast({
+        title: t("toast.failTitle"),
+        message: err instanceof SubmitTimeoutError ? err.message : t("toast.saveError"),
+        type: "error",
+      });
+    }
+  }
+
+  async function saveClientLocked(signal: AbortSignal) {
+    if (createdClientId) return; // kayıt tamamlandı; aynı formdan ikinci kayıt yok
     if (!ad.trim() || !soyad.trim()) {
       showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
       return;
@@ -370,6 +409,7 @@ export default function DanisanKayitPage() {
       // Tüm listeyi indirme; sunucu tarafı ilike araması ile yalnızca aday satırları çek.
       const dupQs = new URLSearchParams({ search: ad.trim(), limit: "25" });
       const dupRes = await fetch(`/api/clients?${dupQs.toString()}`, {
+        signal,
         headers: {
           "x-user-id": user.id ?? "",
           ...(dupToken ? { "x-session-token": dupToken } : {}),
@@ -400,9 +440,14 @@ export default function DanisanKayitPage() {
     forceSaveRef.current = false;
     setSaving(true);
 
+    // İstek başına idempotency anahtarı: başarısız denemenin tekrarı AYNI anahtarı kullanır
+    // (sunucu 23505 → mevcut kaydı döndürür); başarıda yenilenir.
+    if (!requestIdRef.current) requestIdRef.current = newRequestId();
+
     const insToken = readSessionToken();
     const insRes = await fetch("/api/clients", {
       method: "POST",
+      signal,
       headers: {
         "Content-Type": "application/json",
         "x-user-id": user.id ?? "",
@@ -417,6 +462,7 @@ export default function DanisanKayitPage() {
         burc,
         kan,
         mizac,
+        request_id: requestIdRef.current,
       }),
     });
 
@@ -426,8 +472,17 @@ export default function DanisanKayitPage() {
       return;
     }
 
+    requestIdRef.current = null; // başarı → sonraki form denemesi yeni anahtar alır
     invalidateDanisanListCache(); // liste önbelleği bayat → yeni danışan görünür
     showToast({ title: t("toast.successTitle"), message: t("toast.saved"), type: "success" });
+
+    // KVKK: kayıt sonrası isteğe bağlı onam adımı ("Sonra tamamla" → listeye dön).
+    const created = (await insRes.json().catch(() => null)) as { client?: { id?: string } | null } | null;
+    const createdId = created?.client?.id;
+    if (createdId) {
+      setCreatedClientId(createdId);
+      return;
+    }
     router.push("/danisan-yolculugu/liste");
   }
 
@@ -547,7 +602,8 @@ export default function DanisanKayitPage() {
                 <button
                   type="button"
                   onClick={() => { forceSaveRef.current = true; void saveClient(); }}
-                  className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white hover:bg-amber-700"
+                  disabled={submitting || saving}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white hover:bg-amber-700 disabled:opacity-60"
                 >
                   {t("duplicate.confirm")}
                 </button>
@@ -556,14 +612,24 @@ export default function DanisanKayitPage() {
           )}
 
           <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+            {!createdClientId && (
             <button
               type="button"
               onClick={saveClient}
-              disabled={saving || tenantMissing}
+              disabled={saving || submitting || tenantMissing}
               className="btn-primary px-7 py-3 text-sm hover:-translate-y-0.5 hover:scale-[1.02]"
             >
-              {saving ? t("submit.saving") : isDemo ? t("submit.demo") : t("submit.default")}
+              {saving || submitting ? t("submit.saving") : isDemo ? t("submit.demo") : t("submit.default")}
             </button>
+            )}
+            {createdClientId && (
+              <Link
+                href={`/dashboard/clients/${createdClientId}`}
+                className="btn-primary px-7 py-3 text-sm"
+              >
+                Danışan detayına git →
+              </Link>
+            )}
             <Link
               href="/danisan-yolculugu/liste"
               className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
@@ -571,6 +637,16 @@ export default function DanisanKayitPage() {
               {t("backToList")}
             </Link>
           </div>
+
+          {/* KVKK: kayıt sonrası isteğe bağlı onam kaydı; "Sonra tamamla" → listeye dön. */}
+          {createdClientId && (
+            <ClientConsentPanel
+              clientId={createdClientId}
+              source="dy_kayit"
+              className="mt-6"
+              onDefer={() => router.push("/danisan-yolculugu/liste")}
+            />
+          )}
         </DanisanSectionShell>
 
       </div>

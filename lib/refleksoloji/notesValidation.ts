@@ -98,52 +98,139 @@ function validateAttachment(
 }
 
 /**
- * Gelen not listesini doğrular. Geçerliyse null; değilse {status,message}.
- * Not: id/title zorunlu değildir (üst katman zaten filtreler); burada içerik SINIRLARI
- * ve ek GÜVENLİĞİ zorlanır.
+ * TEK notu doğrular (FA-03: not-başına doğrulama). Geçerliyse null.
+ * Bozuk bir not artık TÜM toplu senkronu 422 ile düşürmez; yalnız o not
+ * `{outcome:"rejected", reason}` alır, diğerleri işlenir.
  */
-export function validateIncomingNotes(notes: unknown[]): NoteValidationError | null {
-  if (notes.length > NOTE_LIMITS.MAX_NOTES) {
-    return { status: 413, message: "Çok fazla not (sınır aşıldı)." };
+export function validateSingleNote(n: unknown, i = 0): NoteValidationError | null {
+  if (!n || typeof n !== "object") {
+    return { status: 422, message: "Geçersiz not verisi." };
+  }
+  const note = n as Record<string, unknown>;
+
+  if (typeof note.title === "string" && note.title.length > NOTE_LIMITS.MAX_TITLE_LEN) {
+    return { status: 422, message: "Not başlığı çok uzun." };
+  }
+  if (typeof note.content === "string" && note.content.length > NOTE_LIMITS.MAX_CONTENT_LEN) {
+    return { status: 422, message: "Not içeriği çok uzun." };
+  }
+  if (typeof note.date === "string" && note.date.length > NOTE_LIMITS.MAX_DATE_LEN) {
+    return { status: 422, message: "Geçersiz tarih." };
   }
 
-  for (let i = 0; i < notes.length; i++) {
-    const n = notes[i];
-    if (!n || typeof n !== "object") {
-      return { status: 422, message: "Geçersiz not verisi." };
+  if (note.attachments !== undefined) {
+    if (!Array.isArray(note.attachments)) {
+      return { status: 422, message: "Geçersiz ek listesi." };
     }
-    const note = n as Record<string, unknown>;
-
-    if (typeof note.title === "string" && note.title.length > NOTE_LIMITS.MAX_TITLE_LEN) {
-      return { status: 422, message: "Not başlığı çok uzun." };
+    if (note.attachments.length > NOTE_LIMITS.MAX_ATTACHMENTS_PER_NOTE) {
+      return { status: 413, message: "Bir notta çok fazla ek var." };
     }
-    if (typeof note.content === "string" && note.content.length > NOTE_LIMITS.MAX_CONTENT_LEN) {
-      return { status: 422, message: "Not içeriği çok uzun." };
+    let totalBytes = 0;
+    for (const att of note.attachments) {
+      const err = validateAttachment(att, i);
+      if (err) return err;
+      if (att && typeof att === "object") {
+        const dataUrl = (att as { dataUrl?: unknown }).dataUrl;
+        if (typeof dataUrl === "string") totalBytes += dataUrl.length;
+      }
     }
-    if (typeof note.date === "string" && note.date.length > NOTE_LIMITS.MAX_DATE_LEN) {
-      return { status: 422, message: "Geçersiz tarih." };
-    }
-
-    if (note.attachments !== undefined) {
-      if (!Array.isArray(note.attachments)) {
-        return { status: 422, message: "Geçersiz ek listesi." };
-      }
-      if (note.attachments.length > NOTE_LIMITS.MAX_ATTACHMENTS_PER_NOTE) {
-        return { status: 413, message: "Bir notta çok fazla ek var." };
-      }
-      let totalBytes = 0;
-      for (const att of note.attachments) {
-        const err = validateAttachment(att, i);
-        if (err) return err;
-        if (att && typeof att === "object") {
-          const dataUrl = (att as { dataUrl?: unknown }).dataUrl;
-          if (typeof dataUrl === "string") totalBytes += dataUrl.length;
-        }
-      }
-      if (totalBytes > NOTE_LIMITS.MAX_ATTACHMENTS_TOTAL_BYTES_PER_NOTE) {
-        return { status: 413, message: "Not eklerinin toplam boyutu sınırı aşıyor." };
-      }
+    if (totalBytes > NOTE_LIMITS.MAX_ATTACHMENTS_TOTAL_BYTES_PER_NOTE) {
+      return { status: 413, message: "Not eklerinin toplam boyutu sınırı aşıyor." };
     }
   }
   return null;
+}
+
+/** Toplu gövde zarfı (not SAYISI) — aşımı tüm istek için 413. */
+export function validateNoteBatchEnvelope(notes: unknown[]): NoteValidationError | null {
+  if (notes.length > NOTE_LIMITS.MAX_NOTES) {
+    return { status: 413, message: "Çok fazla not (sınır aşıldı)." };
+  }
+  return null;
+}
+
+/**
+ * Gelen not listesini doğrular. Geçerliyse null; değilse İLK hatanın {status,message}'ı.
+ * Geriye dönük uyumluluk içindir — route artık not-başına `validateSingleNote` kullanır.
+ */
+export function validateIncomingNotes(notes: unknown[]): NoteValidationError | null {
+  const env = validateNoteBatchEnvelope(notes);
+  if (env) return env;
+  for (let i = 0; i < notes.length; i++) {
+    const err = validateSingleNote(notes[i], i);
+    if (err) return err;
+  }
+  return null;
+}
+
+// ─── İstemci ön-kontrolü (sunucuyla PAYLAŞILAN allow-list) ───────────────────
+
+/** İstemci dosya boyutu sınırı (ikili). Sunucu data-URL sınırıyla uyumlu (4MB → ≤6MB base64). */
+export const NOTE_ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Ek olarak kabul edilen MIME türleri (sunucu doğrulamasıyla AYNI liste). */
+export const NOTE_ATTACHMENT_ALLOWED_MIME: readonly string[] = [
+  ...ALLOWED_IMAGE_MIME,
+  ...ALLOWED_DOC_MIME,
+];
+
+const EXT_TO_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  heic: "image/heic",
+  heif: "image/heif",
+  avif: "image/avif",
+  pdf: "application/pdf",
+};
+
+/** `<input type="file" accept>` değeri — yalnız izinli görsel + PDF. */
+export const NOTE_ATTACHMENT_ACCEPT = [
+  ...Object.keys(EXT_TO_MIME).map((e) => `.${e}`),
+  ...NOTE_ATTACHMENT_ALLOWED_MIME,
+].join(",");
+
+/**
+ * Dosyanın MIME'ını çözer: tarayıcı türü izinliyse o; tür boşsa uzantıdan (bazı
+ * tarayıcılar HEIC/PDF için boş tür verir). İzinsizse null.
+ */
+export function resolveNoteAttachmentMime(fileName: string, browserType: string): string | null {
+  const t = (browserType || "").trim().toLowerCase();
+  if (t && isAllowedMime(t)) return t;
+  if (t && t !== "application/octet-stream") return null;
+  const ext = /\.([a-z0-9]+)$/i.exec(fileName || "")?.[1]?.toLowerCase() ?? "";
+  return EXT_TO_MIME[ext] ?? null;
+}
+
+/**
+ * İstemci ön-kontrolü: tür + boyut. Geçerliyse `{ok:true, mime}`; değilse Türkçe hata.
+ * Sunucu yine her eki doğrular (istemci kontrolü güvenlik değildir).
+ */
+export function checkNoteAttachmentFile(file: {
+  name: string;
+  type: string;
+  size: number;
+}): { ok: true; mime: string } | { ok: false; message: string } {
+  const mime = resolveNoteAttachmentMime(file.name, file.type);
+  if (!mime) {
+    return {
+      ok: false,
+      message: `${file.name}: desteklenmeyen dosya türü. Yalnız görsel (PNG, JPG, WEBP, GIF, HEIC…) ve PDF eklenebilir.`,
+    };
+  }
+  if (file.size <= 0) {
+    return { ok: false, message: `${file.name} boş bir dosya.` };
+  }
+  if (file.size > NOTE_ATTACHMENT_MAX_BYTES) {
+    return { ok: false, message: `${file.name} çok büyük (en fazla 4 MB).` };
+  }
+  return { ok: true, mime };
+}
+
+/** FileReader data-URL'inin MIME önekini çözülen izinli MIME ile hizalar (boş tür → uzantı). */
+export function alignDataUrlMime(dataUrl: string, mime: string): string {
+  return dataUrl.replace(/^data:[^;,]*;base64,/i, `data:${mime};base64,`);
 }

@@ -31,6 +31,8 @@ import {
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(221,214,254,0.35),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(129,140,248,0.14),transparent_30%),linear-gradient(160deg,#f5f3ff_0%,#eef2ff_40%,#faf5ff_100%)] text-slate-950";
@@ -334,13 +336,7 @@ export default function CanliStokMerkeziPage() {
         alert(err.error || "Rapor oluşturulamadı.");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `urun-stok-${mode === "critical" ? "kritik" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `urun-stok-${mode === "critical" ? "kritik" : "tumu"}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }

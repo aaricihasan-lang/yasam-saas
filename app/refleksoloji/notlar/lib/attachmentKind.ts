@@ -1,14 +1,19 @@
 import type { NoteAttachment } from "../types";
 
-export type AttachmentKind = "image" | "pdf" | "word" | "other";
+/**
+ * FA-03: not eki modeli YALNIZ görsel + PDF kabul eder (sunucu allow-list'i).
+ * Eski "word/other" türleri kaldırıldı; bu türde eski bir kayıt varsa
+ * "unsupported" olarak gösterilir (önizleme yok, yalnız indirme).
+ */
+export type AttachmentKind = "image" | "pdf" | "unsupported";
 
 export function getAttachmentKind(file: NoteAttachment): AttachmentKind {
   const mime = (file.mimeType || "").toLowerCase();
   const names = `${file.fileName} ${file.displayName}`.toLowerCase();
 
   if (
-    mime.startsWith("image/") ||
-    /\.(jpe?g|png|webp|gif)$/i.test(names)
+    (mime.startsWith("image/") && mime !== "image/svg+xml") ||
+    /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(names)
   ) {
     return "image";
   }
@@ -17,16 +22,7 @@ export function getAttachmentKind(file: NoteAttachment): AttachmentKind {
     return "pdf";
   }
 
-  if (
-    mime.includes("word") ||
-    mime.includes("msword") ||
-    mime.includes("wordprocessingml") ||
-    /\.(doc|docx)$/i.test(names)
-  ) {
-    return "word";
-  }
-
-  return "other";
+  return "unsupported";
 }
 
 export function attachmentTypeLabel(kind: AttachmentKind): string {
@@ -35,10 +31,8 @@ export function attachmentTypeLabel(kind: AttachmentKind): string {
       return "Görsel";
     case "pdf":
       return "PDF";
-    case "word":
-      return "Word";
     default:
-      return "Dosya";
+      return "Desteklenmeyen dosya";
   }
 }
 

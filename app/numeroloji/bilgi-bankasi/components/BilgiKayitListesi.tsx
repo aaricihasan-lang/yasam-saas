@@ -17,6 +17,8 @@ import { KayitDetayModal } from "./KayitDetayModal";
 import { MobileSilmeDialog } from "./MobileSilmeDialog";
 import { WordSectionPicker } from "./WordSectionPicker";
 import type { WordSections } from "../helpers/wordSectionLogic";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -245,13 +247,7 @@ export function BilgiKayitListesi() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `numeroloji-bilgi-bankasi-${mode === "filtered" ? "filtreli" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `numeroloji-bilgi-bankasi-${mode === "filtered" ? "filtreli" : "tumu"}-${reportFileDate()}.docx`);
       showToast({ title: "Başarılı", message: "Bilgi bankası raporu indirildi.", type: "success" });
       setWordPicker(null);
     } catch (err) {

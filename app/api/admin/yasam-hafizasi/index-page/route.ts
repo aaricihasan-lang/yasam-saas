@@ -88,6 +88,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     validateScopedTenant: async (tenantId: string) =>
       validateScopedTenant(tenantId, createSupabaseTenantScopeReader(db as unknown as IndexDbClient)),
 
+    // FAZ1 final hardening — kontrollü backfill kapısı (yalnız write): yh_source_activation
+    // is_active && backfill_allowed. Satır yok → izin yok (403); okuma hatası → 503 (fail-closed).
+    readSourceBackfillActivation: async (sourceKey: string) => {
+      try {
+        const { data, error } = await db
+          .from("yh_source_activation")
+          .select("is_active, backfill_allowed")
+          .eq("source_key", sourceKey)
+          .maybeSingle();
+        if (error) return { ok: false };
+        const row = (data ?? null) as { is_active?: unknown; backfill_allowed?: unknown } | null;
+        return { ok: true, isActive: row?.is_active === true, backfillAllowed: row?.backfill_allowed === true };
+      } catch {
+        return { ok: false };
+      }
+    },
+
     // Best-effort GÜVENLİ server log (DB write YOK). Ham içerik/DB-mesaj/cursor
     // değeri taşınmaz; yalnız sabit güvenli metadata.
     writeAuditEvent: async (event: SafeAdminIndexAuditEvent) => {

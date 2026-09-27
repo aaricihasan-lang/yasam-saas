@@ -221,7 +221,13 @@ function rgbToHex(color: string): string {
 }
 
 // ─── Organ + atlas bölgeleri tablosu ──────────────────────────────────────────
-function organTable(resolved: ResolvedAtlas): ReportChild[] {
+/**
+ * FA-41: "Seçilen Organlar" bölümü HER ZAMAN üretilir (protokolün kendi organ
+ * etiketleri — atlas eşleşmesi olmasa da). Atlas tablosu YALNIZ eşleşen
+ * organlar için; atlas bölgesi bulunmayan organlar notu da her zaman (varsa).
+ * Eskiden eşleşme yoksa tüm bölüm (organ listesi + eksik notu) düşüyordu.
+ */
+function organTable(resolved: ResolvedAtlas, organLabels: string[]): ReportChild[] {
   // Her (organ, grup) için bir satır → çok görünümlü organ doğru gösterilir.
   const bodyRows: { organ: OrganResolved; group: AtlasBackgroundGroup; count: number }[] = [];
   for (const o of resolved.organs) {
@@ -229,7 +235,26 @@ function organTable(resolved: ResolvedAtlas): ReportChild[] {
       if (o.byGroup[g] > 0) bodyRows.push({ organ: o, group: g, count: o.byGroup[g] });
     }
   }
-  if (bodyRows.length === 0) return [];
+
+  const labels = organLabels.map((o) => o.trim()).filter(Boolean);
+  if (labels.length === 0 && bodyRows.length === 0) return [];
+
+  const out: ReportChild[] = [sectionHeading("Seçilen Organlar ve Atlas Bölgeleri")];
+  if (labels.length > 0) {
+    out.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Seçilen organlar: ", bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
+          new TextRun({ text: clean(labels.join(", ")), size: 20, font: REPORT_FONT, color: V_DARK }),
+        ],
+        spacing: { after: 160 },
+      }),
+    );
+  }
+  if (bodyRows.length === 0) {
+    out.push(...missingOrgansNote(resolved));
+    return out;
+  }
 
   const headerFill = "ede9fe"; // violet-100
   const thin = { style: BorderStyle.SINGLE, size: 2, color: V_RULE } as const;
@@ -262,15 +287,15 @@ function organTable(resolved: ResolvedAtlas): ReportChild[] {
     });
   });
 
-  return [
-    sectionHeading("Seçilen Organlar ve Atlas Bölgeleri"),
+  out.push(
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: { top: thin, bottom: thin, left: thin, right: thin, insideHorizontal: thin, insideVertical: thin },
       rows: [header, ...rows],
     }),
     ...missingOrgansNote(resolved),
-  ];
+  );
+  return out;
 }
 
 function cellText(text: string, widthPct: number): TableCell {
@@ -368,7 +393,7 @@ async function protocolBody(
   for (const g of ALL_ATLAS_GROUPS) {
     out.push(...(await atlasMapSection(g, input.resolved)));
   }
-  out.push(...organTable(input.resolved));
+  out.push(...organTable(input.resolved, input.organs));
   out.push(...notesCallout(input.notes));
   return out;
 }

@@ -2,22 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
-import { deleteNoteById, getNoteById } from "../lib/noteActions";
+import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
+import { useClinicalNotes } from "../hooks/useClinicalNotes";
 import { formatNoteDate } from "../lib/noteFormat";
-import {
-  draftToSavedNote,
-  loadNotesFromStorage,
-  newAttachmentId,
-  saveNotesToStorage,
-  savedToDraft,
-} from "../lib/noteStorage";
-import {
-  MAX_ATTACHMENT_BYTES,
-  readFileAsDataUrl,
-} from "../lib/readAttachmentFile";
+import { newAttachmentId, savedToDraft } from "../lib/noteStorage";
+import { ATTACHMENT_ACCEPT, readNoteAttachments } from "../lib/readAttachmentFile";
 import type { ClinicalNoteFormDraft, NoteAttachment } from "../types";
 import { ImageLightbox } from "./ImageLightbox";
 import { NoteDetayAttachmentCard } from "./NoteDetayAttachmentCard";
@@ -39,28 +31,29 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
 
-  const [hydrated, setHydrated] = useState(false);
+  // FA-25: detay sayfası liste ile AYNI ortak depo/hook'u kullanır (sunucu hydrate +
+  // kapsamlı yerel depo); silme sunucu sonucunu bekler, navigasyon ondan sonra.
+  const { notes, hydrated, serverState, saveNote, deleteNote } = useClinicalNotes();
+  const note = notes.find((n) => n.id === noteId) ?? null;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<ClinicalNoteFormDraft | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // Düzenleme taslağı yalnız düzenleme modunda yaşar; görünüm daima depodaki güncel
+  // notu (sunucu hydrate dahil) yansıtır.
+  const [editDraft, setDraft] = useState<ClinicalNoteFormDraft | null>(null);
+  const draft: ClinicalNoteFormDraft | null = editing
+    ? editDraft
+    : note
+      ? savedToDraft(note)
+      : null;
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [pdfPreview, setPdfPreview] = useState<{ src: string; title: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const reload = useCallback(() => {
-    const note = getNoteById(noteId);
-    if (note) {
-      setDraft(savedToDraft(note));
-    } else {
-      setDraft(null);
-    }
-  }, [noteId]);
-
-  useEffect(() => {
-    reload();
-    setHydrated(true);
-  }, [reload]);
+  const reload = () => {
+    setDraft(note ? savedToDraft(note) : null);
+  };
 
   const patchDraft = (patch: Partial<ClinicalNoteFormDraft>) => {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -73,7 +66,6 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   };
 
   const handleCancelEdit = () => {
-    reload();
     setEditing(false);
     setValidationMessage(null);
   };
@@ -85,27 +77,19 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
       return;
     }
 
-    const list = loadNotesFromStorage();
-    const previous = list.find((n) => n.id === noteId);
-    if (!previous) return;
+    if (!note) return;
 
-    const saved = draftToSavedNote(draft, {
-      id: noteId,
-      previous,
-      existingIds: new Set(list.map((n) => n.id)),
-    });
-
-    if (!saved) {
+    const result = saveNote(draft, noteId);
+    if (!result.saved) {
       setValidationMessage("Güncelleme yapılamadı.");
       return;
     }
+    if (!result.storageOk) {
+      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      return;
+    }
 
-    const next = [saved, ...list.filter((n) => n.id !== noteId)].sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt),
-    );
-    saveNotesToStorage(next);
-
-    setDraft(savedToDraft(saved));
+    setDraft(savedToDraft(result.saved));
     setEditing(false);
     setValidationMessage(null);
 
@@ -117,6 +101,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   };
 
   const handleDeleteNote = async () => {
+    if (deleting) return;
     const ok = await confirm({
       message: "Bu not silinsin mi? Bu işlem geri alınamaz.",
       confirmText: "Sil",
@@ -124,38 +109,33 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
       tone: "danger",
     });
     if (!ok) return;
-    deleteNoteById(noteId);
-    router.push("/refleksoloji/notlar");
+    setDeleting(true);
+    try {
+      const outcome = await deleteNote(noteId);
+      if (!outcome.ok) {
+        // Silinemedi (ör. başka cihazda değişmiş) → sayfada kal, açıkça bildir.
+        showToast({ type: "error", title: "Not silinemedi", message: outcome.message });
+        return;
+      }
+      if (outcome.state === "queued") {
+        showToast({ type: "warning", title: "Silme bekliyor", message: outcome.message ?? "" });
+      } else {
+        showToast({ type: "success", message: "Not silindi.", duration: 2500 });
+      }
+      router.push("/refleksoloji/notlar");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files?.length || !draft) return;
 
-    const added: NoteAttachment[] = [];
-
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_ATTACHMENT_BYTES) {
-        showToast({
-          type: "warning",
-          message: `${file.name} çok büyük (en fazla 4 MB).`,
-        });
-        continue;
-      }
-
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        added.push({
-          id: newAttachmentId(),
-          displayName: file.name,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          size: file.size,
-          dataUrl,
-        });
-      } catch {
-        showToast({ type: "error", message: `${file.name} okunamadı.` });
-      }
+    // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
+    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId);
+    for (const message of errors) {
+      showToast({ type: "warning", message });
     }
 
     if (added.length > 0) {
@@ -200,8 +180,8 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     });
   };
 
-  if (!hydrated) {
-    return <RefleksolojiDetailLoading />; // REF-021
+  if (!hydrated || (!note && serverState === "pending")) {
+    return <RefleksolojiDetailLoading />; // REF-021 (sunucu hydrate bitene dek "bulunamadı" gösterme)
   }
 
   if (!draft) {
@@ -273,9 +253,10 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
             <button
               type="button"
               onClick={() => void handleDeleteNote()}
+              disabled={deleting}
               className={`${headerBtnBase} border-red-200 bg-red-50 text-red-700`}
             >
-              Sil
+              {deleting ? "Siliniyor…" : "Sil"}
             </button>
           </div>
         </div>
@@ -344,6 +325,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                     ref={fileInputRef}
                     type="file"
                     multiple
+                    accept={ATTACHMENT_ACCEPT}
                     className="hidden"
                     onChange={(e) => void handleFilesSelected(e)}
                   />

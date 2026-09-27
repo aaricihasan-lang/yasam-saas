@@ -20,7 +20,7 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-export type CreateResult = { ok: true; id: string } | { ok: false; error: string };
+export type CreateResult = { ok: true; id: string; omittedCount: number } | { ok: false; error: string };
 
 export async function createProfessionalReport(chartId: string): Promise<CreateResult> {
   let res: Response;
@@ -34,7 +34,9 @@ export async function createProfessionalReport(chartId: string): Promise<CreateR
     return { ok: false, error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true && typeof j.id === "string") return { ok: true, id: j.id };
+  if (res.ok && j.ok === true && typeof j.id === "string") {
+    return { ok: true, id: j.id, omittedCount: typeof j.omittedCount === "number" ? j.omittedCount : 0 };
+  }
   return { ok: false, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 

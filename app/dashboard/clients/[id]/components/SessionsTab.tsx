@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { todayInZone } from "@/lib/time/reportTime";
+import { nextGorusme } from "@/lib/danisan/appointmentRules";
 
 type ClientSession = {
   id: string;
@@ -65,8 +67,9 @@ const emptyForm: SessionFormState = {
   nextPlan: "",
 };
 
+// Form varsayılanı: İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInZone();
 }
 
 function isFormEmpty(form: SessionFormState) {
@@ -529,8 +532,9 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       return;
     }
 
-    // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için)
-    if (form.sessionDate && tenantId) {
+    // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için).
+    // DY-A: yalnız sessionDate ≤ bugün (İstanbul) — ileri tarihli seans son görüşmeyi ilerletmez.
+    if (form.sessionDate && tenantId && form.sessionDate <= todayISO()) {
       const gToken = readSessionToken();
       const cliRes = await fetch(`/api/clients/${clientId}`, {
         headers: {
@@ -541,7 +545,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       const cli = cliRes.ok
         ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
         : null;
-      if (!cli?.gorusme || form.sessionDate > cli.gorusme) {
+      if (cli && nextGorusme(cli.gorusme ?? null, form.sessionDate, todayISO())) {
         const patchRes = await fetch(`/api/clients/${clientId}`, {
           method: "PATCH",
           headers: {

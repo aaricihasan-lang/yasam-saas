@@ -15,6 +15,14 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { visibleSelection } from "@/lib/ui/selection";
+import { reportFileDate, todayInZone, zonedDayKey } from "@/lib/time/reportTime";
+import {
+  countAppointments,
+  deriveAppointmentStatus,
+  isAppointmentInFuture,
+} from "@/lib/danisan/appointmentRules";
 
 /** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
 function userHeaders(json = false): Record<string, string> {
@@ -52,7 +60,19 @@ type Appointment = {
   status: AppointmentStatus | string | null;
 };
 
-function getStatusInfo(status: string | null | undefined) {
+// FA-44: görüntü statüsü türetilir — geçmiş + "bekliyor" → "Sonuç girilmedi" (amber).
+// Saklanan statü DEĞİŞMEZ (yalnız DISPLAY).
+function getStatusInfo(rawStatus: string | null | undefined, appointmentDate?: string) {
+  const status = deriveAppointmentStatus(rawStatus, appointmentDate);
+  if (status === "sonuc_girilmedi") {
+    return {
+      label: "Sonuç girilmedi",
+      pill: "bg-amber-50 text-amber-800 border-amber-200",
+      panel: "border-amber-200 bg-amber-50",
+      dot: "bg-amber-500",
+    };
+  }
+
   if (status === "tamamlandi") {
     return {
       label: "Tamamlandı",
@@ -165,18 +185,17 @@ export default function AjandaPage() {
   }, [clients]);
 
   const todayCount = useMemo(() => {
-    const today = new Date().toDateString();
+    const today = todayInZone();
 
     return appointments.filter(
-      (item) => new Date(item.appointment_date).toDateString() === today
+      (item) => zonedDayKey(item.appointment_date) === today
     ).length;
   }, [appointments]);
 
-  const waitingCount = useMemo(() => {
-    return appointments.filter(
-      (item) => (item.status || "bekliyor") === "bekliyor"
-    ).length;
-  }, [appointments]);
+  // FA-44: "Bekliyor (yaklaşan)" = bekliyor && gelecekte; "Sonuç girilmedi" = bekliyor && geçmişte.
+  const statusCounts = useMemo(() => countAppointments(appointments), [appointments]);
+  const waitingCount = statusCounts.upcoming;
+  const noResultCount = statusCounts.noResult;
 
   const completedCount = useMemo(() => {
     return appointments.filter((item) => item.status === "tamamlandi").length;
@@ -262,7 +281,8 @@ export default function AjandaPage() {
       let dateRange: { start: string; end: string } | undefined;
 
       if (mode === "selected") {
-        appointmentIds = [...selectedApptIds];
+        // DY-A: yalnız seçili ∩ görünür (filtreyle gizlenen seçim rapora girmez).
+        appointmentIds = visibleSelection(selectedApptIds, filteredAppointments.map((a) => a.id));
         if (!appointmentIds.length) return;
       } else if (mode === "filtered") {
         appointmentIds = filteredAppointments.map((a) => a.id);
@@ -294,13 +314,8 @@ export default function AjandaPage() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ajanda-${mode}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
+      await downloadFileResponse(res, `ajanda-${mode}-${reportFileDate()}.docx`);
       showToast({ title: "Başarılı", message: "Ajanda raporu indirildi.", type: "success" });
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
@@ -323,13 +338,7 @@ export default function AjandaPage() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ajanda-tek-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `ajanda-tek-${reportFileDate()}.docx`);
       showToast({ title: "Başarılı", message: "Tek randevu raporu indirildi.", type: "success" });
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
@@ -417,9 +426,10 @@ export default function AjandaPage() {
     });
 
     if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
       showToast({
         title: "Durum güncellenemedi",
-        message: "Randevu durumu güncellenemedi.",
+        message: j.code === "APPOINTMENT_IN_FUTURE" && j.error ? j.error : "Randevu durumu güncellenemedi.",
         type: "error",
       });
       return;
@@ -493,7 +503,18 @@ export default function AjandaPage() {
   }
 
   // "Tamamlandı" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
+  // DY-A: gelecekteki randevu tamamlanamaz (sunucu 409) → önce uyar. Son görüşme tarihi
+  // (clients.gorusme) ilerletmesi sunucuda yapılır.
   async function requestCompleteAppointment(id: string) {
+    const target = appointments.find((a) => a.id === id);
+    if (target && isAppointmentInFuture(target.appointment_date)) {
+      showToast({
+        title: "Henüz gerçekleşmedi",
+        message: "Henüz gerçekleşmemiş bir randevu tamamlandı olarak işaretlenemez.",
+        type: "warning",
+      });
+      return;
+    }
     const ok = await confirm({
       title: "Randevu tamamlandı olarak işaretlensin mi?",
       message: 'Bu randevunun durumu "Tamamlandı" olarak değiştirilecek.',
@@ -552,6 +573,16 @@ export default function AjandaPage() {
     }
 
     const appointmentDate = new Date(`${formDate}T${formTime}`).toISOString();
+
+    // DY-A: gelecekteki randevu "Tamamlandı" durumuyla oluşturulamaz (sunucu 409).
+    if (!editingId && formStatus === "tamamlandi" && isAppointmentInFuture(appointmentDate)) {
+      showToast({
+        title: "Geçersiz durum",
+        message: "Henüz gerçekleşmemiş bir randevu tamamlandı olarak kaydedilemez.",
+        type: "warning",
+      });
+      return;
+    }
 
     setSaving(true);
 
@@ -800,7 +831,7 @@ export default function AjandaPage() {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <div className="flex items-center gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
               <Users className="h-5 w-5 shrink-0 text-indigo-600" strokeWidth={2.2} />
               <div>
@@ -821,7 +852,16 @@ export default function AjandaPage() {
               <Clock3 className="h-5 w-5 shrink-0 text-violet-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-violet-800">{waitingCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-violet-600">Bekliyor</div>
+                <div className="mt-0.5 text-xs font-bold text-violet-600">Bekliyor (yaklaşan)</div>
+              </div>
+            </div>
+
+            {/* FA-44: geçmiş ama sonucu girilmemiş randevular (türetilmiş; DB statüsü "bekliyor") */}
+            <div className="flex items-center gap-3 rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-white to-orange-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
+              <Clock3 className="h-5 w-5 shrink-0 text-orange-600" strokeWidth={2.2} />
+              <div>
+                <div className="text-xl font-black leading-none text-orange-800">{noResultCount}</div>
+                <div className="mt-0.5 text-xs font-bold text-orange-600">Sonuç girilmedi</div>
               </div>
             </div>
 
@@ -833,7 +873,7 @@ export default function AjandaPage() {
               </div>
             </div>
 
-            <div className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02] sm:col-span-1 sm:justify-start">
+            <div className="flex items-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
               <XCircle className="h-5 w-5 shrink-0 text-rose-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-rose-800">{cancelledCount}</div>
@@ -916,7 +956,7 @@ export default function AjandaPage() {
 
             <div className="max-h-[calc(100vh-310px)] space-y-2.5 overflow-y-auto pr-1">
               {filteredAppointments.map((item, index) => {
-                const statusInfo = getStatusInfo(item.status);
+                const statusInfo = getStatusInfo(item.status, item.appointment_date);
                 const borderClass = getLeftBorderClass(
                   item.status,
                   item.appointment_date
@@ -1021,7 +1061,7 @@ export default function AjandaPage() {
 
             <div className="max-h-[calc(100vh-280px)] space-y-1 overflow-y-auto pr-1">
               {upcomingTop10.map((item, index) => {
-                const statusInfo = getStatusInfo(item.status);
+                const statusInfo = getStatusInfo(item.status, item.appointment_date);
 
                 return (
                   <div key={item.id} className="relative pl-9">
@@ -1137,7 +1177,7 @@ export default function AjandaPage() {
 
                 <div
                   className={`rounded-xl border p-3 ${
-                    getStatusInfo(selectedAppointment.status).panel
+                    getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).panel
                   }`}
                 >
                   <div className="text-xs font-bold text-slate-600">Durum</div>
@@ -1145,10 +1185,10 @@ export default function AjandaPage() {
                   <div className="flex items-center gap-1.5 text-sm font-black text-slate-950">
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${
-                        getStatusInfo(selectedAppointment.status).dot
+                        getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).dot
                       }`}
                     />
-                    {getStatusInfo(selectedAppointment.status).label}
+                    {getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).label}
                   </div>
                 </div>
 

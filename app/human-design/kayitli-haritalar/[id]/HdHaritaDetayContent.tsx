@@ -122,7 +122,14 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
         {([["summary", "Özet"], ["knowledge", "Kişinin Human Design Bilgileri"]] as const).map(([id, label]) => (
           <button key={id} type="button" onClick={() => setTab(id)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-black uppercase tracking-wide transition ${tab === id ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
-            {label}
+            {/* "Human Design" İngilizce özel ad: uppercase + lang=tr "DESİGN" üretmesin (lang="en"). */}
+            {label.includes("Human Design") ? (
+              <>
+                {label.split("Human Design")[0]}
+                <span lang="en">Human Design</span>
+                {label.split("Human Design")[1]}
+              </>
+            ) : label}
           </button>
         ))}
       </div>

@@ -54,3 +54,9 @@ export function setReflexologySyncStatus(
 export function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
+
+/** Çıkış/kullanıcı değişimi: durum rozetini ve retry referansını sıfırla (FA-04). */
+export function resetReflexologySyncStatus(): void {
+  current = { ...DEFAULT, seq: current.seq + 1 };
+  for (const l of listeners) l();
+}

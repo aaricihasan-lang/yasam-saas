@@ -5,6 +5,7 @@ import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 
   let result;
   try {
-    result = await buildPlanDocxBuffer(db, tenantId, id);
+    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile) });
   } catch {
     return beslenmeJson({ ok: false, code: "WORD_FAILED" }, 500);
   }

@@ -37,8 +37,8 @@ export function HdRaporListesi() {
   const [detayRow, setDetayRow] = useState<HdReportWithClient | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  // Admin knowledge isolation: profesyonel (canonical) rapor Word indirme yalnız
-  // ADMIN/OWNER içindir (endpoint 403). Non-admin için indirme butonu gizlenir.
+  // Profesyonel (canonical) Word indirme TÜM HD uzmanlarına açıktır (sunucu modül kapısı).
+  // isAdmin yalnız eski "Rapor Oluştur" hattının boş-durum bağlantısı için kullanılır.
   const [isAdmin, setIsAdmin] = useState(false);
   const isAndroid = useIsAndroid();
   useEffect(() => {
@@ -141,10 +141,10 @@ export function HdRaporListesi() {
           </p>
           {!search && (
             <Link
-              href="/human-design/rapor-olustur"
+              href={isAdmin ? "/human-design/rapor-olustur" : "/human-design/kayitli-haritalar"}
               className="mt-3 inline-flex h-9 items-center rounded-xl border border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-black text-white no-underline shadow-sm transition hover:brightness-105"
             >
-              Rapor Oluştur
+              {isAdmin ? "Rapor Oluştur" : "Kayıtlı Haritalar → Profesyonel Word"}
             </Link>
           )}
         </div>
@@ -188,9 +188,9 @@ export function HdRaporListesi() {
                 {isCanonical ? (
                   // Profesyonel (canonical): DONMUŞ snapshot'tan Word indir. Düzenle YOK
                   // (immutable/§40); Detay YOK (içerik snapshot'ta, editable metin yok).
-                  // Merkezî canonical prose içerdiğinden yalnız ADMIN/OWNER indirebilir.
+                  // Tüm HD uzmanları kendi tenant'ındaki raporu indirebilir (sunucu kapısı).
                   // Android: Word (.docx) indirme butonu render edilmez (ürün kararı).
-                  isAdmin && !isAndroid ? (
+                  !isAndroid ? (
                     <button
                       type="button"
                       disabled={downloadingId === row.id}

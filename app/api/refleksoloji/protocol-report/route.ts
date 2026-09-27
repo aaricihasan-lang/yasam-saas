@@ -7,6 +7,7 @@ import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
+import { slugifyTr } from "@/lib/refleksoloji/slug";
 import { resolveProtocolAtlas } from "@/lib/refleksoloji/atlasRegionsCore";
 import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 import type { AtlasDocument } from "@/lib/atlasStorage";
@@ -61,12 +62,34 @@ function reportDateSlug(): string {
 }
 
 function slugify(t: string): string {
-  return t
-    .toLowerCase()
-    .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
-    .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
-    .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slugifyTr(t);
+}
+
+/**
+ * FA-41: protokolün KENDİ organ etiketleri. `organs` kolonu boşsa (eski/aktarılmış
+ * kayıt) `raw_json.organs` (SavedProtocol dizisi: string | {name}) kullanılır —
+ * eskiden kolon null ise Word'de organ listesi tamamen düşüyordu.
+ */
+function protocolOrganLabels(proto: ProtocolRow): string[] {
+  const fromColumn = parseOrganList(proto.organs);
+  if (fromColumn.length > 0) return fromColumn;
+  const raw = proto.raw_json?.organs;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const o of raw) {
+    const name =
+      typeof o === "string"
+        ? o.trim()
+        : o && typeof o === "object" && typeof (o as { name?: unknown }).name === "string"
+          ? (o as { name: string }).name.trim()
+          : "";
+    const key = name.toLocaleLowerCase("tr");
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
 }
 
 const EMPTY_ATLAS: AtlasDocument = { _meta: { version: "1", updated_at: "1970-01-01T00:00:00.000Z" } };
@@ -147,7 +170,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const isSingle = protocols.length === 1;
 
   const toInput = (proto: ProtocolRow, index: number): ReflexologyProtocolInput => {
-    const organs = parseOrganList(proto.organs);
+    const organs = protocolOrganLabels(proto);
     return {
       index,
       title: proto.title?.trim() || "Başlıksız Protokol",

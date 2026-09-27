@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import {
   Fragment,
   useEffect,
@@ -16,6 +17,9 @@ import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -510,6 +514,13 @@ export default function TasBilgiKutuphanesiPage() {
     setEditError("");
   }, [selectedId]);
 
+  // Arama/kategori değişince toplu seçim görünür kayıtlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = filtered.map((r) => r.id);
+    runInEffect(() => setSelectedIds((prev) => pruneSelection(prev, visibleIds)));
+  }, [filtered]);
+
   // Arama aktifken seçili kayıt filtrede yoksa ilkini seç
   useEffect(() => {
     if (!searchTerms.length) return;
@@ -581,13 +592,7 @@ export default function TasBilgiKutuphanesiPage() {
         setWordReportError(t("word.errors.reportFailed"));
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `tas-bilgi-kutuphanesi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `tas-bilgi-kutuphanesi-raporu-${reportFileDate()}.docx`);
       // FAZ-4C: "İndirildi" demiyoruz — tarayıcının gerçek konumunu/tamamlanmayı doğrulayamayız.
       setWordReportSuccess(t("word.success"));
     } catch (err) {
@@ -727,12 +732,15 @@ export default function TasBilgiKutuphanesiPage() {
   }
 
   async function handleBulkDelete() {
-    const ids = [...selectedIds];
+    // Yalnız görünür ∩ seçili: arama/kategoriyle gizlenmiş seçili kayıt habersiz silinmez.
+    const targets = filtered.filter((r) => selectedIds.has(r.id));
+    const ids = targets.map((r) => r.id);
     if (!ids.length || bulkDeleteBusy || !tenantId) return;
 
     const ok = await deleteConfirm({
       title: t("confirm.deleteTitle"),
       message: t("confirm.deleteMessage", { count: ids.length }),
+      names: targets.map((r) => r.title),
     });
     if (!ok) return;
 
@@ -754,7 +762,12 @@ export default function TasBilgiKutuphanesiPage() {
 
       const deletedSet = new Set((json.rows ?? []).map((r) => r.id));
       setArticles((prev) => prev.filter((a) => !deletedSet.has(a.id)));
-      clearSelection();
+      // Silinemeyen (atlanan) kayıtlar seçili kalır.
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        deletedSet.forEach((id) => next.delete(id));
+        return next;
+      });
 
       const count = deletedSet.size;
       const skipped = ids.length - count;
@@ -774,7 +787,7 @@ export default function TasBilgiKutuphanesiPage() {
   }
 
   async function handleBulkUpdate() {
-    const ids = [...selectedIds];
+    const ids = visibleSelection(selectedIds, filtered.map((r) => r.id));
     if (!ids.length || bulkUpdateBusy || !tenantId) return;
 
     const isSingle = ids.length === 1;

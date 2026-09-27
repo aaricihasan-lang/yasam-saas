@@ -27,6 +27,11 @@ import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanS
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { initDemoSession, readDemoClients, type DemoClient } from "@/lib/demo/demoSession";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { activityStatus, relativeDayInfo } from "@/lib/danisan/clientDisplay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -62,24 +67,24 @@ function formatDateTR(date: string | null) {
 
 // Göreli süre metni — çeviri anahtarları clients.list.relative.* üzerinden.
 // `t`, clients.list namespace çevirmenidir (çağıran ClientCard'dan geçirilir).
+// DY-A: İstanbul takvim günü farkı; gelecek tarih artık "bugün" değil "X gün sonra".
 function goreleSure(date: string | null, t: (key: string, values?: Record<string, string | number>) => string): string {
-  if (!date) return "";
-  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (diff < 1)   return t("relative.today");
-  if (diff < 7)   return t("relative.daysAgo", { n: diff });
-  if (diff < 30)  return t("relative.weeksAgo", { n: Math.floor(diff / 7) });
-  if (diff < 365) return t("relative.monthsAgo", { n: Math.floor(diff / 30) });
-  return t("relative.yearsAgo", { n: Math.floor(diff / 365) });
+  const info = relativeDayInfo(date);
+  if (!info) return "";
+  switch (info.kind) {
+    case "today":  return t("relative.today");
+    case "future": return t("relative.daysLater", { n: info.days });
+    case "days":   return t("relative.daysAgo", { n: info.n });
+    case "weeks":  return t("relative.weeksAgo", { n: info.n });
+    case "months": return t("relative.monthsAgo", { n: info.n });
+    default:       return t("relative.yearsAgo", { n: info.n });
+  }
 }
 
-// Durum, danışanın son (tamamlanmış) görüşme tarihine göre belirlenir.
+// Durum, danışanın son (tamamlanmış) görüşme tarihine göre belirlenir (takvim günü).
 // `gorusme` yoksa danışan henüz görülmemiştir → yanıltıcı "Aktif" yerine "Yeni Kayıt".
 function calcAktifDurum(gorusme: string | null): AktifDurum {
-  if (!gorusme) return "yeni";
-  const diff = Math.floor((Date.now() - new Date(gorusme).getTime()) / 86400000);
-  if (diff <= 30)  return "aktif";
-  if (diff <= 90)  return "takip";
-  return "pasif";
+  return activityStatus(gorusme);
 }
 
 // Durum rozet stilleri. Görünen etiket clients.list.durum.<key> ile çevrilir;
@@ -401,6 +406,20 @@ export default function DanisanListePage() {
     setPage(1);
   }, [search, filterBurc, filterKan, filterMizac, sortBy]);
 
+  // DY-A: seçim her zaman GÖRÜNÜR (filtrelenmiş) kümeyle budanır → aramayla gizlenen
+  // seçili danışan habersizce silinemez/Word'e girmez. Değişiklik yoksa aynı Set (döngü yok).
+  // Render sırasında budama (React "önceki prop'a göre state ayarla" deseni; effect yok).
+  const filteredIds = useMemo(() => filteredClients.map((c) => c.id), [filteredClients]);
+  const [prunedFor, setPrunedFor] = useState(filteredIds);
+  if (prunedFor !== filteredIds) {
+    setPrunedFor(filteredIds);
+    setSelectedClientIds((prev) => pruneSelection(prev, filteredIds));
+  }
+  const visibleSelectedIds = useMemo(
+    () => visibleSelection(selectedClientIds, filteredIds),
+    [selectedClientIds, filteredIds],
+  );
+
   const toggleClientSelection = useCallback((id: string) => {
     setSelectedClientIds((prev) => {
       const next = new Set(prev);
@@ -600,70 +619,107 @@ export default function DanisanListePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNeedsMore, loadingMore]);
 
+  const bulkDeleteBusyRef = useRef(false);
+
   async function handleBulkDeleteClients() {
-    const ids = Array.from(selectedClientIds);
+    // DY-A: yalnız seçili ∩ görünür; senkron kilit (çift tık → ikinci çağrı yok sayılır).
+    if (bulkDeleteBusyRef.current) return;
+    const ids = visibleSelectedIds;
     if (ids.length === 0) return;
     if (!tenantId) {
       showToast({ title: t("toast.errorTitle"), message: t("toast.sessionMissing"), type: "error" });
       return;
     }
 
-    const confirmed = await deleteConfirm({
-      title: t("toast.deleteConfirmTitle"),
-      message: t("toast.deleteConfirmMsg", { count: ids.length }),
-      secondMessage: t("toast.deleteConfirmSecond"),
-    });
-    if (!confirmed) return;
-
-    setDeleteLoading(true);
-
-    // Her danışan için tam silme güvenli cascade-delete API'si üzerinden yapılır.
-    const user = readYasamUser();
-    const bulkToken = readSessionToken();
-    const bulkHeaders = {
-      "x-user-id": user?.id ?? "",
-      ...(bulkToken ? { "x-session-token": bulkToken } : {}),
+    bulkDeleteBusyRef.current = true;
+    const byId = new Map(clients.map((c) => [c.id, c] as const));
+    const nameOf = (id: string) => {
+      const c = byId.get(id);
+      return `${c?.ad ?? ""} ${c?.soyad ?? ""}`.trim() || id.slice(0, 8);
     };
     const deletedIds: string[] = [];
+    const failedIds: string[] = [];
     let anyStorageWarning = false;
-    for (const id of ids) {
-      const res = await fetch(`/api/clients/${id}/cascade-delete`, {
-        method: "DELETE",
-        headers: bulkHeaders,
+
+    try {
+      // Ad listeli onay + bağlı olmayan modüller notu + "SİL" yazarak onay (geri alınamaz).
+      const confirmed = await deleteConfirm({
+        title: t("toast.deleteConfirmTitle"),
+        message: [
+          t("toast.deleteConfirmMsg", { count: ids.length }),
+          buildNameListLines(ids.map(nameOf), ids.length).join("\n"),
+          "",
+          t("toast.deleteUnlinked"),
+        ].join("\n"),
+        requireText: "SİL",
+        requireTextLabel: t("toast.deleteRequireLabel"),
       });
-      if (res.ok) {
-        deletedIds.push(id);
-        // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir.
-        const j = (await res.json().catch(() => ({}))) as { warnings?: string[] };
-        if (Array.isArray(j.warnings) && j.warnings.length > 0) anyStorageWarning = true;
+      if (!confirmed) return;
+
+      setDeleteLoading(true);
+
+      // Her danışan için tam silme güvenli cascade-delete API'si üzerinden yapılır.
+      const user = readYasamUser();
+      const bulkToken = readSessionToken();
+      const bulkHeaders = {
+        "x-user-id": user?.id ?? "",
+        ...(bulkToken ? { "x-session-token": bulkToken } : {}),
+      };
+      for (const id of ids) {
+        try {
+          const res = await fetch(`/api/clients/${id}/cascade-delete`, {
+            method: "DELETE",
+            headers: bulkHeaders,
+          });
+          if (res.ok) {
+            deletedIds.push(id);
+            // F5: DB silme başarılı; storage temizliği kısmen başarısız olabilir.
+            const j = (await res.json().catch(() => ({}))) as { warnings?: string[] };
+            if (Array.isArray(j.warnings) && j.warnings.length > 0) anyStorageWarning = true;
+          } else {
+            failedIds.push(id);
+          }
+        } catch {
+          failedIds.push(id);
+        }
+      }
+    } finally {
+      bulkDeleteBusyRef.current = false;
+      setDeleteLoading(false);
+
+      if (deletedIds.length > 0) {
+        const deletedIdSet = new Set(deletedIds);
+        const remaining = clients.filter((c) => !deletedIdSet.has(c.id));
+        const newTotal = total !== null ? Math.max(0, total - deletedIds.length) : null;
+        setClients(remaining);
+        setTotal(newTotal);
+        // Başarısızlar SEÇİLİ KALIR (tekrar denenebilir); yalnız silinenler seçimden çıkar.
+        setSelectedClientIds((prev) => {
+          const next = new Set(prev);
+          for (const id of deletedIds) next.delete(id);
+          return next;
+        });
+        // Önbelleği güncel tut → geri dönüşte doğru (silinmiş) liste anında görünür.
+        setDanisanListCache(tenantId, {
+          clients: remaining,
+          total: newTotal ?? remaining.length,
+          fullLoaded,
+          alerts: homeworkAlerts,
+        });
       }
     }
 
-    setDeleteLoading(false);
-
-    if (deletedIds.length === 0) {
-      showToast({ title: t("toast.errorTitle"), message: t("toast.deleteNone"), type: "error" });
-      return;
+    if (failedIds.length > 0) {
+      showToast({
+        title: deletedIds.length === 0 ? t("toast.errorTitle") : t("toast.deleteFailedTitle"),
+        message: t("toast.deleteFailedNames", { names: failedIds.map(nameOf).join(", ") }),
+        type: "error",
+      });
     }
+    if (deletedIds.length === 0) return;
 
     if (anyStorageWarning) {
       showToast({ title: t("toast.deletePartialTitle"), message: t("toast.deletePartialMsg"), type: "warning" });
-    }
-
-    const deletedIdSet = new Set(deletedIds);
-    const remaining = clients.filter((c) => !deletedIdSet.has(c.id));
-    const newTotal = total !== null ? Math.max(0, total - deletedIds.length) : null;
-    setClients(remaining);
-    setTotal(newTotal);
-    setSelectedClientIds(new Set());
-    // Önbelleği güncel tut → geri dönüşte doğru (silinmiş) liste anında görünür.
-    if (tenantId) {
-      setDanisanListCache(tenantId, {
-        clients: remaining,
-        total: newTotal ?? remaining.length,
-        fullLoaded,
-        alerts: homeworkAlerts,
-      });
     }
     showToast({ title: t("toast.successTitle"), message: t("toast.deleteSuccess", { count: deletedIds.length }), type: "success" });
   }
@@ -674,7 +730,8 @@ export default function DanisanListePage() {
     try {
       let clientIds: string[] | undefined;
       if (mode === "selected") {
-        clientIds = [...selectedClientIds];
+        // DY-A: Word "seçili" de yalnız görünür kesişim.
+        clientIds = [...visibleSelectedIds];
         if (!clientIds.length) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportSelectFirst"), type: "warning" }); return; }
       } else if (mode === "filtered") {
         clientIds = filteredClients.map((c) => c.id);
@@ -696,14 +753,9 @@ export default function DanisanListePage() {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || t("toast.exportError"));
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
       const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
-      a.download = `danisan-listesi-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `danisan-listesi-${modeSlug}-${reportFileDate()}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.exportSuccess"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
@@ -875,7 +927,7 @@ export default function DanisanListePage() {
           {!isDemo && !loading && filteredClients.length > 0 && (
             <div className="mb-5">
               <BulkExportBar
-                selectedCount={selectedClientIds.size}
+                selectedCount={visibleSelectedIds.length}
                 totalCount={total ?? clients.length}
                 filteredCount={filteredClients.length}
                 hasActiveFilter={hasActiveFilter}

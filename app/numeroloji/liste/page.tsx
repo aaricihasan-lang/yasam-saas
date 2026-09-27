@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUserAndTenant } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 import { RowErrorBoundary } from "../components/RowErrorBoundary";
@@ -19,6 +20,8 @@ import { buildNumerolojiDeleteConfirm } from "../utils/deleteConfirmMessage";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const listeNavSecondaryClass =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
@@ -88,6 +91,13 @@ export default function NumerolojiListePage() {
 
   const hasActiveFilter = Boolean(search.trim());
 
+  // Arama değişince seçim görünür kayıtlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = filteredRows.map((r) => r.id);
+    runInEffect(() => setSelectedIds((prev) => pruneSelection(prev, visibleIds)));
+  }, [filteredRows]);
+
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -108,7 +118,8 @@ export default function NumerolojiListePage() {
       return;
     }
     if (deleteLoading) return; // çift-tık koruması (modal + buton disable üstüne ek kalkan)
-    const ids = Array.from(selectedIds);
+    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
+    const ids = visibleSelection(selectedIds, filteredRows.map((r) => r.id));
     if (ids.length === 0) return;
 
     const tenantId = await resolveNumerolojiTenantId();
@@ -128,12 +139,18 @@ export default function NumerolojiListePage() {
     setDeleteLoading(true);
 
     // tenant_id SUNUCUDA session'dan alınır; çapraz-tenant silme engellidir.
-    const res = await numApi("/api/numeroloji/analyses", {
-      method: "DELETE",
-      body: JSON.stringify({ ids }),
-    });
-
-    setDeleteLoading(false);
+    let res: Awaited<ReturnType<typeof numApi>>;
+    try {
+      res = await numApi("/api/numeroloji/analyses", {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
+    } catch (e) {
+      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${e instanceof Error ? e.message : "Bilinmeyen hata"}`, type: "error" });
+      return;
+    } finally {
+      setDeleteLoading(false);
+    }
 
     const err = numApiError(res);
     if (err) {
@@ -150,7 +167,12 @@ export default function NumerolojiListePage() {
 
     const deletedIdSet = new Set(deletedIds);
     setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
-    setSelectedIds(new Set());
+    // Silinemeyenler seçili kalır; yalnız silinenler seçimden düşer.
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      deletedIdSet.forEach((id) => next.delete(id));
+      return next;
+    });
     showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
   }
 
@@ -168,7 +190,7 @@ export default function NumerolojiListePage() {
     try {
       let ids: string[] | undefined;
       if (mode === "selected") {
-        ids = [...selectedIds];
+        ids = visibleSelection(selectedIds, filteredRows.map((r) => r.id));
         if (!ids.length) return;
       } else if (mode === "filtered") {
         ids = filteredRows.map((r) => r.id);
@@ -185,13 +207,7 @@ export default function NumerolojiListePage() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `numeroloji-${mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `numeroloji-${mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu"}-${reportFileDate()}.docx`);
       showToast({ title: "Başarılı", message: "Numeroloji raporu indirildi.", type: "success" });
       setWordPicker(null);
       const emptyRaw = res.headers.get("X-Empty-Tabs");

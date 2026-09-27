@@ -12,6 +12,7 @@ import {
 import {
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
   buildTOCPage,
@@ -25,6 +26,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -44,12 +47,9 @@ type EnergyBodyRow = {
   created_at: string;
 };
 
+/** created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC'de çalışır). */
 function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-  } catch { return d; }
+  return formatInstantDate(d, { style: "long", fallback: d });
 }
 
 function slugify(t: string): string {
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için enerji bedeni kaydı bulunamadı." }, { status: 404 });
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
   const isSingle = exportMode === "single" || (exportMode === "selected" && rows.length === 1);
 
   const exportLabel =
@@ -174,10 +174,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (row.not_text?.trim())       { all.push(h3("Not"));                  all.push(bodyText(row.not_text.trim())); }
   });
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  all.push(...buildWellnessNoteSection("biyoenerji", expertDisplayName(guard.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Enerji Bedenleri Raporu · Yaşam Sistemi") },
+      footers: { default: buildFooter("Enerji Bedenleri Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },
       children: all,
     }],
   });

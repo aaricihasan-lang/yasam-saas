@@ -109,7 +109,8 @@
         "dismissed": "Alert dismissed.",
         "dismissFailed": "Alert could not be dismissed",
         "deleted": "Assignment deleted.",
-        "deleteFailed": "Assignment could not be deleted"
+        "deleteFailed": "Assignment could not be deleted",
+        "endBeforeStart": "End date cannot be before the start date."
       },
       "error": {
         "loadFailed": "Assignments could not be loaded"

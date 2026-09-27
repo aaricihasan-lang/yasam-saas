@@ -49,6 +49,7 @@ export function DetailScreen({
   onRetry,
   children,
   wordExportUrl,
+  extraActions,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -63,6 +64,11 @@ export function DetailScreen({
   children: ReactNode;
   /** Verilirse başlıkta tek-kayıt "Word'e Aktar" butonu gösterilir. */
   wordExportUrl?: string;
+  /**
+   * Başlık eylem alanına eklenecek ek butonlar (ör. Düzenle / Arşivle / Sil). Yalnız kayıt
+   * yüklendiğinde (loading/notFound değilken) gösterilir; demo gizleme çağıranın sorumluluğu.
+   */
+  extraActions?: ReactNode;
 }) {
   const isAndroid = useIsAndroid();
   return (
@@ -74,6 +80,7 @@ export function DetailScreen({
       showNav={false}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {extraActions && !loading && !notFound && !errorCode ? extraActions : null}
           {wordExportUrl && !loading && !notFound && !isAndroid ? <DetailWordButton url={wordExportUrl} /> : null}
           <Link
             href={backHref}

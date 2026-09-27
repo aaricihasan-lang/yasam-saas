@@ -166,7 +166,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
               </div>
             </div>
               <div className="border-t border-indigo-100/80 pt-5">
-                <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin Human Design Bilgileri</p>
+                <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
                 <HdPersonalKnowledgePanel chartId={id} />
               </div>
             </div>

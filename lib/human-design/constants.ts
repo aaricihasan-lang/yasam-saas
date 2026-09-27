@@ -16,19 +16,21 @@ export const HUMAN_DESIGN_AUTHORITIES = [
   { code: "lunar",                label: "Lunar (Ay)" },
 ] as const;
 
+// Profil çizgi adları: 3 = "Deneyimleyen (Martyr)", 5 = "Çözüm Getiren (Heretic)".
+// (Eski "Şehit"/"Sapkın" çevirileri kaldırıldı; KODLAR aynıdır → kayıtlı veri etkilenmez.)
 export const HUMAN_DESIGN_PROFILES = [
-  { code: "1_3", label: "1/3 — Araştırmacı / Şehit" },
+  { code: "1_3", label: "1/3 — Araştırmacı / Deneyimleyen (Martyr)" },
   { code: "1_4", label: "1/4 — Araştırmacı / Fırsatçı" },
   { code: "2_4", label: "2/4 — Münzevi / Fırsatçı" },
-  { code: "2_5", label: "2/5 — Münzevi / Sapkın" },
-  { code: "3_5", label: "3/5 — Şehit / Sapkın" },
-  { code: "3_6", label: "3/6 — Şehit / Rol Model" },
+  { code: "2_5", label: "2/5 — Münzevi / Çözüm Getiren (Heretic)" },
+  { code: "3_5", label: "3/5 — Deneyimleyen (Martyr) / Çözüm Getiren (Heretic)" },
+  { code: "3_6", label: "3/6 — Deneyimleyen (Martyr) / Rol Model" },
   { code: "4_6", label: "4/6 — Fırsatçı / Rol Model" },
   { code: "4_1", label: "4/1 — Fırsatçı / Araştırmacı" },
-  { code: "5_1", label: "5/1 — Sapkın / Araştırmacı" },
-  { code: "5_2", label: "5/2 — Sapkın / Münzevi" },
+  { code: "5_1", label: "5/1 — Çözüm Getiren (Heretic) / Araştırmacı" },
+  { code: "5_2", label: "5/2 — Çözüm Getiren (Heretic) / Münzevi" },
   { code: "6_2", label: "6/2 — Rol Model / Münzevi" },
-  { code: "6_3", label: "6/3 — Rol Model / Şehit" },
+  { code: "6_3", label: "6/3 — Rol Model / Deneyimleyen (Martyr)" },
 ] as const;
 
 export const HUMAN_DESIGN_DEFINITIONS = [

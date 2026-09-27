@@ -15,6 +15,7 @@ import { MobileEditNoticePanel } from "./MobileEditNoticePanel";
 import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
+import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
 
 type RegionMapLayoutProps = {
   initialOrgan?: string | null;
@@ -93,7 +94,19 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               Bölge Haritası
             </h1>
           </header>
+          {/* REF-007 / FA-13: atlas senkron sonucu + "yeniden dene" görünür. */}
+          {!isDemo ? <SyncStatusBadge className="shrink-0" /> : null}
         </div>
+
+        {!isDemo && workspace.quarantineCount > 0 ? (
+          <p className="mb-1 shrink-0 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-950">
+            Bu cihazda sahibi belirsiz eski atlas verisi bulundu.{" "}
+            <Link href="/refleksoloji/kayitli-atlas" className="underline underline-offset-2">
+              Kayıtlı Atlas&apos;ta içe aktarın veya silin
+            </Link>
+            .
+          </p>
+        ) : null}
 
         <div className="flex min-h-0 flex-col gap-1.5 lg:flex-1">
           <div className="flex min-h-0 flex-col gap-2 lg:flex-1 lg:flex-row lg:gap-3">

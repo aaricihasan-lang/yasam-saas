@@ -1,25 +1,39 @@
 import type { ProtocolFormDraft, SavedProtocol } from "../types";
-import { safeLocalStorageSetItem } from "@/lib/safeStorage";
+import { readReflex, writeReflex } from "@/lib/refleksoloji/reflexStore";
+import {
+  LEGACY_QUARANTINE_KEYS,
+  LEGACY_REFLEX_KEYS,
+  readRawJson,
+  removeRaw,
+  writeRawJson,
+} from "@/lib/refleksoloji/scopedStorage";
+import { slugifyTr } from "@/lib/refleksoloji/slug";
 
-export const PROTOCOL_STORAGE_KEY = "yasam-refleksoloji-protokoller-v1";
+/**
+ * Eski (v1, cihaz geneli) anahtar — yalnız eski veri taşıma/karantina için okunur.
+ * FA-04: protokol yerel kopyaları artık kullanıcı/tenant kapsamlı depodadır.
+ */
+export const PROTOCOL_STORAGE_KEY = LEGACY_REFLEX_KEYS.protocols;
 
-function slugifyTitle(title: string): string {
-  const base = title
-    .trim()
-    .toLocaleLowerCase("tr")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return base || "protokol";
+/** Türkçe-güvenli okunur slug ("ı" artık düşmez). Mevcut UID'ler YENİDEN YAZILMAZ. */
+export function slugifyTitle(title: string): string {
+  return slugifyTr(title, "protokol");
 }
 
-export function createProtocolId(title: string, existingIds: Set<string>): string {
-  let id = slugifyTitle(title);
-  if (!existingIds.has(id)) return id;
-  let n = 2;
-  while (existingIds.has(`${id}-${n}`)) n += 1;
-  return `${id}-${n}`;
+function newUuid(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `p-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Yeni protokol kimliği (= sunucu `source_uid`). Eskiden başlık slug'ıydı: iki
+ * cihazda aynı başlıklı iki protokol AYNI source_uid ile birbirinin üzerine
+ * yazılıyordu. Artık daima rastgele UUID.
+ */
+export function createProtocolId(_title: string, existingIds: Set<string>): string {
+  let id = newUuid();
+  while (existingIds.has(id)) id = newUuid();
+  return id;
 }
 
 function normalizeOrganNames(organs: unknown): string[] {
@@ -42,6 +56,10 @@ function migrateLegacyItem(item: unknown): SavedProtocol | null {
   if (typeof o.id !== "string" || typeof o.title !== "string") return null;
 
   const now = new Date().toISOString();
+  const pending = {
+    ...(o.pendingSync === true ? { pendingSync: true } : {}),
+    ...(typeof o.baseVersion === "string" && o.baseVersion ? { baseVersion: o.baseVersion } : {}),
+  };
 
   if (typeof o.createdAt === "string" && typeof o.updatedAt === "string") {
     return {
@@ -52,6 +70,7 @@ function migrateLegacyItem(item: unknown): SavedProtocol | null {
       notes: typeof o.notes === "string" ? o.notes : "",
       createdAt: o.createdAt,
       updatedAt: o.updatedAt,
+      ...pending,
     };
   }
 
@@ -72,22 +91,19 @@ function migrateLegacyItem(item: unknown): SavedProtocol | null {
     notes,
     createdAt: now,
     updatedAt: now,
+    ...pending,
   };
 }
 
-function parseStoredProtocols(raw: string): SavedProtocol[] {
-  const parsed = JSON.parse(raw) as unknown;
+export function parseStoredProtocols(parsed: unknown): SavedProtocol[] {
   if (!Array.isArray(parsed)) return [];
   return parsed.map(migrateLegacyItem).filter((p): p is SavedProtocol => p != null && p.title.length > 0);
 }
 
 export function loadProtocolsFromStorage(): SavedProtocol[] {
   if (typeof window === "undefined") return [];
-
   try {
-    const raw = window.localStorage.getItem(PROTOCOL_STORAGE_KEY);
-    if (!raw) return [];
-    return parseStoredProtocols(raw);
+    return parseStoredProtocols(readReflex<unknown>("protocols"));
   } catch {
     return [];
   }
@@ -95,7 +111,29 @@ export function loadProtocolsFromStorage(): SavedProtocol[] {
 
 export function saveProtocolsToStorage(protocols: SavedProtocol[]): boolean {
   if (typeof window === "undefined") return false;
-  return safeLocalStorageSetItem(PROTOCOL_STORAGE_KEY, JSON.stringify(protocols));
+  return writeReflex("protocols", protocols);
+}
+
+// ─── Eski (v1) anahtar + karantina (sahibi belirsiz) ─────────────────────────
+
+export function loadLegacyProtocols(): SavedProtocol[] {
+  return parseStoredProtocols(readRawJson<unknown>(LEGACY_REFLEX_KEYS.protocols));
+}
+
+export function clearLegacyProtocols(): void {
+  removeRaw(LEGACY_REFLEX_KEYS.protocols);
+}
+
+export function loadQuarantinedProtocols(): SavedProtocol[] {
+  return parseStoredProtocols(readRawJson<unknown>(LEGACY_QUARANTINE_KEYS.protocols));
+}
+
+export function saveQuarantinedProtocols(list: SavedProtocol[]): boolean {
+  if (list.length === 0) {
+    removeRaw(LEGACY_QUARANTINE_KEYS.protocols);
+    return true;
+  }
+  return writeRawJson(LEGACY_QUARANTINE_KEYS.protocols, list);
 }
 
 export function draftToSavedProtocol(

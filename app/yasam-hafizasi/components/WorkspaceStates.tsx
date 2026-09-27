@@ -16,7 +16,15 @@ export function ResultsSkeleton({ cards = 5 }: { cards?: number }) {
   );
 }
 
-export type EmptyVariant = "cold-start" | "client-cold-start" | "no-results" | "filtered" | "disabled" | "error";
+export type EmptyVariant =
+  | "cold-start"
+  | "client-cold-start"
+  | "no-results"
+  | "filtered"
+  | "disabled"
+  | "index-empty"
+  | "out-of-scope"
+  | "error";
 
 const VARIANT: Record<EmptyVariant, { icon: string; title: string; message: string }> = {
   "cold-start": {
@@ -39,6 +47,20 @@ const VARIANT: Record<EmptyVariant, { icon: string; title: string; message: stri
     icon: "🧭",
     title: "Seçili modülde sonuç yok",
     message: "Sonuçlar var ama seçtiğiniz modüllerde değil. Filtreyi genişletin.",
+  },
+  // Health: tenant indeksinde henüz kayıt yok (dürüst durum; "hazır" iddiası yok).
+  "index-empty": {
+    icon: "⏳",
+    title: "Mesleki hafızanız hazırlanıyor…",
+    message:
+      "Kayıtlarınız mesleki hafızaya aktarılıyor. Bu süre içinde arama sonuç vermeyebilir; aktarım tamamlandığında kayıtlarınız burada aranabilir olacak.",
+  },
+  // Health: sentetik (ADMIN_LIBRARY) tenant — bilinçli olarak mesleki indeks dışında. Hata DEĞİL.
+  "out-of-scope": {
+    icon: "ℹ️",
+    title: "Bu hesap mesleki indeks kapsamı dışında",
+    message:
+      "Bu hesabın kütüphane kayıtları mesleki hafızaya alınmaz (bilinçli kapsam kararı). Danışan Hafızası sekmesini kullanabilirsiniz.",
   },
   disabled: {
     icon: "🔒",

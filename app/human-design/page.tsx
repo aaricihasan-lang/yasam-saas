@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { HumanDesignShell } from "./components/HumanDesignShell";
+import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 
-const HD_MODULES = [
+const HD_MODULES: readonly HdHubModule[] = [
   {
     title: "Danışanlar",
     desc: "Yeni danışan ekle, ad, doğum bilgisi ve harita görselini kaydet.",
@@ -39,6 +39,9 @@ const HD_MODULES = [
     title: "Rapor Oluştur",
     desc: "Danışanın harita değerleriyle Bilgi Bankası'nı eşleştir, yorum önizlemesi al.",
     href: "/human-design/rapor-olustur",
+    // Eski rapor hattı: uzmandan gizlenir (route/API korunur). Uzmanın ana yolu
+    // Kayıtlı Haritalar → Profesyonel Word.
+    adminOnly: true,
     icon: "✦",
     badge: "Rapor",
     accent: "from-fuchsia-500 to-violet-600",
@@ -59,7 +62,7 @@ const HD_MODULES = [
   },
   {
     title: "Kayıtlı Raporlar",
-    desc: "Oluşturulan raporları listele, incele ve düzenle.",
+    desc: "Oluşturulan raporları listele ve profesyonel Word raporlarını yeniden indir.",
     href: "/human-design/kayitli-raporlar",
     icon: "📄",
     badge: "Liste",
@@ -68,7 +71,7 @@ const HD_MODULES = [
     cardBg: "from-fuchsia-50/90 via-pink-50/60 to-white",
     badgeCls: "bg-fuchsia-100 text-fuchsia-800",
   },
-] as const;
+];
 
 export default function HumanDesignHubPage() {
   return (
@@ -84,49 +87,8 @@ export default function HumanDesignHubPage() {
         </p>
       </div>
 
-      {/* Modül Kartları */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {HD_MODULES.map((mod) => (
-          <Link
-            key={mod.href}
-            href={mod.href}
-            className="group block no-underline"
-          >
-            <div
-              className={`flex h-full flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${mod.cardBorder} ${mod.cardBg}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl text-white shadow-sm transition-transform duration-200 group-hover:scale-105 ${mod.accent}`}
-                >
-                  {mod.icon}
-                </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${mod.badgeCls}`}
-                >
-                  {mod.badge}
-                </span>
-              </div>
-
-              <h2 className="mt-3.5 text-base font-black text-slate-900">
-                {mod.title}
-              </h2>
-              <p className="mt-1 flex-1 text-xs leading-5 text-slate-600">
-                {mod.desc}
-              </p>
-
-              <div className="mt-4 flex items-center justify-end">
-                <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:scale-110 ${mod.accent}`}
-                  aria-hidden
-                >
-                  →
-                </span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* Ana CTA + modül kartları (client: admin-only kart görünürlüğü) */}
+      <HdHubModules modules={HD_MODULES} />
     </HumanDesignShell>
   );
 }

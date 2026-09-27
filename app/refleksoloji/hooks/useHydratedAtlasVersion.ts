@@ -1,20 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  listOrganNamesFromAtlas,
-  loadAtlas,
-  loadOrganList,
-  mergeAtlasDocuments,
-  saveAtlas,
-  saveOrganList,
-  unionOrganLists,
-} from "@/lib/atlasStorage";
-import {
-  hydrateAtlasFromServer,
-  setAtlasSyncSuspended,
-} from "@/lib/refleksolojiAtlasSync";
-import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
+import { hydrateAndMergeAtlas } from "@/lib/atlasStorage";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 /**
@@ -23,11 +10,11 @@ import { readYasamUser } from "@/lib/auth/yasamUser";
  * SORUN (BUG-4): kayıtlı protokol haritası atlas'ı YALNIZ localStorage'dan okuyordu.
  * Yeni cihaz/tarayıcıda protokol sunucudan gelir, atlas sunucuda vardır ama yerel
  * boş olduğundan harita boş kalırdı. Bu hook mount'ta sunucudan atlas indirir,
- * tombstone-farkında birleştirir, yerele yazar ve dönen sürüm numarasını artırır;
- * tüketen bileşen bu sürümü memo bağımlılığına ekleyerek haritayı yeniden çözer.
+ * tombstone-farkında birleştirir (TEK merkez: atlasStorage.hydrateAndMergeAtlas),
+ * yerele yazar ve dönen sürüm numarasını artırır; tüketen bileşen bu sürümü memo
+ * bağımlılığına ekleyerek haritayı yeniden çözer.
  *
- * Salt-okuma: sunucuya geri PUT ETMEZ (görüntüleme ekranından yazma amplifikasyonu
- * olmasın). Yazma yalnız Bölge Haritası/Kayıtlı Atlas düzenleme ekranlarından gider.
+ * Salt-okuma: sunucuya geri PUT ETMEZ (FA-13 — görüntüleme ekranından yazma yok).
  */
 export function useHydratedAtlasVersion(): number {
   const [version, setVersion] = useState(0);
@@ -37,26 +24,8 @@ export function useHydratedAtlasVersion(): number {
     if (readYasamUser()?.is_demo_account === true) return;
 
     let cancelled = false;
-    void hydrateAtlasFromServer().then((server) => {
-      if (cancelled || !server) return;
-      // CANONICAL SINIR: sunucudan gelen belge legacy olabilir → 3-görünüme normalize
-      // et (localDoc zaten loadAtlas'ta normalize). Merge yalnız canonical şekiller üzerinde.
-      const serverDoc = normalizeAtlasDocument(server.document ?? {});
-      const hasServerData =
-        listOrganNamesFromAtlas(serverDoc).length > 0 || server.organ_list.length > 0;
-      if (!hasServerData) return;
-
-      const localDoc = loadAtlas();
-      const merged = mergeAtlasDocuments(serverDoc, localDoc);
-      const mergedOrgans = unionOrganLists(server.organ_list, loadOrganList());
-
-      // Birleştirmeyi yerele yaz; geri-PUT'u bastır (salt-okuma ekran).
-      setAtlasSyncSuspended(true);
-      saveAtlas(merged);
-      saveOrganList(mergedOrgans);
-      setAtlasSyncSuspended(false);
-
-      if (!cancelled) setVersion((v) => v + 1);
+    void hydrateAndMergeAtlas().then((r) => {
+      if (!cancelled && r) setVersion((v) => v + 1);
     });
 
     return () => {

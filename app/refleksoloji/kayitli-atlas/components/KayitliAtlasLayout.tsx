@@ -11,6 +11,11 @@ import { AtlasEditModal } from "./AtlasEditModal";
 import { AtlasViewModal } from "./AtlasViewModal";
 import { OrganAtlasCard } from "./OrganAtlasCard";
 import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
+import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuarantineBanner";
+import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
+import { useToast } from "@/components/ui/ToastProvider";
+import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
+import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 
 export function KayitliAtlasLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -18,13 +23,17 @@ export function KayitliAtlasLayout() {
   const {
     summaries,
     orphanOrgans,
-    updatedAt,
+    organUpdatedAt,
+    quarantineCount,
+    importQuarantine,
+    discardQuarantine,
     hydrated,
     deleteOrgan,
     deleteOrphanOrgan,
     deleteRegion,
     renameOrgan,
   } = useSavedAtlas();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [viewOrgan, setViewOrgan] = useState<string | null>(null);
   const [editOrgan, setEditOrgan] = useState<string | null>(null);
@@ -106,9 +115,12 @@ export function KayitliAtlasLayout() {
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
               Refleksoloji · Kayıtlı Atlas
             </p>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-              Kayıtlı Atlas
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                Kayıtlı Atlas
+              </h1>
+              {!isDemo ? <SyncStatusBadge /> : null}
+            </div>
             <p className="mt-0.5 max-w-2xl text-sm font-medium text-slate-600">
               Bölge Haritası&apos;ndan kaydedilen organ koordinatları burada yönetilir.
             </p>
@@ -120,6 +132,26 @@ export function KayitliAtlasLayout() {
             Bölge Haritasına Git
           </Link>
         </div>
+
+        {!isDemo && quarantineCount > 0 ? (
+          <LegacyQuarantineBanner
+            className="mb-4"
+            count={quarantineCount}
+            noun="organ kaydı"
+            onImport={() => {
+              const r = importQuarantine();
+              showToast(
+                r.ok
+                  ? { type: "success", message: `${r.changedOrgans} organ atlasınıza aktarıldı.` }
+                  : { type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE },
+              );
+            }}
+            onDiscard={() => {
+              discardQuarantine();
+              showToast({ type: "success", message: "Sahibi belirsiz atlas verisi bu cihazdan kaldırıldı." });
+            }}
+          />
+        ) : null}
 
         {summaries.length > 0 ? (
           <div className="mb-3">
@@ -158,7 +190,7 @@ export function KayitliAtlasLayout() {
               <OrganAtlasCard
                 key={summary.name}
                 summary={summary}
-                updatedAt={updatedAt}
+                updatedAt={organUpdatedAt[organKey(summary.name)] ?? null}
                 onView={() => setViewOrgan(summary.name)}
                 onEdit={() => setEditOrgan(summary.name)}
                 onDelete={() => void handleDeleteOrgan(summary.name)}
