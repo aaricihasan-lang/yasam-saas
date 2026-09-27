@@ -144,7 +144,14 @@
       "item3": "Explore the modules",
       "item4": "Try out how the recording processes work",
       "warning": "Records created in this account are for trial purposes only and are not permanent. They are deleted automatically when the session ends or after a certain period.",
-      "cta": "🚀 Go ahead and create your first record, and discover the working experience Yaşam Sistemi offers professionals."
+      "cta": "🚀 Go ahead and create your first record, and discover the working experience Yaşam Sistemi offers professionals.",
+      "introModal": {
+        "title": "About the Demo / Test Account",
+        "p1": "This page is Yaşam Sistemi’s test and review environment. The sample content you see here is provided solely so that you can review the system and how the modules work.",
+        "p2": "Once your expert membership is approved, your own module knowledge and source archives start out empty. Each expert creates their own knowledge archive, records and working content.",
+        "p3": "The knowledge archive you create is private to you. No user — including other experts and the system administrator (admin) — can view the contents of your archive.",
+        "close": "Close"
+      }
     },
     "auth": {
       "sessionInvalid": "Your account was opened from another device or location, so for your security you need to sign in again.",
@@ -163,14 +170,23 @@
       "login": "Sign In",
       "register": "Sign Up"
     },
+    "demoAccess": {
+      "badge": "Test account open",
+      "title": "Explore Yaşam Sistemi with a Test Account",
+      "description": "Sign in to the test environment to see the overall structure of the modules, the workflow and the user experience first-hand. The trial account is provided so you can get to know the system and explore how it works.",
+      "emailLabel": "Test Account",
+      "passwordLabel": "Password",
+      "copy": "Copy",
+      "copied": "Copied",
+      "cta": "Sign In with the Test Account",
+      "note": "This account is for demonstration and review purposes."
+    },
     "hero": {
       "cardModules": "10+ Modules",
       "cardSinglePanel": "One Panel",
       "cardSinglePanelSub": "Access from anywhere",
       "cardSecure": "Secure Records",
       "cardSecureSub": "Your data is protected",
-      "cardAi": "AI-Powered",
-      "cardAiSub": "Smart analysis",
       "titlePart1": "Manage your clients, analyses and sessions",
       "titleHighlight": "in one place",
       "titlePart2": "",

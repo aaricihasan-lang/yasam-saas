@@ -144,7 +144,14 @@
       "item3": "Modülleri inceleyebilir",
       "item4": "Kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz",
       "warning": "Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.",
-      "cta": "🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi'nin uzmanlara sunduğu çalışma deneyimini keşfedin."
+      "cta": "🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi'nin uzmanlara sunduğu çalışma deneyimini keşfedin.",
+      "introModal": {
+        "title": "Demo / Test Hesabı Hakkında",
+        "p1": "Bu sayfa, Yaşam Sistemi’nin test ve inceleme ortamıdır. Burada gördüğünüz örnek içerikler yalnızca sistemi ve modüllerin çalışma şeklini inceleyebilmeniz amacıyla sunulmaktadır.",
+        "p2": "Uzman üyeliğiniz onaylandığında, size ait modül bilgi ve kaynak arşivleri boş olarak başlar. Her uzman kendi bilgi arşivini, kayıtlarını ve çalışma içeriklerini kendisi oluşturur.",
+        "p3": "Oluşturduğunuz bilgi arşivi yalnızca size özeldir. Diğer uzmanlar ve sistem yöneticisi (admin) dahil hiçbir kullanıcı arşivinizin içeriğini görüntüleyemez.",
+        "close": "Kapat"
+      }
     },
     "auth": {
       "sessionInvalid": "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
@@ -163,14 +170,23 @@
       "login": "Giriş Yap",
       "register": "Kayıt Ol"
     },
+    "demoAccess": {
+      "badge": "Test hesabı açık",
+      "title": "Yaşam Sistemi’ni Test Hesabıyla İnceleyin",
+      "description": "Test ortamına giriş yaparak modüllerin genel yapısını, çalışma akışını ve kullanım deneyimini doğrudan görebilirsiniz. Deneme hesabı, sistemi tanımanız ve keşfetmeniz için sunulmuştur.",
+      "emailLabel": "Test Sayfası",
+      "passwordLabel": "Şifre",
+      "copy": "Kopyala",
+      "copied": "Kopyalandı",
+      "cta": "Test Hesabıyla Giriş Yap",
+      "note": "Bu hesap tanıtım ve inceleme amaçlıdır."
+    },
     "hero": {
       "cardModules": "10+ Modül",
       "cardSinglePanel": "Tek Panel",
       "cardSinglePanelSub": "Her yerden erişim",
       "cardSecure": "Güvenli Kayıt",
       "cardSecureSub": "Verileriniz korumalı",
-      "cardAi": "AI Destekli",
-      "cardAiSub": "Akıllı analiz",
       "titlePart1": "Danışan, analiz ve seans süreçlerinizi",
       "titleHighlight": "tek merkezden",
       "titlePart2": "yönetin",

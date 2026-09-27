@@ -255,7 +255,7 @@ async function main(): Promise<void> {
     ok((await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: [], expectedApproval: "pending" })).status === 400, "boş modül listesi → 400");
     ok((await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: ["is_admin"], expectedApproval: "pending" })).status === 400, "bilinmeyen modül → 400");
     ok((await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: ["yasam_hafizasi"], expectedApproval: "pending" })).status === 400, "yasam_hafizasi seçilemez → 400");
-    ok((await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: ["digital_content", "beslenme_manual_food"], expectedApproval: "pending" })).status === 400, "yalnız hub/yetenek (gerçek modül yok) → 400");
+    ok((await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: ["digital_content"], expectedApproval: "pending" })).status === 400, "yalnız hub kartı (gerçek modül yok) → 400");
     ok((await row(P1)).approval_status === "pending" && (await audits(P1)).length === 0, "modülsüz denemeler hiçbir şey yazmadı (pending, 0 audit)");
     const appr = await call(statusRoute.POST as Handler, "POST", P1, asOwner, { action: "approve", modules: ["numerology", "human_design", "cosmic_calendar"], expectedApproval: "pending" });
     ok(appr.status === 200 && appr.json.moduleCount === 3, "seçili 3 modül → 200 + moduleCount=3");

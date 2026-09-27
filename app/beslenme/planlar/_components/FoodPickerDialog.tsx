@@ -9,7 +9,7 @@ import { Check, Loader2, Plus, Search } from "lucide-react";
 import { QuickAddFoodDialog } from "../../_components/QuickAddFoodDialog";
 import {
   getFood,
-  checkBeslenmeFoodAccess,
+  checkBeslenmeAccess,
   type Food,
   type FoodNutrientView,
   type FoodPortionView,
@@ -50,13 +50,13 @@ export function FoodPickerDialog({
 }) {
   const [q, setQ] = useState("");
   const [quickAdd, setQuickAdd] = useState(false);
-  // Manuel besin KATKISI ayrı yetkidir (owner ya da beslenme_manual_food). clients-yetkili
-  // uzman besin ARAR/SEÇER ama katkı yetkisi yoksa "Besin Ekle" GİZLİ (§14; dead-control yok).
+  // Uzman besin ARAR/SEÇER (food READ: clients|beslenme). CUSTOM besin OLUŞTURMA ("Besin Ekle")
+  // yalnız TAM Beslenme erişiminde açılır (checkBeslenmeAccess); clients-only'de GİZLİ (dead-control yok).
   const [canQuickAdd, setCanQuickAdd] = useState(false);
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    void checkBeslenmeFoodAccess().then((a) => { if (alive) setCanQuickAdd(a != null); }).catch(() => {});
+    void checkBeslenmeAccess().then((ok) => { if (alive) setCanQuickAdd(ok === true); }).catch(() => {});
     return () => { alive = false; };
   }, [open]);
   const [selected, setSelected] = useState<Food | null>(null);

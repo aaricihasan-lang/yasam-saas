@@ -41,6 +41,11 @@ import {
   buildTelHref,
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
+import DemoIntroModal from "@/components/demo/DemoIntroModal";
+import DemoAccessCard, {
+  DEMO_ACCOUNT_EMAIL,
+  DEMO_ACCOUNT_PASSWORD,
+} from "@/components/demo/DemoAccessCard";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -51,7 +56,6 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -394,12 +398,12 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/dogal-destek",
-    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA dar
-    // manuel-besin bayrağı yeterli. Beslenme + Besinlerim girişleri artık bu hub altında; ana
-    // dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. `clients` TEK BAŞINA bu hub'ı AÇMAZ.
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) yeterli.
+    // Beslenme girişi bu hub altındadır; ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK.
+    // `clients` ve (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ.
     // permissionKey yalnız tip placeholder'ı; gerçek karar anyPermissionKeys üzerinden.
     permissionKey: "sifa_rehberi",
-    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "beslenme_manual_food"],
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
     emoji: "🌿",
     Icon: Leaf,
     theme: {
@@ -723,15 +727,9 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
-  // NOT: Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards).
-  // Ana dashboard'da bağımsız Beslenme kartı YOK → beslenmeAccess state/probe'u burada tutulmaz;
-  // hub bileşeni checkBeslenmeAccess/checkBeslenmeFoodAccess'i kendi içinde reuse eder.
-  // Manuel besin KATKI (dar bayrak) probe'u yalnız expertModulesEmpty hesabı için tutulur
-  // (manual-only uzman "boş modül" sayılmaz). Bayrak client user objesinden
-  // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
-  // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; tam Beslenme
-  // erişimi olan zaten Beslenme kartını görür. Default null → fail-closed.
-  const [foodContributor, setFoodContributor] = useState<"owner" | "expert" | null>(null);
+  // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
+  // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
+  // ana dashboard'da beslenme/food probe state'i tutulmaz.
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -781,21 +779,6 @@ export default function Home() {
     event.stopPropagation();
     loginBackdropPressed.current = false;
   };
-
-  // Manuel besin KATKI probe'u (expertModulesEmpty için): owner + dar bayraklı UZMAN için de
-  // çalışır (admin-only DEĞİL).
-  // Server probe yetki/onay/bayrağı birlikte doğrular (fail-closed). Girişsiz → null.
-  // setState yalnız async callback'te (effect gövdesinde senkron setState yok).
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const auth = user ? await checkBeslenmeFoodAccess() : null;
-      if (alive) setFoodContributor(auth);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [user]);
 
   useEffect(() => {
     const stored = readYasamUser();
@@ -1325,9 +1308,7 @@ export default function Home() {
     const expertModulesEmpty =
       !isAdminUser(user) &&
       !membershipExpired &&
-      !expertHasAnyGrantedModule(user) &&
-      // Dar besin-katkı bayrağı tek başına "Besinlerim" kartını gösterir → boş sayma.
-      foodContributor !== "expert";
+      !expertHasAnyGrantedModule(user);
 
     async function handleAdminNav() {
       if (adminNavLoading) return;
@@ -1386,6 +1367,12 @@ export default function Home() {
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
 
         <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
+
+          {/* Demo / test hesabı açılış bilgilendirmesi — canonical is_demo_account,
+              yalnız DB profil sync'i doğrulandıktan sonra; admin'de asla. */}
+          <DemoIntroModal
+            enabled={user.is_demo_account === true && !isAdminUser(user) && profileSynced}
+          />
 
           {/* Demo Hesap Banneri */}
           {user.is_demo_account ? (
@@ -1701,10 +1688,9 @@ export default function Home() {
                     );
                   })}
 
-                  {/* Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı
-                      (app/dogal-destek/DogalDestekCards.tsx) → ana dashboard'da bağımsız
-                      Beslenme/Besinlerim kartı YOK. Server food-probe'ları (checkBeslenmeAccess/
-                      checkBeslenmeFoodAccess) o hub bileşeninde reuse edilir. */}
+                  {/* Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı
+                      (app/dogal-destek/DogalDestekCards.tsx; kendi checkBeslenmeAccess probe'u) →
+                      ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. */}
 
                   {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
                   <Link href="/settings" className="block text-inherit no-underline">
@@ -1851,7 +1837,8 @@ export default function Home() {
 
         {/* — Hero — */}
         <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12">
-          <div className="relative flex w-full items-center justify-center">
+          {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order) */}
+          <div className="relative flex w-full items-center justify-center max-sm:contents">
             {/* Dekoratif sol kartlar */}
             <div className="pointer-events-none absolute left-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
@@ -1872,8 +1859,8 @@ export default function Home() {
             </div>
 
             {/* Center text */}
-            <div className="flex max-w-2xl flex-col items-center">
-              <h1 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
+            <div className="flex max-w-2xl flex-col items-center max-sm:contents">
+              <h1 className="max-sm:order-1 text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
                 {t("hero.titlePart1")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
                   {t("hero.titleHighlight")}
@@ -1881,11 +1868,11 @@ export default function Home() {
                 {t("hero.titlePart2")}
               </h1>
 
-              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500">
+              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
                 {t("hero.subtitle")}
               </p>
 
-              <div className="mt-7 flex justify-center">
+              <div className="mt-7 flex justify-center max-sm:order-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -1902,7 +1889,6 @@ export default function Home() {
             <div className="pointer-events-none absolute right-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
                 { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
-                { label: t("hero.cardAi"), icon: "✨", sub: t("hero.cardAiSub") },
               ].map((c) => (
                 <div
                   key={c.label}
@@ -1916,6 +1902,19 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Test / demo hesabı tanıtımı — ilk bakışta görünür */}
+          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5">
+            <DemoAccessCard
+              onTryDemo={() => {
+                setMessage("");
+                setEmail(DEMO_ACCOUNT_EMAIL);
+                setPassword(DEMO_ACCOUNT_PASSWORD);
+                setAuthModalView("login");
+                setLoginModalOpen(true);
+              }}
+            />
           </div>
         </section>
 

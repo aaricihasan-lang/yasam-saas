@@ -214,18 +214,22 @@ check("TÜRKOMP veri fixture'ı YOK (lisanssız veri bundle edilmez)",
 check("API otomatik import provider yalnız usda_fdc (CC0)",
   /IMPORT_PROVIDERS\s*=\s*\[\s*"usda_fdc"\s*\]/.test(contracts));
 
-console.log("\n[Z] Beslenme dashboard girişi 'Doğal Destek & Rehber' hub'ına taşındı (server-authoritative)");
-// Beslenme + Besinlerim artık ana dashboard'da bağımsız kart DEĞİL; DogalDestekCards içinde
-// server probe (checkBeslenmeAccess/checkBeslenmeFoodAccess) + fail-closed tri-state ile gösterilir.
+console.log("\n[Z] Beslenme dashboard girişi 'Doğal Destek & Rehber' hub'ında (server-authoritative, flicker-fix)");
+// Beslenme ana dashboard'da bağımsız kart DEĞİL; DogalDestekCards içinde server probe
+// (checkBeslenmeAccess) + resolved-gate ile gösterilir. Çözülene kadar iskelet/spinner YOK →
+// sessiz min-h boşluk; kartlar hazır olunca sade opacity fade. Ayrı "Besinlerim" alt kartı KALDIRILDI.
 const page = read(resolve(ROOT, "app/page.tsx"));
 const dogalCards = read(resolve(ROOT, "app/dogal-destek/DogalDestekCards.tsx"));
-check("ana dashboard bağımsız Beslenme/Besinlerim kartı YOK (hub'a taşındı)",
-  !/data-beslenme-card/.test(page) && !/data-besinlerim-card/.test(page));
+check("ana dashboard bağımsız Beslenme/Besinlerim kartı YOK", !/data-beslenme-card/.test(page) && !/data-besinlerim-card/.test(page));
 check("owner state adı (beslenmeOwner) YOK", !/beslenmeOwner/.test(page));
-check("hub: Beslenme alt kartı server-authoritative access probe (checkBeslenmeAccess) + fail-closed null",
-  /checkBeslenmeAccess\(\)/.test(dogalCards) && /useState<boolean \| null>\(null\)/.test(dogalCards));
-check("hub: Beslenme /beslenme + Besinlerim /beslenme/besinlerim alt kartları",
-  /href:\s*"\/beslenme"/.test(dogalCards) && /href:\s*"\/beslenme\/besinlerim"/.test(dogalCards));
+check("hub: Beslenme alt kartı /beslenme + server-authoritative checkBeslenmeAccess",
+  /href:\s*"\/beslenme"/.test(dogalCards) && /checkBeslenmeAccess\(\)/.test(dogalCards));
+check("hub: ayrı 'Besinlerim' alt kartı/route KALDIRILDI", !/besinlerim/.test(dogalCards));
+check("hub: FLICKER FIX — accessResolved çözülmeden gerçek kart yok",
+  /accessResolved = userResolved && beslenmeResolved/.test(dogalCards) && /if \(!accessResolved\)/.test(dogalCards));
+check("hub: SKELETON KALDIRILDI — animate-pulse/'yükleniyor' YOK; sessiz min-h boşluk + sade fade",
+  !/animate-pulse/.test(dogalCards) && !/yükleniyor/i.test(dogalCards) &&
+  /min-h-\[16rem\]/.test(dogalCards) && /transition-opacity/.test(dogalCards));
 
 console.log(`\n${"=".repeat(56)}`);
 console.log(`  TOPLAM: ${pass} PASS · ${fail} FAIL`);

@@ -21,7 +21,7 @@ export default function DogalDestekPage() {
             Doğal Destek &amp; Rehber
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
-            Doğal destek yöntemleri ve profesyonel başvuru kaynakları
+            Doğal destek yöntemleri, beslenme ve profesyonel başvuru kaynakları
           </p>
           <div
             className="mx-auto mt-4 h-1 w-full max-w-sm rounded-full bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent"

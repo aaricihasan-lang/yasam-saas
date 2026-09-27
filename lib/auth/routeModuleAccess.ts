@@ -64,12 +64,12 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
     ],
   },
   {
-    // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA dar
-    // manuel-besin bayrağı olan uzman girebilir (OR). hasAnyModulePermissionFlag OR uygular;
-    // hiçbiri yoksa evaluateRouteModuleGuard "deny". `clients` TEK BAŞINA bu hub'ı AÇMAZ
-    // (Danışan Yolculuğu ayrıdır; clients-only kullanıcı danışan-bound Beslenme'yi oradan kullanır).
+    // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) olan uzman
+    // girebilir (OR). hasAnyModulePermissionFlag OR uygular; hiçbiri yoksa "deny". `clients` ve
+    // (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ — Danışan Yolculuğu ayrıdır;
+    // clients-only kullanıcı danışan-bound Beslenme'yi oradan kullanır (food READ), custom food WRITE yok.
     prefix: "/dogal-destek",
-    keys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "beslenme_manual_food"],
+    keys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
   },
   { prefix: "/danisan-yolculugu", keys: ["clients", "danisan_yonetimi"] },
   { prefix: "/urun-stok", keys: ["stok", "stock"] },

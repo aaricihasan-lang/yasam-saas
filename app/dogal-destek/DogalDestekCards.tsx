@@ -4,23 +4,25 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { hasAnyModulePermissionFlag } from "@/lib/auth/modulePermissions";
 import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
-import { checkBeslenmeAccess, checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
+import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 
 /**
  * Doğal Destek & Rehber alt kartları. Parent route erişimi ModuleRouteGuard +
  * routeModuleAccess (/dogal-destek OR kuralı) ile kapılanır; bu bileşen yalnız
- * KULLANICININ GERÇEKTEN İZNİ OLAN alt kartı gösterir (alt-kart matrisi).
+ * KULLANICININ GERÇEKTEN İZNİ OLAN alt kartı gösterir.
  *
  * İzin kaynakları REUSE edilir (yeni auth mimarisi ÜRETİLMEZ):
  *   - Aromaterapi / Şifa Rehberi: readYasamUser() + syncYasamUserFromDb() (canlı
  *     module_permissions) + merkezî OR hasAnyModulePermissionFlag (flag-tabanlı).
  *   - Beslenme (tam modül): server-authoritative checkBeslenmeAccess() (admin VEYA beslenme=true).
- *   - Besinlerim (dar manuel): checkBeslenmeFoodAccess()==='expert' VE tam Beslenme YOK
- *     (beslenmeAccess===false). Tam Beslenme/admin/owner "Beslenme" kartını görür → duplicate yok.
  *
- * Beslenme probe'ları TRI-STATE fail-closed: çözülene kadar (null) Beslenme/Besinlerim gizli
- * (async flicker yok). `clients` TEK BAŞINA bu hub'ı veya alt kartları AÇMAZ (danışan-bound
- * Beslenme akışı Danışan Yolculuğu'ndadır; besin OKUMA orada korunur, custom food WRITE değil).
+ * FLICKER FIX: gerçek kartlar İKİ authorization kaynağı da kesinleşmeden (userResolved &&
+ * beslenmeResolved) render EDİLMEZ → kartlar TEK SEFERDE görünür (2→3 sıçraması yok). Çözülene
+ * kadar iskelet/spinner ya da loading metni GÖSTERİLMEZ; kart alanı SESSİZCE boş kalır, yalnız
+ * container min-height'ı korunarak dikey sıçrama önlenir. Kartlar hazır olunca çok kısa ve sade
+ * bir opacity geçişiyle görünür (dikkat çeken animasyon yok). Ayrı "Besinlerim"/manuel-besin alt
+ * kartı ÜRÜNDEN KALDIRILDI (CUSTOM besin yönetimi tam Beslenme modülünün içindedir: /beslenme →
+ * Besinler). `clients` bu hub'ı/alt kartı açmaz.
  */
 type SupportFolder = {
   title: string;
@@ -75,20 +77,7 @@ const BESLENME_FOLDER: SupportFolder = {
   button: "bg-emerald-800/90 text-white hover:bg-emerald-900",
 };
 
-// Dar manuel-besin alt kartı — aynı aile, "Manuel Besin" rozetiyle dar özellik olduğu belli.
-const BESINLERIM_FOLDER: SupportFolder = {
-  title: "Besinlerim",
-  desc: "Kendi özel besinlerinizi ekleyin ve besin değerlerini tamamlayın",
-  href: "/beslenme/besinlerim",
-  icon: "🍎",
-  badge: "Manuel Besin",
-  gradient: "from-lime-50 to-emerald-100",
-  border: "border-emerald-200/70",
-  accent: "text-emerald-900",
-  button: "bg-emerald-800/90 text-white hover:bg-emerald-900",
-};
-
-/** Kart sayısına göre dengeli responsive grid (mobil 1 · sm 2 · 3 kart lg 3 · 4 kart 2x2). */
+/** Kart sayısına göre dengeli responsive grid (mobil 1 · sm 2 · 3 kart lg 3). */
 function gridClass(count: number): string {
   if (count >= 4) return "max-w-4xl grid-cols-1 sm:grid-cols-2";
   if (count === 3) return "max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
@@ -97,49 +86,77 @@ function gridClass(count: number): string {
 
 export default function DogalDestekCards() {
   const [user, setUser] = useState<YasamUser | null>(null);
-  // Beslenme probe'ları TRI-STATE (null=çözülmedi → fail-closed gizli; flicker yok).
-  const [beslenmeAccess, setBeslenmeAccess] = useState<boolean | null>(null);
-  const [foodContributor, setFoodContributor] = useState<"owner" | "expert" | null>(null);
+  // İki authorization kaynağı ayrı ayrı "resolved" olarak izlenir → ikisi de bitmeden render yok.
+  const [userResolved, setUserResolved] = useState(false);
+  const [beslenmeAccess, setBeslenmeAccess] = useState(false);
+  const [beslenmeResolved, setBeslenmeResolved] = useState(false);
+  // Kartlar mount olduktan bir kare sonra opacity 0→1 (çok kısa, sade fade — dikkat çekmez).
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const cached = readYasamUser();
-    // Canlı module_permissions ile kesinleştir (login_user RPC izinleri döndürmez).
-    void syncYasamUserFromDb(cached).then((fresh) => {
-      if (cancelled) return;
-      setUser(fresh ?? cached ?? null);
-    });
+    // Canlı module_permissions ile kesinleştir (login_user RPC izinleri döndürmez). Hata da olsa
+    // finally ile resolve → sonsuz loading olmaz; yetki fail-closed kalır.
+    void syncYasamUserFromDb(cached)
+      .then((fresh) => {
+        if (!cancelled) setUser(fresh ?? cached ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(cached ?? null);
+      })
+      .finally(() => {
+        if (!cancelled) setUserResolved(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Server-authoritative Beslenme + manuel-besin probe'ları (mevcut yardımcılar REUSE). setState
-  // yalnız async callback'te; probe çözülene kadar null (fail-closed).
   useEffect(() => {
     let cancelled = false;
-    void checkBeslenmeAccess().then((ok) => {
-      if (!cancelled) setBeslenmeAccess(ok === true);
-    });
-    void checkBeslenmeFoodAccess().then((auth) => {
-      if (!cancelled) setFoodContributor(auth);
-    });
+    void checkBeslenmeAccess()
+      .then((ok) => {
+        if (!cancelled) setBeslenmeAccess(ok === true);
+      })
+      .catch(() => {
+        if (!cancelled) setBeslenmeAccess(false);
+      })
+      .finally(() => {
+        if (!cancelled) setBeslenmeResolved(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Fail-closed: user kesinleşene kadar flag-kartları gizli; probe çözülene kadar Beslenme gizli.
-  const visible: SupportFolder[] = [
-    ...flagFolders.filter((folder) => hasAnyModulePermissionFlag(user, [...folder.keys])),
-  ];
-  // Tam Beslenme erişimi → "Beslenme" kartı (admin veya beslenme=true).
-  if (beslenmeAccess === true) visible.push(BESLENME_FOLDER);
-  // Dar manuel yetenek VE tam Beslenme YOK → "Besinlerim" (duplicate önle; clients-only'de gizli).
-  if (foodContributor === "expert" && beslenmeAccess === false) visible.push(BESINLERIM_FOLDER);
+  const accessResolved = userResolved && beslenmeResolved;
+
+  useEffect(() => {
+    if (!accessResolved) return;
+    // Kartlar DOM'a girdikten sonra bir sonraki kare: opacity 0→1 geçişini tetikle.
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
+  }, [accessResolved]);
+
+  // Çözülene kadar SESSİZ boşluk — iskelet/spinner ya da loading metni YOK, gerçek kart YOK
+  // (2→3 flicker'ı önle). Yalnız min-height korunur → yetki gelince layout dikey sıçramaz.
+  if (!accessResolved) {
+    return <div className="min-h-[16rem] w-full" aria-busy="true" aria-hidden />;
+  }
+
+  // Tüm access sonuçları kesin → görünür kartları TEK SEFERDE oluştur.
+  const visible: SupportFolder[] = flagFolders.filter((folder) =>
+    hasAnyModulePermissionFlag(user, [...folder.keys]),
+  );
+  if (beslenmeAccess) visible.push(BESLENME_FOLDER);
 
   return (
-    <div className={`mx-auto grid w-full items-stretch gap-6 ${gridClass(visible.length)}`}>
+    <div
+      className={`mx-auto grid min-h-[16rem] w-full items-stretch gap-6 transition-opacity duration-300 ease-out ${
+        revealed ? "opacity-100" : "opacity-0"
+      } ${gridClass(visible.length)}`}
+    >
       {visible.map((folder) => (
         <Link
           key={folder.title}

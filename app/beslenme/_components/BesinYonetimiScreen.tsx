@@ -1,14 +1,12 @@
 "use client";
 /**
- * Beslenme — Besin Yönetimi ORTAK ekranı (master-detail). İki modda kullanılır:
- *   mode="owner"       → /beslenme/besinler (owner-only tam küratör: Kaynaklar + Geleneksel + Detaylı Ekle)
- *   mode="contributor" → /beslenme/besinlerim (dar bayraklı uzman: yalnız kendi CUSTOM besinleri;
- *                        SYSTEM salt-okunur; owner-only sekmeler/aksiyonlar GİZLİ)
+ * Beslenme — Besin Yönetimi ekranı (master-detail). TEK canonical tam-Beslenme ekranı:
+ * /beslenme/besinler (Kaynaklar + Geleneksel + Detaylı Ekle dahil). Ayrı "Besinlerim"/contributor
+ * modu KALDIRILDI — CUSTOM besin yönetimi tam Beslenme modülünün parçasıdır.
  *
- * ERİŞİM bu bileşene GELMEDEN route wrapper'ında doğrulanır (useBeslenmeModuleGuard /
- * useBeslenmeFoodContributorGuard). Bu bileşen guard ÇAĞIRMAZ; yalnız sunum + veri.
- * Sunucu tarafı zaten guard'lı (defense-in-depth): contributor modunda çağrılan uçların
- * tümü owner VEYA dar bayraklı uzman kabul eder; SYSTEM yazma resolveFoodForWrite ile kapalı.
+ * ERİŞİM bu bileşene GELMEDEN route wrapper'ında doğrulanır (useBeslenmeModuleGuard). Bu bileşen
+ * guard ÇAĞIRMAZ; yalnız sunum + veri. Sunucu tarafı zaten guard'lı (defense-in-depth): food
+ * mutation uçları requireBeslenmeModule + resolveFoodForWrite (SYSTEM salt-okunur) ile kapalı.
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -59,11 +57,7 @@ import {
 
 const NEW = "__new__";
 
-export type BesinYonetimiMode = "owner" | "contributor";
-
-export function BesinYonetimiScreen({ mode }: { mode: BesinYonetimiMode }) {
-  const isOwner = mode === "owner";
-
+export function BesinYonetimiScreen() {
   const [groups, setGroups] = useState<FoodGroupRef[]>([]);
   const [frameworks, setFrameworks] = useState<FrameworkRef[]>([]);
   const [q, setQ] = useState("");
@@ -73,8 +67,8 @@ export function BesinYonetimiScreen({ mode }: { mode: BesinYonetimiMode }) {
 
   // Sayfalama: q/group değişiminde debounce + reset; "daha fazla yükle" ile tüm katalog gezilir
   // (ilk-100 sınırı yok). Tenant izolasyonu SERVER-SIDE korunur: listFoods → /api/beslenme/foods
-  // → nutrition_food_search RPC yalnız (kendi tenant ∪ SYSTEM) döndürür; owner ve contributor aynı
-  // güvenli altyapıyı kullanır (mod izolasyonu değiştirmez — kapsam server guard'ından gelir).
+  // → nutrition_food_search RPC yalnız (kendi tenant ∪ SYSTEM) döndürür (tenant izolasyonu
+  // server guard'ından gelir).
   const {
     foods,
     total,
@@ -92,7 +86,7 @@ export function BesinYonetimiScreen({ mode }: { mode: BesinYonetimiMode }) {
     reload,
   } = useFoodPagination({ q, group });
 
-  // Referans (besin grupları/çerçeveler) tek sefer — reference ucu owner + contributor okur.
+  // Referans (besin grupları/çerçeveler) tek sefer — /reference tam Beslenme (requireBeslenmeModule).
   useEffect(() => {
     void (async () => {
       const r = await fetchReference();
@@ -107,24 +101,18 @@ export function BesinYonetimiScreen({ mode }: { mode: BesinYonetimiMode }) {
 
   return (
     <BeslenmeShell
-      title={isOwner ? "Besinler" : "Besinlerim"}
-      subtitle={
-        isOwner
-          ? "Besin kütüphanesi. Her besin bir gruba, hazırlık durumuna ve isteğe bağlı kaynaklara sahip olabilir."
-          : "Ortak katalogda olmayan besinleri kendi çalışma alanınıza ekleyin ve değerlerini tamamlayın. Ortak besinler salt-okunurdur."
-      }
-      backHref={isOwner ? "/beslenme" : "/"}
-      backLabel={isOwner ? "Beslenme Merkezi" : "Ana Sayfa"}
+      title="Besinler"
+      subtitle="Besin kütüphanesi. Her besin bir gruba, hazırlık durumuna ve isteğe bağlı kaynaklara sahip olabilir."
+      backHref="/beslenme"
+      backLabel="Beslenme Merkezi"
       actions={
         <div className="flex items-center gap-2">
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
             Besin Ekle
           </GhostButton>
-          {isOwner ? (
-            <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setSelectedId(NEW)}>
-              Detaylı Ekle
-            </PrimaryButton>
-          ) : null}
+          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setSelectedId(NEW)}>
+            Detaylı Ekle
+          </PrimaryButton>
         </div>
       }
     >
@@ -157,17 +145,12 @@ export function BesinYonetimiScreen({ mode }: { mode: BesinYonetimiMode }) {
               <EmptyState
                 icon={<Package className="h-8 w-8" />}
                 title="Bir besin seçin"
-                description={
-                  isOwner
-                    ? "Düzenlemek için soldaki listeden bir besin seçin veya yeni bir besin ekleyin."
-                    : "Kendi besninizi düzenlemek için listeden seçin veya “Besin Ekle” ile yeni bir besin ekleyin."
-                }
+                description="Düzenlemek için soldaki listeden bir besin seçin veya yeni bir besin ekleyin."
               />
             </Card>
           ) : (
             <FoodDetail
               key={selectedId}
-              mode={mode}
               foodId={selectedId === NEW ? null : selectedId}
               groups={groups}
               frameworks={frameworks}
@@ -370,7 +353,6 @@ function ListFooter({
 
 /* ── Detay / düzenleme ── */
 function FoodDetail({
-  mode,
   foodId,
   groups,
   frameworks,
@@ -378,7 +360,6 @@ function FoodDetail({
   onSaved,
   onDeleted,
 }: {
-  mode: BesinYonetimiMode;
   foodId: string | null;
   groups: FoodGroupRef[];
   frameworks: FrameworkRef[];
@@ -386,9 +367,9 @@ function FoodDetail({
   onSaved: (food: Food) => void;
   onDeleted: () => void;
 }) {
-  // Owner-only sekmeler (Kaynaklar + Geleneksel) yalnız owner modunda gösterilir; ilgili
-  // API uçları da owner-only'dir → uzmana yanlışlıkla owner-küratör yüzeyi açılmaz.
-  const allowOwnerTabs = mode === "owner";
+  // Tam Beslenme ekranı: Kaynaklar + Geleneksel sekmeleri her zaman mevcut (ayrı contributor
+  // modu yok). İlgili API uçları requireBeslenmeModule ile korunur.
+  const allowFullTabs = true;
   const isNew = foodId === null;
   const [loading, setLoading] = useState(!isNew);
   const [loadErr, setLoadErr] = useState("");
@@ -561,14 +542,14 @@ function FoodDetail({
               <TabBtn active={tab === "portions"} onClick={() => setTab("portions")} icon={<Scale className="h-4 w-4" />}>
                 Porsiyonlar
               </TabBtn>
-              {allowOwnerTabs ? (
+              {allowFullTabs ? (
                 <TabBtn active={tab === "traditional"} onClick={() => setTab("traditional")} icon={<Leaf className="h-4 w-4" />}>
                   Geleneksel
                 </TabBtn>
               ) : null}
             </>
           ) : null}
-          {allowOwnerTabs ? (
+          {allowFullTabs ? (
             <TabBtn
               active={tab === "sources"}
               onClick={() => setTab("sources")}
@@ -702,9 +683,9 @@ function FoodDetail({
           <NutrientsPanel foodId={foodId} isSystem={isSystem} nutrients={nutrients} onChanged={() => void reloadDetail()} />
         ) : tab === "portions" && foodId ? (
           <PortionsPanel foodId={foodId} isSystem={isSystem} portions={portions} nutrients={nutrients} onChanged={() => void reloadDetail()} />
-        ) : tab === "traditional" && foodId && allowOwnerTabs ? (
+        ) : tab === "traditional" && foodId && allowFullTabs ? (
           <TraditionalPanel foodId={foodId} isSystem={isSystem} traditional={traditional} frameworks={frameworks} onChanged={() => void reloadDetail()} />
-        ) : allowOwnerTabs ? (
+        ) : allowFullTabs ? (
           <SourcesPanel
             links={sources}
             disabledReason={isNew ? "Kaynak eklemek için önce besini kaydedin." : undefined}

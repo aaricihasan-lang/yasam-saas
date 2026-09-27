@@ -262,9 +262,17 @@ function formatCount(
 }
 
 
-/** Aylık trend + stok değeri için ham taş satırları (server API, kullanıcı tenant'ı). */
+/**
+ * Aylık trend için taş created_at değerleri (server API, kullanıcı tenant'ı).
+ * Yalnız son 6 ay penceresi ve yalnız created_at istenir — tüm taş satırları
+ * (uzun metin kolonlarıyla) panoya indirilmez.
+ */
 async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; error: string | null }> {
-  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>("/api/dogaltas/stones?mode=raw");
+  const now = new Date();
+  const since = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
+    `/api/dogaltas/stones?mode=raw&since=${encodeURIComponent(since)}`,
+  );
   return { data: r.data?.rows ?? [], error: r.ok ? null : (r.error ?? "Okuma hatası") };
 }
 

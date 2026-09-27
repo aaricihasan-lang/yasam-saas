@@ -101,13 +101,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
   // Beslenme — normal satılabilir/grantable modül (admin↔uzman özellik paritesi). Admin buradan
-  // module_permissions.beslenme=true/false yönetir → uzman TAM Beslenme modülüne erişir. Canonical
-  // anahtar; toggle render edilir + save/load zincirinde (parse/payload/merge) taşınır.
+  // module_permissions.beslenme=true/false yönetir → uzman TAM Beslenme modülüne erişir (CUSTOM besin
+  // yönetimi dahil). Canonical anahtar; toggle render + save/load zincirinde taşınır. Ayrı "Manuel
+  // Besin Yönetimi" (beslenme_manual_food) yeteneği KALDIRILDI — artık okunmayan inert legacy key.
   "beslenme",
-  // DAR/legacy yetenek bayrağı (tam modül kapısı DEĞİL): uzman kendi tenant'ına manuel besin
-  // ekleyip düzenleyebilir. Tam Beslenme modülünün yerine GEÇMEZ; beslenme=true'dan bağımsız,
-  // ayrı yetenek olarak korunur. Bayrak burada olduğu için toggle render edilir + write'ta korunur.
-  "beslenme_manual_food",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -133,7 +130,6 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   cosmic_calendar: "Kozmik Takvim / Yaşam Takvimi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
-  beslenme_manual_food: "Manuel Besin Yönetimi",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
@@ -143,9 +139,7 @@ export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, stri
   cosmic_calendar:
     "Kozmik Ajanda / Yaşam Takvimi ve takvime bağlı hacamat zamanlama kuralları & raporları.",
   cupping: "Kupa & Hacamat uygulama modülü (protokoller, takvim ve raporlar).",
-  beslenme: "Beslenme modülünün tamamına erişim verir.",
-  beslenme_manual_food:
-    "Yalnız dar manuel besin katkı yeteneği: uzman kendi özel besinlerini ekleyip düzenleyebilir. Tam Beslenme modülünü (beslenme) açmaz.",
+  beslenme: "Beslenme modülünün tamamına (planlar, danışan-bound akış, Besinler / CUSTOM besin yönetimi dahil) erişim verir.",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -167,16 +161,15 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   cosmic_calendar: false,
   cupping: false,
   beslenme: false,
-  beslenme_manual_food: false,
 };
 
 /**
  * Anahtar türü: "module" = gerçek erişim açan satılabilir modül · "hub" = yalnız alt
- * modüllerle etkili kart bayrağı (digital_content) · "capability" = dar yetenek bayrağı
- * (tam modül değildir). Onayda "en az bir modül" kuralı ve açık modül sayısı yalnız
- * "module" türünü sayar.
+ * modüllerle etkili kart bayrağı (digital_content). Onayda "en az bir modül" kuralı ve açık
+ * modül sayısı yalnız "module" türünü sayar. (Eski dar "capability" türü — beslenme_manual_food —
+ * main'de üründen kaldırıldı.)
  */
-export type AdminModuleKind = "module" | "hub" | "capability";
+export type AdminModuleKind = "module" | "hub";
 
 export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   clients: "module",
@@ -197,7 +190,6 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   cosmic_calendar: "module",
   cupping: "module",
   beslenme: "module",
-  beslenme_manual_food: "capability",
 };
 
 const ADMIN_MODULE_UI_KEY_SET: ReadonlySet<string> = new Set<string>(ADMIN_MODULE_UI_KEYS);

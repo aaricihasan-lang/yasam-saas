@@ -120,12 +120,13 @@ console.log("\n[MEM-004] Onay modül seçimi");
 ok(!validateApprovalModules([]).ok, "boş seçim → reddedilir");
 ok(!validateApprovalModules(undefined).ok, "seçim yok → reddedilir");
 ok(!validateApprovalModules(["digital_content"]).ok, "yalnız hub kartı → reddedilir (gerçek modül yok)");
-ok(!validateApprovalModules(["beslenme_manual_food"]).ok, "yalnız ek yetenek → reddedilir");
+// main ürün kararı: dar "beslenme_manual_food" yeteneği kaldırıldı; tam Beslenme = canonical "beslenme".
+ok(validateApprovalModules(["beslenme"]).ok, "Beslenme (canonical tam modül) tek başına geçerli onay seçimi");
 ok(!validateApprovalModules(["numerology", "foo"]).ok, "bilinmeyen anahtar → reddedilir");
 const va = validateApprovalModules(["human_design", "numerology", "numerology"]);
 ok(va.ok && va.selected.length === 2, "tekrarlar tekilleştirilir");
 ok(va.ok && ADMIN_MODULE_UI_KEYS.every((k) => va.fullMap[k] === (k === "human_design" || k === "numerology")), "fullMap: yalnız seçilenler true, diğer TÜM anahtarlar false");
-ok(enabledAccessModules({ ...DEFAULT_ADMIN_MODULE_PERMISSIONS, digital_content: true, beslenme_manual_food: true }).length === 0, "açık modül sayısı hub/yeteneği saymaz");
+ok(enabledAccessModules({ ...DEFAULT_ADMIN_MODULE_PERMISSIONS, digital_content: true, beslenme: true }).join(",") === "beslenme", "açık modül sayısı hub'ı saymaz, canonical beslenme'yi sayar");
 
 // ─── MEM-002/011: profil doğrulama ───────────────────────────────────────────
 console.log("\n[MEM-002/011] Profil doğrulama");
