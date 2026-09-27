@@ -43,6 +43,7 @@ import {
   buildTelHref,
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
+import DemoIntroModal from "@/components/demo/DemoIntroModal";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -1350,6 +1351,12 @@ export default function Home() {
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
 
         <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
+
+          {/* Demo / test hesabı açılış bilgilendirmesi — canonical is_demo_account,
+              yalnız DB profil sync'i doğrulandıktan sonra; admin'de asla. */}
+          <DemoIntroModal
+            enabled={user.is_demo_account === true && !isAdminUser(user) && profileSynced}
+          />
 
           {/* Demo Hesap Banneri */}
           {user.is_demo_account ? (

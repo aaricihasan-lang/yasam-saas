@@ -5,6 +5,8 @@ import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
+import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
+import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 import { Packer } from "docx";
 import { extractFirstImageRef, fetchStorageImageBuffer } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
@@ -13,7 +15,6 @@ import { buildStoneReportDoc, type StoneReportRow } from "./buildStoneReport";
 
 export const runtime = "nodejs";
 
-const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
 
 type StoneRow = StoneReportRow;
 
@@ -33,10 +34,10 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { db, tenantId } = auth;
 
-  // Kütüphane taşları da dahil et
-  const tenantIds = tenantId === ADMIN_LIBRARY_TENANT_ID
-    ? [tenantId]
-    : [tenantId, ADMIN_LIBRARY_TENANT_ID];
+  // Detay GET ile AYNI okuma görünürlüğü (tek kaynak). Rapor kapısı demo'yu zaten
+  // 403'ler → burada isDemo=false: normal uzman yalnız kendi tenant'ının taşını raporlar;
+  // kütüphane/başka tenant taşı id ile istenirse 404 (içerik sızmaz).
+  const tenantIds = stoneReadTenantIds(tenantId, false);
 
   const { data, error } = await db
     .from("stones")

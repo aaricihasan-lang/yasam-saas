@@ -144,7 +144,14 @@
       "item3": "Modülleri inceleyebilir",
       "item4": "Kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz",
       "warning": "Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.",
-      "cta": "🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi'nin uzmanlara sunduğu çalışma deneyimini keşfedin."
+      "cta": "🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi'nin uzmanlara sunduğu çalışma deneyimini keşfedin.",
+      "introModal": {
+        "title": "Demo / Test Hesabı Hakkında",
+        "p1": "Bu sayfa, Yaşam Sistemi’nin test ve inceleme ortamıdır. Burada gördüğünüz örnek içerikler yalnızca sistemi ve modüllerin çalışma şeklini inceleyebilmeniz amacıyla sunulmaktadır.",
+        "p2": "Uzman üyeliğiniz onaylandığında, size ait modül bilgi ve kaynak arşivleri boş olarak başlar. Her uzman kendi bilgi arşivini, kayıtlarını ve çalışma içeriklerini kendisi oluşturur.",
+        "p3": "Oluşturduğunuz bilgi arşivi yalnızca size özeldir. Diğer uzmanlar ve sistem yöneticisi (admin) dahil hiçbir kullanıcı arşivinizin içeriğini görüntüleyemez.",
+        "close": "Kapat"
+      }
     },
     "auth": {
       "sessionInvalid": "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",

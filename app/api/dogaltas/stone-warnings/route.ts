@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { serverErrorResponse } from "@/lib/http/apiError";
 
@@ -32,11 +32,8 @@ type StoneWarningResult = {
   warningTags: string[] | null;
 };
 
-/** stones route ile aynı: normal uzman → yalnız kendi tenant; demo → library de dahil. */
-function tenantIdsFor(tenantId: string, isDemo: boolean): string[] {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
-  return isDemo ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
-}
+/** Okuma görünürlüğü: ortak kural (lib/dogaltas/stoneTenantScope). */
+const tenantIdsFor = stoneReadTenantIds;
 
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "stones");
