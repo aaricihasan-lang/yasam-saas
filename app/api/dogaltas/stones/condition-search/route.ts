@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { STONES_LIST_EXTENDED_SELECT } from "@/lib/dogaltas/stonesListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
@@ -40,10 +41,8 @@ const CORPUS_CAP = 5000;
 // Tarayıcıya dönen eşleşen satır üst sınırı.
 const RESULT_CAP = 500;
 
-function tenantIdsFor(tenantId: string, isDemo: boolean): string[] {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
-  return isDemo ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
-}
+/** Okuma görünürlüğü: ortak kural (lib/dogaltas/stoneTenantScope). */
+const tenantIdsFor = stoneReadTenantIds;
 
 async function exclusionIds(db: SupabaseClient, tenantId: string): Promise<Set<string>> {
   if (tenantId === ADMIN_LIBRARY_TENANT_ID) return new Set();
