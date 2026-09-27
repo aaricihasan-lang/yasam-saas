@@ -76,16 +76,16 @@ BEGIN
   IF NOT FOUND THEN
     RETURN 'not_found';
   END IF;
+  -- 5 yanlış deneme → kalıcı kilit (doğru kod gelse bile).
+  IF v_row.attempts >= 5 THEN
+    RETURN 'locked';
+  END IF;
   IF v_row.used_at IS NOT NULL THEN
     RETURN 'used';
   END IF;
   IF v_row.expires_at <= now() THEN
     UPDATE public.nutrition_destructive_challenges SET used_at = now() WHERE id = p_id;
     RETURN 'expired';
-  END IF;
-  IF v_row.attempts >= 5 THEN
-    UPDATE public.nutrition_destructive_challenges SET used_at = now() WHERE id = p_id;
-    RETURN 'locked';
   END IF;
   IF v_row.scope_hash <> p_scope_hash THEN
     UPDATE public.nutrition_destructive_challenges SET used_at = now() WHERE id = p_id;

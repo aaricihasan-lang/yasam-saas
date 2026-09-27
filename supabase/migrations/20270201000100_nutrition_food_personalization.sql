@@ -37,6 +37,12 @@
 
 BEGIN;
 
+-- Mevcut nutrition_foods tablosunda kısa süreli kilitler alınır (ADD COLUMN / ADD CONSTRAINT /
+-- CREATE INDEX / CREATE TRIGGER). Uzun süren bir işlemin arkasında kuyrukta bekleyip diğer
+-- sorguları da bekletmemek için kilit bekleme süresi sınırlanır; aşılırsa migration TAMAMEN
+-- geri alınır (tek transaction) ve güvenle tekrar denenebilir.
+SET LOCAL lock_timeout = '10s';
+
 -- ─── 1) origin_food_id ──────────────────────────────────────
 ALTER TABLE public.nutrition_foods
   ADD COLUMN origin_food_id uuid NULL;
@@ -66,6 +72,9 @@ $$;
 CREATE TRIGGER trg_nutrition_foods_origin_guard
   BEFORE UPDATE ON public.nutrition_foods
   FOR EACH ROW EXECUTE FUNCTION public.nutrition_foods_origin_guard();
+
+-- Trigger fonksiyonu doğrudan çağrılamaz; yine de istemci rollerine EXECUTE bırakılmaz.
+REVOKE ALL ON FUNCTION public.nutrition_foods_origin_guard() FROM PUBLIC, anon, authenticated;
 
 -- ─── 2) tenant-hidden (çalışma alanından kaldırılan SYSTEM besinleri) ───────
 CREATE TABLE public.nutrition_food_tenant_hidden (
