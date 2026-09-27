@@ -21,6 +21,7 @@ import {
 import {
   buildPremiumCover,
   buildFooter,
+  buildWellnessNoteSection,
   twoColTable,
   h2,
   h3,
@@ -83,7 +84,13 @@ export type PlanDocxPlan = {
   revision_number: number | null;
 };
 
-export type PlanDocxTree = { plan: PlanDocxPlan; days: PlanDocxDay[]; recipientName?: string | null };
+export type PlanDocxTree = {
+  plan: PlanDocxPlan;
+  days: PlanDocxDay[];
+  recipientName?: string | null;
+  /** FA-16: belgeyi hazırlayan uzmanın görünen adı ("Hazırlayan: …"); yoksa satır basılmaz. */
+  expertName?: string | null;
+};
 
 export type PlanDocxError = { code: string; status: number };
 export type PlanDocxOk = { ok: true; buffer: Buffer; filename: string };
@@ -368,8 +375,9 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi") },
-      children: [...cover, ...purpose, ...body, ...summary],
+      // FA-16: sayfa altı kısa not + rapor sonu sade "Bilgilendirme" (+ Hazırlayan).
+      footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi", { note: "beslenme" }) },
+      children: [...cover, ...purpose, ...body, ...summary, ...buildWellnessNoteSection("beslenme", tree.expertName)],
     }],
   });
 

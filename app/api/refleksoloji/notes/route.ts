@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
-import { validateIncomingNotes, NOTE_LIMITS } from "@/lib/refleksoloji/notesValidation";
+import { NOTE_LIMITS } from "@/lib/refleksoloji/notesValidation";
+import { prepareNoteSyncBatch } from "@/lib/refleksoloji/notesSyncBatch";
 import {
   reconcileNoteSync,
   type NotesStore,
   type ServerNoteSnapshot,
-  type IncomingSyncNote,
-  type IncomingDeletion,
-  type NoteFields,
 } from "@/lib/refleksoloji/notesConcurrency";
 
 export const runtime = "nodejs";
@@ -37,21 +35,8 @@ export const runtime = "nodejs";
  *   olarak kullanır. Stale güncelleme 409 döndürür, server sürümü KORUNUR ve
  *   sonuç listesinde `conflict` işaretlenir (istemci lokal metni kaybetmez).
  *   Toplu PUT'ta kısmi başarı GİZLENMEZ: her not deterministik sonuç alır
- *   (created / updated / conflict / deleted / delete-conflict / delete-noop).
+ *   (created / updated / unchanged / rejected / conflict / deleted / delete-conflict / delete-noop).
  */
-
-type IncomingNote = {
-  id: string;
-  title?: string;
-  date?: string;
-  content?: string;
-  attachments?: unknown;
-  createdAt?: string;
-  updatedAt?: string;
-  /** İstemcinin en son gözlemlediği server updated_at (yeni not → yok). */
-  baseUpdatedAt?: unknown;
-  [k: string]: unknown;
-};
 
 // ─── GET — tenant'ın tüm notları (SavedClinicalNote[] + baseUpdatedAt) ─────────
 export async function GET(req: NextRequest): Promise<Response> {
@@ -87,25 +72,19 @@ export async function GET(req: NextRequest): Promise<Response> {
   return NextResponse.json({ ok: true, notes });
 }
 
-/** Bir not için DB kolon alanlarını (tenant/source_uid/updated_at HARİÇ) çıkarır. */
-function noteToFields(n: IncomingNote): NoteFields {
-  return {
-    title: typeof n.title === "string" ? n.title : null,
-    note_date: typeof n.date === "string" ? n.date : null,
-    content: typeof n.content === "string" ? n.content : null,
-    attachments: Array.isArray(n.attachments) ? n.attachments : [],
-    raw_json: n as Record<string, unknown>,
-  };
-}
-
 // ─── PUT — per-note CAS senkron (upsert + explicit delete + conflict raporu) ───
+//
+// FA-03: not-başına doğrulama. Bozuk not `{outcome:"rejected", reason}` alır;
+// geçerli notlar işlenir (eskiden tek bozuk ek TÜM toplu senkronu 422 ile
+// düşürüyordu). Base'i ve içeriği sunucuyla aynı not YENİDEN YAZILMAZ
+// (`unchanged`) — istemci zaten yalnız kirli notları gönderir.
 export async function PUT(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, results: [], conflicts: 0 });
+    return NextResponse.json({ ok: true, demo: true, results: [], conflicts: 0, rejected: 0 });
   }
 
   // Kaba payload üst sınırı (REF-009): aşırı büyük gövdeyi erken 413 ile reddet.
@@ -117,62 +96,44 @@ export async function PUT(req: NextRequest): Promise<Response> {
     );
   }
 
-  let body: { notes?: IncomingNote[]; deleted_uids?: unknown };
+  let body: { notes?: unknown; deleted_uids?: unknown };
   try {
-    body = (await req.json()) as { notes?: IncomingNote[]; deleted_uids?: unknown };
+    body = (await req.json()) as { notes?: unknown; deleted_uids?: unknown };
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const incoming = Array.isArray(body.notes) ? body.notes : [];
-
-  // Sunucu tarafı runtime doğrulama (REF-009 / REF-017): boyut/adet/MIME/data-URL.
-  const validationError = validateIncomingNotes(incoming);
-  if (validationError) {
+  // Sunucu tarafı runtime doğrulama (REF-009 / REF-017) — NOT-BAŞINA (FA-03).
+  const prepared = prepareNoteSyncBatch(body);
+  if (!prepared.ok) {
     return NextResponse.json(
-      { ok: false, error: validationError.message },
-      { status: validationError.status },
+      { ok: false, error: prepared.error.message },
+      { status: prepared.error.status },
     );
   }
-
-  const validNotes: IncomingSyncNote[] = incoming
-    .filter((n) => n && typeof n === "object" && typeof n.id === "string" && n.id.length > 0)
-    .map((n) => ({
-      uid: n.id,
-      baseUpdatedAt:
-        typeof n.baseUpdatedAt === "string" && n.baseUpdatedAt.length > 0
-          ? n.baseUpdatedAt
-          : null,
-      fields: noteToFields(n),
-    }));
-
-  // Açık silme listesi (REF-004): string (legacy) veya {uid, expected_updated_at}.
-  // Stale-delete koruması (REF-003): expected verilirse CAS delete uygulanır.
-  const deletions: IncomingDeletion[] = Array.isArray(body.deleted_uids)
-    ? body.deleted_uids
-        .map((v): IncomingDeletion | null => {
-          if (typeof v === "string" && v.length > 0) {
-            return { uid: v, expectedUpdatedAt: null };
-          }
-          if (v && typeof v === "object") {
-            const o = v as Record<string, unknown>;
-            const uid = typeof o.uid === "string" ? o.uid : "";
-            if (!uid) return null;
-            const exp =
-              typeof o.expected_updated_at === "string" && o.expected_updated_at.length > 0
-                ? o.expected_updated_at
-                : null;
-            return { uid, expectedUpdatedAt: exp };
-          }
-          return null;
-        })
-        .filter((d): d is IncomingDeletion => d != null)
-    : [];
+  const { valid: validNotes, rejected, deletions } = prepared;
 
   const nowIso = new Date().toISOString();
 
   // Supabase destekli NotesStore adaptörü (tenant kapanışı; service_role bypass).
   const store: NotesStore = {
+    async getManyByUid(uids) {
+      const out = new Map<string, ServerNoteSnapshot>();
+      // .in() parça parça (URL uzunluğu sınırı).
+      for (let i = 0; i < uids.length; i += 100) {
+        const chunk = uids.slice(i, i + 100);
+        const { data, error } = await db
+          .from("reflexology_notes")
+          .select("source_uid, raw_json, updated_at")
+          .eq("tenant_id", tenantId)
+          .in("source_uid", chunk);
+        if (error) throw error;
+        for (const r of (data ?? []) as Array<ServerNoteSnapshot & { source_uid: string }>) {
+          out.set(r.source_uid, { updated_at: r.updated_at, raw_json: r.raw_json });
+        }
+      }
+      return out;
+    },
     async casUpdate(uid, expectedUpdatedAt, fields, newUpdatedAt) {
       const { data, error } = await db
         .from("reflexology_notes")
@@ -232,14 +193,15 @@ export async function PUT(req: NextRequest): Promise<Response> {
   };
 
   try {
-    const { results, conflicts } = await reconcileNoteSync(
+    const { results, conflicts, rejected: rejectedCount } = await reconcileNoteSync(
       store,
       validNotes,
       deletions,
       nowIso,
+      rejected,
     );
     return NextResponse.json(
-      { ok: conflicts === 0, results, conflicts },
+      { ok: conflicts === 0 && rejectedCount === 0, results, conflicts, rejected: rejectedCount },
       { status: conflicts > 0 ? 409 : 200 },
     );
   } catch (err) {

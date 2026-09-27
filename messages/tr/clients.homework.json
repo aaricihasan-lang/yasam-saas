@@ -109,7 +109,8 @@
         "dismissed": "Uyarı kapatıldı.",
         "dismissFailed": "Uyarı kapatılamadı",
         "deleted": "Ödev silindi.",
-        "deleteFailed": "Ödev silinemedi"
+        "deleteFailed": "Ödev silinemedi",
+        "endBeforeStart": "Bitiş tarihi başlangıç tarihinden önce olamaz."
       },
       "error": {
         "loadFailed": "Ödev kayıtları yüklenemedi"

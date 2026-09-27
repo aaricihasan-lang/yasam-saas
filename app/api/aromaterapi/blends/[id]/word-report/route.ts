@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { isUuid, docxResponse } from "@/lib/aromaterapi/report/request";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   try {
-    const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: null, date: new Date() });
+    const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: expertDisplayName(guard.profile), date: new Date() });
     if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
     return docxResponse(res.buffer, res.filename);
   } catch {

@@ -8,6 +8,7 @@ import { h1Colored, twoColTable, bodyText, muted, spacer, orderedSteps, repeatin
 import { h2, h3 } from "../headings";
 import { AROMA_COLORS } from "../theme";
 import { statusLabel } from "./catalog";
+import { looseDayKey } from "@/lib/time/reportTime";
 import type { MethodSeriesDetail, MethodRevisionDetail } from "@/lib/aromaterapi/readTypes";
 
 const s = (v: unknown): string => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
@@ -62,7 +63,8 @@ export function renderMethodSeries(m: MethodSeriesExport, nameLevel: "h2" | "h3"
   if (revs.length) {
     out.push(h3("Revizyon Geçmişi"));
     out.push(...repeatingHeaderTable(["Revizyon", "Durum", "Güncellenme"], [30, 40, 30],
-      revs.map((r) => [`Rev. ${r.revision}`, statusLabel(r.status), s(r.updated_at).slice(0, 10)])));
+      // FA-02: updated_at timestamptz → Europe/Istanbul günü (UTC dilimi "dün" üretmez).
+      revs.map((r) => [`Rev. ${r.revision}`, statusLabel(r.status), looseDayKey(s(r.updated_at)) || s(r.updated_at).slice(0, 10)])));
   }
   out.push(spacer());
   return out;

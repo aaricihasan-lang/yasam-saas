@@ -11,11 +11,13 @@ import { assignPlanClient } from "@/lib/beslenme/clientTabClient";
 import { cleanDate, daysBetween } from "@/lib/beslenme/planContracts";
 import { Field, PrimaryButton, GhostButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { Modal } from "./planUi";
+import { todayInZone } from "@/lib/time/reportTime";
 import { friendlyPlanError } from "./planFormat";
 import ClientPicker, { type PickerClient } from "@/components/danisan/ClientPicker";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Yerel (Europe/Istanbul) takvim günü — UTC dilimi 00:00–03:00 arasında "dün" verirdi.
+  return todayInZone();
 }
 
 export function NewPlanDialog({

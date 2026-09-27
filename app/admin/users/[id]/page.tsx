@@ -866,8 +866,8 @@ export default function AdminUserDetailPage() {
       showToast({ title: "İşlem başarısız", message: "Yeni şifre giriniz.", type: "error" });
       return;
     }
-    if (pw.length < 6) {
-      showToast({ title: "İşlem başarısız", message: "Yeni şifre en az 6 karakter olmalı.", type: "error" });
+    if (pw.length < 10) {
+      showToast({ title: "İşlem başarısız", message: "Yeni şifre en az 10 karakter olmalı.", type: "error" });
       return;
     }
     if (pw !== pw2) {
@@ -1833,7 +1833,7 @@ export default function AdminUserDetailPage() {
                         className={`${inputClass} mt-0 w-full pr-11`}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Yeni şifre (en az 6 karakter)"
+                        placeholder="Yeni şifre (en az 10 karakter)"
                       />
                       <button
                         type="button"
@@ -1862,7 +1862,7 @@ export default function AdminUserDetailPage() {
                       onClick={savePassword}
                       disabled={
                         savingPassword ||
-                        newPassword.trim().length < 6 ||
+                        newPassword.trim().length < 10 ||
                         newPassword.trim() !== newPasswordRepeat.trim()
                       }
                       className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}

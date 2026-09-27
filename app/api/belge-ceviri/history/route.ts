@@ -1,62 +1,43 @@
-import { NextResponse } from "next/server";
-import { assertUserModuleAccess } from "@/lib/auth/moduleAccess";
-import { createClient } from "@supabase/supabase-js";
+import { NextResponse, type NextRequest } from "next/server";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
 const STORAGE_BUCKET = "belge-ceviri";
 
-function getDb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase service role yapılandırması eksik.");
-  return createClient(url, key);
-}
+/**
+ * GET /api/belge-ceviri/history
+ *
+ * FAZ1 FINAL HARDENING (AUTH): kimlik YALNIZ header'dan (x-user-id + x-session-token →
+ * verifyUserRequest). Query'deki userId/tenantId YOK SAYILIR (spoof edilemez). Üyelik
+ * kapısı BİLİNÇLİ OLARAK YOK: üyeliği biten uzman kendi eski çıktısını indirebilir
+ * (owner kararı "kendi verisini dışa aktarabilir"); veri yalnız guard.tenantId +
+ * guard.userId sahipliğiyle filtrelenir. Ham DB hata mesajı istemciye sızmaz.
+ */
+export async function GET(request: NextRequest) {
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
 
-export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get("tenantId")?.trim() ?? "";
-    const userId   = searchParams.get("userId")?.trim()   ?? "";
-
-    if (!userId || !tenantId) {
-      return NextResponse.json({ error: "Oturum bilgisi eksik." }, { status: 401 });
-    }
-
-    const db = getDb();
-
-    const { data: userRow, error: userErr } = await db
-      .from("users")
-      .select("id, is_demo_account")
-      .eq("id", userId)
-      .eq("tenant_id", tenantId)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (userErr || !userRow) {
-      return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 403 });
-    }
-
-    const __moduleGate = await assertUserModuleAccess(db, userId, "belge_ceviri");
-    if (!__moduleGate.ok) return __moduleGate.response;
-
     // Demo hesap: geçmiş listesi boş döner (gerçek job verisi gösterilmez).
-    if (userRow.is_demo_account === true) {
+    if (guard.is_demo_account) {
       return NextResponse.json({ jobs: [] });
     }
 
+    const db = guard.db;
     const { data: jobs, error } = await db
       .from("belge_ceviri_jobs")
       .select(
         "id, file_name, status, job_type, total_pages, done_chunks, total_chunks, result_path, error_message, created_at",
       )
-      .eq("tenant_id", tenantId)
-      .eq("user_id", userId)
+      .eq("tenant_id", guard.tenantId)
+      .eq("user_id", guard.userId)
       .order("created_at", { ascending: false })
       .limit(20);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[belge-ceviri/history] liste okunamadı");
+      return NextResponse.json({ error: "Geçmiş yüklenemedi." }, { status: 500 });
     }
 
     const jobsWithUrls = await Promise.all(
@@ -68,13 +49,15 @@ export async function GET(request: Request) {
             .createSignedUrl(job.result_path as string, 3600);
           downloadUrl = signed?.signedUrl ?? null;
         }
-        return { ...job, downloadUrl };
+        // result_path (storage iç yolu) istemciye dönmez; yalnız imzalı URL.
+        const { result_path: _omit, ...rest } = job as Record<string, unknown>;
+        void _omit;
+        return { ...rest, downloadUrl };
       }),
     );
 
     return NextResponse.json({ jobs: jobsWithUrls });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Geçmiş yüklenemedi." }, { status: 500 });
   }
 }

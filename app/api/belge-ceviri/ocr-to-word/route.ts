@@ -9,7 +9,7 @@ export const maxDuration = 30;
 export async function POST(request: NextRequest) {
   const androidBlocked = androidWordGuard(request);
   if (androidBlocked) return androidBlocked;
-  const auth = await requireDigitalContentUser(request, "belge_ceviri");
+  const auth = await requireDigitalContentUser(request, "belge_ceviri_ai");
   if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();

@@ -17,6 +17,7 @@ import {
 import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
 import { applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
+import { todayInZone } from "@/lib/time/reportTime";
 const STONE_PHOTO_BUCKET = "stone-photos";
 // DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
 // açık kalsa bile URL süresi dolmadan yenilenir).
@@ -76,8 +77,9 @@ const emptyForm: StoneFormState = {
   stoneDate: "",
 };
 
+// Form varsayılanı: İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInZone();
 }
 
 function isFormEmpty(form: StoneFormState, selectedFilesCount = 0) {

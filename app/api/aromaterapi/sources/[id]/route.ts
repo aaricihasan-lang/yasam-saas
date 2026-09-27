@@ -9,7 +9,12 @@ import {
   resolveActorLabel,
   isValidExpectedUpdatedAt,
 } from "@/lib/aromaterapi/service/writeValidation";
-import { updateSource, emitSourceWrite } from "@/lib/aromaterapi/service/sourceMutations";
+import {
+  updateSource,
+  emitSourceWrite,
+  deleteSource,
+  emitSourceDelete,
+} from "@/lib/aromaterapi/service/sourceMutations";
 import {
   catalogBad,
   catalogDemoForbidden,
@@ -67,9 +72,10 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
 /**
  * PATCH /api/aromaterapi/sources/[id] — Kaynak künye güncelleme (RPC + audit).
  *
- * Full-replacement + status matrisi (draft→verified/archived, verified→archived). Kaynak
- * "silme" = status='archived' ile bu uçtan yapılır (hard delete YOK). reason ZORUNLU;
- * expected_updated_at ile iyimser eşzamanlılık. actor/tenant YALNIZ guard'dan.
+ * Full-replacement + status matrisi (draft→verified/archived, verified→archived). Kullanılan
+ * kaynak için "kaldırma" = status='archived' (bu uç). Referanssız kaynağın kalıcı silinmesi
+ * DELETE ucundadır. reason ZORUNLU; expected_updated_at ile iyimser eşzamanlılık.
+ * actor/tenant YALNIZ guard'dan.
  */
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
@@ -144,4 +150,50 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
     },
   );
   return emitSourceWrite(result, 200);
+}
+
+const SOURCE_DELETE_ALLOWED = new Set<string>(["expected_updated_at", "reason"]);
+
+/**
+ * DELETE /api/aromaterapi/sources/[id] — Uzmanın KENDİ, KULLANILMAYAN kaynağını kalıcı siler
+ * (migration 0800 RPC: tenant-kapsamlı FOR UPDATE + referans sayımı + audit 'delete' + tombstone).
+ *
+ * Sözleşme:
+ *   - Gövde: { expected_updated_at, reason } (ikisi de ZORUNLU; başka alan → 400).
+ *   - Demo hesap → 403. Başka tenant / eksik → 404 (varlık sızmaz).
+ *   - Kullanılan kaynak (pasaj / bilgi kaydı atfı / üretim yöntemi) → 409
+ *     AROMA_SOURCE_REFERENCED + `references` sayıları (FK RESTRICT korunur; arşivleme önerilir).
+ *   - Eski sürüm → 409 AROMA_STALE. Ham DB hatası istemciye sızmaz.
+ */
+export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const guard = await requireModuleAccess(req, "aromatherapy", { includeProfile: true });
+  if (!guard.ok) return guard.response;
+  if (guard.is_demo_account) return catalogDemoForbidden();
+
+  const { id } = await ctx.params;
+  if (!isUuid(id)) return readFail("AROMA_INVALID_UUID");
+
+  const bodyRes = await readJsonBounded(req, SOURCE_BODY_LIMIT);
+  if (!bodyRes.ok) {
+    return bodyRes.reason === "too_large" ? catalogPayloadTooLarge() : catalogBad("AROMA_WRITE_INVALID_BODY");
+  }
+  if (!isPlainObject(bodyRes.value)) return catalogBad("AROMA_WRITE_INVALID_BODY");
+  const obj = bodyRes.value;
+  if (!keysAllowed(obj, SOURCE_DELETE_ALLOWED)) return catalogBad("AROMA_WRITE_FORBIDDEN_FIELD");
+
+  const expectedRaw = obj.expected_updated_at;
+  if (typeof expectedRaw !== "string" || !isValidExpectedUpdatedAt(expectedRaw)) {
+    return catalogBad("AROMA_WRITE_INVALID_TIMESTAMP");
+  }
+  const reason = validateMandatoryReason(obj.reason);
+  if (!reason.ok) return catalogBad("AROMA_WRITE_REASON_INVALID");
+
+  const label = resolveActorLabel(guard.profile, guard.email);
+  const result = await deleteSource(
+    guard.db,
+    { userId: guard.userId, label, tenantId: guard.tenantId },
+    id,
+    { expectedUpdatedAt: expectedRaw, reason: (reason.value as string).trim() },
+  );
+  return emitSourceDelete(result);
 }

@@ -111,12 +111,6 @@ export function ProtocolListCard({
             {formatProtocolDate(protocol.created_at)}
           </dd>
         </div>
-        {protocol.source_uid?.trim() && !isDemo ? (
-          <div className="flex min-w-0 justify-between gap-2">
-            <dt className="shrink-0">Kaynak UID</dt>
-            <dd className="min-w-0 truncate font-mono text-[10px] font-semibold text-slate-600">{protocol.source_uid}</dd>
-          </div>
-        ) : null}
       </dl>
 
       <div className="mt-3 flex flex-wrap gap-1.5">

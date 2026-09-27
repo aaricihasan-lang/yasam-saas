@@ -19,7 +19,16 @@
         "weightRequired": "Weight is required.",
         "foodNameRequired": "Food name is required.",
         "prefAdded": "Added.",
-        "prefAddFailed": "Could not add"
+        "prefAddFailed": "Could not add",
+        "measurementDeleteFailed": "Could not delete measurement",
+        "prefDeleted": "Deleted.",
+        "prefDeleteFailed": "Could not delete"
+      },
+      "confirm": {
+        "measurementTitle": "Delete measurement",
+        "measurementMessage": "This measurement will be permanently deleted.",
+        "prefTitle": "Delete food preference",
+        "prefMessage": "This food preference will be permanently deleted."
       },
       "profile": {
         "title": "Nutrition Profile",
@@ -56,9 +65,7 @@
         "phWaist": "Waist",
         "phHip": "Hip",
         "phNote": "Note",
-        "add": "Add",
-        "deleteConfirmTitle": "Delete measurement",
-        "deleteConfirmMessage": "The measurement dated {date} will be permanently deleted. This cannot be undone."
+        "add": "Add"
       },
       "allergens": {
         "title": "Declared Allergens",
@@ -70,7 +77,8 @@
         "add": "Add",
         "cancel": "Cancel",
         "remove": "Remove",
-        "customTooLong": "Allergen name can be at most 120 characters."
+        "customTooLong": "Allergen name can be at most 120 characters.",
+        "saving": "Saving…"
       },
       "preferences": {
         "title": "Preferred / Avoided Foods",
@@ -82,9 +90,7 @@
         "optAvoided": "Avoided",
         "phFood": "Food name*",
         "phNote": "Note",
-        "add": "Add",
-        "deleteConfirmTitle": "Delete food preference",
-        "deleteConfirmMessage": "\"{food}\" will be permanently removed from the list. This cannot be undone."
+        "add": "Add"
       },
       "plans": {
         "title": "Nutrition Plans",
@@ -129,9 +135,7 @@
         "A": "A",
         "B": "B",
         "AB": "AB"
-      },
-      "deleteConfirmYes": "Delete",
-      "deleteConfirmCancel": "Cancel"
+      }
     },
     "plan": {
       "context": {

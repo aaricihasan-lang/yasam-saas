@@ -12,6 +12,8 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 /**
  * Güvenli delete API'sine BENZERSİZ KAYIT KİMLİĞİ (id) listesi gönderir
@@ -532,14 +534,8 @@ export default function KombinasyonlarPage() {
         setErrorMessage(t("wordError"));
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
-      a.download = `kombinasyon-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `kombinasyon-${modeSlug}-${reportFileDate()}.docx`);
       // FAZ-4B: indirme tetiklendi. "İndirildi" demiyoruz — tarayıcının gerçek konumunu/
       // tamamlanmayı uygulama doğrulayamaz; dürüst mesaj.
       showToast({

@@ -3,6 +3,8 @@
  * SAF (server/client-agnostic; supabase/secret YOK).
  */
 
+import { formatInstantDate, zonedDayKey } from "@/lib/time/reportTime";
+
 /** Aromaterapi modül kimliği — kapak/başlık. */
 export const AROMA_MODULE_TITLE = "AROMATERAPİ";
 export const AROMA_SYSTEM_TITLE = "YAŞAM SİSTEMİ";
@@ -98,16 +100,18 @@ export function slugifyTr(input: string, max = 60): string {
   return s || "kayit";
 }
 
-/** YYYY-MM-DD (rapor tarihi; çağıran Date verir — saf fonksiyon). */
+/**
+ * YYYY-MM-DD (rapor tarihi; çağıran Date verir — saf fonksiyon).
+ * FA-02: sunucu (Vercel) UTC'de çalışır; yerel getter'lar 00:00–03:00 arası "dün" üretiyordu →
+ * gün artık Europe/Istanbul'a göre (lib/time/reportTime.zonedDayKey).
+ */
 export function dateStamp(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return zonedDayKey(d);
 }
 
-/** İnsan-okur tarih (kapak). */
+/** İnsan-okur tarih (kapak): "27 Eylül 2026" — Europe/Istanbul günü (FA-02). */
 export function humanDate(d: Date): string {
-  const aylar = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-  return `${d.getDate()} ${aylar[d.getMonth()]} ${d.getFullYear()}`;
+  return formatInstantDate(d, { style: "long" });
 }
 
 /** Aromaterapi_<parça>_<tarih>.docx — profesyonel, filesystem-safe. */

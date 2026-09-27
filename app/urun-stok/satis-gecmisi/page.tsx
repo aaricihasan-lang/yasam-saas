@@ -154,23 +154,23 @@ export default function SatisRaporlariPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yukleniyor&hellip;
+          Yükleniyor&hellip;
         </div>
       </main>
     );
   }
 
   const summaryCards = [
-    { label: "Bugunku satis", value: fmtMoney(summary.todaySales) },
-    { label: "Haftalik satis", value: fmtMoney(summary.weekSales) },
-    { label: "Aylik satis", value: fmtMoney(summary.monthSales) },
-    { label: "Yillik satis", value: fmtMoney(summary.yearSales) },
+    { label: "Bugünkü satış", value: fmtMoney(summary.todaySales) },
+    { label: "Haftalık satış", value: fmtMoney(summary.weekSales) },
+    { label: "Aylık satış", value: fmtMoney(summary.monthSales) },
+    { label: "Yıllık satış", value: fmtMoney(summary.yearSales) },
     { label: "Toplam ciro", value: fmtMoney(summary.totalRevenue) },
     { label: "Toplam maliyet", value: fmtMoney(summary.totalCost) },
     { label: "Toplam kar", value: fmtMoney(summary.totalProfit) },
     { label: "Toplam zarar", value: fmtMoney(summary.totalLoss) },
-    { label: "Satilan urun adedi", value: summary.unitsSold.toFixed(1) },
-    { label: "Ortalama kar orani", value: `%${summary.avgProfitPct.toFixed(1)}` },
+    { label: "Satılan ürün adedi", value: summary.unitsSold.toFixed(1) },
+    { label: "Ortalama kar oranı", value: `%${summary.avgProfitPct.toFixed(1)}` },
   ];
 
   return (
@@ -186,10 +186,10 @@ export default function SatisRaporlariPage() {
         <header className={`${panelClass} mb-3`}>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-700">Rapor &amp; analiz</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">
-            Satis Raporlari &amp; Karar Destek
+            Satış Raporları &amp; Karar Destek
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Salt okunur rapor ekrani. Tum modul satis gecmisleri tekillestirilererek gosterilir.
+            Salt okunur rapor ekranı. Tüm modül satış geçmişleri tekilleştirilerek gösterilir.
           </p>
         </header>
 
@@ -203,11 +203,11 @@ export default function SatisRaporlariPage() {
           <h2 className="text-sm font-black text-slate-800">Filtreler</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Urun ara</span>
+              <span className="mb-1 block text-xs font-black">Ürün ara</span>
               <input
                 className={inputClass}
                 type="search"
-                placeholder="Orn. Ametist, Lavanta Yagi..."
+                placeholder="Örn. Ametist, Lavanta Yağı..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -219,7 +219,7 @@ export default function SatisRaporlariPage() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ProductCategory | "all")}
               >
-                <option value="all">Tumu</option>
+                <option value="all">Tümü</option>
                 {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                   <option key={c} value={c}>
                     {CATEGORY_LABELS[c]}
@@ -231,12 +231,12 @@ export default function SatisRaporlariPage() {
           <div className="flex flex-wrap gap-1.5">
             {(
               [
-                ["today", "Bugun"],
+                ["today", "Bugün"],
                 ["week", "Bu hafta"],
                 ["month", "Bu ay"],
-                ["year", "Bu yil"],
-                ["all", "Tum zamanlar"],
-                ["custom", "Ozel tarih"],
+                ["year", "Bu yıl"],
+                ["all", "Tüm zamanlar"],
+                ["custom", "Özel tarih"],
               ] as const
             ).map(([id, label]) => (
               <button key={id} type="button" className={periodBtn(period === id)} onClick={() => setPeriod(id)}>
@@ -247,31 +247,31 @@ export default function SatisRaporlariPage() {
           {period === "custom" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Baslangic</span>
+                <span className="mb-1 block text-xs font-black">Başlangıç</span>
                 <input className={inputClass} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Bitis</span>
+                <span className="mb-1 block text-xs font-black">Bitiş</span>
                 <input className={inputClass} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               </label>
             </div>
           ) : null}
           <label className="block max-w-xs">
-            <span className="mb-1 block text-xs font-black">Dogaltas USD kuru (TL)</span>
+            <span className="mb-1 block text-xs font-black">Doğaltaş USD kuru (TL)</span>
             <input
               className={inputClass}
               type="number"
               step="0.01"
               value={usdRate}
               onChange={(e) => setUsdRate(e.target.value)}
-              placeholder="Canli stok maliyeti"
+              placeholder="Canlı stok maliyeti"
             />
           </label>
         </section>
 
         {insight ? (
           <section className={`${panelClass} mb-3 border-rose-300`}>
-            <h2 className="text-base font-black text-slate-900">Satin alma karar destegi &mdash; {insight.productName}</h2>
+            <h2 className="text-base font-black text-slate-900">Satın alma karar desteği &mdash; {insight.productName}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className={`rounded-xl px-4 py-2 text-base font-black ${insight.decisionColor}`}>
                 {insight.decision}
@@ -279,19 +279,19 @@ export default function SatisRaporlariPage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Bu yil satis</p>
+                <p className="text-xs font-black uppercase text-slate-500">Bu yıl satış</p>
                 <p className="text-xl font-black">{insight.soldYear}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Bu ay satis</p>
+                <p className="text-xs font-black uppercase text-slate-500">Bu ay satış</p>
                 <p className="text-xl font-black">{insight.soldMonth}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Son 30 gun</p>
+                <p className="text-xs font-black uppercase text-slate-500">Son 30 gün</p>
                 <p className="text-xl font-black">{insight.sold30d}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Canli stok</p>
+                <p className="text-xs font-black uppercase text-slate-500">Canlı stok</p>
                 <p className="text-xl font-black">
                   {insight.currentStock} {insight.stockUnit}
                 </p>
@@ -305,7 +305,7 @@ export default function SatisRaporlariPage() {
                 <p className="text-lg font-black">{fmtMoney(insight.totalProfit)}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Ort. satis fiyati</p>
+                <p className="text-xs font-black uppercase text-slate-500">Ort. satış fiyatı</p>
                 <p className="text-lg font-black">{fmtMoney(insight.avgSalePrice)}</p>
               </div>
               <div>
@@ -314,14 +314,14 @@ export default function SatisRaporlariPage() {
               </div>
             </div>
             <p className="mt-3 text-xs font-semibold text-slate-600">
-              Son satis: {insight.lastSaleDate || "—"} &middot; En cok satilan tip: {insight.topType}
+              Son satış: {insight.lastSaleDate || "—"} &middot; En çok satılan tip: {insight.topType}
             </p>
           </section>
         ) : null}
 
         {alerts.length > 0 ? (
           <section className={`${panelClass} mb-3 border-amber-200 bg-amber-50/50`}>
-            <h2 className="text-sm font-black text-amber-900">Akilli uyarilar</h2>
+            <h2 className="text-sm font-black text-amber-900">Akıllı uyarılar</h2>
             <ul className="mt-3 space-y-1.5">
               {alerts.map((a) => (
                 <li key={a} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-semibold text-amber-950">
@@ -333,21 +333,21 @@ export default function SatisRaporlariPage() {
         ) : null}
 
         <section className="mb-3">
-          <h2 className="mb-3 text-base font-black text-slate-900">Satis analizleri</h2>
+          <h2 className="mb-3 text-base font-black text-slate-900">Satış analizleri</h2>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <RankList title="En cok satan" items={topSelling(filtered)} valueKey="qty" />
+            <RankList title="En çok satan" items={topSelling(filtered)} valueKey="qty" />
             <RankList title="En az satan" items={leastSelling(filtered)} valueKey="qty" />
-            <RankList title="En cok kar birakan" items={topProfit(filtered)} valueKey="profit" />
-            <RankList title="En az kar birakan" items={leastProfit(filtered)} valueKey="profit" />
+            <RankList title="En çok kar bırakan" items={topProfit(filtered)} valueKey="profit" />
+            <RankList title="En az kar bırakan" items={leastProfit(filtered)} valueKey="profit" />
             <RankList title="Zarar ettiren" items={lossMaking(filtered)} valueKey="profit" />
-            <RankList title="Stoktan en cok cikan" items={mostStockOut(filtered)} valueKey="qty" />
+            <RankList title="Stoktan en çok çıkan" items={mostStockOut(filtered)} valueKey="qty" />
             <RankList
-              title="Cok stok, az satis"
+              title="Çok stok, az satış"
               items={highStockLowSales(filtered, stockRows)}
               valueKey="qty"
             />
             <RankList
-              title="Az stok, cok satis"
+              title="Az stok, çok satış"
               items={lowStockHighSales(filtered, stockRows)}
               valueKey="qty"
             />
@@ -355,10 +355,10 @@ export default function SatisRaporlariPage() {
         </section>
 
         <section className={panelClass}>
-          <h2 className="mb-3 text-base font-black text-slate-900">Satis tablosu</h2>
+          <h2 className="mb-3 text-base font-black text-slate-900">Satış tablosu</h2>
           {filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-slate-600">
-              Secilen filtrelere uygun satis kaydi bulunamadi.
+              Seçilen filtrelere uygun satış kaydı bulunamadı.
             </p>
           ) : (
             <div className="overflow-x-auto">

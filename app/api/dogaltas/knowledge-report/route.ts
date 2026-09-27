@@ -8,6 +8,7 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import {
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildSectionDivider,
   buildStatsPage,
@@ -26,6 +27,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -83,7 +86,7 @@ function parseContent(content: string): ReportChild[] {
 // ─── Document builder ─────────────────────────────────────────────────────────
 
 function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild[] {
-  const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const date = reportGeneratedLabel();
   const color = SECTION_COLORS.knowledge;
 
   const groups = new Map<string, ArticleRow[]>();
@@ -132,7 +135,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
   let catIndex = 2;
   for (const [category, catArticles] of groups) {
     out.push(
-      ...buildSectionDivider(category.toUpperCase(), `${catArticles.length} Makale`, color),
+      ...buildSectionDivider(category.toLocaleUpperCase("tr-TR"), `${catArticles.length} Makale`, color),
       h1Colored(`${catIndex}. ${category}`, color, true),
       muted(`${catArticles.length} makale`),
     );
@@ -145,7 +148,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
       out.push(h2(a.title || "Başlıksız Makale"));
 
       if (a.sub_category?.trim())   out.push(fieldInline("Alt Kategori", a.sub_category.trim()));
-      if (a.created_at)             out.push(fieldInline("Tarih", new Date(a.created_at).toLocaleDateString("tr-TR")));
+      if (a.created_at)             out.push(fieldInline("Tarih", formatInstantDate(a.created_at)));
       if (a.source?.trim())         out.push(fieldInline("Kaynak", a.source.trim()));
       if (a.source_section?.trim() && a.source_section !== a.title)
                                     out.push(fieldInline("Kaynak Bölüm", a.source_section.trim()));
@@ -208,13 +211,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi") },
-      children: buildDocument(articles, exportLabel),
+      footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi", { note: "dogaltas" }) },
+      children: [...buildDocument(articles, exportLabel), ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile))],
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const dateSlug = reportFileDate();
 
   return new Response(new Uint8Array(buffer), {
     headers: {

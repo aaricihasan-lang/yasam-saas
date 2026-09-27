@@ -33,7 +33,7 @@ export default function NumerolojiBilgiBankasiPage() {
           Bilgi Bankası
         </h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
-          Numeroloji eğitim ve bilgi içerikleri bu alanda yönetilecek.
+          Numeroloji eğitim ve bilgi içeriklerinizi bu alanda yönetirsiniz.
         </p>
       </div>
 

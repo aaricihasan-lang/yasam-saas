@@ -8,79 +8,25 @@ import {
   UploadCloud,
   Video,
 } from "lucide-react";
-import { Upload as TusUpload } from "tus-js-client";
 import { supabase } from "@/lib/supabase";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   authHeaders,
-  buildVideoTempPath,
   insertVideoJob,
   updateVideoJobStatus,
-  updateVideoJobTempPath,
   validateVideoFile,
 } from "@/lib/video-ceviri/videoJobHelpers";
+import { resolveVideoUploadMime, VIDEO_TEMP_BUCKET } from "@/lib/video-ceviri/videoTempPath";
 import { DIGITAL_CONTENT_DEMO_MESSAGE } from "@/lib/demo/digitalContentDemo";
 
-/** 100 MB üzerindeki dosyalar için TUS resumable upload kullanılır */
-const RESUMABLE_THRESHOLD = 100 * 1024 * 1024;
-
-/**
- * Supabase TUS endpoint'ine parçalı (resumable) yükleme yapar.
- * authToken: API route'dan createSignedUploadUrl ile alınan kısa ömürlü JWT.
- * 6 MB chunk, otomatik retry, kesintisiz devam desteği.
+/*
+ * FAZ1 FINAL HARDENING (AUTH / item 11): TEK yükleme yolu — sunucudan imzalı yükleme
+ * token'ı (/api/video-ceviri/get-upload-url) + `uploadToSignedUrl`. Nesne yolunu SUNUCU
+ * türetir ve iş kaydına yazar; tarayıcı anon `.upload` ve istemci video_temp_path PATCH'i
+ * KALDIRILDI. İstemci limiti 25 MB (Whisper) olduğundan eski TUS/resumable (>100 MB)
+ * dalı ölüydü → kaldırıldı.
  */
-function uploadWithTus(
-  file: File,
-  storagePath: string,
-  contentType: string,
-  authToken: string,
-  onProgress?: (pct: number) => void,
-): Promise<void> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-
-  return new Promise((resolve, reject) => {
-    const upload = new TusUpload(file, {
-      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "x-upsert": "false",
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: "video-temp",
-        objectName: storagePath,
-        contentType,
-        cacheControl: "3600",
-      },
-      chunkSize: 6 * 1024 * 1024,
-      onProgress: (uploaded, total) => {
-        if (onProgress && total > 0) {
-          onProgress(Math.round((uploaded / total) * 100));
-        }
-      },
-      onError: (err) => {
-        // TUS DetailedError: originalResponse üzerinden tam HTTP yanıtı okunabilir
-        const status  = (err as { originalResponse?: { getStatus?: () => number } })
-          ?.originalResponse?.getStatus?.() ?? "?";
-        const body    = (err as { originalResponse?: { getBody?: () => string } })
-          ?.originalResponse?.getBody?.() ?? "";
-        console.error("[TUS] onError — status:", status);
-        console.error("[TUS] onError — body:", body);
-        console.error("[TUS] onError — message:", err.message);
-        reject(err);
-      },
-      onSuccess: () => resolve(),
-    });
-
-    void upload.findPreviousUploads().then((prev) => {
-      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
-      upload.start();
-    });
-  });
-}
 
 type UploadPhase =
   | "idle"
@@ -207,92 +153,65 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     }
     const jobId = result.jobId;
 
-    // 4. Upload to video-temp bucket
+    // 4. Upload to video-temp bucket (imzalı yükleme; yol sunucuda türetilir)
     setPhase("uploading");
-    const storagePath = buildVideoTempPath(tenantId, jobId, selectedFile.name);
 
-    // application/octet-stream (WhatsApp AMR vb.) Supabase Storage tarafından reddedilir.
-    // Uzantıya göre doğru MIME'e eşle ve File nesnesini yeniden oluştur.
-    // Not: contentType option'ı yeterli değil; File'ın .type özelliği Supabase tarafından kullanılabilir.
-    const EXT_MIME: Record<string, string> = {
-      amr:  "audio/amr",   "3gp": "audio/3gpp",  "3gpp": "audio/3gpp",
-      mp3:  "audio/mpeg",  m4a:  "audio/mp4",
-      wav:  "audio/wav",   aac:  "audio/aac",     ogg: "audio/ogg",
-      mp4:  "video/mp4",   webm: "video/webm",    mov: "video/quicktime",
-      avi:  "video/x-msvideo", mkv: "video/x-matroska",
-    };
-    const fileExt = selectedFile.name.split(".").pop()?.toLowerCase() ?? "";
-    // MIME tipini normalize et (audio/AMR → audio/amr); sonra eşleştir
-    const normalizedType = (selectedFile.type ?? "").toLowerCase();
-    const resolvedMime =
-      normalizedType && normalizedType !== "application/octet-stream"
-        ? (EXT_MIME[fileExt] ?? normalizedType) // uzantı eşleşiyorsa uzantıya göre override
-        : (EXT_MIME[fileExt] ?? "application/octet-stream");
+    // application/octet-stream (WhatsApp AMR vb.) bucket MIME listesinde yok → uzantıya
+    // göre gerçek MIME'e eşlenir (paylaşılan harita: lib/video-ceviri/videoTempPath).
+    const resolvedMime = resolveVideoUploadMime(selectedFile.name, selectedFile.type);
+    if (!resolvedMime) {
+      const msg = "Dosya türü belirlenemedi. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.";
+      await updateVideoJobStatus(jobId, "failed", msg, tenantId);
+      setErrorMsg(msg);
+      setPhase("error");
+      return;
+    }
 
     setUploadProgress(0);
 
-    if (selectedFile.size > RESUMABLE_THRESHOLD) {
-      // ── Büyük dosya: TUS resumable upload ────────────────────────────
-      // Adım 1: API route'dan kısa ömürlü upload token al (service role key server'da kalır)
-      let tusToken: string;
-      try {
-        const tokenRes = await fetch("/api/video-ceviri/get-upload-url", {
-          method: "POST",
-          headers: authHeaders(true),
-          body: JSON.stringify({ storagePath, jobId }),
-        });
-        const tokenData = (await tokenRes.json()) as { ok: boolean; token?: string; error?: string };
-        if (!tokenData.ok || !tokenData.token) {
-          throw new Error(tokenData.error ?? "Upload token alınamadı.");
-        }
-        tusToken = tokenData.token;
-      } catch (tokenErr) {
-        const msg = tokenErr instanceof Error ? tokenErr.message : "Upload token hatası.";
-        await updateVideoJobStatus(jobId, "failed", msg, tenantId);
-        setErrorMsg(`Yükleme başlatılamadı: ${msg}`);
-        setPhase("error");
-        return;
+    // Adım 1: sunucudan kısa ömürlü imzalı yükleme token'ı + sunucu-türetilmiş yol al.
+    let signedPath: string;
+    let signedToken: string;
+    try {
+      const tokenRes = await fetch("/api/video-ceviri/get-upload-url", {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ jobId }),
+      });
+      const tokenData = (await tokenRes.json().catch(() => ({}))) as {
+        ok?: boolean;
+        token?: string;
+        path?: string;
+        error?: string;
+      };
+      if (!tokenRes.ok || !tokenData.ok || !tokenData.token || !tokenData.path) {
+        throw new Error(tokenData.error ?? "Yükleme bağlantısı alınamadı.");
       }
-
-      // Adım 2: TUS upload (6 MB chunk)
-      try {
-        await uploadWithTus(
-          selectedFile,
-          storagePath,
-          resolvedMime,
-          tusToken,
-          (pct) => setUploadProgress(pct),
-        );
-      } catch (tusErr) {
-        // Ham Supabase/TUS hatasını aynen göster — kaynağı net görmek için wrapper yok
-        const raw = tusErr instanceof Error ? tusErr.message : String(tusErr);
-        console.error("[TUS] catch — raw error:", raw);
-        console.error("[TUS] catch — full object:", tusErr);
-        await updateVideoJobStatus(jobId, "failed", raw, tenantId);
-        setErrorMsg(`Yükleme hatası: ${raw}`);
-        setPhase("error");
-        return;
-      }
-    } else {
-      // ── Küçük dosya: standart tek parça upload ───────────────────────
-      const { error: upErr } = await supabase.storage
-        .from("video-temp")
-        .upload(storagePath, selectedFile, {
-          upsert: false,
-          cacheControl: "3600",
-          contentType: resolvedMime,
-        });
-
-      if (upErr) {
-        await updateVideoJobStatus(jobId, "failed", upErr.message, tenantId);
-        setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
-        setPhase("error");
-        return;
-      }
+      signedPath = tokenData.path;
+      signedToken = tokenData.token;
+    } catch (tokenErr) {
+      const msg = tokenErr instanceof Error ? tokenErr.message : "Yükleme bağlantısı hatası.";
+      await updateVideoJobStatus(jobId, "failed", msg, tenantId);
+      setErrorMsg(`Yükleme başlatılamadı: ${msg}`);
+      setPhase("error");
+      return;
     }
 
-    // 5. Update job record with storage path
-    await updateVideoJobTempPath(jobId, storagePath, tenantId);
+    // Adım 2: imzalı URL'e tek parça yükleme (≤25 MB).
+    const { error: upErr } = await supabase.storage
+      .from(VIDEO_TEMP_BUCKET)
+      .uploadToSignedUrl(signedPath, signedToken, selectedFile, {
+        contentType: resolvedMime,
+        cacheControl: "3600",
+      });
+
+    if (upErr) {
+      await updateVideoJobStatus(jobId, "failed", upErr.message, tenantId);
+      setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
+      setPhase("error");
+      return;
+    }
+    setUploadProgress(100);
 
     setPhase("done");
     setSelectedFile(null);

@@ -47,8 +47,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "mp3", "m4a", "wav", "aac", "amr", "3gp", "3gpp",
 ]);
 
-export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB — storage limiti
-export const MAX_WHISPER_SIZE_BYTES = 25 * 1024 * 1024;    // 25 MB — Whisper API limiti
+export const MAX_WHISPER_SIZE_BYTES = 25 * 1024 * 1024;    // 25 MB — Whisper API limiti = bucket file_size_limit
 
 export type VideoJobRow = {
   id: string;
@@ -104,32 +103,12 @@ export function validateVideoFile(file: File): string | null {
     const mb = (file.size / 1024 / 1024).toFixed(1);
     return `Dosya ${mb} MB — transkripsiyon için maksimum 25 MB desteklenmektedir. Lütfen daha kısa bir ses veya video dosyası yükleyin.`;
   }
-  if (file.size > MAX_VIDEO_SIZE_BYTES) {
-    const mb = (file.size / 1024 / 1024).toFixed(1);
-    return `Dosya çok büyük (${mb} MB). Maksimum 5 GB yüklenebilir.`;
-  }
   return null;
 }
 
-export function buildSafeFileName(originalName: string): string {
-  const dotIndex = originalName.lastIndexOf(".");
-  const ext = dotIndex >= 0 ? originalName.slice(dotIndex).toLowerCase() : "";
-  const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
-  const safeBase = base
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_|_$/g, "")
-    .slice(0, 60);
-  return `${Date.now()}_${safeBase || "video"}${ext}`;
-}
-
-export function buildVideoTempPath(
-  tenantId: string,
-  jobId: string,
-  originalName: string,
-): string {
-  return `${tenantId}/${jobId}/${buildSafeFileName(originalName)}`;
-}
+// FAZ1 FINAL HARDENING (AUTH / item 11): video-temp nesne yolu artık YALNIZ sunucuda
+// türetilir (lib/video-ceviri/videoTempPath.ts → buildServerVideoTempPath; çağıran:
+// /api/video-ceviri/get-upload-url). İstemci tarafı yol üreticileri kaldırıldı.
 
 export function formatFileSizeTr(bytes: number | null): string {
   if (bytes === null) return "—";
@@ -192,13 +171,7 @@ async function patchVideoJob(payload: Record<string, unknown>, label: string): P
   }
 }
 
-export async function updateVideoJobTempPath(
-  jobId: string,
-  videoTempPath: string,
-  _tenantId?: string,
-): Promise<void> {
-  await patchVideoJob({ jobId, videoTempPath }, "updateVideoJobTempPath");
-}
+// updateVideoJobTempPath KALDIRILDI: video_temp_path istemciden yazılamaz (PATCH allowlist'inde yok).
 
 export async function updateVideoJobStatus(
   jobId: string,

@@ -107,8 +107,9 @@ export default function PlanlarPage() {
     const ok = await deleteConfirm({
       title: "Planı sil",
       message:
-        `"${plan.title}" planı${plan.revision_number > 1 ? ` (${revisionLabel(plan.revision_number)})` : ""} kalıcı olarak silinecek. ` +
-        "Plana ait tüm günler, öğünler ve besin kalemleri de silinir. Varsa diğer revizyonlar etkilenmez. Bu işlem geri alınamaz.",
+        "Bu plan kalıcı olarak silinecek. Plana ait tüm günler, öğünler ve besin kalemleri de silinir. " +
+        "Varsa diğer revizyonlar etkilenmez.",
+      names: [`${plan.title}${plan.revision_number > 1 ? ` (${revisionLabel(plan.revision_number)})` : ""}`],
       confirmText: "Sil",
     });
     if (!ok) return;

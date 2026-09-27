@@ -47,7 +47,7 @@ export default function SablonlarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
-  // Silme onayı ortak dialog'dan (Vazgeç dahil). Önceki aynı-noktada iki adımlı butonda iptal yoktu.
+  // Silme onayı ortak dialog'dan (aynı noktada iki adımlı buton → çift tıkta istemeden silme riski vardı).
   const deleteConfirm = useDeleteConfirm();
 
   const load = useCallback(async () => {
@@ -91,8 +91,8 @@ export default function SablonlarPage() {
     if (busyId) return;
     const ok = await deleteConfirm({
       title: "Şablonu sil",
-      message: `"${tpl.title}" şablonu kalıcı olarak silinecek. Şablondan daha önce oluşturulan planlar etkilenmez. Bu işlem geri alınamaz.`,
-      confirmText: "Sil",
+      message: "Bu şablon kalıcı olarak silinecek. Şablondan daha önce oluşturulan planlar etkilenmez.",
+      names: [tpl.title],
     });
     if (!ok) return;
     setBusyId(tpl.id);

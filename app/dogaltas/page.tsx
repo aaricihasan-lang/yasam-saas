@@ -27,6 +27,8 @@ import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { DOGALTAS_PRIMARY_MODULES } from "@/lib/dogaltas/dogaltasModules";
 import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
 
@@ -534,13 +536,7 @@ function DogaltasPageContent() {
         const data = await res.json() as { error?: string };
         throw new Error(data.error ?? t("report.errorGeneric"));
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `yasam-sistemi-dogaltas-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `yasam-sistemi-dogaltas-raporu-${reportFileDate()}.docx`);
       setReportSuccess(t("report.success"));
     } catch (err) {
       setReportError(err instanceof Error ? err.message : t("report.errorGeneric"));

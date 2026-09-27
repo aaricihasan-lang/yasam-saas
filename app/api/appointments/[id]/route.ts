@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { serverErrorResponse } from "@/lib/http/apiError";
+import { validateAppointmentPatch } from "@/lib/danisan/appointmentRules";
+import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
 export const runtime = "nodejs";
 
@@ -10,34 +12,14 @@ export const runtime = "nodejs";
  * Güvenlik:
  *   - requireModuleAccess → binding. tenant_id SUNUCUDA.
  *   - UPDATE/DELETE her zaman id + tenant_id filtresiyle (IDOR engellenir).
- *   - Body'deki tenant_id/id/created_at yok sayılır.
- *   - client_id güncellenecekse yeni client'ın bu tenant'a ait olduğu doğrulanır.
+ *   - DY-A: PATCH alan İZİN LİSTESİ (title/notes/appointment_date/status); tenant_id,
+ *     id, client_id, created_at ve bilinmeyen alanlar yok sayılır. status enum
+ *     (bekliyor/tamamlandi/iptal) dışı → 400. Gelecekteki randevuyu "tamamlandi"
+ *     yapmak → 409 APPOINTMENT_IN_FUTURE.
+ *   - "tamamlandi" sonrası danışanın son görüşme tarihi (clients.gorusme) SUNUCUDA
+ *     ilerletilir (yalnız randevu ≤ şimdi; İstanbul günü; asla geri/ileri-tarih yazmaz).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
-
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at"]);
-
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
-
-async function clientBelongsToTenant(
-  db: SupabaseClient,
-  clientId: string,
-  tenantId: string,
-): Promise<boolean> {
-  const { data, error } = await db
-    .from("clients")
-    .select("id")
-    .eq("id", clientId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  return !error && !!data;
-}
 
 // ─── PATCH /api/appointments/[id] ─────────────────────────────────────────────────
 export async function PATCH(
@@ -65,29 +47,46 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
-  if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  const { data: existing, error: readErr } = await db
+    .from("appointments")
+    .select("id, appointment_date, client_id, status")
+    .eq("id", appointmentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (readErr) {
+    return serverErrorResponse({ route: "appointments/[id]", action: "PATCH-read", tenantId, cause: readErr });
+  }
+  if (!existing) {
+    return NextResponse.json(
+      { ok: false, error: "Randevu bu hesaba ait değil." },
+      { status: 404 },
+    );
   }
 
-  const clientId = fields.client_id != null ? String(fields.client_id) : null;
-  if (clientId && !(await clientBelongsToTenant(db, clientId, tenantId))) {
+  const now = new Date();
+  const verdict = validateAppointmentPatch(
+    body,
+    existing as { appointment_date?: unknown },
+    now,
+  );
+  if (!verdict.ok) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
-      { status: 403 },
+      { ok: false, code: verdict.code, error: verdict.error },
+      { status: verdict.status },
     );
   }
 
   const { data, error } = await db
     .from("appointments")
-    .update(fields)
+    .update(verdict.fields)
     .eq("id", appointmentId)
     .eq("tenant_id", tenantId)
     .select()
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "appointments/[id]", action: "PATCH", tenantId, cause: error });
   }
   if (!data) {
     return NextResponse.json(
@@ -96,7 +95,13 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json({ ok: true, appointment: data });
+  const row = data as { client_id?: string | null; appointment_date?: string | null };
+  let gorusme: string | null = null;
+  if (verdict.fields.status === "tamamlandi" && row.client_id) {
+    gorusme = await advanceClientGorusme(db, tenantId, row.client_id, row.appointment_date, now);
+  }
+
+  return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }
 
 // ─── DELETE /api/appointments/[id] ────────────────────────────────────────────────
@@ -126,7 +131,7 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "appointments/[id]", action: "DELETE", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });

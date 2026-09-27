@@ -614,11 +614,11 @@ function FoodDetail({
     if (isNew || !effectiveId || deleting) return;
     const name = nameTr.trim() || "Bu besin";
     const message = isSystem
-      ? `"${name}" çalışma alanınızdan kaldırılacak ve listelerinizde görünmeyecek. Planlarınızdaki mevcut kayıtlar değişmez.`
+      ? "Bu besin çalışma alanınızdan kaldırılacak ve listelerinizde görünmeyecek. Planlarınızdaki mevcut kayıtlar değişmez."
       : isPersonalized
-        ? `"${name}" çalışma alanınızdan kaldırılacak; bu besin için girdiğiniz kişisel değerler de silinecek. Planlarınızdaki mevcut kayıtlar değişmez. Bu işlem geri alınamaz.`
-        : `"${name}" kalıcı olarak silinecek (besin değerleri, porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları dahil). Planlarınızdaki mevcut kayıtlar değişmez. Bu işlem geri alınamaz.`;
-    const ok = await deleteConfirm({ title: "Besini sil", message, confirmText: "Sil" });
+        ? "Bu besin çalışma alanınızdan kaldırılacak; bu besin için girdiğiniz kişisel değerler de silinecek. Planlarınızdaki mevcut kayıtlar değişmez."
+        : "Bu besin kalıcı olarak silinecek (besin değerleri, porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları dahil). Planlarınızdaki mevcut kayıtlar değişmez.";
+    const ok = await deleteConfirm({ title: "Besini sil", message, names: [name], confirmText: "Sil" });
     if (!ok) return;
     setDeleting(true);
     setMsg(null);

@@ -1,5 +1,7 @@
 "use client";
 
+import { pruneSelection } from "@/lib/ui/selection";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 
 import { runInEffect } from "@/lib/runInEffect";
@@ -36,6 +38,8 @@ import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const ENERGY_BODIES_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -65,13 +69,7 @@ async function exportEnergyBodiesWord(
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `biyoenerji-enerji-bedenleri-${exportMode === "selected" ? "secili" : exportMode === "single" ? "tek" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFileResponse(res, `biyoenerji-enerji-bedenleri-${exportMode === "selected" ? "secili" : exportMode === "single" ? "tek" : "tumu"}-${reportFileDate()}.docx`);
     onSuccess?.();
   } catch { onError?.(); } finally {
     setWordBusy(false);
@@ -216,6 +214,7 @@ export default function EnerjiBedenleri() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);
@@ -446,69 +445,87 @@ export default function EnerjiBedenleri() {
   }
 
   async function handleKaydet() {
-    if (!tenantId) return;
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          if (!tenantId) return;
 
-    const uidTrim = form.source_uid.trim();
-    if (!uidTrim) {
-      showSoft("err", "Enerji bedeni / katman zorunludur (ör. eterik).");
-      return;
-    }
+          const uidTrim = form.source_uid.trim();
+          if (!uidTrim) {
+            showSoft("err", "Enerji bedeni / katman zorunludur (ör. eterik).");
+            return;
+          }
 
-    setSaving(true);
-    setInfoError("");
-    const { error } = await bioApiCreate("energy-bodies", {
-      source_uid: uidTrim,
-      genel_tanim: trimOrEmpty(form.genel_tanim),
-      gorevi: trimOrEmpty(form.gorevi),
-      bozulma: trimOrEmpty(form.bozulma),
-      onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
-      not_text: trimOrEmpty(form.not_text),
-    });
+          setSaving(true);
+          setInfoError("");
+          const { error } = await bioApiCreate("energy-bodies", {
+            source_uid: uidTrim,
+            genel_tanim: trimOrEmpty(form.genel_tanim),
+            gorevi: trimOrEmpty(form.gorevi),
+            bozulma: trimOrEmpty(form.bozulma),
+            onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
+            not_text: trimOrEmpty(form.not_text),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadRecords({ reset: true });
-    showSoft("ok", "Enerji bedeni kaydı oluşturuldu.");
+          setFormModalOpen(false);
+          await loadRecords({ reset: true });
+          showSoft("ok", "Enerji bedeni kaydı oluşturuldu.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   async function handleGuncelle() {
-    if (!selectedId) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
-      return;
-    }
-    const uidTrim = form.source_uid.trim();
-    if (!uidTrim) {
-      showSoft("err", "Enerji bedeni / katman zorunludur.");
-      return;
-    }
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          if (!selectedId) {
+            showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+            return;
+          }
+          const uidTrim = form.source_uid.trim();
+          if (!uidTrim) {
+            showSoft("err", "Enerji bedeni / katman zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    setInfoError("");
-    const { error } = await bioApiUpdate("energy-bodies", selectedId, {
-      source_uid: uidTrim,
-      genel_tanim: trimOrEmpty(form.genel_tanim),
-      gorevi: trimOrEmpty(form.gorevi),
-      bozulma: trimOrEmpty(form.bozulma),
-      onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
-      not_text: trimOrEmpty(form.not_text),
-    });
+          setSaving(true);
+          setInfoError("");
+          const { error } = await bioApiUpdate("energy-bodies", selectedId, {
+            source_uid: uidTrim,
+            genel_tanim: trimOrEmpty(form.genel_tanim),
+            gorevi: trimOrEmpty(form.gorevi),
+            bozulma: trimOrEmpty(form.bozulma),
+            onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
+            not_text: trimOrEmpty(form.not_text),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Güncellenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadRecords({ reset: true });
-    showSoft("ok", "Kayıt güncellendi.");
+          setFormModalOpen(false);
+          await loadRecords({ reset: true });
+          showSoft("ok", "Kayıt güncellendi.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   function openDeleteConfirm() {
@@ -546,8 +563,18 @@ export default function EnerjiBedenleri() {
     showSoft("ok", "Kayıt silindi.");
   }
 
+  // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
+  // kesişime budanır (değişiklik yoksa aynı Set döner → render döngüsü yok). Silme ve
+  // "seçili" Word yalnız görünür ∩ seçili kayıtlar üzerinden yapılır.
+  useEffect(() => {
+    const visibleIds = baseRows.map((r) => r.id);
+    runInEffect(() => setSelectedForExport((prev) => pruneSelection(prev, visibleIds)));
+  }, [baseRows]);
+  const selectedVisibleRows = baseRows.filter((r) => selectedForExport.has(r.id));
+  const selectedVisibleIds = new Set(selectedVisibleRows.map((r) => r.id));
+
   async function handleBulkDeleteSelected() {
-    const ids = [...selectedForExport];
+    const ids = selectedVisibleRows.map((r) => r.id);
     if (ids.length === 0) return;
     setIsBulkDeleting(true);
     const { error } = await bioApiDeleteMany("energy-bodies", ids);
@@ -684,7 +711,7 @@ export default function EnerjiBedenleri() {
                 selectAllCount={baseRows.length}
                 onSelectAll={() => setSelectedForExport(new Set(baseRows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
-                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 isExporting={wordBusy}
                 onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
@@ -1010,7 +1037,8 @@ export default function EnerjiBedenleri() {
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
         mode={danger.mode}
-        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.source_uid?.trim() || "İsimsiz kayıt"))}
         resourceLabel="Enerji Bedenleri"
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}

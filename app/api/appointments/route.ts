@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { serverErrorResponse } from "@/lib/http/apiError";
+import { validateAppointmentCreate } from "@/lib/danisan/appointmentRules";
+import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
 export const runtime = "nodejs";
 
@@ -12,17 +15,9 @@ export const runtime = "nodejs";
  *   - Sorgu/insert tenant_id ile bağlanır.
  *   - client_id verilmişse o danışanın bu tenant'a ait olduğu doğrulanır (IDOR).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
+ *   - DY-A: POST alan izin listesi + status enum; gelecekte "tamamlandi" → 409;
+ *     geçmiş tarihli "tamamlandi" kayıtta clients.gorusme sunucuda ilerletilir.
  */
-
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at"]);
-
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
 
 async function clientBelongsToTenant(
   db: SupabaseClient,
@@ -63,7 +58,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "appointments", action: "GET", tenantId, cause: error });
   }
 
   return NextResponse.json({ ok: true, appointments: data ?? [] });
@@ -87,10 +82,19 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  const now = new Date();
+  const verdict = validateAppointmentCreate(body, now);
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, error: verdict.error },
+      { status: verdict.status },
+    );
+  }
+  const fields = verdict.fields;
 
   // client_id verilmişse sahiplik doğrula
-  const clientId = fields.client_id != null ? String(fields.client_id) : null;
+  const clientId = fields.client_id != null && fields.client_id !== "" ? String(fields.client_id) : null;
+  if (!clientId) fields.client_id = null;
   if (clientId && !(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
       { ok: false, error: "Danışan bu hesaba ait değil." },
@@ -105,8 +109,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "appointments", action: "POST", tenantId, cause: error });
   }
 
-  return NextResponse.json({ ok: true, appointment: data });
+  let gorusme: string | null = null;
+  if (fields.status === "tamamlandi" && clientId) {
+    gorusme = await advanceClientGorusme(db, tenantId, clientId, fields.appointment_date, now);
+  }
+
+  return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }

@@ -139,8 +139,9 @@ export default function PlanEditorPage() {
     const ok = await deleteConfirm({
       title: "Planı sil",
       message:
-        `"${plan.title}" planı (${days.length} gün) kalıcı olarak silinecek. ` +
-        "Plana ait tüm öğünler ve besin kalemleri de silinir. Varsa diğer revizyonlar etkilenmez. Bu işlem geri alınamaz.",
+        `Bu plan (${days.length} gün) kalıcı olarak silinecek. Plana ait tüm öğünler ve besin kalemleri de silinir. ` +
+        "Varsa diğer revizyonlar etkilenmez.",
+      names: [plan.title],
       confirmText: "Sil",
     });
     if (!ok) return;

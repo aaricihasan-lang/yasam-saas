@@ -11,6 +11,7 @@ import {
   arraySection,
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildSectionDivider,
   buildStatsPage,
@@ -35,6 +36,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -316,7 +319,7 @@ function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild
 function buildAnalyticsSection(counts: Record<string, number>, n: number): ReportChild[] {
   const color = SECTION_COLORS.analytics;
   const rows: [string, string][] = [
-    ["Rapor Tarihi", new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })],
+    ["Rapor Tarihi", reportGeneratedLabel()],
     ["Doğaltaş Kayıtları",   counts.stones        != null ? `${counts.stones} kayıt`        : "Dahil edilmedi"],
     ["Mineral Bankası",       counts.minerals      != null ? `${counts.minerals} kayıt`      : "Dahil edilmedi"],
     ["Kombinasyonlar",        counts.combinations  != null ? `${counts.combinations} kayıt`  : "Dahil edilmedi"],
@@ -446,7 +449,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     stoneImageBuffers = await resolveStoneImageBuffers(db, stonesRows, tenantId);
   }
 
-  const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const date = reportGeneratedLabel();
 
   // Premium cover stats — RPT (boş sayaç): yalnız SEÇİLİ bölümler için sayaç
   // eklenir (counts.X yalnız o bölüm seçiliyse set edilir → 0 dahil gerçek sayı
@@ -491,16 +494,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (sections.knowledge)    allChildren.push(...buildKnowledgeSection(knowledgeRows, sec++));
   if (sections.analytics)    allChildren.push(...buildAnalyticsSection(counts, sec));
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  allChildren.push(...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Yaşam Sistemi Doğaltaş Ansiklopedisi") },
+      footers: { default: buildFooter("Yaşam Sistemi Doğaltaş Ansiklopedisi", { note: "dogaltas" }) },
       children: allChildren,
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const dateSlug = reportFileDate();
 
   return new Response(new Uint8Array(buffer), {
     headers: {

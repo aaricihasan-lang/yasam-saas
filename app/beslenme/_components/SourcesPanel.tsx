@@ -105,7 +105,8 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     if (unlinkingId) return;
     const ok = await deleteConfirm({
       title: "Kaynak bağlantısını kaldır",
-      message: `"${l.source?.title ?? "Kaynak"}" bu kayıttan kaldırılacak. Kaynak, kaynak kataloğunuzda kalır.`,
+      message: "Bu kaynak bu kayıttan kaldırılacak (kaynak kataloğda kalır).",
+      names: [l.source?.title ?? "Kaynak"],
       confirmText: "Kaldır",
     });
     if (!ok) return;
@@ -124,7 +125,8 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     if (deletingId) return;
     const ok = await deleteConfirm({
       title: "Kaynağı sil",
-      message: `"${s.title}" kaynak kataloğunuzdan kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      message: "Bu kaynak kaynak kataloğunuzdan kalıcı olarak silinecek.",
+      names: [s.title],
       confirmText: "Sil",
     });
     if (!ok) return;

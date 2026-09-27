@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { parseExportBody, docxResponse } from "@/lib/aromaterapi/report/request";
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
   const sel: ExportSelector = parsed.mode === "selected" ? { mode: "selected", ids: parsed.ids } : { mode: "all" };
   try {
-    const res = await buildTaxaDoc(db, tenantId, sel, { expertName: null, date: new Date() });
+    const res = await buildTaxaDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date() });
     if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
     return docxResponse(res.buffer, res.filename);
   } catch {

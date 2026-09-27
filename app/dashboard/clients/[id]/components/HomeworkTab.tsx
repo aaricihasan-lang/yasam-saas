@@ -9,6 +9,8 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { odevDurumClass, aggregateHomeworks } from "@/lib/odevStatus";
+import { todayInZone } from "@/lib/time/reportTime";
+import { validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -66,8 +68,9 @@ const emptyForm: HomeworkFormState = {
   clientFeedback: "",
 };
 
+// Form varsayılanı + gecikme kontrolü: İstanbul takvim günü (UTC "dün" hatası yok).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInZone();
 }
 
 function isFormEmpty(form: HomeworkFormState) {
@@ -273,6 +276,7 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
           <input
             type="date"
             value={data.endDate}
+            min={data.startDate || undefined}
             onChange={(e) => onChange("endDate", e.target.value)}
             className={inputClass("amber")}
           />
@@ -538,6 +542,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
+    // DY-A: bitiş < başlangıç → kayıt yok (sunucu da 400 döner).
+    if (validateHomeworkDates({ start_date: form.startDate, end_date: form.endDate })) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
+      return;
+    }
+
     setSaving(true);
     setErrorMessage("");
 
@@ -594,6 +604,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         message: t("toast.emptyUpdate"),
         type: "error",
       });
+      return;
+    }
+
+    if (validateHomeworkDates({ start_date: editForm.startDate, end_date: editForm.endDate })) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
       return;
     }
 

@@ -23,7 +23,7 @@ function getExt(name: string): string {
 
 export async function POST(request: NextRequest) {
   // Güvenlik: kimlik + demo engeli (vision OCR harcaması — kimliksiz erişim kapatıldı).
-  const auth = await requireDigitalContentUser(request, "belge_ceviri");
+  const auth = await requireDigitalContentUser(request, "belge_ceviri_ai");
   if (!auth.ok) return auth.response;
   try {
     const formData = await request.formData();

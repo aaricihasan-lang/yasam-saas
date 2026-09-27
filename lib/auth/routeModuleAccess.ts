@@ -119,7 +119,9 @@ export function findRouteModuleRule(pathname: string): RouteModuleRule | null {
  * YEBS admin-only read-only uzman vitrini (/yebs) buradadır. Bu bir defense-in-depth
  * client kapısıdır; gerçek veri güvenliği server-side verifyAdminRequest'tir.
  */
-const ADMIN_ONLY_ROUTE_PREFIXES = ["/yebs"] as const;
+// FAZ1 FINAL HARDENING: AI yüzeyleri (Video → Türkçe, Ders Notu) yalnız admin'e açık
+// (sunucu: moduleAccessCore.ADMIN_ONLY_MODULE_KEYS). Belge Çeviri (pdf-to-word) uzmanda KALIR.
+const ADMIN_ONLY_ROUTE_PREFIXES = ["/yebs", "/video-ceviri", "/ders-notu"] as const;
 
 export function isAdminOnlyRoutePath(pathname: string): boolean {
   const path = normalizePathname(pathname);

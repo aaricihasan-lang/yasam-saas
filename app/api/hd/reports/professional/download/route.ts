@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
-import { requireAdminUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 import { fetchStorageImageBuffer, getImgDimensions } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
 /**
  * POST /api/hd/reports/professional/download — DONMUŞ snapshot → DOCX.
  *
- * Güvenlik / sözleşme (§18, §43 + admin knowledge isolation):
- *   - requireAdminUserRequest → x-user-id + x-session-token binding + role==='admin'.
- *     Donmuş snapshot merkezî canonical prose içerir → yalnız ADMIN/OWNER indirebilir.
- *     Non-admin uzman → 403.
+ * Güvenlik / sözleşme (§18, §43 + FAZ1 final hardening):
+ *   - requireModuleAccess(req, "human_design") → x-user-id + x-session-token binding +
+ *     modül izni. Uzman YALNIZ kendi tenant'ında oluşturulmuş DONMUŞ raporu indirir
+ *     (canonical corpus'a başka yoldan erişim yok). Admin de çalışır.
  *   - tenantId YALNIZ guard'dan; body reportId tenant-scoped okunur (foreign → 404).
  *   - YALNIZ report_kind='canonical'; snapshot server'da doğrulanır.
  *   - DOCX KAYDEDİLMİŞ snapshot'tan üretilir → LIVE CANONICAL LOOKUP YOK (canonical
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const androidBlocked = androidWordGuard(req);
   if (androidBlocked) return androidBlocked;
 
-  const guard = await requireAdminUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
   const rl = checkRateLimit(`hd-word-dl:${guard.tenantId}`, 20, 60_000);
@@ -70,12 +72,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let buffer: Buffer;
   try {
-    buffer = await renderHdReportBuffer(snapshot, { chartImage });
+    buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: expertDisplayName(guard.profile) });
   } catch {
     return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 
-  const dateSlug = (snapshot.generatedAt || "").slice(0, 10);
+  // Dosya adı: raporun oluşturulduğu YEREL gün (Europe/Istanbul); yoksa bugünün yerel günü.
+  const dateSlug = zonedDayKey(snapshot.generatedAt) || reportFileDate();
   const filename = hdReportFilename(snapshot.client.name, dateSlug);
 
   return new Response(new Uint8Array(buffer), {

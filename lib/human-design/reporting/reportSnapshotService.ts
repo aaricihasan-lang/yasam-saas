@@ -14,10 +14,47 @@ import { getChartWithClientForReport } from "@/lib/human-design/api/chartPersist
 import { getPublishedRecordsByKeys } from "@/lib/human-design/knowledge/canonicalReadService";
 import { buildPersonalKnowledgeStructure } from "@/lib/human-design/knowledge/personalKnowledge";
 import {
+  hdCenterLabelFromCode,
+  hdDefinitionLabelFromCode,
+  hdProfileLabelFromCode,
+} from "@/lib/human-design/codeHelpers";
+import {
   buildReportSnapshot,
   ReportSnapshotError,
   type HdReportSnapshot,
 } from "./reportSnapshot";
+
+/**
+ * Anti-scrape eşiği: gerçek bir HD haritasında en fazla 26 aktivasyon (13 kişilik + 13 tasarım)
+ * → en fazla 26 BENZERSİZ kapı. Daha fazlası (ör. 64 kapının hepsi işaretli) corpus'u toplu
+ * çekme girişimidir → dostane red (içerik okunmaz).
+ */
+export const HD_REPORT_MAX_UNIQUE_GATES = 26;
+
+/** SAF: chart kapıları + kanal kodlarındaki kapıların benzersiz sayısı (1..64). */
+export function countUniqueChartGates(gates: readonly unknown[] | null | undefined, channels: readonly unknown[] | null | undefined): number {
+  const set = new Set<number>();
+  for (const g of gates ?? []) {
+    const n = typeof g === "number" ? g : Number(g);
+    if (Number.isInteger(n) && n >= 1 && n <= 64) set.add(n);
+  }
+  for (const c of channels ?? []) {
+    if (typeof c !== "string") continue;
+    for (const part of c.split("-")) {
+      const n = Number(part);
+      if (Number.isInteger(n) && n >= 1 && n <= 64) set.add(n);
+    }
+  }
+  return set.size;
+}
+
+export type CreateSnapshotOptions = {
+  /**
+   * "throw" (varsayılan; admin): yayımlanmamış canonical → 422 fail-loud (anahtar içerir).
+   * "omit" (uzman): yayımlanmamış bölüm atlanır; hiçbir bölüm yoksa anahtarsız 422.
+   */
+  onMissing?: "throw" | "omit";
+};
 
 export type CreateSnapshotResult =
   | {
@@ -39,10 +76,22 @@ export async function createReportSnapshotFromChart(
   db: SupabaseClient,
   tenantId: string,
   chartId: string,
+  options: CreateSnapshotOptions = {},
 ): Promise<CreateSnapshotResult> {
+  const onMissing = options.onMissing ?? "throw";
   const { row: chart, error: chartErr } = await getChartWithClientForReport(db, tenantId, chartId);
   if (chartErr) return { ok: false, status: 500, code: "CHART_READ_FAILED", error: "Harita okunamadı." };
   if (!chart) return { ok: false, status: 404, code: "CHART_NOT_FOUND", error: "Harita bulunamadı." };
+
+  // Anti-scrape: olağan dışı kapı sayısı → canonical içerik HİÇ okunmadan dostane red.
+  if (countUniqueChartGates(chart.gates, chart.channels) > HD_REPORT_MAX_UNIQUE_GATES) {
+    return {
+      ok: false,
+      status: 422,
+      code: "CHART_TOO_MANY_GATES",
+      error: `Bu haritada olağan dışı sayıda kapı işaretli (en fazla ${HD_REPORT_MAX_UNIQUE_GATES} benzersiz kapı olabilir). Lütfen harita değerlerini kontrol edin.`,
+    };
+  }
 
   // FAZ 1 deterministik yapı (SAF; DB yok).
   const structure = buildPersonalKnowledgeStructure({
@@ -74,12 +123,21 @@ export async function createReportSnapshotFromChart(
         birthTime: chart.client?.birth_time ?? chart.birth_time ?? null,
         birthPlace: chart.client?.birth_place ?? chart.birth_place ?? null,
       },
-      chart: { chartId: chart.id, source },
+      chart: {
+        chartId: chart.id,
+        source,
+        profileLabel: chart.profile_code ? hdProfileLabelFromCode(chart.profile_code) : null,
+        definitionLabel: chart.definition_code ? hdDefinitionLabelFromCode(chart.definition_code) : null,
+        definedCenterLabels: Array.isArray(chart.active_centers) && chart.active_centers.length > 0
+          ? chart.active_centers.map((c) => hdCenterLabelFromCode(c))
+          : null,
+      },
       structure,
       recordByKey: recRes.data,
       // Görsel bilgisi create anında path olarak saklanır; embed edilip edilmediği
       // (includedAtGeneration) indirme anında belirlenir → burada false başlar.
       chartImage: chartImagePath ? { storagePath: chartImagePath, includedAtGeneration: false } : null,
+      onMissing,
     });
   } catch (e) {
     if (e instanceof ReportSnapshotError && e.code === "missing_canonical") {

@@ -247,8 +247,8 @@ function ItemRow({
     if (deleting) return;
     const ok = await deleteConfirm({
       title: "Besini öğünden sil",
-      message: `"${item.food_name_snapshot}" bu öğünden kalıcı olarak silinecek.`,
-      confirmText: "Sil",
+      message: "Bu besin satırı öğünden kaldırılacak.",
+      names: [item.food_name_snapshot],
     });
     if (!ok) return;
     setErr("");

@@ -2,6 +2,7 @@
 
 import type { ReflexologyProtocolRecord } from "@/app/refleksoloji/kayitli-protokoller/types";
 import type { SavedProtocol } from "@/app/refleksoloji/protokol-haritasi/types";
+import { clearScopedReflexCache, resolveReflexScope } from "@/lib/refleksoloji/scopedStorage";
 
 export const DEMO_FIXTURE_PROTO_PREFIX = "demo-fixture-proto-";
 export const DEMO_USER_LOCAL_PREFIX = "user-local-";
@@ -97,15 +98,20 @@ export function savedProtocolToRecord(p: SavedProtocol): ReflexologyProtocolReco
   };
 }
 
-// ─── Demo refleksoloji localStorage temizleme (logout'ta çağrılır) ────────────
+// ─── Demo refleksoloji temizleme ──────────────────────────────────────────────
+//
+// FA-04 / DL-007: demo verisi artık kullanıcı kapsamlı `refleks:v2:{tenant}:{user}:*`
+// anahtarlarındadır ve çıkışta `handleReflexologyLogout` (clearYasamUser) tarafından
+// temizlenir. Eski cihaz-geneli v1 anahtarları başka bir uzmanın eşitlenmemiş
+// verisini içerebileceğinden burada ARTIK SİLİNMEZ.
 
-export function clearDemoRefleksoloji(): void {
+export function clearDemoRefleksoloji(user?: {
+  id?: unknown;
+  tenant_id?: unknown;
+  is_demo_account?: unknown;
+} | null): void {
   if (typeof window === "undefined") return;
-  const keys = [
-    "yasam-refleksoloji-atlas-v1",
-    "yasam-refleksoloji-organs-v1",
-    "yasam-refleksoloji-protokoller-v1",
-    "yasam-refleksoloji-notlar-v1",
-  ];
-  keys.forEach((k) => localStorage.removeItem(k));
+  if (!user || user.is_demo_account !== true) return;
+  const scope = resolveReflexScope(user);
+  if (scope) clearScopedReflexCache(scope, null, { force: true });
 }

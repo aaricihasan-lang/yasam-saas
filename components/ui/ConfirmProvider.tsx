@@ -17,7 +17,20 @@ type ConfirmOptions = {
   confirmText?: string;
   cancelText?: string;
   tone?: ConfirmTone;
+  /**
+   * Kritik işlemler için yazarak onay: kullanıcı bu metni (büyük/küçük harf ve
+   * Türkçe İ/ı farkı gözetmeksizin, baş/son boşluk yok sayılarak) yazmadan onay
+   * butonu açılmaz.
+   */
+  requireText?: string;
+  /** requireText alanının üstünde gösterilen yönerge. */
+  requireTextLabel?: string;
 };
+
+/** Yazarak onay karşılaştırması — tr-TR harf katlama + boşluk normalizasyonu. */
+export function normalizeConfirmText(value: string): string {
+  return value.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("tr-TR");
+}
 
 type ConfirmContextType = {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
@@ -29,6 +42,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const [resolver, setResolver] = useState<((value: boolean) => void) | null>(null);
   const [busy, setBusy] = useState(false);
+  const [typed, setTyped] = useState("");
 
   const modalRef = useRef<HTMLDivElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
@@ -36,6 +50,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const confirm = (opts: ConfirmOptions) => {
     setBusy(false);
+    setTyped("");
     setOptions(opts);
     return new Promise<boolean>((resolve) => {
       setResolver(() => resolve);
@@ -48,7 +63,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setOptions(null);
     setResolver(null);
     setBusy(false);
+    setTyped("");
   };
+
+  const typedOk =
+    !options?.requireText ||
+    normalizeConfirmText(typed) === normalizeConfirmText(options.requireText);
 
   // Focus yönetimi ve klavye trap
   useEffect(() => {
@@ -147,6 +167,24 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 {options.message}
               </p>
 
+              {options.requireText ? (
+                <label className="mt-5 block">
+                  <span className="block text-[13px] font-bold text-slate-600">
+                    {options.requireTextLabel ??
+                      `Onaylamak için “${options.requireText}” yazın:`}
+                  </span>
+                  <input
+                    type="text"
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label={options.requireTextLabel ?? "Onay metni"}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-[15px] font-semibold text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                  />
+                </label>
+              ) : null}
+
               <div className="mt-7 flex justify-end gap-3">
                 <button
                   ref={cancelBtnRef}
@@ -160,8 +198,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   ref={confirmBtnRef}
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !typedOk}
                   onClick={() => {
+                    if (!typedOk) return;
                     setBusy(true);
                     close(true);
                   }}

@@ -8,6 +8,7 @@ import { Document, Packer } from "docx";
 import {
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
   buildTOCPage,
@@ -22,6 +23,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -105,8 +108,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       rows: [...groupRows].sort((a, b) => a.variant_index - b.variant_index),
     }));
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
   const totalVariants = rows.length;
   const totalIssues = groups.length;
 
@@ -182,10 +185,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   });
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  all.push(...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Taş Kombinasyonları Raporu · Yaşam Sistemi") },
+      footers: { default: buildFooter("Taş Kombinasyonları Raporu · Yaşam Sistemi", { note: "dogaltas" }) },
       children: all,
     }],
   });

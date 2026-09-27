@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import {
+  createClientIdempotent,
+  resolveCreateRequestId,
+  sanitizeClientPayload,
+} from "@/lib/danisan/clientCreate";
 
 export const runtime = "nodejs";
 
@@ -13,18 +18,10 @@ export const runtime = "nodejs";
  *   - tenant_id SUNUCUDA session/user kaydından alınır; request body/query'den GÜVENİLMEZ.
  *   - Tüm sorgu/insert tenant_id ile bağlanır (çapraz-tenant erişim engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
+ *   - Çift kayıt (DY-A): body.request_id (uuid) → clients.create_request_id; aynı
+ *     istek tekrarında (23505) mevcut kayıt `idempotent_replay: true` ile döner.
+ *     create_request_id istemci tarafından doğrudan yazılamaz (sanitizeClientPayload).
  */
-
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at"]);
-
-/** Body'den korunan alanları (tenant_id/id/created_at) çıkarır. */
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
 
 // ─── GET /api/clients ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
@@ -95,21 +92,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  const fields = sanitizeClientPayload(body);
+  const requestId = resolveCreateRequestId(body);
 
   // F7: Burç SUNUCUDA doğum tarihinden türetilir (canonical, giriş yolundan bağımsız).
   // Client'ın gönderdiği `burc` authoritative DEĞİL → overwrite. dogum yoksa burç null.
   fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
 
-  const { data, error } = await db
-    .from("clients")
-    .insert({ ...fields, tenant_id: tenantId })
-    .select()
-    .single();
+  const result = await createClientIdempotent(db, tenantId, fields, requestId);
 
-  if (error) {
-    return serverErrorResponse({ route: "clients", action: "POST", tenantId, cause: error });
+  if (result.kind === "error") {
+    return serverErrorResponse({ route: "clients", action: "POST", tenantId, cause: result.cause });
   }
 
-  return NextResponse.json({ ok: true, client: data });
+  return NextResponse.json({
+    ok: true,
+    client: result.client,
+    ...(result.kind === "replay" ? { idempotent_replay: true } : {}),
+  });
 }

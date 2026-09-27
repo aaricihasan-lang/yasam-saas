@@ -118,8 +118,21 @@
       "delete": {
         "title": "Delete client",
         "thisClient": "This client",
-        "message": "Delete the client named \"{name}\"? The client and all related records (sessions, assignments, appointments, stones, analyses) may be permanently deleted.",
-        "secondMessage": "This action cannot be undone. All data belonging to the client will be permanently deleted. Are you sure?"
+        "message": "Client \"{name}\" and all linked records will be permanently deleted.",
+        "secondMessage": "This action cannot be undone. All data belonging to the client will be permanently deleted. Are you sure?",
+        "previewHeader": "Records deleted together:",
+        "previewEmpty": "No other linked records were found.",
+        "previewPartial": "Some record types could not be counted; they are deleted with the client as well.",
+        "previewFailed": "Record counts could not be loaded. Deleted with the client: notes and general info, appointments, sessions, homework, charges, stones and stone photos, analyses, combinations, nutrition and cupping records, Life Memory report selections.",
+        "unlinked": "Numerology, Human Design, Reflexology and Bioenergy records are not linked to the client; delete them separately.",
+        "notesLine": "Notes: {count}",
+        "generalLine": "General info: {fields}",
+        "fieldSaglik": "health note",
+        "fieldAdres": "address",
+        "fieldOneriler": "recommendations",
+        "requireLabel": "Type the client's name to confirm: “{name}”",
+        "requireLabelFallback": "Type “SİL” to confirm:",
+        "confirm": "Delete Permanently"
       },
       "toast": {
         "successTitle": "Success",
@@ -139,7 +152,8 @@
         "clientDeletedTitle": "Client deleted",
         "cleanupWarning": "Cleanup of some attached files could not be completed.",
         "addedTitle": "Added",
-        "yhAdded": "{count, plural, one {# record} other {# records}} will be added to the report's Life Memory section."
+        "yhAdded": "{count, plural, one {# record} other {# records}} will be added to the report's Life Memory section.",
+        "notesConflict": "Notes were changed elsewhere; refreshing."
       },
       "error": {
         "reportFailed": "Report could not be generated"
@@ -184,13 +198,15 @@
         "stat": {
           "total": "Total",
           "upcoming": "Upcoming",
-          "past": "Past"
+          "past": "Past",
+          "noResult": "No outcome"
         },
         "status": {
           "tamamlandi": "Completed",
           "iptal": "Cancelled",
           "gecmis": "Past",
-          "yaklasan": "Upcoming"
+          "yaklasan": "Upcoming",
+          "sonucGirilmedi": "No outcome entered"
         },
         "cancelConfirm": {
           "title": "Cancel this appointment?",
@@ -244,7 +260,38 @@
           "complete": "Completed",
           "cancel": "Cancel",
           "delete": "Delete"
+        },
+        "futureComplete": "An appointment that has not happened yet cannot be marked as completed."
+      },
+      "deletePreview": {
+        "table": {
+          "appointments": "Appointments",
+          "sessions": "Sessions",
+          "homeworks": "Homework",
+          "charges": "Charges",
+          "stones": "Stones",
+          "stonePhotos": "Stone photos",
+          "analyses": "Analyses",
+          "combinations": "Combinations",
+          "chakraRecords": "Chakra records",
+          "planetRecords": "Planet records",
+          "cuppingAdvice": "Cupping advice",
+          "nutritionProfile": "Nutrition profile",
+          "nutritionAllergens": "Allergens",
+          "nutritionPreferences": "Food preferences",
+          "nutritionMeasurements": "Measurements",
+          "nutritionPlans": "Nutrition plan links",
+          "memorySnapshots": "Life Memory report selections",
+          "memoryIndex": "Life Memory index entries",
+          "legacyGifts": "Legacy gift records",
+          "legacyPhotos": "Legacy photo records",
+          "legacyTasks": "Legacy task records"
         }
+      },
+      "notesState": {
+        "loading": "Loading notes…",
+        "error": "Notes and general info could not be loaded. Editing is disabled to prevent data loss.",
+        "retry": "Retry"
       }
     }
   }

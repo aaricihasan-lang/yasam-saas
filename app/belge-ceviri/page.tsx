@@ -4,7 +4,7 @@ import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useEffect, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -121,6 +121,13 @@ const CARDS: CardDef[] = [
   },
 ];
 
+/**
+ * FAZ1 FINAL HARDENING (AUTH): OpenAI maliyeti doğuran AI kartları (PDF → Türkçe Word, OCR)
+ * YALNIZ yöneticiye gösterilir. Sunucu da aynı kuralı zorlar (belge_ceviri_ai → admin-only).
+ * AI OLMAYAN "PDF → Word" uzmanda kalır.
+ */
+const AI_CARD_IDS = new Set<CardId>(["pdf-to-turkce-word", "pdf-to-turkce-pdf", "ocr"]);
+
 const ENDPOINT: Partial<Record<CardId, string>> = {
   "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
   "pdf-to-turkce-word": "/api/belge-ceviri/pdf-to-turkce-word",
@@ -148,10 +155,13 @@ export default function BelgeCeviriPage() {
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  // AI kartları yalnız admin'e; mount sonrası okunur (SSR/hydration farkı olmasın).
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
     setUserId(readYasamUser()?.id ?? null);
+    setIsAdmin(isAdminUser(readYasamUser()));
 
     // Sayfa yenilemesinde devam eden job'ı geri yükle
     try {
@@ -194,14 +204,14 @@ export default function BelgeCeviriPage() {
     setHistoryOpen(true);
     // Demo hesap — gerçek/örnek kayıt gösterilmez, temiz boş liste açılır.
     if (isDemo) return;
-    if (!tenantId || !userId) return;
+    if (!userId) return;
     setHistoryLoading(true);
     try {
-      const res = await fetch(
-        `/api/belge-ceviri/history` +
-        `?tenantId=${encodeURIComponent(tenantId)}` +
-        `&userId=${encodeURIComponent(userId)}`,
-      );
+      // Kimlik yalnız header'dan (x-user-id + x-session-token); query param gönderilmez.
+      const res = await fetch(`/api/belge-ceviri/history`, {
+        headers: authHeaders(),
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = (await res.json()) as { jobs?: HistoryJob[] };
       setHistoryJobs(data.jobs ?? []);
@@ -232,11 +242,10 @@ export default function BelgeCeviriPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(
-          `/api/belge-ceviri/job-status/${activeJob.jobId}` +
-          `?tenantId=${encodeURIComponent(activeJob.tenantId)}` +
-          `&userId=${encodeURIComponent(activeJob.userId)}`,
-        );
+        const res = await fetch(`/api/belge-ceviri/job-status/${encodeURIComponent(activeJob.jobId)}`, {
+          headers: authHeaders(),
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = (await res.json()) as {
           status: JobStatus;
@@ -468,7 +477,9 @@ export default function BelgeCeviriPage() {
                 </span>
               </h1>
               <p className="mt-0.5 max-w-[700px] text-[11px] leading-relaxed text-slate-500 sm:text-xs">
-                PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
+                {isAdmin
+                  ? "PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir."
+                  : "PDF belgelerini düzenlenebilir Word dosyasına dönüştür. Tüm işlemler güvenli sunucuda gerçekleşir."}
               </p>
             </div>
             <button
@@ -489,7 +500,10 @@ export default function BelgeCeviriPage() {
             // sonu Word indirmeye çıkan işlem başlatılamaz. OCR (metni oku, TXT) korunur;
             // OCR'ın kendi "Word İndir" alt-butonları zaten Android'de gizli.
             (card) => !(isAndroid && (card.id === "pdf-to-word" || card.id === "pdf-to-turkce-word")),
-          ).map((card) => {
+          )
+            // AI kartları (OCR, PDF → Türkçe Word) yalnız yöneticiye.
+            .filter((card) => isAdmin || !AI_CARD_IDS.has(card.id))
+            .map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
             return (

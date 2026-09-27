@@ -1,9 +1,11 @@
 ﻿"use client";
 
 import type { OrganSummary } from "../lib/organSummary";
+import { formatInstantDateTime } from "@/lib/time/reportTime";
 
 type OrganAtlasCardProps = {
   summary: OrganSummary;
+  /** FA-24: BU organın son güncellemesi (_meta.organUpdatedAt) — global belge tarihi değil. */
   updatedAt: string | null;
   onView: () => void;
   onEdit: () => void;
@@ -39,7 +41,7 @@ export function OrganAtlasCard({
           <div className="flex justify-between gap-2">
             <dt className="text-slate-500">Son güncelleme</dt>
             <dd className="text-right text-sm font-semibold text-slate-700">
-              {new Date(updatedAt).toLocaleString("tr-TR")}
+              {formatInstantDateTime(updatedAt, { fallback: "—" })}
             </dd>
           </div>
         ) : null}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminUserRequest } from "@/lib/auth/userGuard";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createReportSnapshotFromChart } from "@/lib/human-design/reporting/reportSnapshotService";
+import { HD_REPORT_UNPUBLISHED_MESSAGE } from "@/lib/human-design/reporting/reportSnapshot";
 import { saveCanonicalReport } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
 
@@ -10,24 +11,27 @@ export const runtime = "nodejs";
 /**
  * POST /api/hd/reports/professional — PROFESYONEL (canonical) rapor snapshot OLUŞTUR.
  *
- * Güvenlik / sözleşme (§16, §42 + admin knowledge isolation):
- *   - requireAdminUserRequest → x-user-id + x-session-token binding + role==='admin'.
- *     Profesyonel rapor merkezî canonical prose'u snapshot'a dondurur → yalnız ADMIN/OWNER
- *     üretebilir. Non-admin uzman → 403 (buton da client'ta gizli). Canonical corpus
- *     uzmana sızmaz.
+ * Güvenlik / sözleşme (FAZ1 final hardening — HD profesyonel Word TÜM uzmanlara açık):
+ *   - requireModuleAccess(req, "human_design") → x-user-id + x-session-token binding +
+ *     human_design modül izni (admin merkezî bypass). Admin de çalışmaya devam eder.
+ *   - Canonical corpus uzmana YALNIZ bu donmuş rapor snapshot'ı üzerinden ulaşır:
+ *     listeleme/okuma ucu YOK; liste projeksiyonu snapshot/canonical_provenance TAŞIMAZ.
  *   - tenantId + userId YALNIZ guard'dan; body'den GÜVENİLMEZ.
- *   - chart_id tenant-scoped; başka tenant/eksik → 404 (ayırt etme).
- *   - Demo hesap YAZAMAZ (report create bir write'tır).
- *   - Beklenen published canonical eksikse → 422 fail-loud (metin uydurulmaz).
- *   - DONMUŞ snapshot INSERT edilir (report_kind='canonical'); LIVE canonical
- *     lookup indirmede YAPILMAZ. Yanıt no-store.
+ *   - chart_id tenant-scoped (sahiplik); başka tenant/eksik → 404 (ayırt etme).
+ *   - Demo hesap YAZAMAZ (report create bir write'tır) → 403.
+ *   - Anti-scrape: >26 benzersiz kapı → 422 dostane red (içerik okunmaz).
+ *   - Eksik published canonical: ADMIN → 422 fail-loud (anahtarlı detay yalnız admin'e);
+ *     UZMAN → yayımlanmamış bölüm atlanır (provenance.omitted; anahtar sızmaz). Hiçbir
+ *     bölüm yoksa sade 422 ("…henüz yayımlanmadı").
+ *   - DONMUŞ snapshot INSERT edilir (report_kind='canonical'); LIVE canonical lookup
+ *     indirmede YAPILMAZ. Yanıt no-store.
  *   - Rate limit: tenant başına 10/60s (pahalı üretim).
  */
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const guard = await requireAdminUserRequest(req);
+  const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
@@ -35,6 +39,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: 403, headers: NO_STORE },
     );
   }
+  const isAdmin = String(guard.profile?.role ?? "").trim().toLowerCase() === "admin";
 
   const rl = checkRateLimit(`hd-word:${guard.tenantId}`, 10, 60_000);
   if (!rl.allowed) {
@@ -55,9 +60,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "chartId gerekli." }, { status: 400, headers: NO_STORE });
   }
 
-  const built = await createReportSnapshotFromChart(guard.db, guard.tenantId, chartId);
+  const built = await createReportSnapshotFromChart(guard.db, guard.tenantId, chartId, {
+    onMissing: isAdmin ? "throw" : "omit",
+  });
   if (!built.ok) {
-    return NextResponse.json({ ok: false, code: built.code, error: built.error }, { status: built.status, headers: NO_STORE });
+    // Uzman yanıtında canonical anahtar ASLA yer almaz (admin fail-loud detayı korunur).
+    const error = !isAdmin && built.code === "CANONICAL_MISSING" ? HD_REPORT_UNPUBLISHED_MESSAGE : built.error;
+    return NextResponse.json({ ok: false, code: built.code, error }, { status: built.status, headers: NO_STORE });
   }
 
   const saved = await saveCanonicalReport(guard.db, guard.tenantId, guard.userId, {
@@ -71,5 +80,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: saved.error ?? "Rapor kaydedilemedi." }, { status: 400, headers: NO_STORE });
   }
 
-  return NextResponse.json({ ok: true, id: saved.id }, { status: 200, headers: NO_STORE });
+  return NextResponse.json(
+    { ok: true, id: saved.id, omittedCount: built.snapshot.provenance.omitted?.length ?? 0 },
+    { status: 200, headers: NO_STORE },
+  );
 }

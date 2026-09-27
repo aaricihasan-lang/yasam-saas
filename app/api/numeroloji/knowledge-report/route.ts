@@ -6,6 +6,7 @@ import {
   arraySection,
   bodyText,
   buildFooter,
+  buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
   buildTOCPage,
@@ -20,6 +21,8 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatInstantDateTime, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { isKulvarAnalysisType } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeSections";
 import {
   bibliographyDetail,
@@ -218,8 +221,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü.
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
   const totalCount = knowledgeRows.length + stoneRows.length;
   const exportLabel = exportMode === "filtered"
     ? `Filtrelenmiş Kayıtlar (${totalCount})`
@@ -338,7 +342,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         if (sourceNotesEffective(sections)) pushSourceNotes(k.id);
 
         all.push(fieldInline("Güncelleme",
-          new Date(k.updated_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })
+          formatInstantDateTime(k.updated_at, { fallback: "—" })
         ));
         if (itemN < kRows.length) all.push(divider());
       }
@@ -357,7 +361,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         if (s.reason?.trim()) all.push(bodyText(s.reason.trim()));
         all.push(...arraySection("Taşlar", stones));
         all.push(fieldInline("Güncelleme",
-          new Date(s.updated_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })
+          formatInstantDateTime(s.updated_at, { fallback: "—" })
         ));
         if (sItemN < sRows.length) all.push(divider());
       }
@@ -382,10 +386,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
+  all.push(...buildWellnessNoteSection("numeroloji", expertDisplayName(guard.profile)));
+
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Numeroloji Bilgi Bankası · Yaşam Sistemi") },
+      footers: { default: buildFooter("Numeroloji Bilgi Bankası · Yaşam Sistemi", { note: "numeroloji" }) },
       children: all,
     }],
   });

@@ -271,8 +271,9 @@ function TopicHeader({
     const ok = await deleteConfirm({
       title: "Kaydı sil",
       message:
-        `"${topic.title}" kalıcı olarak silinecek${parts.length ? ` (${parts.join(", ")} dahil)` : ""}. ` +
-        "Besinlerin ve kaynak kataloğunuzun kendisi silinmez. Bu işlem geri alınamaz.",
+        `Bu kayıt kalıcı olarak silinecek${parts.length ? ` (${parts.join(", ")} dahil)` : ""}. ` +
+        "Besinlerin ve kaynak kataloğunuzun kendisi silinmez.",
+      names: [topic.title],
       confirmText: "Sil",
     });
     if (!ok) return;
@@ -444,11 +445,10 @@ function SectionRow({
 
   async function del() {
     if (deleting) return;
-    const name = section.heading?.trim() || SECTION_KEY_LABELS[section.section_key ?? ""] || "Bölüm";
     const ok = await deleteConfirm({
       title: "Bölümü sil",
-      message: `"${name}" bölümü ve içeriği kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-      confirmText: "Sil",
+      message: "Bu bölüm ve içeriği kalıcı olarak silinecek.",
+      names: [section.heading?.trim() || SECTION_KEY_LABELS[section.section_key ?? ""] || "Bölüm"],
     });
     if (!ok) return;
     setDeleting(true);
@@ -716,8 +716,9 @@ function RelatedFoodRow({
   async function remove() {
     if (removing) return;
     const ok = await deleteConfirm({
-      title: "Besini bu kayıttan kaldır",
-      message: `"${rel.food?.name_tr ?? "Besin"}" bu kayıttan kaldırılacak (ilişki ve gerekçe silinir; besin kaydı silinmez).`,
+      title: "Besini konudan kaldır",
+      message: "Bu besin bu konudan kaldırılacak (besin kaydı silinmez; ilişki ve gerekçe silinir).",
+      names: [rel.food?.name_tr ?? "Besin"],
       confirmText: "Kaldır",
     });
     if (!ok) return;

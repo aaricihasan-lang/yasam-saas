@@ -261,6 +261,8 @@ async function main(): Promise<void> {
   const nonDemoDeps = (rows: DbRow[]): AdminIndexHandlerDeps => ({
     adminId: "99999999-9999-4999-8999-999999999999",
     checkAdminDemoStatus: async () => ({ ok: true, isDemo: false }),
+    // FAZ1 final hardening: write kontrollü backfill kapısı açık (kapı hday.harness.ts'te test edilir).
+    readSourceBackfillActivation: async () => ({ ok: true, isActive: true, backfillAllowed: true }),
     runIndexSourcePage: (v: ValidatedAdminIndexRequest) =>
       indexSourcePage({
         config: v.config, afterId: v.afterId, limit: v.limit, mode: v.mode,
