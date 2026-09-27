@@ -5,19 +5,14 @@ import { requireModuleAccess, verifyUserRequest } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 
 /**
- * Beslenme OWNER-ONLY server kapısı.
+ * Beslenme server kapıları (admin↔uzman özellik paritesi; owner-only faz KALDIRILDI).
  *
- * OWNER-ONLY ≠ ADMIN-ONLY. `resolveModuleAccess` tüm role='admin' kullanıcılarını
- * geçirir; owner (sistem sahibi / super-admin) daraltması ayrıca gereklidir.
- *
- * Katmanlar (sırayla):
- *   1) requireModuleAccess(req, "beslenme") → header-token binding + pending/rejected gate
- *      + modül kapısı (uzman/anon 403; admin geçer).
- *   2) requireMainAdmin(db, userId) → users.is_super_admin (adminGuards; normal admin 403).
- * Böylece: super-admin geçer; normal admin 403; expert 403; anon 401.
- *
- * Uzmanlara açılış fazında (ileride): 2. adım kaldırılır + moduleAccess `hasFlag`'e döner.
- * Schema/RLS DEĞİŞMEZ (owner-only yalnız feature-visibility katmanıdır).
+ * Beslenme NORMAL grantable modüldür: requireModuleAccess(req, "beslenme") → admin (role
+ * short-circuit) VEYA module_permissions.beslenme=true uzman geçer; izinsiz uzman/anon/pending
+ * mevcut kurallarla reddedilir. Ayrı super-admin (requireMainAdmin) daraltması YOK. Food READ
+ * (requireBeslenmeFoodRead) clients|beslenme okur; food WRITE + geniş authoring uçları tam
+ * Beslenme (requireBeslenmeModule) gerektirir. Ayrı "Manuel Besin/contributor" yeteneği YOK.
+ * tenantId DAİMA doğrulanmış session'dan; her route .eq("tenant_id", tenantId) ile tenant-scoped.
  */
 export type BeslenmeModuleOk = {
   ok: true;
@@ -107,7 +102,7 @@ export async function resolveBeslenmeCapabilities(
   };
 }
 
-/** Demo hesap mutation reddi (owner/contributor gate'ten SONRA, yazma route'larında). */
+/** Demo hesap mutation reddi (modül/plan gate'ten SONRA, yazma route'larında). */
 export function denyDemoMutation(guard: { is_demo_account: boolean }): NextResponse | null {
   if (guard.is_demo_account) {
     return jsonNoStore(

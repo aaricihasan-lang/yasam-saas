@@ -50,7 +50,6 @@ export function FoodPickerDialog({
 }) {
   const [q, setQ] = useState("");
   const [quickAdd, setQuickAdd] = useState(false);
-  // Manuel besin KATKISI ayrı yetkidir (owner ya da beslenme_manual_food). clients-yetkili
   // Uzman besin ARAR/SEÇER (food READ: clients|beslenme). CUSTOM besin OLUŞTURMA ("Besin Ekle")
   // yalnız TAM Beslenme erişiminde açılır (checkBeslenmeAccess); clients-only'de GİZLİ (dead-control yok).
   const [canQuickAdd, setCanQuickAdd] = useState(false);

@@ -1,7 +1,8 @@
 "use client";
 /**
- * Beslenme owner-only modülü — client fetch köprüsü. Tüm çağrılar owner-gated API'lere
- * gider (x-user-id + x-session-token). Tenant client body'de GÖNDERİLMEZ (server session'dan).
+ * Beslenme (normal grantable modül: admin VEYA module_permissions.beslenme=true) — client fetch
+ * köprüsü. Tüm çağrılar server-gated API'lere gider (x-user-id + x-session-token). Tenant client
+ * body'de GÖNDERİLMEZ (server session'dan). Food READ: clients|beslenme; food WRITE: tam Beslenme.
  */
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import type { TopicType, RelationType } from "@/lib/beslenme/contracts";

@@ -5,9 +5,10 @@ export const runtime = "nodejs";
 
 /**
  * Class A referans vocab (food groups + traditional frameworks + allergens) — SALT OKUMA.
- * Tenant-siz GLOBAL vocab (tenant verisi DEĞİL). UI dropdown'ları için. Owner + dar bayraklı
- * uzman (besin-katkı) okuyabilir; "Besinlerim" sayfası besin-grubu seçicisi bunu kullanır.
- * allergens (FAZ 7): danışan beyan-alerji multi-select'i için — ADVISORY (otomatik eşleme YOK).
+ * Tenant-siz GLOBAL vocab (tenant verisi DEĞİL). Bu GENİŞ referans ucu TAM Beslenme modülü
+ * içindir (requireBeslenmeModule) — /beslenme/besinler besin-grubu/çerçeve seçicileri kullanır.
+ * clients-only danışan sekmesi bunu KULLANMAZ; danışan alerjen vocab'ı ayrı /api/beslenme/
+ * client-reference ucundan gelir. allergens burada: ADVISORY (otomatik eşleme YOK).
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
