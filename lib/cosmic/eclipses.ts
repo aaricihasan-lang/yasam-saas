@@ -22,6 +22,7 @@
  */
 
 import * as AE from "astronomy-engine";
+import { SUPPORT_START_YEAR, SUPPORT_END_YEAR } from "./dateRange";
 
 // ─── Tipler ─────────────────────────────────────────────────────────────────────
 
@@ -99,8 +100,8 @@ export type AnyEclipse = SolarEclipse | LunarEclipse;
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
-const FROM_YEAR = 2026;
-const TO_YEAR = 2050;
+const FROM_YEAR = SUPPORT_START_YEAR;
+const TO_YEAR = SUPPORT_END_YEAR;
 const DAY_MS = 86_400_000;
 const TR_OFFSET_MS = 3 * 3_600_000;    // UTC+3 sabit (2016'dan beri DST yok; retro.ts ile aynı)
 

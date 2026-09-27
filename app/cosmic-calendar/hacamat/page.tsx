@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useId, useEffect, useCallback } from "react";
+import { useState, useMemo, useId, useEffect, useLayoutEffect, useCallback } from "react";
 import Link from "next/link";
 import { ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
 import {
@@ -11,7 +11,7 @@ import {
   type HacamatMonthData,
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
-import { readYasamUser, isAdminUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
@@ -231,26 +231,45 @@ function MonthContent({
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
-/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
-function adminHeaders(adminId: string | null | undefined, json = false): Record<string, string> {
+/**
+ * Hacamat kuralları CRUD header'ı — x-user-id + x-session-token (verifyUserRequest binding'i).
+ * KAJ-P1-03: kurallar artık TENANT-scoped; admin değil HER aktif uzman KENDİ tenant'ını yönetir.
+ * Tenant server'da session'dan türetilir → body'de/header'da tenant GÖNDERİLMEZ.
+ */
+function userHeaders(userId: string | null | undefined, json = false): Record<string, string> {
   const token = readSessionToken();
-  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  const h: Record<string, string> = { "x-user-id": userId ?? "" };
   if (token) h["x-session-token"] = token;
   if (json) h["Content-Type"] = "application/json";
   return h;
 }
 
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const HYDRATION_SAFE_NOW = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
+
 export default function HacamatPage() {
-  const today      = useMemo(() => new Date(), []);
+  // #418 hydration fix: SSR (build zamanı) ile client (runtime) "bugün" farkı, bu-ay takvimi +
+  // gün vurgusunda React #418 metin uyuşmazlığı doğurabiliyordu. İlk render sabit referans anıyla
+  // (Date.UTC → tz-bağımsız) server↔client birebir; gerçek bugün paint öncesi layout-effect ile
+  // yazılır. Kardeş sayfalarla aynı desen; hesap motoru DEĞİŞMEZ.
+  const [today, setToday] = useState<Date>(HYDRATION_SAFE_NOW);
   const todayYear  = today.getFullYear();
   const todayMonth = today.getMonth();
   const todayDay   = today.getDate();
 
   const [activeTab,   setActiveTab]   = useState<Tab>("bu-ay");
-  const [digerYear,   setDigerYear]   = useState(todayYear);
-  const [digerMonth,  setDigerMonth]  = useState(todayMonth);
-  const [wordYear,    setWordYear]    = useState(todayYear);
-  const [wordMonth,   setWordMonth]   = useState(todayMonth);
+  const [digerYear,   setDigerYear]   = useState(HYDRATION_SAFE_NOW.getFullYear());
+  const [digerMonth,  setDigerMonth]  = useState(HYDRATION_SAFE_NOW.getMonth());
+  const [wordYear,    setWordYear]    = useState(HYDRATION_SAFE_NOW.getFullYear());
+  const [wordMonth,   setWordMonth]   = useState(HYDRATION_SAFE_NOW.getMonth());
+
+  // Mount'ta gerçek bugüne geç (paint öncesi). diger/word varsayılanları da güncel aya çekilir.
+  useIsomorphicLayoutEffect(() => {
+    const n = new Date();
+    setToday(n);
+    setDigerYear(n.getFullYear());  setDigerMonth(n.getMonth());
+    setWordYear(n.getFullYear());   setWordMonth(n.getMonth());
+  }, []);
   const [isGenerating,    setIsGenerating]    = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const isAndroid = useIsAndroid();
@@ -274,14 +293,14 @@ export default function HacamatPage() {
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [rulesError,     setRulesError]     = useState<string | null>(null);
 
-  // Kural yönetimi yalnızca admin için açık (server tarafı da zorunlu kılar).
-  // Expert/demo/anonim kullanıcılar kuralları yalnızca okuyabilir.
-  const [adminId, setAdminId] = useState<string | null>(null);
+  // KAJ-P1-03: kural yönetimi HER aktif uzman için KENDİ tenant'ı kapsamında açık
+  // (server tarafı requireModuleAccess + tenant-scope ile zorunlu kılar). Oturum açmamış
+  // (anon) ziyaretçi kuralları yönetemez; demo hesap server'da 403 alır.
+  const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
-    const u = readYasamUser();
-    setAdminId(isAdminUser(u) ? (u?.id ?? null) : null);
+    setUserId(readYasamUser()?.id ?? null);
   }, []);
-  const canManageRules = adminId !== null;
+  const canManageRules = userId !== null;
 
   // Kural ekleme
   const [newRuleText,  setNewRuleText]  = useState("");
@@ -291,6 +310,9 @@ export default function HacamatPage() {
   // Kural düzenleme
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText,  setEditText]  = useState("");
+
+  // Kural silme onayı (yanlış dokunmaya karşı iki adımlı inline onay)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const addFormId = useId();
 
@@ -310,11 +332,16 @@ export default function HacamatPage() {
 
   // ─── Kuralları DB'den yükle ───────────────────────────────────────────────
 
+  // Kurallar tenant-scoped ve auth gerektirir. Oturum açmamış ziyaretçi (401/403) için
+  // kural listesi sessizce BOŞ gösterilir (takvim yine çalışır) — korkutucu hata basılmaz.
   const loadRules = useCallback(async () => {
+    const uid = readYasamUser()?.id ?? null;
+    if (!uid) { setRules([]); return; }
     setIsLoadingRules(true);
     setRulesError(null);
     try {
-      const res  = await fetch("/api/hacamat/rules");
+      const res  = await fetch("/api/hacamat/rules", { headers: userHeaders(uid), cache: "no-store" });
+      if (res.status === 401 || res.status === 403) { setRules([]); return; }
       const json = await res.json() as { ok: boolean; data?: HijamRule[]; error?: string };
       if (!json.ok) throw new Error(json.error ?? "Kurallar yüklenemedi.");
       setRules(json.data ?? []);
@@ -331,12 +358,12 @@ export default function HacamatPage() {
 
   async function addRule() {
     const t = newRuleText.trim();
-    if (!t || isAddingRule || !adminId) return;
+    if (!t || isAddingRule || !userId) return;
     setIsAddingRule(true);
     try {
       const res  = await fetch("/api/hacamat/rules", {
         method:  "POST",
-        headers: adminHeaders(adminId, true),
+        headers: userHeaders(userId, true),
         body:    JSON.stringify({
           category:   newRuleCat,
           rule_text:  t,
@@ -351,16 +378,19 @@ export default function HacamatPage() {
     finally { setIsAddingRule(false); }
   }
 
-  async function deleteRule(id: string) {
-    if (!adminId) return;
+  // İki adımlı silme: trash → inline "Sil?" onayı → confirmDelete gerçek silmeyi yapar.
+  async function confirmDelete(id: string) {
+    setConfirmingDeleteId(null);
+    if (!userId) return;
     setRules(prev => prev.filter(r => r.id !== id)); // optimistic
     await fetch(`/api/hacamat/rules/${id}`, {
       method:  "DELETE",
-      headers: adminHeaders(adminId),
+      headers: userHeaders(userId),
     });
   }
 
   function startEdit(rule: HijamRule) {
+    setConfirmingDeleteId(null);
     setEditingId(rule.id);
     setEditText(rule.rule_text);
   }
@@ -368,12 +398,12 @@ export default function HacamatPage() {
   async function saveEdit(id: string) {
     const t = editText.trim();
     if (!t) { cancelEdit(); return; }
-    if (!adminId) { cancelEdit(); return; }
+    if (!userId) { cancelEdit(); return; }
     setRules(prev => prev.map(r => r.id === id ? { ...r, rule_text: t } : r)); // optimistic
     setEditingId(null);
     await fetch(`/api/hacamat/rules/${id}`, {
       method:  "PUT",
-      headers: adminHeaders(adminId, true),
+      headers: userHeaders(userId, true),
       body:    JSON.stringify({ rule_text: t }),
     });
   }
@@ -404,7 +434,7 @@ export default function HacamatPage() {
     try {
       const resp = await fetch(endpoint, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: userHeaders(userId, true),   // §8: rapor uçları artık kimlik gerektirir
         body:    JSON.stringify(buildReportPayload()),
       });
       if (!resp.ok) {
@@ -486,6 +516,7 @@ export default function HacamatPage() {
           <span className="mt-0.5 shrink-0 text-[14px] leading-none text-amber-600" aria-hidden>⚠</span>
           <p className="text-[10px] leading-relaxed text-amber-800">
             <strong>Geleneksel bilgi / takvimsel yardımcıdır; sağlık veya dini uygunluk iddiası değildir.</strong> Bu takvim, geleneksel İslami tıp geleneğine dayanan bilgi amaçlı içerik sunmaktadır. Hacamat uygulaması için mutlaka uzman bir sağlık profesyoneliyle görüşün. Bu bilgiler tıbbi tavsiye niteliği taşımaz.
+            {" "}<span className="text-amber-700">Hicri tarihler <strong>Ümmü&#39;l-Kurâ</strong> takvim sistemine göre hesaplanır; Türkiye&#39;de kullanılan resmî (hilal gözlemi esaslı) takvimlerle bazı tarihlerde <strong>bir günlük fark</strong> oluşabilir.</span>
           </p>
         </div>
 
@@ -624,8 +655,8 @@ export default function HacamatPage() {
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-teal-700">📜 Hacamat Kuralları</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
                 {canManageRules
-                  ? "Veritabanından yüklenir. Ekleyebilir, düzenleyebilir, silebilirsiniz. Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez."
-                  : "Veritabanından yüklenir ve Word raporuna birebir aktarılır. Kural yönetimi yalnızca yöneticiye açıktır."}
+                  ? "Bu kurallar size özel çalışma listenizdir (yalnız sizin hesabınızda görünür). Kuralları düzenleyebilir, silebilir veya yeni kural ekleyebilirsiniz. Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez."
+                  : "Kurallar Word raporuna birebir aktarılır. Kendi çalışma listenizi oluşturmak için giriş yapın."}
               </p>
             </div>
 
@@ -693,22 +724,42 @@ export default function HacamatPage() {
                                 <>
                                   <p className="flex-1 text-[10px] leading-snug text-slate-700">{rule.rule_text}</p>
                                   {canManageRules && (
-                                    <>
-                                      <button
-                                        onClick={() => startEdit(rule)}
-                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
-                                        title="Düzenle"
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => void deleteRule(rule.id)}
-                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                                        title="Sil"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </>
+                                    confirmingDeleteId === rule.id ? (
+                                      <div className="flex shrink-0 items-center gap-1">
+                                        <span className="mr-0.5 text-[9px] font-black text-red-500">Sil?</span>
+                                        <button
+                                          onClick={() => void confirmDelete(rule.id)}
+                                          className="shrink-0 rounded p-1 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                          title="Evet, sil"
+                                        >
+                                          <Check className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmingDeleteId(null)}
+                                          className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                          title="Vazgeç"
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() => startEdit(rule)}
+                                          className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
+                                          title="Düzenle"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmingDeleteId(rule.id)}
+                                          className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                          title="Sil"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    )
                                   )}
                                 </>
                               )}

@@ -3,6 +3,7 @@ import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
+import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
 import { Document, Packer } from "docx";
 import {
   bodyText,
@@ -83,7 +84,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (error)
     return serverErrorResponse({ route: "dogaltas/combinations/word-report", action: "POST", tenantId, cause: error });
 
-  const rows = sanitizeXmlDeep((data || []) as CombinationRow[]); // RPT-XML
+  // F-02 READ: yapısal kayıtlar junction'dan resolve (güncel ad; silinende snapshot);
+  // legacy stones_text fallback. SALT-OKUMA + batch. Sonra XML sanitize.
+  const hydrated = await hydrateCombinationStoneNames(db, tenantId, (data || []) as CombinationRow[]);
+  const rows = sanitizeXmlDeep(hydrated as CombinationRow[]); // RPT-XML
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için kombinasyon bulunamadı." }, { status: 404 });
 

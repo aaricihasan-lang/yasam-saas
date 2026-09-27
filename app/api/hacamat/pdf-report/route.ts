@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { jsPDF } from "jspdf";
 import path from "path";
 import fs from "fs";
@@ -6,6 +7,9 @@ import {
   MONTH_NAMES_TR,
   type HacamatStatus,
 } from "@/lib/cosmic/hacamat";
+import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { validateHacamatReportPayload } from "@/lib/cosmic/hacamatReport";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -445,33 +449,31 @@ export async function GET(request: Request): Promise<Response> {
 // ─── POST — tam özelleştirilmiş rapor ────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
+  // §7/§8: kimlik + modül kapısı (anon/pending/rejected → 401/403).
+  const guard = await requireModuleAccess(request as unknown as NextRequest, "cosmic_calendar");
+  if (!guard.ok) return guard.response;
+
+  const rl = checkRateLimit(`hacamat-pdf:${guard.tenantId}`, 15, 60_000, Date.now());
+  if (!rl.ok)
+    return Response.json({ ok: false, error: "Çok fazla istek. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } });
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }
 
-  // DEMO-NOTE: kimlik taşımıyor; demo bloğu uygulanamadı
-  // (rapor tarih/kural payload'ından hesaplanır; userId/tenantId yok, DB erişimi yok)
-  const {
-    year, month,
-    rules       = [],
-    expertNotes = "",
-    title       = "HACAMAT TAKVİMİ",
-    expertName  = "",
-    includeSections = DEFAULT_INCLUDE,
-  } = body as {
-    year:             number;
-    month:            number;
-    rules:            { rule_text: string; category: string }[];
-    expertNotes:      string;
-    title?:           string;
-    expertName?:      string;
-    includeSections?: Partial<IncludeSections>;
-  };
+  // Şekil + boyut doğrulaması → malformed/oversized girdi güvenli 400 (500 değil).
+  const parsed = validateHacamatReportPayload(body);
+  if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
+  const { year, month, rules, expertNotes, title, expertName } = parsed.value;
+  const includeSections = { ...DEFAULT_INCLUDE, ...(parsed.value.includeSections ?? {}) } as IncludeSections;
 
-  if (typeof year !== "number" || typeof month !== "number" || month < 0 || month > 11)
-    return Response.json({ ok: false, error: "Geçersiz ay/yıl." }, { status: 400 });
-
-  const buffer   = await buildPdfBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
+  let buffer: Buffer;
+  try {
+    buffer = await buildPdfBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
+  } catch {
+    return Response.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
+  }
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.pdf`;
 
   return new Response(new Uint8Array(buffer), {

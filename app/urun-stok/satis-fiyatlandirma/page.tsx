@@ -4,18 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   CATEGORY_LABELS,
-  type GeneralSaleRecord,
   type ProductCategory,
   type UnifiedProduct,
-  calcUnifiedSale,
-  commitCentralSales,
-  countLiveInventoryByCategory,
   fmtMoney,
-  fmtUnifiedUnitCost,
   loadUnifiedProducts,
   toFloat,
   turkishUpper,
+  unitsForMeasureType,
 } from "@/lib/urun-stok/generalSalesLogic";
+import {
+  type CatalogProduct,
+  type SaleLineInput,
+  createSale,
+  fetchSalesCatalog,
+  newIdempotencyKey,
+} from "@/lib/urun-stok/salesApi";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -37,9 +40,120 @@ const btnPrimary =
 const btnSecondary =
   "inline-flex h-8 items-center justify-center rounded-xl border-2 border-fuchsia-200 bg-fuchsia-50 px-4 text-xs font-black text-slate-800 transition hover:bg-fuchsia-100 no-underline disabled:cursor-not-allowed disabled:opacity-50";
 
-function productOptionLabel(p: UnifiedProduct): string {
-  const unit = p.baseUnit ?? p.unitLabel ?? "adet";
-  return `${p.name} | ${p.productGroup || "—"} | Stok: ${p.stockAmount} ${unit}`;
+// ─── Birleşik UI ürün modeli (DB katalog + demo localStorage tek şekle indirger)
+type UiProduct = {
+  category: ProductCategory;
+  productId: string;      // seçim anahtarı (real: inventory_id uuid)
+  inventoryId: string;    // DB satış için uuid (demo'da kullanılmaz)
+  name: string;
+  productGroup: string;
+  subtitle: string;
+  stockAmount: number;
+  stockDisplay: string;
+  saleMode: "adet" | "measure";
+  measureType: string;
+  saleUnits: string[];
+  baseUnit: string;
+  unitLabel: string;
+  costPerUnit: number;
+  salePerUnit: number;
+  profitPct: number;
+  photoCount: number;
+  photos: string[];
+};
+
+type UiBasketLine = {
+  inventoryType: ProductCategory;
+  inventoryId: string;
+  productId: string;
+  name: string;
+  subtitle: string;
+  saleQty: number;
+  saleUnit: string;
+  saleBaseQty: number;
+  markupPct: number;
+  lineCost: number;
+  lineSale: number;
+};
+
+function fmtQty(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function toBaseQty(measureType: string, unit: string, qty: number): number {
+  if (measureType === "ML / Litre") return unit === "litre" ? qty * 1000 : qty;
+  if (measureType === "Gram / KG") return unit === "kg" ? qty * 1000 : qty;
+  return Math.floor(qty);
+}
+
+function catalogToUi(p: CatalogProduct): UiProduct {
+  const saleMode = p.measure_type === "ML / Litre" || p.measure_type === "Gram / KG" ? "measure" : "adet";
+  return {
+    category: p.inventory_type as ProductCategory,
+    productId: p.inventory_id,
+    inventoryId: p.inventory_id,
+    name: p.name,
+    productGroup: p.subtitle,
+    subtitle: p.subtitle,
+    stockAmount: p.stock,
+    stockDisplay: `${fmtQty(p.stock)} ${p.unit}`,
+    saleMode,
+    measureType: p.measure_type,
+    saleUnits: saleMode === "measure" ? unitsForMeasureType(p.measure_type) : ["adet"],
+    baseUnit: p.unit,
+    unitLabel: p.unit,
+    costPerUnit: p.cost_per_unit,
+    salePerUnit: p.sale_per_unit,
+    profitPct: p.profit_pct,
+    photoCount: p.photo_count,
+    photos: [],
+  };
+}
+
+function unifiedToUi(p: UnifiedProduct): UiProduct {
+  return {
+    category: p.category,
+    productId: p.productId,
+    inventoryId: p.productId,
+    name: p.name,
+    productGroup: p.productGroup,
+    subtitle: p.subtitle,
+    stockAmount: p.stockAmount,
+    stockDisplay: p.stockDisplay,
+    saleMode: p.saleMode,
+    measureType: p.measureType ?? "",
+    saleUnits: (p.saleUnits as string[] | undefined) ?? [p.baseUnit ?? "adet"],
+    baseUnit: p.baseUnit ?? "adet",
+    unitLabel: p.unitLabel,
+    costPerUnit: p.costPerUnit,
+    salePerUnit: p.salePerUnit,
+    profitPct: p.profitPct,
+    photoCount: p.photoCount,
+    photos: p.photos ?? [],
+  };
+}
+
+type PreviewOk = { saleQty: number; saleBaseQty: number; lineCost: number; lineSale: number; markup: number };
+function calcPreview(p: UiProduct, qtyRaw: number, unit: string, markupRaw: number): PreviewOk | { error: string } {
+  const markup = markupRaw > 0 ? markupRaw : p.profitPct;
+  let baseQty: number;
+  let saleQty = qtyRaw;
+  if (p.saleMode === "adet") {
+    saleQty = Math.floor(qtyRaw);
+    baseQty = saleQty;
+  } else {
+    baseQty = toBaseQty(p.measureType, unit, qtyRaw);
+  }
+  if (!(baseQty > 0)) return { error: "Satış miktarı 0'dan büyük olmalı." };
+  if (baseQty > p.stockAmount) return { error: `Yetersiz stok. Mevcut: ${p.stockDisplay}` };
+  const lineCost = p.costPerUnit * baseQty;
+  const lineSale = markup > 0 ? lineCost * (1 + markup / 100) : (p.salePerUnit > 0 ? p.salePerUnit * baseQty : lineCost);
+  return { saleQty, saleBaseQty: baseQty, lineCost, lineSale, markup };
+}
+
+function productOptionLabel(p: UiProduct): string {
+  const unit = p.baseUnit || p.unitLabel || "adet";
+  return `${p.name} | ${p.productGroup || "—"} | Stok: ${fmtQty(p.stockAmount)} ${unit}`;
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
@@ -47,40 +161,57 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const [isCommitting, setIsCommitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
-  const [products, setProducts] = useState<UnifiedProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<UiProduct[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgOk, setMsgOk] = useState(false);
 
   const [usdRate, setUsdRate] = useState("");
 
-  const reloadProducts = useCallback(() => {
-    setProducts(loadUnifiedProducts(toFloat(usdRate, 0)));
+  // Real hesap: DB CANONICAL katalog. Demo: localStorage (seeded) katalog.
+  const loadCatalog = useCallback(async (demo: boolean) => {
+    if (demo) {
+      setProducts(loadUnifiedProducts(toFloat(usdRate, 0)).map(unifiedToUi));
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchSalesCatalog();
+      if (!res.ok) {
+        setMsgOk(false);
+        setMsg(res.error ?? "Ürün kataloğu okunamadı.");
+        setProducts([]);
+        return;
+      }
+      setProducts(res.products.map(catalogToUi));
+    } finally {
+      setLoading(false);
+    }
   }, [usdRate]);
 
-  const liveCounts = useMemo(() => countLiveInventoryByCategory(), [products]);
+  const liveCounts = useMemo(() => {
+    const counts = { dogaltas: 0, oil: 0, soap_cream: 0, accessory: 0, other: 0 } as Record<ProductCategory, number>;
+    for (const p of products) counts[p.category] += 1;
+    return counts;
+  }, [products]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
-    reloadProducts();
-    setHydrated(true);
-  }, [reloadProducts]);
+    void loadCatalog(demo).finally(() => setHydrated(true));
+  }, [loadCatalog]);
 
   useEffect(() => {
-    const onRefresh = () => reloadProducts();
+    const onRefresh = () => { void loadCatalog(isDemo); };
     window.addEventListener("focus", onRefresh);
-    window.addEventListener("storage", onRefresh);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") onRefresh();
-    };
+    const onVisible = () => { if (document.visibilityState === "visible") onRefresh(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("focus", onRefresh);
-      window.removeEventListener("storage", onRefresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [reloadProducts]);
+  }, [loadCatalog, isDemo]);
 
   const [categoryFilter, setCategoryFilter] = useState<ProductCategory | "all">("all");
   const [search, setSearch] = useState("");
@@ -89,18 +220,10 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const [saleUnit, setSaleUnit] = useState("adet");
   const [profitPct, setProfitPct] = useState("100");
   const [saleLabel, setSaleLabel] = useState("");
-  const [basket, setBasket] = useState<GeneralSaleRecord[]>([]);
-
-  const catalogProducts = useMemo(() => {
-    if (!hydrated) return [];
-    return products.length > 0 ? products : loadUnifiedProducts(toFloat(usdRate, 0));
-  }, [hydrated, products, usdRate]);
+  const [basket, setBasket] = useState<UiBasketLine[]>([]);
 
   const filtered = useMemo(() => {
-    let list =
-      categoryFilter === "all"
-        ? catalogProducts
-        : catalogProducts.filter((p) => p.category === categoryFilter);
+    const list = categoryFilter === "all" ? products : products.filter((p) => p.category === categoryFilter);
     const ql = search.trim().toLocaleLowerCase("tr-TR");
     if (!ql) return list;
     return list.filter(
@@ -109,77 +232,64 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         (p.productGroup ?? "").toLocaleLowerCase("tr-TR").includes(ql) ||
         p.subtitle.toLocaleLowerCase("tr-TR").includes(ql),
     );
-  }, [catalogProducts, categoryFilter, search]);
+  }, [products, categoryFilter, search]);
 
   const picked = useMemo(() => {
     if (!pickKey) return undefined;
-    return (
-      filtered.find((p) => p.productId === pickKey) ??
-      catalogProducts.find((p) => p.productId === pickKey)
-    );
-  }, [filtered, catalogProducts, pickKey]);
+    return filtered.find((p) => p.productId === pickKey) ?? products.find((p) => p.productId === pickKey);
+  }, [filtered, products, pickKey]);
 
   const pickedPhotos = useMemo(() => picked?.photos ?? [], [picked]);
 
   useEffect(() => {
     if (!pickKey) return;
-    const p =
-      filtered.find((x) => x.productId === pickKey) ??
-      catalogProducts.find((x) => x.productId === pickKey);
+    const p = filtered.find((x) => x.productId === pickKey) ?? products.find((x) => x.productId === pickKey);
     if (!p) return;
-    if (p.saleMode === "measure" && p.saleUnits?.length) {
-      if (!p.saleUnits.includes(saleUnit as never)) setSaleUnit(p.saleUnits[0]);
+    if (p.saleMode === "measure" && p.saleUnits.length) {
+      if (!p.saleUnits.includes(saleUnit)) setSaleUnit(p.saleUnits[0]);
     } else {
       setSaleUnit("adet");
     }
     setSaleLabel(`${p.name} — ${CATEGORY_LABELS[p.category]}`);
     setProfitPct(String(p.profitPct > 0 ? p.profitPct : 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnizca urun degisince varsayilanlari yukle
-  }, [pickKey, filtered, catalogProducts]);
+  }, [pickKey, filtered, products]);
 
   const preview = useMemo(() => {
     if (!picked) return null;
-    return calcUnifiedSale(
-      picked,
-      toFloat(saleQty, 0),
-      saleUnit,
-      toFloat(profitPct, 100),
-      toFloat(usdRate, 0),
-    );
-  }, [picked, saleQty, saleUnit, profitPct, usdRate]);
+    return calcPreview(picked, toFloat(saleQty, 0), saleUnit, toFloat(profitPct, 100));
+  }, [picked, saleQty, saleUnit, profitPct]);
 
   const basketTotals = useMemo(() => {
-    const totalCost = basket.reduce((s, r) => s + r.total_cost, 0);
-    const totalSale = basket.reduce((s, r) => s + r.sale_price, 0);
+    const totalCost = basket.reduce((s, r) => s + r.lineCost, 0);
+    const totalSale = basket.reduce((s, r) => s + r.lineSale, 0);
     return { totalCost, totalSale, totalProfit: totalSale - totalCost };
   }, [basket]);
 
   function addToBasket() {
     if (!picked) {
       setMsgOk(false);
-      setMsg("Urun secin.");
+      setMsg("Ürün seçin.");
       return;
     }
-    const line = calcUnifiedSale(
-      picked,
-      toFloat(saleQty, 0),
-      saleUnit,
-      toFloat(profitPct, 100),
-      toFloat(usdRate, 0),
-    );
+    const line = calcPreview(picked, toFloat(saleQty, 0), saleUnit, toFloat(profitPct, 100));
     if ("error" in line) {
       setMsgOk(false);
       setMsg(line.error);
       return;
     }
-    const rec: GeneralSaleRecord = {
-      name: turkishUpper((saleLabel.trim() || picked.name)),
-      lines: [line],
-      total_cost: line.lineCost,
-      sale_price: line.lineSale,
-      profit_pct: toFloat(profitPct, 100),
-      photos: [],
-      timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+    const rec: UiBasketLine = {
+      inventoryType: picked.category,
+      inventoryId: picked.inventoryId,
+      productId: picked.productId,
+      name: turkishUpper(saleLabel.trim() || picked.name),
+      subtitle: picked.subtitle,
+      saleQty: line.saleQty,
+      saleUnit: picked.saleMode === "measure" ? saleUnit : "adet",
+      saleBaseQty: line.saleBaseQty,
+      markupPct: line.markup,
+      lineCost: line.lineCost,
+      lineSale: line.lineSale,
     };
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
@@ -187,25 +297,54 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setMsg("Sepete eklendi.");
   }
 
-  function commitSale() {
+  async function commitSale() {
     if (committingRef.current) return;
+    if (!basket.length) return;
     committingRef.current = true;
     setIsCommitting(true);
     try {
-      const result = commitCentralSales(basket, toFloat(usdRate, 0));
-      if (!result.ok) {
-        setMsgOk(false);
-        setMsg(result.error);
+      if (isDemo) {
+        // Demo: server no-op — yalnız in-memory stok düşümü + başarı mesajı (showcase).
+        setProducts((prev) =>
+          prev.map((p) => {
+            const sold = basket.filter((b) => b.productId === p.productId).reduce((s, b) => s + b.saleBaseQty, 0);
+            return sold > 0 ? { ...p, stockAmount: p.stockAmount - sold, stockDisplay: `${fmtQty(p.stockAmount - sold)} ${p.baseUnit}` } : p;
+          }),
+        );
+        setBasket([]);
+        setPickKey("");
+        setMsgOk(true);
+        setMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
         return;
       }
+
+      const lines: SaleLineInput[] = basket.map((b) => ({
+        inventory_type: b.inventoryType,
+        inventory_id: b.inventoryId,
+        quantity: b.saleBaseQty,
+        markup_pct: b.markupPct,
+      }));
+      const res = await createSale({ idempotencyKey: newIdempotencyKey(), source: "central", lines });
+
+      if (!res.ok) {
+        setMsgOk(false);
+        setMsg(res.error ?? "Satış kaydedilemedi.");
+        await loadCatalog(false); // gerçek stok yenilensin (yetersiz stok vs.)
+        return;
+      }
+
       setBasket([]);
-      reloadProducts();
       setPickKey("");
       setSaleQty("1");
       setProfitPct("100");
       setSaleLabel("");
+      await loadCatalog(false); // stok DB'den yeniden yüklenir (canonical)
       setMsgOk(true);
-      setMsg("Satis basariyla kaydedildi. Stoklar ve gecmisler guncellendi.");
+      setMsg("Satış kaydedildi. Stok düşüldü ve satış geçmişine yazıldı.");
+    } catch {
+      setMsgOk(false);
+      setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      await loadCatalog(false);
     } finally {
       committingRef.current = false;
       setIsCommitting(false);
@@ -216,7 +355,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yukleniyor&hellip;
+          Yükleniyor&hellip;
         </div>
       </main>
     );
@@ -233,16 +372,16 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satis</p>
-          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Satis &amp; Fiyatlandirma</h1>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satış</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Satış &amp; Fiyatlandırma</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Urun ekleme yapilmaz &mdash; modul stoklarindan canli secim. Satis ilgili envanterden duser; merkezi ve kategori gecmisine + stok hareketlerine yazilir.
+            Ürün ekleme yapılmaz &mdash; modül stoklarından canlı seçim. Satış sunucuda doğrulanır; stok atomik olarak düşer ve satış geçmişi kalıcıdır.
           </p>
         </header>
 
         <section className={`${panelClass} mb-3`}>
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-800">Canli urun kaynaklari</h2>
-          <p className="mt-0.5 text-xs text-slate-600">Stoklu urun sayilari (anlik)</p>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-800">Canlı ürün kaynakları</h2>
+          <p className="mt-0.5 text-xs text-slate-600">Stoklu ürün sayıları (anlık)</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
               <div key={c} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 px-3 py-2 text-center">
@@ -266,9 +405,9 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         ) : null}
 
         <section className={`${panelClass} relative z-20 mb-2`}>
-          <h2 className="text-base font-black text-fuchsia-900">Satis paneli</h2>
+          <h2 className="text-base font-black text-fuchsia-900">Satış paneli</h2>
           <p className="mt-0.5 text-xs text-slate-600">
-            Kategori filtreleyin, urun secin, miktar ve kar orani ile sepete ekleyin.
+            Kategori filtreleyin, ürün seçin, miktar ve kâr oranı ile sepete ekleyin.
           </p>
         </section>
 
@@ -285,7 +424,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     setPickKey("");
                   }}
                 >
-                  <option value="all">Tumu</option>
+                  <option value="all">Tümü</option>
                   {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                     <option key={c} value={c}>
                       {CATEGORY_LABELS[c]}
@@ -294,7 +433,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Dolar kuru (Dogaltas $)</span>
+                <span className="mb-1 block text-xs font-black">Dolar kuru (Doğaltaş $)</span>
                 <input
                   className={inputClass}
                   type="number"
@@ -307,40 +446,38 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </div>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Urun ara</span>
+              <span className="mb-1 block text-xs font-black">Ürün ara</span>
               <input
                 className={inputClass}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Urun adi, tur, grup, model..."
+                placeholder="Ürün adı, tür, grup, model..."
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Urun sec</span>
+              <span className="mb-1 block text-xs font-black">Ürün seç</span>
               <select
                 key={`product-pick-${categoryFilter}-${filtered.length}`}
                 className={inputClass}
                 value={pickKey}
                 onChange={(e) => setPickKey(e.target.value)}
               >
-                <option value="">— Urun secin —</option>
+                <option value="">— Ürün seçin —</option>
                 {filtered.map((p) => (
                   <option key={p.productId} value={p.productId}>
                     {productOptionLabel(p)}
                   </option>
                 ))}
               </select>
-              {categoryFilter !== "all" && filtered.length === 0 ? (
+              {loading ? (
+                <p className="mt-1 text-xs font-semibold text-slate-500">Katalog yükleniyor…</p>
+              ) : products.length === 0 ? (
                 <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-2 text-xs font-semibold text-slate-600">
-                  Henuz satisa hazir urun bulunamadi. Once ilgili urun/stok modulunden urun ekleyin.
+                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
                 </p>
-              ) : catalogProducts.length === 0 ? (
-                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-2 text-xs font-semibold text-slate-600">
-                  Henuz satisa hazir urun bulunamadi. Once ilgili urun/stok modulunden urun ekleyin.
-                </p>
-              ) : categoryFilter === "all" && filtered.length === 0 && catalogProducts.length > 0 ? (
-                <p className="mt-1 text-xs font-semibold text-slate-500">Filtreye uygun urun yok.</p>
+              ) : categoryFilter !== "all" && filtered.length === 0 ? (
+                <p className="mt-1 text-xs font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
               ) : null}
             </label>
 
@@ -360,7 +497,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black uppercase text-fuchsia-700">Secili urun</p>
+                    <p className="text-xs font-black uppercase text-fuchsia-700">Seçili ürün</p>
                     <p className="mt-0.5 text-lg font-black text-slate-900">{picked.name}</p>
                     <p className="text-xs font-semibold text-slate-600">
                       {CATEGORY_LABELS[picked.category]} &middot; {picked.subtitle}
@@ -378,18 +515,18 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
                     <p className="text-xs font-black text-slate-500">Maliyet (birim)</p>
-                    <p className="text-sm font-black">{fmtUnifiedUnitCost(picked)}</p>
+                    <p className="text-sm font-black">{fmtMoney(picked.costPerUnit)} / {picked.unitLabel}</p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Satis fiyati (birim)</p>
+                    <p className="text-xs font-black text-slate-500">Satış fiyatı (birim)</p>
                     <p className="text-sm font-black">
                       {preview && !("error" in preview)
-                        ? fmtMoney(preview.lineSale / (preview.saleQty || 1))
-                        : fmtUnifiedUnitCost({ ...picked, costPerUnit: picked.salePerUnit })}
+                        ? fmtMoney(preview.lineSale / (preview.saleBaseQty || 1))
+                        : fmtMoney(picked.salePerUnit)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2 sm:col-span-2">
-                    <p className="text-xs font-black text-slate-500">Fotograf</p>
+                    <p className="text-xs font-black text-slate-500">Fotoğraf</p>
                     <p className="text-sm font-black">{picked.photoCount} adet</p>
                   </div>
                 </div>
@@ -397,7 +534,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             ) : null}
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Satis etiketi</span>
+              <span className="mb-1 block text-xs font-black">Satış etiketi</span>
               <input
                 className={inputClass}
                 value={saleLabel}
@@ -408,7 +545,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-black">
-                  {picked?.saleMode === "measure" ? "Satis miktari" : "Satis adedi"}
+                  {picked?.saleMode === "measure" ? "Satış miktarı" : "Satış adedi"}
                 </span>
                 <input
                   className={inputClass}
@@ -427,7 +564,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     value={saleUnit}
                     onChange={(e) => setSaleUnit(e.target.value)}
                   >
-                    {picked.saleUnits?.map((u) => (
+                    {picked.saleUnits.map((u) => (
                       <option key={u} value={u}>
                         {u}
                       </option>
@@ -436,7 +573,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 </label>
               ) : null}
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Kar orani %</span>
+                <span className="mb-1 block text-xs font-black">Maliyet üzerinden kâr %</span>
                 <input
                   className={inputClass}
                   value={profitPct}
@@ -452,10 +589,10 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   Maliyet: {fmtMoney(preview.lineCost)}
                 </div>
                 <div className="rounded-xl border border-pink-200 bg-pink-50 p-3 text-center text-sm font-black">
-                  Satis: {fmtMoney(preview.lineSale)}
+                  Satış: {fmtMoney(preview.lineSale)}
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
-                  Kar: {fmtMoney(preview.lineSale - preview.lineCost)} &middot; Stok &minus;{preview.saleBaseQty}{" "}
+                  Kâr: {fmtMoney(preview.lineSale - preview.lineCost)} &middot; Stok &minus;{fmtQty(preview.saleBaseQty)}{" "}
                   {picked?.unitLabel}
                 </div>
               </div>
@@ -477,30 +614,27 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             <h2 className="mb-3 text-base font-black">Sepet</h2>
             <div className="min-h-[160px] flex-1 space-y-2 overflow-y-auto">
               {basket.length === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-500">Sepet bos</p>
+                <p className="py-10 text-center text-sm text-slate-500">Sepet boş</p>
               ) : (
-                basket.map((rec, i) => {
-                  const ln = rec.lines[0];
-                  const profit = rec.sale_price - rec.total_cost;
+                basket.map((ln, i) => {
+                  const profit = ln.lineSale - ln.lineCost;
                   return (
                     <div key={i} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 p-3">
-                      <p className="text-sm font-black text-slate-900">{ln?.productName || rec.name}</p>
-                      {ln ? (
-                        <p className="mt-0.5 text-xs font-bold text-fuchsia-800">
-                          {CATEGORY_LABELS[ln.category]} &middot; {ln.saleQty} {ln.saleUnit}
-                        </p>
-                      ) : null}
+                      <p className="text-sm font-black text-slate-900">{ln.name}</p>
+                      <p className="mt-0.5 text-xs font-bold text-fuchsia-800">
+                        {CATEGORY_LABELS[ln.inventoryType]} &middot; {fmtQty(ln.saleQty)} {ln.saleUnit}
+                      </p>
                       <div className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
                         <div>
                           <p className="text-slate-500">Maliyet</p>
-                          <p className="font-black">{fmtMoney(rec.total_cost)}</p>
+                          <p className="font-black">{fmtMoney(ln.lineCost)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Satis</p>
-                          <p className="font-black">{fmtMoney(rec.sale_price)}</p>
+                          <p className="text-slate-500">Satış</p>
+                          <p className="font-black">{fmtMoney(ln.lineSale)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Kar</p>
+                          <p className="text-slate-500">Kâr</p>
                           <p className={`font-black ${profit < 0 ? "text-rose-700" : "text-emerald-700"}`}>
                             {fmtMoney(profit)}
                           </p>
@@ -511,7 +645,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                         className="mt-2 text-xs font-black text-red-600"
                         onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}
                       >
-                        Sepetten kaldir
+                        Sepetten kaldır
                       </button>
                     </div>
                   );
@@ -524,11 +658,11 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalCost)}</span>
               </p>
               <p className="flex justify-between text-xs font-semibold text-slate-600">
-                <span>Toplam satis</span>
+                <span>Toplam satış</span>
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalSale)}</span>
               </p>
               <p className="flex justify-between text-sm font-black">
-                <span>Toplam kar</span>
+                <span>Toplam kâr</span>
                 <span className={basketTotals.totalProfit < 0 ? "text-rose-700" : "text-emerald-700"}>
                   {fmtMoney(basketTotals.totalProfit)}
                 </span>
@@ -538,8 +672,8 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               <button type="button" className={btnSecondary} onClick={() => setBasket([])} disabled={!basket.length}>
                 Sepeti Temizle
               </button>
-              <button type="button" className={btnPrimary} onClick={commitSale} disabled={!basket.length || isCommitting}>
-                {isCommitting ? "Kaydediliyor..." : "Satisi Kaydet"}
+              <button type="button" className={btnPrimary} onClick={() => void commitSale()} disabled={!basket.length || isCommitting}>
+                {isCommitting ? "Kaydediliyor..." : "Satışı Kaydet"}
               </button>
             </div>
           </section>

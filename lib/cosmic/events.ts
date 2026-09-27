@@ -12,6 +12,7 @@
 import * as AE from "astronomy-engine";
 import { getMoonPhase } from "./moon";
 import { RETRO_PERIODS } from "./retro";
+import { SUPPORT_END_YEAR } from "./dateRange";
 
 // Türkiye UTC+3 sabit offset (yaz saati 2016'dan beri yok)
 const TR_OFFSET_MS = 3 * 3_600_000;
@@ -214,8 +215,10 @@ const SC_OVERRIDE: Record<string, { title: string; description: string }> = {
   "Plüton:10:settle": { title: "Plüton Kova'da Kalıcılaştı", description: "Plüton Kova burcuna kalıcı olarak yerleşti; teknoloji ve insanlığın kolektif dönüşümü başladı." },
 };
 
-const SC_FROM_YEAR = 2024;   // sabit, deterministik pencere (SSR↔client)
-const SC_TO_YEAR   = 2050;
+// Sabit, deterministik pencere (SSR↔client). Üst sınır TEK KAYNAK'tan (dateRange):
+// toMs EXCLUSIVE olduğundan +1 ile 2050-12-31 tam kapsanır (ilan edilen aralıkla parite).
+const SC_FROM_YEAR = 2024;
+const SC_TO_YEAR   = SUPPORT_END_YEAR + 1;
 const SC_STEP_MS   = 2 * 86_400_000;
 
 function scLon(body: AE.Body, ms: number): number {

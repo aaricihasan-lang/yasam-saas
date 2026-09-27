@@ -24,6 +24,7 @@ import {
   topProfit,
   topSelling,
 } from "@/lib/urun-stok/salesReportsLogic";
+import { loadDbReportLines } from "@/lib/urun-stok/salesHistoryDb";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -90,22 +91,28 @@ export default function SatisRaporlariPage() {
   const [stockRows, setStockRows] = useState<ReturnType<typeof loadLiveStockRows>>([]);
   const [usdRate, setUsdRate] = useState("");
 
-  const reload = useCallback(() => {
+  // USM-003/017: satış geçmişi DB-canonical (real hesap). Demo localStorage kalır.
+  const reload = useCallback(async () => {
     const rate = toFloat(usdRate, 0);
-    setAllLines(loadAllReportLines(rate));
+    const demo = readYasamUser()?.is_demo_account === true;
     setStockRows(loadLiveStockRows(rate));
+    if (demo) {
+      setAllLines(loadAllReportLines(rate));
+    } else {
+      const { lines } = await loadDbReportLines();
+      setAllLines(lines);
+    }
   }, [usdRate]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
-    reload();
-    setHydrated(true);
+    void reload().finally(() => setHydrated(true));
   }, [reload]);
 
   useEffect(() => {
-    const onRefresh = () => reload();
+    const onRefresh = () => { void reload(); };
     window.addEventListener("focus", onRefresh);
     window.addEventListener("storage", onRefresh);
     const onVisible = () => {

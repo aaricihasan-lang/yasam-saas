@@ -29,6 +29,11 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // (henüz modül bilgisi senkronlanmamış) reddetmek yerine bekletiriz; böylece mobil
   // soğuk açılışta "Yetkiniz Bulunmuyor" ekranı yanıp sönmez.
   const [resolved, setResolved] = useState(false);
+  // FLASH-GUARD (KAJ-P1-04): kararın HANGİ path için verildiğini izler. Modül-gate'li bir
+  // route'ta karar bu path için verilene kadar children RENDER EDİLMEZ (aşağıdaki render
+  // kapısı). Böylece hem soğuk açılış/direct-URL hem SPA navigasyonunda ilk paint'te
+  // korumalı içerik "flash" edip sonra deny'a dönmez (izinsiz uzmana içerik sızıntısı yok).
+  const [decidedPath, setDecidedPath] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +44,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     if (!rule) {
       setDecision("skip");
       setResolved(true);
+      setDecidedPath(path);
       return;
     }
 
@@ -51,10 +57,12 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     // Cache erişime izin veriyorsa (allow/skip) anında göster — ekstra gecikme yok.
     // Cache belirsiz/deny ise, DB doğrulaması bitene kadar "resolved" false kalır.
     setResolved(initial === "allow" || initial === "skip");
+    setDecidedPath(path);
 
     if (!cached) {
       // Oturum yoksa üst katmanlar zaten girişe yönlendirir; kararı kesinleştir.
       setResolved(true);
+      setDecidedPath(path);
       return;
     }
 
@@ -69,6 +77,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
       }
       // Sync başarılı da olsa (fresh null da olsa) yetki artık kesinleşti.
       setResolved(true);
+      setDecidedPath(path);
     });
 
     return () => {
@@ -76,9 +85,17 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     };
   }, [pathname]);
 
+  const path = pathname ?? "/";
+  const hasRule = findRouteModuleRule(path) !== null;
   const isDeny = decision === "deny" || decision === "deny_membership";
-  // Yetki henüz kesinleşmemişken reddi göstermek yerine nötr yükleniyor ekranı.
-  if (isDeny && !resolved) {
+
+  // FLASH-GUARD (KAJ-P1-04): Modül-gate'li route'ta karar BU path için kesinleşene kadar
+  // (decidedPath !== path VEYA henüz resolved değil) children RENDER EDİLMEZ; nötr bekleme
+  // gösterilir. Bu, ilk paint'te korumalı içeriğin flash edip deny'a dönmesini (izinsiz
+  // uzmana sızıntı) engeller. Nötr ekran (deny değil) → K-1 mobil "yetkiniz yok" flaşı da
+  // olmaz. SSR + ilk client render ikisi de bu daldan Pending döndüğü için hydration uyumlu.
+  // Gate'siz (rule'suz) route'lar ETKİLENMEZ → children anında.
+  if (hasRule && (decidedPath !== path || !resolved)) {
     return <ModuleAccessPending />;
   }
   if (isDeny) {
