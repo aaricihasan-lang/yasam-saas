@@ -25,12 +25,12 @@ export default function ModuleAccessDenied({
           Erişim kısıtlı
         </p>
         <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
-          {isMembership ? "Üyelik Süresi Doldu" : "Yetkiniz Bulunmuyor"}
+          {isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
         </h1>
         <p className="mt-4 text-base font-medium leading-relaxed text-slate-600 md:text-lg">
           {isMembership ? (
             <>
-              Deneme süreniz sona erdi veya üyeliğiniz aktif değil.
+              Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.
               <br />
               Modüllere erişim için yöneticiniz ile görüşün.
             </>

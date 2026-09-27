@@ -5,6 +5,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
+import { resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { buildSnapshotSection } from "@/lib/yasam-hafizasi/client/snapshotReport";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
 import { slugifyTr } from "@/lib/refleksoloji/slug";
@@ -206,6 +207,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       try {
         const snaps = await readSnapshotsForDelivery(db, {
           tenantId, clientId, targetKind: "protocol", targetRef: protocolId, selectionGroup: selectionGroupId,
+          // Kapalı modülün snapshot'ları gösterilmez (GÜNCEL module_permissions; satırlar silinmez).
+          scope: resolveYhModuleScope(guard.profile?.role, guard.profile?.module_permissions),
         });
         if (snaps.length > 0) children.push(...buildSnapshotSection(snaps));
       } catch {

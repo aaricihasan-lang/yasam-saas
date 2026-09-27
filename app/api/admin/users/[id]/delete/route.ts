@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { guardAdminLockoutById, requireMainAdmin } from "@/lib/admin/adminGuards";
-import { jsonNoStore } from "@/lib/admin/accountSessionControls";
+import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
+import { isUuid } from "@/lib/admin/memberRequestValidation";
 
 export const runtime = "nodejs";
 
@@ -27,8 +28,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const { adminId, db } = guard;
 
   const { id } = await ctx.params;
-  if (!id) {
-    return NextResponse.json({ error: "Kullanıcı ID gerekli." }, { status: 400 });
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Geçersiz kullanıcı ID." }, { status: 400 });
   }
 
   if (id === adminId) {
@@ -38,8 +39,12 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
-  const body = (await req.json()) as { adminPassword?: string };
-  const adminPassword = String(body.adminPassword ?? "").trim();
+  const parsed = await readLimitedJsonBody(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+  const rawPassword = parsed.value.adminPassword;
+  const adminPassword = typeof rawPassword === "string" ? rawPassword.trim() : "";
 
   if (!adminPassword) {
     return NextResponse.json({ error: "Admin şifresi gerekli." }, { status: 400 });
@@ -82,16 +87,18 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: lock.error }, { status: lock.status });
   }
 
-  // Atomik arşivle: active=false + user_archived audit TEK PostgreSQL transaction'ında
-  // (FOR UPDATE kilidi) — migration 20270105000000. Audit yazılamazsa hesap değişimi de
-  // COMMIT edilmez (uygulama-seviyesi telafi YOK). Pasife alınma tarih+aktörü bu kayıttan türetilir.
-  const { error } = await db.rpc("admin_archive_user", {
+  // Atomik arşivle: active=false + TÜM aktif oturumların iptali + user_archived audit TEK
+  // PostgreSQL transaction'ında (FOR UPDATE kilidi) — migration 20270129235900 (MEM-006).
+  // Audit yazılamazsa hesap değişimi de COMMIT edilmez. Eski token, hesap sonradan yeniden
+  // aktifleştirilse bile CANLANMAZ (iptal edilen oturum hiçbir yolda tekrar aktif olmaz).
+  const { data, error } = await db.rpc("admin_archive_user", {
     p_user_id: id,
     p_actor_admin_id: adminId,
   });
   if (error) {
     return NextResponse.json({ error: "Arşivleme tamamlanamadı." }, { status: 500 });
   }
+  const result = (data ?? {}) as { revoked_session_count?: number };
 
-  return jsonNoStore({ ok: true, active: false });
+  return jsonNoStore({ ok: true, active: false, revokedSessionCount: result.revoked_session_count ?? 0 });
 }

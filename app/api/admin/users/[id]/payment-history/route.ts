@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .eq("user_id", id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Ödeme geçmişi okunamadı." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
 
-  return NextResponse.json({ history: data ?? [] });
+  return NextResponse.json({ history: data ?? [] }, { headers: { "Cache-Control": "private, no-store" } });
 }

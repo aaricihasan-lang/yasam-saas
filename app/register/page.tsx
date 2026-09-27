@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { passwordPolicyError, REGISTER_HONEYPOT_FIELD } from "@/lib/auth/registerValidation";
 
 const inputClass =
   "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
@@ -18,6 +19,11 @@ const ERROR_CODE_KEY: Record<string, string> = {
   already_exists: "alreadyExists",
   idempotency: "idempotency",
   failed: "generic",
+  invalid_name: "invalidName",
+  invalid_email: "invalidEmail",
+  weak_password: "weakPassword",
+  rate_limited: "rateLimited",
+  invalid_request: "generic",
 };
 
 export default function RegisterPage() {
@@ -29,6 +35,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordRepeat, setPasswordRepeat] = useState("");
+  // MEM-012 honeypot: insanlara görünmez; botlar doldurursa sunucu kayıt oluşturmaz.
+  const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
@@ -48,6 +56,15 @@ export default function RegisterPage() {
       return;
     }
 
+    if (passwordPolicyError(pass, mail)) {
+      showToast({
+        title: t("toast.errorTitle"),
+        message: t("toast.weakPassword"),
+        type: "error",
+      });
+      return;
+    }
+
     if (pass !== passRepeat) {
       showToast({
         title: t("toast.errorTitle"),
@@ -62,10 +79,15 @@ export default function RegisterPage() {
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName: name, email: mail, password: pass }),
-    });
+      body: JSON.stringify({ fullName: name, email: mail, password: pass, [REGISTER_HONEYPOT_FIELD]: website }),
+    }).catch(() => null);
 
-    const json = (await res.json()) as { ok?: boolean; error?: string; code?: string };
+    if (!res) {
+      showToast({ title: t("toast.errorTitle"), message: t("toast.generic"), type: "error" });
+      setSaving(false);
+      return;
+    }
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string };
 
     if (!res.ok || !json.ok) {
       // API artık kararlı bir `code` döndürür → locale'e göre i18n mesaj. Bilinmeyen
@@ -151,7 +173,11 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   className={inputClass}
                   autoComplete="new-password"
+                  aria-describedby="register-password-hint"
                 />
+                <p id="register-password-hint" className="mt-1.5 text-xs font-medium text-slate-500">
+                  {t("passwordHint")}
+                </p>
               </div>
 
               <div>
@@ -166,6 +192,21 @@ export default function RegisterPage() {
                   className={inputClass}
                   autoComplete="new-password"
                 />
+              </div>
+
+              {/* Honeypot — ekran okuyucu ve klavye için gizli; görünür DEĞİL. */}
+              <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
+                <label>
+                  Web sitesi
+                  <input
+                    type="text"
+                    name={REGISTER_HONEYPOT_FIELD}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                </label>
               </div>
 
               <button

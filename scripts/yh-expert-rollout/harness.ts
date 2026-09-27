@@ -192,27 +192,38 @@ async function run(): Promise<void> {
 
   // ─── 8) STATIK: provisioning/grant yollarının HEPSİ tek atomik sözleşmeye uyar ──
   {
-    // package (premium grant): AŞAMA 1 tutarlılık düzeltmesi — premium ATAMA da audited atomik
-    // admin_approve_expert_premium RPC'sinden geçer (RPC içeride yh_grade_expert_premium'u AYNI
-    // tx'te çağırır + ZORUNLU user_approved audit yazar). Eski audit'siz doğrudan yh_grade helper
-    // çağrısı KALDIRILDI. FAIL-CLOSED korunur (RPC hatası → 500). Atomiklik + fail-closed intent aynı.
-    const pkg = read("app/api/admin/users/[id]/package/route.ts");
-    const pkgCode = stripComments(pkg);
-    add("package-uses-atomic-grade", /rpc\("admin_approve_expert_premium"/.test(pkgCode) && /packagePlan === "premium"/.test(pkgCode), "");
-    add("package-grade-fail-closed", /if \(error\)[\s\S]{0,160}status:\s*500/.test(pkgCode), "");
-    // Premium branch RPC'den ÖNCE ayrı users.update YAPMAZ (iki ardışık write yok); ayrıca eski
-    // best-effort helper referansları kaldırıldı.
-    add("package-no-legacy-helpers", !/grantYasamHafizasiExpertAccess|ensureTenantYasamHafizasiEnabled|flagsAdmin/.test(pkgCode), "");
+    // premium grant: ÜYE YÖNETİMİ FAZ 1 — Premium YALNIZ "Onayla" akışında, modül seçimiyle
+    // birlikte atomik admin_approve_expert_with_modules RPC'sinden verilir (RPC içeride
+    // yh_grade_expert_premium'u AYNI tx'te çağırır + ZORUNLU user_approved audit yazar).
+    // Paket uç noktası KALDIRILDI (410; üyelik yazımı yok). FAIL-CLOSED korunur (RPC hatası → 4xx/500).
+    const statusCode = stripComments(read("app/api/admin/users/[id]/status/route.ts"));
+    const pkgCode = stripComments(read("app/api/admin/users/[id]/package/route.ts"));
+    const faz1Sql = read("supabase/migrations/20270129235900_admin_member_phase1_hardening.sql").replace(/--[^\n]*/g, "");
+    add("approve-uses-atomic-grade",
+      /rpc\("admin_approve_expert_with_modules"/.test(statusCode) &&
+      /admin_approve_expert_with_modules[\s\S]*public\.yh_grade_expert_premium\(p_user_id, p_membership, v_perms\)/.test(faz1Sql), "");
+    add("approve-grade-fail-closed", /if \(error\) \{[\s\S]{0,120}rpcErrorStatus\(error\)/.test(statusCode), "");
+    add("package-endpoint-retired", /status:\s*410/.test(pkgCode) && !/\.rpc\(|\.update\(/.test(pkgCode), "");
+    add("grant-no-legacy-helpers",
+      !/grantYasamHafizasiExpertAccess|ensureTenantYasamHafizasiEnabled|flagsAdmin/.test(statusCode + pkgCode), "");
 
-    // edit route: YH iznini KORUR (düşürmez), grant/revoke YAPMAZ (UI'da YH yok) → PARTIAL üretmez.
-    const editRoute = read("app/api/admin/users/[id]/route.ts");
-    add("edit-route-preserves-yh", /newPayload\.yasam_hafizasi\s*=\s*oldPerms\.yasam_hafizasi === true/.test(editRoute), "");
+    // modül değişikliği: YH iznini KORUR (düşürmez), grant/revoke YAPMAZ → PARTIAL üretmez.
+    // RPC yalnız p_changes anahtarlarını birleştirir; yasam_hafizasi DB validator'ında YASAK.
+    add("module-change-preserves-yh",
+      /e\.key = 'yasam_hafizasi'/.test(faz1Sql) && /\(v_old - v_all_alias\) \|\| p_changes/.test(faz1Sql), "");
 
     // create yolları (register public + admin create): DEFAULT (all-false) → create'te YH YOK.
     const reg = read("app/api/register/route.ts");
     add("register-default-perms-no-yh", /modulePermissions:\s*DEFAULT_MODULE_PERMISSIONS/.test(reg), "");
     const adminCreate = read("app/api/admin/users/route.ts");
-    add("admin-create-default-perms-no-yh", /modulePermissions:\s*DEFAULT_MODULE_PERMISSIONS/.test(adminCreate), "");
+    // ÜYE YÖNETİMİ FAZ 2: admin create tek yol → admin_create_user_with_modules (provision ile
+    // module_permissions='{}' + onay RPC'si). YH izni yalnız yh_grade eligibility'sinden; route
+    // yasam_hafizasi YAZMAZ (seçilebilir modül whitelist'inde de yok).
+    const faz2Sql = read("supabase/migrations/20270130000000_admin_member_phase2.sql").replace(/--[^\n]*/g, "");
+    add("admin-create-default-perms-no-yh",
+      /rpc\("admin_create_user_with_modules"/.test(adminCreate) && !/yasam_hafizasi/.test(stripComments(adminCreate))
+      && /'module_permissions', '\{\}'::jsonb/.test(faz2Sql)
+      && /public\.admin_approve_expert_with_modules\(/.test(faz2Sql), "");
 
     // DEFAULT fail-closed false + generic premium payload YH içermez (kaynak seviyesi).
     const mp = read("lib/auth/modulePermissions.ts");
@@ -433,10 +444,11 @@ async function run(): Promise<void> {
     // CODE DEPENDENCY yalnız EXPAND RPC'ye bağlı (activation data'ya DEĞİL): helper + package RPC adını
     // kullanır; activation migration'ına kod referansı YOK.
     const helperSrc2 = read("lib/yasam-hafizasi/expertPremiumGrant.ts");
-    const pkgSrc = read("app/api/admin/users/[id]/package/route.ts");
+    const faz1Sql2 = read("supabase/migrations/20270129235900_admin_member_phase1_hardening.sql");
+    const statusSrc2 = read("app/api/admin/users/[id]/status/route.ts");
     add("code-depends-on-expand-rpc-only",
-      /yh_grade_expert_premium/.test(helperSrc2) && /admin_approve_expert_premium/.test(pkgSrc) &&
-      !/yh_expert_rollout_activation/.test(helperSrc2) && !/yh_expert_rollout_activation/.test(pkgSrc), "");
+      /yh_grade_expert_premium/.test(helperSrc2) && /yh_grade_expert_premium/.test(faz1Sql2) &&
+      !/yh_expert_rollout_activation/.test(helperSrc2) && !/yh_expert_rollout_activation/.test(faz1Sql2 + statusSrc2), "");
   }
 }
 

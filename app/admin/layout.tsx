@@ -1,36 +1,28 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
+import { getServerDb } from "@/lib/supabase-server";
+import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
 
 /**
  * Admin route guard — Server Component.
- * middleware.ts cookie varlığını kontrol eder (hızlı red).
- * Bu layout DB'de role=admin AND active=true doğrular (manipülasyon koruması).
+ * proxy.ts cookie varlığını kontrol eder (hızlı red).
+ * MEM-015: Bu layout cookie'deki OPAK oturum token'ını API ile AYNI kuralla doğrular:
+ * user_sessions'da aktif + sahibi role=admin + active=true. Sahte/bilinen admin UUID'si,
+ * uzman token'ı, süresi dolmuş/iptal edilmiş token → kabuk render EDİLMEZ (redirect "/").
  */
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
-  const adminId = cookieStore.get("yasam_admin_id")?.value?.trim();
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
 
+  let adminId: string | null = null;
+  try {
+    adminId = await resolveAdminShellUserId(getServerDb(), token);
+  } catch {
+    adminId = null;
+  }
   if (!adminId) redirect("/");
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceKey) redirect("/");
-
-  const db = createClient(supabaseUrl, serviceKey);
-
-  const { data } = await db
-    .from("users")
-    .select("id, role")
-    .eq("id", adminId)
-    .eq("role", "admin")
-    .eq("active", true)
-    .maybeSingle();
-
-  if (!data) redirect("/");
 
   return (
     <>

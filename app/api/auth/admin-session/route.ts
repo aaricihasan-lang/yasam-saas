@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { resolveAdminUserIdFromSessionToken } from "@/lib/auth/credentialLogin";
+import {
+  ADMIN_SESSION_COOKIE,
+  LEGACY_ADMIN_ID_COOKIE,
+  adminSessionCookieOptions,
+} from "@/lib/auth/adminShellSession";
 
 export const runtime = "nodejs";
-
-const COOKIE_NAME = "yasam_admin_id";
-const COOKIE_MAX_AGE = 60 * 60 * 24; // 24 saat
 
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -45,14 +47,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Yetki yok." }, { status: 401 });
     }
 
-    const response = NextResponse.json({ ok: true });
-    response.cookies.set(COOKIE_NAME, adminId, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: isProduction,
-      path: "/",
-      maxAge: COOKIE_MAX_AGE,
-    });
+    // MEM-015: cookie artık imzasız admin UUID DEĞİL; doğrulanmış OPAK oturum token'ı. Admin
+    // kabuğu (app/admin/layout) bu token'ı API ile aynı kuralla doğrular. Eski UUID cookie silinir.
+    const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    response.cookies.set(ADMIN_SESSION_COOKIE, sessionToken, adminSessionCookieOptions(isProduction));
+    response.cookies.set(LEGACY_ADMIN_ID_COOKIE, "", { ...adminSessionCookieOptions(isProduction), maxAge: 0 });
 
     return response;
   } catch {
@@ -66,13 +65,9 @@ export async function POST(request: NextRequest) {
  * Logout sırasında cookie temizlemek için çağrılır.
  */
 export async function DELETE() {
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE_NAME, "", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: isProduction,
-    path: "/",
-    maxAge: 0,
-  });
+  const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+  for (const name of [ADMIN_SESSION_COOKIE, LEGACY_ADMIN_ID_COOKIE]) {
+    response.cookies.set(name, "", { ...adminSessionCookieOptions(isProduction), maxAge: 0 });
+  }
   return response;
 }
