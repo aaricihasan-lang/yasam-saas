@@ -10,11 +10,12 @@
  * FAZ 1E: Tüm hardcoded period/fallback tabloları (MERCURY..PLUTO_PERIODS) ve
  * lookupSign/lookupSignSafe kaldırıldı. AE başarısız olursa YANLIŞ tabloya sessiz
  * dönüş yapılmaz; gezegen outOfRange:true (sign boş) döner — güvenli davranış.
- * (Güneş için takvim-tarihi yedeği _legacySunSign korunur; bu bir period tablosu
- *  değildir, deterministik ±1 gün cusp yaklaşımıdır ve ana sayfada kullanılır.)
+ * (_legacySunSign yalnız audit/karşılaştırma içindir; G7 gereği fallback olarak KULLANILMAZ.)
  */
 
 import * as AE from "astronomy-engine";
+import { assertValidDate } from "./dateRange";
+import { refineIngressMs } from "./ingressCatalog";
 
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
@@ -70,22 +71,17 @@ function _legacySunSign(date: Date): string {
 /**
  * Güneş burcu — astronomy-engine ekliptik boylam (FAZ 5B).
  * GeoVector(Sun) → Ecliptic() → elon (0-360°) → 30°'lik dilimler.
- * Fallback: takvim ay/gün yaklaşımı (yalnız AE başarısız olursa).
+ * G7: AE hesaplanamazsa takvim-yedeğine DÜŞÜLMEZ; "" döner (çağıran outOfRange yapar).
  */
 function getSunSign(date: Date): string {
-  try {
-    const vec = AE.GeoVector(AE.Body.Sun, date, true);
-    const ecl = AE.Ecliptic(vec);
-    const idx  = Math.floor(ecl.elon / 30) % 12;
-    return SUN_ZODIAC_NAMES[idx] ?? _legacySunSign(date);
-  } catch {
-    return _legacySunSign(date);
-  }
+  return aeSignName(AE.Body.Sun, date);
 }
 
 /** Güneş burcu + emoji — dış bileşenler için (app/page.tsx, audit). */
 export function getSunSignInfo(date: Date): { name: string; emoji: string } {
+  assertValidDate(date, "getSunSignInfo");
   const name = getSunSign(date);
+  if (!name) throw new RangeError("getSunSignInfo: Güneş boylamı çözülemedi");
   return { name, emoji: ZODIAC_SYMBOL[name] ?? "☉" };
 }
 
@@ -149,7 +145,7 @@ function aeSignBoundary(body: AE.Body, inT: number, outT: number, s0: number): n
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
 const PLANET_DEFS: ReadonlyArray<{ key: PlanetKey; symbol: string; body: AE.Body | null }> = [
-  { key: "Güneş",   symbol: "☉", body: null },          // null → getSunSign (AE + takvim yedeği)
+  { key: "Güneş",   symbol: "☉", body: null },          // null → getSunSign (AE; yedek YOK)
   { key: "Merkür",  symbol: "☿", body: AE.Body.Mercury },
   { key: "Venüs",   symbol: "♀", body: AE.Body.Venus   },
   { key: "Mars",    symbol: "♂", body: AE.Body.Mars    },
@@ -167,6 +163,7 @@ const PLANET_DEFS: ReadonlyArray<{ key: PlanetKey; symbol: string; body: AE.Body
  * AE hesaplanamazsa (yalnız Güneş dışı) sign="" + outOfRange:true (yanlış tabloya dönülmez).
  */
 export function getPlanetSigns(date: Date): PlanetInfo[] {
+  assertValidDate(date, "getPlanetSigns");
   return PLANET_DEFS.map(({ key, symbol, body }) => {
     const sign = body === null ? getSunSign(date) : aeSignName(body, date);
     return {
@@ -189,6 +186,7 @@ export function getPlanetSignPeriod(
   key: PlanetKey,
   date: Date,
 ): { from: string; to: string } | null {
+  if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return null;
   try {
     const body = SIGN_PERIOD_BODY[key];
     const step = SIGN_PERIOD_STEP_DAYS[key] * 86_400_000;
@@ -199,13 +197,16 @@ export function getPlanetSignPeriod(
     let prev = t0, cur = t0 - step;
     const backCap = t0 - SIGN_PERIOD_CAP_MS;
     while (cur > backCap && aeSignIndexAt(body, cur) === s0) { prev = cur; cur -= step; }
-    const fromMs = aeSignIndexAt(body, cur) === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
+    const fromRaw = aeSignIndexAt(body, cur) === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
+    const fromMs  = fromRaw === cur ? cur : refineIngressMs(key, s0, fromRaw);   // G5 sınır düzeltmesi
 
     // to: ileriye doğru bu burçtan çıkış anı
     prev = t0; cur = t0 + step;
     const fwdCap = t0 + SIGN_PERIOD_CAP_MS;
     while (cur < fwdCap && aeSignIndexAt(body, cur) === s0) { prev = cur; cur += step; }
-    const toMs = aeSignIndexAt(body, cur) === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
+    const exitSign = aeSignIndexAt(body, cur);
+    const toRaw = exitSign === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
+    const toMs  = exitSign === s0 ? cur : refineIngressMs(key, exitSign, toRaw);  // G5 sınır düzeltmesi
 
     return { from: aeSignPeriodTrDate(fromMs), to: aeSignPeriodTrDate(toMs) };
   } catch {

@@ -39,6 +39,8 @@
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "test:cosmic:presale": "node scripts/cosmic-presale/run-all.mjs",
+    "test:cosmic:2100": "tsx scripts/cosmic-2100/regression.ts",
+    "validate:cosmic:longrange": "node scripts/cosmic-longrange/run-all.mjs",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
     "yh:bf12b:validate": "tsx scripts/yh-bf12b/cli.ts validate",
     "yh:bf12b:backup": "tsx scripts/yh-bf12b/cli.ts backup",

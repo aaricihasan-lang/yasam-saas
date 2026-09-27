@@ -2,9 +2,12 @@
  * lib/cosmic/hacamat.ts
  * Hacamat takvimi hesaplama motoru.
  *
- * Hicri tarih için Kozmik Takvim ile aynı Intl API / Umm al-Qura sistemi kullanılır.
- * Böylece Kozmik Takvim, Ay Fazları ve Hacamat Takvimi tutarlı tarihe bakar.
+ * Hicri tarih KANONİK kaynaktan (lib/cosmic/hijri.ts — Umm al-Qura tablo/kural) gelir; tarayıcı
+ * Intl takvimi KULLANILMAZ (denetim G1). Böylece Kozmik Takvim, Ay Fazları, Hacamat Takvimi,
+ * raporlar ve Kupa takvimi aynı Hicri günü gösterir. Tablo dışı gün → Hicri 0 / "—" (tahmin YOK).
  */
+
+import { hijriFromGregorian, type HijriMethod } from "./hijri";
 
 // ─── Tip tanımları ─────────────────────────────────────────────────────────────
 
@@ -21,6 +24,8 @@ export type CalendarDay = {
   hijriMonthName:  string;
   hijriYear:       number;
   hijriFormatted:  string;
+  /** Kanonik Hicri yöntem etiketi; tablo dışı → null. */
+  hijriMethod:     HijriMethod | null;
   status:          HacamatStatus;
   statusLabel:     string;
   stars:           string;
@@ -231,24 +236,17 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days: CalendarDay[] = [];
 
-  const hijriFmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
-    day: "numeric", month: "numeric", year: "numeric",
-  });
-
   for (let d = 1; d <= daysInMonth; d++) {
     const miladi      = new Date(year, month, d);
     const weekDay     = miladi.getDay();
     const weekDayName = WEEK_DAY_NAMES_TR[weekDay]!;
 
-    let hijriDay = 0, hijriMonthIdx = 0, hijriYear = 0;
-    try {
-      const parts   = hijriFmt.formatToParts(miladi);
-      hijriDay      = parseInt(parts.find(p => p.type === "day")?.value   ?? "0", 10);
-      hijriMonthIdx = parseInt(parts.find(p => p.type === "month")?.value ?? "1", 10) - 1;
-      hijriYear     = parseInt(parts.find(p => p.type === "year")?.value   ?? "0", 10);
-    } catch { /* ignore */ }
+    const h = hijriFromGregorian(year, month + 1, d);
+    const hijriDay      = h?.day ?? 0;
+    const hijriMonthIdx = h ? h.month - 1 : 0;
+    const hijriYear     = h?.year ?? 0;
 
-    const hijriMonthName = HIJRI_MONTHS[Math.max(0, Math.min(11, hijriMonthIdx))] ?? "?";
+    const hijriMonthName = h ? (HIJRI_MONTHS[hijriMonthIdx] ?? "?") : "—";
     const status         = getStatus(weekDay, hijriDay);
     const isNotable      = NOTABLE_HICRI.has(hijriDay);
 
@@ -262,7 +260,8 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
       hijriMonthIdx,
       hijriMonthName,
       hijriYear,
-      hijriFormatted: `${hijriDay} ${hijriMonthName} ${hijriYear}`,
+      hijriFormatted: h ? h.formatted : "—",
+      hijriMethod:    h?.method ?? null,
       status,
       statusLabel:    statusLabel(status),
       stars:          statusStars(status),
@@ -300,12 +299,9 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
   };
 }
 
-// ─── Altın Gün tarayıcı (2026-2036) ─────────────────────────────────────────
+// ─── Altın Gün tarayıcı ─────────────────────────────────────────────────────
 
 export function getAllAltinDays(fromYear: number, toYear: number): AltinDay[] {
-  const hijriFmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
-    day: "numeric", month: "numeric", year: "numeric",
-  });
   const result: AltinDay[] = [];
 
   for (let year = fromYear; year <= toYear; year++) {
@@ -316,21 +312,13 @@ export function getAllAltinDays(fromYear: number, toYear: number): AltinDay[] {
         const weekDay = date.getDay();
         if (weekDay !== 2) continue; // Sadece Salı
 
-        let hijriDay = 0, hijriMonthIdx = 0, hijriYear = 0;
-        try {
-          const parts   = hijriFmt.formatToParts(date);
-          hijriDay      = parseInt(parts.find(p => p.type === "day")?.value   ?? "0", 10);
-          hijriMonthIdx = parseInt(parts.find(p => p.type === "month")?.value ?? "1", 10) - 1;
-          hijriYear     = parseInt(parts.find(p => p.type === "year")?.value   ?? "0", 10);
-        } catch { continue; }
+        const h = hijriFromGregorian(year, month + 1, day);
+        if (!h || h.day !== 17) continue;
 
-        if (hijriDay !== 17) continue;
-
-        const hijriMonthName = HIJRI_MONTHS[Math.max(0, Math.min(11, hijriMonthIdx))] ?? "?";
         result.push({
           miladi:         date,
           miladiFull:     `${day} ${MONTH_NAMES_TR[month]} ${year}`,
-          hijriFormatted: `17 ${hijriMonthName} ${hijriYear}`,
+          hijriFormatted: h.formatted,
           weekDayName:    "Salı",
           year,
         });

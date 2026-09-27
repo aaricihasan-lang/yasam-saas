@@ -12,6 +12,8 @@ import {
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { supportedYears, SUPPORT_START_YEAR, SUPPORT_END_YEAR } from "@/lib/cosmic/dateRange";
+import { HIJRI_METHOD_NOTE } from "@/lib/cosmic/hijri";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
@@ -21,7 +23,8 @@ const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
 type Tab = "bu-ay" | "altin" | "diger" | "kurallar" | "word";
 type RuleCategory = HijamRule["category"];
 
-const YEAR_RANGE = Array.from({ length: 21 }, (_, i) => 2020 + i);
+// G8-B: yıl seçici ve rapor servisi (validateHacamatReportPayload) AYNI tek kaynaktan: 2026–2100.
+const YEAR_RANGE = supportedYears();
 
 const CAT_LABEL: Record<RuleCategory, string> = {
   before:  "A) Hacamat Öncesi",
@@ -319,7 +322,10 @@ export default function HacamatPage() {
   const buAyData   = useMemo(() => getHacamatMonthData(todayYear, todayMonth), [todayYear, todayMonth]);
   const digerData  = useMemo(() => getHacamatMonthData(digerYear, digerMonth), [digerYear, digerMonth]);
   const wordData   = useMemo(() => getHacamatMonthData(wordYear, wordMonth),   [wordYear, wordMonth]);
-  const altinDays  = useMemo(() => getAllAltinDays(2026, 2036),                []);
+  // Altın Günler görünüm penceresi: bugünden itibaren 11 yıl, public aralıkla (dateRange) sınırlı.
+  const altinFromYear = Math.min(SUPPORT_END_YEAR, Math.max(SUPPORT_START_YEAR, todayYear));
+  const altinToYear   = Math.min(SUPPORT_END_YEAR, altinFromYear + 10);
+  const altinDays  = useMemo(() => getAllAltinDays(altinFromYear, altinToYear), [altinFromYear, altinToYear]);
   const altinByYear = useMemo(() => {
     const map = new Map<number, typeof altinDays>();
     for (const d of altinDays) {
@@ -516,7 +522,7 @@ export default function HacamatPage() {
           <span className="mt-0.5 shrink-0 text-[14px] leading-none text-amber-600" aria-hidden>⚠</span>
           <p className="text-[10px] leading-relaxed text-amber-800">
             <strong>Geleneksel bilgi / takvimsel yardımcıdır; sağlık veya dini uygunluk iddiası değildir.</strong> Bu takvim, geleneksel İslami tıp geleneğine dayanan bilgi amaçlı içerik sunmaktadır. Hacamat uygulaması için mutlaka uzman bir sağlık profesyoneliyle görüşün. Bu bilgiler tıbbi tavsiye niteliği taşımaz.
-            {" "}<span className="text-amber-700">Hicri tarihler <strong>Ümmü&#39;l-Kurâ</strong> takvim sistemine göre hesaplanır; Türkiye&#39;de kullanılan resmî (hilal gözlemi esaslı) takvimlerle bazı tarihlerde <strong>bir günlük fark</strong> oluşabilir.</span>
+            {" "}<span className="text-amber-700">{HIJRI_METHOD_NOTE}</span>
           </p>
         </div>
 
@@ -568,14 +574,14 @@ export default function HacamatPage() {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600">⭐ Altın Günler 2026–2036</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600">⭐ Altın Günler {altinFromYear}–{altinToYear}</p>
                 <p className="mt-0.5 text-[10px] text-slate-400">
                   Hicri 17 + Salı günü koşulunu karşılayan tarihler · Toplam: {altinDays.length} gün
                 </p>
               </div>
             </div>
             <div className="space-y-3">
-              {Array.from({ length: 11 }, (_, i) => 2026 + i).map(yr => {
+              {Array.from({ length: altinToYear - altinFromYear + 1 }, (_, i) => altinFromYear + i).map(yr => {
                 const days = altinByYear.get(yr) ?? [];
                 return (
                   <div key={yr} className="rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md sm:p-4">

@@ -4,15 +4,21 @@ import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import {
-  RETRO_PERIODS,
+  RETRO_PLANETS,
   getActiveRetros,
+  getRetroStatus,
   getUpcomingRetros,
   getNextRetro,
+  getRetroPeriodsBetween,
+  getAllRetroPeriods,
   parseRetroDate,
   type RetroPeriod,
   type PlanetName,
 } from "@/lib/cosmic/retro";
-import { canNavigateMonth, SUPPORT_RANGE_LABEL } from "@/lib/cosmic/dateRange";
+import {
+  canNavigateMonth, SUPPORT_RANGE_LABEL, OUT_OF_RANGE_MESSAGE, INVALID_DATE_MESSAGE,
+  isRealCalendarDay, isCalendarDaySupported, dayKey, SUPPORT_START_YEAR, SUPPORT_END_YEAR,
+} from "@/lib/cosmic/dateRange";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -23,10 +29,12 @@ const MONTH_NAMES_TR: ReadonlyArray<string> = [
 
 const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
 
-const PLANETS: readonly PlanetName[] = ["Merkür", "Venüs", "Mars", "Jüpiter", "Satürn"];
+// G3: retro durumu 8 gezegen için hesaplanır (Merkür…Plüton) — tek kaynak retro.ts.
+const PLANETS: readonly PlanetName[] = RETRO_PLANETS;
 
 const PLANET_SYMBOLS: Record<PlanetName, string> = {
   "Merkür": "☿", "Venüs": "♀", "Mars": "♂", "Jüpiter": "♃", "Satürn": "♄",
+  "Uranüs": "♅", "Neptün": "♆", "Plüton": "♇",
 };
 
 type PlanetFilter = "Tümü" | PlanetName;
@@ -42,6 +50,9 @@ const PLANET_STYLES: Record<PlanetName, PlanetStyle> = {
   "Mars":    { bg: "bg-red-100",    lightBg: "bg-red-50",     text: "text-red-600",     darkText: "text-red-700",     border: "border-red-200",     dot: "bg-red-400",     calBg: "bg-red-100/70",     calBorder: "border-red-300/50"     },
   "Jüpiter": { bg: "bg-blue-100",   lightBg: "bg-blue-50",    text: "text-blue-600",    darkText: "text-blue-700",    border: "border-blue-200",    dot: "bg-blue-400",    calBg: "bg-blue-100/70",    calBorder: "border-blue-300/50"    },
   "Satürn":  { bg: "bg-slate-100",  lightBg: "bg-slate-50",   text: "text-slate-500",   darkText: "text-slate-600",   border: "border-slate-300",   dot: "bg-slate-400",   calBg: "bg-slate-100/70",   calBorder: "border-slate-300/50"   },
+  "Uranüs":  { bg: "bg-cyan-100",   lightBg: "bg-cyan-50",    text: "text-cyan-600",    darkText: "text-cyan-700",    border: "border-cyan-200",    dot: "bg-cyan-400",    calBg: "bg-cyan-100/70",    calBorder: "border-cyan-300/50"    },
+  "Neptün":  { bg: "bg-indigo-100", lightBg: "bg-indigo-50",  text: "text-indigo-600",  darkText: "text-indigo-700",  border: "border-indigo-200",  dot: "bg-indigo-400",  calBg: "bg-indigo-100/70",  calBorder: "border-indigo-300/50"  },
+  "Plüton":  { bg: "bg-purple-100", lightBg: "bg-purple-50",  text: "text-purple-600",  darkText: "text-purple-700",  border: "border-purple-200",  dot: "bg-purple-400",  calBg: "bg-purple-100/70",  calBorder: "border-purple-300/50"  },
 };
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
@@ -70,7 +81,8 @@ type DayRetroData = { active: RetroPeriod[]; starts: RetroPeriod[]; ends: RetroP
 
 function getMonthRetroData(year: number, month: number, filter: PlanetFilter): Map<number, DayRetroData> {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const periods     = filter === "Tümü" ? RETRO_PERIODS : RETRO_PERIODS.filter(r => r.planet === filter);
+  const inMonth     = getRetroPeriodsBetween(dayKey(year, month + 1, 1), dayKey(year, month + 1, daysInMonth));
+  const periods     = filter === "Tümü" ? inMonth : inMonth.filter(r => r.planet === filter);
   const map         = new Map<number, DayRetroData>();
 
   for (let d = 1; d <= daysInMonth; d++) {
@@ -91,8 +103,9 @@ function getMonthRetroData(year: number, month: number, filter: PlanetFilter): M
   return map;
 }
 
-function getPlanetStats(planet: PlanetName) {
-  const periods     = RETRO_PERIODS.filter(r => r.planet === planet);
+/** Gezegen istatistikleri — public aralığın (dateRange) TÜM retro dönemleri üzerinden. */
+function getPlanetStats(planet: PlanetName, all: ReadonlyArray<RetroPeriod>) {
+  const periods     = all.filter(r => r.planet === planet);
   const avgDuration = periods.length > 0
     ? Math.round(periods.reduce((s, r) => s + durationDays(r), 0) / periods.length)
     : 0;
@@ -131,7 +144,7 @@ export default function RetroCalendarPage() {
     setViewMonth(n.getMonth());
   }, []);
   const [searchInput,  setSearchInput]  = useState("");
-  const [searchResult, setSearchResult] = useState<RetroPeriod[] | "none" | "invalid" | null>(null);
+  const [searchResult, setSearchResult] = useState<RetroPeriod[] | "none" | "invalid" | "outofrange" | null>(null);
 
   const activeRetros = useMemo(() => {
     const all = getActiveRetros(today);
@@ -149,21 +162,21 @@ export default function RetroCalendarPage() {
     [viewYear, viewMonth, planetFilter],
   );
 
-  const planetStats = useMemo(() => ({
-    "Merkür":  getPlanetStats("Merkür"),
-    "Venüs":   getPlanetStats("Venüs"),
-    "Mars":    getPlanetStats("Mars"),
-    "Jüpiter": getPlanetStats("Jüpiter"),
-    "Satürn":  getPlanetStats("Satürn"),
-  }), []);
+  // İstatistikler tüm 2026–2100 dönemlerini gerektirir (ağır) → ilk boyamadan SONRA hesaplanır;
+  // o ana dek kartlarda "hesaplanıyor…" gösterilir. Değerler motorun kendisinden gelir (cache değil).
+  const [planetStats, setPlanetStats] = useState<Record<PlanetName, ReturnType<typeof getPlanetStats>> | null>(null);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const all = getAllRetroPeriods();
+      setPlanetStats(Object.fromEntries(PLANETS.map(p => [p, getPlanetStats(p, all)])) as Record<PlanetName, ReturnType<typeof getPlanetStats>>);
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
-  const planetNextRetros: Record<PlanetName, RetroPeriod | null> = useMemo(() => ({
-    "Merkür":  getNextRetro("Merkür",  today),
-    "Venüs":   getNextRetro("Venüs",   today),
-    "Mars":    getNextRetro("Mars",    today),
-    "Jüpiter": getNextRetro("Jüpiter", today),
-    "Satürn":  getNextRetro("Satürn",  today),
-  }), [today]);
+  const planetNextRetros = useMemo(
+    () => Object.fromEntries(PLANETS.map(p => [p, getNextRetro(p, today)])) as Record<PlanetName, RetroPeriod | null>,
+    [today],
+  );
 
   const activeCountAll = useMemo(() => getActiveRetros(today).length, [today]);
   const nextRetroAny   = useMemo(() => getUpcomingRetros(today, 365)[0] ?? null, [today]);
@@ -186,11 +199,13 @@ export default function RetroCalendarPage() {
     const t = searchInput.trim();
     const m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
     if (!m) { setSearchResult("invalid"); return; }
-    const d = parseInt(m[1]!), mo = parseInt(m[2]!) - 1, y = parseInt(m[3]!);
-    if (mo < 0 || mo > 11 || d < 1 || d > 31) { setSearchResult("invalid"); return; }
-    const date = new Date(y, mo, Math.min(d, new Date(y, mo + 1, 0).getDate()));
-    const active = getActiveRetros(date);
-    setSearchResult(active.length > 0 ? active : "none");
+    const d = parseInt(m[1]!), mo = parseInt(m[2]!), y = parseInt(m[3]!);
+    // G3/G7/G8-A: gerçek takvim günü + public aralık zorunlu; kapsam dışı ASLA "direkt" değildir.
+    if (!isRealCalendarDay(y, mo, d)) { setSearchResult("invalid"); return; }
+    if (!isCalendarDaySupported(y, mo, d)) { setSearchResult("outofrange"); return; }
+    const st = getRetroStatus(new Date(y, mo - 1, d));
+    if (!st.supported) { setSearchResult("outofrange"); return; }
+    setSearchResult(st.active.length > 0 ? st.active : "none");
   }
 
   return (
@@ -270,7 +285,7 @@ export default function RetroCalendarPage() {
               <p className="mb-1 text-2xl">✅</p>
               <p className="text-[13px] font-black text-emerald-700">Şu anda aktif retro bulunmuyor</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
-                {planetFilter !== "Tümü" ? `${planetFilter} direkt harekette` : "Tüm gezegenler direkt hareket halinde"}
+                {planetFilter !== "Tümü" ? `${planetFilter} direkt harekette` : `Kontrol edilen ${PLANETS.length} gezegenin tamamı direkt hareket halinde`}
               </p>
             </div>
           ) : (
@@ -528,10 +543,10 @@ export default function RetroCalendarPage() {
         {/* ── Gezegen Kartları ── */}
         <section className="mb-4">
           <p className="mb-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🪐 Gezegen Özeti</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {PLANETS.map(planet => {
               const style   = PLANET_STYLES[planet];
-              const stats   = planetStats[planet];
+              const stats   = planetStats?.[planet] ?? null;
               const next    = planetNextRetros[planet];
               const daysUntilNext = next
                 ? Math.ceil((parseRetroDate(next.start).getTime() - today.getTime()) / 86_400_000)
@@ -571,9 +586,9 @@ export default function RetroCalendarPage() {
                     </div>
                     <div className="border-t border-slate-100/80 pt-1 space-y-0.5">
                       {[
-                        ["Sıklık", `~${stats.avgFrequency}g`],
-                        ["Süre",   `~${stats.avgDuration}g`],
-                        ["Kayıt",  `${stats.count}`],
+                        ["Sıklık", stats ? `~${stats.avgFrequency}g` : "…"],
+                        ["Süre",   stats ? `~${stats.avgDuration}g` : "…"],
+                        [`Kayıt (${SUPPORT_START_YEAR}–${SUPPORT_END_YEAR})`, stats ? `${stats.count}` : "hesaplanıyor…"],
                       ].map(([label, value]) => (
                         <div key={label} className="flex items-center justify-between">
                           <span className="text-[8px] text-slate-400">{label}</span>
@@ -626,13 +641,18 @@ export default function RetroCalendarPage() {
 
           {searchResult === "invalid" && (
             <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-[10px] text-rose-600">
-              ⚠ Geçersiz tarih. GG.AA.YYYY formatında girin — örn: 15.08.2030
+              ⚠ {INVALID_DATE_MESSAGE} GG.AA.YYYY formatında girin — örn: 15.08.2030
+            </p>
+          )}
+          {searchResult === "outofrange" && (
+            <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 px-2.5 py-2 text-[10px] text-amber-700" role="alert">
+              ⚠ {OUT_OF_RANGE_MESSAGE}
             </p>
           )}
           {searchResult === "none" && (
             <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5">
               <p className="text-[11px] font-black text-emerald-700">✅ Bu tarihte aktif retro bulunmuyor</p>
-              <p className="mt-0.5 text-[9px] text-slate-400">Tüm gezegenler direkt hareket halinde</p>
+              <p className="mt-0.5 text-[9px] text-slate-400">Kontrol edilen {PLANETS.length} gezegenin ({PLANETS.join(", ")}) tamamı direkt hareket halinde</p>
             </div>
           )}
           {Array.isArray(searchResult) && searchResult.length > 0 && (

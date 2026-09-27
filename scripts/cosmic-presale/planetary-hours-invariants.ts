@@ -28,7 +28,7 @@ let failures = 0;
 const fail = (msg: string) => { failures++; console.error("  ✗ " + msg); };
 const ok = (msg: string) => console.log("  ✓ " + msg);
 
-// Farklı mevsim + haftanın tüm günlerini kapsayan başlangıç tarihleri (2026-2050 içinde).
+// Farklı mevsim + haftanın tüm günlerini kapsayan başlangıç tarihleri (2026-2100 içinde).
 const SEEDS = [
   new Date(2026, 0, 4),  // kış, Pazar
   new Date(2026, 3, 15), // ilkbahar, Çarşamba

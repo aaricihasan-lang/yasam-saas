@@ -11,7 +11,8 @@ import swisseph as swe
 
 FLAG = swe.FLG_MOSEPH | swe.FLG_SPEED
 ZODIAC = ["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"]
-RETRO_BODIES = {"Merkür": swe.MERCURY, "Venüs": swe.VENUS, "Mars": swe.MARS, "Jüpiter": swe.JUPITER, "Satürn": swe.SATURN}
+RETRO_BODIES = {"Merkür": swe.MERCURY, "Venüs": swe.VENUS, "Mars": swe.MARS, "Jüpiter": swe.JUPITER, "Satürn": swe.SATURN,
+                "Uranüs": swe.URANUS, "Neptün": swe.NEPTUNE, "Plüton": swe.PLUTO}   # G3: 8 gezegen
 
 def norm(x): return ((x % 360.0) + 360.0) % 360.0
 
@@ -20,6 +21,8 @@ INSTANTS = [
     ("2026-07-15 12:00 TR", 2026, 7, 15, 9.0),
     ("2030-11-10 09:00 TR", 2030, 11, 10, 6.0),
     ("2045-03-05 20:00 TR", 2045, 3, 5, 17.0),
+    ("2085-06-15 12:00 TR", 2085, 6, 15, 9.0),     # 2026–2100 aralığı: uzak gelecek
+    ("2100-12-30 12:00 TR", 2100, 12, 30, 9.0),    # public aralık sonu (31.12 Uranüs istasyon günü → gün-bazlı retro semantiği; anlık değil)
 ]
 
 def lon_speed(jd, body):
@@ -36,7 +39,7 @@ for label, y, m, d, h in INSTANTS:
     elong = norm(moon_lon - sun_lon)  # 0=Yeni,90=İlk Dördün,180=Dolunay,270=Son Dördün
     retro = sorted([name for name, b in RETRO_BODIES.items() if lon_speed(jd, b)[1] < 0])
     out.append({
-        "label": label, "utc": f"{y:04d}-{m:02d}-{d:02d}T{h:05.2f}Z",
+        "label": label, "utc": f"{y:04d}-{m:02d}-{d:02d}T{int(h):02d}:{int(round((h % 1) * 60)):02d}:00Z",
         "sunSign": sun_sign, "moonSign": moon_sign,
         "sunMoonElongationDeg": round(elong, 2), "retroActive": retro,
     })

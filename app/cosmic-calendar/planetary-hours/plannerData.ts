@@ -10,6 +10,7 @@
 
 import { getPlanetaryHoursForRange } from "@/lib/cosmic/planetary-hours";
 import { getTimeZoneOffsetMinutes, formatInTimeZone } from "@/lib/location/tz";
+import { isCalendarDaySupported, clampDayToSupported } from "@/lib/cosmic/dateRange";
 
 export const PLANNER_MAX_DAYS = 90;
 export const PLANNER_PRESETS: ReadonlyArray<number> = [30, 60, 90];
@@ -39,9 +40,12 @@ export type PlannerInput = {
  * (DST-doğru). Yeni astronomik hesap YOK. Seçili gezegenlere denk gelen slotlar döner.
  */
 export function buildPlannerData(input: PlannerInput): PlannerResult {
-  const days = Math.min(PLANNER_MAX_DAYS, Math.max(1, input.days));
-  const start = new Date(input.start.getFullYear(), input.start.getMonth(), input.start.getDate());
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (days - 1));
+  const reqDays = Math.min(PLANNER_MAX_DAYS, Math.max(1, input.days));
+  // Public aralık (dateRange): başlangıç kelepçelenir; bitiş 31.12.2100'ü AŞMAZ (01.01.2101 yok).
+  const start = clampDayToSupported(input.start);
+  const reqEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (reqDays - 1));
+  const end = clampDayToSupported(reqEnd);
+  const days = Math.round((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / 86_400_000) + 1;
   const resolveOffset = (d: Date) => getTimeZoneOffsetMinutes(d, input.tz);
   const range = getPlanetaryHoursForRange(start, end, input.lat, input.lon, resolveOffset);
 
@@ -52,11 +56,11 @@ export function buildPlannerData(input: PlannerInput): PlannerResult {
     if (matched.length === 0) continue;
     total += matched.length;
     const [y, mo, dd] = d.dayKey.split("-").map(n => Number.parseInt(n, 10));
-    const dateObj = new Date(y!, (mo! - 1), dd!);
+    const dateObj = new Date(Date.UTC(y!, (mo! - 1), dd!));
     groups.push({
       dayKey:    d.dayKey,
       dateLabel: `${dd} ${MONTH_NAMES_TR[(mo! - 1)]} ${y}`,
-      weekday:   WEEKDAY_TR_FULL[dateObj.getDay()] ?? "",
+      weekday:   WEEKDAY_TR_FULL[dateObj.getUTCDay()] ?? "",
       slots: matched.map(s => ({
         planet:     s.planet.name,
         symbol:     s.planet.symbol,
@@ -71,7 +75,7 @@ export function buildPlannerData(input: PlannerInput): PlannerResult {
   return { groups, total, days, rangeLabel: `${start.getDate()} ${MONTH_NAMES_TR[start.getMonth()]} – ${endLabel}`, startLabel };
 }
 
-/** "YYYY-MM-DD" → yerel gün Date; geçersizse null (güvenli fallback için). */
+/** "YYYY-MM-DD" → yerel gün Date; geçersiz VEYA public aralık (dateRange) dışıysa null. */
 export function parseDateParam(raw: string | null | undefined): Date | null {
   if (!raw) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
@@ -81,6 +85,7 @@ export function parseDateParam(raw: string | null | undefined): Date | null {
   const dt = new Date(y, mo - 1, d);
   // taşma kontrolü (ör. 2026-02-31 → geçersiz)
   if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  if (!isCalendarDaySupported(y, mo, d)) return null;
   return dt;
 }
 
