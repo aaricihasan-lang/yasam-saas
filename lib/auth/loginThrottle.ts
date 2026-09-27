@@ -12,16 +12,22 @@
 import { createHash } from "crypto";
 
 /**
- * IP pepper — YALNIZ env'den (NEXT_PUBLIC DEĞİL). Öncelik: LOGIN_IP_PEPPER → DEMO_IP_SALT
- * (numeroloji demo kotasıyla aynı sır; ayrı sır tanımlanmadıysa yeniden kullanılır).
- * Hiçbiri yoksa sabit geliştirme değeri: throttle yine ÇALIŞIR (girişi kilitlemez), yalnız
- * IP özeti tahmin edilebilir olur → prod'da LOGIN_IP_PEPPER tanımlanması önerilir.
+ * IP pepper — YALNIZ sunucu env'inden (NEXT_PUBLIC DEĞİL). Öncelik: LOGIN_IP_PEPPER →
+ * DEMO_IP_SALT (numeroloji demo kotasıyla aynı sır) → mevcut sunucu sırrından
+ * (SUPABASE_SERVICE_ROLE_KEY) alan-ayrımlı SHA-256 türetme. Böylece ayrı sır
+ * tanımlanmamış prod'da da IP özeti tahmin edilemez; sırrın kendisi hiçbir yere yazılmaz.
+ * Hiçbiri yoksa (yalnız yerel geliştirme) sabit değer: throttle yine ÇALIŞIR.
  */
 export function resolveLoginIpPepper(
   env: Record<string, string | undefined> = process.env,
 ): string {
   const v = env.LOGIN_IP_PEPPER?.trim() || env.DEMO_IP_SALT?.trim();
-  return v || "dev-only-yasam-login-ip-pepper";
+  if (v) return v;
+  const serverSecret = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (serverSecret) {
+    return createHash("sha256").update(`yasam:login-ip-pepper:v1:${serverSecret}`).digest("hex");
+  }
+  return "dev-only-yasam-login-ip-pepper";
 }
 
 export function hashLoginIp(ip: string, pepper: string = resolveLoginIpPepper()): string {
