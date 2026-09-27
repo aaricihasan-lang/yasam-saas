@@ -170,14 +170,23 @@
       "login": "Sign In",
       "register": "Sign Up"
     },
+    "demoAccess": {
+      "badge": "Test account open",
+      "title": "Explore Yaşam Sistemi with a Test Account",
+      "description": "Sign in to the test environment to see the overall structure of the modules, the workflow and the user experience first-hand. The trial account is provided so you can get to know the system and explore how it works.",
+      "emailLabel": "Test Account",
+      "passwordLabel": "Password",
+      "copy": "Copy",
+      "copied": "Copied",
+      "cta": "Sign In with the Test Account",
+      "note": "This account is for demonstration and review purposes."
+    },
     "hero": {
       "cardModules": "10+ Modules",
       "cardSinglePanel": "One Panel",
       "cardSinglePanelSub": "Access from anywhere",
       "cardSecure": "Secure Records",
       "cardSecureSub": "Your data is protected",
-      "cardAi": "AI-Powered",
-      "cardAiSub": "Smart analysis",
       "titlePart1": "Manage your clients, analyses and sessions",
       "titleHighlight": "in one place",
       "titlePart2": "",

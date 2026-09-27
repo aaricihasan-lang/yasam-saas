@@ -44,6 +44,10 @@ import {
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
+import DemoAccessCard, {
+  DEMO_ACCOUNT_EMAIL,
+  DEMO_ACCOUNT_PASSWORD,
+} from "@/components/demo/DemoAccessCard";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
@@ -1823,7 +1827,8 @@ export default function Home() {
 
         {/* — Hero — */}
         <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12">
-          <div className="relative flex w-full items-center justify-center">
+          {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order) */}
+          <div className="relative flex w-full items-center justify-center max-sm:contents">
             {/* Dekoratif sol kartlar */}
             <div className="pointer-events-none absolute left-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
@@ -1844,8 +1849,8 @@ export default function Home() {
             </div>
 
             {/* Center text */}
-            <div className="flex max-w-2xl flex-col items-center">
-              <h1 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
+            <div className="flex max-w-2xl flex-col items-center max-sm:contents">
+              <h1 className="max-sm:order-1 text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
                 {t("hero.titlePart1")}{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
                   {t("hero.titleHighlight")}
@@ -1853,11 +1858,11 @@ export default function Home() {
                 {t("hero.titlePart2")}
               </h1>
 
-              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500">
+              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
                 {t("hero.subtitle")}
               </p>
 
-              <div className="mt-7 flex justify-center">
+              <div className="mt-7 flex justify-center max-sm:order-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -1874,7 +1879,6 @@ export default function Home() {
             <div className="pointer-events-none absolute right-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
                 { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
-                { label: t("hero.cardAi"), icon: "✨", sub: t("hero.cardAiSub") },
               ].map((c) => (
                 <div
                   key={c.label}
@@ -1888,6 +1892,19 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Test / demo hesabı tanıtımı — ilk bakışta görünür */}
+          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5">
+            <DemoAccessCard
+              onTryDemo={() => {
+                setMessage("");
+                setEmail(DEMO_ACCOUNT_EMAIL);
+                setPassword(DEMO_ACCOUNT_PASSWORD);
+                setAuthModalView("login");
+                setLoginModalOpen(true);
+              }}
+            />
           </div>
         </section>
 
