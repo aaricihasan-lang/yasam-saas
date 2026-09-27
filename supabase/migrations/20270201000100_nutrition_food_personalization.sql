@@ -435,3 +435,6 @@ GRANT EXECUTE ON FUNCTION public.nutrition_food_search(uuid, uuid, text, uuid, b
   TO service_role;
 
 COMMIT;
+
+-- PostgREST şema önbelleğini yenile (yeni tablo/kolon/RPC REST katmanında hemen görünsün). Transaction dışı; veri değiştirmez.
+NOTIFY pgrst, 'reload schema';

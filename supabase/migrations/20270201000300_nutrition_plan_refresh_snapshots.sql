@@ -101,3 +101,6 @@ REVOKE ALL ON FUNCTION public.nutrition_plan_refresh_item_snapshots(uuid, uuid, 
 GRANT EXECUTE ON FUNCTION public.nutrition_plan_refresh_item_snapshots(uuid, uuid, jsonb) TO service_role;
 
 COMMIT;
+
+-- PostgREST şema önbelleğini yenile (yeni tablo/kolon/RPC REST katmanında hemen görünsün). Transaction dışı; veri değiştirmez.
+NOTIFY pgrst, 'reload schema';
