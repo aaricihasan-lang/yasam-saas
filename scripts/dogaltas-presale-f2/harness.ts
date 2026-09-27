@@ -45,6 +45,8 @@ import {
   openLongTextEditor,
   shouldAutoOpenLongText,
 } from "../../lib/dogaltas/longTextEditor";
+import { stoneReadTenantIds } from "../../lib/dogaltas/stoneTenantScope";
+import { ADMIN_LIBRARY_TENANT_ID as LIB_T } from "../../lib/tenancy/syntheticTenants";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "../..");
@@ -516,6 +518,61 @@ function read(rel: string): string {
     read("app/dogaltas/page.tsx").includes("mode=raw&since="));
   const bank = read("app/dogaltas/mineral-bankasi/page.tsx");
   ok("UX-LT mineral bankası: geniş editör Esc/focus (useOverlay)", bank.includes("useOverlay<HTMLDivElement>") && bank.includes("initialFocusRef: editorTextareaRef"));
+}
+
+// ─── IDOR: tek-taş okuma (GET + Word) liste ile AYNI tenant görünürlüğü ─────────
+{
+  const TA = "11111111-1111-4111-8111-111111111111"; // normal uzman A
+  const TB = "22222222-2222-4222-8222-222222222222"; // normal uzman B
+  const TD = "33333333-3333-4333-8333-333333333333"; // demo
+  const rows = [
+    { id: "a0000000-0000-4000-8000-00000000000a", tenant_id: TA, stone_name: "A taşı" },
+    { id: "b0000000-0000-4000-8000-00000000000b", tenant_id: TB, stone_name: "B taşı" },
+    { id: "c0000000-0000-4000-8000-00000000000c", tenant_id: LIB_T, stone_name: "Kütüphane taşı" },
+  ];
+  // Route ile aynı sorgu şekli: .eq("id", id).in("tenant_id", ids).maybeSingle() → 200/404.
+  const get = (id: string, tenant: string, isDemo: boolean) => {
+    const ids = stoneReadTenantIds(tenant, isDemo);
+    const row = rows.find((r) => r.id === id && ids.includes(r.tenant_id)) ?? null;
+    return row ? { status: 200, body: { ok: true, row } } : { status: 404, body: { ok: false, error: "Taş bulunamadı." } };
+  };
+  ok("IDOR-1 normal A → kendi taşı 200", get(rows[0].id, TA, false).status === 200);
+  ok("IDOR-2 normal A → Tenant B taşı 404", get(rows[1].id, TA, false).status === 404);
+  ok("IDOR-3 normal A → ADMIN_LIBRARY taşı 404", get(rows[2].id, TA, false).status === 404);
+  ok("IDOR-4 admin/library → kendi kütüphane taşı 200", get(rows[2].id, LIB_T, false).status === 200);
+  ok("IDOR-4b admin/library → uzman taşı 404", get(rows[0].id, LIB_T, false).status === 404);
+  ok("IDOR-5 demo → kütüphane taşı 200 (liste showcase semantiği)", get(rows[2].id, TD, true).status === 200);
+  ok("IDOR-5b demo → başka uzman taşı 404", get(rows[1].id, TD, true).status === 404);
+  const leak = JSON.stringify(get(rows[2].id, TA, false).body);
+  ok("IDOR-7 404 gövdesi taş verisi sızdırmaz", !leak.includes("Kütüphane taşı") && !leak.includes('"row"'));
+  ok("IDOR helper: normal uzman kümesi yalnız [tenant]", JSON.stringify(stoneReadTenantIds(TA, false)) === JSON.stringify([TA]));
+
+  const detailSrc = read("app/api/dogaltas/stones/[id]/route.ts");
+  const getBlock = detailSrc.slice(detailSrc.indexOf("export async function GET"), detailSrc.indexOf("export async function PATCH"));
+  ok("IDOR-6 GET: geçersiz UUID → 400 (isUuid)", /if \(!isUuid\(id\)\)[^\n]*status: 400/.test(getBlock));
+  ok("IDOR GET: ortak helper stoneReadTenantIds(tenantId, is_demo_account)", getBlock.includes("stoneReadTenantIds(tenantId, is_demo_account)"));
+  ok("IDOR GET: normal uzman için library fallback YOK", !getBlock.includes("ADMIN_LIBRARY_TENANT_ID"));
+  ok("IDOR GET: .eq(id).in(tenant_id, ids).maybeSingle()", /\.eq\("id", id\)\.in\("tenant_id", ids\)\.maybeSingle\(\)/.test(getBlock));
+  ok("IDOR GET 404 gövdesi yalnız hata (row yok)", /if \(!data\) return NextResponse\.json\(\{ ok: false, error: "Taş bulunamadı\." \}, \{ status: 404 \}\)/.test(getBlock));
+  // 8. PATCH/DELETE tenant davranışı değişmedi (yalnız kendi tenant, helper KULLANMAZ).
+  const writeBlock = detailSrc.slice(detailSrc.indexOf("export async function PATCH"));
+  ok("IDOR-8 PATCH/DELETE: .eq(\"tenant_id\", tenantId) korunur", (writeBlock.match(/\.eq\("tenant_id", tenantId\)/g) ?? []).length >= 3);
+  ok("IDOR-8 PATCH/DELETE: okuma helper'ı yazmaya sızmaz", !writeBlock.includes("stoneReadTenantIds") && !writeBlock.includes(".in(\"tenant_id\""));
+  const wordSrc = read("app/api/dogaltas/stones/[id]/word-report/route.ts");
+  ok("IDOR Word: tek-taş raporu aynı helper (demo zaten 403 → false)", wordSrc.includes("stoneReadTenantIds(tenantId, false)"));
+  ok("IDOR Word: [tenantId, ADMIN_LIBRARY] fallback YOK", !/\[tenantId, ADMIN_LIBRARY_TENANT_ID\]/.test(wordSrc));
+  // 9. List/detail tutarlılık kapısı: Doğaltaş taş okuma API'lerinde yerel kopya kural YOK.
+  for (const rel of [
+    "app/api/dogaltas/stones/route.ts",
+    "app/api/dogaltas/stones/condition-search/route.ts",
+    "app/api/dogaltas/stone-warnings/route.ts",
+  ]) {
+    const src = read(rel);
+    ok(`IDOR-9 ${rel}: ortak helper kullanır, yerel kural kopyası yok`,
+      src.includes("stoneReadTenantIds") && !/function tenantIdsFor\(/.test(src) && !/\[tenantId, ADMIN_LIBRARY_TENANT_ID\]/.test(src));
+  }
+  ok("IDOR-9 detay GET ve liste AYNI helper'ı çağırır",
+    read("app/api/dogaltas/stones/route.ts").includes("const tenantIdsFor = stoneReadTenantIds") && getBlock.includes("stoneReadTenantIds("));
 }
 
 // ─── Sonuç ──────────────────────────────────────────────────────────────────────

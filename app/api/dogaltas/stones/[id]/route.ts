@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField, isUuid } from "@/lib/dogaltas/validation";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
@@ -34,13 +34,14 @@ export async function GET(
 ): Promise<Response> {
   const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
-  const { db, tenantId } = guard;
+  const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  // Detay (read-only) kütüphane taşını da id ile gösterebilir (mevcut sayfa davranışı).
+  // Liste ile AYNI okuma görünürlüğü (tek kaynak): normal uzman yalnız kendi tenant'ı —
+  // kütüphane/başka tenant taşının id'sini bilse bile 404. Demo showcase korunur.
   // Düzenleme/silme PATCH/DELETE'te .eq(tenant_id) ile yalnız kendi taşına izinli.
-  const ids = tenantId === ADMIN_LIBRARY_TENANT_ID ? [tenantId] : [tenantId, ADMIN_LIBRARY_TENANT_ID];
+  const ids = stoneReadTenantIds(tenantId, is_demo_account);
 
   const { data, error } = await db
     .from("stones").select("*")
