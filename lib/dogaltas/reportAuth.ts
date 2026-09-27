@@ -17,7 +17,15 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type DogaltasReportAuth =
-  | { ok: true; db: SupabaseClient; userId: string; tenantId: string; email: string }
+  | {
+      ok: true;
+      db: SupabaseClient;
+      userId: string;
+      tenantId: string;
+      email: string;
+      /** Güvenli profil whitelist'i (requireModuleAccess) — Word "Hazırlayan" adı için (FA-16). */
+      profile?: Record<string, unknown>;
+    }
   | { ok: false; response: Response };
 
 export async function requireDogaltasReportAccess(
@@ -37,5 +45,5 @@ export async function requireDogaltasReportAccess(
     };
   }
 
-  return { ok: true, db: guard.db, userId: guard.userId, tenantId: guard.tenantId, email: guard.email };
+  return { ok: true, db: guard.db, userId: guard.userId, tenantId: guard.tenantId, email: guard.email, profile: guard.profile };
 }

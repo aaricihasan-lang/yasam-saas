@@ -102,6 +102,15 @@ export type FrozenHangingGateSection = {
   potentials: FrozenHangingPotential[];
 };
 
+/**
+ * Uzman modunda (`onMissing: "omit"`) yayımlanmamış olduğu için rapora ALINMAYAN bölüm.
+ * Canonical anahtar TAŞIMAZ (anahtar sızıntısı yok); yalnız tür + görünen ad.
+ */
+export type FrozenOmittedSection = {
+  kind: "tip" | "otorite" | "kanal" | "kapi";
+  displayName: string;
+};
+
 export type HdReportSnapshot = {
   schemaVersion: typeof HD_REPORT_SCHEMA_VERSION;
   generatedAt: string;
@@ -114,6 +123,10 @@ export type HdReportSnapshot = {
   chart: {
     chartId: string;
     source: "manual" | "computed";
+    /** Özet tablo için (opsiyonel; eski snapshot'larda yok). Görünen etiketler. */
+    profileLabel?: string | null;
+    definitionLabel?: string | null;
+    definedCenterLabels?: string[] | null;
   };
   identity: {
     /** null → chart'ta tip değeri yok (empty-state). */
@@ -122,6 +135,8 @@ export type HdReportSnapshot = {
     authority: FrozenIdentitySection | null;
     /** chart'ta otorite değeri var mıydı (empty-state ↔ eksik-içerik ayrımı için). */
     authorityInChart: boolean;
+    /** chart'ta tip değeri var mıydı (opsiyonel; omit modunda empty-state ↔ yayımlanmamış ayrımı). */
+    typeInChart?: boolean;
   };
   channels: FrozenChannelSection[];
   gates: FrozenGateSection[];
@@ -132,6 +147,11 @@ export type HdReportSnapshot = {
     readAt: string;
     /** canonical_key → provenance (version/hash/id). */
     canonical: Record<string, CanonicalProvenanceEntry>;
+    /**
+     * Uzman modunda yayımlanmamış olduğu için atlanan bölümler (opsiyonel; admin fail-loud
+     * modunda hiç oluşmaz). Canonical anahtar İÇERMEZ.
+     */
+    omitted?: FrozenOmittedSection[];
   };
   chartImage?: {
     storagePath?: string;
@@ -213,7 +233,18 @@ export type BuildSnapshotInput = {
   /** canonical_key → DONMUŞ içerik+provenance | null (yayınlanmamış/eksik). */
   recordByKey: ReadonlyMap<string, FrozenCanonicalRecord | null>;
   chartImage?: HdReportSnapshot["chartImage"];
+  /**
+   * Eksik (yayımlanmamış) canonical içerik davranışı:
+   *   - "throw" (varsayılan; admin): fail-loud ReportSnapshotError(missing_canonical) — anahtar içerir.
+   *   - "omit" (uzman): bölüm atlanır + provenance.omitted'a (anahtarsız) kaydedilir. Hiçbir
+   *     bölüm dahil edilemezse anahtarsız, sade mesajla ReportSnapshotError fırlatılır.
+   */
+  onMissing?: "throw" | "omit";
 };
+
+/** Uzman modunda hiçbir bölüm dahil edilemediğinde gösterilen sade mesaj (anahtar YOK). */
+export const HD_REPORT_UNPUBLISHED_MESSAGE =
+  "Bu harita için bazı bölümlerin içeriği henüz yayımlanmadı. Lütfen daha sonra tekrar deneyin.";
 
 function require_(
   record: FrozenCanonicalRecord | null,
@@ -236,6 +267,26 @@ function require_(
 export function buildReportSnapshot(input: BuildSnapshotInput): HdReportSnapshot {
   const { structure, recordByKey } = input;
   const canonical: Record<string, CanonicalProvenanceEntry> = {};
+  const omitMode = input.onMissing === "omit";
+  const omitted: FrozenOmittedSection[] = [];
+  let expected = 0;
+
+  /**
+   * Eksik kayıt kararı: throw modunda fail-loud (mevcut davranış); omit modunda null döner
+   * ve bölüm anahtarsız olarak `omitted`'a eklenir.
+   */
+  const pick = (
+    record: FrozenCanonicalRecord | null,
+    what: string,
+    key: string,
+    omit: FrozenOmittedSection,
+  ): FrozenCanonicalRecord | null => {
+    expected++;
+    if (record) return record;
+    if (!omitMode) return require_(record, what, key);
+    omitted.push(omit);
+    return null;
+  };
 
   const registerProvenance = (rec: FrozenCanonicalRecord): string => {
     const hash = canonicalContentHash(rec.meta, rec.content);
@@ -252,54 +303,71 @@ export function buildReportSnapshot(input: BuildSnapshotInput): HdReportSnapshot
   // ── Tip (chart'ta değer varsa → içerik ZORUNLU) ──
   let type: FrozenIdentitySection | null = null;
   if (!structure.typeChartMissing && structure.typeKey) {
-    const rec = require_(recordByKey.get(structure.typeKey) ?? null, "Tip", structure.typeKey);
-    registerProvenance(rec);
-    type = {
-      key: structure.typeKey,
-      displayName: hdTypeLabelFromCode(structure.typeKey.replace(/^tip_/, "")),
-      kind: "tip",
-      content: rec.content,
-    };
+    const displayName = hdTypeLabelFromCode(structure.typeKey.replace(/^tip_/, ""));
+    const rec = pick(recordByKey.get(structure.typeKey) ?? null, "Tip", structure.typeKey, { kind: "tip", displayName });
+    if (rec) {
+      registerProvenance(rec);
+      type = {
+        key: structure.typeKey,
+        displayName,
+        kind: "tip",
+        content: rec.content,
+      };
+    }
   }
 
   // ── Otorite (chart'ta değer varsa → içerik ZORUNLU; yoksa empty-state) ──
   let authority: FrozenIdentitySection | null = null;
   const authorityInChart = !structure.authorityChartMissing && !!structure.authorityKey;
   if (authorityInChart && structure.authorityKey) {
-    const rec = require_(recordByKey.get(structure.authorityKey) ?? null, "Otorite", structure.authorityKey);
-    registerProvenance(rec);
-    authority = {
-      key: structure.authorityKey,
-      displayName: hdAuthorityLabelFromCode(structure.authorityKey.replace(/^otorite_/, "")),
-      kind: "otorite",
-      content: rec.content,
-    };
+    const displayName = hdAuthorityLabelFromCode(structure.authorityKey.replace(/^otorite_/, ""));
+    const rec = pick(recordByKey.get(structure.authorityKey) ?? null, "Otorite", structure.authorityKey, { kind: "otorite", displayName });
+    if (rec) {
+      registerProvenance(rec);
+      authority = {
+        key: structure.authorityKey,
+        displayName,
+        kind: "otorite",
+        content: rec.content,
+      };
+    }
   }
 
   // ── Tanımlı kanallar (her biri ZORUNLU) ──
-  const channels: FrozenChannelSection[] = structure.completedChannels.map((c) => {
-    const rec = require_(recordByKey.get(c.key) ?? null, `Kanal ${c.code}`, c.key);
+  const channels: FrozenChannelSection[] = [];
+  for (const c of structure.completedChannels) {
+    const displayName = hdChannelLabelFromCode(c.code);
+    const rec = pick(recordByKey.get(c.key) ?? null, `Kanal ${c.code}`, c.key, { kind: "kanal", displayName: `Kanal ${displayName}` });
+    if (!rec) continue;
     registerProvenance(rec);
-    return {
+    channels.push({
       key: c.key,
       code: c.code,
-      displayName: hdChannelLabelFromCode(c.code),
+      displayName,
       gates: c.gates,
       content: rec.content,
-    };
-  });
+    });
+  }
 
   // ── Bağımsız kapılar (her biri ZORUNLU; tamamlanmış kanal kapıları HARİÇ) ──
-  const gates: FrozenGateSection[] = structure.independentGates.map((g) => {
-    const rec = require_(recordByKey.get(g.key) ?? null, `Kapı ${g.gate}`, g.key);
+  const gates: FrozenGateSection[] = [];
+  for (const g of structure.independentGates) {
+    const rec = pick(recordByKey.get(g.key) ?? null, `Kapı ${g.gate}`, g.key, { kind: "kapi", displayName: `Kapı ${g.gate}` });
+    if (!rec) continue;
     registerProvenance(rec);
-    return {
+    gates.push({
       key: g.key,
       gate: g.gate,
       displayName: `Kapı ${g.gate}`,
       content: rec.content,
-    };
-  });
+    });
+  }
+
+  // Uzman (omit) modu: beklenen bölümlerin HİÇBİRİ yayımlanmamışsa rapor üretilmez
+  // (boş rapor yerine sade mesaj; canonical anahtar mesajda YOK).
+  if (omitMode && expected > 0 && omitted.length === expected) {
+    throw new ReportSnapshotError("missing_canonical", HD_REPORT_UNPUBLISHED_MESSAGE);
+  }
 
   // ── Asılı kapı bağlamları (KANAL içeriğinden; NON-EMPTY olanlar; uydurulmaz) ──
   // Bağlam yoksa OMIT edilir (empty-state; fabricate YOK). Kanal canonical'i yayınlıysa
@@ -330,12 +398,12 @@ export function buildReportSnapshot(input: BuildSnapshotInput): HdReportSnapshot
     generatedAt: input.generatedAt,
     client: input.client,
     chart: input.chart,
-    identity: { type, authority, authorityInChart },
+    identity: { type, authority, authorityInChart, typeInChart: !structure.typeChartMissing && !!structure.typeKey },
     channels,
     gates,
     hangingContexts,
     unresolved: structure.unresolved,
-    provenance: { readAt: input.readAt, canonical },
+    provenance: omitted.length > 0 ? { readAt: input.readAt, canonical, omitted } : { readAt: input.readAt, canonical },
     chartImage: input.chartImage ?? null,
   };
 }

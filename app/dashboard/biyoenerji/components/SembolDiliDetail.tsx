@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Pencil, Sparkles, Trash2 } from "lucide-react";
@@ -33,6 +34,8 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 type SymbolForm = {
   symbol_name: string;
@@ -127,6 +130,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
   const downloadWord = useCallback(async () => {
@@ -140,13 +144,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `sembol-${record.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `sembol-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
@@ -278,34 +276,43 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   }, [loadRecord, id]);
 
   async function handleGuncelle() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          const tenantId = await getSyncedTenantId();
+          if (!tenantId || !record) return;
 
-    const nameTrim = form.symbol_name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Sembol adı zorunludur.");
-      return;
-    }
+          const nameTrim = form.symbol_name.trim();
+          if (!nameTrim) {
+            showSoft("err", "Sembol adı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    const { error } = await bioApiUpdate("symbols", record.id, {
-      symbol: nameTrim,
-      title: nameTrim,
-      category: trimOrNull(form.category),
-      meaning: trimOrNull(form.meaning),
-      source: trimOrNull(form.source),
-    });
+          setSaving(true);
+          const { error } = await bioApiUpdate("symbols", record.id, {
+            symbol: nameTrim,
+            title: nameTrim,
+            category: trimOrNull(form.category),
+            meaning: trimOrNull(form.meaning),
+            source: trimOrNull(form.source),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Güncellenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadRecord();
-    showSoft("ok", "Kayıt güncellendi.");
+          setFormModalOpen(false);
+          await loadRecord();
+          showSoft("ok", "Kayıt güncellendi.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   async function executeDelete() {

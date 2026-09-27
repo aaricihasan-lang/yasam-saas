@@ -549,7 +549,7 @@ export default function VideoCeviriPage() {
                 <span className="text-sm" aria-hidden>🔒</span>Gizlilik &amp; Güvenlik
               </h3>
               <ul className="space-y-1 text-[11px] font-medium leading-relaxed text-slate-600">
-                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Yüklenen video işlem sonrası otomatik silinir</li>
+                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Yüklenen video, yazıya dökme bitince (başarılı ya da hatalı) otomatik silinir</li>
                 <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Metin ve çeviriler yalnızca size aittir</li>
                 <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Yönetici içeriklerinize erişemez</li>
                 <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Word ve PDF isteğe bağlı kaydedilebilir</li>

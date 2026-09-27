@@ -121,6 +121,13 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     hasDurableTrace: true,
     recordSources: [{ table: "belge_ceviri_jobs", tenantColumn: "tenant_id", createdColumn: "created_at" }],
   },
+  belge_ceviri_ai: {
+    key: "belge_ceviri_ai",
+    label: "Belge Çeviri (AI)",
+    hasDurableTrace: false,
+    recordSources: [],
+    note: "Sanal kapı anahtarı (yalnız yönetici); iş kayıtları belge_ceviri_jobs altında sayılır.",
+  },
   ders_notu: {
     key: "ders_notu",
     label: "Temizlenmiş Ders Notu Merkezi",

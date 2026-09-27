@@ -35,6 +35,8 @@ import {
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import { needsDiscardConfirm } from "@/lib/dogaltas/longTextEditor";
 import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 
 function SearchMatchBadge() {
@@ -891,15 +893,9 @@ function StoneDetailPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safeName = safeFileName(safeStone.stone_name);
-      const dateSlug = new Date().toISOString().slice(0, 10);
-      a.download = `dogaltas-${safeName}-${dateSlug}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const dateSlug = reportFileDate();
+      await downloadFileResponse(res, `dogaltas-${safeName}-${dateSlug}.docx`);
     } catch {
       // sessiz hata — kullanıcı network iletişimini zaten görecek
     } finally {

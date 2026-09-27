@@ -14,10 +14,12 @@ import { fetchSource, fetchSourcePassageList } from "@/lib/aromaterapi/sourceDat
 import { messageForCode } from "@/lib/aromaterapi/readClient";
 import type { PassageListItem, SourceDetail } from "@/lib/aromaterapi/readTypes";
 import { SOURCE_STATUS_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { KaynakDetailActions } from "@/app/aromaterapi/kaynaklar/_components/KaynakDetailActions";
 
 const PASSAGE_PAGE = 25;
 
-/** Kaynak detay — künye + pasajlar (katman açılımı) + bağlı bilgi kaydı özeti. */
+/** Kaynak detay — künye + pasajlar (katman açılımı) + bağlı bilgi kaydı özeti + Düzenle/Arşivle/Sil. */
 export default function KaynakDetayPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
@@ -26,6 +28,7 @@ export default function KaynakDetayPage() {
     fetcher,
     id,
   );
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   return (
     <DetailScreen
@@ -36,6 +39,7 @@ export default function KaynakDetayPage() {
       backHref="/aromaterapi/kaynaklar"
       backLabel="Kaynaklara dön"
       wordExportUrl={id ? `/api/aromaterapi/sources/${id}/word-report` : undefined}
+      extraActions={data ? <KaynakDetailActions data={data} isDemo={isDemo} onChanged={retry} /> : undefined}
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}

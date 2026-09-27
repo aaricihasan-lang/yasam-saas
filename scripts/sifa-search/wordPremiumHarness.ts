@@ -250,8 +250,12 @@ async function main() {
   // ══ F. UZMAN NOTU / DİKKAT callout'ları ══════════════════════════════════════
   {
     const g = makeGuide({ name: "E1", healing_guide_sections: [makeSection({ note: "n", expert_note: "uzman gorusu" })] });
-    const { docXml } = await renderDoc(build([g], "single"));
-    check(docXml.includes("Uzman Notu") && docXml.includes("uzman gorusu"), "15 Uzman Notu callout (doluysa)");
+    // FINAL HARDENING FA-26 (bilinçli sözleşme değişikliği): Uzman Notu iç nottur →
+    // varsayılan HARİÇ; yalnız includeExpertNotes=true ile callout basılır.
+    const { docXml } = await renderDoc(buildSifaReportChildren({ guides: [g], exportMode: "single", today: DAY, includeExpertNotes: true }));
+    check(docXml.includes("Uzman Notu") && docXml.includes("uzman gorusu"), "15 Uzman Notu callout (doluysa, includeExpertNotes=true)");
+    const def = await renderDoc(build([g], "single"));
+    check(!def.docXml.includes("Uzman Notu") && !def.docXml.includes("uzman gorusu"), "15b Uzman Notu VARSAYILAN yok (FA-26)");
   }
   {
     const g = makeGuide({ name: "E2", healing_guide_sections: [makeSection({ note: "n", attention: "dikkat metni" })] });

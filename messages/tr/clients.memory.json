@@ -11,7 +11,7 @@
       "resultsCount": "<b>{count}</b> sonuç",
       "recordFallbackTitle": "Kayıt",
       "pickAria": "Kaydı seç",
-      "pickedBanner": "{count} kayıt seçildi · Rapora/protokole ekleme <b>yakında (Paket 2)</b>",
+      "pickedBanner": "<b>{count}</b> kayıt seçildi",
       "detailDialogAria": "Kayıt detayı",
       "close": "Kapat",
       "detailDateLabel": "Tarih: {date}",

@@ -3,6 +3,7 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import { YH_TABLES, YH_DEFAULT_FLAGS } from "@/lib/yasam-hafizasi/config";
+import { isSyntheticTenantId } from "@/lib/tenancy/syntheticTenants";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,8 @@ export const runtime = "nodejs";
  *   - TENANT-ONLY: başka tenant'ların toplamı/kırılımı SIZDIRILMAZ (global toplam sayaç
  *     KALDIRILDI; SEV-3 fix). Yalnız bu tenant'ın satır sayısı döner.
  *   - Demo hesap → sıfır sayaçlar + güvenli varsayılan.
+ *   - `syntheticTenant`: oturum tenant'ı sentetik mi (ADMIN_LIBRARY; mesleki indeks DIŞINDA,
+ *     bilinçli). UI bunu hata gibi değil "kapsam dışı" bilgisi olarak gösterir. Yalnız boolean.
  *
  * Bu route retrieval/arama YAPMAZ (Sprint 1 / A1).
  */
@@ -36,6 +39,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       demo: true,
       accessible: true,
       tenantRows: 0,
+      syntheticTenant: false,
       flags: { ...YH_DEFAULT_FLAGS },
     });
   }
@@ -56,6 +60,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     ok: true,
     accessible,
     tenantRows: tenantQ.count ?? 0,
+    syntheticTenant: isSyntheticTenantId(tenantId),
     flags,
   });
 }

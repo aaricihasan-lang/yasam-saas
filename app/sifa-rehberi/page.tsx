@@ -50,6 +50,9 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { getDemoGuideListRows } from "@/lib/demo/demoSifaRehberi";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 import { uploadSifaPhoto, cleanupSifaPhoto } from "@/lib/sifa-rehberi/stonePhotoClient";
 
 type GuideImage = {
@@ -526,6 +529,20 @@ function SifaRehberiContent() {
     });
   }, []);
 
+  // Real hesap: rows ZATEN server-side filtrelenmiş + fold(name) A–Z sıralı gelir
+  // (keyset ile tutarlı). Client yeniden filtrelemez/sıralamaz — aksi hâlde sayfa
+  // sınırında yeniden sıralama olurdu. Demo: fixture üzerinde client-side filtre.
+  const filteredRows = useMemo(() => {
+    if (!isDemo) return rows;
+    const cat = categoryFilter.trim();
+    const list = rows.filter(
+      (row) =>
+        matchesListSearch(row, search) &&
+        (cat === "" || (row.category?.trim() ?? "") === cat),
+    );
+    return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr-TR"));
+  }, [isDemo, rows, search, categoryFilter]);
+
   async function exportWord(mode: "all" | "selected" | "filtered") {
     if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında Word raporu oluşturulamaz.", type: "info" }); return; }
     const tenantId = queryTenantId;
@@ -539,7 +556,8 @@ function SifaRehberiContent() {
     try {
       const body: Record<string, unknown> = { tenantId, userId, exportMode: mode };
       if (mode === "selected") {
-        const arr = [...selectedForExport];
+        // Yalnız görünür (filtrelenmiş) seçili kayıtlar — gizli seçim rapora girmez.
+        const arr = visibleSelection(selectedForExport, filteredRows.map((r) => r.id));
         if (!arr.length) {
           showToast({ title: "Uyarı", message: "Önce kayıt seçin.", type: "warning" });
           return;
@@ -569,14 +587,8 @@ function SifaRehberiContent() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
-      a.download = `sifa-rehberi-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `sifa-rehberi-${modeSlug}-${reportFileDate()}.docx`);
       showToast({ title: "Başarılı", message: "Şifa rehberi raporu indirildi.", type: "success" });
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
@@ -587,7 +599,10 @@ function SifaRehberiContent() {
 
   async function handleBulkDeleteGuides() {
     if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında silme işlemi yapılamaz.", type: "info" }); return; }
-    const ids = Array.from(selectedForExport);
+    if (deleteLoading) return;
+    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
+    const targetRows = filteredRows.filter((r) => selectedForExport.has(r.id));
+    const ids = targetRows.map((r) => r.id);
     if (ids.length === 0) return;
     const tenantId = queryTenantId;
     if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
@@ -596,6 +611,7 @@ function SifaRehberiContent() {
       title: "Seçili kayıtları sil",
       message: `${ids.length} şifa rehberi kaydını silmek istediğinizden emin misiniz?`,
       secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+      names: targetRows.map((r) => r.name || "(adsız kayıt)"),
     });
     if (!confirmed) return;
 
@@ -619,7 +635,12 @@ function SifaRehberiContent() {
 
     const deletedIdSet = new Set(deletedIds);
     setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
-    setSelectedForExport(new Set());
+    // Silinemeyenler seçili kalır; yalnız silinenler seçimden düşer.
+    setSelectedForExport((prev) => {
+      const next = new Set(prev);
+      for (const id of deletedIdSet) next.delete(id);
+      return next;
+    });
     showToast({ title: "Başarılı", message: `${deletedCount} kayıt başarıyla silindi.`, type: "success" });
   }
 
@@ -650,19 +671,12 @@ function SifaRehberiContent() {
     router.push("/sifa-rehberi?view=list");
   }
 
-  // Real hesap: rows ZATEN server-side filtrelenmiş + fold(name) A–Z sıralı gelir
-  // (keyset ile tutarlı). Client yeniden filtrelemez/sıralamaz — aksi hâlde sayfa
-  // sınırında yeniden sıralama olurdu. Demo: fixture üzerinde client-side filtre.
-  const filteredRows = useMemo(() => {
-    if (!isDemo) return rows;
-    const cat = categoryFilter.trim();
-    const list = rows.filter(
-      (row) =>
-        matchesListSearch(row, search) &&
-        (cat === "" || (row.category?.trim() ?? "") === cat),
-    );
-    return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr-TR"));
-  }, [isDemo, rows, search, categoryFilter]);
+  // Filtre/arama değişince seçim görünür kayıtlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleIds = filteredRows.map((r) => r.id);
+    runInEffect(() => setSelectedForExport((prev) => pruneSelection(prev, visibleIds)));
+  }, [filteredRows]);
 
   // Real hesap: kategori facet'i server'dan (ilk sayfada olmayan kategori kaybolmasın).
   // Demo: fixture satırlarından türet.

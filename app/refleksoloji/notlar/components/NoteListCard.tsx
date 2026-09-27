@@ -23,6 +23,15 @@ export function NoteListCard({ note, onEdit, onDelete }: NoteListCardProps) {
 
       <p className="mt-2 text-sm font-semibold text-violet-700">{formatNoteDate(note.date)}</p>
 
+      {note.syncRejected ? (
+        <p
+          className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-800"
+          role="status"
+        >
+          Eşitlenemedi: {note.syncRejected}
+        </p>
+      ) : null}
+
       <p className="mt-2 line-clamp-3 text-sm font-medium leading-relaxed text-slate-600">
         {noteContentPreview(note.content)}
       </p>

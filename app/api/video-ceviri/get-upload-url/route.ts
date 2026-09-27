@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import {
+  buildServerVideoTempPath,
+  isVideoTempPathOwned,
+  VIDEO_TEMP_BUCKET,
+} from "@/lib/video-ceviri/videoTempPath";
 
 export const runtime = "nodejs";
 
 /**
- * TUS resumable upload için kısa ömürlü upload token üretir.
- * service_role key sunucu tarafında kalır; client'a asla sızmaz.
+ * FAZ1 FINAL HARDENING (AUTH / item 11) — video-temp'e TEK yükleme yolu.
+ *
+ * İstemci yalnız `jobId` gönderir. Sunucu:
+ *   1. İş kaydının bu oturuma (tenant + user) ait ve 'uploaded' durumda olduğunu doğrular,
+ *   2. Nesne yolunu KENDİSİ türetir: `${tenantId}/${jobId}/<güvenli-ad>` (dosya adı iş
+ *      kaydındaki original_filename'den; istemcinin gönderdiği yol YOK SAYILIR),
+ *   3. Kısa ömürlü imzalı yükleme token'ı üretir (service_role sunucuda kalır),
+ *   4. `video_temp_path`'i iş kaydına YALNIZ burada yazar (istemci PATCH ile yazamaz).
+ * İstemci `supabase.storage.from("video-temp").uploadToSignedUrl(path, token, file)` ile
+ * yükler — bucket'ta anon INSERT/SELECT politikası yoktur (migration 20270129001000).
  * Kimlik yalnız oturumdan (requireModuleAccess); tenant/user body'den ALINMAZ.
  */
 export async function POST(request: NextRequest) {
@@ -22,29 +35,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
-      storagePath?: unknown;
-      jobId?: unknown;
-    };
-
-    const storagePath = String(body.storagePath ?? "").trim();
-    const jobId       = String(body.jobId       ?? "").trim();
-
-    if (!storagePath || !jobId) {
-      return NextResponse.json(
-        { ok: false, error: "storagePath ve jobId gerekli." },
-        { status: 400 },
-      );
+    const body = (await request.json().catch(() => ({}))) as { jobId?: unknown };
+    const jobId = String(body?.jobId ?? "").trim();
+    if (!jobId || jobId.includes("/")) {
+      return NextResponse.json({ ok: false, error: "jobId gerekli." }, { status: 400 });
     }
 
     // İş kaydının bu oturuma (tenant + user) ait olduğunu doğrula.
     const { data: job, error: jobErr } = await db
       .from("video_transcription_jobs")
-      .select("id")
+      .select("id, status, original_filename")
       .eq("id", jobId)
       .eq("tenant_id", tenantId)
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (jobErr || !job) {
       return NextResponse.json(
@@ -52,37 +56,51 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
-
-    // storagePath yalnız oturum tenant'ı + DOĞRULANMIŞ job klasöründe olabilir.
-    // Beklenen: {tenantId}/{jobId}/{dosyaAdı}. Başka tenant/başka job klasörü
-    // veya traversal (.., ters slash) reddedilir → token yalnız bu job için üretilir.
-    const expectedPrefix = `${tenantId}/${jobId}/`;
-    if (
-      !storagePath.startsWith(expectedPrefix) ||
-      storagePath.includes("..") ||
-      storagePath.includes("\\")
-    ) {
+    if (job.status !== "uploaded") {
       return NextResponse.json(
-        { ok: false, error: "Geçersiz depolama yolu." },
-        { status: 403 },
+        { ok: false, error: "Bu iş için yükleme artık yapılamaz." },
+        { status: 409 },
       );
+    }
+
+    const storagePath = buildServerVideoTempPath(
+      tenantId,
+      jobId,
+      String(job.original_filename ?? "video"),
+    );
+    if (!isVideoTempPathOwned(storagePath, tenantId, jobId)) {
+      return NextResponse.json({ ok: false, error: "Geçersiz depolama yolu." }, { status: 403 });
     }
 
     // Kısa ömürlü signed upload token üret
     const { data: signedData, error: signErr } = await db.storage
-      .from("video-temp")
+      .from(VIDEO_TEMP_BUCKET)
       .createSignedUploadUrl(storagePath, { upsert: false });
 
     if (signErr || !signedData?.token) {
+      console.error("[video-ceviri/get-upload-url] sign failed");
       return NextResponse.json(
-        { ok: false, error: signErr?.message ?? "Upload token üretilemedi." },
+        { ok: false, error: "Yükleme bağlantısı üretilemedi." },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ ok: true, token: signedData.token });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    // video_temp_path YALNIZ sunucuda yazılır (transcribe/temizlik bu değere güvenir).
+    const { error: updErr } = await db
+      .from("video_transcription_jobs")
+      .update({ video_temp_path: storagePath })
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId);
+    if (updErr) {
+      return NextResponse.json(
+        { ok: false, error: "İş kaydı güncellenemedi." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, token: signedData.token, path: storagePath });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Yükleme başlatılamadı." }, { status: 500 });
   }
 }

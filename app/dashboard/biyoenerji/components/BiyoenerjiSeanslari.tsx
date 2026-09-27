@@ -1,5 +1,7 @@
 "use client";
 
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { runInEffect } from "@/lib/runInEffect";
 import { Activity } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,6 +38,8 @@ import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const SESSIONS_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -101,6 +105,7 @@ export default function BiyoenerjiSeanslari() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
@@ -295,7 +300,7 @@ export default function BiyoenerjiSeanslari() {
       const body: Record<string, unknown> = { tenantId, userId, exportMode: mode === "single" ? "single" : mode };
       if (mode === "single" && singleId) body.sessionId = singleId;
       else if (mode === "selected") {
-        const ids = [...selectedForExport];
+        const ids = visibleSelection(selectedForExport, rows.map((r) => r.id));
         if (!ids.length) return;
         body.sessionIds = ids;
       }
@@ -305,13 +310,7 @@ export default function BiyoenerjiSeanslari() {
         body: JSON.stringify(body),
       });
       if (!res.ok) { showSoft("err", "Rapor oluşturulamadı."); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `biyoenerji-seans-${mode === "selected" ? "secili" : mode === "single" ? "tek" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `biyoenerji-seans-${mode === "selected" ? "secili" : mode === "single" ? "tek" : "tumu"}-${reportFileDate()}.docx`);
       showSoft("ok", "Seans raporu indirildi.");
     } catch { showSoft("err", "Rapor oluşturulamadı."); } finally {
       setWordBusy(false);
@@ -372,69 +371,87 @@ export default function BiyoenerjiSeanslari() {
   }
 
   async function handleKaydet() {
-    if (!tenantId) return;
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          if (!tenantId) return;
 
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "Seans başlığı zorunludur.");
-      return;
-    }
+          const titleTrim = form.title.trim();
+          if (!titleTrim) {
+            showSoft("err", "Seans başlığı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    setInfoError("");
-    const { error } = await bioApiCreate("sessions", {
-      title: titleTrim,
-      content: trimOrNull(form.content),
-      category: trimOrNull(form.category),
-      source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
-    });
+          setSaving(true);
+          setInfoError("");
+          const { error } = await bioApiCreate("sessions", {
+            title: titleTrim,
+            content: trimOrNull(form.content),
+            category: trimOrNull(form.category),
+            source: trimOrNull(form.source),
+            note: trimOrNull(form.note),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadSessions({ reset: true });
-    void refreshCategories();
-    showSoft("ok", "Seans kaydı oluşturuldu.");
+          setFormModalOpen(false);
+          await loadSessions({ reset: true });
+          void refreshCategories();
+          showSoft("ok", "Seans kaydı oluşturuldu.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   async function handleGuncelle() {
-    if (!tenantId || !selectedId) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
-      return;
-    }
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "Seans başlığı zorunludur.");
-      return;
-    }
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          if (!tenantId || !selectedId) {
+            showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+            return;
+          }
+          const titleTrim = form.title.trim();
+          if (!titleTrim) {
+            showSoft("err", "Seans başlığı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    setInfoError("");
-    const { error } = await bioApiUpdate("sessions", selectedId, {
-      title: titleTrim,
-      content: trimOrNull(form.content),
-      category: trimOrNull(form.category),
-      source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
-    });
+          setSaving(true);
+          setInfoError("");
+          const { error } = await bioApiUpdate("sessions", selectedId, {
+            title: titleTrim,
+            content: trimOrNull(form.content),
+            category: trimOrNull(form.category),
+            source: trimOrNull(form.source),
+            note: trimOrNull(form.note),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Güncellenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadSessions({ reset: true });
-    void refreshCategories();
-    showSoft("ok", "Kayıt güncellendi.");
+          setFormModalOpen(false);
+          await loadSessions({ reset: true });
+          void refreshCategories();
+          showSoft("ok", "Kayıt güncellendi.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   function openDeleteConfirm() {
@@ -474,8 +491,17 @@ export default function BiyoenerjiSeanslari() {
     showSoft("ok", "Kayıt silindi.");
   }
 
+  // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
+  // kesişime budanır (değişiklik yoksa aynı Set döner → render döngüsü yok). Silme ve
+  // "seçili" Word yalnız görünür ∩ seçili kayıtlar üzerinden yapılır.
+  useEffect(() => {
+    const visibleIds = rows.map((r) => r.id);
+    runInEffect(() => setSelectedForExport((prev) => pruneSelection(prev, visibleIds)));
+  }, [rows]);
+  const selectedVisibleRows = rows.filter((r) => selectedForExport.has(r.id));
+
   async function handleBulkDeleteSelected() {
-    const ids = [...selectedForExport];
+    const ids = selectedVisibleRows.map((r) => r.id);
     if (ids.length === 0) return;
     setIsBulkDeleting(true);
     const { error } = await bioApiDeleteMany("sessions", ids);
@@ -904,7 +930,8 @@ export default function BiyoenerjiSeanslari() {
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
         mode={danger.mode}
-        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}
         resourceLabel="Biyoenerji Seansları"
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}

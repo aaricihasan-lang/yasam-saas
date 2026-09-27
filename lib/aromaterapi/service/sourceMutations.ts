@@ -7,10 +7,12 @@ import type { CatalogActor } from "@/lib/aromaterapi/service/catalogMethodMutati
 /**
  * Aromaterapi Kaynaklar (sources) mutation server adapter (server-only).
  *
- * Kaynak create/update YALNIZ SECURITY DEFINER RPC ile (write-gate: service_role
+ * Kaynak create/update/delete YALNIZ SECURITY DEFINER RPC ile (write-gate: service_role
  * bu tabloda yalnız SELECT). Actor/tenant kullanıcı input'undan YAPISAL olarak ayrıdır;
- * yalnız route guard'ından gelir. Kaynak "silme" = status→archived (update); hard delete YOK
- * (atıflı kaynak FK RESTRICT ile korunur). Ham DB hata metni route'a/istemciye TAŞINMAZ.
+ * yalnız route guard'ından gelir. Hard delete YALNIZ referanssız kaynakta (migration 0800:
+ * aromatherapy_delete_source_with_audit → audit 'delete' + tombstone 'single'); kullanılan
+ * kaynak → AROMA_SOURCE_REFERENCED (409 + sayılar) → UI arşivlemeyi önerir.
+ * Ham DB hata metni route'a/istemciye TAŞINMAZ.
  *
  * catalogMethodMutations deseniyle birebir; CatalogActor tipi yeniden kullanılır. Kaynak'a
  * özel hata kodları (AROMA_SOURCE_NOT_FOUND) için ayrı sözleşme.
@@ -21,6 +23,7 @@ export type SourceWriteErrorCode =
   | "AROMA_ACTOR_LABEL_INVALID"
   | "AROMA_REASON_INVALID"
   | "AROMA_SOURCE_NOT_FOUND"
+  | "AROMA_SOURCE_REFERENCED"
   | "AROMA_STALE"
   | "AROMA_FORBIDDEN_STATUS_TRANSITION"
   | "AROMA_CHECK_VIOLATION"
@@ -33,6 +36,7 @@ export const SOURCE_ERROR_HTTP: Readonly<Record<SourceWriteErrorCode, number>> =
   AROMA_ACTOR_LABEL_INVALID: 500,
   AROMA_REASON_INVALID: 400,
   AROMA_SOURCE_NOT_FOUND: 404,
+  AROMA_SOURCE_REFERENCED: 409,
   AROMA_STALE: 409,
   AROMA_FORBIDDEN_STATUS_TRANSITION: 422,
   AROMA_CHECK_VIOLATION: 422,
@@ -46,6 +50,7 @@ const RPC_P0001_CODES: ReadonlySet<SourceWriteErrorCode> = new Set<SourceWriteEr
   "AROMA_ACTOR_LABEL_INVALID",
   "AROMA_REASON_INVALID",
   "AROMA_SOURCE_NOT_FOUND",
+  "AROMA_SOURCE_REFERENCED",
   "AROMA_STALE",
   "AROMA_FORBIDDEN_STATUS_TRANSITION",
 ]);
@@ -190,4 +195,93 @@ export async function updateSource(
   });
   if (error) return fail("updateSource", error);
   return normalizeResult(data);
+}
+
+// ─── Silme (migration 0800) ─────────────────────────────────────────────────────
+
+/** Kaynağa bağlı kayıt sayıları (FK RESTRICT kapsamı). -1 = yarışta FK ile yakalandı (sayı bilinmiyor). */
+export type SourceReferenceCounts = {
+  passages: number;
+  claimSources: number;
+  methodSeries: number;
+};
+
+export type DeleteSourceInput = {
+  expectedUpdatedAt: string;
+  reason: string;
+};
+
+export type DeleteSourceResult =
+  | { ok: true; entityId: string }
+  | { ok: false; code: SourceWriteErrorCode; references?: SourceReferenceCounts };
+
+function num(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : 0;
+}
+
+/**
+ * RPC hata `details` alanı (PG DETAIL → PostgREST `details`) → referans sayıları.
+ * Ayrıştırılamazsa null (sayısız 409 yine döner). Ham detay istemciye TAŞINMAZ; yalnız sayılar.
+ */
+export function parseSourceReferenceDetails(details: unknown): SourceReferenceCounts | null {
+  if (typeof details !== "string" || details.trim() === "") return null;
+  try {
+    const obj = JSON.parse(details) as Record<string, unknown>;
+    if (!obj || typeof obj !== "object") return null;
+    return {
+      passages: num(obj.passages),
+      claimSources: num(obj.claim_sources),
+      methodSeries: num(obj.method_series),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteSource(
+  db: SupabaseClient,
+  actor: CatalogActor,
+  sourceId: string,
+  input: DeleteSourceInput,
+): Promise<DeleteSourceResult> {
+  const { data, error } = await db.rpc("aromatherapy_delete_source_with_audit", {
+    p_tenant_id: actor.tenantId,
+    p_actor_user_id: actor.userId,
+    p_actor_label_snapshot: actor.label,
+    p_source_id: sourceId,
+    p_expected_updated_at: input.expectedUpdatedAt,
+    p_reason: input.reason,
+  });
+  if (error) {
+    const code = classifySourceRpcError(error);
+    if (code === "AROMA_SOURCE_REFERENCED") {
+      const refs = parseSourceReferenceDetails((error as { details?: unknown }).details);
+      return refs ? { ok: false, code, references: refs } : { ok: false, code };
+    }
+    // FK RESTRICT (23503) → kullanılan kaynak ile aynı stabil koda eşlenir.
+    if (code === "AROMA_FK_VIOLATION") return { ok: false, code: "AROMA_SOURCE_REFERENCED" };
+    console.error("[aromaterapi:deleteSource] RPC failed:", (error as { message?: unknown })?.message);
+    return { ok: false, code };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  const entityId = row && typeof row.entity_id === "string" ? row.entity_id : null;
+  if (!entityId || row?.deleted !== true) return { ok: false, code: "AROMA_WRITE_FAILED" };
+  return { ok: true, entityId };
+}
+
+/** DeleteSourceResult → NextResponse. Referanslı → 409 + `references` (yalnız sayılar). */
+export function emitSourceDelete(result: DeleteSourceResult): NextResponse {
+  if (!result.ok) {
+    const body: Record<string, unknown> = { ok: false, code: result.code };
+    if (result.references) {
+      body.references = {
+        passages: result.references.passages,
+        claim_sources: result.references.claimSources,
+        method_series: result.references.methodSeries,
+      };
+    }
+    return NextResponse.json(body, { status: SOURCE_ERROR_HTTP[result.code] });
+  }
+  return NextResponse.json({ ok: true, deleted: true, entity_id: result.entityId }, { status: 200 });
 }

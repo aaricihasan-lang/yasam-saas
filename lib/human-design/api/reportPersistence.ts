@@ -23,6 +23,19 @@ export type ReportWithClient = HumanDesignReport & {
   client: Pick<HumanDesignClient, "id" | "name"> | null;
 };
 
+/**
+ * Liste/detay PROJEKSİYONU: donmuş canonical snapshot ve canonical_provenance (canonical
+ * anahtar + içerik) istemciye ASLA dönmez. Canonical metin uzmana yalnız DOCX indirme
+ * (donmuş snapshot → Word) yoluyla ulaşır; JSON okuma yüzeyi yoktur.
+ */
+export const HD_REPORT_HIDDEN_COLUMNS = ["snapshot", "canonical_provenance"] as const;
+
+export function stripReportSecrets<T extends Record<string, unknown>>(row: T): T {
+  const out: Record<string, unknown> = { ...row };
+  for (const k of HD_REPORT_HIDDEN_COLUMNS) delete out[k];
+  return out as T;
+}
+
 async function clientInTenant(db: SupabaseClient, clientId: string, tenantId: string): Promise<boolean> {
   const { data, error } = await withTenant(db.from("human_design_clients").select("id"), tenantId, "clientInTenant")
     .eq("id", clientId)
@@ -52,7 +65,7 @@ export async function listReportsWithClients(
     (cliRes.data ?? []).map((c) => [(c as { id: string }).id, c as Pick<HumanDesignClient, "id" | "name">]),
   );
   const rows: ReportWithClient[] = (repRes.data ?? []).map((r) => {
-    const report = r as HumanDesignReport;
+    const report = stripReportSecrets(r as HumanDesignReport & Record<string, unknown>);
     return { ...report, client: report.client_id ? map.get(report.client_id) ?? null : null };
   });
   return { rows, error: null };
@@ -69,7 +82,7 @@ export async function getReportById(
   if (error) return { row: null, error: hdSafeDbError("getReportById", error) };
   if (!data) return { row: null, error: "Rapor bulunamadı." };
 
-  const report = data as HumanDesignReport;
+  const report = stripReportSecrets(data as HumanDesignReport & Record<string, unknown>);
   if (!report.client_id) return { row: { ...report, client: null }, error: null };
 
   const { data: cli } = await withTenant(db.from("human_design_clients").select("id, name"), tenantId, "getReportById.client")

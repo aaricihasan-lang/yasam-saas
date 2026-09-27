@@ -29,6 +29,7 @@ import {
 import {
   bodyText,
   buildPremiumCover,
+  buildWellnessNoteSection,
   calloutBox,
   divider,
   embedImageParagraph,
@@ -51,6 +52,7 @@ import {
   sectionHasAnyLayer,
 } from "@/lib/sifa-rehberi/sectionModel";
 import { isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
+import { formatInstantDate } from "@/lib/time/reportTime";
 
 const C_SIFA = "059669";
 // Callout renkleri (print-friendly, pastel dolgu + accent kenar).
@@ -148,12 +150,9 @@ function sectionDisplayLabel(section: WordSectionRow): string {
   return SECTION_TYPE_LABEL[section.section_type] ?? "İçerik";
 }
 
+/** created_at / updated_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC). */
 function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
-  } catch {
-    return d;
-  }
+  return formatInstantDate(d, { style: "long", fallback: d });
 }
 
 function embedImages(out: ReportChild[], buffers: Buffer[] | undefined, maxWidth: number) {
@@ -181,6 +180,17 @@ function subLabelLine(text: string): Paragraph {
     spacing: { after: 140 },
     keepNext: true,
   });
+}
+
+/**
+ * FA-26: "Uzman Notu" (expert_note) uzmanın İÇ notudur → danışana giden Word'de VARSAYILAN
+ * HARİÇ; yalnız includeExpertNotes=true ile basılır. Yalnız uzman notundan oluşan bölüm
+ * (not hariç tutulduğunda) başlık dahil hiç basılmaz. Section-native / legacy yol kararı
+ * DEĞİŞMEZ (sectionRenderable) → hariç tutma legacy içeriği "geri getirmez".
+ */
+function sectionVisible(s: WordSectionRow, includeExpertNotes: boolean): boolean {
+  if (includeExpertNotes) return true;
+  return Boolean(meaningful(s.note) || txt(s.source) || txt(s.source_kind) || meaningful(s.attention));
 }
 
 /**
@@ -257,6 +267,7 @@ function pushSectionLayers(
   s: WordSectionRow,
   sectionImages: ImagesByKey,
   subLabel?: string,
+  includeExpertNotes = false,
 ) {
   if (subLabel) out.push(subLabelLine(`▸ ${sanitizeXmlText(subLabel)}`)); // keepNext → ilk içerikle kalsın
   const content = meaningful(s.note); // placeholder gizlenir; gerçek içerik TAM
@@ -268,8 +279,8 @@ function pushSectionLayers(
   if (src) out.push(muted(`Kaynak: ${src}`));
   if (kind) out.push(muted(`Kaynak Türü: ${kind}`));
 
-  // Uzman Notu — soft-purple callout (boşsa yok).
-  const expert = meaningful(s.expert_note);
+  // Uzman Notu — soft-purple callout (boşsa yok). FA-26: yalnız includeExpertNotes=true iken.
+  const expert = includeExpertNotes ? meaningful(s.expert_note) : "";
   if (expert) out.push(calloutBox("Uzman Notu", expert, EXPERT_ACCENT, EXPERT_FILL));
 
   // Dikkat Edilmesi Gerekenler — OPSİYONEL, soft-amber callout (boşsa yok; otomatik metin YOK).
@@ -280,7 +291,12 @@ function pushSectionLayers(
   embedImages(out, sectionImages.get(s.id), 380);
 }
 
-function buildFromSections(out: ReportChild[], sections: WordSectionRow[], sectionImages: ImagesByKey) {
+function buildFromSections(
+  out: ReportChild[],
+  sections: WordSectionRow[],
+  sectionImages: ImagesByKey,
+  includeExpertNotes = false,
+) {
   const grouped: Record<string, WordSectionRow[]> = {};
   for (const s of sections) {
     const key = s.section_type || "other";
@@ -291,19 +307,21 @@ function buildFromSections(out: ReportChild[], sections: WordSectionRow[], secti
     ...Object.keys(grouped).filter((t) => !SECTION_TYPE_ORDER.includes(t) && grouped[t]?.length),
   ];
   for (const stype of orderedTypes) {
-    const rows = (grouped[stype] ?? []).filter(sectionRenderable); // placeholder-only bölümler elenir
+    const rows = (grouped[stype] ?? [])
+      .filter(sectionRenderable) // placeholder-only bölümler elenir
+      .filter((s) => sectionVisible(s, includeExpertNotes)); // FA-26: yalnız-uzman-notu bölümü (hariçken) elenir
     if (!rows.length) continue;
     const stypeLabel = SECTION_TYPE_LABEL[stype] ?? stype;
     if (rows.length === 1) {
       const s = rows[0]!;
       const label = sectionDisplayLabel(s);
       out.push(h3(label !== stypeLabel ? label : stypeLabel, { keepNext: true }));
-      pushSectionLayers(out, s, sectionImages);
+      pushSectionLayers(out, s, sectionImages, undefined, includeExpertNotes);
     } else {
       out.push(h3(stypeLabel, { keepNext: true }));
       for (const s of rows) {
         const label = sectionDisplayLabel(s);
-        pushSectionLayers(out, s, sectionImages, label !== stypeLabel ? label : undefined);
+        pushSectionLayers(out, s, sectionImages, label !== stypeLabel ? label : undefined, includeExpertNotes);
       }
     }
   }
@@ -376,7 +394,7 @@ function buildRecordListChildren(names: string[]): ReportChild[] {
  */
 export function buildGuideChildren(
   guide: WordGuideRaw,
-  opts: { startOnNewPage: boolean; guideImages: ImagesByKey; sectionImages: ImagesByKey },
+  opts: { startOnNewPage: boolean; guideImages: ImagesByKey; sectionImages: ImagesByKey; includeExpertNotes?: boolean },
 ): ReportChild[] {
   const out: ReportChild[] = [];
   const name = txt(guide.name) || "İsimsiz Kayıt";
@@ -395,7 +413,7 @@ export function buildGuideChildren(
   );
   // section-native VARSA section-first; YOKSA legacy fallback → asla ikisi birden (duplicate 0).
   if (sections.length > 0) {
-    buildFromSections(rest, sections, opts.sectionImages);
+    buildFromSections(rest, sections, opts.sectionImages, opts.includeExpertNotes === true);
   } else {
     buildFromLegacy(rest, guide);
   }
@@ -445,8 +463,17 @@ export function buildSifaReportChildren(opts: {
   today: string;
   guideImages?: ImagesByKey;
   sectionImages?: ImagesByKey;
+  /** FA-26: "Uzman Notu" callout'ları yalnız true iken (varsayılan HARİÇ). */
+  includeExpertNotes?: boolean;
+  /**
+   * FA-16: rapor sonuna sade "Bilgilendirme" notu (+ "Hazırlayan"). Route true verir;
+   * undefined → eski çıktı birebir (geriye dönük harness uyumu).
+   */
+  wellnessNote?: boolean;
+  expertName?: string | null;
 }): ReportChild[] {
   const { guides, exportMode, today } = opts;
+  const includeExpertNotes = opts.includeExpertNotes === true;
   const guideImages = opts.guideImages ?? new Map<string, Buffer[]>();
   const sectionImages = opts.sectionImages ?? new Map<string, Buffer[]>();
   const isMulti = guides.length > 1;
@@ -479,14 +506,16 @@ export function buildSifaReportChildren(opts: {
     all.push(spacer());
     guides.forEach((guide, i) => {
       if (i > 0) all.push(divider()); // yeni guide: ince, print-friendly ayraç (dev boşluk yok)
-      all.push(...buildGuideChildren(guide, { startOnNewPage: false, guideImages, sectionImages }));
+      all.push(...buildGuideChildren(guide, { startOnNewPage: false, guideImages, sectionImages, includeExpertNotes }));
     });
   } else {
     // Single: kapaktan sonra doğrudan TAM kayıt (yeni sayfada). Liste/özet/TOC YOK.
     guides.forEach((guide) => {
-      all.push(...buildGuideChildren(guide, { startOnNewPage: true, guideImages, sectionImages }));
+      all.push(...buildGuideChildren(guide, { startOnNewPage: true, guideImages, sectionImages, includeExpertNotes }));
     });
   }
+
+  if (opts.wellnessNote) all.push(...buildWellnessNoteSection("sifa", opts.expertName));
 
   return all;
 }

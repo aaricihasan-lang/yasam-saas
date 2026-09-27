@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   Check,
   ChevronDown,
   ChevronUp,
-  Download,
   Eye,
   EyeOff,
   FileJson,
@@ -19,15 +18,14 @@ import {
   RotateCcw,
   Send,
   Shield,
-  Upload,
 } from "lucide-react";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
+import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,13 +42,6 @@ type SupportMessage = {
   updated_at: string;
 };
 
-type ExportModule = {
-  key: string;
-  label: string;
-  desc: string;
-  tableCount: number;
-};
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -60,18 +51,6 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
   { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
   { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
-];
-
-const EXPORT_MODULES: ExportModule[] = [
-  { key: "clients",        label: "Danışan Yolculuğu",              desc: "Danışanlar, notlar, randevular, seanslar, ödevler, analizler, taş eşleşmeleri", tableCount: 7 },
-  { key: "numerology",     label: "Numeroloji",                     desc: "Analiz kayıtları, bilgi bankası, taş atamaları",                                tableCount: 3 },
-  { key: "human_design",   label: "Human Design",                   desc: "Danışanlar, haritalar, raporlar, bilgi bankası",                                tableCount: 4 },
-  { key: "dogaltas",       label: "Doğaltaş",                       desc: "Taşlar, mineraller, kombinasyonlar, stok",                                      tableCount: 4 },
-  { key: "dijital_icerik", label: "Dijital İçerik",                 desc: "Kişisel arşivler ve dosya listesi (metadata)",                                  tableCount: 2 },
-  { key: "bioenerji",      label: "Biyoenerji & Enerji Bedenleri",  desc: "Seanslar, semboller, imajinasyonlar, çakralar, enerji bedenleri, bilinçaltı",   tableCount: 6 },
-  { key: "refleksoloji",   label: "Refleksoloji",                   desc: "Tüm protokol kayıtları",                                                        tableCount: 1 },
-  { key: "aromaterapi",    label: "Aromaterapi",                    desc: "Yağ kayıtları, bilgi bankası, referans sayfaları",                              tableCount: 3 },
-  { key: "sifa_rehberi",   label: "Şifa Rehberi",                   desc: "Tüm rehber kayıtları",                                                          tableCount: 1 },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -98,10 +77,6 @@ function fmtDate(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function isMobile(): boolean {
-  return typeof window !== "undefined" && window.innerWidth < 768;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -162,8 +137,8 @@ function SecurityTab({ user }: { user: YasamUser }) {
       showToast({ message: "Yeni şifre tekrarı eşleşmiyor.", type: "warning" });
       return;
     }
-    if (newPw.length < 6) {
-      showToast({ message: "Yeni şifre en az 6 karakter olmalı.", type: "warning" });
+    if (newPw.length < 10) {
+      showToast({ message: "Yeni şifre en az 10 karakter olmalı.", type: "warning" });
       return;
     }
 
@@ -204,7 +179,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
       </div>
 
       <PasswordInput label="Mevcut Şifre"     value={oldPw}     onChange={setOldPw}     placeholder="Mevcut şifrenizi girin"      />
-      <PasswordInput label="Yeni Şifre"        value={newPw}     onChange={setNewPw}     placeholder="En az 6 karakter"            />
+      <PasswordInput label="Yeni Şifre"        value={newPw}     onChange={setNewPw}     placeholder="En az 10 karakter"            />
       <PasswordInput label="Yeni Şifre Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni şifrenizi tekrar girin" />
 
       <button
@@ -403,372 +378,7 @@ function ContactTab({ user }: { user: YasamUser }) {
   );
 }
 
-// ─── Tab: Dışa Aktarım ────────────────────────────────────────────────────────
-
-function ExportTab({ user }: { user: YasamUser }) {
-  const { showToast } = useToast();
-  const [loadingModule, setLoadingModule] = useState<string | null>(null);
-  const [mobile, setMobile] = useState(false);
-  const isAndroid = useIsAndroid();
-
-  useEffect(() => {
-    setMobile(isMobile());
-  }, []);
-
-  async function handleExport(moduleKey: string, label: string) {
-    if (loadingModule) return;
-    setLoadingModule(moduleKey);
-    const sessionToken = readSessionToken();
-    try {
-      const res = await fetch("/api/settings/export", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user.id,
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: JSON.stringify({ module: moduleKey }),
-      });
-      if (!res.ok) {
-        const json = (await res.json()) as { error?: string };
-        showToast({ message: json.error ?? "Dışa aktarılamadı.", type: "error" });
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${moduleKey}-arsiv-${new Date().toISOString().slice(0, 10)}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast({ title: "İndirildi", message: `${label} raporu hazır.`, type: "success" });
-    } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
-    } finally {
-      setLoadingModule(null);
-    }
-  }
-
-  const isLoading = loadingModule !== null;
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-        <p className="text-xs font-semibold text-emerald-800">
-          Word dışa aktarım, Yaşam Sistemi dışında da okunabilir tam arşiv rapordur.
-          Tüm kayıtlar dahildir. Geri yüklenebilir sistem yedeği için <strong>Sistem Yedeği</strong> sekmesini kullanın.
-        </p>
-      </div>
-
-      {mobile && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs font-semibold text-amber-700">
-            Büyük raporları masaüstü tarayıcıdan indirmeniz önerilir.
-          </p>
-        </div>
-      )}
-
-      {/* Toplu indirme butonu */}
-      <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-sm font-black text-violet-900">Tüm Verilerimi Word Olarak İndir</p>
-            <p className="mt-0.5 text-xs text-violet-600">
-              9 modül · 31 tablo · Tüm kayıtlar tek belgede
-            </p>
-          </div>
-          {!isAndroid && (
-          <button
-            type="button"
-            onClick={() => { void handleExport("all", "Tüm Veriler"); }}
-            disabled={isLoading}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
-          >
-            {loadingModule === "all" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            {loadingModule === "all" ? "Hazırlanıyor…" : "Tümünü İndir"}
-          </button>
-          )}
-        </div>
-      </div>
-
-      {/* Modül bazlı butonlar */}
-      <div>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Modül Bazlı İndir</p>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {EXPORT_MODULES.map((mod) => (
-            <div
-              key={mod.key}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/80 px-4 py-3 shadow-sm"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-800 truncate">{mod.label}</p>
-                <p className="mt-0.5 text-[11px] text-slate-400 truncate">{mod.tableCount} tablo · {mod.desc}</p>
-              </div>
-              {!isAndroid && (
-              <button
-                type="button"
-                onClick={() => { void handleExport(mod.key, mod.label); }}
-                disabled={isLoading}
-                className="flex shrink-0 h-8 w-8 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
-                title={`${mod.label} Word İndir`}
-              >
-                {loadingModule === mod.key ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-              </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Tab: Sistem Yedeği ───────────────────────────────────────────────────────
-
-function BackupTab({ user }: { user: YasamUser }) {
-  const { showToast } = useToast();
-  const [loading, setLoading] = useState(false);
-
-  async function handleBackup() {
-    if (loading) return;
-    setLoading(true);
-    const sessionToken = readSessionToken();
-    try {
-      const res = await fetch("/api/settings/backup", {
-        headers: {
-          "x-user-id": user.id,
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-      });
-      if (!res.ok) {
-        showToast({ message: "Yedek alınamadı.", type: "error" });
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `yasam-yedek-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast({ title: "Yedek Alındı", message: "JSON yedek dosyanız indirildi.", type: "success" });
-    } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-5 w-full">
-      <div className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
-        <FileJson className="h-10 w-10 text-slate-400 mb-3" />
-        <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — Eksiksiz JSON</h3>
-        <p className="mt-1.5 text-sm text-slate-600">
-          Tüm modüllerdeki verilerinizi <strong>eksiksiz ve geri yüklenebilir</strong> JSON formatında indirin.
-          Bu dosya Geri Yükleme sekmesi ile sisteme aktarılabilir.
-        </p>
-        <ul className="mt-3 space-y-1">
-          {[
-            "Danışan yolculuğu (7 tablo)",
-            "Numeroloji (3 tablo)",
-            "Human Design (4 tablo)",
-            "Doğaltaş & stok (4 tablo)",
-            "Dijital içerik metadata (2 tablo)",
-            "Biyoenerji (6 tablo)",
-            "Refleksoloji (1 tablo)",
-            "Aromaterapi (3 tablo — yağlar, bilgi, referans)",
-            "Şifa Rehberi (1 tablo)",
-            "Destek mesajları (1 tablo)",
-          ].map((item) => (
-            <li key={item} className="flex items-center gap-2 text-xs text-slate-500">
-              <Check className="h-3 w-3 shrink-0 text-emerald-500" />
-              {item}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 text-[11px] text-slate-400 italic">
-          Storage dosyaları (resim, ses, belge) dahil değildir — yalnızca veritabanı kayıtları.
-        </p>
-        <button
-          type="button"
-          onClick={handleBackup}
-          disabled={loading}
-          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {loading ? "Hazırlanıyor…" : "Sistem Yedeği İndir"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Tab: Geri Yükleme ────────────────────────────────────────────────────────
-
-type RestoreSummary = Record<string, { inserted: number; skipped: number; error: string | null }>;
-
-function RestoreTab({ user }: { user: YasamUser }) {
-  const { showToast } = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [fileInfo, setFileInfo]       = useState<{ name: string; size: string } | null>(null);
-  const [validated, setValidated]     = useState<{ ok: boolean; message: string } | null>(null);
-  const [parsedBackup, setParsedBackup] = useState<unknown>(null);
-  const [confirmed, setConfirmed]     = useState(false);
-  const [loading, setLoading]         = useState(false);
-  const [summary, setSummary]         = useState<RestoreSummary | null>(null);
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileInfo({ name: file.name, size: (file.size / 1024).toFixed(1) + " KB" });
-    setValidated(null);
-    setParsedBackup(null);
-    setConfirmed(false);
-    setSummary(null);
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
-        if (typeof parsed !== "object" || parsed === null) throw new Error("Geçersiz yapı");
-        const ver = parsed.version as string;
-        if (ver !== "1.0" && ver !== "2.0") throw new Error("Desteklenmeyen versiyon: " + ver);
-        if (!parsed.tables || typeof parsed.tables !== "object") throw new Error("'tables' alanı eksik");
-        const tableCount = Object.keys(parsed.tables as object).length;
-        setParsedBackup(parsed);
-        setValidated({ ok: true, message: `✓ v${ver} — ${tableCount} tablo, format geçerli.` });
-      } catch (err) {
-        setValidated({ ok: false, message: (err as Error).message });
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  async function handleRestore() {
-    if (!parsedBackup || !confirmed || loading) return;
-    setLoading(true);
-    setSummary(null);
-    const sessionToken = readSessionToken();
-    try {
-      const res = await fetch("/api/settings/restore", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user.id,
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: JSON.stringify({ backup: parsedBackup }),
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string; summary?: RestoreSummary };
-      if (!res.ok || !json.ok) {
-        showToast({ message: json.error ?? "Geri yükleme başarısız.", type: "error" });
-      } else {
-        setSummary(json.summary ?? {});
-        showToast({ title: "Tamamlandı", message: "Geri yükleme işlemi tamamlandı.", type: "success" });
-      }
-    } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-5 w-full">
-      <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-        <p className="text-xs font-semibold text-amber-700">
-          Güvenli Mod: Mevcut veriler silinmez. Çakışan kayıtlar atlanır, yeni kayıtlar eklenir.
-          v1.0 ve v2.0 yedek formatları desteklenir.
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-bold text-slate-700">JSON Yedek Dosyası</label>
-        <div
-          className="mt-1.5 flex min-h-[100px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center transition hover:border-violet-300 hover:bg-violet-50/30"
-          onClick={() => fileRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); }
-          }}
-          aria-label="Yedek dosyası seç"
-        >
-          <Upload className="h-8 w-8 text-slate-300 mb-2" />
-          {fileInfo ? (
-            <>
-              <p className="text-sm font-bold text-slate-700">{fileInfo.name}</p>
-              <p className="text-xs text-slate-400">{fileInfo.size}</p>
-            </>
-          ) : (
-            <p className="text-sm text-slate-400">Dosyayı buraya sürükleyin veya tıklayın</p>
-          )}
-        </div>
-        <input ref={fileRef} type="file" accept=".json" className="sr-only" onChange={handleFileChange} />
-      </div>
-
-      {validated && (
-        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${validated.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-          {validated.message}
-        </div>
-      )}
-
-      {validated?.ok && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
-          />
-          <span className="text-xs font-semibold text-amber-800">
-            Onaylıyorum: Bu işlem mevcut verilerimi silmez, yalnızca eksik kayıtları ekler. Çakışan kayıtlar atlanır.
-          </span>
-        </label>
-      )}
-
-      {summary && (
-        <div className="rounded-xl border border-slate-100 bg-white/80 p-4">
-          <p className="text-sm font-bold text-slate-700 mb-3">İçe Aktarım Sonucu</p>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {Object.entries(summary).map(([table, s]) => (
-              <div key={table} className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-600 truncate">{table}</span>
-                <div className="flex shrink-0 gap-2 text-[11px]">
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">{s.inserted} eklendi</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-500">{s.skipped} atlandı</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleRestore}
-        disabled={!parsedBackup || !validated?.ok || !confirmed || loading}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-        {loading ? "Geri Yükleniyor…" : "Yedeği İçe Aktar"}
-      </button>
-    </div>
-  );
-}
+// Dışa Aktarım / Sistem Yedeği / Geri Yükleme sekmeleri: ./BackupSections.tsx (PAKET BACKUP).
 
 // ─── Tab: Konum ───────────────────────────────────────────────────────────────
 

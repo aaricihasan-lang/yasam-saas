@@ -18,6 +18,9 @@ import {
   savedProtocolToRecord,
 } from "@/lib/demo/demoRefleksoloji";
 import { loadProtocolsFromStorage } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { slugifyTr } from "@/lib/refleksoloji/slug";
 import { useHydratedAtlasVersion } from "@/app/refleksoloji/hooks/useHydratedAtlasVersion";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
@@ -141,15 +144,15 @@ function OrganPills({ organs }: { organs: OrganResolved[] }) {
 
 function FootMapAtlasCompactCard({ hasOrgans }: { hasOrgans: boolean }) {
   return (
-    <section className={footMapPanelCompactClass} aria-label="Ayak haritasi bilgisi">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Ayak Haritasi</h2>
+    <section className={footMapPanelCompactClass} aria-label="Ayak haritası bilgisi">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Ayak Haritası</h2>
       <p className="mt-1.5 text-sm font-medium text-violet-900">
-        Bu protokol icin atlas eslesme bulunamadi.
+        Bu protokol için atlasta eşleşen bölge bulunamadı.
       </p>
       <p className="mt-1 text-xs font-medium text-violet-700/80">
         {hasOrgans
-          ? "Organlar kayitli; bolge haritasinda eslesen bolge tanimlayin."
-          : "Organ eklendiginde harita otomatik gosterilir."}
+          ? "Organlar kayıtlı; Bölge Haritası'nda bu organlar için bölge tanımlayın."
+          : "Organ eklendiğinde harita otomatik gösterilir."}
       </p>
     </section>
   );
@@ -195,17 +198,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         showToast({ title: "Hata", message: errJson.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const safe = (protocol.title || "protokol").toLowerCase()
-        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
-        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
-        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      a.download = `refleksoloji-protokol-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.
+      await downloadFileResponse(
+        res,
+        `refleksoloji-protokol-${slugifyTr(protocol.title || "", "protokol")}-${reportFileDate()}.docx`,
+      );
     } catch {
       showToast({ title: "Hata", message: "Rapor oluşturulamadı. Lütfen tekrar deneyin.", type: "error" });
     } finally {
@@ -436,12 +433,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             <span className="inline-flex rounded-full border border-violet-200/80 bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-violet-800">
               {formatProtocolDate(protocol.created_at)}
             </span>
-            {/* source_uid demo'da gizli */}
-            {protocol.source_uid?.trim() && !isDemo ? (
-              <span className="inline-flex max-w-full truncate rounded-full border border-fuchsia-200/80 bg-fuchsia-50 px-2.5 py-0.5 text-[11px] font-medium text-fuchsia-900">
-                UID: {protocol.source_uid}
-              </span>
-            ) : null}
+            {/* Teknik kimlik (source_uid) kullanıcıya gösterilmez — Word raporunda da yok. */}
             {protocol.title?.trim() && protocol.title.trim() !== heroTitle ? (
               <span className="inline-flex rounded-full border border-cyan-200/80 bg-cyan-50 px-2.5 py-0.5 text-[11px] font-medium text-cyan-900">
                 {protocol.title}

@@ -123,6 +123,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (raw && Array.isArray((raw as { organs?: unknown }).organs)) {
       (raw as { organs: unknown[] }).organs = nextOrgans;
     }
+    // FA-42: sürüm belirtecini artır → bu değişiklikten önce açılmış bir düzenleme
+    // formu by-uid PUT'ta 409 alır (organ cascade'i sessizce ezilmez).
+    if (raw) (raw as Record<string, unknown>).updatedAt = new Date().toISOString();
 
     const { error: updErr } = await db
       .from("reflexology_protocols")

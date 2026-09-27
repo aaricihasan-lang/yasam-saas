@@ -20,6 +20,7 @@ import {
   buildFooter,
   buildHeader,
   buildPremiumCover,
+  buildWellnessNoteSection,
   bodyText,
   divider,
   embedImageParagraph,
@@ -51,8 +52,13 @@ import {
 import type {
   FrozenCanonicalContent,
   FrozenIdentitySection,
+  FrozenOmittedSection,
   HdReportSnapshot,
 } from "./reportSnapshot";
+import { formatDateLoose, formatDateOnly, formatInstantDate } from "@/lib/time/reportTime";
+
+/** Uzman modunda yayımlanmamış olduğu için atlanan bölüm için sade not (anahtar YOK). */
+const UNPUBLISHED_SECTION_TEXT = "Bu bölümün içeriği henüz yayımlanmadı.";
 
 const REPORT_NAME = "Human Design Raporu · Yaşam Sistemi";
 const HEADER_TEXT = "Human Design · Yaşam Sistemi";
@@ -115,7 +121,12 @@ function renderIdentity(
   kindLabel: "Tip" | "Otorite",
   order: readonly (keyof FrozenCanonicalContent)[],
   emptyText: string,
+  omitted?: FrozenOmittedSection | null,
 ): ReportChild[] {
+  if (!section && omitted) {
+    // Chart'ta değer VAR ama içerik henüz yayımlanmadı (uzman omit modu).
+    return [h2(`${kindLabel} — ${omitted.displayName}`, { keepNext: true }), bodyText(UNPUBLISHED_SECTION_TEXT)];
+  }
   if (!section) {
     // Chart'ta değer yok → sade empty-state (canonical-unpublished mesajı DEĞİL; §24/§57).
     return [h2(kindLabel, { keepNext: true }), bodyText(emptyText)];
@@ -136,7 +147,10 @@ function renderIdentity(
 const TYPE_MAIN_ORDER: readonly ContentFieldKey[] = ["general_description", "report_text"];
 const TYPE_INDICATOR_ORDER: readonly ContentFieldKey[] = ["strategy_text", "signature_text", "not_self_text"];
 
-function renderTypeIdentity(section: FrozenIdentitySection | null): ReportChild[] {
+function renderTypeIdentity(section: FrozenIdentitySection | null, omitted?: FrozenOmittedSection | null): ReportChild[] {
+  if (!section && omitted) {
+    return [h2(`Tip — ${omitted.displayName}`, { keepNext: true }), bodyText(UNPUBLISHED_SECTION_TEXT)];
+  }
   if (!section) {
     // Chart'ta tip yok → sade empty-state (canonical-unpublished mesajı DEĞİL; §24/§57).
     return [h2("Tip", { keepNext: true }), bodyText("Bu haritada tip bilgisi bulunmuyor.")];
@@ -160,6 +174,8 @@ function renderTypeIdentity(section: FrozenIdentitySection | null): ReportChild[
 export type WordReportOptions = {
   /** Ownership-safe, önceden doğrulanmış BodyGraph görseli (JPG/PNG buffer). */
   chartImage?: Buffer | null;
+  /** Raporu hazırlayan uzmanın görünen adı ("Hazırlayan: …"; yoksa satır eklenmez). */
+  expertName?: string | null;
 };
 
 export function buildHdReportChildren(
@@ -168,7 +184,10 @@ export function buildHdReportChildren(
 ): ReportChild[] {
   const children: ReportChild[] = [];
   const clientName = (snapshot.client.name || "Danışan").trim();
-  const genDate = formatTrDate(snapshot.generatedAt);
+  // generatedAt bir AN (timestamptz) → Europe/Istanbul yerel günü (UTC sunucuda kayma yok).
+  const genDate = formatInstantDate(snapshot.generatedAt, { style: "long", fallback: "—" });
+  const omitted = snapshot.provenance.omitted ?? [];
+  const omittedOf = (kind: FrozenOmittedSection["kind"]) => omitted.find((o) => o.kind === kind) ?? null;
 
   // 1) KAPAK
   children.push(
@@ -185,10 +204,21 @@ export function buildHdReportChildren(
   //    tamamen kaldırıldı; kapaktan sonra doğrudan bu bölüm gelir (Word heading yapısı korunur).
   children.push(h1("Danışan ve Harita Bilgileri", true));
   const infoRows: [string, string][] = [["Danışan", clientName]];
-  if (snapshot.client.birthDate) infoRows.push(["Doğum Tarihi", formatTrDate(snapshot.client.birthDate)]);
+  // Doğum tarihi takvim günüdür (DATE) → saat dilimiyle ASLA kaydırılmaz.
+  if (snapshot.client.birthDate) {
+    infoRows.push([
+      "Doğum Tarihi",
+      formatDateOnly(snapshot.client.birthDate, { style: "long" }) || formatDateLoose(snapshot.client.birthDate, { style: "long" }),
+    ]);
+  }
   if (snapshot.client.birthTime) infoRows.push(["Doğum Saati", String(snapshot.client.birthTime)]);
   if (snapshot.client.birthPlace) infoRows.push(["Doğum Yeri", String(snapshot.client.birthPlace)]);
   infoRows.push(["Harita Kaynağı", snapshot.chart.source === "computed" ? "Hesaplanmış" : "Manuel"]);
+  if (snapshot.chart.profileLabel) infoRows.push(["Profil", snapshot.chart.profileLabel]);
+  if (snapshot.chart.definitionLabel) infoRows.push(["Tanım", snapshot.chart.definitionLabel]);
+  if (snapshot.chart.definedCenterLabels && snapshot.chart.definedCenterLabels.length > 0) {
+    infoRows.push(["Tanımlı Merkezler", snapshot.chart.definedCenterLabels.join(", ")]);
+  }
   infoRows.push(["Rapor Tarihi", genDate]);
   children.push(twoColTable(infoRows));
 
@@ -204,8 +234,8 @@ export function buildHdReportChildren(
 
   // 3) TEMEL HUMAN DESIGN KİMLİĞİ
   children.push(h1("Temel Human Design Kimliği", true));
-  children.push(...renderTypeIdentity(snapshot.identity.type));
-  children.push(...renderIdentity(snapshot.identity.authority, "Otorite", AUTHORITY_FIELD_ORDER, "Bu haritada otorite bilgisi bulunmuyor."));
+  children.push(...renderTypeIdentity(snapshot.identity.type, omittedOf("tip")));
+  children.push(...renderIdentity(snapshot.identity.authority, "Otorite", AUTHORITY_FIELD_ORDER, "Bu haritada otorite bilgisi bulunmuyor.", omittedOf("otorite")));
 
   // 4) TANIMLI KANALLAR
   children.push(h1("Tanımlı Kanallar", true));
@@ -244,6 +274,17 @@ export function buildHdReportChildren(
     }
   }
 
+  // 6b) Uzman modunda yayımlanmamış olduğu için atlanan kanal/kapı bölümleri (anahtar YOK).
+  const omittedBody = omitted.filter((o) => o.kind === "kanal" || o.kind === "kapi");
+  if (omittedBody.length > 0) {
+    children.push(spacer());
+    children.push(
+      muted(
+        `İçeriği henüz yayımlanmadığı için bu rapora alınmayan bölümler: ${omittedBody.map((o) => o.displayName).join(", ")}.`,
+      ),
+    );
+  }
+
   // 7) SADE KURUMSAL KAPANIŞ (AI sentezi YOK; §22)
   children.push(divider());
   children.push(
@@ -252,6 +293,8 @@ export function buildHdReportChildren(
         `oluşturulduğu anda (${genDate}) dondurularak hazırlanmıştır. İçerik bu rapora özgüdür ve sabittir.`,
     ),
   );
+  // FA-16: sade bilgilendirme notu + "Hazırlayan: …" (varsa).
+  children.push(...buildWellnessNoteSection("human_design", opts.expertName ?? null));
 
   return children;
 }
@@ -306,16 +349,4 @@ export function hdReportFilename(clientName: string | null | undefined, dateSlug
   if (!slug) slug = "Danisan";
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateSlug) ? dateSlug : "0000-00-00";
   return `Human-Design-${slug}-${safeDate}.docx`;
-}
-
-// ── Tarih biçimleyici (tr-TR; ISO veya YYYY-MM-DD kabul) ──────────────────────────
-function formatTrDate(value: string): string {
-  if (!value) return "—";
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  } catch {
-    return value;
-  }
 }

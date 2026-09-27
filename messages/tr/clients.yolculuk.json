@@ -83,7 +83,8 @@
       "randevuStatus": {
         "tamamlandi": "Tamamlandı",
         "iptal": "İptal edildi",
-        "bekliyor": "Bekliyor"
+        "bekliyor": "Bekliyor",
+        "sonucGirilmedi": "Sonuç girilmedi"
       },
       "homeworkStatus": {
         "bekliyor": "Bekliyor",

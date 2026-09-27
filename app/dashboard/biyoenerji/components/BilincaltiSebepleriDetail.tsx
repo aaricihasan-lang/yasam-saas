@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brain, FileText, Pencil, Trash2 } from "lucide-react";
@@ -29,6 +30,8 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 type BioenergySubconsciousRecord = {
   id: string;
@@ -144,6 +147,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
   const downloadWord = useCallback(async () => {
@@ -157,13 +161,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bilincalti-sebep-${record.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `bilincalti-sebep-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
@@ -277,34 +275,43 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   }, [loadRecord, id]);
 
   async function handleGuncelle() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          const tenantId = await getSyncedTenantId();
+          if (!tenantId || !record) return;
 
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "Başlık zorunludur.");
-      return;
-    }
+          const titleTrim = form.title.trim();
+          if (!titleTrim) {
+            showSoft("err", "Başlık zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    const { error } = await bioApiUpdate("subconscious-causes", record.id, {
-      source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
-      title: titleTrim,
-      category: trimOrEmpty(form.category),
-      content: trimOrEmpty(form.content),
-      note_text: trimOrEmpty(form.note_text),
-    });
+          setSaving(true);
+          const { error } = await bioApiUpdate("subconscious-causes", record.id, {
+            source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
+            title: titleTrim,
+            category: trimOrEmpty(form.category),
+            content: trimOrEmpty(form.content),
+            note_text: trimOrEmpty(form.note_text),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Güncellenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    await loadRecord();
-    showSoft("ok", "Kayıt güncellendi.");
+          setFormModalOpen(false);
+          await loadRecord();
+          showSoft("ok", "Kayıt güncellendi.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
   async function executeDelete() {

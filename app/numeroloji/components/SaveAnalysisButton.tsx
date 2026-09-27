@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { saveNumerologyAnalysis } from "../helpers/numerolojiKayit";
@@ -24,25 +25,50 @@ export function SaveAnalysisButton({
   variant = "default",
 }: Props) {
   const { showToast } = useToast();
-  const [busy, setBusy] = useState(false);
+  // Çift kayıt koruması: senkron kilit + başarıdan sonra aynı analiz (imza) değişmedikçe
+  // buton "Kaydedildi ✓" olarak pasif kalır (tekrar tık → ikinci insert olmaz).
+  const { run, pending: busy } = useSubmitLock();
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
   const isDemo = readYasamUser()?.is_demo_account === true;
 
-  const disabled = busy || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
+  const signature = useMemo(
+    () =>
+      JSON.stringify([
+        firstName.trim(),
+        lastName.trim(),
+        birthDateDisplay.trim(),
+        motorOutput ?? null,
+      ]),
+    [firstName, lastName, birthDateDisplay, motorOutput],
+  );
+  const alreadySaved = savedSignature !== null && savedSignature === signature;
+
+  const disabled =
+    busy || alreadySaved || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
 
   // Demo hesapta kayıt butonu gösterilmez
   if (isDemo) return null;
 
   async function handleClick() {
-    if (!motorOutput) return;
+    if (!motorOutput || alreadySaved) return;
+    const sig = signature;
+    const motor = motorOutput;
 
-    setBusy(true);
-    const { error } = await saveNumerologyAnalysis({
-      name: firstName.trim(),
-      surname: lastName.trim(),
-      birthDate: birthDateDisplay.trim(),
-      motor: motorOutput,
-    });
-    setBusy(false);
+    let error: string | null | undefined;
+    try {
+      const result = await run(() =>
+        saveNumerologyAnalysis({
+          name: firstName.trim(),
+          surname: lastName.trim(),
+          birthDate: birthDateDisplay.trim(),
+          motor,
+        }),
+      );
+      if (!result) return; // kilitliyken ikinci tık: yok say
+      error = result.error;
+    } catch (e) {
+      error = e instanceof Error ? e.message : "Bilinmeyen hata";
+    }
 
     if (error) {
       showToast({
@@ -53,6 +79,7 @@ export function SaveAnalysisButton({
       return;
     }
 
+    setSavedSignature(sig);
     showToast({
       message: "Analiz kaydedildi",
       type: "success",
@@ -70,7 +97,7 @@ export function SaveAnalysisButton({
           : `rounded-2xl border border-violet-300/80 bg-white px-6 py-3 text-sm font-black uppercase tracking-[0.14em] text-violet-900 shadow-sm ring-1 ring-violet-100/80 transition hover:border-amber-300/70 hover:bg-amber-50/90 hover:text-amber-950 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100/80 disabled:text-slate-400 disabled:shadow-none disabled:ring-slate-100 sm:w-auto ${className}`
       }
     >
-      {busy ? "Kaydediliyor…" : "KAYDET"}
+      {busy ? "Kaydediliyor…" : alreadySaved ? "Kaydedildi ✓" : "KAYDET"}
     </button>
   );
 }

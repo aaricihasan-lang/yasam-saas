@@ -85,7 +85,8 @@
         "daysAgo": "{n, plural, one {# day ago} other {# days ago}}",
         "weeksAgo": "{n, plural, one {# week ago} other {# weeks ago}}",
         "monthsAgo": "{n, plural, one {# month ago} other {# months ago}}",
-        "yearsAgo": "{n, plural, one {# year ago} other {# years ago}}"
+        "yearsAgo": "{n, plural, one {# year ago} other {# years ago}}",
+        "daysLater": "in {n} days"
       },
       "toast": {
         "sessionWarningTitle": "Session warning",
@@ -98,7 +99,7 @@
         "loadAllError": "Records could not be loaded.",
         "sessionMissing": "Session information not found.",
         "deleteConfirmTitle": "Delete selected clients",
-        "deleteConfirmMsg": "Are you sure you want to delete {count, plural, one {# client} other {# clients}} and all their related data?",
+        "deleteConfirmMsg": "{count} clients and all linked records (appointments, sessions, homework, notes, charges, analyses…) will be permanently deleted:",
         "deleteConfirmSecond": "This action CANNOT be undone. The client's meetings, assignments and analyses will also be deleted.",
         "deleteNone": "Deletion did not take place. Please try again.",
         "deletePartialTitle": "Clients deleted",
@@ -110,7 +111,11 @@
         "exportNoFiltered": "No filtered results.",
         "exportSuccess": "Client report downloaded.",
         "exportError": "Report could not be generated",
-        "unknownError": "Unknown error"
+        "unknownError": "Unknown error",
+        "deleteUnlinked": "Numerology, Human Design, Reflexology and Bioenergy records are not linked to clients; delete them separately.",
+        "deleteRequireLabel": "Type “SİL” to confirm:",
+        "deleteFailedTitle": "Some clients could not be deleted",
+        "deleteFailedNames": "Not deleted (kept selected): {names}"
       }
     }
   }

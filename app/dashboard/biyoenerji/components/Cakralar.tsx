@@ -1,5 +1,8 @@
 ﻿"use client";
 
+import { runInEffect } from "@/lib/runInEffect";
+import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 
 import Link from "next/link";
@@ -39,6 +42,8 @@ import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -93,13 +98,7 @@ async function exportChakrasWord(
       body: JSON.stringify(body),
     });
     if (!res.ok) { onError?.(); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `biyoenerji-cakra-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFileResponse(res, `biyoenerji-cakra-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`);
     onSuccess?.();
   } catch { onError?.(); } finally {
     setWordBusy(false);
@@ -164,6 +163,7 @@ export default function Cakralar() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const saveLock = useSubmitLock();
   const [form, setForm] = useState<ChakraForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
@@ -184,10 +184,10 @@ export default function Cakralar() {
   const openDanger = useCallback(async (mode: DangerDeleteMode) => {
     setDeleteCascade(null);
     setDanger({ open: true, mode });
-    const arg = mode === "all" ? ({ all: true } as const) : ({ chakraIds: [...selectedForExport] });
+    const arg = mode === "all" ? ({ all: true } as const) : ({ chakraIds: visibleSelection(selectedForExport, rows.map((r) => r.id)) });
     const c = await fetchChakraBlockCountsBulk(arg);
     if (!c.error) setDeleteCascade({ total: c.total, visible: c.visible, evidence: c.evidence });
-  }, [selectedForExport]);
+  }, [selectedForExport, rows]);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -358,47 +358,66 @@ export default function Cakralar() {
   });
 
   async function handleKaydet() {
-    const tenantId = queryTenantId ?? (await getSyncedTenantId());
-    if (!tenantId) {
-      showSoft("err", MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
+    // Çift gönderim kilidi: senkron kilit İLK ifade (tenant çözümü dahil); ikinci tık yok sayılır.
+    await saveLock
+      .run(async () => {
+        try {
+          const tenantId = queryTenantId ?? (await getSyncedTenantId());
+          if (!tenantId) {
+            showSoft("err", MISSING_SESSION_TENANT_MESSAGE);
+            return;
+          }
 
-    const nameTrim = form.name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Çakra adı zorunludur.");
-      return;
-    }
+          const nameTrim = form.name.trim();
+          if (!nameTrim) {
+            showSoft("err", "Çakra adı zorunludur.");
+            return;
+          }
 
-    setSaving(true);
-    const { error } = await bioApiCreate("chakras", {
-      source_uid: slugifySourceUid(nameTrim),
-      name: nameTrim,
-      organs: trimOrEmpty(form.organs),
-      glands: trimOrEmpty(form.glands),
-      color: trimOrEmpty(form.color),
-      stones: trimOrEmpty(form.stones),
-      causes: trimOrEmpty(form.causes),
-      physical: trimOrEmpty(form.physical),
-      mental: trimOrEmpty(form.mental),
-      notes: trimOrEmpty(form.notes),
-    });
+          setSaving(true);
+          const { error } = await bioApiCreate("chakras", {
+            source_uid: slugifySourceUid(nameTrim),
+            name: nameTrim,
+            organs: trimOrEmpty(form.organs),
+            glands: trimOrEmpty(form.glands),
+            color: trimOrEmpty(form.color),
+            stones: trimOrEmpty(form.stones),
+            causes: trimOrEmpty(form.causes),
+            physical: trimOrEmpty(form.physical),
+            mental: trimOrEmpty(form.mental),
+            notes: trimOrEmpty(form.notes),
+          });
 
-    setSaving(false);
+          setSaving(false);
 
-    if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error}`);
-      return;
-    }
+          if (error) {
+            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            return;
+          }
 
-    setFormModalOpen(false);
-    setForm({ ...emptyForm });
-    await fetchList({ reset: true });
-    showSoft("ok", "Çakra kaydı oluşturuldu.");
+          setFormModalOpen(false);
+          setForm({ ...emptyForm });
+          await fetchList({ reset: true });
+          showSoft("ok", "Çakra kaydı oluşturuldu.");
+        } finally {
+          setSaving(false);
+        }
+      })
+      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
   }
 
+  // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
+  // kesişime budanır (değişiklik yoksa aynı Set döner → render döngüsü yok). Silme ve
+  // "seçili" Word yalnız görünür ∩ seçili kayıtlar üzerinden yapılır.
+  useEffect(() => {
+    const visibleIds = rows.map((r) => r.id);
+    runInEffect(() => setSelectedForExport((prev) => pruneSelection(prev, visibleIds)));
+  }, [rows]);
+  const selectedVisibleRows = rows.filter((r) => selectedForExport.has(r.id));
+  const selectedVisibleIds = new Set(selectedVisibleRows.map((r) => r.id));
+
   async function handleBulkDeleteSelected() {
-    const ids = [...selectedForExport];
+    const ids = selectedVisibleRows.map((r) => r.id);
     if (ids.length === 0) return;
     setIsBulkDeleting(true);
     const { error } = await bioApiDeleteMany("chakras", ids);
@@ -544,7 +563,7 @@ export default function Cakralar() {
               selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
               onDeleteSelected={() => void openDanger("selected")}
@@ -772,7 +791,8 @@ export default function Cakralar() {
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
         mode={danger.mode}
-        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.name?.trim() || "İsimsiz kayıt"))}
         childCounts={deleteCascade}
         resourceLabel="Çakralar"
         isDeleting={isBulkDeleting}

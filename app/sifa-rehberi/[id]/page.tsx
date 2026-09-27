@@ -45,6 +45,10 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isDemoFixtureGuide, getDemoGuideDetail } from "@/lib/demo/demoSifaRehberi";
 import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 type GuideImage = {
   id: string;
@@ -421,6 +425,8 @@ export default function SifaRehberiDetailPage() {
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
+  const { run: runImageRemove, pending: imageRemoving, isLocked: isImageRemoveLocked } = useSubmitLock();
   const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel teslim eki (guide target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
@@ -706,6 +712,19 @@ export default function SifaRehberiDetailPage() {
 
   async function removeGuideImage(img: GuideImage) {
     if (!draft || !id) return;
+    if (isImageRemoveLocked()) return;
+    // Görsel silme KAYDETMEDEN kalıcıdır (depolama + kayıt anında güncellenir) → onay şart.
+    const ok = await deleteConfirm({
+      title: "Görseli sil",
+      message: "Bu görsel kayıttan ve depolamadan hemen kaldırılacak (Kaydet'e basmanız gerekmez).",
+      names: [img.name || "Görsel"],
+    });
+    if (!ok) return;
+    await runImageRemove(() => removeGuideImageNow(img));
+  }
+
+  async function removeGuideImageNow(img: GuideImage) {
+    if (!draft || !id) return;
     setErrorMessage("");
 
     // P1 PHASE A: SUNUCU-YETKİLİ silme. Membership + guide ownership sunucuda doğrulanır.
@@ -867,13 +886,7 @@ export default function SifaRehberiDetailPage() {
         setErrorMessage(err.error || "Rapor oluşturulamadı.");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `sifa-rehberi-${record.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadFileResponse(res, `sifa-rehberi-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
@@ -1274,7 +1287,9 @@ export default function SifaRehberiDetailPage() {
                             ev.stopPropagation();
                             void removeGuideImage(img);
                           }}
-                          className="absolute right-1 top-1 rounded-lg bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-md ring-1 ring-rose-500/40 transition hover:bg-rose-700"
+                          disabled={imageRemoving}
+                          aria-busy={imageRemoving}
+                          className="absolute right-1 top-1 rounded-lg bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-md ring-1 ring-rose-500/40 transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Sil
                         </button>

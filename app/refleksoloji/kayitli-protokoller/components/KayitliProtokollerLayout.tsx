@@ -17,6 +17,9 @@ import { useProtocolList } from "../hooks/useProtocolList";
 import { ProtocolListCard } from "./ProtocolListCard";
 import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuarantineBanner";
 
 // P1-3: ilk yüklemede tüm listeyi basma — son N kaydı göster, "Daha fazla yükle" ile aç.
 const PAGE_SIZE = 10;
@@ -24,7 +27,16 @@ const PAGE_SIZE = 10;
 export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
-  const { protocols, loading, loadErrorMessage, deleteProtocol, isDemo } = useProtocolList();
+  const {
+    protocols,
+    loading,
+    loadErrorMessage,
+    deleteProtocol,
+    isDemo,
+    quarantineCount,
+    importQuarantine,
+    discardQuarantine,
+  } = useProtocolList();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
@@ -73,13 +85,11 @@ export function KayitliProtokollerLayout() {
         showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `refleksoloji-protokol-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.
+      await downloadFileResponse(
+        res,
+        `refleksoloji-protokol-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`,
+      );
       showToast({ title: "Başarılı", message: "Protokol raporu indirildi.", type: "success" });
     } catch (err) {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
@@ -106,7 +116,12 @@ export function KayitliProtokollerLayout() {
       tone: "danger",
     });
     if (!ok) return;
-    deleteProtocol(id);
+    const deleted = await deleteProtocol(id);
+    showToast(
+      deleted
+        ? { type: "success", message: "Protokol silindi.", duration: 2500 }
+        : { type: "error", title: "Silinemedi", message: "Protokol silinemedi. Lütfen tekrar deneyin." },
+    );
   };
 
   if (loading) {
@@ -148,6 +163,30 @@ export function KayitliProtokollerLayout() {
             + Yeni Protokol Oluştur
           </Link>
         </div>
+
+        {!isDemo && quarantineCount > 0 ? (
+          <LegacyQuarantineBanner
+            className="mt-3"
+            count={quarantineCount}
+            noun="protokol"
+            onImport={async () => {
+              const r = await importQuarantine();
+              showToast(
+                r.failed === 0
+                  ? { type: "success", message: `${r.imported} protokol hesabınıza aktarıldı.` }
+                  : {
+                      type: "warning",
+                      title: "Kısmen aktarıldı",
+                      message: `${r.imported} protokol aktarıldı; ${r.failed} protokol aktarılamadı ve bu cihazda bekliyor.`,
+                    },
+              );
+            }}
+            onDiscard={() => {
+              discardQuarantine();
+              showToast({ type: "success", message: "Sahibi belirsiz protokoller bu cihazdan kaldırıldı." });
+            }}
+          />
+        ) : null}
 
         {loadErrorMessage ? (
           <p

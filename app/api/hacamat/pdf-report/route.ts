@@ -10,6 +10,17 @@ import {
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateHacamatReportPayload } from "@/lib/cosmic/hacamatReport";
 import { checkRateLimit } from "@/lib/security/rateLimit";
+import { todayInZone } from "@/lib/time/reportTime";
+import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+
+/**
+ * FA-02: yıl/ay verilmezse varsayılan Europe/Istanbul takvimindeki bugünün ayı
+ * (sunucu UTC'de çalışır; ay sonu gecesi 00:00–03:00 arası önceki ay seçilmesin).
+ */
+function defaultYearMonth(): { year: number; month: number } {
+  const [y, m] = todayInZone().split("-");
+  return { year: Number(y), month: Number(m) - 1 };
+}
 
 export const runtime = "nodejs";
 
@@ -418,6 +429,10 @@ async function buildPdfBuffer(params: {
     });
   }
 
+  // FA-16: sade bilgilendirme notu (küçük punto, gri; uyarı kutusu değil).
+  pdf.gap(3);
+  pdf.p(wellnessNote("hacamat").full, 0, 7.5, LIGHT);
+
   pdf.stampFooters();
   return Buffer.from(doc.output("arraybuffer"));
 }
@@ -425,9 +440,18 @@ async function buildPdfBuffer(params: {
 // ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
 
 export async function GET(request: Request): Promise<Response> {
+  // FAZ1 FINAL HARDENING (AUTH): GET de POST ile AYNI kimlik + modül kapısı + rate limit.
+  const guard = await requireModuleAccess(request as unknown as NextRequest, "cosmic_calendar");
+  if (!guard.ok) return guard.response;
+  const rl = checkRateLimit(`hacamat-pdf:${guard.tenantId}`, 15, 60_000, Date.now());
+  if (!rl.ok)
+    return Response.json({ ok: false, error: "Çok fazla istek. Lütfen biraz sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } });
+
   const { searchParams } = new URL(request.url);
-  const year        = parseInt(searchParams.get("year")  ?? String(new Date().getFullYear()), 10);
-  const month       = parseInt(searchParams.get("month") ?? String(new Date().getMonth()), 10);
+  const ym          = defaultYearMonth();
+  const year        = parseInt(searchParams.get("year")  ?? String(ym.year), 10);
+  const month       = parseInt(searchParams.get("month") ?? String(ym.month), 10);
   const disposition = searchParams.get("disposition") === "inline" ? "inline" : "attachment";
 
   if (isNaN(year) || isNaN(month) || month < 0 || month > 11)

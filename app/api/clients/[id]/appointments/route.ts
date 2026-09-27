@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { validateAppointmentCreate } from "@/lib/danisan/appointmentRules";
+import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
 export const runtime = "nodejs";
 
@@ -108,7 +110,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  // DY-A: alan izin listesi + status enum + gelecekte "tamamlandi" yasağı (409).
+  const now = new Date();
+  const verdict = validateAppointmentCreate(sanitizePayload(body), now);
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, error: verdict.error },
+      { status: verdict.status },
+    );
+  }
+  const fields = verdict.fields;
 
   const { data, error } = await db
     .from("appointments")
@@ -120,5 +131,10 @@ export async function POST(
     return serverErrorResponse({ route: "clients/[id]/appointments", action: "POST", tenantId, cause: error });
   }
 
-  return NextResponse.json({ ok: true, appointment: data });
+  let gorusme: string | null = null;
+  if (fields.status === "tamamlandi") {
+    gorusme = await advanceClientGorusme(db, tenantId, clientId, fields.appointment_date, now);
+  }
+
+  return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }

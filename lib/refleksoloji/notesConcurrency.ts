@@ -19,6 +19,12 @@
  *
  * Her PUT için TEK deterministik sonuç listesi döner; en az bir conflict varsa
  * çağıran 409 döndürür ama sonuç listesini gövdede taşır (başarılılar bilinir).
+ *
+ * FA-03 (not-başına sonuç):
+ *   - Doğrulamadan geçemeyen not → { outcome: "rejected", reason } (diğerleri işlenir;
+ *     tek bozuk not artık tüm toplu senkronu 422 ile düşürmez).
+ *   - Store `getManyByUid` sağlıyorsa: base eşleşen VE içeriği sunucuyla aynı not
+ *     → { outcome: "unchanged" } (satır YENİDEN YAZILMAZ; gereksiz CAS-update yok).
  */
 
 export type NoteFields = Record<string, unknown>;
@@ -62,6 +68,12 @@ export interface NotesStore {
     uid: string,
     expectedUpdatedAt: string | null,
   ): Promise<{ deleted: number; existsAfter: ServerNoteSnapshot | null }>;
+
+  /**
+   * (Opsiyonel) Birden çok notun anlık görüntüsü — tek sorgu. Varsa değişmemiş
+   * notlar yazılmadan "unchanged" döner.
+   */
+  getManyByUid?(uids: string[]): Promise<Map<string, ServerNoteSnapshot>>;
 }
 
 export type IncomingSyncNote = {
@@ -77,7 +89,8 @@ export type IncomingDeletion = {
 };
 
 export type NoteSyncResult =
-  | { uid: string; outcome: "created" | "updated"; updated_at: string }
+  | { uid: string; outcome: "created" | "updated" | "unchanged"; updated_at: string }
+  | { uid: string; outcome: "rejected"; reason: string }
   | { uid: string; outcome: "conflict"; server_updated_at: string | null; server: unknown }
   | { uid: string; outcome: "deleted" | "delete-noop" }
   | { uid: string; outcome: "delete-conflict"; server_updated_at: string | null; server: unknown };
@@ -86,17 +99,54 @@ export type NoteSyncResult =
  * Gelen not + silme listelerini store üzerinde per-note uzlaştırır.
  * Prod/DB mutasyonu bu fonksiyonda YOK — store implementasyonuna delege edilir.
  */
+/** Not içeriği karşılaştırma anahtarı (yalnız kullanıcı alanları; zaman damgaları hariç). */
+export function noteContentKey(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const o = raw as Record<string, unknown>;
+  return JSON.stringify([
+    typeof o.title === "string" ? o.title : null,
+    typeof o.date === "string" ? o.date : null,
+    typeof o.content === "string" ? o.content : null,
+    Array.isArray(o.attachments) ? o.attachments : [],
+  ]);
+}
+
 export async function reconcileNoteSync(
   store: NotesStore,
   notes: IncomingSyncNote[],
   deletions: IncomingDeletion[],
   nowIso: string,
-): Promise<{ results: NoteSyncResult[]; conflicts: number }> {
+  rejected: Array<{ uid: string; reason: string }> = [],
+): Promise<{ results: NoteSyncResult[]; conflicts: number; rejected: number }> {
   const results: NoteSyncResult[] = [];
   let conflicts = 0;
 
+  for (const r of rejected) {
+    results.push({ uid: r.uid, outcome: "rejected", reason: r.reason });
+  }
+
+  // Değişmemiş notları yazmadan ayırt etmek için (store destekliyorsa) tek sorgu.
+  const withBase = notes.filter(
+    (n) => typeof n.baseUpdatedAt === "string" && n.baseUpdatedAt.length > 0,
+  );
+  const snapshots =
+    store.getManyByUid && withBase.length > 0
+      ? await store.getManyByUid(withBase.map((n) => n.uid))
+      : null;
+
   for (const n of notes) {
     const hasBase = typeof n.baseUpdatedAt === "string" && n.baseUpdatedAt.length > 0;
+    if (hasBase && snapshots) {
+      const snap = snapshots.get(n.uid);
+      if (
+        snap &&
+        snap.updated_at === n.baseUpdatedAt &&
+        noteContentKey(snap.raw_json) === noteContentKey(n.fields.raw_json)
+      ) {
+        results.push({ uid: n.uid, outcome: "unchanged", updated_at: snap.updated_at });
+        continue;
+      }
+    }
     if (hasBase) {
       // ── Mevcut not düzenlemesi → atomik CAS ──────────────────────────────────
       const updated = await store.casUpdate(
@@ -144,5 +194,5 @@ export async function reconcileNoteSync(
     }
   }
 
-  return { results, conflicts };
+  return { results, conflicts, rejected: rejected.length };
 }

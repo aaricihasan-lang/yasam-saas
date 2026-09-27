@@ -66,8 +66,8 @@ export const DEFAULT_LICENSE_SETTINGS: LicenseSettings = {
 export type LicensePreset = { label: string; settings: LicenseSettings };
 
 export const LICENSE_PRESETS: LicensePreset[] = [
-  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 1, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: 0, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
-  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 1, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 2, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: 0, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
   { label: "Aile",        settings: { licenseType: "family",       allowedActiveSessions: 6,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 3, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
   { label: "Ortak",       settings: { licenseType: "partner",      allowedActiveSessions: 8,  allowedLocations: 2, allowedDesktopSessions: 3, allowedMobileSessions: 3, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
   { label: "Ekip",        settings: { licenseType: "team",         allowedActiveSessions: 12, allowedLocations: 4, allowedDesktopSessions: 6, allowedMobileSessions: 4, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
@@ -86,9 +86,11 @@ export const ADMIN_MODULE_UI_KEYS = [
   "energy_body",
   "aromatherapy",
   "personal_archive",
-  "video_ceviri",
+  // FAZ1 FINAL HARDENING: "video_ceviri" ve "ders_notu" toggle'ları KALDIRILDI — bu AI yüzeyleri
+  // yalnız admin'e açıktır (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); uzmana verilemez. UI artık bu
+  // anahtarları YÖNETMEDİĞİ için mergeAdminModulePermissions mevcut DB değerlerini aynen KORUR
+  // (veri değişmez; sunucu bu bayrakları admin olmayan için zaten yok sayar).
   "belge_ceviri",
-  "ders_notu",
   "digital_content",
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
@@ -114,16 +116,15 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   energy_body: "Biyoenerji",
   aromatherapy: "Aromaterapi",
   personal_archive: "Kişisel Arşiv",
-  video_ceviri: "Video → Türkçe Dönüşüm",
   belge_ceviri: "Belge Çeviri Merkezi",
-  ders_notu: "Ders Notu Merkezi",
   digital_content: "Dijital İçerik Merkezi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
-  digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
+  digital_content: "Kişisel arşiv ve belge çeviri hub erişimi (AI araçları yalnız yöneticiye açıktır)",
+  belge_ceviri: "PDF → Word dönüşümü ve geçmiş. OCR / PDF → Türkçe Word gibi AI araçları yalnız yöneticiye açıktır.",
   beslenme: "Beslenme modülünün tamamına (planlar, danışan-bound akış, Besinler / CUSTOM besin yönetimi dahil) erişim verir.",
 };
 
@@ -138,9 +139,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   energy_body: false,
   aromatherapy: false,
   personal_archive: false,
-  video_ceviri: false,
   belge_ceviri: false,
-  ders_notu: false,
   digital_content: false,
   cupping: false,
   beslenme: false,

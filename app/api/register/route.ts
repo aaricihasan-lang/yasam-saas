@@ -3,6 +3,7 @@ import { getServerDb } from "@/lib/supabase-server";
 import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createExpertTenant";
 import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
+import { NEW_PASSWORD_MIN_LENGTH } from "@/lib/auth/loginThrottle";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export const runtime = "nodejs";
  * biçimde: role=expert, active=false, approval_status=pending (RPC server-forced).
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as {
+  const body = ((await req.json().catch(() => null)) ?? {}) as {
     fullName?: string;
     email?: string;
     password?: string;
@@ -28,6 +29,13 @@ export async function POST(req: NextRequest) {
 
   if (!fullName || !email || !password) {
     return NextResponse.json({ error: "Tüm alanları doldurunuz.", code: "missing_fields" }, { status: 400 });
+  }
+  // FAZ1 FINAL HARDENING: yeni parolalar en az 10 karakter (mevcut hesaplar etkilenmez).
+  if (password.length < NEW_PASSWORD_MIN_LENGTH) {
+    return NextResponse.json(
+      { error: `Şifre en az ${NEW_PASSWORD_MIN_LENGTH} karakter olmalı.`, code: "weak_password" },
+      { status: 400 },
+    );
   }
 
   let db: ReturnType<typeof getServerDb>;

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 
 export type DangerDeleteMode = "selected" | "all";
 
@@ -22,6 +23,11 @@ type BiyoenerjiDangerDeleteModalProps = {
    * null → "hesaplanıyor…". Nesne → cascade uyarısı gösterilir.
    */
   childCounts?: { total: number; visible: number; evidence: number } | null;
+  /**
+   * OPSİYONEL — "selected" modunda silinecek kayıtların adları (ilk 10 + "ve N kayıt daha").
+   * Gizli/unutulmuş seçimin habersiz silinmesini engellemek için gösterilir.
+   */
+  names?: readonly string[];
 };
 
 /** SIL-XXXX biçiminde, karıştırılması zor (I/O/0/1 hariç) rastgele doğrulama kodu üretir. */
@@ -52,6 +58,7 @@ export function BiyoenerjiDangerDeleteModal({
   onClose,
   onConfirm,
   childCounts,
+  names,
 }: BiyoenerjiDangerDeleteModalProps) {
   // Aşama: 1 = ilk uyarı, 2 = geri alınamaz uyarısı, 3 = doğrulama kodu
   const [stage, setStage] = useState(1);
@@ -136,6 +143,13 @@ export function BiyoenerjiDangerDeleteModal({
         <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
           Bu işlem geri alınamaz. Seçtiğiniz kayıtlar <b>{resourceLabel}</b> listesinden kalıcı olarak silinir.
         </p>
+        {names && names.length > 0 ? (
+          <ul className="mt-3 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12.5px] font-semibold leading-relaxed text-slate-700">
+            {buildNameListLines(names, count).map((line, i) => (
+              <li key={i} className="break-words">{line}</li>
+            ))}
+          </ul>
+        ) : null}
         {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>

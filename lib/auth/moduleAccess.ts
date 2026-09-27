@@ -22,6 +22,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Mevcut import yolları korunsun diye buradan YENİDEN EXPORT edilir (davranış aynı).
 import { resolveModuleAccess } from "./moduleAccessCore";
 import type { ModuleGateKey } from "./moduleAccessCore";
+import {
+  hasMembershipAccessForRow,
+  MEMBERSHIP_INACTIVE_CODE,
+  MEMBERSHIP_INACTIVE_MESSAGE,
+  MODULE_DENIED_CODE,
+  MODULE_DENIED_MESSAGE,
+  MEMBERSHIP_USER_SELECT,
+} from "./membershipAccessCore";
 export { resolveModuleAccess };
 export type { ModuleGateKey };
 
@@ -29,9 +37,36 @@ export type ModuleGateResult = { ok: true } | { ok: false; response: NextRespons
 
 const MODULE_DENIED = () =>
   NextResponse.json(
-    { error: "Bu modül hesabınız için aktif değil. Yöneticinizle iletişime geçin." },
+    { code: MODULE_DENIED_CODE, error: MODULE_DENIED_MESSAGE },
     { status: 403, headers: { "Cache-Control": "no-store" } },
   );
+
+const MEMBERSHIP_INACTIVE = () =>
+  NextResponse.json(
+    { code: MEMBERSHIP_INACTIVE_CODE, error: MEMBERSHIP_INACTIVE_MESSAGE },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+
+
+/**
+ * userId-bazlı ÜYELİK kapısı (modül anahtarı olmadan). admin muaf; uzman active+approved+premium.
+ * NOT: çağıran userId'nin sahibini ZATEN doğrulamış olmalıdır.
+ */
+export async function assertUserMembershipAccess(
+  db: SupabaseClient,
+  userId: string,
+): Promise<ModuleGateResult> {
+  const { data, error } = await db
+    .from("users")
+    .select(MEMBERSHIP_USER_SELECT)
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return { ok: false, response: MODULE_DENIED() };
+  if (!hasMembershipAccessForRow(data as Record<string, unknown>)) {
+    return { ok: false, response: MEMBERSHIP_INACTIVE() };
+  }
+  return { ok: true };
+}
 
 /**
  * userId-bazlı server kapısı (body/query'den doğrulanmış userId olan route'lar için).
@@ -46,11 +81,15 @@ export async function assertUserModuleAccess(
 ): Promise<ModuleGateResult> {
   const { data, error } = await db
     .from("users")
-    .select("role, module_permissions")
+    .select(MEMBERSHIP_USER_SELECT)
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) {
     return { ok: false, response: MODULE_DENIED() };
+  }
+  // FAZ1 FINAL HARDENING: requireModuleAccess ile AYNI üyelik kuralı (admin muaf).
+  if (!hasMembershipAccessForRow(data as Record<string, unknown>)) {
+    return { ok: false, response: MEMBERSHIP_INACTIVE() };
   }
   if (!resolveModuleAccess(data.role, data.module_permissions, moduleKey)) {
     return { ok: false, response: MODULE_DENIED() };

@@ -30,6 +30,7 @@ import {
   TextInput,
 } from "../_components/primitives";
 import { runInEffect } from "@/lib/runInEffect";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 const TABS: Array<{ value: TemplateType; label: string }> = [
   { value: "meal", label: "Öğün Şablonları" },
@@ -46,7 +47,8 @@ export default function SablonlarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Silme onayı ortak dialog'dan (aynı noktada iki adımlı buton → çift tıkta istemeden silme riski vardı).
+  const deleteConfirm = useDeleteConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,14 +87,23 @@ export default function SablonlarPage() {
     else setActionErr("Çoğaltma başarısız.");
   };
 
-  const doDelete = async (id: string) => {
-    setBusyId(id);
+  const doDelete = async (tpl: TemplateListRow) => {
+    if (busyId) return;
+    const ok = await deleteConfirm({
+      title: "Şablonu sil",
+      message: "Bu şablon kalıcı olarak silinecek. Şablondan daha önce oluşturulan planlar etkilenmez.",
+      names: [tpl.title],
+    });
+    if (!ok) return;
+    setBusyId(tpl.id);
     setActionErr("");
-    const r = await deleteTemplate(id);
-    setBusyId(null);
-    setConfirmDeleteId(null);
-    if (r.ok) void load();
-    else setActionErr("Silme başarısız.");
+    try {
+      const r = await deleteTemplate(tpl.id);
+      if (r.ok) void load();
+      else setActionErr("Silme başarısız.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -190,18 +201,13 @@ export default function SablonlarPage() {
                   >
                     Çoğalt
                   </GhostButton>
-                  {confirmDeleteId === tpl.id ? (
-                    <DangerButton loading={busyId === tpl.id} onClick={() => void doDelete(tpl.id)}>
-                      Silmeyi Onayla
-                    </DangerButton>
-                  ) : (
-                    <DangerButton
-                      icon={<Trash2 className="h-4 w-4" />}
-                      onClick={() => setConfirmDeleteId(tpl.id)}
-                    >
-                      Sil
-                    </DangerButton>
-                  )}
+                  <DangerButton
+                    icon={<Trash2 className="h-4 w-4" />}
+                    loading={busyId === tpl.id}
+                    onClick={() => void doDelete(tpl)}
+                  >
+                    Sil
+                  </DangerButton>
                 </div>
               ) : null}
             </Card>

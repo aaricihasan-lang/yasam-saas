@@ -59,6 +59,9 @@ import type { SourceEntryRow } from "./sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
 import { matchStock, stockLabel, STOCK_HINT_WORD, type StockIndex } from "./stoneStockLogic";
 import { extractMotorFromAnalysisJson, extractSummaryFromAnalysisData } from "../../utils/analysisJson";
+import { formatDateLoose, formatInstantDateTime, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+import { buildWellnessNoteSection } from "@/lib/docx/reportHelpers";
 
 type Block = Paragraph | Table;
 
@@ -545,6 +548,7 @@ export function buildPersonSections(
   personIndex: number,
   stockIndex: StockIndex,
   refCalendar: CalendarDate | null = null,
+  now: Date = new Date(),
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
@@ -557,11 +561,14 @@ export function buildPersonSections(
   // NUM-005: row.birth_date DB'den ISO (YYYY-MM-DD) veya TR gelebilir → esnek sınır parser'ı.
   const chronoBirthYear = parseBirthDateFlexible(row.birth_date)?.year ?? null;
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
-  const analiz = new Date(row.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
-  const created = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  // FA-02: analiz anı (created_at timestamptz) Europe/Istanbul; rapor tarihi yerel gün;
+  // doğum tarihi TEXT (ISO veya GG.AA.YYYY) → kaydırmasız gösterim (anlaşılamazsa ham metin).
+  const analiz = formatInstantDateTime(row.created_at, { fallback: "—" });
+  const created = reportGeneratedLabel(undefined, now);
+  const birthLabel = formatDateLoose(row.birth_date, { fallback: row.birth_date || "—" });
 
   // Kapak (kişi başına bir kez)
-  children.push(...coverPage(reportType, selectedLabels, adSoyad, row.birth_date, analiz, created, personIndex > 0));
+  children.push(...coverPage(reportType, selectedLabels, adSoyad, birthLabel, analiz, created, personIndex > 0));
 
   const matched: KnowledgeNote[] = [];
   if (motor && (sections.summary || sections.detailed)) {
@@ -647,6 +654,7 @@ export function buildNumerolojiWordChildren(
   shared: WordSharedData,
   stockIndex: StockIndex = new Map(),
   refCalendar: CalendarDate | null = null,
+  now: Date = new Date(),
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
   const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
@@ -656,7 +664,7 @@ export function buildNumerolojiWordChildren(
   let anyContent = false;
 
   rows.forEach((row, i) => {
-    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar);
+    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar, now);
     for (const t of emptyTabs) emptyTabSet.add(t);
     // Bu kişi en az bir seçili sekmede içerik ürettiyse belge içerik taşıyor.
     if (selected.some((k) => !emptyTabs.includes(k))) anyContent = true;
@@ -670,11 +678,18 @@ function runningHeader(adSoyad: string): Header {
   return new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "EDE9FE" } }, children: [tr(`Yaşam Sistemi  ·  Numeroloji Analiz Raporu  ·  ${adSoyad}`, { color: SECONDARY, size: 16 })] })] });
 }
 function footer(): Footer {
-  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }), tr(" / ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY })] })] });
+  return new Footer({ children: [
+    // FA-16: kısa bilgilendirme notu (sade, küçük punto; uyarı kutusu değil).
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [new TextRun({ text: wellnessNote("numeroloji").short, font: FONT, size: 14, italics: true, color: SECONDARY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }), tr(" / ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY })] })] });
 }
 
-/** docx child listesini gerçek .docx buffer'ına paketler (A4, ~1.9cm kenar, üst/alt bilgi). */
-export async function packNumerolojiDocx(children: Block[], adSoyad = ""): Promise<Buffer> {
+/**
+ * docx child listesini gerçek .docx buffer'ına paketler (A4, ~1.9cm kenar, üst/alt bilgi).
+ * FA-16: belge sonuna sade "Bilgilendirme" notu (+ varsa "Hazırlayan: <uzman>") eklenir.
+ */
+export async function packNumerolojiDocx(children: Block[], adSoyad = "", opts?: { expertName?: string | null }): Promise<Buffer> {
+  children = [...children, ...buildWellnessNoteSection("numeroloji", opts?.expertName)];
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: S_BODY, color: BODY } } } },
     sections: [{

@@ -32,9 +32,11 @@ export function useSessionGuard({ user, onSessionInvalid }: UseSessionGuardOptio
       if (!token) return; // Token yoksa eski oturum — geçmişe dönük zorlama yapma
 
       try {
-        const res = await fetch(`/api/auth/session?token=${encodeURIComponent(token)}`, {
+        // FAZ1 FINAL HARDENING: token URL'de değil başlıkta (log/geçmiş sızıntısı yok).
+        const res = await fetch("/api/auth/session", {
           method: "GET",
           cache: "no-store",
+          headers: { "x-session-token": token },
         });
         if (!res.ok || cancelled) return;
         const json = (await res.json()) as { valid?: boolean };

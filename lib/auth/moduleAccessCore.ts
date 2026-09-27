@@ -23,6 +23,7 @@ export type ModuleGateKey =
   | "personal_archive"
   | "video_ceviri"
   | "belge_ceviri"
+  | "belge_ceviri_ai"
   | "ders_notu"
   | "human_design"
   | "digital_content"
@@ -45,12 +46,34 @@ export const MODULE_ALIASES: Record<string, string[]> = {
   cupping: ["kupa", "hacamat_terapi"],
   video_ceviri: [],
   belge_ceviri: [],
+  belge_ceviri_ai: [],
   ders_notu: [],
   human_design: [],
   digital_content: [],
   cosmic_calendar: [],
   beslenme: [],
 };
+
+/**
+ * FAZ1 FINAL HARDENING (AUTH/FA — AI admin-only): OpenAI maliyeti doğuran AI yüzeyleri
+ * YALNIZ yöneticiye açıktır. `module_permissions` içindeki bayraklardan BAĞIMSIZ olarak
+ * admin olmayan her kullanıcı için `resolveModuleAccess` false döner.
+ *   - video_ceviri     : Video → Türkçe (transcribe/translate/summarize/headings + iş kayıtları)
+ *   - ders_notu        : Ders notu temizleme (+ Word dönüşümü)
+ *   - belge_ceviri_ai  : SANAL anahtar — belge çeviri modülünün AI uçları (OCR, PDF→Türkçe Word,
+ *                        OCR→Word). AI OLMAYAN `belge_ceviri` (pdf-to-word, geçmiş, iş durumu)
+ *                        uzmanda modül izniyle KALIR.
+ * İstemci (`lib/auth/modulePermissions.ts` hasModulePermission) aynı seti kullanır.
+ */
+export const ADMIN_ONLY_MODULE_KEYS: ReadonlySet<string> = new Set([
+  "video_ceviri",
+  "ders_notu",
+  "belge_ceviri_ai",
+]);
+
+export function isAdminOnlyModuleKey(moduleKey: string): boolean {
+  return ADMIN_ONLY_MODULE_KEYS.has(moduleKey);
+}
 
 function toFlags(raw: unknown): Record<string, boolean> {
   const flags: Record<string, boolean> = {};
@@ -92,14 +115,13 @@ export function resolveModuleAccess(
   // İkisi de aşağıdaki hasFlag(flags, moduleKey) akışına düşer; admin üstte short-circuit ile
   // zaten geçer; veri erişimi her zaman server-side tenant-scoped kalır.
 
+  // AI admin-only: admin yukarıda short-circuit ile geçti; diğer herkes için kapalı.
+  if (isAdminOnlyModuleKey(moduleKey)) return false;
+
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {
-    return (
-      hasFlag(flags, "personal_archive") ||
-      hasFlag(flags, "video_ceviri") ||
-      hasFlag(flags, "belge_ceviri") ||
-      hasFlag(flags, "ders_notu")
-    );
+    // Hub yalnız uzmana AÇIK kalan alt modüllerden açılır (video/ders notu artık admin-only).
+    return hasFlag(flags, "personal_archive") || hasFlag(flags, "belge_ceviri");
   }
   return hasFlag(flags, moduleKey);
 }

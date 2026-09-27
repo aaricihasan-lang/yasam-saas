@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyUserRequest, type UserGuardOk } from "@/lib/auth/userGuard";
-import { assertUserModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
+import {
+  assertUserMembershipAccess,
+  assertUserModuleAccess,
+  type ModuleGateKey,
+} from "@/lib/auth/moduleAccess";
 
 export type RequireUserResult =
   | { ok: true; user: UserGuardOk }
@@ -34,9 +38,11 @@ export async function requireDigitalContentUser(
     };
   }
   // P3: kişiye özel modül izni server-side zorlanır (belge_ceviri / ders_notu).
-  if (moduleKey) {
-    const gate = await assertUserModuleAccess(guard.db, guard.userId, moduleKey);
-    if (!gate.ok) return { ok: false, response: gate.response };
-  }
+  // FAZ1 FINAL HARDENING: üyelik kapısı (admin muaf) her durumda; modül anahtarı varsa
+  // assertUserModuleAccess üyelik + modül iznini birlikte uygular.
+  const gate = moduleKey
+    ? await assertUserModuleAccess(guard.db, guard.userId, moduleKey)
+    : await assertUserMembershipAccess(guard.db, guard.userId);
+  if (!gate.ok) return { ok: false, response: gate.response };
   return { ok: true, user: guard };
 }

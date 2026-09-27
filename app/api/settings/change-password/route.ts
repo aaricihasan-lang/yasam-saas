@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { verifyLoginCredentialsGuarded } from "@/lib/auth/credentialLogin";
+import { extractClientIp } from "@/lib/auth/sessionSecurity";
+import {
+  hashLoginIp,
+  loginLockedMessage,
+  NEW_PASSWORD_MIN_LENGTH,
+} from "@/lib/auth/loginThrottle";
 
 export const runtime = "nodejs";
 
@@ -27,30 +34,37 @@ export async function POST(req: NextRequest) {
   if (!oldPassword || !newPassword) {
     return NextResponse.json({ error: "Eski ve yeni şifre gerekli." }, { status: 400 });
   }
-  if (newPassword.length < 6) {
-    return NextResponse.json({ error: "Yeni şifre en az 6 karakter olmalı." }, { status: 400 });
+  // FAZ1 FINAL HARDENING: yeni parolalar en az 10 karakter (mevcut parolalar etkilenmez).
+  if (newPassword.length < NEW_PASSWORD_MIN_LENGTH) {
+    return NextResponse.json(
+      { error: `Yeni şifre en az ${NEW_PASSWORD_MIN_LENGTH} karakter olmalı.` },
+      { status: 400 },
+    );
   }
   if (oldPassword === newPassword) {
     return NextResponse.json({ error: "Yeni şifre eski şifreyle aynı olamaz." }, { status: 400 });
   }
 
-  // Eski şifreyi doğrula — login_user RPC ile (guard'ın service_role db'si yeterli)
-  const { data: loginData, error: loginError } = await db.rpc("login_user", {
-    p_email: email.toLowerCase().trim(),
-    p_password: oldPassword,
-  });
+  // Eski şifreyi doğrula — login ile AYNI kısıtlamalı yol (auth_login_guarded: throttle +
+  // hash-only). Mevcut parola denemeleri de sayaca girer (oturum ele geçirilse bile kaba kuvvet yok).
+  const verified = await verifyLoginCredentialsGuarded(
+    db,
+    email,
+    oldPassword,
+    hashLoginIp(extractClientIp(req.headers)),
+  );
 
-  if (loginError) {
+  if (verified.status === "locked") {
+    return NextResponse.json(
+      { error: loginLockedMessage(verified.retryAfterSeconds), code: "LOCKED" },
+      { status: 429, headers: { "Retry-After": String(verified.retryAfterSeconds) } },
+    );
+  }
+  if (verified.status === "error") {
     return NextResponse.json({ error: "Şifre doğrulanamadı." }, { status: 500 });
   }
-
-  const rows = Array.isArray(loginData)
-    ? loginData
-    : loginData != null
-    ? [loginData]
-    : [];
-
-  if (rows.length === 0) {
+  // Doğrulanan satır bu oturumun kullanıcısı olmalı (e-posta çakışmasına karşı bağlama).
+  if (verified.status !== "ok" || verified.row.id !== userId) {
     return NextResponse.json({ error: "Mevcut şifre hatalı." }, { status: 400 });
   }
 
@@ -70,7 +84,7 @@ export async function POST(req: NextRequest) {
     .eq("id", userId);
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    return NextResponse.json({ error: "Şifre güncellenemedi." }, { status: 500 });
   }
 
   // Diğer oturumları kapat (mevcut hariç)

@@ -130,11 +130,11 @@ async function run(): Promise<void> {
   }
   {
     const r = validateNewPassword("12345");
-    ok(r.ok === false && r.status === 422, "password: <6 → 422 semantik");
+    ok(r.ok === false && r.status === 422, "password: <min → 422 semantik");
   }
   {
-    const r = validateNewPassword("  secret123  ");
-    ok(r.ok === true && r.value === "secret123", "password: geçerli trim + kabul");
+    const r = validateNewPassword("  secret1234  ");
+    ok(r.ok === true && r.value === "secret1234", "password: geçerli trim + kabul (FAZ1 final: min 10)");
   }
 
   // ── 2) isLogoutAllConfirmValid ────────────────────────────────────────────

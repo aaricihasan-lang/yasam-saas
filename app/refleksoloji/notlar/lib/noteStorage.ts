@@ -1,9 +1,24 @@
 import type { ClinicalNoteFormDraft, NoteAttachment, SavedClinicalNote } from "../types";
-import type { NoteSyncResult } from "@/lib/refleksoloji/notesConcurrency";
-import { safeLocalStorageSetItem } from "@/lib/safeStorage";
-import { scheduleNotesSync, setNotesSyncSuspended } from "./notesSync";
+import type { NoteOutboxEntry } from "@/lib/refleksoloji/notesClientCore";
+import { readReflex, writeReflex } from "@/lib/refleksoloji/reflexStore";
+import {
+  LEGACY_QUARANTINE_KEYS,
+  LEGACY_REFLEX_KEYS,
+  readRawJson,
+  removeRaw,
+  writeRawJson,
+} from "@/lib/refleksoloji/scopedStorage";
 
-export const CLINICAL_NOTES_STORAGE_KEY = "yasam-refleksoloji-notlar-v1";
+/**
+ * Klinik Notlar yerel deposu (FA-04 / DL-007).
+ *
+ * Notlar artık kullanıcı/tenant kapsamlı `refleks:v2:{tenant}:{user}:notes`
+ * anahtarında; bekleyen silmeler KALICI `...:notes-outbox` anahtarında tutulur.
+ * Bu modül yalnız DEPOLAMA yapar — sunucu senkronu `notesSync.ts`'tedir (döngü yok).
+ */
+
+/** Eski (v1, cihaz genelindeki) anahtar — yalnız eski veri taşıma için okunur. */
+export const CLINICAL_NOTES_STORAGE_KEY = LEGACY_REFLEX_KEYS.notes;
 
 /** REF-003: server sync sonucu uygulanınca UI'nin yeniden okuması için olay adı. */
 export const CLINICAL_NOTES_UPDATED_EVENT = "yasam-refleksoloji-notes-updated";
@@ -46,7 +61,8 @@ function normalizeAttachments(raw: unknown): NoteAttachment[] {
     .filter((a): a is NoteAttachment => a != null);
 }
 
-function migrateItem(item: unknown): SavedClinicalNote | null {
+/** Ham kaydı (yerel/sunucu/eski) doğrulanmış nota çevirir; geçersizse null. */
+export function parseStoredNote(item: unknown): SavedClinicalNote | null {
   if (!item || typeof item !== "object") return null;
   const o = item as Record<string, unknown>;
   if (typeof o.id !== "string" || typeof o.title !== "string") return null;
@@ -65,7 +81,19 @@ function migrateItem(item: unknown): SavedClinicalNote | null {
     updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : now,
     // REF-003: CAS beklenen sürümü — localStorage round-trip'inde KORUNMALI.
     ...(typeof o.baseUpdatedAt === "string" ? { baseUpdatedAt: o.baseUpdatedAt } : {}),
+    ...(o.dirty === true ? { dirty: true } : {}),
+    ...(typeof o.syncRejected === "string" && o.syncRejected
+      ? { syncRejected: o.syncRejected }
+      : {}),
   };
+}
+
+export function parseNoteList(raw: unknown): SavedClinicalNote[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(parseStoredNote)
+    .filter((n): n is SavedClinicalNote => n != null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function todayDateInputValue(): string {
@@ -76,20 +104,22 @@ export function todayDateInputValue(): string {
   return `${y}-${m}-${day}`;
 }
 
-export function createNoteId(title: string, existingIds: Set<string>): string {
-  const base = title
-    .trim()
-    .toLocaleLowerCase("tr-TR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+/** Yeni not kimliği — rastgele UUID (başlık slug'ı değil → cihazlar arası çakışma yok). */
+export function newNoteId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `not-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
-  let id = base || `not-${Date.now()}`;
-  if (!existingIds.has(id)) return id;
-  let n = 2;
-  while (existingIds.has(`${id}-${n}`)) n += 1;
-  return `${id}-${n}`;
+/**
+ * Geriye dönük imza: eskiden başlık slug'ı üretiyordu (aynı başlıklı iki not farklı
+ * cihazlarda AYNI id → birbirinin üzerine yazıyordu). Artık daima UUID.
+ */
+export function createNoteId(_title: string, existingIds: Set<string>): string {
+  let id = newNoteId();
+  while (existingIds.has(id)) id = newNoteId();
+  return id;
 }
 
 export function newAttachmentId(): string {
@@ -99,103 +129,74 @@ export function newAttachmentId(): string {
   return `ek-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ─── Kapsamlı depo ───────────────────────────────────────────────────────────
+
 export function loadNotesFromStorage(): SavedClinicalNote[] {
   if (typeof window === "undefined") return [];
-
   try {
-    const raw = window.localStorage.getItem(CLINICAL_NOTES_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(migrateItem)
-      .filter((n): n is SavedClinicalNote => n != null)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return parseNoteList(readReflex<unknown>("notes"));
   } catch {
     return [];
   }
 }
 
+/** Yalnız yerel yazma (senkron TETİKLEMEZ). Senkronlu kayıt: notesSync.saveNotesAndSync. */
 export function saveNotesToStorage(notes: SavedClinicalNote[]): boolean {
   if (typeof window === "undefined") return false;
-  const ok = safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(notes));
-  // P1-1: yerel kayıt sonrası sunucuya senkronla (demo/oturumsuz/hydrate'te no-op).
-  if (ok) scheduleNotesSync(notes);
-  return ok;
+  return writeReflex("notes", notes);
 }
 
-/**
- * P1-1: hydrate birleştirme — yerel ve sunucu notlarını id ile birleştirir; aynı id
- * için updatedAt daha yeni olan kazanır. Böylece sunucuda olmayan yerel not
- * hydrate'te KAYBOLMAZ (veri kaybı yok).
- */
-export function mergeNotesById(
-  a: SavedClinicalNote[],
-  b: SavedClinicalNote[],
-): SavedClinicalNote[] {
-  const map = new Map<string, SavedClinicalNote>();
-  for (const n of [...a, ...b]) {
-    if (!n || typeof n.id !== "string" || !n.id) continue;
-    const existing = map.get(n.id);
-    if (!existing || String(n.updatedAt ?? "") > String(existing.updatedAt ?? "")) {
-      map.set(n.id, n);
-    }
+export function loadNotesOutbox(): NoteOutboxEntry[] {
+  const raw = readReflex<unknown>("notes-outbox");
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((d): NoteOutboxEntry | null => {
+      if (!d || typeof d !== "object") return null;
+      const o = d as Record<string, unknown>;
+      if (typeof o.uid !== "string" || !o.uid) return null;
+      return {
+        uid: o.uid,
+        expected_updated_at:
+          typeof o.expected_updated_at === "string" && o.expected_updated_at
+            ? o.expected_updated_at
+            : null,
+        queuedAt: typeof o.queuedAt === "string" ? o.queuedAt : new Date().toISOString(),
+      };
+    })
+    .filter((d): d is NoteOutboxEntry => d != null);
+}
+
+export function saveNotesOutbox(outbox: NoteOutboxEntry[]): boolean {
+  return writeReflex("notes-outbox", outbox);
+}
+
+// ─── Eski (v1) anahtar + karantina (sahibi belirsiz veriler) ─────────────────
+
+export function loadLegacyNotes(): SavedClinicalNote[] {
+  return parseNoteList(readRawJson<unknown>(LEGACY_REFLEX_KEYS.notes));
+}
+
+export function writeLegacyNotes(notes: SavedClinicalNote[]): boolean {
+  if (notes.length === 0) {
+    removeRaw(LEGACY_REFLEX_KEYS.notes);
+    return true;
   }
-  return [...map.values()].sort((x, y) =>
-    String(y.updatedAt ?? "").localeCompare(String(x.updatedAt ?? "")),
-  );
+  return writeRawJson(LEGACY_REFLEX_KEYS.notes, notes);
 }
 
-/**
- * REF-003: server PUT sonucunu yerel depoya uygular (senkron ASKIYA ALINMIŞ olarak,
- * geri-yankı PUT'u tetiklemeden). Amaç:
- *   • created/updated → o notun `baseUpdatedAt`'ini yeni server sürümüne çeker
- *     (bir sonraki düzenlemede CAS doğru sürümle çalışır).
- *   • delete-conflict → başka cihazda değişmiş notu server sürümünden GERİ YÜKLER
- *     (kör silme geri alınır; yerel veri kaybı olmaz).
- * conflict (update) sonucunda yerel metin KORUNUR (üzerine yazılmaz) — çağıran ayrıca
- * görünür conflict durumu gösterir. Değişiklik olduysa UI'yi tazelemek için olay yayınlar.
- */
-export function applyServerNoteSync(results: NoteSyncResult[]): boolean {
-  if (typeof window === "undefined" || results.length === 0) return false;
+export function loadQuarantinedNotes(): SavedClinicalNote[] {
+  return parseNoteList(readRawJson<unknown>(LEGACY_QUARANTINE_KEYS.notes));
+}
 
-  const list = loadNotesFromStorage();
-  const byId = new Map(list.map((n) => [n.id, n]));
-  let changed = false;
-
-  for (const r of results) {
-    if (r.outcome === "created" || r.outcome === "updated") {
-      const note = byId.get(r.uid);
-      if (note && note.baseUpdatedAt !== r.updated_at) {
-        byId.set(r.uid, { ...note, baseUpdatedAt: r.updated_at });
-        changed = true;
-      }
-    } else if (r.outcome === "delete-conflict" && r.server != null) {
-      // Başka cihazda değişmiş notu geri yükle (silme reddedildi).
-      const restored = migrateItem(r.server);
-      if (restored) {
-        byId.set(restored.id, {
-          ...restored,
-          ...(typeof r.server_updated_at === "string"
-            ? { baseUpdatedAt: r.server_updated_at }
-            : {}),
-        });
-        changed = true;
-      }
-    }
+export function saveQuarantinedNotes(notes: SavedClinicalNote[]): boolean {
+  if (notes.length === 0) {
+    removeRaw(LEGACY_QUARANTINE_KEYS.notes);
+    return true;
   }
-
-  if (!changed) return false;
-
-  const next = [...byId.values()].sort((a, b) =>
-    String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")),
-  );
-  setNotesSyncSuspended(true);
-  const ok = safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(next));
-  setNotesSyncSuspended(false);
-  if (ok) window.dispatchEvent(new Event(CLINICAL_NOTES_UPDATED_EVENT));
-  return ok;
+  return writeRawJson(LEGACY_QUARANTINE_KEYS.notes, notes);
 }
+
+// ─── Taslak dönüşümleri ──────────────────────────────────────────────────────
 
 export function draftToSavedNote(
   draft: ClinicalNoteFormDraft,
@@ -221,6 +222,9 @@ export function draftToSavedNote(
     ...(options.previous?.baseUpdatedAt
       ? { baseUpdatedAt: options.previous.baseUpdatedAt }
       : {}),
+    // FA-03: yerel değişiklik → kirli (yalnız kirli notlar gönderilir). Kullanıcı
+    // düzenlediği için önceki "reddedildi" işareti düşer (yeniden denenir).
+    dirty: true,
   };
 }
 

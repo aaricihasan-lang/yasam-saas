@@ -5,6 +5,7 @@ import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createEx
 import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { MIN_PASSWORD_LENGTH } from "@/lib/admin/accountSessionControls";
 
 export const runtime = "nodejs";
 
@@ -69,6 +70,14 @@ export async function POST(req: NextRequest) {
   if (!fullName || !email || !password) {
     return NextResponse.json(
       { error: "Ad soyad, e-posta ve şifre zorunludur." },
+      { status: 400 },
+    );
+  }
+
+  // FAZ1 FINAL HARDENING: yeni parolalarda ortak minimum uzunluk (mevcut parolalar etkilenmez).
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: `Şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalı.` },
       { status: 400 },
     );
   }

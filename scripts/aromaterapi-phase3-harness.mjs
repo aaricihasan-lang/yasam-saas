@@ -99,9 +99,14 @@ check("yaglar/[id] gerçek dirty (draft vs oilToFormData) + guard + nav gated on
 
 // --- Blend Builder: dirty guard + aria ----------------------------------------
 const BLEND = read("app/aromaterapi/karisim-olusturucu/page.tsx");
-check("Blend Builder dirty guard (pristine/boş → guard yok)",
+// FAZ1 final hardening: dirty artık BASELINE kıyaslı (blendFormState.isBlendFormDirty);
+// pristine builder baseline=emptyBlendSnapshot → guard yok; yükleme/kayıt/sıfırlama baseline'ı yeniler.
+const BLEND_STATE = read("app/aromaterapi/karisim-olusturucu/blendFormState.ts");
+check("Blend Builder dirty guard (pristine/boş → guard yok; baseline kıyaslı)",
   /useAromaterapiDirtyGuard\(isBlendDirty\)/.test(BLEND) &&
-  /items\.length > 0/.test(BLEND) && /name\.trim\(\) !== ""/.test(BLEND));
+  /isBlendFormDirty\(currentSnapshot, baseline\)/.test(BLEND) &&
+  /useState<BlendFormSnapshot>\(\(\) => emptyBlendSnapshot\(/.test(BLEND) &&
+  /export function isBlendFormDirty/.test(BLEND_STATE));
 check("Blend Builder drops input + remove ✕ aria-label",
   /aria-label=\{`\$\{it\.oil_name\} damla sayısı`\}/.test(BLEND) &&
   /aria-label=\{`\$\{it\.oil_name\} karışımdan çıkar`\}/.test(BLEND) &&

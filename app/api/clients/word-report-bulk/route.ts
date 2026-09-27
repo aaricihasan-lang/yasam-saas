@@ -19,6 +19,9 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { formatDateLoose, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
 
 export const runtime = "nodejs";
 
@@ -54,25 +57,14 @@ function v(val: string | null | undefined): string {
   return val?.trim() || "Bilgi girilmemiş";
 }
 
+/** clients.dogum / gorusme TEXT alanlar — takvim günü kaydırılmaz (FA-02). */
 function formatDateTR(date: string | null | undefined): string {
-  if (!date) return "Bilgi girilmemiş";
-  const parts = date.split("-");
-  if (parts.length !== 3) return date;
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  return formatDateLoose(date, { fallback: "Bilgi girilmemiş" });
 }
 
+/** FA-41: kullanıcı yazımı korunur (otomatik title-case YOK; yalnız trim + boşluk sadeleştirme). */
 function titleCaseTR(text: string): string {
-  if (!text.trim()) return text;
-  return text
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => {
-      const lower = word.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase();
-      const f = lower[0]!;
-      const upper = f === "i" ? "İ" : f === "ı" ? "I" : f.toUpperCase();
-      return upper + lower.slice(1);
-    })
-    .join(" ");
+  return tidyUserText(text);
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -158,8 +150,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     notesMap.set(note.client_id, note.saglik_notu);
   }
 
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug = new Date().toISOString().slice(0, 10);
+  // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü.
+  const today = reportGeneratedLabel();
+  const dateSlug = reportFileDate();
+  const expertName = expertDisplayName(guard.profile);
 
   const exportLabel =
     exportMode === "selected" ? `Seçili Danışanlar (${clients.length})` :
@@ -184,6 +178,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   all.push(...buildStatsPage([
     ["Toplam Danışan", String(clients.length)],
     ["Rapor Kapsamı",  exportLabel],
+    ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
   ]));
 
   // ── İçindekiler
@@ -208,7 +203,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ["Görüşme Tarihi", formatDateTR(client.gorusme)],
       ["Burç",           v(client.burc)],
       ["Kan Grubu",      v(client.kan)],
-      ["Mizaç",          v(client.mizac)],
+      ["Mizaç",          mizacLabel(client.mizac)],
     ]));
 
     if (saglikNotu?.trim()) {
@@ -228,7 +223,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug = exportMode === "selected" ? "secili" : exportMode === "filtered" ? "filtreli" : "tumü";
+  const modeSlug = exportMode === "selected" ? "secili" : exportMode === "filtered" ? "filtreli" : "tumu";
   const filename = `danisan-listesi-${modeSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {

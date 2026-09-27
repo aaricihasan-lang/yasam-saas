@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -48,6 +49,9 @@ import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-st
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { pruneSelection } from "@/lib/ui/selection";
+import { planStockSave, stockFormSignature, type StockRetryState } from "../stockSaveAttempt";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -102,7 +106,7 @@ const inputClass =
   "h-10 w-full rounded-xl border-2 border-sky-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/40";
 
 const btnPrimary =
-  "inline-flex h-10 items-center justify-center rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-100 to-green-100 px-6 text-sm font-black text-emerald-900 shadow-md transition hover:scale-[1.02]";
+  "inline-flex h-10 items-center justify-center rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-100 to-green-100 px-6 text-sm font-black text-emerald-900 shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100";
 
 const btnSecondary =
   "inline-flex h-9 items-center justify-center rounded-xl border-2 border-sky-200 bg-sky-50 px-4 text-sm font-black text-slate-800 transition hover:bg-sky-100";
@@ -241,6 +245,8 @@ export default function DogaltasUrunStokPage() {
   useBfcacheRefresh();
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
+  const saveLock = useSubmitLock();
+  const retryRef = useRef<StockRetryState | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<InvItem[]>([]);
@@ -313,6 +319,13 @@ export default function DogaltasUrunStokPage() {
 
   const stockTotals = useMemo(() => calcInventoryTotals(displayedStock), [displayedStock]);
 
+  // Arama/sıralama değişince seçim görünür kayıtlarla kesişime budanır
+  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  useEffect(() => {
+    const visibleKeys = displayedStock.map((it) => itemKeyFrom(it));
+    runInEffect(() => setSelectedKeys((prev) => pruneSelection(prev, visibleKeys)));
+  }, [displayedStock]);
+
   const critNum = toFloat(critAdet, 3);
 
   const stockCostPreview = useMemo(
@@ -328,51 +341,70 @@ export default function DogaltasUrunStokPage() {
     [diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, stokIn],
   );
 
-  async function handleAddStock() {
+  function handleAddStock() {
+    // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
+    return saveLock
+      .run(() => addStockNow())
+      .catch((e: unknown) => setStockMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+  }
+
+  async function addStockNow() {
     setStockMsg(null);
     const targetName = turkishUpper(name.trim());
-    const result = addOrUpdateInventoryItem(inventory, {
-      name: targetName,
-      type: stoneType,
-      stokIn: toFloat(stokIn, 0),
-      diziTlIn: toFloat(diziTl, 0),
-      diziUsdIn: toFloat(diziUsd, 0),
-      diziEurIn: toFloat(diziEur, 0),
-      usdRateIn: toFloat(stockUsdRate, 0),
-      eurRateIn: toFloat(stockEurRate, 0),
-      adetTlIn: toFloat(adetTl, 0),
-      pendingPhotos,
-    });
-    if (!result.ok) {
-      setStockMsg(result.error);
-      return;
-    }
-    let items = result.items;
-    const norm = normalizeDiziInventory(items);
-    items = norm.items;
-    // localStorage: anında geri bildirim + çevrimdışı yedek (DB öncelikli kaynağın önbelleği)
-    const saved = saveInventory(items);
-    setInventory(items);
-    if (!saved) {
-      setStockMsg(
-        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
-      );
-      return;
+    const targetKey = `${targetName.trim().toLowerCase()}|${stoneType.trim().toLowerCase()}`;
+    const signature = stockFormSignature([
+      targetName, stoneType, stokIn, diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, adetTl,
+      pendingPhotos.length,
+    ]);
+    // Aynı form, önceki bulut yazımı başarısızken tekrar gönderildiyse miktar İKİNCİ kez
+    // eklenmez: yerel birleştirme atlanır, aynı kayıt yalnız buluta yeniden yazılır.
+    const plan = planStockSave(retryRef.current, signature, null, new Set(inventory.map((it) => itemKeyFrom(it))));
+    let items = inventory;
+    if (plan.kind !== "retry-cloud") {
+      const result = addOrUpdateInventoryItem(inventory, {
+        name: targetName,
+        type: stoneType,
+        stokIn: toFloat(stokIn, 0),
+        diziTlIn: toFloat(diziTl, 0),
+        diziUsdIn: toFloat(diziUsd, 0),
+        diziEurIn: toFloat(diziEur, 0),
+        usdRateIn: toFloat(stockUsdRate, 0),
+        eurRateIn: toFloat(stockEurRate, 0),
+        adetTlIn: toFloat(adetTl, 0),
+        pendingPhotos,
+      });
+      if (!result.ok) {
+        setStockMsg(result.error);
+        return;
+      }
+      items = result.items;
+      const norm = normalizeDiziInventory(items);
+      items = norm.items;
+      // localStorage: anında geri bildirim + çevrimdışı yedek (DB öncelikli kaynağın önbelleği)
+      const saved = saveInventory(items);
+      setInventory(items);
+      if (!saved) {
+        setStockMsg(
+          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+        );
+        return;
+      }
     }
 
     // K-1: Demo değilse kaydı kalıcı olarak Supabase'e yaz. Böylece sayfa
     // yenilenince kaybolmaz ve cihazlar arası senkron olur.
     if (!isDemo && activeTenantId) {
-      const targetKey = `${targetName.trim().toLowerCase()}|${stoneType.trim().toLowerCase()}`;
       const target = items.find((it) => itemKeyFrom(it) === targetKey);
       if (target) {
         const res = await upsertDogaltasInventoryItem(activeTenantId, target);
         if (!res.ok) {
+          retryRef.current = { signature, targetId: targetKey, isNew: false };
           setStockMsg(
             `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
+        retryRef.current = null;
         // DB'den taze çek: kanonik durum + yeni id; önbelleğin DB'yi ezme riski kalmaz.
         await reloadInventory();
         setStockMsg(
@@ -383,6 +415,7 @@ export default function DogaltasUrunStokPage() {
       }
     }
 
+    retryRef.current = null;
     setName("");
     setStokIn("");
     setDiziTl("");
@@ -393,20 +426,23 @@ export default function DogaltasUrunStokPage() {
   }
 
   async function deleteSelectedStock() {
-    if (selectedKeys.size === 0) {
+    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
+    const removed = displayedStock.filter((it) => selectedKeys.has(itemKeyFrom(it)));
+    if (removed.length === 0) {
       setStockMsg("Silmek için en az bir satır seçin.");
       return;
     }
+    const removedKeys = new Set(removed.map((it) => itemKeyFrom(it)));
     const ok = await deleteConfirm({
       title: "Stok kaydı silinecek",
-      message: `Seçili ${selectedKeys.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || "(adsız taş)"),
     });
     if (!ok) return;
-    const removed = inventory.filter((it) => selectedKeys.has(`${itemKeyFrom(it)}`));
-    const next = inventory.filter((it) => !selectedKeys.has(`${itemKeyFrom(it)}`));
+    const next = inventory.filter((it) => !removedKeys.has(itemKeyFrom(it)));
     saveInventory(next);
     setInventory(next);
-    const count = selectedKeys.size;
+    const count = removed.length;
     setSelectedKeys(new Set());
     // K-1: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
     if (!isDemo && activeTenantId && removed.length > 0) {
@@ -655,6 +691,11 @@ export default function DogaltasUrunStokPage() {
   }
 
   const [historySelected, setHistorySelected] = useState<Set<number>>(new Set());
+  // Seçim sıra-indekslidir: satış listesi yeniden yüklenince (yeni satış/iptal) indeksler
+  // başka satışa kayabilir → seçim temizlenir (yanlış satışın iptali engellenir).
+  useEffect(() => {
+    runInEffect(() => setHistorySelected((prev) => (prev.size ? new Set() : prev)));
+  }, [sales]);
 
   const salesSummary = useMemo(() => {
     const totalSale = sales.reduce((s, r) => s + (r.sale_price || 0), 0);
@@ -671,6 +712,7 @@ export default function DogaltasUrunStokPage() {
     const ok = await deleteConfirm({
       title: "Satış iptal edilecek",
       message: `Seçili ${historySelected.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
+      names: sales.filter((_, i) => historySelected.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
     });
     if (!ok) return;
     const toCancel = sales.filter((_, i) => historySelected.has(i));
@@ -941,7 +983,7 @@ export default function DogaltasUrunStokPage() {
                     }}
                   />
                 </label>
-                <button type="button" className={btnPrimary} onClick={handleAddStock}>
+                <button type="button" className={btnPrimary} onClick={() => void handleAddStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   Ekle
                 </button>
                 <p className="ml-auto rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-black text-amber-950">

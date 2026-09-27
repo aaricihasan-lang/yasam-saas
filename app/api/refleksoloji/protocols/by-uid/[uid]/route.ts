@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
+import { decideProtocolCas, protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,11 @@ export const runtime = "nodejs";
  *   - tenant_id SUNUCUDA session'dan; body/query'den GÜVENİLMEZ.
  *   - Tüm sorgular tenant_id + source_uid ile bağlanır (IDOR engellenir).
  *   - Demo hesap: Supabase'e yazma yapılmaz.
+ *
+ * FA-42 (eşzamanlılık): PUT gövdesi `expected_updated_at` (istemcinin bildiği
+ *   `raw_json.updatedAt`) taşırsa sunucudaki sürümle eşleşmesi gerekir; aksi halde
+ *   409 PROTOCOL_STALE (başka cihazdaki düzenleme körlemesine ezilmez). Tabloda
+ *   updated_at kolonu olmadığından belirteç raw_json.updatedAt'tir (migration yok).
  */
 
 // ─── PUT /api/refleksoloji/protocols/by-uid/[uid] — güncelle (yoksa oluştur) ────
@@ -53,17 +59,66 @@ export async function PUT(
   // tenant_id + source_uid oturumdan/param'dan; id/created_at/updated_at ve köken
   // (origin_*) alanları İSTEMCİDEN kabul EDİLMEZ.
   const fields = pickProtocolContentFields(body);
+  const expected =
+    typeof body.expected_updated_at === "string" && body.expected_updated_at.length > 0
+      ? body.expected_updated_at
+      : null;
 
-  // Önce güncelle (tenant + source_uid eşleşen satır).
-  const { data: updated, error: updErr } = await db
+  // FA-42: iyimser eşzamanlılık — mevcut satırın sürüm belirteci.
+  let currentVersion: string | null = null;
+  if (expected) {
+    const { data: curRows, error: curErr } = await db
+      .from("reflexology_protocols")
+      .select("id, raw_json")
+      .eq("tenant_id", tenantId)
+      .eq("source_uid", uid)
+      .limit(2);
+    if (curErr) {
+      return jsonServerError("protocols.by-uid.PUT.read", curErr);
+    }
+    const cur = (curRows ?? [])[0] as { id: string; raw_json: unknown } | undefined;
+    if (cur) {
+      currentVersion = protocolRowVersion(cur.raw_json);
+      const decision = decideProtocolCas(expected, currentVersion);
+      if (!decision.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            conflict: true,
+            code: decision.code,
+            error: "Protokol başka bir cihazda değiştirilmiş. Güncel hâlini yükleyip tekrar deneyin.",
+          },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
+  // Güncelle (tenant + source_uid [+ sürüm belirteci] eşleşen satır).
+  let updQuery = db
     .from("reflexology_protocols")
     .update(fields)
     .eq("tenant_id", tenantId)
-    .eq("source_uid", uid)
-    .select();
+    .eq("source_uid", uid);
+  if (expected && currentVersion) {
+    // Okuma→yazma yarışını da kapat: belirteç hâlâ aynıysa yaz.
+    updQuery = updQuery.eq("raw_json->>updatedAt", currentVersion);
+  }
+  const { data: updated, error: updErr } = await updQuery.select();
 
   if (updErr) {
     return jsonServerError("protocols.by-uid.PUT.update", updErr);
+  }
+  if (expected && currentVersion && (!updated || updated.length === 0)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        conflict: true,
+        code: "PROTOCOL_STALE",
+        error: "Protokol başka bir cihazda değiştirilmiş. Güncel hâlini yükleyip tekrar deneyin.",
+      },
+      { status: 409 },
+    );
   }
 
   // Hiç satır güncellenmediyse (bu cihazda oluşturulmuş ama server'a hiç gitmemiş

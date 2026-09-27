@@ -54,7 +54,7 @@ export type OrganAtlasStatus = {
   color: OrganColorStyle;
 };
 
-/** localStorage — yasam-refleksoloji-protokoller-v1 */
+/** Yerel kopya — kullanıcı kapsamlı `refleks:v2:{tenant}:{user}:protocols` (eski: yasam-refleksoloji-protokoller-v1) */
 export type SavedProtocol = {
   id: string;
   title: string;
@@ -63,6 +63,13 @@ export type SavedProtocol = {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  /** FA-42: sunucuya kaydı ONAYLANMAMIŞ yerel kopya (hata/çevrimdışı) — yalnız yerelde. */
+  pendingSync?: boolean;
+  /**
+   * FA-42: bu kopyanın dayandığı SUNUCU sürümü (`raw_json.updatedAt`). by-uid PUT
+   * `expected_updated_at` olarak gönderilir → başka cihazdaki düzenleme ezilmez.
+   */
+  baseVersion?: string;
 };
 
 export type ProtocolFormDraft = {

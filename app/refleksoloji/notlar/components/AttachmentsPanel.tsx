@@ -38,7 +38,7 @@ export function AttachmentsPanel({
 
       {attachments.length === 0 ? (
         <p className="mt-4 text-base font-medium text-slate-500">
-          Henüz ek dosya yok. Dosya Ekle ile belge veya görsel ekleyebilirsiniz.
+          Henüz ek dosya yok. Dosya Ekle ile görsel veya PDF ekleyebilirsiniz (en fazla 4 MB).
         </p>
       ) : (
         <ul className="mt-4 space-y-2">

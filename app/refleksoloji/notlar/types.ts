@@ -22,6 +22,13 @@ export type SavedClinicalNote = {
    * böylece bir sonraki PUT eş-zamanlı düzenlemede doğru sürümle CAS yapar.
    */
   baseUpdatedAt?: string;
+  /**
+   * FA-03: yerelde değişmiş, sunucu onayı henüz alınmamış not. Yalnız kirli notlar
+   * sunucuya gönderilir (tüm liste değil). Yalnız yerel depoda yaşar; sunucuya gitmez.
+   */
+  dirty?: boolean;
+  /** FA-03: sunucu bu notu reddetti (ör. geçersiz ek) — kullanıcı düzenleyene dek yeniden gönderilmez. */
+  syncRejected?: string;
 };
 
 export type ClinicalNoteFormDraft = {

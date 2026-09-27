@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createHash } from "crypto";
-import { getServerDb } from "@/lib/supabase-server";
 import { extractLocationFromHeaders } from "@/lib/auth/sessionSecurity";
-import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -13,7 +12,9 @@ export const runtime = "nodejs";
  * normal expert kullanıcı bu endpoint'i çağırmaz ve etkilenmez.
  *
  * Akış:
- *   - body.userId → users.is_demo_account doğrulanır (DB'den, spoof edilemez).
+ *   - FAZ1 FINAL HARDENING (AUTH): kimlik YALNIZ header'dan (verifyUserRequest:
+ *     x-user-id + x-session-token binding); body.userId OKUNMAZ. is_demo_account
+ *     doğrulanmış users satırından gelir (spoof edilemez).
  *   - Demo değilse: { allowed: true, demo: false } (kısıt yok).
  *   - Demo ise: IP hash'lenir (ham IP saklanmaz), demo_numerology_ip_usage'da
  *     daha önce kullanılmış mı bakılır:
@@ -42,24 +43,13 @@ function hashIp(ip: string, pepper: string): string {
   return createHash("sha256").update(`${pepper}:${ip}`).digest("hex");
 }
 
-export async function POST(request: Request) {
-  let userId = "";
-  try {
-    const body = (await request.json()) as { userId?: unknown };
-    userId = String(body?.userId ?? "").trim();
-  } catch {
-    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
-  }
-
-  let db;
-  try {
-    db = getServerDb();
-  } catch {
-    return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
-  }
+export async function POST(request: NextRequest) {
+  const guard = await verifyUserRequest(request);
+  if (!guard.ok) return guard.response;
+  const db = guard.db;
 
   // Kısıt yalnızca demo hesaba uygulanır. Demo değilse serbest.
-  if (!(await isDemoAccountId(userId, db))) {
+  if (!guard.is_demo_account) {
     return NextResponse.json({ allowed: true, demo: false });
   }
 
