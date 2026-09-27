@@ -399,6 +399,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("tenants", "system", "Tenant kaydı.", "none"),
   off("user_sessions", "system", "Oturum kayıtları.", "none"),
   off("auth_login_throttle", "system", "Giriş deneme sınırlaması (güvenlik).", "none"),
+  off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),
   off("security_events", "system", "Güvenlik olay günlüğü.", "none"),
   off("user_payment_history", "system", "Ödeme geçmişi (yönetici kaydı).", "none"),
   off("admin_audit_log", "system", "Yönetici denetim günlüğü.", "none"),
