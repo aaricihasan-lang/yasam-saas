@@ -51,7 +51,6 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { checkBeslenmeFoodAccess } from "@/lib/beslenme/beslenmeClient";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -394,12 +393,12 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/dogal-destek",
-    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA dar
-    // manuel-besin bayrağı yeterli. Beslenme + Besinlerim girişleri artık bu hub altında; ana
-    // dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. `clients` TEK BAŞINA bu hub'ı AÇMAZ.
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) yeterli.
+    // Beslenme girişi bu hub altındadır; ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK.
+    // `clients` ve (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ.
     // permissionKey yalnız tip placeholder'ı; gerçek karar anyPermissionKeys üzerinden.
     permissionKey: "sifa_rehberi",
-    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "beslenme_manual_food"],
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
     emoji: "🌿",
     Icon: Leaf,
     theme: {
@@ -723,15 +722,9 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
-  // NOT: Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards).
-  // Ana dashboard'da bağımsız Beslenme kartı YOK → beslenmeAccess state/probe'u burada tutulmaz;
-  // hub bileşeni checkBeslenmeAccess/checkBeslenmeFoodAccess'i kendi içinde reuse eder.
-  // Manuel besin KATKI (dar bayrak) probe'u yalnız expertModulesEmpty hesabı için tutulur
-  // (manual-only uzman "boş modül" sayılmaz). Bayrak client user objesinden
-  // STRIP edilir (bilinmeyen key) → asla localStorage'dan okunmaz; yalnız server probe
-  // (/api/beslenme/foods/access) belirler. 'expert' → "Besinlerim" kartı; tam Beslenme
-  // erişimi olan zaten Beslenme kartını görür. Default null → fail-closed.
-  const [foodContributor, setFoodContributor] = useState<"owner" | "expert" | null>(null);
+  // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
+  // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
+  // ana dashboard'da beslenme/food probe state'i tutulmaz.
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
@@ -781,21 +774,6 @@ export default function Home() {
     event.stopPropagation();
     loginBackdropPressed.current = false;
   };
-
-  // Manuel besin KATKI probe'u (expertModulesEmpty için): owner + dar bayraklı UZMAN için de
-  // çalışır (admin-only DEĞİL).
-  // Server probe yetki/onay/bayrağı birlikte doğrular (fail-closed). Girişsiz → null.
-  // setState yalnız async callback'te (effect gövdesinde senkron setState yok).
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const auth = user ? await checkBeslenmeFoodAccess() : null;
-      if (alive) setFoodContributor(auth);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [user]);
 
   useEffect(() => {
     const stored = readYasamUser();
@@ -1325,9 +1303,7 @@ export default function Home() {
     const expertModulesEmpty =
       !isAdminUser(user) &&
       !membershipExpired &&
-      !expertHasAnyGrantedModule(user) &&
-      // Dar besin-katkı bayrağı tek başına "Besinlerim" kartını gösterir → boş sayma.
-      foodContributor !== "expert";
+      !expertHasAnyGrantedModule(user);
 
     async function handleAdminNav() {
       if (adminNavLoading) return;
@@ -1701,10 +1677,9 @@ export default function Home() {
                     );
                   })}
 
-                  {/* Beslenme + Besinlerim girişleri "Doğal Destek & Rehber" hub'ına taşındı
-                      (app/dogal-destek/DogalDestekCards.tsx) → ana dashboard'da bağımsız
-                      Beslenme/Besinlerim kartı YOK. Server food-probe'ları (checkBeslenmeAccess/
-                      checkBeslenmeFoodAccess) o hub bileşeninde reuse edilir. */}
+                  {/* Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı
+                      (app/dogal-destek/DogalDestekCards.tsx; kendi checkBeslenmeAccess probe'u) →
+                      ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. */}
 
                   {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
                   <Link href="/settings" className="block text-inherit no-underline">

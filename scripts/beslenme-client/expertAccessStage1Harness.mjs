@@ -30,9 +30,10 @@ ok("clientRouteGuard artık requireBeslenmeOwner çağırmıyor/import etmiyor",
 ok("clientRouteGuard hâlâ requireClientInTenant ile tenant-ownership doğruluyor", /requireClientInTenant\(/.test(guard));
 ok("clientRouteGuard tenant/client kimliği body'den değil (guard.tenantId + path clientId)", /guard\.tenantId/.test(guard) && !/body\.(tenant|client)/.test(guard));
 
-// 2) Geniş /api/beslenme/reference DEĞİŞMEDİ ve uzmanlara açılmadı.
+// 2) Geniş /api/beslenme/reference tam Beslenme (requireBeslenmeModule) ile korunuyor; clients-only açılmadı.
 const ref = read("app/api/beslenme/reference/route.ts");
-ok("geniş /reference hâlâ requireBeslenmeFoodContributor ile korunuyor", /requireBeslenmeFoodContributor\(/.test(ref));
+ok("geniş /reference requireBeslenmeModule (tam Beslenme; contributor kapısı kaldırıldı)",
+   /requireBeslenmeModule\(/.test(ref) && !/requireBeslenmeFoodContributor\(/.test(ref));
 ok("geniş /reference \"clients\" yetkisine açılmadı", !/requireModuleAccess\(\s*req\s*,\s*["']clients["']\s*\)/.test(ref));
 ok("geniş /reference hâlâ foodGroups + frameworks döndürüyor", /foodGroups/.test(ref) && /frameworks/.test(ref));
 
@@ -70,9 +71,12 @@ ok("plans/[id]/route.ts requireBeslenmePlanAccess (owner|bound-expert)", /requir
 const clientPlans = read("app/api/beslenme/clients/[clientId]/plans/route.ts");
 ok("clients/[clientId]/plans requireBeslenmeClient (client-scoped read)", /requireBeslenmeClient\(/.test(clientPlans));
 
-// 7) Food route'ları FAZ 1'de policy değişmedi.
+// 7) Food route'ları: READ (requireBeslenmeFoodRead: clients|beslenme) vs WRITE (requireBeslenmeModule).
 const foods = read("app/api/beslenme/foods/route.ts");
-ok("foods route hâlâ requireBeslenmeFoodContributor (read/write split YOK)", /requireBeslenmeFoodContributor\(/.test(foods));
+ok("foods GET requireBeslenmeFoodRead + POST requireBeslenmeModule (contributor kapısı kaldırıldı)",
+   /export async function GET[\s\S]{0,120}requireBeslenmeFoodRead\(/.test(foods) &&
+   /export async function POST[\s\S]{0,120}requireBeslenmeModule\(/.test(foods) &&
+   !/requireBeslenmeFoodContributor/.test(foods));
 
 // 8) 7 danışan-scoped route requireBeslenmeClient kullanıyor + yazmalarda demo-deny.
 const clientRoutes = [

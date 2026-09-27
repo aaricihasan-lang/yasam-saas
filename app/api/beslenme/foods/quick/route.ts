@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBeslenmeFoodContributor, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUnitAllowedForCategory, hasOnlyKeys, FOOD_COLUMNS } from "@/lib/beslenme/contracts";
 import { loadNutrientDict, loadUnitDict } from "@/lib/beslenme/foodEngine";
 import { buildQuickAddFood, QUICK_ADD_KEYS } from "@/lib/beslenme/quickAddFood";
@@ -14,7 +14,7 @@ export const runtime = "nodejs";
  *   Kısmi başarı önlemi: çocuk insert'i başarısızsa, bu istekte oluşturulan food geri alınır (telafi).
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const guard = await requireBeslenmeFoodContributor(req);
+  const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
