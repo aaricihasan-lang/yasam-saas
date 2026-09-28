@@ -167,7 +167,8 @@ export function evaluateRouteModuleGuard(
   // kullanıcı localStorage'da her zaman önbelleklidir → gerçek kullanıcı için
   // regresyon/flaş yok. Ücretli modülün istemci-taraflı çekirdeği (hesap + PNG)
   // artık oturumsuz açılamaz (menü gizleme değil, gerçek erişim reddi).
-  if (!user) return rule ? "deny" : "skip";
+  // Admin-only path (ör. /ders-notu) modül kuralı olmasa da oturumsuz kullanıcıya kapalıdır.
+  if (!user) return rule || isAdminOnlyRoutePath(path) ? "deny" : "skip";
 
   if (isAdminUser(user)) return "allow";
 
