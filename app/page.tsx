@@ -1843,7 +1843,7 @@ export default function Home() {
             {/* Sol bilgi kartları */}
             <div className="pointer-events-none hidden flex-col gap-2.5 lg:flex" aria-hidden>
               {[
-                { label: t("hero.cardModules"), icon: "🧩", sub: t("hero.cardSinglePanel") },
+                { label: t("hero.cardModules"), icon: "🧩", sub: t("hero.cardModulesSub") },
                 { label: t("hero.cardSinglePanel"), icon: "🖥️", sub: t("hero.cardSinglePanelSub") },
                 { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
                 { label: t("hero.cardMobile"), icon: "📱", sub: t("hero.cardMobileSub") },
