@@ -5,6 +5,7 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { isAdminUser, type YasamUser } from "@/lib/auth/yasamUser";
+import { DIGITAL_CONTENT_HUB_KEYS, ENERGY_BODY_HUB_KEYS } from "@/lib/auth/hubVisibility";
 
 export type RouteModuleGuardDecision =
   | "skip"
@@ -52,16 +53,17 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   // bypass yok). API tarafı zaten requireModuleAccess(req,"cupping") ile korunur.
   { prefix: "/kupa", keys: ["cupping", "kupa"] },
   {
-    // Enerji & Beden artık yalnız Biyoenerji + Refleksoloji + Kupa ailesini temsil eder.
-    // Aromaterapi Doğal Destek & Rehber'e taşındı → aromatherapy/aromaterapi kaldırıldı.
-    // NOT: /kupa AYRI bir kural olarak yukarıda ele alınır (cupping/kupa); buraya dahil DEĞİL.
+    // Enerji & Beden hub'ı = Biyoenerji + Refleksoloji + Kupa ailesi (lib/auth/hubVisibility tek
+    // kaynak). Alt modüllerden HERHANGİ birine izni olan uzman hub'a girer ve yalnız izinli alt
+    // kartları görür. /kupa'nın kendi kuralı ayrıca yukarıdadır (cupping/kupa).
     prefix: "/enerji-beden",
-    keys: [
-      "energy_body",
-      "biyoenerji",
-      "reflexology",
-      "refleksoloji",
-    ],
+    keys: [...ENERGY_BODY_HUB_KEYS],
+  },
+  {
+    // Dijital İçerik Merkezi hub'ı: uzmana AÇIK alt modüllerden (Kişisel Arşiv / Belge Çeviri)
+    // en az biri yoksa direct-URL ile de açılmaz. Video/Ders Notu admin-only → anahtar DEĞİL.
+    prefix: "/digital-content",
+    keys: [...DIGITAL_CONTENT_HUB_KEYS],
   },
   {
     // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) olan uzman

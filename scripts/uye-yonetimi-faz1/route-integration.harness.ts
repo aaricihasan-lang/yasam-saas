@@ -497,6 +497,37 @@ async function main(): Promise<void> {
     ok(JSON.stringify(await row(H1)) === beforePkg, "package çağrıları hiçbir alanı değiştirmedi");
     ok((await call(packageRoute.POST as unknown as Handler, "POST", OWNER, asAdmin2, { packagePlan: "trial" })).status === 410 && (await row(OWNER)).package_type === null, "normal admin başka admin paketini değiştiremez");
 
+    // ── J. DİJİTAL İÇERİK HUB — SUNUCU KAPISI (UI gizleme yetkinin YERİNE GEÇMEZ) ──
+    console.log("\n[J] Dijital İçerik alt modülleri — sunucu kapısı + admin toggle");
+    const modStatus = async (userId: string, tok: string, key: Parameters<typeof requireModuleAccess>[1]) => {
+      const r = await requireModuleAccess(new NextRequest("http://localhost/api/x", { headers: { "x-user-id": userId, "x-session-token": tok } }), key);
+      return r.ok ? 200 : r.response.status;
+    };
+    const J1 = await makeUser({ label: "DC_ARCHIVE_ONLY", approval: "approved", active: true, pkg: "premium", plan: "premium",
+      perms: { personal_archive: true, belge_ceviri: false, video_ceviri: true, ders_notu: true } });
+    const jTok = await newSession(J1);
+    ok(await modStatus(J1, jTok, "personal_archive") === 200, "yalnız Kişisel Arşiv: personal_archive → 200");
+    ok(await modStatus(J1, jTok, "digital_content") === 200, "yalnız Kişisel Arşiv: hub (digital_content) → 200");
+    ok(await modStatus(J1, jTok, "belge_ceviri") === 403, "kapalı Belge Çeviri → 403 (direct API)");
+    ok(await modStatus(J1, jTok, "video_ceviri") === 403 && await modStatus(J1, jTok, "ders_notu") === 403,
+      "video_ceviri/ders_notu bayrağı true olsa da uzmana 403 (admin-only)");
+    ok(await modStatus(J1, jTok, "belge_ceviri_ai") === 403, "belge AI uçları (belge_ceviri_ai) uzmana 403");
+    const jOn = await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { belge_ceviri: true } });
+    ok(jOn.status === 200 && await modStatus(J1, jTok, "belge_ceviri") === 200, "Belge Çeviri açıldı → aynı oturumda 200");
+    const jOff = await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { belge_ceviri: false } });
+    ok(jOff.status === 200 && await modStatus(J1, jTok, "belge_ceviri") === 403, "Belge Çeviri kapatıldı → hemen 403");
+    for (const k of ["video_ceviri", "ders_notu"]) {
+      const r = await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { [k]: true } });
+      ok(r.status === 400, `admin-only ${k} uzmana toggle ile verilemez → 400`);
+    }
+    await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { personal_archive: false } });
+    ok(await modStatus(J1, jTok, "digital_content") === 403 && await modStatus(J1, jTok, "personal_archive") === 403,
+      "hiç uzman alt modülü yok → hub (digital_content) 403");
+    const JA = await makeUser({ label: "DC_ADMIN", role: "admin", approval: "approved", active: true, pkg: "premium", plan: "premium" });
+    const jaTok = await newSession(JA);
+    ok(await modStatus(JA, jaTok, "video_ceviri") === 200 && await modStatus(JA, jaTok, "ders_notu") === 200,
+      "admin: video_ceviri + ders_notu erişimi korunur");
+
     // ── I. AUDIT GÜVENLİĞİ ────────────────────────────────────────────────────
     console.log("\n[I] Audit");
     const allAudit = JSON.stringify((await su.query(`select * from public.admin_audit_log`)).rows);
