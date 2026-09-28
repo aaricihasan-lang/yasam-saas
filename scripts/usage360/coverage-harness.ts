@@ -32,7 +32,7 @@ import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../../lib/auth/
 const ROOT = process.cwd();
 const MANIFEST_DIR = path.join(ROOT, "scripts/usage360/route-events");
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-const REPORT_GET_RE = /(word|pdf|report|export|download)/i;
+const REPORT_GET_RE = /(word|pdf|report|export|download|blank-form)/i;
 
 type EventSpec = { action: string; subEntity?: string | null; subEntities?: string[] };
 type HandlerSpec = {

@@ -7,7 +7,7 @@
  * rate-limit + resourceConfig parity davranışsal olarak doğrulanır. Canlı DB'ye
  * DOKUNMAZ (revoke testi apply sonrasına aittir).
  */
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { getBioResource, pickWritableBioFields } from "../lib/biyoenerji/resourceConfig";
@@ -74,14 +74,11 @@ console.log("\n═══ 2. Admin import endpoint (write → service_role) ═�
   assert(!s.includes('"sessions"'), "sessions admin-import edilemez (yeni yetenek eklenmez)");
 }
 
-console.log("\n═══ 3. Admin workspace sessions read endpoint ═══");
+console.log("\n═══ 3. Admin workspace sessions read endpoint KALDIRILDI ═══");
 {
-  const s = read("app/api/admin/biyoenerji/sessions/route.ts");
-  assert(s.includes("verifyAdminRequest"), "verifyAdminRequest ile korunur");
-  assert(s.includes("bioenergy_sessions"), "yalnız bioenergy_sessions okur");
-  assert(/UUID_RE\.test\(tenantId\)/.test(s), "tenantId uuid doğrulanır");
-  assert(/\.eq\("tenant_id", tenantId\)/.test(s), "tenant scope .eq ile bağlanır");
-  assert(!s.includes("${error.message}"), "ham DB error.message DÖNMEZ");
+  // Usage360 2C gizlilik denetimi: bu uç (kaldırılan workspace görüntüleyicisinin artığı) herhangi
+  // bir tenant'ın bioenergy_sessions içeriğini döndürüyordu; çağıranı yoktu → kaldırıldı.
+  assert(!existsSync(join(ROOT, "app/api/admin/biyoenerji/sessions/route.ts")), "admin bioenergy_sessions içerik okuma ucu YOK (uzman içeriği yönetimde görüntülenmez)");
 }
 
 console.log("\n═══ 4. Toplu-veri: browser publishable insert KALDIRILDI ═══");

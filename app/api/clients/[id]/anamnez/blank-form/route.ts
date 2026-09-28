@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { buildBlankAnamnesisPdf } from "@/lib/danisan/anamnez/blankFormPdf";
 import { CURRENT_TEMPLATE_VERSION, isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
@@ -81,9 +82,11 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
   try {
     bytes = buildBlankAnamnesisPdf({ locale, version, formCustom, clientName: name, fontBase64: fontBase64() });
   } catch (cause) {
-    return serverErrorResponse({ route: "anamnez/blank-form", action: "build", tenantId, cause });
+    return serverErrorResponse({ route: "anamnez/blank-form", action: "build", tenantId, cause, usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "anamnesis" } });
   }
 
+  // USAGE360: form PDF'i başarıyla üretildi; danışan adı / form içeriği telemetriye GİRMEZ.
+  await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "anamnesis", resourceId: `${clientId}:blank-form:${aid ?? "-"}` });
   const base = locale === "en" ? "intake-form" : "anamnez-formu";
   const file = `${base}${name ? `-${asciiSlug(name)}` : ""}.pdf`;
   return new Response(Buffer.from(bytes), {

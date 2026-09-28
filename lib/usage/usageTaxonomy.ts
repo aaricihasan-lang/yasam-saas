@@ -106,7 +106,7 @@ export function toItemCountBucket(n: number): ItemCountBucket | null {
  * uzman işlem olayı üretmez → listeleri boştur.
  */
 export const USAGE_SUB_ENTITIES: Record<ModuleGateKey, readonly string[]> = {
-  clients: ["client", "analysis", "session", "homework", "stone", "charge", "combination", "consent", "appointment", "note", "photo"],
+  clients: ["client", "analysis", "session", "homework", "stone", "charge", "combination", "consent", "appointment", "note", "photo", "anamnesis"],
   appointments: ["appointment"],
   numerology: ["analysis", "knowledge", "source", "source_entry", "source_link", "stone"],
   stones: ["stone", "mineral", "combination", "knowledge", "category", "inventory", "exclusion", "photo"],

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   ANAMNEZ_BUCKET,
   ANAMNEZ_MAX_ATTACHMENTS,
@@ -104,9 +105,11 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
     if (insErr.code === "23505") return anamnezJson({ ok: true, duplicate: true });
     const { error: rmErr } = await bucket.remove([path]);
     if (rmErr) logServerError({ route: "anamnez/attachments/finalize", action: "insert-fail-remove", tenantId, cause: rmErr });
-    return serverErrorResponse({ route: "anamnez/attachments/finalize", action: "insert", tenantId, cause: insErr });
+    return serverErrorResponse({ route: "anamnez/attachments/finalize", action: "insert", tenantId, cause: insErr, usage: { guard, req, module: "clients", failedAction: "file_uploaded", subEntity: "anamnesis" } });
   }
 
   logAnamnezEvent("attachment_added", { tenant: tenantId, user: userId, client: clientId, anamnesis: row.id, bytes: bytes.length });
+  // USAGE360: yükleme tamamlandı (finalize); dosya adı/boyutu/yolu GİRMEZ.
+  await trackUsage(guard, req, { module: "clients", action: "file_uploaded", subEntity: "anamnesis", resourceId: String((inserted as { id?: unknown } | null)?.id ?? path) });
   return anamnezJson({ ok: true, attachment: inserted }, 201);
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import {
   ANAMNEZ_BUCKET,
@@ -95,8 +96,9 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
     .eq("tenant_id", guard.tenantId)
     .eq("client_id", clientId)
     .eq("id", att.id);
-  if (error) return serverErrorResponse({ route: "anamnez/attachments/[id]", action: "DELETE", tenantId: guard.tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "anamnez/attachments/[id]", action: "DELETE", tenantId: guard.tenantId, cause: error, usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "anamnesis" } });
 
   logAnamnezEvent("attachment_deleted", { tenant: guard.tenantId, user: guard.userId, client: clientId, anamnesis: anamnesisId });
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "anamnesis", resourceId: att.id });
   return anamnezJson({ ok: true });
 }

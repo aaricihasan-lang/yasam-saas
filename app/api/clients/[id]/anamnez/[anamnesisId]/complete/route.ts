@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   anamnezError,
   anamnezJson,
@@ -72,11 +73,13 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
     .select("id, revision, completed_at");
   if (upErr) {
     if (upErr.code === "23514") return anamnezError("LOCKED", 409);
-    return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]/complete", action: "update", tenantId, cause: upErr });
+    return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]/complete", action: "update", tenantId, cause: upErr, usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "anamnesis" } });
   }
   const saved = ((data ?? []) as Array<{ id: string; revision: number; completed_at: string }>)[0];
   if (!saved) return anamnezError("CONFLICT", 409);
 
   logAnamnezEvent("completed", { tenant: tenantId, user: userId, client: clientId, anamnesis: row.id });
+  // USAGE360: tamamlama = mevcut anamnezin güncellenmesi (durum taslak → tamamlandı).
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "anamnesis", resourceId: `${row.id}:complete` });
   return anamnezJson({ ok: true, revision: saved.revision, completed_at: saved.completed_at });
 }

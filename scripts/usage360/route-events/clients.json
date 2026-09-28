@@ -355,6 +355,99 @@
       ],
       "failure": "server",
       "note": "toplu rapor tek olay + itemCount (danışan sayısı)"
+    },
+    {
+      "route": "clients/[id]/anamnez",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "PR #312 anamnez; yalnız işlem türü, içerik GİRMEZ; DRAFT_EXISTS 409 / idempotent → olay yok"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "taslak otomatik kayıt: resourceId=anamnez id → 60 sn kova"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "anamnez + ekleri tek olay"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]/complete",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "taslak → tamamlandı"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]/attachments/prepare",
+      "method": "POST",
+      "exempt": "yükleme hazırlığı (imzalı yükleme URL/token); tamamlanma finalize'da sayılır"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]/attachments/finalize",
+      "method": "POST",
+      "events": [
+        {
+          "action": "file_uploaded",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "yinelenen (23505) → olay yok; dosya adı/boyutu GİRMEZ"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]/attachments/[attachmentId]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/anamnez/[anamnesisId]/attachments/cleanup",
+      "method": "POST",
+      "exempt": "bakım: yetim (kayda bağlanmamış) yükleme temizliği; kullanıcı kaydı silinmez"
+    },
+    {
+      "route": "clients/[id]/anamnez/blank-form",
+      "method": "GET",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "boş/önceden doldurulmuş anamnez formu PDF üretimi"
     }
   ]
 }

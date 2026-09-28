@@ -137,3 +137,114 @@ export type StorageGrowthData = {
   range: { from: string | null; to: string | null };
   note: string;
 };
+
+// ─── USAGE360 2C — Admin 360 (yalnız teknik kullanım sayıları; içerik YOK) ─────
+
+export type Usage360Coverage = "none" | "partial" | "full";
+
+export type Usage360ExpertRow = {
+  userId: string;
+  fullName: string;
+  email: string;
+  active: boolean | null;
+  approvalStatus: string;
+  isDemo: boolean;
+  isArchived: boolean;
+  accountCreatedAt: string | null;
+  lastLoginAt: string | null;
+  /** Son teknik temas (ikincil; insan etkileşimi değil). */
+  lastSeenAt: string | null;
+  /** Usage360 son gerçek etkileşim/işlem; ölçüm yoksa null. */
+  lastActivityAt: string | null;
+  today: { visits: number; activeSeconds: number; modules: number; actions: number };
+  d7ActiveDays: number;
+  d30ActiveDays: number;
+  channelVisits30d: Record<string, number>;
+  accessibleModuleCount: number;
+};
+
+export type Usage360ExpertsData = {
+  rows: Usage360ExpertRow[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  today: string;
+  measurementStart: string | null;
+  sort: string;
+  status: string;
+  includeDemo: boolean;
+};
+
+export type Usage360Counts = {
+  visits: number; activeSeconds: number; moduleOpens: number; actions: number;
+  creates: number; updates: number; deletes: number; analyses: number;
+  reportsGenerated: number; reportsExported: number; uploads: number; aiTasks: number; failures: number;
+};
+
+export type Usage360DailyRow = Usage360Counts & { day: string; modulesUsed: number; firstAt: string | null; lastAt: string | null };
+
+export type Usage360ModuleStatus = "actioned" | "opened_only" | "never_opened" | "not_measured";
+
+export type Usage360ModuleRow = Omit<Usage360Counts, "visits"> & {
+  module: string;
+  label: string;
+  allowed: boolean;
+  status: Usage360ModuleStatus;
+  firstAt: string | null;
+  lastAt: string | null;
+  firstEverAt: string | null;
+  lastEverAt: string | null;
+  activeDays: number;
+  lastActionAt: string | null;
+};
+
+export type Usage360ChannelRow = { channel: string; visits: number; activeSeconds: number; moduleOpens: number; actions: number; lastAt: string | null };
+export type Usage360DeviceRow = { channel: string; osFamily: string; browserFamily: string; appVersion: string | null; visits: number; lastAt: string | null };
+export type Usage360LocationRow = { country: string | null; city: string | null; visits: number; lastAt: string | null };
+export type Usage360HeatCell = { dow: number; hour: number; days: number };
+export type Usage360FailureRow = { module: string; label: string; errorClass: string; count: number; lastAt: string | null };
+
+export type Usage360DetailData = {
+  userId: string;
+  from: string;
+  to: string;
+  today: string;
+  measurementStart: string | null;
+  coverage: Usage360Coverage;
+  account: {
+    active: boolean;
+    approvalStatus: string | null;
+    createdAt: string | null;
+    approvedAt: string | null;
+    lastLoginAt: string | null;
+    lastActivityAt: string | null;
+    activeAuthSessions: number | null;
+    allowedModules: { key: string; label: string }[];
+  };
+  totals: Usage360Counts & { firstAt: string | null; lastAt: string | null; activeUsageDays: number; actionDays: number };
+  modulesUsed: number;
+  modulesWithActions: number;
+  daily: Usage360DailyRow[];
+  modules: Usage360ModuleRow[];
+  channels: Usage360ChannelRow[];
+  devices: Usage360DeviceRow[];
+  locations: Usage360LocationRow[];
+  heatmap: Usage360HeatCell[];
+  failures: Usage360FailureRow[];
+};
+
+export type Usage360TimelineRow = {
+  at: string;
+  module: string;
+  label: string;
+  action: string;
+  subEntity: string | null;
+  failedAction: string | null;
+  errorClass: string | null;
+  channel: string | null;
+  source: string | null;
+  itemBucket: string | null;
+};
+
+export type Usage360TimelineData = { rows: Usage360TimelineRow[]; nextCursor: string | null; from: string; to: string };

@@ -149,7 +149,7 @@ async function readBody(req: http.IncomingMessage): Promise<string> {
 
 export type ShimStats = { requests: number; errors: number; unsupported: string[] };
 
-export async function startPgrestShim(pool: Pool): Promise<{ url: string; close: () => Promise<void>; stats: ShimStats }> {
+export async function startPgrestShim(pool: Pool, port = 0): Promise<{ url: string; close: () => Promise<void>; stats: ShimStats }> {
   const stats: ShimStats = { requests: 0, errors: 0, unsupported: [] };
   const fnArgCache = new Map<string, { args: Map<string, string>; setof: boolean }>();
 
@@ -299,7 +299,7 @@ export async function startPgrestShim(pool: Pool): Promise<{ url: string; close:
     }
   });
 
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", () => resolve()));
   const addr = server.address() as { port: number };
   return { url: `http://127.0.0.1:${addr.port}`, stats, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }
